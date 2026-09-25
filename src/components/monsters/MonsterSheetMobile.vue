@@ -160,7 +160,7 @@
       <!-- Lair location link -->
       <RouterLink
         v-if="lairLocation"
-        :to="`/locations/${lairLocation.id}`"
+        :to="placeRoute(lairLocation.id)"
         class="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-label-lg text-muted-foreground"
       >
         <IconLocation class="size-4 shrink-0 text-primary/70" />
@@ -311,6 +311,7 @@ import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue
 import { IconCopy, IconDelete, IconEdit, IconLocation, IconReveal, IconScrollText } from "@/lib/icons";
 import { useCloneLibraryMonster, useDeleteMonster } from "@/composables/monsters/useMonsters";
 import { useLocationTree } from "@/composables/locations/useLocations";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { useMonsterVisibility } from "@/composables/monsters/useMonsterVisibility";
 import { crBg, crText } from "@/lib/monsterDisplay";
 import type { Monster } from "@/types/monster.types";

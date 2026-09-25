@@ -2,6 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { itemRefColumns } from "@/lib/itemRef";
+import { placeRoute } from "@/lib/locations/placeRoute";
 
 export interface ItemHolder {
   type: "npc" | "party_member" | "shop";
@@ -76,7 +77,7 @@ export function useItemHolders(itemId: MaybeRefOrGetter<string>) {
             id: loc.id,
             name: loc.name,
             quantity: 1,
-            to: `/locations/${loc.id}`,
+            to: placeRoute(loc.id),
           });
         }
       }

@@ -5,8 +5,7 @@ import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import type { PlayerSitePlan, PlayerSitePlanSpace } from "./usePlayerVisibleSiteState";
 
-// Plain top-level `ref()`s, mirroring `LocationSheet.test.ts`'s ui-store mock:
-// the mock factories below only close over these, they don't read `.value`
+// Plain top-level `ref()`s: the mock factories below only close over these, they don't read `.value`
 // until a test actually mounts something, by which point these are assigned.
 const dmPreviewMode = ref(false);
 const dmPreviewPartyMemberId = ref<string | null>(null);

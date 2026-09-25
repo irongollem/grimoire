@@ -13,7 +13,7 @@
       <template v-for="anc in ancestors" :key="anc.id">
         <span class="opacity-40">/</span>
         <RouterLink
-          :to="`/locations/${anc.id}`"
+          :to="placeRoute(anc.id)"
           class="hover:text-foreground transition-colors"
         >
           {{ anc.name }}
@@ -145,7 +145,7 @@
               placeholder="dungeon, tavern, storm…"
             />
             <p class="text-caption text-muted-foreground">
-              Opening this location asks the soundboard for an ambient playlist tagged with this theme — nothing happens if none matches. Blank inherits from the nearest themed ancestor; pick "silence" to mute this place on purpose instead.
+              The ambient scene tagged with this theme plays when you press Play ambience on this place, and on its own while the party is here during a session. If no scene has the tag, nothing plays. Leave it blank to use the nearest themed parent's, or pick "silence" to keep this place quiet.
             </p>
           </div>
         </div>
@@ -233,10 +233,10 @@
       This site's map, rooms and ways out live in Build mode.
       <RouterLink
         v-if="!isNew"
-        :to="`/locations/${props.location!.id}?build=true`"
+        :to="placeRoute(props.location!.id, 'build')"
         class="text-primary hover:underline"
       >Open Build</RouterLink>
-      <template v-else>Save this location, then open Build from its detail page.</template>
+      <template v-else>Save this location, then open Build from the Atlas.</template>
     </div>
     <template v-else>
       <LocationMapEditor
@@ -327,6 +327,7 @@ import type {
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import { isSiteType } from "@/lib/locations/tiers";
+import { placeRoute } from "@/lib/locations/placeRoute";
 
 const props = defineProps<{
   location: Location | null;
@@ -337,10 +338,24 @@ const props = defineProps<{
 const router = useRouter();
 
 const route = useRoute();
+/**
+ * A place has one DM screen now, the Atlas, so Cancel never has a second
+ * page to fall back to. Editing an existing place drops `edit` from the
+ * query and stays exactly where the Atlas already had it selected. Creating
+ * one (this component's `isNew` mount, always at `/locations/new`) has no
+ * place yet to select, so it goes to the parent it was opened from, or the
+ * bare Atlas when there wasn't one.
+ */
 function onCancel() {
+  if (isNew.value) {
+    const parent = route.query.parent;
+    router.push(typeof parent === "string" ? placeRoute(parent) : "/locations");
+    return;
+  }
   const { edit: _edit, ...rest } = route.query;
   router.push({ query: rest });
 }
+
 const isNew = computed(() => !props.location);
 
 // ── All locations (for parent picker + hierarchy panel) ───────────────────────
@@ -620,10 +635,10 @@ async function save() {
       if (contentChanged) aiProvenance.value = markEdited(aiProvenance.value);
 
       await update({ id: props.location.id, update: buildPayload() });
-      router.push(`/locations/${props.location.id}`);
+      router.push(placeRoute(props.location.id));
     } else {
       const created = await create(buildPayload());
-      router.push(`/locations/${created.id}`);
+      router.push(placeRoute(created.id));
     }
   } catch (e: unknown) {
     if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
@@ -646,7 +661,7 @@ async function remove() {
   try {
     const parentId = props.location.parent_id;
     await del(props.location.id);
-    router.push(parentId ? `/locations/${parentId}` : "/locations");
+    router.push(parentId ? placeRoute(parentId) : "/locations");
   } catch {
     // failure is surfaced to the user by the mutation's onError toast
   } finally {

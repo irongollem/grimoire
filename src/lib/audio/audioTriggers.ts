@@ -41,13 +41,14 @@ export interface AudioThemeRequest {
 export type AudioCueTarget = { playlistId: string } | { soundId: string };
 
 /**
- * "The DM fired this beat's cue." Unlike `AudioThemeRequest`, a cue never needs
- * resolving against tags — a beat's attachment already names an exact playlist
- * or sound row, so there is nothing to match, only somewhere to route it.
+ * "The DM fired this cue" — a beat's attachment, or a location's Play
+ * ambience button. Unlike `AudioThemeRequest`, a cue never needs resolving
+ * against tags — it already names an exact playlist or sound row, so there is
+ * nothing to match, only somewhere to route it.
  */
 export interface AudioCueRequest {
   sourceId: string;
-  kind: "beat";
+  kind: AudioTriggerKind;
   /** Human-readable origin, for the "playing because of…" note in the UI. */
   label: string;
   slot: AudioSlot;

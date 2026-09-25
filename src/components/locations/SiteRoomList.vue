@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-1.5">
     <p v-if="!rooms.length" class="text-caption italic text-muted-foreground">
-      No rooms yet — <RouterLink :to="`/locations/${siteId}`" class="underline hover:text-primary">add some from the site's own sheet</RouterLink>.
+      No rooms yet. <RouterLink :to="placeRoute(siteId, 'build')" class="underline hover:text-primary">Add some in Build</RouterLink>.
     </p>
 
     <div
@@ -81,6 +81,7 @@ import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { IconCoins, IconHide, IconShieldCheck } from "@/lib/icons";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
 import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
@@ -169,7 +170,7 @@ const { mutate: setCampaignLocation, isPending: isMoving } = useSetCampaignLocat
 
 function linkTo(room: Location): string | undefined {
   if (room.id === currentRoomId) return undefined;
-  return isReachable(room) ? undefined : `/locations/${room.id}`;
+  return isReachable(room) ? undefined : placeRoute(room.id);
 }
 
 function onRowClick(room: Location): void {

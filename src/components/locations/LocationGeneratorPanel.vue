@@ -167,6 +167,7 @@ import type { LocationType } from "@/types/location.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { placeRoute } from "@/lib/locations/placeRoute";
 
 const TYPE_OPTIONS = Object.entries(LOCATION_TYPE_LABELS) as [LocationType, string][];
 
@@ -287,6 +288,6 @@ async function generateAndCreate() {
 
   completedEntityId.value = location.id;
   ui.locationGeneratorOpen = false;
-  router.push(`/locations/${location.id}`);
+  router.push(placeRoute(location.id));
 }
 </script>

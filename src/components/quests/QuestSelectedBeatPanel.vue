@@ -15,10 +15,10 @@
     <p v-if="staging" class="mt-2 flex min-w-0 flex-wrap items-center gap-1 text-caption">
       <IconDungeon class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       <template v-if="staging.siteId && staging.siteName">
-        <AppButton variant="link" size="inline-caption" :label="staging.siteName" :to="`/locations/${staging.siteId}`" />
+        <AppButton variant="link" size="inline-caption" :label="staging.siteName" :to="placeRoute(staging.siteId)" />
         <span class="text-muted-foreground" aria-hidden="true">›</span>
       </template>
-      <AppButton variant="link" size="inline-caption" :label="staging.name" :to="`/locations/${staging.locationId}`" />
+      <AppButton variant="link" size="inline-caption" :label="staging.name" :to="placeRoute(staging.locationId)" />
     </p>
     <div class="mt-2 flex flex-wrap gap-1.5 text-caption text-muted-foreground">
       <span v-if="presentation?.prepGapCount" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-ink-caution">{{ presentation.prepGapCount }} prep gap{{ presentation.prepGapCount === 1 ? '' : 's' }}</span>
@@ -36,6 +36,7 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconDungeon, IconReveal } from "@/lib/icons";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import type { QuestBeatPresentation, QuestBeatStaging } from "@/lib/quests/presentation";
 import { QUEST_BEAT_KIND_LABELS, type QuestBeat } from "@/types/quest.types";

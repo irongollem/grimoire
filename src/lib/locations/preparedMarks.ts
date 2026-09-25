@@ -22,6 +22,7 @@
 
 import { centroid } from "@/lib/locations/planSvg";
 import { featureDcPhrase } from "@/lib/locations/roomStack";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { cellKey } from "@/types/dungeonMap.types";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
@@ -386,7 +387,7 @@ export function resolvePreparedMarks(input: PreparedMarksInput): PreparedMark[] 
       subtitle: lootSubtitle(loot),
       icon: KIND_FALLBACK_ICON.loot,
       colour: MARK_COLOURS.loot,
-      href: `/locations/${loot.location_id}`,
+      href: placeRoute(loot.location_id),
       fanOffset: 0,
     });
   }

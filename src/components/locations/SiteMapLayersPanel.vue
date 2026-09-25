@@ -208,8 +208,7 @@
  * The Layers panel (#884, decision 4) — where a DM chooses what a site's map
  * is made of. Replaces the one-line "map lives in Build mode" pointer
  * `LocationEditor` shows a site: this is the surface that pointer sends the
- * DM to. Mounted in the map area, Build-only, by `AtlasSiteMapMode` and by
- * `LocationSheet`'s own map section — never in Browse, since every action
+ * DM to. Mounted in the map area, Build-only, by `AtlasSiteMapMode`, never in Browse, since every action
  * here is an edit to the stack itself.
  *
  * Three rows, bottom-up: Picture (`map_url`), Drawing (`map_layer_url`, a

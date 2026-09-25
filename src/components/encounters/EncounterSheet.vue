@@ -91,7 +91,7 @@
       <div v-if="encounterLocation" class="flex items-center gap-2">
         <IconLocation class="h-3.5 w-3.5 text-muted-foreground" />
         <RouterLink
-          :to="`/locations/${encounterLocation.id}`"
+          :to="placeRoute(encounterLocation.id)"
           class="text-body text-muted-foreground hover:text-foreground transition-colors"
         >{{ encounterLocation.name }}</RouterLink>
       </div>
@@ -260,6 +260,7 @@ import { useItems } from "@/composables/items/useItems";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { formatCoinParts } from "@/rules/currency";
 import { DIFFICULTY_COLORS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";

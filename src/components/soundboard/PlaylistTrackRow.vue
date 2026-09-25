@@ -50,15 +50,17 @@
         />
       </span>
 
-      <!-- Hear this layer on its own, while deciding about it. -->
+      <!-- Hear this layer on its own, while deciding about it. A toggle: a
+           long bed can run for minutes, so it must be stoppable from here. -->
       <AppButton
         v-if="layer"
         variant="ghost"
         size="inline-xs"
         class="shrink-0"
-        :icon="IconPlay"
+        :icon="previewing ? IconStop : IconPlay"
         icon-size="xs"
-        tooltip="Fire once, to hear it"
+        :tooltip="previewing ? 'Stop listening' : 'Play once, to hear it'"
+        :active="previewing"
         @click="$emit('preview')"
       />
 
@@ -186,16 +188,18 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { IconDrag, IconClose, IconRepeat, IconPlay, IconDice, IconChevronRight } from "@/lib/icons";
+import { IconDrag, IconClose, IconRepeat, IconPlay, IconStop, IconDice, IconChevronRight } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import type { Sound, PlaylistTrackLayer } from "@/types/sound.types";
 
-const { sound, layer = null } = defineProps<{
+const { sound, layer = null, previewing = false } = defineProps<{
   sound: Sound;
   /** Null for music playlists, which have no layer concept. */
   layer?: PlaylistTrackLayer | null;
+  /** This layer is sounding right now, so the preview button stops it. */
+  previewing?: boolean;
 }>();
 
 const emit = defineEmits<{

@@ -13,7 +13,7 @@
       <RouterLink
         v-for="row in rows"
         :key="row.locationId"
-        :to="`/locations/${row.locationId}`"
+        :to="placeRoute(row.locationId)"
         class="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30"
       >
         <p
@@ -59,6 +59,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useStoreStockCounts } from "@/composables/items/useStoreItems";
 import { buildStoreRestockRows, storeLocations } from "@/lib/dashboard/storeRestock";
+import { placeRoute } from "@/lib/locations/placeRoute";
 
 const { data: locations, isLoading: locationsLoading } = useAllLocations();
 

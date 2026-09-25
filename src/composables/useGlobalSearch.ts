@@ -2,6 +2,7 @@ import { computed, type Ref } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { placeRoute } from "@/lib/locations/placeRoute";
 
 export interface SearchHit {
   id: string;
@@ -112,7 +113,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
       items: ((locationsRes.data ?? []) as { id: string; name: string }[]).map((r) => ({
         id: r.id,
         name: r.name,
-        route: `/locations/${r.id}`,
+        route: placeRoute(r.id),
       })),
     },
     {

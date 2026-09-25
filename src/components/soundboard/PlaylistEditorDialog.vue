@@ -31,7 +31,7 @@
            schema vocabulary. What remains is the explanation. -->
       <p class="text-caption text-muted-foreground italic">
         <template v-if="localType === 'music'">Tracks play one after another. Auto-advances when a track ends.</template>
-        <template v-else>All layers play at once — beds loop underneath while random layers fire on their own schedules.</template>
+        <template v-else>All layers play at once: beds loop underneath while random layers fire on their own schedules.</template>
       </p>
 
       <!-- Music-only options -->
@@ -61,13 +61,13 @@
         <p class="text-caption text-muted-foreground italic">
           <template v-if="localType === 'music'">
             Encounters request music by theme. Tag this "battle" and any combat with that
-            theme can start it — and if you tag three playlists the same, each fight picks
-            between them, so your players stop recognising the goblin song.
+            theme can start it. Tag three playlists the same and each fight picks between
+            them, so your players stop recognising the goblin song.
           </template>
           <template v-else>
-            Locations request ambience by theme. Tag this "tavern" and walking into a
-            tavern-themed location starts it — tag three scenes the same and it picks between
-            them. A theme that matches nothing leaves your audio exactly where it is.
+            Locations request ambience by theme. Tag this "tavern" and a tavern-themed
+            location plays it while the party is there in a session, or when you press Play
+            ambience on its page. Tag three scenes the same and it picks between them.
           </template>
         </p>
       </div>
@@ -82,7 +82,7 @@
         </div>
 
         <div v-if="trackList.length === 0" class="py-4 text-center text-caption text-muted-foreground italic">
-          No {{ noun.entriesLabel.toLowerCase() }} yet — add sounds below.
+          No {{ noun.entriesLabel.toLowerCase() }} yet. Add sounds below.
         </div>
 
         <VueDraggable
@@ -100,7 +100,8 @@
             :layer="localType === 'ambient' ? item.layer : null"
             @update:layer="Object.assign(item.layer, $event)"
             @remove="removeTrack(item.localId)"
-            @preview="previewLayer(item.sound)"
+            :previewing="store.playbackStates[item.sound.id]?.isPlaying === true"
+            @preview="togglePreview(item.sound)"
           />
         </VueDraggable>
       </div>
@@ -121,7 +122,7 @@
       <!-- The answer to "why did my rain not start" belongs in the room,
            not in a code comment. -->
       <p v-if="localType === 'ambient'" class="me-auto text-caption text-muted-foreground text-pretty">
-        A sound already claimed by another running scene is skipped — one element per sound,
+        A sound already claimed by another running scene is skipped: one element per sound,
         so nothing plays over itself.
       </p>
       <AppButton variant="subtle" size="md" label="Cancel" @click="$emit('close')" />
@@ -141,7 +142,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import { PLAYLIST_NOUNS } from "@/lib/audio/playlistPeers";
 import { useSounds } from "@/composables/soundboard/useSounds";
@@ -280,15 +281,34 @@ function removeTrack(localId: string) {
 }
 
 /**
- * Fire one layer on its own, so the DM can hear what they are setting.
+ * Play one layer on its own, so the DM can hear what they are setting — and
+ * stop it again from the same button, because a rain bed can run for minutes.
  *
  * Deliberately a plain one-shot rather than a scene preview: the point is to
  * check "is this the right mug", and the layer's own level and pan ranges only
  * mean anything once the scene is running.
  */
-function previewLayer(sound: Sound): void {
+const auditioned = new Set<string>();
+function togglePreview(sound: Sound): void {
+  if (store.playbackStates[sound.id]?.isPlaying === true) {
+    store.stop(sound.id);
+    return;
+  }
+  auditioned.add(sound.id);
   store.play(sound.id, sound.file_url, sound.category, sound.gain_trim);
 }
+
+// Closing the editor ends whatever it was auditioning; anything the DM had
+// playing before they opened it is left alone. The dialog stays mounted while
+// shut, so closing is `open` going false, not an unmount.
+function endAuditions(): void {
+  for (const id of auditioned) {
+    if (store.playbackStates[id]?.isPlaying === true) store.stop(id);
+  }
+  auditioned.clear();
+}
+watch(() => open, (isOpen) => { if (!isOpen) endAuditions(); });
+onBeforeUnmount(endAuditions);
 
 // ── Save ──────────────────────────────────────────────────────────────────
 

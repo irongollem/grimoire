@@ -90,6 +90,7 @@ import { rollOnTable, type RollTableRollResult } from "@/lib/dungeon-features/ro
 import { buildRoomStack } from "@/lib/locations/roomStack";
 import type { RoomStackRow } from "@/lib/locations/roomStack";
 import { doorsOfSpace } from "@/lib/locations/doors";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { extractTiptapText } from "@/lib/utils";
 import type { SiteDoorWithSpaces } from "@/composables/locations/useSiteDoors";
 import type { DoorStateFact, LocationState } from "@/types/locationState.types";
@@ -164,7 +165,7 @@ function linkFor(row: RoomStackRow): string {
   // nowhere.
   if (row.kind === "trap" || row.kind === "encounter") return row.target;
   if (row.kind === "roll_table") return `/roll-tables/${row.target}`;
-  return `/locations/${room.id}`;
+  return placeRoute(room.id);
 }
 
 // ── Reveal — asserts the door's `found` fact; nothing about the door's

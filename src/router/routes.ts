@@ -784,14 +784,15 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/locations/new",
     name: "location-new",
-    component: () => import("@/views/locations/LocationDetailView.vue"),
+    component: () => import("@/views/locations/LocationCreateView.vue"),
     meta: { requiresAuth: true, title: "New Location" },
   },
+  // A place has one DM screen now, the Atlas (`/locations?at=<id>`, see
+  // `placeRoute`) — this path survives only so an old bookmark or external
+  // link still lands somewhere real, carrying over whatever mode flags it had.
   {
     path: "/locations/:id",
-    name: "location-detail",
-    component: () => import("@/views/locations/LocationDetailView.vue"),
-    meta: { requiresAuth: true, title: "Location" },
+    redirect: (to) => ({ path: "/locations", query: { ...to.query, at: to.params.id } }),
   },
 
   // Deities (Pantheon)

@@ -12,16 +12,10 @@
 // click, for a DM who started painting without clicking that first.
 //
 // Takes the site's own drawing as `drawingMap` rather than querying it a
-// second time — both hosts (`AtlasSiteMapMode.vue`, `LocationSheet.vue`)
-// already read it off `useSiteStructure()`'s own `sourceMap` for the Layers
-// panel, and TanStack Query would only dedupe the request, not the second
-// composable instance subscribing to it.
-//
-// `AtlasSiteMapMode.vue` and `LocationSheet.vue` are the two hosts that
-// mount `MapWorkbench` this way; both build one of these off the same
-// `location`/`drawingMap` rather than duplicating the save/create branch a
-// third time (the same component-extraction rule `useOpenSiteDrawing.ts`
-// already documents).
+// second time: the host (`AtlasSiteMapMode.vue`) already reads it off
+// `useSiteStructure()`'s own `sourceMap` for the Layers panel, and TanStack
+// Query would only dedupe the request, not the second composable instance
+// subscribing to it.
 //
 // ── Two data-loss holes closed here (#884 review finding 1) ────────────────
 //

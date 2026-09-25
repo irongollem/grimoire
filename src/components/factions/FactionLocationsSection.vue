@@ -12,7 +12,7 @@
   >
     <template #entry="{ entry }">
       <IconLocation class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      <RouterLink :to="`/locations/${entry.location.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
+      <RouterLink :to="placeRoute(entry.location.id)" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
         {{ entry.location.name }}
       </RouterLink>
       <span class="text-label text-muted-foreground shrink-0">{{ LOCATION_TYPE_LABELS[entry.location.location_type] }}</span>
@@ -30,6 +30,7 @@ import {
   type FactionLocationWithLocation,
 } from "@/composables/factions/useFactions";
 import { useAllLocations } from "@/composables/locations/useLocations";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import EntityLinkSection from "@/components/common/EntityLinkSection.vue";
 

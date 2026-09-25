@@ -20,8 +20,7 @@
  * Read-only + click-to-navigate/descend (browse) and click-to-move-party
  * (run) ONLY, as of #884 S11 — tracing (paint/pen/template) and the door
  * tool both moved to `MapWorkbench`'s embedded Plan palette, which is the
- * ONLY place Build mode mounts now (`AtlasSiteMapMode.vue`/`LocationSheet.vue`
- * no longer render this component with editing affordances at all — Browse
+ * ONLY place Build mode mounts now (`AtlasSiteMapMode.vue` no longer renders this component with editing affordances at all — Browse
  * and Run are the only two modes left here). This surface uses
  * `useRegionNavPointer`, the read/navigate half of what `useRegionPointer`
  * used to be alone — that composable still exists for the Cartographer's
@@ -35,6 +34,7 @@ import { useRouter } from "vue-router";
 import { useRegionNavPointer, type UseRegionNavPointerOptions } from "@/composables/locations/useRegionNavPointer";
 import { gridPointToCanvas } from "@/composables/locations/useRegionPen";
 import { cellAtImageFraction } from "@/lib/locations/gridCalibration";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import {
   drawFogPass,
   drawGridPass,
@@ -162,7 +162,7 @@ function hoverRegionAt(cell: CellKey): LocationMapRegion | null {
 // The nested-site case (#818) is `onDescend` in `pointerOptions` below
 // instead — `useRegionNavPointer` picks between the two via `isNestedSite`.
 function onNavigate(spaceId: string): void {
-  router.push(`/locations/${spaceId}`);
+  router.push(placeRoute(spaceId));
 }
 
 const pointerOptions: UseRegionNavPointerOptions = {

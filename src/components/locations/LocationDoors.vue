@@ -5,7 +5,7 @@
       <PlacementRow
         v-for="view in doors"
         :key="view.door.id"
-        :to="view.otherRoomId ? `/locations/${view.otherRoomId}` : parentId ? `/locations/${parentId}` : `/locations/${roomId}`"
+        :to="placeRoute(view.otherRoomId || parentId || roomId)"
         :name="view.otherRoomName"
       >
         <template #badge>
@@ -176,6 +176,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconClose, IconHide, IconLock } from "@/lib/icons";
 import { DOOR_KIND_ICONS } from "@/lib/locations/doors";
 import { bindableSpaces } from "@/lib/locations/tiers";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { useToast } from "@/composables/useToast";
 import { useLocations } from "@/composables/locations/useLocations";
 import {

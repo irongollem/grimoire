@@ -144,15 +144,10 @@ async function onDraw() {
     });
     // Opens the new level in Build mode in place (#884 S11) — the workbench
     // is the map area now, so there is no separate Cartographer draft to
-    // route to first. The Atlas explorer selects a place via `?at=`; the
-    // standalone sheet is `/locations/:id` itself — same two conventions
-    // `LocationSheet.vue`'s own `onLevelSelect` and `AtlasExplorer.vue`'s
-    // `onSelect` already use for "go look at this place".
-    if (route.name === "locations") {
-      await router.push({ query: { ...route.query, at: newLevel.id, build: "true" } });
-    } else {
-      await router.push({ path: `/locations/${newLevel.id}`, query: { build: "true" } });
-    }
+    // route to first. A place has one DM screen, the Atlas, so this panel
+    // (mounted only inside it, via `AtlasSiteMapMode`) always has an `at` to
+    // select onto — same convention `AtlasExplorer.vue`'s own `select` uses.
+    await router.push({ query: { ...route.query, at: newLevel.id, build: "true" } });
   } catch (e) {
     if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
     toast.error(toast.fromError(e));

@@ -69,7 +69,7 @@ describe("QuestBeatSitePanel", () => {
     expect(wrapper.text()).toContain("Cloister of Small Mercies");
     expect(wrapper.findComponent({ name: "AppButton" }).exists()).toBe(true);
     const link = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Open in Atlas");
-    expect(link?.props("to")).toBe("/locations/site-1");
+    expect(link?.props("to")).toBe("/locations?at=site-1");
   });
 
   it("does not treat a non-site location as a site, even when staged there", () => {

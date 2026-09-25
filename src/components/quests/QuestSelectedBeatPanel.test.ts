@@ -24,20 +24,20 @@ describe("QuestSelectedBeatPanel — where the beat happens", () => {
   it("links the site and the room when the beat is staged in a room", () => {
     const wrapper = mountPanel({ locationId: "room-6", name: "The Vault", siteId: "site-1", siteName: "The Locked Workshop" });
     expect(linkTargets(wrapper)).toEqual(expect.arrayContaining([
-      ["The Locked Workshop", "/locations/site-1"],
-      ["The Vault", "/locations/room-6"],
+      ["The Locked Workshop", "/locations?at=site-1"],
+      ["The Vault", "/locations?at=room-6"],
     ]));
   });
 
   it("links just the place when the beat is staged somewhere that is not a room", () => {
     const wrapper = mountPanel({ locationId: "inn-1", name: "The Pulled Sugar Inn", siteId: null, siteName: null });
     const targets = linkTargets(wrapper);
-    expect(targets).toEqual(expect.arrayContaining([["The Pulled Sugar Inn", "/locations/inn-1"]]));
+    expect(targets).toEqual(expect.arrayContaining([["The Pulled Sugar Inn", "/locations?at=inn-1"]]));
     expect(wrapper.text()).not.toContain("›");
   });
 
   it("shows no place at all for a beat staged nowhere", () => {
     const wrapper = mountPanel(null);
-    expect(linkTargets(wrapper).some(([, to]) => String(to).startsWith("/locations/"))).toBe(false);
+    expect(linkTargets(wrapper).some(([, to]) => String(to).startsWith("/locations?at="))).toBe(false);
   });
 });

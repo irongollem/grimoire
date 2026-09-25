@@ -56,6 +56,7 @@
         <SiteLevelsColumn
           v-if="showLevelsRail"
           :location="location"
+          :index="index"
           :children="children"
           @select="onLevelSelect"
         />
@@ -146,13 +147,14 @@
  * the level being viewed, the staleness strip, the map itself with its
  * up-one-level overlay and Ways-out aside, and the zoom transition between
  * two maps. The levels sidebar itself (rail, vertical ways-out, reuse panel)
- * moved to `SiteLevelsColumn` (#868, S5b) so `LocationSheet` can mount the
- * same sidebar beside its own map — this file keeps its own copy of the
- * level/container computeds only because the trail line above needs them
- * too, and they're cheap synchronous derivations off the `index` this
- * component already has. `AtlasPlacePane` keeps identity, the Contents/Map
- * toggle row, and Contents mode — the parts that render whether or not this
- * place has a map at all.
+ * moved to `SiteLevelsColumn` (#868, S5b) so a second caller could mount the
+ * same sidebar beside its own map — originally the old full-page sheet,
+ * removed 25 Sep 2026, and the split stays worth keeping regardless: this
+ * file keeps its own copy of the level/container computeds only because the
+ * trail line above needs them too, and they're cheap synchronous
+ * derivations off the `index` this component already has. `AtlasPlacePane`
+ * keeps identity, the Contents/Map toggle row, and Contents mode — the
+ * parts that render whether or not this place has a map at all.
  *
  * Two distinct outward events rather than one: `select` is an ordinary
  * jump (a sibling level in the rail, or landing after an ascend/pin
@@ -210,7 +212,7 @@ const isSite = computed(() => isSiteType(location.location_type));
 //    never queries a table it has no rows in. ────────────────────────────────
 const siteRegionsQuery = useLocationMapRegions(computed(() => (isSite.value ? location.id : "")));
 const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
-// See LocationSheet: a room, or a nested site that occupies part of this map.
+// See AtlasPlacePane's own copy: a room, or a nested site that occupies part of this map.
 const siteSpaces = computed(() => bindableSpaces(children));
 
 // ── The map stack (#884) — Picture, Drawing, and/or a blank grid. ──────────
@@ -247,12 +249,13 @@ const drawingWorkbenchRef = drawingEditor.workbenchRef;
 
 // #884 review finding 1: a debounced autosave that's still pending when the
 // DM navigates away used to be dropped outright — nothing ever flushed it.
-// `onBeforeUnmount` covers this component unmounting outright (this place is
-// mounted `:key="location.id"` by `LocationDetailView`, so switching to a
-// different location remounts rather than reusing the instance);
-// `onBeforeRouteLeave` covers leaving the route entirely before that unmount
-// runs, so the pending save is awaited — and, per `flush()`'s own docblock,
-// toasted on failure — before the navigation completes.
+// `onBeforeUnmount` covers this component unmounting outright — leaving Map
+// mode, or a mapless place losing its `building` prop entirely (the "Done"
+// case is its own watch below, since that alone doesn't unmount this
+// component or leave the route); `onBeforeRouteLeave` covers leaving the
+// Atlas route before that unmount runs, so the pending save is awaited —
+// and, per `flush()`'s own docblock, toasted on failure — before the
+// navigation completes.
 onBeforeUnmount(() => { void drawingEditor.flush(); });
 onBeforeRouteLeave(async () => { await drawingEditor.flush(); });
 // "Done" (`building` → false) unmounts `MapWorkbench` via its own `v-if`

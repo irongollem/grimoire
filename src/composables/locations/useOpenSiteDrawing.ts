@@ -1,13 +1,10 @@
 // ── "Start drawing" for a site's own Drawing layer (#884, S5; reworked S11) ──
 //
 // `SiteMapLayersPanel`'s Drawing row emits `open-drawing` rather than acting
-// itself — both callers (`AtlasSiteMapMode`, `LocationSheet`) need the exact
-// same branch, and the component-extraction rule this codebase already
-// follows says that lives once, here, rather than twice.
+// itself, and its host (`AtlasSiteMapMode`) runs this branch.
 //
 // Before #884 S11 this navigated to `/cartographer/:id` — the Cartographer
-// was a separate page. It no longer is: `AtlasSiteMapMode`/`LocationSheet`
-// mount `MapWorkbench` directly in Build mode, and hand it `source_map_id`'s
+// was a separate page. It no longer is: `AtlasSiteMapMode` mounts `MapWorkbench` directly in Build mode, and hand it `source_map_id`'s
 // own row (or `null`) as its `map` prop. So a site that already has a
 // drawing is *already showing it* the moment this fires — there is nothing
 // left to open, and this is a no-op. A site with none yet needs one CREATED

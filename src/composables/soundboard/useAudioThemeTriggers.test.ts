@@ -21,7 +21,8 @@ function stateFor(soundId: string): { isPlaying: boolean } {
   return soundStates.get(soundId)!;
 }
 
-const store = {
+/** Reactive so a test can stop a scene "by hand" and let the consumer see it. */
+const store = reactive({
   playPlaylist: vi.fn(),
   stopPlaylist: vi.fn(),
   stopAmbientPlaylist: vi.fn(),
@@ -30,7 +31,11 @@ const store = {
   activeMusicPlaylistId: vi.fn<() => string | null>(() => null),
   isPlaylistActive: vi.fn<(id: string) => boolean>(() => false),
   getState: vi.fn((soundId: string) => stateFor(soundId)),
-};
+  /** Not a mock: the floating player's open flag, which triggers now set. */
+  widgetOpen: false,
+  /** Not a mock: the scenes running right now, as the store tracks them. */
+  activeAmbientPlaylists: [] as { playlistId: string }[],
+});
 
 /** Stands in for `useSoundTrigger()`'s returned function — a beat cue fires a
  * bare sound through this, exactly as any other playback button would. */
@@ -73,7 +78,9 @@ async function mount() {
 
 beforeEach(async () => {
   vi.resetModules();
-  Object.values(store).forEach((fn) => fn.mockClear());
+  for (const value of Object.values(store)) if (vi.isMockFunction(value)) value.mockClear();
+  store.widgetOpen = false;
+  store.activeAmbientPlaylists = [];
   store.activeMusicPlaylistId.mockImplementation(() => null);
   store.isPlaylistActive.mockImplementation(() => false);
   playlists.value = [];
@@ -96,6 +103,8 @@ describe("a trigger that matches nothing", () => {
     expect(store.playPlaylist).not.toHaveBeenCalled();
     expect(store.stopPlaylist).not.toHaveBeenCalled();
     expect(store.play).not.toHaveBeenCalled();
+    // …and nothing to control, so no player pops open.
+    expect(store.widgetOpen).toBe(false);
   });
 
   it("does not stop the music that is already running", async () => {
@@ -110,6 +119,18 @@ describe("a trigger that matches nothing", () => {
 });
 
 describe("a trigger that matches", () => {
+  // Audio that starts on its own must come with a way to stop it: the floating
+  // player used to stay shut unless the DM had opened it by hand.
+  it("opens the floating player when it starts something", async () => {
+    const { requestAudioTheme } = await mount();
+    playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
+
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
+    await flush();
+
+    expect(store.widgetOpen).toBe(true);
+  });
+
   it("plays the tagged playlist", async () => {
     const { requestAudioTheme } = await mount();
     const battle = playlist({ id: "battle", tags: ["battle"] });
@@ -220,6 +241,49 @@ describe("release", () => {
     expect(store.stopAmbientPlaylist).toHaveBeenCalledWith("tavern");
     expect(store.stopAmbientPlaylist).not.toHaveBeenCalledWith("dungeon");
     expect(store.stopPlaylist).not.toHaveBeenCalled();
+  });
+
+  // A room's ambience the DM put on by hand, and the party standing in that
+  // room, can both hold one scene. Either letting go must leave it playing.
+  it("keeps a scene running while another source still holds it", async () => {
+    const { requestAudioTheme, releaseAudioTheme } = await mount();
+    playlists.value = [playlist({ id: "tavern", playlist_type: "ambient", tags: ["tavern"] })];
+
+    requestAudioTheme({ sourceId: "ambience:inn", theme: "tavern", slot: "ambient", label: "Inn", kind: "location" });
+    requestAudioTheme({ sourceId: "location:inn", theme: "tavern", slot: "ambient", label: "Inn", kind: "location" });
+    await flush();
+
+    releaseAudioTheme("location:inn");
+    await flush();
+    expect(store.stopAmbientPlaylist).not.toHaveBeenCalled();
+
+    releaseAudioTheme("ambience:inn");
+    await flush();
+    expect(store.stopAmbientPlaylist).toHaveBeenCalledWith("tavern");
+  });
+
+  // Stopped in the floating player, the scene is nobody's any more — the same
+  // source asking again must start it again, not be ignored as a repeat.
+  it("forgets a scene the DM stopped by hand", async () => {
+    const { requestAudioTheme } = await mount();
+    const { useActiveAudioTriggers } = await import("@/composables/soundboard/useAudioThemeTriggers");
+    const { ambientTriggers } = useActiveAudioTriggers();
+    playlists.value = [playlist({ id: "tavern", playlist_type: "ambient", tags: ["tavern"] })];
+
+    requestAudioTheme({ sourceId: "ambience:inn", theme: "tavern", slot: "ambient", label: "Inn", kind: "location" });
+    await flush();
+    store.activeAmbientPlaylists = [{ playlistId: "tavern" }];
+    await flush();
+    expect(ambientTriggers.value.map((t) => t.sourceId)).toEqual(["ambience:inn"]);
+
+    store.activeAmbientPlaylists = [];
+    await flush();
+    expect(ambientTriggers.value).toEqual([]);
+
+    store.playPlaylist.mockClear();
+    requestAudioTheme({ sourceId: "ambience:inn", theme: "tavern", slot: "ambient", label: "Inn", kind: "location" });
+    await flush();
+    expect(store.playPlaylist).toHaveBeenCalledTimes(1);
   });
 
   it("does not record its own audio as the thing to restore", async () => {

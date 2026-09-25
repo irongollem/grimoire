@@ -3,11 +3,10 @@
     The read-only body of a location: everything that is *about* the place
     rather than *where it sits*.
 
-    Shared by `LocationSheet` (the /locations/:id detail page) and
-    `AtlasPlacePane` (the explorer's right pane). It exists because the Atlas
-    pane needed the same six sections the sheet already had, and a second copy
-    would have drifted within a release — the sheet's People card grid and the
-    pane's list were already two designs for one thing.
+    Mounted by `AtlasPlacePane` (the explorer's right pane). It was extracted
+    when a second, full-page location sheet needed the same six sections; that
+    page is gone (25 Sep 2026) and this stays a component because the pane is
+    long enough without it inline.
 
     Placement (breadcrumb, identity, scale rail, sub-locations, map) stays with
     each caller, because that genuinely differs: the sheet is a page, the pane is
@@ -62,7 +61,7 @@
         <RouterLink
           v-for="rel in relatedLocations"
           :key="rel.id"
-          :to="`/locations/${rel.id}`"
+          :to="placeRoute(rel.id)"
           class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
           <span
@@ -233,6 +232,7 @@ import { isInteriorType, isSiteType, spaceHeading } from "@/lib/locations/tiers"
 import { buildAtlasIndex, descendantsOf } from "@/lib/locations/tree";
 import { extractTiptapText } from "@/lib/utils";
 import { effectiveLocationId } from "@/lib/partyPosition";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { LOCATION_TYPE_COLORS, STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 
@@ -300,7 +300,7 @@ const isInteriorSpace = computed(() => isInteriorType(location.location_type));
  * (Ways out on a room, Prepared Here everywhere) may be edited.
  *
  * #884 put every structural panel behind the site-only `building` prop, but
- * Build only exists on a site-tier place (`LocationSheet`'s Build/Done pair
+ * Build only exists on a site-tier place (`AtlasPlacePane`'s Build/Done pair
  * is itself gated on `isSiteType`) — so a room's own Ways out, and Prepared
  * Here on any non-site place, inherited a mode they can never enter and went
  * permanently read-only. That was collateral, not #884's intent, which said

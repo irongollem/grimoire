@@ -2,7 +2,7 @@
   <section class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
     <h3 class="font-cinzel text-sm font-bold text-foreground">Ways out of {{ roomName }}</h3>
     <p v-if="!views.length" class="text-caption italic text-muted-foreground">No ways out from here yet.</p>
-    <PlacementRow v-for="view in views" :key="view.door.id" :to="`/locations/${view.otherRoomId}`" :name="view.otherRoomName">
+    <PlacementRow v-for="view in views" :key="view.door.id" :to="placeRoute(view.otherRoomId)" :name="view.otherRoomName">
       <template #badge>
         <component :is="DOOR_KIND_ICONS[view.door.door_kind]" class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </template>
@@ -62,6 +62,7 @@ import PlacementRow from "@/components/locations/PlacementRow.vue";
 import { IconHide, IconLock, IconNavigate } from "@/lib/icons";
 import { DOOR_KIND_ICONS, doorSubtitle, doorsOfSpace } from "@/lib/locations/doors";
 import type { RoomDoorView } from "@/lib/locations/doors";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
 import { useAssertDoorState } from "@/composables/locations/useLocationState";
 import { useCampaignStore } from "@/stores/campaign";

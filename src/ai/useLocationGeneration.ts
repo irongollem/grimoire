@@ -22,6 +22,7 @@ import {
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
 import { buildAiProvenance } from "@/ai/provenance";
+import { placeRoute } from "@/lib/locations/placeRoute";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
@@ -34,7 +35,7 @@ const _state = createAiGenerationState();
 registerAiGenerator({
   ..._state,
   label: "Location",
-  entityRoute: (id) => `/locations/${id}`,
+  entityRoute: (id) => placeRoute(id),
   openPanel: () => {
     useUiStore().locationGeneratorOpen = true;
   },

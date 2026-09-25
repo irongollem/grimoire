@@ -62,6 +62,7 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import type { EntityLinkMetadata } from "@/types/chat.types";
 
 const router = useRouter();
@@ -100,7 +101,7 @@ const targetRoute = computed((): string | null => {
       case "note": return `/notes/${entity_id}`;
       case "quest": return `/quests/${entity_id}`;
       case "npc": return `/npcs/${entity_id}`;
-      case "location": return `/locations/${entity_id}`;
+      case "location": return placeRoute(entity_id);
       case "calendar_event": return "/calendar";
     }
   } else {

@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SiteRoomList from "./SiteRoomList.vue";
@@ -57,9 +57,11 @@ describe("SiteRoomList", () => {
     mocks.updateLocation.mockClear();
   });
 
-  it("points at the site's own sheet when there are no rooms yet", () => {
-    const wrapper = mount(SiteRoomList, { props: baseProps([]), global: { stubs } });
+  it("sends the DM to Build when there are no rooms yet", () => {
+    const wrapper = mount(SiteRoomList, { props: baseProps([]), global: { stubs: { ...stubs, RouterLink: RouterLinkStub } } });
     expect(wrapper.text()).toContain("No rooms yet");
+    const link = wrapper.findComponent(RouterLinkStub);
+    expect(link.props("to")).toBe("/locations?at=site-1&build=true");
   });
 
   it("numbers rooms in the order given, with a caption from the room's own description", () => {
@@ -128,7 +130,7 @@ describe("SiteRoomList", () => {
     const wrapper = mount(SiteRoomList, { props: baseProps(rooms, { currentRoomId: "room-a", reachable: new Set(["room-a"]) }), global: { stubs } });
     // Rendered as a RouterLink once `to` is set — the stub swallows its
     // default slot, so it has to be found by its `to` prop rather than text.
-    const target = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("to") === "/locations/room-b");
+    const target = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("to") === "/locations?at=room-b");
     expect(target).toBeTruthy();
     await target!.trigger("click");
     expect(mocks.setLocation).not.toHaveBeenCalled();

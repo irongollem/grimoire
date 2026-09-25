@@ -78,7 +78,7 @@
             :variant="hasLocationOverride ? 'tinted' : 'ghost'"
             :tone="hasLocationOverride ? 'caution' : 'primary'"
             size="inline-xs"
-            :to="`/locations/${effectiveLocationId}`"
+            :to="placeRoute(effectiveLocationId)"
             :icon="IconLocation"
             :label="locationLabel"
           />
@@ -283,6 +283,7 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { isInDisguise } from "@/lib/partyMemberDisplay";
 import { effectiveLocationId as deriveEffectiveLocationId } from "@/lib/partyPosition";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import FocalImage from "@/components/common/FocalImage.vue";
 import CompanionCard from "./CompanionCard.vue";
 import PartyConditionsPanel from "./PartyConditionsPanel.vue";

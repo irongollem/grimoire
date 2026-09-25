@@ -48,52 +48,44 @@
 /**
  * The Atlas's "levels" sidebar (#868, frame 06) — the rail, the vertical
  * ways-out panel and its "Rules we keep" note, and the reuse panel, as one
- * column rather than three pieces scattered across a map's layout. Extracted
- * from `AtlasSiteMapMode` (which still owns the map itself and the trail
- * line above it) so `LocationSheet` — the page most links actually land on —
- * can mount the same sidebar beside its own read-only map.
- *
- * `AtlasSiteMapMode` hands this component an `AtlasIndex` for free, but
- * `LocationSheet` has none — it only ever fetches one place's children at a
- * time. Rather than forcing every caller to assemble an index just to pass
- * one in, this component builds its own from `useAllLocations()`: cheap,
- * since that query is already warm everywhere else an ancestor chain is
- * shown, and it keeps the prop surface to exactly what a caller always has
- * on hand — the place being looked at, and that place's own children.
+ * column rather than three pieces scattered across a map's layout.
+ * `AtlasSiteMapMode` mounts it beside the map, which it keeps (with the trail
+ * line above it). It was extracted for a second host, the full-page location
+ * sheet, and built its own place index because that page had none; the page
+ * is gone (25 Sep 2026), so the index now comes from the Atlas like
+ * everywhere else.
  */
 import { computed } from "vue";
 import SiteLevelReusePanel from "@/components/locations/SiteLevelReusePanel.vue";
 import SiteLevelsRail from "@/components/locations/SiteLevelsRail.vue";
 import type { SiteLevelSummary } from "@/components/locations/SiteLevelsRail.vue";
 import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
-import { useAllLocations } from "@/composables/locations/useLocations";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { levelsOf } from "@/lib/locations/levels";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { bindableSpaces, isInteriorType } from "@/lib/locations/tiers";
-import { buildAtlasIndex, childrenOf } from "@/lib/locations/tree";
+import { childrenOf, type AtlasIndex } from "@/lib/locations/tree";
 import type { Location } from "@/types/location.types";
 
-const { location, children } = defineProps<{
+const { location, index, children } = defineProps<{
   location: Location;
-  /** This place's own children — used via `bindableSpaces` to scope its
-   *  vertical ways-out panel. `levelsOf` reads child/parent sites off the
-   *  locally-built `index` instead, since it also needs the sibling levels
-   *  above `location`, which this prop alone can't reach. */
+  /** The Atlas's own index. `levelsOf` reads child/parent sites off it,
+   *  since it also needs the sibling levels above `location`. */
+  index: AtlasIndex;
+  /** This place's own children, used via `bindableSpaces` to scope its
+   *  vertical ways-out panel. */
   children: Location[];
 }>();
 
 defineEmits<{ select: [id: string] }>();
 
-const { data: allLocations } = useAllLocations();
-const index = computed(() => buildAtlasIndex(allLocations.value ?? []));
 
 // Shared with `AtlasSiteMapMode` and `AtlasPlacePane` so all three surfaces
 // number levels the same way regardless of which level's page is open — see
 // the doc comment on `levelsOf` (#868 fix: numbering used to disagree
 // depending on whether the rail was reached from the container or from one
 // of its own levels).
-const levelsInfo = computed(() => levelsOf(index.value, location));
+const levelsInfo = computed(() => levelsOf(index, location));
 
 /** Whose children the rail is listing — this site's own, or its parent's,
  *  when this place has no levels of its own but IS one (#868, S6). */
@@ -110,7 +102,7 @@ const levelRoomIdsByLevel = computed(() => {
   for (const level of levelSites.value) {
     byLevel.set(
       level.id,
-      childrenOf(index.value, level.id)
+      childrenOf(index, level.id)
         .filter((c) => isInteriorType(c.location_type))
         .map((c) => c.id),
     );

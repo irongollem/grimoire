@@ -46,7 +46,7 @@
       <AppButton
         v-for="child in children"
         :key="child.id"
-        :to="`/locations/${child.id}`"
+        :to="placeRoute(child.id)"
         variant="subtle"
         fill="muted"
         size="xs"
@@ -203,6 +203,7 @@ import AppButton from '@/components/common/AppButton.vue';
 import AppInput from '@/components/common/AppInput.vue';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
 import { useLocations, useUpdateLocation } from '@/composables/locations/useLocations';
+import { placeRoute } from '@/lib/locations/placeRoute';
 import {
   LOCATION_TYPE_LABELS,
   LOCATION_TYPE_COLORS,

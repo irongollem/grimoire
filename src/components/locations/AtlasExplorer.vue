@@ -103,7 +103,26 @@
         label="All places"
         @click="clearSelection"
       />
+      <!--
+        A place has one DM screen now. Editing and running are states of
+        this same pane rather than trips to a separate page — `editing` and
+        `running` read straight off the Atlas route's own query, the way
+        `build` already does inside `AtlasPlacePane`. Keyed by the place's id
+        so switching which place is being edited or run remounts instead of
+        reusing stale local state, same as the old per-route pages did.
+      -->
+      <LocationEditor
+        v-if="editing && selected"
+        :key="selected.id"
+        :location="selected"
+      />
+      <SiteRunSurface
+        v-else-if="running && selected"
+        :key="selected.id"
+        :location="selected"
+      />
       <AtlasPlacePane
+        v-else
         :index="index"
         :location="selected"
         :pane-mode="ui.locationsPaneMode"
@@ -124,8 +143,11 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AtlasPlacePane from "@/components/locations/AtlasPlacePane.vue";
 import AtlasTree from "@/components/locations/AtlasTree.vue";
+import LocationEditor from "@/components/locations/LocationEditor.vue";
+import SiteRunSurface from "@/components/locations/SiteRunSurface.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { IconChevronLeft, IconChevronRight, IconNavAtlas } from "@/lib/icons";
+import { isSiteType } from "@/lib/locations/tiers";
 import { ancestorIds, buildAtlasIndex } from "@/lib/locations/tree";
 import { extractTiptapText } from "@/lib/utils";
 import { useCampaignStore } from "@/stores/campaign";
@@ -143,6 +165,37 @@ const index = computed(() => buildAtlasIndex(allLocations.value));
 const selectedId = computed(() => ui.locationsSelectedId);
 const selected = computed(() =>
   selectedId.value ? (index.value.byId.get(selectedId.value) ?? null) : null,
+);
+
+// `edit`/`run` are route flags on the selected place, the same convention
+// `build` already uses inside `AtlasPlacePane`. `run` additionally requires a
+// site-tier place — a stray `?run=true` on anything else falls through to
+// the plain pane rather than erroring, same as the old page's own guard.
+const editing = computed(() => route.query.edit === "true");
+const running = computed(
+  () => route.query.run === "true" && !!selected.value && isSiteType(selected.value.location_type),
+);
+
+// The site runner wants the pane's full width, same reasoning as
+// `AtlasPlacePane`'s own fold for Map mode — only fold what was found
+// unfolded, and only restore what this fold itself collapsed, so a DM who
+// folded the tree on purpose before running a site finds it still folded
+// after stopping.
+let foldedTreeForRun = false;
+watch(
+  running,
+  (isRunning) => {
+    if (isRunning) {
+      if (!ui.locationsTreeCollapsed) {
+        ui.locationsTreeCollapsed = true;
+        foldedTreeForRun = true;
+      }
+    } else if (foldedTreeForRun) {
+      ui.locationsTreeCollapsed = false;
+      foldedTreeForRun = false;
+    }
+  },
+  { immediate: true },
 );
 
 /**
@@ -187,7 +240,10 @@ function clearSelection() {
   // Forget it too, or "All places" would be undone by the restore below the
   // next time the Atlas is opened — an exit the user cannot take.
   ui.locationsLastSelectedId = null;
-  const { at: _discarded, ...rest } = route.query;
+  // Every per-place mode flag goes with the place it was opened for — left
+  // in place, `edit`/`run`/`build` would attach themselves to whatever the
+  // DM selects next, editing or running a place they never asked to.
+  const { at: _discarded, edit: _e, run: _r, build: _b, ...rest } = route.query;
   router.push({ query: rest });
 }
 

@@ -147,8 +147,8 @@ describe("usePartyAmbience", () => {
     ]);
   });
 
-  // Mirrors LocationSheet exactly: request the new room before releasing the
-  // old one, so two themed rooms cross over instead of cutting to silence.
+  // Request the new room before releasing the old one, so two themed rooms
+  // cross over instead of cutting to silence.
   it("crosses over to the new room before releasing the old one when the party moves", async () => {
     locations.value = [
       place({ id: "l1", name: "The Yawning Portal", audio_theme: "tavern" }),
@@ -191,9 +191,8 @@ describe("usePartyAmbience", () => {
     expect(events).toEqual([]);
   });
 
-  // The property the fix in LocationSheet exists for: a competing request from
-  // a different producer (what a browsed location sheet used to fire, before
-  // #790 gated it off) must never touch the party's own scene.
+  // A competing request from a different producer (today the Atlas pane's
+  // Play ambience button) must never touch the party's own scene.
   it("keeps its own scene regardless of a differently-sourced request or release", async () => {
     locations.value = [place({ id: "l1", name: "The Yawning Portal", audio_theme: "tavern" })];
     activeCampaign.value = { current_location_id: "l1" };

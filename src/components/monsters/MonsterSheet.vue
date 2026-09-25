@@ -31,7 +31,7 @@
         </p>
         <RouterLink
           v-if="lairLocation"
-          :to="`/locations/${lairLocation.id}`"
+          :to="placeRoute(lairLocation.id)"
           class="text-caption text-muted-foreground italic hover:text-foreground hover:underline transition-colors"
         >
           Lair: {{ lairLocation.name }}
@@ -144,6 +144,7 @@ import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import { useEncountersByMonster } from "@/composables/encounters/useEncounters";
 import { useMonsterLootTables } from "@/composables/dungeon-features/useLootTables";
 import { useLocationTree } from "@/composables/locations/useLocations";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

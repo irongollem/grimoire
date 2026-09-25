@@ -14,7 +14,7 @@
           <p class="truncate font-cinzel text-label-lg font-bold text-foreground">{{ site.name }}</p>
           <p class="text-muted-foreground">{{ siteMetaCaption }}</p>
         </div>
-        <AppButton :to="`/locations/${site.id}`" label="Open in Atlas" size="xs" variant="subtle" />
+        <AppButton :to="placeRoute(site.id)" label="Open in Atlas" size="xs" variant="subtle" />
       </div>
 
       <!-- "Opens at" is not a new column — `staged_at_location_id` has always
@@ -115,6 +115,7 @@ import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { bindableSpaces, isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";
 import { pluralizeCount } from "@/lib/utils";
 import { reachableRoomIds } from "@/lib/locations/siteRun";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { siteReadiness } from "@/lib/locations/siteReadiness";
 import { resolveInheritedTheme } from "@/lib/locations/ambience";
 import { IconCheck, IconDungeon, IconWarning } from "@/lib/icons";

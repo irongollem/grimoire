@@ -5,7 +5,7 @@
       <PlacementRow
         v-for="p in placements"
         :key="p.id"
-        :to="`/locations/${p.location_id}`"
+        :to="placeRoute(p.location_id)"
         :name="p.location?.name ?? '???'"
       >
         <template v-if="p.location" #badge>
@@ -81,6 +81,7 @@ import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
 import PlacementRow from "@/components/locations/PlacementRow.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconClose } from "@/lib/icons";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { useToast } from "@/composables/useToast";
 import {
   useEntityPlacements,

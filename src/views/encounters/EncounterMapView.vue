@@ -180,6 +180,7 @@ import {
 } from "@/lib/battlemap/fogMask";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { isInteriorType } from "@/lib/locations/tiers";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 
 const route = useRoute();
@@ -211,7 +212,7 @@ const portraitOverrides = useCombatantMinis(computed(() => store.combatants));
 // to a site page it was never on).
 const siteTarget = computed(() =>
   surface.value?.focusRoomId
-    ? { path: `/locations/${surface.value.mapLocation.id}`, query: { run: "true" } }
+    ? placeRoute(surface.value.mapLocation.id, "run")
     : `/encounters/${encounterId.value}/run`,
 );
 const siteTooltip = computed(() => (surface.value?.focusRoomId ? "Back to the site" : "Back to Runner"));

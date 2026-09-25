@@ -14,7 +14,7 @@ import { isSilenceTheme } from "@/lib/audio/audioThemes";
  *
  * Pure and Vue-free on purpose, like `lib/locations/tree.ts` beside it: this
  * is exercised by both `usePartyAmbience` (session ambience) and
- * `LocationSheet` (prep-time preview), and a Vue-coupled version would force
+ * `AtlasPlacePane` (the Play ambience button), and a Vue-coupled version would force
  * either caller to fake reactivity in tests that have nothing to do with it.
  */
 

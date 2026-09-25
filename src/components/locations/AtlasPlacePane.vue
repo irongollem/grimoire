@@ -64,6 +64,12 @@
         <h2 class="truncate font-cinzel text-lg font-bold text-foreground">
           {{ location.name || "Unnamed Location" }}
         </h2>
+        <!-- "Ashmouth Undercroft · three levels" (#868, frame 06) — only
+             when this site actually stacks levels; a lone site says nothing
+             about levels at all. On its own line rather than an em-dash
+             beside the name, which would fight the truncating title for
+             room on a narrow pane. -->
+        <p v-if="levelsSuffix" class="text-caption text-muted-foreground">{{ levelsSuffix }}</p>
         <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
           <span
             class="rounded px-1.5 py-0.5 text-label font-bold"
@@ -121,9 +127,27 @@
           through the full edit form.
         -->
         <LocationRevealControl :location="location" />
+        <!--
+          This place's ambience, on request; it keeps playing after the DM
+          selects another place or leaves the Atlas entirely (see
+          useAmbiencePlayback). Icon-only: the pane is as wide as the tree
+          leaves it, and with Reveal, Build, Run and Details beside it a
+          labelled button squeezed the place's own name to three letters.
+          The tooltip names the scene, and `active` shows it is playing.
+        -->
+        <AppButton
+          v-if="previewAmbience"
+          variant="outline"
+          size="icon-sm"
+          :icon="previewing ? IconStop : IconMusicNote"
+          :active="previewing"
+          :aria-label="previewing ? 'Stop ambience' : 'Play ambience'"
+          :tooltip="previewTooltip"
+          @click="previewing ? stopPreview() : startPreview()"
+        />
         <template v-if="isSite">
           <!--
-            Build is a state of this pane, not a trip to the detail page: the
+            Build is a state of this pane, not a trip to another page: the
             Atlas IS the site's workbench (#884, decision 2), and sending the
             DM away to build would reintroduce exactly the round trip this
             epic removes. `Done` drops the flag and leaves them where they are.
@@ -135,12 +159,22 @@
             :label="building ? 'Done' : 'Build'"
             @click="toggleBuild"
           />
+          <!-- The site runner (#791, epic #780) — one surface to run a
+               dungeon at the table, entered in place rather than by leaving
+               the Atlas. -->
+          <AppButton
+            variant="outline"
+            size="sm"
+            :icon="IconPlay"
+            label="Run"
+            @click="openRun"
+          />
           <AppButton
             variant="outline"
             size="sm"
             :icon="IconEdit"
             label="Details"
-            :to="`/locations/${location.id}?edit=true`"
+            @click="openEdit"
           />
         </template>
         <AppButton
@@ -149,7 +183,7 @@
           size="sm"
           :icon="IconEdit"
           label="Edit"
-          :to="`/locations/${location.id}?edit=true`"
+          @click="openEdit"
         />
       </div>
     </div>
@@ -289,6 +323,7 @@ import SiteMapLayerBar from "@/components/locations/SiteMapLayerBar.vue";
 import SiteReadinessMeter from "@/components/locations/SiteReadinessMeter.vue";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
+import { useAmbiencePlayback } from "@/composables/locations/useAmbiencePlayback";
 import { useUiStore } from "@/stores/ui";
 import {
   IconChevronRight,
@@ -297,10 +332,14 @@ import {
   IconLayers,
   IconLocation,
   IconMap,
+  IconMusicNote,
+  IconPlay,
   IconQuest,
+  IconStop,
   IconTool,
 } from "@/lib/icons";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { resolveInheritedTheme } from "@/lib/locations/ambience";
 import { isLocationOutOfEra } from "@/lib/locations/era";
 import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
@@ -347,6 +386,54 @@ const children = computed(() => (location ? childrenOf(index, location.id) : [])
 
 const isSite = computed(() => !!location && isSiteType(location.location_type));
 
+/** "Ashmouth Undercroft · three levels" (#868, frame 06) — the site itself is
+ *  level 1, so a stack of N child sites reads as N + 1 levels; null (no
+ *  suffix at all) for a site with no levels to stack. */
+const childSites = computed(() => children.value.filter((l) => isSiteType(l.location_type)));
+const levelsSuffix = computed(() => (childSites.value.length > 0 ? `${childSites.value.length + 1} levels` : null));
+
+// ── Ambient audio ─────────────────────────────────────────────────────────
+// A place's ambience plays when the DM asks for it ("Play ambience"), in or
+// out of a session, and keeps playing after they select another place —
+// `useAmbiencePlayback` reads what's on right off the trigger bus's own
+// ownership list, so this button and the floating player can never disagree.
+// It inherits (#868): a themeless room plays what the party would hear there.
+// `index.byId` already carries every location, this one included, so there
+// is no separate index to build the way the old full-page sheet had to.
+const ambience = useAmbiencePlayback();
+
+/** This place's theme, or its nearest ancestor's — only when the soundboard
+ *  actually has something that answers it, so the button never does nothing. */
+const previewAmbience = computed(() => {
+  if (!location) return null;
+  const resolved = resolveInheritedTheme(location.id, index.byId);
+  if (!resolved.theme || !resolved.from) return null;
+  if (ambience.targetFor(resolved.theme) === null) return null;
+  return { theme: resolved.theme, from: resolved.from };
+});
+const previewTooltip = computed(() => {
+  const preview = previewAmbience.value;
+  if (!preview || !location) return undefined;
+  const verb = previewing.value ? "Stop ambience" : "Play ambience";
+  return preview.from.id === location.id
+    ? `${verb}: ${preview.theme}`
+    : `${verb}: ${preview.theme} (from ${preview.from.name})`;
+});
+const previewing = computed(() => {
+  const preview = previewAmbience.value;
+  return preview !== null && ambience.isPlaying(preview.from.id);
+});
+
+function startPreview(): void {
+  const preview = previewAmbience.value;
+  if (!preview || !location) return;
+  ambience.play({ themeOwnerId: preview.from.id, theme: preview.theme, label: location.name });
+}
+
+function stopPreview(): void {
+  ambience.stop();
+}
+
 // Which image layers this place actually has, for the Show bar's Picture and
 // Drawing pills (#884). `buildMapStack` is the one reader of the stack's
 // columns; this is that answer narrowed to two booleans.
@@ -370,6 +457,23 @@ function toggleBuild(): void {
     return;
   }
   void router.push({ query: { ...route.query, build: "true" } });
+  // Build's structural affordances live on the map (rooms, doors, regions),
+  // so entering Build without also switching to Map mode would land the DM
+  // on a Contents list with nothing yet to build.
+  emit("update:paneMode", "map");
+}
+
+/** Details/Edit — a route flag on the current Atlas selection, same
+ *  convention as `build` above, rather than a trip to a separate page: the
+ *  pane renders the same body a full page would, so leaving it changed
+ *  nothing but which page the DM was dropped on. */
+function openEdit(): void {
+  void router.push({ query: { ...route.query, edit: "true" } });
+}
+
+/** The site runner (#791, epic #780) — same convention. */
+function openRun(): void {
+  void router.push({ query: { ...route.query, run: "true" } });
 }
 
 /** The readiness meter's Mapped pill (#884, S5) — enters Build (if not

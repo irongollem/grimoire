@@ -123,8 +123,13 @@
  * its own. Unlocking or revealing a door is one door-fact assertion
  * (`SiteRunWaysOut`); nothing here writes `location_state_events` directly.
  *
- * The caller (`LocationDetailView`) only mounts this on a site-tier
- * location, so nothing here re-checks `location.location_type`.
+ * The caller (`AtlasExplorer`) only mounts this on a site-tier location, so
+ * nothing here re-checks `location.location_type`. It renders in the Atlas's
+ * own right column rather than a separate page — every exit stays inside the
+ * Atlas route (`stopRunning` below drops `?run=true` from the current query;
+ * `SiteRunHeader`'s "Back to the beat" and the trigger prompt's Advance both
+ * go to the quest cockpit via `questSurfaceReturnTo`, which was already true
+ * before the move).
  */
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -210,7 +215,7 @@ const reachable = computed(() => {
 const unwrittenIds = computed(() => unwrittenRoomIds(rooms.value));
 
 // The composite (`LocationMap.vue`) mounts whenever the site has any map
-// layer (#884: Picture, Drawing, or a blank grid) — same gate `LocationSheet`
+// layer (#884: Picture, Drawing, or a blank grid) — same gate `AtlasPlacePane`
 // uses. A site with nothing traced yet is still fully runnable via the room
 // list above, but a plan alone is worth showing. Its own regions apparatus
 // (canvas, calibration prompt, room-shapes list — hidden here anyway, see

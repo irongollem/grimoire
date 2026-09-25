@@ -3,6 +3,7 @@ import { useSoundboardStore } from "@/stores/soundboard";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { usePlaylists, useFetchPlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSoundTrigger } from "@/composables/soundboard/useSoundPlayback";
+import { useAbove } from "@/composables/useBreakpoint";
 import {
   onAudioTrigger,
   type AudioThemeRequest,
@@ -112,6 +113,18 @@ export function useAudioThemeTriggers(): void {
   // function every playback button in the app calls — refire-as-effect,
   // Safari's webm block, Spotify's own play path all stay exactly as they are.
   const fireSound = useSoundTrigger();
+  const isDesktop = useAbove("md");
+
+  /**
+   * Audio that starts on its own must come with a way to stop it. The floating
+   * player only opened when the DM popped it out by hand, so a session's
+   * ambience or an encounter's music could start with no control anywhere on
+   * screen. Desktop only: on a phone the floating panel would cover the page,
+   * and the mobile soundboard lives in its own sheet.
+   */
+  function revealPlayer(): void {
+    if (isDesktop.value) store.widgetOpen = true;
+  }
 
   /**
    * The two slots behave differently on purpose.
@@ -207,6 +220,7 @@ export function useAudioThemeTriggers(): void {
     const { slot } = request;
     const match = resolveAudioTheme(request.theme, slot, currentPlaylists(), currentSounds());
     if (match === null) return;
+    revealPlayer();
 
     if (slot === "ambient") {
       await addScene(request, match);
@@ -245,6 +259,7 @@ export function useAudioThemeTriggers(): void {
    */
   async function handleCue(request: AudioCueRequest): Promise<void> {
     const { target } = request;
+    revealPlayer();
 
     if ("soundId" in target) {
       await fireSoundCue(request, target.soundId);
@@ -335,6 +350,7 @@ export function useAudioThemeTriggers(): void {
         ...ambientOwners.value,
         ownershipFrom(request, soundTarget(match.sound.id)),
       ];
+      watchSoundEnd(request.sourceId, match.sound.id);
       return;
     }
 
@@ -348,10 +364,16 @@ export function useAudioThemeTriggers(): void {
     const owned = ambientOwners.value.find((owner) => owner.sourceId === sourceId);
     if (owned !== undefined) {
       ambientOwners.value = ambientOwners.value.filter((owner) => owner.sourceId !== sourceId);
-      if (owned.target.startsWith("sound:")) store.stop(owned.target.slice("sound:".length));
-      // By id: leaving one themed location must not silence the scenes another
-      // location, or the DM, still has running.
-      else store.stopAmbientPlaylist(owned.target);
+      // Two owners can hold the same scene — a room's ambience the DM put on by
+      // hand, and the party standing in that room. Letting go of one must not
+      // silence the other's.
+      const stillWanted = ambientOwners.value.some((owner) => owner.target === owned.target);
+      if (!stillWanted) {
+        if (owned.target.startsWith("sound:")) store.stop(owned.target.slice("sound:".length));
+        // By id: leaving one themed location must not silence the scenes
+        // another location, or the DM, still has running.
+        else store.stopAmbientPlaylist(owned.target);
+      }
     }
 
     // A release from anyone but the current top is either stale (an encounter
@@ -380,6 +402,22 @@ export function useAudioThemeTriggers(): void {
     // Something was still waiting underneath — held, not stopped. Bring it back.
     await resumeMusicTarget(newTop.target, gen);
   }
+
+  // A scene the DM stops by hand — in the floating player, on the soundboard —
+  // is no longer anybody's. Leaving its owner listed would keep a "caused by"
+  // chip pointing at silence, and would make the same source's next request a
+  // no-op (a source that already owns a scene is not given a second), so the
+  // location's Play button would need two presses. Transitions only: an owner
+  // is recorded before its playlist's tracks resolve, so "not running yet" is
+  // not the same as "stopped".
+  watch(
+    () => store.activeAmbientPlaylists.map((scene) => scene.playlistId),
+    (running, before) => {
+      const stopped = before.filter((id) => !running.includes(id));
+      if (stopped.length === 0) return;
+      ambientOwners.value = ambientOwners.value.filter((owner) => !stopped.includes(owner.target));
+    },
+  );
 
   const off = onAudioTrigger((event) => {
     if (event.type === "request") void handleRequest(event.request);

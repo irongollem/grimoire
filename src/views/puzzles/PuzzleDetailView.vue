@@ -62,7 +62,7 @@
             size="xs"
             :icon="IconLocation"
             :label="anchorLocation.name"
-            :to="`/locations/${anchorLocation.id}`"
+            :to="placeRoute(anchorLocation.id)"
           />
           <AppButton
             v-if="anchorFeature"
@@ -421,6 +421,7 @@ import PuzzleHintsEditor from "@/components/puzzles/PuzzleHintsEditor.vue";
 import PuzzleSkillChecksEditor from "@/components/puzzles/PuzzleSkillChecksEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
 import type { Location } from "@/types/location.types";
 

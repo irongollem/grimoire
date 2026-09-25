@@ -19,10 +19,10 @@ import type { Location } from "@/types/location.types";
  */
 
 /**
- * Own sourceId namespace, distinct from `LocationSheet`'s `location:${id}`.
- * Two producers can otherwise both hold a scene for the exact place the party
- * occupies — the DM browsing it in a sheet, and the party literally being
- * there — and without separate namespaces, one's release would cut the
+ * Own sourceId namespace, distinct from `useAmbiencePlayback`'s
+ * `ambience:${id}`. Two producers can both hold a scene for the exact place the
+ * party occupies (the DM pressing Play ambience on it, and the party literally
+ * being there), and without separate namespaces one's release would cut the
  * other's ambience out from under it.
  */
 export function partyAmbienceSourceId(locationId: string): string {
@@ -85,8 +85,9 @@ export function resolvePartyAmbience(
  * a quest beat must hear the same room the whole time.
  *
  * A DM tidying locations on a Tuesday must not start music because they
- * changed a dropdown — that is `LocationSheet`'s prep-time preview, which is
- * untouched. This composable only ever reacts to where the party actually is.
+ * changed a dropdown. Hearing a place during prep is the Atlas pane's Play
+ * ambience button (`useAmbiencePlayback`), on request only. This composable
+ * only ever reacts to where the party actually is.
  */
 export function usePartyAmbience(): void {
   const campaign = useCampaignStore();
@@ -122,7 +123,7 @@ export function usePartyAmbience(): void {
         active.value = next;
         return;
       }
-      // Request first, release second — mirroring `LocationSheet` exactly:
+      // Request first, release second, as `useAmbiencePlayback` does too:
       // the new scene takes the slot before the old one lets go, so moving
       // between two themed rooms crosses over instead of cutting to silence
       // and back on.

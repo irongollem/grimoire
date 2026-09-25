@@ -48,7 +48,7 @@
         :show-hidden-pins="true"
         :compact="mapCompact"
         @update:pins="$emit('update:mapPins', $event)"
-        @pin-click="router.push(`/locations/${$event}`)"
+        @pin-click="router.push(placeRoute($event))"
       />
       <div class="flex items-center gap-2">
         <AppButton
@@ -127,6 +127,7 @@ import AppCheckbox from '@/components/common/AppCheckbox.vue';
 import LocationMap from '@/components/locations/LocationMap.vue';
 import { useImageUpload } from '@/composables/useImageUpload';
 import { buildMapStack } from '@/lib/locations/mapStack';
+import { placeRoute } from '@/lib/locations/placeRoute';
 import type { Location, MapPin as MapPinType, GridCalibration } from '@/types/location.types';
 
 const {

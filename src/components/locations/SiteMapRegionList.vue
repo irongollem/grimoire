@@ -60,7 +60,7 @@
         <div class="flex items-center gap-2">
           <div class="min-w-0 flex-1">
             <RouterLink
-              :to="`/locations/${space.id}`"
+              :to="placeRoute(space.id)"
               class="block truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
             ><template v-if="boundRegionBySpace.get(space.id)">{{ i + 1 }}. </template>{{ space.name }}</RouterLink>
             <!-- Frame 03 "7. The Drowned Stair — Nested site · click to descend
@@ -225,6 +225,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import SiteMapRoomRules from "@/components/locations/SiteMapRoomRules.vue";
 import { IconAdd, IconDelete, IconDoor, IconGridView, IconPen } from "@/lib/icons";
 import { isSiteType } from "@/lib/locations/tiers";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import {
   dmEdit,
   useCreateLocationMapRegion,

@@ -16,6 +16,10 @@
              what they are — things happening inside the session. -->
         <div class="flex items-center gap-1 shrink-0 pt-0.5">
           <DiceRoller />
+          <!-- The floating player, reachable from every page — before, the only
+               way to open it was from the soundboard page itself. Its count
+               badge is also the one thing saying audio is still playing. -->
+          <SoundboardWidgetToggle v-if="isDm" icon-only size="icon-sm" />
         </div>
       </div>
 
@@ -208,6 +212,7 @@ import { cn } from "@/lib/utils";
 import AccountMenuItem from "./AccountMenuItem.vue";
 import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
+import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
