@@ -112,7 +112,7 @@
           @save="saveEdge"
           @delete="deleteSelectedEdge"
         />
-        <QuestSelectedBeatPanel v-else-if="selectedBeat" :beat="selectedBeat" :presentation="presentations[selectedBeat.id]" @preview="openPreview({ draftVisibility: selectedBeat.visibility, savedVisibility: selectedBeat.visibility, unsaved: false })" />
+        <QuestSelectedBeatPanel v-else-if="selectedBeat" :beat="selectedBeat" :presentation="presentations[selectedBeat.id]" :staging="selectedBeatStaging" @preview="openPreview({ draftVisibility: selectedBeat.visibility, savedVisibility: selectedBeat.visibility, unsaved: false })" />
         <div v-else class="hidden rounded-xl border border-dashed border-border p-6 text-center text-caption text-muted-foreground md:block">
           Select a beat or route to see it here without leaving the flow.
         </div>
@@ -176,7 +176,7 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { useSiteBeatGaps } from "@/composables/quests/useSiteBeatGaps";
 import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
-import { deriveQuestBeatPresentations, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput } from "@/lib/quests/presentation";
+import { deriveQuestBeatPresentations, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput, type QuestBeatStaging } from "@/lib/quests/presentation";
 import { deriveQuestRouteGates } from "@/lib/quests/gates";
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
@@ -286,6 +286,19 @@ const stagedSites = computed(() => {
   }
   return result;
 });
+// Where the selected beat happens, for the summary panel's links: the staged
+// location itself, and the site it sits in when it is a room. Built for any
+// staged location — a tavern or a city, not only a site with rooms — since
+// the panel's job is to get the DM there without opening the beat first.
+const selectedBeatStaging = computed<QuestBeatStaging | null>(() => {
+  const stagedId = selectedBeat.value?.staged_at_location_id;
+  if (!stagedId) return null;
+  const staged = allLocationsRef.value.find((candidate) => candidate.id === stagedId);
+  if (!staged) return null;
+  const site = stagedSites.value.get(stagedId);
+  const inSite = site && site.id !== staged.id ? site : null;
+  return { locationId: staged.id, name: staged.name, siteId: inSite?.id ?? null, siteName: inSite?.name ?? null };
+});
 const stagedSiteIds = computed(() => [...new Set([...stagedSites.value.values()].map((site) => site.id))]);
 const { readinessBySite } = useSiteBeatGaps(stagedSiteIds, allLocationsRef);
 
@@ -308,7 +321,8 @@ const sites = computed<Record<string, QuestBeatSiteInput>>(() => {
       .map((room) => room.position);
     // #887: `siteType` lets `formatUnwrittenRoomsLabel` call a wilds site's
     // empty parts "grounds", not "rooms" — this loop already holds `site`.
-    result[stagedId] = { locationId: stagedId, name: site.name, roomCount: rooms.length, unwrittenRooms, readiness: readinessBySite.value[site.id], siteType: site.location_type };
+    const roomName = stagedId !== site.id ? allLocations.find((candidate) => candidate.id === stagedId)?.name ?? null : null;
+    result[stagedId] = { locationId: stagedId, name: site.name, roomName, roomCount: rooms.length, unwrittenRooms, readiness: readinessBySite.value[site.id], siteType: site.location_type };
   }
   return result;
 });

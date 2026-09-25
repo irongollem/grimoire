@@ -115,7 +115,7 @@ describe("QuestFlowNode", () => {
           isReady: true, isCurrent: false, isVisited: false, isDisconnected: false,
           reach: "ahead", currentThreadIds: [],
           payoffCount: 2, unlocksQuest: true, convergeLabel: "all",
-          site: { name: "The Drowned Vault", roomCount: 6, spaceCountLabel: "6 rooms", emptyRoomLabel: "rooms 4–6 empty" },
+          site: { name: "The Drowned Vault", roomName: null, roomCount: 6, spaceCountLabel: "6 rooms", emptyRoomLabel: "rooms 4–6 empty" },
         },
       },
       global: { stubs: { Handle: true } },
@@ -127,6 +127,29 @@ describe("QuestFlowNode", () => {
     expect(wrapper.text()).toContain("rooms 4–6 empty");
     expect(wrapper.text()).toContain("unlocks a quest");
     expect(wrapper.text()).not.toContain("Ready");
+  });
+
+  // Beats staged across one site's rooms used to draw the identical
+  // "site · N rooms" chip; a room-staged beat names its room instead, and the
+  // tooltip keeps the site and its size.
+  it("names the room a beat is staged in, with the site in the tooltip", () => {
+    const wrapper = mount(QuestFlowNode, {
+      props: {
+        title: "The Vault", kind: "combat", visibility: "hidden", gated: false,
+        presentation: {
+          prepGapCount: 0, prepGaps: [], handoutCount: 0,
+          loot: { total: 0, undispatched: 0, unclaimed: 0 },
+          isReady: true, isCurrent: false, isVisited: false, isDisconnected: false,
+          reach: "ahead", currentThreadIds: [],
+          payoffCount: 0, unlocksQuest: false, convergeLabel: null,
+          site: { name: "The Locked Workshop", roomName: "The Vault", roomCount: 6, spaceCountLabel: "6 rooms", emptyRoomLabel: null },
+        },
+      },
+      global: { stubs: { Handle: true } },
+    });
+    const chip = wrapper.find(".is-site");
+    expect(chip.text()).toBe("The Vault");
+    expect(chip.attributes("title")).toBe("The Vault — in The Locked Workshop (6 rooms)");
   });
 
   it("draws one party chip per thread standing on the beat, and a dashed border when a route in is gated", () => {

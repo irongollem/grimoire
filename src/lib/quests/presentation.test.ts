@@ -275,6 +275,18 @@ describe("quest beat presentation", () => {
     expect(merged.c!.convergeLabel).toBe("all");
   });
 
+  it("carries the staged room's name through, so the card can say which room", () => {
+    const staged = { ...beat("vault"), staged_at_location_id: "room-6" } as QuestBeat;
+    const result = deriveQuestBeatPresentations({
+      beats: [staged],
+      edges: [],
+      attachments: [],
+      sites: { "room-6": { locationId: "room-6", name: "The Locked Workshop", roomName: "The Vault", roomCount: 6, unwrittenRooms: [] } },
+    });
+    expect(result.vault!.site!.roomName).toBe("The Vault");
+    expect(result.vault!.site!.name).toBe("The Locked Workshop");
+  });
+
   it("reports a staged site's room count and only mentions unwritten rooms when there are any", () => {
     const staged = { ...beat("dungeon"), staged_at_location_id: "loc-1" } as QuestBeat;
     const withGaps = deriveQuestBeatPresentations({
@@ -285,6 +297,7 @@ describe("quest beat presentation", () => {
     });
     expect(withGaps.dungeon!.site).toEqual({
       name: "The Drowned Vault",
+      roomName: null,
       roomCount: 6,
       spaceCountLabel: "6 rooms",
       emptyRoomLabel: "rooms 4–6 empty",

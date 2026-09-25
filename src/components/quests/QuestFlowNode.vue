@@ -31,7 +31,7 @@
         <span v-if="presentation?.loot.unclaimed">{{ presentation.loot.unclaimed }} loot unclaimed</span>
         <span v-if="presentation?.isDisconnected">Staging</span>
         <span v-if="presentation?.convergeLabel">converge · {{ presentation.convergeLabel }}</span>
-        <span v-if="presentation?.site" class="is-site"><IconDungeon class="h-3 w-3" aria-hidden="true" />site · {{ presentation.site.spaceCountLabel }}</span>
+        <span v-if="presentation?.site" class="is-site" :title="siteTitle"><IconDungeon class="h-3 w-3" aria-hidden="true" />{{ presentation.site.roomName ?? `site · ${presentation.site.spaceCountLabel}` }}</span>
         <span v-if="presentation?.site?.emptyRoomLabel" class="is-gap">{{ presentation.site.emptyRoomLabel }}</span>
         <span v-if="presentation?.unlocksQuest">unlocks a quest</span>
         <span v-if="reachLabel" :class="reachClass">{{ reachLabel }}</span>
@@ -87,6 +87,13 @@ const REACH_LABELS: Partial<Record<NonNullable<QuestBeatPresentation["reach"]>, 
   visited: "Visited",
   stranded: "Cut off",
 };
+// A room-staged beat's chip names the room; the tooltip says which site it
+// is in and how big that site is, which the chip itself no longer does.
+const siteTitle = computed(() => {
+  const site = presentation?.site;
+  if (!site) return undefined;
+  return site.roomName ? `${site.roomName} — in ${site.name} (${site.spaceCountLabel})` : `${site.name} (${site.spaceCountLabel})`;
+});
 const reachLabel = computed(() => presentation ? REACH_LABELS[presentation.reach] ?? "" : "");
 const reachClass = computed(() => presentation?.reach === "stranded" ? "is-cutoff" : "");
 const accessibleLabel = computed(() => [

@@ -82,10 +82,26 @@ export interface QuestBeatSiteInput {
    *  absent value defaults to "room"/"rooms" through `spaceNoun`, exactly
    *  the wording every caller already expected before this field existed. */
   siteType?: LocationType | null;
+  /** The room the beat is staged in, when it is staged in one rather than at
+   *  the site itself. Without it every beat staged across one site's rooms
+   *  drew the identical `site · N rooms` chip, and the story flow could not
+   *  say which room a beat happens in. */
+  roomName?: string | null;
+}
+
+/** Where a beat is staged, as the story flow's summary panel links it: the
+ *  staged location, and — when that is a room — the site holding it. */
+export interface QuestBeatStaging {
+  locationId: string;
+  name: string;
+  siteId: string | null;
+  siteName: string | null;
 }
 
 export interface QuestBeatSitePresentation {
   name: string;
+  /** The staged room's name, or null when the beat is staged at the site itself. */
+  roomName: string | null;
   roomCount: number;
   /**
    * `roomCount` already rendered with the noun the site's own type calls for
@@ -373,6 +389,7 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
       site: siteInput && siteInput.roomCount > 0
         ? {
             name: siteInput.name,
+            roomName: siteInput.roomName ?? null,
             roomCount: siteInput.roomCount,
             spaceCountLabel: spaceCountLabelFor(siteInput.roomCount, siteInput.siteType),
             emptyRoomLabel: formatUnwrittenRoomsLabel(siteInput.unwrittenRooms, siteInput.siteType),
