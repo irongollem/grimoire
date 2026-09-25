@@ -85,3 +85,4 @@ Nothing yet — a campaign has no players until you invite them. See [Inviting P
 - [Inviting Players](#inviting-players)
 - [Importing an Adventure](#importing-an-adventure)
 - [Atlas — Locations](#atlas-locations)
+- [Exploring the Demo Campaign](#exploring-the-demo-campaign)

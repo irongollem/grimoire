@@ -19,6 +19,13 @@ interface ImportMetaEnv {
    * tracking entirely, which is the state of every local dev run.
    */
   readonly VITE_SENTRY_DSN?: string;
+  /**
+   * Where the full *Late in the Kind Country* campaign can be bought (#912).
+   * Optional: unset (the default, everywhere including production today)
+   * means there is no storefront yet, so `DemoTeaserBanner` on the dashboard
+   * of a loaded demo campaign renders nothing until this is set.
+   */
+  readonly VITE_FULL_CAMPAIGN_URL?: string;
 }
 
 interface ImportMeta {

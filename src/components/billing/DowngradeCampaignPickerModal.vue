@@ -85,7 +85,9 @@ const campaignStore = useCampaignStore()
 const { data: campaignData } = useAllDmCampaigns()
 const { mutateAsync: archiveCampaign, isPending: isArchiving } = useArchiveCampaign()
 
-const allCampaigns = computed(() => campaignData.value ?? [])
+// The demo campaign (#912) is not on the plan's count, so it is neither offered
+// as the one to keep nor archived with the rest.
+const allCampaigns = computed(() => (campaignData.value ?? []).filter(c => c.demo_source === null))
 
 /**
  * Which campaign the DM keeps. Seeded from the list rather than at setup: this

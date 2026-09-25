@@ -73,6 +73,10 @@
          board and customizing it is not a reason to hide it. -->
     <CampaignLensNotice class="mb-4" />
     <EmbedMissingContentBanner class="mb-4" />
+    <!-- The demo campaign's storefront teaser (#912) -- same reasoning as the
+         two notices above: not part of the arrangeable board, shown in both
+         modes, and self-hiding (no demo campaign, or no storefront URL yet). -->
+    <DemoTeaserBanner class="mb-4" />
 
     <!--
       One grid, two behaviours. Customizing swaps the plain container for a
@@ -189,6 +193,7 @@ import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
 import DashboardWidgetSettingsModal from "@/components/dashboard/DashboardWidgetSettingsModal.vue";
 import EmbedMissingContentBanner from "@/components/campaign/EmbedMissingContentBanner.vue";
 import CampaignLensNotice from "@/components/campaign/CampaignLensNotice.vue";
+import DemoTeaserBanner from "@/components/dashboard/DemoTeaserBanner.vue";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
 import { useDashboardLayout } from "@/composables/dashboard/useDashboardLayout";
 import { useToast } from "@/composables/useToast";

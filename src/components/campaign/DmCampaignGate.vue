@@ -22,6 +22,10 @@
         <AppButton variant="primary" :icon="IconAdd" label="Create campaign" @click="startCreate" />
         <AppButton variant="outline" :icon="IconUserRound" label="Switch to Player" @click="toPlayer" />
       </div>
+
+      <!-- The demo never counts toward the campaign quota, so it is offered here
+           whether or not Create campaign would hit the paywall (#912). -->
+      <DemoCampaignOffer layout="full" @loaded="onCreated" />
     </div>
 
     <NewCampaignModal
@@ -74,6 +78,9 @@ import type { Campaign } from "@/types/campaign.types";
 // static import here would put it in the entry chunk of every DM page (#593).
 const NewCampaignModal = defineAsyncComponent(
   () => import("@/components/campaign/NewCampaignModal.vue"),
+);
+const DemoCampaignOffer = defineAsyncComponent(
+  () => import("@/components/campaign/DemoCampaignOffer.vue"),
 );
 
 const ui = useUiStore();

@@ -101,7 +101,8 @@
         </div>
       </div>
 
-      <div class="shrink-0 flex justify-end gap-2 px-5 py-3">
+      <div class="shrink-0 flex items-center justify-end gap-2 px-5 py-3">
+        <DemoCampaignOffer layout="compact" class="mr-auto" :disabled="isSaving" @loaded="onDemoLoaded" />
         <AppButton variant="subtle" size="md" label="Cancel" @click="close" />
         <AppButton
           type="submit"
@@ -132,6 +133,7 @@ import AppModal from "@/components/common/AppModal.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
+import DemoCampaignOffer from "@/components/campaign/DemoCampaignOffer.vue";
 import type { Campaign } from "@/types/campaign.types";
 import { DEFAULT_RULESET, RULESET_OPTIONS } from "@/types/ruleset.types";
 
@@ -177,6 +179,11 @@ watch(open, (isOpen) => {
 
 function close() {
   open.value = false;
+}
+
+function onDemoLoaded(campaign: Campaign) {
+  close();
+  emit("created", campaign);
 }
 
 function onCalendarChange() {

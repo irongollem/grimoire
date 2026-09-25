@@ -1,4 +1,6 @@
 <template>
+  <DemoCampaignPanel class="max-w-lg mb-6" />
+
   <form class="space-y-6 max-w-lg" @submit.prevent="submitForm">
     <!-- Name -->
     <div>
@@ -204,6 +206,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
+import DemoCampaignPanel from "@/components/campaign/DemoCampaignPanel.vue";
 import { usePopulateLocations } from "@/composables/locations/useLocations";
 import { usePopulateFactions } from "@/composables/factions/useFactions";
 import { usePopulateSettingNpcs } from "@/composables/npcs/useNpcs";

@@ -19,12 +19,30 @@
         </div>
         <div class="flex-1 min-w-0">
           <p
-            class="font-cinzel text-xs font-bold text-foreground truncate leading-tight"
+            class="font-cinzel text-xs font-bold text-foreground leading-tight flex items-center gap-1.5 min-w-0"
           >
-            {{
+            <span class="truncate">{{
               activeCampaign?.name ??
               (campaignsLoading ? "Loading…" : "Select Campaign")
-            }}
+            }}</span>
+            <AppButton
+              v-if="activeCampaign?.demo_source"
+              as="span"
+              variant="tinted"
+              size="xs"
+              tone="info"
+              label="Demo"
+              class="shrink-0"
+            />
+            <AppButton
+              v-else-if="activeCampaign?.demo_template"
+              as="span"
+              variant="tinted"
+              size="xs"
+              tone="arcane"
+              label="Template"
+              class="shrink-0"
+            />
           </p>
           <p
             class="text-caption-sm text-muted-foreground italic truncate leading-tight flex items-center gap-1.5"
@@ -81,9 +99,27 @@
               />
               <div class="flex-1 min-w-0">
                 <p
-                  class="font-cinzel text-xs font-semibold text-foreground truncate"
+                  class="font-cinzel text-xs font-semibold text-foreground flex items-center gap-1.5 min-w-0"
                 >
-                  {{ c.name }}
+                  <span class="truncate">{{ c.name }}</span>
+                  <AppButton
+                    v-if="c.demo_source"
+                    as="span"
+                    variant="tinted"
+                    size="xs"
+                    tone="info"
+                    label="Demo"
+                    class="shrink-0"
+                  />
+                  <AppButton
+                    v-else-if="c.demo_template"
+                    as="span"
+                    variant="tinted"
+                    size="xs"
+                    tone="arcane"
+                    label="Template"
+                    class="shrink-0"
+                  />
                 </p>
                 <p
                   class="text-caption-sm text-muted-foreground italic truncate"
@@ -167,6 +203,10 @@
               >New Campaign</span
             >
           </AppButton>
+          <!-- Outside the campaign quota on purpose: the demo never counts, so a
+               Free DM at their one-campaign limit must still be able to reach it,
+               and New Campaign above sends them to the paywall instead (#912). -->
+          <DemoCampaignOffer layout="menu" @loaded="onDemoLoaded" />
           <AppButton
             variant="menu"
             size="sm"
@@ -257,6 +297,10 @@ const NewCampaignModal = defineAsyncComponent(
 const ImportBackupModal = defineAsyncComponent(
   () => import("@/components/campaign/ImportBackupModal.vue"),
 );
+// Only mounted once the menu is open, so the demo-status query waits for it too.
+const DemoCampaignOffer = defineAsyncComponent(
+  () => import("@/components/campaign/DemoCampaignOffer.vue"),
+);
 
 const showModal = ref(false);
 const showPaywall = ref(false);
@@ -301,6 +345,11 @@ function startCreate() {
 }
 
 function onCampaignCreated(campaign: Campaign) {
+  campaignStore.switchToCampaign(campaign);
+}
+
+function onDemoLoaded(campaign: Campaign) {
+  open.value = false;
   campaignStore.switchToCampaign(campaign);
 }
 

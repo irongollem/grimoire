@@ -167,9 +167,11 @@ const { data: freePlan } = usePlan("free");
 
 const campaignLimit = computed(() => freePlan.value?.quotas.campaigns ?? 1);
 
+// Counts what check_quota counts: the demo campaign (#912) occupies no slot, so
+// loading it must not send a Free DM to the archive picker.
 const showDowngradePicker = computed(() => {
   if (isPro.value) return false;
-  const count = campaigns.value?.length ?? 0;
+  const count = campaigns.value?.filter((c) => c.demo_source === null).length ?? 0;
   return count > campaignLimit.value;
 });
 </script>

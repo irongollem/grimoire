@@ -1,17 +1,22 @@
 <template>
   <div class="max-w-lg space-y-6">
-    <TransferOwnershipPanel />
+    <TransferOwnershipPanel v-if="!isDemoCopy" />
 
     <div class="border border-destructive/40 rounded-lg p-5 space-y-4">
       <p class="text-label-lg font-semibold text-destructive">DELETE CAMPAIGN</p>
       <p class="text-body text-muted-foreground">
         This permanently deletes
         <span class="text-foreground font-semibold">{{ campaign?.name }}</span>.
-        Your notes, NPCs, party members, calendar events, and encounters will have their campaign link removed but will not be deleted.
-        <span v-if="hasHomebrew">Campaign-scoped homebrew is different — choose what happens to it below.</span>
+        <template v-if="isDemoCopy">
+          This removes the demo campaign and everything in it, including anything you added. You can load a fresh copy any time from New Campaign.
+        </template>
+        <template v-else>
+          Your notes, NPCs, party members, calendar events, and encounters will have their campaign link removed but will not be deleted.
+          <span v-if="hasHomebrew">Campaign-scoped homebrew is different — choose what happens to it below.</span>
+        </template>
       </p>
 
-      <div v-if="hasHomebrew" class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-2.5">
+      <div v-if="hasHomebrew && !isDemoCopy" class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-2.5">
         <p class="text-caption text-amber-700 dark:text-amber-400">
           This campaign has <span class="font-semibold">{{ homebrewSummary }}</span> scoped exclusively to it.
           Choose what happens to that homebrew:
@@ -91,6 +96,12 @@ const campaign = computed(() => campaignStore.activeCampaign);
 const deleteConfirmInput = ref("");
 const disposition = ref<HomebrewDisposition | null>(null);
 
+// A demo copy has no homebrew disposition to choose — deleting it removes the
+// whole thing, content included, whatever disposition is passed server-side
+// (see useDemoCampaign.ts). Transferring it makes no sense either: it costs
+// no quota, so there is nothing for a new owner to inherit.
+const isDemoCopy = computed(() => !!campaign.value?.demo_source);
+
 const campaignId = computed(() => campaign.value?.id ?? null);
 const { data: homebrewCounts } = useCampaignScopedHomebrewCounts(() => campaignId.value);
 // Query hasn't settled yet — treat as "nothing scoped" rather than showing
@@ -100,11 +111,13 @@ const hasHomebrew = computed(() => hasScopedHomebrew(counts.value));
 const homebrewSummary = computed(() => summarizeHomebrewCounts(counts.value));
 
 // The DM must explicitly pick a disposition whenever there's homebrew it
-// would actually affect; otherwise the dialog behaves exactly as before.
+// would actually affect; otherwise the dialog behaves exactly as before. A
+// demo copy never asks — there's nothing to promote, and "delete" is always
+// what the server does with it anyway.
 const canDelete = computed(() =>
   !!campaign.value &&
   deleteConfirmInput.value === campaign.value.name &&
-  (!hasHomebrew.value || disposition.value !== null),
+  (isDemoCopy.value || !hasHomebrew.value || disposition.value !== null),
 );
 
 async function doDelete() {

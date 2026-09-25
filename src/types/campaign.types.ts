@@ -53,6 +53,12 @@ export interface Campaign {
   ical_token: string; // UUID; used as the shared secret for the iCal subscription URL
   current_location_id: string | null;
   is_archived: boolean;
+  /** True on the one campaign new users can load as the demo (#912). Set only by `publish_demo_version`. */
+  demo_template: boolean;
+  /** On the demo template: the published version stamp. Null everywhere else. */
+  demo_version: string | null;
+  /** On a user's copy of the demo: the template version it was copied from. Non-null marks a demo campaign. */
+  demo_source: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -88,6 +94,10 @@ export type CampaignInsert = Omit<
   | "current_location_id"
   | "custom_calendar"
   | "ai_enabled"
+  // Written only by the demo RPCs; a trigger discards client writes to them.
+  | "demo_template"
+  | "demo_version"
+  | "demo_source"
 > & {
   excluded_monster_ids?: string[];
   disabled_class_names?: string[];
