@@ -129,13 +129,15 @@ import { IconCheckDouble, IconLock, IconMonster, IconNavEncounters, IconParty } 
 import AppButton from "@/components/common/AppButton.vue";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useRunningEncounters } from "@/composables/encounters/useEncounterLive";
-import {
-  DIFFICULTY_COLORS,
-  calculateDifficulty,
-  crToXp,
-} from "@/types/encounter.types";
+import { DIFFICULTY_COLORS } from "@/types/encounter.types";
+import { difficultyLookups, encounterDifficulty } from "@/lib/encounters/difficulty";
 import type { Encounter } from "@/types/encounter.types";
 import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useParty } from "@/composables/party/useParty";
+import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
+import { useCompanions } from "@/composables/encounters/useCompanions";
+import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { useEncounterQuestLinks } from "@/composables/quests/useQuests";
 import { useEncountersInRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useUiStore } from "@/stores/ui";
@@ -162,6 +164,11 @@ const { data: encounters, isLoading } = useEncounters();
 // Difficulty labels resolve each encounter's already-stored combatant.monster_id,
 // so a monster scoped elsewhere must still be found here.
 const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
+const { data: npcs } = useNpcs();
+const { data: party } = useParty();
+const { data: characterClasses } = useAllCampaignCharacterClasses();
+const { data: companions } = useCompanions();
+const { data: traps } = useTraps(() => ({ includeAllScopes: true }));
 const { data: questLinks } = useEncounterQuestLinks();
 const { isEncounterRunning } = useRunningEncounters();
 const rollTableEncounterIds = useEncountersInRollTables();
@@ -231,38 +238,21 @@ function totalMonsterCount(encounter: Encounter): number {
   return encounter.combatants.reduce((s, c) => s + c.count, 0);
 }
 
+// The same calculation the encounter's own page uses, so the two never
+// disagree (`lib/encounters/difficulty`).
+const difficultyRows = computed(() =>
+  difficultyLookups({
+    monsters: monsters.value ?? [],
+    npcs: npcs.value ?? [],
+    party: party.value ?? [],
+    characterClasses: characterClasses.value ?? [],
+    companions: companions.value ?? [],
+    traps: traps.value ?? [],
+  }),
+);
+
 function encounterDifficultyLabel(encounter: Encounter): string {
-  if (!encounter.combatants.length) return "Trivial";
-  const monsterMap = new Map((monsters.value ?? []).map((m) => [m.id, m]));
-
-  // Only enemy-faction combatants count
-  const enemyFactionIds = new Set(
-    encounter.factions
-      .filter((f) => f.hostile_to.includes("players"))
-      .map((f) => f.id),
-  );
-  // Also include "enemy" by default
-  enemyFactionIds.add("enemy");
-
-  const enemyEntries = encounter.combatants
-    .filter((c) => enemyFactionIds.has(c.faction_id))
-    .map((c) => ({
-      cr:
-        (c.monster_id
-          ? monsterMap.get(c.monster_id)?.stat_block.challenge_rating
-          : null) ?? null,
-      count: c.count,
-    }))
-    .filter((e) => crToXp(e.cr) > 0);
-
-  if (!enemyEntries.length) return "Trivial";
-
-  // No party info in the list — just show based on raw XP
-  const result = calculateDifficulty(
-    enemyEntries,
-    Array(Math.max(encounter.party_member_ids.length, 1)).fill(3),
-  );
-  return result.label;
+  return encounterDifficulty(encounter, difficultyRows.value).label;
 }
 
 function encounterDifficultyColor(encounter: Encounter): string {

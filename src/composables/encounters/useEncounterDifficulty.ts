@@ -1,9 +1,13 @@
 import { computed } from "vue";
 import type { Ref, ComputedRef } from "vue";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
-import { totalLevel } from "@/types/multiclass.types";
-import type { CharacterClass } from "@/types/multiclass.types";
-import { calculateDifficulty, crToXp } from "@/types/encounter.types";
+import { crToXp } from "@/types/encounter.types";
+import {
+  difficultyLookups,
+  encounterDifficulty,
+  enemyFactionIds,
+  type DifficultyLookups,
+} from "@/lib/encounters/difficulty";
 import type { CombatantDef, FactionDef } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
@@ -80,17 +84,11 @@ export function useEncounterDifficulty(params: {
     return entry.custom_name || (monsterMap.value.get(entry.monster_id ?? "")?.name ?? "Unknown");
   }
 
-  const enemyFactionIds = computed(() => {
-    const ids = new Set<string>(["enemy"]);
-    factions.value.forEach((f) => {
-      if (f.hostile_to.includes("players")) ids.add(f.id);
-    });
-    return ids;
-  });
+  const enemies = computed(() => enemyFactionIds(factions.value));
 
   const enemyEntries = computed<EnemyEntry[]>(() =>
     combatants.value
-      .filter((c) => enemyFactionIds.value.has(c.faction_id))
+      .filter((c) => enemies.value.has(c.faction_id))
       .map((c) => ({
         id: c.id,
         name: combatantLabel(c),
@@ -101,80 +99,29 @@ export function useEncounterDifficulty(params: {
   );
 
   const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
-  const classesByMember = computed(() => {
-    const m = new Map<string, CharacterClass[]>();
-    for (const cc of allCharacterClasses.value ?? []) {
-      const list = m.get(cc.party_member_id) ?? [];
-      list.push(cc);
-      m.set(cc.party_member_id, list);
-    }
-    return m;
-  });
 
-  function memberLevelDisplay(memberId: string, legacyLevel: number): number {
-    const list = classesByMember.value.get(memberId) ?? [];
-    return list.length > 0 ? totalLevel(list) : legacyLevel;
-  }
-
-  const partyLevels = computed(() => {
-    const members = party.value ?? [];
-    return partyMemberIds.value.map((id) => {
-      const m = members.find((mem) => mem.id === id);
-      if (!m) return 1;
-      return memberLevelDisplay(m.id, m.level);
-    });
-  });
-
-  const allyFactionIds = computed(() => {
-    const ids = new Set<string>();
-    for (const faction of factions.value) {
-      if (faction.id === "players") continue;
-      if (faction.hostile_to.some((id) => enemyFactionIds.value.has(id))) {
-        ids.add(faction.id);
-      }
-    }
-    return ids;
-  });
-
-  const allyEntries = computed(() => {
-    const entries: { cr: string | null | undefined; count: number }[] = [];
-    for (const c of combatants.value.filter((c) =>
-      allyFactionIds.value.has(c.faction_id),
-    )) {
-      const cr = c.npc_id ? npcCr(c.npc_id) : monsterCr(c.monster_id);
-      entries.push({ cr, count: c.count });
-    }
-    for (const compId of companionIds.value) {
-      const comp = (companions.value ?? []).find((c) => c.id === compId);
-      if (!comp) continue;
-      let cr: string | null = null;
-      if (comp.source_monster_id) {
-        cr = monsterMap.value.get(comp.source_monster_id)?.stat_block.challenge_rating ?? null;
-      } else if (comp.source_npc_id) {
-        cr = npcMap.value.get(comp.source_npc_id)?.stat_block?.challenge_rating ?? null;
-      }
-      entries.push({ cr, count: 1 });
-    }
-    return entries;
-  });
-
-  const trapMap = computed(
-    () => new Map((allTraps.value ?? []).map((t) => [t.id, t])),
+  const lookups = computed<DifficultyLookups>(() =>
+    difficultyLookups({
+      monsters: monsters.value,
+      npcs: npcs.value,
+      party: party.value ?? [],
+      characterClasses: allCharacterClasses.value ?? [],
+      companions: companions.value ?? [],
+      traps: allTraps.value ?? [],
+    }),
   );
 
-  const hazardXp = computed(() =>
-    trapIds.value.reduce((sum, id) => {
-      const trap = trapMap.value.get(id);
-      return sum + crToXp(trap?.cr);
-    }, 0),
-  );
-
+  // The same calculation the Encounters list uses (`lib/encounters/difficulty`).
   const difficulty = computed(() =>
-    calculateDifficulty(
-      enemyEntries.value.map((e) => ({ cr: e.cr, count: e.count })),
-      partyLevels.value.length ? partyLevels.value : [3],
-      allyEntries.value,
-      hazardXp.value,
+    encounterDifficulty(
+      {
+        combatants: combatants.value,
+        factions: factions.value,
+        party_member_ids: partyMemberIds.value,
+        companion_ids: companionIds.value,
+        trap_ids: trapIds.value,
+      },
+      lookups.value,
     ),
   );
 

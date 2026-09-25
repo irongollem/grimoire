@@ -223,7 +223,7 @@ Traps gained the same `campaign_id` scope as monsters (#597, dungeon-craft.md's 
 
 ### Difficulty Analysis (`EncounterDifficulty.vue`)
 
-Shown on the read-only encounter sheet and computed live in the editor. Implements the 5e DMG XP budget system:
+Shown on the read-only encounter sheet, computed live in the editor, and used for the difficulty colour and label on each row of the Encounters list. All three call one pure function, `encounterDifficulty()` in `src/lib/encounters/difficulty.ts` (lookups built by `difficultyLookups()`). Until 25 Sep 2026 the list worked it out separately: every player counted as level 3, and NPC enemies, allies, companions and traps were left out, so an encounter against a level 6 party read Deadly in the list and Easy on its own page. Implements the 5e DMG XP budget system:
 
 - Raw XP summed from all enemy CRs
 - Count multiplier applied (1× to 4× based on number of monsters)
