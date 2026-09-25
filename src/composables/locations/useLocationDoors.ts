@@ -81,8 +81,8 @@ async function deleteLocationDoor(id: string): Promise<void> {
 export function useLocationDoors(roomId: string | Ref<string>) {
   const idRef = isRef(roomId) ? roomId : ref(roomId);
   const query = useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value]),
-    queryFn: () => fetchRoomDoors(idRef.value),
+    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, roomId] }) => fetchRoomDoors(roomId),
     enabled: () => !!idRef.value,
   });
   const doors = computed(() => doorsFromRoomPerspective(query.data.value ?? [], idRef.value));

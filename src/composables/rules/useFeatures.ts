@@ -60,16 +60,16 @@ async function deleteFeature(id: string): Promise<void> {
 export function useAllFeatures() {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, ruleset.value]),
-    queryFn: () => fetchAll(ruleset.value),
+    queryKey: computed(() => [QUERY_KEY, ruleset.value] as const),
+    queryFn: ({ queryKey: [, rs] }) => fetchAll(rs),
     staleTime: Infinity,
   });
 }
 
 export function useFeature(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id.value]),
-    queryFn: () => fetchOne(id.value),
+    queryKey: computed(() => [QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, fid] }) => fetchOne(fid),
     enabled: () => !!id.value,
   });
 }

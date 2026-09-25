@@ -54,8 +54,8 @@ export function useSiteDoors(spaceIds: Ref<string[]>) {
   // space set — same reasoning as `useLocationStateForRooms`.
   const sortedIds = computed(() => [...spaceIds.value].sort());
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, sortedIds.value]),
-    queryFn: () => fetchSiteDoors(spaceIds.value),
+    queryKey: computed(() => [QUERY_KEY, sortedIds.value] as const),
+    queryFn: ({ queryKey: [, ids] }) => fetchSiteDoors(ids),
     enabled: () => spaceIds.value.length > 0,
   });
 }

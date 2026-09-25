@@ -160,8 +160,11 @@ export function useItems(getOptions?: () => UseItemsOptions) {
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
 
   const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchLibraryItems(enabledSlugs.value!, ruleset.value),
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
+    queryFn: ({ queryKey: [, slugs, rs] }) => {
+      if (slugs === null) throw new Error("useItems library fetch ran without enabled sources");
+      return fetchLibraryItems(slugs, rs);
+    },
     enabled: () => isEnabled() && enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -217,8 +220,11 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
 
   const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchLibraryItems(enabledSlugs.value!, ruleset.value),
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
+    queryFn: ({ queryKey: [, slugs, rs] }) => {
+      if (slugs === null) throw new Error("usePlayerVisibleItems library fetch ran without enabled sources");
+      return fetchLibraryItems(slugs, rs);
+    },
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -288,8 +294,8 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
 
 export function useItem(id: Ref<string> | ComputedRef<string> | string) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, isRef(id) ? id.value : id]),
-    queryFn: () => fetchItem(isRef(id) ? id.value : id),
+    queryKey: computed(() => [QUERY_KEY, isRef(id) ? id.value : id] as const),
+    queryFn: ({ queryKey: [, itemId] }) => fetchItem(itemId),
     enabled: () => !!(isRef(id) ? id.value : id),
   });
 }
@@ -370,19 +376,19 @@ export function useDeleteItem() {
  *  {@link useResolvedMonster}/`useResolvedSpell`. */
 export function useResolvedItem(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => ["resolved-item", id.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["resolved-item", id.value] as const),
+    queryFn: async ({ queryKey: [, itemId] }) => {
       // library_items ids are text slugs, custom items are uuids — the two id
       // spaces are disjoint, so branch on the id shape and do a single lookup
       // rather than always probing library_items first (the common owned-item
       // detail page is a uuid and would otherwise pay a guaranteed-miss query).
-      if (isUuid(id.value)) {
-        const item = await fetchItem(id.value);
+      if (isUuid(itemId)) {
+        const item = await fetchItem(itemId);
         if (!item) throw new Error("Item not found");
         return { item, isShared: false };
       }
       const { data: shared, error: sharedError } = await supabase
-        .from("library_items").select("*").eq("id", id.value).maybeSingle();
+        .from("library_items").select("*").eq("id", itemId).maybeSingle();
       if (sharedError) throw sharedError;
       if (!shared) throw new Error("Item not found");
       return {

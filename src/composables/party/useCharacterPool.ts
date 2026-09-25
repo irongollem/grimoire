@@ -45,7 +45,10 @@ export function useCharacterPool() {
   const userId = computed(() => auth.user?.id ?? null);
   return useQuery({
     queryKey: [POOL_KEY, userId] as const,
-    queryFn: () => fetchMyCharacters(userId.value as string),
+    queryFn: ({ queryKey: [, uid] }) => {
+      if (!uid) throw new Error("useCharacterPool fetched without a user — enabled guarantees it's set");
+      return fetchMyCharacters(uid);
+    },
     enabled: computed(() => !!userId.value),
   });
 }

@@ -30,9 +30,8 @@ export function usePinnedForms() {
 export function useDmPinnedForms(partyMemberId: MaybeRef<string | null>) {
   const campaign = useCampaignStore();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "dm", toValue(partyMemberId)]),
-    queryFn: async () => {
-      const id = toValue(partyMemberId);
+    queryKey: computed(() => [QUERY_KEY, "dm", toValue(partyMemberId)] as const),
+    queryFn: async ({ queryKey: [, , id] }) => {
       if (!id) return [];
       const { data, error } = await supabase
         .from("pinned_forms")

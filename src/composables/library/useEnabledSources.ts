@@ -60,8 +60,11 @@ export function useEnabledSources() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [ENABLED_KEY, campaignId.value]),
-    queryFn: () => fetchEnabledSources(campaignId.value!),
+    queryKey: computed(() => [ENABLED_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useEnabledSources fetched without a campaign");
+      return fetchEnabledSources(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -116,8 +119,8 @@ export function resolveLibrarySlugs(
 export function useAvailableLibrarySources() {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [AVAILABLE_KEY, ruleset.value]),
-    queryFn: () => fetchAvailableLibrarySources(ruleset.value),
+    queryKey: computed(() => [AVAILABLE_KEY, ruleset.value] as const),
+    queryFn: ({ queryKey: [, rs] }) => fetchAvailableLibrarySources(rs),
     staleTime: Infinity,
   });
 }
@@ -131,8 +134,8 @@ async function fetchAvailableLibrarySpellSources(ruleset: "2014" | "2024"): Prom
 export function useAvailableLibrarySpellSources() {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [AVAILABLE_SPELL_KEY, ruleset.value]),
-    queryFn: () => fetchAvailableLibrarySpellSources(ruleset.value),
+    queryKey: computed(() => [AVAILABLE_SPELL_KEY, ruleset.value] as const),
+    queryFn: ({ queryKey: [, rs] }) => fetchAvailableLibrarySpellSources(rs),
     staleTime: Infinity,
   });
 }
@@ -146,8 +149,8 @@ async function fetchAvailableLibraryItemSources(ruleset: "2014" | "2024"): Promi
 export function useAvailableLibraryItemSources() {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [AVAILABLE_ITEM_KEY, ruleset.value]),
-    queryFn: () => fetchAvailableLibraryItemSources(ruleset.value),
+    queryKey: computed(() => [AVAILABLE_ITEM_KEY, ruleset.value] as const),
+    queryFn: ({ queryKey: [, rs] }) => fetchAvailableLibraryItemSources(rs),
     staleTime: Infinity,
   });
 }
@@ -161,8 +164,8 @@ async function fetchAvailableLibrarySpeciesSources(ruleset: "2014" | "2024"): Pr
 export function useAvailableLibrarySpeciesSources() {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [AVAILABLE_SPECIES_KEY, ruleset.value]),
-    queryFn: () => fetchAvailableLibrarySpeciesSources(ruleset.value),
+    queryKey: computed(() => [AVAILABLE_SPECIES_KEY, ruleset.value] as const),
+    queryFn: ({ queryKey: [, rs] }) => fetchAvailableLibrarySpeciesSources(rs),
     staleTime: Infinity,
   });
 }

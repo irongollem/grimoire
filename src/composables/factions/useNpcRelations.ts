@@ -20,8 +20,11 @@ export function useAllNpcRelations() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [KEY, "all", campaignId.value]),
-    queryFn: () => fetchAllRelations(campaignId.value!),
+    queryKey: computed(() => [KEY, "all", campaignId.value] as const),
+    queryFn: ({ queryKey: [, , cid] }) => {
+      if (cid === null) throw new Error("useAllNpcRelations fetched without a campaign");
+      return fetchAllRelations(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

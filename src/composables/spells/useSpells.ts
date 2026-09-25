@@ -163,8 +163,11 @@ export function useAllSpells() {
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
 
   const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchLibrarySpells(enabledSlugs.value!, ruleset.value),
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
+    queryFn: ({ queryKey: [, slugs, activeRuleset] }) => {
+      if (slugs === null) throw new Error("useAllSpells fetched without enabled sources");
+      return fetchLibrarySpells(slugs, activeRuleset);
+    },
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -194,20 +197,20 @@ export function useAllSpells() {
 export function useSpell(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value]),
-    queryFn: () => fetchSpell(idRef.value),
+    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, spellId] }) => fetchSpell(spellId),
     enabled: computed(() => !!idRef.value),
   });
 }
 
 export function useLibrarySpell(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, id.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, id.value] as const),
+    queryFn: async ({ queryKey: [, spellId] }) => {
       const { data, error } = await supabase
         .from("library_spells")
         .select("*")
-        .eq("id", id.value)
+        .eq("id", spellId)
         .single();
       if (error) throw error;
       return { ...data, user_id: "" } as Spell;
@@ -220,14 +223,14 @@ export function useLibrarySpell(id: Ref<string>) {
 /** Resolve an opaque spell ID against explicit shared/custom stores. */
 export function useResolvedSpell(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => ["resolved-spell", id.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["resolved-spell", id.value] as const),
+    queryFn: async ({ queryKey: [, spellId] }) => {
       const { data: shared, error: sharedError } = await supabase
-        .from("library_spells").select("*").eq("id", id.value).maybeSingle();
+        .from("library_spells").select("*").eq("id", spellId).maybeSingle();
       if (sharedError) throw sharedError;
       if (shared) return { spell: { ...shared, user_id: "" } as Spell, isShared: true };
-      if (!isUuid(id.value)) throw new Error("Spell not found");
-      return { spell: await fetchSpell(id.value), isShared: false };
+      if (!isUuid(spellId)) throw new Error("Spell not found");
+      return { spell: await fetchSpell(spellId), isShared: false };
     },
     enabled: () => !!id.value,
   });

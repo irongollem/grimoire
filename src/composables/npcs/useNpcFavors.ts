@@ -26,8 +26,8 @@ async function fetchNpcFavors(npcId: string): Promise<NpcFavor[]> {
 export function useNpcFavors(npcId: string | Ref<string>) {
   const id = asRef(npcId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id.value]),
-    queryFn: () => fetchNpcFavors(id.value),
+    queryKey: computed(() => [QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, favorNpcId] }) => fetchNpcFavors(favorNpcId),
     enabled: () => !!id.value,
   });
 }

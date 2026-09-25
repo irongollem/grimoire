@@ -87,8 +87,8 @@ export function usePuzzles(getOptions?: () => UsePuzzlesOptions) {
 export function usePuzzle(id: string | Ref<string>) {
   const resolved = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, resolved.value]),
-    queryFn: () => fetchPuzzle(resolved.value),
+    queryKey: computed(() => [QUERY_KEY, resolved.value] as const),
+    queryFn: ({ queryKey: [, pid] }) => fetchPuzzle(pid),
     enabled: () => !!resolved.value,
   });
 }
@@ -143,12 +143,13 @@ export function usePlayerVisiblePuzzles() {
       "player",
       campaignId.value,
       previewPartyMemberId.value,
-    ]),
-    queryFn: async () => {
+    ] as const),
+    queryFn: async ({ queryKey: [, , cid, previewId] }) => {
+      if (cid === null) throw new Error("usePlayerVisiblePuzzles fetched without a campaign");
       const { data, error } = await supabase.rpc("get_player_visible_puzzles", {
-        p_campaign_id: campaignId.value!,
+        p_campaign_id: cid,
         p_puzzle_id: null,
-        p_preview_party_member_id: previewPartyMemberId.value,
+        p_preview_party_member_id: previewId,
       });
       if (error) throw error;
       return ((data ?? []) as PuzzleRoom[]).sort((a, b) => a.name.localeCompare(b.name));
@@ -179,12 +180,12 @@ export function usePlayerVisiblePuzzle(id: string | Ref<string>) {
       campaignId.value,
       resolved.value,
       previewPartyMemberId.value,
-    ]),
-    queryFn: async () => {
+    ] as const),
+    queryFn: async ({ queryKey: [, , cid, pid, previewId] }) => {
       const { data, error } = await supabase.rpc("get_player_visible_puzzles", {
-        p_campaign_id: campaignId.value,
-        p_puzzle_id: resolved.value,
-        p_preview_party_member_id: previewPartyMemberId.value,
+        p_campaign_id: cid,
+        p_puzzle_id: pid,
+        p_preview_party_member_id: previewId,
       });
       if (error) throw error;
       return ((data ?? []) as PuzzleRoom[])[0] ?? null;

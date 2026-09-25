@@ -134,9 +134,8 @@ async function removeStoreItem(id: string): Promise<void> {
  */
 export function useStoreStockCounts(locationIds: Ref<readonly string[]>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "stock-counts", [...locationIds.value].sort()]),
-    queryFn: async (): Promise<StoreStockRow[]> => {
-      const ids = locationIds.value;
+    queryKey: computed(() => [QUERY_KEY, "stock-counts", [...locationIds.value].sort()] as const),
+    queryFn: async ({ queryKey: [, , ids] }): Promise<StoreStockRow[]> => {
       if (ids.length === 0) return [];
       const { data, error } = await supabase
         .from("store_items")
@@ -157,8 +156,11 @@ export interface StoreStockRow {
 
 export function useStoreItems(locationId: Ref<string | undefined>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, locationId.value]),
-    queryFn: () => fetchStoreItems(locationId.value!),
+    queryKey: computed(() => [QUERY_KEY, locationId.value] as const),
+    queryFn: ({ queryKey: [, id] }) => {
+      if (id === undefined) throw new Error("useStoreItems fetched without a location");
+      return fetchStoreItems(id);
+    },
     enabled: () => !!locationId.value,
   });
 }
@@ -192,8 +194,11 @@ export function useStoreItems(locationId: Ref<string | undefined>) {
  */
 export function useSharedStoreItems(locationId: Ref<string | undefined>) {
   const rowsQuery = useQuery({
-    queryKey: computed(() => [QUERY_KEY, locationId.value, "shared"]),
-    queryFn: () => fetchStoreItemRows(locationId.value!),
+    queryKey: computed(() => [QUERY_KEY, locationId.value, "shared"] as const),
+    queryFn: ({ queryKey: [, id] }) => {
+      if (id === undefined) throw new Error("useSharedStoreItems fetched without a location");
+      return fetchStoreItemRows(id);
+    },
     enabled: () => !!locationId.value,
   });
   const { data: visibleItems, isLoading: itemsLoading, refetch: refetchVisibleItems } =

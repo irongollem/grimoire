@@ -81,11 +81,11 @@ export function usePromptScreening(
   return useQuery({
     queryKey: computed(() => [
       "admin", "prompt-screening-hints", toValue(days), toValue(generationType),
-    ]),
-    queryFn: async () => {
+    ] as const),
+    queryFn: async ({ queryKey: [, , d, generationTypeKey] }) => {
       const { data, error } = await supabase.rpc("get_prompt_screening_hints", {
-        p_days: toValue(days),
-        p_generation_type: toValue(generationType),
+        p_days: d,
+        p_generation_type: generationTypeKey,
       });
       if (error) throw error;
       return data as PromptScreeningHints;

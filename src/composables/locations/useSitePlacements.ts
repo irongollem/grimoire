@@ -35,8 +35,8 @@ export function useSitePlacements(spaceIds: Ref<string[]>) {
   // space set — same reasoning as `useSiteDoors`.
   const sortedIds = computed(() => [...spaceIds.value].sort());
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "site", sortedIds.value]),
-    queryFn: () => fetchSitePlacements(spaceIds.value),
+    queryKey: computed(() => [QUERY_KEY, "site", sortedIds.value] as const),
+    queryFn: ({ queryKey: [, , ids] }) => fetchSitePlacements(ids),
     enabled: () => spaceIds.value.length > 0,
   });
 }

@@ -29,8 +29,11 @@ export function useMinis() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
-    queryFn: () => fetchMinis(campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useMinis fetched without a campaign");
+      return fetchMinis(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -39,8 +42,8 @@ export function useMinis() {
 export function useMini(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
   const query = useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value]),
-    queryFn: () => fetchMini(idRef.value),
+    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, miniId] }) => fetchMini(miniId),
     enabled: () => !!idRef.value,
   });
   return query;

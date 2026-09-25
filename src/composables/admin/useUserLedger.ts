@@ -45,8 +45,8 @@ async function fetchUserLedger(userId: string): Promise<UserLedgerRow[]> {
 /** Admin-only per-user credit ledger (grants + generations) with derived totals. */
 export function useUserLedger(userId: Ref<string>) {
   const query = useQuery({
-    queryKey: ['admin', 'user-ledger', userId],
-    queryFn: () => fetchUserLedger(userId.value),
+    queryKey: ['admin', 'user-ledger', userId] as const,
+    queryFn: ({ queryKey: [, , uid] }) => fetchUserLedger(uid),
     enabled: () => !!userId.value,
     staleTime: 30_000,
   })

@@ -29,8 +29,8 @@ export function useMiniForSource(table: MiniSourceTable | Ref<MiniSourceTable>, 
   const tableRef = isRef(table) ? table : ref(table);
   const idRef = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: computed(() => ["minis", "for", tableRef.value, idRef.value]),
-    queryFn: () => fetchMiniForSource(tableRef.value, idRef.value),
+    queryKey: computed(() => ["minis", "for", tableRef.value, idRef.value] as const),
+    queryFn: ({ queryKey: [, , table, id] }) => fetchMiniForSource(table, id),
     enabled: () => !!idRef.value,
     staleTime: 60_000,
   });

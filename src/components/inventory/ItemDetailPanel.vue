@@ -541,9 +541,8 @@ async function recharge() {
 // ── Item spells ───────────────────────────────────────────────────────────────
 
 const { data: itemSpells } = useQuery({
-  queryKey: computed(() => ["itemSpells", props.vaultItem?.spell_ids ?? []]),
-  queryFn: async () => {
-    const ids = props.vaultItem?.spell_ids ?? [];
+  queryKey: computed(() => ["itemSpells", props.vaultItem?.spell_ids ?? []] as const),
+  queryFn: async ({ queryKey: [, ids] }) => {
     if (!ids.length) return [] as Spell[];
     const { data, error } = await supabase
       .from("spells")

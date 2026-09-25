@@ -270,8 +270,11 @@ async function fetchCampaignById(id: string): Promise<Campaign> {
 
 export function useCampaignById(id: () => string | null) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id()]),
-    queryFn: () => fetchCampaignById(id()!),
+    queryKey: computed(() => [QUERY_KEY, id()] as const),
+    queryFn: ({ queryKey: [, campaignId] }) => {
+      if (campaignId === null) throw new Error("useCampaignById fetched without an id");
+      return fetchCampaignById(campaignId);
+    },
     enabled: () => !!id(),
   });
 }
@@ -282,8 +285,11 @@ export function useCampaignById(id: () => string | null) {
  *  #597 and #789). */
 export function useCampaignScopedHomebrewCounts(id: () => string | null) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id(), "homebrew-counts"]),
-    queryFn: () => countScopedHomebrew(id()!),
+    queryKey: computed(() => [QUERY_KEY, id(), "homebrew-counts"] as const),
+    queryFn: ({ queryKey: [, campaignId] }) => {
+      if (campaignId === null) throw new Error("useCampaignScopedHomebrewCounts fetched without a campaign id");
+      return countScopedHomebrew(campaignId);
+    },
     enabled: () => !!id(),
   });
 }

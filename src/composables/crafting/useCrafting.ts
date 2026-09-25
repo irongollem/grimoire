@@ -170,8 +170,11 @@ export function useCraftingRecipes() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [RECIPES_KEY, campaignId.value]),
-    queryFn: () => fetchRecipes(campaignId.value!),
+    queryKey: computed(() => [RECIPES_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useCraftingRecipes fetched without a campaign");
+      return fetchRecipes(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -190,8 +193,11 @@ export function useCraftableOutputItems() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const query = useQuery({
-    queryKey: computed(() => ["craftable-output-items", campaignId.value]),
-    queryFn: () => fetchCraftableOutputItems(campaignId.value!),
+    queryKey: computed(() => ["craftable-output-items", campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useCraftableOutputItems fetched without a campaign");
+      return fetchCraftableOutputItems(cid);
+    },
     enabled: () => !!campaignId.value,
     staleTime: Infinity,
   });
@@ -205,32 +211,32 @@ export function useCraftableOutputItems() {
 
 export function useCraftingRecipe(id: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => [RECIPES_KEY, toValue(id)]),
-    queryFn: () => fetchRecipe(toValue(id)),
+    queryKey: computed(() => [RECIPES_KEY, toValue(id)] as const),
+    queryFn: ({ queryKey: [, rid] }) => fetchRecipe(rid),
     enabled: () => !!toValue(id),
   });
 }
 
 export function useRecipeIngredients(recipeId: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => [INGREDIENTS_KEY, toValue(recipeId)]),
-    queryFn: () => fetchIngredients(toValue(recipeId)),
+    queryKey: computed(() => [INGREDIENTS_KEY, toValue(recipeId)] as const),
+    queryFn: ({ queryKey: [, rid] }) => fetchIngredients(rid),
     enabled: () => !!toValue(recipeId),
   });
 }
 
 export function useRecipeOutputs(recipeId: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => [OUTPUTS_KEY, toValue(recipeId)]),
-    queryFn: () => fetchOutputs(toValue(recipeId)),
+    queryKey: computed(() => [OUTPUTS_KEY, toValue(recipeId)] as const),
+    queryFn: ({ queryKey: [, rid] }) => fetchOutputs(rid),
     enabled: () => !!toValue(recipeId),
   });
 }
 
 export function useRecipeModifiers(recipeId: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => [MODIFIERS_KEY, toValue(recipeId)]),
-    queryFn: () => fetchModifiers(toValue(recipeId)),
+    queryKey: computed(() => [MODIFIERS_KEY, toValue(recipeId)] as const),
+    queryFn: ({ queryKey: [, rid] }) => fetchModifiers(rid),
     enabled: () => !!toValue(recipeId),
   });
 }
@@ -238,9 +244,8 @@ export function useRecipeModifiers(recipeId: MaybeRefOrGetter<string>) {
 /** Batch variants — single query per table using .in(), returns ComputedRef<Map<recipeId, data[]>> */
 export function useAllRecipeIngredients(recipeIds: MaybeRefOrGetter<string[]>) {
   const result = useQuery({
-    queryKey: computed(() => [INGREDIENTS_KEY, "batch", [...toValue(recipeIds)].sort().join(",")]),
-    queryFn: async () => {
-      const ids = toValue(recipeIds);
+    queryKey: computed(() => [INGREDIENTS_KEY, "batch", [...toValue(recipeIds)].sort()] as const),
+    queryFn: async ({ queryKey: [, , ids] }) => {
       if (ids.length === 0) return [] as CraftingIngredient[];
       const { data, error } = await supabase
         .from("crafting_recipe_ingredients")
@@ -264,9 +269,8 @@ export function useAllRecipeIngredients(recipeIds: MaybeRefOrGetter<string[]>) {
 
 export function useAllRecipeOutputs(recipeIds: MaybeRefOrGetter<string[]>) {
   const result = useQuery({
-    queryKey: computed(() => [OUTPUTS_KEY, "batch", [...toValue(recipeIds)].sort().join(",")]),
-    queryFn: async () => {
-      const ids = toValue(recipeIds);
+    queryKey: computed(() => [OUTPUTS_KEY, "batch", [...toValue(recipeIds)].sort()] as const),
+    queryFn: async ({ queryKey: [, , ids] }) => {
       if (ids.length === 0) return [] as CraftingOutput[];
       const { data, error } = await supabase
         .from("crafting_recipe_outputs")
@@ -290,9 +294,8 @@ export function useAllRecipeOutputs(recipeIds: MaybeRefOrGetter<string[]>) {
 
 export function useAllRecipeModifiers(recipeIds: MaybeRefOrGetter<string[]>) {
   const result = useQuery({
-    queryKey: computed(() => [MODIFIERS_KEY, "batch", [...toValue(recipeIds)].sort().join(",")]),
-    queryFn: async () => {
-      const ids = toValue(recipeIds);
+    queryKey: computed(() => [MODIFIERS_KEY, "batch", [...toValue(recipeIds)].sort()] as const),
+    queryFn: async ({ queryKey: [, , ids] }) => {
       if (ids.length === 0) return [] as CraftingModifier[];
       const { data, error } = await supabase
         .from("crafting_recipe_modifiers")

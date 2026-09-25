@@ -66,8 +66,11 @@ export function useCampaignMembers(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [MEMBERS_KEY, campaignId.value]),
-    queryFn: () => fetchMembers(campaignId.value!),
+    queryKey: computed(() => [MEMBERS_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useCampaignMembers fetched without a campaign");
+      return fetchMembers(cid);
+    },
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
@@ -130,8 +133,11 @@ export function useCampaignInvites() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [INVITES_KEY, campaignId.value]),
-    queryFn: () => fetchInvites(campaignId.value!),
+    queryKey: computed(() => [INVITES_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useCampaignInvites fetched without a campaign");
+      return fetchInvites(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

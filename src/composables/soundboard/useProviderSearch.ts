@@ -1,6 +1,6 @@
 import { computed, type Ref } from "vue";
 import { useQuery } from "@tanstack/vue-query";
-import type { SoundProvider, ProviderSearchResult, ProviderFilters } from "@/lib/audio/providers";
+import { getProvider, type SoundProvider, type ProviderFilters } from "@/lib/audio/providers";
 
 /**
  * Search whichever sound provider is currently selected.
@@ -16,7 +16,7 @@ export function useProviderSearch(
   page: Ref<number>,
   filters: Ref<ProviderFilters>,
 ) {
-  return useQuery<ProviderSearchResult>({
+  return useQuery({
     queryKey: computed(() => [
       "provider-search",
       provider.value.id,
@@ -25,13 +25,16 @@ export function useProviderSearch(
       filters.value.sort,
       filters.value.minDuration,
       filters.value.maxDuration,
-    ]),
-    queryFn: () =>
-      provider.value.search({
-        query: query.value.trim(),
-        page: page.value,
-        filters: filters.value,
-      }),
+    ] as const),
+    queryFn: ({ queryKey: [, providerId, q, p, sort, minDuration, maxDuration] }) => {
+      const activeProvider = getProvider(providerId);
+      if (!activeProvider) throw new Error(`useProviderSearch fetched for unknown provider "${providerId}"`);
+      return activeProvider.search({
+        query: q,
+        page: p,
+        filters: { sort, minDuration, maxDuration },
+      });
+    },
     enabled: computed(() => query.value.trim().length >= provider.value.minQueryLength),
     staleTime: 1000 * 60 * 10,
     placeholderData: (prev) => prev,

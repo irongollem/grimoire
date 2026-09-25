@@ -38,8 +38,11 @@ export function useClassOptionTexts(className: string, choiceKey: string) {
   const campaignId = computed(() => campaign.activeCampaignId);
 
   const query = useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, className, choiceKey]),
-    queryFn: () => fetchTexts(campaignId.value!, className, choiceKey),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, className, choiceKey] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useClassOptionTexts fetched without a campaign");
+      return fetchTexts(cid, className, choiceKey);
+    },
     enabled: () => !!campaignId.value,
   });
 

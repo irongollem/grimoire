@@ -23,8 +23,8 @@ async function fetchLibraryRules(ruleset: RulesetKey): Promise<LibraryRule[]> {
 export function useLibraryRules() {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [LIBRARY_KEY, ruleset.value]),
-    queryFn: () => fetchLibraryRules(ruleset.value),
+    queryKey: computed(() => [LIBRARY_KEY, ruleset.value] as const),
+    queryFn: ({ queryKey: [, rs] }) => fetchLibraryRules(rs),
     staleTime: Infinity,
   });
 }
@@ -82,8 +82,11 @@ export function useRules() {
   const campaignId = computed(() => campaign.activeCampaignId);
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [CUSTOM_KEY, campaignId.value, ruleset.value]),
-    queryFn: () => fetchRules(campaignId.value!, ruleset.value),
+    queryKey: computed(() => [CUSTOM_KEY, campaignId.value, ruleset.value] as const),
+    queryFn: ({ queryKey: [, cid, rs] }) => {
+      if (cid === null) throw new Error("useRules fetched without a campaign");
+      return fetchRules(cid, rs);
+    },
     enabled: () => !!campaignId.value,
     staleTime: Infinity,
   });
@@ -93,13 +96,13 @@ export function useRules() {
 export function usePlayerVisibleRules() {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [CUSTOM_KEY, "player-visible", ruleset.value]),
-    queryFn: async (): Promise<Rule[]> => {
+    queryKey: computed(() => [CUSTOM_KEY, "player-visible", ruleset.value] as const),
+    queryFn: async ({ queryKey: [, , rs] }): Promise<Rule[]> => {
       const { data, error } = await supabase
         .from("rules")
         .select("*")
         .eq("is_player_visible", true)
-        .or(`ruleset.is.null,ruleset.eq.${ruleset.value}`)
+        .or(`ruleset.is.null,ruleset.eq.${rs}`)
         .order("title", { ascending: true });
       if (error) throw error;
       return data as Rule[];
@@ -110,8 +113,8 @@ export function usePlayerVisibleRules() {
 
 export function useRule(id: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => [CUSTOM_KEY, toValue(id)]),
-    queryFn: () => fetchRule(toValue(id)),
+    queryKey: computed(() => [CUSTOM_KEY, toValue(id)] as const),
+    queryFn: ({ queryKey: [, ruleId] }) => fetchRule(ruleId),
     enabled: () => !!toValue(id),
   });
 }

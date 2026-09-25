@@ -15,12 +15,13 @@ export function useAllPantheons() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => ["pantheons", campaignId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["pantheons", campaignId.value] as const),
+    queryFn: async ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useAllPantheons fetched without a campaign");
       const { data, error } = await supabase
         .from("pantheons")
         .select("*")
-        .eq("campaign_id", campaignId.value!)
+        .eq("campaign_id", cid)
         .order("name", { ascending: true });
       if (error) throw error;
       return data as Pantheon[];
@@ -31,12 +32,12 @@ export function useAllPantheons() {
 
 export function usePantheon(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => ["pantheons", id.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["pantheons", id.value] as const),
+    queryFn: async ({ queryKey: [, pid] }) => {
       const { data, error } = await supabase
         .from("pantheons")
         .select("*")
-        .eq("id", id.value)
+        .eq("id", pid)
         .single();
       if (error) throw error;
       return data as Pantheon;
@@ -99,12 +100,13 @@ export function useAllDeities() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => ["deities", campaignId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["deities", campaignId.value] as const),
+    queryFn: async ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useAllDeities fetched without a campaign");
       const { data, error } = await supabase
         .from("deities")
         .select("*, pantheon:pantheons(id, name)")
-        .eq("campaign_id", campaignId.value!)
+        .eq("campaign_id", cid)
         .order("name", { ascending: true });
       if (error) throw error;
       return data as (Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null })[];
@@ -115,12 +117,12 @@ export function useAllDeities() {
 
 export function useDeity(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => ["deities", id.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["deities", id.value] as const),
+    queryFn: async ({ queryKey: [, did] }) => {
       const { data, error } = await supabase
         .from("deities")
         .select("*, pantheon:pantheons(id, name)")
-        .eq("id", id.value)
+        .eq("id", did)
         .single();
       if (error) throw error;
       return data as Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null };

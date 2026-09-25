@@ -44,9 +44,9 @@ export function useAdminRefunds(userId: Ref<string>) {
   const qc = useQueryClient()
 
   const query = useQuery({
-    queryKey: ['admin', 'refund-lots', userId],
-    queryFn: () =>
-      invokeRefundFn<{ lots: PackLot[]; purchasedBalance: number }>({ action: 'list', userId: userId.value }),
+    queryKey: ['admin', 'refund-lots', userId] as const,
+    queryFn: ({ queryKey: [, , uid] }) =>
+      invokeRefundFn<{ lots: PackLot[]; purchasedBalance: number }>({ action: 'list', userId: uid }),
     enabled: () => !!userId.value,
     staleTime: 30_000,
   })

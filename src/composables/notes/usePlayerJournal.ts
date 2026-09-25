@@ -110,8 +110,11 @@ export function useMyJournalEntries() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [KEY, "mine", campaignId.value]),
-    queryFn: () => fetchMyEntries(campaignId.value!),
+    queryKey: computed(() => [KEY, "mine", campaignId.value] as const),
+    queryFn: ({ queryKey: [, , cid] }) => {
+      if (!cid) throw new Error("useMyJournalEntries fetched without a campaign");
+      return fetchMyEntries(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -121,8 +124,11 @@ export function useSharedJournalEntries() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [KEY, "shared", campaignId.value]),
-    queryFn: () => fetchSharedEntries(campaignId.value!),
+    queryKey: computed(() => [KEY, "shared", campaignId.value] as const),
+    queryFn: ({ queryKey: [, , cid] }) => {
+      if (!cid) throw new Error("useSharedJournalEntries fetched without a campaign");
+      return fetchSharedEntries(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -171,12 +177,13 @@ export function useDmAllSharedJournalEntries() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [KEY, "dm-shared", campaignId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [KEY, "dm-shared", campaignId.value] as const),
+    queryFn: async ({ queryKey: [, , cid] }) => {
+      if (!cid) throw new Error("useDmAllSharedJournalEntries fetched without a campaign");
       const { data, error } = await supabase
         .from("player_journal_entries")
         .select("*")
-        .eq("campaign_id", campaignId.value!)
+        .eq("campaign_id", cid)
         .eq("shared_with_dm", true)
         .order("created_at", { ascending: false });
       if (error) throw error;

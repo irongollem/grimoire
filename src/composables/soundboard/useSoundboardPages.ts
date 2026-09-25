@@ -51,8 +51,11 @@ export function useSoundboardPages() {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value]),
-    queryFn: () => fetchPages(activeCampaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value] as const),
+    queryFn: ({ queryKey: [, campaignId] }) => {
+      if (campaignId === null) throw new Error("useSoundboardPages fetched without a campaign");
+      return fetchPages(campaignId);
+    },
     enabled: () => !!activeCampaignId.value,
   });
 }

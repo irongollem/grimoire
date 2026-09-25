@@ -26,14 +26,13 @@ export interface SpellChangeWindow {
 }
 
 const queryKey = (partyMemberId: MaybeRef<string | null>) =>
-  computed(() => ["characterSpells", toValue(partyMemberId)]);
+  computed(() => ["characterSpells", toValue(partyMemberId)] as const);
 
 /** Lightweight fetch — just the join rows (no spell details). Used to build the known-ID set. */
 export function useCharacterSpells(partyMemberId: MaybeRef<string | null>) {
   return useQuery({
     queryKey: queryKey(partyMemberId),
-    queryFn: async () => {
-      const id = toValue(partyMemberId);
+    queryFn: async ({ queryKey: [, id] }) => {
       if (!id) return [] as CharacterSpell[];
       const { data, error } = await supabase
         .from("character_spells")
@@ -55,9 +54,8 @@ export function useCharacterSpellsWithDetails(
     queryKey: computed(() => [
       "characterSpellsDetails",
       toValue(partyMemberId),
-    ]),
-    queryFn: async () => {
-      const id = toValue(partyMemberId);
+    ] as const),
+    queryFn: async ({ queryKey: [, id] }) => {
       if (!id) return [] as CharacterSpellEntry[];
 
       const { data, error } = await supabase
@@ -142,10 +140,11 @@ export function useAddCharacterSpell() {
 
 export function useSpellChangeWindows(partyMemberId: MaybeRef<string | null>) {
   return useQuery({
-    queryKey: computed(() => ["spellChangeWindows", toValue(partyMemberId)]),
-    queryFn: async () => {
+    queryKey: computed(() => ["spellChangeWindows", toValue(partyMemberId)] as const),
+    queryFn: async ({ queryKey: [, id] }) => {
+      if (!id) throw new Error("useSpellChangeWindows fetched without a party member — enabled guarantees it's set");
       const { data, error } = await supabase.from("spell_change_windows").select("*")
-        .eq("party_member_id", toValue(partyMemberId)!);
+        .eq("party_member_id", id);
       if (error) throw error;
       return data as SpellChangeWindow[];
     },
@@ -412,9 +411,8 @@ export async function addInvocationSpellGrant(
 /** Returns party members who know (or have prepared) a given spell. */
 export function useSpellKnowers(spellId: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => ["spellKnowers", toValue(spellId)]),
-    queryFn: async (): Promise<SpellKnower[]> => {
-      const id = toValue(spellId);
+    queryKey: computed(() => ["spellKnowers", toValue(spellId)] as const),
+    queryFn: async ({ queryKey: [, id] }): Promise<SpellKnower[]> => {
       if (!id) return [];
       const { data, error } = await supabase
         .from("character_spells")

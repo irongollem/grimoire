@@ -21,8 +21,11 @@ export function useNpcSets() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
-    queryFn: () => fetchNpcSets(campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (!cid) throw new Error("useNpcSets fetched without a campaign");
+      return fetchNpcSets(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

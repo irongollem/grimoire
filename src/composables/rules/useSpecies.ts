@@ -82,15 +82,18 @@ async function fetchLibrarySpecies(enabledSlugs: string[], ruleset: RulesetKey):
 export function useAllSpecies() {
   const { ruleset } = useRuleset();
   const customQuery = useQuery({
-    queryKey: computed(() => [QUERY_KEY, ruleset.value]),
-    queryFn: () => fetchAllSpecies(ruleset.value),
+    queryKey: computed(() => [QUERY_KEY, ruleset.value] as const),
+    queryFn: ({ queryKey: [, rs] }) => fetchAllSpecies(rs),
     staleTime: Infinity,
   });
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
 
   const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchLibrarySpecies(enabledSlugs.value!, ruleset.value),
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
+    queryFn: ({ queryKey: [, slugs, rs] }) => {
+      if (slugs === null) throw new Error("useAllSpecies fetched without enabled sources");
+      return fetchLibrarySpecies(slugs, rs);
+    },
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -155,8 +158,8 @@ async function fetchResolvedSpecies(id: string): Promise<Species> {
  *  views) get transparent resolution with no signature change. */
 export function useSpecies(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id.value]),
-    queryFn: () => fetchResolvedSpecies(id.value),
+    queryKey: computed(() => [QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, sid] }) => fetchResolvedSpecies(sid),
     enabled: () => !!id.value,
   });
 }

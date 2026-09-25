@@ -12,12 +12,13 @@ export function useCampaignDiscoveries() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
+    queryFn: async ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useCampaignDiscoveries fetched without a campaign");
       const { data, error } = await supabase
         .from("discovered_monsters")
         .select("*")
-        .eq("campaign_id", campaignId.value!)
+        .eq("campaign_id", cid)
         .order("discovered_at", { ascending: false });
       if (error) throw error;
       return data as DiscoveredMonster[];
@@ -230,12 +231,13 @@ export function usePlayerDiscoveries() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "player", campaignId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, "player", campaignId.value] as const),
+    queryFn: async ({ queryKey: [, , cid] }) => {
+      if (cid === null) throw new Error("usePlayerDiscoveries fetched without a campaign");
       const { data, error } = await supabase
         .from("discovered_monsters")
         .select("*")
-        .eq("campaign_id", campaignId.value!)
+        .eq("campaign_id", cid)
         .order("discovered_at", { ascending: false });
       if (error) throw error;
       return data as DiscoveredMonster[];

@@ -93,8 +93,11 @@ function useCampaignId() {
 export function useDowntimeGrants() {
   const campaignId = useCampaignId();
   return useQuery({
-    queryKey: computed(() => [DOWNTIME_KEY, campaignId.value, "grants"]),
-    queryFn: () => fetchGrants(campaignId.value!),
+    queryKey: computed(() => [DOWNTIME_KEY, campaignId.value, "grants"] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useDowntimeGrants fetched without a campaign");
+      return fetchGrants(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -102,8 +105,11 @@ export function useDowntimeGrants() {
 export function useDowntimeDraws() {
   const campaignId = useCampaignId();
   return useQuery({
-    queryKey: computed(() => [DOWNTIME_KEY, campaignId.value, "draws"]),
-    queryFn: () => fetchDraws(campaignId.value!),
+    queryKey: computed(() => [DOWNTIME_KEY, campaignId.value, "draws"] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useDowntimeDraws fetched without a campaign");
+      return fetchDraws(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -111,8 +117,11 @@ export function useDowntimeDraws() {
 export function useDowntimeOutcomes() {
   const campaignId = useCampaignId();
   return useQuery({
-    queryKey: computed(() => [DOWNTIME_KEY, campaignId.value, "outcomes"]),
-    queryFn: () => fetchOutcomes(campaignId.value!),
+    queryKey: computed(() => [DOWNTIME_KEY, campaignId.value, "outcomes"] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useDowntimeOutcomes fetched without a campaign");
+      return fetchOutcomes(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -120,8 +129,11 @@ export function useDowntimeOutcomes() {
 export function useDeckBacks() {
   const campaignId = useCampaignId();
   return useQuery({
-    queryKey: computed(() => [DOWNTIME_KEY, campaignId.value, "backs"]),
-    queryFn: () => fetchDeckBacks(campaignId.value!),
+    queryKey: computed(() => [DOWNTIME_KEY, campaignId.value, "backs"] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useDeckBacks fetched without a campaign");
+      return fetchDeckBacks(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

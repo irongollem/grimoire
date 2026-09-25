@@ -58,8 +58,11 @@ export function useEncounters() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
-    queryFn: () => fetchEncounters(campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useEncounters fetched without a campaign");
+      return fetchEncounters(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -67,12 +70,12 @@ export function useEncounters() {
 export function useEncountersByLocation(locationId: string | Ref<string>) {
   const idRef = isRef(locationId) ? locationId : ref(locationId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-location", idRef.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, "by-location", idRef.value] as const),
+    queryFn: async ({ queryKey: [, , lid] }) => {
       const { data, error } = await supabase
         .from("encounters")
         .select("id, name, is_finished")
-        .eq("location_id", idRef.value)
+        .eq("location_id", lid)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as { id: string; name: string; is_finished: boolean }[];
@@ -92,13 +95,13 @@ const LOCATION_SUMMARY_COLUMNS = "id, name, is_finished, location_id";
  *  a place plus its direct children). */
 export function useEncountersByLocations(locationIds: Ref<string[]>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-locations", locationIds.value]),
-    queryFn: async () => {
-      if (!locationIds.value.length) return [];
+    queryKey: computed(() => [QUERY_KEY, "by-locations", locationIds.value] as const),
+    queryFn: async ({ queryKey: [, , ids] }) => {
+      if (!ids.length) return [];
       const { data, error } = await supabase
         .from("encounters")
         .select(LOCATION_SUMMARY_COLUMNS)
-        .in("location_id", locationIds.value)
+        .in("location_id", ids)
         .order("name", { ascending: true });
       if (error) throw error;
       return data as EncounterLocationSummary[];
@@ -108,11 +111,11 @@ export function useEncountersByLocations(locationIds: Ref<string[]>) {
 }
 
 export function useEncounter(id: string | Ref<string>) {
-  const resolvedId = isRef(id) ? id : { value: id };
+  const resolvedId = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: [QUERY_KEY, resolvedId],
-    queryFn: () => fetchEncounter(isRef(id) ? id.value : id),
-    enabled: () => !!(isRef(id) ? id.value : id),
+    queryKey: [QUERY_KEY, resolvedId] as const,
+    queryFn: ({ queryKey: [, eid] }) => fetchEncounter(eid),
+    enabled: () => !!resolvedId.value,
   });
 }
 

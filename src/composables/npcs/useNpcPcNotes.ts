@@ -22,12 +22,12 @@ async function performUpsert(payload: NpcPcNoteUpsert) {
 export function useNpcPcNotes(npcId: string | Ref<string>) {
   const idRef = isRef(npcId) ? npcId : ref(npcId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryFn: async ({ queryKey: [, id] }) => {
       const { data, error } = await supabase
         .from("npc_pc_notes")
         .select("*")
-        .eq("npc_id", idRef.value)
+        .eq("npc_id", id)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as NpcPcNote[];
@@ -80,12 +80,13 @@ export function useAllNpcPcNotes() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "all", campaignId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, "all", campaignId.value] as const),
+    queryFn: async ({ queryKey: [, , cid] }) => {
+      if (!cid) throw new Error("useAllNpcPcNotes fetched without a campaign");
       const { data, error } = await supabase
         .from("npc_pc_notes")
         .select("id, npc_id, party_member_id, relationship_type, notes")
-        .eq("campaign_id", campaignId.value!)
+        .eq("campaign_id", cid)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as { id: string; npc_id: string; party_member_id: string; relationship_type: NpcRelationshipType; notes: string }[];
@@ -99,18 +100,24 @@ export function useAllNpcPcNotes() {
 export function useNpcPcNotesByPartyMember(partyMemberId: string | Ref<string>) {
   const idRef = isRef(partyMemberId) ? partyMemberId : ref(partyMemberId);
   const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-party-member", idRef.value]),
-    queryFn: async () => {
+    // campaignId is part of the key (not just used inside queryFn) because
+    // this query is otherwise indistinguishable across campaigns for the same
+    // party member id, so a refetch after switching campaigns would overwrite
+    // the previous campaign's cached entry with the new campaign's data.
+    queryKey: computed(() => [QUERY_KEY, "by-party-member", idRef.value, campaignId.value] as const),
+    queryFn: async ({ queryKey: [, , partyMemberIdKey, cid] }) => {
+      if (!cid) throw new Error("useNpcPcNotesByPartyMember fetched without a campaign");
       const { data, error } = await supabase
         .from("npc_pc_notes")
         .select("npc_id")
-        .eq("campaign_id", campaign.activeCampaignId!)
-        .eq("party_member_id", idRef.value);
+        .eq("campaign_id", cid)
+        .eq("party_member_id", partyMemberIdKey);
       if (error) throw error;
       return new Set((data as { npc_id: string }[]).map((r) => r.npc_id));
     },
-    enabled: () => !!idRef.value && !!campaign.activeCampaignId,
+    enabled: () => !!idRef.value && !!campaignId.value,
   });
 }
 
@@ -127,13 +134,14 @@ export function useMyNpcPcNote(npcId: string | Ref<string>) {
     ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
   );
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "mine", idRef.value, partyMemberId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, "mine", idRef.value, partyMemberId.value] as const),
+    queryFn: async ({ queryKey: [, , npcIdKey, partyMemberIdKey] }) => {
+      if (!partyMemberIdKey) throw new Error("useMyNpcPcNote fetched without a party member");
       const { data } = await supabase
         .from("npc_pc_notes")
         .select("notes")
-        .eq("npc_id", idRef.value)
-        .eq("party_member_id", partyMemberId.value!)
+        .eq("npc_id", npcIdKey)
+        .eq("party_member_id", partyMemberIdKey)
         .maybeSingle();
       return data?.notes ?? null;
     },

@@ -140,8 +140,8 @@ export function buildDoorStateIndex(
 export function useLocationState(locationId: string | Ref<string>) {
   const idRef = isRef(locationId) ? locationId : ref(locationId);
   const query = useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value]),
-    queryFn: () => fetchLocationState([idRef.value]),
+    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, locationId] }) => fetchLocationState([locationId]),
     enabled: () => !!idRef.value,
   });
   const index = computed(() => buildLocationStateIndex(query.data.value ?? []));
@@ -160,8 +160,8 @@ export function useLocationStateForRooms(roomIds: Ref<string[]>) {
   // set of ids (a drag-reorder of the rooms list must not refetch this).
   const sortedIds = computed(() => [...roomIds.value].sort());
   const query = useQuery({
-    queryKey: computed(() => [QUERY_KEY, "rooms", sortedIds.value]),
-    queryFn: () => fetchLocationState(roomIds.value),
+    queryKey: computed(() => [QUERY_KEY, "rooms", sortedIds.value] as const),
+    queryFn: ({ queryKey: [, , ids] }) => fetchLocationState(ids),
     enabled: () => roomIds.value.length > 0,
   });
   const index = computed(() => buildLocationStateIndex(query.data.value ?? []));
@@ -180,8 +180,8 @@ export function useLocationStateForRooms(roomIds: Ref<string[]>) {
 export function useDoorStateForSite(siteId: string | Ref<string>) {
   const idRef = isRef(siteId) ? siteId : ref(siteId);
   const query = useQuery({
-    queryKey: computed(() => [QUERY_KEY, "doors", idRef.value]),
-    queryFn: () => fetchDoorState(idRef.value),
+    queryKey: computed(() => [QUERY_KEY, "doors", idRef.value] as const),
+    queryFn: ({ queryKey: [, , siteId] }) => fetchDoorState(siteId),
     enabled: () => !!idRef.value,
   });
   const index = computed(() => buildDoorStateIndex(query.data.value ?? []));

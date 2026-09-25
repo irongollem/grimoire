@@ -89,8 +89,8 @@ export function useBackgrounds() {
   const { ruleset } = useRuleset();
   const campaign = useCampaignStore();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, ruleset.value, campaign.activeCampaignId ?? "standalone"]),
-    queryFn: () => fetchBackgrounds(ruleset.value, !campaign.activeCampaignId),
+    queryKey: computed(() => [QUERY_KEY, ruleset.value, campaign.activeCampaignId] as const),
+    queryFn: ({ queryKey: [, rs, campaignId] }) => fetchBackgrounds(rs, campaignId === null),
     staleTime: Infinity,
   });
 }
@@ -107,8 +107,8 @@ export function useBackgroundNameMap() {
 
 export function useBackground(id: Ref<string>) {
   return useQuery({
-    queryKey: [QUERY_KEY, id] as unknown as readonly unknown[],
-    queryFn: () => fetchBackground(id.value),
+    queryKey: computed(() => [QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, bgId] }) => fetchBackground(bgId),
     enabled: () => !!id.value,
   });
 }

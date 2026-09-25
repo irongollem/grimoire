@@ -50,8 +50,11 @@ export function usePartyInventory() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
-    queryFn: () => fetchInventory(campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("usePartyInventory fetched without a campaign");
+      return fetchInventory(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

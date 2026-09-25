@@ -34,8 +34,11 @@ export function useTrackerStates() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [KEY, campaignId.value]),
-    queryFn: () => fetchTrackerStates(campaignId.value!),
+    queryKey: computed(() => [KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useTrackerStates fetched without a campaign");
+      return fetchTrackerStates(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

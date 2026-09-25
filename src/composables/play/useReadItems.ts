@@ -28,8 +28,11 @@ export function useReadItems(entityType: string) {
   const campaignId = computed(() => campaign.activeCampaignId);
 
   const query = useQuery({
-    queryKey: computed(() => [KEY, entityType, campaignId.value]),
-    queryFn: () => fetchReadMap(campaignId.value!, entityType),
+    queryKey: computed(() => [KEY, entityType, campaignId.value] as const),
+    queryFn: ({ queryKey: [, type, cid] }) => {
+      if (!cid) throw new Error("useReadItems fetched without a campaign — enabled guarantees it's set");
+      return fetchReadMap(cid, type);
+    },
     enabled: () => !!campaignId.value,
   });
 

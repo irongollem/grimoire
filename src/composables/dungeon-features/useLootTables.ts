@@ -54,16 +54,16 @@ export function useLootTables() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
-    queryFn: () => fetchLootTables(campaignId.value),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => fetchLootTables(cid),
     staleTime: 30_000,
   });
 }
 
 export function useLootTable(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id.value]),
-    queryFn: () => fetchLootTable(id.value),
+    queryKey: computed(() => [QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, tid] }) => fetchLootTable(tid),
     enabled: () => !!id.value,
   });
 }

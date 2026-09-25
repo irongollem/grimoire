@@ -34,15 +34,15 @@ export function useSpellSearch(search: MaybeRefOrGetter<string>, options: UseSpe
   const debouncedSearch = refDebounced(computed(() => toValue(search)), 300);
 
   const query = useQuery({
-    queryKey: computed(() => ["spellSearch", debouncedSearch.value, ruleset.value, limit]),
-    queryFn: async () => {
-      const q = debouncedSearch.value.trim();
+    queryKey: computed(() => ["spellSearch", debouncedSearch.value, ruleset.value, limit] as const),
+    queryFn: async ({ queryKey: [, debouncedQuery, activeRuleset] }) => {
+      const q = debouncedQuery.trim();
       if (q.length < 2) return [] as Spell[];
       const [custom, shared] = await Promise.all([
         supabase.from("spells").select(SEARCH_COLUMNS).ilike("name", `%${q}%`)
-          .or(`ruleset.is.null,ruleset.eq.${ruleset.value}`).limit(limit),
+          .or(`ruleset.is.null,ruleset.eq.${activeRuleset}`).limit(limit),
         supabase.from("library_spells").select(SEARCH_COLUMNS).ilike("name", `%${q}%`)
-          .eq("ruleset", ruleset.value).limit(limit),
+          .eq("ruleset", activeRuleset).limit(limit),
       ]);
       if (custom.error) throw custom.error;
       if (shared.error) throw shared.error;

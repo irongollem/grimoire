@@ -53,8 +53,11 @@ export function useDueConsequences(): void {
   const queryClient = useQueryClient();
 
   const { data: pending } = useQuery({
-    queryKey: computed(() => [PENDING_KEY, campaign.activeCampaignId, "pending"]),
-    queryFn: () => fetchPending(campaign.activeCampaignId!),
+    queryKey: computed(() => [PENDING_KEY, campaign.activeCampaignId, "pending"] as const),
+    queryFn: ({ queryKey: [, campaignId] }) => {
+      if (campaignId === null) throw new Error("useDueConsequences fetched without a campaign");
+      return fetchPending(campaignId);
+    },
     enabled: () => !!campaign.activeCampaignId,
   });
 

@@ -55,9 +55,14 @@ async function ensureQuestMainThread(campaignId: string, questId: string): Promi
 export function useQuestThreads(questId: string | Ref<string>) {
   const id = asRef(questId);
   const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [THREADS_KEY, id.value]),
-    queryFn: () => fetchQuestThreads(id.value, campaign.activeCampaignId),
+    // `campaignId` is added to the key (it wasn't previously part of it): the
+    // fallback `ensureQuestMainThread` call inside `fetchQuestThreads` only
+    // fires when it's truthy, so it genuinely changes what a fetch for the
+    // same `questId` can return.
+    queryKey: computed(() => [THREADS_KEY, id.value, campaignId.value] as const),
+    queryFn: ({ queryKey: [, qid, cid] }) => fetchQuestThreads(qid, cid),
     enabled: () => !!id.value,
     refetchInterval: 5_000,
   });

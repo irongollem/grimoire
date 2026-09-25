@@ -64,8 +64,11 @@ export function useParty(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
-    queryFn: () => fetchParty(campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (!cid) throw new Error("useParty fetched without a campaign — enabled guarantees it's set");
+      return fetchParty(cid);
+    },
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
@@ -329,8 +332,11 @@ export function useMyCharacters() {
   const userId      = computed(() => auth.user?.id);
   const linkedId    = computed(() => auth.linkedPartyMemberId);
   return useQuery({
-    queryKey: computed(() => [MY_CHARS_KEY, campaignId.value, userId.value, linkedId.value]),
-    queryFn: () => fetchMyCharacters(campaignId.value!, userId.value!, linkedId.value),
+    queryKey: computed(() => [MY_CHARS_KEY, campaignId.value, userId.value, linkedId.value] as const),
+    queryFn: ({ queryKey: [, cid, uid, linked] }) => {
+      if (!cid || !uid) throw new Error("useMyCharacters fetched without a campaign and user — enabled guarantees both are set");
+      return fetchMyCharacters(cid, uid, linked);
+    },
     enabled: () => !!campaignId.value && !!userId.value,
   });
 }
@@ -403,8 +409,11 @@ export function useOfferedCharacters() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [OFFERED_KEY, campaignId.value]),
-    queryFn: () => fetchOfferedCharacters(campaignId.value!),
+    queryKey: computed(() => [OFFERED_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (!cid) throw new Error("useOfferedCharacters fetched without a campaign — enabled guarantees it's set");
+      return fetchOfferedCharacters(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

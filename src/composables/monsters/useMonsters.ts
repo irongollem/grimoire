@@ -137,8 +137,11 @@ export function useAllMonsters(getOptions?: () => UseMonstersOptions) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchLibraryMonsters(enabledSlugs.value!, ruleset.value),
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
+    queryFn: ({ queryKey: [, slugs, rs] }) => {
+      if (slugs === null) throw new Error("useAllMonsters fetched without enabled sources");
+      return fetchLibraryMonsters(slugs, rs);
+    },
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -197,16 +200,22 @@ export function usePlayerVisibleMonsters() {
   const { ruleset } = useRuleset();
 
   const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchLibraryMonsters(enabledSlugs.value!, ruleset.value),
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
+    queryFn: ({ queryKey: [, slugs, rs] }) => {
+      if (slugs === null) throw new Error("usePlayerVisibleMonsters fetched without enabled sources");
+      return fetchLibraryMonsters(slugs, rs);
+    },
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
 
   // Real player → gated projection. Keyed on campaign so it refetches per game.
   const projectionQuery = useQuery({
-    queryKey: computed(() => [QUERY_KEY, "player-visible", campaignId.value]),
-    queryFn: () => fetchPlayerVisibleMonsters(campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, "player-visible", campaignId.value] as const),
+    queryFn: ({ queryKey: [, , cid] }) => {
+      if (cid === null) throw new Error("usePlayerVisibleMonsters fetched without a campaign");
+      return fetchPlayerVisibleMonsters(cid);
+    },
     enabled: () => !!campaignId.value && !ui.dmPreviewMode,
     staleTime: Infinity,
   });
@@ -242,12 +251,12 @@ export function usePlayerVisibleMonsters() {
 /** Looks up a single monster from the shared library_monsters table by its slug ID. */
 export function useLibraryMonster(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, id.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, id.value] as const),
+    queryFn: async ({ queryKey: [, monsterId] }) => {
       const { data, error } = await supabase
         .from("library_monsters")
         .select("*")
-        .eq("id", id.value)
+        .eq("id", monsterId)
         .single();
       if (error) throw error;
       return { ...data, user_id: "" } as Monster;
@@ -286,14 +295,14 @@ export function useResolvedMonster(id: Ref<string>) {
   };
 
   return useQuery({
-    queryKey: computed(() => ["resolved-monster", id.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["resolved-monster", id.value] as const),
+    queryFn: async ({ queryKey: [, monsterId] }) => {
       const { data: shared, error: sharedError } = await supabase
-        .from("library_monsters").select("*").eq("id", id.value).maybeSingle();
+        .from("library_monsters").select("*").eq("id", monsterId).maybeSingle();
       if (sharedError) throw sharedError;
       if (shared) return { monster: { ...shared, user_id: "", is_shared: true } as Monster, isShared: true };
-      if (!isUuid(id.value)) throw new Error("Monster not found");
-      return { monster: await fetchMonster(id.value), isShared: false };
+      if (!isUuid(monsterId)) throw new Error("Monster not found");
+      return { monster: await fetchMonster(monsterId), isShared: false };
     },
     enabled: () => !!id.value,
     // Every caller reaches a monster *from* a list that already holds the whole
@@ -345,8 +354,8 @@ export function useMonsterWithArt(id: Ref<string>) {
 
 export function useMonster(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id.value]),
-    queryFn: () => fetchMonster(id.value),
+    queryKey: computed(() => [QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, monsterId] }) => fetchMonster(monsterId),
     enabled: () => !!id.value,
   });
 }

@@ -95,8 +95,8 @@ export function useDungeonMaps() {
 export function useDungeonMap(id: string | Ref<string>) {
   const resolved = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, resolved.value]),
-    queryFn: () => fetchDungeonMap(resolved.value),
+    queryKey: computed(() => [QUERY_KEY, resolved.value] as const),
+    queryFn: ({ queryKey: [, mapId] }) => fetchDungeonMap(mapId),
     enabled: () => !!resolved.value,
   });
 }

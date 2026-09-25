@@ -107,8 +107,8 @@ async function fetchEdgeGates(questId: string): Promise<QuestBeatEdgeGate[]> {
 export function useQuestBeatEdgeGates(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
-    queryKey: computed(() => [EDGE_GATES_KEY, id.value]),
-    queryFn: () => fetchEdgeGates(id.value),
+    queryKey: computed(() => [EDGE_GATES_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, questId] }) => fetchEdgeGates(questId),
     enabled: () => !!id.value,
   });
 }
@@ -116,8 +116,8 @@ export function useQuestBeatEdgeGates(questId: string | Ref<string>) {
 export function useQuestBeats(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
-    queryKey: computed(() => [BEATS_KEY, id.value]),
-    queryFn: () => fetchBeats(id.value),
+    queryKey: computed(() => [BEATS_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, questId] }) => fetchBeats(questId),
     enabled: () => !!id.value,
   });
 }
@@ -125,9 +125,9 @@ export function useQuestBeats(questId: string | Ref<string>) {
 export function useQuestBeat(beatId: string | Ref<string>) {
   const id = asRef(beatId);
   return useQuery({
-    queryKey: computed(() => [BEATS_KEY, "detail", id.value]),
-    queryFn: async (): Promise<QuestBeat> => {
-      const { data, error } = await supabase.from("quest_beats").select("*").eq("id", id.value).single();
+    queryKey: computed(() => [BEATS_KEY, "detail", id.value] as const),
+    queryFn: async ({ queryKey: [, , beatId] }): Promise<QuestBeat> => {
+      const { data, error } = await supabase.from("quest_beats").select("*").eq("id", beatId).single();
       if (error) throw error;
       return data as QuestBeat;
     },
@@ -138,8 +138,8 @@ export function useQuestBeat(beatId: string | Ref<string>) {
 export function useQuestBeatEdges(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
-    queryKey: computed(() => [EDGES_KEY, id.value]),
-    queryFn: () => fetchEdges(id.value),
+    queryKey: computed(() => [EDGES_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, questId] }) => fetchEdges(questId),
     enabled: () => !!id.value,
   });
 }
@@ -191,8 +191,8 @@ async function fetchAttachmentTargets(
 export function useQuestBeatAttachments(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
-    queryKey: computed(() => [ATTACHMENTS_KEY, id.value]),
-    queryFn: () => fetchAttachments(id.value),
+    queryKey: computed(() => [ATTACHMENTS_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, questId] }) => fetchAttachments(questId),
     enabled: () => !!id.value,
   });
 }
@@ -216,12 +216,13 @@ export function useLootPlacements(filter: LootPlacementFilter = {}) {
   const questIdRef = filter.questId === undefined ? ref("") : asRef(filter.questId);
   const locationIdRef = filter.locationId === undefined ? ref("") : asRef(filter.locationId);
   return useQuery({
-    queryKey: computed(() => [LOOT_KEY, campaign.activeCampaignId, questIdRef.value || "all", locationIdRef.value || "all"]),
-    queryFn: async (): Promise<LootPlacement[]> => {
+    queryKey: computed(() => [LOOT_KEY, campaign.activeCampaignId, questIdRef.value || null, locationIdRef.value || null] as const),
+    queryFn: async ({ queryKey: [, campaignId, qid, lid] }): Promise<LootPlacement[]> => {
+      if (campaignId === null) throw new Error("useLootPlacements fetched without a campaign");
       const { data, error } = await supabase.rpc("get_loot_placements", {
-        p_campaign_id: campaign.activeCampaignId!,
-        p_quest_id: questIdRef.value || null,
-        p_location_id: locationIdRef.value || null,
+        p_campaign_id: campaignId,
+        p_quest_id: qid,
+        p_location_id: lid,
       });
       if (error) throw error;
       return (data ?? []) as LootPlacement[];
@@ -286,9 +287,9 @@ export function useDispatchLoot() {
 export function useQuestBeatAttachmentSummaries(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
-    queryKey: computed(() => [ATTACHMENTS_KEY, id.value, "summaries"]),
-    queryFn: async (): Promise<QuestBeatAttachmentSummary[]> => {
-      const attachments = await fetchAttachments(id.value);
+    queryKey: computed(() => [ATTACHMENTS_KEY, id.value, "summaries"] as const),
+    queryFn: async ({ queryKey: [, questId] }): Promise<QuestBeatAttachmentSummary[]> => {
+      const attachments = await fetchAttachments(questId);
       const targets = await fetchAttachmentTargets(attachments);
       return attachments.map((attachment) => summarizeQuestBeatAttachment(
         attachment,
@@ -304,9 +305,9 @@ export function useQuestBeatAttachmentSummaries(questId: string | Ref<string>) {
 export function useQuestBoardSummaries() {
   const campaign = useCampaignStore();
   return useQuery({
-    queryKey: computed(() => [BEATS_KEY, "board", campaign.activeCampaignId]),
-    queryFn: async (): Promise<Record<string, QuestBoardSummary>> => {
-      const campaignId = campaign.activeCampaignId!;
+    queryKey: computed(() => [BEATS_KEY, "board", campaign.activeCampaignId] as const),
+    queryFn: async ({ queryKey: [, , campaignId] }): Promise<Record<string, QuestBoardSummary>> => {
+      if (campaignId === null) throw new Error("useQuestBoardSummaries fetched without a campaign");
       const [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult, threadsResult, consequencesResult, objectivesResult] = await Promise.all([
         supabase.from("quest_beats").select("*").eq("campaign_id", campaignId).neq("kind", "archived").order("created_at"),
         supabase.from("quest_beat_edges").select("*").eq("campaign_id", campaignId).order("created_at"),
@@ -647,14 +648,15 @@ export function useQuestRuntimeState(questId: string | Ref<string>, threadId: st
   const id = asRef(questId);
   const thread = asRef(threadId);
   return useQuery({
-    queryKey: computed(() => [RUNTIME_KEY, campaignId.value, id.value, thread.value]),
-    queryFn: async (): Promise<QuestRuntimeState | null> => {
+    queryKey: computed(() => [RUNTIME_KEY, campaignId.value, id.value, thread.value] as const),
+    queryFn: async ({ queryKey: [, cid, questId, threadId] }): Promise<QuestRuntimeState | null> => {
+      if (cid === null) throw new Error("useQuestRuntimeState fetched without a campaign");
       const { data, error } = await supabase
         .from("quest_runtime_state")
         .select("*")
-        .eq("campaign_id", campaignId.value!)
-        .eq("quest_id", id.value)
-        .eq("thread_id", thread.value)
+        .eq("campaign_id", cid)
+        .eq("quest_id", questId)
+        .eq("thread_id", threadId)
         .maybeSingle();
       if (error) throw error;
       return data as QuestRuntimeState | null;
@@ -674,12 +676,13 @@ export function useQuestRuntimeContext(questId: string | Ref<string>, threadId: 
   const id = asRef(questId);
   const thread = asRef(threadId);
   return useQuery({
-    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, campaignId.value, id.value, thread.value]),
-    queryFn: async (): Promise<QuestRuntimeContext> => {
+    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, campaignId.value, id.value, thread.value] as const),
+    queryFn: async ({ queryKey: [, cid, qid, tid] }): Promise<QuestRuntimeContext> => {
+      if (cid === null) throw new Error("useQuestRuntimeContext fetched without a campaign");
       const { data, error } = await supabase.rpc("get_quest_runtime_context", {
-        p_campaign_id: campaignId.value!,
-        p_quest_id: id.value,
-        p_thread_id: thread.value,
+        p_campaign_id: cid,
+        p_quest_id: qid,
+        p_thread_id: tid,
       });
       if (error) throw error;
       return data as QuestRuntimeContext;
@@ -695,9 +698,10 @@ export function useCampaignLiveQuests() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [RUNTIME_KEY, "live", campaignId.value]),
-    queryFn: async (): Promise<CampaignLiveQuest[]> => {
-      const { data, error } = await supabase.rpc("get_campaign_live_quests", { p_campaign_id: campaignId.value! });
+    queryKey: computed(() => [RUNTIME_KEY, "live", campaignId.value] as const),
+    queryFn: async ({ queryKey: [, , cid] }): Promise<CampaignLiveQuest[]> => {
+      if (cid === null) throw new Error("useCampaignLiveQuests fetched without a campaign");
+      const { data, error } = await supabase.rpc("get_campaign_live_quests", { p_campaign_id: cid });
       if (error) throw error;
       return (data ?? []) as CampaignLiveQuest[];
     },
@@ -714,12 +718,13 @@ export function useQuestRuntimeJumpTargets(questId: string | Ref<string>, search
   const id = asRef(questId);
   const query = asRef(search);
   return useQuery({
-    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, "jump-targets", campaignId.value, id.value, query.value]),
-    queryFn: async (): Promise<QuestRuntimeJumpTarget[]> => {
+    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, "jump-targets", campaignId.value, id.value, query.value] as const),
+    queryFn: async ({ queryKey: [, , cid, qid, term] }): Promise<QuestRuntimeJumpTarget[]> => {
+      if (cid === null) throw new Error("useQuestRuntimeJumpTargets fetched without a campaign");
       const { data, error } = await supabase.rpc("search_quest_runtime_jump_targets", {
-        p_campaign_id: campaignId.value!,
-        p_quest_id: id.value,
-        p_search: query.value,
+        p_campaign_id: cid,
+        p_quest_id: qid,
+        p_search: term,
         p_limit: 30,
       });
       if (error) throw error;
@@ -877,14 +882,15 @@ export function useQuestBeatTransitions(limit = 100) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [TRANSITIONS_KEY, campaignId.value, limit]),
-    queryFn: async (): Promise<QuestBeatTransition[]> => {
+    queryKey: computed(() => [TRANSITIONS_KEY, campaignId.value, limit] as const),
+    queryFn: async ({ queryKey: [, cid, rowLimit] }): Promise<QuestBeatTransition[]> => {
+      if (cid === null) throw new Error("useQuestBeatTransitions fetched without a campaign");
       const { data, error } = await supabase
         .from("quest_beat_transitions")
         .select("*")
-        .eq("campaign_id", campaignId.value!)
+        .eq("campaign_id", cid)
         .order("created_at", { ascending: false })
-        .limit(limit);
+        .limit(rowLimit);
       if (error) throw error;
       return (data ?? []) as QuestBeatTransition[];
     },
@@ -897,12 +903,12 @@ export function useQuestBeatTransitions(limit = 100) {
 export function useQuestBeatTransitionsForQuest(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
-    queryKey: computed(() => [TRANSITIONS_KEY, "quest", id.value]),
-    queryFn: async (): Promise<QuestBeatTransition[]> => {
+    queryKey: computed(() => [TRANSITIONS_KEY, "quest", id.value] as const),
+    queryFn: async ({ queryKey: [, , questId] }): Promise<QuestBeatTransition[]> => {
       const { data, error } = await supabase
         .from("quest_beat_transitions")
         .select("*")
-        .or(`from_quest_id.eq.${id.value},to_quest_id.eq.${id.value}`)
+        .or(`from_quest_id.eq.${questId},to_quest_id.eq.${questId}`)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as QuestBeatTransition[];
@@ -918,12 +924,13 @@ export function usePlayerQuestBeats(questId?: string | Ref<string>, previewParty
   const id = questId === undefined ? ref("") : asRef(questId);
   const previewId = computed(() => previewPartyMemberId?.value ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => [BEATS_KEY, "player", campaignId.value, id.value || "all", previewId.value]),
-    queryFn: async (): Promise<PlayerQuestBeat[]> => {
+    queryKey: computed(() => [BEATS_KEY, "player", campaignId.value, id.value || null, previewId.value] as const),
+    queryFn: async ({ queryKey: [, , cid, qid, previewMemberId] }): Promise<PlayerQuestBeat[]> => {
+      if (cid === null) throw new Error("usePlayerQuestBeats fetched without a campaign");
       const { data, error } = await supabase.rpc("get_player_visible_quest_beats", {
-        p_campaign_id: campaignId.value!,
-        p_quest_id: id.value || null,
-        p_preview_party_member_id: previewId.value,
+        p_campaign_id: cid,
+        p_quest_id: qid,
+        p_preview_party_member_id: previewMemberId,
       });
       if (error) throw error;
       return (data ?? []) as PlayerQuestBeat[];
@@ -939,12 +946,13 @@ export function usePlayerQuestBeatHistory(questId?: string | Ref<string>, previe
   const id = questId === undefined ? ref("") : asRef(questId);
   const previewId = computed(() => previewPartyMemberId?.value ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => [TRANSITIONS_KEY, "player", campaignId.value, id.value || "all", previewId.value]),
-    queryFn: async (): Promise<PlayerQuestBeatVisit[]> => {
+    queryKey: computed(() => [TRANSITIONS_KEY, "player", campaignId.value, id.value || null, previewId.value] as const),
+    queryFn: async ({ queryKey: [, , cid, qid, previewMemberId] }): Promise<PlayerQuestBeatVisit[]> => {
+      if (cid === null) throw new Error("usePlayerQuestBeatHistory fetched without a campaign");
       const { data, error } = await supabase.rpc("get_player_visible_quest_beats", {
-        p_campaign_id: campaignId.value!,
-        p_quest_id: id.value || null,
-        p_preview_party_member_id: previewId.value,
+        p_campaign_id: cid,
+        p_quest_id: qid,
+        p_preview_party_member_id: previewMemberId,
       });
       if (error) throw error;
       return ((data ?? []) as PlayerQuestBeat[])
@@ -979,12 +987,12 @@ export function usePlayerQuestBeatHistory(questId?: string | Ref<string>, previe
 export function useQuestConsequences(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
-    queryKey: computed(() => [CONSEQUENCES_KEY, id.value]),
-    queryFn: async (): Promise<QuestConsequence[]> => {
+    queryKey: computed(() => [CONSEQUENCES_KEY, id.value] as const),
+    queryFn: async ({ queryKey: [, questId] }): Promise<QuestConsequence[]> => {
       const { data, error } = await supabase
         .from("quest_consequences")
         .select("*")
-        .eq("quest_id", id.value)
+        .eq("quest_id", questId)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as QuestConsequence[];
@@ -1048,13 +1056,13 @@ export const CONSEQUENCES_BY_LOCATIONS_KEY = [CONSEQUENCES_KEY, "by-locations"] 
  */
 export function useQuestConsequencesByLocations(locationIds: Ref<string[]>) {
   return useQuery({
-    queryKey: computed(() => [...CONSEQUENCES_BY_LOCATIONS_KEY, locationIds.value]),
-    queryFn: async (): Promise<QuestConsequence[]> => {
-      if (!locationIds.value.length) return [];
+    queryKey: computed(() => [...CONSEQUENCES_BY_LOCATIONS_KEY, locationIds.value] as const),
+    queryFn: async ({ queryKey: [, , ids] }): Promise<QuestConsequence[]> => {
+      if (!ids.length) return [];
       const { data, error } = await supabase
         .from("quest_consequences")
         .select("*")
-        .in("on_location_id", locationIds.value)
+        .in("on_location_id", ids)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as QuestConsequence[];
@@ -1105,8 +1113,8 @@ async function fetchQuestUnlockEntry(questId: string): Promise<QuestUnlockEntry 
 export function useQuestUnlockEntry(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
-    queryKey: computed(() => [CONSEQUENCE_EVENTS_KEY, "unlock-entry", id.value]),
-    queryFn: () => fetchQuestUnlockEntry(id.value),
+    queryKey: computed(() => [CONSEQUENCE_EVENTS_KEY, "unlock-entry", id.value] as const),
+    queryFn: ({ queryKey: [, , questId] }) => fetchQuestUnlockEntry(questId),
     enabled: () => !!id.value,
   });
 }

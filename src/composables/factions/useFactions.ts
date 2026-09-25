@@ -31,12 +31,13 @@ export function useAllFactions(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => ["factions", campaignId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["factions", campaignId.value] as const),
+    queryFn: async ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useAllFactions fetched without a campaign");
       const { data, error } = await supabase
         .from("factions")
         .select("*")
-        .eq("campaign_id", campaignId.value!)
+        .eq("campaign_id", cid)
         .order("name", { ascending: true });
       if (error) throw error;
       return data as Faction[];
@@ -47,12 +48,12 @@ export function useAllFactions(enabled?: () => boolean) {
 
 export function useFaction(id: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => ["factions", toValue(id)]),
-    queryFn: async () => {
+    queryKey: computed(() => ["factions", toValue(id)] as const),
+    queryFn: async ({ queryKey: [, fid] }) => {
       const { data, error } = await supabase
         .from("factions")
         .select("*")
-        .eq("id", toValue(id))
+        .eq("id", fid)
         .single();
       if (error) throw error;
       return data as Faction;
@@ -65,12 +66,13 @@ export function usePlayerVisibleFactions() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => ["factions", campaignId.value, "player-visible"]),
-    queryFn: async () => {
+    queryKey: computed(() => ["factions", campaignId.value, "player-visible"] as const),
+    queryFn: async ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("usePlayerVisibleFactions fetched without a campaign");
       const { data, error } = await supabase
         .from("factions")
         .select("*")
-        .eq("campaign_id", campaignId.value!)
+        .eq("campaign_id", cid)
         .order("name", { ascending: true });
       if (error) throw error;
       return data as Faction[];
@@ -197,12 +199,12 @@ export function useFactionNpcs(factionId: string) {
 /** Player-accessible version — returns all PC members of a faction the player belongs to. */
 export function usePlayerFactionPartyMembers(factionId: Ref<string>, enabled: Ref<boolean>) {
   return useQuery({
-    queryKey: computed(() => ["player-faction-party-members", factionId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["player-faction-party-members", factionId.value] as const),
+    queryFn: async ({ queryKey: [, fid] }) => {
       const { data, error } = await supabase
         .from("faction_party_members")
         .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url, portrait_focal_point)")
-        .eq("faction_id", factionId.value)
+        .eq("faction_id", fid)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as (FactionPartyMember & {
@@ -222,12 +224,12 @@ export function usePlayerFactionPartyMembers(factionId: Ref<string>, enabled: Re
  */
 export function usePlayerFactionNpcs(factionId: Ref<string>, enabled: Ref<boolean>) {
   return useQuery({
-    queryKey: computed(() => ["player-faction-npcs", factionId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["player-faction-npcs", factionId.value] as const),
+    queryFn: async ({ queryKey: [, fid] }) => {
       const { data, error } = await supabase
         .from("faction_npcs")
         .select("*")
-        .eq("faction_id", factionId.value)
+        .eq("faction_id", fid)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as FactionNpc[];
@@ -267,12 +269,13 @@ export function useAllFactionNpcs() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => ["faction-npcs", "all", campaignId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["faction-npcs", "all", campaignId.value] as const),
+    queryFn: async ({ queryKey: [, , cid] }) => {
+      if (cid === null) throw new Error("useAllFactionNpcs fetched without a campaign");
       const { data, error } = await supabase
         .from("faction_npcs")
         .select("npc_id, faction_id, role, status, faction:factions!inner(id, name, emblem_url, campaign_id)")
-        .eq("faction.campaign_id", campaignId.value!);
+        .eq("faction.campaign_id", cid);
       if (error) throw error;
       return data as unknown as NpcFactionMembership[];
     },
@@ -284,12 +287,13 @@ export function useAllFactionPartyMembers() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => ["faction-party-members", "all", campaignId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["faction-party-members", "all", campaignId.value] as const),
+    queryFn: async ({ queryKey: [, , cid] }) => {
+      if (cid === null) throw new Error("useAllFactionPartyMembers fetched without a campaign");
       const { data, error } = await supabase
         .from("faction_party_members")
         .select("party_member_id, faction_id, role, status, faction:factions!inner(id, name, emblem_url, campaign_id)")
-        .eq("faction.campaign_id", campaignId.value!);
+        .eq("faction.campaign_id", cid);
       if (error) throw error;
       return data as unknown as PartyMemberFactionMembership[];
     },
@@ -762,9 +766,8 @@ export function useFactionPartyMembers(factionId: string) {
 export function usePartyMemberFactions(partyMemberId: string | Ref<string>) {
   const id = typeof partyMemberId === "string" ? partyMemberId : partyMemberId;
   return useQuery({
-    queryKey: computed(() => ["party-member-factions", typeof id === "string" ? id : id.value]),
-    queryFn: async () => {
-      const pid = typeof id === "string" ? id : id.value;
+    queryKey: computed(() => ["party-member-factions", typeof id === "string" ? id : id.value] as const),
+    queryFn: async ({ queryKey: [, pid] }) => {
       const { data, error } = await supabase
         .from("faction_party_members")
         .select("*, faction:factions(id, name, faction_type, emblem_url, player_visible_to)")

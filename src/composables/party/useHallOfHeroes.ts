@@ -99,8 +99,8 @@ export function useHallOfHeroes() {
 export function useHallOfHero(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value]),
-    queryFn: () => fetchHero(idRef.value),
+    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, id] }) => fetchHero(id),
     enabled: () => !!idRef.value,
   });
 }

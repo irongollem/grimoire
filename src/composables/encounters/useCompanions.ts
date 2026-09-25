@@ -49,8 +49,11 @@ export function useCompanions() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [COMPANIONS_KEY, campaignId.value]),
-    queryFn: () => fetchCompanions(campaignId.value!),
+    queryKey: computed(() => [COMPANIONS_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useCompanions fetched without a campaign");
+      return fetchCompanions(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

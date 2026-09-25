@@ -55,8 +55,11 @@ export function useBeatsStagedAt(spaceIds: Ref<string[]>) {
   // same space set — same reasoning as `useSiteDoors`/`useSitePlacements`.
   const sortedIds = computed(() => [...spaceIds.value].sort());
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, sortedIds.value]),
-    queryFn: () => fetchBeatsStagedAt(campaignId.value!, spaceIds.value),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, sortedIds.value] as const),
+    queryFn: ({ queryKey: [, cid, ids] }) => {
+      if (cid === null) throw new Error("useBeatsStagedAt fetched without a campaign");
+      return fetchBeatsStagedAt(cid, ids);
+    },
     enabled: () => !!campaignId.value && spaceIds.value.length > 0,
   });
 }

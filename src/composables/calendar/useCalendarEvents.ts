@@ -76,8 +76,11 @@ export function useCalendarEvents(year: MaybeRef<number>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, unref(year)]),
-    queryFn: () => fetchEventsByYear(unref(year), campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, unref(year)] as const),
+    queryFn: ({ queryKey: [, cid, y] }) => {
+      if (cid === null) throw new Error("useCalendarEvents fetched without a campaign");
+      return fetchEventsByYear(y, cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -86,13 +89,14 @@ export function usePlayerCalendarEvents(year: MaybeRef<number>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "player", campaignId.value, unref(year)]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, "player", campaignId.value, unref(year)] as const),
+    queryFn: async ({ queryKey: [, , cid, y] }) => {
+      if (cid === null) throw new Error("usePlayerCalendarEvents fetched without a campaign");
       const { data, error } = await supabase
         .from("calendar_events")
         .select("*")
-        .eq("campaign_id", campaignId.value!)
-        .eq("harptos_year", unref(year))
+        .eq("campaign_id", cid)
+        .eq("harptos_year", y)
         .or("player_visible.eq.true,event_type.eq.session")
         .order("harptos_month", { ascending: true, nullsFirst: true })
         .order("harptos_day", { ascending: true, nullsFirst: true });
@@ -107,14 +111,15 @@ export function usePlayerCalendarEventsRange(startYear: MaybeRef<number>, endYea
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "player", "range", campaignId.value, unref(startYear), unref(endYear)]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, "player", "range", campaignId.value, unref(startYear), unref(endYear)] as const),
+    queryFn: async ({ queryKey: [, , , cid, sy, ey] }) => {
+      if (cid === null) throw new Error("usePlayerCalendarEventsRange fetched without a campaign");
       const { data, error } = await supabase
         .from("calendar_events")
         .select("*")
-        .eq("campaign_id", campaignId.value!)
-        .gte("harptos_year", unref(startYear))
-        .lte("harptos_year", unref(endYear))
+        .eq("campaign_id", cid)
+        .gte("harptos_year", sy)
+        .lte("harptos_year", ey)
         .or("player_visible.eq.true,event_type.eq.session")
         .order("harptos_year", { ascending: true })
         .order("harptos_month", { ascending: true, nullsFirst: true })
@@ -130,8 +135,11 @@ export function useCalendarEventsRange(startYear: MaybeRef<number>, endYear: May
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "range", campaignId.value, unref(startYear), unref(endYear)]),
-    queryFn: () => fetchEventsByRange(unref(startYear), unref(endYear), campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, "range", campaignId.value, unref(startYear), unref(endYear)] as const),
+    queryFn: ({ queryKey: [, , cid, sy, ey] }) => {
+      if (cid === null) throw new Error("useCalendarEventsRange fetched without a campaign");
+      return fetchEventsByRange(sy, ey, cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -141,10 +149,9 @@ export function useEntityCalendarEvents(
   entityId: MaybeRef<string | null>,
 ) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "entity", unref(entityType), unref(entityId)]),
-    queryFn: async () => {
-      const id = unref(entityId);
-      const type = unref(entityType);
+    queryKey: computed(() => [QUERY_KEY, "entity", unref(entityType), unref(entityId)] as const),
+    queryFn: async ({ queryKey: [, , type, id] }) => {
+      if (id === null) throw new Error("useEntityCalendarEvents fetched without an entity id");
       const col =
         type === "quest"
           ? "linked_quest_id"
@@ -154,7 +161,7 @@ export function useEntityCalendarEvents(
       const { data, error } = await supabase
         .from("calendar_events")
         .select("*")
-        .eq(col, id!)
+        .eq(col, id)
         .order("harptos_year", { ascending: true })
         .order("harptos_month", { ascending: true, nullsFirst: true })
         .order("harptos_day", { ascending: true, nullsFirst: true });
@@ -199,12 +206,13 @@ export function useDeleteCalendarEvent() {
 /** Fetch a single calendar event by its UUID. Returns null if deleted/not found. */
 export function useCalendarEventById(id: MaybeRef<string | null>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-id", unref(id)]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, "by-id", unref(id)] as const),
+    queryFn: async ({ queryKey: [, , eventId] }) => {
+      if (eventId === null) throw new Error("useCalendarEventById fetched without an id");
       const { data, error } = await supabase
         .from("calendar_events")
         .select("*")
-        .eq("id", unref(id)!)
+        .eq("id", eventId)
         .maybeSingle();
       if (error) throw error;
       return data as CalendarEvent | null;
@@ -217,18 +225,21 @@ export function useCalendarEventById(id: MaybeRef<string | null>) {
 /** Fetch the calendar event linked to a note via linked_note_id. */
 export function useLinkedNoteCalendarEvent(noteId: MaybeRef<string | null>) {
   const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "linked-note", unref(noteId)]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, "linked-note", unref(noteId), campaignId.value] as const),
+    queryFn: async ({ queryKey: [, , nId, cid] }) => {
+      if (nId === null) throw new Error("useLinkedNoteCalendarEvent fetched without a note id");
+      if (cid === null) throw new Error("useLinkedNoteCalendarEvent fetched without a campaign");
       const { data, error } = await supabase
         .from("calendar_events")
         .select("*")
-        .eq("linked_note_id", unref(noteId)!)
-        .eq("campaign_id", campaign.activeCampaignId!)
+        .eq("linked_note_id", nId)
+        .eq("campaign_id", cid)
         .maybeSingle();
       if (error) throw error;
       return data as CalendarEvent | null;
     },
-    enabled: () => !!unref(noteId) && !!campaign.activeCampaignId,
+    enabled: () => !!unref(noteId) && !!campaignId.value,
   });
 }

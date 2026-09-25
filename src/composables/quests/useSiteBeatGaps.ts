@@ -102,13 +102,13 @@ export function useSiteBeatGaps(siteIds: Ref<string[]>, locations: Ref<Location[
   const allSpaceIds = computed(() => [...bindableSpaceIdsBySite(sortedSiteIds.value, locations.value).values()].flat().sort());
 
   const regionsQuery = useQuery({
-    queryKey: computed(() => [REGIONS_QUERY_KEY, "sites", sortedSiteIds.value]),
-    queryFn: () => fetchRegionsForSites(sortedSiteIds.value),
+    queryKey: computed(() => [REGIONS_QUERY_KEY, "sites", sortedSiteIds.value] as const),
+    queryFn: ({ queryKey: [, , siteIds] }) => fetchRegionsForSites(siteIds),
     enabled: () => sortedSiteIds.value.length > 0,
   });
   const doorsQuery = useQuery({
-    queryKey: computed(() => [DOORS_QUERY_KEY, "sites", allSpaceIds.value]),
-    queryFn: () => fetchDoorsFromSpaces(allSpaceIds.value),
+    queryKey: computed(() => [DOORS_QUERY_KEY, "sites", allSpaceIds.value] as const),
+    queryFn: ({ queryKey: [, , spaceIds] }) => fetchDoorsFromSpaces(spaceIds),
     enabled: () => allSpaceIds.value.length > 0,
   });
 

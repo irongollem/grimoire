@@ -193,8 +193,12 @@ export function useLocations(parentId: string | null | Ref<string | null> = null
   const campaignId = computed(() => campaign.activeCampaignId);
   const parentIdRef = isRef(parentId) ? parentId : ref(parentId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, parentIdRef.value]),
-    queryFn: () => fetchLocations(campaignId.value!, parentIdRef.value),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, parentIdRef.value] as const),
+    queryFn: ({ queryKey: [, cid, parentId] }) => {
+      if (cid === null) throw new Error("useLocations fetched without an active campaign");
+      if (parentId === "") throw new Error("useLocations fetched with an unresolved parent id");
+      return fetchLocations(cid, parentId);
+    },
     enabled: () => !!campaignId.value && parentIdRef.value !== "",
   });
 }
@@ -208,8 +212,11 @@ export function useAllLocations(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, "all"]),
-    queryFn: () => fetchAllLocations(campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, "all"] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useAllLocations fetched without an active campaign");
+      return fetchAllLocations(cid);
+    },
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
@@ -275,8 +282,8 @@ export function useLocationTree(enabled?: () => boolean) {
 export function useLocation(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value]),
-    queryFn: () => fetchLocation(idRef.value),
+    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, locationId] }) => fetchLocation(locationId),
     enabled: () => !!idRef.value,
   });
 }
@@ -348,22 +355,23 @@ export function useSharedLocations() {
   const ui = useUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared", ui.dmPreviewMode]),
-    queryFn: async () => {
-      if (ui.dmPreviewMode) {
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared", ui.dmPreviewMode] as const),
+    queryFn: async ({ queryKey: [, cid, , dmPreviewMode] }) => {
+      if (cid === null) throw new Error("useSharedLocations fetched without an active campaign");
+      if (dmPreviewMode) {
         // DM previewing player portal: show locations shared with at least one
         // player, read from the base table (DM owns them).
         const { data, error } = await supabase
           .from("locations")
           .select("*")
-          .eq("campaign_id", campaignId.value!)
+          .eq("campaign_id", cid)
           .not("player_visible_to", "eq", "{}")
           .order("name", { ascending: true });
         if (error) throw error;
         return data as Location[];
       }
       const { data, error } = await supabase.rpc("get_player_visible_locations", {
-        p_campaign_id: campaignId.value!,
+        p_campaign_id: cid,
         p_location_id: null,
       });
       if (error) throw error;
@@ -384,14 +392,14 @@ export function usePlayerVisibleLocation(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
   const ui = useUiStore();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "player-one", idRef.value, ui.dmPreviewMode]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, "player-one", idRef.value, ui.dmPreviewMode] as const),
+    queryFn: async ({ queryKey: [, , locationId, dmPreviewMode] }) => {
       // DM preview: the DM owns the row, read it from the base table (the
       // projection would return nothing — the DM isn't a campaign_member).
-      if (ui.dmPreviewMode) return fetchLocation(idRef.value);
+      if (dmPreviewMode) return fetchLocation(locationId);
       const { data, error } = await supabase.rpc("get_player_visible_locations", {
         p_campaign_id: null,
-        p_location_id: idRef.value,
+        p_location_id: locationId,
       });
       if (error) throw error;
       return ((data ?? []) as Location[])[0] ?? null;

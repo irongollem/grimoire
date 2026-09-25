@@ -103,12 +103,12 @@ let initializedResume = false;
 // ── Source entity (header portrait + name) ──────────────────────────────────
 interface SourceEntity { id: string; name: string; portrait_url: string | null }
 
-async function fetchSourceEntity(): Promise<SourceEntity | null> {
-  const portraitColumn = sourceTable === "monsters" ? "image_url" : "portrait_url";
+async function fetchSourceEntity(table: MiniSourceTable, id: string): Promise<SourceEntity | null> {
+  const portraitColumn = table === "monsters" ? "image_url" : "portrait_url";
   const { data, error } = await supabase
-    .from(sourceTable)
+    .from(table)
     .select(`id, name, ${portraitColumn}`)
-    .eq("id", sourceId)
+    .eq("id", id)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
@@ -117,8 +117,8 @@ async function fetchSourceEntity(): Promise<SourceEntity | null> {
 }
 
 const { data: sourceEntity } = useQuery({
-  queryKey: computed(() => ["mini-forge-source", sourceTable, sourceId]),
-  queryFn: fetchSourceEntity,
+  queryKey: computed(() => ["mini-forge-source", sourceTable, sourceId] as const),
+  queryFn: ({ queryKey: [, table, id] }) => fetchSourceEntity(table, id),
   enabled: () => !!sourceId,
 });
 
@@ -132,8 +132,11 @@ async function fetchMini(id: string): Promise<Mini> {
 }
 
 const { data: resumedMini } = useQuery({
-  queryKey: computed(() => ["minis", resumeMiniId]),
-  queryFn: () => fetchMini(resumeMiniId!),
+  queryKey: computed(() => ["minis", resumeMiniId] as const),
+  queryFn: ({ queryKey: [, id] }) => {
+    if (id === null) throw new Error("SimulacrumWizard: resumed mini fetched without a mini id — enabled requires resumeMiniId");
+    return fetchMini(id);
+  },
   enabled: () => !!resumeMiniId,
 });
 

@@ -56,16 +56,16 @@ export function useRollTables() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
-    queryFn: () => fetchRollTables(campaignId.value),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => fetchRollTables(cid),
     staleTime: 30_000,
   });
 }
 
 export function useRollTable(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id.value]),
-    queryFn: () => fetchRollTable(id.value),
+    queryKey: computed(() => [QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, tid] }) => fetchRollTable(tid),
     enabled: () => !!id.value,
   });
 }

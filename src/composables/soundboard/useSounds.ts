@@ -73,8 +73,11 @@ export function useSounds(enabled?: () => boolean) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value]),
-    queryFn: () => fetchSounds(activeCampaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value] as const),
+    queryFn: ({ queryKey: [, campaignId] }) => {
+      if (campaignId === null) throw new Error("useSounds fetched without a campaign");
+      return fetchSounds(campaignId);
+    },
     enabled: () => !!activeCampaignId.value && (enabled?.() ?? true),
   });
 }

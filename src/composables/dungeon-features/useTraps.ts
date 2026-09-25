@@ -72,8 +72,8 @@ export function useTraps(getOptions?: () => UseTrapsOptions) {
 export function useTrap(id: string | Ref<string>) {
   const resolved = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, resolved.value]),
-    queryFn: () => fetchTrap(resolved.value),
+    queryKey: computed(() => [QUERY_KEY, resolved.value] as const),
+    queryFn: ({ queryKey: [, tid] }) => fetchTrap(tid),
     enabled: () => !!resolved.value,
   });
 }

@@ -47,11 +47,14 @@ export function usePlayerNpcRatings(npcs?: () => { id: string }[]) {
   const campaign = useCampaignStore();
   const queryClient = useQueryClient();
   const campaignId = computed(() => campaign.activeCampaignId);
-  const queryKey = computed(() => [QUERY_KEY, campaignId.value]);
+  const queryKey = computed(() => [QUERY_KEY, campaignId.value] as const);
 
   const { data } = useQuery({
     queryKey,
-    queryFn: () => fetchRatings(campaignId.value!),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (!cid) throw new Error("usePlayerNpcRatings fetched without a campaign — enabled guarantees it's set");
+      return fetchRatings(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 

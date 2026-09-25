@@ -61,16 +61,19 @@ export function useNotes() {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value]),
-    queryFn: () => fetchNotes(activeCampaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value] as const),
+    queryFn: ({ queryKey: [, campaignId] }) => {
+      if (!campaignId) throw new Error("useNotes fetched without a campaign");
+      return fetchNotes(campaignId);
+    },
     enabled: () => !!activeCampaignId.value,
   });
 }
 
 export function useNote(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id.value]),
-    queryFn: () => fetchNote(id.value),
+    queryKey: computed(() => [QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, noteId] }) => fetchNote(noteId),
     enabled: () => !!id.value,
   });
 }

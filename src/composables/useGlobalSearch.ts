@@ -135,8 +135,8 @@ export function useGlobalSearch(query: Ref<string>) {
   const trimmed = computed(() => query.value.trim());
 
   return useQuery({
-    queryKey: computed(() => ["global-search", trimmed.value, campaignId.value]),
-    queryFn: () => searchAll(trimmed.value, campaignId.value),
+    queryKey: computed(() => ["global-search", trimmed.value, campaignId.value] as const),
+    queryFn: ({ queryKey: [, search, activeCampaignId] }) => searchAll(search, activeCampaignId),
     enabled: () => trimmed.value.length >= 2,
     staleTime: 30_000,
     placeholderData: [],

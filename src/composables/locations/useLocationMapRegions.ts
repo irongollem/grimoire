@@ -155,8 +155,8 @@ export function dmEdit(update: LocationMapRegionUpdate): LocationMapRegionUpdate
 export function useLocationMapRegions(siteId: string | Ref<string>) {
   const idRef = isRef(siteId) ? siteId : ref(siteId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value]),
-    queryFn: () => fetchSiteRegions(idRef.value),
+    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, siteId] }) => fetchSiteRegions(siteId),
     enabled: () => !!idRef.value,
   });
 }

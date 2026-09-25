@@ -21,8 +21,11 @@ export function usePlayerFavourites(entityType: string) {
   const campaignId = computed(() => campaign.activeCampaignId);
 
   const { data } = useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, entityType]),
-    queryFn: () => fetchFavouriteIds(campaignId.value!, entityType),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, entityType] as const),
+    queryFn: ({ queryKey: [, cid, type] }) => {
+      if (!cid) throw new Error("usePlayerFavourites fetched without a campaign — enabled guarantees it's set");
+      return fetchFavouriteIds(cid, type);
+    },
     enabled: () => !!campaignId.value,
   });
 

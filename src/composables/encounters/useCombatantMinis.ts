@@ -33,8 +33,11 @@ export function useCombatantMinis(combatants: MaybeRefOrGetter<RunCombatant[]>) 
   const campaignId = computed(() => campaign.activeCampaignId);
 
   const { data: minis } = useQuery({
-    queryKey: computed(() => ["minis", "vtt-ready", campaignId.value]),
-    queryFn: () => fetchVttMinis(campaignId.value!),
+    queryKey: computed(() => ["minis", "vtt-ready", campaignId.value] as const),
+    queryFn: ({ queryKey: [, , cid] }) => {
+      if (cid === null) throw new Error("useCombatantMinis fetched without a campaign");
+      return fetchVttMinis(cid);
+    },
     enabled: () => !!campaignId.value,
     staleTime: 60_000,
   });

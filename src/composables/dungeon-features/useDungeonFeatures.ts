@@ -89,8 +89,8 @@ export function useDungeonFeatures(getOptions?: () => UseDungeonFeaturesOptions)
 export function useDungeonFeature(id: string | Ref<string>) {
   const resolved = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, resolved.value]),
-    queryFn: () => fetchDungeonFeature(resolved.value),
+    queryKey: computed(() => [QUERY_KEY, resolved.value] as const),
+    queryFn: ({ queryKey: [, fid] }) => fetchDungeonFeature(fid),
     enabled: () => !!resolved.value,
   });
 }

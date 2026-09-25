@@ -47,8 +47,11 @@ export function useOptionalRules() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [KEY, campaignId.value]),
-    queryFn: () => fetchCampaignRules(campaignId.value!),
+    queryKey: computed(() => [KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useOptionalRules fetched without a campaign");
+      return fetchCampaignRules(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

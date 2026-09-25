@@ -115,11 +115,14 @@ export function useUnembeddedContent() {
   const campaign = useCampaignStore();
   const queryClient = useQueryClient();
 
-  const queryKey = computed(() => [QUERY_KEY, campaign.activeCampaignId]);
+  const queryKey = computed(() => [QUERY_KEY, campaign.activeCampaignId] as const);
 
   const query = useQuery({
     queryKey,
-    queryFn: () => fetchCounts(campaign.activeCampaignId as string),
+    queryFn: ({ queryKey: [, campaignId] }) => {
+      if (campaignId === null) throw new Error("useUnembeddedContent fetched without an active campaign");
+      return fetchCounts(campaignId);
+    },
     enabled: () => !!campaign.activeCampaignId,
   });
 

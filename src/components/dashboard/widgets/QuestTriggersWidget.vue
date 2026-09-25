@@ -72,15 +72,16 @@ const calendarStore = useCalendarStore();
 const campaignId = computed(() => campaign.activeCampaignId);
 
 const { data: rawRows, isLoading } = useQuery({
-  queryKey: computed(() => [PENDING_KEY, campaignId.value, "due-widget"]),
-  queryFn: async () => {
+  queryKey: computed(() => [PENDING_KEY, campaignId.value, "due-widget"] as const),
+  queryFn: async ({ queryKey: [, cid] }) => {
+    if (cid === null) throw new Error("QuestTriggersWidget fetched without a campaign — enabled requires campaignId");
     const { data, error } = await supabase
       .from("quest_consequence_events")
       .select(
         "id, after_days, fires_on_year, fires_on_month, fires_on_day, action, action_payload, " +
           "quest:quests(id, title)",
       )
-      .eq("campaign_id", campaignId.value!)
+      .eq("campaign_id", cid)
       .is("performed_at", null)
       .is("undone_at", null)
       // The whole world-action set, not the two it started with. This was a

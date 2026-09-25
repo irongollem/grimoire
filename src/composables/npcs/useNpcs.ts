@@ -64,8 +64,11 @@ export function useNpcs(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
-    queryFn: () => fetchNpcs(campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (!cid) throw new Error("useNpcs fetched without a campaign");
+      return fetchNpcs(cid);
+    },
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
@@ -86,13 +89,14 @@ export function useNpcSpellCasters(spellId: string | Ref<string>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "spell-casters", campaignId.value, idRef.value]),
-    queryFn: async (): Promise<NpcSpellCaster[]> => {
+    queryKey: computed(() => [QUERY_KEY, "spell-casters", campaignId.value, idRef.value] as const),
+    queryFn: async ({ queryKey: [, , cid, spellIdKey] }): Promise<NpcSpellCaster[]> => {
+      if (!cid) throw new Error("useNpcSpellCasters fetched without a campaign");
       const { data, error } = await supabase
         .from("npcs")
         .select("id, name")
-        .eq("campaign_id", campaignId.value!)
-        .contains("stat_block", { spellcasting: { entries: [{ spell_ids: [idRef.value] }] } })
+        .eq("campaign_id", cid)
+        .contains("stat_block", { spellcasting: { entries: [{ spell_ids: [spellIdKey] }] } })
         .order("name", { ascending: true });
       if (error) throw error;
       return (data ?? []).map((r) => ({ npc_id: r.id, name: r.name }));
@@ -109,13 +113,13 @@ const LOCATION_SUMMARY_COLUMNS = "id, name, occupation, race, location_id";
 /** Fetch NPCs across multiple location IDs (for "who's here" with descendants). */
 export function useNpcsByLocations(locationIds: Ref<string[]>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-locations", locationIds.value]),
-    queryFn: async () => {
-      if (!locationIds.value.length) return [];
+    queryKey: computed(() => [QUERY_KEY, "by-locations", locationIds.value] as const),
+    queryFn: async ({ queryKey: [, , ids] }) => {
+      if (!ids.length) return [];
       const { data, error } = await supabase
         .from("npcs")
         .select(LOCATION_SUMMARY_COLUMNS)
-        .in("location_id", locationIds.value)
+        .in("location_id", ids)
         .order("name", { ascending: true });
       if (error) throw error;
       return data as NpcLocationSummary[];
@@ -136,8 +140,8 @@ export function useNpc(id: string | Ref<string>) {
       ?.find((npc) => npc.id === idRef.value);
 
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value]),
-    queryFn: () => fetchNpc(idRef.value),
+    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, npcId] }) => fetchNpc(npcId),
     enabled: () => !!idRef.value,
     // Every caller reaches an NPC *from* somewhere that already holds the whole
     // row — the grid, the relationship web, a location's residents — so a detail
@@ -236,14 +240,15 @@ export function useSharedNpcs() {
   // needs the previewed member id to know whose view to render.
   const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "shared", campaignId.value, previewMemberId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUERY_KEY, "shared", campaignId.value, previewMemberId.value] as const),
+    queryFn: async ({ queryKey: [, , cid, previewId] }) => {
+      if (!cid) throw new Error("useSharedNpcs fetched without a campaign");
       // Server-side projection: strips DM-only columns and swaps disguised NPCs
       // to their cover identity so the real one never reaches the client. See
       // migration 20260613000001 (get_player_visible_npcs).
       const { data, error } = await supabase.rpc("get_player_visible_npcs", {
-        p_campaign_id: campaignId.value!,
-        p_preview_member_id: previewMemberId.value,
+        p_campaign_id: cid,
+        p_preview_member_id: previewId,
       });
       if (error) throw error;
       return ((data ?? []) as PlayerNpc[]).sort((a, b) =>
@@ -259,13 +264,13 @@ export function useSharedNpcsByLocations(locationIds: Ref<string[]>) {
   const ui = useUiStore();
   const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "shared-by-locations", locationIds.value, previewMemberId.value]),
-    queryFn: async () => {
-      if (!locationIds.value.length) return [];
+    queryKey: computed(() => [QUERY_KEY, "shared-by-locations", locationIds.value, previewMemberId.value] as const),
+    queryFn: async ({ queryKey: [, , ids, previewId] }) => {
+      if (!ids.length) return [];
       // Same projection RPC as useSharedNpcs, filtered by location.
       const { data, error } = await supabase.rpc("get_player_visible_npcs", {
-        p_location_ids: locationIds.value,
-        p_preview_member_id: previewMemberId.value,
+        p_location_ids: ids,
+        p_preview_member_id: previewId,
       });
       if (error) throw error;
       return ((data ?? []) as PlayerNpc[]).sort((a, b) =>

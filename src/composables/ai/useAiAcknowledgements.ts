@@ -52,7 +52,7 @@ export function findAcknowledgement(
   return rows.some((row) => row.kind === kind && row.version === version);
 }
 
-const QUERY_KEY = ["ai-acknowledgements", "mine"];
+const QUERY_KEY = ["ai-acknowledgements", "mine"] as const;
 
 /**
  * The user's `ai_acknowledgements` rows plus `hasAcknowledged`/`acknowledge`
@@ -69,8 +69,11 @@ export function useAiAcknowledgements() {
     // Keep cached consent state scoped to the authenticated account. Without
     // the user id, a same-tab account switch can briefly expose the previous
     // account's rows while this query refetches.
-    queryKey: computed(() => [...QUERY_KEY, userId.value ?? "signed-out"]),
-    queryFn: () => fetchMyAcknowledgements(userId.value!),
+    queryKey: computed(() => [...QUERY_KEY, userId.value] as const),
+    queryFn: ({ queryKey: [, , uid] }) => {
+      if (uid === null) throw new Error("useAiAcknowledgements fetched while signed out");
+      return fetchMyAcknowledgements(uid);
+    },
     enabled: computed(() => !!userId.value),
     // A failed read must not fan out into several identical requests from
     // every acknowledgement observer. Gates handle this state explicitly and

@@ -168,8 +168,11 @@ export function useQuests(status?: QuestStatus) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, campaignId.value, status ?? "all"]),
-    queryFn: () => fetchQuests(campaignId.value!, status),
+    queryKey: computed(() => [QUESTS_KEY, campaignId.value, status ?? "all"] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useQuests fetched without a campaign");
+      return fetchQuests(cid, status);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -187,12 +190,13 @@ export function usePlayerVisibleQuests() {
   const campaignId = computed(() => campaign.activeCampaignId);
   const previewId = computed(() => ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null);
   return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, campaignId.value, "player-visible", previewId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUESTS_KEY, campaignId.value, "player-visible", previewId.value] as const),
+    queryFn: async ({ queryKey: [, cid, , previewMemberId] }) => {
+      if (cid === null) throw new Error("usePlayerVisibleQuests fetched without a campaign");
       const { data, error } = await supabase.rpc("get_player_visible_quests", {
-        p_campaign_id: campaignId.value!,
+        p_campaign_id: cid,
         p_quest_id: null,
-        p_preview_party_member_id: previewId.value,
+        p_preview_party_member_id: previewMemberId,
       });
       if (error) throw error;
       return ((data ?? []) as Quest[]).sort(
@@ -213,12 +217,12 @@ export function usePlayerVisibleQuest(id: string | Ref<string>) {
   const ui = useUiStore();
   const previewId = computed(() => ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null);
   return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, "player-one", idRef.value, previewId.value]),
-    queryFn: async () => {
+    queryKey: computed(() => [QUESTS_KEY, "player-one", idRef.value, previewId.value] as const),
+    queryFn: async ({ queryKey: [, , qid, previewMemberId] }) => {
       const { data, error } = await supabase.rpc("get_player_visible_quests", {
         p_campaign_id: null,
-        p_quest_id: idRef.value,
-        p_preview_party_member_id: previewId.value,
+        p_quest_id: qid,
+        p_preview_party_member_id: previewMemberId,
       });
       if (error) throw error;
       return ((data ?? []) as Quest[])[0] ?? null;
@@ -231,8 +235,11 @@ export function useAllQuests() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, campaignId.value, "all"]),
-    queryFn: () => fetchQuests(campaignId.value!),
+    queryKey: computed(() => [QUESTS_KEY, campaignId.value, "all"] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useAllQuests fetched without a campaign");
+      return fetchQuests(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -240,8 +247,8 @@ export function useAllQuests() {
 export function useSubQuests(parentId: string | Ref<string>) {
   const idRef = isRef(parentId) ? parentId : ref(parentId);
   return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, "sub", idRef.value]),
-    queryFn: () => fetchSubQuests(idRef.value),
+    queryKey: computed(() => [QUESTS_KEY, "sub", idRef.value] as const),
+    queryFn: ({ queryKey: [, , parentId] }) => fetchSubQuests(parentId),
     enabled: () => !!idRef.value,
   });
 }
@@ -249,8 +256,8 @@ export function useSubQuests(parentId: string | Ref<string>) {
 export function useQuest(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, idRef.value]),
-    queryFn: () => fetchQuest(idRef.value),
+    queryKey: computed(() => [QUESTS_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, id] }) => fetchQuest(id),
     enabled: () => !!idRef.value,
   });
 }
@@ -291,8 +298,8 @@ export function useDeleteQuest() {
 export function useQuestObjectives(questId: string | Ref<string>) {
   const idRef = isRef(questId) ? questId : ref(questId);
   return useQuery({
-    queryKey: computed(() => [OBJECTIVES_KEY, idRef.value]),
-    queryFn: () => fetchObjectives(idRef.value),
+    queryKey: computed(() => [OBJECTIVES_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, questId] }) => fetchObjectives(questId),
     enabled: () => !!idRef.value,
   });
 }
@@ -381,8 +388,8 @@ export function useDeleteObjective() {
 export function useQuestRefs(questId: string | Ref<string>) {
   const idRef = isRef(questId) ? questId : ref(questId);
   return useQuery({
-    queryKey: computed(() => [REFS_KEY, idRef.value]),
-    queryFn: () => fetchRefs(idRef.value),
+    queryKey: computed(() => [REFS_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, questId] }) => fetchRefs(questId),
     enabled: () => !!idRef.value,
   });
 }
@@ -392,8 +399,11 @@ export function useCampaignQuestRefs(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [REFS_KEY, "campaign", campaignId.value]),
-    queryFn: () => fetchCampaignRefs(campaignId.value!),
+    queryKey: computed(() => [REFS_KEY, "campaign", campaignId.value] as const),
+    queryFn: ({ queryKey: [, , cid] }) => {
+      if (cid === null) throw new Error("useCampaignQuestRefs fetched without a campaign");
+      return fetchCampaignRefs(cid);
+    },
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
@@ -404,9 +414,10 @@ export function useQuestFilterEntities(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUEST_FILTER_ENTITIES_KEY, campaignId.value]),
-    queryFn: async (): Promise<QuestFilterEntityOption[]> => {
-      const campaignOrGlobal = `campaign_id.eq.${campaignId.value!},campaign_id.is.null`;
+    queryKey: computed(() => [QUEST_FILTER_ENTITIES_KEY, campaignId.value] as const),
+    queryFn: async ({ queryKey: [, cid] }): Promise<QuestFilterEntityOption[]> => {
+      if (cid === null) throw new Error("useQuestFilterEntities fetched without a campaign");
+      const campaignOrGlobal = `campaign_id.eq.${cid},campaign_id.is.null`;
       const [npcs, locations, factions] = await Promise.all([
         supabase.from("npcs").select("id, name").or(campaignOrGlobal).order("name"),
         supabase.from("locations").select("id, name").or(campaignOrGlobal).order("name"),
@@ -472,8 +483,8 @@ async function fetchQuestsForEncounter(encounterId: string): Promise<{ id: strin
 export function useQuestsForEncounter(encounterId: string | Ref<string>) {
   const idRef = isRef(encounterId) ? encounterId : ref(encounterId);
   return useQuery({
-    queryKey: computed(() => [ENCOUNTER_QUESTS_KEY, idRef.value]),
-    queryFn: () => fetchQuestsForEncounter(idRef.value),
+    queryKey: computed(() => [ENCOUNTER_QUESTS_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, encounterId] }) => fetchQuestsForEncounter(encounterId),
     enabled: () => !!idRef.value,
   });
 }

@@ -22,12 +22,12 @@ export interface PublishedSite {
 export function usePublishedSites(mapId: string | Ref<string>) {
   const idRef = isRef(mapId) ? mapId : ref(mapId);
   return useQuery({
-    queryKey: computed(() => ["published-sites", idRef.value]),
-    queryFn: async () => {
+    queryKey: computed(() => ["published-sites", idRef.value] as const),
+    queryFn: async ({ queryKey: [, id] }) => {
       const { data, error } = await supabase
         .from("locations")
         .select("id, name, location_type, map_published_rev, updated_at")
-        .eq("source_map_id", idRef.value);
+        .eq("source_map_id", id);
       if (error) throw error;
       return data as PublishedSite[];
     },

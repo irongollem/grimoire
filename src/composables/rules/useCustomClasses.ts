@@ -72,16 +72,16 @@ async function deleteCustomClass(id: string): Promise<void> {
 export function useAllCustomClasses() {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, ruleset.value]),
-    queryFn: () => fetchAll(ruleset.value),
+    queryKey: computed(() => [QUERY_KEY, ruleset.value] as const),
+    queryFn: ({ queryKey: [, rs] }) => fetchAll(rs),
     staleTime: Infinity,
   });
 }
 
 export function useCustomClass(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id.value]),
-    queryFn: () => fetchOne(id.value),
+    queryKey: computed(() => [QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => fetchOne(cid),
     enabled: () => !!id.value,
   });
 }
@@ -89,8 +89,8 @@ export function useCustomClass(id: Ref<string>) {
 export function useCustomClassByName(className: Ref<string>) {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-name", ruleset.value, className.value]),
-    queryFn: () => fetchByName(className.value, ruleset.value),
+    queryKey: computed(() => [QUERY_KEY, "by-name", ruleset.value, className.value] as const),
+    queryFn: ({ queryKey: [, , rs, name] }) => fetchByName(name, rs),
     enabled: () => !!className.value,
     staleTime: Infinity,
   });
@@ -119,12 +119,12 @@ export function useUpdateCustomClass() {
 export function useAllSystemClasses() {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => ["system_classes", ruleset.value]),
-    queryFn: async (): Promise<SystemClass[]> => {
+    queryKey: computed(() => ["system_classes", ruleset.value] as const),
+    queryFn: async ({ queryKey: [, rs] }): Promise<SystemClass[]> => {
       const { data, error } = await supabase
         .from("system_classes")
         .select("*")
-        .eq("ruleset", ruleset.value)
+        .eq("ruleset", rs)
         .order("class_name", { ascending: true });
       if (error) throw error;
       return data as SystemClass[];

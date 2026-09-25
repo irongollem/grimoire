@@ -85,8 +85,8 @@ async function deleteCustomSubclass(id: string): Promise<void> {
 export function useAllCustomSubclasses() {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, ruleset.value]),
-    queryFn: () => fetchAll(ruleset.value),
+    queryKey: computed(() => [QUERY_KEY, ruleset.value] as const),
+    queryFn: ({ queryKey: [, rs] }) => fetchAll(rs),
     staleTime: Infinity,
   });
 }
@@ -104,8 +104,8 @@ export function useCampaignCustomSubclasses() {
 
 export function useCustomSubclass(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id.value]),
-    queryFn: () => fetchOne(id.value),
+    queryKey: computed(() => [QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => fetchOne(cid),
     enabled: () => !!id.value,
   });
 }
@@ -116,8 +116,8 @@ export function useCustomSubclassByClassAndSubclass(
 ) {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-class", ruleset.value, className.value, subclassName.value]),
-    queryFn: () => fetchByClassAndSubclass(className.value, subclassName.value, ruleset.value),
+    queryKey: computed(() => [QUERY_KEY, "by-class", ruleset.value, className.value, subclassName.value] as const),
+    queryFn: ({ queryKey: [, , rs, name, subclassNm] }) => fetchByClassAndSubclass(name, subclassNm, rs),
     enabled: () => !!className.value && !!subclassName.value,
     staleTime: Infinity,
   });

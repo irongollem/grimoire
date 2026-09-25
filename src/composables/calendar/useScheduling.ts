@@ -90,8 +90,11 @@ export function useSessionProposals() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [PROPOSALS_KEY, campaignId.value]),
-    queryFn: () => fetchProposals(campaignId.value!),
+    queryKey: computed(() => [PROPOSALS_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (cid === null) throw new Error("useSessionProposals fetched without a campaign");
+      return fetchProposals(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }
@@ -100,8 +103,11 @@ export function useAllSessionAvailability() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [AVAILABILITY_KEY, "campaign", campaignId.value]),
-    queryFn: () => fetchAllAvailabilityForCampaign(campaignId.value!),
+    queryKey: computed(() => [AVAILABILITY_KEY, "campaign", campaignId.value] as const),
+    queryFn: ({ queryKey: [, , cid] }) => {
+      if (cid === null) throw new Error("useAllSessionAvailability fetched without a campaign");
+      return fetchAllAvailabilityForCampaign(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

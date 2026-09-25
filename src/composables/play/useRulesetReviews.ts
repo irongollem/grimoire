@@ -22,8 +22,11 @@ async function fetchRulesetReviews(partyMemberId: string): Promise<RulesetReview
  */
 export function useRulesetReviews(memberId: MaybeRefOrGetter<string | null | undefined>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, toValue(memberId)]),
-    queryFn: () => fetchRulesetReviews(toValue(memberId)!),
+    queryKey: computed(() => [QUERY_KEY, toValue(memberId)] as const),
+    queryFn: ({ queryKey: [, id] }) => {
+      if (!id) throw new Error("useRulesetReviews fetched without a party member — enabled guarantees it's set");
+      return fetchRulesetReviews(id);
+    },
     enabled: () => !!toValue(memberId),
   });
 }

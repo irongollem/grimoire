@@ -26,8 +26,8 @@ async function fetchProviderModels(provider: string): Promise<string[]> {
 
 export function useProviderModels(provider: MaybeRef<string>, enabled?: MaybeRef<boolean>) {
   return useQuery({
-    queryKey: ["admin", "provider-models", provider],
-    queryFn: () => fetchProviderModels(toValue(provider)),
+    queryKey: ["admin", "provider-models", provider] as const,
+    queryFn: ({ queryKey: [, , p] }) => fetchProviderModels(p),
     staleTime: 10 * 60 * 1000,
     enabled: () => !!toValue(provider) && (enabled === undefined || toValue(enabled)),
     retry: false,

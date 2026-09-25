@@ -60,8 +60,11 @@ async function fetchPrereqs(): Promise<MulticlassPrereq[]> {
  */
 export function useCharacterClasses(partyMemberId: Ref<string | null | undefined>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, partyMemberId.value]),
-    queryFn: () => fetchClassesForMember(partyMemberId.value!),
+    queryKey: computed(() => [QUERY_KEY, partyMemberId.value] as const),
+    queryFn: ({ queryKey: [, pmId] }) => {
+      if (!pmId) throw new Error("useCharacterClasses fetched without a party member — enabled guarantees it's set");
+      return fetchClassesForMember(pmId);
+    },
     enabled: () => !!partyMemberId.value,
   });
 }
@@ -75,8 +78,11 @@ export function useAllCampaignCharacterClasses() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-campaign", campaignId.value]),
-    queryFn: () => fetchAllClassesForCampaign(campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, "by-campaign", campaignId.value] as const),
+    queryFn: ({ queryKey: [, , cid] }) => {
+      if (!cid) throw new Error("useAllCampaignCharacterClasses fetched without a campaign — enabled guarantees it's set");
+      return fetchAllClassesForCampaign(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

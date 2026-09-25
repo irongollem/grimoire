@@ -142,8 +142,9 @@ export function usePlayerVisibleSiteState(
   const ui = useUiStore();
   const previewId = computed(() => previewPartyMemberId?.value ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value, previewId.value]),
-    queryFn: () => fetchPlayerSitePlan(idRef.value, previewId.value),
+    queryKey: computed(() => [QUERY_KEY, idRef.value, previewId.value] as const),
+    queryFn: ({ queryKey: [, siteLocationId, previewMemberId] }) =>
+      fetchPlayerSitePlan(siteLocationId, previewMemberId),
     enabled: () => !!idRef.value && (enabled?.value ?? true),
   });
 }

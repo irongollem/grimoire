@@ -29,8 +29,13 @@ async function fetchItemEntries(itemId: string, campaignId: string): Promise<Ite
  */
 export function useItemEntries(itemId: Ref<string | undefined>, campaignId: Ref<string | undefined>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, itemId.value, campaignId.value]),
-    queryFn: () => fetchItemEntries(itemId.value!, campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, itemId.value, campaignId.value] as const),
+    queryFn: ({ queryKey: [, iid, cid] }) => {
+      if (iid === undefined || cid === undefined) {
+        throw new Error("useItemEntries fetched without an item and campaign");
+      }
+      return fetchItemEntries(iid, cid);
+    },
     // `isUuid`, not merely "is set". `item_entries.item_id` is `uuid NOT NULL`
     // with no `library_item_id` companion, so shared-library content cannot
     // have entries at all — and a library id is *text* (`srd_…`). Guarding on

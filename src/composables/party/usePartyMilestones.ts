@@ -23,8 +23,11 @@ export function usePartyMilestones() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
-    queryFn: () => fetchPartyMilestones(campaignId.value!),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
+    queryFn: ({ queryKey: [, cid] }) => {
+      if (!cid) throw new Error("usePartyMilestones fetched without a campaign — enabled guarantees it's set");
+      return fetchPartyMilestones(cid);
+    },
     enabled: () => !!campaignId.value,
   });
 }

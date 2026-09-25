@@ -70,8 +70,8 @@ export function useScriptoriumDocuments() {
 
 export function useScriptoriumDocument(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id.value]),
-    queryFn: () => fetchDocument(id.value),
+    queryKey: computed(() => [QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, docId] }) => fetchDocument(docId),
     enabled: () => !!id.value,
   });
 }

@@ -170,8 +170,8 @@ function invalidateBroadPlacementQueries(
 export function useLocationPlacements(locationId: string | Ref<string>) {
   const idRef = isRef(locationId) ? locationId : ref(locationId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value]),
-    queryFn: () => fetchLocationPlacements(idRef.value),
+    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryFn: ({ queryKey: [, locationId] }) => fetchLocationPlacements(locationId),
     enabled: () => !!idRef.value,
   });
 }
@@ -183,8 +183,8 @@ export function useLocationPlacements(locationId: string | Ref<string>) {
 export function useEntityPlacements(kind: LocationPlacementKind, entityId: string | Ref<string>) {
   const idRef = isRef(entityId) ? entityId : ref(entityId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "entity", kind, idRef.value]),
-    queryFn: () => fetchEntityPlacements(kind, idRef.value),
+    queryKey: computed(() => [QUERY_KEY, "entity", kind, idRef.value] as const),
+    queryFn: ({ queryKey: [, , entityKind, entityId] }) => fetchEntityPlacements(entityKind, entityId),
     enabled: () => !!idRef.value,
   });
 }
@@ -198,8 +198,8 @@ export function useEntityPlacements(kind: LocationPlacementKind, entityId: strin
 export function useEntityPlacementsFor(kind: LocationPlacementKind, ids: Ref<string[]>) {
   const sortedIds = computed(() => [...ids.value].sort());
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "entity", kind, "many", sortedIds.value]),
-    queryFn: () => fetchEntityPlacementsFor(kind, ids.value),
+    queryKey: computed(() => [QUERY_KEY, "entity", kind, "many", sortedIds.value] as const),
+    queryFn: ({ queryKey: [, , entityKind, , entityIds] }) => fetchEntityPlacementsFor(entityKind, entityIds),
     enabled: () => ids.value.length > 0,
   });
 }
