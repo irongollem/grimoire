@@ -33,7 +33,15 @@ vi.mock("@/composables/useToast", () => ({
 }));
 
 function status(patch: Partial<DemoStatus> = {}): DemoStatus {
-  return { published: true, version: "v1", demo_campaign_id: null, loaded_version: null, ...patch };
+  return {
+    published: true,
+    version: "v1",
+    demo_campaign_id: null,
+    loaded_version: null,
+    offered: true,
+    template_name: null,
+    ...patch,
+  };
 }
 
 const campaign = { id: "demo-1", name: "Sugarwell" } as unknown as Campaign;

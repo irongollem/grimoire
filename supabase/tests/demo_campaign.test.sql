@@ -13,7 +13,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(57);
+select plan(64);
 
 -- ── Structure ───────────────────────────────────────────────────────────────
 
@@ -277,17 +277,70 @@ select is(
 -- A client cannot flip the flag itself, admin or not.
 set local role authenticated;
 set local request.jwt.claims to '{"sub":"91200000-0000-4000-8000-000000000002","role":"authenticated"}';
-insert into public.campaigns (id, user_id, name, demo_template, demo_version, demo_source)
-values ('91200000-0000-4000-8000-0000000000e1', '91200000-0000-4000-8000-000000000002', 'Hijack', true, 'x', 'x');
+insert into public.campaigns (id, user_id, name, demo_template, demo_version, demo_source, demo_offered)
+values ('91200000-0000-4000-8000-0000000000e1', '91200000-0000-4000-8000-000000000002', 'Hijack', true, 'x', 'x', true);
 reset role;
 
 select is(
-  (select row(demo_template, demo_version, demo_source)::text from public.campaigns
+  (select row(demo_template, demo_version, demo_source, demo_offered)::text from public.campaigns
     where id = '91200000-0000-4000-8000-0000000000e1'),
-  row(false, null::text, null::text)::text,
-  'a client insert cannot mark a campaign as the template or as a demo copy'
+  row(false, null::text, null::text, false)::text,
+  'a client insert cannot mark a campaign as the template, as offered, or as a demo copy'
 );
 delete from public.campaigns where id = '91200000-0000-4000-8000-0000000000e1';
+
+-- ── Published is not yet offered (20260925054923) ───────────────────────────
+--
+-- A fresh template is a work in progress: the author can load it, nobody else
+-- is told it exists.
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"91200000-0000-4000-8000-000000000002","role":"authenticated"}';
+
+select is(
+  public.get_demo_status() - 'demo_campaign_id' - 'loaded_version',
+  '{"published": false, "version": null, "offered": false, "template_name": null}'::jsonb,
+  'a published but unoffered demo is invisible to a newcomer, name and version included'
+);
+
+select throws_ok(
+  $$ select public.load_demo_campaign() $$,
+  'No demo campaign has been published',
+  'and a newcomer cannot load it, with the same answer as when there is none'
+);
+
+select throws_ok(
+  $$ select public.set_demo_offered(true) $$,
+  'Not authorized',
+  'a non-admin cannot offer it'
+);
+
+set local request.jwt.claims to
+  '{"sub":"91200000-0000-4000-8000-000000000001","role":"authenticated","app_metadata":{"role":"admin"}}';
+
+select is(
+  public.get_demo_status() ->> 'template_name',
+  'Sugarwell',
+  'the admin sees which campaign is the demo'
+);
+
+select is(
+  (public.get_demo_status() ->> 'published')::boolean and not (public.get_demo_status() ->> 'offered')::boolean,
+  true,
+  'and sees it as loadable while it is not yet offered'
+);
+
+select lives_ok($$ select public.set_demo_offered(true) $$, 'the admin offers it to new users');
+
+set local request.jwt.claims to '{"sub":"91200000-0000-4000-8000-000000000002","role":"authenticated"}';
+
+select is(
+  (public.get_demo_status() ->> 'published')::boolean and (public.get_demo_status() ->> 'template_name') is null,
+  true,
+  'once offered the newcomer sees it, still without the template''s name'
+);
+
+reset role;
 
 -- ── Loading, as a Free newcomer ─────────────────────────────────────────────
 

@@ -7,6 +7,8 @@ function status(patch: Partial<DemoStatus> = {}): DemoStatus {
     version: "2026-09-25T00:00:00Z",
     demo_campaign_id: "campaign-1",
     loaded_version: "2026-09-25T00:00:00Z",
+    offered: true,
+    template_name: null,
     ...patch,
   };
 }
@@ -14,7 +16,15 @@ function status(patch: Partial<DemoStatus> = {}): DemoStatus {
 describe("isDemoStatus", () => {
   it("accepts what get_demo_status returns", () => {
     expect(isDemoStatus(status())).toBe(true);
-    expect(isDemoStatus(status({ published: false, version: null, demo_campaign_id: null, loaded_version: null }))).toBe(true);
+    expect(
+      isDemoStatus(
+        status({ published: false, version: null, demo_campaign_id: null, loaded_version: null, offered: false }),
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts an admin's view, with a template name and offered independent of published", () => {
+    expect(isDemoStatus(status({ offered: false, template_name: "Sugarwell" }))).toBe(true);
   });
 
   it("rejects anything else rather than guessing", () => {
@@ -22,6 +32,8 @@ describe("isDemoStatus", () => {
     expect(isDemoStatus("published")).toBe(false);
     expect(isDemoStatus({ ...status(), published: "yes" })).toBe(false);
     expect(isDemoStatus({ ...status(), version: 3 })).toBe(false);
+    expect(isDemoStatus({ ...status(), offered: "yes" })).toBe(false);
+    expect(isDemoStatus({ ...status(), template_name: 3 })).toBe(false);
   });
 });
 

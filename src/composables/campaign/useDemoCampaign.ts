@@ -9,7 +9,16 @@ import type { Campaign } from "@/types/campaign.types";
  * asks for it and then treats the result as an ordinary campaign.
  */
 
-/** What `get_demo_status()` reports. Never includes the template's id. */
+/**
+ * What `get_demo_status()` reports. Never includes the template's id.
+ *
+ * `published` and `template_name` are answered differently for an admin: a
+ * non-admin only sees `published: true` once the template is BOTH published
+ * and offered, and never sees `template_name`. An admin sees `published: true`
+ * whenever a template exists at all — offered or not — so they can test-load
+ * a work-in-progress demo, and gets the template's name and `offered` flag to
+ * drive the admin toggle.
+ */
 export interface DemoStatus {
   /** A demo has been published, so the app may offer it. */
   published: boolean;
@@ -19,6 +28,10 @@ export interface DemoStatus {
   demo_campaign_id: string | null;
   /** The version their copy was made from. */
   loaded_version: string | null;
+  /** Whether the template is offered to new users. False when nothing is published. */
+  offered: boolean;
+  /** The template campaign's name. Admin only; always null for a non-admin. */
+  template_name: string | null;
 }
 
 // Under the "campaigns" key on purpose: every campaign mutation invalidates
@@ -36,7 +49,9 @@ export function isDemoStatus(value: unknown): value is DemoStatus {
     typeof v.published === "boolean" &&
     isNullableString(v.version) &&
     isNullableString(v.demo_campaign_id) &&
-    isNullableString(v.loaded_version)
+    isNullableString(v.loaded_version) &&
+    typeof v.offered === "boolean" &&
+    isNullableString(v.template_name)
   );
 }
 
@@ -99,6 +114,23 @@ export function usePublishDemoVersion() {
       const { data, error } = await supabase.rpc("publish_demo_version", { p_campaign_id: campaignId });
       if (error) throw error;
       if (typeof data !== "string") throw new Error("publish_demo_version returned no version");
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["campaigns"] }),
+  });
+}
+
+/**
+ * Admin only: flips whether the published template is offered to new users.
+ * Raises "No demo campaign has been published" when there is no template.
+ */
+export function useSetDemoOffered() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (offered: boolean): Promise<boolean> => {
+      const { data, error } = await supabase.rpc("set_demo_offered", { p_offered: offered });
+      if (error) throw error;
+      if (typeof data !== "boolean") throw new Error("set_demo_offered returned an unexpected result");
       return data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["campaigns"] }),

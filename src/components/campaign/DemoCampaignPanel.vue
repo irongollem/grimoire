@@ -33,9 +33,20 @@
   >
     <div class="flex items-start gap-2.5">
       <IconInfo class="h-4 w-4 text-primary shrink-0 mt-0.5" />
-      <p class="text-body text-foreground">
-        This campaign is the published demo (version {{ campaign.demo_version }}).
-      </p>
+      <div class="flex-1 min-w-0 space-y-1">
+        <p class="text-body text-foreground">
+          This campaign is the published demo (version {{ campaign.demo_version }}).
+        </p>
+        <p class="text-caption text-muted-foreground">
+          Offered to new users: {{ demoStatus?.offered ? "yes" : "no" }} — change it in
+          <AppButton
+            variant="link"
+            size="inline-caption"
+            label="Admin → Content"
+            :to="{ name: 'admin', query: { tab: 'content' } }"
+          />.
+        </p>
+      </div>
     </div>
     <AppButton
       variant="tinted"

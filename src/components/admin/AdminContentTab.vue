@@ -1,5 +1,8 @@
 <template>
   <div class="space-y-6">
+    <!-- Demo campaign offer switch (#912) -->
+    <DemoCampaignAdminPanel />
+
     <!-- Semantic-search index for monsters, NPCs, factions, locations, notes and items.
          Lives here rather than under Providers because running it is
          maintenance on content, not a change to provider configuration — the
@@ -93,6 +96,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconCheck } from "@/lib/icons";
+import DemoCampaignAdminPanel from "@/components/admin/DemoCampaignAdminPanel.vue";
 import MonsterEmbeddingBackfill from "@/components/admin/MonsterEmbeddingBackfill.vue";
 import LibraryArtRepairPanel from "@/components/admin/LibraryArtRepairPanel.vue";
 import VariantSweepPanel from "@/components/admin/VariantSweepPanel.vue";
