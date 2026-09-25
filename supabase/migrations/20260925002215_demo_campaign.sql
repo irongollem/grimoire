@@ -513,17 +513,21 @@ insert into private.demo_campaign_tables (table_name, tier, parent_column, paren
   ('quest_refs',                  2, 'quest_id',        'quests',               true,  null),
   ('soundboard_playlist_tracks',  2, 'playlist_id',     'soundboard_playlists', true,  null),
   ('store_items',                 2, 'location_id',     'locations',            true,  null),
+  -- Embeddings are copied too. They are a pure function of text the copy
+  -- repeats verbatim (source_hash matches), and without them a new user's first
+  -- dashboard tells them their demo "isn't indexed for AI search yet".
+
   ('crafting_recipe_grants',      2, 'recipe_id',       'crafting_recipes',     false, 'grants to the author''s players'),
   ('location_state_events',       2, 'location_id',     'locations',            false, 'play state: a demo starts unplayed'),
   ('npc_player_notes',            2, 'npc_id',          'npcs',                 false, 'player-authored: the copy has no players'),
   ('spell_cast_records',          2, 'party_member_id', 'party_members',        false, 'play state: a demo starts unplayed'),
   ('spell_change_windows',        2, 'party_member_id', 'party_members',        false, 'play state: a demo starts unplayed'),
-  ('faction_embeddings',          2, 'faction_id',      'factions',             false, 'derived: the embedding backfill regenerates it'),
-  ('item_embeddings',             2, 'item_id',         'items',                false, 'derived: the embedding backfill regenerates it'),
-  ('location_embeddings',         2, 'location_id',     'locations',            false, 'derived: the embedding backfill regenerates it'),
-  ('monster_embeddings',          2, 'monster_id',      'monsters',             false, 'derived: the embedding backfill regenerates it'),
-  ('note_embeddings',             2, 'note_id',         'notes',                false, 'derived: the embedding backfill regenerates it'),
-  ('npc_embeddings',              2, 'npc_id',          'npcs',                 false, 'derived: the embedding backfill regenerates it');
+  ('faction_embeddings', 2, 'faction_id', 'factions', true, null),
+  ('item_embeddings', 2, 'item_id', 'items', true, null),
+  ('location_embeddings', 2, 'location_id', 'locations', true, null),
+  ('monster_embeddings', 2, 'monster_id', 'monsters', true, null),
+  ('note_embeddings', 2, 'note_id', 'notes', true, null),
+  ('npc_embeddings', 2, 'npc_id', 'npcs', true, null);
 
 -- ── The copy ────────────────────────────────────────────────────────────────
 --
@@ -726,7 +730,10 @@ begin
      set data = d.data
                 || case when d.data ? 'demo_source' then jsonb_build_object('demo_source', p_version) else '{}'::jsonb end
                 || case when d.data ? 'created_at' then jsonb_build_object('created_at', now()) else '{}'::jsonb end
-                || case when d.data ? 'updated_at' then jsonb_build_object('updated_at', now()) else '{}'::jsonb end;
+                || case when d.data ? 'updated_at' then jsonb_build_object('updated_at', now()) else '{}'::jsonb end
+   -- Every row, but a WHERE is still required: PostgREST sessions load
+   -- pg_safeupdate, which rejects an UPDATE without one -- even on a temp table.
+   where d.seq is not null;
 
   update pg_temp.demo_rows d
      set deferred = (select coalesce(jsonb_object_agg(col, d.data -> col), '{}'::jsonb)
@@ -740,7 +747,12 @@ begin
 
   -- 4. The campaign row. Built from the template, minus everything that is the
   --    author's rather than the campaign's: BYOK keys, the Spotify client, the
-  --    iCal feed token (a capability URL), and the template flags.
+  --    iCal feed token (a capability URL), the template flags, and the AI
+  --    choice. `ai_enabled` is the owner's consent under the AI Act (see
+  --    context/compliance/ai-act.md §4) -- only the owner may give it, so the
+  --    copy starts unchosen and asks its new owner, whatever the author picked.
+  --    The provider selection goes with it. AI provenance on the content itself
+  --    is copied verbatim: that marks what the content is, not who consented.
   v_campaign := v_campaign || jsonb_build_object(
     'id', v_new_campaign,
     'user_id', p_owner,
@@ -753,6 +765,9 @@ begin
     'anthropic_api_key', null,
     'gemini_api_key', null,
     'spotify_client_id', null,
+    'ai_enabled', null,
+    'text_provider', null,
+    'image_provider', null,
     'current_location_id', null,
     'created_at', now(),
     'updated_at', now()

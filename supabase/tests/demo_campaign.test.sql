@@ -13,7 +13,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(55);
+select plan(57);
 
 -- ── Structure ───────────────────────────────────────────────────────────────
 
@@ -165,6 +165,10 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, r
   ('91200000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
    'demo-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
+-- A developer's stack may hold a published template (the seed is a production
+-- dump); this test publishes its own. Unpublished here, restored by rollback.
+update public.campaigns set demo_template = false, demo_version = null where demo_template;
+
 insert into public.campaigns (id, user_id, name)
 values ('91200000-0000-4000-8000-000000000010', '91200000-0000-4000-8000-000000000001', 'Sugarwell');
 
@@ -181,6 +185,9 @@ insert into public.npcs (id, user_id, campaign_id, name, location_id, portrait_u
    'https://cdn.example.invalid/npc-portraits/91200000-0000-4000-8000-000000000001/fondant.webp');
 update public.locations set npc_owner_id = '91200000-0000-4000-8000-000000000030'
  where id = '91200000-0000-4000-8000-000000000020';
+insert into public.npc_embeddings (npc_id, embedding, embedding_model, source_hash)
+values ('91200000-0000-4000-8000-000000000030', array_fill(0.01::real, array[1536])::extensions.vector,
+        'text-embedding-3-small', 'fondant-hash');
 
 insert into public.quests (id, user_id, campaign_id, title) values
   ('91200000-0000-4000-8000-000000000040', '91200000-0000-4000-8000-000000000001',
@@ -231,7 +238,7 @@ insert into public.party_members (id, user_id, campaign_id, name) values
   ('91200000-0000-4000-8000-000000000080', '91200000-0000-4000-8000-000000000001',
    '91200000-0000-4000-8000-000000000010', 'Pregen Pip');
 
-update public.campaigns set current_location_id = '91200000-0000-4000-8000-000000000020'
+update public.campaigns set current_location_id = '91200000-0000-4000-8000-000000000020', ai_enabled = true
  where id = '91200000-0000-4000-8000-000000000010';
 
 -- ── Publishing ──────────────────────────────────────────────────────────────
@@ -320,6 +327,12 @@ select is(
     = (select ical_token from public.campaigns where id = '91200000-0000-4000-8000-000000000010'),
   false,
   'the copy has its own iCal token, not the author''s feed'
+);
+
+select is(
+  (select ai_enabled from public.campaigns where id = (select campaign from demo_ids)),
+  null,
+  'the author turned AI on, but the copy asks its new owner: AI Act consent is not inherited'
 );
 
 select is(
@@ -434,6 +447,12 @@ select is(
     where p.campaign_id = (select campaign from demo_ids) and s.campaign_id = p.campaign_id),
   'https://cdn.example.invalid/sound-files/demo/crew-round.mp3',
   'the playlist track joins the copied playlist to the copied sound, which still plays the shared file'
+);
+
+select is(
+  (select source_hash from public.npc_embeddings where npc_id = (select npc from demo_ids)),
+  'fondant-hash',
+  'the NPC''s embedding came with it, so the demo is searchable by the AI tools from the start'
 );
 
 select is(
