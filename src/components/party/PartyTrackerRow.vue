@@ -6,7 +6,14 @@
     <div class="flex flex-col md:flex-row">
       <!-- Left: identity -->
       <div class="flex flex-col md:w-44 md:border-r md:border-border shrink-0 overflow-hidden">
-        <div class="h-31.25 bg-muted overflow-hidden">
+        <!-- The portrait opens the character, like the name beside it: the
+             biggest thing in the row is what a DM reaches for, and the eye
+             button's player preview was the only obvious target left. -->
+        <RouterLink
+          :to="`/party/${member.id}`"
+          :aria-label="`Open ${member.name}`"
+          class="block h-31.25 bg-muted overflow-hidden"
+        >
           <FocalImage
             :src="member.portrait_url"
             :alt="member.name"
@@ -14,13 +21,13 @@
             :focal-point="member.portrait_focal_point ?? null"
             :placeholder="placeholderUrl('character')"
           />
-        </div>
+        </RouterLink>
 
         <div class="flex flex-col gap-0.5 px-3 py-2.5">
           <div class="flex items-center gap-1">
             <RouterLink
               :to="`/party/${member.id}`"
-              class="font-cinzel text-sm font-bold text-foreground leading-tight hover:text-primary transition-colors flex-1"
+              class="font-cinzel text-sm font-bold text-foreground leading-tight underline-offset-2 hover:text-primary hover:underline transition-colors flex-1"
             >
               {{ member.name }}
             </RouterLink>
