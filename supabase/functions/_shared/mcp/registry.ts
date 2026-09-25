@@ -15,6 +15,8 @@
 //     signed upload, and a bare URL write would let a caller point an entity at
 //     any object it likes. `get_image` reads art; writing it stays in the UI.
 
+import { monsterStatBlockProblem } from "./statBlockShape.ts";
+
 /**
  * Writable-field value kinds the `create`/`update` tools validate + coerce.
  *
@@ -51,6 +53,12 @@ export interface FieldDef {
    * kind whose payload an agent cannot guess from the field name.
    */
   shape?: string;
+  /**
+   * Deeper check for `json`, run after the object/array test: returns the first
+   * problem as a sentence the agent can act on, or null. For payloads whose
+   * readers depend on leaf types the generic check cannot see.
+   */
+  check?: (value: object) => string | null;
   /** Short hint surfaced in the tool description. */
   description?: string;
 }
@@ -419,8 +427,9 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
           type: "json",
           shape:
             "{armor_class#,hit_points,speed,str#,dex#,con#,int#,wis#,cha#,challenge_rating}",
+          check: monsterStatBlockProblem,
           description:
-            'hit_points is a dice expression ("8d8+16"), challenge_rating a string ("5", "1/2"). Optional: saving_throws, skills, senses, languages, damage_resistances/immunities/vulnerabilities, condition_immunities, special_abilities/actions/bonus_actions/reactions/legendary_actions/lair_actions (each [{name,description}]). Omitted = an empty stat block.',
+            'hit_points is a dice expression ("8d8+16"), challenge_rating a string ("5", "1/2"). Optional: saving_throws as ONE string ("Dex +6, Wis +3"), skills as {"perception": "+3", "sleight_of_hand": "+6"}, senses, languages, damage_resistances/immunities/vulnerabilities and condition_immunities as comma-separated strings ("charmed, frightened"), special_abilities/actions/bonus_actions/reactions/legendary_actions/lair_actions (each [{name,description}]). Omitted = an empty stat block.',
         },
         description: { type: "text" },
         notes: { type: "text", description: "DM-facing tactics and lair notes." },

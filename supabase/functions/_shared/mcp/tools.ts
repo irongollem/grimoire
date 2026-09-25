@@ -148,9 +148,11 @@ function coerceField(name: string, f: FieldDef, raw: unknown): unknown {
           `Field "${name}" must be a JSON object/array, not a string — send the value itself, shaped ${f.shape ?? "as documented"}.`,
         );
       }
-      if (typeof raw !== "object") {
+      if (raw === null || typeof raw !== "object") {
         throw new Error(`Field "${name}" must be a JSON object/array shaped ${f.shape ?? "as documented"}.`);
       }
+      const problem = f.check?.(raw);
+      if (problem) throw new Error(`Field "${name}": ${problem}`);
       return raw;
     }
   }

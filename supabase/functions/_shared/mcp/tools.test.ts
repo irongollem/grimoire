@@ -116,6 +116,25 @@ describe("validateFields — create", () => {
       .toThrow(/must be a JSON object/i);
   });
 
+  it("rejects a monster stat block in the Open5e shape its readers cannot parse", () => {
+    // The row that crashed StatBlockPanel (`saving_throws.split is not a function`).
+    const bad = (extra: Record<string, unknown>) => () =>
+      validateFields(monster, { name: "Memory-Magpie", stat_block: { armor_class: 13, ...extra } }, { partial: false });
+    expect(bad({ saving_throws: { Dexterity: 6 } })).toThrow(/saving_throws must be a string like "Dex \+6, Wis \+3", not an object/);
+    expect(bad({ condition_immunities: ["charmed"] })).toThrow(/condition_immunities must be a string .* not an array/);
+    expect(bad({ skills: { stealth: 6 } })).toThrow(/skills\.stealth must be a string like "\+3", not a number/);
+    expect(bad({ dex: "18" })).toThrow(/dex must be a number/);
+    expect(bad({ actions: [{ name: "Bite" }] })).toThrow(/actions\[0\] must be \{name, description\}/);
+
+    const good = {
+      armor_class: 13, dex: 18, saving_throws: "Dex +6", skills: { stealth: "+6" },
+      condition_immunities: "charmed, frightened", initiative_bonus: null,
+      actions: [{ name: "Snatch", description: "Melee attack." }],
+    };
+    expect(validateFields(monster, { name: "Memory-Magpie", stat_block: good }, { partial: false }).stat_block)
+      .toEqual(good);
+  });
+
   it("refuses a type with no create block", () => {
     // Nothing in the registry is read-only today, but the guard is what makes
     // "omit `create` to keep it read-only" true, so it is exercised directly.
