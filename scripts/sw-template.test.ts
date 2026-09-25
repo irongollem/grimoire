@@ -196,11 +196,14 @@ function loadWorker(options: {
     await lifetime;
   }
 
-  async function runFetch(path: string) {
+  async function runFetch(path: string, mode?: "navigate") {
     const waited: Promise<unknown>[] = [];
     let responded: Promise<Response> | undefined;
+    const request = new Request(new URL(path, ORIGIN));
+    // The Request constructor refuses mode "navigate"; only a browser makes one.
+    if (mode) Object.defineProperty(request, "mode", { value: mode });
     (handlers.get("fetch") as (e: unknown) => void)({
-      request: new Request(new URL(path, ORIGIN)),
+      request,
       respondWith: (p: Promise<Response>) => { responded = p; },
       waitUntil: (p: Promise<unknown>) => { waited.push(p); },
     });
@@ -280,6 +283,15 @@ describe("service-worker runtime cache", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(stores.has("grimoire-runtime")).toBe(false);
+  });
+
+  it("leaves a navigation to an api/ page to the browser, never the cached shell", async () => {
+    const { runFetch, fetchMock } = loadWorker({});
+
+    const { result } = await runFetch("/api/rsvp?token=t&answer=yes", "navigate");
+
+    expect(result).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

@@ -65,6 +65,8 @@ export default defineConfig({
       "scripts/**/*.{test,spec}.mjs",
       "supabase/functions/**/*.{test,spec}.ts",
       "infra/**/*.{test,spec}.js",
+      // api/**: Vercel functions on the app's origin (see api/_rsvpRelay.ts).
+      "api/**/*.{test,spec}.ts",
     ],
     exclude: ["node_modules", "dist", ".vercel"],
     // Explicit imports from "vitest" — no `globals: true` so TypeScript

@@ -78,6 +78,17 @@ every URL in a message, and unlike an unsubscribe a spurious answer is *wrong*
 half the time — a phantom "I'm in" is how a DM books an evening nobody
 attends.
 
+The links point at the **app's origin** (`/api/rsvp`, `api/_rsvpRelay.ts`),
+which relays to the Edge Function, not at the function itself. On the hosted
+`*.supabase.co` domain the gateway rewrites a GET response's `text/html` to
+`text/plain` and drops the charset, so a direct link showed players the page's
+source (with "—" mangled to "â€”") and no buttons — nothing was ever recorded.
+The relay restores `text/html; charset=utf-8`; the confirm form posts back to
+the same URL. `APP_URL` on the Edge Function overrides the origin the mail
+links to (defaults to production). A GET that reaches the function *without*
+the relay's `X-Grimoire-Rsvp-Relay` header — a link in an invitation mailed
+before the relay existed — is 302'd to the relay, so old mail works too.
+
 **Route 2 — the invitation** (`session-rsvp-inbound`, `verify_jwt = false`).
 The message also carries a `METHOD:REQUEST` iCalendar part built by
 `_shared/ics.ts`, which is what makes Gmail, Apple Mail and Outlook draw

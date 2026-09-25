@@ -170,9 +170,10 @@ function copyFor(state: RsvpState, answer: RsvpAnswer | null, invite: RsvpInvite
 }
 
 /**
- * A whole page in one string: served straight from an Edge Function, with no
- * asset pipeline behind it and no second origin for a page whose entire job is
- * to be trustworthy. Colours mirror the marketing site's tokens directly.
+ * A whole page in one string, with no asset pipeline behind it. The mail links
+ * to the app's own origin (`/api/rsvp`, see api/_rsvpRelay.ts at the repo
+ * root), which relays here and restores the content type the hosted gateway
+ * strips. Colours mirror the marketing site's tokens directly.
  *
  * The confirm state is a form with two buttons rather than a link that acts,
  * because corporate mail gateways and link scanners prefetch every URL in a
