@@ -125,16 +125,26 @@ async function replaceTracksForPlaylist(playlistId: string, tracks: PlaylistTrac
 export function usePlaylists(enabled?: () => boolean) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   return useQuery({
-    queryKey: computed(() => [PLAYLISTS_KEY, activeCampaignId.value]),
-    queryFn: () => fetchPlaylists(activeCampaignId.value!),
+    queryKey: computed(() => [PLAYLISTS_KEY, activeCampaignId.value] as const),
+    queryFn: ({ queryKey: [, campaignId] }) => {
+      if (campaignId === null) throw new Error("usePlaylists fetched without a campaign");
+      return fetchPlaylists(campaignId);
+    },
     enabled: () => !!activeCampaignId.value && (enabled?.() ?? true),
   });
 }
 
 export function usePlaylistTracks(playlistId: MaybeRefOrGetter<string | null>) {
   return useQuery({
-    queryKey: computed(() => [TRACKS_KEY, toValue(playlistId)]),
-    queryFn: () => fetchPlaylistTracks(toValue(playlistId)!),
+    queryKey: computed(() => [TRACKS_KEY, toValue(playlistId)] as const),
+    // The id comes from the key being fetched, never from the ref. Saving a
+    // scene invalidates its tracks and closes the editor in the same tick, so
+    // by the time the refetch runs the dialog's id is already null — reading
+    // the ref here sent `playlist_id=eq.null` to production as a 400.
+    queryFn: ({ queryKey: [, id] }) => {
+      if (id === null) throw new Error("usePlaylistTracks fetched without a playlist");
+      return fetchPlaylistTracks(id);
+    },
     enabled: () => !!toValue(playlistId),
   });
 }
