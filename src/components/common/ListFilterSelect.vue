@@ -1,5 +1,5 @@
 <template>
-  <AppSelect v-model="model" size="md" :aria-label="ariaLabel" class="shrink-0">
+  <AppSelect v-model="model" size="md" :aria-label="ariaLabel" class="max-w-full shrink-0">
     <slot />
   </AppSelect>
 </template>
@@ -11,7 +11,10 @@
  * A thin wrapper over AppSelect, not a second copy of its chrome: it names the
  * filter-row size (`md` — the compact desktop look plus a ≥44px tap target on
  * touch) and pins `shrink-0` so a filter never collapses when the row runs out of
- * width. Border, radius, focus ring, typography and the `appearance` caret all
+ * width, with `max-w-full` so it never grows past the row either: a native select
+ * is as wide as its longest option, and on iOS (where `base.css` forces 16px on
+ * selects to stop focus-zoom) the Vault's "System Reference Document 5.1" source
+ * pushed the whole page wider than the phone. Border, radius, focus ring, typography and the `appearance` caret all
  * still come from AppSelect and the base rule in main.css.
  *
  * Options come through the default slot so the caller keeps control of the
