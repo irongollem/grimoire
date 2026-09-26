@@ -84,6 +84,19 @@
       label="Report a bug"
       @click="emit('update:open', false); bugReportOpen = true"
     />
+    <!-- Admin, for app admins only: the desktop sidebar's "System" link had
+         no phone equivalent, so reaching Admin on a phone meant typing /admin. -->
+    <AppButton
+      v-if="auth.isAppAdmin"
+      variant="menu"
+      size="md"
+      block
+      class="mt-2 gap-3"
+      :icon="IconShieldCheck"
+      icon-size="md"
+      label="Admin"
+      @click="goToAdmin"
+    />
     <BugReportModal v-if="bugReportMounted" v-model="bugReportOpen" />
   </MobileSheet>
 </template>
@@ -96,11 +109,12 @@ import MobileSheet from "@/components/common/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import SessionRail from "./SessionRail.vue";
-import { IconAdd, IconBug, IconRefresh } from "@/lib/icons";
+import { IconAdd, IconBug, IconRefresh, IconShieldCheck } from "@/lib/icons";
 import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import { useAbove } from "@/composables/useBreakpoint";
@@ -129,6 +143,7 @@ const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
 const campaignStore = useCampaignStore();
+const auth = useAuthStore();
 
 const hasCampaign = computed(() => !!campaignStore.activeCampaignId);
 
@@ -167,6 +182,11 @@ function isActive(to: string): boolean {
 function navigate(item: NavItem) {
   emit("update:open", false);
   router.push(item.to);
+}
+
+function goToAdmin() {
+  emit("update:open", false);
+  router.push("/admin");
 }
 
 function onCreate() {

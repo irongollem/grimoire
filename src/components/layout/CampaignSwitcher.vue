@@ -1,5 +1,5 @@
 <template>
-  <div class="px-3 py-3 border-b border-border">
+  <div class="px-3 py-3 border-b border-border" v-bind="$attrs">
     <!-- Active campaign + switcher — show immediately if we have a stored campaign ID,
          even before the campaigns list finishes loading -->
     <div
@@ -264,6 +264,11 @@ import type { Campaign } from "@/types/campaign.types";
 import { useQuota } from "@/composables/billing/useQuota";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
+
+// The card sits beside three modals at the top level, so Vue cannot pick a
+// root for a caller's class on its own; the More sheet's full-bleed
+// `-mx-4 mb-4` was being dropped. Hand attributes to the card explicitly.
+defineOptions({ inheritAttrs: false });
 
 const campaignStore = useCampaignStore();
 const { onlineUsers } = useCampaignPresence();
