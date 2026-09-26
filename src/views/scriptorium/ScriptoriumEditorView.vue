@@ -1,5 +1,43 @@
 <template>
+  <!--
+    Scriptorium on a phone is a reader, not the desktop galley shrunk down
+    (#915 story 7): below md, /scriptorium/:id shows ScriptoriumReader and
+    /scriptorium/new explains that writing needs more room. Both routes carry
+    `fullscreenMobile` (see routes.ts) so this owns the whole phone screen —
+    no app top bar or bottom nav to double up against.
+  -->
+  <template v-if="isMobile">
+    <div v-if="isNew" class="flex h-full flex-col items-center justify-center px-4 py-16">
+      <EmptyState
+        title="Writing needs more room"
+        description="The page layout, art placement and formatting tools need a wider screen than a phone gives them. Open Scriptorium on a tablet or desktop to write or edit a document. Your existing documents are still here to read."
+      >
+        <template #icon><IconMonitor class="h-16 w-16" /></template>
+        <template #action>
+          <AppButton variant="primary" size="lg" label="Back to Scriptorium" to="/scriptorium" />
+        </template>
+      </EmptyState>
+    </div>
+
+    <ScriptoriumReader v-else-if="doc" :document="doc" />
+
+    <div v-else class="flex h-full flex-col items-center justify-center px-4 py-16">
+      <LoadingSpinner v-if="isLoading" />
+      <EmptyState
+        v-else
+        title="This document could not be read"
+        description="It may have been deleted, or you may not have access to it."
+      >
+        <template #icon><IconWarning class="h-16 w-16" /></template>
+        <template #action>
+          <AppButton variant="primary" size="lg" label="Back to Scriptorium" to="/scriptorium" />
+        </template>
+      </EmptyState>
+    </div>
+  </template>
+
   <PageHeader
+    v-else
     :title="doc?.title || (isNew ? (chosen ? chosen.name : 'New Document') : 'Edit Document')"
     :description="isNew && !chosen ? 'Choose a starting point' : 'Write with the quill of a master scribe'"
   >
@@ -11,14 +49,16 @@
     <TemplateGallery v-else-if="isNew && !chosen" @select="chosen = $event" />
 
     <template v-else>
-      <button
+      <AppButton
         v-if="isNew"
-        type="button"
-        class="mb-3 inline-flex items-center gap-1.5 text-label-lg font-semibold text-muted-foreground hover:text-primary transition-colors"
+        variant="link"
+        size="sm"
+        class="mb-3"
+        :icon="IconChevronLeft"
+        icon-size="sm"
+        label="Choose a different template"
         @click="chosen = null"
-      >
-        ← Choose a different template
-      </button>
+      />
       <ScriptoriumEditor
         :key="isNew ? (chosen?.id ?? 'new') : id || 'new'"
         :doc="isNew ? null : (doc ?? null)"
@@ -31,14 +71,20 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRoute } from "vue-router";
+import { useBelow } from "@/composables/useBreakpoint";
 import { useScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import EmptyState from "@/components/common/EmptyState.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ScriptoriumEditor from "@/components/scriptorium/ScriptoriumEditor.vue";
+import ScriptoriumReader from "@/components/scriptorium/ScriptoriumReader.vue";
 import TemplateGallery from "@/components/scriptorium/TemplateGallery.vue";
+import { IconChevronLeft, IconMonitor, IconWarning } from "@/lib/icons";
 import type { ScriptoriumTemplate } from "@/data/scriptoriumTemplates";
 
 const route = useRoute();
+const isMobile = useBelow("md");
 const isNew = computed(() => route.name === "scriptorium-new");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 

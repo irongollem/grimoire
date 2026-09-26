@@ -76,4 +76,16 @@ describe("ScriptoriumDocumentView", () => {
     const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeDoc({ content: null }) } });
     expect(wrapper.text()).not.toContain("This document could not be read");
   });
+
+  it("defaults to the page layout (no reader modifier class)", async () => {
+    const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeDoc() } });
+    await flushEditor();
+    expect(wrapper.find(".sc-document-view").classes()).not.toContain("sc-document-view--reader");
+  });
+
+  it("adds the reader modifier class when layout is 'reader'", async () => {
+    const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeDoc(), layout: "reader" } });
+    await flushEditor();
+    expect(wrapper.find(".sc-document-view").classes()).toContain("sc-document-view--reader");
+  });
 });

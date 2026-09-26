@@ -282,7 +282,6 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Scriptorium",
-        desktopOnly: true,
         to: "/scriptorium",
         icon: IconNavScriptorium,
         description: "Craft & export documents",

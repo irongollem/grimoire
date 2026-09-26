@@ -31,11 +31,13 @@
     <EmptyState
       v-else-if="!filtered.length && !ui.scriptoriumHasActiveFilters"
       title="The scriptorium awaits"
-      description="Craft monsters, spells, items, and adventure documents with the look of the official books."
+      :description="canWrite
+        ? 'Craft monsters, spells, items, and adventure documents with the look of the official books.'
+        : 'Craft monsters, spells, items, and adventure documents with the look of the official books. Writing needs a tablet or desktop screen.'"
     >
       <template #icon><IconNavScriptorium class="h-16 w-16" /></template>
       <template #action>
-        <AppButton variant="primary" size="lg" label="Create your first document" @click="handleNew" />
+        <AppButton v-if="canWrite" variant="primary" size="lg" label="Create your first document" @click="handleNew" />
       </template>
     </EmptyState>
 
@@ -185,6 +187,7 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
+import { useAbove } from "@/composables/useBreakpoint";
 import type { ScriptoriumDocType, ScriptoriumDocumentSummary } from "@/types/scriptorium.types";
 import { DOC_TYPES, DOC_TYPE_OPTIONS } from "@/lib/scriptorium/editorConstants";
 import { documentScopeOf, isDocumentUsableIn } from "@/lib/scriptorium/documentScope";
@@ -192,6 +195,8 @@ import { documentScopeOf, isDocumentUsableIn } from "@/lib/scriptorium/documentS
 const router = useRouter();
 const { canCreate, quota: docQuota } = useQuota("scriptorium_documents");
 const showPaywall = ref(false);
+// Writing needs a larger screen (#915 story 7) — the phone list is a reader.
+const canWrite = useAbove("md");
 
 function handleNew() {
   if (!canCreate.value) { showPaywall.value = true; return; }

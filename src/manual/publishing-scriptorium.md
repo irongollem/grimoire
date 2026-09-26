@@ -7,7 +7,7 @@ summary: Write, design, and export campaign documents in a live, auto-paginated 
 keywords: scriptorium, document, publish, pdf, print, export, template, furniture, decoration, paged, theme, page break, stat block, cover
 ---
 
-The **Scriptorium** produces print-quality campaign materials (adventure modules, spell compendiums, monster bestiaries, handouts, session recaps) that look like an actual rulebook, not a text export. Find it in the sidebar under **Compendium → Publish → Scriptorium** (route `/scriptorium`; desktop only, the editing surface needs more room than a phone gives it).
+The **Scriptorium** produces print-quality campaign materials (adventure modules, spell compendiums, monster bestiaries, handouts, session recaps) that look like an actual rulebook, not a text export. Find it in the sidebar under **Compendium → Publish → Scriptorium** (route `/scriptorium`). Writing needs a tablet or desktop screen. On a phone, Scriptorium is a reader; see "On a phone" below.
 
 Rather than editing raw source and compiling it into a document, you write directly next to (and click straight into) the finished, paginated book. The system owns pagination, columns, fonts, and page numbering: you never lay those out by hand.
 
@@ -94,6 +94,12 @@ Every document belongs to one campaign, or to none. A new document defaults to y
 The document list's **Scope** filter finds documents by the same classification: *Usable here* (the default: your active campaign's documents plus your account-wide ones), *This campaign*, *General* (account-wide only), or *Other campaigns* to find something you wrote while working in a different campaign. Deleting a campaign never deletes the documents scoped to it; they become account-wide instead.
 
 A document scoped to a campaign can only be attached as a quest handout within that same campaign (or an account-wide one): attaching from the quest beat's Placements panel already narrows the picker this way.
+
+## On a phone
+
+The document list and its filters work on a phone exactly as they do everywhere else, but writing does not: the page layout, art placement, and formatting tools need more room than a phone gives them, so **New Document** is hidden there and opening one for editing shows a short explanation with a way back to the list instead.
+
+Tapping a document from the list instead opens it as a **reader**: a single flowing column, like an e-book, rather than the paginated book. Page and column breaks disappear (a page break leaves a faint divider), a cover page becomes a compact card at the top with its title and art, back-cover blurbs become a closing card, images run the full width of the screen, and tables scroll sideways inside their own frame so they never widen the page. If the document has any headings, a tappable **Contents** list sits above the text and jumps straight to the section you tap.
 
 ## Tips
 

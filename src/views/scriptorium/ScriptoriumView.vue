@@ -5,7 +5,10 @@
     </template>
 
     <template #actions>
+      <!-- Writing needs a larger screen (#915 story 7) — the phone list stays
+           a reader, so there's nothing useful for this action to open here. -->
       <ListActionButton
+        v-if="canWrite"
         variant="primary"
         :icon="IconAdd"
         label="New Document"
@@ -29,10 +32,12 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ScriptoriumDocumentList from "@/components/scriptorium/ScriptoriumDocumentList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
+import { useAbove } from "@/composables/useBreakpoint";
 
 const router = useRouter();
 const { canCreate } = useQuota("scriptorium_documents");
 const showPaywall = ref(false);
+const canWrite = useAbove("md");
 
 function handleNew() {
   if (!canCreate.value) { showPaywall.value = true; return; }

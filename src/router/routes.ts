@@ -283,17 +283,21 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/scriptorium/ScriptoriumView.vue"),
     meta: { requiresAuth: true, title: "Scriptorium" },
   },
+  // fullscreenMobile: below md this route is either the phone reading view
+  // or the "writing needs more room" explanation (#915 story 7), both of
+  // which draw their own compact chrome — same contract as the NPC/monster
+  // sheets and quest surfaces.
   {
     path: "/scriptorium/new",
     name: "scriptorium-new",
     component: () => import("@/views/scriptorium/ScriptoriumEditorView.vue"),
-    meta: { requiresAuth: true, title: "New Document" },
+    meta: { requiresAuth: true, title: "New Document", fullscreenMobile: true },
   },
   {
     path: "/scriptorium/:id",
     name: "scriptorium-editor",
     component: () => import("@/views/scriptorium/ScriptoriumEditorView.vue"),
-    meta: { requiresAuth: true, title: "Edit Document" },
+    meta: { requiresAuth: true, title: "Edit Document", fullscreenMobile: true },
   },
 
   // NPCs
