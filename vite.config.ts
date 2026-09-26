@@ -643,6 +643,17 @@ export default defineConfig(({ mode }) => {
         "@edge-shared": path.resolve(import.meta.dirname, "./supabase/functions/_shared"),
       },
     },
+    optimizeDeps: {
+      // @jsquash/webp's Emscripten glue resolves its .wasm file relative to
+      // its own `import.meta.url` at runtime; Vite's dependency optimizer
+      // rewrites/copies the module in a way that breaks that lookup ("Failed
+      // to construct 'URL': Invalid URL" / wasm fetch failure — a documented
+      // jSquash/Vite interaction, not specific to this repo). Excluding it
+      // leaves the module for Vite's normal (non-prebundled) handling, which
+      // resolves the wasm correctly. It's lazy-imported (see webpEncode.ts)
+      // so this has no effect on the boot bundle either way.
+      exclude: ["@jsquash/webp"],
+    },
     build: {
       // "hidden" emits the maps but omits the `//# sourceMappingURL` comment, so
       // the browser never fetches them and the bundle stays effectively closed
@@ -737,6 +748,14 @@ export default defineConfig(({ mode }) => {
                 name: "ui",
                 test: /node_modules[\\/](reka-ui|@vueuse|@lucide[\\/]vue|class-variance-authority|clsx|tailwind-merge|tw-animate-css)/,
               },
+              // WebP WASM fallback encoder (webpEncode.ts's lazy `import("@jsquash/webp/encode")`,
+              // Safari doesn't encode WebP natively). Left unmatched it falls into the
+              // `vendor` catch-all below, and `vendor` is part of the entry's static
+              // graph — exactly the `canvg` trap noted above: a dynamic import only
+              // stays lazy if the chunk it's grouped into isn't *also* reachable
+              // eagerly. Its own chunk keeps the JS wrapper (and therefore the two
+              // .wasm codecs it fetches at runtime) out of the boot payload.
+              { name: "webp-fallback", test: /node_modules[\\/](@jsquash[\\/]webp|wasm-feature-detect)/ },
               // Everything else from node_modules
               { name: "vendor", test: /node_modules/ },
             ],

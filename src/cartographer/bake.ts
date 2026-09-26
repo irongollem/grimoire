@@ -12,6 +12,7 @@ import type { TilePackRuntime } from "./packLoader";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { classifyJoint } from "./edges";
 import { nearestGeminiAspect } from "@edge-shared/geminiAspect.ts";
+import { encodeWebp } from "@/lib/webpEncode";
 
 export interface BakeOptions {
   /** Cells of black padding around the painted extent. Default: 3. */
@@ -274,9 +275,9 @@ export async function bakeMap(
   glyphs: Record<CellKey, PackCategory> = {},
 ): Promise<Blob> {
   const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3, glyphs, options.transparent ?? false);
-  let blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.9 });
+  let blob = await encodeWebp(canvas, 0.9);
   if (blob.size > MAX_BYTES) {
-    blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.75 });
+    blob = await encodeWebp(canvas, 0.75);
     if (blob.size > MAX_BYTES) {
       throw new Error("Map too large to publish. Crop more aggressively or split into sections.");
     }

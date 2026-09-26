@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { blobToBase64, base64ToBlob, canvasToWebp, WEBP_UNSUPPORTED } from "./imageCodec";
+import { blobToBase64, base64ToBlob } from "./imageCodec";
 
 describe("blobToBase64 / base64ToBlob round trip", () => {
   it("round-trips arbitrary bytes, including values >= 0x80", async () => {
@@ -33,27 +33,5 @@ describe("blobToBase64 / base64ToBlob round trip", () => {
     const blob = new Blob([text], { type: "text/plain" });
     const b64 = await blobToBase64(blob);
     expect(b64).toBe(btoa(text));
-  });
-});
-
-describe("canvasToWebp", () => {
-  /** A canvas whose `toBlob` returns what the browser would, whatever was asked for. */
-  function canvasEncodingAs(type: string | null): HTMLCanvasElement {
-    return {
-      toBlob: (callback: BlobCallback) => callback(type === null ? null : new Blob([new Uint8Array([1])], { type })),
-    } as unknown as HTMLCanvasElement;
-  }
-
-  it("resolves the WebP blob when the browser encoded one", async () => {
-    const blob = await canvasToWebp(canvasEncodingAs("image/webp"), 0.9);
-    expect(blob.type).toBe("image/webp");
-  });
-
-  it("rejects the PNG a browser without a WebP encoder hands back instead", async () => {
-    await expect(canvasToWebp(canvasEncodingAs("image/png"), 0.9)).rejects.toThrow(WEBP_UNSUPPORTED);
-  });
-
-  it("rejects when the browser produced nothing", async () => {
-    await expect(canvasToWebp(canvasEncodingAs(null), 0.9)).rejects.toThrow("could not encode");
   });
 });

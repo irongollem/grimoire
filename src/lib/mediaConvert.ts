@@ -1,7 +1,9 @@
 /**
  * Client-side media conversion utilities.
  *
- * toWebP  — converts any image File to WebP (max 1920px, 85% quality).
+ * toWebP  — converts any image File to WebP (max 1920px, 85% quality),
+ *            always real WebP — see webpEncode.ts for how a Safari canvas's
+ *            silent PNG is turned into one.
  * toOpus  — converts WAV files to WebM/Opus (or OGG/Opus in Firefox) using
  *            the Web Audio API + MediaRecorder. Non-WAV files pass through
  *            unchanged. Falls back to the original file on any error or if
@@ -13,6 +15,7 @@
 
 import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
 import { readXmpFromWebp, readXmpFromPng, readXmpFromJpeg, embedXmpInWebp, embedXmpInJpeg } from "@edge-shared/provenance/embed.ts";
+import { encodeWebp } from "@/lib/webpEncode";
 
 // ── Image ────────────────────────────────────────────────────────────────
 
@@ -48,8 +51,9 @@ export function reembedXmp(bytes: Uint8Array, xmpPacket: string, format: "image/
 }
 
 /**
- * Converts any image File to WebP (max 1920px, 85% quality; falls back to
- * JPEG when the browser can't encode WebP).
+ * Converts any image File to WebP (max 1920px, 85% quality), always real
+ * WebP — a canvas that can't encode it natively (Safari) is carried through
+ * `encodeWebp`'s WASM fallback rather than silently downgrading to JPEG.
  *
  * `toWebP` is the one canvas re-encode every image upload — AI-generated or
  * a plain user photo — is forced through (`useImageUpload`, the entity-image
@@ -75,48 +79,28 @@ export async function toWebP(file: File, maxPx = 1920, quality = 0.85): Promise<
       canvas.width = w;
       canvas.height = h;
       canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-      canvas.toBlob(
-        (blob) => {
-          if (blob && blob.type === "image/webp") {
-            void finalizeWebpOrJpeg(blob, existingXmp, "image/webp", file.name, ".webp").then(resolve);
-          } else {
-            // WebP encoding not supported (Safari < 16.1 returns PNG) — fall back to JPEG
-            canvas.toBlob(
-              (jpegBlob) => {
-                if (jpegBlob) void finalizeWebpOrJpeg(jpegBlob, existingXmp, "image/jpeg", file.name, ".jpeg").then(resolve);
-                else resolve(file);
-              },
-              "image/jpeg",
-              quality,
-            );
-          }
-        },
-        "image/webp",
-        quality,
-      );
+      void encodeWebp(canvas, quality)
+        .then((blob) => finalizeWebp(blob, existingXmp, file.name))
+        .then(resolve)
+        .catch(() => resolve(file));
     };
     img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
     img.src = objectUrl;
   });
 }
 
-async function finalizeWebpOrJpeg(
-  blob: Blob,
-  existingXmp: string | null,
-  format: "image/webp" | "image/jpeg",
-  originalName: string,
-  ext: string,
-): Promise<File> {
+async function finalizeWebp(blob: Blob, existingXmp: string | null, originalName: string): Promise<File> {
   const marked = existingXmp
-    ? new Blob([reembedXmp(new Uint8Array(await blob.arrayBuffer()), existingXmp, format)], { type: format })
+    ? new Blob([reembedXmp(new Uint8Array(await blob.arrayBuffer()), existingXmp, "image/webp")], { type: "image/webp" })
     : blob;
-  return new File([marked], originalName.replace(/\.[^.]+$/, ext), { type: format });
+  return new File([marked], originalName.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" });
 }
 
 /**
  * Resize an image blob to a target width (height proportional). Never upscales.
- * Input must already be an image blob (WebP or JPEG) — no format fallback needed.
- * Returns the original blob on any canvas failure — never throws.
+ * Input must already be an image blob (WebP or JPEG). Always produces real
+ * WebP via `encodeWebp` — see its doc for how a Safari canvas's silent PNG
+ * is handled. Returns the original blob on any canvas failure — never throws.
  */
 export async function resizeToWebP(blob: Blob, width: number, quality = 0.8): Promise<Blob> {
   return new Promise((resolve) => {
@@ -131,7 +115,7 @@ export async function resizeToWebP(blob: Blob, width: number, quality = 0.8): Pr
       canvas.width = w;
       canvas.height = h;
       canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-      canvas.toBlob((result) => resolve(result ?? blob), "image/webp", quality);
+      void encodeWebp(canvas, quality).then(resolve).catch(() => resolve(blob));
     };
     img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(blob); };
     img.src = objectUrl;

@@ -157,7 +157,7 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
     });
     // The edge function already marked `generated.image_b64` with provenance
     // (EU AI Act Art 50) before sending it here — but normalizeGeneratedTile
-    // canvas-decodes and re-encodes the tile (`canvasToWebp`), and canvas
+    // canvas-decodes and re-encodes the tile (`encodeWebp`), and canvas
     // never preserves embedded metadata, so the XMP packet does not survive
     // that trip. It has to be read back out of the still-marked source and
     // re-embedded into the freshly-encoded normalized blob, which is always

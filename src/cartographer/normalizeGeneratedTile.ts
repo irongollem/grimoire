@@ -1,5 +1,5 @@
 import { BASE_TILE_SIZE, WALL_BAND_PX } from "./packSchema";
-import { canvasToWebp } from "./imageCodec";
+import { encodeWebp } from "@/lib/webpEncode";
 import type { SlotMechanics, SlotIdentity } from "./authoringPlan";
 
 /** The canonical wall band — see WALL_BAND_RATIO. Was an independent 0.18. */
@@ -196,5 +196,5 @@ export async function normalizeGeneratedTile(input: {
   if (input.mechanics.footprint === "rounded-junction") {
     clearRoundedInterior(ctx, input.slot.side);
   }
-  return canvasToWebp(output, 0.9);
+  return encodeWebp(output, 0.9);
 }
