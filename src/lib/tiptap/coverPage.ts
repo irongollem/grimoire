@@ -153,34 +153,47 @@ const FRONT_ART_DIV_STYLE =
   "position:absolute;inset:0;width:100%;height:100%;z-index:0;" +
   "background:var(--sc-accent,#1B3A4B);opacity:0.18";
 
-// The art is shown at full strength; only a gradient scrim behind the title
-// (bottom third) darkens for legibility — the rest of the image is untouched.
+// The art is shown at full strength; only a gradient scrim rising from the
+// bottom edge (roughly the lower third, near-black to transparent) darkens
+// for legibility — the rest of the image is untouched.
 const FRONT_SCRIM_STYLE =
   "position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(" +
-  "to top,rgba(0,0,0,0.6) 0%,rgba(0,0,0,0.25) 28%,rgba(0,0,0,0) 55%)";
+  "to top,rgba(0,0,0,0.68) 0%,rgba(0,0,0,0.3) 28%,rgba(0,0,0,0) 55%)";
 
+// Full-bleed painted art, a bottom scrim, and the title stack anchored to the
+// bottom of the sheet — no filled title plate (#915 story 6: a plate painted
+// behind an <h1> collided with the book's own chapter-heading background,
+// and read as either an overflowing or an invisible title depending on
+// theme). Every colour/typography knob here is a CSS custom property so the
+// two themes read distinctly (tall condensed caps for onednd2024, serif
+// small-caps for phb2014 — see --sc-cover-title-transform/--sc-cover-title-variant
+// in the theme files) without this module knowing which theme is active.
 const FRONT_OVERLAY_STYLE =
   "position:absolute;inset:0;display:flex;flex-direction:column;" +
-  "justify-content:space-between;z-index:1;padding:2.5rem";
+  "justify-content:flex-end;z-index:1;padding:2.5rem;text-align:center";
 
-const FRONT_TITLE_STYLE =
-  "font-family:var(--sc-heading-font,Georgia,serif);font-size:3.5rem;font-weight:700;" +
-  "color:var(--sc-accent-contrast,#F9F6EF);text-shadow:0 2px 8px rgba(0,0,0,0.8);" +
-  "line-height:1.1;letter-spacing:0.04em;margin:0";
-
-const FRONT_SUBTITLE_STYLE =
-  "font-family:var(--sc-body-font,Georgia,serif);font-size:1.15rem;" +
+// The series line at the very top of the sheet (attrs.tagline).
+const FRONT_TAGLINE_STYLE =
+  "position:absolute;top:2.25rem;left:2.5rem;right:2.5rem;z-index:1;text-align:center;" +
+  "font-family:var(--sc-heading-font,Georgia,serif);font-size:0.75rem;font-weight:700;" +
   "color:var(--sc-accent-contrast,#F9F6EF);text-shadow:0 1px 4px rgba(0,0,0,0.8);" +
-  "font-style:italic;margin:0.5rem 0 0;opacity:0.9";
+  "letter-spacing:0.25em;text-transform:uppercase;margin:0;opacity:0.85";
 
-const FRONT_BOTTOM_BAR_STYLE =
-  "background:var(--sc-accent,#1B3A4B);color:var(--sc-accent-contrast,#F9F6EF);" +
-  "padding:0.6rem 1.25rem;margin:0 -2.5rem -2.5rem;" +
-  "font-family:var(--sc-heading-font,Georgia,serif);font-size:0.65rem;" +
-  "letter-spacing:0.12em;text-transform:uppercase;text-align:center;opacity:0.85";
+// The small uppercase brand/edition line directly above the title (attrs.subtitle).
+const FRONT_SUBTITLE_STYLE =
+  "font-family:var(--sc-heading-font,Georgia,serif);font-size:0.95rem;font-weight:700;" +
+  "color:var(--sc-accent-contrast,#F9F6EF);text-shadow:0 1px 4px rgba(0,0,0,0.8);" +
+  "letter-spacing:0.18em;text-transform:uppercase;margin:0 0 0.4rem;opacity:0.92";
 
-const FRONT_BODY_STYLE =
-  "flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:1.5rem";
+// The title itself: very large, tall, condensed-reading caps, one or two lines.
+const FRONT_TITLE_STYLE =
+  "font-family:var(--sc-heading-font,Georgia,serif);font-size:3.75rem;font-weight:700;" +
+  "color:var(--sc-accent-contrast,#F9F6EF);text-shadow:0 3px 16px rgba(0,0,0,0.85);" +
+  "line-height:0.95;letter-spacing:0.01em;margin:0;" +
+  "text-transform:var(--sc-cover-title-transform,uppercase);" +
+  "font-variant:var(--sc-cover-title-variant,normal)";
+
+const FRONT_BODY_STYLE = "display:flex;flex-direction:column";
 
 export function buildFront(attrs: CoverPageAttrs): NodeSpec[] {
   const coverBg: NodeSpec = attrs.backgroundImage
@@ -192,16 +205,16 @@ export function buildFront(attrs: CoverPageAttrs): NodeSpec[] {
     // Legibility scrim behind the title — default on, but only when there's art
     // to read over and the author hasn't turned it off for made-to-order art.
     ...(attrs.backgroundImage && attrs.titleScrim ? [["div", { style: FRONT_SCRIM_STYLE }] as NodeSpec] : []),
+    ...(attrs.tagline ? [["p", { style: FRONT_TAGLINE_STYLE }, attrs.tagline] as NodeSpec] : []),
     [
       "div",
       { style: FRONT_OVERLAY_STYLE },
       [
         "div",
         { style: FRONT_BODY_STYLE },
-        ["h1", { style: FRONT_TITLE_STYLE }, attrs.title],
         ["p", { style: FRONT_SUBTITLE_STYLE }, attrs.subtitle],
+        ["h1", { style: FRONT_TITLE_STYLE }, attrs.title],
       ],
-      ["div", { style: FRONT_BOTTOM_BAR_STYLE }, attrs.subtitle || "An Unofficial Supplement"],
     ],
   ];
 }
@@ -221,7 +234,9 @@ const INSIDE_TEXT_STYLE =
 
 const INSIDE_TITLE_STYLE =
   "font-family:var(--sc-heading-font,Georgia,serif);font-size:2.5rem;font-weight:700;" +
-  "color:var(--sc-accent,#1B3A4B);line-height:1.15;margin:0 0 0.5rem;letter-spacing:0.03em";
+  "color:var(--sc-accent,#1B3A4B);line-height:1.05;margin:0 0 0.5rem;letter-spacing:0.01em;" +
+  "text-transform:var(--sc-cover-title-transform,uppercase);" +
+  "font-variant:var(--sc-cover-title-variant,normal)";
 
 const INSIDE_SUBTITLE_STYLE =
   "font-family:var(--sc-body-font,Georgia,serif);font-size:1rem;" +

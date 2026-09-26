@@ -3,6 +3,34 @@
     <div v-if="isEditable" class="sc-entity-embed-toolbar" contenteditable="false">
       <span class="sc-entity-embed-badge">{{ typeLabel }} · linked</span>
       <div class="sc-entity-embed-actions">
+        <SegmentedControl
+          v-if="showSizeToggle"
+          :model-value="size"
+          :options="SIZE_OPTIONS"
+          size="xs"
+          variant="ghost"
+          @update:model-value="setSize"
+        />
+        <AppButton
+          v-if="showArtToggle"
+          size="xs"
+          variant="ghost"
+          fill="muted"
+          :icon="IconImage"
+          icon-size="xs"
+          :active="showArt"
+          :tooltip="showArt ? 'Hide the portrait/art' : 'Show the portrait/art'"
+          @click="toggleShowArt"
+        />
+        <AppButton
+          size="xs"
+          variant="ghost"
+          fill="muted"
+          label="New page"
+          :active="startsPage"
+          tooltip="Start this entry on a fresh page — turn off for a variant that follows its family's first entry on the same page"
+          @click="toggleStartsPage"
+        />
         <AppButton
           size="xs"
           variant="ghost"
@@ -35,13 +63,15 @@ import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useEntityEmbedData } from "@/composables/scriptorium/useEntityEmbedData";
 import { entityRefKey, missingEntityMarkerHtml } from "@/lib/scriptorium/entityEmbeds";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import { IconExternalLink, IconScissors } from "@/lib/icons";
-import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
+import { IconExternalLink, IconScissors, IconImage } from "@/lib/icons";
+import type { EntityEmbedType, EntityEmbedSize } from "@/lib/tiptap/entityEmbed";
 
 const props = defineProps({ ...nodeViewProps });
 const { confirm } = useConfirm();
@@ -50,6 +80,32 @@ const router = useRouter();
 const isEditable = computed(() => props.editor.isEditable);
 const entityType = computed(() => props.node.attrs.entityType as EntityEmbedType);
 const entityId = computed(() => props.node.attrs.entityId as string);
+const size = computed(() => (props.node.attrs.size as EntityEmbedSize | undefined) ?? "auto");
+// Only a monster/NPC's linked embed renders as a stat block at all — sizing a
+// spell/item/location/quest embed is meaningless, so the toggle only shows
+// for the two entity types scriptoriumImport.ts frames as a stat block.
+const showSizeToggle = computed(() => entityType.value === "monster" || entityType.value === "npc");
+const SIZE_OPTIONS: SegmentedOption<EntityEmbedSize>[] = [
+  { value: "auto", label: "Auto", tooltip: "Size itself from how much this stat block holds" },
+  { value: "column", label: "Column", tooltip: "Always one column-width block" },
+  { value: "wide", label: "Wide", tooltip: "Always span both page columns" },
+];
+function setSize(next: EntityEmbedSize) {
+  props.updateAttributes({ size: next });
+}
+
+// showArt only affects the monster entry composition today (scriptoriumImport.ts) —
+// an NPC's portrait keeps its existing centered, never-detachable placement.
+const showArtToggle = computed(() => entityType.value === "monster");
+const showArt = computed(() => (props.node.attrs.showArt as boolean | undefined) ?? true);
+function toggleShowArt() {
+  props.updateAttributes({ showArt: !showArt.value });
+}
+
+const startsPage = computed(() => (props.node.attrs.startsPage as boolean | undefined) ?? true);
+function toggleStartsPage() {
+  props.updateAttributes({ startsPage: !startsPage.value });
+}
 
 const TYPE_LABELS: Record<EntityEmbedType, string> = {
   npc: "NPC",

@@ -37,9 +37,34 @@ export const ENTITY_EMBED_TYPES: readonly EntityEmbedType[] = [
   "quest",
 ];
 
+/**
+ * Stat-block size (#915 story 6). "auto" is the default and picks itself from
+ * the entity's own content (see autoStatBlockSize() in scriptoriumImport.ts) —
+ * a short stat block reads as a "column" box in its own text column, a long
+ * one as a "wide" block spanning both page columns with its own internal
+ * two-column flow, matching how the printed books lay out a creature too
+ * long for one column. The author can override either way.
+ */
+export type EntityEmbedSize = "auto" | "column" | "wide";
+
 export interface EntityEmbedAttrs {
   entityType: EntityEmbedType;
   entityId: string;
+  size?: EntityEmbedSize;
+  /** Show the entity's portrait/art (monster/NPC entries only). Default true. */
+  showArt?: boolean;
+  /**
+   * Force this entry onto a fresh page (#915 story 6) — the default for a
+   * monster (a Monster Manual entry starts its own page), off by default for
+   * every other embed type. Turn it off for a creature VARIANT that should
+   * follow its family's first entry on the same page(s) (e.g. flying sword
+   * and rug of smothering following animated armor under "Animated
+   * Objects") — the DM switches it off per variant; nothing here detects a
+   * family automatically. A normal document H2 placed directly before the
+   * entry (a family heading) keeps the page break: it moves from the entry
+   * to that heading (see the paged stylesheet).
+   */
+  startsPage?: boolean;
 }
 
 declare module "@tiptap/core" {
@@ -73,6 +98,28 @@ export const EntityEmbed = Node.create({
         parseHTML: (el: HTMLElement) => el.getAttribute("data-entity-id") ?? "",
         renderHTML: (attrs: { entityId: string }) => ({ "data-entity-id": attrs.entityId }),
       },
+      size: {
+        default: "auto" as EntityEmbedSize,
+        parseHTML: (el: HTMLElement) =>
+          (el.getAttribute("data-size") as EntityEmbedSize) ?? "auto",
+        renderHTML: (attrs: { size?: EntityEmbedSize }) => ({
+          "data-size": attrs.size ?? "auto",
+        }),
+      },
+      showArt: {
+        default: true,
+        parseHTML: (el: HTMLElement) => el.getAttribute("data-show-art") !== "false",
+        renderHTML: (attrs: { showArt?: boolean }) => ({
+          "data-show-art": String(attrs.showArt ?? true),
+        }),
+      },
+      startsPage: {
+        default: true,
+        parseHTML: (el: HTMLElement) => el.getAttribute("data-starts-page") !== "false",
+        renderHTML: (attrs: { startsPage?: boolean }) => ({
+          "data-starts-page": String(attrs.startsPage ?? true),
+        }),
+      },
     };
   },
 
@@ -80,10 +127,14 @@ export const EntityEmbed = Node.create({
     return [{ tag: 'div[data-type="entity-embed"]' }];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ HTMLAttributes, node }) {
+    const startsPage = (node.attrs as EntityEmbedAttrs).startsPage ?? true;
+    const cls = ["sc-entity-embed", startsPage ? "sc-entity-embed--startpage" : ""]
+      .filter(Boolean)
+      .join(" ");
     return [
       "div",
-      mergeAttributes({ "data-type": "entity-embed", class: "sc-entity-embed" }, HTMLAttributes),
+      mergeAttributes({ "data-type": "entity-embed", class: cls }, HTMLAttributes),
     ];
   },
 

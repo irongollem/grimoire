@@ -22,6 +22,7 @@ import { Previewer } from "pagedjs";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
 import { expandTocPlaceholder, fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
+import { promoteTableHeaders } from "@/lib/scriptorium/pagedTables";
 import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmpty";
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
@@ -127,9 +128,15 @@ export function useScriptoriumPrint() {
     const cls = themeClass(opts.theme);
     const themeCss = opts.theme === "phb2014" ? themePhb2014Css : themeOnednd2024Css;
     const pagedCss = buildPagedPreviewCss({ pageSize: opts.pageSize, inkFriendly: opts.inkFriendly });
-    const bodyHtml = expandTocPlaceholder(stripTrailingEmptyParagraphs(opts.bodyHtml), {
+    const tocExpanded = expandTocPlaceholder(stripTrailingEmptyParagraphs(opts.bodyHtml), {
       showPageNumbers: opts.showPageNumbers,
+      pageSize: opts.pageSize,
     });
+    // Promote each table's leading header row(s) into a real <thead> before
+    // Paged.js lays the page out — its chunker can only repeat a genuine
+    // <thead> across a forced break, and Tiptap's Table extension never emits
+    // one on its own (see pagedTables.ts).
+    const bodyHtml = promoteTableHeaders(tocExpanded);
     const content = opts.isTwoColumn ? `<div class="phb-two-col">${bodyHtml}</div>` : bodyHtml;
 
     // 1. Off-screen render in the main document.

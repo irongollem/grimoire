@@ -106,6 +106,46 @@ describe("resolveEntityEmbeds", () => {
     expect(out).toContain("sc-entity-embed");
   });
 
+  it("overrides the resolved stat block's size class when the node has an explicit data-size", () => {
+    const html =
+      '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a" data-size="wide"></div>';
+    const out = resolveEntityEmbeds(html, {
+      "monster:a": '<div class="sc-statblock sc-statblock--column"><p class="sc-statblock-name">Owlbear</p></div>',
+    });
+    expect(out).toContain("sc-statblock--wide");
+    expect(out).not.toContain("sc-statblock--column");
+  });
+
+  it("leaves the resolved stat block's own size when data-size is auto or absent", () => {
+    const withAuto =
+      '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a" data-size="auto"></div>';
+    const withoutSize = '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a"></div>';
+    const lookup = {
+      "monster:a": '<div class="sc-statblock sc-statblock--wide"><p class="sc-statblock-name">Owlbear</p></div>',
+    };
+    expect(resolveEntityEmbeds(withAuto, lookup)).toContain("sc-statblock--wide");
+    expect(resolveEntityEmbeds(withoutSize, lookup)).toContain("sc-statblock--wide");
+  });
+
+  it("removes the resolved art figure when data-show-art is explicitly false", () => {
+    const html =
+      '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a" data-show-art="false"></div>';
+    const out = resolveEntityEmbeds(html, {
+      "monster:a": '<img class="sc-entity-art" src="x.png" /><p class="sc-statblock-name">Owlbear</p>',
+    });
+    expect(out).not.toContain("sc-entity-art");
+    expect(out).toContain("Owlbear");
+  });
+
+  it("keeps the resolved art figure when data-show-art is true or absent", () => {
+    const lookup = { "monster:a": '<img class="sc-entity-art" src="x.png" />' };
+    const withTrue =
+      '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a" data-show-art="true"></div>';
+    const withoutAttr = '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a"></div>';
+    expect(resolveEntityEmbeds(withTrue, lookup)).toContain("sc-entity-art");
+    expect(resolveEntityEmbeds(withoutAttr, lookup)).toContain("sc-entity-art");
+  });
+
   it("resolves multiple embeds independently", () => {
     const html =
       '<div data-type="entity-embed" data-entity-type="npc" data-entity-id="a"></div>' +
@@ -130,8 +170,16 @@ describe("buildEntityEmbedDocumentJson / buildEntityEmbedDocumentContent", () =>
   it("builds a document holding just the live embed (the entity's body carries its own name)", () => {
     expect(buildEntityEmbedDocumentJson("npc", "npc-1")).toEqual({
       type: "doc",
-      content: [{ type: "entityEmbed", attrs: { entityType: "npc", entityId: "npc-1" } }],
+      content: [
+        { type: "entityEmbed", attrs: { entityType: "npc", entityId: "npc-1", startsPage: false } },
+      ],
     });
+  });
+
+  it("defaults startsPage true for a monster (a fresh page per entry) and false otherwise", () => {
+    expect(buildEntityEmbedDocumentJson("monster", "m-1").content?.[0]?.attrs?.startsPage).toBe(true);
+    expect(buildEntityEmbedDocumentJson("npc", "n-1").content?.[0]?.attrs?.startsPage).toBe(false);
+    expect(buildEntityEmbedDocumentJson("quest", "q-1").content?.[0]?.attrs?.startsPage).toBe(false);
   });
 
   it("stringifies to the same shape", () => {

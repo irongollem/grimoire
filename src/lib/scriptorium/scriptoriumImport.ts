@@ -61,12 +61,6 @@ const CR_XP: Record<string, number> = {
   "29": 135000, "30": 155000,
 };
 
-function crLabel(cr: string): string {
-  const xp = CR_XP[cr];
-  const xpStr = xp !== undefined ? ` (${xp.toLocaleString()} XP)` : "";
-  return `CR ${cr}${xpStr}`;
-}
-
 function countWords(html: string): number {
   const text = html
     .replace(/<[^>]+>/g, " ")
@@ -75,9 +69,86 @@ function countWords(html: string): number {
   return text ? text.split(" ").length : 0;
 }
 
+function abilityModNumber(score: number): number {
+  return Math.floor((score - 10) / 2);
+}
+
+// A true minus sign (U+2212), not a hyphen — the typographically correct
+// glyph for a negative modifier in a printed stat block.
 function abilityMod(score: number): string {
-  const m = Math.floor((score - 10) / 2);
-  return m >= 0 ? `+${m}` : `${m}`;
+  const m = abilityModNumber(score);
+  return m >= 0 ? `+${m}` : `−${Math.abs(m)}`;
+}
+
+function titleCaseWord(w: string): string {
+  return w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w;
+}
+
+/** "chaotic neutral" / "CHAOTIC NEUTRAL" → "Chaotic Neutral". */
+function titleCase(s: string): string {
+  return s.split(/\s+/).filter(Boolean).map(titleCaseWord).join(" ");
+}
+
+/** "stealth" / "sleight_of_hand" → "Stealth" / "Sleight Of Hand". */
+function skillLabel(key: string): string {
+  return key.split(/[_\s]+/).filter(Boolean).map(titleCaseWord).join(" ");
+}
+
+/**
+ * "Small aberration, chaotic evil" — size + creature type + alignment, title
+ * cased throughout to match how D&D Beyond prints both editions' stat blocks
+ * (verified against the 2014 and 2024 reference pages, #915 story 6) rather
+ * than the mixed capitalisation the raw `monster_type`/`alignment` fields
+ * happen to be stored in.
+ */
+function statBlockTypeLine(size: string, creatureType: string, alignment: string | null | undefined): string {
+  const base = titleCase(`${size} ${creatureType}`.trim());
+  return alignment ? `${base}, ${titleCase(alignment)}` : base;
+}
+
+/** "Initiative +5 (15)" — the flat 2024 initiative line: bonus + passive (10 + bonus). */
+function initiativeLine(dex: number, explicitBonus?: number | null): string {
+  const mod = explicitBonus ?? abilityModNumber(dex);
+  const sign = mod >= 0 ? `+${mod}` : `−${Math.abs(mod)}`;
+  return `${sign} (${10 + mod})`;
+}
+
+/** Standard 5e proficiency-bonus-by-CR table, used when a stat block doesn't store its own. */
+function crProficiencyBonus(cr: string): number {
+  if (cr.includes("/")) return 2;
+  const n = parseInt(cr, 10);
+  if (Number.isNaN(n)) return 2;
+  if (n <= 4) return 2;
+  if (n <= 8) return 3;
+  if (n <= 12) return 4;
+  if (n <= 16) return 5;
+  if (n <= 20) return 6;
+  if (n <= 24) return 7;
+  if (n <= 28) return 8;
+  return 9;
+}
+
+/**
+ * The Challenge/CR property line — themed, per the D&D Beyond reference pages:
+ * phb2014 prints "Challenge 3 (700 XP)" and a separate "Proficiency Bonus +N"
+ * line side by side; onednd2024 prints the compact "CR 3 (XP 700; PB +2)".
+ */
+function challengeLineHtml(cr: string, explicitPb: number | undefined, theme: ScriptoriumTheme): string {
+  const xp = CR_XP[cr];
+  const pb = explicitPb ?? crProficiencyBonus(cr);
+  if (theme === "phb2014") {
+    const xpStr = xp !== undefined ? ` (${xp.toLocaleString()} XP)` : "";
+    return (
+      `<p class="sc-statblock-prop sc-statblock-cr">` +
+      `<span><strong>Challenge</strong> ${cr}${xpStr}</span>` +
+      `<span><strong>Proficiency Bonus</strong> +${pb}</span>` +
+      `</p>\n`
+    );
+  }
+  const bits = [xp !== undefined ? `XP ${xp.toLocaleString()}` : null, `PB +${pb}`]
+    .filter((b): b is string => b !== null)
+    .join("; ");
+  return `<p class="sc-statblock-prop"><strong>CR</strong> ${cr}${bits ? ` (${bits})` : ""}</p>\n`;
 }
 
 /**
@@ -129,20 +200,183 @@ function abilityScoresHtml(
     return `<table class="sc-ability-table sc-ability-table--classic"><thead><tr>${headers}</tr></thead><tbody><tr>${values}</tr></tbody></table>`;
   }
 
-  // ── 2024: two 4-row panels inside one table (gap column in the middle) ─────
-  // Header row uses <th> throughout; body rows use <td> throughout to avoid
-  // mixed th/td per-row which ProseMirror normalises inconsistently.
-  // Ability name cells in the body use class="sc-abil-name" on <td>.
+  // ── 2024: two 3-row panels side by side (gap column in the middle) ─────────
+  // Physical (STR/DEX/CON) and mental (INT/WIS/CHA) each get their own
+  // name/score/mod/save cells, classed .sc-abil-physical / .sc-abil-mental so
+  // the theme CSS can tint each panel a different muted hue (never a
+  // saturated fill — see theme-onednd2024.css). Header row uses <th>
+  // throughout; body rows use <td> throughout, to avoid mixed th/td per row,
+  // which ProseMirror normalises inconsistently.
   const saves = parseSaves(savingThrows, abs);
   const left = abs.slice(0, 3);   // STR, DEX, CON
   const right = abs.slice(3);     // INT, WIS, CHA
-  const header = `<tr><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th><th class="sc-abil-gap"></th><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th></tr>`;
+  const header =
+    `<tr>` +
+    `<th class="sc-abil-name sc-abil-physical"></th>` +
+    `<th class="sc-abil-score sc-abil-physical"></th>` +
+    `<th class="sc-abil-mod sc-abil-physical">Mod</th>` +
+    `<th class="sc-abil-save sc-abil-physical">Save</th>` +
+    `<th class="sc-abil-gap"></th>` +
+    `<th class="sc-abil-name sc-abil-mental"></th>` +
+    `<th class="sc-abil-score sc-abil-mental"></th>` +
+    `<th class="sc-abil-mod sc-abil-mental">Mod</th>` +
+    `<th class="sc-abil-save sc-abil-mental">Save</th>` +
+    `</tr>`;
   const rows = left.map(([lL, sL], i) => {
     const [lR, sR] = right[i];
-    const modL = abilityMod(sL); const modR = abilityMod(sR);
-    return `<tr><td class="sc-abil-name">${lL}</td><td>${sL}</td><td>${modL}</td><td>${saves[lL]}</td><td class="sc-abil-gap"></td><td class="sc-abil-name">${lR}</td><td>${sR}</td><td>${modR}</td><td>${saves[lR]}</td></tr>`;
+    return (
+      `<tr>` +
+      `<td class="sc-abil-name sc-abil-physical">${lL}</td>` +
+      `<td class="sc-abil-score sc-abil-physical">${sL}</td>` +
+      `<td class="sc-abil-mod sc-abil-physical">${abilityMod(sL)}</td>` +
+      `<td class="sc-abil-save sc-abil-physical">${saves[lL]}</td>` +
+      `<td class="sc-abil-gap"></td>` +
+      `<td class="sc-abil-name sc-abil-mental">${lR}</td>` +
+      `<td class="sc-abil-score sc-abil-mental">${sR}</td>` +
+      `<td class="sc-abil-mod sc-abil-mental">${abilityMod(sR)}</td>` +
+      `<td class="sc-abil-save sc-abil-mental">${saves[lR]}</td>` +
+      `</tr>`
+    );
   }).join("");
   return `<table class="sc-ability-table sc-ability-table--2024"><thead>${header}</thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── Linked entity stat block frame (#915 story 6) ────────────────────────────
+//
+// Shared by the NPC and monster formatters: one framed block whose own name
+// is the block's title (never a document h1/h2, which the TOC and the
+// two-column chapter styles would otherwise pick up — see pagedToc.ts and
+// theme-base.css's .sc-cover/.sc-note h1 resets for the same class of bug),
+// a themed AC/Initiative-or-Armor-Class line, the ability table above, the
+// property lines, the Challenge/CR line, and labelled trait/action sections
+// (h4, likewise excluded from the TOC and the chapter heading styles).
+
+export interface StatBlockTraitItem {
+  name: string;
+  description: string;
+}
+
+interface StatBlockSection {
+  label: string;
+  items: StatBlockTraitItem[];
+  /** Extra HTML rendered before the item list (e.g. a Legendary Resistance blurb). */
+  intro?: string;
+}
+
+interface StatBlockAbilities {
+  str: number;
+  dex: number;
+  con: number;
+  int: number;
+  wis: number;
+  cha: number;
+}
+
+export type StatBlockSize = "column" | "wide";
+
+interface BuildStatBlockOpts {
+  /** The block's own title. Empty string omits the type line entirely (used
+   *  for an NPC's generic "Statistics" frame, which has no size/type/alignment). */
+  name: string;
+  typeLine: string;
+  size: StatBlockSize;
+  theme: ScriptoriumTheme;
+  armorClass: number;
+  hitPoints: string;
+  speed: string;
+  abilities: StatBlockAbilities;
+  initiativeOverride?: number | null;
+  savingThrows?: string | null;
+  proficiencyBonus?: number;
+  challengeRating: string;
+  skills?: Record<string, string>;
+  damageVulnerabilities?: string;
+  damageResistances?: string;
+  damageImmunities?: string;
+  conditionImmunities?: string;
+  senses?: string;
+  languages?: string;
+  sections: StatBlockSection[];
+}
+
+function buildStatBlockHtml(opts: BuildStatBlockOpts): string {
+  const {
+    name, typeLine, size, theme, armorClass, hitPoints, speed, abilities,
+    initiativeOverride, savingThrows, proficiencyBonus, challengeRating,
+    skills, damageVulnerabilities, damageResistances, damageImmunities,
+    conditionImmunities, senses, languages, sections,
+  } = opts;
+
+  let html = `<div class="sc-statblock sc-statblock--${size}">\n`;
+  html += `<p class="sc-statblock-name">${name}</p>\n`;
+  html += `<div class="sc-statblock-rule"></div>\n`;
+  if (typeLine) html += `<p class="sc-statblock-type"><em>${typeLine}</em></p>\n`;
+
+  if (theme === "phb2014") {
+    html += `<p class="sc-statblock-prop"><strong>Armor Class</strong> ${armorClass}</p>\n`;
+    html += `<p class="sc-statblock-prop"><strong>Hit Points</strong> ${hitPoints}</p>\n`;
+    html += `<p class="sc-statblock-prop"><strong>Speed</strong> ${speed}</p>\n`;
+  } else {
+    const init = initiativeLine(abilities.dex, initiativeOverride);
+    html +=
+      `<p class="sc-statblock-prop sc-statblock-acinit">` +
+      `<span><strong>AC</strong> ${armorClass}</span>` +
+      `<span><strong>Initiative</strong> ${init}</span>` +
+      `</p>\n`;
+    html += `<p class="sc-statblock-prop"><strong>HP</strong> ${hitPoints}</p>\n`;
+    html += `<p class="sc-statblock-prop"><strong>Speed</strong> ${speed}</p>\n`;
+  }
+
+  const abs: [string, number][] = [
+    ["STR", abilities.str], ["DEX", abilities.dex], ["CON", abilities.con],
+    ["INT", abilities.int], ["WIS", abilities.wis], ["CHA", abilities.cha],
+  ];
+  html += abilityScoresHtml(abs, savingThrows ?? null, theme) + "\n";
+
+  if (savingThrows) html += `<p class="sc-statblock-prop"><strong>Saving Throws</strong> ${savingThrows}</p>\n`;
+  if (skills && Object.keys(skills).length) {
+    const skillsStr = Object.entries(skills)
+      .map(([k, v]) => `${skillLabel(k)} ${v}`)
+      .join(", ");
+    html += `<p class="sc-statblock-prop"><strong>Skills</strong> ${skillsStr}</p>\n`;
+  }
+  if (damageVulnerabilities)
+    html += `<p class="sc-statblock-prop"><strong>Damage Vulnerabilities</strong> ${damageVulnerabilities}</p>\n`;
+  if (damageResistances)
+    html += `<p class="sc-statblock-prop"><strong>Damage Resistances</strong> ${damageResistances}</p>\n`;
+  if (damageImmunities)
+    html += `<p class="sc-statblock-prop"><strong>Damage Immunities</strong> ${damageImmunities}</p>\n`;
+  if (conditionImmunities)
+    html += `<p class="sc-statblock-prop"><strong>Condition Immunities</strong> ${conditionImmunities}</p>\n`;
+  if (senses) html += `<p class="sc-statblock-prop"><strong>Senses</strong> ${senses}</p>\n`;
+  if (languages) html += `<p class="sc-statblock-prop"><strong>Languages</strong> ${languages}</p>\n`;
+
+  html += challengeLineHtml(challengeRating, proficiencyBonus, theme);
+
+  sections.forEach((section) => {
+    html += `<div class="sc-statblock-section">`;
+    html += `<h4 class="sc-statblock-section-title">${section.label}</h4>\n`;
+    if (section.intro) html += section.intro + "\n";
+    html += traitList(section.items);
+    html += `</div>\n`;
+  });
+
+  html += `</div>\n`;
+  return html;
+}
+
+// Paged.js can't measure a block's rendered height before laying the page
+// out, so "auto" sizing is decided from the stat block's own data instead.
+// Six short entries (traits + actions + bonus actions + reactions +
+// legendary actions + lair actions, combined) is roughly what a single A4
+// column holds at this font size before either overflowing badly or leaving
+// the rest of its column empty; past that, a wide block spanning both page
+// columns (with its own internal two-column flow — theme-base.css) reads
+// better than a column-locked one running many pages deep.
+const WIDE_STATBLOCK_ENTRY_THRESHOLD = 6;
+
+function autoStatBlockSize(entryCount: number): StatBlockSize {
+  return entryCount > WIDE_STATBLOCK_ENTRY_THRESHOLD ? "wide" : "column";
 }
 
 function traitList(traits: Array<{ name: string; description: string }>): string {
@@ -233,44 +467,43 @@ const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> =
       });
     }
 
-    // Stat block
+    // Stat block — one framed block, its own title ("Statistics": an NPC has
+    // no size/type/alignment triple the way a monster does, so there's no
+    // type line to show), never a document h1/h2 (#915 story 6).
     if (npc.stat_block) {
       const sb = npc.stat_block;
-      html += "<h1>Statistics</h1>\n";
-      html += `<p><strong>AC</strong> ${sb.armor_class}</p>\n`;
-      html += `<p><strong>HP</strong> ${sb.hit_points}</p>\n`;
-      html += `<p><strong>Speed</strong> ${sb.speed}</p>\n`;
-      html += `<p>${crLabel(sb.challenge_rating)}</p>\n`;
-
-      // Ability scores — theme-appropriate table (fixed at import time)
-      {
-        const abs: [string, number][] = [
-          ["STR", sb.str], ["DEX", sb.dex], ["CON", sb.con],
-          ["INT", sb.int], ["WIS", sb.wis], ["CHA", sb.cha],
-        ];
-        html += abilityScoresHtml(abs, sb.saving_throws ?? null, theme) + "\n";
-      }
-
-      if (sb.skills && Object.keys(sb.skills).length) {
-        const skillsStr = Object.entries(sb.skills)
-          .map(([k, v]) => `${k.replace(/_/g, " ")} ${v}`)
-          .join(", ");
-        html += `<p><strong>Skills</strong> ${skillsStr}</p>\n`;
-      }
-      if (sb.senses) html += `<p><strong>Senses</strong> ${sb.senses}</p>\n`;
-      if (sb.languages) html += `<p><strong>Languages</strong> ${sb.languages}</p>\n`;
-      if (sb.damage_resistances)
-        html += `<p><strong>Damage Resistances</strong> ${sb.damage_resistances}</p>\n`;
-      if (sb.damage_immunities)
-        html += `<p><strong>Damage Immunities</strong> ${sb.damage_immunities}</p>\n`;
-      if (sb.condition_immunities)
-        html += `<p><strong>Condition Immunities</strong> ${sb.condition_immunities}</p>\n`;
-
-      if (sb.special_abilities?.length)
-        html += "<h2>Special Abilities</h2>\n" + traitList(sb.special_abilities);
-      if (sb.actions?.length) html += "<h2>Actions</h2>\n" + traitList(sb.actions);
+      const sections: StatBlockSection[] = [];
+      if (sb.special_abilities?.length) sections.push({ label: "Traits", items: sb.special_abilities });
+      if (sb.actions?.length) sections.push({ label: "Actions", items: sb.actions });
+      if (sb.bonus_actions?.length) sections.push({ label: "Bonus Actions", items: sb.bonus_actions });
+      if (sb.reactions?.length) sections.push({ label: "Reactions", items: sb.reactions });
       if (sb.legendary_actions?.length)
-        html += "<h2>Legendary Actions</h2>\n" + traitList(sb.legendary_actions);
+        sections.push({ label: "Legendary Actions", items: sb.legendary_actions });
+      if (sb.lair_actions?.length) sections.push({ label: "Lair Actions", items: sb.lair_actions });
+      const entryCount = sections.reduce((n, s) => n + s.items.length, 0);
+
+      html += buildStatBlockHtml({
+        name: "Statistics",
+        typeLine: "",
+        size: autoStatBlockSize(entryCount),
+        theme,
+        armorClass: sb.armor_class,
+        hitPoints: sb.hit_points,
+        speed: sb.speed,
+        abilities: { str: sb.str, dex: sb.dex, con: sb.con, int: sb.int, wis: sb.wis, cha: sb.cha },
+        initiativeOverride: sb.initiative_bonus,
+        savingThrows: sb.saving_throws ?? null,
+        proficiencyBonus: sb.proficiency_bonus,
+        challengeRating: sb.challenge_rating,
+        skills: sb.skills,
+        damageVulnerabilities: sb.damage_vulnerabilities,
+        damageResistances: sb.damage_resistances,
+        damageImmunities: sb.damage_immunities,
+        conditionImmunities: sb.condition_immunities,
+        senses: sb.senses,
+        languages: sb.languages,
+        sections,
+      });
     }
 
     return {
@@ -296,83 +529,78 @@ const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> =
 const monsterFormatter: AssetFormatter<Monster> = {
   format(monster: Monster, theme: ScriptoriumTheme = "onednd2024"): ScriptoriumImportData {
     const sb = monster.stat_block;
-    let html = "";
 
-    // Name heading
-    html += `<h1>${monster.name}</h1>\n`;
+    const sections: StatBlockSection[] = [];
+    if (sb.special_abilities?.length) sections.push({ label: "Traits", items: sb.special_abilities });
+    if (sb.actions?.length) sections.push({ label: "Actions", items: sb.actions });
+    if (sb.bonus_actions?.length) sections.push({ label: "Bonus Actions", items: sb.bonus_actions });
+    if (sb.reactions?.length) sections.push({ label: "Reactions", items: sb.reactions });
 
-    // Type line
-    const typeParts = [
-      capitalize(monster.size),
-      capitalize(monster.monster_type),
-      monster.alignment,
-    ].filter(Boolean);
-    html += `<p><em>${typeParts.join(" ")}</em></p>\n`;
-
-    // Portrait image (floated right)
-    if (monster.image_url) {
-      html += `<img src="${monster.image_url}" data-align="right" style="float:right;margin:0 0 10px 14px;width:180px;" alt="${monster.name}" />\n`;
-    }
-
-    // Combat stats — one per line, matching D&D Beyond 2024 layout
-    html += `<p><strong>Armor Class</strong> ${sb.armor_class}</p>\n`;
-    html += `<p><strong>Hit Points</strong> ${sb.hit_points}</p>\n`;
-    html += `<p><strong>Speed</strong> ${sb.speed}</p>\n`;
-    html += `<p>${crLabel(sb.challenge_rating)}</p>\n`;
-
-    // Ability scores — theme-appropriate table (fixed at import time)
-    {
-      const abs: [string, number][] = [
-        ["STR", sb.str], ["DEX", sb.dex], ["CON", sb.con],
-        ["INT", sb.int], ["WIS", sb.wis], ["CHA", sb.cha],
-      ];
-      html += abilityScoresHtml(abs, sb.saving_throws ?? null, theme) + "\n";
-    }
-
-    // Proficiency block
-    if (sb.saving_throws) html += `<p><strong>Saving Throws</strong> ${sb.saving_throws}</p>\n`;
-    if (sb.skills && Object.keys(sb.skills).length) {
-      html += `<p><strong>Skills</strong> ${Object.entries(sb.skills)
-        .map(([k, v]) => `${k} ${v}`)
-        .join(", ")}</p>\n`;
-    }
-    if (sb.damage_vulnerabilities)
-      html += `<p><strong>Damage Vulnerabilities</strong> ${sb.damage_vulnerabilities}</p>\n`;
-    if (sb.damage_resistances)
-      html += `<p><strong>Damage Resistances</strong> ${sb.damage_resistances}</p>\n`;
-    if (sb.damage_immunities)
-      html += `<p><strong>Damage Immunities</strong> ${sb.damage_immunities}</p>\n`;
-    if (sb.condition_immunities)
-      html += `<p><strong>Condition Immunities</strong> ${sb.condition_immunities}</p>\n`;
-    if (sb.senses) html += `<p><strong>Senses</strong> ${sb.senses}</p>\n`;
-    if (sb.languages) html += `<p><strong>Languages</strong> ${sb.languages}</p>\n`;
-
-    // Trait sections
-    if (sb.special_abilities?.length)
-      html += "<h2>Special Abilities</h2>\n" + traitList(sb.special_abilities);
-    if (sb.actions?.length) html += "<h2>Actions</h2>\n" + traitList(sb.actions);
-    if (sb.bonus_actions?.length) html += "<h2>Bonus Actions</h2>\n" + traitList(sb.bonus_actions);
-    if (sb.reactions?.length) html += "<h2>Reactions</h2>\n" + traitList(sb.reactions);
-
-    // Legendary
-    const hasLegendary =
-      (sb.legendary_resistance ?? 0) > 0 || (sb.legendary_actions?.length ?? 0) > 0;
+    const hasLegendary = (sb.legendary_resistance ?? 0) > 0 || (sb.legendary_actions?.length ?? 0) > 0;
     if (hasLegendary) {
-      html += "<h1>Legendary</h1>\n";
-      if (sb.legendary_resistance) {
-        html += `<p><strong>Legendary Resistance (${sb.legendary_resistance}/Day).</strong> If ${monster.name} fails a saving throw, it can choose to succeed instead.</p>\n`;
-      }
-      if (sb.legendary_actions?.length)
-        html += "<h2>Legendary Actions</h2>\n" + traitList(sb.legendary_actions);
+      sections.push({
+        label: "Legendary Actions",
+        items: sb.legendary_actions ?? [],
+        intro: sb.legendary_resistance
+          ? `<p><strong>Legendary Resistance (${sb.legendary_resistance}/Day).</strong> If ${monster.name} fails a saving throw, it can choose to succeed instead.</p>`
+          : undefined,
+      });
     }
+    if (sb.lair_actions?.length) sections.push({ label: "Lair Actions", items: sb.lair_actions });
 
-    if (sb.lair_actions?.length) {
-      html += "<h1>Lair Actions</h1>\n" + traitList(sb.lair_actions);
-    }
+    const entryCount = sections.reduce((n, s) => n + s.items.length, 0);
+    const size = autoStatBlockSize(entryCount);
 
-    if (monster.description) {
-      html += "<h2>Description</h2>\n" + tiptapJsonToHtml(monster.description);
-    }
+    // A monster is rendered as a Monster Manual ENTRY, not just a stat block:
+    // a real document heading (h2 — this one, unlike the block's own
+    // sections, is meant to be in the TOC, exactly like a Monster Manual's
+    // own creature-name entries) followed by the framed stat block, then the
+    // creature's lore and portrait. In two-column layout a column-break
+    // between the stat block and the lore/art sends the block to the left
+    // column and the lore+art to the right (only a short/"column" block
+    // leaves a right column to fill this way; a "wide" one already spans
+    // both). See EntityEmbedView.vue for the size/art toggles.
+    const entryHeadingHtml = `<h2 class="sc-statblock-entry-heading">${monster.name}</h2>\n`;
+
+    const statBlockHtml = buildStatBlockHtml({
+      name: monster.name,
+      typeLine: statBlockTypeLine(monster.size, monster.monster_type, monster.alignment),
+      size,
+      theme,
+      armorClass: sb.armor_class,
+      hitPoints: sb.hit_points,
+      speed: sb.speed,
+      abilities: { str: sb.str, dex: sb.dex, con: sb.con, int: sb.int, wis: sb.wis, cha: sb.cha },
+      initiativeOverride: sb.initiative_bonus,
+      savingThrows: sb.saving_throws ?? null,
+      proficiencyBonus: sb.proficiency_bonus,
+      challengeRating: sb.challenge_rating,
+      skills: sb.skills,
+      damageVulnerabilities: sb.damage_vulnerabilities,
+      damageResistances: sb.damage_resistances,
+      damageImmunities: sb.damage_immunities,
+      conditionImmunities: sb.condition_immunities,
+      senses: sb.senses,
+      languages: sb.languages,
+      sections,
+    });
+
+    // The `sc-entity-art` class is a stable hook for resolveEntityEmbeds() to
+    // remove this figure when a linked embed's `showArt` is off; it carries
+    // no styling of its own beyond the inline float already on the tag.
+    const artHtml = monster.image_url
+      ? `<img src="${monster.image_url}" class="sc-entity-art" data-align="right" style="float:right;margin:0 0 10px 14px;width:200px;" alt="${monster.name}" />\n`
+      : "";
+    const loreHtml = monster.description ? tiptapJsonToHtml(monster.description) : "";
+
+    // Only a column-size block leaves a column for the column-break to send
+    // the lore/art into; a wide block already spans both, so the lore/art
+    // simply flows on beneath it in the normal two-column reading order.
+    const columnBreakHtml =
+      size === "column" && (artHtml || loreHtml) ? `<div class="sc-column-break" data-type="column-break"></div>\n` : "";
+
+    let html = entryHeadingHtml + statBlockHtml + columnBreakHtml + artHtml + loreHtml;
+
     if (monster.notes) {
       const notesHtml = tiptapJsonToHtml(monster.notes) || `<p>${monster.notes}</p>\n`;
       html += "<h2>DM Notes</h2>\n" + notesHtml;

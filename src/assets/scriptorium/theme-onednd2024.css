@@ -15,16 +15,83 @@
   --sc-callout-border: var(--sc-accent);
   --sc-code-bg: #e4ddd0;
   --sc-col-rule: #c9b99a;
-  --sc-h1-bg: var(--sc-accent);
-  --sc-h1-color: var(--sc-accent-contrast);
-  --sc-h1-border-b: none;
-  --sc-h1-padding: 0.35rem 1rem;
+  /* Chapter title (h1): a large near-black title with a thin warm gold rule
+     under it — NOT a filled banner. The filled dark-red plate this used to
+     paint behind the text was the original bug (#915 story 6): it also
+     showed up behind a cover's own <h1> title (see the .sc-cover reset in
+     theme-base.css) and, on the inside cover, exactly matched the text's own
+     colour — an invisible "empty" title. */
+  --sc-h1-bg: transparent;
+  --sc-h1-color: var(--sc-ink);
+  --sc-h1-border-b: 2px solid #c9a24a;
+  --sc-h1-padding: 0 0 0.4rem;
+  --sc-h1-margin: 1.5rem 0 1rem;
+  /* Section heading (h2): same family as h1 — near-black with the same thin
+     gold rule, never the old accent-red text. */
+  --sc-h2-color: var(--sc-ink);
+  --sc-h2-border: #c9a24a;
   --sc-decoration-watermark: var(--sc-accent);
   --sc-decoration-credit: var(--sc-ink);
-  --sc-callout-note-bg: var(--sc-callout-bg);
-  --sc-callout-note-border: var(--sc-callout-border);
-  --sc-callout-desc-bg: color-mix(in srgb, var(--sc-accent) 12%, var(--sc-page-bg));
-  --sc-callout-desc-border: var(--sc-accent);
   --sc-callout-quote-color: var(--sc-ink);
   --sc-callout-attr-color: color-mix(in srgb, var(--sc-accent) 80%, var(--sc-ink));
+
+  /* Front/inside cover title treatment: tall, condensed-reading uppercase
+     caps (coverPage.ts reads these, staying theme-agnostic itself). */
+  --sc-cover-title-transform: uppercase;
+  --sc-cover-title-variant: normal;
+
+  /* Read-aloud box (.sc-descriptive): pale teal tint, mid-teal side rules
+     and corner dots. */
+  --sc-readaloud-bg: #ebf5f5;
+  --sc-readaloud-rule: #3e8aa3;
+
+  /* Sidebar box (.sc-note): pale pink tint, near-black top/bottom bars, a
+     light-grey hairline down the sides. */
+  --sc-sidebar-bg: #f7e1e5;
+  --sc-sidebar-bar: #201c1c;
+  --sc-sidebar-edge: #d6d6d6;
+
+  /* Linked entity stat block (scriptoriumImport.ts): a framed box distinct
+     from the page (not the general --sc-accent, which is a brighter red than
+     the D&D Beyond 2024 stat-block's own red-brown) with a light tan border.
+     The ability-score panels use flat, muted tints — never a saturated red
+     fill, which read as an error state rather than a design (#915 story 6):
+     physical (STR/DEX/CON) a warm beige, mental (INT/WIS/CHA) a cool
+     slate-lavender, each with its Mod/Save columns one shade deeper than its
+     name/score columns. */
+  --sc-statblock-bg: #f4f2ee;
+  --sc-statblock-border: #d9cfb8;
+  --sc-statblock-accent: #5c1a0b;
+  --sc-statblock-type-color: #5b5b60;
+  --sc-abil-physical-bg: #f1e6d3;
+  --sc-abil-physical-bg-alt: #e3d3b8;
+  --sc-abil-mental-bg: #e6e6ec;
+  --sc-abil-mental-bg-alt: #d9d7e2;
+
+  /* Generic authored tables: alternating pale blue-grey tints, thin light
+     borders, a header row shaded with the darker tint. */
+  --sc-table-header-bg: #dce6ed;
+  --sc-table-header-color: var(--sc-ink);
+  --sc-table-row-1: #f1f5f8;
+  --sc-table-row-2: #dce6ed;
+  --sc-table-border: #ccd3d9;
+}
+
+/* ink-friendly: drop every box/table tint and cover-adjacent background to
+   white/near-white, keeping every box's structural rules, bars and dots (see
+   each rule's own comment in theme-base.css for why those stay). A compound
+   selector wins over the plain `.theme-onednd2024` rule above on specificity
+   regardless of the two files' import order. */
+.theme-onednd2024.ink-friendly {
+  --sc-readaloud-bg: #ffffff;
+  --sc-sidebar-bg: #ffffff;
+  --sc-statblock-bg: #ffffff;
+  --sc-statblock-border: #cccccc;
+  --sc-abil-physical-bg: #ffffff;
+  --sc-abil-physical-bg-alt: #f2f2f2;
+  --sc-abil-mental-bg: #ffffff;
+  --sc-abil-mental-bg-alt: #f2f2f2;
+  --sc-table-row-1: #ffffff;
+  --sc-table-row-2: #f2f2f2;
+  --sc-table-header-bg: #e6e6e6;
 }

@@ -15,16 +15,57 @@
   --sc-callout-border: var(--sc-accent);
   --sc-code-bg: #e4ddd0;
   --sc-col-rule: #c9b99a;
+  /* Large dark-red serif small caps, no filled bar — this was already right,
+     kept as-is (#915 story 6 only touched the onednd2024 banner). */
   --sc-h1-bg: transparent;
   --sc-h1-color: var(--sc-accent);
   --sc-h1-border-b: 3px double var(--sc-accent);
   --sc-h1-padding: 0.35rem 0 0.25rem;
   --sc-decoration-watermark: var(--sc-accent);
   --sc-decoration-credit: var(--sc-ink);
-  --sc-callout-note-bg: #e0e5c1;
-  --sc-callout-note-border: var(--sc-accent);
-  --sc-callout-desc-bg: #ddd8c4;
-  --sc-callout-desc-border: var(--sc-accent);
   --sc-callout-quote-color: var(--sc-ink);
   --sc-callout-attr-color: var(--sc-accent);
+
+  /* Front cover: title block at the TOP (the 2014 line's own layout, per the
+     Frostmaiden/Avernus/Basic-Rules covers) in tall condensed-reading serif
+     small caps, never our own invented filled plate. */
+  --sc-cover-title-transform: none;
+  --sc-cover-title-variant: small-caps;
+
+  /* Read-aloud box (.sc-descriptive): warm pale tan tint, brown side rules
+     and corner dots. */
+  --sc-readaloud-bg: #f3e8d2;
+  --sc-readaloud-rule: #8a6b45;
+
+  /* Sidebar box (.sc-note): the classic PHB pale green-beige, near-black
+     top/bottom bars, a light-grey hairline down the sides. */
+  --sc-sidebar-bg: #e0e5c1;
+  --sc-sidebar-bar: #201c1c;
+  --sc-sidebar-edge: #d6d6d6;
+
+  /* Linked entity stat block: a red-brown distinct from the general --sc-accent
+     (matching the D&D Beyond 2014 stat-block page), and the printed book's
+     thin grey top/bottom bar (reusing the column-rule tan already used
+     elsewhere in this theme) rather than a tapered rule — see the "why one
+     rule language, not two" note on .sc-statblock in theme-base.css. */
+  --sc-statblock-accent: #7a200d;
+  --sc-statblock-bar: var(--sc-col-rule);
+
+  /* Generic authored tables: no row tints (the table sits on the page's own
+     parchment), thin grey cell borders, and a heavier grey rule under the
+     header. */
+  --sc-table-header-bg: transparent;
+  --sc-table-header-color: var(--sc-ink);
+  --sc-table-row-1: transparent;
+  --sc-table-row-2: transparent;
+  --sc-table-border: #cfcfcf;
+  --sc-table-header-rule: #8f8f8f;
+}
+
+/* ink-friendly: the bar/rule colours stay (structure, not ink cost); only
+   fills drop. See the onednd2024 block above for why this needs its own
+   compound selector rather than a shared `.ink-friendly` rule. */
+.theme-phb2014.ink-friendly {
+  --sc-readaloud-bg: #ffffff;
+  --sc-sidebar-bg: #ffffff;
 }

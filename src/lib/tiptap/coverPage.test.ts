@@ -63,6 +63,36 @@ describe("buildFront cover art", () => {
   });
 });
 
+describe("buildFront title stack (#915 story 6)", () => {
+  it("has no filled title-plate bar", () => {
+    // The old design's bottom bar was a full-width solid-colour strip
+    // (margin bleeding to the cover's own edges) carrying the subtitle/
+    // tagline — a "plate" that collided with the book's own chapter-heading
+    // background (see the .sc-cover h1 reset in theme-base.css) and either
+    // overflowed or went invisible depending on theme. That bar's
+    // distinctive edge-bleed margin is gone from every element now.
+    const all = flattenAll(buildFront({ ...base, backgroundImage: "art.png" }));
+    expect(all.some((n) => n.style.includes("margin:0 -2.5rem -2.5rem"))).toBe(false);
+  });
+
+  it("renders the tagline as a top series line when set", () => {
+    const all = flattenAll(buildFront({ ...base, tagline: "An Unofficial Homebrew Supplement" }));
+    const tagline = all.find((n) => n.tag === "p" && n.style.includes("top:"));
+    expect(tagline).toBeTruthy();
+  });
+
+  it("omits the tagline element entirely when empty", () => {
+    const all = flattenAll(buildFront({ ...base, tagline: "" }));
+    expect(all.some((n) => n.style.includes("letter-spacing:0.25em"))).toBe(false);
+  });
+
+  it("puts the subtitle before the title so it reads as the brand line above it", () => {
+    const spec = buildFront(base);
+    const html = JSON.stringify(spec);
+    expect(html.indexOf(base.subtitle)).toBeLessThan(html.indexOf(base.title));
+  });
+});
+
 describe("buildBack cover art strip", () => {
   it("shows the art strip at full strength when art is set", () => {
     const strip = flattenAll(buildBack({ ...base, variant: "back", backgroundImage: "art.png" }))

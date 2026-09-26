@@ -43,4 +43,27 @@ describe("buildPagedPreviewCss", () => {
     expect(css).not.toContain("counter(page)");
     expect(css).not.toContain("@bottom-center");
   });
+
+  it("keeps h2/h3 and a stat block's section titles with what follows them (#915 story 6)", () => {
+    const css = buildPagedPreviewCss(base);
+    expect(css).toMatch(/h2,\s*h3,\s*\.sc-statblock-section-title\s*\{[^}]*break-after:\s*avoid/);
+  });
+
+  it("starts a monster/NPC entry on a fresh page by default, moving the break to a directly-preceding family heading", () => {
+    const css = buildPagedPreviewCss(base);
+    expect(css).toMatch(/\.sc-entity-embed--startpage\s*\{[^}]*break-before:\s*page/);
+    expect(css).toMatch(/h2:has\(\+ \.sc-entity-embed--startpage\)\s*\{[^}]*break-before:\s*page/);
+    expect(css).toMatch(/h2 \+ \.sc-entity-embed--startpage\s*\{[^}]*break-before:\s*avoid/);
+  });
+
+  it("keeps boxed content (read-aloud, note, quote, stat block, tables) in one column/page unless taller than one", () => {
+    const css = buildPagedPreviewCss(base);
+    const boxRule = css.match(/\.sc-descriptive,[\s\S]*?\{[\s\S]*?\}/)?.[0] ?? "";
+    expect(boxRule).toContain(".sc-note");
+    expect(boxRule).toContain(".sc-quote");
+    expect(boxRule).toContain(".sc-statblock");
+    expect(boxRule).toContain(".sc-ability-table");
+    expect(boxRule).toContain("table");
+    expect(boxRule).toContain("break-inside: avoid");
+  });
 });

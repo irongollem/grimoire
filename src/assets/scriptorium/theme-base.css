@@ -53,23 +53,33 @@
   column-gap: 1.5rem;
   column-rule: 1px solid var(--sc-col-rule);
 }
+/* Only true chapter titles (h1) span both columns — banding the page on every
+   h2 stranded a section heading at the bottom of a column with its body on
+   the next (#915 story 6). h2/h3 flow in their own column instead; their
+   break-after: avoid hint lives in pagedPreviewCss.ts (Paged.js reads break
+   properties only from the stylesheet handed to its polisher). Covers and the
+   table of contents also span — they own a full page/width regardless of
+   two-column mode. */
 .phb-two-col h1,
-.phb-two-col h2 {
+.phb-two-col .sc-cover,
+.phb-two-col .sc-toc,
+.phb-two-col .sc-statblock--wide {
   column-span: all;
 }
 .phb-two-col .sc-note h1,
-.phb-two-col .sc-note h2,
 .phb-two-col .sc-descriptive h1,
-.phb-two-col .sc-descriptive h2,
-.phb-two-col .sc-wide h1,
-.phb-two-col .sc-wide h2 {
+.phb-two-col .sc-wide h1 {
   column-span: none;
 }
 
-/* ── Ink-friendly mode ───────────────────────────────────────────────────── */
+/* ── Ink-friendly mode ─────────────────────────────────────────────────────
+   Per-theme token resets (statblock/readaloud/sidebar/table tints, the cover
+   title treatment is unaffected) live in each theme file as a
+   `.theme-xxx.ink-friendly` compound selector — that beats the plain
+   `.theme-xxx` selector on specificity regardless of import order, which a
+   same-specificity `.ink-friendly` selector here could not guarantee. */
 .ink-friendly {
   --sc-callout-bg: transparent;
-  --sc-callout-note-bg: transparent;
   --sc-page-bg: #fff;
 }
 .phb-page.ink-friendly {
@@ -89,6 +99,10 @@
 .sc-theme {
   font-family: var(--sc-body-font);
   color: var(--sc-ink);
+  /* Shared vertical rhythm for the boxed elements (sidebar/read-aloud/stat
+     block) — ONE token so any two stacked boxes land the same clear gap
+     apart, and a sidebar's bar tips never collide with the box above it. */
+  --sc-box-margin: 1.15em 0;
 }
 .sc-theme h1 {
   font-family: var(--sc-heading-font);
@@ -98,15 +112,15 @@
   background: var(--sc-h1-bg);
   border-bottom: var(--sc-h1-border-b);
   padding: var(--sc-h1-padding);
-  margin: 1.5rem -1rem 1rem;
+  margin: var(--sc-h1-margin, 1.5rem -1rem 1rem);
   letter-spacing: 0.03em;
 }
 .sc-theme h2 {
   font-family: var(--sc-heading-font);
   font-size: 1.05rem;
   font-weight: 700;
-  color: var(--sc-accent);
-  border-bottom: 2px solid var(--sc-accent);
+  color: var(--sc-h2-color, var(--sc-accent));
+  border-bottom: 2px solid var(--sc-h2-border, var(--sc-accent));
   padding-bottom: 0.2rem;
   margin: 1.25rem 0 0.6rem;
   letter-spacing: 0.02em;
@@ -135,6 +149,13 @@
   font-weight: 700;
 }
 .sc-theme em {
+  font-style: italic;
+}
+/* A paragraph's run-in label ("Sneaking." / "The Rules.") is bold in both
+   editions, but only phb2014 sets it in italic too — 2024 prints it upright.
+   `strong:first-child` (not just "the first strong in the paragraph") is the
+   correct target: it only matches when the bold run opens the paragraph. */
+.theme-phb2014 p > strong:first-child {
   font-style: italic;
 }
 .sc-theme blockquote {
@@ -238,6 +259,23 @@
   width: 100%;
   overflow: hidden;
 }
+/* A cover's own title/subtitle use <h1> for semantics, but they must never
+   pick up the book's chapter-heading chrome: the inside cover sets its own
+   inline `color` (matching --sc-accent for legibility over its art) while the
+   document h1 rule paints `background: var(--sc-h1-bg)` — the SAME accent
+   colour in the 2024 theme — so the title text and its plate were the same
+   colour (invisible "empty" title, #915 story 6). Every visual property the
+   book h1/h2/h3 rules add is reset here; the cover's own inline styles (in
+   coverPage.ts) are the only styling that applies. */
+.sc-theme .sc-cover h1,
+.sc-theme .sc-cover h2,
+.sc-theme .sc-cover h3 {
+  background: none;
+  border-bottom: none;
+  padding: 0;
+  margin: 0;
+  letter-spacing: normal;
+}
 
 /* ── Footer / page numbers ───────────────────────────────────────────────── */
 .sc-footer {
@@ -275,37 +313,63 @@
   display: none;
 }
 
-/* ── Table of contents ───────────────────────────────────────────────────── */
+/* ── Table of contents ────────────────────────────────────────────────────
+   The TOC spans the full page width (column-span: all, set alongside .sc-cover
+   above) rather than living inside one half of the two-column flow — it used
+   to inherit the page's own column-count:2 AND set a second column-count:2 on
+   its own list, splitting entries into four narrow sub-columns with nowhere
+   for a long title to go but truncated (#915 story 6). Its own column count
+   (one on A5, two or three on A4/Letter by entry count — see
+   tocColumnCount() in pagedToc.ts) is carried as a `sc-toc-cols-N` class so a
+   long book still reads as a clean grid rather than a wall of one-column
+   entries. */
 .sc-theme .sc-toc {
   font-family: var(--sc-body-font);
   color: var(--sc-ink);
   margin: 0.75rem 0 1rem;
 }
+/* The "Contents" heading matches the book's own chapter-title (h1) style. */
 .sc-theme .sc-toc-heading {
   font-family: var(--sc-heading-font);
-  font-size: 1rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: var(--sc-accent);
-  border-bottom: 2px solid var(--sc-accent);
-  padding-bottom: 0.2rem;
-  margin: 0 0 0.75rem;
+  color: var(--sc-h1-color);
+  background: var(--sc-h1-bg);
+  border-bottom: var(--sc-h1-border-b);
+  padding: var(--sc-h1-padding);
+  margin: 0 0 1rem;
   letter-spacing: 0.03em;
 }
 .sc-theme .sc-toc-list {
   list-style: none;
   padding: 0;
   margin: 0;
-  column-count: 2;
   column-gap: 1.5rem;
+  column-rule: 1px solid var(--sc-col-rule);
+}
+.sc-theme .sc-toc-list.sc-toc-cols-1 {
+  column-count: 1;
+}
+.sc-theme .sc-toc-list.sc-toc-cols-2 {
+  column-count: 2;
+}
+.sc-theme .sc-toc-list.sc-toc-cols-3 {
+  column-count: 3;
 }
 .sc-theme .sc-toc-item {
   break-inside: avoid;
-  margin: 0.2rem 0;
+  margin: 0.35rem 0;
+}
+.sc-theme .sc-toc-item.sc-toc-h1 {
+  margin-top: 0.7rem;
 }
 .sc-theme .sc-toc-h2 {
   padding-left: 1rem;
   font-size: 0.875em;
 }
+/* Entries deeper than h2 don't reach the TOC at all any more (it defaults to
+   h1/h2 only — see pagedToc.ts's HEADING_SEL), but the modifier stays in case
+   a caller ever re-widens the level filter. */
 .sc-theme .sc-toc-h3 {
   padding-left: 2rem;
   font-size: 0.8125em;
@@ -321,15 +385,24 @@
 .sc-theme .sc-toc-link:hover {
   color: var(--sc-accent);
 }
+/* Chapter (h1) entries print bold in the theme's heading red; section (h2)
+   entries stay regular weight in body colour, just indented under their
+   chapter. A wrapped title never truncates any more — it hangs one em under
+   its own first line instead of running under the neighbouring leader/number. */
+.sc-theme .sc-toc-item:not(.sc-toc-h2):not(.sc-toc-h3) .sc-toc-text {
+  font-weight: 700;
+  color: var(--sc-accent);
+}
 .sc-theme .sc-toc-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: clip;
-  flex-shrink: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  white-space: normal;
+  overflow-wrap: break-word;
+  padding-left: 1em;
+  text-indent: -1em;
 }
 .sc-theme .sc-toc-leader {
-  flex: 1 1 auto;
+  flex: 0 1 3rem;
   border-bottom: 1px dotted color-mix(in srgb, var(--sc-ink) 40%, transparent);
   align-self: flex-end;
   margin-bottom: 0.2em;
@@ -403,50 +476,117 @@
   margin: 0.875rem 0;
 }
 
-/* ── Callouts: note / descriptive / quote / attribution ──────────────────── */
-.sc-theme .sc-note {
-  background: var(--sc-callout-note-bg);
-  border-left: 3px solid var(--sc-callout-note-border);
-  border-radius: 0 4px 4px 0;
-  padding: 0.6rem 0.875rem;
-  margin: 0.875rem 0;
-}
-.sc-theme .sc-note p {
-  margin: 0 0 0.4rem;
-  font-size: 0.875em;
-  font-style: italic;
-}
-.sc-theme .sc-note p:last-child {
-  margin-bottom: 0;
-}
-.theme-phb2014 .sc-note,
-.theme-phb2014.sc-theme .sc-note {
-  border-left: none;
-  border-top: 2px double var(--sc-callout-note-border);
-  border-bottom: 2px double var(--sc-callout-note-border);
-  border-radius: 0;
-  padding: 0.5rem 0.875rem;
-}
+/* ── Callouts: note (sidebar) / descriptive (read-aloud) ──────────────────
+   Both boxes share one shape family from the printed books, in both editions
+   — only the tint tokens differ per theme (#915 story 6). --sc-box-margin is
+   one shared vertical-rhythm token so two stacked boxes (a read-aloud
+   directly followed by a sidebar, a common pattern) always land the same
+   clear gap apart regardless of which combination it is.
 
+   Sidebar (.sc-note): a flat tint fill, no side border, and a thick near-black
+   bar across the top and bottom that overhangs the box on both sides and
+   tapers to a point at each end (the "spearhead" caps of a 5e sidebar) built
+   from ::before/::after with clip-path — no box-shadow-only trick, since that
+   prints inconsistently. A hairline neutral-grey edge on the left/right sides
+   is the only vertical border, distinguishing it from the read-aloud box's
+   coloured side rules below.
+
+   Read-aloud (.sc-descriptive): a flat tint fill, no top/bottom border, and a
+   thin coloured rule down the left and right edges ending in a filled dot at
+   each of the four corners, built from layered radial-gradient backgrounds
+   (still just a background — survives print and pagination, unlike a
+   box-shadow). ink-friendly drops both boxes' tints but keeps the sidebar's
+   bars and the read-aloud's rules+dots (that structure is content, not ink
+   cost) — see the ink-friendly overrides in each theme file, which win on
+   selector specificity over the blanket `.ink-friendly * { background-image:
+   none }` rule above. */
+.sc-theme .sc-note,
 .sc-theme .sc-descriptive {
-  background: var(--sc-callout-desc-bg);
-  border: 2px solid var(--sc-callout-desc-border);
-  border-radius: 4px;
-  padding: 0.875rem 1rem;
-  margin: 0.875rem 0;
-  font-style: italic;
+  margin: var(--sc-box-margin);
+  padding: 1.15em 1.1rem;
+  border: none;
+  border-radius: 0;
+  font-style: normal;
 }
+.sc-theme .sc-note p,
 .sc-theme .sc-descriptive p {
   margin: 0 0 0.5rem;
-  font-style: italic;
+  font-style: normal;
+  font-size: 1em;
 }
+.sc-theme .sc-note p:last-child,
 .sc-theme .sc-descriptive p:last-child {
   margin-bottom: 0;
 }
-.theme-phb2014 .sc-descriptive,
-.theme-phb2014.sc-theme .sc-descriptive {
-  border-radius: 0;
-  border-width: 3px;
+/* A leading heading (or the "Run-in Label." convention when there's no
+   heading) is the sidebar's title: bold small-caps/uppercase, not a document
+   heading — it must never enter the TOC (pagedToc.ts excludes .sc-note) or
+   pick up the book's h1/h2/h3 chrome. */
+.sc-theme .sc-note h1,
+.sc-theme .sc-note h2,
+.sc-theme .sc-note h3 {
+  font-family: var(--sc-body-font);
+  background: none;
+  border-bottom: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+  font-size: 1.05em;
+  font-weight: 700;
+  font-style: normal;
+  text-transform: uppercase;
+  font-variant: small-caps;
+  letter-spacing: 0.03em;
+  color: var(--sc-ink);
+  column-span: none;
+}
+
+.sc-theme .sc-note {
+  position: relative;
+  background: var(--sc-sidebar-bg);
+  border-left: 1px solid var(--sc-sidebar-edge, #d6d6d6);
+  border-right: 1px solid var(--sc-sidebar-edge, #d6d6d6);
+  padding-top: 1.6rem;
+  padding-bottom: 1.5rem;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16);
+}
+.ink-friendly .sc-note {
+  box-shadow: none;
+}
+.sc-theme .sc-note::before,
+.sc-theme .sc-note::after {
+  content: "";
+  position: absolute;
+  left: -10px;
+  right: -10px;
+  height: 7px;
+  background: var(--sc-sidebar-bar);
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
+}
+.sc-theme .sc-note::before {
+  top: -3px;
+}
+.sc-theme .sc-note::after {
+  bottom: -3px;
+}
+
+.sc-theme .sc-descriptive {
+  background-color: var(--sc-readaloud-bg);
+  background-image:
+    radial-gradient(circle 4px at 0 0, var(--sc-readaloud-rule) 99%, transparent 100%),
+    radial-gradient(circle 4px at 100% 0, var(--sc-readaloud-rule) 99%, transparent 100%),
+    radial-gradient(circle 4px at 0 100%, var(--sc-readaloud-rule) 99%, transparent 100%),
+    radial-gradient(circle 4px at 100% 100%, var(--sc-readaloud-rule) 99%, transparent 100%);
+  background-repeat: no-repeat;
+  border-left: 2px solid var(--sc-readaloud-rule);
+  border-right: 2px solid var(--sc-readaloud-rule);
+}
+.ink-friendly .sc-descriptive {
+  background-image:
+    radial-gradient(circle 4px at 0 0, var(--sc-readaloud-rule) 99%, transparent 100%),
+    radial-gradient(circle 4px at 100% 0, var(--sc-readaloud-rule) 99%, transparent 100%),
+    radial-gradient(circle 4px at 0 100%, var(--sc-readaloud-rule) 99%, transparent 100%),
+    radial-gradient(circle 4px at 100% 100%, var(--sc-readaloud-rule) 99%, transparent 100%) !important;
+  background-color: transparent !important;
 }
 
 .sc-theme .sc-quote {
@@ -509,52 +649,167 @@
 
 /* Fixed layout + full width so the table can never exceed its column —
    with `auto` + nowrap its min-content width (~370px) overflows a two-column
-   measure (~317px) and multicol lets it bleed into the neighbouring column. */
+   measure (~317px) and multicol lets it bleed into the neighbouring column.
+
+   The 2024 stat block prints two 3-row panels side by side (physical
+   STR/DEX/CON, mental INT/WIS/CHA), each a "MOD SAVE" header over its own
+   Mod/Save columns. No saturated colour anywhere in this table (a solid
+   accent fill on every ability-name cell read as an error state, not a
+   design — #915 story 6): each panel is a flat, muted tint of its own hue,
+   with the name+score cells one shade and the Mod/Save cells a slightly
+   deeper shade of the SAME hue — see --sc-abil-physical-bg(-alt) /
+   --sc-abil-mental-bg(-alt) in theme-onednd2024.css. */
 .sc-theme .sc-ability-table--2024 {
   table-layout: fixed;
   width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 2px;
 }
-.sc-theme .sc-ability-table--2024 thead th:not(.sc-abil-gap) {
-  background: var(--sc-accent);
-  color: var(--sc-accent-contrast);
-  font-family: var(--sc-heading-font);
-  font-size: 0.6875rem;
-  font-variant: small-caps;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-align: center;
-  padding: 4px 2px;
+.sc-theme .sc-ability-table--2024 th,
+.sc-theme .sc-ability-table--2024 td {
   border: none;
-  overflow: hidden;
-}
-.sc-theme .sc-ability-table--2024 tbody td.sc-abil-name {
-  background: var(--sc-accent);
-  color: var(--sc-accent-contrast);
-  font-family: var(--sc-heading-font);
-  font-size: 0.75rem;
-  font-weight: 700;
-  font-variant: small-caps;
-  letter-spacing: 0.05em;
+  padding: 2px 3px;
   text-align: center;
-  padding: 3px 2px;
-  border: none;
-  overflow: hidden;
 }
-.sc-theme .sc-ability-table--2024 tbody td:not(.sc-abil-gap):not(.sc-abil-name) {
-  font-size: 0.875rem;
-  text-align: center;
-  padding: 2px 4px;
-  color: var(--sc-ink);
-  border-bottom: 1px solid color-mix(in srgb, var(--sc-accent) 15%, transparent);
+.sc-theme .sc-ability-table--2024 thead th {
+  font-family: var(--sc-body-font);
+  font-weight: 600;
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--sc-ink) 55%, transparent);
 }
 .sc-theme .sc-ability-table--2024 .sc-abil-gap {
-  width: 1rem;
-  border: none !important;
+  width: 0.9rem;
   background: transparent !important;
-  padding: 0;
+}
+.sc-theme .sc-ability-table--2024 tbody td {
+  font-size: 0.8125rem;
+  color: var(--sc-ink);
+}
+.sc-theme .sc-ability-table--2024 tbody td.sc-abil-name {
+  font-family: var(--sc-heading-font);
+  font-weight: 700;
+  font-variant: small-caps;
+  color: var(--sc-statblock-accent);
+}
+.sc-theme .sc-ability-table--2024 .sc-abil-physical.sc-abil-name,
+.sc-theme .sc-ability-table--2024 .sc-abil-physical.sc-abil-score {
+  background: var(--sc-abil-physical-bg);
+}
+.sc-theme .sc-ability-table--2024 .sc-abil-physical.sc-abil-mod,
+.sc-theme .sc-ability-table--2024 .sc-abil-physical.sc-abil-save {
+  background: var(--sc-abil-physical-bg-alt);
+}
+.sc-theme .sc-ability-table--2024 .sc-abil-mental.sc-abil-name,
+.sc-theme .sc-ability-table--2024 .sc-abil-mental.sc-abil-score {
+  background: var(--sc-abil-mental-bg);
+}
+.sc-theme .sc-ability-table--2024 .sc-abil-mental.sc-abil-mod,
+.sc-theme .sc-ability-table--2024 .sc-abil-mental.sc-abil-save {
+  background: var(--sc-abil-mental-bg-alt);
+}
+
+/* ── Generic authored tables (Tiptap's Table extension) ────────────────────
+   The DM's own tables (loot lists, encounter tables, class progressions typed
+   by hand) — not the specialised .sc-class-table / .sc-ability-table above,
+   which keep their own rules. Tiptap's Table node renders every row,
+   including a toggled header row, inside ONE <tbody> with no <thead> at all
+   (prosemirror-tables) — pagedTables.ts promotes any leading run of all-<th>
+   rows into a real <thead> before Paged.js lays the page out, which is also
+   what lets a long table repeat its header row(s) across a forced break
+   (display: table-header-group only fires on a genuine <thead>). Column
+   text-align (centred vs left) is decided the same pre-layout pass, from
+   content length — see sc-table-col-center/-left below. */
+.sc-theme table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.875rem 0;
+  font-size: 0.9375em;
+}
+.sc-theme table td,
+.sc-theme table th {
+  padding: 0.6rem 1rem;
+  text-align: left;
+  vertical-align: middle;
+}
+.sc-theme table th {
+  font-weight: 700;
+}
+.sc-theme table thead th {
+  background: var(--sc-table-header-bg);
+  color: var(--sc-table-header-color);
+}
+/* A two-column key/value table (no header row needed): the label column
+   reads bold, like a stat block's property lines. */
+.sc-theme table tr:has(> td:nth-child(2):last-child) td:first-child {
+  font-weight: 700;
+}
+.sc-theme table .sc-table-col-center {
+  text-align: center;
+}
+.sc-theme table .sc-table-col-left {
+  text-align: left;
+}
+
+/* NOTE ON THESE SELECTORS: `.theme-xxx` and `.sc-theme` are always classes on
+   the SAME root element in every context this CSS ships to (the preview's
+   `.sc-theme … theme-onednd2024` wrapper, the PDF export's `<body class="sc-theme
+   theme-onednd2024">`, and the editor galley) — never one nested inside the
+   other. `.theme-onednd2024 .sc-theme table` is therefore an ancestor/
+   descendant selector that can NEVER match (it asks for `.sc-theme` to be a
+   descendant of `.theme-onednd2024`, but they're the same node), which is
+   exactly how the first version of this rule silently never applied at all —
+   the custom properties it reads still resolved fine (inheritance doesn't
+   care whether any selector matched), so only the table's OWN properties
+   (background, border) went missing, and every other themed rule in this
+   file that scopes off `.theme-onednd2024` ALONE (no redundant `.sc-theme`)
+   was unaffected. `.theme-onednd2024 table` — dropping the redundant
+   `.sc-theme` — is the correct, working form; keep new theme-scoped rules to
+   that shape. */
+.theme-onednd2024 table tbody tr:nth-child(odd) td {
+  background: var(--sc-table-row-1);
+}
+.theme-onednd2024 table tbody tr:nth-child(even) td {
+  background: var(--sc-table-row-2);
+}
+.theme-onednd2024 table td,
+.theme-onednd2024 table th {
+  border: 1px solid var(--sc-table-border);
+}
+
+/* phb2014: no row tints (the table sits on the page's own parchment), thin
+   grey cell borders, centred bold header row(s) with a heavier rule under
+   the last one — a two-row <thead> (e.g. a spell-slot table with merged
+   column groups) gets that heavier rule under its OWN last row, not the
+   first. */
+.theme-phb2014 table td,
+.theme-phb2014 table th {
+  border: 1px solid var(--sc-table-border);
+}
+.theme-phb2014 table thead th {
+  text-align: center;
+}
+.theme-phb2014 table thead tr:last-child th {
+  border-bottom: 3px solid var(--sc-table-header-rule);
 }
 
 /* ── Image layout modes ──────────────────────────────────────────────────── */
+/* A wrapped image is capped at half its column's measure — a wider image
+   (e.g. 260px in a ~330px two-column measure) otherwise left text reading
+   one word wide beside it (#915 story 6); past that share it reads better as
+   a centred block image than a wrap. The image itself already carries an
+   explicit `width` attribute (scriptoriumImage.ts) for its intended size;
+   max-width here only ever SHRINKS it, on top of the theme-wide
+   `.sc-theme img { max-width: 100% }` rule above. */
+.sc-theme .sc-img-wrap--wrapLeft,
+.sc-theme .sc-img-wrap--wrapRight {
+  max-width: 50%;
+}
+.sc-theme .sc-img-wrap--wrapLeft img,
+.sc-theme .sc-img-wrap--wrapRight img {
+  max-width: 100%;
+  height: auto;
+}
 .sc-theme .sc-img-wrap--wrapLeft {
   float: left;
   shape-outside: margin-box;
@@ -576,4 +831,135 @@
 .sc-theme .sc-img-wrap--absolute {
   position: absolute;
   z-index: 10;
+}
+
+/* ── Linked entity stat blocks (#915 story 6) ───────────────────────────────
+   One framed unit per creature/NPC, built by scriptoriumImport.ts. Colour
+   values are theme tokens (theme-onednd2024.css / theme-phb2014.css);
+   break-inside: avoid is set here for editor/preview safety but the
+   AUTHORITATIVE copy — the one Paged.js's chunker actually reads — lives in
+   pagedPreviewCss.ts per this file's own rule about break hints.
+
+   Two sizes, chosen by entityEmbed's `size` attr (auto/column/wide — see
+   entityEmbed.ts and scriptoriumImport.ts's autoStatBlockSize()):
+     .sc-statblock--column — the default: one framed block inside a single
+       text column, exactly like a read-aloud or note box.
+     .sc-statblock--wide — for a long stat block: spans both page columns
+       (column-span: all, set alongside .sc-cover/.sc-toc above) and flows
+       its OWN content in two internal columns, matching how the printed
+       books lay out a creature too long for one column (left column: name
+       through Traits; right column: Actions onward). column-span is a no-op
+       in single-column document mode, where "wide" is simply full width. */
+.sc-theme .sc-statblock {
+  margin: var(--sc-box-margin);
+  padding: 0.75rem 0.9rem 0.9rem;
+  break-inside: avoid;
+}
+.sc-theme .sc-statblock--wide {
+  column-count: 2;
+  column-gap: 1.5rem;
+  column-rule: 1px solid var(--sc-statblock-accent);
+}
+.theme-onednd2024 .sc-statblock {
+  background: var(--sc-statblock-bg);
+  border: 1px solid var(--sc-statblock-border);
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+}
+.ink-friendly .sc-statblock {
+  box-shadow: none;
+}
+/* phb2014 carries no fill or side border — just the printed book's thin grey
+   bar across the top and bottom edge of the block (the wide-format adventure
+   layout uses the same plain bars, so both sizes share this one treatment;
+   the 2014 D&D Beyond stat-block page uses a tapered rule instead, but a
+   tapered shape doesn't read cleanly split across a wide block's two internal
+   columns, so this theme uses one consistent straight-rule language for both
+   sizes rather than switching per size). */
+.theme-phb2014 .sc-statblock {
+  position: relative;
+  padding-top: 1.1rem;
+  padding-bottom: 1.1rem;
+}
+.theme-phb2014 .sc-statblock::before,
+.theme-phb2014 .sc-statblock::after {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--sc-statblock-bar);
+}
+.theme-phb2014 .sc-statblock::before {
+  top: 0;
+}
+.theme-phb2014 .sc-statblock::after {
+  bottom: 0;
+}
+
+.sc-theme .sc-statblock-name {
+  font-family: var(--sc-heading-font);
+  font-variant: small-caps;
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: var(--sc-statblock-accent);
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+.sc-theme .sc-statblock-type {
+  margin: 0.1rem 0 0.5rem;
+  font-size: 0.875em;
+  font-style: italic;
+  color: var(--sc-statblock-type-color, var(--sc-ink));
+}
+.sc-theme .sc-statblock-rule {
+  height: 2px;
+  border: none;
+  background: var(--sc-statblock-accent);
+  margin: 0.3rem 0 0.55rem;
+}
+.sc-theme .sc-statblock-prop {
+  margin: 0 0 0.3rem;
+  font-size: 0.875em;
+}
+.sc-theme .sc-statblock-prop strong {
+  color: var(--sc-statblock-accent);
+}
+.sc-theme .sc-statblock-acinit,
+.sc-theme .sc-statblock-cr {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+}
+.sc-theme .sc-statblock-section {
+  margin: 0.6rem 0 0;
+  break-inside: avoid;
+}
+.sc-theme .sc-statblock-section-title {
+  font-family: var(--sc-heading-font);
+  color: var(--sc-statblock-accent);
+  border-bottom: 1px solid var(--sc-statblock-accent);
+  margin: 0.5rem 0 0.3rem;
+  padding-bottom: 0.15rem;
+  font-weight: 400;
+}
+.theme-onednd2024 .sc-statblock-section-title {
+  font-variant: small-caps;
+  font-size: 0.9375em;
+  letter-spacing: 0.04em;
+}
+.theme-phb2014 .sc-statblock-section-title {
+  font-size: 1.15rem;
+}
+.sc-theme .sc-statblock-section p {
+  margin: 0 0 0.4rem;
+  font-size: 0.875em;
+  font-style: normal;
+}
+/* Trait/action names ("Damage Transfer.", "Light Sensitivity.") are bold
+   italic in both editions' printed stat blocks — traitList() (scriptoriumImport.ts)
+   emits the name as a leading <strong>. */
+.sc-theme .sc-statblock-section p > strong:first-child {
+  font-style: italic;
 }

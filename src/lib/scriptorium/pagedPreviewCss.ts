@@ -93,5 +93,45 @@ hr, .sc-page-break {
 /* Position context for injected .sc-footer (absolute, bottom:0). */
 .pagedjs_pagebox { position: relative; }
 .pagedjs_pages { display: flex; flex-direction: column; align-items: center; }
+
+/* Only a true chapter title (h1) is allowed to strand its column — h2/h3
+   flow inside their own column now (see .phb-two-col in theme-base.css) and
+   must never be left alone at the bottom of one with their own section
+   starting on the next page (#915 story 6). A stat block's section labels
+   (h4-equivalent, .sc-statblock-section-title) get the same treatment; an
+   h3 directly before a table (a table's own "caption" convention) is covered
+   by the same rule, so it never separates from the table it introduces. */
+h2, h3, .sc-statblock-section-title {
+  break-after: avoid;
+}
+/* Boxed content stays in one column/page unless it is genuinely taller than
+   one — "avoid" is a hint the layout falls back from when it truly can't fit,
+   which is exactly the "unless taller than a column" carve-out (#915 story 6). */
+.sc-descriptive,
+.sc-note,
+.sc-quote,
+.sc-statblock,
+.sc-statblock-section,
+.sc-ability-table,
+table {
+  break-inside: avoid;
+}
+/* A monster/NPC entry (entityEmbed.ts) starts its own fresh page by default —
+   a Monster Manual entry gets one, and the DM turns this off per node for a
+   creature-family variant that should share its first entry's page(s) (e.g.
+   flying sword/rug of smothering following animated armor). A normal
+   document heading placed directly before such an entry (a family heading)
+   keeps the page break instead: it moves from the entry to that heading so
+   the two land on the same fresh page together, rather than each forcing
+   its own. */
+.sc-entity-embed--startpage {
+  break-before: page;
+}
+h2:has(+ .sc-entity-embed--startpage) {
+  break-before: page;
+}
+h2 + .sc-entity-embed--startpage {
+  break-before: avoid;
+}
 `.trim();
 }
