@@ -200,6 +200,24 @@ describe("isStaleChunkError", () => {
     expect(isStaleChunkError(SWALLOWED)).toBe(true);
   });
 
+  it("claims destructuring an undefined module only once Vite has reported a preload failure", () => {
+    uninstall = installStaleChunkRecovery(fakeRouter().router, vi.fn());
+    // Each engine's message for `import(...).then(({ x }) => ...)` on an
+    // undefined module; Chrome's is verbatim from the 26 Sep 2026 report.
+    const destructured = [
+      new TypeError("Cannot destructure property 'useCalendarStore' of 'undefined' as it is undefined."),
+      new TypeError("can't destructure the property 'useCalendarStore' of 'undefined' as it is undefined"),
+      new TypeError("(destructured parameter) is undefined"),
+      new TypeError("Right side of assignment cannot be destructured"),
+    ];
+
+    // Without a preload failure, that is an ordinary bug and must report.
+    for (const error of destructured) expect(isStaleChunkError(error)).toBe(false);
+
+    firePreloadError();
+    for (const error of destructured) expect(isStaleChunkError(error)).toBe(true);
+  });
+
   it("rejects unrelated errors even after a preload failure", () => {
     uninstall = installStaleChunkRecovery(fakeRouter().router, vi.fn());
     firePreloadError();

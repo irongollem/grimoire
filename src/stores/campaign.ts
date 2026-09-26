@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import type { Campaign } from "@/types/campaign.types";
 import { useTheme } from "@/composables/useTheme";
+import { useAuthStore } from "@/stores/auth";
 import { decryptApiKey } from "@/lib/apiKeyVault";
 import { isLocalCiphertext, encryptLocalKey, decryptLocalKey } from "@/lib/localKeyVault";
 
@@ -120,13 +121,14 @@ export const useCampaignStore = defineStore("campaign", () => {
 
     loadProviderKeys(campaign);
 
-    import("@/stores/auth").then(({ useAuthStore }) => {
-      useAuthStore().refreshMembership(campaign.id);
-    });
+    useAuthStore().refreshMembership(campaign.id);
 
-    import("@/stores/calendar").then(({ useCalendarStore }) => {
-      const calendarStore = useCalendarStore();
-      calendarStore.loadFromCampaign(
+    // Lazy on purpose: the calendar store pulls in the calendar adapters,
+    // ~97 kB gzip that the boot budget cannot carry. After a deploy this import
+    // can resolve to undefined (see staleChunkRecovery.ts), which
+    // isStaleChunkError claims so Sentry does not report it.
+    void import("@/stores/calendar").then(({ useCalendarStore }) => {
+      useCalendarStore().loadFromCampaign(
         campaign.calendar_id,
         campaign.current_year,
         campaign.current_month,

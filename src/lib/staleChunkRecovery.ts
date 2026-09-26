@@ -61,13 +61,25 @@ let preloadFailed = false;
  * a three-builds-old tab clicking Admin filed a Sentry issue the `beforeSend`
  * filter was written to suppress.
  *
+ * The same undefined module reaches plain code too, as a TypeError from
+ * destructuring it: `const { x } = await import(...)` or
+ * `import(...).then(({ x }) => ...)`. DUNGEON-GRIMOIRE-8 was one of those in
+ * main.ts, and `campaign.ts`'s calendar-store import another (26 Sep 2026,
+ * minutes after a deploy). A code-split import can't avoid resolving to
+ * undefined, so the symptom is claimed here for every such site rather than
+ * guarded at each one. The messages are each engine's, verbatim.
+ *
  * Gated on `preloadFailed` so a genuine route misconfiguration — a component
  * loader that really does resolve to nothing, with no preload failure in sight
- * — still reports. That is a bug we want to hear about.
+ * — still reports, and so does an ordinary destructuring bug. Those are bugs we
+ * want to hear about.
  */
+const SWALLOWED_CHUNK_SYMPTOM =
+  /couldn't resolve component|cannot destructure property|can't destructure the property|\(destructured parameter\) is undefined|right side of assignment cannot be destructured/i;
+
 export function isStaleChunkError(error: unknown): boolean {
   if (isChunkLoadError(error)) return true;
-  return preloadFailed && error instanceof Error && /couldn't resolve component/i.test(error.message);
+  return preloadFailed && error instanceof Error && SWALLOWED_CHUNK_SYMPTOM.test(error.message);
 }
 
 /**

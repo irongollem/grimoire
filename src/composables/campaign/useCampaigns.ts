@@ -5,6 +5,7 @@ import { track } from "@/lib/analytics";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import type { Campaign, CampaignInsert, CampaignRole, CampaignUpdate } from "@/types/campaign.types";
 import { useToast } from "@/composables/useToast";
+import { useCampaignStore } from "@/stores/campaign";
 import type {
   HomebrewCounts,
   HomebrewDisposition,
@@ -412,19 +413,20 @@ export function useSetCampaignToday() {
     }) => updateCampaign(id, { current_year: year, current_month: month, current_day: day } as CampaignUpdate),
     onSuccess: (updatedCampaign, { id, year, month, day }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-      import("@/stores/campaign").then(({ useCampaignStore }) => {
-        const store = useCampaignStore();
-        if (store.activeCampaign && updatedCampaign) {
-          store.activeCampaign = {
-            ...store.activeCampaign,
-            current_year:  updatedCampaign.current_year,
-            current_month: updatedCampaign.current_month,
-            current_day:   updatedCampaign.current_day,
-          };
-        }
-      });
-      // Announce the date change in the campaign chat so all players see it
-      import("@/calendars/index").then(({ getCalendarAdapter }) => {
+      const store = useCampaignStore();
+      if (store.activeCampaign && updatedCampaign) {
+        store.activeCampaign = {
+          ...store.activeCampaign,
+          current_year:  updatedCampaign.current_year,
+          current_month: updatedCampaign.current_month,
+          current_day:   updatedCampaign.current_day,
+        };
+      }
+      // Announce the date change in the campaign chat so all players see it.
+      // Lazy on purpose: the calendar adapters are ~97 kB gzip that the boot
+      // budget cannot carry. After a deploy this import can resolve to
+      // undefined (see staleChunkRecovery.ts), which isStaleChunkError claims.
+      void import("@/calendars/index").then(({ getCalendarAdapter }) => {
         const adapter = getCalendarAdapter(updatedCampaign?.calendar_id ?? "faerun");
         const dateStr = adapter.formatDate(year, month, day, null);
         void sendCampaignAnnouncement(id, `📅 The date is now ${dateStr}`);
@@ -447,12 +449,10 @@ export function useSetCampaignLocation() {
       // saying it is not until a reload. Invalidated here rather than at the
       // call site so no caller can forget: every party move writes one.
       queryClient.invalidateQueries({ queryKey: [LOCATION_STATE_QUERY_KEY] });
-      import("@/stores/campaign").then(({ useCampaignStore }) => {
-        const store = useCampaignStore();
-        if (store.activeCampaign && updatedCampaign) {
-          store.activeCampaign = { ...store.activeCampaign, current_location_id: updatedCampaign.current_location_id };
-        }
-      });
+      const store = useCampaignStore();
+      if (store.activeCampaign && updatedCampaign) {
+        store.activeCampaign = { ...store.activeCampaign, current_location_id: updatedCampaign.current_location_id };
+      }
     },
   });
 }
