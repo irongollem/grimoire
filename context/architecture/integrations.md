@@ -197,7 +197,7 @@ All edge functions with `verify_jwt = false` and their real auth:
 | Stripe | `stripe-webhook` | `Stripe-Signature` vs `STRIPE_WEBHOOK_SECRET` |
 | pg_cron via pg_net (self) | `poll-meshy-jobs` | Bearer token vs `SIMULACRUM_POLLER_TOKEN` (Vault) |
 | Calendar apps | `ical-feed` | Per-campaign random `ical_token` in the URL |
-| A player answering from their email | `session-rsvp` | Per-invitation random token in the URL (`session_proposal_invites`); GET only renders a form, POST acts |
+| A player answering from their email | `session-rsvp`, reached via the app's `/api/rsvp` relay (the gateway serves function HTML as `text/plain`) | Per-invitation random token in the URL (`session_proposal_invites`); GET only renders a form, POST acts |
 | An inbound-email provider relaying an iTIP reply | `session-rsvp-inbound` | Shared secret vs `INBOUND_EMAIL_SECRET`; refuses everything with 503 until it is set |
 | MCP clients (claude.ai etc.) | `mcp` | Supabase OAuth 2.1 JWT (dynamic client registration on; consent at `/oauth/consent`), RLS-scoped |
 | Browser, may be anonymous | `create-bug-report` | Validated in code |

@@ -299,6 +299,11 @@ self.addEventListener("fetch", (event) => {
 
   if (url.origin !== self.location.origin) return;
 
+  // A page served by a function on the app's origin (api/*, e.g. the RSVP
+  // link in a session email) is not the SPA: never answer that navigation with
+  // the cached shell, which would boot the app on a route it doesn't have.
+  if (req.mode === "navigate" && url.pathname.startsWith("/api/")) return;
+
   // SPA navigation — network-first, but only for NAV_TIMEOUT_MS: on a slow
   // connection fetch() can hang for tens of seconds before failing, and the
   // user would stare at a white screen with a perfectly good shell in the

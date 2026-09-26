@@ -50,6 +50,8 @@ verify_jwt = true
 # URL (session_proposal_invites), and the function can only record one
 # player's availability for the one date that token names.
 # GET renders a confirmation form and POST acts, because link scanners prefetch.
+# Reached through the app's /api/rsvp relay, never linked directly: the hosted
+# gateway serves an Edge Function's HTML as text/plain (api/_rsvpRelay.ts).
 [functions.session-rsvp]
 verify_jwt = false
 

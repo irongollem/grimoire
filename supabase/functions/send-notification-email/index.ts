@@ -277,7 +277,10 @@ serve(withCors(async (req: Request) => {
     prepare = async (optedIn) => { await issueRsvpTokens(proposalId, optedIn, tokens); };
 
     const inboundDomain = (Deno.env.get("RSVP_INBOUND_DOMAIN") ?? "").trim().toLowerCase();
-    const rsvpEndpoint = `${Deno.env.get("SUPABASE_URL")}/functions/v1/session-rsvp`;
+    // The app's origin, not SUPABASE_URL: the hosted gateway serves an Edge
+    // Function's HTML as text/plain, so the page is relayed through the app's
+    // own /api/rsvp (see api/_rsvpRelay.ts at the repo root).
+    const rsvpEndpoint = `${(Deno.env.get("APP_URL") ?? "https://app.dungeongrimoire.com").replace(/\/+$/, "")}/api/rsvp`;
     const event: IcsSessionEvent = {
       id: proposalId,
       title: proposalTitle,

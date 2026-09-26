@@ -7,6 +7,11 @@
 // many clients that render no invitation UI, and for anyone reading the mail on
 // a phone browser.
 //
+// The links do NOT point here. The hosted gateway rewrites a GET response's
+// text/html to text/plain on *.supabase.co, so linked directly this page shows
+// as source code. The mail links to the app's /api/rsvp, which relays to this
+// function and serves the bytes as HTML (api/_rsvpRelay.ts at the repo root).
+//
 // Public by necessity, and JWT verification is off at the gateway via
 // `[functions.session-rsvp] verify_jwt = false` in supabase/config.toml
 // (per-function config.toml files inside the function directory are NOT read by
@@ -24,6 +29,9 @@
 import { withErrorReporting } from "../_shared/observability/report.ts";
 import { createClient } from "@supabase/supabase-js";
 import { parseRequest, renderPage, type RsvpInvite, type RsvpState } from "./page.ts";
+
+/** Set by api/_rsvpRelay.ts on every request it forwards. Not a credential — the token is. */
+const RELAY_HEADER = "X-Grimoire-Rsvp-Relay";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -67,6 +75,17 @@ async function answerFromBody(req: Request): Promise<string | null> {
 Deno.serve(withErrorReporting(async (req: Request) => {
   if (req.method !== "GET" && req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405, headers: { Allow: "GET, POST" } });
+  }
+
+  // A link straight to this function — every invitation mailed before the
+  // links moved to the app's origin — would render as source text. Bounce it to
+  // the relay; the relay marks its own requests so this cannot loop.
+  if (req.method === "GET" && !req.headers.has(RELAY_HEADER)) {
+    const app = (Deno.env.get("APP_URL") ?? "https://app.dungeongrimoire.com").replace(/\/+$/, "");
+    return new Response(null, {
+      status: 302,
+      headers: { Location: `${app}/api/rsvp${new URL(req.url).search}`, "Cache-Control": "no-store" },
+    });
   }
 
   const formAnswer = req.method === "POST" ? await answerFromBody(req) : null;
