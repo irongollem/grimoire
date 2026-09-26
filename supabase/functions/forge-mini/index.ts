@@ -38,6 +38,7 @@ import {
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { createImageJob, completeImageJob, failImageJob } from "../_shared/imageJob.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
+import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import { buildMiniStylizePrompt } from "../_shared/image-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
@@ -351,6 +352,7 @@ async function handleStylize(
 
   const baseCost = await fetchCreditCost(admin, "entity_image");
   const cost = Math.round(img.imageMultiplier * baseCost * sizeMultiplier("1024x1024") * 100) / 100;
+  const quality = await resolveImageQuality(admin, "entity_image", img);
 
   if (!(await checkRateLimit(admin, userId, "ai_generation"))) {
     if (createdMini) await admin.from("minis").update({ status: "failed", error: "Rate limited" }).eq("id", mini.id);
@@ -415,7 +417,7 @@ async function handleStylize(
     model: img.model,
     apiKey: img.apiKey,
     moderationKey: img.moderationKey,
-    quality: img.imageQuality,
+    quality,
     prompt,
     portraitUrl: source.portrait,
     previousStatus: mini.status,

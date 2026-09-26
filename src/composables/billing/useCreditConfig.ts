@@ -15,10 +15,20 @@ export interface CreditPackConfig {
   stripe_currency_options: Record<string, CurrencyOption> | null;
 }
 
+/**
+ * Provider-neutral image quality tier for an image generation type, set
+ * beside its credit cost in Admin -> Pricing. Mapped to each provider's own
+ * value by supabase/functions/_shared/imageQuality.ts. Null means "use the
+ * provider's own default" (provider_config.image_quality) — irrelevant for
+ * non-image generation types, which always carry null here.
+ */
+export type ImageQualityTier = "low" | "standard" | "high";
+
 export interface GenerationCreditCost {
   generation_type: string;
   label: string;
   credit_cost: number;
+  image_quality_tier: ImageQualityTier | null;
 }
 
 export function useCreditPacks() {
@@ -42,7 +52,7 @@ export function useGenerationCreditCosts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ai_generation_credit_costs")
-        .select("generation_type, label, credit_cost")
+        .select("generation_type, label, credit_cost, image_quality_tier")
         .order("sort_order");
       if (error) throw error;
       return data as GenerationCreditCost[];

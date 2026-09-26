@@ -7,6 +7,7 @@ import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-confi
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
+import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -200,9 +201,11 @@ serve(withCors(async (req: Request) => {
   // ── Image generation ─────────────────────────────────────────────────────
   let image_b64: string | null = null;
   let imgResult: Awaited<ReturnType<typeof generateImage>> | null = null;
+  let trapImageQuality: string | null = null;
 
   if (generate_image && img) {
     try {
+      trapImageQuality = await resolveImageQuality(admin, "entity_image", img);
       const imagePrompt = buildSimpleImagePrompt({
         base: imageBasePrompt,
         setting: campaign.ai_setting_prompt ?? "",
@@ -227,7 +230,7 @@ serve(withCors(async (req: Request) => {
       imgResult = await generateImage({
         provider: img.provider, model: img.model, apiKey: img.apiKey,
         screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "trap_image" },
-        prompt: finalPrompt, size: "1024x1536", quality: img.imageQuality, boostStyle: true, sourceImages,
+        prompt: finalPrompt, size: "1024x1536", quality: trapImageQuality, boostStyle: true, sourceImages,
       });
       // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. No
       // server-side upload here (the client uploads image_b64), so this is
@@ -257,7 +260,7 @@ serve(withCors(async (req: Request) => {
   // Charge the illustration as its own entity_image row (or delta=0 on BYOK).
   if (imgResult) {
     await recordGeneration(admin, user.id, "entity_image", imageIsByok, trapImageCost, {
-      model: img!.model, quality: img!.imageQuality, size: "1024x1536",
+      model: img!.model, quality: trapImageQuality, size: "1024x1536",
       provider: imgResult.usage.provider, image_count: 1,
       input_tokens:       imgResult.usage.input_tokens       || undefined,
       input_image_tokens: imgResult.usage.input_image_tokens || undefined,

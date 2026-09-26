@@ -33,7 +33,9 @@
       </div>
       <div v-if="pricingQuery.packs.isPending.value" class="text-muted-foreground text-body">Loading…</div>
       <div v-else-if="pricingQuery.packs.isError.value" class="text-destructive text-body">Failed to load packs.</div>
-      <table v-else class="w-full text-sm">
+      <!-- The tables are wider than a phone; scroll them rather than clip the last columns. -->
+      <div v-else class="overflow-x-auto">
+        <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-border">
             <th class="text-left pb-2 text-eyebrow text-muted-foreground">Pack</th>
@@ -82,7 +84,8 @@
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
 
     <!-- Generation costs -->
@@ -95,7 +98,8 @@
       </div>
       <div v-if="pricingQuery.generationCosts.isPending.value" class="text-muted-foreground text-body">Loading…</div>
       <div v-else-if="pricingQuery.generationCosts.isError.value" class="text-destructive text-body">Failed to load costs.</div>
-      <table v-else class="w-full text-sm">
+      <div v-else class="overflow-x-auto">
+        <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-border">
             <th class="text-left pb-2 text-eyebrow text-muted-foreground">Generator</th>
@@ -115,6 +119,18 @@
                 >{{ categoryOf(gen.generation_type) }}</span>
               </p>
               <p class="text-label text-muted-foreground">{{ gen.generation_type }}</p>
+              <div v-if="categoryOf(gen.generation_type) === 'image'" class="mt-1.5 space-y-1 max-w-56">
+                <SegmentedControl
+                  v-model="draftGenQuality[gen.generation_type]"
+                  variant="subtle"
+                  size="xs"
+                  wrap
+                  :options="QUALITY_TIER_OPTIONS"
+                />
+                <p class="text-caption-sm text-muted-foreground/60 italic">
+                  Default resolves to {{ providerDefaultCaption }}.
+                </p>
+              </div>
             </td>
             <td class="py-2 text-right">
               <AppInput
@@ -176,7 +192,8 @@
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
 
     <!-- Prompt screening calibration -->
@@ -188,18 +205,21 @@
 import { reactive, computed, watch } from "vue";
 import { sizeMultiplier } from "@/composables/ai/useAiCredits";
 import { useAdminPricing } from "@/composables/admin/useAdminPricing";
-import type { CreditPackConfig, GenerationCreditCost } from "@/composables/admin/useAdminPricing";
+import type { CreditPackConfig, GenerationCreditCost, ImageQualityTier } from "@/composables/admin/useAdminPricing";
+import { useAdminProviders, PROVIDER_LABELS } from "@/composables/admin/useAdminProviders";
 import { useCheckoutConfig } from "@/composables/billing/useCheckoutConfig";
 import { useAdminCalibration } from "@/composables/admin/useAdminCalibration";
 import type { CalibrationHint } from "@/composables/admin/useAdminCalibration";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import AdminPromptScreeningPanel from "@/components/admin/AdminPromptScreeningPanel.vue";
 
 const pricingQuery = useAdminPricing();
 const calibrationQuery = useAdminCalibration();
 const checkoutConfig = useCheckoutConfig();
+const { query: providersQuery } = useAdminProviders();
 
 const CALIBRATION_THRESHOLD = 0.20;
 
@@ -290,6 +310,7 @@ const COST_CATEGORY: Record<string, CostCategory> = {
   quest_generation: "text", roll_table_generation: "text", downtime_generation: "text",
   npc_voice_generation: "text", encounter_generation: "text",
   portrait: "image", entity_image: "image", chronicle_image: "image", map_style_generation: "image",
+  tile_pack_generation: "image",
   music_track: "audio",
   mini_sculpt: "3d",
   // Charged 0 — infrastructure behind the encounter suggester. Listed so its
@@ -344,12 +365,52 @@ watch(
   { immediate: true },
 );
 
+// ── Image quality tier (image generation types only) ──────────────────────
+// "default" stands in for a null image_quality_tier (the provider's own
+// image_quality) — SegmentedControl needs a real option value, and null isn't one.
+type QualityDraft = "default" | ImageQualityTier;
+const QUALITY_TIER_OPTIONS: ReadonlyArray<{ value: QualityDraft; label: string }> = [
+  { value: "default", label: "Default" },
+  { value: "low", label: "Low" },
+  { value: "standard", label: "Standard" },
+  { value: "high", label: "High" },
+];
+const draftGenQuality = reactive<Record<string, QualityDraft>>({});
+
+watch(
+  () => pricingQuery.generationCosts.data.value,
+  (costs) => {
+    if (!costs) return;
+    for (const c of costs) {
+      if (!(c.generation_type in draftGenQuality)) {
+        draftGenQuality[c.generation_type] = c.image_quality_tier ?? "default";
+      }
+    }
+  },
+  { immediate: true },
+);
+
+// What "Default" currently resolves to for each platform provider, read the
+// same way AdminProvidersTab does (provider_config.image_quality) — so an
+// admin picking "Default" here can see what they are NOT overriding.
+const providerDefaultCaption = computed(() => {
+  const rows = providersQuery.data.value ?? [];
+  const parts = rows
+    .filter((r) => r.provider === "openai" || r.provider === "gemini")
+    .filter((r) => r.image_quality)
+    .map((r) => `${PROVIDER_LABELS[r.provider] ?? r.provider} ${r.image_quality}`);
+  return parts.length ? parts.join(" · ") : "the provider's own setting";
+});
+
 async function saveGenCost(gen: GenerationCreditCost) {
   genCostSaving[gen.generation_type] = true;
   try {
+    const isImage = categoryOf(gen.generation_type) === "image";
+    const draftTier = draftGenQuality[gen.generation_type];
     await pricingQuery.updateGenerationCost.mutateAsync({
       generation_type: gen.generation_type,
       credit_cost: draftGenCosts[gen.generation_type],
+      ...(isImage ? { image_quality_tier: draftTier === "default" ? null : draftTier } : {}),
     });
   } finally {
     genCostSaving[gen.generation_type] = false;

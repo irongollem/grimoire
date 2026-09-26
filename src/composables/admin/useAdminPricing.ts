@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import type { CreditPackConfig, GenerationCreditCost } from "@/composables/billing/useCreditConfig";
+import type { CreditPackConfig, GenerationCreditCost, ImageQualityTier } from "@/composables/billing/useCreditConfig";
 
-export type { CreditPackConfig, GenerationCreditCost };
+export type { CreditPackConfig, GenerationCreditCost, ImageQualityTier };
 
 export function useAdminPricing() {
   const qc = useQueryClient();
@@ -77,10 +77,18 @@ export function useAdminPricing() {
   });
 
   const updateGenerationCost = useMutation({
-    mutationFn: async (update: { generation_type: string; credit_cost: number }) => {
+    mutationFn: async (update: {
+      generation_type: string;
+      credit_cost: number;
+      /** Omitted for non-image generation types, which never carry a tier. */
+      image_quality_tier?: ImageQualityTier | null;
+    }) => {
       const { error } = await supabase
         .from("ai_generation_credit_costs")
-        .update({ credit_cost: update.credit_cost })
+        .update({
+          credit_cost: update.credit_cost,
+          ...("image_quality_tier" in update ? { image_quality_tier: update.image_quality_tier } : {}),
+        })
         .eq("generation_type", update.generation_type);
       if (error) throw error;
     },

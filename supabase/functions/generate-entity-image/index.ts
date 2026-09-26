@@ -7,6 +7,7 @@ import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-confi
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
+import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import { isPromptRejected } from "../_shared/moderation.ts";
 import {
   AI_PROMPT_LIMIT_LONG,
@@ -190,12 +191,14 @@ serve(withCors(async (req: Request) => {
     subject,
   });
 
+  const quality = await resolveImageQuality(admin, "entity_image", img);
+
   let imgResult;
   try {
     imgResult = await generateImage({
       provider: img.provider, model: img.model, apiKey: img.apiKey,
       screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "entity_image" },
-      prompt: imagePrompt, size: ENTITY_IMAGE_SIZE, quality: img.imageQuality, boostStyle: true,
+      prompt: imagePrompt, size: ENTITY_IMAGE_SIZE, quality, boostStyle: true,
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
@@ -217,7 +220,7 @@ serve(withCors(async (req: Request) => {
   // Release the hold and charge once for the image (delta = -cost, or 0 on BYOK).
   await releaseCredits(admin, reservation.ids);
   await recordGeneration(admin, user.id, "entity_image", isByok, cost, {
-    model: img.model, quality: img.imageQuality, size: ENTITY_IMAGE_SIZE,
+    model: img.model, quality, size: ENTITY_IMAGE_SIZE,
     provider: imgResult.usage.provider, image_count: 1,
     input_tokens:       imgResult.usage.input_tokens       || undefined,
     input_image_tokens: imgResult.usage.input_image_tokens || undefined,

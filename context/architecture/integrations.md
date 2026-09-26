@@ -40,6 +40,23 @@ flowchart LR
 - **Model choice is DB-driven**, not hardcoded: `provider_config` table, read
   by `_shared/provider-config.ts` with a 5-min cache. "Wrong model / wrong
   cost" bugs start in the admin panel's provider config, not in code.
+- **Image quality is set per generation type, not per provider.**
+  `ai_generation_credit_costs.image_quality_tier` (`low` / `standard` /
+  `high` / null) sits beside each image generation type's credit cost in
+  Admin -> Pricing, and `_shared/imageQuality.ts` maps the provider-neutral
+  tier to each provider's own vocabulary — OpenAI `quality`
+  (low->"low", standard->"medium", high->"high") and Gemini `imageSize`
+  (low->"1K", standard->"2K", high->"4K"). `resolveImageQuality()` (reading
+  through the same cached row `_shared/credits.ts`'s `fetchCreditCost` uses)
+  is what every `generate-*` function and `tile-pack-generator` calls for
+  the `quality` it hands `generateImage()` and records in the ledger. A null
+  tier (every type's starting state) falls back to the provider's own
+  default, `provider_config.image_quality` — so a campaign switching image
+  provider keeps the same intent ("low" always means "a tile") instead of
+  inheriting whatever knob that provider happened to have. `tile_pack_generation`
+  is seeded to `low` (migration `20260926104103`): a tile's whole economy — four
+  attempts for 12 credits — is calibrated against `low`'s ~196 output tokens, and
+  this is now an ordinary, visible row rather than a separate hardcoded constant.
 - **Two call paths.** Platform keys (in `platform_api_keys`, credit-metered)
   run through edge functions. **BYOK** (Pro-only, enforced server-side) calls
   providers straight from the browser with per-campaign keys decrypted via the

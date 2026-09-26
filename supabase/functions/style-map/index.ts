@@ -7,6 +7,7 @@ import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-confi
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
+import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import { isValidGeminiAspectRatio } from "../_shared/geminiAspect.ts";
 import { isValidStyleImageSize, readPngDimensions } from "../_shared/imageSize.ts";
 import { isFlexibleOpenAiModel } from "../_shared/openaiImageModel.ts";
@@ -207,13 +208,14 @@ serve(withCors(async (req: Request) => {
   }
 
   const prompt = buildPrompt(preset_id, map_name, map_description, prompt_suffix);
+  const quality = await resolveImageQuality(admin, "map_style_generation", img);
 
   let imgResult: Awaited<ReturnType<typeof generateImage>>;
   try {
     imgResult = await generateImage({
       provider: img.provider, model: img.model, apiKey: img.apiKey,
       screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "map_style" },
-      prompt, size, quality: img.imageQuality, sourceImages: [mapBlob],
+      prompt, size, quality, sourceImages: [mapBlob],
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
@@ -227,7 +229,7 @@ serve(withCors(async (req: Request) => {
 
   await releaseCredits(admin, reservation.ids);
   await recordGeneration(admin, user.id, "map_style_generation", isByok, cost, {
-    model: img.model, quality: img.imageQuality, size,
+    model: img.model, quality, size,
     provider: imgResult.usage.provider,
     image_count: 1,
     input_tokens:       imgResult.usage.input_tokens       || undefined,

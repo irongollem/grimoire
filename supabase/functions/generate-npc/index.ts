@@ -17,6 +17,7 @@ import {
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
+import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -298,6 +299,10 @@ serve(withCors(async (req: Request) => {
   let imgOutputTokens = 0;
   let imgResultProvider: string | null = null;
 
+  // "portrait" is the cost row both the true and disguise renders bill
+  // against, so they share one resolved quality too.
+  const portraitQuality = img ? await resolveImageQuality(admin, "portrait", img) : null;
+
   if (img && shouldGenerateImage && npcData.true_portrait_prompt) {
     const imagePrompt = buildLabelledImagePrompt({
       base: imageBasePrompt,
@@ -313,7 +318,7 @@ serve(withCors(async (req: Request) => {
         screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "npc_portrait" },
         prompt: imagePrompt,
         size: portraitSize,
-        quality: img.imageQuality,
+        quality: portraitQuality,
         boostStyle: true,
       });
       totalImageCount++;
@@ -356,7 +361,7 @@ serve(withCors(async (req: Request) => {
           screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "npc_disguise_portrait" },
           prompt: disguisePrompt,
           size: portraitSize,
-          quality: img.imageQuality,
+          quality: portraitQuality,
           boostStyle: true,
           sourceImages: [seedBlob],
         });
@@ -401,6 +406,7 @@ serve(withCors(async (req: Request) => {
         portraitCostEach * totalImageCount,
         {
           model: img!.model,
+          quality: portraitQuality,
           provider: imgResultProvider ?? img!.provider,
           image_count: totalImageCount,
           input_tokens: imgInputTokens || undefined,

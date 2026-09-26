@@ -9,6 +9,7 @@ import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } fro
 import { buildLabelledImagePrompt, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
+import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
@@ -338,6 +339,8 @@ serve(withCors(async (req: Request) => {
     }
   }
 
+  const quality = await resolveImageQuality(admin, config.creditType, img);
+
   // Insert pending job — client polls/subscribes by id
   const jobId = await createImageJob(admin, {
     user_id: user.id,
@@ -355,7 +358,7 @@ serve(withCors(async (req: Request) => {
   // @ts-ignore — EdgeRuntime is a Deno Deploy global, not in Deno's type defs.
   EdgeRuntime.waitUntil(runGeneration({
     jobId, userId: user.id, provider: img.provider, model, apiKey: img.apiKey, moderationKey: img.moderationKey,
-    prompt, size, quality: img.imageQuality, portrait_urls, isByok, cost: imageCost,
+    prompt, size, quality, portrait_urls, isByok, cost: imageCost,
     reservationIds: reservation.ids, purpose, source_image_b64,
   }));
 

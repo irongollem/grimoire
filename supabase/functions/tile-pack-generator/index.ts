@@ -1,6 +1,6 @@
 import { serve } from "std/http/server.ts";
 import { createClient, type User } from "@supabase/supabase-js";
-import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, rotationFor, slotId, slotRelativePath, type GenerationAttempt, type GenerationJob, type GenerationPlan, type PackArtBible } from "../../../src/cartographer/authoringPlan.ts";
+import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, rotationFor, slotId, slotRelativePath, type GenerationAttempt, type GenerationJob, type GenerationPlan, type ImageGenerationQuality, type PackArtBible } from "../../../src/cartographer/authoringPlan.ts";
 import { validatePack } from "../../../src/cartographer/validatePack.ts";
 import { coverageCounts, hasCompleteArt, undrawnSlotIds } from "../../../src/cartographer/packCoverage.ts";
 import type { TilePackManifest } from "../../../src/cartographer/packSchema.ts";
@@ -8,6 +8,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { generateImage } from "../_shared/imageGen.ts";
+import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import { buildTileProvenance } from "./tileProvenance.ts";
 import { libraryPackTarget, mintLibraryPackId, packPrefix, userPackTarget, type PackTarget } from "./packTarget.ts";
@@ -32,15 +33,14 @@ import { fetchProviderConfigs } from "../_shared/provider-config.ts";
  */
 const FALLBACK_MODEL = "gpt-image-2";
 
-/**
- * Quality stays pinned rather than following `provider_config.image_quality`,
- * and that is deliberate: a tile's whole economy rests on it. `low` is ~196
- * output tokens against thousands for `high`, and the 12-credit price covers
- * four attempts on that basis. An admin raising image quality for portraits
- * must not silently multiply the cost of a 57-tile pack.
- */
-const QUALITY = "low";
 const MAX_NORMALIZED_B64 = 512_000;
+
+/** Narrows resolveImageQuality's `string | null` to the attempt log's own
+ *  literal union — this path is openai-only, so the resolved value is always
+ *  one of OpenAI's four `quality` values (or null, the provider default). */
+function isImageGenerationQuality(value: string | null): value is ImageGenerationQuality {
+  return value === "low" || value === "medium" || value === "high" || value === "auto";
+}
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -834,6 +834,17 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
     const references = await slotReferences(runId, run.target, job.slot, allowedPhase);
     const providerConfigs = await fetchProviderConfigs(admin, ["openai"]);
     const model = providerConfigs.openai?.image_model ?? FALLBACK_MODEL;
+    // A tile's whole economy rests on its quality: "low" is ~196 output tokens
+    // against thousands for "high", and the 12-credit price covers four
+    // attempts on that basis. The migration that added image_quality_tier
+    // (20260926104103) sets this row to "low" for exactly that reason, so an
+    // admin raising image quality elsewhere cannot silently multiply the cost
+    // of a 57-tile pack — reaching "high" here now takes an explicit,
+    // visible change in Admin -> Pricing rather than a shared provider knob.
+    const quality = await resolveImageQuality(admin, "tile_pack_generation", {
+      base: "openai",
+      imageQuality: providerConfigs.openai?.image_quality ?? null,
+    });
     const result = await generateImage({
       provider: "openai",
       model,
@@ -842,7 +853,7 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
       screening: { apiKey, admin, userId, generationType: "tile_pack" },
       prompt: job.prompt.final_prompt,
       size: job.execution.requested_size,
-      quality: QUALITY,
+      quality,
       sourceImages: references,
       background: job.mechanics.alpha === "transparent-outside-footprint" ? "transparent" : "opaque",
     });
@@ -882,7 +893,7 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
     await releaseCredits(admin, reservation.ids);
     const usage = {
       model,
-      quality: QUALITY,
+      quality,
       size: job.execution.requested_size,
       provider: result.usage.provider,
       image_count: 1,
@@ -914,7 +925,7 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
       execution: {
         provider: result.usage.provider,
         model,
-        quality: QUALITY,
+        quality: isImageGenerationQuality(quality) ? quality : undefined,
         input_text_tokens: result.usage.input_tokens,
         input_image_tokens: result.usage.input_image_tokens,
         output_image_tokens: result.usage.output_tokens,

@@ -25,7 +25,14 @@ export interface CreditLogFields {
   image_count?: number;
 }
 
-let costCache: Map<string, number> | null = null;
+interface CostCacheRow {
+  credit_cost: number;
+  /** Provider-neutral image quality tier (null = the provider's own default).
+   *  See _shared/imageQuality.ts for the tier -> provider value mapping. */
+  image_quality_tier: string | null;
+}
+
+let costCache: Map<string, CostCacheRow> | null = null;
 let costCacheExpiry = 0;
 const COST_TTL_MS = 5 * 60 * 1000;
 
@@ -38,23 +45,47 @@ const COST_TTL_MS = 5 * 60 * 1000;
  */
 export const sizeMultiplier = sizeMultiplierMath;
 
+async function ensureCostCache(admin: SupabaseClient): Promise<void> {
+  if (costCache && Date.now() < costCacheExpiry) return;
+  const { data, error } = await admin
+    .from("ai_generation_credit_costs")
+    .select("generation_type, credit_cost, image_quality_tier");
+  // A failed read must fail the generation, not cache an empty map: every
+  // lookup would then fall back to the 1-credit default below and quietly
+  // undercharge until the cache expired.
+  if (error) throw new Error(`Could not read generation credit costs: ${error.message}`);
+  costCache = new Map(
+    (data ?? []).map(
+      (row: { generation_type: string; credit_cost: number; image_quality_tier: string | null }) => [
+        row.generation_type,
+        { credit_cost: row.credit_cost, image_quality_tier: row.image_quality_tier },
+      ],
+    ),
+  );
+  costCacheExpiry = Date.now() + COST_TTL_MS;
+}
+
 export async function fetchCreditCost(
   admin: SupabaseClient,
   generationType: string,
 ): Promise<number> {
-  if (!costCache || Date.now() >= costCacheExpiry) {
-    const { data } = await admin
-      .from("ai_generation_credit_costs")
-      .select("generation_type, credit_cost");
-    costCache = new Map(
-      (data ?? []).map((row: { generation_type: string; credit_cost: number }) => [
-        row.generation_type,
-        row.credit_cost,
-      ]),
-    );
-    costCacheExpiry = Date.now() + COST_TTL_MS;
-  }
-  return costCache.get(generationType) ?? 1;
+  await ensureCostCache(admin);
+  return costCache!.get(generationType)?.credit_cost ?? 1;
+}
+
+/**
+ * Provider-neutral image quality tier for a generation type
+ * (ai_generation_credit_costs.image_quality_tier), read through the same
+ * cached row fetchCreditCost uses — one query serves both, on the same TTL.
+ * Null means "use the provider's own default" (provider_config.image_quality);
+ * _shared/imageQuality.ts maps a real tier to each provider's own value.
+ */
+export async function fetchImageQualityTier(
+  admin: SupabaseClient,
+  generationType: string,
+): Promise<string | null> {
+  await ensureCostCache(admin);
+  return costCache!.get(generationType)?.image_quality_tier ?? null;
 }
 
 export async function fetchUserBalance(

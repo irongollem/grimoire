@@ -7,6 +7,7 @@ import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-confi
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
+import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -202,6 +203,10 @@ serve(withCors(async (req: Request) => {
   let sceneImgResult: ImgResult | null = null;
   let mapImgResult: ImgResult | null = null;
 
+  // Both the scene and the map bill against "entity_image", so they share one
+  // resolved quality.
+  const imageQuality = img ? await resolveImageQuality(admin, "entity_image", img) : null;
+
   if (img && (generate_image || generate_map)) {
     const [imgSettled, mapSettled] = await Promise.allSettled([
       generate_image
@@ -213,7 +218,7 @@ serve(withCors(async (req: Request) => {
               setting: campaign.ai_setting_prompt ?? "",
               subject: String(locationData.image_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS),
             }),
-            size: "1024x1024", quality: img.imageQuality, boostStyle: true,
+            size: "1024x1024", quality: imageQuality, boostStyle: true,
           })
         : Promise.resolve(null),
       generate_map
@@ -221,7 +226,7 @@ serve(withCors(async (req: Request) => {
             provider: img.provider, model: img.model, apiKey: img.apiKey,
             screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "location_map" },
             prompt: [MAP_BASE_PROMPT, String(locationData.map_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS)].filter(Boolean).join(" — "),
-            size: "1024x1024", quality: img.imageQuality,
+            size: "1024x1024", quality: imageQuality,
           })
         : Promise.resolve(null),
     ]);
@@ -270,7 +275,7 @@ serve(withCors(async (req: Request) => {
   // Charge each image as its own entity_image row (or delta=0 on BYOK).
   if (sceneImgResult) {
     await recordGeneration(admin, user.id, "entity_image", imageIsByok, perImageCost, {
-      model: img!.model, quality: img!.imageQuality, size: "1024x1024",
+      model: img!.model, quality: imageQuality, size: "1024x1024",
       provider: sceneImgResult.usage.provider, image_count: 1,
       input_tokens:       sceneImgResult.usage.input_tokens       || undefined,
       input_image_tokens: sceneImgResult.usage.input_image_tokens || undefined,
@@ -279,7 +284,7 @@ serve(withCors(async (req: Request) => {
   }
   if (mapImgResult) {
     await recordGeneration(admin, user.id, "entity_image", imageIsByok, perImageCost, {
-      model: img!.model, quality: img!.imageQuality, size: "1024x1024",
+      model: img!.model, quality: imageQuality, size: "1024x1024",
       provider: mapImgResult.usage.provider, image_count: 1,
       input_tokens:       mapImgResult.usage.input_tokens       || undefined,
       input_image_tokens: mapImgResult.usage.input_image_tokens || undefined,
