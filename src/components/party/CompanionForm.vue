@@ -216,6 +216,14 @@
         <TraitSection v-model="sb.reactions" label="Reactions" />
       </template>
 
+      <!-- Notes: the DM's own, on entity_notes like every other entity's. A
+           private note is private by RLS. Notes save on their own, so they
+           need a saved companion to hang off; players keep theirs in the
+           party lightbox's PlayerNotesWidget. -->
+      <div v-if="viewerIsDm && companion" class="border-t border-border pt-3">
+        <EntityNotesPanel entity-type="companion" :entity-id="companion.id" :campaign-id="companion.campaign_id" />
+      </div>
+
       <!-- Error -->
       <p v-if="saveError" class="text-destructive text-body">{{ saveError }}</p>
 
@@ -260,6 +268,7 @@ import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import TraitSection from "@/components/npcs/TraitSection.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityNotesPanel from "@/components/common/EntityNotesPanel.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -511,7 +520,6 @@ async function save() {
       ac:                    ac.value,
       speed:                 speed.value,
       conditions:            props.companion?.conditions ?? [],
-      notes:                 props.companion?.notes ?? null,
       sort_order:            props.companion?.sort_order ?? 0,
       portrait_url:          portraitUrl.value,
       portrait_focal_point:  focalPoint.value,

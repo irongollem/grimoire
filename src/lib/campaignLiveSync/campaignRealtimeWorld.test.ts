@@ -144,8 +144,8 @@ describe("applyCampaignRealtimeWorld", () => {
 
   it("applies a complete RLS-authorized companion row for a player and reports unsupported tables", () => {
     const qc = new QueryClient();
-    const companion = row({ id: "companion-1", sort_order: 2, notes: "DM secret" });
-    const visible = [{ id: "companion-1", name: "Public", notes: null }];
+    const companion = row({ id: "companion-1", sort_order: 2, current_hp: 3 });
+    const visible = [{ id: "companion-1", name: "Public", current_hp: 7 }];
     qc.setQueryData(["companions", "campaign-1"], visible);
 
     expect(applyCampaignRealtimeWorld(qc, "companions", change(companion), player)).toBe(true);

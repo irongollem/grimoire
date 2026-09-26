@@ -42,8 +42,6 @@ export interface Companion {
   ac: number;
   speed: number;
   conditions: string[];
-  notes: string | null;
-  party_notes?: string | null;
   /** false = elsewhere (another room, stabled, dismissed) — skips new encounters. Toggleable by DM and owning player (#569). */
   combat_ready: boolean;
   sort_order: number;

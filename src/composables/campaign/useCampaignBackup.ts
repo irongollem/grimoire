@@ -615,10 +615,12 @@ async function executeImport(
       })),
     );
 
-    // 11. Companions
+    // 11. Companions. A backup taken before 20260926155338 still carries the
+    // `notes` / `party_notes` columns that migration dropped; the insert would
+    // reject the whole batch over them, so they are left out.
     await batchInsert(
       "companions",
-      backup.companions.map((c) => ({
+      backup.companions.map(({ notes: _notes, party_notes: _partyNotes, ...c }) => ({
         ...c,
         id: r(c.id, idMap),
         campaign_id: newCampaignId,
