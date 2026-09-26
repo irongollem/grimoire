@@ -10,8 +10,9 @@ import {
   recordScreeningOutcome,
   type ScreeningContext,
 } from "./moderation.ts";
+import { nearestGeminiAspect } from "./geminiAspect.ts";
 
-export type ImageProviderKey = "openai" | "openai-mini" | "gemini";
+export type ImageProviderKey = "openai" | "gemini";
 
 export interface ImageGenUsage {
   model: string;
@@ -94,11 +95,19 @@ const GEMINI_IMAGE_SIZES = new Set(["1K", "2K", "4K"]);
 const GEMINI_STYLE_BOOSTER =
   "dramatic volumetric lighting with a strong directional key light and deep chiaroscuro shadows, warm rim light, rich tonal range, layered foreground-to-background atmospheric depth, painterly dimensionality and confident form modeling; avoid flat, evenly-lit, washed-out rendering";
 
-/** Map a "WxH" size to Gemini's aspectRatio; resolution comes from the admin quality knob. */
-function sizeToAspect(size: string, quality?: string | null): { aspectRatio: string; imageSize: string } {
+/**
+ * Map a "WxH" size to the nearest Gemini `aspectRatio` bucket Gemini
+ * actually accepts, rather than the three crude thresholds this used to
+ * pick from — a map's own aspect (from the map's own dimensions, not a
+ * fixed square) can land anywhere in Gemini's 9:16..21:9 range now that the
+ * AI styler sends an image fit to it rather than always square. The ratio
+ * list and nearest-match logic itself live in `geminiAspect.ts`, shared with
+ * the client so the input it pads to matches the bucket this picks.
+ * Resolution comes from the admin quality knob, unchanged.
+ */
+export function sizeToAspect(size: string, quality?: string | null): { aspectRatio: string; imageSize: string } {
   const { w, h } = sizeDims(size);
-  const r = w / h;
-  const aspectRatio = r > 1.2 ? "3:2" : r < 0.83 ? "2:3" : "1:1";
+  const aspectRatio = nearestGeminiAspect(w, h).label;
   const imageSize = quality && GEMINI_IMAGE_SIZES.has(quality) ? quality : "1K";
   return { aspectRatio, imageSize };
 }
@@ -286,7 +295,7 @@ export async function generateImage(opts: {
         const geminiPrompt = boostStyle ? `${prompt} — ${GEMINI_STYLE_BOOSTER}` : prompt;
         return geminiGenerate(apiKey, model, geminiPrompt, size, quality, sourceImages);
       }
-      default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages, background); // openai + openai-mini
+      default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages, background); // openai
     }
   };
 
@@ -324,7 +333,9 @@ const DEFAULT_MODEL: Record<string, string> = {
 
 export interface ResolvedImageProvider {
   provider: ImageProviderKey;
-  /** Underlying provider whose key/config/pricing applies (openai-mini → openai). */
+  /** Underlying provider whose key/config/pricing applies — currently
+   *  always equal to `provider`, kept as its own field since call sites
+   *  already read `.base` for the key/pricing lookup rather than `.provider`. */
   base: "openai" | "gemini";
   model: string;
   apiKey: string;
@@ -351,17 +362,15 @@ export function resolveImageProvider(args: {
   requestedModel?: string | null;
 }): ResolvedImageProvider | null {
   const choice = (args.imageProvider ?? "openai") as ImageProviderKey;
-  const base: "openai" | "gemini" = choice === "openai-mini" ? "openai" : (choice as "openai" | "gemini");
+  const base = choice;
 
   const campaignKey = args.campaignKeys[base] ?? null;
   const apiKey = campaignKey ?? args.platformKeys[base] ?? null;
   if (!apiKey) return null;
 
-  const model = choice === "openai-mini"
-    ? "gpt-image-1-mini"
-    : choice === "openai" && args.requestedModel
-      ? args.requestedModel
-      : (args.providerConfigs[base]?.image_model ?? DEFAULT_MODEL[base]);
+  const model = choice === "openai" && args.requestedModel
+    ? args.requestedModel
+    : (args.providerConfigs[base]?.image_model ?? DEFAULT_MODEL[base]);
 
   return {
     provider: choice,

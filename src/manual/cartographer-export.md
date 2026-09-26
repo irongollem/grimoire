@@ -47,12 +47,23 @@ Click **↓ PNG** to export the map as a full-resolution PNG rendered right in y
 3. Optionally add freeform details in the text field: describe specific features, mood, or elements you want emphasised (up to 300 characters).
 4. Click **Generate** and wait (usually 15–30 seconds).
 5. Preview the result, then choose:
-   - **Save to Atlas**: pick a location from a simple inline picker; this uploads the styled image and overwrites that location's map directly. Deliberately the older, simpler flow: a styled picture has no structure behind it to reconcile, unlike Publish to Atlas above.
+   - **Save to Atlas**: pick a location from a simple inline picker; this uploads the styled image, overwrites that location's map, and sets its grid to match automatically. Deliberately the older, simpler flow otherwise: a styled picture has no structure behind it to reconcile, unlike Publish to Atlas above.
    - **↓ Download**: save the image locally as a WebP file.
    - **Retry**: re-generate with the same settings (a fresh render).
    - **Back**: return to the preset picker to change settings.
 
 All styled images include a small `dungeongrimoire.com` watermark. Closing the result without saving or downloading loses it for good: nothing here is auto-recovered.
+
+The grid it sets automatically is a first guess: the AI can shrink or grow it a little in its own render, so check that it lines up and use **Calibrate** on the Layers panel to fine-tune if it's drifted, the same action you'd use on any scanned picture.
+
+### Styling a site's own Drawing
+
+A site's **Build** screen (see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon)) has its own **Style with AI** action on the Layers panel's Drawing row. It works the same way, with two differences:
+
+- There's no location picker: the target is always the site you're already in, so the result button reads **Save to Picture**.
+- Saving asks first, plainly: the styled render replaces the site's Picture, and its Drawing (the Cartographer map you were just editing) is set aside rather than deleted. It stays in your Cartographer, ready to reopen, so you can draw fixes on top of the new Picture and style again, as many times as you like.
+
+Each pass sets the Picture's grid automatically too, so tracing and doors keep working right away. Check it and Calibrate if needed, same as above.
 
 ### Style presets
 

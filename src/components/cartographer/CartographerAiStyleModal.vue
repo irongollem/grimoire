@@ -15,7 +15,12 @@
     <div class="overflow-y-auto px-5 pt-5 pb-3">
       <h2 id="ai-style-picker-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-1">✦ AI Map Style</h2>
       <p class="text-body text-muted-foreground mb-4">
-        Re-render this map in an artistic style. The result is a new image — your tile map is unchanged.
+        <template v-if="fixedTargetLabel">
+          Re-render this site's map, picture and tiles together, in an artistic style. Saving makes it the site's new picture.
+        </template>
+        <template v-else>
+          Re-render this map in an artistic style. The result is a new image, and your tile map stays unchanged.
+        </template>
       </p>
       <!-- Preset grid -->
       <!-- LEFT: no matching AppButton variant — a vertical tile (icon over
@@ -109,16 +114,28 @@
           class="w-full h-full object-contain"
         />
       </div>
-      <!-- Save to Atlas inline -->
-      <label class="block text-eyebrow text-muted-foreground mb-1">
-        Save to location
-      </label>
-      <EntityCombobox
-        v-model="atlasLocationId"
-        :options="locationOptions"
-        placeholder="Search locations…"
-      />
-      <p v-if="atlasTargetHasMap" class="mt-2 text-caption text-amber-500">This location already has a map — saving will replace it.</p>
+      <!-- Save target: a fixed site in Atlas Build (no picker — the target is
+           already known), or the free-pick combobox on the standalone
+           Cartographer page. -->
+      <template v-if="fixedTargetLabel">
+        <label class="block text-eyebrow text-muted-foreground mb-1">Save to</label>
+        <p class="text-body text-foreground">
+          <strong class="font-semibold">{{ fixedTargetLabel }}</strong>'s Picture layer
+        </p>
+      </template>
+      <template v-else>
+        <label class="block text-eyebrow text-muted-foreground mb-1">
+          Save to location
+        </label>
+        <EntityCombobox
+          v-model="atlasLocationId"
+          :options="locationOptions"
+          placeholder="Search locations…"
+        />
+      </template>
+      <p v-if="atlasTargetHasMap" class="mt-2 text-caption text-amber-500">
+        {{ fixedTargetLabel ? "This site already has a Picture. Saving will replace it." : "This location already has a map. Saving will replace it." }}
+      </p>
       <p v-if="atlasError" class="mt-2 text-caption text-destructive">{{ atlasError }}</p>
     </div>
     <div class="flex shrink-0 flex-wrap justify-between gap-2 px-5 pb-5 pt-2">
@@ -132,8 +149,8 @@
           variant="primary"
           size="sm"
           class="px-4"
-          :disabled="!atlasLocationId || atlasSaving"
-          :label="atlasSaving ? 'Saving…' : 'Save to Atlas'"
+          :disabled="(!fixedTargetLabel && !atlasLocationId) || atlasSaving"
+          :label="atlasSaving ? 'Saving…' : fixedTargetLabel ? 'Save to Picture' : 'Save to Atlas'"
           @click="$emit('saveToAtlas', atlasLocationId)"
         />
       </div>
@@ -171,6 +188,7 @@ const {
   error,
   resultUrl,
   locationOptions,
+  fixedTargetLabel = null,
   atlasTargetHasMap,
   atlasError,
   atlasSaving,
@@ -186,6 +204,11 @@ const {
   error: string | null;
   resultUrl: string | null;
   locationOptions: LocationOption[];
+  /** Set from Atlas Build (`AtlasSiteMapMode.vue`): the site's own name,
+   *  replacing the `EntityCombobox` with a fixed save target and changing
+   *  the pre-generate confirm to name what saving will do to the site's
+   *  Drawing. Absent on the standalone Cartographer page. */
+  fixedTargetLabel?: string | null;
   atlasTargetHasMap: boolean;
   atlasError: string | null;
   atlasSaving: boolean;
@@ -206,13 +229,28 @@ const emit = defineEmits<{
 }>();
 
 const { requireCredits } = useOutOfCredits();
+const { confirm } = useConfirm();
 
-function onGenerateClick() {
+/**
+ * In Atlas Build, saving a styled render replaces the site's Picture and
+ * sets its Drawing aside (the `dungeon_maps` row survives, unlinked, for
+ * later corrections and republishing — see `useSaveStyledSitePicture`).
+ * That's a real consequence for the DM's tile work, and it happens on Save,
+ * a screen away from here, so it's said plainly before the credits for the
+ * render that leads there are spent, rather than sprung as a side effect of
+ * the eventual "Save to Picture" click.
+ */
+async function onGenerateClick() {
   if (!requireCredits(credits, byok)) return;
+  if (fixedTargetLabel) {
+    const ok = await confirm(
+      "The styled map replaces this site's picture. Your tile drawing is set aside, it stays in the Cartographer, so you can draw fixes on top and style again. Check that the grid still lines up; the AI can drift a little, and Calibrate fixes it.",
+      { title: "Style with AI", confirmLabel: "Generate" },
+    );
+    if (!ok) return;
+  }
   emit("generate");
 }
-
-const { confirm } = useConfirm();
 
 /**
  * Escape on the result panel. Nothing reopens it and the styled map is a blob

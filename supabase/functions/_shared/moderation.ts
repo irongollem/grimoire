@@ -99,7 +99,7 @@ export interface ScreeningContext {
   userId: string;
   /** The calling surface: entity_image, npc_portrait, map_style_generation, … */
   generationType: string;
-  /** The renderer this prompt was bound for — openai | openai-mini | gemini. */
+  /** The renderer this prompt was bound for — openai | gemini. */
   imageProvider: string;
 }
 

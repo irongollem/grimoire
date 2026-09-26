@@ -363,19 +363,17 @@ const { costOf } = useAiCredits();
 
 // Per-provider speed + a one-line characterisation, shown so the choice makes sense.
 const IMAGE_PROVIDER_INFO: Record<string, { speed: string }> = {
-  openai:        { speed: "1–3 min" },
-  "openai-mini": { speed: "1–3 min" },
-  gemini:        { speed: "~8–15 s" },
+  openai: { speed: "1–3 min" },
+  gemini: { speed: "~8–15 s" },
 };
 function imageSpeed(provider: string): string {
   return IMAGE_PROVIDER_INFO[provider]?.speed ?? "speed varies";
 }
 const selectedImageProvider = computed(() => form.value.image_provider ?? "openai");
 // Representative price: one portrait-orientation image (entity_image × 1.5 × provider multiplier).
-const selectedImageCredits = computed(() => {
-  const base = selectedImageProvider.value === "openai-mini" ? "openai" : selectedImageProvider.value;
-  return Math.round(costOf("entity_image") * 1.5 * imageMultiplierFor(base));
-});
+const selectedImageCredits = computed(
+  () => Math.round(costOf("entity_image") * 1.5 * imageMultiplierFor(selectedImageProvider.value)),
+);
 
 // BYOK provider options (shown when the user has entered their own keys)
 const BYOK_TEXT_OPTIONS = [

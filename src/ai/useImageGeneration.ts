@@ -22,7 +22,7 @@ import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
 export type ImagePurpose =
   | "chronicler" | "group_portrait" | "npc_portrait" | "npc_disguise"
   | "monster" | "item" | "spell" | "faction" | "location" | "location_map"
-  | "trap" | "puzzle" | "party_member" | "species" | "map_style";
+  | "trap" | "puzzle" | "party_member" | "species";
 
 interface PurposeConfig {
   bucket: BucketKey;
@@ -47,7 +47,6 @@ const PURPOSES: Record<ImagePurpose, PurposeConfig> = {
   puzzle:         { bucket: "puzzleImages",   size: "1024x1536", variants: true,  scene: false, labelled: false },
   party_member:   { bucket: "chronicle",      size: "1024x1536", variants: false, scene: false, labelled: true },
   species:        { bucket: "assetImages",    size: "1024x1024", variants: false, scene: false, labelled: false },
-  map_style:      { bucket: "locationImages", size: "1024x1024", variants: true,  scene: false, labelled: false },
 };
 
 export interface ImageGenerationRequest {
@@ -87,7 +86,6 @@ export function captureImageGenerationContext(): ImageGenerationContext {
   const imageProvider = campaign.image_provider ?? "openai";
   const imageApiKey = ({
     openai: store.decryptedOpenAiKey,
-    "openai-mini": store.decryptedOpenAiKey,
     gemini: store.decryptedGeminiKey,
   } as Record<string, string | null | undefined>)[imageProvider] ?? null;
   return {
@@ -95,9 +93,7 @@ export function captureImageGenerationContext(): ImageGenerationContext {
     settingPrompt: campaign.ai_setting_prompt ?? "",
     imageProvider,
     imageApiKey,
-    imageModel: imageProvider === "openai-mini"
-      ? "gpt-image-1-mini"
-      : (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-2",
+    imageModel: (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-2",
   };
 }
 
@@ -196,7 +192,7 @@ async function runLocal(request: ImageGenerationRequest): Promise<string> {
   const setting = request.settingPrompt;
   const prompt = config.scene
     ? buildScenePrompt(request.subject, request.textDescriptions ?? [], setting, base)
-    : request.purpose === "location_map" || request.purpose === "map_style"
+    : request.purpose === "location_map"
       ? request.subject
     : config.labelled
       ? buildLabelledImagePrompt({ base, setting, subject: request.subject })
@@ -222,9 +218,7 @@ async function runLocal(request: ImageGenerationRequest): Promise<string> {
   }
   const reason = request.purpose === "chronicler"
     ? "chronicle_image"
-    : request.purpose === "map_style"
-      ? "map_style_generation"
-      : "entity_image";
+    : "entity_image";
   logUsage({ reason, imageUsage: usage });
   return url;
 }

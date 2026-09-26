@@ -164,7 +164,7 @@ serve(withCors(async (req: Request) => {
   const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
   const geminiKey = campaignGemini ?? platformKeys.gemini ?? null;
 
-  // Resolve the campaign's chosen image provider (openai / openai-mini / gemini).
+  // Resolve the campaign's chosen image provider (openai / gemini).
   const img = resolveImageProvider({
     imageProvider: campaign.image_provider,
     campaignKeys: {

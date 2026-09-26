@@ -10,7 +10,6 @@ function resolveKey(provider: string): string {
   const store = useCampaignStore();
   const key = ({
     openai:       store.decryptedOpenAiKey,
-    "openai-mini": store.decryptedOpenAiKey,
     anthropic:    store.decryptedAnthropicKey,
     gemini:       store.decryptedGeminiKey,
   } as Record<string, string>)[provider] ?? "";
@@ -48,7 +47,6 @@ export function getImageProvider(options: {
   }
   switch (provider) {
     case "gemini":       return createGeminiImageProvider(key);
-    case "openai-mini":  return createOpenAiImageProvider(key, "gpt-image-1-mini");
     default: {
       const model = options.imageModel ?? (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-2";
       return createOpenAiImageProvider(key, model as "gpt-image-2" | "gpt-image-1.5");

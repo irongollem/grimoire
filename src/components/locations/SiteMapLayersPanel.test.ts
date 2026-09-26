@@ -206,6 +206,27 @@ describe("SiteMapLayersPanel", () => {
       await findButton(wrapper, "Open").trigger("click");
       expect(wrapper.emitted("open-drawing")).toHaveLength(1);
     });
+
+    it("offers Style with AI once there is a drawing, and emits style-with-ai", async () => {
+      const wrapper = mountPanel({ location: site({ source_map_id: "map-1" }), map: { name: "X", rev: 1 } });
+      await findButton(wrapper, "Style with AI").trigger("click");
+      expect(wrapper.emitted("style-with-ai")).toHaveLength(1);
+    });
+
+    it("does not offer Style with AI before there is a drawing to style", () => {
+      const wrapper = mountPanel();
+      expect(() => findButton(wrapper, "Style with AI")).toThrow();
+    });
+
+    it("disables Style with AI, and labels it Styling…, while a render is in flight", () => {
+      const wrapper = mountPanel({
+        location: site({ source_map_id: "map-1" }),
+        map: { name: "X", rev: 1 },
+        styling: true,
+      });
+      const button = findButton(wrapper, "Styling…");
+      expect(button.props("disabled")).toBe(true);
+    });
   });
 
   describe("Plan row", () => {

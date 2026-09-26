@@ -29,8 +29,14 @@ Set its **Type** to Building, Dungeon, Store, Tavern, Inn or Wilds in the locati
 Open **Build** on a site, and its map area shows the **Layers** panel above the canvas: one row per layer of the stack, bottom-up:
 
 1. **Picture**: upload a scan or photo. Once uploaded, **Calibrate** (or **Re-calibrate**) sets the grid so cells line up with the image; until it's calibrated, rooms can't be traced onto it. **Replace** swaps the image; **Remove** clears both the picture and its calibration.
-2. **Drawing**: **Open** an existing Cartographer drawing, or **Start drawing** to create one named after this site. This opens the Cartographer editor **in place**, right below the panel: see [Cartographer: Overview](#cartographer-overview) for the painting tools themselves. The Drawing autosaves; there's no Save button in Build.
+2. **Drawing**: **Open** an existing Cartographer drawing, **Style with AI** to re-render it (see below), or **Start drawing** to create one named after this site. This opens the Cartographer editor **in place**, right below the panel: see [Cartographer: Overview](#cartographer-overview) for the painting tools themselves. The Drawing autosaves; there's no Save button in Build.
 3. **Plan**: once a Picture or Drawing exists, tracing happens directly on the map below; if neither does, **Start a blank grid** (pick columns × rows) gives you a plan with no image underneath it at all.
+
+### Styling the Drawing with AI
+
+**Style with AI** on the Drawing row re-renders your tile map in an artistic style, the same generator described in [Cartographer: Export & AI Style](#cartographer-export-ai-style), with the save target fixed to this site: there's no location to pick. Generating asks first, plainly, since saving has a real effect on your map stack: the styled render replaces this site's **Picture**, and the **Drawing** you were editing is set aside rather than deleted. It survives in your Cartographer, so you can reopen it (or start a fresh one), draw fixes on top of the new Picture, and style again. That's the loop: style, correct, style again, as many times as the map needs.
+
+Each pass also sets the Picture's grid to match automatically, so the fresh Drawing you start next lines up with it right away. It's a first guess, not a guarantee, so check that the grid still looks right and use **Calibrate** if the AI drifted it a little.
 
 The Drawing row shows a **Review N changes** link once your Cartographer drawing has moved ahead of what was last published: see "Publishing a drawing" below.
 

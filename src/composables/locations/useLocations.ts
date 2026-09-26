@@ -441,14 +441,70 @@ export function useUpdateLocationDrawing() {
 }
 
 /**
- * Update a location's Picture layer — `map_url` alone. Written by a DM
- * upload/scan or the AI styler's render (epic #884); never carries
- * `source_map_id` or a calibration, both of which describe the Drawing.
+ * Update a location's Picture layer — `map_url`, and optionally the
+ * `grid_calibration` that goes with it. A DM upload/scan passes no
+ * calibration (they calibrate by hand afterward); the standalone
+ * Cartographer page's AI styler (epic #884) does, derived from its own
+ * fitted input geometry (`src/cartographer/aiStyleInput.ts`'s
+ * `styledPictureCalibration`) since the arbitrary location it saves to may
+ * have no `source_map_id` relationship to reconcile. Omitting `calibration`
+ * leaves the column untouched (a bare `{ map_url }` update) — every other
+ * caller, including the plain upload flow in `SiteMapLayersPanel.vue`; never
+ * carries `source_map_id`, which describes the Drawing.
  */
 export function useUpdateLocationPicture() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, mapUrl }: { id: string; mapUrl: string }) => updateLocation(id, { map_url: mapUrl }),
+    mutationFn: ({ id, mapUrl, calibration }: { id: string; mapUrl: string; calibration?: GridCalibration | null }) =>
+      updateLocation(id, calibration !== undefined ? { map_url: mapUrl, grid_calibration: calibration } : { map_url: mapUrl }),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+    },
+  });
+}
+
+/**
+ * Saves an AI-styled render as a site's Picture from Atlas Build, replacing
+ * whatever Drawing currently sits on top of it — the render "bubbles down"
+ * to the Picture layer (epic #884, decision 1). One atomic update, not a
+ * `useUpdateLocationPicture` write followed by a separate clear: a two-step
+ * sequence could be interrupted in between and leave a styled Picture
+ * sitting underneath a Drawing still published over it, which is exactly
+ * the "hidden under its own tiles" state this save exists to avoid (see
+ * `MapStackImage.vue`'s `showsUnderlyingPicture`).
+ *
+ * The Drawing's own `dungeon_maps` row is NOT deleted or edited — only
+ * unlinked (`source_map_id: null`), so it survives as an ordinary,
+ * standalone map in the Cartographer: the DM can reopen it, or start a new
+ * one, draw corrections over the styled Picture (shown as MapWorkbench's
+ * reference ghost, keyed on the Picture's own `grid_calibration` — see its
+ * `buildReferenceImage`) and republish later, which would put tiles back on
+ * top again. `map_published_rev` is cleared alongside it, since a rev
+ * number for a Drawing the location no longer points at can only read as
+ * stale.
+ *
+ * `calibration` is a best-first-guess, not a guarantee: the caller derives
+ * it from the input's own fitted geometry (`styledPictureCalibration`),
+ * safe to write because the edge function requests exactly the size that
+ * geometry was fitted to (`supabase/functions/style-map/index.ts`) — but
+ * the model itself can still shrink or grow the grid a little in its own
+ * render. The Layers panel's Calibrate action stays available and opens
+ * seeded from whatever this wrote (`GridCalibrationDialog`'s `existing`
+ * prop), exactly as it does for any other Picture.
+ */
+export function useSaveStyledSitePicture() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, mapUrl, calibration }: { id: string; mapUrl: string; calibration: GridCalibration | null }) =>
+      updateLocation(id, {
+        map_url: mapUrl,
+        grid_calibration: calibration,
+        map_layer_url: null,
+        map_layer_calibration: null,
+        source_map_id: null,
+        map_published_rev: null,
+      }),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });

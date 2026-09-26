@@ -20,7 +20,7 @@
 
     <div v-if="previewOpen" class="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-2.5">
       <template v-if="!location.is_map_shared">
-        <p class="text-caption italic text-muted-foreground">This site isn't shared with players yet — there is nothing for a preview to show.</p>
+        <p class="text-caption italic text-muted-foreground">This site isn't shared with players yet, so there is nothing for a preview to show.</p>
       </template>
       <template v-else>
         <label class="flex flex-col gap-1 text-caption font-semibold text-foreground">
@@ -119,6 +119,18 @@
           </span>
           <div class="flex shrink-0 items-center gap-1.5">
             <AppButton variant="ghost" size="inline-xs" label="Open" @click="emit('open-drawing')" />
+            <span class="text-2xs text-muted-foreground/40">·</span>
+            <!-- Restyles the Drawing's own bake and, once saved, replaces this
+                 site's Picture with it (epic #884 decision 1) — the DM picks
+                 no location, the target is always this site. -->
+            <AppButton
+              variant="ghost"
+              size="inline-xs"
+              :icon="IconGenerate"
+              :disabled="styling"
+              :label="styling ? 'Styling…' : 'Style with AI'"
+              @click="emit('style-with-ai')"
+            />
             <template v-if="staleness">
               <span class="text-2xs text-muted-foreground/40">·</span>
               <AppButton variant="ghost" size="inline-xs" :label="reviewLabel" @click="emit('review-changes')" />
@@ -224,7 +236,10 @@
  * place rather than navigating away; see that composable. `review-changes`
  * — `Review N changes` — tells the host to open the embedded workbench's own
  * Publish modal already pointed at this site, replacing the old
- * `/cartographer/:id?publishTo=` round trip.
+ * `/cartographer/:id?publishTo=` round trip. `style-with-ai` opens the same
+ * `CartographerAiStyleModal` the standalone Cartographer page uses, with the
+ * save target fixed to this site — see `useMapExport`'s `site` option and
+ * `useSaveStyledSitePicture` for what saving there actually flattens.
  */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -242,13 +257,13 @@ import {
   useUpdateLocationPicture,
 } from "@/composables/locations/useLocations";
 import { usePlayerVisibleSiteState } from "@/composables/locations/usePlayerVisibleSiteState";
-import { IconGrid, IconImage, IconLayers, IconPencilLine, IconReveal } from "@/lib/icons";
+import { IconGenerate, IconGrid, IconImage, IconLayers, IconPencilLine, IconReveal } from "@/lib/icons";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import type { PublishStaleness } from "@/lib/locations/siteReadiness";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 import type { GridCalibration, Location } from "@/types/location.types";
 
-const { location, map, staleness, counts } = defineProps<{
+const { location, map, staleness, counts, styling = false } = defineProps<{
   location: Pick<
     Location,
     | "id"
@@ -274,9 +289,13 @@ const { location, map, staleness, counts } = defineProps<{
   /** The same tally `useSiteStructure().layerCounts` gives the layer bar —
    *  shared rather than re-derived, so the two never disagree. */
   counts: { spaces: number; ways: number; zones: number };
+  /** An AI style render is in flight for this site (`useMapExport`'s
+   *  `styleGenerating`) — disables Style with AI so a second click can't
+   *  queue a second paid render behind the first. */
+  styling?: boolean;
 }>();
 
-const emit = defineEmits<{ "open-drawing": []; "review-changes": [] }>();
+const emit = defineEmits<{ "open-drawing": []; "review-changes": []; "style-with-ai": [] }>();
 
 const stack = computed(() => buildMapStack(location));
 

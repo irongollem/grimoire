@@ -29,7 +29,7 @@ const admin = createClient(
 type ImagePurpose =
   | "chronicler" | "group_portrait" | "npc_portrait" | "npc_disguise"
   | "monster" | "item" | "spell" | "faction" | "location" | "location_map"
-  | "trap" | "puzzle" | "party_member" | "species" | "map_style";
+  | "trap" | "puzzle" | "party_member" | "species";
 
 const PURPOSE_CONFIG: Record<ImagePurpose, {
   kind: ImageJobKind;
@@ -52,7 +52,6 @@ const PURPOSE_CONFIG: Record<ImagePurpose, {
   puzzle:         { kind: "puzzle",         bucket: "puzzle-images",   prefix: "puzzle",   creditType: "entity_image",       boostStyle: true },
   party_member:   { kind: "party_member",   bucket: "chronicle",       prefix: "party",    creditType: "entity_image",       boostStyle: true },
   species:        { kind: "species",        bucket: "asset-images",    prefix: "species",  creditType: "entity_image",       boostStyle: true },
-  map_style:      { kind: "map_style",      bucket: "location-images", prefix: "styled",   creditType: "map_style_generation", boostStyle: false },
 };
 
 function buildScenePrompt(sceneText: string, textDescriptions: string[], settingPrompt: string, imageBasePrompt: string): string {
@@ -88,7 +87,7 @@ function buildPurposePrompt(
   if (purpose === "npc_portrait") {
     return buildLabelledImagePrompt({ base: imageBasePrompt, setting: settingPrompt, subject });
   }
-  if (purpose === "location_map" || purpose === "map_style") return subject;
+  if (purpose === "location_map") return subject;
   return buildSimpleImagePrompt({ base: imageBasePrompt, setting: settingPrompt, subject });
 }
 
@@ -168,8 +167,8 @@ async function runGeneration(args: {
     });
 
     // provider/model here mirror what recordGeneration logs below: usage.provider
-    // is the actual responding provider (openai-mini resolves to "openai"),
-    // model is the resolved model this call was made with.
+    // is the actual responding provider, model is the resolved model this
+    // call was made with.
     const imageUrl = await uploadResult(b64, contentType, userId, purpose, usage.provider, model);
     await completeImageJob(admin, jobId, imageUrl);
 
@@ -242,7 +241,7 @@ serve(withCors(async (req: Request) => {
   // portrait_urls supplied), not the purpose: this one endpoint serves
   // chronicler scenes, group portraits, NPC disguise and trap scenes alike,
   // all of which pass portrait_urls when they carry a reference; purposes
-  // that never do (species, map_style, a chronicler scene with no @mentions,
+  // that never do (species, a chronicler scene with no @mentions,
   // ...) naturally skip this. Cheap, early, before any credit reservation.
   // Client pre-flights the identical check via useLikenessGate — this rarely
   // actually fires. See context/compliance/provenance-architecture.md §3.

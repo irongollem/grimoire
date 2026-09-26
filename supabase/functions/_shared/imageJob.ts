@@ -25,8 +25,7 @@ export type ImageJobKind =
   | "trap"
   | "puzzle"
   | "party_member"
-  | "species"
-  | "map_style";
+  | "species";
 
 // Allowlist of (table:column) pairs the async completion step may write to.
 // completeImageJob performs a DYNAMIC `.from(target_table).update({[target_column]})`

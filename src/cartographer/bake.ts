@@ -11,6 +11,7 @@ import { BASE_TILE_SIZE, WALL_BAND_RATIO, type PackCategory } from "./packSchema
 import type { TilePackRuntime } from "./packLoader";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { classifyJoint } from "./edges";
+import { nearestGeminiAspect } from "@edge-shared/geminiAspect.ts";
 
 export interface BakeOptions {
   /** Cells of black padding around the painted extent. Default: 3. */
@@ -294,22 +295,180 @@ export async function bakeMapAsPng(
   return canvas.convertToBlob({ type: "image/png" });
 }
 
-/** Bake a map to a max-1024px PNG Blob for AI image input. */
+// ── AI style input sizing (epic #884) ───────────────────────────────────────
+//
+// OpenAI and Gemini accept genuinely different output shapes — OpenAI any
+// size within a window, Gemini one of ten fixed aspect ratios — so the input
+// is fitted to whichever one the campaign will actually use, resolved
+// client-side (`useMapExport.ts`'s `imageProviderKey`) rather than assumed.
+// Fitting to the wrong shape here is exactly what the provider (or
+// `style-map`'s own re-bucketing) would otherwise do server-side, and that's
+// a resize that changes aspect, which breaks the calibration argument below.
+
+/** Which shape the AI style input is fitted to — resolved client-side from
+ *  the campaign's `image_provider`. `"openai"` is flexible-size (any 1:3..3:1
+ *  window, `padToStyleAspect`); `"gemini"` pads to the nearest of its own
+ *  ten fixed aspect ratios instead. */
+export type StyleImageProvider = "openai" | "gemini";
+
+/** OpenAI's supported aspect-ratio window for this endpoint. Content more
+ *  extreme than this gets padded, never cropped, to reach the boundary. */
+const STYLE_MIN_ASPECT = 1 / 3;
+const STYLE_MAX_ASPECT = 3;
+
+/**
+ * The pixel budget this pipeline spends on every render: 2560×1440,
+ * OpenAI's own largest non-experimental size. Sites are increasingly played
+ * fullscreen on a TV built into the table, so resolution is worth spending
+ * in full here — cost is governed separately, by the flat credit charge,
+ * not by trimming pixels.
+ */
+const STYLE_PIXEL_BUDGET = 2560 * 1440; // 3,686,400 px
+const STYLE_MAX_EDGE = 3840;
+const STYLE_SIZE_STEP = 16;
+
+function roundDownToStep(n: number, step: number): number {
+  return Math.max(step, Math.floor(n / step) * step);
+}
+
+/**
+ * Pure geometry for centering a `contentWidth × contentHeight` render onto a
+ * canvas whose aspect ratio is exactly `targetAspect` — no rescale, only an
+ * added border on whichever axis is short, so a cell that was
+ * `contentWidth / contentCellsPerWidth` px wide stays exactly that many
+ * pixels wide on the padded canvas. `cellsPerImageWidth` grows by the same
+ * ratio the canvas itself grew by (`effWidth / contentWidth`) because more
+ * of that unchanged pixel grid now fits across the wider canvas;
+ * `originXPct`/`originYPct` place a `GridCalibration`'s origin exactly
+ * where the un-padded content used to start, so the map-cell that used to
+ * sit at image cell (0,0) still does. A no-op (zero offset) when the
+ * content already has `targetAspect`.
+ */
+export interface AspectPadGeometry {
+  effWidth: number;
+  effHeight: number;
+  offsetX: number;
+  offsetY: number;
+  cellsPerImageWidth: number;
+  originXPct: number;
+  originYPct: number;
+}
+
+export function padToAspect(
+  contentWidth: number,
+  contentHeight: number,
+  contentCellsPerWidth: number,
+  targetAspect: number,
+): AspectPadGeometry {
+  const aspect = contentWidth > 0 && contentHeight > 0 ? contentWidth / contentHeight : targetAspect;
+  const effWidth = aspect < targetAspect ? contentHeight * targetAspect : contentWidth;
+  const effHeight = aspect > targetAspect ? contentWidth / targetAspect : contentHeight;
+  const offsetX = Math.round((effWidth - contentWidth) / 2);
+  const offsetY = Math.round((effHeight - contentHeight) / 2);
+  return {
+    effWidth,
+    effHeight,
+    offsetX,
+    offsetY,
+    cellsPerImageWidth: contentWidth > 0 ? contentCellsPerWidth * (effWidth / contentWidth) : contentCellsPerWidth,
+    originXPct: effWidth > 0 ? offsetX / effWidth : 0,
+    originYPct: effHeight > 0 ? offsetY / effHeight : 0,
+  };
+}
+
+/** `padToAspect` clamped into OpenAI's accepted window — the shape every AI
+ *  style input pads to before the pixel budget below decides its resolution. */
+export function padToStyleAspect(
+  contentWidth: number,
+  contentHeight: number,
+  contentCellsPerWidth: number,
+): AspectPadGeometry {
+  const aspect = contentWidth > 0 && contentHeight > 0 ? contentWidth / contentHeight : 1;
+  const clamped = Math.min(STYLE_MAX_ASPECT, Math.max(STYLE_MIN_ASPECT, aspect));
+  return padToAspect(contentWidth, contentHeight, contentCellsPerWidth, clamped);
+}
+
+/**
+ * The final send/request size for a canvas of `effWidth × effHeight` — the
+ * full `STYLE_PIXEL_BUDGET` spent at that aspect ratio, each edge rounded
+ * *down* to a multiple of 16 so the total never exceeds the budget (OpenAI
+ * requires the multiple; rounding down is what keeps 2560×1440 itself exact
+ * rather than nudging over it), capped at `STYLE_MAX_EDGE` regardless of
+ * aspect. Independent of how large or small the original content actually
+ * is — this only reads its aspect ratio, via `effWidth`/`effHeight`.
+ */
+export function chooseStyleImageSize(effWidth: number, effHeight: number): { width: number; height: number } {
+  const aspect = effWidth > 0 && effHeight > 0 ? effWidth / effHeight : 1;
+  const rawHeight = Math.sqrt(STYLE_PIXEL_BUDGET / aspect);
+  const rawWidth = rawHeight * aspect;
+  return {
+    width: Math.min(STYLE_MAX_EDGE, roundDownToStep(rawWidth, STYLE_SIZE_STEP)),
+    height: Math.min(STYLE_MAX_EDGE, roundDownToStep(rawHeight, STYLE_SIZE_STEP)),
+  };
+}
+
+/**
+ * Pads `source` to `provider`'s accepted shape and resizes the result to
+ * the size that shape earns — the AI styler's own input, on every entry
+ * point. Flexible OpenAI pads into `padToStyleAspect`'s 1:3..3:1 window and
+ * spends `chooseStyleImageSize`'s pixel budget at whatever aspect that
+ * leaves; Gemini pads to the *exact* nearest of its own ten fixed ratios
+ * (`nearestGeminiAspect`) and is still sized by the same budget. Padding and
+ * resizing are independent, pure steps — the pad only ever adds a border
+ * (never rescales), and the resize is a plain fit onto the chosen canvas —
+ * so `geometry`'s `cellsPerImageWidth`/`originXPct`/`originYPct`, computed
+ * entirely from the pad step, carry over to the final canvas. One caveat:
+ * `chooseStyleImageSize` rounds each edge down to a multiple of 16 on its
+ * own, so the final aspect can differ from the padded one by up to about 1%.
+ * `GridCalibration` has a single cell size, so that sliver shows up as rows
+ * drifting slightly toward the bottom edge; the Layers panel's Calibrate is
+ * the fix, as it is for the model's own drift. See `useMapExport.ts`'s
+ * header for the rest of the calibration argument.
+ */
+export function fitStyleInputCanvas(
+  source: OffscreenCanvas,
+  contentCellsPerWidth: number,
+  provider: StyleImageProvider = "openai",
+): { canvas: OffscreenCanvas; geometry: AspectPadGeometry; size: { width: number; height: number } } {
+  const geometry = provider === "gemini"
+    ? padToAspect(
+        source.width,
+        source.height,
+        contentCellsPerWidth,
+        nearestGeminiAspect(source.width, source.height).ratio,
+      )
+    : padToStyleAspect(source.width, source.height, contentCellsPerWidth);
+  const size = chooseStyleImageSize(geometry.effWidth, geometry.effHeight);
+
+  const padded = new OffscreenCanvas(geometry.effWidth, geometry.effHeight);
+  const pctx = padded.getContext("2d")!;
+  pctx.fillStyle = "#000";
+  pctx.fillRect(0, 0, geometry.effWidth, geometry.effHeight);
+  pctx.drawImage(source, geometry.offsetX, geometry.offsetY);
+
+  const canvas = new OffscreenCanvas(size.width, size.height);
+  canvas.getContext("2d")!.drawImage(padded, 0, 0, size.width, size.height);
+
+  return { canvas, geometry, size };
+}
+
+/**
+ * Bake a map to a PNG Blob sized for AI image input — fitted to the
+ * resolved provider's accepted aspect window and pixel budget
+ * (`fitStyleInputCanvas`), so the geometry it returns describes whatever
+ * comes back with no further measurement needed.
+ */
 export async function bakeMapForAI(
   map: DungeonMap,
   runtimes: Map<string, TilePackRuntime>,
   options: BakeOptions = {},
   glyphs: Record<CellKey, PackCategory> = {},
-): Promise<Blob> {
-  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3, glyphs);
-  const MAX_DIM = 1024;
-  if (canvas.width <= MAX_DIM && canvas.height <= MAX_DIM) {
-    return canvas.convertToBlob({ type: "image/png" });
-  }
-  const scale = MAX_DIM / Math.max(canvas.width, canvas.height);
-  const w = Math.round(canvas.width * scale);
-  const h = Math.round(canvas.height * scale);
-  const scaled = new OffscreenCanvas(w, h);
-  scaled.getContext("2d")!.drawImage(canvas, 0, 0, w, h);
-  return scaled.convertToBlob({ type: "image/png" });
+  provider: StyleImageProvider = "openai",
+): Promise<{ blob: Blob; geometry: AspectPadGeometry; size: { width: number; height: number } }> {
+  const paddingCells = options.paddingCells ?? 3;
+  const canvas = renderToCanvas(map, runtimes, paddingCells, glyphs);
+  const dims = computeBakedDimensions(map, paddingCells);
+  const { canvas: fitted, geometry, size } = fitStyleInputCanvas(canvas, dims.cols, provider);
+  const blob = await fitted.convertToBlob({ type: "image/png" });
+  return { blob, geometry, size };
 }

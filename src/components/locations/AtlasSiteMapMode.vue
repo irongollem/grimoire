@@ -12,8 +12,10 @@
       :map="siteSourceMap"
       :staleness="siteStaleness"
       :counts="siteLayerCounts"
+      :styling="styleGenerating"
       @open-drawing="onOpenDrawing"
       @review-changes="onReviewChanges"
+      @style-with-ai="onStyleWithAi"
     />
 
     <!-- Build mode (#884 S11): the workbench IS the Build map area — the
@@ -136,6 +138,38 @@
       @pick-stair-target="(cellKey, id) => (mapPublish.stairTargets.value = { ...mapPublish.stairTargets.value, [cellKey]: id })"
       @publish="mapPublish.publish()"
     />
+
+    <!-- Style with AI (#884 decision 1) — the Layers panel's Drawing row
+         opens this in place, target fixed to this site: no `EntityCombobox`,
+         see `useMapExport`'s `site` option. -->
+    <CartographerAiStyleModal
+      v-if="isSite"
+      v-model:atlasLocationId="styleAtlasLocationId"
+      :show-picker="showStylePicker"
+      :show-result="showStyleResult"
+      :presets="CARTOGRAPHER_STYLE_PRESETS"
+      :selected-preset-id="selectedPresetId"
+      :prompt-suffix="stylePromptSuffix"
+      :generating="styleGenerating"
+      :error="styleError"
+      :result-url="styleResultUrl"
+      :location-options="NO_LOCATION_OPTIONS"
+      :fixed-target-label="styleFixedTargetLabel"
+      :atlas-target-has-map="styleAtlasTargetHasMap"
+      :atlas-error="styleAtlasError"
+      :atlas-saving="styleAtlasSaving"
+      :credits="styleCost"
+      :byok="styleByok"
+      @close-picker="showStylePicker = false"
+      @close-result="showStyleResult = false"
+      @generate="onGenerateStyle"
+      @retry="onRetryStyle"
+      @back-to-picker="showStyleResult = false; showStylePicker = true"
+      @download-styled="onDownloadStyled"
+      @save-to-atlas="onSaveStyledToAtlas"
+      @update:selected-preset-id="selectedPresetId = $event"
+      @update:prompt-suffix="stylePromptSuffix = $event"
+    />
   </div>
 </template>
 
@@ -172,8 +206,11 @@ import LocationMap from "@/components/locations/LocationMap.vue";
 import SiteLevelsColumn from "@/components/locations/SiteLevelsColumn.vue";
 import SiteMapLayersPanel from "@/components/locations/SiteMapLayersPanel.vue";
 import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
+import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
 import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
 import MapWorkbench from "@/components/cartographer/MapWorkbench.vue";
+import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
+import { useMapExport } from "@/composables/cartographer/useMapExport";
 import { useMapPublish } from "@/composables/cartographer/useMapPublish";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
@@ -188,6 +225,12 @@ import type { ZoomPlan } from "@/lib/locations/mapZoom";
 import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import type { AtlasIndex } from "@/lib/locations/tree";
 import type { Location } from "@/types/location.types";
+
+/** `CartographerAiStyleModal`'s `locationOptions` prop is unused whenever
+ *  `fixedTargetLabel` is set (as it always is here) — a stable module-scope
+ *  constant rather than `[]` inline in the template, which would recreate
+ *  the array every render for a prop nothing reads. */
+const NO_LOCATION_OPTIONS: { id: string; name: string }[] = [];
 
 const { location, index, children, building = false } = defineProps<{
   /** Only ever mounted once the caller has confirmed `hasMap` — never null. */
@@ -246,6 +289,51 @@ function onOpenDrawing() {
 const locationForDrawing = computed(() => location);
 const drawingEditor = useSiteDrawingEditor(locationForDrawing, siteSourceMap);
 const drawingWorkbenchRef = drawingEditor.workbenchRef;
+
+// ── Style with AI (#884 decision 1) — restyle the Drawing and have the
+// render bubble down to this site's own Picture. `site` is what makes this
+// instance Atlas Build's own entry point rather than the standalone
+// Cartographer page's free-pick one — see `useMapExport`'s header doc and
+// `useSaveStyledSitePicture` for what saving here actually does to the
+// stack. Reads off `drawingWorkbenchRef` the same soft, null-safe way
+// `mapPublish` below does: this can't `requireWorkbench()` and throw on a
+// missing ref, since every getter here is live even while the workbench is
+// unmounted (Browsing, not Building).
+const {
+  showStylePicker,
+  showStyleResult,
+  selectedPresetId,
+  stylePromptSuffix,
+  styleGenerating,
+  styleResultUrl,
+  styleError,
+  styleAtlasLocationId,
+  styleAtlasError,
+  styleAtlasSaving,
+  styleAtlasTargetHasMap,
+  styleFixedTargetLabel,
+  styleByok,
+  styleCost,
+  onGenerateStyle,
+  onRetryStyle,
+  onDownloadStyled,
+  onSaveStyledToAtlas,
+} = useMapExport({
+  buildMap: () => {
+    const wb = drawingWorkbenchRef.value;
+    return wb && siteSourceMap.value
+      ? { ...siteSourceMap.value, layers: wb.getLayers(), metadata: wb.getMetadata() }
+      : null;
+  },
+  runtimes: () => drawingWorkbenchRef.value?.getRuntimes() ?? new Map(),
+  mapName: () => drawingWorkbenchRef.value?.getName() ?? location.name,
+  glyphs: () => drawingWorkbenchRef.value?.getCellGlyphs() ?? {},
+  site: () => ({ id: location.id, name: location.name, picture: mapStack.value.picture }),
+});
+
+function onStyleWithAi(): void {
+  showStylePicker.value = true;
+}
 
 // #884 review finding 1: a debounced autosave that's still pending when the
 // DM navigates away used to be dropped outright — nothing ever flushed it.

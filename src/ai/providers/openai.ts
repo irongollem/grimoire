@@ -43,7 +43,7 @@ export function createOpenAiTextProvider(apiKey: string): TextProvider {
 
 export function createOpenAiImageProvider(
   apiKey: string,
-  model: "gpt-image-2" | "gpt-image-1.5" | "gpt-image-1-mini" = "gpt-image-2",
+  model: "gpt-image-2" | "gpt-image-1.5" = "gpt-image-2",
 ): ImageProvider {
   const baseUsage: Omit<ImageUsage, "image_count"> = { model, provider: "openai" };
 

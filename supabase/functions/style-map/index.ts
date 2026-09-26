@@ -7,6 +7,9 @@ import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-confi
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
+import { isValidGeminiAspectRatio } from "../_shared/geminiAspect.ts";
+import { isValidStyleImageSize, readPngDimensions } from "../_shared/imageSize.ts";
+import { isFlexibleOpenAiModel } from "../_shared/openaiImageModel.ts";
 import { isPromptRejected } from "../_shared/moderation.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
@@ -124,7 +127,7 @@ serve(withCors(async (req: Request) => {
     fetchProviderConfigs(admin, ["openai", "gemini"]),
   ]);
 
-  // Resolve the campaign's chosen image provider (openai / openai-mini / gemini).
+  // Resolve the campaign's chosen image provider (openai / gemini).
   const img = resolveImageProvider({
     imageProvider: campaign.image_provider,
     campaignKeys: { openai: campaignOpenai, gemini: campaignGemini },
@@ -135,6 +138,56 @@ serve(withCors(async (req: Request) => {
     return new Response("No image API key configured", { status: 422 });
   }
   const isByok = img.isByok;
+
+  // Everything that can reject the upload runs here, before the rate limit
+  // and the credit reservation below: a 400 after `reserveCredits` would
+  // return without releasing the hold.
+  // Decode base64 PNG to bytes — the client-supplied map is restyled (edit/compose).
+  let byteStr: string;
+  try {
+    byteStr = atob(image_b64);
+  } catch {
+    return new Response("image_b64 is not valid base64", { status: 400 });
+  }
+  const bytes = new Uint8Array(byteStr.length);
+  for (let i = 0; i < byteStr.length; i++) bytes[i] = byteStr.charCodeAt(i);
+  const mapBlob = new Blob([bytes], { type: "image/png" });
+
+  // The size requested from the provider is read from the uploaded PNG's own
+  // IHDR chunk, never a client-sent field — there is no such field, so a
+  // caller cannot ask for a size the image itself doesn't carry. Re-validated
+  // against the resolved provider/model's own rules (the client is expected
+  // to have already fit its render to them, `bake.ts`'s `fitStyleInputCanvas`)
+  // so a malformed or out-of-range upload is rejected here rather than
+  // forwarded to a paid provider call. Gemini has no multiple-of-16/total-pixel
+  // rule of its own, only a fixed list of aspect ratios (`geminiAspect.ts`);
+  // its own request resolution is the admin's `imageSize` knob regardless of
+  // what was sent. The OpenAI check reads `img.model`, not just `img.base`:
+  // only `gpt-image-2.5-*` takes an arbitrary size — an admin can point a
+  // campaign's plain "openai" provider at an older model via
+  // `provider_config`, and the client always sends a flexible-fitted image
+  // for "openai" since it can't see which model that actually is.
+  const dims = readPngDimensions(bytes);
+  if (!dims) return new Response("image_b64 is not a valid PNG", { status: 400 });
+  if (img.base === "gemini") {
+    if (!isValidGeminiAspectRatio(dims.width, dims.height)) {
+      return new Response(
+        `Image aspect ${dims.width}x${dims.height} does not match any of Gemini's supported ratios (1:1, 3:2, 2:3, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9)`,
+        { status: 400 },
+      );
+    }
+  } else if (!isFlexibleOpenAiModel(img.model)) {
+    return new Response(
+      `This campaign's image model (${img.model}) does not accept the AI map styler's flexible-sized input; ask an admin to use a gpt-image-2.5 model`,
+      { status: 400 },
+    );
+  } else if (!isValidStyleImageSize(dims.width, dims.height)) {
+    return new Response(
+      `Image size ${dims.width}x${dims.height} is outside the accepted range (multiples of 16, 1:3..3:1, <=3840px per edge, 655,360..8,294,400 total px)`,
+      { status: 400 },
+    );
+  }
+  const size = `${dims.width}x${dims.height}`;
 
   const baseCost = isByok ? 0 : await fetchCreditCost(admin, "map_style_generation");
   const cost = applyMultiplier(baseCost, img.imageMultiplier);
@@ -155,18 +208,12 @@ serve(withCors(async (req: Request) => {
 
   const prompt = buildPrompt(preset_id, map_name, map_description, prompt_suffix);
 
-  // Decode base64 PNG to bytes — the client-supplied map is restyled (edit/compose).
-  const byteStr = atob(image_b64);
-  const bytes = new Uint8Array(byteStr.length);
-  for (let i = 0; i < byteStr.length; i++) bytes[i] = byteStr.charCodeAt(i);
-  const mapBlob = new Blob([bytes], { type: "image/png" });
-
   let imgResult: Awaited<ReturnType<typeof generateImage>>;
   try {
     imgResult = await generateImage({
       provider: img.provider, model: img.model, apiKey: img.apiKey,
       screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "map_style" },
-      prompt, size: "1024x1024", quality: img.imageQuality, sourceImages: [mapBlob],
+      prompt, size, quality: img.imageQuality, sourceImages: [mapBlob],
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
@@ -180,7 +227,7 @@ serve(withCors(async (req: Request) => {
 
   await releaseCredits(admin, reservation.ids);
   await recordGeneration(admin, user.id, "map_style_generation", isByok, cost, {
-    model: img.model, quality: img.imageQuality, size: "1024x1024",
+    model: img.model, quality: img.imageQuality, size,
     provider: imgResult.usage.provider,
     image_count: 1,
     input_tokens:       imgResult.usage.input_tokens       || undefined,

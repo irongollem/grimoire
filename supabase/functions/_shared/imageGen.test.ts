@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { generateImage, isProviderRefusal, ProviderRefusedError } from "./imageGen.ts";
+import { generateImage, isProviderRefusal, ProviderRefusedError, sizeToAspect } from "./imageGen.ts";
 
 /**
  * The half of the screening loop our own classifier cannot supply: what the
@@ -140,5 +140,49 @@ describe("generateImage — provider verdict recording", () => {
     await generateImage({ provider: "openai", model: "gpt-image-2", apiKey: "sk", prompt: "x", size: "1024x1024" });
 
     expect(calls.some((c) => c.url.includes("/moderations"))).toBe(false);
+  });
+});
+
+describe("sizeToAspect", () => {
+  it("picks the exact bucket for an already-supported ratio", () => {
+    expect(sizeToAspect("1600x900").aspectRatio).toBe("16:9"); // 1.778
+    expect(sizeToAspect("900x1600").aspectRatio).toBe("9:16");
+    expect(sizeToAspect("1024x1024").aspectRatio).toBe("1:1");
+    expect(sizeToAspect("1200x900").aspectRatio).toBe("4:3");
+    expect(sizeToAspect("900x1200").aspectRatio).toBe("3:4");
+  });
+
+  it("picks the nearest bucket for a ratio Gemini has no exact match for", () => {
+    // The AI styler's own map aspect ratios rarely land on one of Gemini's
+    // ten discrete buckets exactly — this is the ordinary case, not an edge
+    // one. 2:1 (2.0) sits almost exactly between 16:9 (1.778) and 21:9
+    // (2.333) in log space, and slightly closer to 16:9.
+    expect(sizeToAspect("2000x1000").aspectRatio).toBe("16:9");
+  });
+
+  it("treats a very wide map as 21:9 rather than clamping to 16:9", () => {
+    expect(sizeToAspect("2560x1000").aspectRatio).toBe("21:9"); // 2.56, closer to 21:9 (2.333) than 16:9 (1.778)
+  });
+
+  it("compares distance in log space, not plain linear difference", () => {
+    // 2.045 sits between 16:9 (1.778) and 21:9 (2.333). Linearly it's
+    // closer to 16:9 (|2.045-1.778|=0.267 vs |2.045-2.333|=0.288), but a
+    // proportional (log-space) comparison puts it closer to 21:9
+    // (ln(2.045/1.778)=0.140 vs ln(2.045/2.333)=0.132) — the metric this
+    // function actually uses, so it picks 21:9. A plain-difference
+    // implementation would get this one wrong.
+    expect(sizeToAspect("2045x1000").aspectRatio).toBe("21:9");
+  });
+
+  it("picks 9:16 for a very tall map, not a nonexistent mirror of 21:9", () => {
+    // 21:9 has no reciprocal entry in Gemini's own list (there's no "9:21"),
+    // so a very tall map still resolves to the nearest real bucket, 9:16.
+    expect(sizeToAspect("1000x2100").aspectRatio).toBe("9:16");
+  });
+
+  it("still reads the resolution from the admin quality knob, unaffected by the aspect change", () => {
+    expect(sizeToAspect("1600x900", "2K").imageSize).toBe("2K");
+    expect(sizeToAspect("1600x900", "bogus").imageSize).toBe("1K");
+    expect(sizeToAspect("1600x900").imageSize).toBe("1K");
   });
 });
