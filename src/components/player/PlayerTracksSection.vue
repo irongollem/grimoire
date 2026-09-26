@@ -35,6 +35,7 @@ import { useTrackerStates, useApplyTrackerDelta } from "@/composables/dashboard/
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useParty } from "@/composables/party/useParty";
 import { listOptionalRules } from "@/rules/optionalRules";
+import { trackerInitialValue } from "@/lib/rules/trackerValue";
 import type { TrackerDef, TrackerState, DmButton } from "@/types/rule.types";
 
 const props = defineProps<{
@@ -63,24 +64,30 @@ const enabledBuiltInTrackers = computed(() =>
 
 /**
  * A member with no state row has never touched this tracker, and that reads as
- * the tracker's **floor**, not as zero.
+ * the tracker's **starting value**, not as zero.
  *
  * It used to read as zero, which was invisible for every tracker whose `min`
  * happens to be 0 and wrong for the rest — `DmTrackerButtons.vue` has always
  * used `rule.tracker.min` here, so a Sanity track running 1–10 showed the DM a
  * fresh character at 1 and the player the same character at 0. Two readings of
  * one untouched tracker, in two views of the same table.
+ *
+ * `min` was itself only ever a stand-in for "where this tracker starts" —
+ * some trackers start elsewhere, e.g. the demo campaign's Lucidity (0 to 10,
+ * every character starts at 8) — so the fallback now goes through
+ * `trackerInitialValue`, which reads the def's own `start` when the rule
+ * author set one.
  */
 function stateValue(
   rows: TrackerState[],
   ruleKey: string | null,
   ruleId: string | null,
-  floor: number,
+  def: TrackerDef,
 ): number {
   const row = ruleKey
     ? rows.find((r) => r.party_member_id === props.memberId && r.rule_key === ruleKey)
     : rows.find((r) => r.party_member_id === props.memberId && r.rule_id === ruleId);
-  return row === undefined ? floor : row.value;
+  return row === undefined ? trackerInitialValue(def) : row.value;
 }
 
 interface TrackerEntry {
@@ -96,10 +103,10 @@ const activeTrackers = computed<TrackerEntry[]>(() => {
   const items: TrackerEntry[] = [];
 
   for (const t of enabledBuiltInTrackers.value) {
-    items.push({ key: `builtin:${t.ruleKey}`, def: t.def, value: stateValue(rows, t.ruleKey, null, t.def.min), ruleKey: t.ruleKey });
+    items.push({ key: `builtin:${t.ruleKey}`, def: t.def, value: stateValue(rows, t.ruleKey, null, t.def), ruleKey: t.ruleKey });
   }
   for (const t of props.customTrackers) {
-    items.push({ key: `custom:${t.ruleId}`, def: t.def, value: stateValue(rows, null, t.ruleId, t.def.min), ruleId: t.ruleId });
+    items.push({ key: `custom:${t.ruleId}`, def: t.def, value: stateValue(rows, null, t.ruleId, t.def), ruleId: t.ruleId });
   }
   return items;
 });
@@ -119,6 +126,7 @@ async function applyButton(t: TrackerEntry, btn: DmButton) {
       setValue:      btn.mode === "set" ? btn.setValue : undefined,
       min:           t.def.min,
       max:           t.def.max,
+      start:         t.def.start,
     });
   } finally {
     applying.value = false;

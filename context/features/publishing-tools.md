@@ -309,7 +309,7 @@ DM-authored rules, tables, and house rule documents. Each rule has:
 Custom rules support an optional **Tracker** bolt-on:
 
 - Two tracker types: **Level** (named states, e.g. Chilled → Frozen → Hypothermic) and **Points** (numeric pool, e.g. 0–20 Sanity)
-- Min/Max values
+- Min/Max values, plus an optional Starting value (`TrackerDef.start`, `src/types/rule.types.ts`) for trackers that don't start at their floor, e.g. the demo campaign's Lucidity (0–10, every character starts at 8). Absent, a character with no saved state reads at `min`, same as before this field existed. Every reader of an unset tracker value (the player character sheet, DM tracker buttons, the dashboard rule-tracker widget, and the delta-apply math) goes through the one pure helper `trackerInitialValue()` (`src/lib/rules/trackerValue.ts`), which also clamps a saved `start` into [min, max]
 - **Levels** (Level type): each level has a numeric or ability-code value, a name, a color badge, and a list of mechanical effects:
   - Note (label shown on player sheet)
   - Speed penalty (numeric)

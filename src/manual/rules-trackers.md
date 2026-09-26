@@ -24,6 +24,7 @@ Use trackers for homebrew mechanics that require persistent tracking:
 - **Track Label**: the name shown everywhere the tracker appears (e.g. "Corruption", "Sanity").
 - **Type**: **Level** (named states) or **Points** (a numeric pool).
 - **Min Value** / **Max Value**: the range the tracker's value is clamped to.
+- **Starting Value**: where a character with no recorded value yet starts. Leave it blank to start at Min, or set it to anywhere within the range, e.g. a Lucidity track running 0 to 10 where every character starts at 8.
 
 ### Points
 

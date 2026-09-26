@@ -36,6 +36,7 @@
 import { computed, ref } from "vue";
 import { useTrackerStates, useApplyTrackerDelta } from "@/composables/dashboard/useTrackerState";
 import { useRules } from "@/composables/rules/useRules";
+import { trackerInitialValue } from "@/lib/rules/trackerValue";
 import AppButton from "@/components/common/AppButton.vue";
 import type { DmButton } from "@/types/rule.types";
 
@@ -57,6 +58,7 @@ interface ButtonEntry {
   value: number;
   min: number;
   max: number;
+  start?: number;
 }
 
 const activeRulesWithButtons = computed<ButtonEntry[]>(() => {
@@ -73,9 +75,10 @@ const activeRulesWithButtons = computed<ButtonEntry[]>(() => {
       ruleId:    rule.id,
       label:     rule.tracker.label,
       dmButtons: rule.tracker.dmButtons,
-      value:     state?.value ?? rule.tracker.min,
+      value:     state?.value ?? trackerInitialValue(rule.tracker),
       min:       rule.tracker.min,
       max:       rule.tracker.max,
+      start:     rule.tracker.start,
     });
   }
 
@@ -93,6 +96,7 @@ async function apply(entry: ButtonEntry, btn: DmButton) {
       setValue:      btn.mode === "set" ? btn.setValue : undefined,
       min:           entry.min,
       max:           entry.max,
+      start:         entry.start,
     });
   } finally {
     applying.value = false;

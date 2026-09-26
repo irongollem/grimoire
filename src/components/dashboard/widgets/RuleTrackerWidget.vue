@@ -79,6 +79,7 @@ import { useRules } from "@/composables/rules/useRules";
 import { useParty } from "@/composables/party/useParty";
 import { useTrackerStates, useApplyTrackerDelta } from "@/composables/dashboard/useTrackerState";
 import { resolveRuleTracker, type RuleTrackerResolution } from "@/lib/dashboard/ruleTrackerCard";
+import { trackerInitialValue } from "@/lib/rules/trackerValue";
 import type { DmButton } from "@/types/rule.types";
 
 const { settings } = defineProps<{
@@ -144,8 +145,9 @@ const memberEntries = computed<MemberEntry[]>(() => {
       memberId: member.id,
       name: member.name,
       // Mirrors DmTrackerButtons: no state row yet means the member has never
-      // touched this tracker, which reads as the tracker's floor, not zero.
-      value: row?.value ?? tracker.min,
+      // touched this tracker, which reads as the tracker's starting value
+      // (its `min` unless the rule set a `start` elsewhere), not zero.
+      value: row?.value ?? trackerInitialValue(tracker),
       abilityScores: {
         str: member.str,
         dex: member.dex,
@@ -171,6 +173,7 @@ async function apply(memberId: string, btn: DmButton) {
       setValue: btn.mode === "set" ? btn.setValue : undefined,
       min: tracker.min,
       max: tracker.max,
+      start: tracker.start,
     });
   } finally {
     applying.value = false;

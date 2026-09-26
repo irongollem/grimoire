@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { trackerInitialValue } from "@/lib/rules/trackerValue";
 import type { TrackerState } from "@/types/rule.types";
 
 const KEY = "tracker_state";
@@ -54,18 +55,6 @@ function findTrackerRow(
     : rows.find((r) => r.party_member_id === partyMemberId && r.rule_id === ruleId);
 }
 
-/**
- * Returns the current tracker value for a specific party member + rule.
- * Pass either ruleKey (built-in) or ruleId (custom), not both.
- */
-export function useTrackerValue(partyMemberId: string, ruleKey?: string, ruleId?: string) {
-  const { data } = useTrackerStates();
-  return computed(() => {
-    const row = findTrackerRow(data.value ?? [], partyMemberId, ruleKey, ruleId);
-    return row?.value ?? 0;
-  });
-}
-
 /** Set a tracker value (upsert). Used by DM buttons and trigger hooks. */
 export function useSetTrackerValue() {
   const queryClient = useQueryClient();
@@ -91,13 +80,20 @@ export function useApplyTrackerDelta() {
     setValue?: number;
     min: number;
     max: number;
+    /** The tracker's starting value, when it has one other than `min`. */
+    start?: number;
   }) => {
     let clamped: number;
     if (opts.setValue !== undefined) {
       clamped = Math.max(opts.min, Math.min(opts.max, opts.setValue));
     } else {
       const rows = data.value ?? [];
-      const current = findTrackerRow(rows, opts.partyMemberId, opts.ruleKey, opts.ruleId)?.value ?? 0;
+      // A member with no row yet has never touched this tracker, so the first
+      // delta button press counts up from its starting value, not from min
+      // (and never from a bare 0 — a Lucidity track starting at 8 pressing
+      // "-1" must land on 7, not -1).
+      const current = findTrackerRow(rows, opts.partyMemberId, opts.ruleKey, opts.ruleId)?.value
+        ?? trackerInitialValue({ min: opts.min, max: opts.max, start: opts.start });
       clamped = Math.max(opts.min, Math.min(opts.max, current + opts.delta));
     }
     await set({

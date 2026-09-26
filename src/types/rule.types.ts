@@ -76,6 +76,11 @@ export interface TrackerDef {
   type: "level" | "points";
   min: number;
   max: number;
+  /** Where a character with no saved state starts, e.g. Lucidity 0–10 starting
+   *  at 8. Absent means the tracker starts at `min`, same as before this field
+   *  existed. Clamped into [min, max] by `trackerInitialValue` — never trust
+   *  it directly. */
+  start?: number;
   levels?: TrackerLevel[];      // required when type = "level"
   triggers?: TrackerTriggers;
   dmButtons?: DmButton[];

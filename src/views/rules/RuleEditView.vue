@@ -119,8 +119,8 @@
             </div>
           </div>
 
-          <!-- Min / Max -->
-          <div class="grid grid-cols-2 gap-3">
+          <!-- Min / Max / Starting value -->
+          <div class="grid grid-cols-3 gap-3">
             <div class="space-y-1.5">
               <label class="text-eyebrow font-semibold text-muted-foreground">MIN VALUE</label>
               <AppInput v-model.number="tracker.min" type="number" tone="default" size="body" />
@@ -128,6 +128,17 @@
             <div class="space-y-1.5">
               <label class="text-label font-semibold text-muted-foreground">MAX VALUE</label>
               <AppInput v-model.number="tracker.max" type="number" tone="default" size="body" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-label font-semibold text-muted-foreground" title="Where a character with no saved value yet starts. Blank starts at Min.">STARTING VALUE</label>
+              <AppInput
+                :model-value="tracker.start ?? null"
+                type="number"
+                tone="default"
+                size="body"
+                placeholder="Min"
+                @update:model-value="setStart"
+              />
             </div>
           </div>
 
@@ -554,6 +565,17 @@ function numOrUndef(v: string | number | null): number | undefined {
 function strOrUndef(v: string | number | null): string | undefined {
   if (v === null || v === "") return undefined;
   return String(v);
+}
+
+// Blank means "start at Min" (`start: undefined`), same reading
+// `trackerInitialValue` gives it everywhere else. A typed value is clamped
+// into [min, max] immediately, so the saved tracker can never hold a
+// starting value its own range disagrees with.
+function setStart(v: string | number | null): void {
+  if (!tracker.value) return;
+  tracker.value.start = v === null || v === ""
+    ? undefined
+    : Math.max(tracker.value.min, Math.min(tracker.value.max, Number(v)));
 }
 
 const ABILITY_CODES = new Set(["STR", "DEX", "CON", "INT", "WIS", "CHA"]);
