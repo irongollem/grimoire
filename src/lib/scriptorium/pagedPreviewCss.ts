@@ -34,6 +34,14 @@ export function buildPagedPreviewCss(opts: PagedPreviewCssOptions): string {
   // edge-to-edge (full bleed). Height = the full page minus a couple px: an
   // exact fit rounds up and overflows into a blank continuation page.
   const coverHeightPx = EDITOR_PAGE_DIMENSIONS_PX[pageSize].h - 4;
+  // An image taller than the space left on a page cannot be placed: Paged.js
+  // logs "Unable to layout item" and draws the same image again on the next
+  // page. A full-width chapter opener in a two-column A4 book did exactly
+  // that, three times over (#915 story 6). Capping images at 80% of the
+  // content box (page height minus the 56 + 53 px @page margins below) leaves
+  // room for the heading that usually sits above one, and object-fit keeps the
+  // picture's proportions when the cap shortens it.
+  const imageMaxHeightPx = Math.floor((EDITOR_PAGE_DIMENSIONS_PX[pageSize].h - 56 - 53) * 0.8);
 
   // Parchment chrome on the rendered page boxes (omitted in ink-friendly mode).
   const pageChrome = inkFriendly
@@ -75,6 +83,12 @@ hr, .sc-page-break {
   ${pageChrome}
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   margin: 0 auto 1.5rem;
+}
+/* See imageMaxHeightPx above: no image may be taller than a page can hold. */
+.pagedjs_page_content img {
+  max-height: ${imageMaxHeightPx}px;
+  object-fit: contain;
+  break-inside: avoid;
 }
 /* Position context for injected .sc-footer (absolute, bottom:0). */
 .pagedjs_pagebox { position: relative; }

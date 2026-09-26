@@ -16,6 +16,14 @@ describe("buildPagedPreviewCss", () => {
     expect(css).toContain("break-before: page");
   });
 
+  it("caps images below the page's content height so Paged.js never repeats one on the next page", () => {
+    // A4 is 1123px tall at 96dpi; minus the 109px of vertical @page margin,
+    // 80% of the 1014px content box is 811px.
+    expect(buildPagedPreviewCss({ pageSize: "A4", inkFriendly: false })).toContain("max-height: 811px");
+    const a5 = buildPagedPreviewCss({ pageSize: "A5", inkFriendly: false });
+    expect(a5).toMatch(/\.pagedjs_page_content img \{[^}]*max-height: \d+px[^}]*object-fit: contain/);
+  });
+
   it("drops the page background in ink-friendly mode", () => {
     expect(buildPagedPreviewCss(base)).toContain("page-background.webp");
     const ink = buildPagedPreviewCss({ ...base, inkFriendly: true });
