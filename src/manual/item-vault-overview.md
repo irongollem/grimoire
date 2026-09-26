@@ -27,6 +27,7 @@ The list filters by:
 - **Item type**: weapon, armor, shield, ring, wand, staff, scroll, potion, gear, ammunition, art object, other.
 - **Rarity**: mundane through legendary.
 - **Source**: narrows to one publisher/source (populated from what's actually in your Vault).
+- **Scope**: All scopes, This campaign, General, or Library; check "Show items from all campaigns" to also offer Other campaigns.
 - **Show items from all campaigns** checkbox: off by default, so the list shows only general items plus items scoped to your active campaign; check it to search your whole library at once.
 
 Click **Clear** (shown only once a filter is active) to reset everything. Filters persist across navigation within a session.

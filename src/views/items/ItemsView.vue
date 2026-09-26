@@ -65,6 +65,13 @@
           <option value="">All sources</option>
           <option v-for="s in sources" :key="s.slug" :value="s.slug">{{ itemSourceLabel(s.slug, s.title) }}</option>
         </ListFilterSelect>
+        <ListFilterSelect v-model="scopeFilter" aria-label="Scope filter">
+          <option value="">All scopes</option>
+          <option value="campaign">This campaign</option>
+          <option value="general">General</option>
+          <option value="library">Library</option>
+          <option v-if="showAllScopes" value="other_campaign">Other campaigns</option>
+        </ListFilterSelect>
         <AppCheckbox
           v-model="showAllScopes"
           label-role="label-lg"
@@ -100,6 +107,7 @@
       :type-filter="typeFilter"
       :rarity-filter="rarityFilter"
       :source-filter="sourceFilter"
+      :scope-filter="scopeFilter"
       :show-all-scopes="showAllScopes"
       :selecting="selecting"
       :selected-ids="selectedIds"
@@ -148,6 +156,10 @@ const rarityFilter = computed({
 const sourceFilter = computed({
   get: () => ui.vaultFilterSource,
   set: (v) => { ui.vaultFilterSource = v; },
+});
+const scopeFilter = computed({
+  get: () => ui.vaultFilterScope,
+  set: (v) => { ui.vaultFilterScope = v; },
 });
 const showAllScopes = computed({
   get: () => ui.vaultShowAllScopes,

@@ -1,9 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, RouterLinkStub } from "@vue/test-utils";
-import { ref } from "vue";
+import { ref, reactive } from "vue";
 import ItemList from "./ItemList.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import type { Item } from "@/types/item.types";
+import type { ItemScope } from "@/lib/items/itemScope";
+
+// Wrapped in `reactive()`, exactly like a real Pinia store: `storeToRefs`
+// (ItemList uses it for activeCampaignId) only picks up properties that are
+// already refs on a reactive object, not on a plain object literal.
+const activeCampaignId = ref<string | null>("campaign-1");
+vi.mock("@/stores/campaign", () => ({
+  useCampaignStore: () => reactive({ activeCampaignId }),
+}));
 
 /**
  * happy-dom's IntersectionObserver never fires without a real layout, which is
@@ -70,13 +79,21 @@ function makeItem(overrides: Partial<Item> = {}): Item {
 
 const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
 
-function mountList(props: Partial<{ selecting: boolean; selectedIds: ReadonlySet<string> }> = {}) {
+function mountList(
+  props: Partial<{
+    selecting: boolean;
+    selectedIds: ReadonlySet<string>;
+    scopeFilter: ItemScope | "";
+    showAllScopes: boolean;
+  }> = {},
+) {
   return mount(ItemList, {
     props: {
       search: "",
       typeFilter: "",
       rarityFilter: "",
       sourceFilter: "",
+      scopeFilter: "",
       ...props,
     },
     global: globalStubs,
@@ -86,6 +103,7 @@ function mountList(props: Partial<{ selecting: boolean; selectedIds: ReadonlySet
 describe("ItemList — bulk selection (#875)", () => {
   beforeEach(() => {
     mocks.items = [];
+    activeCampaignId.value = "campaign-1";
   });
 
   it("excludes a non-UUID library/reference row from selectableIds", () => {
@@ -168,5 +186,57 @@ describe("ItemList — bulk selection (#875)", () => {
 
     const selecting = mountList({ selecting: true });
     expect(selecting.find('[aria-label="Edit"]').exists()).toBe(false);
+  });
+});
+
+describe("ItemList — scope filter", () => {
+  beforeEach(() => {
+    activeCampaignId.value = "campaign-1";
+    mocks.items = [
+      makeItem({ id: "11111111-1111-4111-8111-111111111111", name: "Campaign Sword", campaign_id: "campaign-1" }),
+      makeItem({ id: "22222222-2222-4222-8222-222222222222", name: "General Cloak", campaign_id: null }),
+      makeItem({ id: "33333333-3333-4333-8333-333333333333", name: "Foreign Ring", campaign_id: "campaign-other" }),
+      makeItem({ id: "srd_owlbear_feather", name: "Owlbear Feather", campaign_id: null }),
+    ];
+  });
+
+  it("shows every row when no scope is chosen", () => {
+    const wrapper = mountList({ scopeFilter: "" });
+    expect(wrapper.text()).toContain("Campaign Sword");
+    expect(wrapper.text()).toContain("General Cloak");
+    expect(wrapper.text()).toContain("Foreign Ring");
+    expect(wrapper.text()).toContain("Owlbear Feather");
+  });
+
+  it('"This campaign" keeps only the row scoped to the active campaign', () => {
+    const wrapper = mountList({ scopeFilter: "campaign" });
+    expect(wrapper.text()).toContain("Campaign Sword");
+    expect(wrapper.text()).not.toContain("General Cloak");
+    expect(wrapper.text()).not.toContain("Foreign Ring");
+    expect(wrapper.text()).not.toContain("Owlbear Feather");
+  });
+
+  it('"General" keeps only the DM\'s own campaign_id-null row, not the library row', () => {
+    const wrapper = mountList({ scopeFilter: "general" });
+    expect(wrapper.text()).toContain("General Cloak");
+    expect(wrapper.text()).not.toContain("Campaign Sword");
+    expect(wrapper.text()).not.toContain("Foreign Ring");
+    expect(wrapper.text()).not.toContain("Owlbear Feather");
+  });
+
+  it('"Library" keeps only the non-UUID row', () => {
+    const wrapper = mountList({ scopeFilter: "library" });
+    expect(wrapper.text()).toContain("Owlbear Feather");
+    expect(wrapper.text()).not.toContain("Campaign Sword");
+    expect(wrapper.text()).not.toContain("General Cloak");
+    expect(wrapper.text()).not.toContain("Foreign Ring");
+  });
+
+  it('"Other campaigns" keeps only the row scoped to a different campaign', () => {
+    const wrapper = mountList({ scopeFilter: "other_campaign", showAllScopes: true });
+    expect(wrapper.text()).toContain("Foreign Ring");
+    expect(wrapper.text()).not.toContain("Campaign Sword");
+    expect(wrapper.text()).not.toContain("General Cloak");
+    expect(wrapper.text()).not.toContain("Owlbear Feather");
   });
 });

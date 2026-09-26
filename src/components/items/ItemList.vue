@@ -10,7 +10,7 @@
       v-else-if="!filtered.length"
       title="No items found"
       :description="
-        search || typeFilter || rarityFilter
+        search || typeFilter || rarityFilter || sourceFilter || scopeFilter
           ? 'Try adjusting your filters.'
           : 'Add your first item to the vault.'
       "
@@ -171,10 +171,13 @@ const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
 function itemTypeIcon(type: ItemType): VueComponent {
   return ITEM_TYPE_ICONS[type] ?? IconComponent;
 }
+import { storeToRefs } from "pinia";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useItems } from "@/composables/items/useItems";
+import { useCampaignStore } from "@/stores/campaign";
 import { isUuid } from "@/lib/library/contentIdentity";
+import { itemScopeOf, type ItemScope } from "@/lib/items/itemScope";
 import { ITEM_RARITY_LABELS, RARITY_BG } from "@/types/item.types";
 import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -184,6 +187,7 @@ const {
   typeFilter,
   rarityFilter,
   sourceFilter,
+  scopeFilter,
   showAllScopes = false,
   selecting = false,
   selectedIds = new Set<string>(),
@@ -192,6 +196,8 @@ const {
   typeFilter: string;
   rarityFilter: string;
   sourceFilter: string;
+  /** One `itemScopeOf` classification to show, or "" for every scope. */
+  scopeFilter: ItemScope | "";
   showAllScopes?: boolean;
   /** Bulk-selection mode is on (#875). Library/reference rows (non-UUID ids)
    *  never enter selection mode regardless of this flag — see the template. */
@@ -202,6 +208,7 @@ const {
 const emit = defineEmits<{ "toggle-select": [id: string] }>();
 
 const { data: items, isLoading } = useItems(() => ({ includeAllScopes: !!showAllScopes }));
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 
 const filtered = computed(() => {
   const q = search.trim().toLowerCase();
@@ -209,6 +216,7 @@ const filtered = computed(() => {
     if (typeFilter && item.item_type !== typeFilter) return false;
     if (rarityFilter && item.rarity !== rarityFilter) return false;
     if (sourceFilter && item.source !== sourceFilter) return false;
+    if (scopeFilter && itemScopeOf(item, activeCampaignId.value) !== scopeFilter) return false;
     if (q) {
       return (
         item.name.toLowerCase().includes(q) ||
