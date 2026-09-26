@@ -115,15 +115,9 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useMonsters } from "@/composables/monsters/useMonsters";
 import { useSpells } from "@/composables/spells/useSpells";
 import { useAllLocations } from "@/composables/locations/useLocations";
-import {
-  formatNpcForScriptorium,
-  formatMonsterForScriptorium,
-  formatSpellForScriptorium,
-  formatLocationForScriptorium,
-} from "@/lib/scriptorium/scriptoriumImport";
+import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
 import { SCHOOL_VAR, spellLevelLabel } from "@/types/spell.types";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
-import type { ScriptoriumTheme } from "@/types/scriptorium.types";
 
 
 /** The same ramp as `var()` values, for borders, gradients and canvas — places
@@ -152,7 +146,7 @@ const NPC_STATUS_COLORS: Record<string, string> = {
   unknown: "#6b7280",
 };
 
-const props = defineProps<{ show: boolean; editor: Editor | undefined; theme: ScriptoriumTheme }>();
+const props = defineProps<{ show: boolean; editor: Editor | undefined }>();
 const emit = defineEmits<{ close: [] }>();
 
 type TabKey = "npcs" | "monsters" | "spells" | "locations";
@@ -252,34 +246,28 @@ const isLoading = computed(() => {
 });
 
 // ── Insert ────────────────────────────────────────────────────────────────────
+// Inserts a LIVE-linked entityEmbed node, not a one-time HTML snapshot (#915
+// story 3) — the editor/preview/PDF resolve it against current data via
+// useEntityEmbedData, so editing the NPC afterwards updates the book too.
+
+const TAB_TO_ENTITY_TYPE: Record<TabKey, EntityEmbedType> = {
+  npcs: "npc",
+  monsters: "monster",
+  spells: "spell",
+  locations: "location",
+};
 
 function insertItem(item: ListItem) {
   if (!props.editor) return;
-
-  let html = "";
-  if (item.type === "npcs") {
-    const npc = npcs.value?.find((n) => n.id === item.id);
-    if (!npc) return;
-    const locationName = npc.location_id
-      ? (locations.value?.find((l) => l.id === npc.location_id)?.name ?? null)
-      : null;
-    html = formatNpcForScriptorium(npc, locationName, props.theme).content;
-  } else if (item.type === "monsters") {
-    const monster = monsters.value?.find((m) => m.id === item.id);
-    if (!monster) return;
-    html = formatMonsterForScriptorium(monster, props.theme).content;
-  } else if (item.type === "spells") {
-    const spell = spells.value?.find((s) => s.id === item.id);
-    if (!spell) return;
-    html = formatSpellForScriptorium(spell).content;
-  } else {
-    const loc = locations.value?.find((l) => l.id === item.id);
-    if (!loc) return;
-    html = formatLocationForScriptorium(loc).content;
-  }
-
   const endPos = props.editor.state.doc.content.size;
-  props.editor.chain().focus().insertContentAt(endPos, html).run();
+  props.editor
+    .chain()
+    .focus()
+    .insertContentAt(endPos, {
+      type: "entityEmbed",
+      attrs: { entityType: TAB_TO_ENTITY_TYPE[item.type], entityId: item.id },
+    })
+    .run();
   emit("close");
 }
 </script>

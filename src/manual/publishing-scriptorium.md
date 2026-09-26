@@ -34,7 +34,7 @@ The galley on the left has a full formatting toolbar:
 - **Text**: Bold, Italic, Strikethrough, Inline code.
 - **Headings**: Heading 1, Heading 2, Heading 3.
 - **Blocks**: Bullet list, Ordered list, Blockquote / callout, Inline block (code block), **Wide Block** (spans both columns; use it for big art, tables, or chapter headings), **Page Break**.
-- **Insert**: appends a formatted NPC, Monster, Spell, or Location as a new page at the end of the document, pulled live from your own campaign data. Search across all four inside the modal.
+- **Insert**: appends a **linked** NPC, Monster, Spell, or Location at the end of the document. Search across all four inside the modal; see "Linked entities" below.
 - **Block**: opens **Insert Block**, a picker of pre-styled pieces grouped by kind:
   - **Cover Pages**: Front Cover, Inside Cover, Part Divider, Back Cover.
   - **Layout**: Wide Block, Page Break, Column Break, vertical/horizontal spacers.
@@ -57,6 +57,15 @@ Select an image to reveal its own toolbar: size presets (S/M/L/XL), align left/c
 ### Cover pages
 
 Click a cover page block and its own **Edit** control opens the cover inspector: title, subtitle, background art (upload or browse your library), and, on the front cover, when art is set, a **Darken behind title** toggle for legibility.
+
+### Linked entities
+
+An NPC, Monster, Spell, Location, or Quest brought in through **Insert** (or the **Send to Scriptorium** button on that entity's own page) is a **live link**, not a one-time snapshot: it always shows that entity's current data, so editing the NPC later updates every book that references it, with nothing to re-insert. In the galley, hover a linked block to see its type badge and two controls:
+
+- **Open** jumps straight to that entity's own page.
+- **Detach** turns the block into ordinary editable text, frozen at its current content. Use this when you want to diverge from the source, for example writing a version of a monster stat block that's tougher for a specific fight. Detaching cannot be undone from the block itself (though the usual Undo still works), so it asks you to confirm first.
+
+If the source entity is later deleted, the block shows a plain "no longer available" notice instead of stale or blank content, both in the galley and in the exported book.
 
 ### Decorating a page (furniture)
 

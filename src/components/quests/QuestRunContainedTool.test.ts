@@ -261,7 +261,7 @@ describe("QuestRunContainedTool", () => {
       props: { attachment: attachment("handout", { ref_id: "handout-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
     });
-    expect(wrapper.findComponent({ name: "RichTextViewer" }).props("content")).toBe("handout-body");
+    expect(wrapper.findComponent({ name: "ScriptoriumDocumentView" }).props("document")).toEqual(mocks.handout.value);
     expect(wrapper.text()).toContain("handout · 42 words · draft");
     expect(mocks.handoutId.value).toBe("handout-1");
     expect(mocks.noteId.value).toBe("");

@@ -30,6 +30,7 @@ import { TocBlock } from "@/lib/tiptap/tocBlock";
 import { CoverPage } from "@/lib/tiptap/coverPage";
 import { BlockId } from "@/lib/tiptap/blockId";
 import { PageBreak } from "@/lib/tiptap/pageBreak";
+import { EntityEmbed } from "@/lib/tiptap/entityEmbed";
 
 /*
  * Tiptap nodes don't have a public-facing generic for `extend()`'s config that
@@ -88,5 +89,6 @@ export function createScriptoriumExtensions() {
     CoverPage,
     BlockId,
     PageBreak,
+    EntityEmbed,
   ];
 }

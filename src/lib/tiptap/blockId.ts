@@ -43,6 +43,7 @@ export const BLOCK_ID_TYPES = [
   "watermark",
   "artistCredit",
   "spacerVertical",
+  "entityEmbed",
 ] as const;
 
 /**

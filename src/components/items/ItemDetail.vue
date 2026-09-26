@@ -377,6 +377,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { storeToRefs } from "pinia";
 import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { formatItemForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
+import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
 import WeightInput from "@/components/common/WeightInput.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -700,8 +701,13 @@ async function sendToScriptorium() {
   isSendingToScriptorium.value = true;
   try {
     const data = formatItemForScriptorium(props.item, selectedSpells.value);
-    // The generated document travels with the item's own campaign scope (#915).
-    const doc = await createDoc({ ...data, campaign_id: props.item.campaign_id });
+    // Live link, not a one-time snapshot (#915 story 3). The generated
+    // document travels with the item's own campaign scope (#915 story 1).
+    const doc = await createDoc({
+      ...data,
+      content: buildEntityEmbedDocumentContent("item", props.item.id),
+      campaign_id: props.item.campaign_id,
+    });
     router.push(`/scriptorium/${doc.id}`);
   } catch (e: unknown) {
     if (isQuotaExceeded(e)) { showScriptoriumPaywall.value = true; return; }

@@ -266,6 +266,7 @@ import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/sp
 import { useUpsertLibrarySpellArt } from "@/composables/library/useLibrarySpellArt";
 import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { formatSpellForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
+import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
 import {
   adviseLevelRange,
   REFERENCE_SPELLS,
@@ -685,8 +686,13 @@ async function sendToScriptorium() {
   isSendingToScriptorium.value = true;
   try {
     const data = formatSpellForScriptorium(props.spell);
-    // The generated document travels with the spell's own campaign scope (#915).
-    const doc = await createDoc({ ...data, campaign_id: props.spell.campaign_id });
+    // Live link, not a one-time snapshot (#915 story 3). The generated
+    // document travels with the spell's own campaign scope (#915 story 1).
+    const doc = await createDoc({
+      ...data,
+      content: buildEntityEmbedDocumentContent("spell", props.spell.id),
+      campaign_id: props.spell.campaign_id,
+    });
     router.push(`/scriptorium/${doc.id}`);
   } catch (e: unknown) {
     if (isQuotaExceeded(e)) { showScriptoriumPaywall.value = true; return; }

@@ -389,6 +389,20 @@
   font-weight: 700;
 }
 
+/* ── Linked entity embeds (#915 story 3) ──────────────────────────────────── */
+/* The embed's own div carries no visual identity — its resolved content
+   (a heading + stat block, exactly like a hand-pasted asset) already looks
+   like a normal part of the book. Only the "entity no longer resolves" case
+   needs its own look, so it reads as a gap rather than a rendering bug. */
+.sc-theme .sc-entity-embed-missing {
+  font-style: italic;
+  color: color-mix(in srgb, var(--sc-ink) 50%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--sc-ink) 30%, transparent);
+  border-radius: 4px;
+  padding: 0.6rem 0.875rem;
+  margin: 0.875rem 0;
+}
+
 /* ── Callouts: note / descriptive / quote / attribution ──────────────────── */
 .sc-theme .sc-note {
   background: var(--sc-callout-note-bg);

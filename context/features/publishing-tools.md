@@ -33,8 +33,25 @@ Documents are tagged with a type that drives the colour-coded badge in the list 
 - `ScriptoriumImage`: the image node, with layout modes (size presets, align, float-left/float-right with text wrap, absolute pin with numeric offsets, gutter-bleed in wrap mode), shown via a floating toolbar when the image is selected
 - `Watercolor`, `Watermark`, `ArtistCredit`: decorations (see Page furniture, below)
 - `BlockId`: a stable per-block id used for click-to-edit (clicking a paragraph in the preview jumps the galley to it), surviving Paged.js's pagination
+- `entityEmbed` (`src/lib/tiptap/entityEmbed.ts`): a live-linked NPC/monster/spell/item/location/quest block (see Linked entity embeds, below)
 
-**Insert Block picker** (`BlockPickerPanel.vue`) is the modal that inserts any of the above. **Insert Asset panel** (`AssetInsertPanel.vue`) appends a live NPC/monster/spell/location as a structured page pulled from the DM's own campaign data.
+**Insert Block picker** (`BlockPickerPanel.vue`) is the modal that inserts any of the above. **Insert Asset panel** (`AssetInsertPanel.vue`) appends a live-linked NPC/monster/spell/location at the end of the document.
+
+### Linked entity embeds (#915 story 3)
+
+Two paths put an `entityEmbed` node into a document: **Insert Asset** (`AssetInsertPanel.vue`, NPCs/monsters/spells/locations) and **Send to Scriptorium** on an entity's own detail page (`NpcDetail.vue`, `MonsterDetail.vue`, `SpellDetail.vue`, `ItemDetail.vue`, `QuestOverviewLifecycle.vue`), which creates a whole new document whose content is a single `entityEmbed` node (the entity's formatted body already opens with its name) (`buildEntityEmbedDocumentContent`, `src/lib/scriptorium/entityEmbeds.ts`). Either way the node stores only `{ entityType, entityId }`, never a copy of the entity's fields, so the document always shows CURRENT data and never goes stale when the source entity is edited.
+
+Resolution is split across three pieces:
+
+- `collectEntityRefs(json)` / `resolveEntityEmbeds(html, lookup)` (`src/lib/scriptorium/entityEmbeds.ts`) are pure: the first walks a Tiptap JSON document for the unique `{type, id}` refs it holds, the second replaces each placeholder `div[data-type="entity-embed"]` in a rendered HTML string with the entity's current, sanitized body HTML (or a "no longer available" marker), in place, so `data-block-id` and every other attribute on the block survive.
+- `useEntityEmbedData(refs, { theme })` (`src/composables/scriptorium/useEntityEmbedData.ts`) fetches every referenced entity UNSCOPED by id (`useQueries`, batched per type, sharing query keys with `useNpc`/`useResolvedMonster`/`useSpell`/`useItem`/`useLocation`/`useQuest` so the cache is shared), resolves the secondary joins the formatters want (an NPC's location name, a quest's giver/location names and objectives, an item's granted spells) in a second dependent pass, and formats each into body HTML via `formatEntityEmbedBodyHtml` (`scriptoriumImport.ts`'s single dispatch point over the same formatter objects `formatNpcForScriptorium` etc. already use).
+- `EntityEmbedView.vue` is the node's Vue node view (`VueNodeViewRenderer`): it renders the live, sanitized content inline in the galley, with a small hover toolbar (editable mode only) offering **Open** (routes to the entity's own page) and **Detach** (confirms via `useConfirm`, then replaces the node with its current content as ordinary editable nodes; the entity stops updating the document from that point on).
+
+The preview pane and PDF export stay HTML-string based (Paged.js paginates a string, not live components), so `ScriptoriumEditor.vue` resolves embeds itself: `previewHtml` is `resolveEntityEmbeds(rawHtml, lookup)` where `lookup` comes from `useEntityEmbedData(collectEntityRefs(rawJson))`, both reactive, so the preview and any PDF exported from it re-render automatically when a linked entity's data changes.
+
+`ScriptoriumDocumentView.vue` is the read-only counterpart: it mounts a non-editable `Editor` with `createScriptoriumExtensions()` through `<EditorContent>`, which is enough for `entityEmbed`'s own node view to resolve itself live (no manual `resolveEntityEmbeds` pass needed): `VueNodeViewRenderer` only activates once `editor.contentComponent` is set, which happens on `<EditorContent>` mount regardless of `editable`. It replaced the generic `RichTextViewer` for a quest beat's attached handout in `QuestRunContainedTool.vue`, whose schema had no idea what a `coverPage`, `noteBlock` or `entityEmbed` node was, silently dropping a handout's cover, read-aloud boxes and linked entities at the table.
+
+Two production documents predate this story and still hold a raw HTML `content` string rather than Tiptap JSON; `ScriptoriumEditor.vue`'s `computeInitialDoc` and `ScriptoriumDocumentView.vue`'s `parseContent` both fall back to handing that HTML to Tiptap directly (which accepts it) rather than failing. Nothing in the app writes HTML into `scriptorium_documents.content` any more: every write path is JSON.
 
 ### Page furniture
 

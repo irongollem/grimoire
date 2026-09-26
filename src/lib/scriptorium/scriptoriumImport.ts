@@ -737,3 +737,53 @@ export function formatQuestForScriptorium(
 ): ScriptoriumImportData {
   return questFormatter.format({ quest, objectives, giverName, locationName });
 }
+
+// ── Entity embed body HTML (#915 story 3) ────────────────────────────────────
+//
+// `entityEmbed` nodes and "Insert Asset" both need just the formatted body
+// HTML for a CURRENT entity, not the full ScriptoriumImportData wrapper
+// (title, tags, doc_type, word_count, …) the formatters above build for a
+// whole new document. This is the one dispatch point for that — it calls the
+// same formatter objects the typed exports above use, so there is exactly one
+// place that knows how to turn each entity type into body HTML.
+
+export type EntityEmbedType = "npc" | "monster" | "spell" | "item" | "location" | "quest";
+
+export type EntityEmbedInput =
+  | { type: "npc"; npc: Npc; locationName?: string | null }
+  | { type: "monster"; monster: Monster }
+  | { type: "spell"; spell: Spell }
+  | { type: "item"; item: Item; spells: Spell[] }
+  | { type: "location"; location: Location }
+  | {
+      type: "quest";
+      quest: Quest;
+      objectives: QuestObjective[];
+      giverName?: string | null;
+      locationName?: string | null;
+    };
+
+export function formatEntityEmbedBodyHtml(
+  input: EntityEmbedInput,
+  theme: ScriptoriumTheme = "onednd2024",
+): string {
+  switch (input.type) {
+    case "npc":
+      return npcFormatter.format({ npc: input.npc, locationName: input.locationName }, theme).content;
+    case "monster":
+      return monsterFormatter.format(input.monster, theme).content;
+    case "spell":
+      return spellFormatter.format(input.spell).content;
+    case "item":
+      return itemFormatter.format({ item: input.item, spells: input.spells }).content;
+    case "location":
+      return locationFormatter.format(input.location).content;
+    case "quest":
+      return questFormatter.format({
+        quest: input.quest,
+        objectives: input.objectives,
+        giverName: input.giverName,
+        locationName: input.locationName,
+      }).content;
+  }
+}

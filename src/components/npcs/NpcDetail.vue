@@ -232,6 +232,7 @@ import { useLocationTree } from '@/composables/locations/useLocations'
 import { useAllMonsters, useCreateMonster } from '@/composables/monsters/useMonsters'
 import { useCreateScriptoriumDocument } from '@/composables/scriptorium/useScriptorium'
 import { formatNpcForScriptorium } from '@/lib/scriptorium/scriptoriumImport'
+import { buildEntityEmbedDocumentContent } from '@/lib/scriptorium/entityEmbeds'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
 import NpcRelationsSection from '@/components/npcs/NpcRelationsSection.vue'
 import NpcPcNotesSection from '@/components/npcs/NpcPcNotesSection.vue'
@@ -344,8 +345,15 @@ async function sendToScriptorium() {
       ? (locationOptions.value.find((l) => l.id === props.npc!.location_id)?.name ?? null)
       : null
     const importData = formatNpcForScriptorium(props.npc, locationName)
-    // The generated document travels with the NPC's own campaign scope (#915).
-    const doc = await createScriptoriumDoc({ ...importData, campaign_id: props.npc.campaign_id })
+    // The document is a live link, not a one-time HTML snapshot (#915 story 3):
+    // its content is a heading + entityEmbed node, so editing the NPC later
+    // updates the book. The generated document travels with the NPC's own
+    // campaign scope (#915 story 1).
+    const doc = await createScriptoriumDoc({
+      ...importData,
+      content: buildEntityEmbedDocumentContent('npc', props.npc.id),
+      campaign_id: props.npc.campaign_id,
+    })
     await updateNpc({ id: props.npc.id, update: { scriptorium_doc_id: doc.id } })
     router.push(`/scriptorium/${doc.id}`)
   } catch (e: unknown) {

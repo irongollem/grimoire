@@ -144,6 +144,7 @@ import {
 import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { countObjectivesComplete, nextObjectiveStatus, QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
 import { formatQuestForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
+import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 import QuestSidebarPanels from "./QuestSidebarPanels.vue";
@@ -233,14 +234,17 @@ async function sendToScriptorium() {
   try {
     const giverName = (npcs.value ?? []).find((npc) => npc.id === props.quest.giver_npc_id)?.name ?? null;
     const locationName = (locations.value ?? []).find((location) => location.id === props.quest.location_id)?.name ?? null;
-    // The generated document travels with the quest's own campaign scope (#915).
+    const importData = formatQuestForScriptorium(
+      props.quest,
+      objectives.value ?? [],
+      giverName,
+      locationName,
+    );
+    // Live link, not a one-time snapshot (#915 story 3). The generated
+    // document travels with the quest's own campaign scope (#915 story 1).
     const document = await createScriptoriumDocument({
-      ...formatQuestForScriptorium(
-        props.quest,
-        objectives.value ?? [],
-        giverName,
-        locationName,
-      ),
+      ...importData,
+      content: buildEntityEmbedDocumentContent("quest", props.quest.id),
       campaign_id: props.quest.campaign_id,
     });
     await router.push(`/scriptorium/${document.id}`);

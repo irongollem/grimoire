@@ -304,6 +304,7 @@ import {
 import { useUpsertLibraryMonsterArt } from "@/composables/library/useLibraryMonsterArt";
 import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { formatMonsterForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
+import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 import type {
   Monster,
@@ -526,9 +527,15 @@ async function sendToScriptorium() {
   sendingToScriptorium.value = true;
   try {
     const importData = formatMonsterForScriptorium(props.monster);
-    // The generated document travels with the monster's own campaign scope
-    // (#915); a shared/library monster's null campaign_id makes it account-wide.
-    const doc = await createScriptoriumDoc({ ...importData, campaign_id: props.monster.campaign_id });
+    // Live link, not a one-time snapshot (#915 story 3) — see NpcDetail's
+    // sendToScriptorium for the same shape. The generated document travels
+    // with the monster's own campaign scope (#915 story 1); a shared/library
+    // monster's null campaign_id makes it account-wide.
+    const doc = await createScriptoriumDoc({
+      ...importData,
+      content: buildEntityEmbedDocumentContent("monster", props.monster.id),
+      campaign_id: props.monster.campaign_id,
+    });
     router.push(`/scriptorium/${doc.id}`);
   } catch (e: unknown) {
     if (isQuotaExceeded(e)) { showScriptoriumPaywall.value = true; return; }

@@ -2,7 +2,6 @@
   <AssetInsertPanel
     :show="showAssetPanel"
     :editor="editor"
-    :theme="theme"
     @close="showAssetPanel = false"
   />
   <BlockPickerPanel
@@ -217,6 +216,8 @@ import { createFurnitureItem } from "@/lib/scriptorium/furniture/model";
 import { migrateV1ToV2, needsV1ToV2 } from "@/lib/scriptorium/migrations/v1ToV2";
 import { migrateV2ToV3, needsV2ToV3 } from "@/lib/scriptorium/migrations/v2ToV3";
 import FurnitureInspector from "@/components/scriptorium/FurnitureInspector.vue";
+import { collectEntityRefs, resolveEntityEmbeds } from "@/lib/scriptorium/entityEmbeds";
+import { useEntityEmbedData } from "@/composables/scriptorium/useEntityEmbedData";
 
 const props = defineProps<{
   doc: ScriptoriumDocument | null;
@@ -334,11 +335,14 @@ function deleteFurniture(id: string) {
 }
 
 // Editor
-const previewHtml = ref("");
+const rawHtml = ref("");
+const rawJson = ref<JSONContent | null>(null);
 const wordCount = ref(0);
 
-function updateDerived(html: string, text: string) {
-  previewHtml.value = html;
+function updateDerived(editor: { getHTML: () => string; getJSON: () => JSONContent; getText: () => string }) {
+  rawHtml.value = editor.getHTML();
+  rawJson.value = editor.getJSON();
+  const text = editor.getText();
   wordCount.value = text.trim() ? text.trim().split(/\s+/).length : 0;
 }
 
@@ -346,12 +350,22 @@ const editor = useEditor({
   content: initialDoc.content,
   extensions: createScriptoriumExtensions(),
   onCreate({ editor }) {
-    updateDerived(editor.getHTML(), editor.getText());
+    updateDerived(editor);
   },
   onUpdate({ editor }) {
-    updateDerived(editor.getHTML(), editor.getText());
+    updateDerived(editor);
   },
 });
+
+// Linked entities (#915 story 3): the preview/PDF pipeline stays HTML-string
+// based (Paged.js lays out a string, not live Vue components), so the raw
+// editor HTML's entityEmbed placeholders are resolved against current data
+// here — the one place both the preview pane and exportPdf() read from. Both
+// recompute automatically when the fetched entities change, since `lookup` is
+// itself a computed.
+const entityRefs = computed(() => collectEntityRefs(rawJson.value));
+const { lookup: entityEmbedLookup } = useEntityEmbedData(entityRefs, { theme });
+const previewHtml = computed(() => resolveEntityEmbeds(rawHtml.value, entityEmbedLookup.value));
 
 // Click-to-edit bridge: the preview emits the clicked block's id; locate that
 // node in the doc, put the cursor there, and scroll the galley to it. Block

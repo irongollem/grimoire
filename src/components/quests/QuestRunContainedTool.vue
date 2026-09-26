@@ -94,7 +94,7 @@
             <LoadingSpinner v-if="handoutQuery.isLoading.value" />
             <template v-else-if="handoutRecord">
               <p class="text-caption text-muted-foreground">{{ handoutRecord.doc_type }} · {{ handoutRecord.word_count }} words · {{ handoutRecord.is_published ? 'published' : 'draft' }}</p>
-              <RichTextViewer v-if="handoutRecord.content" class="mt-2" :content="handoutRecord.content" />
+              <ScriptoriumDocumentView v-if="handoutRecord.content" class="mt-2" :document="handoutRecord" />
               <p v-else class="mt-2 text-caption italic text-muted-foreground">This handout has no body yet.</p>
             </template>
             <p v-else class="text-caption text-tone-caution">The attached handout could not be loaded.</p>
@@ -139,6 +139,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import ScriptoriumDocumentView from "@/components/scriptorium/ScriptoriumDocumentView.vue";
 
 const EncounterRunSurface = defineAsyncComponent(() => import("@/components/encounters/EncounterRunSurface.vue"));
 
