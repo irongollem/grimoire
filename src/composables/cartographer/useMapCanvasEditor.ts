@@ -16,7 +16,7 @@
 import { computed, customRef, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from "vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import type { Tool } from "@/cartographer/tools";
-import { zoomAtPoint } from "@/cartographer/viewport";
+import { pinchOf, pinchViewport, zoomAtPoint, type Pinch, type Viewport } from "@/cartographer/viewport";
 import { resolveKeyAction } from "@/cartographer/keymap";
 import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory, type ObjectCategory } from "@/cartographer/packSchema";
@@ -627,7 +627,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
   }
 
-  function onPointerDown(ev: PointerEvent): void {
+  function toolPointerDown(ev: PointerEvent): void {
     const local = getLocalPointer(ev);
     lastPointer = local;
 
@@ -762,7 +762,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     }
   }
 
-  function onPointerMove(ev: PointerEvent): void {
+  function toolPointerMove(ev: PointerEvent): void {
     const local = getLocalPointer(ev);
     const [cx, cy] = viewportToCell(local.x, local.y);
     hoverCell.value = [cx, cy];
@@ -829,7 +829,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     lastPointer = local;
   }
 
-  function onPointerUp(ev: PointerEvent): void {
+  function toolPointerUp(ev: PointerEvent): void {
     // Also bound to `@pointerleave` (MapWorkbench's template) — clears the
     // Plan's hover state (door edge highlight, pen cursor tracking) either way.
     planTools?.onPointerLeave();
@@ -864,6 +864,148 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       canvasEl.value?.releasePointerCapture(ev.pointerId);
     }
     lastPointer = null;
+  }
+
+  // ── Touch: two fingers pan and pinch-zoom ──────────────────────────────
+  //
+  // A mouse pans with the right button and zooms with the wheel; a phone has
+  // neither, so every touch went to the active tool and a DM could only paint.
+  // Two fingers now pan (drag) and zoom (pinch), the way every map app works.
+  //
+  // One finger still paints, but not instantly: its press waits TOUCH_HOLD_MS
+  // (or until it moves) before reaching the tool, because the second finger of
+  // a pinch lands a few tens of milliseconds after the first, and without the
+  // wait that first finger would already have painted a cell. If the second
+  // finger comes later still, a Drawing stroke already under way is rolled
+  // back to where it started. Mouse and pen input skip all of this.
+
+  const TOUCH_HOLD_MS = 90;
+  const TOUCH_SLOP_PX = 6;
+  const touches = new Map<number, { x: number; y: number }>();
+  let pendingTouch: { ev: PointerEvent; at: { x: number; y: number }; timer: ReturnType<typeof setTimeout> } | null = null;
+  let pinch: { start: Viewport; from: Pinch } | null = null;
+  /** The touch whose press reached the tool and has not been released yet. */
+  let liveToolTouch: PointerEvent | null = null;
+
+  /**
+   * The Plan's tracing (`useRegionPointer`) listens for the release on
+   * `window`, not on this canvas. When a touch press reaches it late (after
+   * the hold) or has to be cut short (a pinch began), that release has to be
+   * delivered to it by hand, or it would wait for the next finger to lift.
+   */
+  function releaseOnWindow(ev: PointerEvent): void {
+    if (!isPlanLayerActive()) return;
+    window.dispatchEvent(new PointerEvent("pointerup", {
+      clientX: ev.clientX, clientY: ev.clientY, pointerId: ev.pointerId,
+      pointerType: ev.pointerType, button: 0, buttons: 0, bubbles: true,
+    }));
+  }
+
+  function releasePendingTouch(): void {
+    if (!pendingTouch) return;
+    clearTimeout(pendingTouch.timer);
+    const { ev } = pendingTouch;
+    pendingTouch = null;
+    toolPointerDown(ev);
+    liveToolTouch = ev;
+  }
+
+  function abandonToolGesture(): void {
+    if (pendingTouch) {
+      clearTimeout(pendingTouch.timer);
+      pendingTouch = null;
+    }
+    if (liveToolTouch) {
+      releaseOnWindow(liveToolTouch);
+      liveToolTouch = null;
+    }
+    if (isPainting.value) {
+      if (strokeSnapshot !== null && strokeSnapshot !== snapshotStr()) {
+        const s = JSON.parse(strokeSnapshot) as { layers: DungeonMapLayers; metadata: Record<CellKey, CellMetadata> };
+        layers.value = s.layers;
+        metadata.value = s.metadata;
+      }
+      strokeSnapshot = null;
+      dragStartCell = null;
+      previewCells.value = new Set();
+      isPainting.value = false;
+    }
+    isPanning.value = false;
+    lastPointer = null;
+  }
+
+  function startPinch(): void {
+    const [a, b] = [...touches.values()];
+    pinch = { start: { zoom: zoom.value, offset: viewportOffset.value }, from: pinchOf(a, b) };
+  }
+
+  function onPointerDown(ev: PointerEvent): void {
+    if (ev.pointerType !== "touch") {
+      toolPointerDown(ev);
+      return;
+    }
+    touches.set(ev.pointerId, getLocalPointer(ev));
+    canvasEl.value?.setPointerCapture(ev.pointerId);
+    if (touches.size === 2) {
+      abandonToolGesture();
+      startPinch();
+      return;
+    }
+    // A third finger, or a finger landing while a pinch is still settling:
+    // not a tool press.
+    if (touches.size > 1 || pinch) return;
+    pendingTouch = {
+      ev,
+      at: getLocalPointer(ev),
+      timer: setTimeout(releasePendingTouch, TOUCH_HOLD_MS),
+    };
+  }
+
+  function onPointerMove(ev: PointerEvent): void {
+    if (ev.pointerType !== "touch") {
+      toolPointerMove(ev);
+      return;
+    }
+    if (touches.has(ev.pointerId)) touches.set(ev.pointerId, getLocalPointer(ev));
+    if (pinch) {
+      if (touches.size < 2) return;
+      const [a, b] = [...touches.values()];
+      const next = pinchViewport(pinch.start, pinch.from, pinchOf(a, b), devicePixelDims().dpr);
+      zoom.value = next.zoom;
+      viewportOffset.value = next.offset;
+      return;
+    }
+    if (pendingTouch && pendingTouch.ev.pointerId === ev.pointerId) {
+      const here = getLocalPointer(ev);
+      if (Math.hypot(here.x - pendingTouch.at.x, here.y - pendingTouch.at.y) < TOUCH_SLOP_PX) return;
+      releasePendingTouch();
+    }
+    toolPointerMove(ev);
+  }
+
+  function onPointerUp(ev: PointerEvent): void {
+    if (ev.pointerType !== "touch") {
+      toolPointerUp(ev);
+      return;
+    }
+    // `@pointerleave` is bound here too and fires for a lifted finger as well
+    // as for one that slid off the canvas; either way the finger is done.
+    if (!touches.delete(ev.pointerId)) return;
+    if (pinch) {
+      // The pinch ends only when every finger is up, so the last finger to
+      // lift never paints on its way out.
+      if (touches.size === 0) pinch = null;
+      return;
+    }
+    // A quick tap: the press was still waiting when the finger lifted, so it
+    // reaches the tool now, and the Plan's own release listener is handed the
+    // lift it already missed.
+    if (pendingTouch && pendingTouch.ev.pointerId === ev.pointerId) {
+      releasePendingTouch();
+      releaseOnWindow(ev);
+    }
+    liveToolTouch = null;
+    toolPointerUp(ev);
   }
 
   /** The pen tool's "double-click an edge inserts a node" gesture (#884
@@ -926,6 +1068,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   });
 
   onBeforeUnmount(() => {
+    if (pendingTouch) clearTimeout(pendingTouch.timer);
     window.removeEventListener("resize", onResize);
     window.removeEventListener("keydown", onKeyDown);
     if (rafId) cancelAnimationFrame(rafId);

@@ -1,5 +1,5 @@
 <template>
-  <aside class="flex lg:flex-col flex-row gap-1 lg:w-44 shrink-0 bg-card border border-border rounded-lg p-2">
+  <aside class="flex flex-row flex-wrap gap-1 shrink-0 bg-card border border-border rounded-lg p-2 lg:w-44 lg:flex-col lg:flex-nowrap">
     <template v-for="group in groupedTools" :key="group.id">
       <h4 class="hidden lg:flex items-center gap-1.5 text-eyebrow text-muted-foreground px-1 pb-1 mt-2 first:mt-0">
         {{ group.label }}
@@ -11,7 +11,7 @@
         variant="menu"
         size="caption"
         block
-        class="gap-2 py-1.5"
+        class="gap-2 py-1.5 max-lg:w-auto"
         :active="activeTool === t.id"
         :disabled="t.disabled"
         :tooltip="toolTitle(t)"
@@ -28,6 +28,11 @@
       </AppButton>
     </template>
 
+    <!-- Below lg the tools are an icon row, and a phone has no right button
+         or wheel: say how a finger pans and zooms instead. -->
+    <p class="w-full px-1 pt-1 text-caption-sm text-muted-foreground italic lg:hidden">
+      Two fingers pan. Pinch to zoom.
+    </p>
     <div class="hidden lg:block mt-3 border-t border-border pt-2 text-caption-sm text-muted-foreground italic space-y-1">
       <p>RMB or shift-drag pans. Shift+click with Wall wraps all 4 edges. Rect: shift-drag adds perimeter walls.</p>
       <p>Ctrl+Z undo · Ctrl+Shift+Z redo.</p>

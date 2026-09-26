@@ -38,3 +38,41 @@ export function zoomAtPoint(vp: Viewport, cursor: { x: number; y: number }, dpr:
     },
   };
 }
+
+/** A two-finger touch, as the canvas sees it: where the fingers' midpoint is
+ *  (CSS pixels, canvas-relative) and how far apart they are. */
+export interface Pinch {
+  mid: { x: number; y: number };
+  dist: number;
+}
+
+/**
+ * The viewport for a two-finger pan-and-pinch, measured from where the
+ * gesture started rather than step by step, so rounding never accumulates.
+ *
+ * The world point that was under the fingers' midpoint when they landed stays
+ * under the midpoint as it moves (the pan), and the zoom scales with how far
+ * the fingers have spread (the pinch), clamped to the usual range.
+ */
+export function pinchViewport(start: Viewport, from: Pinch, now: Pinch, dpr: number): Viewport {
+  const spread = from.dist > 0 ? now.dist / from.dist : 1;
+  const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, start.zoom * spread));
+  const scale = zoom / start.zoom;
+  const worldX = start.offset.x + from.mid.x * dpr;
+  const worldY = start.offset.y + from.mid.y * dpr;
+  return {
+    zoom,
+    offset: {
+      x: worldX * scale - now.mid.x * dpr,
+      y: worldY * scale - now.mid.y * dpr,
+    },
+  };
+}
+
+/** The midpoint and spread of two touch points. */
+export function pinchOf(a: { x: number; y: number }, b: { x: number; y: number }): Pinch {
+  return {
+    mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+    dist: Math.hypot(a.x - b.x, a.y - b.y),
+  };
+}

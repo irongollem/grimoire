@@ -38,7 +38,13 @@
       is always rendered (placeholder when unset) rather than v-if'd away, and
       why this row has a floor.
     -->
-    <div class="flex min-h-14 items-start gap-3">
+    <!--
+      On a phone the action bar takes its own row (and its buttons drop to
+      icons): beside the name it pushed the name out entirely and ran past the
+      screen edge. The row is always there (Reveal is on every place), so the
+      header is still one fixed height per width.
+    -->
+    <div class="flex min-h-14 flex-wrap items-start gap-3 sm:flex-nowrap">
       <!--
         The size must live on a wrapper, not on FocalImage itself: its root is
         `w-full h-full` and is not run through `cn()`, so a size class passed in
@@ -120,7 +126,7 @@
         Details (name/description/type — today's Edit form). A non-site
         place keeps the single Edit link it always had.
       -->
-      <div class="flex shrink-0 items-center gap-1.5">
+      <div class="flex w-full shrink-0 items-center gap-1.5 sm:w-auto">
         <!--
           Reveal sits beside Build/Edit because revealing is not editing: it
           is the thing a DM does mid-session, and it should never cost a trip
@@ -157,6 +163,9 @@
             size="sm"
             :icon="IconTool"
             :label="building ? 'Done' : 'Build'"
+            :aria-label="building ? 'Done' : 'Build'"
+            :tooltip="building ? 'Done' : 'Build'"
+            collapse-label-on-mobile
             @click="toggleBuild"
           />
           <!-- The site runner (#791, epic #780) — one surface to run a
@@ -167,6 +176,9 @@
             size="sm"
             :icon="IconPlay"
             label="Run"
+            aria-label="Run"
+            tooltip="Run"
+            collapse-label-on-mobile
             @click="openRun"
           />
           <AppButton
@@ -174,6 +186,9 @@
             size="sm"
             :icon="IconEdit"
             label="Details"
+            aria-label="Details"
+            tooltip="Details"
+            collapse-label-on-mobile
             @click="openEdit"
           />
         </template>
@@ -183,6 +198,9 @@
           size="sm"
           :icon="IconEdit"
           label="Edit"
+            aria-label="Edit"
+            tooltip="Edit"
+            collapse-label-on-mobile
           @click="openEdit"
         />
       </div>
@@ -457,11 +475,18 @@ function toggleBuild(): void {
     return;
   }
   void router.push({ query: { ...route.query, build: "true" } });
-  // Build's structural affordances live on the map (rooms, doors, regions),
-  // so entering Build without also switching to Map mode would land the DM
-  // on a Contents list with nothing yet to build.
-  emit("update:paneMode", "map");
 }
+
+// Build's structural affordances live on the map (rooms, doors, regions), so
+// Build always shows the map: pressed here, or arrived at by a link or a
+// refresh with `build=true` already in the address.
+watch(
+  building,
+  (isBuilding) => {
+    if (isBuilding && paneMode !== "map") emit("update:paneMode", "map");
+  },
+  { immediate: true },
+);
 
 /** Details/Edit — a route flag on the current Atlas selection, same
  *  convention as `build` above, rather than a trip to a separate page: the

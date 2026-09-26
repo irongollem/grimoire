@@ -35,11 +35,15 @@
       />
     </div>
 
-    <!-- Canvas -->
+    <!-- Canvas. Pinned to the frame's edges rather than `h-full`: the frame's
+         height comes from `min-height` alone when the toolbox stacks above it
+         (phones), and a percentage height does not resolve against a
+         min-height, so the canvas fell back to its own attribute height and
+         drew a strip across the top of an otherwise white frame. -->
     <div class="flex-1 min-w-0 relative bg-card border border-border rounded-lg overflow-hidden" style="min-height: 60vh">
       <canvas
         ref="canvasEl"
-        class="block w-full h-full touch-none"
+        class="absolute inset-0 block h-full w-full touch-none"
         :class="viewMode ? 'cursor-default' : 'cursor-crosshair'"
         @pointerdown="onPointerDown"
         @pointermove="onPointerMove"

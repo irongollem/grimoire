@@ -14,7 +14,7 @@
 // run against that stub. See src/lib/locations/planCanvas.test.ts for the
 // sibling "record what a fake 2D context was asked to draw" approach; this
 // file doesn't need that because renderMap itself is swapped out.
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { computed, nextTick, ref, type ComputedRef, type Ref } from "vue";
 import { useMapCanvasEditor, type MapCanvasEditorOptions } from "./useMapCanvasEditor";
 import {
@@ -703,5 +703,71 @@ describe("Plan layer", () => {
     makeHarness(); // no `plan`/`activeLayer` — the standalone-route shape
     await nextTick();
     expect(abandonGestureMock).not.toHaveBeenCalled();
+  });
+});
+
+// ── Touch: two fingers pan and pinch, one finger paints ─────────────────
+
+describe("touch", () => {
+  const touch = (id: number) => ({ pointerType: "touch", pointerId: id }) as PointerEventInit;
+  const painted = (layers: Ref<DungeonMapLayers>) => Object.keys(layers.value.floor).length;
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("one finger paints, after a short hold", () => {
+    const { editor, layers } = makeHarness();
+    editor.onPointerDown(down(10, 10, touch(1)));
+    expect(painted(layers)).toBe(0);
+    vi.advanceTimersByTime(100);
+    expect(painted(layers)).toBe(1);
+    editor.onPointerUp(up(10, 10, touch(1)));
+    expect(editor.canUndo.value).toBe(true);
+  });
+
+  it("a quick tap still paints", () => {
+    const { editor, layers } = makeHarness();
+    editor.onPointerDown(down(10, 10, touch(1)));
+    editor.onPointerUp(up(10, 10, touch(1)));
+    expect(painted(layers)).toBe(1);
+  });
+
+  it("two fingers pan and zoom instead of painting", () => {
+    const { editor, layers } = makeHarness();
+    editor.onPointerDown(down(100, 100, touch(1)));
+    editor.onPointerDown(down(200, 100, touch(2)));
+    editor.onPointerMove(move(50, 100, touch(1)));
+    editor.onPointerMove(move(250, 100, touch(2)));
+    vi.advanceTimersByTime(500);
+    expect(editor.zoom.value).toBeCloseTo(2, 5);
+    editor.onPointerUp(up(50, 100, touch(1)));
+    editor.onPointerUp(up(250, 100, touch(2)));
+    expect(painted(layers)).toBe(0);
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("a second finger arriving mid-stroke rolls the stroke back", () => {
+    const { editor, layers } = makeHarness();
+    editor.onPointerDown(down(10, 10, touch(1)));
+    vi.advanceTimersByTime(100);
+    editor.onPointerMove(move(60, 10, touch(1)));
+    expect(painted(layers)).toBeGreaterThan(0);
+    editor.onPointerDown(down(200, 200, touch(2)));
+    expect(painted(layers)).toBe(0);
+    editor.onPointerUp(up(60, 10, touch(1)));
+    editor.onPointerUp(up(200, 200, touch(2)));
+    expect(painted(layers)).toBe(0);
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("the last finger of a pinch does not paint on its way out", () => {
+    const { editor, layers } = makeHarness();
+    editor.onPointerDown(down(100, 100, touch(1)));
+    editor.onPointerDown(down(200, 100, touch(2)));
+    editor.onPointerUp(up(200, 100, touch(2)));
+    editor.onPointerMove(move(10, 10, touch(1)));
+    vi.advanceTimersByTime(500);
+    editor.onPointerUp(up(10, 10, touch(1)));
+    expect(painted(layers)).toBe(0);
   });
 });
