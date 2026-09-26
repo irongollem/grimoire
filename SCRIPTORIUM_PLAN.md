@@ -1,5 +1,24 @@
 # Scriptorium Re-Architecture — "Canva for D&D"
 
+**Historical design record — read for the WHY, not the current HOW.** Phases A
+through D (theme unification, the themed galley + Paged.js live book, the
+template gallery, and page furniture) shipped as described below. **Phase E
+(server render + pdf-lib campaign-data attachment at export time) never
+shipped** — client print via the browser's own print pipeline is still the
+only export path. `campaignBundlePdf.ts` exists and is used both ways
+(`extractBundleFromPdf` for World Bundle import, `attachBundleToPdf` from
+`WorldBundleTab.vue`'s manual "attach campaign data to a PDF" flow), but that
+attach flow is a two-step stand-in a DM drives by hand — export from
+Scriptorium, then separately attach — not the automatic one-click embed Phase E
+described. If that automatic version happens, it is tracked fresh under
+epic #915 story 4, not resumed from here. §2.6's migration design (a lazy
+`content_version`-gated migrate-on-open pass) was superseded by #915 story 2: every write path has stored
+current-version JSON since story 3, so there is nothing left to migrate on
+open — `src/lib/scriptorium/documentContent.ts` normalizes only at the two
+places content still arrives from outside the app (World Bundle import, and a
+one-time production conversion), not on every read. See
+`context/features/publishing-tools.md` for the current shape.
+
 Status: approved 2026-06 · Tracking: EPIC issue on GitHub (see Phases) · Supersedes the Homebrewery-clone framing.
 
 ## 1. Product framing — the real WHY
@@ -90,12 +109,14 @@ A template = `{ meta: { id, name, description, docType, thumbnail }, settings, c
 
 Initial set: **Adventure Module** (cover, credits, TOC, 3 chapters with part dividers, read-aloud + stat-block examples, back cover), **Monster Compendium**, **Spell Compendium**, **Subclass Supplement** (class table pre-placed), **One-Page Dungeon**, **Blank Book**. A DB table (SRD `is_canonical` pattern) only if/when user-shareable templates become a feature.
 
-### 2.6 Migration & compatibility
+### 2.6 Migration & compatibility (superseded — see the note at the top of this file)
 
-`content_version` int on the row; lazy migrate-on-open via pure, unit-tested functions in `src/lib/scriptorium/migrations/`:
+As originally designed: a `content_version` int on the row, with lazy migrate-on-open via pure, unit-tested functions in `src/lib/scriptorium/migrations/`:
 
 - **v1 → v2 (Phase B)**: every `horizontalRule` → explicit `pageBreak` node. Preserves intent exactly — under manual pagination every `<hr>` *was* a hard break, so v1 docs paginate identically. Cover nodes lose their `<hr>` sentinels (named pages handle isolation).
 - **v2 → v3 (Phase D)**: watercolor/watermark/artistCredit nodes and `layoutMode: "absolute"` images lifted into `page_furniture`, anchored to the nearest preceding block UUID (page-anchored for front matter). Legacy node definitions stay registered forever so old JSON always parses; they render nothing post-v3.
+
+No `content_version` column was ever added, and by #915 story 2 there was no longer a reason to: every write path had stored current-version JSON since story 3 (linked entity embeds), so lazily migrating on every open was doing work for documents that never needed it. The two lazy passes above, and `migrations/`, were folded into one normalization that runs only at the import boundary (World Bundle import, and the one-time conversion of the two production rows that still held raw HTML) — see `src/lib/scriptorium/documentContent.ts`. The watercolor/watermark/artistCredit node definitions were deleted rather than kept registered forever, since the normalization now lifts their legacy shapes before the schema ever sees them.
 
 ### 2.7 Fonts (decided)
 
@@ -128,7 +149,7 @@ Every phase leaves the product fully working. End of Phase B deletes `useScripto
 | --- | --- |
 | 20 Tiptap nodes, blockRegistry, scriptoriumImport formatters, cover/stat-block/class-table templates, AI enhance, zoom composable, TanStack hooks | Kept (coverPage gains named-page CSS; tocBlock renderer replaced in B) |
 | Illuminator round-trip (`useScriptoriumIlluminator`) | Kept and extended — Phase D wires it into furniture art items; Phase C templates deep-link art placeholders to Illuminator |
-| watercolor/watermark/artistCredit nodes, image `absolute` mode | Kept through C; parse-only legacy after D |
+| watercolor/watermark/artistCredit nodes | Kept as parse-only legacy through #915 story 1; **deleted in story 2** — the import-boundary normalization lifts their legacy shapes before the schema sees them, so nothing needs to keep parsing them. `image` `layoutMode: "absolute"` is unaffected — that's `ScriptoriumImage`, still registered. |
 | `useScriptoriumPdf.ts`, html2canvas, jspdf, RENDER_CSS, `PdfPreviewDialog.vue`, px/mm calibration | RENDER_CSS theme rules die in A; rest deleted end of B |
 | `htmlToPages` / `pageFooters` / `injectPageAnchors` / `buildTocPages` | Deleted in B |
 | `.phb-editor` dark theme CSS | Replaced in A by themed galley |

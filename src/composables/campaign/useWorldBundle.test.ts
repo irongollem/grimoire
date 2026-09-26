@@ -15,6 +15,7 @@ import {
   remapCustomClassForImport,
   remapCustomSubclassForImport,
   remapPartyMemberForImport,
+  remapScriptoriumDocumentForImport,
   remapSpeciesForImport,
   remapSpellForImport,
   stripPartyMemberRow,
@@ -177,6 +178,43 @@ describe("remapCharacterClassForImport", () => {
     // Non-pin data (name-based resolution fallback) survives.
     expect(result.class_name).toBe("Wizard");
     expect(result.levels).toBe(5);
+  });
+});
+
+describe("remapScriptoriumDocumentForImport", () => {
+  it("assigns a fresh id and the importer's user_id; passes current JSON content through", () => {
+    const idMap = new Map([["doc-1", "doc-fresh"]]);
+    const json = JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
+    const result = remapScriptoriumDocumentForImport(
+      { id: "doc-1", title: "Session 1 Recap", content: json, page_furniture: [] },
+      idMap,
+      "dm-importer",
+    );
+    expect(result.id).toBe("doc-fresh");
+    expect(result.user_id).toBe("dm-importer");
+    expect(result.title).toBe("Session 1 Recap");
+    expect(JSON.parse(result.content as string)).toEqual(JSON.parse(json));
+  });
+
+  it("normalizes a bundle exported long ago that still holds raw HTML content", () => {
+    const result = remapScriptoriumDocumentForImport(
+      { id: "doc-2", title: "Old Adventure", content: "<h1>Old Adventure</h1><p>Body.</p>" },
+      new Map(),
+      "dm-importer",
+    );
+    const parsed = JSON.parse(result.content as string) as { type: string; content: { type: string }[] };
+    expect(parsed.type).toBe("doc");
+    expect(parsed.content.map((n) => n.type)).toEqual(["heading", "paragraph"]);
+  });
+
+  it("mints a fresh uuid when the id isn't in idMap", () => {
+    const result = remapScriptoriumDocumentForImport(
+      { id: "doc-3", content: null },
+      new Map(),
+      "dm-importer",
+    );
+    expect(result.id).not.toBe("doc-3");
+    expect(typeof result.id).toBe("string");
   });
 });
 

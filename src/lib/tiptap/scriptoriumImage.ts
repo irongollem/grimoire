@@ -27,9 +27,18 @@ export const ScriptoriumImage = Image.extend({
       dataAlign: {
         default: "right",
         parseHTML: (el) => {
+          // Whitespace-tolerant: a browser's own style-attribute reflection
+          // reserializes "float:left" as "float: left;" (a colon-adjacent
+          // space, semicolon added) the moment it's set via setAttribute, per
+          // the CSSOM spec — not a parser quirk of one engine. A literal
+          // substring match against the exact renderHTML output therefore
+          // never matched on ANY HTML round trip (copy/paste in the galley,
+          // or content ever set from an HTML string), silently resetting the
+          // image back to right-aligned. Found via the #915 story 2 node
+          // round-trip tests.
           const s = el.getAttribute("style") ?? "";
-          if (s.includes("float:left")) return "left";
-          if (s.includes("margin:8px auto")) return "center";
+          if (/float\s*:\s*left/.test(s)) return "left";
+          if (/margin\s*:\s*8px\s+auto/.test(s)) return "center";
           return "right";
         },
         renderHTML: (attrs) => {

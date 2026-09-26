@@ -27,11 +27,10 @@ Documents are tagged with a type that drives the colour-coded badge in the list 
 - `quoteBlock` and `attribution`: a pull quote and its attribution line
 - `wideBlock`: a block that spans both columns
 - `columnBreak`: forces a new column
-- `pageBreak`: forces a new page (this replaced the old horizontal-rule convention; `migrateV1ToV2` upgrades legacy documents on open)
+- `pageBreak`: forces a new page (this replaced the old horizontal-rule convention; see `documentContent.ts`'s import-boundary normalization for legacy documents)
 - `skipCounting` / `resetCounting`: structural page-numbering controls
 - `SpacerVertical` / `SpacerHorizontal`: layout spacers
 - `ScriptoriumImage`: the image node, with layout modes (size presets, align, float-left/float-right with text wrap, absolute pin with numeric offsets, gutter-bleed in wrap mode), shown via a floating toolbar when the image is selected
-- `Watercolor`, `Watermark`, `ArtistCredit`: decorations (see Page furniture, below)
 - `BlockId`: a stable per-block id used for click-to-edit (clicking a paragraph in the preview jumps the galley to it), surviving Paged.js's pagination
 - `entityEmbed` (`src/lib/tiptap/entityEmbed.ts`): a live-linked NPC/monster/spell/item/location/quest block (see Linked entity embeds, below)
 
@@ -51,11 +50,16 @@ The preview pane and PDF export stay HTML-string based (Paged.js paginates a str
 
 `ScriptoriumDocumentView.vue` is the read-only counterpart: it mounts a non-editable `Editor` with `createScriptoriumExtensions()` through `<EditorContent>`, which is enough for `entityEmbed`'s own node view to resolve itself live (no manual `resolveEntityEmbeds` pass needed): `VueNodeViewRenderer` only activates once `editor.contentComponent` is set, which happens on `<EditorContent>` mount regardless of `editable`. It replaced the generic `RichTextViewer` for a quest beat's attached handout in `QuestRunContainedTool.vue`, whose schema had no idea what a `coverPage`, `noteBlock` or `entityEmbed` node was, silently dropping a handout's cover, read-aloud boxes and linked entities at the table.
 
-Two production documents predate this story and still hold a raw HTML `content` string rather than Tiptap JSON; `ScriptoriumEditor.vue`'s `computeInitialDoc` and `ScriptoriumDocumentView.vue`'s `parseContent` both fall back to handing that HTML to Tiptap directly (which accepts it) rather than failing. Nothing in the app writes HTML into `scriptorium_documents.content` any more: every write path is JSON.
+Nothing in the app writes HTML into `scriptorium_documents.content` any more: every write path is JSON, and since #915 story 2 every read path trusts that. `src/lib/scriptorium/documentContent.ts` is the one module both sides of that boundary go through:
+
+- **`parseStoredContent(content)`** is what `ScriptoriumEditor.vue`'s content loading and `ScriptoriumDocumentView.vue` both call. It does exactly one thing — `JSON.parse`, and throw a typed `UnreadableDocumentError` if the result isn't a Tiptap document. No migration, no HTML fallback: a row that isn't valid current-version JSON is a broken row, not a legacy shape to translate, and both components show a visible "This document could not be read" state (`EmptyState`) rather than handing broken content to Tiptap. The two production documents that predated story 3's write-path change (raw HTML `content` strings) were converted once, not read around forever.
+- **`normalizeImportedDocument(row)`** is the import boundary: the one place content can still arrive from outside this app's own editor is World Bundle import (`useWorldBundle.ts`, via `remapScriptoriumDocumentForImport`), since a bundle exported long ago can carry a raw HTML `content` string or a pre-furniture JSON shape. It folds the old lazy v1→v2 (`<hr>` → `pageBreak`) and v2→v3 (decoration nodes and absolute images lifted into `page_furniture`) migrations into one conversion, run once at the edge rather than on every open. `htmlToScriptoriumJson(html)` is exported standalone for converting raw HTML directly (used once to convert the two pre-story-3 production rows).
+
+The `watercolor`, `watermark`, and `artistCredit` Tiptap nodes were deleted in story 2 — they existed only so old content parsed, and the import-boundary normalization now lifts those legacy shapes into `page_furniture` before the schema ever sees them, so nothing needs to keep parsing them. New decorations have only ever been page furniture (see below), never content nodes.
 
 ### Page furniture
 
-Watercolour splatters, watermarks, and artist credits are not part of the Tiptap content stream: they live in a sibling `page_furniture` jsonb column (`PageFurnitureItem[]`, see `src/types/scriptorium.types.ts`), anchored to a page or a block and positioned as a percentage of the page box so they survive page-size changes. `migrateV2ToV3` lifts any decoration nodes an older document still has embedded in its content out into `page_furniture` on open. Dragging one on the live book updates its `x`/`y`/`width` directly; `FurnitureInspector.vue` edits colour, layer (`under/over` the text) and width, or deletes it.
+Watercolour splatters, watermarks, and artist credits are not part of the Tiptap content stream: they live in a sibling `page_furniture` jsonb column (`PageFurnitureItem[]`, see `src/types/scriptorium.types.ts`), anchored to a page or a block and positioned as a percentage of the page box so they survive page-size changes. There is no content-node form of these three kinds any more (see above) — `documentContent.ts`'s import-boundary normalization is the only place that still lifts a decoration out of a document's content, for the pre-story-2 shapes it exists to convert. Dragging one on the live book updates its `x`/`y`/`width` directly; `FurnitureInspector.vue` edits colour, layer (`under/over` the text) and width, or deletes it.
 
 ### Themes and page sizes
 

@@ -85,6 +85,38 @@ function serializeStyle(el: HTMLStyleElement): string {
   }
 }
 
+export interface PrintDocumentAssembly {
+  title: string;
+  theme: ScriptoriumTheme;
+  pageSize: ScriptoriumPageSize;
+  /** Already-selected theme CSS (theme-onednd2024.css / theme-phb2014.css contents). */
+  themeCss: string;
+  /** The per-document paged CSS (buildPagedPreviewCss output). */
+  pagedCss: string;
+  /** Serialised rules Paged.js injected into <head> for this render. */
+  pagedStyles: string;
+  /** The rendered `.pagedjs_pages` markup. */
+  pagesHtml: string;
+}
+
+/**
+ * Pure assembly of the final print-iframe HTML document: title escaping, CSS
+ * ordering, and the page-size-to-`@page`-keyword mapping. Split out from
+ * `printDocument()` (which has to render with Paged.js and touch a real
+ * iframe first) so this part is testable without either.
+ */
+export function buildPrintDocumentHtml(opts: PrintDocumentAssembly): string {
+  const cls = themeClass(opts.theme);
+  return (
+    `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(opts.title || "Untitled")}</title>` +
+    `<style>${scriptoriumFontsCss}</style>` +
+    `<style>${themeBaseCss}</style><style>${opts.themeCss}</style>` +
+    `<style>${opts.pagedCss}</style><style>${opts.pagedStyles}</style>` +
+    `<style>${printResetCss(opts.pageSize)}</style></head>` +
+    `<body class="sc-theme ${cls}">${opts.pagesHtml}</body></html>`
+  );
+}
+
 export function useScriptoriumPrint() {
   const isPrinting = ref(false);
 
@@ -134,12 +166,15 @@ export function useScriptoriumPrint() {
       const idoc = iframe.contentDocument!;
       idoc.open();
       idoc.write(
-        `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(opts.title || "Untitled")}</title>` +
-          `<style>${scriptoriumFontsCss}</style>` +
-          `<style>${themeBaseCss}</style><style>${themeCss}</style>` +
-          `<style>${pagedCss}</style><style>${pagedStyles}</style>` +
-          `<style>${printResetCss(opts.pageSize)}</style></head>` +
-          `<body class="sc-theme ${cls}">${pagesHtml}</body></html>`,
+        buildPrintDocumentHtml({
+          title: opts.title,
+          theme: opts.theme,
+          pageSize: opts.pageSize,
+          themeCss,
+          pagedCss,
+          pagedStyles,
+          pagesHtml,
+        }),
       );
       idoc.close();
     } finally {

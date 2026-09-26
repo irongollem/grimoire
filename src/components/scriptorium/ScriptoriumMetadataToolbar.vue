@@ -51,7 +51,7 @@
       size="md"
       :icon="IconSave"
       :label="isSaving ? 'Saving…' : isNew ? 'Create' : 'Save'"
-      :disabled="isSaving || !title.trim()"
+      :disabled="isSaving || saveBlocked || !title.trim()"
       @click="$emit('save')"
     />
     <AppButton
@@ -88,9 +88,13 @@ const {
   isSaving = false,
   isDeleting = false,
   isNew = false,
+  saveBlocked = false,
 } = defineProps<{
   title: string;
   docType: ScriptoriumDocType;
+  /** The editor could not read this document's stored content; saving would
+   *  overwrite the only copy with a blank document, so Save is off (#915). */
+  saveBlocked?: boolean;
   /** The document's campaign scope; null = account-wide (#915). */
   campaignId: string | null;
   /** Computed by the editor from the active campaign + this document's own

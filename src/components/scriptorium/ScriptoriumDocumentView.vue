@@ -1,5 +1,14 @@
 <template>
-  <EditorContent v-if="editor" :editor="editor" class="sc-theme sc-document-view" :class="themeClass" />
+  <EmptyState
+    v-if="contentError"
+    title="This document could not be read"
+    description="Its saved content isn't valid Scriptorium content."
+  >
+    <template #icon>
+      <IconWarning class="h-16 w-16" />
+    </template>
+  </EmptyState>
+  <EditorContent v-else-if="editor" :editor="editor" class="sc-theme sc-document-view" :class="themeClass" />
 </template>
 
 <script setup lang="ts">
@@ -24,24 +33,25 @@
  * Presentational only — no pagination, no furniture, no editing UI. The
  * parent passes the whole document; this never fetches one itself.
  */
-import { computed, onUnmounted, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
-import type { JSONContent } from "@tiptap/core";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
+import { parseStoredContent, emptyDoc } from "@/lib/scriptorium/documentContent";
 import type { ScriptoriumDocument } from "@/types/scriptorium.types";
+import EmptyState from "@/components/common/EmptyState.vue";
+import { IconWarning } from "@/lib/icons";
 
 const props = defineProps<{ document: ScriptoriumDocument }>();
 
-/** A document's content is Tiptap JSON — except the handful of documents
- *  created before #915 story 3, which still hold a raw HTML snapshot (see
- *  ScriptoriumEditor.vue's own computeInitialDoc for the same fallback).
- *  Tiptap accepts HTML directly as `content`, so this never throws. */
-function parseContent(content: string | null): JSONContent | string {
-  if (!content) return "";
+/** Stored content is current-version Tiptap JSON only (see documentContent.ts)
+ *  — no HTML fallback. An unreadable row surfaces `contentError` instead. */
+const contentError = ref<Error | null>(null);
+function parseContent(content: string | null) {
   try {
-    return JSON.parse(content) as JSONContent;
-  } catch {
-    return content;
+    return parseStoredContent(content);
+  } catch (e: unknown) {
+    contentError.value = e instanceof Error ? e : new Error(String(e));
+    return emptyDoc();
   }
 }
 
@@ -54,6 +64,7 @@ const editor = useEditor({
 watch(
   () => props.document.content,
   (content) => {
+    contentError.value = null;
     editor.value?.commands.setContent(parseContent(content));
   },
 );

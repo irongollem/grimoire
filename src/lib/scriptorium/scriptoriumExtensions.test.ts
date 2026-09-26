@@ -84,9 +84,6 @@ const DOCUMENT: JSONContent = {
     { type: "horizontalRule" },
     { type: "image", attrs: { src: "https://example.com/art.webp", alt: "Art" } },
     { type: "spacerVertical" },
-    { type: "watercolor" },
-    { type: "watermark" },
-    { type: "artistCredit" },
     { type: "columnBreak" },
     {
       type: "table",
@@ -155,8 +152,6 @@ describe("createScriptoriumExtensions — full round trip", () => {
       "quoteBlock",
       "tocBlock",
       "coverPage",
-      "watermark",
-      "artistCredit",
       "spacerVertical",
       "entityEmbed",
     ]);

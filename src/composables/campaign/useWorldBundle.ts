@@ -1,4 +1,5 @@
 import { stripRetiredQuestColumns } from "@/lib/quests/retiredQuestColumns";
+import { normalizeImportedDocument } from "@/lib/scriptorium/documentContent";
 import { ref } from "vue";
 import type { Ref } from "vue";
 import { computed } from "vue";
@@ -604,6 +605,22 @@ export function remapCustomSubclassForImport(cs: Row, ctx: ImportRemapCtx): Row 
   };
 }
 
+/**
+ * scriptorium_documents is a library-scope row (no campaign_id rewrite — see
+ * LIBRARY_STRIP above), but its `content`/`page_furniture` need the same
+ * normalization the two other content boundaries get (documentContent.ts):
+ * a bundle exported long ago can still carry a raw HTML `content` string or a
+ * pre-v3 JSON shape, and storage must never hold either.
+ */
+export function remapScriptoriumDocumentForImport(doc: Row, idMap: IdMap, userId: string): Row {
+  return {
+    ...doc,
+    ...normalizeImportedDocument(doc),
+    id: idMap.get(doc.id as string) ?? crypto.randomUUID(),
+    user_id: userId,
+  };
+}
+
 async function batchInsert(table: string, rows: Row[]): Promise<void> {
   if (rows.length === 0) return;
   const BATCH = 100;
@@ -922,11 +939,10 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
   }
 
   if (includeTypes.has("scriptorium_documents") && bundle.scriptorium_documents?.length) {
-    await batchInsert("scriptorium_documents", bundle.scriptorium_documents.map((doc) => ({
-      ...doc,
-      id: idMap.get(doc.id as string) ?? crypto.randomUUID(),
-      user_id: userId,
-    })));
+    await batchInsert(
+      "scriptorium_documents",
+      bundle.scriptorium_documents.map((doc) => remapScriptoriumDocumentForImport(doc, idMap, userId)),
+    );
   }
 
   return { newCampaign };

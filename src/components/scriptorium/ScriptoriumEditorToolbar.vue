@@ -118,7 +118,7 @@
         size="icon-xs"
         tooltip="Page Break (inserts new page)"
         :icon="IconMinus"
-        @click="editor.chain().focus().setHorizontalRule().run()"
+        @click="editor.chain().focus().insertPageBreak().run()"
       />
 
       <div class="w-px h-5 bg-border mx-0.5" />

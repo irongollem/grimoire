@@ -3,6 +3,14 @@
  *
  * Returned as a function (rather than a static array) so each editor instance
  * gets its own extension objects — Tiptap mutates these during configuration.
+ *
+ * Watercolor/Watermark/ArtistCredit are deliberately NOT registered here
+ * (#915 story 2). They were content-stream nodes only ever needed to parse
+ * documents from before page furniture existed; `documentContent.ts`'s
+ * import-boundary normalization now lifts those legacy shapes into
+ * `page_furniture` before this schema ever sees them, so the nodes — and the
+ * "stay registered forever so old JSON parses" caveat that used to live here
+ * — are gone rather than carried indefinitely.
  */
 
 import StarterKit from "@tiptap/starter-kit";
@@ -15,9 +23,6 @@ import TableHeader from "@tiptap/extension-table-header";
 import { ScriptoriumImage } from "@/lib/tiptap/scriptoriumImage";
 import { SpacerVertical } from "@/lib/tiptap/SpacerVertical";
 import { SpacerHorizontal } from "@/lib/tiptap/SpacerHorizontal";
-import { Watercolor } from "@/lib/tiptap/watercolor";
-import { Watermark } from "@/lib/tiptap/watermark";
-import { ArtistCredit } from "@/lib/tiptap/artistCredit";
 import { ColumnBreak } from "@/lib/tiptap/columnBreak";
 import { SkipCounting } from "@/lib/tiptap/skipCounting";
 import { ResetCounting } from "@/lib/tiptap/resetCounting";
@@ -70,9 +75,6 @@ export function createScriptoriumExtensions() {
     ScriptoriumImage,
     SpacerVertical,
     SpacerHorizontal,
-    Watercolor,
-    Watermark,
-    ArtistCredit,
     ColumnBreak,
     TableWithClass,
     TableRow,

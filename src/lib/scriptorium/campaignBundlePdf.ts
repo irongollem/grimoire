@@ -1,14 +1,24 @@
 /*
- * Campaign-data PDF embedding (Phase E, #329).
+ * Campaign-data PDF embedding.
  *
- * A Scriptorium export can carry its referenced campaign entities as a
- * GrimoireBundle (the same world-bundle format used by manual import/export),
- * embedded as an invisible `grimoire-campaign.json` attachment inside the PDF.
- * Importing that PDF feeds the bundle straight into the existing world-bundle
- * import flow — one-click campaign population from a shared adventure module.
+ * A PDF can carry a GrimoireBundle (the same world-bundle format used by
+ * manual import/export) as an invisible `grimoire-campaign.json` attachment.
  *
- * Both attach (write) and extract (read) use pdf-lib so the round-trip is pure
- * and testable in node — no pdf.js worker needed.
+ * `attachBundleToPdf` is called from `WorldBundleTab.vue`'s "attach campaign
+ * data to a PDF" flow: the DM exports a book from Scriptorium as a PDF via the
+ * ordinary print pipeline, then separately uploads that PDF here to get back a
+ * single file with the campaign bundle embedded, ready to share. This is a
+ * manual two-step stand-in for automatically embedding the bundle at export
+ * time — the original Phase E plan (SCRIPTORIUM_PLAN.md §3), which was never
+ * built (see the note at the top of that file; a from-scratch version, if
+ * wanted, is tracked under epic #915 story 4).
+ *
+ * `extractBundleFromPdf` is the other direction, called from
+ * `useWorldBundle.ts`'s `parsePdfFile` during World Bundle import, so a PDF
+ * carrying campaign data can be imported the same way a `.grimoire` file is.
+ *
+ * Both directions use pdf-lib so the round-trip is pure and testable in node —
+ * no pdf.js worker needed.
  */
 
 import {

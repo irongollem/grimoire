@@ -50,6 +50,7 @@
       :is-saving="isSaving"
       :is-deleting="isDeleting"
       :is-new="!props.doc"
+      :save-blocked="contentError !== null"
       @update:title="title = $event"
       @update:doc-type="docType = $event as ScriptoriumDocType"
       @update:campaign-id="campaignId = $event"
@@ -68,8 +69,23 @@
       {{ saveError }}
     </p>
 
+    <!-- Unreadable content (#915 story 2): stored content that isn't valid
+         current-version Tiptap JSON. No silent HTML fallback — see
+         documentContent.ts. Save is blocked (saveBlocked on the toolbar
+         and the guard in save()) so a misclick cannot overwrite the only
+         copy with a blank document. -->
+    <EmptyState
+      v-if="contentError"
+      title="This document could not be read"
+      description="Its saved content isn't valid Scriptorium content. Saving is turned off so the original isn't overwritten. Delete it if you don't want to keep this record."
+    >
+      <template #icon>
+        <IconWarning class="h-16 w-16" />
+      </template>
+    </EmptyState>
+
     <!-- Editor / Preview split -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:flex-1 lg:min-h-0">
+    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:flex-1 lg:min-h-0">
       <!-- Editor pane -->
       <div class="flex flex-col rounded-lg border border-border bg-card lg:overflow-hidden">
         <ScriptoriumEditorToolbar
@@ -213,11 +229,12 @@ import type { JSONContent } from "@tiptap/core";
 import type { ScriptoriumTemplateSettings } from "@/data/scriptoriumTemplates/types";
 import type { PageFurnitureItem, FurnitureKind, FurnitureAnchor } from "@/types/scriptorium.types";
 import { createFurnitureItem } from "@/lib/scriptorium/furniture/model";
-import { migrateV1ToV2, needsV1ToV2 } from "@/lib/scriptorium/migrations/v1ToV2";
-import { migrateV2ToV3, needsV2ToV3 } from "@/lib/scriptorium/migrations/v2ToV3";
+import { parseStoredContent } from "@/lib/scriptorium/documentContent";
 import FurnitureInspector from "@/components/scriptorium/FurnitureInspector.vue";
 import { collectEntityRefs, resolveEntityEmbeds } from "@/lib/scriptorium/entityEmbeds";
 import { useEntityEmbedData } from "@/composables/scriptorium/useEntityEmbedData";
+import EmptyState from "@/components/common/EmptyState.vue";
+import { IconWarning } from "@/lib/icons";
 
 const props = defineProps<{
   doc: ScriptoriumDocument | null;
@@ -273,24 +290,20 @@ const campaignOptions = computed(() => {
   return options;
 });
 
-// Initial content + furniture, with lazy migrate-on-open: v1→v2 turns legacy
-// <hr> page breaks into pageBreak nodes; v2→v3 lifts decoration nodes out of the
-// content into furniture. Idempotent — migrated docs don't re-migrate.
+// Initial content + furniture. Stored content is already current-version
+// JSON (every write path has been JSON since #915 story 3) — parseStoredContent
+// does no migration and no HTML fallback; an unreadable row surfaces as
+// `contentError` and the editor/preview pane is replaced by a visible message
+// rather than silently handing broken content to Tiptap.
+const contentError = ref<Error | null>(null);
 function computeInitialDoc(): { content: JSONContent | string; furniture: PageFurnitureItem[] } {
   if (props.doc?.content) {
-    const saved = props.doc.page_furniture ?? [];
-    let json: JSONContent;
     try {
-      json = JSON.parse(props.doc.content) as JSONContent;
-    } catch {
-      return { content: props.doc.content, furniture: saved };
+      return { content: parseStoredContent(props.doc.content), furniture: props.doc.page_furniture ?? [] };
+    } catch (e: unknown) {
+      contentError.value = e instanceof Error ? e : new Error(String(e));
+      return { content: "", furniture: [] };
     }
-    if (needsV1ToV2(json)) json = migrateV1ToV2(json);
-    if (needsV2ToV3(json)) {
-      const r = migrateV2ToV3(json);
-      return { content: r.content, furniture: [...saved, ...r.furniture] };
-    }
-    return { content: json, furniture: saved };
   }
   return { content: props.seed?.content ?? "", furniture: [] };
 }
@@ -336,12 +349,20 @@ function deleteFurniture(id: string) {
 
 // Editor
 const rawHtml = ref("");
+// Only populated while the document actually holds an entityEmbed node (see
+// updateDerived below) — collectEntityRefs handles null as "no refs", and this
+// skips a full-document getJSON() serialization on every keystroke for the
+// common case of a document with no linked entities. usePagedPreview's own
+// debounce already keeps the expensive Paged.js layout out of the typing
+// path; this is the same idea one level up, for the synchronous work that
+// runs on every keystroke regardless of that debounce.
 const rawJson = ref<JSONContent | null>(null);
 const wordCount = ref(0);
 
 function updateDerived(editor: { getHTML: () => string; getJSON: () => JSONContent; getText: () => string }) {
-  rawHtml.value = editor.getHTML();
-  rawJson.value = editor.getJSON();
+  const html = editor.getHTML();
+  rawHtml.value = html;
+  rawJson.value = html.includes('data-type="entity-embed"') ? editor.getJSON() : null;
   const text = editor.getText();
   wordCount.value = text.trim() ? text.trim().split(/\s+/).length : 0;
 }
@@ -432,7 +453,7 @@ async function destroy() {
 }
 
 async function save() {
-  if (!title.value.trim()) return;
+  if (!title.value.trim() || contentError.value) return;
   isSaving.value = true;
   saveError.value = "";
   try {

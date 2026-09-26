@@ -29,7 +29,13 @@ export const Attribution = Node.create({
   defining: true,
 
   parseHTML() {
-    return [{ tag: 'p[data-type="attribution"]' }];
+    // Explicit priority: StarterKit's Paragraph also matches any bare `<p>`
+    // at the schema's default priority (50), and — being registered first in
+    // createScriptoriumExtensions() — wins ties over this more specific
+    // selector, so an attribution paragraph silently parsed back as an
+    // ordinary one on any HTML-string round trip (found via the #915 story 2
+    // node round-trip tests). A higher priority makes this rule run first.
+    return [{ tag: 'p[data-type="attribution"]', priority: 51 }];
   },
 
   renderHTML({ HTMLAttributes }) {

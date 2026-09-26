@@ -40,8 +40,6 @@ export const BLOCK_ID_TYPES = [
   "quoteBlock",
   "tocBlock",
   "coverPage",
-  "watermark",
-  "artistCredit",
   "spacerVertical",
   "entityEmbed",
 ] as const;

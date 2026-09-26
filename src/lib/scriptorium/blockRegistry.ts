@@ -132,7 +132,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Page Break",
     description: "Split the document at this point onto a new page",
     icon: IconMinus,
-    action: (editor) => editor.chain().focus().setHorizontalRule().run(),
+    action: (editor) => editor.chain().focus().insertPageBreak().run(),
   },
   {
     group: "Layout",
