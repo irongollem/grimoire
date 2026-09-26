@@ -1,4 +1,5 @@
 import { BASE_TILE_SIZE } from "./packSchema.ts";
+import { canvasToWebp } from "./imageCodec.ts";
 
 /**
  * Turn a normalized tile a quarter, half or three-quarter turn.
@@ -29,9 +30,5 @@ export async function rotateTile(source: Blob, degrees: 90 | 180 | 270): Promise
   ctx.rotate((degrees * Math.PI) / 180);
   ctx.drawImage(bitmap, -BASE_TILE_SIZE / 2, -BASE_TILE_SIZE / 2, BASE_TILE_SIZE, BASE_TILE_SIZE);
   bitmap.close();
-  return new Promise((resolve, reject) => canvas.toBlob(
-    (blob) => blob ? resolve(blob) : reject(new Error("Browser could not encode WebP")),
-    "image/webp",
-    0.9,
-  ));
+  return canvasToWebp(canvas, 0.9);
 }

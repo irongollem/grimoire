@@ -1,4 +1,5 @@
 import { decodeBase64 } from "./normalizeGeneratedTile.ts";
+import { canvasToWebp } from "./imageCodec.ts";
 
 /**
  * The edge side of the pack generator attaches the approved proof tiles to every
@@ -29,9 +30,5 @@ export async function styleReferenceFrom(imageB64: string, contentType: string):
   if (!ctx) throw new Error("Canvas is unavailable");
   ctx.drawImage(bitmap, 0, 0, STYLE_REFERENCE_SIZE, STYLE_REFERENCE_SIZE);
   bitmap.close();
-  return await new Promise<Blob>((resolve, reject) => canvas.toBlob(
-    (blob) => blob ? resolve(blob) : reject(new Error("Style reference encoding failed")),
-    "image/webp",
-    0.85,
-  ));
+  return await canvasToWebp(canvas, 0.85);
 }

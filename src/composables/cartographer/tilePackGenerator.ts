@@ -7,9 +7,10 @@ import { supabase } from "@/lib/supabase";
  * DM's own packs) and `useLibraryTilePacks` (shared, admin-authored ones) —
  * because the unwrapping is the non-obvious part and is easy to get subtly
  * wrong in a second copy: the function answers a refusal with HTTP 4xx AND a
- * JSON `{ error }` body, so `error.message` alone reports "Edge Function
- * returned a non-2xx status code" and throws away the reason the UI needs to
- * show. Both branches below exist for that, not for symmetry.
+ * JSON `{ error }` body, supabase-js hands that body back only as the unread
+ * Response on `error.context`, and `error.message` alone reports "Edge
+ * Function returned a non-2xx status code", throwing away the reason the UI
+ * needs to show.
  *
  * Lives here rather than in `src/cartographer/` even though it is not a
  * composable, and the distinction is worth stating because a reviewer has
@@ -22,14 +23,31 @@ import { supabase } from "@/lib/supabase";
  */
 export async function invokeTilePackGenerator<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("tile-pack-generator", { body });
+  if (error) {
+    // supabase-js answers a non-2xx with `data: null` and leaves the JSON body
+    // unread on `error.context`, the Response. Reading `data` here instead is
+    // what showed an admin "Edge Function returned a non-2xx status code" in
+    // place of every refusal this function has ever sent (26 Sep 2026).
+    const payload = await refusalBody(error);
+    const code = typeof payload?.error === "string" ? payload.error : null;
+    // `error.message` is only the fallback for a call that failed before the
+    // function replied, or a reply that was not JSON (the runtime's own 5xx).
+    throw edgeFailure(payload, code ?? error.message);
+  }
   const payload = data as Record<string, unknown> | null;
-  // The body's code wins over the transport message in BOTH branches: a
-  // refusal arrives as a 4xx *and* a JSON `{ error }`, so `error.message` is
-  // only ever the fallback for a call that failed before the function replied.
-  const code = typeof payload?.error === "string" ? payload.error : null;
-  if (error) throw edgeFailure(payload, code ?? error.message);
-  if (code) throw edgeFailure(payload, code);
+  if (typeof payload?.error === "string") throw edgeFailure(payload, payload.error);
   return data as T;
+}
+
+/** The refusal's JSON body, or null when there is none to read. */
+async function refusalBody(error: { context?: unknown }): Promise<Record<string, unknown> | null> {
+  if (!(error.context instanceof Response)) return null;
+  try {
+    const parsed: unknown = await error.context.json();
+    return parsed !== null && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

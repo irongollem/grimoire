@@ -1,4 +1,5 @@
 import { BASE_TILE_SIZE, WALL_BAND_PX } from "./packSchema";
+import { canvasToWebp } from "./imageCodec";
 import type { SlotMechanics, SlotIdentity } from "./authoringPlan";
 
 /** The canonical wall band — see WALL_BAND_RATIO. Was an independent 0.18. */
@@ -79,14 +80,6 @@ function clearRoundedInterior(ctx: CanvasRenderingContext2D, side: string | unde
   ctx.arc(corner[0]!, corner[1]!, Math.round(BASE_TILE_SIZE * 0.65), 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
-}
-
-function canvasToWebp(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) => canvas.toBlob(
-    (blob) => blob ? resolve(blob) : reject(new Error("Browser could not encode WebP")),
-    "image/webp",
-    0.9,
-  ));
 }
 
 /**
@@ -203,5 +196,5 @@ export async function normalizeGeneratedTile(input: {
   if (input.mechanics.footprint === "rounded-junction") {
     clearRoundedInterior(ctx, input.slot.side);
   }
-  return canvasToWebp(output);
+  return canvasToWebp(output, 0.9);
 }
