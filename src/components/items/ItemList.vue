@@ -188,7 +188,6 @@ const {
   rarityFilter,
   sourceFilter,
   scopeFilter,
-  showAllScopes = false,
   selecting = false,
   selectedIds = new Set<string>(),
 } = defineProps<{
@@ -196,9 +195,9 @@ const {
   typeFilter: string;
   rarityFilter: string;
   sourceFilter: string;
-  /** One `itemScopeOf` classification to show, or "" for every scope. */
+  /** One `itemScopeOf` classification to show, or "" for everything usable
+   *  in the active campaign (see `useUiStore`'s `vaultFilterScope`). */
   scopeFilter: ItemScope | "";
-  showAllScopes?: boolean;
   /** Bulk-selection mode is on (#875). Library/reference rows (non-UUID ids)
    *  never enter selection mode regardless of this flag — see the template. */
   selecting?: boolean;
@@ -207,7 +206,8 @@ const {
 
 const emit = defineEmits<{ "toggle-select": [id: string] }>();
 
-const { data: items, isLoading } = useItems(() => ({ includeAllScopes: !!showAllScopes }));
+// Only "Other campaigns" needs rows outside the active campaign.
+const { data: items, isLoading } = useItems(() => ({ includeAllScopes: scopeFilter === "other_campaign" }));
 const { activeCampaignId } = storeToRefs(useCampaignStore());
 
 const filtered = computed(() => {

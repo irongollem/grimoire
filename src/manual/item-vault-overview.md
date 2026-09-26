@@ -27,8 +27,7 @@ The list filters by:
 - **Item type**: weapon, armor, shield, ring, wand, staff, scroll, potion, gear, ammunition, art object, other.
 - **Rarity**: mundane through legendary.
 - **Source**: narrows to one publisher/source (populated from what's actually in your Vault).
-- **Scope**: All scopes, This campaign, General, or Library; check "Show items from all campaigns" to also offer Other campaigns.
-- **Show items from all campaigns** checkbox: off by default, so the list shows only general items plus items scoped to your active campaign; check it to search your whole library at once.
+- **Scope**: *Usable here* (the default: this campaign's items, your general items and the library), *This campaign*, *General*, *Library*, or *Other campaigns* to find something you made for a different campaign.
 
 Click **Clear** (shown only once a filter is active) to reset everything. Filters persist across navigation within a session.
 
@@ -120,7 +119,7 @@ Clicking any item row or slot opens its **detail panel**, which, once identified
 
 > A magic item's mundane appearance and description are what players see until you flip it to Identified from the inventory detail panel: set both before handing it out if you want the surprise to land.
 
-- "Show items from all campaigns" is off by default so a busy multi-campaign account doesn't drown the active campaign's list in unrelated homebrew.
+- The Scope filter starts on *Usable here*, so a busy multi-campaign account doesn't drown the active campaign's list in unrelated homebrew.
 - The bulk **Copy to campaign…** picker only offers campaigns the selection *isn't* already in: if you don't see a destination you expected, check whether the item is already general (visible everywhere).
 - Cloning a shared item never changes the original: your clone is a new row that shadows it in your own Vault from then on.
 

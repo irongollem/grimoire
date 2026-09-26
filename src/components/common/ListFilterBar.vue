@@ -29,16 +29,18 @@
       <slot />
 
       <!--
-        On mobile Clear collapses to just the IconClose, on desktop it shows the
-        label too. Keeps the row tight on narrow screens where "Clear" doesn't fit
-        alongside search + filters.
+        Clear keeps its label on a phone and sits right-aligned on its own line
+        under the filters (`max-md:ml-auto` after the full-width rows above
+        it), so it reads as an action on the whole set. As a bare icon it
+        landed wherever the wrap left room, next to one dropdown or another.
       -->
       <ListActionButton
         v-if="hasActiveFilters"
         :icon="IconClose"
-        label="Clear"
-        tooltip="Clear filters"
+        label="Clear filters"
+        :collapse-label-on-mobile="false"
         variant="subtle"
+        class="max-md:ml-auto"
         @click="emit('clear')"
       />
     </div>

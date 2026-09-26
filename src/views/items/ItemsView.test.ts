@@ -31,7 +31,7 @@ vi.mock("@/components/items/ItemList.vue", () => ({
       typeFilter: String,
       rarityFilter: String,
       sourceFilter: String,
-      showAllScopes: Boolean,
+      scopeFilter: String,
       selecting: Boolean,
       selectedIds: Object,
     },

@@ -66,18 +66,12 @@
           <option v-for="s in sources" :key="s.slug" :value="s.slug">{{ itemSourceLabel(s.slug, s.title) }}</option>
         </ListFilterSelect>
         <ListFilterSelect v-model="scopeFilter" aria-label="Scope filter">
-          <option value="">All scopes</option>
+          <option value="">Usable here</option>
           <option value="campaign">This campaign</option>
           <option value="general">General</option>
           <option value="library">Library</option>
-          <option v-if="showAllScopes" value="other_campaign">Other campaigns</option>
+          <option value="other_campaign">Other campaigns</option>
         </ListFilterSelect>
-        <AppCheckbox
-          v-model="showAllScopes"
-          label-role="label-lg"
-          label-weight="normal"
-          label="Show items from all campaigns"
-        />
       </ListFilterBar>
     </template>
 
@@ -108,7 +102,6 @@
       :rarity-filter="rarityFilter"
       :source-filter="sourceFilter"
       :scope-filter="scopeFilter"
-      :show-all-scopes="showAllScopes"
       :selecting="selecting"
       :selected-ids="selectedIds"
       @toggle-select="toggleRowSelection"
@@ -121,7 +114,6 @@ import { computed, ref, watch } from "vue";
 import { IconAdd, IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
@@ -160,10 +152,6 @@ const sourceFilter = computed({
 const scopeFilter = computed({
   get: () => ui.vaultFilterScope,
   set: (v) => { ui.vaultFilterScope = v; },
-});
-const showAllScopes = computed({
-  get: () => ui.vaultShowAllScopes,
-  set: (v) => { ui.vaultShowAllScopes = v; },
 });
 
 const hasActiveFilters = computed(() => ui.vaultHasActiveFilters);

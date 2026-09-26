@@ -159,16 +159,21 @@ export const useUiStore = defineStore("ui", () => {
   const vaultFilterType = ref<ItemType | "">("");
   const vaultFilterRarity = ref<ItemRarity | "">("");
   const vaultFilterSource = ref("");
-  /** Narrows the list to one classification from `itemScopeOf` — "" means every scope. */
+  /**
+   * Narrows the list to one classification from `itemScopeOf`. "" is "Usable
+   * here": this campaign, general and library items, but not other campaigns'
+   * (a busy multi-campaign account would drown the list in unrelated
+   * homebrew). "other_campaign" is the only value that fetches other
+   * campaigns' rows at all; it replaced a separate "Show items from all
+   * campaigns" checkbox that did the same job.
+   */
   const vaultFilterScope = ref<ItemScope | "">("");
-  /** When true, show items from every campaign instead of the default (current campaign + general). */
-  const vaultShowAllScopes = ref(false);
   const itemGeneratorOpen = ref(false);
   const puzzleGeneratorOpen = ref(false);
   const spellGeneratorOpen = ref(false);
 
   const vaultHasActiveFilters = computed(() =>
-    vaultSearch.value !== "" || vaultFilterType.value !== "" || vaultFilterRarity.value !== "" || vaultFilterSource.value !== "" || vaultFilterScope.value !== "" || vaultShowAllScopes.value,
+    vaultSearch.value !== "" || vaultFilterType.value !== "" || vaultFilterRarity.value !== "" || vaultFilterSource.value !== "" || vaultFilterScope.value !== "",
   );
 
   function resetVaultFilters() {
@@ -177,17 +182,7 @@ export const useUiStore = defineStore("ui", () => {
     vaultFilterRarity.value = "";
     vaultFilterSource.value = "";
     vaultFilterScope.value = "";
-    vaultShowAllScopes.value = false;
   }
-
-  // "Other campaigns" is only ever offered while vaultShowAllScopes is on
-  // (ItemsView hides the option otherwise) — turning the toggle off with that
-  // scope selected would leave the select holding a value with no matching
-  // <option>, and a query that can never match a row since useItems() already
-  // stops fetching other campaigns' rows once the toggle is off.
-  watch(vaultShowAllScopes, (shown) => {
-    if (!shown && vaultFilterScope.value === "other_campaign") vaultFilterScope.value = "";
-  });
 
   // Trap generator
   const trapGeneratorOpen = ref(false);
@@ -1140,7 +1135,6 @@ export const useUiStore = defineStore("ui", () => {
     vaultFilterRarity,
     vaultFilterSource,
     vaultFilterScope,
-    vaultShowAllScopes,
     vaultHasActiveFilters,
     resetVaultFilters,
     itemGeneratorOpen,

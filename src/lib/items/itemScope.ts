@@ -9,9 +9,8 @@ import { isUuid } from "@/lib/library/contentIdentity";
  * - `library` — shared/reference content: a non-UUID provider id
  *   (`normalizeLibraryItem` stamps these `campaign_id: null, user_id: ""`,
  *   so they must be told apart from `general` by id shape, not scope).
- * - `other_campaign` — scoped to a campaign that is not the active one. Only
- *   reachable when the Vault's "Show items from all campaigns" toggle has
- *   pulled other campaigns' rows into the list at all.
+ * - `other_campaign` — scoped to a campaign that is not the active one. The
+ *   Vault only fetches these rows when its Scope filter asks for them.
  */
 export type ItemScope = "campaign" | "general" | "library" | "other_campaign";
 

@@ -30,9 +30,12 @@ vi.stubGlobal("IntersectionObserver", IntersectionObserverStub);
 // this file (including "vue") is initialized, so calling ref() inside it
 // throws a TDZ error. The mocked useItems below wraps this in a real ref at
 // call time instead, which is late enough for "vue" to be bound.
-const mocks = vi.hoisted(() => ({ items: [] as Item[] }));
+const mocks = vi.hoisted(() => ({ items: [] as Item[], lastOptions: null as null | (() => { includeAllScopes?: boolean }) }));
 vi.mock("@/composables/items/useItems", () => ({
-  useItems: () => ({ data: ref(mocks.items), isLoading: ref(false) }),
+  useItems: (options: () => { includeAllScopes?: boolean }) => {
+    mocks.lastOptions = options;
+    return { data: ref(mocks.items), isLoading: ref(false) };
+  },
 }));
 // Sidesteps useScrollRestore's onBeforeRouteLeave, which needs an installed
 // router — irrelevant to the bulk-selection wiring under test here.
@@ -84,7 +87,6 @@ function mountList(
     selecting: boolean;
     selectedIds: ReadonlySet<string>;
     scopeFilter: ItemScope | "";
-    showAllScopes: boolean;
   }> = {},
 ) {
   return mount(ItemList, {
@@ -200,8 +202,9 @@ describe("ItemList — scope filter", () => {
     ];
   });
 
-  it("shows every row when no scope is chosen", () => {
+  it("shows every fetched row when no scope is chosen, and fetches only what is usable here", () => {
     const wrapper = mountList({ scopeFilter: "" });
+    expect(mocks.lastOptions?.().includeAllScopes).toBe(false);
     expect(wrapper.text()).toContain("Campaign Sword");
     expect(wrapper.text()).toContain("General Cloak");
     expect(wrapper.text()).toContain("Foreign Ring");
@@ -233,7 +236,8 @@ describe("ItemList — scope filter", () => {
   });
 
   it('"Other campaigns" keeps only the row scoped to a different campaign', () => {
-    const wrapper = mountList({ scopeFilter: "other_campaign", showAllScopes: true });
+    const wrapper = mountList({ scopeFilter: "other_campaign" });
+    expect(mocks.lastOptions?.().includeAllScopes).toBe(true);
     expect(wrapper.text()).toContain("Foreign Ring");
     expect(wrapper.text()).not.toContain("Campaign Sword");
     expect(wrapper.text()).not.toContain("General Cloak");

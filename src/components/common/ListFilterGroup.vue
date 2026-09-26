@@ -13,9 +13,13 @@
     mobile the group scrolls horizontally (`max-md:overflow-x-auto`, segments
     `max-md:shrink-0`) so no option is clipped/unreachable; on ≥md it keeps the
     original `overflow-hidden` joined-edge look unchanged.
+
+    On mobile the group also spans the row (`max-md:w-full`, segments
+    `max-md:grow`), so it lines up with the two-up dropdowns below it instead
+    of stopping short of the right edge. A group too wide to fit still scrolls.
   -->
   <div
-    class="flex rounded-md border border-border md:overflow-hidden max-md:overflow-x-auto text-label-lg font-semibold shrink-0 filter-group-scroll"
+    class="flex rounded-md border border-border md:overflow-hidden max-md:w-full max-md:overflow-x-auto text-label-lg font-semibold shrink-0 filter-group-scroll"
     :aria-label="ariaLabel"
     role="radiogroup"
   >
@@ -25,7 +29,7 @@
       type="button"
       role="radio"
       :aria-checked="model === opt.value"
-      class="max-md:shrink-0 max-md:inline-flex max-md:items-center max-md:justify-center max-md:min-h-11 px-2.5 py-1.5 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      class="max-md:shrink-0 max-md:grow max-md:inline-flex max-md:items-center max-md:justify-center max-md:min-h-11 px-2.5 py-1.5 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       :class="
         model === opt.value
           ? 'bg-primary text-primary-foreground'
