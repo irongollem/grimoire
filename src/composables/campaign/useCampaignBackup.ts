@@ -76,6 +76,9 @@ export interface GrimoireBackup {
   session_availability: Row[];
   chronicler_images: Row[];
   entity_notes: Row[];
+  /** The campaign's own Scriptorium documents (#915). Absent from a backup
+   *  taken before documents could belong to a campaign. */
+  scriptorium_documents?: Row[];
   _meta: {
     entity_counts: Record<string, number>;
     app_version: string;
@@ -166,6 +169,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     npcRelationships,
     chroniclerImages,
     entityNotes,
+    scriptoriumDocuments,
   ] = await Promise.all([
     supabase.from("campaigns").select("*").eq("id", campaignId).single().then(({ data, error }) => {
       if (error) throw error;
@@ -196,6 +200,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByCampaign("npc_relationships", campaignId),
     qByCampaign("chronicler_images", campaignId),
     qByCampaign("entity_notes", campaignId),
+    qByCampaign("scriptorium_documents", campaignId),
   ]);
 
   // Phase 2: child entities keyed by parent IDs (parallel)
@@ -250,6 +255,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     party_members: partyMembers.length,
     companions: companions.length,
     notes: notes.length,
+    scriptorium_documents: scriptoriumDocuments.length,
     calendar_events: calendarEvents.length,
     npcs: npcs.length,
     factions: factions.length,
@@ -312,6 +318,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     session_availability: sessionAvailability,
     chronicler_images: chroniclerImages,
     entity_notes: entityNotes,
+    scriptorium_documents: scriptoriumDocuments,
     _meta: { entity_counts: entityCounts, app_version: "1.0.0" },
   };
 }
@@ -423,6 +430,7 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.session_proposals,
     backup.session_availability,
     backup.chronicler_images,
+    backup.scriptorium_documents ?? [],
   ];
 
   return buildIdMapFromArrays(entityArrays);
@@ -506,7 +514,18 @@ async function executeImport(
       })),
     );
 
-    // 4. NPCs (may reference locations)
+    // 4. Scriptorium documents, before the NPCs whose handout they may be
+    await batchInsert(
+      "scriptorium_documents",
+      (backup.scriptorium_documents ?? []).map((doc) => ({
+        ...doc,
+        id: r(doc.id, idMap),
+        campaign_id: newCampaignId,
+        user_id: userId,
+      })),
+    );
+
+    // 4b. NPCs (may reference locations and documents)
     await batchInsert(
       "npcs",
       backup.npcs.map((npc) => ({
@@ -516,7 +535,10 @@ async function executeImport(
         user_id: userId,
         location_id: r(npc.location_id, idMap),
         player_visible_to: rArr(npc.player_visible_to, idMap),
-        // linked_monster_id and scriptorium_doc_id kept as-is (user-library refs)
+        // A handout the backup carries is remapped to its copy; an
+        // account-wide one keeps its id. linked_monster_id is a user-library
+        // ref and is kept as-is.
+        scriptorium_doc_id: r(npc.scriptorium_doc_id, idMap),
       })),
     );
 

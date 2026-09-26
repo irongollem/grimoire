@@ -700,7 +700,8 @@ async function sendToScriptorium() {
   isSendingToScriptorium.value = true;
   try {
     const data = formatItemForScriptorium(props.item, selectedSpells.value);
-    const doc = await createDoc(data);
+    // The generated document travels with the item's own campaign scope (#915).
+    const doc = await createDoc({ ...data, campaign_id: props.item.campaign_id });
     router.push(`/scriptorium/${doc.id}`);
   } catch (e: unknown) {
     if (isQuotaExceeded(e)) { showScriptoriumPaywall.value = true; return; }

@@ -42,6 +42,8 @@
     <ScriptoriumMetadataToolbar
       :title="title"
       :doc-type="docType"
+      :campaign-id="campaignId"
+      :campaign-options="campaignOptions"
       :is-published="isPublished"
       :show-page-numbers="showPageNumbers"
       :footer-text="footerText"
@@ -51,6 +53,7 @@
       :is-new="!props.doc"
       @update:title="title = $event"
       @update:doc-type="docType = $event as ScriptoriumDocType"
+      @update:campaign-id="campaignId = $event"
       @update:is-published="isPublished = $event"
       @update:show-page-numbers="showPageNumbers = $event"
       @update:footer-text="footerText = $event"
@@ -170,7 +173,10 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, nextTick, onUnmounted } from "vue";
+import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
+import { useCampaignStore } from "@/stores/campaign";
+import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
@@ -239,6 +245,32 @@ const tags = ref<string[]>(props.doc?.tags ?? seedSettings?.tags ?? []);
 const showPageNumbers = ref(props.doc?.show_page_numbers ?? seedSettings?.showPageNumbers ?? false);
 const footerText = ref(props.doc?.footer_text ?? seedSettings?.footerText ?? "");
 const pageNumberStart = ref(props.doc?.page_number_start ?? seedSettings?.pageNumberStart ?? 1);
+
+// Campaign scope (#915). An existing document keeps its own scope; a new one
+// defaults to whatever campaign is active, or account-wide if none is.
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+const campaignId = ref<string | null>(props.doc ? props.doc.campaign_id : activeCampaignId.value);
+
+// Every campaign this account DMs, archived included — the toolbar's scope
+// select needs names for the active campaign and, when it differs, the
+// document's own campaign (a doc created elsewhere, or the DM has since
+// switched campaigns). Archived is included so that case still resolves a
+// name instead of falling back to "Unknown campaign".
+const { data: dmCampaigns } = useAllDmCampaigns();
+function campaignName(id: string): string {
+  return dmCampaigns.value?.find((c) => c.id === id)?.name ?? "Unknown campaign";
+}
+const campaignOptions = computed(() => {
+  const options: Array<{ value: string | null; label: string }> = [];
+  if (activeCampaignId.value) {
+    options.push({ value: activeCampaignId.value, label: campaignName(activeCampaignId.value) });
+  }
+  if (campaignId.value && campaignId.value !== activeCampaignId.value) {
+    options.push({ value: campaignId.value, label: campaignName(campaignId.value) });
+  }
+  options.push({ value: null, label: "All my campaigns" });
+  return options;
+});
 
 // Initial content + furniture, with lazy migrate-on-open: v1→v2 turns legacy
 // <hr> page breaks into pageBreak nodes; v2→v3 lifts decoration nodes out of the
@@ -394,6 +426,7 @@ async function save() {
       title: title.value.trim(),
       content: JSON.stringify(editor.value?.getJSON() ?? {}),
       doc_type: docType.value,
+      campaign_id: campaignId.value,
       tags: tags.value,
       is_published: isPublished.value,
       is_two_column: isTwoColumn.value,

@@ -99,6 +99,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useItems } from "@/composables/items/useItems";
 import { useMonsters } from "@/composables/monsters/useMonsters";
 import { useScriptoriumDocuments } from "@/composables/scriptorium/useScriptorium";
+import { isDocumentUsableIn } from "@/lib/scriptorium/documentScope";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
@@ -155,7 +156,11 @@ const options = computed<Array<{ id: string; name: string }>>(() => ({
   audio_scene: (playlists.value ?? []).filter((row) => row.playlist_type === "ambient").map((row) => ({ id: row.id, name: row.name })),
   playlist: (playlists.value ?? []).filter((row) => row.playlist_type === "music").map((row) => ({ id: row.id, name: row.name })),
   note: (notes.value ?? []).map((row) => ({ id: row.id, name: row.title })),
-  handout: (documents.value ?? []).map((row) => ({ id: row.id, name: row.title })),
+  // Only handouts usable in the quest's own campaign — account-wide docs plus
+  // that campaign's — never another campaign's private prose (#597, #915).
+  handout: (documents.value ?? [])
+    .filter((row) => isDocumentUsableIn(row, props.beat.campaign_id))
+    .map((row) => ({ id: row.id, name: row.title })),
 }[attachmentType.value]));
 const CREATE_URLS: Record<Exclude<QuestBeatAttachmentType, "check">, string> = {
   encounter: "/encounters/new",

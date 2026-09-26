@@ -48,6 +48,10 @@ export interface ScriptoriumDocument {
   title: string;
   content: string | null; // Tiptap JSON string
   doc_type: ScriptoriumDocType;
+  /** Campaign this document belongs to; null = account-wide (#915). Client
+   *  never sets `demo_source` — that column exists only for the demo copy's
+   *  quota exemption and is not part of this type. */
+  campaign_id: string | null;
   tags: string[];
   is_published: boolean;
   is_two_column: boolean;
@@ -73,6 +77,7 @@ export type ScriptoriumDocumentSummary = Pick<
   | "id"
   | "title"
   | "doc_type"
+  | "campaign_id"
   | "tags"
   | "is_published"
   | "word_count"

@@ -13,7 +13,7 @@ const QUERY_KEY = "scriptorium";
 /** Columns the list view renders — see ScriptoriumDocumentSummary. Selecting
  *  `*` here shipped every document's full Tiptap body just to draw its card. */
 const SUMMARY_COLUMNS =
-  "id, title, doc_type, tags, is_published, word_count, created_at, updated_at";
+  "id, title, doc_type, campaign_id, tags, is_published, word_count, created_at, updated_at";
 
 async function fetchDocuments(): Promise<ScriptoriumDocumentSummary[]> {
   const { data, error } = await supabase

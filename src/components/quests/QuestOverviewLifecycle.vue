@@ -233,12 +233,16 @@ async function sendToScriptorium() {
   try {
     const giverName = (npcs.value ?? []).find((npc) => npc.id === props.quest.giver_npc_id)?.name ?? null;
     const locationName = (locations.value ?? []).find((location) => location.id === props.quest.location_id)?.name ?? null;
-    const document = await createScriptoriumDocument(formatQuestForScriptorium(
-      props.quest,
-      objectives.value ?? [],
-      giverName,
-      locationName,
-    ));
+    // The generated document travels with the quest's own campaign scope (#915).
+    const document = await createScriptoriumDocument({
+      ...formatQuestForScriptorium(
+        props.quest,
+        objectives.value ?? [],
+        giverName,
+        locationName,
+      ),
+      campaign_id: props.quest.campaign_id,
+    });
     await router.push(`/scriptorium/${document.id}`);
   } catch (e: unknown) {
     if (isQuotaExceeded(e)) { showScriptoriumPaywall.value = true; return; }

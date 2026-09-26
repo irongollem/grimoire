@@ -8,6 +8,7 @@ import type { JournalCategory } from "@/composables/notes/usePlayerJournal";
 import type { SortField, SortDir } from "@/lib/noteSort";
 import type { NpcStatus, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
+import type { DocumentScope } from "@/lib/scriptorium/documentScope";
 import type { ItemType, ItemRarity } from "@/types/item.types";
 import type { ItemScope } from "@/lib/items/itemScope";
 import type { CraftingDiscipline } from "@/types/crafting.types";
@@ -41,15 +42,25 @@ export const useUiStore = defineStore("ui", () => {
   const scriptoriumPreviewMode = ref<"split" | "edit" | "preview">("split");
   const scriptoriumSearch = ref("");
   const scriptoriumFilterType = ref<ScriptoriumDocType | "all">("all");
+  /**
+   * Narrows the list to one `documentScopeOf` classification. "" is "Usable
+   * here": the active campaign's documents plus account-wide ones — same
+   * default as the Vault's `vaultFilterScope` (#915).
+   */
+  const scriptoriumFilterScope = ref<DocumentScope | "">("");
   const activeScriptoriumDocId = ref<string | null>(null);
 
   const scriptoriumHasActiveFilters = computed(
-    () => scriptoriumSearch.value !== "" || scriptoriumFilterType.value !== "all",
+    () =>
+      scriptoriumSearch.value !== "" ||
+      scriptoriumFilterType.value !== "all" ||
+      scriptoriumFilterScope.value !== "",
   );
 
   function resetScriptoriumFilters() {
     scriptoriumSearch.value = "";
     scriptoriumFilterType.value = "all";
+    scriptoriumFilterScope.value = "";
   }
 
   // NPC UI state
@@ -1077,6 +1088,7 @@ export const useUiStore = defineStore("ui", () => {
     scriptoriumPreviewMode,
     scriptoriumSearch,
     scriptoriumFilterType,
+    scriptoriumFilterScope,
     scriptoriumHasActiveFilters,
     resetScriptoriumFilters,
     activeScriptoriumDocId,

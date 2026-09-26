@@ -12,6 +12,14 @@
         </option>
       </AppSelect>
     </label>
+    <label>
+      <span class="sr-only">Campaign scope</span>
+      <AppSelect v-model="campaignIdModel">
+        <option v-for="opt in campaignOptions" :key="opt.value ?? '__general__'" :value="opt.value">
+          {{ opt.label }}
+        </option>
+      </AppSelect>
+    </label>
     <AppCheckbox
       label-role="label-lg"
       label="PUBLISHED"
@@ -71,6 +79,8 @@ import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 const {
   title,
   docType,
+  campaignId,
+  campaignOptions,
   isPublished,
   showPageNumbers,
   footerText,
@@ -81,6 +91,14 @@ const {
 } = defineProps<{
   title: string;
   docType: ScriptoriumDocType;
+  /** The document's campaign scope; null = account-wide (#915). */
+  campaignId: string | null;
+  /** Computed by the editor from the active campaign + this document's own
+   *  scope — see ScriptoriumEditor.vue. Always includes "All my campaigns"
+   *  (value null); includes the active campaign when there is one, and the
+   *  document's current campaign too when it differs from the active one, so
+   *  a document scoped elsewhere never silently rescopes on save. */
+  campaignOptions: Array<{ value: string | null; label: string }>;
   isPublished: boolean;
   showPageNumbers: boolean;
   footerText: string;
@@ -93,6 +111,7 @@ const {
 const emit = defineEmits<{
   "update:title": [value: string];
   "update:docType": [value: string];
+  "update:campaignId": [value: string | null];
   "update:isPublished": [value: boolean];
   "update:showPageNumbers": [value: boolean];
   "update:footerText": [value: string];
@@ -111,6 +130,10 @@ const titleModel = computed({
 const docTypeModel = computed({
   get: () => docType,
   set: (value: ScriptoriumDocType) => emit("update:docType", value),
+});
+const campaignIdModel = computed({
+  get: () => campaignId,
+  set: (value: string | null) => emit("update:campaignId", value),
 });
 // Kept as a string model + Number() on write (rather than v-model.number) to match
 // the original @change behaviour exactly: an emptied field became 0, not null.

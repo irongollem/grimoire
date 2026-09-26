@@ -16,6 +16,12 @@
       <ListFilterSelect v-model="typeFilter" aria-label="Document type filter">
         <option v-for="t in TYPE_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
       </ListFilterSelect>
+      <ListFilterSelect v-model="scopeFilter" aria-label="Scope filter">
+        <option value="">Usable here</option>
+        <option value="campaign">This campaign</option>
+        <option value="general">General</option>
+        <option value="other_campaign">Other campaigns</option>
+      </ListFilterSelect>
     </ListFilterBar>
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -89,6 +95,15 @@
             </span>
           </div>
 
+          <!-- Scope hint — only for a document scoped to a campaign other than
+               the active one, where "whose is this" is not otherwise visible. -->
+          <p
+            v-if="otherCampaignName(doc)"
+            class="text-caption text-muted-foreground italic truncate"
+          >
+            {{ otherCampaignName(doc) }}
+          </p>
+
           <!-- Tags -->
           <div v-if="doc.tags.length" class="flex flex-wrap gap-1">
             <span
@@ -152,6 +167,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { IconDelete, IconFaction, IconLock, IconNavScriptorium } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
@@ -160,6 +176,8 @@ import {
   useDeleteScriptoriumDocument,
 } from "@/composables/scriptorium/useScriptorium";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
+import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
@@ -167,8 +185,9 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
-import type { ScriptoriumDocType } from "@/types/scriptorium.types";
+import type { ScriptoriumDocType, ScriptoriumDocumentSummary } from "@/types/scriptorium.types";
 import { DOC_TYPES, DOC_TYPE_OPTIONS } from "@/lib/scriptorium/editorConstants";
+import { documentScopeOf, isDocumentUsableIn } from "@/lib/scriptorium/documentScope";
 
 const router = useRouter();
 const { canCreate, quota: docQuota } = useQuota("scriptorium_documents");
@@ -226,9 +245,30 @@ const typeFilter = computed({
   get: () => ui.scriptoriumFilterType as string,
   set: (v) => { ui.scriptoriumFilterType = v as ScriptoriumDocType | "all"; },
 });
+const scopeFilter = computed({
+  get: () => ui.scriptoriumFilterScope,
+  set: (v) => { ui.scriptoriumFilterScope = v; },
+});
 
 const { data: docs, isLoading } = useScriptoriumDocuments();
 const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+// A document scoped to another campaign can only be one this account DMs
+// (RLS is owner-only) — the "Other campaigns" name hint. Archived campaigns
+// included on purpose: a document does not stop being theirs when the
+// campaign that owns it is archived.
+const { data: allDmCampaigns } = useAllDmCampaigns();
+const campaignNameById = computed(() => {
+  const map = new Map<string, string>();
+  for (const c of allDmCampaigns.value ?? []) map.set(c.id, c.name);
+  return map;
+});
+function otherCampaignName(doc: ScriptoriumDocumentSummary): string | null {
+  if (doc.campaign_id === null) return null;
+  if (documentScopeOf(doc, activeCampaignId.value) !== "other_campaign") return null;
+  return campaignNameById.value.get(doc.campaign_id) ?? null;
+}
 
 const lockedDocIds = computed((): Set<string> => {
   const q = docQuota.value;
@@ -247,6 +287,9 @@ async function confirmDelete(id: string, title: string) {
 
 const filtered = computed(() => {
   let list = docs.value ?? [];
+  list = ui.scriptoriumFilterScope
+    ? list.filter((d) => documentScopeOf(d, activeCampaignId.value) === ui.scriptoriumFilterScope)
+    : list.filter((d) => isDocumentUsableIn(d, activeCampaignId.value));
   if (ui.scriptoriumSearch.trim()) {
     const q = ui.scriptoriumSearch.trim().toLowerCase();
     list = list.filter(

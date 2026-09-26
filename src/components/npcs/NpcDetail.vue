@@ -344,7 +344,8 @@ async function sendToScriptorium() {
       ? (locationOptions.value.find((l) => l.id === props.npc!.location_id)?.name ?? null)
       : null
     const importData = formatNpcForScriptorium(props.npc, locationName)
-    const doc = await createScriptoriumDoc(importData)
+    // The generated document travels with the NPC's own campaign scope (#915).
+    const doc = await createScriptoriumDoc({ ...importData, campaign_id: props.npc.campaign_id })
     await updateNpc({ id: props.npc.id, update: { scriptorium_doc_id: doc.id } })
     router.push(`/scriptorium/${doc.id}`)
   } catch (e: unknown) {

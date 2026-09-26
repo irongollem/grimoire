@@ -72,11 +72,19 @@ Click **PDF** to export. A true vector PDF is generated (selectable text, embedd
 
 ## Document settings and list
 
-Above the galley: **Document title**, **Document type**, a **PUBLISHED** checkbox, and a **PAGE #S** checkbox (reveals footer text and a starting page number field when on). **Save** (or **Create** for a new document) and **Delete** sit alongside.
+Above the galley: **Document title**, **Document type**, a **Campaign** dropdown, a **PUBLISHED** checkbox, and a **PAGE #S** checkbox (reveals footer text and a starting page number field when on). **Save** (or **Create** for a new document) and **Delete** sit alongside.
 
 The **Publish** checkbox marks a document with a green "Published" badge in your list: a DM-only status flag for tracking what's done vs. draft. It does not currently share the document with players.
 
-Your document list shows a card grid with a colour-coded type bar, word count, and the Published badge; filter by **type** and free-text **search**, both remembered across visits so navigating away and back doesn't reset them.
+Your document list shows a card grid with a colour-coded type bar, word count, and the Published badge; filter by **type**, **scope**, and free-text **search**, all remembered across visits so navigating away and back doesn't reset them.
+
+### Campaign scope
+
+Every document belongs to one campaign, or to none. A new document defaults to your active campaign; the **Campaign** dropdown in the toolbar lets you switch it to **All my campaigns** instead, which makes it account-wide and visible no matter which campaign you have open. A document you wrote while a different campaign was active keeps showing that campaign's name in the dropdown, so saving it never quietly moves it somewhere else.
+
+The document list's **Scope** filter finds documents by the same classification: *Usable here* (the default: your active campaign's documents plus your account-wide ones), *This campaign*, *General* (account-wide only), or *Other campaigns* to find something you wrote while working in a different campaign. Deleting a campaign never deletes the documents scoped to it; they become account-wide instead.
+
+A document scoped to a campaign can only be attached as a quest handout within that same campaign (or an account-wide one): attaching from the quest beat's Placements panel already narrows the picker this way.
 
 ## Tips
 
