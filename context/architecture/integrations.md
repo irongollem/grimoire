@@ -207,8 +207,10 @@ HEAD cannot size.
   secret). Playback SDK from `sdk.scdn.co`; requires Spotify Premium in
   practice. Token/refresh problems live in `src/lib/audio/spotifyAuth.ts`,
   not in any edge function.
-- **Google Cast**: `useCast.ts` loads the sender SDK from `gstatic.com`;
-  Chrome/Edge desktop + Android only.
+- **Google Cast**: `useCast.ts` loads the sender SDK from `gstatic.com` only
+  when someone clicks Cast (or preloads for a browser that has cast before),
+  never merely because the soundboard opened — loading it hands the visitor's
+  IP to Google. Chrome/Edge desktop + Android only.
 - **Lyria (AI music)**: `lyria-3.5` via the Gemini **Interactions API**
   (`/v1beta/interactions`, `store: false`) — edge `generate-music` (platform)
   or browser BYOK (`src/lib/audio/aiMusic.ts`). Model id comes from

@@ -5,6 +5,7 @@
     :size="size"
     icon-size="xs"
     :active="isCasting"
+    :loading="isCastLoading"
     active-fill="none"
     class="shrink-0"
     :icon="IconCast"
@@ -41,5 +42,5 @@ const { variant = "ghost", size = "icon-2xs" } = defineProps<{
   size?: ButtonSize;
 }>();
 
-const { isCastAvailable, isCasting, castDeviceName, openDevicePicker } = useCast();
+const { isCastAvailable, isCastLoading, isCasting, castDeviceName, openDevicePicker } = useCast();
 </script>
