@@ -1,7 +1,9 @@
 <template>
   <div class="flex flex-col lg:flex-row gap-3 mt-2">
-    <!-- Toolbox -->
-    <div v-if="!viewMode" class="flex flex-col gap-2">
+    <!-- Toolbox. Held to the palettes' own width on desktop: the layer
+         explanation below is a sentence, and an unconstrained column grew to
+         fit it on one line, taking a third of the canvas's width with it. -->
+    <div v-if="!viewMode" class="flex flex-col gap-2 shrink-0 lg:w-44">
       <!-- Layer selector (#884 S7b) — only with a site: standalone
            /cartographer/:id has no Plan to switch to, so it never renders
            there, and `activeLayer` stays "drawing" forever. -->
