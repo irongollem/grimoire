@@ -27,7 +27,13 @@ vi.mock("@/lib/supabase", () => ({
       invoke: vi.fn(async (fn: string, opts: { body: Record<string, unknown> }) => {
         mocks.invokeCalls.push({ fn, body: opts.body });
         const id = (opts.body.id ?? opts.body.monster_id) as string;
-        if (mocks.rateLimitIds.has(id)) return { data: { error: "rate_limited" }, error: null };
+        // The shape supabase-js really gives a non-2xx: `data` null, the body
+        // unread on `error.context`. Mocked as `data: { error }` this test once
+        // passed while the real 429 was never recognised.
+        if (mocks.rateLimitIds.has(id)) {
+          const context = new Response(JSON.stringify({ error: "rate_limited" }), { status: 429 });
+          return { data: null, error: Object.assign(new Error("Edge Function returned a non-2xx status code"), { context }) };
+        }
         if (mocks.failIds.has(id)) return { data: null, error: new Error("embed failed") };
         return { data: { ok: true }, error: null };
       }),

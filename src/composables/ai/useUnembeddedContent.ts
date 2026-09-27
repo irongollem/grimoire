@@ -1,6 +1,7 @@
 import { computed, ref } from "vue";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { functionErrorPayload } from "@/lib/functionError";
 import { useCampaignStore } from "@/stores/campaign";
 
 /**
@@ -86,7 +87,7 @@ async function fetchCounts(campaignId: string): Promise<UnembeddedCountRow[]> {
 class RateLimitedError extends Error {}
 
 async function embedRow(kind: UnembeddedKind, id: string): Promise<void> {
-  const { data, error } =
+  const { error } =
     kind === "monster"
       ? await supabase.functions.invoke("embed-monsters", { body: { mode: "single", monster_id: id } })
       : await supabase.functions.invoke("embed-content", { body: { mode: "single", entity: kind, id } });
@@ -94,15 +95,13 @@ async function embedRow(kind: UnembeddedKind, id: string): Promise<void> {
   // A 429 is not a failure of this row — it is the account's daily ceiling,
   // and every remaining row would hit it too. Distinguished so the loop can
   // stop and say so, rather than grinding through a thousand more calls to
-  // report a thousand mysterious failures. `functions.invoke` surfaces a
-  // non-2xx as `error` with the body on `data`, so both are checked.
-  const payload = (data ?? null) as { error?: unknown } | null;
-  const rateLimited =
-    payload?.error === "rate_limited" ||
-    (error !== null && /rate.?limit|429/i.test(error.message ?? ""));
-  if (rateLimited) throw new RateLimitedError("rate_limited");
-
-  if (error) throw error;
+  // report a thousand mysterious failures. A non-2xx arrives as `error` with
+  // `data` null and the body unread on `error.context`; reading `data` here
+  // meant the 429 was never recognised and the loop ground on.
+  if (!error) return;
+  const payload = await functionErrorPayload(error);
+  if (payload?.error === "rate_limited") throw new RateLimitedError("rate_limited");
+  throw new Error(payload?.error ?? error.message);
 }
 
 // Module-level singleton run state — see the doc comment above for why.

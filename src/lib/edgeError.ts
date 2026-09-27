@@ -1,3 +1,5 @@
+import { functionErrorText } from "@/lib/functionError";
+
 /**
  * supabase-js wraps a non-2xx Edge Function response as a `FunctionsHttpError`
  * and DISCARDS the JSON body — `data` is null and `error.message` is the generic
@@ -12,12 +14,7 @@ export async function edgeErrorMessage(
   fnError: { message?: string; context?: Response },
 ): Promise<string> {
   let body: { error?: string; message?: string; balance?: number } | null = null;
-  let text: string | null = null;
-  try {
-    text = (await fnError.context?.text()) ?? null;
-  } catch {
-    /* no readable body */
-  }
+  const text = await functionErrorText(fnError);
   try {
     body = text ? JSON.parse(text) : null;
   } catch {

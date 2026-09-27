@@ -261,6 +261,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import { supabase } from "@/lib/supabase";
+import { edgeErrorMessage } from "@/lib/edgeError";
 
 type ReportKind = "bug" | "feature";
 
@@ -378,7 +379,7 @@ async function submit() {
       "create-bug-report",
       { body },
     );
-    if (fnError) throw fnError;
+    if (fnError) throw new Error(await edgeErrorMessage(fnError));
     issueNumber.value = (data as { issueNumber: number })?.issueNumber ?? null;
     submitted.value = true;
   } catch (e) {

@@ -73,7 +73,7 @@ describe("useAccountDeletion", () => {
       data: null,
       error: {
         message: "Edge Function returned a non-2xx status code",
-        context: { json: async () => ({ error: "cannot_delete_admin" }) },
+        context: new Response(JSON.stringify({ error: "cannot_delete_admin" })),
       },
     });
     const { deleting, error, deleteAccount } = useAccountDeletion();

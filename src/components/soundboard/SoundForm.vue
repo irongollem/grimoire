@@ -306,6 +306,7 @@ import {
 import { logUsage, useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { supabase } from "@/lib/supabase";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import {
   acknowledgeAiGenerationJob,
   listUnconsumedAiGenerationJobs,
@@ -773,7 +774,7 @@ async function handleSubmit() {
             image_urls: imageUrls,
           },
         });
-        if (error) throw new Error(error.message);
+        if (error) throw new Error(await edgeErrorMessage(error));
         if (data?.error) throw new Error(data.error);
 
         const jobId = (data as { job_id?: string } | null)?.job_id;

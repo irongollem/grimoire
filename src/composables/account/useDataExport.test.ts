@@ -107,7 +107,7 @@ describe("useDataExport", () => {
       data: null,
       error: {
         message: "Edge Function returned a non-2xx status code",
-        context: { json: async () => ({ error: "rate_limited" }) },
+        context: new Response(JSON.stringify({ error: "rate_limited" })),
       },
     });
 

@@ -6,6 +6,7 @@
 // rewrite — stays in here.
 
 import { supabase } from "@/lib/supabase";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { rewriteToCdn } from "@/lib/audio/freesound";
 import type {
   SoundProvider,
@@ -78,7 +79,7 @@ export const freesoundProvider: SoundProvider = {
       `freesound-search?${params}`,
       { method: "GET" },
     );
-    if (error) throw error;
+    if (error) throw new Error(await edgeErrorMessage(error));
     if (!data) throw new Error("Empty response from freesound-search");
 
     return {

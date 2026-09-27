@@ -13,6 +13,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { getEntityKindEntry } from "@/lib/documentImport/entityKinds";
 import { parseImportMatches, type EntityCandidate } from "@/lib/documentImport/entityMatching";
 import type { UsableEntity } from "@/lib/documentImport/sanitizeEntities";
@@ -91,7 +92,7 @@ export function useImportEntityMatches(
       if (!id) return emptyResult();
       const body = buildImportMatchRequest(id, toValue(entitiesByKind));
       const { data, error } = await supabase.functions.invoke("import-match", { body });
-      if (error) throw error;
+      if (error) throw new Error(await edgeErrorMessage(error));
       const { matches, semantic } = parseImportMatches(data);
       return { candidatesByKind: matches, semantic };
     },

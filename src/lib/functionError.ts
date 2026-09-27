@@ -22,9 +22,24 @@
 export async function functionErrorPayload<T = { error?: string }>(
   error: unknown,
 ): Promise<T | null> {
+  const text = await functionErrorText(error);
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The raw error body as text, or null when there was none. A Response body
+ * can be read once, so this is the only read: the JSON view above parses it,
+ * and `edgeErrorMessage` uses it for functions that answer in plain text.
+ */
+export async function functionErrorText(error: unknown): Promise<string | null> {
   try {
     const context = (error as { context?: Response } | null)?.context;
-    return ((await context?.json()) as T) ?? null;
+    return (await context?.text()) ?? null;
   } catch {
     return null;
   }
