@@ -17,8 +17,8 @@
  * although hardly anyone casts, which is the same GDPR exposure the self-hosted
  * fonts (src/assets/fonts.ts) removed. So the button is drawn from a browser
  * check alone, and the first click fetches the SDK and then opens the picker.
- * A browser that has cast before remembers it (CAST_USED_KEY) and preloads on
- * first use, which keeps auto-rejoining a running session working for the
+ * A browser that has actually cast before (a session started) remembers it
+ * (CAST_USED_KEY) and preloads on first use, which keeps auto-rejoining a running session working for the
  * people who actually use it.
  */
 
@@ -124,7 +124,7 @@ const isCastLoading = computed(() => sdkState.value === "loading");
 const needsSecondClick = ref(false);
 
 const SDK_URL = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1";
-/** Per-browser memory that this viewer has chosen to cast, so preloading is their choice. */
+/** Set when a session has started in this browser, so preloading follows a real, completed choice. */
 const CAST_USED_KEY = "grimoire:cast-used";
 
 // Non-reactive SDK object references (same pattern as audioInstances in soundboard.ts)
@@ -251,7 +251,6 @@ async function openDevicePicker(): Promise<void> {
     castCtx()?.endCurrentSession(true);
     return;
   }
-  rememberCastUse();
   needsSecondClick.value = false;
   const firstLoad = sdkState.value !== "ready";
   if (!(await loadSdk())) return;
@@ -343,6 +342,10 @@ function onSessionStateChanged(e: SessionStateEvent): void {
   switch (e.sessionState) {
     case fw.SessionState.SESSION_STARTED:
     case fw.SessionState.SESSION_RESUMED: {
+      // Remembered only once a speaker is actually connected: a click that
+      // was cancelled, failed or found no device must not turn a later visit
+      // into an automatic request to Google.
+      rememberCastUse();
       store.isCasting = true;
       castDeviceName.value =
         e.session?.getSessionObj()?.receiver?.friendlyName ?? null;

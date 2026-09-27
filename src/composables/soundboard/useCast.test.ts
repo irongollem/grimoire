@@ -37,12 +37,14 @@ describe("useCast", () => {
     expect(cast.isCastAvailable.value).toBe(true);
   });
 
-  it("loads the SDK on the first click and remembers the choice", async () => {
+  it("loads the SDK on the first click, without remembering an unfinished attempt", async () => {
     const cast = await freshUseCast();
     void cast.openDevicePicker();
     expect(injected).toEqual([expect.stringContaining("gstatic.com/cv/js/sender")]);
     expect(cast.isCastLoading.value).toBe(true);
-    expect(localStorage.getItem("grimoire:cast-used")).toBe("1");
+    // Only a started session is remembered; a click alone must not make later
+    // visits contact Google automatically.
+    expect(localStorage.getItem("grimoire:cast-used")).toBeNull();
   });
 
   it("preloads for a browser that has cast before", async () => {
@@ -80,6 +82,41 @@ describe("useCast", () => {
     await opened;
     await vi.waitFor(() => expect(cast.needsSecondClick.value).toBe(true));
     expect(requestSession).toHaveBeenCalledOnce();
+    expect(localStorage.getItem("grimoire:cast-used")).toBeNull();
+    delete w.cast;
+  });
+
+  it("remembers the choice once a session has actually started", async () => {
+    let onSession: ((e: { sessionState: string }) => void) | undefined;
+    const w = window as unknown as Record<string, unknown>;
+    w.cast = {
+      framework: {
+        CastContext: {
+          getInstance: () => ({
+            setOptions: vi.fn(),
+            requestSession: vi.fn().mockResolvedValue(null),
+            addEventListener: (_: string, h: typeof onSession) => { onSession = h; },
+          }),
+        },
+        RemotePlayer: class {},
+        RemotePlayerController: class { addEventListener = vi.fn(); },
+        CastContextEventType: { SESSION_STATE_CHANGED: "s" },
+        RemotePlayerEventType: { PLAYER_STATE_CHANGED: "p" },
+        SessionState: {
+          SESSION_STARTED: "started",
+          SESSION_RESUMED: "resumed",
+          SESSION_ENDED: "ended",
+          SESSION_START_FAILED: "failed",
+        },
+      },
+    };
+    const cast = await freshUseCast();
+    const opened = cast.openDevicePicker();
+    (w.__onGCastApiAvailable as (ok: boolean) => void)(true);
+    await opened;
+    expect(localStorage.getItem("grimoire:cast-used")).toBeNull();
+    onSession?.({ sessionState: "started" });
+    expect(localStorage.getItem("grimoire:cast-used")).toBe("1");
     delete w.cast;
   });
 });
