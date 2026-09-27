@@ -27,13 +27,15 @@ const admin = createClient(
 
 const WATERMARK_SUFFIX = "small 'dungeongrimoire.com' text watermark in the bottom-right corner";
 
+// Style words only, never a publisher's product or house art: asking the model
+// to imitate a named book is asking it to reproduce someone's trade dress.
 const PRESET_PROMPTS: Record<string, string> = {
   playable:
-    "modern illustrated dungeon map, warm candlelight color palette, clean readable encounter zones, detailed environmental dressing, fully spatially accurate, OneDnD 2024 Player's Handbook art style",
+    "modern illustrated dungeon map, warm candlelight color palette, clean readable encounter zones, detailed environmental dressing, fully spatially accurate, contemporary painted fantasy tabletop illustration",
   explorer:
     "weathered field sketch on aged crinkled parchment, brown ink and pencil strokes, hand-written margin annotations, compass rose, cartographic imperfections as if drawn from memory mid-expedition",
   isometric:
-    "isometric 3D dungeon cutaway, axonometric projection, painted stone walls and wooden floors, deep dramatic shadows, D&D 5e adventure module interior art style — may reinterpret room layout in 3D perspective",
+    "isometric 3D dungeon cutaway, axonometric projection, painted stone walls and wooden floors, deep dramatic shadows, painted fantasy adventure interior illustration, may reinterpret room layout in 3D perspective",
   tactical:
     "tactical battle map, bold encounter zone outlines, numbered encounter areas, high-contrast surface textures, neutral gridded background, optimised for Foundry VTT and Roll20 display",
   tome:

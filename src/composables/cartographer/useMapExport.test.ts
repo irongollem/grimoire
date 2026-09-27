@@ -32,7 +32,7 @@ const mocks = vi.hoisted(() => {
     // Campaign provider state — plain mutable values rather than refs, read
     // once per `useCampaignStore()` call (see the mock below), so a test
     // sets these BEFORE constructing its `useMapExport` instance.
-    activeCampaign: null as { image_provider: string | null } | null,
+    activeCampaign: null as { id: string; image_provider: string | null } | null,
     decryptedOpenAiKey: "",
     decryptedGeminiKey: "",
     // provider -> multiplier, close to production's real openai=1/gemini=0.5.
@@ -109,9 +109,28 @@ describe("useMapExport", () => {
     mocks.saveStyledSitePicture.mockClear();
     mocks.imageMultiplierFor.mockClear();
     mocks.allLocations.value = [];
-    mocks.activeCampaign = null;
+    mocks.activeCampaign = { id: "camp-1", image_provider: null };
+    mocks.invoke.mockClear();
     mocks.decryptedOpenAiKey = "";
     mocks.decryptedGeminiKey = "";
+  });
+
+  describe("the campaign the render runs under", () => {
+    it("sends the active campaign, not the map's id", async () => {
+      const exp = useMapExport({ buildMap: fakeMap, runtimes: () => new Map(), mapName: () => "Test", glyphs: () => ({}) });
+      await exp.onGenerateStyle();
+      expect(mocks.invoke).toHaveBeenCalledWith("style-map", expect.objectContaining({
+        body: expect.objectContaining({ campaign_id: "camp-1" }),
+      }));
+    });
+
+    it("asks for a campaign instead of calling the styler without one", async () => {
+      mocks.activeCampaign = null;
+      const exp = useMapExport({ buildMap: fakeMap, runtimes: () => new Map(), mapName: () => "Test", glyphs: () => ({}) });
+      await exp.onGenerateStyle();
+      expect(mocks.invoke).not.toHaveBeenCalled();
+      expect(exp.styleError.value).toMatch(/Choose a campaign/);
+    });
   });
 
   describe("without a site (standalone /cartographer page)", () => {
@@ -263,14 +282,14 @@ describe("useMapExport", () => {
 
   describe("resolving the campaign's actual image provider (not always OpenAI)", () => {
     it("defaults to openai when image_provider is null", () => {
-      mocks.activeCampaign = { image_provider: null };
+      mocks.activeCampaign = { id: "camp-1", image_provider: null };
       const exp = useMapExport({ buildMap: () => null, runtimes: () => new Map(), mapName: () => "", glyphs: () => ({}) });
       expect(exp.styleCost.value).toBe(1); // costOf(1) * imageMultiplierFor("openai")=1
       expect(mocks.imageMultiplierFor).toHaveBeenCalledWith("openai");
     });
 
     it("prices a Gemini campaign at Gemini's own multiplier, not OpenAI's", () => {
-      mocks.activeCampaign = { image_provider: "gemini" };
+      mocks.activeCampaign = { id: "camp-1", image_provider: "gemini" };
       const exp = useMapExport({ buildMap: () => null, runtimes: () => new Map(), mapName: () => "", glyphs: () => ({}) });
       // costOf(1) * imageMultiplierFor("gemini") = 0.5, charged as a whole
       // credit, rounded up (wholeCredits).
@@ -279,7 +298,7 @@ describe("useMapExport", () => {
     });
 
     it("reads BYOK off the Gemini key for a Gemini campaign, not the OpenAI one", () => {
-      mocks.activeCampaign = { image_provider: "gemini" };
+      mocks.activeCampaign = { id: "camp-1", image_provider: "gemini" };
       mocks.decryptedOpenAiKey = "sk-openai-unrelated";
       mocks.decryptedGeminiKey = "";
       const exp = useMapExport({ buildMap: () => null, runtimes: () => new Map(), mapName: () => "", glyphs: () => ({}) });
@@ -292,7 +311,7 @@ describe("useMapExport", () => {
     });
 
     it("passes the resolved provider into the bake call, so a Gemini campaign fits its input to a Gemini ratio", async () => {
-      mocks.activeCampaign = { image_provider: "gemini" };
+      mocks.activeCampaign = { id: "camp-1", image_provider: "gemini" };
       const map = fakeMap();
       const exp = useMapExport({
         buildMap: () => map,

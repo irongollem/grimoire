@@ -69,7 +69,7 @@ Each pass sets the Picture's grid automatically too, so tracing and doors keep w
 
 | Preset | Best for |
 | --- | --- |
-| **Playable** | Session-ready maps with clear zones and warm lighting, matching the OneDnD 2024 PHB aesthetic |
+| **Playable** | Session-ready maps with clear zones, warm lighting and detailed dressing |
 | **Explorer's Sketch** | In-world props, handouts, and atmospheric flavour: parchment and ink, charmingly imperfect |
 | **Isometric** | Scene illustrations and social posts: a 3D perspective view that may reinterpret the layout spatially |
 | **Tactical Grid** | VTT imports: bold zone outlines and high-contrast surfaces optimised for Foundry VTT and Roll20 |

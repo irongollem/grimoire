@@ -12,10 +12,19 @@ export async function edgeErrorMessage(
   fnError: { message?: string; context?: Response },
 ): Promise<string> {
   let body: { error?: string; message?: string; balance?: number } | null = null;
+  let text: string | null = null;
   try {
-    body = (await fnError.context?.json()) ?? null;
+    text = (await fnError.context?.text()) ?? null;
   } catch {
-    /* body wasn't JSON */
+    /* no readable body */
+  }
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    // Some functions answer in plain text ("Campaign not found"). A short
+    // line is the reason and worth showing; an HTML error page is not.
+    const plain = text?.trim() ?? "";
+    if (plain && plain.length <= 200 && !plain.startsWith("<")) return plain;
   }
 
   switch (body?.error) {

@@ -81,6 +81,7 @@ import {
   useUpdateLocationPicture,
 } from "@/composables/locations/useLocations";
 import { useCampaignStore } from "@/stores/campaign";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 /** Shape of the `style-map` edge function's JSON response. */
@@ -201,6 +202,13 @@ export function useMapExport(opts: {
     const map = opts.buildMap();
     if (styleGenerating.value || !map) return;
     styleError.value = null;
+    // The campaign whose AI setting, provider and credits the render runs
+    // under: the same one the price and provider above are read from.
+    const campaignId = mapStyleCampaign.activeCampaign?.id;
+    if (!campaignId) {
+      styleError.value = "Choose a campaign before styling a map.";
+      return;
+    }
     styleGenerating.value = true;
     try {
       const target = fixedTarget.value;
@@ -211,7 +219,7 @@ export function useMapExport(opts: {
 
       const { data, error } = await supabase.functions.invoke<StyleMapResponse>("style-map", {
         body: {
-          campaign_id: map.id, // placeholder — edge fn doesn't use it for map auth
+          campaign_id: campaignId,
           image_b64,
           preset_id: selectedPresetId.value,
           map_name: opts.mapName(),
@@ -220,7 +228,8 @@ export function useMapExport(opts: {
         },
       });
       const resultB64 = data?.image_b64;
-      if (error || !resultB64) throw new Error(error?.message ?? data?.error ?? "Generation failed");
+      if (error) throw new Error(await edgeErrorMessage(error));
+      if (!resultB64) throw new Error(data?.error ?? "Generation failed");
 
       styleResultBlob.value = base64ToBlob(resultB64, "image/webp");
       // The input we sent and the size `style-map` was asked for are already

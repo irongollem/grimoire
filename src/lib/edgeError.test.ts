@@ -18,6 +18,12 @@ describe("edgeErrorMessage", () => {
     expect(await edgeErrorMessage(withBody({ error: "withdrawal_consent_required" }))).toMatch(/withdrawal-waiver/);
   });
 
+  it("shows a short plain-text reason as it is", async () => {
+    expect(
+      await edgeErrorMessage({ message: "Edge Function returned a non-2xx status code", context: new Response("Campaign not found") }),
+    ).toBe("Campaign not found");
+  });
+
   it("falls back to the client message when the body is not JSON", async () => {
     expect(
       await edgeErrorMessage({ message: "Failed to fetch", context: new Response("<html>") }),
