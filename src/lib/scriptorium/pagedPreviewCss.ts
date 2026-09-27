@@ -136,6 +136,7 @@ h2, h3, .sc-statblock-section-title {
 .sc-statblock-entry,
 .sc-statblock-section,
 .sc-ability-table,
+.sc-float-group,
 table {
   break-inside: avoid;
 }

@@ -56,7 +56,7 @@ describe("buildPagedPreviewCss", () => {
     expect(css).toMatch(/h2 \+ \.sc-entity-embed--startpage\s*\{[^}]*break-before:\s*avoid/);
   });
 
-  it("keeps boxed content (read-aloud, note, quote, stat block, tables) in one column/page unless taller than one", () => {
+  it("keeps boxed content (read-aloud, note, quote, stat block, a wrapped image's group, tables) in one column/page unless taller than one", () => {
     const css = buildPagedPreviewCss(base);
     const boxRule = css.match(/\.sc-descriptive,[\s\S]*?\{[\s\S]*?\}/)?.[0] ?? "";
     expect(boxRule).toContain(".sc-note");
@@ -64,6 +64,7 @@ describe("buildPagedPreviewCss", () => {
     expect(boxRule).toContain(".sc-statblock");
     expect(boxRule).toContain(".sc-statblock-entry");
     expect(boxRule).toContain(".sc-ability-table");
+    expect(boxRule).toContain(".sc-float-group");
     expect(boxRule).toContain("table");
     expect(boxRule).toContain("break-inside: avoid");
   });

@@ -131,10 +131,8 @@ import { useScriptoriumZoom } from "@/composables/scriptorium/useScriptoriumZoom
 import { usePagedPreview } from "@/composables/scriptorium/usePagedPreview";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
-import { expandTocPlaceholder, fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
-import { promoteTableHeaders } from "@/lib/scriptorium/pagedTables";
-import { classifyLongBoxes } from "@/lib/scriptorium/pagedBoxes";
-import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmpty";
+import { fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
+import { preparePagedBody } from "@/lib/scriptorium/pagedPrepare";
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import { useFurnitureEditing } from "@/composables/scriptorium/useFurnitureEditing";
 import type {
@@ -235,18 +233,9 @@ const {
   error: pagedError,
   scheduleRender,
 } = usePagedPreview({
-  content: () => {
-    // Expand the TOC to full height before layout so heading page numbers stay
-    // accurate even when the TOC overflows onto extra pages (#465) — pageSize
-    // decides its column count (tocColumnCount(), pagedToc.ts). Table headers
-    // and long-box classification (#915 story 6 round 2) run the same
-    // pre-layout pass useScriptoriumPrint.ts's PDF export already does, so
-    // the live preview and the exported PDF paginate identically.
-    const toc = expandTocPlaceholder(stripTrailingEmptyParagraphs(bodyHtml), { showPageNumbers, pageSize });
-    const tables = promoteTableHeaders(toc);
-    const html = classifyLongBoxes(tables);
-    return isTwoColumn ? `<div class="phb-two-col">${html}</div>` : html;
-  },
+  // The same pre-layout pass the PDF export runs (pagedPrepare.ts), so the
+  // live preview and the exported PDF paginate identically.
+  content: () => preparePagedBody(bodyHtml, { showPageNumbers, pageSize, isTwoColumn }),
   stylesheets: () => [
     { "scriptorium-paged.css": buildPagedPreviewCss({ pageSize, inkFriendly }) },
   ],

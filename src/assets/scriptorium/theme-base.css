@@ -892,6 +892,12 @@
 .sc-theme .sc-img-wrap--wrapRight.sc-img-wrap--gutter {
   margin-right: -3em;
 }
+/* A wrapped image grouped with its paragraph before layout (pagedFloats.ts)
+   is contained by the group, so the heading of the next entry starts below
+   the picture instead of wrapping beside it. */
+.sc-theme .sc-float-group {
+  display: flow-root;
+}
 .sc-theme .sc-img-wrap--absolute {
   position: absolute;
   z-index: 10;
@@ -1048,7 +1054,7 @@
        stat block in the left cell, art then lore in the right.
      wide size   — one column: the stat block band (already flows in its own
        internal two columns — .sc-statblock--wide above) then art/lore below
-       it, full width. `data-band-position="bottom"` (the entityEmbed node's
+       it in the page's two columns. `data-band-position="bottom"` (the entityEmbed node's
        own attr) reverses that order (art/lore above the band) via `order`.
 
    Both sizes are `break-inside: avoid` (pagedPreviewCss.ts) — the entry's OWN
@@ -1120,8 +1126,13 @@
   align-items: start;
   margin-top: 0.75rem;
 }
+/* Without art the lore still keeps to the page's two columns: one paragraph
+   running the full width of a two-column page reads as a layout accident
+   (the Caramel Crusher, 27 Sep 2026). */
 .sc-theme .sc-statblock-entry--wide .sc-statblock-entry-aside:not(:has(.sc-entity-art)) {
-  grid-template-columns: 1fr;
+  display: block;
+  column-count: 2;
+  column-gap: 1.5rem;
 }
 .sc-theme .sc-statblock-entry--wide[data-band-position="bottom"] .sc-statblock-entry-aside {
   margin-top: 0;

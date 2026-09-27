@@ -21,10 +21,8 @@ import { ref } from "vue";
 import { Previewer } from "pagedjs";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
-import { expandTocPlaceholder, fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
-import { promoteTableHeaders } from "@/lib/scriptorium/pagedTables";
-import { classifyLongBoxes } from "@/lib/scriptorium/pagedBoxes";
-import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmpty";
+import { fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
+import { preparePagedBody } from "@/lib/scriptorium/pagedPrepare";
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
 import type { ScriptoriumPageSize, ScriptoriumTheme } from "@/types/scriptorium.types";
@@ -129,20 +127,13 @@ export function useScriptoriumPrint() {
     const cls = themeClass(opts.theme);
     const themeCss = opts.theme === "phb2014" ? themePhb2014Css : themeOnednd2024Css;
     const pagedCss = buildPagedPreviewCss({ pageSize: opts.pageSize, inkFriendly: opts.inkFriendly });
-    const tocExpanded = expandTocPlaceholder(stripTrailingEmptyParagraphs(opts.bodyHtml), {
+    // The same pre-layout pass the live preview runs (pagedPrepare.ts), so
+    // the exported PDF breaks where the screen does.
+    const content = preparePagedBody(opts.bodyHtml, {
       showPageNumbers: opts.showPageNumbers,
       pageSize: opts.pageSize,
+      isTwoColumn: opts.isTwoColumn,
     });
-    // Promote each table's leading header row(s) into a real <thead> before
-    // Paged.js lays the page out — its chunker can only repeat a genuine
-    // <thead> across a forced break, and Tiptap's Table extension never emits
-    // one on its own (see pagedTables.ts). classifyLongBoxes runs the same
-    // pre-layout pass the live preview does (ScriptoriumPreviewPane.vue), so
-    // a long box/table breaks the same way in the exported PDF as it does on
-    // screen (#915 story 6 round 2).
-    const tablesPromoted = promoteTableHeaders(tocExpanded);
-    const bodyHtml = classifyLongBoxes(tablesPromoted);
-    const content = opts.isTwoColumn ? `<div class="phb-two-col">${bodyHtml}</div>` : bodyHtml;
 
     // 1. Off-screen render in the main document.
     const host = document.createElement("div");
