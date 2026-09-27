@@ -12,6 +12,7 @@ import { isValidGeminiAspectRatio } from "../_shared/geminiAspect.ts";
 import { isValidStyleImageSize, readPngDimensions } from "../_shared/imageSize.ts";
 import { isFlexibleOpenAiModel } from "../_shared/openaiImageModel.ts";
 import { isPromptRejected } from "../_shared/moderation.ts";
+import { buildMapStylePrompt, MAP_STYLE_OPENAI_MODEL } from "../_shared/mapStylePrompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
@@ -24,41 +25,6 @@ const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
-
-const WATERMARK_SUFFIX = "small 'dungeongrimoire.com' text watermark in the bottom-right corner";
-
-// Style words only, never a publisher's product or house art: asking the model
-// to imitate a named book is asking it to reproduce someone's trade dress.
-const PRESET_PROMPTS: Record<string, string> = {
-  playable:
-    "modern illustrated dungeon map, warm candlelight color palette, clean readable encounter zones, detailed environmental dressing, fully spatially accurate, contemporary painted fantasy tabletop illustration",
-  explorer:
-    "weathered field sketch on aged crinkled parchment, brown ink and pencil strokes, hand-written margin annotations, compass rose, cartographic imperfections as if drawn from memory mid-expedition",
-  isometric:
-    "isometric 3D dungeon cutaway, axonometric projection, painted stone walls and wooden floors, deep dramatic shadows, painted fantasy adventure interior illustration, may reinterpret room layout in 3D perspective",
-  tactical:
-    "tactical battle map, bold encounter zone outlines, numbered encounter areas, high-contrast surface textures, neutral gridded background, optimised for Foundry VTT and Roll20 display",
-  tome:
-    "medieval illuminated manuscript page, intricate decorative parchment border, gilded drop-cap details, scriptorium brown ink illustration with subtle gold leaf accents, monastic cartography style",
-  woodcut:
-    "woodcut print on aged paper, bold black ink lines, cross-hatching for shadows and depth, stark limited ink palette, 15th century cartographic broadside style",
-};
-
-function buildPrompt(
-  presetId: string,
-  mapName: string,
-  mapDescription: string | null | undefined,
-  suffix: string | null | undefined,
-): string {
-  const presetPrompt = PRESET_PROMPTS[presetId] ?? PRESET_PROMPTS["playable"];
-  const parts: string[] = [];
-  if (mapName) parts.push(mapName);
-  if (mapDescription?.trim()) parts.push(mapDescription.trim());
-  parts.push(presetPrompt);
-  if (suffix?.trim()) parts.push(suffix.trim());
-  parts.push(WATERMARK_SUFFIX);
-  return parts.join(", ");
-}
 
 serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
@@ -136,6 +102,8 @@ serve(withCors(async (req: Request) => {
     campaignKeys: { openai: campaignOpenai, gemini: campaignGemini },
     platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
+    // Honoured for plain "openai" only; see MAP_STYLE_OPENAI_MODEL.
+    requestedModel: MAP_STYLE_OPENAI_MODEL,
   });
   if (!img) {
     return new Response("No image API key configured", { status: 422 });
@@ -209,7 +177,7 @@ serve(withCors(async (req: Request) => {
     return reservationFailureResponse(reservation);
   }
 
-  const prompt = buildPrompt(preset_id, map_name, map_description, prompt_suffix);
+  const prompt = buildMapStylePrompt(preset_id, map_name, map_description, prompt_suffix);
   const quality = await resolveImageQuality(admin, "map_style_generation", img);
 
   let imgResult: Awaited<ReturnType<typeof generateImage>>;
