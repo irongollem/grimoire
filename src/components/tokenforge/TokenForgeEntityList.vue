@@ -42,13 +42,15 @@
         :style="{ background: `linear-gradient(135deg, ${e.bgGradient[0]}, ${e.bgGradient[1]})` }"
       >
         <FocalImage v-if="e.imageUrl" :src="e.imageUrl" format="token" />
+        <!-- No picture but a cutout (#917): show the whole figure, as the token will. -->
+        <img v-else-if="cutoutUrlById?.get(e.id)" :src="cutoutUrlById.get(e.id)" alt="" class="h-full w-full object-contain" />
         <span v-else class="text-white/60">{{ e.name.charAt(0).toUpperCase() }}</span>
       </div>
       <div class="flex-1 min-w-0">
         <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ e.name }}</p>
         <p class="text-caption text-muted-foreground truncate">{{ e.subtitle }}</p>
       </div>
-      <span v-if="!e.imageUrl" class="text-label text-muted-foreground/40 shrink-0">No art</span>
+      <span v-if="!e.imageUrl && !cutoutUrlById?.get(e.id)" class="text-label text-muted-foreground/40 shrink-0">No art</span>
     </button>
 
     <p v-if="entities.length === 0 && sourceTab !== 'custom'" class="text-body text-muted-foreground italic px-2 py-4">
@@ -70,6 +72,7 @@ const {
   customName,
   customImageUrl,
   emptyLabel,
+  cutoutUrlById,
 } = defineProps<{
   sourceTab: string;
   entities: TokenEntity[];
@@ -77,6 +80,9 @@ const {
   customName: string;
   customImageUrl: string | null;
   emptyLabel: string;
+  /** Entity id to its cutout (#917), so an entity with only a cutout still
+   *  shows its art here rather than "No art". */
+  cutoutUrlById?: ReadonlyMap<string, string>;
 }>();
 
 const emit = defineEmits<{

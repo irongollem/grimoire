@@ -34,6 +34,7 @@
           :selected-id="selected?.id"
           :custom-name="customName"
           :custom-image-url="customImageUrl"
+          :cutout-url-by-id="cutoutUrlById"
           :empty-label="SOURCE_TABS.find(t => t.id === sourceTab)?.label.toLowerCase() ?? ''"
           @select="selectEntity"
           @update:custom-name="customName = $event"
@@ -48,13 +49,15 @@
           :entity-name="selected.name"
           :canvas-size="CANVAS_SIZE"
           :can-copy="canCopyToClipboard"
+          :has-cutout="hasCutout"
+          v-model:art-choice="artChoice"
           v-model:ring-color="settings.ringColor"
           v-model:ring-width="settings.ringWidth"
           v-model:show-name="settings.showName"
           v-model:export-size="settings.exportSize"
           @download="downloadPng"
           @copy="copyToClipboard"
-          @add-to-queue="addToQueue(selected!)"
+          @add-to-queue="addToQueue(renderEntity!)"
         />
 
         <!-- Empty state -->
@@ -154,6 +157,7 @@ import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useMonsters } from "@/composables/monsters/useMonsters";
 import { drawToken, renderMysteryBack, type TokenEntity } from "@/lib/tokenRenderer";
+import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import CoinFace from "@/components/mint/CoinFace.vue";
 import { COIN_METALS, COIN_PRINT_SIZES } from "@/types/coin.types";
 import type { CoinDesign } from "@/types/coin.types";
@@ -381,6 +385,22 @@ const sourceEntities = computed<TokenEntity[]>(() => {
   return [];
 });
 
+// Only monsters and NPCs can have a cutout (#917). Keyed by entity id so the
+// preview can look one up for whichever entity is selected, independent of
+// which source tab it came from.
+const cutoutUrlById = computed(() => {
+  const m = new Map<string, string>();
+  for (const npc of npcs.value ?? []) {
+    const art = resolveTokenArt(npc);
+    if (art) m.set(npc.id, art.tokenUrl);
+  }
+  for (const monster of allMonsters.value ?? []) {
+    const art = resolveTokenArt(monster);
+    if (art) m.set(monster.id, art.tokenUrl);
+  }
+  return m;
+});
+
 const tabCounts = computed(() => ({
   party:   partyEntities.value.length,
   npc:     npcEntities.value.length,
@@ -418,6 +438,7 @@ function applyCustom() {
     bgGradient: ["#1a1a2e", "#060610"],
   };
   settings.value.ringColor = "#6b7280";
+  artChoice.value = "picture"; // custom entities never have a cutout
 }
 
 // ── Selection ─────────────────────────────────────────────────────────────────
@@ -436,7 +457,28 @@ const DEFAULT_RING_COLORS: Record<SourceTab, string> = {
 function selectEntity(entity: TokenEntity) {
   selected.value = entity;
   settings.value.ringColor = DEFAULT_RING_COLORS[sourceTab.value];
+  // Default to the cutout whenever the entity has one — "preferred" per #917 —
+  // and fall back to the picture otherwise so the toggle has a sane starting
+  // point rather than pointing at art that doesn't exist.
+  artChoice.value = cutoutUrlById.value.has(entity.id) ? "cutout" : "picture";
 }
+
+// ── Cutout vs. picture (#917) ────────────────────────────────────────────────
+
+const artChoice = ref<"picture" | "cutout">("picture");
+const hasCutout = computed(() => !!selected.value && cutoutUrlById.value.has(selected.value.id));
+
+/** The entity actually drawn/exported: `selected` with its art swapped for
+ *  the cutout (drawn "contain") when the toggle says so and one exists. */
+const renderEntity = computed<TokenEntity | null>(() => {
+  const entity = selected.value;
+  if (!entity) return null;
+  if (artChoice.value === "cutout") {
+    const cutoutUrl = cutoutUrlById.value.get(entity.id);
+    if (cutoutUrl) return { ...entity, imageUrl: cutoutUrl, imageFit: "contain" };
+  }
+  return { ...entity, imageFit: "cover" };
+});
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
@@ -461,7 +503,7 @@ function currentRenderOpts() {
 
 async function renderToken() {
   const canvas = tokenCanvas.value;
-  const entity = selected.value;
+  const entity = renderEntity.value;
   if (!canvas || !entity) return;
   activeRender?.abort();
   const controller = new AbortController();
@@ -470,7 +512,7 @@ async function renderToken() {
 }
 
 watch(
-  [selected, settings],
+  [renderEntity, settings],
   async () => { await nextTick(); await renderToken(); },
   { deep: true, immediate: true },
 );
@@ -479,7 +521,7 @@ watch(
 
 async function getExportCanvas(): Promise<HTMLCanvasElement | null> {
   const canvas = tokenCanvas.value;
-  const entity = selected.value;
+  const entity = renderEntity.value;
   if (!canvas || !entity) return null;
 
   const exportSize = settings.value.exportSize;
@@ -493,7 +535,7 @@ async function getExportCanvas(): Promise<HTMLCanvasElement | null> {
 }
 
 async function downloadPng() {
-  const entity = selected.value;
+  const entity = renderEntity.value;
   if (!entity) return;
   const canvas = await getExportCanvas();
   if (!canvas) return;

@@ -1,4 +1,5 @@
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
+import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import { hitPointsToMax } from "@/lib/dice/dice";
 import type { Encounter, RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
@@ -41,10 +42,13 @@ type RunCompanionSource = Pick<
 
 type RunMonsterSource = Pick<
   Monster,
-  "id" | "name" | "size" | "stat_block" | "image_url" | "portrait_focal_point"
+  "id" | "name" | "size" | "stat_block" | "image_url" | "portrait_focal_point" | "cutout_url"
 >;
 
-type RunNpcSource = Pick<Npc, "id" | "name" | "stat_block" | "portrait_url" | "portrait_focal_point">;
+type RunNpcSource = Pick<
+  Npc,
+  "id" | "name" | "stat_block" | "portrait_url" | "portrait_focal_point" | "cutout_url"
+>;
 
 export interface RunCombatantSources {
   encounter: Pick<
@@ -158,6 +162,7 @@ export function buildRunCombatants({
           reveal_state: "hidden",
           portrait_url: monster.image_url ?? null,
           portrait_focal_point: monster.portrait_focal_point ?? null,
+          token_url: resolveTokenArt(monster)?.tokenUrl,
           position: entry.starting_positions?.[i] ?? null,
           footprint: sizeToFootprint(monster.size),
         });
@@ -193,6 +198,7 @@ export function buildRunCombatants({
           reveal_state: "hidden",
           portrait_url: npc.portrait_url ?? null,
           portrait_focal_point: npc.portrait_focal_point ?? null,
+          token_url: resolveTokenArt(npc)?.tokenUrl,
           position: entry.starting_positions?.[i] ?? null,
           footprint: 1,
         });

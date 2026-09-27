@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-4">
-    <!-- Portrait (tabbed: True Form / Alter Ego) -->
+    <!-- Portrait (tabbed: True Form / Cutout / Alter Ego, #917 story 4) -->
     <EntityImageBlock
       v-if="artTab === 'true-form'"
       :model-value="portraitUrl"
       :focal-point="portraitFocalPoint"
       bucket="npc-portraits"
       show-focal-point
-      :variants="ART_VARIANTS"
+      :variants="NPC_ART_VARIANTS"
       :active-variant-id="artTab"
       ai-kind="npc_portrait"
       :ai-target-id="npcId"
@@ -15,7 +15,23 @@
       :mini-source="npcId ? { table: 'npcs', id: npcId } : undefined"
       @update:model-value="emit('update:portraitUrl', $event ?? '')"
       @update:focal-point="emit('update:portraitFocalPoint', $event)"
-      @update:active-variant-id="emit('update:artTab', $event as ArtTab)"
+      @update:active-variant-id="emit('update:artTab', $event as NpcArtTab)"
+    />
+    <!-- Cutout: the true form alone on a transparent background. No focal
+         point (a cutout has no background to crop against), no Mini
+         (Simulacrum forges off the framed portrait), and instead of
+         "Generate with AI" a "Cut out from picture" button that makes the
+         cutout from the saved portrait (generate-cutout, #917). -->
+    <EntityImageBlock
+      v-else-if="artTab === 'cutout'"
+      :model-value="cutoutUrl"
+      bucket="npc-portraits"
+      expect-transparency
+      :cutout-from="npcId ? { table: 'npcs', id: npcId, hasPicture: !!portraitUrl } : undefined"
+      :variants="NPC_ART_VARIANTS"
+      :active-variant-id="artTab"
+      @update:model-value="emit('update:cutoutUrl', $event ?? '')"
+      @update:active-variant-id="emit('update:artTab', $event as NpcArtTab)"
     />
     <EntityImageBlock
       v-else
@@ -23,11 +39,11 @@
       :focal-point="disguisePortraitFocalPoint"
       bucket="npc-portraits"
       show-focal-point
-      :variants="ART_VARIANTS"
+      :variants="NPC_ART_VARIANTS"
       :active-variant-id="artTab"
       @update:model-value="emit('update:disguisePortraitUrl', $event ?? '')"
       @update:focal-point="emit('update:disguisePortraitFocalPoint', $event)"
-      @update:active-variant-id="emit('update:artTab', $event as ArtTab)"
+      @update:active-variant-id="emit('update:artTab', $event as NpcArtTab)"
     />
 
     <!-- Party Stance — 5e reaction wheel -->
@@ -68,15 +84,9 @@ import EntityImageBlock from '@/components/common/EntityImageBlock.vue'
 import RelationshipWheel from '@/components/npcs/RelationshipWheel.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import type { NpcStatus, NpcRelationship } from '@/types/npc.types'
+import { NPC_ART_VARIANTS, type NpcArtTab } from '@/components/npcs/npcArtTabs'
 
 type FocalPoint = { x: number; y: number } | null
-
-type ArtTab = 'true-form' | 'alter-ego'
-
-const ART_VARIANTS = [
-  { id: 'true-form', label: 'True Form' },
-  { id: 'alter-ego', label: 'Alter Ego' },
-] as const
 
 const STATUS_OPTIONS: { value: NpcStatus; label: string; color: string }[] = [
   { value: 'alive',   label: 'Alive',   color: '#22c55e' },
@@ -90,6 +100,7 @@ const {
   npcId = null,
   portraitUrl = null,
   portraitFocalPoint = null,
+  cutoutUrl = null,
   disguisePortraitUrl = null,
   disguisePortraitFocalPoint = null,
   relationship,
@@ -97,10 +108,11 @@ const {
   tags,
   aiContext = "",
 } = defineProps<{
-  artTab: ArtTab
+  artTab: NpcArtTab
   npcId?: string | null
   portraitUrl?: string | null
   portraitFocalPoint?: FocalPoint
+  cutoutUrl?: string | null
   disguisePortraitUrl?: string | null
   disguisePortraitFocalPoint?: FocalPoint
   relationship: NpcRelationship
@@ -111,9 +123,10 @@ const {
 }>()
 
 const emit = defineEmits<{
-  'update:artTab': [value: ArtTab]
+  'update:artTab': [value: NpcArtTab]
   'update:portraitUrl': [value: string]
   'update:portraitFocalPoint': [value: FocalPoint]
+  'update:cutoutUrl': [value: string]
   'update:disguisePortraitUrl': [value: string]
   'update:disguisePortraitFocalPoint': [value: FocalPoint]
   'update:relationship': [value: NpcRelationship]

@@ -148,6 +148,40 @@ describe("buildRunCombatants", () => {
     expect(combatants).toEqual([]);
   });
 
+  it("bakes token_url from the monster's cutout, leaving it unset when there is none", () => {
+    const withCutout = buildRunCombatants(sources({
+      monsters: [monster({ cutout_url: "https://example.com/owlbear-cutout.webp" })],
+    }));
+    expect(withCutout[0].token_url).toBe("https://example.com/owlbear-cutout.webp");
+
+    const withoutCutout = buildRunCombatants(sources({ monsters: [monster({ cutout_url: null })] }));
+    expect(withoutCutout[0].token_url).toBeUndefined();
+  });
+
+  it("bakes token_url from the NPC's cutout, leaving it unset when there is none", () => {
+    const npc = {
+      id: "n-1",
+      name: "Bartender",
+      stat_block: statBlock(),
+      portrait_url: null,
+      portrait_focal_point: null,
+      cutout_url: "https://example.com/bartender-cutout.webp",
+    };
+    const encounter = {
+      party_member_ids: [], companion_ids: [], party_member_factions: {},
+      combatants: [slot({ id: "def-npc", monster_id: null, npc_id: "n-1" })],
+    };
+    const withCutout = buildRunCombatants(sources({ encounter, npcs: [npc], monsters: [] }));
+    expect(withCutout[0].token_url).toBe("https://example.com/bartender-cutout.webp");
+
+    const withoutCutout = buildRunCombatants(sources({
+      encounter,
+      npcs: [{ ...npc, cutout_url: null }],
+      monsters: [],
+    }));
+    expect(withoutCutout[0].token_url).toBeUndefined();
+  });
+
   it("benches a companion that is not combat_ready", () => {
     const companion = {
       id: "c-1",

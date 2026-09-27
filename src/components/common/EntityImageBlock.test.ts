@@ -1,23 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import EntityImageBlock from "./EntityImageBlock.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 /**
- * Covers the cutout-slot transparency warning (#917 story 2) — every other
- * EntityImageBlock behaviour (AI generation, the Mini entry point, focal
- * point) is exercised indirectly through its callers (MonsterDetail etc.)
- * and stubbed out here.
+ * Covers the cutout-slot transparency warning (#917 story 2) and the
+ * "Cut out from picture" button (#917 story 5) — every other EntityImageBlock
+ * behaviour (AI generation, the Mini entry point, focal point) is exercised
+ * indirectly through its callers (MonsterDetail etc.) and stubbed out here.
  */
 
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const campaignMock = { isAiEnabled: false, decryptedOpenAiKey: null as string | null };
 vi.mock("@/stores/campaign", () => ({
-  useCampaignStore: () => ({ isAiEnabled: false, decryptedOpenAiKey: null }),
+  useCampaignStore: () => campaignMock,
 }));
 vi.mock("@/ai/useEntityImageGeneration", () => ({
   useEntityImageGeneration: () => ({
     isGenerating: { value: false },
     error: { value: null },
     generate: vi.fn(),
+  }),
+}));
+const cutoutGenerateMock = vi.fn();
+vi.mock("@/ai/useCutoutGeneration", () => ({
+  useCutoutGeneration: () => ({
+    isGenerating: { value: false },
+    error: { value: null },
+    generate: cutoutGenerateMock,
   }),
 }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
@@ -115,5 +125,66 @@ describe("EntityImageBlock — cutout transparency warning (#917 story 2)", () =
     resolveFirst(false);
     await flushPromises();
     expect(wrapper.text()).not.toContain(WARNING_TEXT);
+  });
+});
+
+describe('EntityImageBlock — "Cut out from picture" (#917 story 5)', () => {
+  // None of these tests set aiKind/miniSource, so the cutout button — when
+  // shown at all — is the only AppButton EntityImageBlock renders. A stub
+  // never renders slot content, so it can't be found by its label text.
+  function cutoutButton(wrapper: ReturnType<typeof mountBlock>) {
+    return wrapper.findAllComponents(AppButton).at(0);
+  }
+
+  beforeEach(() => {
+    campaignMock.isAiEnabled = true;
+    campaignMock.decryptedOpenAiKey = null;
+    cutoutGenerateMock.mockReset();
+  });
+
+  it("is absent without a cutoutFrom prop", () => {
+    const wrapper = mountBlock();
+    expect(cutoutButton(wrapper)).toBeUndefined();
+  });
+
+  it("is absent when the campaign has AI disabled, even with cutoutFrom set", () => {
+    campaignMock.isAiEnabled = false;
+    const wrapper = mountBlock({ cutoutFrom: { table: "monsters", id: "m1", hasPicture: true } });
+    expect(cutoutButton(wrapper)).toBeUndefined();
+  });
+
+  it("is disabled with a tooltip when the entity has no picture yet", () => {
+    const wrapper = mountBlock({ cutoutFrom: { table: "monsters", id: "m1", hasPicture: false } });
+    const button = cutoutButton(wrapper)!;
+    expect(button.props("disabled")).toBe(true);
+    expect(button.props("tooltip")).toBe("Add a picture first");
+  });
+
+  it("is enabled with no tooltip once there is a picture", () => {
+    const wrapper = mountBlock({ cutoutFrom: { table: "monsters", id: "m1", hasPicture: true } });
+    const button = cutoutButton(wrapper)!;
+    expect(button.props("disabled")).toBe(false);
+    expect(button.props("tooltip")).toBeUndefined();
+  });
+
+  it("generates via the monsters table/id and emits the returned url on success", async () => {
+    cutoutGenerateMock.mockResolvedValue("https://cdn.example/monster-images/u1/cutout.webp");
+    const wrapper = mountBlock({ cutoutFrom: { table: "monsters", id: "m1", hasPicture: true } });
+
+    await cutoutButton(wrapper)!.vm.$emit("click");
+    await flushPromises();
+
+    expect(cutoutGenerateMock).toHaveBeenCalledWith({ table: "monsters", id: "m1", bucket: "monster-images" });
+    expect(wrapper.emitted("update:modelValue")).toEqual([["https://cdn.example/monster-images/u1/cutout.webp"]]);
+  });
+
+  it("emits nothing when generation fails", async () => {
+    cutoutGenerateMock.mockResolvedValue(null);
+    const wrapper = mountBlock({ cutoutFrom: { table: "npcs", id: "n1", hasPicture: true } });
+
+    await cutoutButton(wrapper)!.vm.$emit("click");
+    await flushPromises();
+
+    expect(wrapper.emitted("update:modelValue")).toBeUndefined();
   });
 });

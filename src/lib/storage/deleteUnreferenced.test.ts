@@ -126,6 +126,16 @@ describe("deleteUnreferencedByPublicUrl", () => {
     expect(deleteByPublicUrl).not.toHaveBeenCalled();
   });
 
+  it("keeps an NPC's cutout that a monster promoted from the NPC shares (#917 story 4)", async () => {
+    const { deleteUnreferencedByPublicUrl } = await import("./deleteUnreferenced");
+    const url = "https://cdn.example.com/npc-portraits/u1/ribbon-cutout.webp";
+    setCount("npcs", "cutout_url", url, 1);
+
+    await deleteUnreferencedByPublicUrl({ urls: [url] });
+
+    expect(deleteByPublicUrl).not.toHaveBeenCalled();
+  });
+
   it("keeps canonical library art a customized clone points at", async () => {
     const { deleteUnreferencedByPublicUrl } = await import("./deleteUnreferenced");
     const url = "https://cdn.example.com/monster-images/srd/owlbear.webp";

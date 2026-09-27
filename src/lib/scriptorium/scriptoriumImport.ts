@@ -571,11 +571,12 @@ const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> =
     // Name heading
     html += `<h1>${npc.name}</h1>\n`;
 
-    // Portrait — centered block (no float: float-wrap reads awkwardly next to
-    // the short identity block, and floats are fragile across Paged.js breaks).
-    if (npc.portrait_url) {
-      html += `<img src="${npc.portrait_url}" alt="${npc.name}" width="240" style="display:block;margin:8px auto;width:240px" />\n`;
-    }
+    // Portrait + cutout — centered block (no float: float-wrap reads awkwardly
+    // next to the short identity block, and floats are fragile across Paged.js
+    // breaks). Sizing is theme-base.css's shared `.sc-entity-art` rules, the
+    // same ones the monster/item formatters use, rather than an inline style
+    // per `<img>` (#917 story 4).
+    html += entityArtFiguresHtml({ picture: npc.portrait_url, cutout: npc.cutout_url, alt: npc.name });
 
     // Subtitle line (race)
     if (npc.race) html += `<p><em>${npc.race}</em></p>\n`;

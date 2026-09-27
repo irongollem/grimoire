@@ -20,6 +20,7 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
     status: "alive",
     relationship: "indifferent",
     portrait_url: null,
+    cutout_url: null,
     portrait_focal_point: null,
     disguise_name: null,
     disguise_portrait_url: null,

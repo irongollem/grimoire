@@ -109,6 +109,7 @@ import { computed, watch } from "vue";
 import { useLocationBattleSurface } from "@/composables/encounters/useEncounterRoom";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
+import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { isInteriorType } from "@/lib/locations/tiers";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
@@ -204,6 +205,7 @@ const previewCombatants = computed<RunCombatant[]>(() => {
           dex_mod: 0,
           portrait_url: monster.image_url ?? null,
           portrait_focal_point: monster.portrait_focal_point ?? null,
+          token_url: resolveTokenArt(monster)?.tokenUrl,
           position: def.starting_positions?.[i] ?? null,
           footprint: sizeToFootprint(monster.size),
         });
@@ -233,6 +235,7 @@ const previewCombatants = computed<RunCombatant[]>(() => {
           dex_mod: 0,
           portrait_url: npc.portrait_url ?? null,
           portrait_focal_point: npc.portrait_focal_point ?? null,
+          token_url: resolveTokenArt(npc)?.tokenUrl,
           position: def.starting_positions?.[i] ?? null,
           footprint: 1,
         });

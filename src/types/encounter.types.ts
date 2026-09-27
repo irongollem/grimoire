@@ -169,6 +169,12 @@ export interface RunCombatant {
   initiative_bonus?: number | null;
   portrait_url?: string | null;
   portrait_focal_point?: { x: number; y: number } | null;
+  // Battle-map token art — baked from the source monster/NPC's cutout_url at
+  // spawn time, the same way portrait_url is, so players (no monsters-table
+  // access) still get it. Undefined for party members and companions, who
+  // have no cutout. The battle map draws this "contain" with no focal point
+  // in preference to portrait_url; see src/lib/battlemap/tokenArt.ts.
+  token_url?: string | null;
   // reveal state — only meaningful for monsters; players are always "revealed"
   reveal_state?: RevealState;
   // wildshape — only set for player combatants currently wildshaped

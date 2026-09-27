@@ -116,7 +116,7 @@ lets the buttons wrap and keeps the page's own name (see the note in
 
 ### Left Column — Portrait + Meta
 
-**Portrait tabs**: "True Form" and "Alter Ego" — each with a separate `ImageUpload` with focal-point setter. The alter-ego tab is pre-selected if the NPC already has `disguise_name` or `disguise_portrait_url`.
+**Portrait tabs**: "True Form", "Cutout" and "Alter Ego" (#917 story 4) — the tab ids/labels are shared between the desktop sidebar (`NpcSidebar.vue`) and the phone editor (`NpcEditMobile.vue`) via `npcArtTabs.ts` so the two cannot drift. True Form and Alter Ego each have a separate `ImageUpload` with focal-point setter. The Cutout tab edits `cutout_url` — the true form alone on a transparent background, always of the true form (a disguise has no cutout of its own) — with no focal point and no Simulacrum "Mini" entry point; in place of "Generate with AI" it offers "Cut out from picture", which makes the cutout from the saved portrait through the `generate-cutout` edge function (platform credits, `entity_cutout`); and `expect-transparency` is set so `EntityImageBlock` warns if the uploaded image has no transparent background. The alter-ego tab is pre-selected if the NPC already has `disguise_name` or `disguise_portrait_url`.
 
 **Party Stance** (relationship): `RelationshipWheel` — the five 5e attitudes (Hostile, Unfriendly, Indifferent, Friendly, Helpful), each coloured from its `--relationship-*` token. `unknown` is the unset state rather than a sixth choice.
 
@@ -223,7 +223,7 @@ The **editor** is the exception, and deliberately: `NpcDetailView` binds `Audien
 
 #### The identity half — "SEEN AS"
 
-`RevealBody`'s section order is **identity → who → what**. Identity comes first because it decides *which* entity the rest of the popover is about; "what" comes last because choosing fields for an entity nobody can see is meaningless.
+`RevealBody`'s section order is **identity → who → what**. Identity comes first because it decides _which_ entity the rest of the popover is about; "what" comes last because choosing fields for an entity nobody can see is meaningless.
 
 That last point is why the `#identity` slot is **not** dimmed with the `#what` slot at `state === 'private'`. Which face an NPC is wearing changes what the **DM's own** grid card and page title render (`getNpcDisplayName` and friends key off `is_revealed`), whether or not a single player can see the NPC — so it stays live for a completely hidden NPC. Do not "fix" it into the dimmed block.
 
@@ -539,6 +539,7 @@ Clicking a card opens a modal with:
 | `relationship`                  | `ally` \| `neutral` \| `enemy` \| `unknown` | Party stance                                                             |
 | `portrait_url`                  | string \| null                              | Storage URL                                                              |
 | `portrait_focal_point`          | `{x,y}` \| null                             | 0–100 percentages                                                        |
+| `cutout_url`                    | string \| null                              | True form alone on a transparent background (#917); never shown to players while concealed |
 | `disguise_portrait_url`         | string \| null                              | Alter-ego portrait                                                       |
 | `disguise_portrait_focal_point` | `{x,y}` \| null                             |                                                                          |
 | `is_revealed`                   | boolean                                     | Whether true identity is shown                                           |

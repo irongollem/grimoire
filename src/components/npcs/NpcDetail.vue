@@ -59,6 +59,7 @@
         :npc-id="npc?.id"
         :portrait-url="form.portrait_url"
         :portrait-focal-point="form.portrait_focal_point"
+        :cutout-url="form.cutout_url"
         :disguise-portrait-url="form.disguise_portrait_url"
         :disguise-portrait-focal-point="form.disguise_portrait_focal_point"
         :relationship="form.relationship"
@@ -68,6 +69,7 @@
         @update:art-tab="artTab = $event"
         @update:portrait-url="form.portrait_url = $event"
         @update:portrait-focal-point="form.portrait_focal_point = $event"
+        @update:cutout-url="form.cutout_url = $event"
         @update:disguise-portrait-url="form.disguise_portrait_url = $event"
         @update:disguise-portrait-focal-point="form.disguise_portrait_focal_point = $event"
         @update:relationship="form.relationship = $event"
@@ -240,6 +242,7 @@ import NpcInventorySection from '@/components/npcs/NpcInventorySection.vue'
 import NpcLoreTab from '@/components/npcs/NpcLoreTab.vue'
 import NpcIdentitySection from '@/components/npcs/NpcIdentitySection.vue'
 import NpcSidebar from '@/components/npcs/NpcSidebar.vue'
+import type { NpcArtTab } from '@/components/npcs/npcArtTabs'
 import { buildEntityContext, toPlainText } from '@/ai/utils'
 import NpcEditMobile from '@/components/npcs/NpcEditMobile.vue'
 import type { Npc, NpcInsert, StatBlock } from '@/types/npc.types'
@@ -299,7 +302,7 @@ const isSendingToScriptorium = ref(false)
 
 const activeTab = ref<TabKey>('lore')
 const showGenerateDialog = ref(false)
-const artTab = ref<'true-form' | 'alter-ego'>(
+const artTab = ref<NpcArtTab>(
   props.npc?.disguise_name || props.npc?.disguise_portrait_url ? 'alter-ego' : 'true-form'
 )
 
@@ -381,8 +384,7 @@ async function promoteToMonster() {
       source: null,
       tags: [...props.npc.tags],
       image_url: props.npc.portrait_url,
-      // An NPC has no cutout yet (#917 covers monsters first).
-      cutout_url: null,
+      cutout_url: props.npc.cutout_url,
       portrait_focal_point: props.npc.portrait_focal_point ?? null,
       description: null,
       notes: props.npc.notes,
@@ -421,6 +423,9 @@ function onMonsterLinked(monsterId: string | null) {
     form.portrait_url = m.image_url
     form.portrait_focal_point = m.portrait_focal_point ?? null
   }
+  // The cutout fills its own gap: only when the NPC has none and the monster
+  // brings one, so linking never wipes a cutout the DM already set (#917).
+  if (!form.cutout_url && m.cutout_url) form.cutout_url = m.cutout_url
 
   const msb = m.stat_block
   hasStatBlock.value = true
@@ -464,6 +469,7 @@ const form = reactive<NpcInsert>({
   status: props.npc?.status ?? 'alive',
   relationship: props.npc?.relationship ?? 'unknown',
   portrait_url: props.npc?.portrait_url ?? null,
+  cutout_url: props.npc?.cutout_url ?? null,
   disguise_name: props.npc?.disguise_name ?? null,
   disguise_portrait_url: props.npc?.disguise_portrait_url ?? null,
   disguise_portrait_focal_point: props.npc?.disguise_portrait_focal_point ?? null,
@@ -622,6 +628,11 @@ async function save() {
     personality: form.personality || null,
     backstory: form.backstory || null,
     notes: form.notes || null,
+    // A cleared image comes back from the image block as "", which is not a
+    // picture; store it as none.
+    portrait_url: form.portrait_url || null,
+    cutout_url: form.cutout_url || null,
+    disguise_portrait_url: form.disguise_portrait_url || null,
     stat_block: buildStatBlock(),
     player_visible_to: form.player_visible_to,
   }

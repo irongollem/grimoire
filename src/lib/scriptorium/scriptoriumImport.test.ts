@@ -20,11 +20,11 @@ function npc(overrides: Partial<Npc> = {}): Npc {
   } as unknown as Npc;
 }
 
-describe("formatNpcForScriptorium — portrait", () => {
-  it("renders the portrait as a centered block, never a float", () => {
+describe("formatNpcForScriptorium — portrait + cutout (#917 story 4)", () => {
+  it("renders the picture as a centered figure, never a float", () => {
     const { content } = formatNpcForScriptorium(npc());
     expect(content).toContain("https://example.com/adewale.webp");
-    expect(content).toMatch(/display:block;margin:8px auto/);
+    expect(content).toContain("sc-entity-art--picture");
     expect(content).not.toMatch(/float:\s*right/);
   });
 
@@ -33,7 +33,15 @@ describe("formatNpcForScriptorium — portrait", () => {
     expect(content.indexOf("<h1>")).toBeLessThan(content.indexOf("<img"));
   });
 
-  it("omits the portrait when the NPC has none", () => {
+  it("also renders the cutout when the NPC has one", () => {
+    const { content } = formatNpcForScriptorium(
+      npc({ cutout_url: "https://example.com/adewale-cutout.webp" }),
+    );
+    expect(content).toContain("sc-entity-art--cutout");
+    expect(content).toContain("https://example.com/adewale-cutout.webp");
+  });
+
+  it("omits the art entirely when the NPC has neither image", () => {
     const { content } = formatNpcForScriptorium(npc({ portrait_url: null }));
     expect(content).not.toContain("<img");
   });

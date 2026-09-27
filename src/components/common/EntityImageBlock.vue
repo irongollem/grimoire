@@ -29,7 +29,7 @@
     </p>
 
     <!-- AI generation — only when the parent opts in and the campaign allows AI -->
-    <div v-if="showAiButton || showMiniButton" class="mt-2 flex flex-col gap-1">
+    <div v-if="showAiButton || showMiniButton || showCutoutButton" class="mt-2 flex flex-col gap-1">
       <div class="flex gap-1.5">
         <AppButton
           v-if="showAiButton"
@@ -59,14 +59,33 @@
             <VitruvianIcon class="text-sm" />
           </template>
         </AppButton>
+        <!-- Cutout tab only (#917 story 5): makes the cutout FROM the entity's
+             existing picture, so it never competes with "Generate with AI"/"Mini"
+             for room in this row — the parent only sets cutoutFrom there. -->
+        <AppButton
+          v-if="showCutoutButton"
+          variant="outline"
+          fill="muted"
+          size="sm"
+          class="flex-1"
+          :disabled="cutoutDisabled"
+          :tooltip="cutoutFrom!.hasPicture ? undefined : 'Add a picture first'"
+          @click="runCutoutGenerate"
+        >
+          <template #icon>
+            <IconGenerate class="h-3.5 w-3.5" :class="isCutoutGenerating ? 'animate-pulse text-primary' : ''" />
+          </template>
+          {{ isCutoutGenerating ? "Cutting out…" : "Cut out from picture" }}
+        </AppButton>
       </div>
-      <div v-if="showAiButton && !isGenerating" class="flex justify-center">
-        <GenerationCostBadge :credits="imageCost" :byok="imageByok" :show-balance="false" />
+      <div v-if="(showAiButton && !isGenerating) || (showCutoutButton && !isCutoutGenerating)" class="flex justify-center">
+        <GenerationCostBadge v-if="showAiButton && !isGenerating" :credits="imageCost" :byok="imageByok" :show-balance="false" />
+        <GenerationCostBadge v-if="showCutoutButton && !isCutoutGenerating" :credits="cutoutCost" :byok="false" :show-balance="false" />
       </div>
-      <p v-if="isGenerating" class="text-caption text-muted-foreground italic text-center">
+      <p v-if="isGenerating || isCutoutGenerating" class="text-caption text-muted-foreground italic text-center">
         {{ currentLoadingQuote }}
       </p>
-      <p v-if="error" class="text-caption text-destructive">{{ error }}</p>
+      <p v-if="error || cutoutError" class="text-caption text-destructive">{{ error || cutoutError }}</p>
     </div>
   </div>
 </template>
@@ -82,6 +101,7 @@ import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
 import { IconGenerate } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useEntityImageGeneration } from "@/ai/useEntityImageGeneration";
+import { useCutoutGeneration, type CutoutTable } from "@/ai/useCutoutGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
@@ -105,6 +125,7 @@ const {
   miniSource,
   variants,
   expectTransparency = false,
+  cutoutFrom,
 } = defineProps<{
   modelValue: string | null | undefined;
   focalPoint?: { x: number; y: number } | null;
@@ -125,6 +146,11 @@ const {
   /** Cutout slots (#917 story 2) warn when the uploaded image has no
    *  transparent background — it would print as a plain rectangle. */
   expectTransparency?: boolean;
+  /** Enables "Cut out from picture" (#917 story 5) — the parent sets this only
+   *  on its own Cutout tab, for an entity kind/id `generate-cutout` supports.
+   *  `hasPicture` disables the button (with a tooltip) until there's a
+   *  picture to generate the cutout from. */
+  cutoutFrom?: { table: CutoutTable; id: string; hasPicture: boolean };
 }>();
 
 const emit = defineEmits<{
@@ -180,6 +206,23 @@ const showMiniButton = computed(
 function goToMiniForge() {
   if (!miniSource) return;
   router.push({ path: "/minis/forge", query: { source: miniSource.table, id: miniSource.id } });
+}
+
+// Cutout generation (#917 story 5) — always OpenAI at the same portrait size
+// as an entity image, and never BYOK (generate-cutout is platform-keys-only,
+// like Simulacrum), so the cost badge never reads the campaign's own key.
+const { isGenerating: isCutoutGenerating, error: cutoutError, generate: generateCutout } = useCutoutGeneration();
+const cutoutCost = computed(
+  () => Math.round(costOf("entity_cutout", { size: "1024x1536" }) * imageMultiplierFor("openai") * 100) / 100,
+);
+const showCutoutButton = computed(() => !!cutoutFrom && !disabled && campaign.isAiEnabled);
+const cutoutDisabled = computed(() => isCutoutGenerating.value || disabled || !cutoutFrom?.hasPicture);
+
+async function runCutoutGenerate() {
+  if (!cutoutFrom) return;
+  if (!requireCredits(cutoutCost.value, false)) return;
+  const url = await generateCutout({ table: cutoutFrom.table, id: cutoutFrom.id, bucket });
+  if (url) emit("update:modelValue", url);
 }
 
 async function runGenerate() {

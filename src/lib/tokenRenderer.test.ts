@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   drawToken,
   type TokenEntity,
@@ -10,15 +10,23 @@ import {
 // captures fill colours and text draws so we can assert which code paths ran
 // without needing real pixel output.
 
+interface DrawImageArgs {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 interface RecorderCtx {
   calls: string[];
   fills: string[];
   texts: { text: string; x: number; y: number }[];
   drawImageCalls: number;
+  drawImageArgs: DrawImageArgs[];
 }
 
 function makeRecorder(): { ctx: unknown; rec: RecorderCtx } {
-  const rec: RecorderCtx = { calls: [], fills: [], texts: [], drawImageCalls: 0 };
+  const rec: RecorderCtx = { calls: [], fills: [], texts: [], drawImageCalls: 0, drawImageArgs: [] };
   let currentFill = "";
   let currentStroke = "";
   const noop = () => {};
@@ -46,9 +54,10 @@ function makeRecorder(): { ctx: unknown; rec: RecorderCtx } {
       rec.calls.push("fillText");
       rec.texts.push({ text, x, y });
     },
-    drawImage: () => {
+    drawImage: (_img: unknown, x: number, y: number, w: number, h: number) => {
       rec.calls.push("drawImage");
       rec.drawImageCalls += 1;
+      rec.drawImageArgs.push({ x, y, w, h });
     },
     translate: noop,
     rotate: noop,
@@ -197,5 +206,78 @@ describe("drawToken — image cache (regression guard)", () => {
     fetchSpy.mockRestore();
     urlSpy.mockRestore();
     vi.unstubAllGlobals();
+  });
+});
+
+// ── imageFit: "contain" (cutouts) vs "cover" (portraits/pictures) ──────────
+// A cutout is the whole figure on a transparent background, so it draws
+// scaled-to-fit rather than cropped — see src/lib/battlemap/tokenArt.ts for
+// where the "contain" fit comes from.
+
+describe("drawToken — imageFit", () => {
+  // happy-dom's Image doesn't auto-fire load for blob: URLs (same issue the
+  // cache-regression guard above works around); stub it per test with the
+  // natural size needed to exercise the axis under test.
+  function stubImageWithSize(width: number, height: number) {
+    class StubImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = width;
+      naturalHeight = height;
+      private _src = "";
+      set src(v: string) {
+        this._src = v;
+        queueMicrotask(() => this.onload?.());
+      }
+      get src() {
+        return this._src;
+      }
+    }
+    vi.stubGlobal("Image", StubImage);
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("fits a tall cutout whole inside the ring: corners on the ring, centred, focal point ignored", async () => {
+    stubImageWithSize(100, 200);
+    const { canvas, rec } = makeCanvas(512);
+    await drawToken(canvas, {
+      ...baseEntity,
+      imageUrl: "blob:contain-tall",
+      imageFit: "contain",
+      focalPoint: { x: 90, y: 90 }, // must be ignored in contain mode
+    });
+
+    const ir = 512 / 2 - 20; // R - ringWidth
+    const draw = rec.drawImageArgs.at(-1)!;
+    // Every corner lies on the inner circle, so no part of the figure is clipped.
+    expect(Math.hypot(draw.w / 2, draw.h / 2)).toBeCloseTo(ir, 5);
+    expect(draw.w / draw.h).toBeCloseTo(0.5, 5);
+    expect(draw.x + draw.w / 2).toBeCloseTo(256, 5);
+    expect(draw.y + draw.h / 2).toBeCloseTo(256, 5);
+  });
+
+  it("fits a wide cutout the same way", async () => {
+    stubImageWithSize(200, 100);
+    const { canvas, rec } = makeCanvas(512);
+    await drawToken(canvas, { ...baseEntity, imageUrl: "blob:contain-wide", imageFit: "contain" });
+
+    const ir = 512 / 2 - 20;
+    const draw = rec.drawImageArgs.at(-1)!;
+    expect(Math.hypot(draw.w / 2, draw.h / 2)).toBeCloseTo(ir, 5);
+    expect(draw.w / draw.h).toBeCloseTo(2, 5);
+  });
+
+  it("defaults to 'cover' when imageFit is omitted, filling the full diameter", async () => {
+    stubImageWithSize(100, 200); // same tall image as the first contain case
+    const { canvas, rec } = makeCanvas(512);
+    await drawToken(canvas, { ...baseEntity, imageUrl: "blob:cover-default" });
+
+    const ir = 512 / 2 - 20;
+    const diam = ir * 2;
+    const draw = rec.drawImageArgs.at(-1)!;
+    expect(draw.w).toBeCloseTo(diam, 5);
   });
 });

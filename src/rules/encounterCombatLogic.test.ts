@@ -206,6 +206,17 @@ describe("buildMonsterCombatants", () => {
     const out = buildMonsterCombatants(monster(), { factionId: "f1", count: 1, customName: "Grix", started: false });
     expect(out[0].name).toBe("Grix");
   });
+
+  it("bakes token_url from the monster's cutout, leaving it unset when there is none", () => {
+    const withCutout = buildMonsterCombatants(
+      monster({ cutout_url: "https://example.com/goblin-cutout.webp" }),
+      { factionId: "f1", count: 1, started: false },
+    );
+    expect(withCutout[0].token_url).toBe("https://example.com/goblin-cutout.webp");
+
+    const withoutCutout = buildMonsterCombatants(monster(), { factionId: "f1", count: 1, started: false });
+    expect(withoutCutout[0].token_url).toBeUndefined();
+  });
 });
 
 describe("buildNpcCombatants", () => {
@@ -221,5 +232,16 @@ describe("buildNpcCombatants", () => {
     const withBonus = npc({ stat_block: { ...npc().stat_block!, initiative_bonus: 99 } });
     const out = buildNpcCombatants(withBonus, { factionId: "f1", count: 1, started: true, rollD20: () => 10 });
     expect(out[0].initiative).toBe(10); // dex 10 → +0 mod, bonus ignored
+  });
+
+  it("bakes token_url from the NPC's cutout, leaving it unset when there is none", () => {
+    const withCutout = buildNpcCombatants(
+      npc({ cutout_url: "https://example.com/bartender-cutout.webp" }),
+      { factionId: "f1", count: 1, started: false },
+    );
+    expect(withCutout[0].token_url).toBe("https://example.com/bartender-cutout.webp");
+
+    const withoutCutout = buildNpcCombatants(npc(), { factionId: "f1", count: 1, started: false });
+    expect(withoutCutout[0].token_url).toBeUndefined();
   });
 });

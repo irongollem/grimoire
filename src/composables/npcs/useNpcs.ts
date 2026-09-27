@@ -8,7 +8,7 @@ import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 import { getSetting } from "@/settings/index";
 import type { Npc, NpcInsert, NpcUpdate, PlayerNpc } from "@/types/npc.types";
-import { removeStorageImages } from "@/composables/useImageUpload";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 
 const QUERY_KEY = "npcs";
 
@@ -49,7 +49,14 @@ async function updateNpc(id: string, update: NpcUpdate): Promise<Npc> {
 async function deleteNpc(npc: Npc): Promise<void> {
   const { error } = await supabase.from("npcs").delete().eq("id", npc.id);
   if (error) throw error;
-  await removeStorageImages("asset-images", npc.portrait_url, npc.disguise_portrait_url);
+  // NPC portraits live in the `npc-portraits` bucket, not `asset-images` —
+  // `removeStorageImages("asset-images", ...)` used to run here, which never
+  // matched anything and so never deleted a single file (#917 story 4). This
+  // also checks whether another row (e.g. a monster promoted from this NPC)
+  // still points at the same file before removing it.
+  await deleteUnreferencedByPublicUrl({
+    urls: [npc.portrait_url, npc.cutout_url, npc.disguise_portrait_url],
+  });
 }
 
 /** Every NPC in the active campaign.
@@ -398,6 +405,7 @@ export function usePopulateSettingNpcs() {
           status: h.status,
           relationship: h.relationship,
           portrait_url: h.portrait_url,
+          cutout_url: null,
           portrait_focal_point: null,
           disguise_name: null,
           disguise_portrait_url: null,

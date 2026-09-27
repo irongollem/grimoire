@@ -10,6 +10,7 @@ import { rollDie } from "@/lib/dice/dice";
 import { initiativeModifier } from "@/rules/combatantSort";
 import { hitPointsToMax } from "@/lib/dice/dice";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
+import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import type { RunCombatant, EventTrigger } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
@@ -142,6 +143,7 @@ export function buildMonsterCombatants(monster: Monster, opts: MonsterSpawnOptio
       reveal_state: "hidden",
       portrait_url: monster.image_url ?? null,
       portrait_focal_point: monster.portrait_focal_point ?? null,
+      token_url: resolveTokenArt(monster)?.tokenUrl,
       footprint: sizeToFootprint(monster.size),
       ...(legendaryCap !== undefined && {
         legendary_action_cap: legendaryCap,
@@ -191,6 +193,7 @@ export function buildNpcCombatants(npc: Npc, opts: NpcSpawnOptions): RunCombatan
       reveal_state: "hidden",
       portrait_url: npc.portrait_url ?? null,
       portrait_focal_point: npc.portrait_focal_point ?? null,
+      token_url: resolveTokenArt(npc)?.tokenUrl,
       footprint: 1,
     });
   }

@@ -24,6 +24,8 @@ export const IMAGE_GEN_KINDS = [
   "puzzle",
   "pantheon",
   "loot",
+  "monster_cutout",
+  "npc_cutout",
 ] as const;
 
 export type ImageGenKind = (typeof IMAGE_GEN_KINDS)[number];
@@ -55,6 +57,12 @@ export const KIND_META: Record<ImageGenKind, KindMeta> = {
   puzzle:         { label: "Puzzles",   table: "puzzle_rooms",  column: "image_url",    route: null },
   pantheon:       { label: "Pantheons", table: "pantheons",     column: "emblem_url",   route: null },
   loot:           { label: "Loot",      table: null,            column: null,          route: null },
+  // Cutouts (#917 story 5) — generated FROM the entity's existing picture, so
+  // they get their own kind rather than sharing "monster"/"npc_portrait":
+  // that keeps the Gallery's per-kind column default (image_url/portrait_url)
+  // honest, since a cutout always targets cutout_url instead.
+  monster_cutout: { label: "Monster Cutouts", table: "monsters", column: "cutout_url", route: "/monsters" },
+  npc_cutout:     { label: "NPC Cutouts",     table: "npcs",     column: "cutout_url", route: "/npcs" },
 };
 
 export function galleryQueryKey(campaignId: string | null) {

@@ -384,6 +384,7 @@ export function mapExtractedNpc(
     // known yet.
     relationship: "unknown",
     portrait_url: null,
+    cutout_url: null,
     disguise_name: null,
     disguise_portrait_url: null,
     is_revealed: false, // schema default

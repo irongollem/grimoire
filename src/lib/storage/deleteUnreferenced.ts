@@ -37,17 +37,18 @@ import { deleteByPublicUrl } from "./remove";
  * Every column in the app that can hold an entity image, and so every place a
  * file can still be in use. Deliberately every table rather than the deleted
  * entity's own: files cross entities. A monster promoted from an NPC takes the
- * NPC's portrait (`NpcDetail.vue`'s promote); a customized clone of a library
- * monster takes the library's own art, which for an admin is the shared
- * canonical file under `srd/`, and a DM's library-art override. Checking only
- * the deleted row's table missed all three.
+ * NPC's portrait AND cutout (`NpcDetail.vue`'s promote, #917 story 4); a
+ * customized clone of a library monster takes the library's own art, which
+ * for an admin is the shared canonical file under `srd/`, and a DM's
+ * library-art override. Checking only the deleted row's table missed all
+ * three.
  */
 export const IMAGE_REFERENCES = [
   ["monsters", ["image_url", "cutout_url"]],
   ["items", ["image_url", "mundane_image_url"]],
   ["traps", ["image_url"]],
   ["locations", ["image_url", "map_url", "map_layer_url"]],
-  ["npcs", ["portrait_url", "disguise_portrait_url"]],
+  ["npcs", ["portrait_url", "cutout_url", "disguise_portrait_url"]],
   ["library_monsters", ["image_url"]],
   ["library_items", ["image_url", "mundane_image_url"]],
   ["library_monster_art", ["image_url", "cutout_url"]],

@@ -55,7 +55,7 @@
 
     <!-- ── 2. Scroll body ─────────────────────────────────────────────────── -->
     <main class="flex-1 space-y-3 overflow-y-auto p-3 pb-28">
-      <!-- Portrait card (True Form / Alter Ego + upload, via EntityImageBlock) -->
+      <!-- Portrait card (True Form / Cutout / Alter Ego, #917 story 4) -->
       <section class="overflow-hidden rounded-xl border border-border bg-card">
         <EntityImageBlock
           v-if="artTab === 'true-form'"
@@ -63,7 +63,7 @@
           :focal-point="form.portrait_focal_point"
           bucket="npc-portraits"
           show-focal-point
-          :variants="ART_VARIANTS"
+          :variants="NPC_ART_VARIANTS"
           :active-variant-id="artTab"
           ai-kind="npc_portrait"
           :ai-target-id="npc?.id"
@@ -71,7 +71,20 @@
           :mini-source="npc?.id ? { table: 'npcs', id: npc.id } : undefined"
           @update:model-value="form.portrait_url = $event || null"
           @update:focal-point="form.portrait_focal_point = $event"
-          @update:active-variant-id="emit('update:artTab', $event as ArtTab)"
+          @update:active-variant-id="emit('update:artTab', $event as NpcArtTab)"
+        />
+        <!-- Cutout: the true form alone on a transparent background — no focal
+             point, no AI generation, no Mini, same as the desktop sidebar. -->
+        <EntityImageBlock
+          v-else-if="artTab === 'cutout'"
+          :model-value="form.cutout_url"
+          bucket="npc-portraits"
+          expect-transparency
+          :cutout-from="npc?.id ? { table: 'npcs', id: npc.id, hasPicture: !!form.portrait_url } : undefined"
+          :variants="NPC_ART_VARIANTS"
+          :active-variant-id="artTab"
+          @update:model-value="form.cutout_url = $event || null"
+          @update:active-variant-id="emit('update:artTab', $event as NpcArtTab)"
         />
         <EntityImageBlock
           v-else
@@ -79,11 +92,11 @@
           :focal-point="form.disguise_portrait_focal_point"
           bucket="npc-portraits"
           show-focal-point
-          :variants="ART_VARIANTS"
+          :variants="NPC_ART_VARIANTS"
           :active-variant-id="artTab"
           @update:model-value="form.disguise_portrait_url = $event || null"
           @update:focal-point="form.disguise_portrait_focal_point = $event"
-          @update:active-variant-id="emit('update:artTab', $event as ArtTab)"
+          @update:active-variant-id="emit('update:artTab', $event as NpcArtTab)"
         />
       </section>
 
@@ -318,8 +331,7 @@ import NpcLoreTab from "./NpcLoreTab.vue";
 import NpcRelationsSection from "./NpcRelationsSection.vue";
 import NpcAccordionSection from "./NpcAccordionSection.vue";
 import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
-
-type ArtTab = "true-form" | "alter-ego";
+import { NPC_ART_VARIANTS, type NpcArtTab } from "./npcArtTabs";
 
 // Matches NpcIdentitySection's expected shape and useLocationTree's output.
 type LocationOption = Location & { depth: number };
@@ -340,7 +352,7 @@ const {
   form: NpcInsert;
   statBlock: StatBlock;
   hasStatBlock: boolean;
-  artTab: ArtTab;
+  artTab: NpcArtTab;
   locationOptions: LocationOption[];
   allMonsters?: Monster[];
   npc?: Npc | null;
@@ -358,15 +370,10 @@ const emit = defineEmits<{
   scriptorium: [];
   copyToCampaign: [];
   "update:hasStatBlock": [value: boolean];
-  "update:artTab": [value: ArtTab];
+  "update:artTab": [value: NpcArtTab];
   "apply-template": [id: string];
   "link-monster": [id: string | null];
 }>();
-
-const ART_VARIANTS = [
-  { id: "true-form", label: "True Form" },
-  { id: "alter-ego", label: "Alter Ego" },
-] as const;
 
 const STATUS_OPTIONS: { value: NpcStatus; label: string; color: string }[] = [
   { value: "alive", label: "Alive", color: "#22c55e" },

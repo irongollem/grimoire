@@ -249,6 +249,7 @@ Custom source: enter a name and optionally upload a local image file.
 - Entity portrait is clipped to a circle using Canvas 2D
 - Focal point from the entity is used to center the subject in the circle, clamped so the image fully covers the inner area
 - If no portrait, the entity's initial is shown as a placeholder glyph with a radial gradient background
+- **Picture / Cutout (#917)** — when the selected monster or NPC has a `cutout_url` (the figure alone on a transparent background), a Picture/Cutout `SegmentedControl` appears above the preview, defaulting to Cutout. Cutout draws the whole figure scaled to fit the ring ("contain", `drawToken`'s `imageFit`, no focal point); Picture is the ordinary cropped-and-focal-pointed render described above. The choice applies to the live preview, PNG export and the print queue alike — `TokenForgeView.vue`'s `renderEntity` computed swaps `imageUrl`/`imageFit` before anything downstream (`drawToken`, `getExportCanvas`, `addToQueue`) ever sees the entity. Party members and Custom entities have no cutout, so the control never appears for them.
 
 **Export:**
 

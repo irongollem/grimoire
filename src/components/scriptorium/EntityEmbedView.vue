@@ -140,19 +140,21 @@ function setSize(next: EntityEmbedSize) {
   props.updateAttributes({ size: next });
 }
 
-// showArt only affects the monster entry composition today (scriptoriumImport.ts) —
-// an NPC's portrait keeps its existing centered, never-detachable placement.
-const showArtToggle = computed(() => entityType.value === "monster");
+// showArt affects the monster and NPC entry compositions (scriptoriumImport.ts,
+// #917 story 4) — both now emit their art via entityArtFiguresHtml(), so both
+// can be hidden per node the same way. Every other embedded entity (spell,
+// item, location, quest) has no art figure to toggle at all.
+const showArtToggle = computed(() => entityType.value === "monster" || entityType.value === "npc");
 const showArt = computed(() => (props.node.attrs.showArt as boolean | undefined) ?? true);
 function toggleShowArt() {
   props.updateAttributes({ showArt: !showArt.value });
 }
 
-// Which of the (up to two) resolved figures a monster entry shows (#917
-// story 2) — only meaningful while art is shown at all, and only for a
-// monster (the one entity type entityArt.ts's cutout/picture figures apply
-// to today).
-const showArtChoiceToggle = computed(() => entityType.value === "monster" && showArt.value);
+// Which of the (up to two) resolved figures an entry shows (#917 story 2,
+// extended to NPCs in story 4) — only meaningful while art is shown at all,
+// and only for the entity types entityArt.ts's cutout/picture figures apply
+// to (monster, npc).
+const showArtChoiceToggle = computed(() => showArtToggle.value && showArt.value);
 const art = computed(() => (props.node.attrs.art as EntityArtChoice | undefined) ?? "auto");
 const ART_OPTIONS: SegmentedOption<EntityArtChoice>[] = [
   { value: "auto", label: "Auto", tooltip: "The cutout when there is one, otherwise the picture" },

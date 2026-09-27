@@ -8,6 +8,13 @@ export interface TokenEntity {
   imageUrl: string | null;
   focalPoint: { x: number; y: number } | null;
   bgGradient: [string, string];
+  // "cover" (default) crops imageUrl to fill the disc, honouring focalPoint —
+  // right for a portrait/picture that was never composed to stand alone.
+  // "contain" draws the whole image (a cutout: the figure alone on a
+  // transparent background) scaled to fit inside the ring instead of
+  // cropped; focalPoint is ignored in that mode. See resolveTokenArt in
+  // src/lib/battlemap/tokenArt.ts for the field this drives.
+  imageFit?: "cover" | "contain";
 }
 
 export type RevealState = "hidden" | "unseen" | "revealed";
@@ -107,21 +114,40 @@ export async function drawToken(
       const aspect = img.naturalWidth / img.naturalHeight;
       let dw: number;
       let dh: number;
-      if (aspect > 1) {
-        dh = diam;
-        dw = diam * aspect;
-      } else {
-        dw = diam;
-        dh = diam / aspect;
-      }
+      let drawX: number;
+      let drawY: number;
 
-      const fp = entity.focalPoint;
-      const drawX = fp
-        ? Math.min(cx - ir, Math.max(cx + ir - dw, cx - (fp.x / 100) * dw))
-        : cx - dw / 2;
-      const drawY = fp
-        ? Math.min(cy - ir, Math.max(cy + ir - dh, cy - (fp.y / 100) * dh))
-        : cy - dh / 2;
+      if (entity.imageFit === "contain") {
+        // The whole figure, not a crop: the image rectangle is scaled so its
+        // corners just touch the ring (its half-diagonal equals the inner
+        // radius) and centred, so nothing of the figure is ever clipped. A
+        // figure flush with the bottom of the disc looked better standing but
+        // lost a wide stance to the curve: the Caramel Crusher's feet sit near
+        // its image's bottom corners (#917). A cutout's own transparent margin
+        // keeps the figure from touching the ring.
+        const halfDiagonal = Math.hypot(img.naturalWidth / 2, img.naturalHeight / 2);
+        const scale = ir / halfDiagonal;
+        dw = img.naturalWidth * scale;
+        dh = img.naturalHeight * scale;
+        drawX = cx - dw / 2;
+        drawY = cy - dh / 2;
+      } else {
+        if (aspect > 1) {
+          dh = diam;
+          dw = diam * aspect;
+        } else {
+          dw = diam;
+          dh = diam / aspect;
+        }
+
+        const fp = entity.focalPoint;
+        drawX = fp
+          ? Math.min(cx - ir, Math.max(cx + ir - dw, cx - (fp.x / 100) * dw))
+          : cx - dw / 2;
+        drawY = fp
+          ? Math.min(cy - ir, Math.max(cy + ir - dh, cy - (fp.y / 100) * dh))
+          : cy - dh / 2;
+      }
       ctx.drawImage(img, drawX, drawY, dw, dh);
     }
   } else {

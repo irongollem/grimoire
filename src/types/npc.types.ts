@@ -218,6 +218,9 @@ export interface Npc {
   relationship: NpcRelationship;
   portrait_url: string | null; // tall profile image
   portrait_focal_point?: { x: number; y: number } | null; // manual override for FocalImage (0–100 percentages)
+  // The true form on a transparent background, preferred in Scriptorium books
+  // and on tokens (#917). Never shown to players while the NPC is concealed.
+  cutout_url: string | null;
   // Alter ego / disguise: false identity shown to players until revealed
   disguise_name: string | null;
   disguise_portrait_url: string | null;

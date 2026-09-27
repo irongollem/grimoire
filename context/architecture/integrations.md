@@ -65,6 +65,12 @@ flowchart LR
 - **Embeddings** (`embed-content`, `embed-monsters` → 8 pgvector
   `*_embeddings` tables) are platform-wide single-provider, pinned to 1536
   dims, never BYOK. Retrieval feeds the generators (RAG).
+- **Cutout generation** (`generate-cutout`, #917 story 5) is platform-keys-only
+  like Simulacrum below — it never reads a campaign's own OpenAI key, so a
+  Pro campaign's BYOK never applies here. It sends the entity's *existing*
+  picture to OpenAI's image-edit endpoint (`background: "transparent"`) rather
+  than authoring a fresh prompt, priced as its own `entity_cutout` generation
+  type.
 - **Simulacrum/Meshy** is asynchronous: `forge-mini` creates the task, the
   every-minute `poll-meshy-jobs` cron (pg_net → edge function, bearer
   `SIMULACRUM_POLLER_TOKEN` from Vault) polls and downloads results.

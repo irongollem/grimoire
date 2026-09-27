@@ -90,6 +90,7 @@
           :ai-context="isCutoutTab ? undefined : aiContext"
           :mini-source="isCutoutTab || !monsterId ? undefined : { table: 'monsters', id: monsterId }"
           :expect-transparency="isCutoutTab"
+          :cutout-from="isCutoutTab && monsterId && !isShared ? { table: 'monsters', id: monsterId, hasPicture: !!form.image_url } : undefined"
           :variants="artTabVariants"
           :active-variant-id="artTab"
           @update:model-value="isCutoutTab ? emit('update:cutoutUrl', $event) : emit('update:imageUrl', $event)"

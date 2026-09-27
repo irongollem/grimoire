@@ -11,6 +11,13 @@
         style="width: 220px; height: 220px;"
       />
       <p class="text-label-lg text-muted-foreground">{{ entityName }}</p>
+      <SegmentedControl
+        v-if="hasCutout"
+        :model-value="artChoice"
+        :options="ART_CHOICE_OPTIONS"
+        size="sm"
+        @update:model-value="emit('update:artChoice', $event)"
+      />
     </div>
 
     <!-- Settings panel -->
@@ -69,12 +76,20 @@
 import { ref } from "vue";
 import { IconCopy, IconDownload, IconInfo } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import TokenForgeTokenSettings from "@/components/tokenforge/TokenForgeTokenSettings.vue";
+
+const ART_CHOICE_OPTIONS: ReadonlyArray<SegmentedOption<"picture" | "cutout">> = [
+  { value: "picture", label: "Picture" },
+  { value: "cutout", label: "Cutout" },
+];
 
 const {
   entityName,
   canvasSize,
   canCopy,
+  hasCutout,
+  artChoice,
   ringColor,
   ringWidth,
   showName,
@@ -83,6 +98,10 @@ const {
   entityName: string;
   canvasSize: number;
   canCopy: boolean;
+  /** Whether the selected entity has a cutout to offer as an alternative to
+   *  its picture (#917) — only monsters and NPCs ever do. */
+  hasCutout: boolean;
+  artChoice: "picture" | "cutout";
   ringColor: string;
   ringWidth: number;
   showName: boolean;
@@ -93,6 +112,7 @@ const emit = defineEmits<{
   download: [];
   copy: [];
   'add-to-queue': [];
+  'update:artChoice': [value: "picture" | "cutout"];
   'update:ringColor': [value: string];
   'update:ringWidth': [value: number];
   'update:showName': [value: boolean];

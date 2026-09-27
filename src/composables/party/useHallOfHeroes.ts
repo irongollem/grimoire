@@ -73,6 +73,7 @@ async function importHero(hero: HallOfHero, campaignId: string): Promise<void> {
     status: hero.status,
     relationship: hero.relationship,
     portrait_url: hero.portrait_url,
+    cutout_url: null,
     portrait_focal_point: hero.portrait_focal_point,
     disguise_name: hero.disguise_name,
     disguise_portrait_url: hero.disguise_portrait_url,

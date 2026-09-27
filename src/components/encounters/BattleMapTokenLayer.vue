@@ -110,9 +110,13 @@ interface RenderedToken {
    *  `title` still says "Ash-wight" hands the name to any player who hovers.
    *  Found by the #884 review pass. */
   silhouette: boolean;
-  /** Resolved once here — the mini override, or the combatant's own
-   *  portrait_url — so rendering never has to re-decide the precedence. */
+  /** Resolved once here — the mini override, the baked cutout (token_url),
+   *  or the combatant's own portrait_url — so rendering never has to
+   *  re-decide the precedence. */
   imageUrl: string | null;
+  /** "contain" for a cutout (token_url); "cover" for a mini override or a
+   *  plain portrait. Drives drawToken's imageFit. */
+  imageFit: "cover" | "contain";
 }
 
 // O(1) lookup maps. Without these, every renderedTokens recompute (60×/s
@@ -144,15 +148,27 @@ function getFactionColor(factionId: string): string {
   return factionColorById.value.get(factionId) ?? "#3b82f6";
 }
 
-function combatantToEntity(c: RunCombatant, imageUrl: string | null): TokenEntity {
+/** Mini override → baked cutout (`token_url`) → portrait → nothing. A mini
+ *  renders its own composition and a cutout is drawn whole, so only the
+ *  plain-portrait case carries a focal point or crops ("cover"). */
+function resolveTokenImage(
+  c: RunCombatant,
+  portraitOverride: string | undefined,
+): { imageUrl: string | null; imageFit: "cover" | "contain" } {
+  if (portraitOverride) return { imageUrl: portraitOverride, imageFit: "cover" };
+  if (c.token_url) return { imageUrl: c.token_url, imageFit: "contain" };
+  if (c.portrait_url) return { imageUrl: c.portrait_url, imageFit: "cover" };
+  return { imageUrl: null, imageFit: "cover" };
+}
+
+function combatantToEntity(c: RunCombatant, imageUrl: string | null, imageFit: "cover" | "contain"): TokenEntity {
   return {
     id: c.instance_id,
     name: c.name,
     subtitle: "",
     imageUrl,
-    // A mini override renders the mini's own composition, not the source
-    // entity's portrait crop, so its focal point doesn't apply.
-    focalPoint: imageUrl === c.portrait_url ? (c.portrait_focal_point ?? null) : null,
+    imageFit,
+    focalPoint: imageFit === "cover" && imageUrl === c.portrait_url ? (c.portrait_focal_point ?? null) : null,
     bgGradient:
       c.type === "monster"
         ? ["#3b0a0a", "#0a0202"]
@@ -185,6 +201,7 @@ const renderedTokens = computed<RenderedToken[]>(() => {
     }
     const anchor = cellToPixel({ cellX, cellY, cellPx, originX, originY });
     const dragMatch = override && override.instanceId === c.instance_id ? override : null;
+    const { imageUrl, imageFit } = resolveTokenImage(c, portraitOverrides?.get(c.instance_id));
     result.push({
       combatant: c,
       footprint,
@@ -195,7 +212,8 @@ const renderedTokens = computed<RenderedToken[]>(() => {
       dead: c.hp <= 0 && c.type === "monster",
       draggable: isDraggable(c.instance_id),
       silhouette: silhouetteUnseen && (c.reveal_state ?? "revealed") === "unseen",
-      imageUrl: portraitOverrides?.get(c.instance_id) ?? c.portrait_url ?? null,
+      imageUrl,
+      imageFit,
     });
   }
   return result;
@@ -226,7 +244,7 @@ async function renderTokenCanvas(tok: RenderedToken) {
   const controller = new AbortController();
   renderControllers.set(tok.combatant.instance_id, controller);
 
-  await drawToken(canvas, combatantToEntity(tok.combatant, tok.imageUrl), {
+  await drawToken(canvas, combatantToEntity(tok.combatant, tok.imageUrl, tok.imageFit), {
     ringColor: tok.factionColor,
     activeTurn: tok.active,
     revealState: tok.silhouette ? "unseen" : "revealed",
@@ -244,6 +262,7 @@ function renderKey(tok: RenderedToken): string {
     tok.active ? "1" : "0",
     tok.silhouette ? "1" : "0",
     tok.imageUrl ?? "",
+    tok.imageFit,
     tok.footprint,
     tok.combatant.name,
   ].join("|");

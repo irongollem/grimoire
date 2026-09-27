@@ -42,6 +42,7 @@ export function npcInsertFromSeed(npc: DowntimeSeedNpc): Omit<NpcInsert, "campai
     // Canonical seed art (downtime-images/srd/…), shared by every campaign that
     // draws this seed. Null until the artwork ships.
     portrait_url: npc.portrait_url,
+    cutout_url: null,
     disguise_name: null,
     disguise_portrait_url: null,
     is_revealed: true,
