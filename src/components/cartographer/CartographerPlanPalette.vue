@@ -54,13 +54,17 @@
     <p v-if="planTool === 'claim'" class="w-full mt-2 border-t border-border pt-2 text-caption-sm text-muted-foreground">
       Click a painted floor region of the Drawing to trace it straight onto the Plan as a space.
     </p>
+
+    <p v-if="planTool === 'erase'" class="w-full mt-2 border-t border-border pt-2 text-caption-sm text-muted-foreground">
+      Drag across cells to take them out of any space or zone. A room whose area you empty keeps its page in the Atlas.
+    </p>
   </aside>
 </template>
 
 <script setup lang="ts">
 // The Plan layer's own tool palette (epic #884 S7b), a sibling of
 // `CartographerToolPalette.vue` shown in its place once `MapWorkbench`'s
-// layer selector is on Plan. Four tools, not the Drawing's dozen: Space and
+// layer selector is on Plan. Five tools, not the Drawing's dozen: Space and
 // Zone trace with the same brush/pen/template gestures the Drawing offers
 // (`src/lib/map/gestures/`, via `useRegionPointer` — see
 // `usePlanCanvasTools.ts`), Door snaps to a cell edge, Claim reads a floor
@@ -68,7 +72,7 @@
 // naming it, stay panel actions elsewhere (the next story's Atlas mount) —
 // this palette only ever decides which gesture means what; it never opens or
 // names a location.
-import { IconDoor, IconFill, IconHighlight, IconSplitCell } from "@/lib/icons";
+import { IconDoor, IconEraser, IconFill, IconHighlight, IconSplitCell } from "@/lib/icons";
 import type { AppIcon } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -84,6 +88,7 @@ const PLAN_TOOL_ICONS: Record<PlanTool, AppIcon> = {
   zone: IconHighlight,
   door: IconDoor,
   claim: IconFill,
+  erase: IconEraser,
 };
 
 const planTool = defineModel<PlanTool>("planTool", { required: true });

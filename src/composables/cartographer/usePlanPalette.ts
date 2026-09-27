@@ -70,7 +70,7 @@ import {
   type ZoneKind,
 } from "@/types/locationMapRegion.types";
 
-export type PlanTool = "space" | "zone" | "door" | "claim";
+export type PlanTool = "space" | "zone" | "door" | "claim" | "erase";
 
 /** How a Space or Zone is traced. One list, read by the Plan palette's own
  *  switch and by the canvas's active-tool pill (MapWorkbench.vue). */
@@ -85,7 +85,25 @@ export const PLAN_TOOLS: readonly { id: PlanTool; label: string }[] = [
   { id: "zone", label: "Zone" },
   { id: "door", label: "Door" },
   { id: "claim", label: "Claim" },
+  { id: "erase", label: "Erase" },
 ];
+
+/**
+ * What an erase stroke leaves of each region it crosses: every space or zone
+ * holding a touched cell, with those cells taken out. Regions the stroke
+ * never reached are absent. Pure, so the live preview and the commit agree.
+ */
+export function eraseFromRegions(
+  regions: readonly LocationMapRegion[],
+  erased: ReadonlySet<CellKey>,
+): Map<string, CellKey[]> {
+  const next = new Map<string, CellKey[]>();
+  for (const region of regions) {
+    if (!region.cells.some((cell) => erased.has(cell))) continue;
+    next.set(region.id, region.cells.filter((cell) => !erased.has(cell)));
+  }
+  return next;
+}
 
 export { TEMPLATE_SHAPES, TEMPLATE_SHAPE_LABELS, ZONE_KINDS, ZONE_KIND_LABELS };
 export type { TraceTool };
@@ -234,6 +252,16 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
         onError: (err) => toastError(fromError(err)),
       },
     );
+  }
+
+  /** The Erase tool's commit: every region the stroke crossed loses the
+   *  touched cells. Any region, bound or not, active or not: the trace
+   *  brush's own erase only reaches the shape being traced, which left a
+   *  bound room's area with no way to shrink it from the canvas. A room
+   *  whose area empties keeps its Atlas page, like an orphan on publish. */
+  function eraseCells(erased: ReadonlySet<CellKey>): void {
+    const current = regions.value.map((region) => ({ ...region, cells: regionStateNow(region.id).cells }));
+    for (const [regionId, cells] of eraseFromRegions(current, erased)) commitCells(regionId, cells);
   }
 
   /** Pen-ring commit — `useRegionPointer`'s `commitRing` contract. Must
@@ -452,6 +480,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
     startNewSpace,
     startNewZone,
     commitCells,
+    eraseCells,
     commitRing,
     commitTemplate,
     confirmConvert,

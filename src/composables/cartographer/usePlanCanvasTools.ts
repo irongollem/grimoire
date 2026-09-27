@@ -33,7 +33,7 @@
 import { ref, type Ref } from "vue";
 import { useRegionPointer, type UseRegionPointerOptions } from "@/composables/locations/useRegionPointer";
 import { useToast } from "@/composables/useToast";
-import type { UsePlanPaletteReturn } from "@/composables/cartographer/usePlanPalette";
+import { eraseFromRegions, type UsePlanPaletteReturn } from "@/composables/cartographer/usePlanPalette";
 import { canonicaliseEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill } from "@/cartographer/floodFill";
@@ -118,6 +118,34 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
 
   const regionPointer = useRegionPointer(pointerOptions);
 
+  // ── Erase tool ───────────────────────────────────────────────────────────
+  // A plain drag: every cell it crosses comes out of whatever space or zone
+  // holds it, committed once on release. Listeners live on the window, like
+  // `useRegionPointer`'s own strokes, so a release off the canvas still ends it.
+  const eraseTouched = ref<Set<CellKey> | null>(null) as Ref<Set<CellKey> | null>;
+
+  function touchErase(clientX: number, clientY: number): void {
+    const cell = cellAt(clientX, clientY);
+    if (!cell || !eraseTouched.value || eraseTouched.value.has(cell)) return;
+    eraseTouched.value = new Set([...eraseTouched.value, cell]);
+  }
+
+  function onEraseWindowMove(ev: PointerEvent): void {
+    touchErase(ev.clientX, ev.clientY);
+  }
+
+  function onEraseWindowUp(): void {
+    const touched = eraseTouched.value;
+    endErase();
+    if (touched && touched.size > 0) plan.eraseCells(touched);
+  }
+
+  function endErase(): void {
+    eraseTouched.value = null;
+    window.removeEventListener("pointermove", onEraseWindowMove);
+    window.removeEventListener("pointerup", onEraseWindowUp);
+  }
+
   // ── Door tool ────────────────────────────────────────────────────────────
 
   function edgeAt(clientX: number, clientY: number): SourceEdgeKey | null {
@@ -198,6 +226,16 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       return true;
     }
 
+    if (tool === "erase") {
+      if (isPanGesture(ev)) return false;
+      ev.preventDefault();
+      eraseTouched.value = new Set();
+      touchErase(ev.clientX, ev.clientY);
+      window.addEventListener("pointermove", onEraseWindowMove);
+      window.addEventListener("pointerup", onEraseWindowUp);
+      return true;
+    }
+
     // space / zone — delegated to useRegionPointer whether or not a region
     // is active yet: with one active, this paints into it; with none, it
     // still registers the window listeners the click-to-select-an-existing-
@@ -218,7 +256,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       return;
     }
     planHoveredDoorEdge.value = null;
-    if (tool === "claim") return;
+    if (tool === "claim" || tool === "erase") return;
     regionPointer.onPointerMove(ev);
   }
 
@@ -233,6 +271,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
   }
 
   function dispose(): void {
+    endErase();
     regionPointer.dispose();
   }
 
@@ -241,13 +280,16 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
    *  is a single click). See `useRegionPointer.abandonGesture`'s own
    *  docblock (#884 review finding 2). */
   function abandonGesture(): void {
+    endErase();
     regionPointer.abandonGesture();
   }
 
   function renderScene(): PlanRenderScene {
-    const overrides = regionPointer.strokeCells.value
-      ? new Map([[regionPointer.strokeCells.value.regionId, regionPointer.strokeCells.value.cells]])
-      : undefined;
+    const overrides = eraseTouched.value
+      ? eraseFromRegions(plan.regions.value, eraseTouched.value)
+      : regionPointer.strokeCells.value
+        ? new Map([[regionPointer.strokeCells.value.regionId, regionPointer.strokeCells.value.cells]])
+        : undefined;
 
     let tracingRing: readonly GridPoint[] | null = null;
     let tracingClosed = false;
@@ -297,6 +339,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     renderDeps: {
       hoveredDoorEdge: planHoveredDoorEdge,
       strokeCells: regionPointer.strokeCells,
+      eraseTouched,
       draftRing: regionPointer.draftRing,
       templateDraft: regionPointer.templateDraft,
       liveDrag: regionPointer.liveDrag,

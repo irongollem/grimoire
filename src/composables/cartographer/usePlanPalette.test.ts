@@ -12,7 +12,7 @@
 //   overlapping rows.
 import { computed, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { usePlanPalette } from "./usePlanPalette";
+import { eraseFromRegions, usePlanPalette } from "./usePlanPalette";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
 interface MutationCall {
@@ -94,6 +94,28 @@ describe("usePlanPalette", () => {
     }
   });
 
+  describe("eraseCells", () => {
+    it("trims only the regions the stroke crossed, bound rooms included", () => {
+      regionsData.value = [
+        makeRegion({ id: "room", space_location_id: "loc-1", cells: ["0,0", "1,0"] }),
+        makeRegion({ id: "untouched", cells: ["9,9"] }),
+      ];
+      const plan = usePlanPalette(computed(() => "site-1"));
+      plan.eraseCells(new Set(["1,0"]));
+      expect(updateRegionStub.calls.map((c) => c.vars)).toEqual([
+        { id: "room", update: { cells: ["0,0"], derived_from: "dm" } },
+      ]);
+    });
+
+    it("reads a stroke's own unsettled result, so a second erase trims from it", () => {
+      regionsData.value = [makeRegion({ id: "r1", cells: ["0,0", "1,0", "2,0"] })];
+      const plan = usePlanPalette(computed(() => "site-1"));
+      plan.eraseCells(new Set(["0,0"]));
+      plan.eraseCells(new Set(["1,0"]));
+      expect((updateRegionStub.calls[1]!.vars as { update: { cells: string[] } }).update.cells).toEqual(["2,0"]);
+    });
+  });
+
   describe("commitCells — the before snapshot under rapid input (finding 4)", () => {
     it("a second stroke's undo reverts only itself, not the first", async () => {
       regionsData.value = [makeRegion({ id: "r1", cells: ["0,0"] })];
@@ -158,5 +180,12 @@ describe("usePlanPalette", () => {
 
       expect(createRegionStub.mutateAsync).toHaveBeenCalledOnce();
     });
+  });
+});
+
+describe("eraseFromRegions", () => {
+  it("leaves out regions the stroke never reached", () => {
+    const regions = [makeRegion({ id: "a", cells: ["0,0"] }), makeRegion({ id: "b", cells: ["5,5", "6,6"] })];
+    expect([...eraseFromRegions(regions, new Set(["6,6"]))]).toEqual([["b", ["5,5"]]]);
   });
 });

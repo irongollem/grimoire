@@ -99,3 +99,52 @@ describe("usePlanCanvasTools.abandonGesture (#884 review finding 2)", () => {
     expect(() => tools.abandonGesture()).not.toThrow();
   });
 });
+
+describe("usePlanCanvasTools Erase tool", () => {
+  function eraseHarness() {
+    const bound = makeRegion({ id: "room", space_location_id: "loc-1", cells: ["0,0", "1,0", "2,0"] as CellKey[] });
+    const zone = makeRegion({ id: "zone", region_role: "zone", zone_kind: "hazard", cells: ["1,0", "5,5"] as CellKey[] });
+    const eraseCells = vi.fn();
+    const plan = {
+      regions: ref([bound, zone]),
+      ways: ref([]),
+      planTool: ref("erase"),
+      traceTool: ref("paint"),
+      activeRegionId: ref(null),
+      activeRegion: computed(() => null),
+      commitCells: vi.fn(),
+      eraseCells,
+    } as unknown as ReturnType<typeof usePlanPalette>;
+    const tools = usePlanCanvasTools({
+      plan,
+      layers: ref(emptyLayers()),
+      cellAt: (x, y) => `${x},${y}` as CellKey,
+      gridPointAt: (x, y) => [x, y],
+      worldPointAt: (x, y) => ({ x, y }),
+      tilePixelSize: () => 32,
+    });
+    return { tools, eraseCells };
+  }
+
+  it("takes a dragged-over cell out of every region holding it, bound rooms included, previewed live", () => {
+    const { tools, eraseCells } = eraseHarness();
+    tools.onPointerDown(down(0, 0));
+    window.dispatchEvent(move(1, 0));
+
+    const preview = tools.renderScene().cellsOverride;
+    expect(preview?.get("room")).toEqual(["2,0"]);
+    expect(preview?.get("zone")).toEqual(["5,5"]);
+
+    window.dispatchEvent(up(1, 0));
+    expect(eraseCells).toHaveBeenCalledWith(new Set(["0,0", "1,0"]));
+    expect(tools.renderScene().cellsOverride).toBeUndefined();
+  });
+
+  it("commits nothing when abandoned mid-stroke", () => {
+    const { tools, eraseCells } = eraseHarness();
+    tools.onPointerDown(down(0, 0));
+    tools.abandonGesture();
+    window.dispatchEvent(up(0, 0));
+    expect(eraseCells).not.toHaveBeenCalled();
+  });
+});
