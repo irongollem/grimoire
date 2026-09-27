@@ -110,10 +110,10 @@ describe("SiteMapLayersPanel", () => {
   });
 
   describe("Picture row", () => {
-    it("invites an upload when empty", () => {
+    it("says what the layer is for and invites an upload when empty", () => {
       const wrapper = mountPanel();
       expect(wrapper.text()).toContain("Picture");
-      expect(wrapper.text()).toContain("(empty)");
+      expect(wrapper.text()).toContain("A scan or painting of the map, shown underneath");
       expect(() => findButton(wrapper, "Upload a picture")).not.toThrow();
     });
 
@@ -232,7 +232,7 @@ describe("SiteMapLayersPanel", () => {
   describe("Plan row", () => {
     it("offers a blank grid only when no canvas exists at all", () => {
       const wrapper = mountPanel();
-      expect(wrapper.text()).toContain("empty, and no grid above");
+      expect(wrapper.text()).toContain("Needs a map above, or a blank grid");
       expect(() => findButton(wrapper, "Start a blank grid")).not.toThrow();
     });
 

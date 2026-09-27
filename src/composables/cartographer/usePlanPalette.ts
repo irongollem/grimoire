@@ -72,6 +72,14 @@ import {
 
 export type PlanTool = "space" | "zone" | "door" | "claim";
 
+/** How a Space or Zone is traced. One list, read by the Plan palette's own
+ *  switch and by the canvas's active-tool pill (MapWorkbench.vue). */
+export const TRACE_TOOL_OPTIONS: readonly { value: TraceTool; label: string }[] = [
+  { value: "paint", label: "Brush" },
+  { value: "pen", label: "Pen" },
+  { value: "template", label: "Shape" },
+];
+
 export const PLAN_TOOLS: readonly { id: PlanTool; label: string }[] = [
   { id: "space", label: "Space" },
   { id: "zone", label: "Zone" },

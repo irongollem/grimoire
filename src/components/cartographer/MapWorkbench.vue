@@ -13,6 +13,13 @@
         block
         @update:model-value="activeLayer = $event"
       />
+      <!-- What the selected layer is for, in a line: "Drawing" and "Plan" are
+           the site workbench's own words (#884) and mean nothing to someone
+           opening Build for the first time. The tooltips say the same on
+           desktop; a phone has no hover, so the line is always shown. -->
+      <p v-if="site" class="text-caption text-muted-foreground px-1">
+        {{ LAYER_OPTIONS.find((o) => o.value === activeLayer)?.description }}
+      </p>
       <CartographerToolPalette
         v-if="activeLayer === 'drawing'"
         :tools="TOOLS"
@@ -106,12 +113,21 @@
         <span v-if="changedRegionsCaution" class="ml-auto text-amber-500">{{ changedRegionsCaution }}</span>
       </div>
 
-      <!-- Space tool hint -->
-      <div
-        v-if="!viewMode && activeTool === 'space'"
-        class="absolute top-2 left-2 px-2 py-1 rounded-md bg-card/95 border border-border text-caption-sm text-muted-foreground"
-      >
-        Space tool — click a floor region to claim it
+      <!-- The active tool by name, top left where the eye lands first; view
+           options (Reference) keep the top right. Below lg the palette is
+           icons only and the status bar's "Brush:" line is off-screen on a
+           phone, so this is the one place a DM can read which tool a tap
+           will use. The Space tool's instruction stacks under it. -->
+      <div v-if="!viewMode" class="absolute top-2 left-2 flex flex-col items-start gap-1.5">
+        <span class="px-2.5 py-0.5 rounded-full bg-card/95 border border-border text-caption font-semibold text-foreground">
+          {{ canvasToolLabel }}
+        </span>
+        <div
+          v-if="activeLayer === 'drawing' && activeTool === 'space'"
+          class="px-2 py-1 rounded-md bg-card/95 border border-border text-caption-sm text-muted-foreground"
+        >
+          Click a floor region to claim it
+        </div>
       </div>
 
       <!-- Reference-layer toggle (#884 S6) — only when embedded with a site whose
@@ -321,7 +337,7 @@ import SiteMapRegionList from "@/components/locations/SiteMapRegionList.vue";
 import SiteMapZoneList from "@/components/locations/SiteMapZoneList.vue";
 import { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useMapCanvasEditor } from "@/composables/cartographer/useMapCanvasEditor";
-import { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
+import { usePlanPalette, PLAN_TOOLS, TRACE_TOOL_OPTIONS } from "@/composables/cartographer/usePlanPalette";
 import { usePublishedSites } from "@/composables/cartographer/usePublishedSites";
 
 import { useNotes } from "@/composables/notes/useNotes";
@@ -612,6 +628,17 @@ const annotationText = computed({
 const cellsPainted = computed(() => Object.keys(layers.value.floor).length);
 const activeToolLabel = computed(() => TOOLS.find((t) => t.id === activeTool.value)?.label ?? activeTool.value);
 
+/** The canvas pill's text: the Drawing tool, or on the Plan the tool and, for
+ *  a Space or Zone, how it is being traced ("Space · Pen"). */
+const canvasToolLabel = computed(() => {
+  if (activeLayer.value === "drawing") return activeToolLabel.value;
+  const tool = plan.planTool.value;
+  const toolLabel = PLAN_TOOLS.find((t) => t.id === tool)?.label ?? tool;
+  if (tool !== "space" && tool !== "zone") return toolLabel;
+  const trace = TRACE_TOOL_OPTIONS.find((o) => o.value === plan.traceTool.value)?.label;
+  return trace ? `${toolLabel} · ${trace}` : toolLabel;
+});
+
 // "N regions changed since last publish" — only meaningful once the map has
 // been published at least once (a brand-new drawing has nothing to compare
 // against, and `changedSinceLastPublish` is null until then anyway).
@@ -691,9 +718,19 @@ const plan = usePlanPalette(siteId);
 // all, so `site &&` short-circuits it to "drawing" unconditionally, same as
 // before.
 const activeLayer = ref<"drawing" | "plan">(site && hasAnyMapLayer(site) ? "plan" : "drawing");
-const LAYER_OPTIONS: { value: "drawing" | "plan"; label: string }[] = [
-  { value: "drawing", label: "Drawing" },
-  { value: "plan", label: "Plan" },
+const LAYER_OPTIONS: { value: "drawing" | "plan"; label: string; tooltip: string; description: string }[] = [
+  {
+    value: "drawing",
+    label: "Drawing",
+    tooltip: "Paint the map itself",
+    description: "The map itself: paint floors, walls, doors and objects on the grid.",
+  },
+  {
+    value: "plan",
+    label: "Plan",
+    tooltip: "Mark the rooms",
+    description: "The rooms: outline each space and link it to its place, so the map knows which room is which.",
+  },
 ];
 
 /** The Plan's own Spaces/Zones panels (#884 S11) set `activeRegionId` via

@@ -75,7 +75,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { TEMPLATE_SHAPE_LABELS, TEMPLATE_SHAPES } from "@/composables/locations/useRegionPen";
-import { PLAN_TOOLS, type PlanTool } from "@/composables/cartographer/usePlanPalette";
+import { PLAN_TOOLS, TRACE_TOOL_OPTIONS, type PlanTool } from "@/composables/cartographer/usePlanPalette";
 import { ZONE_KINDS, ZONE_KIND_LABELS, type ZoneKind } from "@/types/locationMapRegion.types";
 import type { TemplateShape, TraceTool } from "@/lib/locations/polygon";
 
@@ -85,12 +85,6 @@ const PLAN_TOOL_ICONS: Record<PlanTool, AppIcon> = {
   door: IconDoor,
   claim: IconFill,
 };
-
-const TRACE_TOOL_OPTIONS: { value: TraceTool; label: string }[] = [
-  { value: "paint", label: "Brush" },
-  { value: "pen", label: "Pen" },
-  { value: "template", label: "Shape" },
-];
 
 const planTool = defineModel<PlanTool>("planTool", { required: true });
 const traceTool = defineModel<TraceTool>("traceTool", { required: true });

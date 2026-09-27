@@ -81,7 +81,10 @@
           </div>
         </template>
         <template v-else>
-          <span class="min-w-0 flex-1 text-caption italic text-muted-foreground/60">(empty)</span>
+          <!-- An empty row says what the layer is for: "Picture", "Drawing"
+               and "Plan" are the workbench's own words (#884) and mean
+               nothing to a DM opening a site for the first time. -->
+          <span class="min-w-0 flex-1 text-caption italic text-muted-foreground/60">A scan or painting of the map, shown underneath</span>
           <AppButton
             variant="outline"
             size="xs"
@@ -138,7 +141,7 @@
           </div>
         </template>
         <template v-else>
-          <span class="min-w-0 flex-1 text-caption italic text-muted-foreground/60">(empty)</span>
+          <span class="min-w-0 flex-1 text-caption italic text-muted-foreground/60">Floors, walls and doors you paint on a grid</span>
           <AppButton variant="outline" size="xs" label="Start drawing" @click="emit('open-drawing')" />
         </template>
       </div>
@@ -165,7 +168,7 @@
           </span>
         </template>
         <template v-else>
-          <span class="min-w-0 flex-1 text-caption italic text-muted-foreground/60">(empty, and no grid above)</span>
+          <span class="min-w-0 flex-1 text-caption italic text-muted-foreground/60">The rooms, each linked to its place. Needs a map above, or a blank grid</span>
           <div class="flex shrink-0 items-center gap-1.5">
             <AppInput
               v-model.number="blankCols"
