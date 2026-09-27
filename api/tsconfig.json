@@ -1,0 +1,12 @@
+{
+  // Vercel type-checks each function in api/ against the NEAREST tsconfig.json.
+  // Without this file that is the root one, which lists no files and no Node
+  // types, so every release annotated api/rsvp.ts with "Cannot find name
+  // 'process'". The api/ sources are already covered by tsconfig.node.json
+  // (which carries `types: ["node"]`); this points Vercel at the same settings.
+  "extends": "../tsconfig.node.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.api.tsbuildinfo"
+  },
+  "include": ["./**/*.ts"]
+}

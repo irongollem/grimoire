@@ -24,8 +24,8 @@ import {
   Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
   Moon, MoveHorizontal, MoveVertical, Music, Music2,
   Navigation, Network,
-  Package, PackageOpen, PackagePlus, PaintBucket, Paintbrush, Pause, PawPrint, Pen, PenLine, Pencil,
-  PencilLine, Pickaxe, Pin, Play, Plus, Printer,
+  Package, PackageOpen, PackagePlus, PaintBucket, Paintbrush, Pause, PawPrint, Pen, Pencil,
+  PencilLine, PencilRuler, Pickaxe, Pin, Play, Plus, Printer,
   Puzzle, Quote, Radio, RectangleHorizontal, Redo2, RefreshCw,
   Repeat, Repeat1, RotateCcw, Ruler,
   PictureInPicture2,
@@ -37,6 +37,7 @@ import {
   Underline, Undo2, Upload, UploadCloud,
   User, UserPlus, UserRound, UserX, Users, UtensilsCrossed,
   VolumeX, Wand2, Wind, Wine, WrapText, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
+  Fence, Type,
 } from '@lucide/vue'
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -99,12 +100,19 @@ export { Brush as IconBrush }
 export { Eraser as IconEraser }
 export { Hand as IconHand }
 export { BrickWall as IconWall }
-export { BrickWall as IconWrapWalls }
+/** Wrap walls: a wall run all the way round a floor area. Not the brick
+ *  glyph `IconWall` uses: the Cartographer palette shows both tools side by
+ *  side, and two identical buttons read as one tool twice. */
+export { Fence as IconWrapWalls }
 export { PaintBucket as IconFill }
 export { DoorClosed as IconDoor }
 export { Box as IconCube }
-export { Package as IconObjectStamp }
-export { PenLine as IconAnnotate }
+/** Object stamp: not `Package`, which beside `IconCube` (Solid block) in the
+ *  same palette read as the same box twice. */
+export { Stamp as IconObjectStamp }
+/** Annotate places text on the map (shortcut T), so a text glyph, not the
+ *  pen the Line tool used to share with it. */
+export { Type as IconAnnotate }
 export { Link2 as IconEntityLink }
 export { Hexagon as IconRoomTemplate }
 export { Cloud as IconCave }
@@ -259,7 +267,8 @@ export { Strikethrough as IconStrikethrough }
 export { Underline as IconUnderline }
 export { WrapText as IconWrapText }
 export { Pen as IconPen }
-export { PenLine as IconPenLine }
+/** The Cartographer's Line tool: straight lines, so a pencil and ruler. */
+export { PencilRuler as IconDrawLine }
 export { PencilLine as IconPencilLine }
 export { Table2 as IconTable }
 export { BetweenHorizontalEnd as IconInsertRow }
