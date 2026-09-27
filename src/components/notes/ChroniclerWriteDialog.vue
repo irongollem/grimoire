@@ -181,6 +181,7 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const TONES = CHRONICLER_TONES;
 
@@ -236,7 +237,7 @@ const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
-  () => Math.round(costOf("chronicle_text") * textMultiplierFor(textProvider.value) * 100) / 100,
+  () => wholeCredits(costOf("chronicle_text") * textMultiplierFor(textProvider.value)),
 );
 
 /**

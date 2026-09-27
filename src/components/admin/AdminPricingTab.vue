@@ -215,6 +215,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import AdminPromptScreeningPanel from "@/components/admin/AdminPromptScreeningPanel.vue";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const pricingQuery = useAdminPricing();
 const calibrationQuery = useAdminCalibration();
@@ -346,7 +347,7 @@ function derivedNonSquare(generationType: string): { label: string; cost: number
   const note = NON_SQUARE_NOTE[generationType];
   const base = draftGenCosts[generationType];
   if (!note || typeof base !== "number" || Number.isNaN(base)) return null;
-  return { label: note.label, cost: Math.round(base * sizeMultiplier(note.size) * 100) / 100 };
+  return { label: note.label, cost: wholeCredits(base * sizeMultiplier(note.size)) };
 }
 
 const draftGenCosts = reactive<Record<string, number>>({});

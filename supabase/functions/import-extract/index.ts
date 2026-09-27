@@ -58,6 +58,7 @@ import {
   releaseCredits,
   reserveCredits,
   reservationFailureResponse,
+  wholeCredits,
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
@@ -658,9 +659,11 @@ serve(withCors(async (req: Request) => {
     fetchCreditCost(admin, "document_import_extraction"),
     fetchCreditCost(admin, "document_import_page"),
   ]);
-  const cost = applyMultiplier(
-    baseCost + perPageCost * actualPageCount,
-    providerConfig?.text_multiplier,
+  const cost = wholeCredits(
+    applyMultiplier(
+      baseCost + perPageCost * actualPageCount,
+      providerConfig?.text_multiplier,
+    ),
   );
 
   const reservation = await reserveCredits(admin, userId, cost, "document_import_extraction");

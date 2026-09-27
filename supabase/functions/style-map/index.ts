@@ -4,7 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
@@ -191,7 +191,7 @@ serve(withCors(async (req: Request) => {
   const size = `${dims.width}x${dims.height}`;
 
   const baseCost = isByok ? 0 : await fetchCreditCost(admin, "map_style_generation");
-  const cost = applyMultiplier(baseCost, img.imageMultiplier);
+  const cost = wholeCredits(applyMultiplier(baseCost, img.imageMultiplier));
 
   // Atomic affordability gate: hold the balance across the paid image call.
   // Throttle abusive burst volume before any paid provider work (issue #466).

@@ -169,6 +169,7 @@ import { useCreateQuestFromHook } from "@/composables/quests/useCreateQuestFromH
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { resolveGeneratedEntities, type EntityPools, type ResolvedEntity, ENTITY_KIND_ROUTE } from "@/ai/resolveGeneratedEntities";
@@ -232,9 +233,11 @@ const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("quests
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textCreditCost = computed(
-  () => Math.round(costOf("quest_design_turn") * textMultiplierFor(textProvider.value) * 100) / 100,
+  () => wholeCredits(costOf("quest_design_turn") * textMultiplierFor(textProvider.value)),
 );
-const creditsSoFar = computed(() => Math.round(turn.value * textCreditCost.value * 100) / 100);
+// Each turn is billed separately server-side as its own whole charge, so the
+// running total is turns-so-far × that already-whole per-turn cost.
+const creditsSoFar = computed(() => turn.value * textCreditCost.value);
 
 const proposeDisabled = computed(
   () => isGenerating.value || prose.value.trim().length === 0,

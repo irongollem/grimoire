@@ -17,6 +17,7 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 }));
 const requireCredits = vi.fn(() => true);
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits }) }));
+vi.mock("@/composables/ai/useProviderConfig", () => ({ useProviderConfig: () => ({ imageMultiplierFor: () => 1 }) }));
 const mocks = vi.hoisted(() => ({ stylize: vi.fn() }));
 vi.mock("@/ai/useMiniForge", () => ({
   useMiniForge: () => ({

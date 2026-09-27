@@ -10,6 +10,7 @@ export interface ProviderConfigRow {
   image_model: string | null;
   text_multiplier: number | null;
   image_multiplier: number | null;
+  audio_multiplier: number | null;
   text_enabled: boolean;
   image_enabled: boolean;
 }
@@ -36,7 +37,7 @@ export function useProviderConfig() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("provider_config")
-        .select("provider, text_model, fast_text_model, image_model, text_multiplier, image_multiplier, text_enabled, image_enabled")
+        .select("provider, text_model, fast_text_model, image_model, text_multiplier, image_multiplier, audio_multiplier, text_enabled, image_enabled")
         .order("provider");
       if (error) throw error;
       return data as ProviderConfigRow[];
@@ -66,6 +67,10 @@ export function useProviderConfig() {
     return rowFor(provider)?.image_multiplier ?? 1.0;
   }
 
+  function audioMultiplierFor(provider: string): number {
+    return rowFor(provider)?.audio_multiplier ?? 1.0;
+  }
+
   return {
     query,
     rows,
@@ -73,5 +78,6 @@ export function useProviderConfig() {
     enabledTextProviders,
     textMultiplierFor,
     imageMultiplierFor,
+    audioMultiplierFor,
   };
 }

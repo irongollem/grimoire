@@ -10,6 +10,7 @@ import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
@@ -40,7 +41,7 @@ export function useGroupPortrait() {
   // Group portraits always render via OpenAI at 1536×1024 (landscape = 1.5× cost).
   const groupPortraitByok = computed(() => !!store.decryptedOpenAiKey);
   const groupPortraitCost = computed(
-    () => Math.round(costOf("chronicle_image", { size: "1536x1024" }) * imageMultiplierFor("openai") * 100) / 100,
+    () => wholeCredits(costOf("chronicle_image", { size: "1536x1024" }) * imageMultiplierFor("openai")),
   );
 
   function resolveHeight(speciesId: string | null, override: string | null | undefined): string | null {

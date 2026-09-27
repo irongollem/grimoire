@@ -34,6 +34,7 @@ import {
   reserveCredits,
   reservationFailureResponse,
   sizeMultiplier,
+  wholeCredits,
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { createImageJob, completeImageJob, failImageJob } from "../_shared/imageJob.ts";
@@ -351,7 +352,7 @@ async function handleStylize(
   }
 
   const baseCost = await fetchCreditCost(admin, "entity_image");
-  const cost = Math.round(img.imageMultiplier * baseCost * sizeMultiplier("1024x1024") * 100) / 100;
+  const cost = wholeCredits(img.imageMultiplier * baseCost * sizeMultiplier("1024x1024"));
   const quality = await resolveImageQuality(admin, "entity_image", img);
 
   if (!(await checkRateLimit(admin, userId, "ai_generation"))) {
@@ -502,7 +503,7 @@ async function handleSculptAction(
 
   let reservationIds: string[] = [];
   if (paid) {
-    const cost = await fetchCreditCost(admin, "mini_sculpt"); // flat — no size/provider multipliers
+    const cost = wholeCredits(await fetchCreditCost(admin, "mini_sculpt")); // flat — no size/provider multipliers
     const reservation = await reserveCredits(admin, userId, cost, "mini_sculpt");
     if (!reservation.ok) {
       await revert();

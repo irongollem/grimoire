@@ -209,6 +209,7 @@ import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { ROLL_TABLE_DIE_MAX } from "@/types/rollTable.types";
 import type { RollTableDie } from "@/types/rollTable.types";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const DIE_OPTIONS: RollTableDie[] = ["1d6", "1d8", "1d10", "1d12", "1d20"];
 const dieOptions = DIE_OPTIONS.map((d) => ({ value: d, label: d }));
@@ -264,7 +265,7 @@ const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
-  () => Math.round(costOf("roll_table_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+  () => wholeCredits(costOf("roll_table_generation") * textMultiplierFor(textProvider.value)),
 );
 
 const concept = ref("");

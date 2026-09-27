@@ -151,6 +151,7 @@ import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { usePuzzleGeneration } from "@/ai/usePuzzleGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
@@ -172,7 +173,7 @@ const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
-  () => Math.round(costOf("puzzle_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+  () => wholeCredits(costOf("puzzle_generation") * textMultiplierFor(textProvider.value)),
 );
 
 const concept       = ref("");

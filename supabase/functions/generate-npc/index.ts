@@ -14,6 +14,7 @@ import {
   reserveCredits,
   sizeMultiplier,
   reservationFailureResponse,
+  wholeCredits,
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
@@ -200,17 +201,16 @@ serve(withCors(async (req: Request) => {
   const textMultiplier =
     providerConfigs[textProvider as keyof typeof providerConfigs]
       ?.text_multiplier;
-  const npcTextCost = applyMultiplier(baseTextCost, textMultiplier);
+  // npcTextCost and portraitCostEach are each recorded as their own ledger row
+  // (below) — portraitCostEach again per image via `* totalImageCount` — so
+  // each is rounded up to a whole credit per unit, not as part of a summed total.
+  const npcTextCost = wholeCredits(applyMultiplier(baseTextCost, textMultiplier));
   // Portrait cost scales with output area vs a 1024² square baseline.
   const portraitSize = img
     ? (PORTRAIT_SIZE_BY_PROVIDER[img.base] ?? "1024x1536")
     : "1024x1536";
   const portraitCostEach = img
-    ? Math.round(
-        applyMultiplier(basePortraitCost, img.imageMultiplier) *
-          sizeMultiplier(portraitSize) *
-          100,
-      ) / 100
+    ? wholeCredits(applyMultiplier(basePortraitCost, img.imageMultiplier) * sizeMultiplier(portraitSize))
     : 0;
   const maxImages = shouldGenerateImage ? (generateAlterEgo ? 2 : 1) : 0;
   const totalNeeded = npcTextCost + portraitCostEach * maxImages;

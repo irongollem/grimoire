@@ -4,7 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
@@ -145,15 +145,17 @@ serve(withCors(async (req: Request) => {
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseLocationCost = textIsByok ? 0 : await fetchCreditCost(admin, "location_generation");
-  const locationCost = applyMultiplier(baseLocationCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
+  // Each recorded as its own ledger row (below), so each is rounded up to a
+  // whole credit on its own rather than rounding their sum.
+  const locationCost = wholeCredits(
+    applyMultiplier(baseLocationCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier),
+  );
   // The scene and map are each their own charge, reusing the entity_image cost
   // (square 1024×1024 → 1.0×). BYOK + multiplier come from the resolved image provider.
   const imageIsByok = img?.isByok ?? false;
   const baseImageCost = (img && !imageIsByok) ? await fetchCreditCost(admin, "entity_image") : 0;
   const perImageCost = img
-    ? Math.round(
-        applyMultiplier(baseImageCost, img.imageMultiplier) * sizeMultiplier("1024x1024") * 100,
-      ) / 100
+    ? wholeCredits(applyMultiplier(baseImageCost, img.imageMultiplier) * sizeMultiplier("1024x1024"))
     : 0;
   const locationTotalCost = locationCost + (generate_image ? perImageCost : 0) + (generate_map ? perImageCost : 0);
   // Atomic affordability gate: hold the balance across the paid text+image calls.

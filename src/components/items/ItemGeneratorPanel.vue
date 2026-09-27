@@ -202,6 +202,7 @@ import {
   ITEM_RARITIES,
   ITEM_RARITY_LABELS,
 } from "@/types/item.types";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui = useUiStore();
 const router = useRouter();
@@ -217,7 +218,7 @@ const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
-  () => Math.round(costOf("item_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+  () => wholeCredits(costOf("item_generation") * textMultiplierFor(textProvider.value)),
 );
 
 const concept = ref("");

@@ -93,12 +93,16 @@ describe("monsterGenerationOptionsFromPage", () => {
 });
 
 describe("monsterGenerationCreditCost", () => {
-  it("multiplies the base cost by the provider multiplier and rounds to two places", () => {
-    expect(monsterGenerationCreditCost(1, 1.5)).toBe(1.5);
-    expect(monsterGenerationCreditCost(0.333, 1)).toBe(0.33);
+  it("multiplies the base cost by the provider multiplier and rounds UP to a whole credit", () => {
+    expect(monsterGenerationCreditCost(1, 1.5)).toBe(2);
+    expect(monsterGenerationCreditCost(0.333, 1)).toBe(1);
   });
 
-  it("is a no-op at a 1x multiplier", () => {
+  it("is a no-op at a 1x multiplier on an already-whole cost", () => {
     expect(monsterGenerationCreditCost(2, 1)).toBe(2);
+  });
+
+  it("never charges a fraction of a credit (26.25 → 27, the 0.35 image-multiplier case)", () => {
+    expect(monsterGenerationCreditCost(75, 0.35)).toBe(27);
   });
 });

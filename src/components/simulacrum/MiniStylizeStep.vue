@@ -81,6 +81,8 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useMiniForge } from "@/ai/useMiniForge";
 import type { Mini, MiniFormat, MiniSourceTable } from "@/types/mini.types";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const { mini, sourcePortraitUrl, sourceTable, sourceId, format, campaignId } = defineProps<{
   mini: Mini | null;
@@ -107,8 +109,11 @@ const stylizedUrl = computed(() => mini?.stylized_image_url ?? null);
 const isResumingStylize = ref(false);
 const observedJobId = ref<string | null>(null);
 
-// Stylize always runs at 1024x1024 (square baseline, so no size multiplier).
-const stylizeCost = computed(() => costOf("entity_image", { size: "1024x1024" }));
+// Stylize always runs at 1024x1024 (square baseline, so no size multiplier),
+// on OpenAI with platform keys (forge-mini), whose image multiplier the server
+// applies to the charge, so the price shown applies it too.
+const { imageMultiplierFor } = useProviderConfig();
+const stylizeCost = computed(() => wholeCredits(costOf("entity_image", { size: "1024x1024" }) * imageMultiplierFor("openai")));
 
 async function runStylize() {
   if (!requireCredits(stylizeCost.value)) return;

@@ -8,7 +8,7 @@
  * of the other two paths can express this case.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sizeMultiplier as sizeMultiplierMath } from "./credit-math.ts";
+import { sizeMultiplier as sizeMultiplierMath, wholeCredits as wholeCreditsMath } from "./credit-math.ts";
 
 export interface CreditLogFields {
   model?: string;
@@ -44,6 +44,13 @@ const COST_TTL_MS = 5 * 60 * 1000;
  * sizes (text generations, fixed-square functions).
  */
 export const sizeMultiplier = sizeMultiplierMath;
+
+/**
+ * The single place a charge becomes a whole number of credits (rounded up).
+ * Re-exported from credit-math.ts for the same reason sizeMultiplier is —
+ * every generator that computes a charge already imports from this module.
+ */
+export const wholeCredits = wholeCreditsMath;
 
 async function ensureCostCache(admin: SupabaseClient): Promise<void> {
   if (costCache && Date.now() < costCacheExpiry) return;

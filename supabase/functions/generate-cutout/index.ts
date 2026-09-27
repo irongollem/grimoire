@@ -28,6 +28,7 @@ import {
   reserveCredits,
   reservationFailureResponse,
   sizeMultiplier,
+  wholeCredits,
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
@@ -150,9 +151,9 @@ serve(withCors(async (req: Request) => {
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseCost = await fetchCreditCost(admin, "entity_cutout");
-  const cost = Math.round(
-    applyMultiplier(baseCost, img.imageMultiplier) * sizeMultiplier(CUTOUT_IMAGE_SIZE) * 100,
-  ) / 100;
+  const cost = wholeCredits(
+    applyMultiplier(baseCost, img.imageMultiplier) * sizeMultiplier(CUTOUT_IMAGE_SIZE),
+  );
 
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return jsonError("rate_limited", 429);

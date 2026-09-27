@@ -81,6 +81,7 @@ import {
   useUpdateLocationPicture,
 } from "@/composables/locations/useLocations";
 import { useCampaignStore } from "@/stores/campaign";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 /** Shape of the `style-map` edge function's JSON response. */
 interface StyleMapResponse {
@@ -165,7 +166,7 @@ export function useMapExport(opts: {
   );
   const { logImageGeneration } = useImageGenerationLog();
   const styleCost = computed(
-    () => Math.round(costOfCredits("map_style_generation") * mapImageMultiplierFor(imageProviderKey.value) * 100) / 100,
+    () => wholeCredits(costOfCredits("map_style_generation") * mapImageMultiplierFor(imageProviderKey.value)),
   );
   const showStylePicker = ref(false);
   const showStyleResult = ref(false);

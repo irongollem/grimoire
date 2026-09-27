@@ -6,6 +6,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import {
   fetchCreditCost,
+  wholeCredits,
   recordFreeGeneration,
   recordGeneration,
   releaseCredits,
@@ -237,7 +238,9 @@ serve(withCors(async (req: Request) => {
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseChronicleTextCost = textIsByok ? 0 : await fetchCreditCost(admin, "chronicle_text");
-  const chronicleTextCost = applyMultiplier(baseChronicleTextCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
+  const chronicleTextCost = wholeCredits(
+    applyMultiplier(baseChronicleTextCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier),
+  );
   // Atomic affordability gate: hold the balance across the paid call.
   // Throttle abusive burst volume before any paid provider work (issue #466).
   //

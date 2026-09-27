@@ -5,6 +5,11 @@ import { edgeErrorMessage } from '@/lib/edgeError'
 import { CREDIT_COST, type CreditBuckets } from '@/types/subscription.types'
 import { useGenerationCreditCosts } from '@/composables/billing/useCreditConfig'
 import type { TextUsage, ImageUsage } from '@/ai/providers/types'
+// The single place a charge becomes a whole number of credits (rounded up) —
+// imported from the edge function's own pure, dependency-free module rather
+// than mirrored, so there is exactly one implementation of this rule and the
+// UI's displayed cost cannot drift from what the server actually charges.
+import { wholeCredits } from '@edge-shared/credit-math.ts'
 
 /**
  * Credit multiplier for an image render based on its pixel area, relative to a
@@ -122,7 +127,7 @@ export function useAiCredits() {
     const row = generationCosts.value?.find((r) => r.generation_type === generationType)
     // Fallback to hardcoded constant while DB value is loading
     const base = row ? row.credit_cost : ((CREDIT_COST as Record<string, number>)[generationType] ?? 1)
-    return Math.round(base * sizeMultiplier(opts?.size) * 100) / 100
+    return wholeCredits(base * sizeMultiplier(opts?.size))
   }
 
   /**

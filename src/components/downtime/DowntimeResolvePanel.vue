@@ -17,6 +17,7 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import type { AiProvenance } from "@/ai/provenance";
 import type { DowntimeDeckBack, DowntimeDraw, DowntimeEffect, DrawResult } from "@/types/downtime.types";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const { draw, memberName, backs } = defineProps<{
   draw: DowntimeDraw;
@@ -109,7 +110,7 @@ const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const effectiveCreditCost = computed(() =>
   textIsByok.value
     ? 0
-    : Math.round(costOf("downtime_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+    : wholeCredits(costOf("downtime_generation") * textMultiplierFor(textProvider.value)),
 );
 
 async function onDraft() {

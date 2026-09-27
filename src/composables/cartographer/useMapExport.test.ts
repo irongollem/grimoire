@@ -272,7 +272,9 @@ describe("useMapExport", () => {
     it("prices a Gemini campaign at Gemini's own multiplier, not OpenAI's", () => {
       mocks.activeCampaign = { image_provider: "gemini" };
       const exp = useMapExport({ buildMap: () => null, runtimes: () => new Map(), mapName: () => "", glyphs: () => ({}) });
-      expect(exp.styleCost.value).toBe(0.5); // costOf(1) * imageMultiplierFor("gemini")=0.5
+      // costOf(1) * imageMultiplierFor("gemini") = 0.5, charged as a whole
+      // credit, rounded up (wholeCredits).
+      expect(exp.styleCost.value).toBe(1);
       expect(mocks.imageMultiplierFor).toHaveBeenCalledWith("gemini");
     });
 

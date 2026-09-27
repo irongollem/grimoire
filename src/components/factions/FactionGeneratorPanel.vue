@@ -175,6 +175,7 @@ import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { FACTION_TYPES, FACTION_ALIGNMENTS } from "@/types/faction.types";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useLocationTree } from "@/composables/locations/useLocations";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui       = useUiStore();
 const router   = useRouter();
@@ -198,7 +199,7 @@ const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
-  () => Math.round(costOf("faction_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+  () => wholeCredits(costOf("faction_generation") * textMultiplierFor(textProvider.value)),
 );
 
 const concept                = ref("");

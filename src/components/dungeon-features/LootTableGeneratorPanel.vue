@@ -272,6 +272,7 @@ import {
   type LootEntry,
 } from "@/types/lootTable.types";
 import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS, RARITY_TEXT, type ItemRarity } from "@/types/item.types";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
 
@@ -343,7 +344,7 @@ const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
-  () => Math.round(costOf("loot_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+  () => wholeCredits(costOf("loot_generation") * textMultiplierFor(textProvider.value)),
 );
 
 function handleClose() {

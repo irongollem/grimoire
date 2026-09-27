@@ -40,6 +40,26 @@ flowchart LR
 - **Model choice is DB-driven**, not hardcoded: `provider_config` table, read
   by `_shared/provider-config.ts` with a 5-min cache. "Wrong model / wrong
   cost" bugs start in the admin panel's provider config, not in code.
+- **Every charge is a whole number of credits, rounded UP.** A generation's
+  price is `ai_generation_credit_costs.credit_cost` (always a whole integer)
+  times the provider's `text_multiplier`/`image_multiplier`
+  (`provider_config`, e.g. OpenAI images at 0.35×) times, for images, the
+  size multiplier (1.5× portrait/landscape vs a 1024×1024 square) — a product
+  that routinely lands on a fraction (60 × 0.35 × 1.5 = 31.5). `wholeCredits()`
+  in `_shared/credit-math.ts` is the single place that fraction becomes a
+  whole credit (`Math.ceil`, never down, never negative, epsilon-guarded
+  against float noise); every `generate-*`/`forge-mini`/`tile-pack-generator`
+  charge ends in a call to it before it is reserved or recorded. A composite
+  charge (e.g. `generate-npc`'s text + portrait, `generate-trap`'s text +
+  illustration) rounds up **each part it records as its own ledger row**,
+  not their sum — two portraits are two whole-credit charges, not half of a
+  rounded total. The client mirrors the same rule for the price it displays
+  before generating (`useAiCredits().costOf()` and every per-generator credit
+  computed import `wholeCredits` from this same module via the `@edge-shared`
+  alias, so there is one implementation, not a client copy that can drift).
+  A user's *balance* display stays two-decimal-rounded — old charges can
+  still hold a fraction from before this rule, and a balance is a running
+  total, not a charge.
 - **Image quality is set per generation type, not per provider.**
   `ai_generation_credit_costs.image_quality_tier` (`low` / `standard` /
   `high` / null) sits beside each image generation type's credit cost in

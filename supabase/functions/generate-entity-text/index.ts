@@ -18,7 +18,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT,
@@ -172,9 +172,11 @@ serve(withCors(async (req: Request) => {
 
   const cost = textIsByok
     ? 0
-    : applyMultiplier(
-      await fetchCreditCost(admin, reason),
-      providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier,
+    : wholeCredits(
+      applyMultiplier(
+        await fetchCreditCost(admin, reason),
+        providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier,
+      ),
     );
 
   // Throttle abusive burst volume before any paid provider work (issue #466).

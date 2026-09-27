@@ -174,7 +174,7 @@
         </div>
 
         <!-- Cost -->
-        <GenerationCostBadge :credits="costOf(MUSIC_GENERATION_TYPE)" :byok="!!geminiApiKey" />
+        <GenerationCostBadge :credits="musicCost" :byok="!!geminiApiKey" />
 
         <!-- Lyrics — only meaningful once the track will actually sing. -->
         <div v-if="generateVocals === 'vocals'" class="space-y-1">
@@ -315,9 +315,15 @@ import SoundProviderBrowser from "@/components/soundboard/SoundProviderBrowser.v
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import type { SoundCategory } from "@/types/sound.types";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const spotifyStore = useSpotifyStore();
 const { costOf } = useAiCredits();
+// The server multiplies the song's price by Gemini's audio multiplier
+// (generate-music), so the price shown here must too.
+const { audioMultiplierFor } = useProviderConfig();
+const musicCost = computed(() => wholeCredits(costOf(MUSIC_GENERATION_TYPE) * audioMultiplierFor("gemini")));
 const { requireCredits } = useOutOfCredits();
 const { isPro } = useSubscription();
 // Upload (own audio, not AI) stays Pro-only; Generate reads the campaign's
@@ -700,7 +706,7 @@ async function handleSubmit() {
       return;
     }
 
-    if (!requireCredits(costOf(MUSIC_GENERATION_TYPE), !!geminiApiKey)) return;
+    if (!requireCredits(musicCost.value, !!geminiApiKey)) return;
 
     const musicRequest: FallbackPromptRequest = {
       description: stripMentionTokens(generateDescription.value.trim()),

@@ -4,7 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
-import { fetchCreditCost, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
+import { fetchCreditCost, releaseCredits, reserveCredits, reservationFailureResponse, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
@@ -489,7 +489,9 @@ serve(withCors(async (req: Request) => {
   // Flat per-song credit price, unchanged by this move — the structuring
   // call's own provider cost rides along on this single charge rather than
   // being metered separately (see this file's top comment).
-  const audioCost = (isByok ? 0 : await fetchCreditCost(admin, generationType)) * (geminiProviderRow?.audio_multiplier ?? 1);
+  const audioCost = wholeCredits(
+    (isByok ? 0 : await fetchCreditCost(admin, generationType)) * (geminiProviderRow?.audio_multiplier ?? 1),
+  );
   let job = existing;
   if (!job) {
     if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {

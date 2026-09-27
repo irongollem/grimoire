@@ -270,6 +270,7 @@ import { isSharedContent } from "@/lib/library/contentIdentity";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { EncounterCombatantAiResult } from "@/ai/types";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 type EncounterDifficultyOption = "auto" | "easy" | "medium" | "hard" | "deadly";
 
@@ -308,7 +309,7 @@ const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
-  () => Math.round(costOf("encounter_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+  () => wholeCredits(costOf("encounter_generation") * textMultiplierFor(textProvider.value)),
 );
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("encounters");

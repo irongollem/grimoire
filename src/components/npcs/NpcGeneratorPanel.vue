@@ -84,6 +84,7 @@ import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig, PORTRAIT_SIZE_BY_PROVIDER } from "@/composables/ai/useProviderConfig";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { getNpcTemplate } from "@/data/npcTemplates";
 import type { NpcInsert, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
@@ -157,12 +158,16 @@ const imageIsByok   = computed(() =>
 const effectiveCreditCost = computed(() => {
   let cost = 0;
   if (!textIsByok.value) {
-    cost += Math.round(costOf("npc_text") * textMultiplierFor(textProvider.value) * 100) / 100;
+    cost += wholeCredits(costOf("npc_text") * textMultiplierFor(textProvider.value));
   }
   if (generateImage.value && !imageIsByok.value) {
     const n = generateAlterEgo.value ? 2 : 1;
     const size = PORTRAIT_SIZE_BY_PROVIDER[imageProvider.value] ?? PORTRAIT_SIZE_BY_PROVIDER.openai;
-    cost += Math.round(costOf("portrait", { size }) * imageMultiplierFor(imageProvider.value) * n * 100) / 100;
+    // Rounded up PER portrait, then multiplied by count — matches the server,
+    // which charges (and records) each portrait as its own whole-credit line
+    // rather than rounding a pre-multiplied total (generate-npc/index.ts).
+    const perPortrait = wholeCredits(costOf("portrait", { size }) * imageMultiplierFor(imageProvider.value));
+    cost += perPortrait * n;
   }
   return cost;
 });

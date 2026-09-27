@@ -261,6 +261,7 @@ import { getSetting } from "@/settings/index";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/ai/useProviderConfig";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { useAiAcknowledgements } from "@/composables/ai/useAiAcknowledgements";
 import { AI_USE_NOTICE_VERSION } from "@/lib/legal";
 import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
@@ -372,7 +373,7 @@ function imageSpeed(provider: string): string {
 const selectedImageProvider = computed(() => form.value.image_provider ?? "openai");
 // Representative price: one portrait-orientation image (entity_image × 1.5 × provider multiplier).
 const selectedImageCredits = computed(
-  () => Math.round(costOf("entity_image") * 1.5 * imageMultiplierFor(selectedImageProvider.value)),
+  () => wholeCredits(costOf("entity_image") * 1.5 * imageMultiplierFor(selectedImageProvider.value)),
 );
 
 // BYOK provider options (shown when the user has entered their own keys)

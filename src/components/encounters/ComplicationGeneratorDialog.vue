@@ -218,6 +218,7 @@ import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { supabase } from "@/lib/supabase";
 import type { EncounterEvent } from "@/types/encounter.types";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const STEER_LIMIT = AI_PROMPT_LIMIT_SHORT;
 
@@ -282,7 +283,7 @@ const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
-  () => Math.round(costOf("complication_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+  () => wholeCredits(costOf("complication_generation") * textMultiplierFor(textProvider.value)),
 );
 
 function handleClose() {

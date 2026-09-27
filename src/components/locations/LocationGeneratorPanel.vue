@@ -168,6 +168,7 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { placeRoute } from "@/lib/locations/placeRoute";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const TYPE_OPTIONS = Object.entries(LOCATION_TYPE_LABELS) as [LocationType, string][];
 
@@ -201,10 +202,10 @@ const fullyByok = computed(
 const effectiveCreditCost = computed(() => {
   let cost = textIsByok.value
     ? 0
-    : Math.round(costOf("location_generation") * textMultiplierFor(textProvider.value) * 100) / 100;
+    : wholeCredits(costOf("location_generation") * textMultiplierFor(textProvider.value));
   // Scene + map are each a separate entity_image charge (square → 1.0×).
   if (!imageIsByok.value) {
-    const perImage = Math.round(costOf("entity_image", { size: "1024x1024" }) * imageMultiplierFor("openai") * 100) / 100;
+    const perImage = wholeCredits(costOf("entity_image", { size: "1024x1024" }) * imageMultiplierFor("openai"));
     if (generateImage.value) cost += perImage;
     if (generateMap.value)   cost += perImage;
   }

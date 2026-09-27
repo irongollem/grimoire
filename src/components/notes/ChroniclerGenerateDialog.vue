@@ -121,6 +121,7 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const props = defineProps<{ visible: boolean; initialPrompt?: string; noteId?: string }>();
 
@@ -185,7 +186,7 @@ const { requireCredits } = useOutOfCredits();
 const { imageMultiplierFor } = useProviderConfig();
 const byok = computed(() => !!campaignStore.decryptedOpenAiKey);
 function shapeCost(s: ChroniclerSize): number {
-  return Math.round(costOf("chronicle_image", { size: s }) * imageMultiplierFor("openai") * 100) / 100;
+  return wholeCredits(costOf("chronicle_image", { size: s }) * imageMultiplierFor("openai"));
 }
 const selectedCost = computed(() => (byok.value ? 0 : shapeCost(size.value)));
 

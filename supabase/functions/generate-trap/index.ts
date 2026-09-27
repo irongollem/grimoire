@@ -4,7 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
@@ -147,15 +147,19 @@ serve(withCors(async (req: Request) => {
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseTrapCost = textIsByok ? 0 : await fetchCreditCost(admin, "trap_generation");
-  const trapCost = applyMultiplier(baseTrapCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
+  // Charged and recorded as two separate ledger rows (below), so each is
+  // rounded up to a whole credit on its own rather than rounding their sum.
+  const trapCost = wholeCredits(
+    applyMultiplier(baseTrapCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier),
+  );
   // The illustration is its own charge, reusing the entity_image cost (portrait
   // 1024×1536 → 1.5×). BYOK + multiplier come from the resolved image provider.
   const imageIsByok = img?.isByok ?? false;
   const trapImageCost = (generate_image && img && !imageIsByok)
-    ? Math.round(
+    ? wholeCredits(
         applyMultiplier(await fetchCreditCost(admin, "entity_image"), img.imageMultiplier) *
-        sizeMultiplier("1024x1536") * 100,
-      ) / 100
+        sizeMultiplier("1024x1536"),
+      )
     : 0;
   const trapTotalCost = trapCost + trapImageCost;
   // Atomic affordability gate: hold the balance across the paid text+image calls.

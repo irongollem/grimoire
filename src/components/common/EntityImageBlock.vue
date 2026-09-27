@@ -106,6 +106,7 @@ import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import { imageHasTransparency } from "@/lib/mediaConvert";
 import type { MiniSourceTable } from "@/types/mini.types";
@@ -190,7 +191,7 @@ const { requireCredits } = useOutOfCredits();
 const { imageMultiplierFor } = useProviderConfig();
 const imageByok = computed(() => !!campaign.decryptedOpenAiKey);
 const imageCost = computed(
-  () => Math.round(costOf("entity_image", { size: "1024x1536" }) * imageMultiplierFor("openai") * 100) / 100,
+  () => wholeCredits(costOf("entity_image", { size: "1024x1536" }) * imageMultiplierFor("openai")),
 );
 
 const showAiButton = computed(
@@ -213,7 +214,7 @@ function goToMiniForge() {
 // like Simulacrum), so the cost badge never reads the campaign's own key.
 const { isGenerating: isCutoutGenerating, error: cutoutError, generate: generateCutout } = useCutoutGeneration();
 const cutoutCost = computed(
-  () => Math.round(costOf("entity_cutout", { size: "1024x1536" }) * imageMultiplierFor("openai") * 100) / 100,
+  () => wholeCredits(costOf("entity_cutout", { size: "1024x1536" }) * imageMultiplierFor("openai")),
 );
 const showCutoutButton = computed(() => !!cutoutFrom && !disabled && campaign.isAiEnabled);
 const cutoutDisabled = computed(() => isCutoutGenerating.value || disabled || !cutoutFrom?.hasPicture);

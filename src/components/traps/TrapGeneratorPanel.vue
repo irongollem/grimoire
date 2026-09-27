@@ -160,6 +160,7 @@ import { TRAP_TYPES, CR_LIST } from "@/types/trap.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui       = useUiStore();
 const router   = useRouter();
@@ -186,10 +187,10 @@ const fullyByok = computed(() => textIsByok.value && (!generateImage.value || im
 const effectiveCreditCost = computed(() => {
   let cost = textIsByok.value
     ? 0
-    : Math.round(costOf("trap_generation") * textMultiplierFor(textProvider.value) * 100) / 100;
+    : wholeCredits(costOf("trap_generation") * textMultiplierFor(textProvider.value));
   // The illustration is a separate entity_image charge (portrait → 1.5×).
   if (generateImage.value && !imageIsByok.value) {
-    cost += Math.round(costOf("entity_image", { size: "1024x1536" }) * imageMultiplierFor("openai") * 100) / 100;
+    cost += wholeCredits(costOf("entity_image", { size: "1024x1536" }) * imageMultiplierFor("openai"));
   }
   return cost;
 });

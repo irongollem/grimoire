@@ -10,6 +10,7 @@
  */
 import { MONSTER_SIZES, MONSTER_TYPES, type MonsterSize, type MonsterType } from "@/types/monster.types";
 import type { MonsterGenerationOptions } from "@/ai/useMonsterGeneration";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 function readString(data: Record<string, unknown>, key: string): string | null {
   const value = data[key];
@@ -116,10 +117,11 @@ function matchCandidate<T extends string>(raw: string | null, candidates: readon
  * provider's multiplier (`useProviderConfig().textMultiplierFor(...)`) —
  * mirrors `MonsterGeneratorPanel.vue`'s own `textCreditCost` formula exactly,
  * since a `generate`-decided import entity runs through that same pipeline
- * (`useGenerateMonster.ts`) and must show the same number.
+ * (`useGenerateMonster.ts`) and must show the same number. Rounded up to a
+ * whole credit, same rule as the server (`credit-math.ts`'s `wholeCredits`).
  */
 export function monsterGenerationCreditCost(baseCost: number, multiplier: number): number {
-  return Math.round(baseCost * multiplier * 100) / 100;
+  return wholeCredits(baseCost * multiplier);
 }
 
 export function monsterGenerationOptionsFromPage(data: Record<string, unknown>): MonsterGenerationOptions {

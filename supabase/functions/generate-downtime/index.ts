@@ -6,6 +6,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import {
   fetchCreditCost,
+  wholeCredits,
   recordFreeGeneration,
   recordGeneration,
   releaseCredits,
@@ -168,7 +169,9 @@ serve(withCors(async (req: Request) => {
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseCost = textIsByok ? 0 : await fetchCreditCost(admin, "downtime_generation");
-  const cost = applyMultiplier(baseCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
+  const cost = wholeCredits(
+    applyMultiplier(baseCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier),
+  );
 
   // Throttle abusive burst volume before any paid provider work (issue #466).
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {

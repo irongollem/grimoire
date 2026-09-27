@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
 import { buildLabelledImagePrompt, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
@@ -292,7 +292,7 @@ serve(withCors(async (req: Request) => {
   const config = PURPOSE_CONFIG[purpose];
   const imageCost = isByok
     ? 0
-    : Math.round(await fetchCreditCost(admin, config.creditType) * sizeMultiplier(size) * img.imageMultiplier * 100) / 100;
+    : wholeCredits(await fetchCreditCost(admin, config.creditType) * sizeMultiplier(size) * img.imageMultiplier);
   // Atomic affordability gate: hold the balance now; the background task releases
   // it and records the real spend (or releases on failure).
   // Throttle abusive burst volume before any paid provider work (issue #466).

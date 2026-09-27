@@ -13,7 +13,7 @@ import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import { buildTileProvenance } from "./tileProvenance.ts";
 import { libraryPackTarget, mintLibraryPackId, packPrefix, userPackTarget, type PackTarget } from "./packTarget.ts";
 import { PROOF_SLOT_IDENTITIES, PROOF_SLOTS, baseReferenceCandidates, initialGenerationStatus, parseTileSlot, validateLibraryPackPatch } from "./libraryActions.ts";
-import { fetchCreditCost, recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
+import { fetchCreditCost, recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
@@ -821,7 +821,7 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
   // to any user — so it skips `reserveCredits` entirely rather than calling
   // it with cost 0 (which would no-op anyway, but the run has no credit
   // relationship to reserve against in the first place).
-  const cost = run.lane === "library" ? 0 : isByok ? 0 : attemptCharge(baseCost, attemptsSoFar);
+  const cost = run.lane === "library" ? 0 : isByok ? 0 : wholeCredits(attemptCharge(baseCost, attemptsSoFar));
   const reservation = run.lane === "library"
     ? { ok: true as const, ids: [] as string[] }
     : await reserveCredits(admin, userId, cost, "tile_pack_generation");

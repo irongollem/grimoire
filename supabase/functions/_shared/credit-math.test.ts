@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sizeMultiplier, splitSpend, resetDelta } from "./credit-math";
+import { sizeMultiplier, splitSpend, resetDelta, wholeCredits } from "./credit-math";
 
 describe("sizeMultiplier", () => {
   it("is 1.0 for a square render", () => {
@@ -51,6 +51,32 @@ describe("splitSpend — subscription-first allocation", () => {
   });
   it("supports fractional credits (provider multipliers)", () => {
     expect(splitSpend(7.5, 5)).toEqual({ subSpend: 5, purSpend: 2.5 });
+  });
+});
+
+describe("wholeCredits — always rounds a charge up to a whole credit", () => {
+  it("rounds a fractional charge up (26.25 → 27, the 0.35 OpenAI-image-multiplier case)", () => {
+    expect(wholeCredits(26.25)).toBe(27);
+  });
+  it("is a no-op on a value that is already whole", () => {
+    expect(wholeCredits(21)).toBe(21);
+  });
+  it("rounds a half-credit up (17.5 → 18)", () => {
+    expect(wholeCredits(17.5)).toBe(18);
+  });
+  it("leaves a zero (free/infrastructure) charge at zero", () => {
+    expect(wholeCredits(0)).toBe(0);
+  });
+  it("does not let float noise round a mathematically-whole product up a whole step", () => {
+    // 60 * 0.35 is mathematically exactly 21; guard against a multiplication
+    // chain that lands a hair above the integer (e.g. 21.000000000000004)
+    // spuriously ceiling to 22.
+    expect(wholeCredits(60 * 0.35)).toBe(21);
+    expect(wholeCredits(21.000000000000004)).toBe(21);
+  });
+  it("never returns a negative number", () => {
+    expect(wholeCredits(-5)).toBe(0);
+    expect(wholeCredits(-0.5)).toBe(0);
   });
 });
 
