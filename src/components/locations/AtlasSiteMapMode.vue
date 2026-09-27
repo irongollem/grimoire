@@ -232,7 +232,8 @@ import { useSiteDrawingEditor } from "@/composables/locations/useSiteDrawingEdit
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { IconChevronRight, IconChevronUp, IconStairs } from "@/lib/icons";
 import { verticalWays } from "@/lib/locations/doors";
-import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
+import { levelOrdinal } from "@/lib/locations/levels";
+import { useSiteLevels } from "@/composables/locations/useSiteLevels";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { planAscent, planDescent, regionOrigin } from "@/lib/locations/mapZoom";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
@@ -519,7 +520,7 @@ onBeforeUnmount(clearZoom);
 //    `SiteLevelsColumn` and `AtlasPlacePane` so all three surfaces agree.
 //    Built entirely off the already-loaded `index` — no query of its own
 //    beyond the room-state batch below. ──────────────────────────────────────
-const levelsInfo = computed(() => levelsOf(index, location));
+const levelsInfo = useSiteLevels(() => location, () => index);
 
 /** Whose children the rail is listing — this site's own, or its parent's. */
 const levelsContainer = computed<Location | null>(() => levelsInfo.value?.container ?? null);

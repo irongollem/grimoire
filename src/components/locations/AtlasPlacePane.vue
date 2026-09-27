@@ -359,7 +359,8 @@ import {
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { resolveInheritedTheme } from "@/lib/locations/ambience";
 import { isLocationOutOfEra } from "@/lib/locations/era";
-import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
+import { levelOrdinal } from "@/lib/locations/levels";
+import { useSiteLevels } from "@/composables/locations/useSiteLevels";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { visibleTags } from "@/lib/locations/tags";
 import { groupByTier, isInteriorType, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
@@ -407,8 +408,11 @@ const isSite = computed(() => !!location && isSiteType(location.location_type));
 /** "Ashmouth Undercroft · three levels" (#868, frame 06) — the site itself is
  *  level 1, so a stack of N child sites reads as N + 1 levels; null (no
  *  suffix at all) for a site with no levels to stack. */
-const childSites = computed(() => children.value.filter((l) => isSiteType(l.location_type)));
-const levelsSuffix = computed(() => (childSites.value.length > 0 ? `${childSites.value.length + 1} levels` : null));
+const levelsInfo = useSiteLevels(() => location, () => index);
+const levelsSuffix = computed(() => {
+  const info = levelsInfo.value;
+  return info && location && info.container.id === location.id ? `${info.levels.length} levels` : null;
+});
 
 // ── Ambient audio ─────────────────────────────────────────────────────────
 // A place's ambience plays when the DM asks for it ("Play ambience"), in or
@@ -596,7 +600,7 @@ const eraLabel = computed(() => {
  */
 function levelChipFor(group: TierGroup, child: Location): number | null {
   if (!isSite.value || group.tier !== "site" || !location) return null;
-  const info = levelsOf(index, location);
+  const info = levelsInfo.value;
   return info ? levelOrdinal(info.levels, child.id) : null;
 }
 

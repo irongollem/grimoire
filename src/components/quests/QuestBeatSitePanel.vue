@@ -113,6 +113,7 @@ import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { bindableSpaces, isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";
+import { drawnSpaceIds } from "@/lib/locations/levels";
 import { pluralizeCount } from "@/lib/utils";
 import { reachableRoomIds } from "@/lib/locations/siteRun";
 import { placeRoute } from "@/lib/locations/placeRoute";
@@ -167,9 +168,14 @@ const roomCountLabel = computed(() => {
 // published rev 14") — a level is a nested site (a floor), same set
 // `AtlasSiteMapMode`'s own `childSites` reads; omitted entirely for a site
 // with none, same as the frame shows for a single-floor dungeon.
-const childSiteCount = computed(() => site.value
-  ? locationOptions.value.filter((candidate) => candidate.parent_id === site.value!.id && isSiteType(candidate.location_type)).length
-  : 0);
+// A nested site the plan draws is a place on this floor, not a level
+// (`drawnSpaceIds`, the rule `levelsOf` applies everywhere else).
+const childSiteCount = computed(() => {
+  if (!site.value) return 0;
+  const drawn = drawnSpaceIds(regions.value);
+  return locationOptions.value.filter((candidate) =>
+    candidate.parent_id === site.value!.id && isSiteType(candidate.location_type) && !drawn.has(candidate.id)).length;
+});
 const hasTracedPlan = computed(() => regions.value.some((r) => r.region_role === "space" && r.cells.length > 0));
 const siteMetaCaption = computed(() => {
   if (!site.value) return "";

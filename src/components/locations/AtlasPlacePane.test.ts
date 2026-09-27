@@ -47,6 +47,11 @@ vi.mock("@/composables/locations/useSiteStructure", () => ({
     layerCounts: { value: { spaces: 0, ways: 0, zones: 0, prepared: 0 } },
   }),
 }));
+// Levels read map regions through a query; these tests are about ambience.
+vi.mock("@/composables/locations/useSiteLevels", async () => {
+  const { computed } = await import("vue");
+  return { useSiteLevels: () => computed(() => null) };
+});
 vi.mock("@/composables/quests/useBeatsStagedAt", () => ({
   useBeatsStagedAt: () => ({ data: { value: [] } }),
 }));
