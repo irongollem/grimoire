@@ -152,6 +152,10 @@ const writeParts = computed<WritePart[]>(() => {
     const noun = spaceNoun(siteContext.target?.location_type);
     parts.push({ count: s.newRooms, label: s.newRooms === 1 ? noun.singular : noun.plural });
   }
+  if (s.boundRooms > 0) {
+    const noun = spaceNoun(siteContext.target?.location_type);
+    parts.push({ count: s.boundRooms, label: `existing ${s.boundRooms === 1 ? noun.singular : noun.plural} placed` });
+  }
   if (s.regionUpdates > 0) parts.push({ count: s.regionUpdates, label: `region update${s.regionUpdates === 1 ? "" : "s"}` });
   const doorWrites = s.newDoors + s.doorUpdates;
   if (doorWrites > 0) parts.push({ count: doorWrites, label: `door${doorWrites === 1 ? "" : "s"}` });

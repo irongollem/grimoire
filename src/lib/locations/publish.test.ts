@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planPublish, matchSpace, jaccard, isCreatedRef, createdRefKey } from "./publish";
+import { planPublish, matchSpace, jaccard, isCreatedRef, createdRefKey, roomNameKey } from "./publish";
 import type { PublishInputs } from "./publish";
 import { cellSignature } from "@/cartographer/cellSignature";
 import type {
@@ -305,6 +305,63 @@ describe("planPublish — spaces", () => {
   });
 });
 
+describe("planPublish — rooms written before the drawing", () => {
+  it("binds a labelled space to an existing room that has no region yet", () => {
+    const space = makeSpace({ cells: ["3,3", "3,4"], name: "Library", nameSource: "annotation" });
+    const plan = planPublish(
+      makeInput({ derived: makeDerived({ spaces: [space] }), spaces: [boundSpace("room-lib", "The Library")] }),
+    );
+    expect(plan.spaces).toEqual([{ kind: "bind", space, spaceId: "room-lib" }]);
+    expect(plan.summary.boundRooms).toBe(1);
+    expect(plan.summary.newRooms).toBe(0);
+  });
+
+  it("routes a way into the bound room by its real id, not a placeholder", () => {
+    const a = makeSpace({ key: "s:0,0", cells: ["0,0"], name: "Workshop" });
+    const b = makeSpace({ key: "s:0,1", cells: ["0,1"], name: "Library" });
+    const plan = planPublish(
+      makeInput({
+        derived: makeDerived({ spaces: [a, b], ways: [makeWay({ fromKey: "s:0,0", toKey: "s:0,1", edgeKey: "0,1:N" })] }),
+        spaces: [boundSpace("room-lib", "The Library")],
+      }),
+    );
+    const created = plan.ways.find((w) => w.kind === "create");
+    expect(created).toMatchObject({ toSpaceId: "room-lib" });
+    expect(created && "fromSpaceId" in created && isCreatedRef(created.fromSpaceId)).toBe(true);
+  });
+
+  it("never binds a room that already has a region, and binds each room once", () => {
+    const region = makeRegion({ cells: ["9,9"], space_location_id: "room-vault" });
+    const first = makeSpace({ key: "s:0,0", cells: ["0,0"], name: "Vault" });
+    const second = makeSpace({ key: "s:5,5", cells: ["5,5"], name: "The Parlour" });
+    const third = makeSpace({ key: "s:7,7", cells: ["7,7"], name: "parlour" });
+    const plan = planPublish(
+      makeInput({
+        derived: makeDerived({ spaces: [first, second, third] }),
+        regions: [region],
+        spaces: [boundSpace("room-vault", "The Vault"), boundSpace("room-parlour", "Parlour")],
+      }),
+    );
+    // "Vault" reaches the bound room through the region ladder's name rung, not a second region.
+    expect(plan.spaces.find((c) => c.kind !== "orphan" && c.space === first)?.kind).toBe("update");
+    expect(plan.spaces.filter((c) => c.kind === "bind")).toEqual([{ kind: "bind", space: second, spaceId: "room-parlour" }]);
+    expect(plan.spaces.find((c) => c.kind === "create")).toMatchObject({ space: third, proposedName: "parlour" });
+  });
+
+  it("leaves an unlabelled space to be created", () => {
+    const space = makeSpace({ cells: ["2,2"] });
+    const plan = planPublish(makeInput({ derived: makeDerived({ spaces: [space] }), spaces: [boundSpace("room-x", "Region 1")] }));
+    expect(plan.spaces[0]?.kind).toBe("create");
+  });
+});
+
+describe("roomNameKey", () => {
+  it("ignores case, spacing and a leading article", () => {
+    expect(roomNameKey("The  Working Kitchen ")).toBe(roomNameKey("working kitchen"));
+    expect(roomNameKey("Theatre")).toBe("theatre");
+  });
+});
+
 // ── planPublish: ways ────────────────────────────────────────────────────
 
 describe("planPublish — ways", () => {
@@ -546,6 +603,7 @@ describe("planPublish — summary", () => {
 
     expect(plan.summary).toEqual({
       newRooms: 1,
+      boundRooms: 0,
       regionUpdates: 1,
       newDoors: 1,
       doorUpdates: 0,

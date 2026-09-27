@@ -316,6 +316,16 @@ export function useMapPublish(opts: {
             region_role: "space",
             derived_from: change.space.nameSource === "annotation" ? "annotation" : "floodfill",
           });
+        } else if (change.kind === "bind") {
+          spaceKeyToLocationId.set(change.space.key, change.spaceId);
+          await createRegion.mutateAsync({
+            site_location_id: targetSiteId.value,
+            space_location_id: change.spaceId,
+            cells: change.space.cells,
+            cell_signature: change.space.signature,
+            region_role: "space",
+            derived_from: change.space.nameSource === "annotation" ? "annotation" : "floodfill",
+          });
         } else if (change.kind === "update") {
           spaceKeyToLocationId.set(change.space.key, change.region.space_location_id!);
           await updateRegion.mutateAsync({

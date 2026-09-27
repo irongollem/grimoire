@@ -141,6 +141,14 @@ const spaceRows = computed<Row[]>(() => {
         text: `${change.proposedName} — New region, ${change.space.cells.length} cell${change.space.cells.length === 1 ? "" : "s"}${change.space.nameSource === "annotation" ? " · name from annotation" : ""}`,
         action: "→ Create room",
       });
+    } else if (change.kind === "bind") {
+      const name = roomName(change.spaceId, change.space.name);
+      rows.push({
+        key: `bind:${change.space.key}`,
+        tone: "new",
+        text: `${name} — ${change.space.cells.length} cell${change.space.cells.length === 1 ? "" : "s"}, drawn for the first time`,
+        action: "→ Place existing room",
+      });
     } else if (change.kind === "update") {
       const name = roomName(change.region.space_location_id, change.space.name);
       rows.push({
@@ -181,7 +189,7 @@ const spaceRows = computed<Row[]>(() => {
 });
 
 const spaceSummary = computed(() => {
-  const created = plan.spaces.filter((c) => c.kind === "create").length;
+  const created = plan.spaces.filter((c) => c.kind === "create" || c.kind === "bind").length;
   const changed = plan.spaces.filter((c) => c.kind === "update" || c.kind === "held").length;
   const unchanged = plan.spaces.filter((c) => c.kind === "skip").length;
   return `${created} new · ${changed} changed · ${unchanged} unchanged`;

@@ -47,6 +47,7 @@ export interface PublishInputs {
 
 export type SpaceChange =
   | { kind: "create"; space: DerivedSpace; proposedName: string } // new room + bound region
+  | { kind: "bind"; space: DerivedSpace; spaceId: string } // an existing room with no region yet, same name → fresh region bound to it
   | { kind: "update"; space: DerivedSpace; region: LocationMapRegion; before: number; after: number; reason: "shape" }
   | { kind: "held"; space: DerivedSpace; region: LocationMapRegion; reason: "dm-edited" } // derived_from === "dm" and cells differ → offered, not applied
   | { kind: "skip"; space: DerivedSpace; region: LocationMapRegion } // same signature
@@ -75,6 +76,7 @@ export interface PublishPlan {
   placements: PlacementChange[];
   summary: {
     newRooms: number;
+    boundRooms: number;
     regionUpdates: number;
     newDoors: number;
     doorUpdates: number;
@@ -123,6 +125,15 @@ export function jaccard(a: readonly CellKey[], b: readonly CellKey[]): number {
 }
 
 /**
+ * What two room names have to share to be the same room: case, spacing and a
+ * leading article are how an Atlas name and a map label drift apart without
+ * meaning anything ("The Library" in the Atlas, "Library" on the plan).
+ */
+export function roomNameKey(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ").replace(/^the /, "");
+}
+
+/**
  * Match one derived space to an existing bound region: identical signature
  * first (a re-publish of the same cells); else best Jaccard overlap ≥ 0.5
  * among the candidates (the room moved or resized); else, as a last resort,
@@ -155,7 +166,11 @@ export function matchSpace(
   if (best) return { region: best, by: "overlap" };
 
   if (space.name) {
-    const byName = pool.find((r) => r.space_location_id !== null && spaceNames.get(r.space_location_id) === space.name);
+    const key = roomNameKey(space.name);
+    const byName = pool.find((r) => {
+      const bound = r.space_location_id === null ? undefined : spaceNames.get(r.space_location_id);
+      return bound !== undefined && roomNameKey(bound) === key;
+    });
     if (byName) return { region: byName, by: "name" };
   }
 
@@ -190,6 +205,13 @@ function planSpaces(input: PublishInputs): { changes: SpaceChange[]; spaceIdFor:
   const spaceNames = new Map(input.spaces.map((s) => [s.id, s.name]));
   const candidates = input.regions.filter((r) => r.region_role === "space" && r.space_location_id !== null);
   const unmatched = [...candidates];
+  // Rooms the DM wrote in the Atlas before the site had a drawing: no region
+  // points at them yet, so the region ladder above can never reach them. A
+  // first publish used to propose a second "Library" beside "The Library",
+  // stranding the written room with its description and links. A derived
+  // space whose label names one of these binds to it instead.
+  const boundIds = new Set(candidates.map((r) => r.space_location_id));
+  const unboundRooms = input.spaces.filter((s) => !boundIds.has(s.id));
 
   const sortedSpaces = [...input.derived.spaces].sort((a, b) => compareByCell(a.cells[0] ?? "0,0", b.cells[0] ?? "0,0"));
 
@@ -200,6 +222,14 @@ function planSpaces(input: PublishInputs): { changes: SpaceChange[]; spaceIdFor:
   for (const space of sortedSpaces) {
     const match = matchSpace(space, unmatched, spaceNames);
     if (!match) {
+      const nameKey = space.name ? roomNameKey(space.name) : null;
+      const roomIdx = nameKey === null ? -1 : unboundRooms.findIndex((room) => roomNameKey(room.name) === nameKey);
+      if (roomIdx !== -1) {
+        const [room] = unboundRooms.splice(roomIdx, 1);
+        changes.push({ kind: "bind", space, spaceId: room!.id });
+        spaceIdFor.set(space.key, room!.id);
+        continue;
+      }
       createIndex++;
       changes.push({ kind: "create", space, proposedName: space.name ?? `Region ${createIndex}` });
       spaceIdFor.set(space.key, createdRef(space.key));
@@ -432,6 +462,7 @@ export function planPublish(input: PublishInputs): PublishPlan {
     placements,
     summary: {
       newRooms: spaces.filter((c) => c.kind === "create").length,
+      boundRooms: spaces.filter((c) => c.kind === "bind").length,
       regionUpdates: spaces.filter((c) => c.kind === "update").length,
       newDoors: ways.filter((c) => c.kind === "create").length,
       doorUpdates: ways.filter((c) => c.kind === "update").length,
