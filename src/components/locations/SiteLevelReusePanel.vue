@@ -44,11 +44,11 @@
  * so this opens a plain new drawing instead of a half-built promise.
  */
 import { computed, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { IconCopy, IconPencilLine } from "@/lib/icons";
-import { useCreateLocation, useLocations } from "@/composables/locations/useLocations";
+import { useLocations } from "@/composables/locations/useLocations";
+import { useAddSiteLevel } from "@/composables/locations/useAddSiteLevel";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useCloneSiteLevel } from "@/composables/locations/useCloneSiteLevel";
@@ -88,6 +88,7 @@ const { data: currentLevelRegions } = useLocationMapRegions(currentLevelId);
 const roomIds = computed(() => rooms.value.map((r) => r.id));
 const { data: currentLevelDoors } = useSiteDoors(roomIds);
 
+const toast = useToast();
 const { cloneLevel, isCloning } = useCloneSiteLevel();
 const showPaywall = ref(false);
 
@@ -107,52 +108,12 @@ async function onClone() {
 }
 
 // ── Draw level N ──────────────────────────────────────────────────────────────
-const router = useRouter();
-const route = useRoute();
-const toast = useToast();
-const createLocation = useCreateLocation();
-const isDrawing = ref(false);
+// The same add the Build canvas's level picker makes (`useAddSiteLevel`):
+// the new level opens in Build in place, ready to draw.
+const { addLevel, isAdding: isDrawing } = useAddSiteLevel();
 
 async function onDraw() {
-  isDrawing.value = true;
-  try {
-    const newLevel = await createLocation.mutateAsync({
-      parent_id: containerId,
-      campaign_id: containerCampaignId,
-      name: `Level ${nextLevelNumber}`,
-      location_type: levelType,
-      description: null,
-      notes: null,
-      tags: [],
-      image_url: null,
-      map_url: null,
-      map_pins: [],
-      is_map_shared: false,
-      player_visible_to: [],
-      player_summary: null,
-      is_description_shared: false,
-      is_npcs_shared: false,
-      is_inventory_shared: false,
-      npc_owner_id: null,
-      related_location_ids: [],
-      source_map_id: null,
-      is_battle_map: false,
-      grid_calibration: null,
-      era_start: null,
-      era_end: null,
-      audio_theme: null,
-    });
-    // Opens the new level in Build mode in place (#884 S11) — the workbench
-    // is the map area now, so there is no separate Cartographer draft to
-    // route to first. A place has one DM screen, the Atlas, so this panel
-    // (mounted only inside it, via `AtlasSiteMapMode`) always has an `at` to
-    // select onto — same convention `AtlasExplorer.vue`'s own `select` uses.
-    await router.push({ query: { ...route.query, at: newLevel.id, build: "true" } });
-  } catch (e) {
-    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
-    toast.error(toast.fromError(e));
-  } finally {
-    isDrawing.value = false;
-  }
+  const outcome = await addLevel({ id: containerId, campaign_id: containerCampaignId, location_type: levelType }, nextLevelNumber);
+  if (outcome === "quota") showPaywall.value = true;
 }
 </script>

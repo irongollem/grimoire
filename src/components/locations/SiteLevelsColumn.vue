@@ -4,34 +4,14 @@
 
     <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" vertical-only />
 
-    <div class="rounded-md border border-border bg-card px-3 py-2 text-caption text-muted-foreground">
-      <p class="mb-1 font-cinzel text-2xs font-semibold uppercase tracking-wide text-foreground">
-        Rules we keep
-      </p>
-      <ul class="list-disc space-y-2 pl-4">
-        <li>
-          Direct children only
-          <p class="text-caption-sm text-muted-foreground/70">
-            A region binds to a child of the site it is drawn on — the DB guard already refuses a
-            grandchild, so the picker never offers one.
-          </p>
-        </li>
-        <li>
-          One map per place
-          <p class="text-caption-sm text-muted-foreground/70">
-            A level has its own map_url. Multi-floor in one drawing stays a drawing; the Atlas needs a
-            place per floor to hold rooms and state.
-          </p>
-        </li>
-        <li>
-          Depth is not new nesting
-          <p class="text-caption-sm text-muted-foreground/70">
-            Sites already nest arbitrarily. "Level" is a reading of the existing tree, not a new parent
-            kind.
-          </p>
-        </li>
-      </ul>
-    </div>
+    <!-- What a level is, in the DM's words. This spot used to hold the
+         design sheet's own "Rules we keep" annotations (DB guards, map_url,
+         nesting) printed as interface copy. -->
+    <p class="px-1 text-caption text-muted-foreground">
+      Each level is a floor of this place, with its own map and rooms. A stair you draw leads to the level you pick when
+      you publish.
+      <ManualHelpLink page="sites-maps-rooms-running-a-dungeon" tooltip="Floors and levels, in the DM Manual" />
+    </p>
 
     <SiteLevelReusePanel
       v-if="levelsContainer"
@@ -47,7 +27,7 @@
 <script setup lang="ts">
 /**
  * The Atlas's "levels" sidebar (#868, frame 06) — the rail, the vertical
- * ways-out panel and its "Rules we keep" note, and the reuse panel, as one
+ * ways-out panel, a one-line note on what a level is, and the reuse panel, as one
  * column rather than three pieces scattered across a map's layout.
  * `AtlasSiteMapMode` mounts it beside the map, which it keeps (with the trail
  * line above it). It was extracted for a second host, the full-page location
@@ -56,6 +36,7 @@
  * everywhere else.
  */
 import { computed } from "vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import SiteLevelReusePanel from "@/components/locations/SiteLevelReusePanel.vue";
 import SiteLevelsRail from "@/components/locations/SiteLevelsRail.vue";
 import type { SiteLevelSummary } from "@/components/locations/SiteLevelsRail.vue";

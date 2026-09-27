@@ -4,7 +4,7 @@ section: World Building
 section_order: 2
 order: 1
 summary: Build a floor plan out of layered maps, rooms and doors, then run the dungeon at the table with fog, reachability and a room-by-room stack.
-keywords: site, dungeon, room, map, cartographer, build, browse, run, fog, door, plan, drawing, picture, layers, readiness
+keywords: site, dungeon, room, map, cartographer, build, browse, run, fog, door, plan, drawing, picture, layers, readiness, level, floor, storey, stair, basement, tower
 ---
 
 A **site** is any [Atlas](#atlas-locations) location with a floor plan: a Building, Dungeon, Store, Tavern, Inn or Wilds. Where an ordinary location places its children with pins on a picture, a site places them as traced **rooms** (or, on a Wilds site, **grounds**) on a real map you can draw, scan or photograph. Select a site in the Atlas and its pane offers three states in the action bar at the top: **Build**, **Run**, and **Details**. All three open right there in the Atlas.
@@ -18,6 +18,7 @@ A **site** is any [Atlas](#atlas-locations) location with a floor plan: a Buildi
 | The map stack | A site's map is up to three independent layers: **Picture** (a scan, photo, or AI-styled render), **Drawing** (a Cartographer map, shown as a transparent bake so the Picture shows through where nothing's painted), and **Plan** (the rooms, doors and zones traced on top). Any layer can be empty. |
 | Room / Grounds | An ordinary child of a site, typed Room (or, on a Wilds site, Grounds). Listed and ordered in the Rooms panel, and optionally traced as a shape on the map. |
 | Way out | A named, directional door between two rooms (or a room and a nested site): not the same mechanism as a plain location's "Related Locations." |
+| Level | One floor of a site: the site itself is level 1, and each further floor is its own place under it, with its own map and rooms. See "Floors and levels" below. |
 | Progress | The durable Explored / Cleared / Looted facts on a room or the site itself: a log, not a checkbox, so "never said" and "said no" stay distinct. |
 
 ## Turning a place into a site
@@ -75,6 +76,18 @@ Every room has a **Ways out** section listing its doors. A site-wide view of the
 3. Click **Add**.
 
 These three flags are what you authored in prep and stay editable as you revise your plans: they are **not** the same as whether the party has actually opened, unlocked or found the door during play. That's tracked separately (see Progress, below) and never overwrites your authored flags. A door only needs its **endpoints** recreated if you want to change what it connects; everything else edits in place.
+
+## Floors and levels
+
+A site with more than one floor (a tower, a house with a cellar, a dungeon that goes down three storeys) is built as **levels**. The site itself is level 1: its own map, its own rooms. Every further floor is a place of its own filed under the site, with its own map and its own rooms, so each floor is drawn, styled with AI, traced and run on its own. That keeps every floor's map at the size it needs and lets the AI styler work on one floor at a time.
+
+**Adding a level.** In **Build**, the level control in the top-right corner of the map offers **Add a level** (or the **+** beside the list once there are several). It creates the next floor, named "Level 2", "Level 3" and so on (rename it whatever you like), and opens it ready to draw. In Browse, the levels list beside the map also offers **Draw level N** and **Clone this level**, which copies a level's floor plan, rooms and ways out, never its play state or loot.
+
+**Moving between levels.** In Build, pick a level from the same control; your drawing is saved before it switches. In Browse, click a level in the list beside the map.
+
+**Stairs between levels.** Draw a stair where it stands on the floor plan. When you publish that floor, the review asks where each stair leads, and you pick the level. Stairs between two floors further down the stack show in the levels list's **Vertical ways out**.
+
+**A shop or a shrine is not a floor.** A place inside a floor (a shop off a lane, a chapel in a hall) belongs on that floor's map as one of its rooms, even when it is a store or a building of its own. Once the floor's map is published and that place has its area on it, it no longer appears in the levels list: only places with no area on the floor above count as floors. Until you publish, it may briefly show up there.
 
 ## Zones
 

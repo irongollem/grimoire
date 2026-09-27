@@ -45,7 +45,14 @@
              canvas instead: without this a DM drawing one floor could not see
              or reach the others. -->
         <template #canvas-top-right>
-          <SiteLevelPicker v-if="showLevelsRail" :levels="levelSites" :active-id="location.id" @select="onBuildLevelSelect" />
+          <SiteLevelPicker
+            v-if="isSite"
+            :levels="buildLevels"
+            :active-id="location.id"
+            :adding="isAddingLevel"
+            @select="onBuildLevelSelect"
+            @add="onBuildAddLevel"
+          />
         </template>
       </MapWorkbench>
     </div>
@@ -136,6 +143,8 @@
       </div>
     </template>
 
+    <PaywallModal v-model="showLevelPaywall" resource="locations" />
+
     <!-- The embedded workbench's own Publish (#884 S11) — "Review N changes"
          on the Layers panel above opens this in place, replacing the old
          `/cartographer/:id?publishTo=` round trip. Mounted unconditionally
@@ -223,6 +232,8 @@ import CartographerAiStyleModal from "@/components/cartographer/CartographerAiSt
 import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
 import MapWorkbench from "@/components/cartographer/MapWorkbench.vue";
 import SiteLevelPicker from "@/components/locations/SiteLevelPicker.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useAddSiteLevel } from "@/composables/locations/useAddSiteLevel";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import { useMapExport } from "@/composables/cartographer/useMapExport";
 import { useMapPublish } from "@/composables/cartographer/useMapPublish";
@@ -536,6 +547,21 @@ const currentLevelOrdinal = computed(() =>
 /** "2 stairs down" trail chip — every vertical way out this site itself has,
  *  from the same door graph the Ways out panel already reads. */
 const verticalWaysCount = computed(() => verticalWays(siteStructureDoors.value).length);
+
+/** Build's levels: the site's own list, or just this site while it has none,
+ *  so the picker can offer the first one. */
+const buildLevels = computed<Location[]>(() => (showLevelsRail.value ? levelSites.value : [location]));
+
+const { addLevel, isAdding: isAddingLevel } = useAddSiteLevel();
+const showLevelPaywall = ref(false);
+
+/** Adds the next level under the site these levels belong to, after saving
+ *  the drawing, and opens it in Build. */
+async function onBuildAddLevel(): Promise<void> {
+  await drawingEditor.flush();
+  const outcome = await addLevel(levelsContainer.value ?? location, buildLevels.value.length + 1);
+  if (outcome === "quota") showLevelPaywall.value = true;
+}
 
 /** Build's level switch: saves the drawing first, then selects plainly (the
  *  descent zoom needs Browse's map, which Build does not mount). Build stays

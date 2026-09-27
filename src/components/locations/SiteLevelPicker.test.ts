@@ -28,4 +28,21 @@ describe("SiteLevelPicker", () => {
     await wrapper.find("select").setValue("f2");
     expect(wrapper.emitted("select")).toEqual([["f2"]]);
   });
+
+  it("offers the next level beside the list", async () => {
+    const wrapper = mount(SiteLevelPicker, { props: { levels, activeId: "ws" } });
+    const add = wrapper.find('button[aria-label="Add level 4"]');
+    expect(add.exists()).toBe(true);
+    await add.trigger("click");
+    expect(wrapper.emitted("add")).toHaveLength(1);
+  });
+
+  it("is only an Add a level button while the site has no levels", async () => {
+    const wrapper = mount(SiteLevelPicker, { props: { levels: [levels[0]!], activeId: "ws" } });
+    expect(wrapper.find("select").exists()).toBe(false);
+    const add = wrapper.findAll("button").find((b) => b.text().includes("Add a level"));
+    expect(add).toBeDefined();
+    await add!.trigger("click");
+    expect(wrapper.emitted("add")).toHaveLength(1);
+  });
 });
