@@ -93,4 +93,7 @@ export interface TilePackGenerationJob {
   raw_path: string | null;
   normalized_path: string | null;
   error: string | null;
+  /** Moves on every write; how a dead `generating` claim is told apart from a
+   *  live one (generationLiveness.ts). */
+  updated_at: string;
 }

@@ -157,8 +157,8 @@
                 @click="onContinueClick(run)"
               />
               <div v-if="failedJobs(run).length" class="mt-3 space-y-1">
-                <div v-for="job in failedJobs(run)" :key="job.id" class="flex items-center justify-between gap-2 text-caption">
-                  <span class="truncate text-red-500">{{ job.slot_id }}: {{ job.error }}</span>
+                <div v-for="{ job, reason } in failedJobs(run)" :key="job.id" class="flex items-center justify-between gap-2 text-caption">
+                  <span class="truncate text-red-500">{{ job.slot_id }}: {{ reason }}</span>
                   <AppButton
                     v-if="attemptsLeft(job)"
                     variant="ghost"
@@ -189,6 +189,7 @@ import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { attemptCharge, attemptsRemaining } from "@/cartographer/generationBudget";
+import { retryReason } from "@/cartographer/generationLiveness";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignStore } from "@/stores/campaign";
@@ -335,8 +336,12 @@ function proofJob(run: RunWithJobs, jobId: string): TilePackGenerationJob | unde
   return run.tile_pack_generation_jobs.find((job) => job.id === jobId);
 }
 
-function failedJobs(run: RunWithJobs): TilePackGenerationJob[] {
-  return run.tile_pack_generation_jobs.filter((job) => job.status === "failed");
+// Stalled claims count: their request is gone, and Retry is the way out.
+function failedJobs(run: RunWithJobs): { job: TilePackGenerationJob; reason: string }[] {
+  return run.tile_pack_generation_jobs.flatMap((job) => {
+    const reason = retryReason(job);
+    return reason ? [{ job, reason }] : [];
+  });
 }
 
 function canCancel(status: GenerationRunStatus): boolean {

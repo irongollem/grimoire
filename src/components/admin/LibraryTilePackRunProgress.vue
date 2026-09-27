@@ -72,10 +72,10 @@
             v-for="job in proofJobs"
             :key="job.id"
             class="flex h-6 w-6 items-center justify-center rounded border"
-            :class="chipClasses(job.status)"
+            :class="chipClasses(chipStatus(job))"
             :title="chipTitle(job)"
           >
-            <component :is="chipIcon(job.status)" :class="chipIconClass(job.status)" />
+            <component :is="chipIcon(chipStatus(job))" :class="chipIconClass(chipStatus(job))" />
           </div>
         </div>
       </div>
@@ -86,18 +86,18 @@
             v-for="job in packJobs"
             :key="job.id"
             class="flex h-6 w-6 items-center justify-center rounded border"
-            :class="chipClasses(job.status)"
+            :class="chipClasses(chipStatus(job))"
             :title="chipTitle(job)"
           >
-            <component :is="chipIcon(job.status)" :class="chipIconClass(job.status)" />
+            <component :is="chipIcon(chipStatus(job))" :class="chipIconClass(chipStatus(job))" />
           </div>
         </div>
       </div>
     </div>
 
     <div v-if="failedJobs.length" class="space-y-1">
-      <div v-for="job in failedJobs" :key="job.id" class="flex items-center justify-between gap-2 text-caption">
-        <span class="truncate text-tone-danger">{{ job.slot_id }}: {{ job.error }}</span>
+      <div v-for="{ job, reason } in failedJobs" :key="job.id" class="flex items-center justify-between gap-2 text-caption">
+        <span class="truncate text-tone-danger">{{ job.slot_id }}: {{ reason }}</span>
         <AppButton
           v-if="attemptsLeft(job) > 0"
           variant="ghost"
@@ -137,6 +137,7 @@ import { libraryPackObjectPath } from "@/composables/cartographer/useLibraryTile
 import { getPublicUrl } from "@/lib/storage";
 import { slotRelativePath } from "@/cartographer/authoringPlan";
 import { attemptsRemaining } from "@/cartographer/generationBudget";
+import { isStalled, retryReason } from "@/cartographer/generationLiveness";
 import type { LibraryTilePack, TilePackGenerationJob, TilePackGenerationRun } from "@/cartographer/userPack.types";
 
 type RunWithJobs = TilePackGenerationRun & { tile_pack_generation_jobs: TilePackGenerationJob[] };
@@ -157,7 +158,11 @@ const proofJobs = computed(() =>
 const packJobs = computed(() =>
   [...props.run.tile_pack_generation_jobs].filter((job) => job.phase === "pack").sort((a, b) => a.ordinal - b.ordinal),
 );
-const failedJobs = computed(() => props.run.tile_pack_generation_jobs.filter((job) => job.status === "failed"));
+// Stalled claims count: their request is gone, and Retry is the way out.
+const failedJobs = computed(() => props.run.tile_pack_generation_jobs.flatMap((job) => {
+  const reason = retryReason(job);
+  return reason ? [{ job, reason }] : [];
+}));
 const proofPreviews = computed(() => proofJobs.value.map((job) => ({ job, url: tileImageUrl(job) })));
 
 const canCancel = computed(() => !["completed", "cancelled", "failed"].includes(props.run.status));
@@ -229,6 +234,11 @@ async function regenerateProof(jobId: string): Promise<void> {
   await continueRun();
 }
 
+// A stalled claim reads as a failure, not a spinner that never stops.
+function chipStatus(job: TilePackGenerationJob): TilePackGenerationJob["status"] {
+  return isStalled(job) ? "failed" : job.status;
+}
+
 function chipIcon(status: TilePackGenerationJob["status"]): Component {
   switch (status) {
     case "normalized": return IconCheck;
@@ -259,7 +269,8 @@ function chipClasses(status: TilePackGenerationJob["status"]): string {
 }
 
 function chipTitle(job: TilePackGenerationJob): string {
-  if (job.status === "failed" && job.error) return `${job.slot_id}: ${job.error}`;
+  const reason = retryReason(job);
+  if (reason) return `${job.slot_id}: ${reason}`;
   return `${job.slot_id} — ${job.status}`;
 }
 </script>

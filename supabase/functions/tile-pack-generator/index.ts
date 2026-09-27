@@ -19,6 +19,7 @@ import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { tilePackSlug, webpDimensions } from "../_shared/tilePackGeneration.ts";
 import { attemptCharge, attemptsRemaining, canAttempt } from "../../../src/cartographer/generationBudget.ts";
+import { isStalled, stalledBefore } from "../../../src/cartographer/generationLiveness.ts";
 import { chunk, listAllFilePaths, type StorageEntry } from "../_shared/storage-purge.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 
@@ -56,6 +57,15 @@ function decodeBase64(value: string): Uint8Array {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
+}
+
+function encodeBase64(bytes: Uint8Array): string {
+  let binary = "";
+  // Chunked: String.fromCharCode(...bytes) on a whole tile overflows the stack.
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
 }
 
 async function requireUser(req: Request) {
@@ -949,6 +959,53 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
 }
 
 /**
+ * Hands back a slot's stored raw so the client can finish it: no provider
+ * call, no charge.
+ *
+ * `generate` stores the raw and marks the job `generated` before it answers,
+ * and normalizing plus `complete` happen in the browser afterwards. A tab
+ * closed, a phone asleep or a normalize that threw in between used to leave
+ * the job there for good: the loop only picked up `pending` jobs, retry only
+ * took `failed` ones and cancel only `pending` ones, so a proof stuck this way
+ * held its run in `proof_pending` with nothing left to press. The Stone
+ * Dungeon library run sat like that with two paid proofs on 27 Sep 2026.
+ *
+ * The raw was marked with its provenance packet when it was stored, so the
+ * client's XMP inheritance works on it exactly as on a fresh response.
+ */
+async function resumeSlot(user: User, body: Record<string, unknown>): Promise<Response> {
+  const runId = typeof body.run_id === "string" ? body.run_id : "";
+  const jobId = typeof body.job_id === "string" ? body.job_id : "";
+  const run = await requireGenerationRun(runId, user);
+  if (!run || !jobId) return json({ error: "run_not_found" }, 404);
+  if (run.cancel_requested || ["cancelling", "cancelled", "completed"].includes(run.status)) {
+    return json({ error: "run_not_active" }, 409);
+  }
+  const { data: row } = await admin.from("tile_pack_generation_jobs").select("job, raw_path")
+    .eq("id", jobId).eq("run_id", runId).eq("status", "generated").maybeSingle();
+  if (!row) return json({ error: "job_not_generated" }, 409);
+  const job = row.job as GenerationJob;
+  const { data: raw } = row.raw_path
+    ? await admin.storage.from(run.target.bucket).download(row.raw_path as string)
+    : { data: null };
+  if (!raw) {
+    // Nothing to finish from. Failed rather than pending so it surfaces with
+    // a Retry, which stays inside the slot's paid budget.
+    await admin.from("tile_pack_generation_jobs")
+      .update({ status: "failed", error: "The generated image was lost before it was finished; retry it." })
+      .eq("id", jobId).eq("status", "generated");
+    return json({ error: "raw_missing" }, 409);
+  }
+  return json({
+    job_id: jobId,
+    slot_id: job.id,
+    image_b64: encodeBase64(new Uint8Array(await raw.arrayBuffer())),
+    content_type: raw.type || "image/webp",
+    mechanics: job.mechanics,
+  });
+}
+
+/**
  * Writes a slot that is a ROTATION of one this run generated.
  *
  * A vertical wall is the horizontal wall turned ninety degrees, so it is
@@ -1136,10 +1193,22 @@ async function updateRun(user: User, body: Record<string, unknown>): Promise<Res
     await admin.from("tile_pack_generation_runs").update({ status: "generating" }).eq("id", runId);
     return json({ status: "generating" });
   }
-  if (action === "cancel" && !["completed", "cancelled"].includes(run.status)) {
+  if (action === "cancel") {
+    // Idempotent: a second click, or a click on a card the refetch has not
+    // caught up with yet, lands here after the first one already finished.
+    // Answering `invalid_action` to that put a red error under a run that had
+    // cancelled exactly as asked.
+    if (["completed", "cancelled", "failed"].includes(run.status)) return json({ status: run.status });
     await admin.from("tile_pack_generation_runs").update({ status: "cancelling", cancel_requested: true }).eq("id", runId);
+    // `generated` is not in flight: its request has answered, and only a
+    // client that is no longer coming would finish it.
     await admin.from("tile_pack_generation_jobs").update({ status: "cancelled" })
-      .eq("run_id", runId).eq("status", "pending");
+      .eq("run_id", runId).in("status", ["pending", "generated"]);
+    // A claim older than any request is dead (generationLiveness.ts). Waiting
+    // on it kept a run in `cancelling` for good.
+    await admin.from("tile_pack_generation_jobs")
+      .update({ status: "failed", error: "The generation call never returned" })
+      .eq("run_id", runId).eq("status", "generating").lt("updated_at", stalledBefore());
     const { count } = await admin.from("tile_pack_generation_jobs").select("id", { count: "exact", head: true })
       .eq("run_id", runId).eq("status", "generating");
     if ((count ?? 0) === 0) {
@@ -1150,16 +1219,19 @@ async function updateRun(user: User, body: Record<string, unknown>): Promise<Res
   if (action === "retry_job") {
     const jobId = typeof body.job_id === "string" ? body.job_id : "";
     const { data: row } = await admin.from("tile_pack_generation_jobs")
-      .select("generation_attempts").eq("id", jobId).eq("run_id", runId)
-      .in("status", ["failed", "rejected"]).maybeSingle();
-    if (!row) return json({ error: "job_not_retryable" }, 409);
+      .select("status, updated_at, generation_attempts").eq("id", jobId).eq("run_id", runId)
+      .in("status", ["failed", "rejected", "generating"]).maybeSingle();
+    // A live claim is someone's request still running; only a dead one retries.
+    if (!row || (row.status === "generating" && !isStalled(row as { status: string; updated_at: string }))) {
+      return json({ error: "job_not_retryable" }, 409);
+    }
     // Told here as well as in `generate`, so the button reports the budget
     // rather than queueing a call that will be refused a moment later.
     if (!canAttempt(row.generation_attempts as number)) {
       return json({ error: "attempt_limit_reached", attempts_remaining: 0 }, 409);
     }
     await admin.from("tile_pack_generation_jobs").update({ status: "pending", error: null })
-      .eq("id", jobId).eq("run_id", runId).in("status", ["failed", "rejected"]);
+      .eq("id", jobId).eq("run_id", runId).eq("status", row.status as string);
     return json({ status: run.status, attempts_remaining: attemptsRemaining(row.generation_attempts as number) });
   }
   if (action === "regenerate_job" && run.status === "awaiting_approval") {
@@ -1210,6 +1282,7 @@ serve(withCors(async (req: Request) => {
     case "upload_library_tile": return uploadLibraryTile(user, body);
     case "generate_library_pack": return generateLibraryPack(user, body);
     case "generate": return generateSlot(user, body);
+    case "resume": return resumeSlot(user, body);
     case "complete": return completeSlot(user, body);
     case "complete_rotation": return completeRotation(user, body);
     case "approve_proof":

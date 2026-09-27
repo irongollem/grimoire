@@ -148,7 +148,14 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
   }
 
   async function runJob(run: TilePackGenerationRun, job: TilePackGenerationJob): Promise<void> {
-    const generated = await invoke<{ image_b64: string; content_type: string }>({ action: "generate", run_id: run.id, job_id: job.id });
+    // A `generated` job already has its raw stored and paid for; an earlier
+    // session stopped before finishing it. `resume` hands that raw back
+    // without a provider call, and the rest of the path is the same.
+    const generated = await invoke<{ image_b64: string; content_type: string }>({
+      action: job.status === "generated" ? "resume" : "generate",
+      run_id: run.id,
+      job_id: job.id,
+    });
     const normalized = await normalizeGeneratedTile({
       imageB64: generated.image_b64,
       contentType: generated.content_type,
@@ -219,8 +226,10 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
 
   async function runNext(run: TilePackGenerationRun & { tile_pack_generation_jobs: TilePackGenerationJob[] }): Promise<boolean> {
     const phase = run.status === "proof_pending" ? "proof" : run.status === "generating" ? "pack" : null;
-    const next = run.tile_pack_generation_jobs.sort((a, b) => a.ordinal - b.ordinal)
-      .find((job) => job.phase === phase && job.status === "pending");
+    const inPhase = run.tile_pack_generation_jobs.filter((job) => job.phase === phase)
+      .sort((a, b) => a.ordinal - b.ordinal);
+    // Unfinished work first: it costs nothing more to complete.
+    const next = inPhase.find((job) => job.status === "generated") ?? inPhase.find((job) => job.status === "pending");
     if (!next) return false;
     await runJob(run, next);
     return true;
