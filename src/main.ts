@@ -21,6 +21,7 @@ import { pendingBundleFile } from "@/composables/campaign/usePendingBundle";
 import { useSoundboardStore } from "./stores/soundboard";
 import { useSpotifyStore } from "./stores/spotify";
 
+import "./assets/fonts";
 import "./assets/main.css";
 
 const queryClient = new QueryClient({

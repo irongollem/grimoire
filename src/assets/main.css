@@ -1,9 +1,5 @@
-/* Google Fonts — inlined rather than @import'd from a sub-file so the @import
-   stays at the very top of the resolved stylesheet. Browsers warn ("Define
-   @import rules at the top of the stylesheet") if any CSS rule precedes an
-   @import, and Vite's dev-mode CSS loading can cause the nested fonts.css
-   @import to appear out of order in the cascade. */
-@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Cardo:ital@0;1&family=UnifrakturCook:wght@700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=Alegreya:ital,wght@0,400;0,500;0,700;1,400;1,700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Shippori+Mincho:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap");
+/* Web fonts are self-hosted — see src/assets/fonts.ts, and never @import
+   them from fonts.googleapis.com here (it leaks every visitor's IP to Google). */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./scriptorium/theme-base.css";
