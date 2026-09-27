@@ -51,7 +51,61 @@
     </style>
   </head>
   <body>
-    <div id="app"></div>
+    <!-- Static boot splash (27 Sep 2026). The loading screen is a Vue
+         component (LoadingScreen.vue), so it could only appear once the whole
+         bundle had downloaded, run and routed. On a cold start or a PWA
+         resume that wait is the blank white screen the loading screen exists
+         to cover. This copy is plain HTML, painted at once; Vue replaces the
+         contents of #app when it mounts, and App.vue shows the real loading
+         screen, drawn identically, from there. Its colours come from the last
+         theme the app applied (useTheme.ts writes them under
+         grimoire-splash-colors), falling back to the default Tome theme. -->
+    <div id="app">
+      <div id="boot-splash" aria-label="Loading…">
+        <img src="/logo.webp" alt="Dungeon Grimoire" />
+        <div class="boot-spinner"></div>
+      </div>
+    </div>
+    <style>
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2rem;
+        background-color: var(--boot-bg, hsl(40 30% 95%));
+        z-index: 9999;
+      }
+      #boot-splash img {
+        max-width: min(30rem, 80vw);
+        height: auto;
+      }
+      #boot-splash .boot-spinner {
+        width: 2.5rem;
+        height: 2.5rem;
+        border: 3px solid color-mix(in oklch, var(--boot-primary, hsl(42 90% 35%)) 25%, transparent);
+        border-top-color: var(--boot-primary, hsl(42 90% 35%));
+        border-radius: 50%;
+        animation: boot-spin 0.8s linear infinite;
+      }
+      @keyframes boot-spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+    <script>
+      try {
+        var c = JSON.parse(localStorage.getItem("grimoire-splash-colors") || "null");
+        if (c && c.background && c.primary) {
+          var r = document.documentElement.style;
+          r.setProperty("--boot-bg", c.background);
+          r.setProperty("--boot-primary", c.primary);
+        }
+      } catch (e) {
+        // Blocked or corrupt storage: the default colours stand.
+      }
+    </script>
 
     <!-- Vercel Web Analytics (#645). Loaded as a script rather than via
          @vercel/analytics because every stable release of that package still

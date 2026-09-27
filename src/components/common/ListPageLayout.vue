@@ -40,8 +40,18 @@
     On mobile: the sticky header sticks to <main overflow-y-auto> as before.
   -->
   <div class="lg:flex lg:flex-col lg:flex-1 lg:min-h-0">
-    <!-- Sticky header region — sticky on mobile, static on desktop -->
-    <div class="sticky top-0 z-20 bg-background px-4 pt-3 md:px-6 md:pt-6">
+    <!-- Sticky header region — sticky on mobile, static on desktop. Below lg
+         it slides away while the page scrolls down and back the moment it
+         scrolls up (27 Sep 2026): a phone could otherwise spend a third of
+         its height on search and filters while the DM draws a site map far
+         below them. It stays while anything inside it has focus, so typing
+         in the search never hides the box being typed in. -->
+    <div
+      ref="headerEl"
+      class="sticky top-0 z-20 bg-background px-4 pt-3 md:px-6 md:pt-6 transition-transform duration-200 motion-reduce:transition-none"
+      :class="headerHidden ? '-translate-y-full' : ''"
+      @focusin="headerHidden = false"
+    >
       <!-- Title + actions row -->
       <div class="flex items-start justify-between gap-3 md:flex-wrap md:gap-4">
         <!--
@@ -126,7 +136,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useSlots } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, useSlots, watch } from "vue";
+import { useBelow } from "@/composables/useBreakpoint";
 
 defineProps<{
   title: string;
@@ -137,6 +148,52 @@ const slots = useSlots();
 const hasActions = computed(() => !!slots.actions);
 const hasFilters = computed(() => !!slots.filters);
 const hasFooter = computed(() => !!slots.footer);
+
+// ── Hide on scroll down, show on scroll up (phones) ─────────────────────────
+// Below lg the header sticks to the layout's scrolling <main>; at lg and up
+// the body scrolls on its own and the header never moves, so nothing hides.
+const headerEl = ref<HTMLElement | null>(null);
+const headerHidden = ref(false);
+const isBelowLg = useBelow("lg");
+// Movement smaller than this is jitter (a finger resting, iOS rubber-banding)
+// and must not flip the header either way.
+const SCROLL_THRESHOLD_PX = 8;
+
+let scroller: HTMLElement | null = null;
+let lastY = 0;
+
+function scrollParentOf(el: HTMLElement): HTMLElement | null {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === "auto" || overflowY === "scroll") return node;
+  }
+  return null;
+}
+
+function onScroll() {
+  if (!scroller || !headerEl.value) return;
+  const y = scroller.scrollTop;
+  const delta = y - lastY;
+  if (!isBelowLg.value || y <= headerEl.value.offsetHeight) {
+    // Near the top the header is in its natural place anyway: always show.
+    headerHidden.value = false;
+    lastY = y;
+  } else if (Math.abs(delta) >= SCROLL_THRESHOLD_PX) {
+    headerHidden.value = delta > 0 && !headerEl.value.contains(document.activeElement);
+    lastY = y;
+  }
+}
+
+onMounted(() => {
+  if (!headerEl.value) return;
+  scroller = scrollParentOf(headerEl.value);
+  lastY = scroller?.scrollTop ?? 0;
+  scroller?.addEventListener("scroll", onScroll, { passive: true });
+});
+onBeforeUnmount(() => scroller?.removeEventListener("scroll", onScroll));
+watch(isBelowLg, (below) => {
+  if (!below) headerHidden.value = false;
+});
 </script>
 
 <style scoped>

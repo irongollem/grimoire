@@ -3,6 +3,10 @@ import { THEMES, DEFAULT_THEME_ID } from "@/lib/themes";
 import type { GrimoireTheme } from "@/lib/themes";
 
 const STORAGE_KEY = "grimoire-theme";
+/** The two colours index.html's static boot splash paints with before any
+ *  script or stylesheet has loaded. Its inline script reads this key by name,
+ *  so the two must change together. */
+export const SPLASH_COLORS_KEY = "grimoire-splash-colors";
 const OVERRIDE_KEY = "grimoire-theme-override";
 
 export type ThemeOverride = "campaign" | "light" | "dark" | "system";
@@ -35,6 +39,10 @@ function applyTheme(theme: GrimoireTheme) {
   }
   root.setAttribute("data-theme", theme.id);
   localStorage.setItem(STORAGE_KEY, theme.id);
+  localStorage.setItem(
+    SPLASH_COLORS_KEY,
+    JSON.stringify({ background: theme.vars["--background"], primary: theme.vars["--primary"] }),
+  );
   activeId.value = theme.id;
 }
 
