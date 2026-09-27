@@ -27,7 +27,11 @@
 ───────────────────────────────────────────────────────────────────────────── */
 .tw-tooltip {
   position: fixed;
-  z-index: 100;
+  /* Above everything it can describe: modals stack up from 200
+     (modalStack.ts) and floating pickers sit at 9999, so at 100 every
+     tooltip inside a dialog, the map style presets among them, was drawn
+     underneath the dialog and its blur. */
+  z-index: 10000;
   max-width: min(20rem, calc(100vw - 1rem));
   padding: 0.5rem 0.75rem;
   border-radius: 0.375rem;
