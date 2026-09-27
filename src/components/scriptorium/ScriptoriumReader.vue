@@ -31,13 +31,12 @@
     <div ref="scrollRef" class="sc-theme min-h-0 flex-1 overflow-y-auto px-4 py-4" :class="themeClass">
       <div v-if="tocEntries.length" class="mb-4 rounded-lg border border-border bg-card p-3">
         <p class="sc-toc-heading">Contents</p>
-        <ul class="flex flex-col">
+        <ul class="reader-toc flex flex-col">
           <li v-for="entry in tocEntries" :key="entry.blockId">
             <AppButton
               variant="menu"
               size="md"
               block
-              class="font-fell"
               :class="TOC_LEVEL_CLASS[entry.level]"
               @click="scrollToHeading(entry.blockId)"
             >
@@ -101,9 +100,11 @@ const scopeLabel = computed(() => {
   return allDmCampaigns.value?.find((c) => c.id === doc.campaign_id)?.name ?? "Other campaign";
 });
 
+// Reading-text roles, largest first: the label roles are 10-12px chrome type
+// and put a chapter's sections below its subsections in size.
 const TOC_LEVEL_CLASS: Record<number, string> = {
-  1: "text-label-lg",
-  2: "pl-4 text-label",
+  1: "text-body font-semibold",
+  2: "pl-4 text-body",
   3: "pl-7 text-caption italic",
 };
 
@@ -152,6 +153,18 @@ function scrollToHeading(blockId: string) {
  * story is editing them concurrently — so every phone-reading adjustment
  * lives here instead, reached through :deep() rather than a global class.
  */
+
+/* The contents list is app chrome inside the book's .sc-theme scroll area, so
+   the book's own list rules (bullets, hanging indent, item margins; theme-base
+   .css) reached it and put a bullet beside every entry. */
+.reader-toc {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.reader-toc li {
+  margin: 0;
+}
 
 /* A paginated book turns these into real page/column breaks; a flowing
    reader has no pages to turn. A page break becomes a quiet section rule
@@ -211,6 +224,29 @@ function scrollToHeading(blockId: string) {
 :deep(div[data-type="coverPage"] p) {
   font-size: 0.8rem !important;
 }
+/* The same goes for the padding round a cover's text (INSIDE_TEXT_STYLE etc.,
+   up to 3rem): on a card this short it lifted the inside cover's two-line
+   title up into the art above it. */
+:deep(div[data-type="coverPage"] div:has(> h1)) {
+  padding: 0.75rem 1rem 1rem !important;
+}
+
+/* A monster entry lays itself out for a two-column page: a wide stat block
+   flows its own two internal columns, a column-size entry puts the block and
+   its art side by side, and a wide entry's art and lore sit in a two-cell
+   grid. At phone width each of those halves is a few words wide, and the
+   ability table stacked "STR" one letter per line. Everything stacks here,
+   overriding theme-base.css's more specific selectors. */
+:deep(.sc-statblock--wide) {
+  column-count: 1 !important;
+}
+:deep(.sc-statblock-entry-body),
+:deep(.sc-statblock-entry--wide .sc-statblock-entry-aside) {
+  grid-template-columns: 1fr !important;
+}
+:deep(.sc-statblock-entry--wide .sc-statblock-entry-aside:not(:has(.sc-entity-art))) {
+  column-count: 1 !important;
+}
 
 /* Images: the editor's wrap/absolute layouts float or pin art against a wide
    page measure, which only crowds a single narrow column. Every image
@@ -266,5 +302,11 @@ function scrollToHeading(blockId: string) {
 :deep(.tableWrapper table) {
   width: auto;
   min-width: 100%;
+}
+/* The theme's base cell padding (0.6rem 1rem) is sized for a full page; the
+   book's two-column flow tightens it, and a phone column is narrower still. */
+:deep(.tableWrapper td),
+:deep(.tableWrapper th) {
+  padding: 0.35rem 0.5rem;
 }
 </style>

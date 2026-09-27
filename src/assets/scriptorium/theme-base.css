@@ -792,6 +792,12 @@
 .sc-theme table th {
   font-weight: 700;
 }
+/* A cell's text is a paragraph, and its bottom margin added a blank line to
+   every row; only space between two paragraphs in one cell belongs there. */
+.sc-theme table td > p:last-child,
+.sc-theme table th > p:last-child {
+  margin-bottom: 0;
+}
 .sc-theme table thead th {
   background: var(--sc-table-header-bg);
   color: var(--sc-table-header-color);
