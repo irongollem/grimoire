@@ -11,6 +11,8 @@ import {
   missingEntityMarkerHtml,
   buildEntityEmbedDocumentJson,
   buildEntityEmbedDocumentContent,
+  applyEmbedNodeOptions,
+  embedNodeOptionsFromElement,
 } from "./entityEmbeds";
 
 function embed(entityType: string, entityId: string): JSONContent {
@@ -197,6 +199,99 @@ describe("resolveEntityEmbeds", () => {
     const out = resolveEntityEmbeds(html, { "npc:a": "<p>A</p>", "npc:b": "<p>B</p>" });
     expect(out).toContain("<p>A</p>");
     expect(out).toContain("<p>B</p>");
+  });
+
+  it("keeps only the cutout figure by default (auto) when the resolved body has both (#917)", () => {
+    const html = '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a"></div>';
+    const out = resolveEntityEmbeds(html, {
+      "monster:a":
+        '<div class="aside"><img data-art-kind="picture" src="pic.webp" />' +
+        '<img data-art-kind="cutout" src="cut.webp" /></div>',
+    });
+    expect(out).toContain('data-art-kind="cutout"');
+    expect(out).not.toContain('data-art-kind="picture"');
+  });
+
+  it("forces the picture figure when data-art is picture", () => {
+    const html =
+      '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a" data-art="picture"></div>';
+    const out = resolveEntityEmbeds(html, {
+      "monster:a":
+        '<div class="aside"><img data-art-kind="picture" src="pic.webp" />' +
+        '<img data-art-kind="cutout" src="cut.webp" /></div>',
+    });
+    expect(out).toContain('data-art-kind="picture"');
+    expect(out).not.toContain('data-art-kind="cutout"');
+  });
+
+  it("removes every art figure when data-show-art is false, regardless of data-art", () => {
+    const html =
+      '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a" ' +
+      'data-show-art="false" data-art="cutout"></div>';
+    const out = resolveEntityEmbeds(html, {
+      "monster:a":
+        '<div class="aside"><img class="sc-entity-art" data-art-kind="picture" src="pic.webp" />' +
+        '<img class="sc-entity-art" data-art-kind="cutout" src="cut.webp" /></div>',
+    });
+    expect(out).not.toContain("data-art-kind");
+  });
+});
+
+describe("embedNodeOptionsFromElement", () => {
+  function el(html: string): Element {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return div.firstElementChild!;
+  }
+
+  it("reads every data-* option off the element", () => {
+    const opts = embedNodeOptionsFromElement(
+      el(
+        '<div data-size="wide" data-show-art="false" data-show-lore="false" ' +
+          'data-band-position="bottom" data-art="cutout"></div>',
+      ),
+    );
+    expect(opts).toEqual({
+      size: "wide",
+      showArt: false,
+      showLore: false,
+      bandPosition: "bottom",
+      art: "cutout",
+    });
+  });
+
+  it("maps auto/absent values to undefined, except leaving art forced choices out too", () => {
+    const opts = embedNodeOptionsFromElement(el("<div></div>"));
+    expect(opts).toEqual({
+      size: undefined,
+      showArt: undefined,
+      showLore: undefined,
+      bandPosition: undefined,
+      art: undefined,
+    });
+  });
+});
+
+describe("applyEmbedNodeOptions", () => {
+  function container(html: string): HTMLDivElement {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return div;
+  }
+
+  it("defaults to auto art (prefers cutout) when no art option is given", () => {
+    const root = container(
+      '<img data-art-kind="picture" src="pic.webp" /><img data-art-kind="cutout" src="cut.webp" />',
+    );
+    applyEmbedNodeOptions(root, {});
+    expect(root.querySelectorAll('[data-art-kind="cutout"]').length).toBe(1);
+    expect(root.querySelectorAll('[data-art-kind="picture"]').length).toBe(0);
+  });
+
+  it("skips the art choice entirely when showArt is false", () => {
+    const root = container('<img class="sc-entity-art" data-art-kind="picture" src="pic.webp" />');
+    applyEmbedNodeOptions(root, { showArt: false });
+    expect(root.querySelectorAll("[data-art-kind]").length).toBe(0);
   });
 });
 

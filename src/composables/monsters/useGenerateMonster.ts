@@ -73,6 +73,7 @@ export function useGenerateMonster() {
       description: result.description ? toTiptapJson(result.description) : null,
       notes: result.notes ? toTiptapJson(result.notes) : null,
       image_url: result.image_url ?? null,
+      cutout_url: null, // AI generation doesn't produce a cutout (#917 story 1 — art layers only)
       portrait_focal_point: null,
       stat_block: result.stat_block,
       ai_provenance: result.ai_provenance ?? null,

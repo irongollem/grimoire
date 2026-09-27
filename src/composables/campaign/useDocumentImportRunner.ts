@@ -44,7 +44,7 @@ import { activeImportKey } from "./useDocumentImport";
 import type { NameLookupRow } from "@/lib/documentImport/importPlan";
 import type { DocumentImport, ImportEntityKind } from "@/types/documentImport.types";
 import type { CombatantDef } from "@/types/encounter.types";
-import type { Monster } from "@/types/monster.types";
+import { libraryMonsterRow } from "@/lib/library/libraryMonsterRow";
 
 export type { ImportSweepInput, ImportSweepPhase, ImportSweepProgress, ImportSweepReport, ImportKindOutcome } from "@/lib/documentImport/importSweep";
 
@@ -146,7 +146,7 @@ function buildDeps(
       try {
         const { data, error } = await supabase.from("library_monsters").select("*").eq("id", libraryId).single();
         if (error) return { status: "failed", message: error.message };
-        const owned = await ensureOwnedMonster({ ...(data as Record<string, unknown>), user_id: "", campaign_id: null } as Monster);
+        const owned = await ensureOwnedMonster(libraryMonsterRow(data));
         return { status: "adopted", id: owned.id };
       } catch (err) {
         return adoptFailureOutcome(err);

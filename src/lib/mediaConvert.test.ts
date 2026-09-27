@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readEmbeddedXmp, reembedXmp } from "./mediaConvert";
+import { readEmbeddedXmp, reembedXmp, hasTransparentPixels } from "./mediaConvert";
 import { embedXmpInWebp, embedXmpInJpeg, readXmpFromWebp, readXmpFromJpeg } from "@edge-shared/provenance/embed.ts";
 
 // Minimal fixture builders — independently transcribed, mirroring the
@@ -65,5 +65,24 @@ describe("reembedXmp", () => {
   it("falls back to the original bytes rather than throwing on malformed input", () => {
     const malformed = new Uint8Array([1, 2, 3, 4]);
     expect(reembedXmp(malformed, "packet", "image/webp")).toEqual(malformed);
+  });
+});
+
+describe("hasTransparentPixels", () => {
+  it("returns false for fully opaque RGBA data", () => {
+    // Two opaque pixels.
+    expect(hasTransparentPixels(new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255]))).toBe(false);
+  });
+
+  it("returns true when any pixel's alpha is below 255", () => {
+    expect(hasTransparentPixels(new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 254]))).toBe(true);
+  });
+
+  it("returns true for a fully transparent pixel", () => {
+    expect(hasTransparentPixels(new Uint8ClampedArray([0, 0, 0, 0]))).toBe(true);
+  });
+
+  it("returns false for an empty buffer", () => {
+    expect(hasTransparentPixels(new Uint8ClampedArray([]))).toBe(false);
   });
 });

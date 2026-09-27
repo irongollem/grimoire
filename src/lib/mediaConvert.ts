@@ -122,6 +122,55 @@ export async function resizeToWebP(blob: Blob, width: number, quality = 0.8): Pr
   });
 }
 
+/**
+ * Whether any pixel in `data` (an RGBA `ImageData.data` buffer) has an alpha
+ * value below fully opaque. Pure and synchronous so it stays unit-testable —
+ * `imageHasTransparency` below and `printImages.ts`'s own print-size scan
+ * both wrap it around a real `<canvas>`, which doesn't exist in the test DOM.
+ */
+export function hasTransparentPixels(data: Uint8ClampedArray): boolean {
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 255) return true;
+  }
+  return false;
+}
+
+/**
+ * Whether the image at `url` has any transparency, sampled small (never more
+ * than 256px on the long side: this only needs a yes or no). The cutout slot
+ * (#917) uses it to warn when an upload has no transparent background, which
+ * would print as a plain rectangle on the page.
+ *
+ * `null` means the check could not run: the image failed to load, or a
+ * cross-origin image without CORS headers tainted the canvas. That is kept
+ * apart from `false` on purpose, because the caller shows a warning on
+ * `false` and must not warn about an image it simply could not read.
+ */
+export async function imageHasTransparency(url: string): Promise<boolean | null> {
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.crossOrigin = "anonymous";
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error(`could not load ${url}`));
+      el.src = url;
+    });
+    const longSide = Math.max(img.naturalWidth, img.naturalHeight);
+    const scale = Math.min(1, 256 / longSide);
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, w, h);
+    return hasTransparentPixels(ctx.getImageData(0, 0, w, h).data);
+  } catch {
+    return null;
+  }
+}
+
 // ── Audio ─────────────────────────────────────────────────────────────────
 
 /**

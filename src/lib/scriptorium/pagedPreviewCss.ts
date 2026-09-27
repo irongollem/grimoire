@@ -41,7 +41,8 @@ export function buildPagedPreviewCss(opts: PagedPreviewCssOptions): string {
   // content box (page height minus the 56 + 53 px @page margins below) leaves
   // room for the heading that usually sits above one, and object-fit keeps the
   // picture's proportions when the cap shortens it.
-  const imageMaxHeightPx = Math.floor((EDITOR_PAGE_DIMENSIONS_PX[pageSize].h - 56 - 53) * 0.8);
+  const contentHeightPx = EDITOR_PAGE_DIMENSIONS_PX[pageSize].h - 56 - 53;
+  const imageMaxHeightPx = Math.floor(contentHeightPx * 0.8);
 
   // Parchment chrome on the rendered page boxes (omitted in ink-friendly mode).
   const pageChrome = inkFriendly
@@ -94,14 +95,22 @@ hr, .sc-page-break {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   margin: 0 auto 1.5rem;
 }
+/* The page's content height, for rules that size something to the room a
+   page has left: a wide monster entry's art (theme-base.css, #917). */
+.pagedjs_page_content {
+  --sc-page-content-height: ${contentHeightPx}px;
+}
 /* See imageMaxHeightPx above: no image may be taller than a page can hold.
    .sc-cover-art (coverPage.ts) opts a cover's own full-bleed/art-slot image
    out of the max-height cap above — the same rule that stops an oversized
    inline image from overflowing its page was ALSO silently capping a cover's
    art at ~72% of the sheet (object-fit:contain shrinking a full-bleed photo
    to fit), leaving the rest of the page showing whatever was underneath
-   instead of more art (#915 story 6 round 2). */
-.pagedjs_page_content img:not(.sc-cover-art) {
+   instead of more art (#915 story 6 round 2). A linked entity's art
+   (.sc-entity-art) is exempt for a different reason: it carries its own,
+   smaller caps in theme-base.css, and this rule's extra specificity was
+   overriding them, so a cutout printed past its 22rem limit (#917). */
+.pagedjs_page_content img:not(.sc-cover-art):not(.sc-entity-art) {
   max-height: ${imageMaxHeightPx}px;
   object-fit: contain;
   break-inside: avoid;

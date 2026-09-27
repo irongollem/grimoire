@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { VueNodeViewRenderer } from "@tiptap/vue-3";
 import EntityEmbedView from "@/components/scriptorium/EntityEmbedView.vue";
+import { ENTITY_ART_CHOICES, type EntityArtChoice } from "@/lib/scriptorium/entityArt";
 
 /*
  * EntityEmbed — a Scriptorium block that holds a live reference to a game
@@ -77,6 +78,15 @@ export interface EntityEmbedAttrs {
    *  the entry's document heading, matching the "no lore" case — the frame's
    *  own name is then the only visible name (#915 story 6 round 2). */
   showLore?: boolean;
+  /**
+   * Which of the entity's images this entry shows (#917 story 1) — "auto"
+   * (default) prefers the cutout (creature alone, transparent background)
+   * when the entity has one, falling back to the picture; "cutout"/"picture"
+   * force one or the other, falling back to the other when the forced kind
+   * doesn't exist (see applyArtChoice(), entityArt.ts). No effect when
+   * showArt is off, or on an entity type with no art at all yet.
+   */
+  art?: EntityArtChoice;
 }
 
 declare module "@tiptap/core" {
@@ -145,6 +155,18 @@ export const EntityEmbed = Node.create({
         parseHTML: (el: HTMLElement) => el.getAttribute("data-show-lore") !== "false",
         renderHTML: (attrs: { showLore?: boolean }) => ({
           "data-show-lore": String(attrs.showLore ?? true),
+        }),
+      },
+      art: {
+        default: "auto" as EntityArtChoice,
+        parseHTML: (el: HTMLElement) => {
+          const value = el.getAttribute("data-art");
+          return (ENTITY_ART_CHOICES as readonly string[]).includes(value ?? "")
+            ? (value as EntityArtChoice)
+            : "auto";
+        },
+        renderHTML: (attrs: { art?: EntityArtChoice }) => ({
+          "data-art": attrs.art ?? "auto",
         }),
       },
     };

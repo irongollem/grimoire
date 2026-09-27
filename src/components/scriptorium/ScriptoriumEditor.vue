@@ -187,7 +187,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, nextTick, onUnmounted } from "vue";
+import { ref, computed, nextTick, onUnmounted, provide } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
@@ -233,6 +233,7 @@ import { parseStoredContent } from "@/lib/scriptorium/documentContent";
 import FurnitureInspector from "@/components/scriptorium/FurnitureInspector.vue";
 import { collectEntityRefs, resolveEntityEmbeds } from "@/lib/scriptorium/entityEmbeds";
 import { useEntityEmbedData } from "@/composables/scriptorium/useEntityEmbedData";
+import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { IconWarning } from "@/lib/icons";
 
@@ -257,6 +258,10 @@ const docType = ref<ScriptoriumDocType>(props.doc?.doc_type ?? props.seed?.docTy
 const isPublished = ref(props.doc?.is_published ?? false);
 const isTwoColumn = ref(props.doc?.is_two_column ?? seedSettings?.isTwoColumn ?? false);
 const theme = ref<ScriptoriumTheme>(props.doc?.theme ?? seedSettings?.theme ?? "onednd2024");
+// Read by entityEmbed node views (EntityEmbedView.vue) so their stat blocks
+// format themselves in the document's own theme rather than a hardcoded
+// default (#917 story 2) — see scriptoriumTheme.ts's own doc.
+provide(SCRIPTORIUM_THEME_KEY, theme);
 const pageSize = ref<ScriptoriumPageSize>(props.doc?.page_size ?? seedSettings?.pageSize ?? "A4");
 const inkFriendly = ref(props.doc?.ink_friendly ?? seedSettings?.inkFriendly ?? false);
 const tags = ref<string[]>(props.doc?.tags ?? seedSettings?.tags ?? []);

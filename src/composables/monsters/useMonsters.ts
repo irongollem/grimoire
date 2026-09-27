@@ -4,16 +4,17 @@ import { computed, type Ref } from "vue";
 import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
-import { useLibraryMonsterArt } from "@/composables/library/useLibraryMonsterArt";
+import { useLibraryMonsterArt, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import type { Monster, MonsterInsert, MonsterUpdate, PlayerVisibleMonster } from "@/types/monster.types";
 import { useToast } from "@/composables/useToast";
-import { deleteByPublicUrl } from "@/lib/storage";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { libraryMonsterRow } from "@/lib/library/libraryMonsterRow";
 
 
 const QUERY_KEY = "monsters";
@@ -75,7 +76,10 @@ async function updateMonster(id: string, update: MonsterUpdate): Promise<Monster
 async function deleteMonster(monster: Monster): Promise<void> {
   const { error } = await supabase.from("monsters").delete().eq("id", monster.id);
   if (error) throw error;
-  await deleteByPublicUrl(monster.image_url);
+  // #917: a customized clone (libraryMonsterToInsert) or a same-account
+  // campaign copy can point at this same image_url/cutout_url — only remove
+  // the files nothing else still references.
+  await deleteUnreferencedByPublicUrl({ urls: [monster.image_url, monster.cutout_url] });
 }
 
 const LIBRARY_QUERY_KEY = "library-monsters";
@@ -91,7 +95,7 @@ async function fetchLibraryMonsters(enabledSlugs: string[], ruleset: RulesetKey)
   if (error) throw error;
   // Shared rows belong to no user and no campaign — which campaigns may see
   // them is decided by enabled sources, not by this column.
-  return (data ?? []).map((row) => ({ ...row, user_id: "", campaign_id: null })) as Monster[];
+  return (data ?? []).map(libraryMonsterRow);
 }
 
 export interface UseMonstersOptions {
@@ -259,7 +263,7 @@ export function useLibraryMonster(id: Ref<string>) {
         .eq("id", monsterId)
         .single();
       if (error) throw error;
-      return { ...data, user_id: "" } as Monster;
+      return libraryMonsterRow(data);
     },
     enabled: () => !!id.value,
     staleTime: Infinity,
@@ -286,7 +290,7 @@ export function useResolvedMonster(id: Ref<string>) {
       .flatMap(([, rows]) => rows ?? [])
       .find((m) => m.id === id.value);
     if (library) {
-      return { monster: { ...library, user_id: "", is_shared: true } as Monster, isShared: true };
+      return { monster: libraryMonsterRow(library), isShared: true };
     }
     const custom = queryClient
       .getQueryData<Monster[]>([QUERY_KEY])
@@ -300,7 +304,7 @@ export function useResolvedMonster(id: Ref<string>) {
       const { data: shared, error: sharedError } = await supabase
         .from("library_monsters").select("*").eq("id", monsterId).maybeSingle();
       if (sharedError) throw sharedError;
-      if (shared) return { monster: { ...shared, user_id: "", is_shared: true } as Monster, isShared: true };
+      if (shared) return { monster: libraryMonsterRow(shared), isShared: true };
       if (!isUuid(monsterId)) throw new Error("Monster not found");
       return { monster: await fetchMonster(monsterId), isShared: false };
     },
@@ -343,10 +347,7 @@ export function useMonsterWithArt(id: Ref<string>) {
     const row = data.value?.monster;
     if (!row) return null;
     if (!isShared.value) return row;
-    const art = artMap.value?.[id.value];
-    return art
-      ? { ...row, image_url: art.image_url, portrait_focal_point: art.portrait_focal_point }
-      : row;
+    return withLibraryArt(row, artMap.value?.[id.value]);
   });
 
   return { monster, isShared, isLoading };
@@ -425,7 +426,8 @@ export function useDeleteMonster() {
  * needs updating here.
  */
 function libraryMonsterToInsert(libraryMonster: Monster, campaignId: string | null): MonsterInsert {
-  const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url } = libraryMonster;
+  const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url, cutout_url } =
+    libraryMonster;
   return {
     name,
     monster_type,
@@ -437,6 +439,7 @@ function libraryMonsterToInsert(libraryMonster: Monster, campaignId: string | nu
     stat_block,
     notes,
     image_url,
+    cutout_url, // #917 story 1 — a customized clone keeps the library monster's cutout too
     campaign_id: campaignId,
   };
 }

@@ -11,6 +11,7 @@
  *   urls.ts     building and parsing public URLs (origin shape + CDN shape)
  *   upload.ts   uploads, size variants, XMP provenance inheritance, backfill
  *   remove.ts   deletes, by path and by public URL
+ *   deleteUnreferenced.ts  delete-by-URL, but only when nothing else refers to it
  *   list.ts     merged both-stores enumeration of a user's own objects
  *   r2.ts       the R2 transport: presigned PUTs, deletes and listing
  */
@@ -48,6 +49,12 @@ export {
   removeByPublicUrl,
   deleteByPublicUrl,
 } from "./remove";
+
+export {
+  deleteUnreferencedByPublicUrl,
+  IMAGE_REFERENCES,
+  type DeleteUnreferencedOptions,
+} from "./deleteUnreferenced";
 
 export { listOwnedPaths, listPathsUnder } from "./list";
 export { planVariantSweep, sweepTargets, targetLabel, type SweepPlan, type SweepTarget, type MissingVariants } from "./sweep";

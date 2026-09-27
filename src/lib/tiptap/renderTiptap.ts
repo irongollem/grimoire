@@ -1,12 +1,7 @@
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
-  );
-}
+import { escapeHtml } from "@/lib/escapeHtml";
 
 /**
  * Render Tiptap document JSON (or a raw string) to SANITIZED HTML for `v-html`.

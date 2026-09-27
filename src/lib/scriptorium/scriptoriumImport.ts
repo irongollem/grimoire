@@ -21,6 +21,8 @@ import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 import type { ScriptoriumDocType, ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
+import { escapeHtml } from "@/lib/escapeHtml";
+import { entityArtFiguresHtml } from "./entityArt";
 
 // ── Output type ───────────────────────────────────────────────────────────────
 
@@ -63,10 +65,6 @@ const CR_XP: Record<string, number> = {
 
 /** Escape the four HTML-significant characters in a plain-text value before
  *  interpolating it into an assembled HTML string. */
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 function countWords(html: string): number {
   const text = html
     .replace(/<[^>]+>/g, " ")
@@ -451,10 +449,28 @@ function estimateStatBlockSize(innerHtml: string, headingAbove: boolean): StatBl
  *  (see `estimateStatBlockSize` above) and returns both the size it chose —
  *  the caller needs it to lay out the surrounding entry (#915 story 6 round
  *  2) — and the finished HTML, wrapped accordingly. */
-function buildStatBlockHtml(opts: BuildStatBlockOpts): { html: string; size: StatBlockSize } {
+function buildStatBlockHtml(opts: BuildStatBlockOpts): { html: string; size: StatBlockSize; chars: number } {
   const inner = buildStatBlockInnerHtml(opts);
   const size = estimateStatBlockSize(inner, opts.headingAbove ?? false);
-  return { html: `<div class="sc-statblock sc-statblock--${size}">\n${inner}</div>\n`, size };
+  return { html: `<div class="sc-statblock sc-statblock--${size}">\n${inner}</div>\n`, size, chars: textLength(inner) };
+}
+
+/**
+ * How tall a WIDE stat block's band will print, in page px, from its text
+ * length (#917). A wide entry stacks the band and then its art and lore, and
+ * the art is the one part that can give way: the paged stylesheet caps it at
+ * what the page has left under this estimate (theme-base.css,
+ * `--sc-band-est`). Fitted on the Sugarwell booklet's four wide creatures
+ * (27 Sep 2026, A4, both themes): band height = 62 + 0.36px per character,
+ * within 21px on all four (Marzipan Sentry 1,116 characters printed 463px,
+ * Toffee Maw 1,304 printed 532px, Candy Archer 1,439 printed 600px, Caramel
+ * Crusher 1,871 printed 734px). The 25px added on top makes the estimate err
+ * tall, so the art it leaves room for errs small rather than off the page.
+ * The Crusher's cutout, at the old fixed 16rem, pushed its lore and art onto
+ * a page of their own.
+ */
+export function estimateWideBandHeightPx(chars: number): number {
+  return Math.round(62 + 25 + 0.36 * chars);
 }
 
 function traitList(traits: Array<{ name: string; description: string }>): string {
@@ -690,7 +706,7 @@ const monsterFormatter: AssetFormatter<Monster> = {
     // shrinks the column the stat block must fit (see the size thresholds).
     const loreHtml = richTextOrPlain(monster.description);
     const hasLore = Boolean(loreHtml.trim());
-    const { html: statBlockHtml, size } = buildStatBlockHtml({
+    const { html: statBlockHtml, size, chars: statBlockChars } = buildStatBlockHtml({
       headingAbove: hasLore,
       name: monster.name,
       typeLine: statBlockTypeLine(monster.size, monster.monster_type, monster.alignment),
@@ -713,14 +729,17 @@ const monsterFormatter: AssetFormatter<Monster> = {
       sections,
     });
 
-    // The `sc-entity-art` class is a stable hook for resolveEntityEmbeds() to
-    // remove this figure when a linked embed's `showArt` is off. It no longer
-    // floats — the art now has its own grid cell (column size) or its own
-    // full-width slot above/below the band (wide size), so a float would only
-    // fight the layout that already places it.
-    const artHtml = monster.image_url
-      ? `<img src="${monster.image_url}" class="sc-entity-art" alt="${monster.name}" style="display:block;width:100%;max-width:220px;margin:0 auto 0.75rem;" />\n`
-      : "";
+    // Both figures, the picture and the cutout, each tagged `data-art-kind`
+    // (entityArt.ts). The body HTML is shared by every embed of this monster,
+    // so which one shows is decided per embed afterwards (applyEmbedNodeOptions,
+    // entityEmbeds.ts), as is removing the art when `showArt` is off. Neither
+    // floats: the art has its own grid cell (column size) or its own slot
+    // above/below the band (wide size), and its sizing lives in theme-base.css.
+    const artHtml = entityArtFiguresHtml({
+      picture: monster.image_url,
+      cutout: monster.cutout_url,
+      alt: monster.name,
+    });
     // A monster's description may be Tiptap JSON (the rich-text editor's own
     // shape) or plain text (an Open5e import, or older data typed before a
     // field had a rich-text editor at all) — both shapes exist in real data
@@ -748,7 +767,8 @@ const monsterFormatter: AssetFormatter<Monster> = {
         : "";
 
     let html =
-      `<div class="sc-statblock-entry sc-statblock-entry--${size}" data-band-position="top">\n` +
+      `<div class="sc-statblock-entry sc-statblock-entry--${size}" data-band-position="top" ` +
+      `style="--sc-band-est: ${estimateWideBandHeightPx(statBlockChars)}px">\n` +
       entryHeadingHtml +
       `<div class="sc-statblock-entry-body">\n` +
       `<div class="sc-statblock-entry-block">\n${statBlockHtml}</div>\n` +

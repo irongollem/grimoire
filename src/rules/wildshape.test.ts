@@ -25,6 +25,7 @@ function beast(overrides: Partial<Monster["stat_block"]> & { monster_type?: Mons
     },
     notes: null,
     image_url: null,
+    cutout_url: null,
     created_at: "",
     updated_at: "",
   };

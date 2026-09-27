@@ -26,6 +26,7 @@ function monster(overrides: Partial<Monster> = {}): Monster {
     },
     notes: null,
     image_url: null,
+    cutout_url: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     is_shared: false,

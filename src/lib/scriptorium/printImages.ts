@@ -15,6 +15,8 @@
  * load) keeps its original source, so the export never loses an image.
  */
 
+import { hasTransparentPixels } from "@/lib/mediaConvert";
+
 /** Print resolution the pictures are resampled to. */
 export const PRINT_PPI = 300;
 /** CSS pixels per inch; a laid-out size in CSS px is this many per inch. */
@@ -60,13 +62,6 @@ function loadCorsImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function hasTransparency(data: Uint8ClampedArray): boolean {
-  for (let i = 3; i < data.length; i += 4) {
-    if (data[i] < 255) return true;
-  }
-  return false;
-}
-
 async function compactOne(el: HTMLImageElement): Promise<void> {
   const rect = el.getBoundingClientRect();
   if (!el.currentSrc || rect.width === 0 || rect.height === 0) return;
@@ -82,7 +77,7 @@ async function compactOne(el: HTMLImageElement): Promise<void> {
   if (!ctx) return;
   ctx.drawImage(source, 0, 0, target.width, target.height);
   // getImageData throws on a tainted canvas; the caller keeps the original.
-  const opaque = !hasTransparency(ctx.getImageData(0, 0, target.width, target.height).data);
+  const opaque = !hasTransparentPixels(ctx.getImageData(0, 0, target.width, target.height).data);
   el.removeAttribute("srcset");
   el.src = opaque ? canvas.toDataURL("image/jpeg", JPEG_QUALITY) : canvas.toDataURL("image/png");
 }

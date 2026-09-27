@@ -21,7 +21,18 @@ describe("buildPagedPreviewCss", () => {
     // 80% of the 1014px content box is 811px.
     expect(buildPagedPreviewCss({ pageSize: "A4", inkFriendly: false })).toContain("max-height: 811px");
     const a5 = buildPagedPreviewCss({ pageSize: "A5", inkFriendly: false });
-    expect(a5).toMatch(/\.pagedjs_page_content img:not\(\.sc-cover-art\) \{[^}]*max-height: \d+px[^}]*object-fit: contain/);
+    expect(a5).toMatch(
+      /\.pagedjs_page_content img:not\(\.sc-cover-art\):not\(\.sc-entity-art\) \{[^}]*max-height: \d+px[^}]*object-fit: contain/,
+    );
+  });
+
+  it("leaves a linked entity's art to its own caps, and publishes the page's content height for them (#917)", () => {
+    // The blanket image cap outranked theme-base.css's smaller entity-art caps,
+    // so a cutout printed past its limit; the art sizes itself from the room
+    // the page leaves instead, which needs the content height.
+    const css = buildPagedPreviewCss({ pageSize: "A4", inkFriendly: false });
+    expect(css).toContain("img:not(.sc-cover-art):not(.sc-entity-art)");
+    expect(css).toContain("--sc-page-content-height: 1014px");
   });
 
   it("drops the page background in ink-friendly mode", () => {

@@ -86,6 +86,7 @@ export interface Monster extends VersionedContentMetadata {
   description?: string | null;
   notes: string | null;
   image_url: string | null;    // portrait / profile image (tall)
+  cutout_url: string | null;   // the creature alone on a transparent background — Scriptorium books prefer this over image_url (#917)
   portrait_focal_point?: { x: number; y: number } | null;
   ai_provenance?: AiProvenance | null;
   created_at: string;

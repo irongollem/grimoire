@@ -34,6 +34,14 @@
           :tooltip="showArt ? 'Hide the portrait/art' : 'Show the portrait/art'"
           @click="toggleShowArt"
         />
+        <SegmentedControl
+          v-if="showArtChoiceToggle"
+          :model-value="art"
+          :options="ART_OPTIONS"
+          size="xs"
+          variant="ghost"
+          @update:model-value="setArt"
+        />
         <AppButton
           v-if="showLoreToggle"
           size="xs"
@@ -83,13 +91,13 @@
     </div>
 
     <div v-if="isLoading && rawHtml === undefined" class="sc-entity-embed-loading">Loading&hellip;</div>
-    <!-- eslint-disable-next-line vue/no-v-html -- sanitized via sanitizeHtml() above -->
-    <div v-else class="sc-entity-embed-body" v-html="sanitizedHtml" />
+    <!-- eslint-disable-next-line vue/no-v-html -- sanitized via sanitizeHtml() in processedHtml -->
+    <div v-else class="sc-entity-embed-body" v-html="processedHtml" />
   </NodeViewWrapper>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, inject, ref } from "vue";
 import { useRouter } from "vue-router";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import AppButton from "@/components/common/AppButton.vue";
@@ -97,11 +105,19 @@ import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useEntityEmbedData } from "@/composables/scriptorium/useEntityEmbedData";
-import { entityRefKey, missingEntityMarkerHtml } from "@/lib/scriptorium/entityEmbeds";
+import {
+  entityRefKey,
+  missingEntityMarkerHtml,
+  applyEmbedNodeOptions,
+  type EmbedNodeOptions,
+} from "@/lib/scriptorium/entityEmbeds";
+import type { EntityArtChoice } from "@/lib/scriptorium/entityArt";
+import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { IconExternalLink, IconScissors, IconImage } from "@/lib/icons";
 import type { EntityEmbedType, EntityEmbedSize } from "@/lib/tiptap/entityEmbed";
+import type { ScriptoriumTheme } from "@/types/scriptorium.types";
 
 const props = defineProps({ ...nodeViewProps });
 const { confirm } = useConfirm();
@@ -130,6 +146,21 @@ const showArtToggle = computed(() => entityType.value === "monster");
 const showArt = computed(() => (props.node.attrs.showArt as boolean | undefined) ?? true);
 function toggleShowArt() {
   props.updateAttributes({ showArt: !showArt.value });
+}
+
+// Which of the (up to two) resolved figures a monster entry shows (#917
+// story 2) — only meaningful while art is shown at all, and only for a
+// monster (the one entity type entityArt.ts's cutout/picture figures apply
+// to today).
+const showArtChoiceToggle = computed(() => entityType.value === "monster" && showArt.value);
+const art = computed(() => (props.node.attrs.art as EntityArtChoice | undefined) ?? "auto");
+const ART_OPTIONS: SegmentedOption<EntityArtChoice>[] = [
+  { value: "auto", label: "Auto", tooltip: "The cutout when there is one, otherwise the picture" },
+  { value: "cutout", label: "Cutout", tooltip: "The creature on a transparent background" },
+  { value: "picture", label: "Picture", tooltip: "The full picture with its background" },
+];
+function setArt(next: EntityArtChoice) {
+  props.updateAttributes({ art: next });
 }
 
 // showLore/bandPosition are monster-only too (#915 story 6 round 2) — the
@@ -168,16 +199,45 @@ const TYPE_LABELS: Record<EntityEmbedType, string> = {
 };
 const typeLabel = computed(() => TYPE_LABELS[entityType.value]);
 
-// Theme defaults to onednd2024 here — the galley shows the ability-score
-// table in the default layout regardless of the document's own theme toggle.
-// The preview pane and PDF export (ScriptoriumEditor.vue's resolveEntityEmbeds
-// call) DO carry the real theme through, so the printed/exported book is
-// always correct; this is a galley-only cosmetic gap for phb2014 documents.
+// Theme is injected from whichever ancestor provides it — ScriptoriumEditor.vue's
+// own `theme` ref for the live galley, ScriptoriumDocumentView.vue's computed
+// (derived from the document's stored `theme` column) for the read-only
+// renderer that the phone reader and quest handouts mount — so the
+// ability-score table formats itself in the document's real theme rather
+// than a hardcoded default (#917 story 2; see scriptoriumTheme.ts's own doc
+// for why this was never merely a galley cosmetic gap). Falls back to
+// "onednd2024" only when neither ancestor provided one.
+const theme = inject(SCRIPTORIUM_THEME_KEY, ref<ScriptoriumTheme>("onednd2024"));
 const refs = computed(() => [{ type: entityType.value, id: entityId.value }]);
-const { lookup, isLoading } = useEntityEmbedData(refs);
+const { lookup, isLoading } = useEntityEmbedData(refs, { theme });
 const rawHtml = computed(() => lookup.value[entityRefKey({ type: entityType.value, id: entityId.value })]);
-const sanitizedHtml = computed(() =>
-  sanitizeHtml(rawHtml.value ?? missingEntityMarkerHtml(entityType.value)),
+
+// The per-node options (size/art/lore/band) applied on top of the shared,
+// resolved entity body — same shape resolveEntityEmbeds() applies to the
+// paged preview/PDF string, read here straight off the node's live Tiptap
+// attrs instead of `data-*` (#917 story 2: this view used to v-html the raw
+// body untouched, so a node that had hidden its art or lore still showed it
+// wherever this view is mounted read-only).
+const nodeOptions = computed<EmbedNodeOptions>(() => ({
+  size: size.value,
+  showArt: showArt.value,
+  showLore: showLore.value,
+  bandPosition: bandPosition.value,
+  art: art.value,
+}));
+
+/** Sanitizes `raw`, applies this node's options in a detached element, and
+ *  returns the resulting HTML — what's actually shown, and (via `detach()`)
+ *  what's inserted as plain content when the entity is detached. */
+function buildProcessedHtml(raw: string, opts: EmbedNodeOptions): string {
+  const container = document.createElement("div");
+  container.innerHTML = sanitizeHtml(raw);
+  applyEmbedNodeOptions(container, opts);
+  return container.innerHTML;
+}
+
+const processedHtml = computed(() =>
+  buildProcessedHtml(rawHtml.value ?? missingEntityMarkerHtml(entityType.value), nodeOptions.value),
 );
 
 const ENTITY_ROUTES: Record<Exclude<EntityEmbedType, "location">, string> = {
@@ -207,7 +267,7 @@ async function detach() {
   props.editor
     .chain()
     .focus()
-    .insertContentAt({ from: pos, to: pos + props.node.nodeSize }, sanitizedHtml.value, {
+    .insertContentAt({ from: pos, to: pos + props.node.nodeSize }, processedHtml.value, {
       parseOptions: { preserveWhitespace: false },
     })
     .run();

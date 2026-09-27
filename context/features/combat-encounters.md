@@ -58,6 +58,8 @@ Each monster stores a full `stat_block` JSONB object with:
 - Trait sections: Traits, Actions, Bonus Actions, Reactions, Legendary Actions, Lair Actions, Mythic Actions
 - Spellcasting block (spell list per level)
 - Portrait image with focal point (for `FocalImage` focal-aware display)
+- A second image, the **cutout** (`cutout_url`, #917): the creature alone on a transparent background, which Scriptorium books prefer. Edited on a Picture / Cutout tab over the same image block (`useArtTabs`); the Cutout tab has no focal point, AI generation or Mini button, and warns when an upload has no transparent pixels. Every other surface shows the picture. Library monsters carry it on `library_monster_art` / `_canonical`, merged per field, so an override of one image keeps the other's canonical art.
+- Deleting a monster (or an item, trap or location) removes its image files only when nothing else still uses them (`deleteUnreferencedByPublicUrl`, `src/lib/storage/deleteUnreferenced.ts`): duplicates, campaign copies, promoted NPCs, library clones and Gallery entries share files.
 
 ### Reading one monster (`/monsters/:id`)
 

@@ -233,19 +233,23 @@ function scrollToHeading(blockId: string) {
 
 /* A monster entry lays itself out for a two-column page: a wide stat block
    flows its own two internal columns, a column-size entry puts the block and
-   its art side by side, and a wide entry's art and lore sit in a two-cell
-   grid. At phone width each of those halves is a few words wide, and the
-   ability table stacked "STR" one letter per line. Everything stacks here,
-   overriding theme-base.css's more specific selectors. */
+   its art side by side, and a wide entry floats its art beside the lore. At
+   phone width each of those halves is a few words wide, and the ability table
+   stacked "STR" one letter per line. Everything stacks here, overriding
+   theme-base.css's more specific selectors. */
 :deep(.sc-statblock--wide) {
   column-count: 1 !important;
 }
-:deep(.sc-statblock-entry-body),
-:deep(.sc-statblock-entry--wide .sc-statblock-entry-aside) {
+:deep(.sc-statblock-entry-body) {
   grid-template-columns: 1fr !important;
 }
 :deep(.sc-statblock-entry--wide .sc-statblock-entry-aside:not(:has(.sc-entity-art))) {
   column-count: 1 !important;
+}
+:deep(.sc-statblock-entry--wide .sc-statblock-entry-aside .sc-entity-art) {
+  float: none !important;
+  max-width: 100% !important;
+  margin: 0 auto 0.75rem !important;
 }
 
 /* Images: the editor's wrap/absolute layouts float or pin art against a wide

@@ -6,7 +6,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 import type { GridCalibration, Location, LocationInsert, LocationUpdate } from "@/types/location.types";
-import { deleteByPublicUrl } from "@/lib/storage";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
 import { matchSettingRowIds, stampSettingSource, PLANAR_SOURCE } from "@/lib/populateSetting/settingContent";
@@ -167,7 +167,12 @@ async function deleteLocation(id: string): Promise<void> {
   if (error) throw error;
   // quest_refs is polymorphic (ref_type/ref_id, no FK) so it needs manual cleanup.
   await supabase.from("quest_refs").delete().eq("ref_type", "location").eq("ref_id", id);
-  if (loc) await deleteByPublicUrl(loc.image_url, loc.map_url, loc.map_layer_url);
+  // #917: a same-account campaign copy can point at this same
+  // image_url/map_url/map_layer_url — only remove the files nothing else
+  // still references.
+  if (loc) {
+    await deleteUnreferencedByPublicUrl({ urls: [loc.image_url, loc.map_url, loc.map_layer_url] });
+  }
 }
 
 // ── Public composables ─────────────────────────────────────────────────────────

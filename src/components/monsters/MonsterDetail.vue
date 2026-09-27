@@ -23,6 +23,7 @@
     @generate="showGenerateDialog = true"
     @update:image-url="onPortraitUrlUpdate($event)"
     @update:focal-point="onPortraitFocalUpdate($event)"
+    @update:cutout-url="onCutoutUrlUpdate($event)"
   />
 
   <!-- Desktop (≥md): unchanged two-column grid form -->
@@ -102,18 +103,22 @@
     <div class="grid grid-cols-1 lg:grid-cols-[13.75rem_1fr] gap-6">
       <!-- Left: Portrait + Tags -->
       <div class="space-y-4">
-        <!-- Portrait -->
+        <!-- Portrait: Picture / Cutout (#917 story 2) -->
         <EntityImageBlock
-          :model-value="form.image_url"
-          :focal-point="form.portrait_focal_point"
+          :model-value="isCutoutTab ? form.cutout_url : form.image_url"
+          :focal-point="isCutoutTab ? undefined : form.portrait_focal_point"
           bucket="monster-images"
-          show-focal-point
-          ai-kind="monster"
-          :ai-target-id="props.monster?.id"
-          :ai-context="aiContext"
-          :mini-source="props.monster?.id ? { table: 'monsters', id: props.monster.id } : undefined"
-          @update:model-value="onPortraitUrlUpdate($event)"
+          :show-focal-point="!isCutoutTab"
+          :ai-kind="isCutoutTab ? undefined : 'monster'"
+          :ai-target-id="isCutoutTab ? undefined : props.monster?.id"
+          :ai-context="isCutoutTab ? undefined : aiContext"
+          :mini-source="isCutoutTab || !props.monster?.id ? undefined : { table: 'monsters', id: props.monster.id }"
+          :expect-transparency="isCutoutTab"
+          :variants="artTabVariants"
+          :active-variant-id="artTab"
+          @update:model-value="isCutoutTab ? onCutoutUrlUpdate($event) : onPortraitUrlUpdate($event)"
           @update:focal-point="onPortraitFocalUpdate($event)"
+          @update:active-variant-id="artTab = $event as ArtTab"
         />
 
         <!-- Tags -->
@@ -302,6 +307,7 @@ import {
   useCloneLibraryMonster,
 } from "@/composables/monsters/useMonsters";
 import { useUpsertLibraryMonsterArt } from "@/composables/library/useLibraryMonsterArt";
+import { useArtTabs, type ArtTab } from "@/composables/useArtTabs";
 import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { formatMonsterForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
@@ -361,6 +367,7 @@ function onCancel() {
 }
 
 const { mutateAsync: upsertLibraryArt } = useUpsertLibraryMonsterArt();
+const { artTab, isCutoutTab, variants: artTabVariants } = useArtTabs();
 
 type LocationOption = Location & { depth: number };
 const { locationOptions } = useLocationTree();
@@ -390,6 +397,7 @@ const form = reactive({
   description: props.monster?.description ?? "",
   notes: props.monster?.notes ?? "",
   image_url: props.monster?.image_url ?? "",
+  cutout_url: props.monster?.cutout_url ?? "",
   portrait_focal_point: props.monster?.portrait_focal_point ?? null,
   ai_provenance: props.monster?.ai_provenance ?? null,
 });
@@ -400,6 +408,7 @@ watch(
   (m) => {
     if (isShared.value && m) {
       form.image_url = m.image_url ?? "";
+      form.cutout_url = m.cutout_url ?? "";
       form.portrait_focal_point = m.portrait_focal_point ?? null;
     }
   },
@@ -450,6 +459,10 @@ function onPortraitFocalUpdate(pt: { x: number; y: number } | null) {
   if (isShared.value)
     upsertLibraryArt({ entry_id: props.monster!.id, portrait_focal_point: pt });
   else form.portrait_focal_point = pt;
+}
+function onCutoutUrlUpdate(url: string | null) {
+  if (isShared.value) upsertLibraryArt({ entry_id: props.monster!.id, cutout_url: url });
+  else form.cutout_url = url ?? "";
 }
 // AI generation
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
@@ -559,6 +572,7 @@ function buildPayload() {
     description: form.description || null,
     notes: form.notes || null,
     image_url: form.image_url || null,
+    cutout_url: form.cutout_url || null,
     portrait_focal_point: form.portrait_focal_point ?? null,
     stat_block: { ...sb },
     ai_provenance: form.ai_provenance,

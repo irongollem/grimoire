@@ -1121,20 +1121,46 @@
   order: 1;
   margin-bottom: 0.75rem;
 }
-.sc-theme .sc-statblock-entry-aside .sc-entity-art {
+/* Base sizing for every linked-entity image (#917 story 1) — this used to be
+   an inline style the formatter set per <img> (scriptoriumImport.ts); moving
+   it here is what lets the picture and cutout kinds size differently below
+   without threading kind-specific inline styles through every formatter that
+   will eventually call entityArtFiguresHtml() (NPCs next). */
+.sc-theme .sc-entity-art {
   display: block;
+  width: 100%;
+  max-width: 13.75rem;
   margin: 0 auto 0.75rem;
 }
-/* A wide entry's art and lore sit side by side in the page's two columns
-   under (or over) the band, the way a book lays out a long creature, rather
-   than stacked full width. Stacked, the Toffee Maw's entry reached 1,000px of
-   a 1,014px page, overflowed the page's column container and was painted off
-   the page, leaving it blank (#915 story 6, 26 Sep 2026). */
+/* The picture was made against its own background, so the page needs a
+   visible edge to contain it — a thin printed frame, same idea as the
+   statblock box below. Ink-friendly drops the shadow (matches .sc-note /
+   .sc-statblock) but keeps the border, which costs no ink to speak of. */
+.sc-theme .sc-entity-art--picture {
+  border: 1px solid color-mix(in srgb, var(--sc-accent) 30%, transparent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+}
+.ink-friendly .sc-entity-art--picture {
+  box-shadow: none;
+}
+/* The cutout is the creature alone on a transparent background — a frame
+   drawn around empty transparency would read as a mistake, and the point of
+   a cutout is a figure that sits ON the page rather than boxed into it, so it
+   is allowed to run larger than the framed picture's 13.75rem cap. */
+.sc-theme .sc-entity-art--cutout {
+  max-width: 100%;
+  max-height: 22rem;
+  width: auto;
+}
+/* A wide entry's art floats at the start of its lore and the lore wraps
+   beside it and then under it, the way a book tucks a figure into text.
+   Two earlier layouts failed on the Sugarwell booklet: art and lore stacked
+   full width reached 1,000px of the Toffee Maw's 1,014px page and were painted
+   off it (#915 story 6), and art and lore as two grid cells squeezed the
+   Caramel Crusher's lore into half the width, where it ran taller than the
+   room its long band left, so both went onto a page of their own (#917). */
 .sc-theme .sc-statblock-entry--wide .sc-statblock-entry-aside {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 1.5rem;
-  align-items: start;
+  display: flow-root;
   margin-top: 0.75rem;
 }
 /* Without art the lore still keeps to the page's two columns: one paragraph
@@ -1148,10 +1174,27 @@
 .sc-theme .sc-statblock-entry--wide[data-band-position="bottom"] .sc-statblock-entry-aside {
   margin-top: 0;
 }
+/* The art takes what the page leaves under the band, never more than 16rem.
+   The formatter estimates the band's printed height from its text
+   (`--sc-band-est`, estimateWideBandHeightPx in scriptoriumImport.ts) and the
+   paged stylesheet sets the page's content height (`--sc-page-content-height`,
+   pagedPreviewCss.ts); 115px is the entry's own heading, the band's frame,
+   the gap above the art and the art's own bottom margin, plus about 25px of
+   slack (at 89px the Caramel Crusher fitted with 2px to spare in the Classic
+   theme). Outside the paged book (the
+   editor, the phone reader) there is no page height, so the fallback leaves
+   the 16rem cap in charge. 6rem is the floor below which a figure stops
+   reading as one. */
 .sc-theme .sc-statblock-entry--wide .sc-statblock-entry-aside .sc-entity-art {
-  margin: 0 auto;
-  max-height: 16rem;
+  float: left;
+  margin: 0 1.5rem 0.5rem 0;
   width: auto;
+  max-width: 45%;
+  max-height: clamp(
+    6rem,
+    calc(var(--sc-page-content-height, 100000px) - var(--sc-band-est, 0px) - 115px),
+    16rem
+  );
 }
 .sc-theme .sc-statblock-entry-lore p:last-child {
   margin-bottom: 0;

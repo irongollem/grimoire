@@ -78,19 +78,23 @@
         />
       </section>
 
-      <!-- Portrait card (interactive even for SRD — art override) -->
+      <!-- Portrait card (interactive even for SRD — art override): Picture / Cutout (#917 story 2) -->
       <section class="overflow-hidden rounded-xl border border-border bg-card">
         <EntityImageBlock
-          :model-value="form.image_url"
-          :focal-point="form.portrait_focal_point"
+          :model-value="isCutoutTab ? form.cutout_url : form.image_url"
+          :focal-point="isCutoutTab ? undefined : form.portrait_focal_point"
           bucket="monster-images"
-          show-focal-point
-          ai-kind="monster"
-          :ai-target-id="monsterId"
-          :ai-context="aiContext"
-          :mini-source="monsterId ? { table: 'monsters', id: monsterId } : undefined"
-          @update:model-value="emit('update:imageUrl', $event)"
+          :show-focal-point="!isCutoutTab"
+          :ai-kind="isCutoutTab ? undefined : 'monster'"
+          :ai-target-id="isCutoutTab ? undefined : monsterId"
+          :ai-context="isCutoutTab ? undefined : aiContext"
+          :mini-source="isCutoutTab || !monsterId ? undefined : { table: 'monsters', id: monsterId }"
+          :expect-transparency="isCutoutTab"
+          :variants="artTabVariants"
+          :active-variant-id="artTab"
+          @update:model-value="isCutoutTab ? emit('update:cutoutUrl', $event) : emit('update:imageUrl', $event)"
           @update:focal-point="emit('update:focalPoint', $event)"
+          @update:active-variant-id="artTab = $event as ArtTab"
         />
       </section>
 
@@ -298,6 +302,7 @@ import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons"
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 import type { MonsterStatBlock, MonsterType, MonsterSize } from "@/types/monster.types";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
+import { useArtTabs, type ArtTab } from "@/composables/useArtTabs";
 
 // The reactive shape MonsterDetail's `form` exposes. Structural (not the
 // MonsterInsert payload) because the form holds "" rather than null for blanks.
@@ -314,6 +319,7 @@ interface MonsterEditForm {
   description: string;
   notes: string;
   image_url: string;
+  cutout_url: string;
   portrait_focal_point: { x: number; y: number } | null;
 }
 
@@ -354,7 +360,10 @@ const emit = defineEmits<{
   customize: [];
   "update:imageUrl": [value: string];
   "update:focalPoint": [value: { x: number; y: number } | null];
+  "update:cutoutUrl": [value: string];
 }>();
+
+const { artTab, isCutoutTab, variants: artTabVariants } = useArtTabs();
 
 const aiContext = computed(() =>
   buildEntityContext([

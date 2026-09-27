@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Trap, TrapInsert, TrapUpdate } from "@/types/trap.types";
-import { deleteByPublicUrl } from "@/lib/storage";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { TRAP_TEMPLATES } from "@/data/trapTemplates";
 import type { Ref } from "vue";
 import { computed, isRef, ref } from "vue";
@@ -46,7 +46,9 @@ async function updateTrap(id: string, update: TrapUpdate): Promise<Trap> {
 async function deleteTrap(trap: Trap): Promise<void> {
   const { error } = await supabase.from("traps").delete().eq("id", trap.id);
   if (error) throw error;
-  await deleteByPublicUrl(trap.image_url);
+  // #917: a same-account campaign copy can point at this same image_url —
+  // only remove the file if nothing else still references it.
+  await deleteUnreferencedByPublicUrl({ urls: [trap.image_url] });
 }
 
 export interface UseTrapsOptions {

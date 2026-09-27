@@ -32,6 +32,7 @@ import scriptoriumFontsCss from "@/assets/scriptorium/fonts.css?inline";
 import themeBaseCss from "@/assets/scriptorium/theme-base.css?inline";
 import themeOnednd2024Css from "@/assets/scriptorium/theme-onednd2024.css?inline";
 import themePhb2014Css from "@/assets/scriptorium/theme-phb2014.css?inline";
+import { escapeHtml } from "@/lib/escapeHtml";
 
 export interface PrintDocumentOptions {
   bodyHtml: string;
@@ -54,12 +55,6 @@ const PAGE_SIZE_KEYWORD: Record<ScriptoriumPageSize, string> = {
 
 function themeClass(theme: ScriptoriumTheme): string {
   return theme === "phb2014" ? "theme-phb2014" : "theme-onednd2024";
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"]/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string,
-  );
 }
 
 /**

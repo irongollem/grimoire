@@ -35,6 +35,7 @@ function monster(overrides: Partial<Monster> = {}): Monster {
     stat_block: statBlock(),
     notes: null,
     image_url: null,
+    cutout_url: null,
     portrait_focal_point: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",

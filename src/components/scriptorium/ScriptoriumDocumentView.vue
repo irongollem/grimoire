@@ -42,11 +42,12 @@
  * Presentational only — no pagination, no furniture, no editing UI. The
  * parent passes the whole document; this never fetches one itself.
  */
-import { computed, onUnmounted, ref, watch } from "vue";
+import { computed, onUnmounted, provide, ref, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
 import { parseStoredContent, emptyDoc } from "@/lib/scriptorium/documentContent";
-import type { ScriptoriumDocument } from "@/types/scriptorium.types";
+import type { ScriptoriumDocument, ScriptoriumTheme } from "@/types/scriptorium.types";
+import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { IconWarning } from "@/lib/icons";
 
@@ -85,7 +86,13 @@ watch(
   },
 );
 
-const themeClass = computed(() => (doc.theme === "phb2014" ? "theme-phb2014" : "theme-onednd2024"));
+const theme = computed<ScriptoriumTheme>(() => (doc.theme === "phb2014" ? "phb2014" : "onednd2024"));
+// Read by entityEmbed node views (EntityEmbedView.vue) so a monster/NPC's
+// stat block formats itself in THIS document's theme rather than a hardcoded
+// default — the phone reader and quest handouts mount this view read-only,
+// so getting this wrong wasn't merely a galley cosmetic gap (#917 story 2).
+provide(SCRIPTORIUM_THEME_KEY, theme);
+const themeClass = computed(() => (theme.value === "phb2014" ? "theme-phb2014" : "theme-onednd2024"));
 
 onUnmounted(() => editor.value?.destroy());
 </script>

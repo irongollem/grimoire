@@ -1,18 +1,14 @@
 <template>
   <div class="flex flex-col gap-0">
-    <!-- Variant tabs (e.g. True Form / Alter Ego, Identified / Mundane) -->
-    <div v-if="variants && variants.length > 1" class="flex border-b border-border">
-      <button
-        v-for="variant in variants"
-        :key="variant.id"
-        type="button"
-        class="px-3 py-1.5 text-label-lg font-semibold border-b-2 transition-colors"
-        :class="activeVariantId === variant.id
-          ? 'border-primary text-primary'
-          : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="emit('update:activeVariantId', variant.id)"
-      >{{ variant.label }}</button>
-    </div>
+    <!-- Variant tabs (e.g. True Form / Alter Ego, Identified / Mundane, Picture / Cutout) -->
+    <SegmentedControl
+      v-if="variants && variants.length > 1"
+      :model-value="activeVariantId ?? variants[0].id"
+      :options="variantOptions"
+      block
+      size="sm"
+      @update:model-value="emit('update:activeVariantId', $event)"
+    />
 
     <ImageUpload
       :model-value="modelValue || null"
@@ -24,6 +20,13 @@
       @update:model-value="emit('update:modelValue', $event ?? '')"
       @update:focal-point="emit('update:focalPoint', $event)"
     />
+
+    <!-- Cutout-slot warning (#917 story 2): a definite (non-null) transparency
+         check found none. Never shown on `null` (the check couldn't run) — see
+         imageHasTransparency's own doc for why that's kept apart from `false`. -->
+    <p v-if="hasTransparency === false" class="text-caption text-muted-foreground italic">
+      This image has no transparent background, so it will print as a rectangle on the page.
+    </p>
 
     <!-- AI generation — only when the parent opts in and the campaign allows AI -->
     <div v-if="showAiButton || showMiniButton" class="mt-2 flex flex-col gap-1">
@@ -69,10 +72,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
 import { IconGenerate } from "@/lib/icons";
@@ -83,6 +87,7 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
+import { imageHasTransparency } from "@/lib/mediaConvert";
 import type { MiniSourceTable } from "@/types/mini.types";
 
 export interface ImageVariant {
@@ -98,6 +103,8 @@ const {
   aiContext,
   aiTargetId,
   miniSource,
+  variants,
+  expectTransparency = false,
 } = defineProps<{
   modelValue: string | null | undefined;
   focalPoint?: { x: number; y: number } | null;
@@ -115,6 +122,9 @@ const {
   aiTargetId?: string | null;
   /** Enables the "Mini" entry point into the Simulacrum forge wizard for this portrait. */
   miniSource?: { table: MiniSourceTable; id: string };
+  /** Cutout slots (#917 story 2) warn when the uploaded image has no
+   *  transparent background — it would print as a plain rectangle. */
+  expectTransparency?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -122,6 +132,28 @@ const emit = defineEmits<{
   (e: "update:focalPoint", value: { x: number; y: number } | null): void;
   (e: "update:activeVariantId", value: string): void;
 }>();
+
+const variantOptions = computed(() => (variants ?? []).map((v) => ({ value: v.id, label: v.label })));
+
+// null = no check has resolved yet, or the check couldn't run (see
+// imageHasTransparency's own doc) — both read as "no warning".
+const hasTransparency = ref<boolean | null>(null);
+
+watch(
+  () => modelValue,
+  async (url) => {
+    if (!expectTransparency || !url) {
+      hasTransparency.value = null;
+      return;
+    }
+    const checkedUrl = url;
+    const result = await imageHasTransparency(checkedUrl);
+    // The url may have changed while the check was in flight — a stale
+    // result must not overwrite whatever the current url's own check finds.
+    if (checkedUrl === modelValue) hasTransparency.value = result;
+  },
+  { immediate: true },
+);
 
 const campaign = useCampaignStore();
 const { isGenerating, error, generate } = useEntityImageGeneration(bucket);

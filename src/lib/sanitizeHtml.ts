@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { escapeHtml } from "@/lib/escapeHtml";
 
 /**
  * Sanitize an HTML string for safe use with `v-html`.
@@ -24,12 +25,6 @@ export function sanitizeHtml(html: string): string {
 // `data-type="columns"`, `data-prompt`, etc. `onclick` and friends are never
 // `data-*`, so they're unaffected and still stripped. See sanitizeHtml.test.ts
 // for the proof.
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
-  );
-}
 
 /**
  * Minimal markdown (`**bold**`, `*em*`, blank-line paragraphs, single-newline

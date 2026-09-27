@@ -204,6 +204,7 @@ export function mapOpen5eV2Monster(
     stat_block: statBlock,
     notes: null,
     image_url: null,
+    cutout_url: null, // Open5e has no cutout art (#917 story 1)
     // Every row this mapper produces is destined for the shared library table,
     // Kobold Press and EN Publishing included, so the flag is unconditional: it
     // marks shared content, not SRD provenance. Real provenance is

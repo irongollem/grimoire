@@ -11,9 +11,18 @@ import type { EntityRef } from "@/lib/scriptorium/entityEmbeds";
 const mocks = vi.hoisted(() => ({
   tables: {} as Record<string, Record<string, unknown>>,
   objectivesByQuest: {} as Record<string, unknown[]>,
+  // library_monster_art / library_monster_art_canonical are selected in full
+  // (no .eq() filter) by fetchLibraryMonsterArt, unlike every other table
+  // here — a separate row-list store, keyed by table name, matches that shape.
+  artRows: {} as Record<string, unknown[]>,
 }));
 
+const ART_TABLES = ["library_monster_art", "library_monster_art_canonical"];
+
 function makeBuilder(table: string) {
+  if (ART_TABLES.includes(table)) {
+    return { select: () => Promise.resolve({ data: mocks.artRows[table] ?? [], error: null }) };
+  }
   const filters: Record<string, string> = {};
   const builder = {
     select: () => builder,
@@ -41,6 +50,10 @@ vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: (table: string) => makeBuilder(table),
   },
+  // useLibraryMonsterArt.ts imports this too (for its upsert/bulk mutations,
+  // neither of which this composable calls) — unused here but needed so the
+  // named import resolves.
+  getCurrentUser: () => null,
 }));
 
 import { useEntityEmbedData } from "./useEntityEmbedData";
@@ -64,6 +77,7 @@ function open(refs: EntityRef[]) {
 beforeEach(() => {
   mocks.tables = { npcs: {}, monsters: {}, library_monsters: {}, spells: {}, items: {}, locations: {} };
   mocks.objectivesByQuest = {};
+  mocks.artRows = { library_monster_art: [], library_monster_art_canonical: [] };
 });
 
 describe("useEntityEmbedData", () => {
@@ -106,6 +120,73 @@ describe("useEntityEmbedData", () => {
     const { api } = open([{ type: "monster", id: "srd_owlbear" }]);
     await flushPromises();
     expect(api().lookup.value["monster:srd_owlbear"]).toContain("Owlbear");
+  });
+
+  it("applies the DM's library art override (a cutout) onto a shared monster embed", async () => {
+    mocks.tables.library_monsters["srd_owlbear"] = {
+      id: "srd_owlbear",
+      name: "Owlbear",
+      size: "large",
+      monster_type: "monstrosity",
+      alignment: "unaligned",
+      image_url: "https://example.test/canonical.webp",
+      cutout_url: null,
+      stat_block: {
+        armor_class: 13,
+        hit_points: 59,
+        speed: "40 ft.",
+        challenge_rating: "3",
+        str: 20,
+        dex: 12,
+        con: 17,
+        int: 3,
+        wis: 12,
+        cha: 7,
+      },
+    };
+    mocks.artRows.library_monster_art = [
+      { entry_id: "srd_owlbear", image_url: null, cutout_url: "https://example.test/mine-cut.webp", portrait_focal_point: null },
+    ];
+    const { api } = open([{ type: "monster", id: "srd_owlbear" }]);
+    await flushPromises();
+    const html = api().lookup.value["monster:srd_owlbear"];
+    expect(html).toContain("https://example.test/mine-cut.webp");
+    // The own row left image_url null, so the canonical picture survives —
+    // withLibraryArt merges per field rather than replacing the whole row.
+    expect(html).toContain("https://example.test/canonical.webp");
+  });
+
+  it("leaves a DM's own (non-shared) monster's art untouched by the library layers", async () => {
+    const ownId = "11111111-1111-4111-8111-111111111111";
+    mocks.tables.monsters[ownId] = {
+      id: ownId,
+      name: "Gnarl",
+      size: "medium",
+      monster_type: "beast",
+      alignment: "unaligned",
+      image_url: "https://example.test/own.webp",
+      cutout_url: null,
+      stat_block: {
+        armor_class: 12,
+        hit_points: 11,
+        speed: "30 ft.",
+        challenge_rating: "1/2",
+        str: 14,
+        dex: 12,
+        con: 12,
+        int: 2,
+        wis: 10,
+        cha: 6,
+      },
+    };
+    mocks.artRows.library_monster_art_canonical = [
+      { entry_id: ownId, image_url: "https://example.test/should-not-apply.webp", cutout_url: null, portrait_focal_point: null },
+    ];
+    const { api } = open([{ type: "monster", id: ownId }]);
+    await flushPromises();
+    const html = api().lookup.value[`monster:${ownId}`];
+    expect(html).toContain("https://example.test/own.webp");
+    expect(html).not.toContain("should-not-apply");
   });
 
   it("resolves an item's granted spells through a secondary fetch", async () => {

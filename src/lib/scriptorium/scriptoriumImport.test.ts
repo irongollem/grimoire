@@ -3,6 +3,7 @@ import {
   formatNpcForScriptorium,
   formatMonsterForScriptorium,
   formatEntityEmbedBodyHtml,
+  estimateWideBandHeightPx,
 } from "@/lib/scriptorium/scriptoriumImport";
 import type { Npc } from "@/types/npc.types";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
@@ -43,6 +44,8 @@ function monster(overrides: Partial<Monster> = {}): Monster {
     size: "large",
     monster_type: "monstrosity",
     alignment: "unaligned",
+    image_url: null,
+    cutout_url: null,
     stat_block: {
       armor_class: 13,
       hit_points: 59,
@@ -268,7 +271,8 @@ describe("formatMonsterForScriptorium — entry composition (heading, lore, art)
 
   it("places the portrait in the entry's aside cell, classed for the showArt toggle", () => {
     const { content } = formatMonsterForScriptorium(monster({ image_url: "https://example.com/owlbear.webp" }));
-    expect(content).toContain('class="sc-entity-art"');
+    expect(content).toContain("sc-entity-art");
+    expect(content).toContain('data-art-kind="picture"');
     const asideIndex = content.indexOf("sc-statblock-entry-aside");
     const artIndex = content.indexOf("sc-entity-art");
     expect(asideIndex).toBeGreaterThan(-1);
@@ -281,6 +285,24 @@ describe("formatMonsterForScriptorium — entry composition (heading, lore, art)
     const { content } = formatMonsterForScriptorium(monster({ image_url: null }));
     expect(content).not.toContain("sc-entity-art");
     expect(content).not.toContain("<img");
+  });
+
+  it("renders both the picture and the cutout figures when the monster has both (#917)", () => {
+    const { content } = formatMonsterForScriptorium(
+      monster({ image_url: "https://example.com/owlbear.webp", cutout_url: "https://example.com/owlbear-cut.webp" }),
+    );
+    expect(content).toContain('data-art-kind="picture"');
+    expect(content).toContain('data-art-kind="cutout"');
+    expect(content).toContain("https://example.com/owlbear.webp");
+    expect(content).toContain("https://example.com/owlbear-cut.webp");
+  });
+
+  it("renders only the cutout figure when the monster has a cutout but no picture", () => {
+    const { content } = formatMonsterForScriptorium(
+      monster({ image_url: null, cutout_url: "https://example.com/owlbear-cut.webp" }),
+    );
+    expect(content).toContain('data-art-kind="cutout"');
+    expect(content).not.toContain('data-art-kind="picture"');
   });
 
   it("places art and lore in the entry's aside cell for a column-size entry, with no column-break", () => {
@@ -327,5 +349,29 @@ describe("formatMonsterForScriptorium — entry composition (heading, lore, art)
   it("defaults a wide entry's band position to top", () => {
     const { content } = formatMonsterForScriptorium(monster());
     expect(content).toContain('data-band-position="top"');
+  });
+});
+
+describe("estimateWideBandHeightPx (#917)", () => {
+  it("errs above the Sugarwell booklet's measured band heights, so the art beside them errs small", () => {
+    // Characters -> printed band height, measured 27 Sep 2026 (A4).
+    const measured: Array<[number, number]> = [
+      [1116, 463],
+      [1304, 532],
+      [1439, 600],
+      [1871, 734],
+    ];
+    for (const [chars, printed] of measured) {
+      const estimate = estimateWideBandHeightPx(chars);
+      expect(estimate).toBeGreaterThanOrEqual(printed);
+      expect(estimate - printed).toBeLessThan(60);
+    }
+  });
+
+  it("puts the estimate on the entry for the stylesheet", () => {
+    const { content } = formatMonsterForScriptorium(
+      monster({ description: "A brute." }),
+    );
+    expect(content).toMatch(/class="sc-statblock-entry[^"]*"[^>]*style="--sc-band-est: \d+px"/);
   });
 });

@@ -350,6 +350,7 @@ export function mapExtractedMonster(
     description: capProse(payload.description),
     notes: null, // no corresponding field in ExtractedMonster
     image_url: null,
+    cutout_url: null, // no corresponding field in ExtractedMonster (#917 story 1)
     ai_provenance: provenance,
   };
   return { row, links: {} };

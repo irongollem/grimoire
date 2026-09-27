@@ -24,13 +24,27 @@
  * giver + location names + objectives, an item's granted spells) are resolved
  * in a second pass once the primary rows are in, using the SAME query keys —
  * so a location referenced both directly and as a join target is fetched once.
+ *
+ * A shared (library) monster's row comes back as-stored, with no DM art
+ * override applied — `fetchResolvedMonsterRow` mirrors `useResolvedMonster`,
+ * not `useMonsterWithArt`. #917 story 1 closed that gap: the DM's merged art
+ * layers (`useLibraryMonsterArt.ts`'s canonical+own merge, `withLibraryArt`)
+ * are fetched here too, under the exact same query key, and applied onto a
+ * shared monster before formatting — a DM's own monster is untouched, since
+ * its art already lives on its own row.
  */
 
 import { computed, type ComputedRef, type Ref } from "vue";
-import { useQueries } from "@tanstack/vue-query";
+import { useQueries, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { formatEntityEmbedBodyHtml } from "@/lib/scriptorium/scriptoriumImport";
+import {
+  fetchLibraryMonsterArt,
+  withLibraryArt,
+  LIBRARY_MONSTER_ART_QUERY_KEY,
+  LIBRARY_MONSTER_ART_STALE_TIME,
+} from "@/composables/library/useLibraryMonsterArt";
 import { entityRefKey, type EntityRef, type EntityEmbedLookup } from "@/lib/scriptorium/entityEmbeds";
 import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
 import type { Npc } from "@/types/npc.types";
@@ -40,6 +54,7 @@ import type { Item } from "@/types/item.types";
 import type { Location } from "@/types/location.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import type { ScriptoriumTheme } from "@/types/scriptorium.types";
+import { libraryMonsterRow } from "@/lib/library/libraryMonsterRow";
 
 // ── Minimal unscoped row fetchers ────────────────────────────────────────────
 
@@ -59,7 +74,7 @@ async function fetchResolvedMonsterRow(id: string): Promise<Monster> {
     .eq("id", id)
     .maybeSingle();
   if (sharedError) throw sharedError;
-  if (shared) return { ...shared, user_id: "", is_shared: true } as Monster;
+  if (shared) return libraryMonsterRow(shared);
   if (!isUuid(id)) throw new Error("Monster not found");
   const { data, error } = await supabase.from("monsters").select("*").eq("id", id).single();
   if (error) throw error;
@@ -162,6 +177,19 @@ export function useEntityEmbedData(
   const npcIdsFromRefs = idsOfType("npc");
 
   const monsters = useRowsById(monsterIds, "resolved-monster", fetchResolvedMonsterRow);
+  // Shared query key/fetcher as useLibraryMonsterArt.ts, so this reads the
+  // SAME cache entry rather than re-fetching the art layers a second time —
+  // a DM viewing the Bestiary and previewing a book in the same session pays
+  // for this fetch once. Disabled when the document has no monster embeds at
+  // all, matching every other fetch here (useRowsById already skips its own
+  // query for an empty id list).
+  const hasMonsters = computed(() => monsterIds().length > 0);
+  const libraryArt = useQuery({
+    queryKey: LIBRARY_MONSTER_ART_QUERY_KEY,
+    queryFn: fetchLibraryMonsterArt,
+    staleTime: LIBRARY_MONSTER_ART_STALE_TIME,
+    enabled: hasMonsters,
+  });
   const items = useRowsById(itemIdsFn, "items", fetchItemRow);
   const quests = useRowsById(questIdsFn, "quests", fetchQuestRow);
   const objectives = useRowsById(questIdsFn, "quest_objectives", fetchQuestObjectivesRow);
@@ -202,7 +230,12 @@ export function useEntityEmbedData(
       }
       case "monster": {
         const monster = monsters.byId.value.get(ref.id);
-        return monster ? formatEntityEmbedBodyHtml({ type: "monster", monster }, theme.value) : undefined;
+        if (!monster) return undefined;
+        // fetchResolvedMonsterRow only sets is_shared on a library row — a
+        // DM's own monster carries its art in its own image_url/cutout_url
+        // already, same as useMonsterWithArt's rule (useMonsters.ts).
+        const withArt = monster.is_shared ? withLibraryArt(monster, libraryArt.data.value?.[ref.id]) : monster;
+        return formatEntityEmbedBodyHtml({ type: "monster", monster: withArt }, theme.value);
       }
       case "spell": {
         const spell = spells.byId.value.get(ref.id);
@@ -251,6 +284,7 @@ export function useEntityEmbedData(
     () =>
       npcs.isLoading.value ||
       monsters.isLoading.value ||
+      libraryArt.isLoading.value ||
       spells.isLoading.value ||
       items.isLoading.value ||
       locations.isLoading.value ||

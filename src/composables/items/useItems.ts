@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
-import { deleteByPublicUrl } from "@/lib/storage";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { useLibraryArtDefaults } from "@/composables/library/useLibraryArtDefaults";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
@@ -75,7 +75,10 @@ async function updateItem(id: string, update: ItemUpdate): Promise<Item> {
 async function deleteItem(item: Item): Promise<void> {
   const { error } = await supabase.from("items").delete().eq("id", item.id);
   if (error) throw error;
-  await deleteByPublicUrl(item.image_url, item.mundane_image_url);
+  // #917: a same-account campaign copy (copyToCampaign's buildCopyPlan) or a
+  // cloneItem() duplicate can point at this same image_url/mundane_image_url —
+  // only remove the files nothing else still references.
+  await deleteUnreferencedByPublicUrl({ urls: [item.image_url, item.mundane_image_url] });
 }
 
 /**

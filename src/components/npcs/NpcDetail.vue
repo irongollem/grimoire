@@ -381,6 +381,8 @@ async function promoteToMonster() {
       source: null,
       tags: [...props.npc.tags],
       image_url: props.npc.portrait_url,
+      // An NPC has no cutout yet (#917 covers monsters first).
+      cutout_url: null,
       portrait_focal_point: props.npc.portrait_focal_point ?? null,
       description: null,
       notes: props.npc.notes,

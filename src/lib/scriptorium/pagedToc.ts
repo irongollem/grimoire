@@ -21,6 +21,7 @@
 
 import type { ScriptoriumPageSize } from "@/types/scriptorium.types";
 import { flagsFromHtml, computePageLabels } from "./pageNumbering";
+import { escapeHtml } from "@/lib/escapeHtml";
 
 export interface PagedTocOptions {
   showPageNumbers: boolean;
@@ -90,14 +91,6 @@ function collectHeadings(root: ParentNode): { level: number; text: string }[] {
     out.push({ level: Number(h.tagName[1]), text });
   });
   return out;
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 export function renderTocHtml(items: TocItem[], pageSize: ScriptoriumPageSize = "A4"): string {

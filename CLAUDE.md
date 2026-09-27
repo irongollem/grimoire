@@ -413,13 +413,15 @@ to the root — which is precisely the 225-file flat bucket this replaced. `useQ
 belongs in `quests/` because it is *about* quests, however many features read it.
 Popularity is not the test here either; it is just a different non-test.
 
-The 19 modules that stay at the root are the ones with genuinely no domain:
+The 22 modules that stay at the root are the ones with genuinely no domain:
 `useConfirm`, `useToast`, `useBreakpoint`, `useHotkeys`, `useInfiniteScroll`,
 `useScrollRestore`, `useLazyMount`, `useDetailModal`, `useAnchoredPopover`,
 `useModeSwitch`, `useTheme`, `useGlobalSearch`, `useScreenShake`, `useLocalePrefs`,
-the PWA trio (`useAppUpdate`, `usePwaInstall`, `usePullToRefresh`) and the image pair
-(`useImageUpload`, `usePendingImageResolver`). Adding a 20th is a
-claim that the thing has no domain — check that claim before you make it.
+`useBulkSelection`, `useUnsavedGuard`, the PWA trio (`useAppUpdate`, `usePwaInstall`,
+`usePullToRefresh`) and the image trio (`useImageUpload`, `usePendingImageResolver`,
+`useArtTabs`). Adding a 23rd is a claim that the thing has no domain — check that
+claim before you make it. (This list read 19 until 27 Sep 2026 while the folder held
+21: count the folder when you add one, not the list.)
 
 A small folder is fine. `locations/`, `deities/` and `crafting/` hold one module each,
 because a first-class domain having a home is worth more than the folder count; the

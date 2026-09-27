@@ -38,6 +38,7 @@ function makeMonster(overrides: Partial<Monster> & { id: string; name: string; c
     },
     notes: null,
     image_url: null,
+    cutout_url: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...rest,
