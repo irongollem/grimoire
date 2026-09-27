@@ -53,13 +53,33 @@ const IMAGE_QUOTES = [
   "Framing the ideal heroic silhouette…",
 ];
 
-const _quotePool = ref<string[]>(TEXT_QUOTES);
+// A restyled map: a painter working over a floor plan, not a portrait sitter.
+const MAP_QUOTES = [
+  "Grinding pigments for the floorboards…",
+  "Inking the walls where you drew them…",
+  "Lighting the candles room by room…",
+  "Furnishing each room from your notes…",
+  "Letting the dust settle just so…",
+  "Checking every door is still a door…",
+  "Arguing with the cartographer about shadows…",
+  "Laying the rugs straight…",
+  "Varnishing the last few planks…",
+  "Hanging cobwebs in the corners…",
+];
+
+const QUOTE_POOLS = { text: TEXT_QUOTES, image: IMAGE_QUOTES, map: MAP_QUOTES } as const;
+
+const _quotePool = ref<readonly string[]>(TEXT_QUOTES);
 const _quoteIndex = ref(0);
 let _quoteInterval: ReturnType<typeof setInterval> | null = null;
 
 /** Start cycling the loading quotes. Call when generation begins. */
-export function startAiQuotes(phase: "text" | "image" = "text") {
-  const pool = phase === "image" ? IMAGE_QUOTES : TEXT_QUOTES;
+export function startAiQuotes(phase: keyof typeof QUOTE_POOLS = "text") {
+  // A generator that moves from its text phase to its image phase calls this
+  // again; without stopping the running rotation first, each call left one
+  // more interval ticking and the lines sped up.
+  stopAiQuotes();
+  const pool = QUOTE_POOLS[phase];
   _quotePool.value = pool;
   _quoteIndex.value = Math.floor(Math.random() * pool.length);
   _quoteInterval = setInterval(() => {

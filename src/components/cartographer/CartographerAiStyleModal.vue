@@ -22,52 +22,66 @@
           Re-render this map in an artistic style. The result is a new image, and your tile map stays unchanged.
         </template>
       </p>
-      <!-- Preset grid -->
-      <!-- LEFT: no matching AppButton variant — a vertical tile (icon over
-           label over description) rather than the primitive's horizontal
-           icon+label row, and its selected state (border-amber-500/60
-           bg-amber-500/10 text-amber-400) uses the documented-unsupported
-           amber "coin gold" tone. -->
-      <div class="grid grid-cols-3 gap-2 mb-4">
-        <button
-          v-for="preset in presets"
-          :key="preset.id"
-          type="button"
-          :title="preset.description"
-          :class="[
-            'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors',
-            selectedPresetId === preset.id
-              ? 'border-amber-500/60 bg-amber-500/10 text-amber-400'
-              : 'border-border bg-background text-muted-foreground hover:border-amber-500/30 hover:text-foreground',
-          ]"
-          @click="$emit('update:selectedPresetId', preset.id)"
-        >
-          <span class="text-lg leading-none">{{ preset.icon }}</span>
-          <span class="text-label font-semibold leading-tight">{{ preset.label }}</span>
-          <span class="text-caption-sm leading-tight opacity-70">{{ preset.description }}</span>
-        </button>
+      <!-- While it renders, the form gives way to what is happening: a map
+           takes most of a minute on the precise-edit model, and a relabelled
+           button was the only sign anything was under way. Same pulsing mark
+           and rotating lines as the other generators, plus the time so far,
+           since the wait here is longer than theirs. -->
+      <div v-if="generating" class="flex flex-col items-center gap-3 py-8 text-center" role="status" aria-live="polite">
+        <IconGenerate class="h-8 w-8 text-primary animate-pulse" aria-hidden="true" />
+        <p class="text-body text-foreground italic">{{ currentLoadingQuote }}</p>
+        <p class="text-caption text-muted-foreground tabular-nums">{{ elapsedLabel }} so far, usually about a minute</p>
       </div>
-      <!-- Freeform suffix -->
-      <label class="block text-eyebrow text-muted-foreground mb-1">
-        Additional details <span class="normal-case">(optional)</span>
-      </label>
-      <textarea
-        :value="promptSuffix"
-        rows="2"
-        maxlength="300"
-        placeholder="e.g. 'flooded corridors, green bioluminescent fungus, caved-in east wing'"
-        class="w-full bg-background border border-border rounded-md px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:promptSuffix', ($event.target as HTMLTextAreaElement).value)"
-      />
-      <p v-if="error" class="mt-2 text-caption text-destructive">{{ error }}</p>
+      <template v-else>
+        <!-- Preset grid -->
+        <!-- LEFT: no matching AppButton variant — a vertical tile (icon over
+             label over description) rather than the primitive's horizontal
+             icon+label row, and its selected state (border-amber-500/60
+             bg-amber-500/10 text-amber-400) uses the documented-unsupported
+             amber "coin gold" tone. -->
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          <button
+            v-for="preset in presets"
+            :key="preset.id"
+            type="button"
+            :title="preset.description"
+            :class="[
+              'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors',
+              selectedPresetId === preset.id
+                ? 'border-amber-500/60 bg-amber-500/10 text-amber-400'
+                : 'border-border bg-background text-muted-foreground hover:border-amber-500/30 hover:text-foreground',
+            ]"
+            @click="$emit('update:selectedPresetId', preset.id)"
+          >
+            <span class="text-lg leading-none">{{ preset.icon }}</span>
+            <span class="text-label font-semibold leading-tight">{{ preset.label }}</span>
+            <span class="text-caption-sm leading-tight opacity-70">{{ preset.description }}</span>
+          </button>
+        </div>
+        <!-- Freeform suffix -->
+        <label class="block text-eyebrow text-muted-foreground mb-1">
+          Additional details <span class="normal-case">(optional)</span>
+        </label>
+        <textarea
+          :value="promptSuffix"
+          rows="2"
+          maxlength="300"
+          placeholder="e.g. 'flooded corridors, green bioluminescent fungus, caved-in east wing'"
+          class="w-full bg-background border border-border rounded-md px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+          @input="$emit('update:promptSuffix', ($event.target as HTMLTextAreaElement).value)"
+        />
+        <p v-if="error" class="mt-2 text-caption text-destructive">{{ error }}</p>
+      </template>
     </div>
     <div class="flex shrink-0 justify-end items-center gap-2 px-5 pb-5 pt-2">
       <GenerationCostBadge :credits="credits" :byok="byok" class="mr-auto" />
+      <!-- The render carries on without the dialog and its result opens when
+           it lands, so closing mid-render is "later", not "cancel". -->
       <AppButton
         variant="subtle"
         size="sm"
         class="px-4"
-        label="Cancel"
+        :label="generating ? 'Continue in background' : 'Cancel'"
         @click="$emit('closePicker')"
       />
       <AppButton
@@ -77,6 +91,7 @@
         size="sm"
         class="px-4"
         :disabled="generating"
+        :loading="generating"
         :label="generating ? 'Generating…' : 'Generate'"
         @click="onGenerateClick"
       />
@@ -159,6 +174,9 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { currentLoadingQuote } from "@/ai/aiGenerationState";
+import { IconGenerate } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
@@ -269,5 +287,30 @@ async function requestCloseResult() {
 }
 
 const atlasLocationId = defineModel<string>("atlasLocationId", { default: "" });
+
+// Time since this render started, counted here rather than in the composable:
+// it is only ever read by this dialog, and it resets with each render.
+const elapsedSeconds = ref(0);
+let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+function stopElapsed(): void {
+  if (elapsedTimer) clearInterval(elapsedTimer);
+  elapsedTimer = null;
+}
+watch(
+  () => generating,
+  (isGenerating) => {
+    stopElapsed();
+    if (!isGenerating) return;
+    elapsedSeconds.value = 0;
+    elapsedTimer = setInterval(() => { elapsedSeconds.value += 1; }, 1000);
+  },
+  { immediate: true },
+);
+onBeforeUnmount(stopElapsed);
+const elapsedLabel = computed(() => {
+  const m = Math.floor(elapsedSeconds.value / 60);
+  const sec = String(elapsedSeconds.value % 60).padStart(2, "0");
+  return `${m}:${sec}`;
+});
 </script>
 

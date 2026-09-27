@@ -81,6 +81,7 @@ import {
 } from "@/composables/locations/useLocations";
 import { useCampaignStore } from "@/stores/campaign";
 import { edgeErrorMessage } from "@/lib/edgeError";
+import { startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 /** Shape of the `style-map` edge function's JSON response. */
@@ -209,6 +210,7 @@ export function useMapExport(opts: {
       return;
     }
     styleGenerating.value = true;
+    startAiQuotes("map");
     try {
       const target = fixedTarget.value;
       const { blob: pngBlob, geometry, size } =
@@ -243,6 +245,7 @@ export function useMapExport(opts: {
     } catch (e) {
       styleError.value = e instanceof Error ? e.message : "Something went wrong";
     } finally {
+      stopAiQuotes();
       styleGenerating.value = false;
     }
   }
