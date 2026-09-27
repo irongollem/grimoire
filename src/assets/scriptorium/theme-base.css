@@ -136,6 +136,9 @@
 .sc-theme p {
   margin: 0 0 0.6rem;
   font-style: normal;
+  /* No paragraph ends on one word alone on its last line, as a typesetter
+     would avoid; the cover subtitle left "LEVEL" by itself in the PDF. */
+  text-wrap: pretty;
 }
 .sc-theme ul,
 .sc-theme ol {
@@ -285,6 +288,8 @@
   padding: 0;
   margin: 0;
   letter-spacing: normal;
+  /* Display lines break evenly rather than leaving a short tail. */
+  text-wrap: balance;
 }
 
 /* ── Footer / page numbers ───────────────────────────────────────────────── */

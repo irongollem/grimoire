@@ -190,7 +190,7 @@ const FRONT_TAGLINE_STYLE =
 const FRONT_SUBTITLE_STYLE =
   "font-family:var(--sc-heading-font,Georgia,serif);font-size:0.95rem;font-weight:700;" +
   "color:var(--sc-accent-contrast,#F9F6EF);text-shadow:0 1px 4px rgba(0,0,0,0.8);" +
-  "letter-spacing:0.18em;text-transform:uppercase;margin:0 0 0.4rem;opacity:0.92";
+  "letter-spacing:0.18em;text-transform:uppercase;margin:0 0 0.4rem;opacity:0.92;text-wrap:balance";
 
 // The title itself: very large, tall, condensed-reading caps, one or two lines.
 const FRONT_TITLE_STYLE =
@@ -254,7 +254,7 @@ const INSIDE_TITLE_STYLE =
 
 const INSIDE_SUBTITLE_STYLE =
   "font-family:var(--sc-body-font,Georgia,serif);font-size:1rem;" +
-  "color:var(--sc-ink,#1a1a1a);font-style:italic;margin:0;opacity:0.8";
+  "color:var(--sc-ink,#1a1a1a);font-style:italic;margin:0;opacity:0.8;text-wrap:balance";
 
 function buildInside(attrs: CoverPageAttrs): NodeSpec[] {
   // When there's a background image use an <img> for proper CORS/html2canvas
@@ -305,7 +305,7 @@ const PART_NUMBER_STYLE =
 
 const PART_SUBTITLE_STYLE =
   "font-family:var(--sc-body-font,Georgia,serif);font-size:1.05rem;" +
-  "color:var(--sc-ink,#1a1a1a);font-style:italic;text-align:center;margin:0;opacity:0.75;max-width:22rem";
+  "color:var(--sc-ink,#1a1a1a);font-style:italic;text-align:center;margin:0;opacity:0.75;max-width:22rem;text-wrap:balance";
 
 function buildPart(attrs: CoverPageAttrs): NodeSpec[] {
   return [
@@ -329,7 +329,7 @@ const BACK_CONTENT_STYLE =
 
 const BACK_SUBTITLE_STYLE =
   "font-family:var(--sc-heading-font,Georgia,serif);font-size:1.35rem;font-weight:700;" +
-  "color:var(--sc-accent,#1B3A4B);margin:0 0 1rem;letter-spacing:0.03em";
+  "color:var(--sc-accent,#1B3A4B);margin:0 0 1rem;letter-spacing:0.03em;text-wrap:balance";
 
 const BACK_BLURB_STYLE =
   "font-family:var(--sc-body-font,Georgia,serif);font-size:0.875rem;" +
