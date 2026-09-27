@@ -27,7 +27,7 @@
         :icon="option.icon"
         :tooltip="option.tooltip"
         :active="modelValue === option.value"
-        :class="block ? 'flex-1' : ''"
+        :class="block ? 'flex-1 min-w-0' : ''"
       />
     </ToggleGroupItem>
   </ToggleGroupRoot>
