@@ -132,14 +132,15 @@
         </div>
       </div>
 
-      <!-- Reference-layer toggle (#884 S6) — only when embedded with a site whose
-           Picture we can show underneath. Standalone /cartographer/:id passes no
-           site, so this never renders there. -->
-      <div
-        v-if="referencePicture"
-        class="absolute top-2 right-2 px-2 py-1 rounded-md bg-card/95 border border-border"
-      >
-        <AppCheckbox v-model="showPictureReference" label="Reference" size="sm" />
+      <!-- Top right: the host's own canvas controls (a site's level picker),
+           then the Reference toggle (#884 S6), which shows only when embedded
+           with a site whose Picture can go underneath. Standalone
+           /cartographer/:id passes neither. -->
+      <div class="absolute top-2 right-2 flex items-center gap-2">
+        <slot name="canvas-top-right" />
+        <div v-if="referencePicture" class="px-2 py-1 rounded-md bg-card/95 border border-border">
+          <AppCheckbox v-model="showPictureReference" label="Reference" size="sm" />
+        </div>
       </div>
 
       <!-- Overlay hint while the default pack loads -->

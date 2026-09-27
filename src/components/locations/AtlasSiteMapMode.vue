@@ -23,10 +23,16 @@
          spaces/zones/doors directly, on the site's own Drawing or a blank
          grid alike (`map` is null until one exists; the Plan needs no
          image under it at all — see MapWorkbench's own docblock). Folds the
-         levels rail/column so the workbench gets the pane's full width,
+         levels column so the workbench gets the pane's full width (the
+         levels ride on the canvas as `SiteLevelPicker` instead),
          same as Map mode already folds the Atlas tree. -->
     <div v-if="building" class="relative min-w-0 flex-1">
+      <!-- Keyed by place: the workbench reads its map once, so moving to
+           another site while in Build (a level switch, a pin, the tree) kept
+           the previous site's drawing on the canvas, and the first stroke
+           would have autosaved it as the new site's map. -->
       <MapWorkbench
+        :key="location.id"
         ref="drawingWorkbenchRef"
         :map="siteSourceMap ?? null"
         :view-mode="false"
@@ -34,7 +40,14 @@
         :spaces="siteSpaces"
         @update:dirty="drawingEditor.onDirtyChange"
         @update:edit-revision="drawingEditor.onEditRevision"
-      />
+      >
+        <!-- Build folds the levels column away, so the levels ride on the
+             canvas instead: without this a DM drawing one floor could not see
+             or reach the others. -->
+        <template #canvas-top-right>
+          <SiteLevelPicker v-if="showLevelsRail" :levels="levelSites" :active-id="location.id" @select="onBuildLevelSelect" />
+        </template>
+      </MapWorkbench>
     </div>
 
     <template v-else>
@@ -209,6 +222,7 @@ import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
 import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
 import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
 import MapWorkbench from "@/components/cartographer/MapWorkbench.vue";
+import SiteLevelPicker from "@/components/locations/SiteLevelPicker.vue";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import { useMapExport } from "@/composables/cartographer/useMapExport";
 import { useMapPublish } from "@/composables/cartographer/useMapPublish";
@@ -521,6 +535,14 @@ const currentLevelOrdinal = computed(() =>
 /** "2 stairs down" trail chip — every vertical way out this site itself has,
  *  from the same door graph the Ways out panel already reads. */
 const verticalWaysCount = computed(() => verticalWays(siteStructureDoors.value).length);
+
+/** Build's level switch: saves the drawing first, then selects plainly (the
+ *  descent zoom needs Browse's map, which Build does not mount). Build stays
+ *  on, since selecting keeps the rest of the route's query. */
+async function onBuildLevelSelect(id: string): Promise<void> {
+  await drawingEditor.flush();
+  emit("select", id);
+}
 
 function onLevelSelect(id: string) {
   if (id === location.id) return; // already here — the rail's own active row
