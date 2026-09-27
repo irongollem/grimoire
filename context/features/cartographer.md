@@ -564,6 +564,7 @@ The hotkeys are the `shortcut` values of `TOOLS` in `src/components/cartographer
 
 | Tool          | Hotkey | Layer       | Notes                                                  |
 | ------------- | ------ | ----------- | ------------------------------------------------------ |
+| Select        | Esc    | —           | The default tool on open. Click selects a cell for the inspector's read-only summary; drag pans, exactly like Pan — a DM's first tap never paints. Grouped in "View" beside Pan, not Draw. |
 | Floor brush   | `B`    | floor       | Paints floor cells with a random variant.              |
 | Eraser        | `E`    | active      | Removes from the active layer / edge.                  |
 | Wall          | `W`    | floor.edges | Edge-hover targeting; see UX notes.                    |
@@ -587,6 +588,7 @@ The hotkeys are the `shortcut` values of `TOOLS` in `src/components/cartographer
 - **Door tool**: hovers the same way as the wall brush. Click on a wall edge converts it to `doorClosed`. Click an existing door toggles `doorClosed` ↔ `doorOpen`. Right-click removes the door, leaving the wall.
 - **Solid block vs. wall brush**: these are two different tools by design. The wall brush gives you a thin wall on an edge (a curtain, a partition, a worked-stone room boundary). The solid block tool gives you a thick wall in a cell (a sand-filled battlement, mountain rock, a 5 ft slab of masonry). The DM picks based on the dungeon's mass.
 - **Rectangle + Shift**: Shift-dragging the rectangle tool fills the area with floor *and* runs `wrap walls` on the rectangle perimeter — the most common "make a room" gesture.
+- **Alt inverts a painting tool** — the same modifier idea the Plan's Door tool already used for Alt+click-to-delete (`usePlanCanvasTools.ts`). Holding Alt while a Drawing tool would paint erases what it paints instead, as one undoable stroke: floor/cave → `eraseCell`, solid → `eraseSolidAt`, stamp → `eraseObjectAt`, wall → `eraseWallAtCellEdge`, door → `removeDoorAtEdge` (same function RMB already used), rect/line/template → erase the cells the shape covers. Select/Pan/Fill/Wrap/Annotate/Link/Eraser/Space have no inverse and ignore Alt. RMB/middle/shift still pan exactly as before — Alt is a separate, additive modifier, never a pan trigger. The canvas pill appends " · erase" while Alt is held over an invertible tool; Alt state is tracked at the window level (`altHeld` in `useMapCanvasEditor.ts`) so the pill reacts even with the pointer sitting still, cleared on blur so alt-tabbing away never leaves it stuck.
 
 ### Structure tool group (#868, narrowed to Space alone by #884)
 
@@ -621,6 +623,7 @@ Contextual to the active tool:
 - **Pack picker** (always visible): grid of loaded packs with thumbnails; clicking sets the brush's pack. Shows "Load more packs" button to pull from storage.
 - **Tool-specific options**: brush size (1, 3, 5 cells), rectangle fill mode (outline / filled), object rotation.
 - **Cell inspector** (when a cell is selected): shows linked entities, edit/remove links.
+- **Select section**: with a cell selected, a read-only summary computed in `MapWorkbench.vue` and handed down as plain props (the same "MapWorkbench computes, the panel renders" shape as `annotationText`/`linkedNoteId`) — coordinates, floor (yes/no), solid block (yes/no), each present edge with its kind (wall/closed door/open door; N/W read straight off the cell, E/S off the neighbour's W/N per the NW-ownership rule), the object category if any, the annotation text if any, and linked note/encounter/trap/feature names. With nothing selected: "Click a cell to see what is in it. Drag to move the map."
 
 ### Canvas behaviour
 

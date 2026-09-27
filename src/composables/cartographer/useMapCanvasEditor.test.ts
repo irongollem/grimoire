@@ -15,7 +15,8 @@
 // sibling "record what a fake 2D context was asked to draw" approach; this
 // file doesn't need that because renderMap itself is swapped out.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { computed, nextTick, ref, type ComputedRef, type Ref } from "vue";
+import { computed, defineComponent, h, nextTick, ref, type ComputedRef, type Ref } from "vue";
+import { mount } from "@vue/test-utils";
 import { useMapCanvasEditor, type MapCanvasEditorOptions } from "./useMapCanvasEditor";
 import {
   emptyLayers,
@@ -769,5 +770,236 @@ describe("touch", () => {
     vi.advanceTimersByTime(500);
     editor.onPointerUp(up(10, 10, touch(1)));
     expect(painted(layers)).toBe(0);
+  });
+});
+
+// ── Select tool ──────────────────────────────────────────────────
+// A plain click selects the cell; a drag pans instead — never paints,
+// whatever tool a previous session left armed.
+
+describe("select tool", () => {
+  it("a plain click selects the cell and paints nothing", () => {
+    const selectedCell = ref<[number, number] | null>(null);
+    const { editor, layers } = makeHarness({ activeTool: ref<Tool>("select"), selectedCell });
+    clickCell(editor, 10, 10); // (0,0)
+    expect(selectedCell.value).toEqual([0, 0]);
+    expect(layers.value.floor["0,0" as CellKey]).toBeUndefined();
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("a drag pans the viewport instead of selecting", () => {
+    const selectedCell = ref<[number, number] | null>(null);
+    const { editor } = makeHarness({ activeTool: ref<Tool>("select"), selectedCell });
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10));
+    editor.onPointerMove(move(60, 10)); // past the 4px slop
+    editor.onPointerUp(up(60, 10));
+    expect(editor.viewportOffset.value).not.toEqual(before);
+    expect(selectedCell.value).toBeNull();
+  });
+
+  it("RMB still pans with Select armed, exactly as with any other tool", () => {
+    const selectedCell = ref<[number, number] | null>(null);
+    const { editor } = makeHarness({ activeTool: ref<Tool>("select"), selectedCell });
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10, { button: 2 }));
+    editor.onPointerMove(move(60, 10, { button: 2 }));
+    editor.onPointerUp(up(60, 10, { button: 2 }));
+    expect(editor.viewportOffset.value).not.toEqual(before);
+    expect(selectedCell.value).toBeNull();
+  });
+
+  it("one finger pans on touch — never paints and never selects mid-drag", () => {
+    const selectedCell = ref<[number, number] | null>(null);
+    const { editor, layers } = makeHarness({ activeTool: ref<Tool>("select"), selectedCell });
+    vi.useFakeTimers();
+    editor.onPointerDown(down(10, 10, { pointerType: "touch", pointerId: 1 }));
+    vi.advanceTimersByTime(100); // past the touch hold
+    editor.onPointerMove(move(80, 10, { pointerType: "touch", pointerId: 1 }));
+    editor.onPointerUp(up(80, 10, { pointerType: "touch", pointerId: 1 }));
+    expect(Object.keys(layers.value.floor).length).toBe(0);
+    vi.useRealTimers();
+  });
+});
+
+// ── Alt inverts a painting tool ──────────────────────────────────
+// Same modifier idea as the Plan's Door tool (usePlanCanvasTools.ts):
+// holding Alt while a tool would paint erases what it paints instead.
+
+describe("Alt inverts a painting tool", () => {
+  it("floor: Alt+click erases an existing cell instead of painting", () => {
+    const { editor, activeTool, layers } = makeHarness();
+    clickCell(editor, 10, 10); // paint (0,0)
+    expect(layers.value.floor["0,0" as CellKey]).toBeDefined();
+
+    activeTool.value = "floor";
+    editor.onPointerDown(down(10, 10, { altKey: true }));
+    editor.onPointerUp(up(10, 10, { altKey: true }));
+    expect(layers.value.floor["0,0" as CellKey]).toBeUndefined();
+  });
+
+  it("floor: Alt+drag erases every cell the stroke crosses, as one undo step", () => {
+    const { editor, layers } = makeHarness();
+    // Paint a run first, unaltered.
+    editor.onPointerDown(down(10, 10));
+    editor.onPointerMove(move(138, 10));
+    editor.onPointerUp(up(138, 10));
+    expect(layers.value.floor["0,0" as CellKey]).toBeDefined();
+    expect(layers.value.floor["1,0" as CellKey]).toBeDefined();
+
+    editor.onPointerDown(down(10, 10, { altKey: true }));
+    editor.onPointerMove(move(138, 10, { altKey: true }));
+    editor.onPointerUp(up(138, 10, { altKey: true }));
+    expect(layers.value.floor["0,0" as CellKey]).toBeUndefined();
+    expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
+
+    editor.undoEdit(); // the whole erase stroke reverts in one step
+    expect(layers.value.floor["0,0" as CellKey]).toBeDefined();
+    expect(layers.value.floor["1,0" as CellKey]).toBeDefined();
+  });
+
+  it("solid: Alt+click erases a solid block", () => {
+    const { editor, activeTool, layers } = makeHarness();
+    activeTool.value = "solid";
+    clickCell(editor, 10, 10);
+    expect(layers.value.solidBlock["0,0" as CellKey]).toBeDefined();
+
+    editor.onPointerDown(down(10, 10, { altKey: true }));
+    editor.onPointerUp(up(10, 10, { altKey: true }));
+    expect(layers.value.solidBlock["0,0" as CellKey]).toBeUndefined();
+  });
+
+  it("stamp: Alt+click erases the object, same as RMB does", () => {
+    const { editor, activeTool, layers } = makeHarness();
+    activeTool.value = "stamp";
+    clickCell(editor, 10, 10);
+    expect(layers.value.object["0,0" as CellKey]).toBeDefined();
+
+    editor.onPointerDown(down(10, 10, { altKey: true }));
+    editor.onPointerUp(up(10, 10, { altKey: true }));
+    expect(layers.value.object["0,0" as CellKey]).toBeUndefined();
+  });
+
+  it("wall: Alt+click erases a wall edge", () => {
+    const { editor, activeTool, layers } = makeHarness();
+    activeTool.value = "wall";
+    editor.onPointerMove(move(64, 10)); // near cell (0,0)'s north edge
+    editor.onPointerDown(down(64, 10));
+    editor.onPointerUp(up(64, 10));
+    expect(layers.value.floor["0,0" as CellKey]?.wallN).toBeDefined();
+
+    editor.onPointerMove(move(64, 10, { altKey: true }));
+    editor.onPointerDown(down(64, 10, { altKey: true }));
+    editor.onPointerUp(up(64, 10, { altKey: true }));
+    expect(layers.value.floor["0,0" as CellKey]?.wallN).toBeUndefined();
+  });
+
+  it("door: Alt+click removes the door, reverting to a plain wall, same as RMB does", () => {
+    const { editor, activeTool, layers } = makeHarness();
+    activeTool.value = "wall";
+    editor.onPointerMove(move(64, 10));
+    editor.onPointerDown(down(64, 10));
+    editor.onPointerUp(up(64, 10));
+
+    activeTool.value = "door";
+    editor.onPointerMove(move(64, 10));
+    editor.onPointerDown(down(64, 10));
+    editor.onPointerUp(up(64, 10));
+    expect(layers.value.floor["0,0" as CellKey]?.wallN?.type).toBe("doorClosed");
+
+    editor.onPointerMove(move(64, 10, { altKey: true }));
+    editor.onPointerDown(down(64, 10, { altKey: true }));
+    editor.onPointerUp(up(64, 10, { altKey: true }));
+    expect(layers.value.floor["0,0" as CellKey]?.wallN?.type).toBe("wall");
+  });
+
+  it("rect: Alt+drag erases the cells the rectangle covers", () => {
+    const { editor, activeTool, layers } = makeHarness();
+    activeTool.value = "rect";
+    editor.onPointerDown(down(10, 10)); // (0,0)
+    editor.onPointerMove(move(138, 10)); // (1,0)
+    editor.onPointerUp(up(138, 10));
+    expect(layers.value.floor["0,0" as CellKey]).toBeDefined();
+    expect(layers.value.floor["1,0" as CellKey]).toBeDefined();
+
+    editor.onPointerDown(down(10, 10, { altKey: true }));
+    editor.onPointerMove(move(138, 10, { altKey: true }));
+    editor.onPointerUp(up(138, 10, { altKey: true }));
+    expect(layers.value.floor["0,0" as CellKey]).toBeUndefined();
+    expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
+  });
+
+  it("tools with nothing to invert (eraser, fill) ignore Alt", () => {
+    const { editor, activeTool, layers } = makeHarness();
+    activeTool.value = "fill";
+    // Paint one cell by hand so fill has a region to flood.
+    layers.value.floor["0,0" as CellKey] = { floor: { pack_id: "pack-1", pack_version: 3, variant: 0 } };
+    editor.onPointerDown(down(10, 10, { altKey: true }));
+    editor.onPointerUp(up(10, 10, { altKey: true }));
+    // Fill still floods/paints — Alt has no erase mirror for a one-shot tool.
+    expect(layers.value.floor["0,0" as CellKey]).toBeDefined();
+  });
+});
+
+// ── altHeld ───────────────────────────────────────────────────────
+// The keydown/keyup/blur listeners live inside onMounted, beside the
+// existing shortcut listener — calling useMapCanvasEditor() bare, as
+// makeHarness does everywhere else in this file, never runs onMounted at
+// all (Vue silently drops it outside a component, with only a dev warning).
+// These two need a real mounted host to exercise that wiring.
+
+describe("altHeld", () => {
+  function mountForLifecycle(): ReturnType<typeof useMapCanvasEditor> {
+    let captured!: ReturnType<typeof useMapCanvasEditor>;
+    const runtime = fakeRuntime();
+    const Host = defineComponent({
+      setup() {
+        captured = useMapCanvasEditor({
+          canvasEl: ref<HTMLCanvasElement | null>(fakeCanvas()),
+          layers: ref<DungeonMapLayers>(emptyLayers()),
+          metadata: ref<Record<CellKey, CellMetadata>>({}),
+          dirty: ref(false),
+          editRevision: ref(0),
+          currentPackId: ref("pack-1"),
+          packRuntime: computed(() => runtime) as ComputedRef<TilePackRuntime | null>,
+          selectablePacks: computed(() => [{ pack_id: "pack-1", pack_version: 3 }]),
+          loadedRuntimes: ref(new Map()),
+          cellGlyphs: computed(() => ({})),
+          activeTool: ref<Tool>("floor"),
+          tools: [{ id: "floor", shortcut: "f" }],
+          viewMode: () => false,
+          activeObjectCategory: ref<ObjectCategory>("objectChest"),
+          stampRotation: ref(0),
+          activeTemplateShape: ref("circle"),
+          caveRadius: ref(2),
+          selectedCell: ref(null),
+          inspectorPanelRef: ref(null),
+          structure: fakeStructure(),
+          mapKey: computed(() => "map-test"),
+          getReferenceImage: () => null,
+          extraRenderDeps: [],
+        });
+        return () => h("div");
+      },
+    });
+    mount(Host);
+    return captured;
+  }
+
+  it("tracks the physical Alt key via window keydown/keyup", () => {
+    const editor = mountForLifecycle();
+    expect(editor.altHeld.value).toBe(false);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Alt" }));
+    expect(editor.altHeld.value).toBe(true);
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: "Alt" }));
+    expect(editor.altHeld.value).toBe(false);
+  });
+
+  it("clears on window blur, so a stuck Alt from alt-tabbing away doesn't linger", () => {
+    const editor = mountForLifecycle();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Alt" }));
+    expect(editor.altHeld.value).toBe(true);
+    window.dispatchEvent(new Event("blur"));
+    expect(editor.altHeld.value).toBe(false);
   });
 });

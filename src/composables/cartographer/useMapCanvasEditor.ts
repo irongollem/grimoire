@@ -135,6 +135,27 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // in src/cartographer/paintOps.ts for what each field replaces and why.
   let strokeState = paintOps.createStrokeState();
 
+  // Select tool — a press hasn't committed to "click" or "drag" yet.
+  // Holds the local pointer position from pointerdown; toolPointerMove
+  // promotes it to an ordinary pan once the pointer travels past the slop,
+  // and toolPointerUp treats it as a plain click (select the cell) if it
+  // never did. RMB/middle/shift already pan unconditionally before this
+  // tool is ever consulted (the isPanTrigger check in toolPointerDown), so
+  // this only ever arms for a genuine left-button press.
+  const SELECT_DRAG_SLOP_PX = 4;
+  let pendingSelectStart: { x: number; y: number } | null = null;
+
+  // Alt inverts a painting tool into its erase mirror, tracked at the
+  // window level (not per-pointer-event) so the status pill can show
+  // " · erase" the instant the key goes down or up, even with the pointer
+  // sitting still. The actual paint/erase decision on a given stroke still
+  // reads the POINTER event's own `altKey` (set on onKeyDown/onKeyUp below,
+  // wired through the same window listeners `onKeyDown` already uses for
+  // shortcuts — see the Lifecycle section) rather than this ref, since a
+  // pointer event's modifier flags are always current and this ref updates
+  // one tick behind a key that changed mid-stroke.
+  const altHeld = ref(false);
+
   // Undo/redo
   const cmdStack = new CommandStack(100);
   const canUndo = ref(false);
@@ -483,6 +504,44 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     }
   }
 
+  // ── Alt inverts a painting tool ──────────────────────────────────
+  // Same idea as the Plan's Door tool (usePlanCanvasTools.ts): holding Alt
+  // while a tool would paint erases what it paints instead, as one
+  // undoable stroke. Erase mirrors of the shape tools below use the SAME
+  // cell enumeration as their paint counterparts (`cellsInRect`/
+  // `cellsInLine`/`cellsForTemplate`) so "the cells the shape covers" means
+  // one thing everywhere — they deliberately skip the wall-wrap step their
+  // paint counterparts do, since there's no wall to wrap when erasing floor.
+
+  function eraseCaveAt(cx: number, cy: number): void {
+    for (const key of caveBrushCells(cx, cy, caveRadius.value, caveSeed)) {
+      const [xs, ys] = (key as string).split(",");
+      eraseCell(Number(xs), Number(ys));
+    }
+  }
+
+  function eraseRectCells(ax: number, ay: number, bx: number, by: number): void {
+    for (const key of cellsInRect(ax, ay, bx, by)) {
+      const [x, y] = parseCellKey(key);
+      eraseCell(x, y);
+    }
+  }
+
+  function eraseLineCells(ax: number, ay: number, bx: number, by: number): void {
+    for (const key of cellsInLine(ax, ay, bx, by)) {
+      const [x, y] = parseCellKey(key);
+      eraseCell(x, y);
+    }
+  }
+
+  function eraseTemplateCells(ax: number, ay: number, bx: number, by: number): void {
+    const r = Math.max(Math.abs(bx - ax), Math.abs(by - ay));
+    for (const key of cellsForTemplate(ax, ay, r, activeTemplateShape.value)) {
+      const [xs, ys] = (key as string).split(",");
+      eraseCell(Number(xs), Number(ys));
+    }
+  }
+
   // ── Canvas rendering ────────────────────────────────────────────────────
 
   function devicePixelDims(): { w: number; h: number; dpr: number } {
@@ -708,6 +767,18 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       return;
     }
 
+    // Select tool: a plain left click selects the cell; a drag pans,
+    // exactly like Pan — so a DM's first tap after opening the editor never
+    // paints, and one finger still moves the map on a phone. RMB/middle/
+    // shift already panned above regardless of tool, so only a genuine
+    // left-button press reaches this ambiguous "click or drag?" state; see
+    // toolPointerMove/toolPointerUp for how it resolves.
+    if (activeTool.value === "select") {
+      pendingSelectStart = local;
+      canvasEl.value?.setPointerCapture(ev.pointerId);
+      return;
+    }
+
     // One-shot tools: apply immediately without entering stroke mode.
     if (activeTool.value === "fill") {
       const before = snapshotStr();
@@ -740,13 +811,13 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     // Cave brush: new seed per stroke so consecutive passes vary.
     if (activeTool.value === "cave") {
       caveSeed++;
-      paintCaveAt(cx, cy);
+      if (ev.altKey) eraseCaveAt(cx, cy); else paintCaveAt(cx, cy);
       return;
     }
 
-    if (activeTool.value === "floor") paintCell(cx, cy);
-    else if (activeTool.value === "solid") paintSolidAt(cx, cy);
-    else if (activeTool.value === "stamp") paintObjectAt(cx, cy);
+    if (activeTool.value === "floor") { if (ev.altKey) eraseCell(cx, cy); else paintCell(cx, cy); }
+    else if (activeTool.value === "solid") { if (ev.altKey) eraseSolidAt(cx, cy); else paintSolidAt(cx, cy); }
+    else if (activeTool.value === "stamp") { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
     else if (activeTool.value === "eraser") {
       if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
       else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
@@ -756,9 +827,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
       else eraseCell(cx, cy);
     } else if (activeTool.value === "wall" && hoveredEdge.value) {
-      paintWallAtCellEdge(hoveredEdge.value);
+      if (ev.altKey) eraseWallAtCellEdge(hoveredEdge.value); else paintWallAtCellEdge(hoveredEdge.value);
     } else if (activeTool.value === "door" && hoveredEdge.value) {
-      paintDoorAtEdge(hoveredEdge.value);
+      if (ev.altKey) removeDoorAtEdge(hoveredEdge.value); else paintDoorAtEdge(hoveredEdge.value);
     }
   }
 
@@ -766,6 +837,19 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const local = getLocalPointer(ev);
     const [cx, cy] = viewportToCell(local.x, local.y);
     hoverCell.value = [cx, cy];
+
+    // Select tool: the press hasn't committed to click-or-drag yet.
+    // Once it travels past the slop it's a drag, so hand off to the ordinary
+    // pan path below — same threshold shape as the touch multiplexer's own
+    // TOUCH_SLOP_PX further down, just for the mouse/pen path that skips
+    // that multiplexer entirely.
+    if (pendingSelectStart) {
+      const moved = Math.hypot(local.x - pendingSelectStart.x, local.y - pendingSelectStart.y);
+      if (moved > SELECT_DRAG_SLOP_PX) {
+        pendingSelectStart = null;
+        isPanning.value = true;
+      }
+    }
 
     // Plan layer (#884 S7b) — its own hover/gesture tracking (door edge-snap,
     // paint/pen/template) instead of the Drawing's edge-hover/tool-dispatch
@@ -807,10 +891,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         const r = Math.max(Math.abs(cx - dragStartCell[0]), Math.abs(cy - dragStartCell[1]));
         previewCells.value = new Set(cellsForTemplate(dragStartCell[0], dragStartCell[1], r, activeTemplateShape.value));
       } else if (tool === "cave") {
-        paintCaveAt(cx, cy);
-      } else if (tool === "floor") paintCell(cx, cy);
-      else if (tool === "solid") paintSolidAt(cx, cy);
-      else if (tool === "stamp") paintObjectAt(cx, cy);
+        if (ev.altKey) eraseCaveAt(cx, cy); else paintCaveAt(cx, cy);
+      } else if (tool === "floor") { if (ev.altKey) eraseCell(cx, cy); else paintCell(cx, cy); }
+      else if (tool === "solid") { if (ev.altKey) eraseSolidAt(cx, cy); else paintSolidAt(cx, cy); }
+      else if (tool === "stamp") { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
       else if (tool === "eraser") {
         if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
         else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
@@ -820,9 +904,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
         else eraseCell(cx, cy);
       } else if (tool === "wall" && hoveredEdge.value) {
-        paintWallAtCellEdge(hoveredEdge.value);
+        if (ev.altKey) eraseWallAtCellEdge(hoveredEdge.value); else paintWallAtCellEdge(hoveredEdge.value);
       } else if (tool === "door" && hoveredEdge.value) {
-        paintDoorAtEdge(hoveredEdge.value);
+        if (ev.altKey) removeDoorAtEdge(hoveredEdge.value); else paintDoorAtEdge(hoveredEdge.value);
       }
     }
 
@@ -840,15 +924,23 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (isPainting.value) {
       const tool = activeTool.value;
 
-      // Commit rect / line / template on release.
+      // Commit rect / line / template on release. Alt inverts to the erase
+      // mirror — checked at release time, matching "holding Alt while
+      // dragging" rather than whatever the modifier was when the drag began.
       if ((tool === "rect" || tool === "line" || tool === "template") && dragStartCell) {
         const local = getLocalPointer(ev);
         const [cx, cy] = viewportToCell(local.x, local.y);
         const [ax, ay] = dragStartCell;
         const before = strokeSnapshot ?? snapshotStr();
-        if (tool === "rect") applyRect(ax, ay, cx, cy, ev.shiftKey);
-        else if (tool === "line") applyLine(ax, ay, cx, cy);
-        else applyTemplate(ax, ay, cx, cy);
+        if (ev.altKey) {
+          if (tool === "rect") eraseRectCells(ax, ay, cx, cy);
+          else if (tool === "line") eraseLineCells(ax, ay, cx, cy);
+          else eraseTemplateCells(ax, ay, cx, cy);
+        } else {
+          if (tool === "rect") applyRect(ax, ay, cx, cy, ev.shiftKey);
+          else if (tool === "line") applyLine(ax, ay, cx, cy);
+          else applyTemplate(ax, ay, cx, cy);
+        }
         const after = snapshotStr();
         if (before !== after) pushCommand(before, after);
         dragStartCell = null;
@@ -861,6 +953,15 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
       strokeSnapshot = null;
       isPainting.value = false;
+      canvasEl.value?.releasePointerCapture(ev.pointerId);
+    }
+    if (pendingSelectStart) {
+      // Never travelled past the slop in toolPointerMove — a genuine click,
+      // not a drag. Select the cell under the release point.
+      const local = getLocalPointer(ev);
+      const [cx, cy] = viewportToCell(local.x, local.y);
+      selectedCell.value = [cx, cy];
+      pendingSelectStart = null;
       canvasEl.value?.releasePointerCapture(ev.pointerId);
     }
     lastPointer = null;
@@ -931,6 +1032,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       isPainting.value = false;
     }
     isPanning.value = false;
+    pendingSelectStart = null;
     lastPointer = null;
   }
 
@@ -1035,7 +1137,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     scheduleRender();
   }
 
+  // Alt-invert tracked at the window level, alongside the shortcut
+  // listener below rather than as a listener of its own — same window,
+  // same lifecycle, one less pair of add/removeEventListener calls.
   function onKeyDown(ev: KeyboardEvent): void {
+    if (ev.key === "Alt") altHeld.value = true;
     const target = ev.target as HTMLElement | null;
     const action = resolveKeyAction(
       {
@@ -1061,9 +1167,23 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     ev.preventDefault();
   }
 
+  function onKeyUp(ev: KeyboardEvent): void {
+    if (ev.key === "Alt") altHeld.value = false;
+  }
+
+  // Alt-tabbing away, or any other focus loss, ends the physical key-down
+  // without a matching keyup ever reaching this window — left alone, the
+  // pill would read " · erase" forever after. Same failure shape as a
+  // stuck shift key in any other app; blur is the standard fix.
+  function onWindowBlur(): void {
+    altHeld.value = false;
+  }
+
   onMounted(() => {
     window.addEventListener("resize", onResize);
     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onWindowBlur);
     scheduleRender();
   });
 
@@ -1071,6 +1191,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (pendingTouch) clearTimeout(pendingTouch.timer);
     window.removeEventListener("resize", onResize);
     window.removeEventListener("keydown", onKeyDown);
+    window.removeEventListener("keyup", onKeyUp);
+    window.removeEventListener("blur", onWindowBlur);
     if (rafId) cancelAnimationFrame(rafId);
     planTools?.dispose();
   });
@@ -1087,6 +1209,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     viewportOffset,
     hoverCell,
     hoveredEdge,
+    /** Whether Alt is currently held — MapWorkbench appends
+     *  " · erase" to the canvas pill while this is true and the active tool
+     *  has an erase mirror. */
+    altHeld,
     canUndo: exposedCanUndo,
     canRedo: exposedCanRedo,
     undoEdit,

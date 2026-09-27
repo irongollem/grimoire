@@ -34,7 +34,7 @@
       Two fingers pan. Pinch to zoom.
     </p>
     <div class="hidden lg:block mt-3 border-t border-border pt-2 text-caption-sm text-muted-foreground italic space-y-1">
-      <p>RMB or shift-drag pans. Shift+click with Wall wraps all 4 edges. Rect: shift-drag adds perimeter walls.</p>
+      <p>RMB or shift-drag pans. Alt+click erases with the brush tools. Shift+click with Wall wraps all 4 edges. Rect: shift-drag adds perimeter walls.</p>
       <p>Ctrl+Z undo · Ctrl+Shift+Z redo.</p>
     </div>
   </aside>

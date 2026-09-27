@@ -46,6 +46,17 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   const key = ev.key.toLowerCase();
   if (key === "c") return { kind: "center" };
 
+  // Escape always means "back to Select" — none of the free letters
+  // read naturally for it, and unlike every other tool it needs a way back
+  // that works no matter which tool is currently active. Goes through the
+  // same lookup-and-disabled-check as a shortcut letter rather than a bare
+  // `{ kind: "selectTool", tool: "select" }`, so it stays a no-op if a future
+  // context ever disables the tool instead of assuming it's always there.
+  if (key === "escape") {
+    const select = ctx.tools.find((t) => t.id === "select");
+    return select && !select.disabled ? { kind: "selectTool", tool: select.id } : null;
+  }
+
   if (ctx.activeTool === "stamp" && key in STAMP_ROTATIONS) {
     return { kind: "rotateStamp", delta: STAMP_ROTATIONS[key] };
   }

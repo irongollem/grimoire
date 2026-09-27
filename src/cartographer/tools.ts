@@ -7,6 +7,10 @@
 // wins). The view owns the TOOLS palette array — labels, icons, shortcuts,
 // all presentation — and imports the union from here.
 export type Tool =
+  // The default tool on open — a click selects a cell for inspection,
+  // a drag pans, exactly like Pan. Grouped with Pan in the palette (both are
+  // "look, don't paint" tools) rather than with Draw.
+  | "select"
   | "floor"
   | "eraser"
   | "pan"

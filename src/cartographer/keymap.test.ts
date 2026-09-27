@@ -9,6 +9,7 @@ const ev = (over: Partial<KeyEventLike>): KeyEventLike => ({
 const ctx = (activeTool = "floor"): KeyContext => ({
   activeTool: activeTool as KeyContext["activeTool"],
   tools: [
+    { id: "select" },
     { id: "floor", shortcut: "f" },
     { id: "wall", shortcut: "w" },
     { id: "stamp", shortcut: "s" },
@@ -58,5 +59,21 @@ describe("resolveKeyAction", () => {
 
   it("returns null for an unbound key", () => {
     expect(resolveKeyAction(ev({ key: "k" }), ctx())).toBeNull();
+  });
+
+  it("Escape always selects the Select tool, whatever tool is active", () => {
+    expect(resolveKeyAction(ev({ key: "Escape" }), ctx("wall"))).toEqual({
+      kind: "selectTool",
+      tool: "select",
+    });
+    expect(resolveKeyAction(ev({ key: "Escape" }), ctx("stamp"))).toEqual({
+      kind: "selectTool",
+      tool: "select",
+    });
+  });
+
+  it("Escape is a no-op if the Select tool isn't in this context's palette", () => {
+    const noSelect: KeyContext = { activeTool: "floor", tools: [{ id: "floor", shortcut: "f" }] };
+    expect(resolveKeyAction(ev({ key: "Escape" }), noSelect)).toBeNull();
   });
 });

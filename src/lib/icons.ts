@@ -22,7 +22,7 @@ import {
   Leaf, Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Loader2, LoaderCircle, Lock, LogOut,
   Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
-  Moon, MoveHorizontal, MoveVertical, Music, Music2,
+  Moon, MousePointer2, MoveHorizontal, MoveVertical, Music, Music2,
   Navigation, Network,
   Package, PackageOpen, PackagePlus, PaintBucket, Paintbrush, Pause, PawPrint, Pen, Pencil,
   PencilLine, PencilRuler, Pickaxe, Pin, Play, Plus, Printer,
@@ -99,6 +99,10 @@ export { Paintbrush as IconPaint }
 export { Brush as IconBrush }
 export { Eraser as IconEraser }
 export { Hand as IconHand }
+/** The Cartographer's Select tool — the default tool, so it needs its
+ *  own glyph distinct from Pan's `IconHand`: a click-to-select cursor, not a
+ *  grabbing hand. */
+export { MousePointer2 as IconSelect }
 export { BrickWall as IconWall }
 /** Wrap walls: a wall run all the way round a floor area. Not the brick
  *  glyph `IconWall` uses: the Cartographer palette shows both tools side by

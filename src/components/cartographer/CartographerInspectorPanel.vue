@@ -53,6 +53,47 @@
       Switching packs changes future strokes only — existing cells keep their stored pack.
     </p>
 
+    <!-- Select tool: a read-only summary of what's in the selected cell. -->
+    <div v-if="activeTool === 'select'">
+      <template v-if="selectedCell">
+        <label class="block text-eyebrow text-muted-foreground mb-1">
+          Cell ({{ selectedCell[0] }}, {{ selectedCell[1] }})
+        </label>
+        <dl class="space-y-1.5 text-caption">
+          <div class="flex items-center justify-between">
+            <dt class="text-muted-foreground">Floor</dt>
+            <dd class="text-foreground">{{ selectedCellFloor ? "Yes" : "No" }}</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-muted-foreground">Solid block</dt>
+            <dd class="text-foreground">{{ selectedCellSolid ? "Yes" : "No" }}</dd>
+          </div>
+          <div v-if="selectedCellEdges.length">
+            <dt class="text-muted-foreground mb-0.5">Edges</dt>
+            <dd v-for="e in selectedCellEdges" :key="e.side" class="flex items-center justify-between">
+              <span>{{ e.side }}</span>
+              <span class="text-foreground">{{ edgeKindLabel(e.kind) }}</span>
+            </dd>
+          </div>
+          <div v-if="selectedCellObjectCategory" class="flex items-center justify-between">
+            <dt class="text-muted-foreground">Object</dt>
+            <dd class="text-foreground capitalize">{{ objectCategoryLabel(selectedCellObjectCategory) }}</dd>
+          </div>
+          <div v-if="annotationText" class="flex items-center justify-between">
+            <dt class="text-muted-foreground">Label</dt>
+            <dd class="text-foreground">{{ annotationText }}</dd>
+          </div>
+          <div v-if="selectedCellLinkedNames.length">
+            <dt class="text-muted-foreground mb-0.5">Linked</dt>
+            <dd v-for="linkName in selectedCellLinkedNames" :key="linkName">{{ linkName }}</dd>
+          </div>
+        </dl>
+      </template>
+      <p v-else class="text-caption-sm text-muted-foreground italic">
+        Click a cell to see what is in it. Drag to move the map.
+      </p>
+    </div>
+
     <!-- Object stamp picker -->
     <div v-if="activeTool === 'stamp'">
       <label class="block text-eyebrow text-muted-foreground mb-1">
@@ -254,6 +295,11 @@ interface EntityOption {
   name: string;
 }
 
+interface SelectedCellEdge {
+  side: "N" | "E" | "S" | "W";
+  kind: "wall" | "doorClosed" | "doorOpen";
+}
+
 defineProps<{
   name: string;
   campaignId: string | null;
@@ -266,6 +312,12 @@ defineProps<{
   objectCategories: readonly string[];
   stampRotation: number;
   selectedCell: [number, number] | null;
+  /** Select tool — a read-only summary of the selected cell. */
+  selectedCellFloor: boolean;
+  selectedCellSolid: boolean;
+  selectedCellEdges: SelectedCellEdge[];
+  selectedCellObjectCategory: string | null;
+  selectedCellLinkedNames: string[];
   annotationText: string;
   linkedNoteId: string;
   linkedEncounterId: string;
@@ -298,4 +350,19 @@ defineEmits<{
 const annotationInputEl = ref<AppInputHandle | null>(null);
 
 defineExpose({ annotationInputEl });
+
+const EDGE_KIND_LABEL: Record<SelectedCellEdge["kind"], string> = {
+  wall: "Wall",
+  doorClosed: "Closed door",
+  doorOpen: "Open door",
+};
+function edgeKindLabel(kind: SelectedCellEdge["kind"]): string {
+  return EDGE_KIND_LABEL[kind];
+}
+
+/** "objectChest" -> "Chest" — same trick the object-stamp picker above uses
+ *  on its button labels (`cat.replace('object', '')`, styled `capitalize`). */
+function objectCategoryLabel(category: string): string {
+  return category.replace("object", "");
+}
 </script>

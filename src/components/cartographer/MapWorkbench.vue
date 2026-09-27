@@ -200,6 +200,11 @@
           :object-categories="OBJECT_CATEGORIES"
           :stamp-rotation="stampRotation"
           :selected-cell="selectedCell"
+          :selected-cell-floor="selectedCellFloor"
+          :selected-cell-solid="selectedCellSolid"
+          :selected-cell-edges="selectedCellEdges"
+          :selected-cell-object-category="selectedCellObjectCategory"
+          :selected-cell-linked-names="selectedCellLinkedNames"
           :annotation-text="annotationText"
           :linked-note-id="linkedNoteId"
           :linked-encounter-id="linkedEncounterId"
@@ -303,6 +308,7 @@
 import { computed, onMounted, ref, watch, type Component } from "vue";
 
 import {
+  IconSelect,
   IconBrush,
   IconEraser,
   IconHand,
@@ -482,8 +488,17 @@ interface ToolDef {
    *  Link entity — moved out of Draw) and tags Pan as "view". */
   group?: ToolGroup;
 }
-const activeTool = ref<Tool>("floor");
+// The default tool on open — a DM's first tap must never paint. Put
+// first in the array (not just first in the "view" group's own list) so
+// "view" is the first-registered group and therefore the first one the
+// palette renders — Select reads most naturally as the very first thing a
+// DM sees, ahead of Draw and Structure. Grouped with Pan rather than given
+// its own top-of-Draw spot: both are "look, don't paint" tools that share
+// the exact same drag-to-pan behaviour, so putting them together in View
+// reads as one idea instead of two.
+const activeTool = ref<Tool>("select");
 const TOOLS: ToolDef[] = [
+  { id: "select",   label: "Select",        icon: IconSelect,       group: "view" },
   { id: "floor",    label: "Floor brush",   icon: IconBrush,        shortcut: "b" },
   { id: "eraser",   label: "Eraser",        icon: IconEraser,       shortcut: "e" },
   { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w" },
@@ -625,13 +640,80 @@ const annotationText = computed({
   },
 });
 
+// ── Select tool ─────────────────────────────────────────────────
+// A read-only summary of the selected cell for the inspector's Select
+// section. Computed here, not in the panel: the panel is presentation-only
+// everywhere else in this file (annotationText/linkedNoteId etc. are the
+// same "MapWorkbench computes, the panel just renders" shape), and only
+// MapWorkbench holds `layers` plus the id->name option lists a link name
+// needs to resolve. E/S edges read from the NEIGHBOURING cell's W/N per the
+// "NW ownership" rule (context/features/cartographer.md, "Edge ownership
+// rule") — a cell only ever stores its own N/W.
+function edgeSegAt(x: number, y: number, side: "N" | "E" | "S" | "W") {
+  if (side === "N") return layers.value.floor[cellKey(x, y)]?.wallN;
+  if (side === "W") return layers.value.floor[cellKey(x, y)]?.wallW;
+  if (side === "S") return layers.value.floor[cellKey(x, y + 1)]?.wallN;
+  return layers.value.floor[cellKey(x + 1, y)]?.wallW;
+}
+
+const selectedCellFloor = computed(() => {
+  if (!selectedCell.value) return false;
+  const [x, y] = selectedCell.value;
+  return !!layers.value.floor[cellKey(x, y)]?.floor;
+});
+
+const selectedCellSolid = computed(() => {
+  if (!selectedCell.value) return false;
+  const [x, y] = selectedCell.value;
+  return !!layers.value.solidBlock[cellKey(x, y)];
+});
+
+const selectedCellEdges = computed(() => {
+  if (!selectedCell.value) return [];
+  const [x, y] = selectedCell.value;
+  return (["N", "E", "S", "W"] as const)
+    .map((side) => ({ side, kind: edgeSegAt(x, y, side)?.type }))
+    .filter((e): e is { side: "N" | "E" | "S" | "W"; kind: "wall" | "doorClosed" | "doorOpen" } => !!e.kind);
+});
+
+const selectedCellObjectCategory = computed(() => {
+  if (!selectedCell.value) return null;
+  const [x, y] = selectedCell.value;
+  return layers.value.object[cellKey(x, y)]?.category ?? null;
+});
+
+const selectedCellLinkedNames = computed(() => {
+  if (!selectedCell.value) return [];
+  const names: string[] = [];
+  const noteName = noteOptions.value.find((o) => o.id === linkedNoteId.value)?.name;
+  if (noteName) names.push(`Note: ${noteName}`);
+  const encounterName = encounterOptions.value.find((o) => o.id === linkedEncounterId.value)?.name;
+  if (encounterName) names.push(`Encounter: ${encounterName}`);
+  const trapName = trapOptions.value.find((o) => o.id === linkedTrapId.value)?.name;
+  if (trapName) names.push(`Trap: ${trapName}`);
+  const featureName = featureOptions.value.find((o) => o.id === linkedFeatureId.value)?.name;
+  if (featureName) names.push(`Feature: ${featureName}`);
+  return names;
+});
+
 const cellsPainted = computed(() => Object.keys(layers.value.floor).length);
 const activeToolLabel = computed(() => TOOLS.find((t) => t.id === activeTool.value)?.label ?? activeTool.value);
 
-/** The canvas pill's text: the Drawing tool, or on the Plan the tool and, for
- *  a Space or Zone, how it is being traced ("Space · Pen"). */
+// Tools Alt inverts into an erase mirror — see useMapCanvasEditor.ts's
+// toolPointerDown/Move/Up. Select/Pan/Fill/Wrap/Annotate/Link/Eraser/Space
+// have nothing to invert, so they're deliberately absent here.
+const INVERTIBLE_TOOLS = new Set<Tool>([
+  "floor", "cave", "solid", "wall", "stamp", "door", "rect", "line", "template",
+]);
+
+/** The canvas pill's text: the Drawing tool (with " · erase" appended while
+ *  Alt is held over a tool that has an inverse), or on the Plan the tool
+ *  and, for a Space or Zone, how it is being traced ("Space · Pen"). */
 const canvasToolLabel = computed(() => {
-  if (activeLayer.value === "drawing") return activeToolLabel.value;
+  if (activeLayer.value === "drawing") {
+    const label = activeToolLabel.value;
+    return altHeld.value && INVERTIBLE_TOOLS.has(activeTool.value) ? `${label} · erase` : label;
+  }
   const tool = plan.planTool.value;
   const toolLabel = PLAN_TOOLS.find((t) => t.id === tool)?.label ?? tool;
   if (tool !== "space" && tool !== "zone") return toolLabel;
@@ -747,7 +829,7 @@ function setPlanActiveRegion(id: string | null, role: RegionRole): void {
 // ── Canvas engine (#884 S6) — viewport, pointer/paint dispatch, undo/redo,
 // variant picking, the render loop. See useMapCanvasEditor.ts.
 const {
-  zoom, hoverCell, canUndo, canRedo, undoEdit, redoEdit, centerMap,
+  zoom, hoverCell, altHeld, canUndo, canRedo, undoEdit, redoEdit, centerMap,
   onPointerDown, onPointerMove, onPointerUp, onDoubleClick, onWheel, structureTools,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
