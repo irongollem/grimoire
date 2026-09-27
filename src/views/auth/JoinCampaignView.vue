@@ -67,13 +67,15 @@
         <p v-if="authMessage" class="text-body text-elven-green">{{ authMessage }}</p>
         <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
+        <SignupConsent v-if="activeTab === 'signup'" v-model="agreedToTerms" />
+
         <AppButton
           type="submit"
           variant="primary"
           size="lg"
           block
           class="py-2.5"
-          :disabled="auth.loading || !!authMessage"
+          :disabled="auth.loading || !!authMessage || (activeTab === 'signup' && !agreedToTerms)"
           :label="auth.loading
             ? (activeTab === 'signup' ? 'Creating your tome…' : 'Entering the realm…')
             : (activeTab === 'signup' ? 'Create Account & Join' : 'Sign In & Join')"
@@ -173,6 +175,7 @@ import { useModeSwitch } from "@/composables/useModeSwitch";
 import { usePlayerCampaigns } from "@/composables/campaign/useCampaigns";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import SignupConsent from "@/components/auth/SignupConsent.vue";
 
 const auth = useAuthStore();
 const campaign = useCampaignStore();
@@ -192,6 +195,7 @@ const activeTab = ref<"signup" | "login">("signup");
 const displayName = ref("");
 const email = ref("");
 const password = ref("");
+const agreedToTerms = ref(false);
 const errorMessage = ref("");
 const authMessage = ref("");
 const joining = ref(false);
@@ -263,6 +267,10 @@ async function handleAuth() {
   authMessage.value = "";
   try {
     if (activeTab.value === "signup") {
+      if (!agreedToTerms.value) {
+        errorMessage.value = "Please accept the Terms of Service and Privacy Policy to continue.";
+        return;
+      }
       await auth.signUp(email.value, password.value, displayName.value.trim() || undefined, window.location.href);
       authMessage.value = "Check your email to confirm — the link will bring you straight back here to join.";
     } else {

@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { withCors } from "../_shared/cors.ts";
 import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
-import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
+import { renewalDisclosure, WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 import { reportEdgeError } from "../_shared/observability/report.ts";
 import { checkoutReturnUrls, termsAcceptanceMessage } from "../_shared/checkoutUrls.ts";
 import { hasLiveStripeSubscription } from "../_shared/subscriptionGuard.ts";
@@ -137,6 +137,8 @@ serve(withCors(async (req: Request) => {
         terms_of_service_acceptance: {
           message: termsAcceptanceMessage(marketingUrl),
         },
+        // Auto-renewal terms directly above Stripe's Subscribe button.
+        submit: { message: renewalDisclosure(interval) },
       },
       // Without a return path this lands on Billing — `/pricing`, the old
       // cancel URL, is not a route in the app.

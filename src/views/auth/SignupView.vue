@@ -67,12 +67,7 @@
         <p v-if="successMessage" class="text-body text-elven-green">{{ successMessage }}</p>
         <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
-        <AppCheckbox v-model="agreedToTerms" required align="start" label-role="caption">
-          I agree to the
-          <a :href="legalUrl('terms')" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground transition-colors">Terms of Service</a>
-          and
-          <a :href="legalUrl('privacy')" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground transition-colors">Privacy Policy</a>.
-        </AppCheckbox>
+        <SignupConsent v-model="agreedToTerms" />
 
         <AppButton
           type="submit"
@@ -99,11 +94,9 @@ import { ref, onMounted } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
-import { TERMS_VERSION } from "@/lib/legal";
-import { legalUrl } from "@/lib/marketing";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import SignupConsent from "@/components/auth/SignupConsent.vue";
 
 type TokenState = "validating" | "invalid" | "valid";
 
@@ -138,7 +131,7 @@ async function handleSubmit() {
     // on-insert subscription trigger consumes the invite (applying the granted plan
     // server-side) and records the consent. (The old post-signup consume_app_invite
     // RPC ran before a session existed, so auth.uid() was null and grants no-op'd.)
-    await auth.signUp(email.value, password.value, displayName.value.trim() || undefined, undefined, token, TERMS_VERSION);
+    await auth.signUp(email.value, password.value, displayName.value.trim() || undefined, undefined, token);
     successMessage.value = "Check your email to confirm your account, then sign in.";
     email.value = "";
     password.value = "";

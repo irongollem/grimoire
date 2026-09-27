@@ -54,6 +54,16 @@
     "seed-tile-base": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-tile-base.ts"
   },
   "dependencies": {
+    "@fontsource/alegreya": "^5.3.0",
+    "@fontsource/cardo": "^5.3.0",
+    "@fontsource/cinzel": "^5.3.0",
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/crimson-pro": "^5.3.0",
+    "@fontsource/eb-garamond": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/shippori-mincho": "^5.3.0",
+    "@fontsource/source-sans-3": "^5.3.0",
+    "@fontsource/unifrakturcook": "^5.3.0",
     "@google/model-viewer": "^4.3.1",
     "@jsquash/webp": "^1.5.0",
     "@lucide/vue": "^1.47.0",

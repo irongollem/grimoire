@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import { supabase, setCachedUser } from "@/lib/supabase";
 import { setErrorTrackingUser } from "@/lib/observability/sentry";
+import { TERMS_VERSION } from "@/lib/legal";
 import type { User, Session } from "@supabase/supabase-js";
 import type { CampaignMember, CampaignRole } from "@/types/campaign.types";
 
@@ -215,25 +216,27 @@ export const useAuthStore = defineStore("auth", () => {
     displayName?: string,
     redirectTo?: string,
     inviteToken?: string,
-    termsVersion?: string,
   ) {
     loading.value = true;
     try {
       // invite_token + terms consent ride in user metadata so the on-insert
       // subscription trigger can act on them server-side — works even before
       // email confirm (no session / auth.uid() yet at signup time).
-      const data: Record<string, string> = {};
+      //
+      // Consent is not a parameter: every form that reaches here has shown
+      // SignupConsent and refused to submit until it was ticked, so what was
+      // agreed to is always the current Terms version.
+      const data: Record<string, string> = {
+        terms_version: TERMS_VERSION,
+        terms_accepted_at: new Date().toISOString(),
+      };
       if (displayName) data.display_name = displayName;
       if (inviteToken) data.invite_token = inviteToken;
-      if (termsVersion) {
-        data.terms_version = termsVersion;
-        data.terms_accepted_at = new Date().toISOString();
-      }
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          ...(Object.keys(data).length ? { data } : {}),
+          data,
           ...(redirectTo ? { emailRedirectTo: redirectTo } : {}),
         },
       });

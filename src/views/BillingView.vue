@@ -234,6 +234,12 @@
         Includes {{ proMonthlyCredits.toLocaleString() }} AI credits every month.
       </p>
 
+      <!-- Renewal terms sit right above the button that commits to them — see
+           renewalDisclosure() for why a footnote below it was not enough. -->
+      <p class="text-caption text-muted-foreground">
+        {{ renewalDisclosure(annual ? "year" : "month", activeProPriceWithTax) }}
+      </p>
+
       <WithdrawalConsent v-model="subConsent" kind="subscription" class="mb-1" />
 
       <AppButton
@@ -264,7 +270,7 @@
       </p>
 
       <p class="text-caption text-muted-foreground italic text-center">
-        Cancel anytime from the billing portal. No hidden fees. Taxes calculated at checkout.
+        No hidden fees. Taxes calculated at checkout.
       </p>
     </div>
 
@@ -338,6 +344,7 @@ import { IconBilling, IconDM, IconGenerate, IconLoading, IconQuest } from '@/lib
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import WithdrawalConsent from "@/components/billing/WithdrawalConsent.vue";
+import { renewalDisclosure } from "@edge-shared/consent.ts";
 import CreditPackPicker from "@/components/billing/CreditPackPicker.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
@@ -426,6 +433,9 @@ const proAnnualDisplay = computed<string | null>(() => {
 
 /** The active price for the selected billing interval, or null if unconfigured. */
 const activeProPrice = computed(() => (annual.value ? proAnnualDisplay.value : proMonthlyDisplay.value));
+const activeProPriceWithTax = computed(() =>
+  activeProPrice.value ? [activeProPrice.value, activeTaxNote.value].filter(Boolean).join(" ") : undefined,
+);
 
 /** Qualitative tax hint ("incl. VAT" / "+ tax") for the price/interval shown. */
 const activeTaxNote = computed(() => {
