@@ -270,6 +270,35 @@ export function useLibraryMonster(id: Ref<string>) {
   });
 }
 
+/** The query key every "resolve this monster id" read shares. */
+export const RESOLVED_MONSTER_QUERY_KEY = "resolved-monster";
+
+export interface ResolvedMonster {
+  monster: Monster;
+  isShared: boolean;
+}
+
+/**
+ * Resolve an opaque monster id: the shared library row first, then the DM's
+ * own. Library ids are non-UUID slugs, so the custom-table query is guarded.
+ *
+ * The one fetch behind `RESOLVED_MONSTER_QUERY_KEY`. A Scriptorium book's
+ * linked stat blocks read the same cache entry (useEntityEmbedData), and each
+ * side used to keep its own copy of this fetch returning a different shape:
+ * the book cached a bare row, this cached `{ monster, isShared }`. Opening a
+ * creature in the Bestiary and then the book crashed the book on
+ * `stat_block` (Sentry, 27 Sep 2026), and the reverse order handed the
+ * Bestiary a row with no `monster` in it.
+ */
+export async function fetchResolvedMonster(monsterId: string): Promise<ResolvedMonster> {
+  const { data: shared, error: sharedError } = await supabase
+    .from("library_monsters").select("*").eq("id", monsterId).maybeSingle();
+  if (sharedError) throw sharedError;
+  if (shared) return { monster: libraryMonsterRow(shared), isShared: true };
+  if (!isUuid(monsterId)) throw new Error("Monster not found");
+  return { monster: await fetchMonster(monsterId), isShared: false };
+}
+
 /** Resolve an opaque monster ID against explicit shared/custom stores. */
 export function useResolvedMonster(id: Ref<string>) {
   const queryClient = useQueryClient();
@@ -299,15 +328,8 @@ export function useResolvedMonster(id: Ref<string>) {
   };
 
   return useQuery({
-    queryKey: computed(() => ["resolved-monster", id.value] as const),
-    queryFn: async ({ queryKey: [, monsterId] }) => {
-      const { data: shared, error: sharedError } = await supabase
-        .from("library_monsters").select("*").eq("id", monsterId).maybeSingle();
-      if (sharedError) throw sharedError;
-      if (shared) return { monster: libraryMonsterRow(shared), isShared: true };
-      if (!isUuid(monsterId)) throw new Error("Monster not found");
-      return { monster: await fetchMonster(monsterId), isShared: false };
-    },
+    queryKey: computed(() => [RESOLVED_MONSTER_QUERY_KEY, id.value] as const),
+    queryFn: ({ queryKey: [, monsterId] }) => fetchResolvedMonster(monsterId),
     enabled: () => !!id.value,
     // Every caller reaches a monster *from* a list that already holds the whole
     // row. Starting empty spends the first moment showing a spinner over data

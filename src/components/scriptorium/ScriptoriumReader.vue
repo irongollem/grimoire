@@ -224,6 +224,25 @@ function scrollToHeading(blockId: string) {
 :deep(div[data-type="coverPage"] p) {
   font-size: 0.8rem !important;
 }
+/* A back cover is mostly text (a heading, three blurbs, a tagline), laid out
+   against a full page: an art strip over the top third and the text pinned
+   below it. Squeezed into the 18rem card it was cut off, and as the last thing
+   in the document it left the end of the book unreachable. On a phone it
+   flows instead: the strip becomes a band, the text follows it at its own
+   height. */
+:deep(div[data-type="coverPage"][data-variant="back"]) {
+  height: auto !important;
+}
+:deep(div[data-type="coverPage"][data-variant="back"] > div) {
+  position: static !important;
+}
+:deep(div[data-type="coverPage"][data-variant="back"] > div:first-child) {
+  height: 8rem !important;
+}
+:deep(div[data-type="coverPage"][data-variant="back"] > div:last-child) {
+  padding: 1rem !important;
+}
+
 /* The same goes for the padding round a cover's text (INSIDE_TEXT_STYLE etc.,
    up to 3rem): on a card this short it lifted the inside cover's two-line
    title up into the art above it. */

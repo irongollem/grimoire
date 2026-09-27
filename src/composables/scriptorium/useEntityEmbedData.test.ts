@@ -58,8 +58,9 @@ vi.mock("@/lib/supabase", () => ({
 
 import { useEntityEmbedData } from "./useEntityEmbedData";
 
-function open(refs: EntityRef[]) {
+function open(refs: EntityRef[], seed?: (queryClient: QueryClient) => void) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seed?.(queryClient);
   const refsRef = ref(refs);
   let api!: ReturnType<typeof useEntityEmbedData>;
   mount(
@@ -255,5 +256,30 @@ describe("useEntityEmbedData", () => {
     expect(api().isLoading.value).toBe(true);
     await flushPromises();
     expect(api().isLoading.value).toBe(false);
+  });
+
+  it("reads a monster the Bestiary already cached, in the Bestiary's own shape (Sentry, 27 Sep 2026)", async () => {
+    // Opening a creature in the Bestiary caches { monster, isShared } under
+    // the shared key. The book used to read that entry as a bare row and
+    // crash on stat_block, leaving Appendix A empty on the phone.
+    const cached = {
+      monster: {
+        id: "7c4f1b2d-0000-4000-8000-000000000001",
+        name: "Marzipan Sentry",
+        size: "medium",
+        monster_type: "construct",
+        alignment: "unaligned",
+        image_url: null,
+        cutout_url: null,
+        description: null,
+        stat_block: { armor_class: 16, hit_points: "65 (10d8 + 20)", speed: "20 ft.", challenge_rating: "3", str: 16, dex: 8, con: 15, int: 3, wis: 10, cha: 5 },
+      },
+      isShared: false,
+    };
+    const { api } = open([{ type: "monster", id: cached.monster.id }], (qc) =>
+      qc.setQueryData(["resolved-monster", cached.monster.id], cached),
+    );
+    await flushPromises();
+    expect(api().lookup.value[`monster:${cached.monster.id}`]).toContain("Marzipan Sentry");
   });
 });

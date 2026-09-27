@@ -37,7 +37,6 @@
 import { computed, type ComputedRef, type Ref } from "vue";
 import { useQueries, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { isUuid } from "@/lib/library/contentIdentity";
 import { formatEntityEmbedBodyHtml } from "@/lib/scriptorium/scriptoriumImport";
 import {
   fetchLibraryMonsterArt,
@@ -48,13 +47,12 @@ import {
 import { entityRefKey, type EntityRef, type EntityEmbedLookup } from "@/lib/scriptorium/entityEmbeds";
 import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
 import type { Npc } from "@/types/npc.types";
-import type { Monster } from "@/types/monster.types";
 import type { Spell } from "@/types/spell.types";
 import type { Item } from "@/types/item.types";
 import type { Location } from "@/types/location.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import type { ScriptoriumTheme } from "@/types/scriptorium.types";
-import { libraryMonsterRow } from "@/lib/library/libraryMonsterRow";
+import { fetchResolvedMonster, RESOLVED_MONSTER_QUERY_KEY } from "@/composables/monsters/useMonsters";
 
 // ── Minimal unscoped row fetchers ────────────────────────────────────────────
 
@@ -62,23 +60,6 @@ async function fetchNpcRow(id: string): Promise<Npc> {
   const { data, error } = await supabase.from("npcs").select("*").eq("id", id).single();
   if (error) throw error;
   return data as Npc;
-}
-
-/** Mirrors useResolvedMonster: shared library row first, then the DM's own —
- *  library ids are non-UUID slugs, so guard the custom-table query with isUuid
- *  the same way useResolvedMonster does. */
-async function fetchResolvedMonsterRow(id: string): Promise<Monster> {
-  const { data: shared, error: sharedError } = await supabase
-    .from("library_monsters")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-  if (sharedError) throw sharedError;
-  if (shared) return libraryMonsterRow(shared);
-  if (!isUuid(id)) throw new Error("Monster not found");
-  const { data, error } = await supabase.from("monsters").select("*").eq("id", id).single();
-  if (error) throw error;
-  return data as Monster;
 }
 
 async function fetchSpellRow(id: string): Promise<Spell> {
@@ -176,7 +157,9 @@ export function useEntityEmbedData(
   const questIdsFn = idsOfType("quest");
   const npcIdsFromRefs = idsOfType("npc");
 
-  const monsters = useRowsById(monsterIds, "resolved-monster", fetchResolvedMonsterRow);
+  // The Bestiary's own fetch and key (useMonsters.ts), so the cache entry has
+  // one shape whichever side fills it first.
+  const monsters = useRowsById(monsterIds, RESOLVED_MONSTER_QUERY_KEY, fetchResolvedMonster);
   // Shared query key/fetcher as useLibraryMonsterArt.ts, so this reads the
   // SAME cache entry rather than re-fetching the art layers a second time —
   // a DM viewing the Bestiary and previewing a book in the same session pays
@@ -229,7 +212,7 @@ export function useEntityEmbedData(
         return formatEntityEmbedBodyHtml({ type: "npc", npc, locationName }, theme.value);
       }
       case "monster": {
-        const monster = monsters.byId.value.get(ref.id);
+        const monster = monsters.byId.value.get(ref.id)?.monster;
         if (!monster) return undefined;
         // fetchResolvedMonsterRow only sets is_shared on a library row — a
         // DM's own monster carries its art in its own image_url/cutout_url
