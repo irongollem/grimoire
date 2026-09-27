@@ -141,6 +141,16 @@
 .sc-theme ol {
   padding-left: 1.25rem;
   margin: 0.375rem 0 0.6rem;
+  /* The app's own Tailwind preflight resets every <ul>/<ol> to
+     `list-style: none` — invisible everywhere else in the app, since every
+     app list either supplies its own markers or is a plain layout list, but
+     it reached the paginated book too (both the live preview and the print
+     host render inside the same document), stripping bullets/numbers from
+     EVERY list in the book, boxed or not, and leaving only the hanging
+     indent behind (#915 story 6 round 2). Restoring the browser default here
+     is scoped to `.sc-theme` content, so it can't leak back out to the rest
+     of the app. */
+  list-style: revert;
 }
 .sc-theme li {
   margin: 0.2rem 0;
@@ -552,6 +562,27 @@
 .ink-friendly .sc-note {
   box-shadow: none;
 }
+/* The sidebar's top/bottom bar and the read-aloud's top/bottom corner dots
+   (below) are drawn with ::before/::after on the box itself. Paged.js's
+   polyfill fragments a split box into SEPARATE DOM elements, one per page/
+   column, each still carrying the box's own class — so each fragment drew
+   its own copy of BOTH, including a stray bar at the top of a fragment that
+   is actually a CONTINUATION, not the box's start (#915 story 6 round 2: "a
+   stray sidebar bar floats at the top of a column"). Paged.js marks a
+   continuation fragment `[data-split-from]` and a fragment that continues
+   further `[data-split-to]` (its own polisher CSS reads the same pair) — the
+   first fragment lacks `[data-split-from]`, the last lacks `[data-split-to]`,
+   an unsplit box has neither, so hiding the top decoration on
+   `[data-split-from]` and the bottom on `[data-split-to]` leaves exactly one
+   of each per box regardless of how many pieces it split into. */
+.sc-theme .sc-note[data-split-from]::before,
+.sc-theme .sc-descriptive[data-split-from]::before {
+  display: none;
+}
+.sc-theme .sc-note[data-split-to]::after,
+.sc-theme .sc-descriptive[data-split-to]::after {
+  display: none;
+}
 .sc-theme .sc-note::before,
 .sc-theme .sc-note::after {
   content: "";
@@ -569,23 +600,44 @@
   bottom: -3px;
 }
 
+/* Read-aloud (.sc-descriptive): the four corner dots used to be one combined
+   background-image on the box itself — impossible to suppress independently
+   per fragment, which is exactly what the split-aware rule above needs (only
+   the top pair on the first fragment, only the bottom pair on the last).
+   Split into a top pair (::before) and a bottom pair (::after) instead,
+   mirroring .sc-note's own before/after bars. */
 .sc-theme .sc-descriptive {
+  position: relative;
   background-color: var(--sc-readaloud-bg);
-  background-image:
-    radial-gradient(circle 4px at 0 0, var(--sc-readaloud-rule) 99%, transparent 100%),
-    radial-gradient(circle 4px at 100% 0, var(--sc-readaloud-rule) 99%, transparent 100%),
-    radial-gradient(circle 4px at 0 100%, var(--sc-readaloud-rule) 99%, transparent 100%),
-    radial-gradient(circle 4px at 100% 100%, var(--sc-readaloud-rule) 99%, transparent 100%);
-  background-repeat: no-repeat;
   border-left: 2px solid var(--sc-readaloud-rule);
   border-right: 2px solid var(--sc-readaloud-rule);
 }
-.ink-friendly .sc-descriptive {
+.sc-theme .sc-descriptive::before,
+.sc-theme .sc-descriptive::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background-repeat: no-repeat;
+}
+.sc-theme .sc-descriptive::before {
+  top: 0;
   background-image:
     radial-gradient(circle 4px at 0 0, var(--sc-readaloud-rule) 99%, transparent 100%),
-    radial-gradient(circle 4px at 100% 0, var(--sc-readaloud-rule) 99%, transparent 100%),
+    radial-gradient(circle 4px at 100% 0, var(--sc-readaloud-rule) 99%, transparent 100%);
+}
+.sc-theme .sc-descriptive::after {
+  bottom: 0;
+  background-image:
     radial-gradient(circle 4px at 0 100%, var(--sc-readaloud-rule) 99%, transparent 100%),
-    radial-gradient(circle 4px at 100% 100%, var(--sc-readaloud-rule) 99%, transparent 100%) !important;
+    radial-gradient(circle 4px at 100% 100%, var(--sc-readaloud-rule) 99%, transparent 100%);
+}
+/* Only the TINT needs re-asserting for ink-friendly — the blanket
+   `.ink-friendly * { background-image: none !important; }` rule above
+   matches real elements via `*`, which never reaches a `::before`/`::after`
+   generated box, so the dots above survive ink-friendly untouched already. */
+.ink-friendly .sc-descriptive {
   background-color: transparent !important;
 }
 
@@ -750,6 +802,18 @@
 .sc-theme table .sc-table-col-left {
   text-align: left;
 }
+/* The base cell padding above (0.6rem 1rem) is sized for a full page width —
+   in a two-column measure it left rows 3-4 lines high for no reason (#915
+   story 6 round 2). Tighter padding, and table-layout: auto reasserted (not
+   overridden anywhere, but stated here rather than left implicit) so columns
+   still size to their own content instead of splitting the measure evenly. */
+.phb-two-col table {
+  table-layout: auto;
+}
+.phb-two-col table td,
+.phb-two-col table th {
+  padding: 0.3rem 0.5rem;
+}
 
 /* NOTE ON THESE SELECTORS: `.theme-xxx` and `.sc-theme` are always classes on
    the SAME root element in every context this CSS ships to (the preview's
@@ -841,15 +905,20 @@
    pagedPreviewCss.ts per this file's own rule about break hints.
 
    Two sizes, chosen by entityEmbed's `size` attr (auto/column/wide — see
-   entityEmbed.ts and scriptoriumImport.ts's autoStatBlockSize()):
+   entityEmbed.ts and scriptoriumImport.ts's estimateStatBlockSize(), which
+   decides "auto" from the stat block's own text length):
      .sc-statblock--column — the default: one framed block inside a single
        text column, exactly like a read-aloud or note box.
-     .sc-statblock--wide — for a long stat block: spans both page columns
-       (column-span: all, set alongside .sc-cover/.sc-toc above) and flows
-       its OWN content in two internal columns, matching how the printed
-       books lay out a creature too long for one column (left column: name
-       through Traits; right column: Actions onward). column-span is a no-op
-       in single-column document mode, where "wide" is simply full width. */
+     .sc-statblock--wide — for a long stat block: flows its OWN content in
+       two internal columns, matching how the printed books lay out a
+       creature too long for one column (left column: name through Traits;
+       right column: Actions onward). An NPC's inline "Statistics" frame (not
+       wrapped in the entry layout below) still needs `column-span: all` on
+       this class directly to escape the page's own two-column flow — see
+       `.phb-two-col .sc-statblock--wide` above; a monster ENTRY's wide band
+       gets that for free from its `.sc-statblock-entry` wrapper instead (see
+       the entry layout section below), so the inner class's own column-span
+       there is a harmless no-op. */
 .sc-theme .sc-statblock {
   margin: var(--sc-box-margin);
   padding: 0.75rem 0.9rem 0.9rem;
@@ -962,4 +1031,83 @@
    emits the name as a leading <strong>. */
 .sc-theme .sc-statblock-section p > strong:first-child {
   font-style: italic;
+}
+
+/* ── Linked entity ENTRY layout (#915 story 6 round 2) ──────────────────────
+   A monster entry used to rely on a manual `.sc-column-break` between the
+   stat block and its art/lore to send them into the page's own right text
+   column — Paged.js's multicol polyfill doesn't reflow reliably around a
+   break placed mid-flow, so a tall stat block's art/lore could spill onto an
+   otherwise empty next page (the Toffee Maw bug, p23 of the round-1 render).
+   scriptoriumImport.ts now wraps every entry in `.sc-statblock-entry`, which
+   spans the page itself (column-span: all, the same escape hatch a cover or
+   the TOC use above) and lays out its OWN CSS grid — nothing here depends on
+   where Paged.js decides to break the surrounding two-column flow:
+
+     column size — a two-cell grid matching the page's own column measure:
+       stat block in the left cell, art then lore in the right.
+     wide size   — one column: the stat block band (already flows in its own
+       internal two columns — .sc-statblock--wide above) then art/lore below
+       it, full width. `data-band-position="bottom"` (the entityEmbed node's
+       own attr) reverses that order (art/lore above the band) via `order`.
+
+   Both sizes are `break-inside: avoid` (pagedPreviewCss.ts) — the entry's OWN
+   size decision (estimateStatBlockSize(), scriptoriumImport.ts) is what keeps
+   it inside one page, not a break-relaxation, so getting the size right is
+   what matters, not letting a mis-sized one split. */
+.sc-theme .sc-statblock-entry {
+  column-span: all;
+  margin: var(--sc-box-margin);
+}
+.sc-theme .sc-statblock-entry-heading {
+  margin: 0 0 0.5rem;
+}
+/* No lore to show beside the frame (or the author turned lore off): the
+   frame's own name is the only visible name (#915 story 6 round 2, item 2 —
+   "the creature's name prints twice"). The heading stays in the DOM rather
+   than being removed, so it still enters the table of contents (pagedToc.ts)
+   and the phone reader's own contents list (readerToc.ts) exactly like a
+   Monster Manual entry, just visually hidden here. */
+.sc-theme .sc-statblock-entry-heading--no-lore {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.sc-theme .sc-statblock-entry-body {
+  display: grid;
+  gap: 0 1.5rem;
+}
+.sc-theme .sc-statblock-entry--column .sc-statblock-entry-body {
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+}
+.sc-theme .sc-statblock-entry--wide .sc-statblock-entry-body {
+  grid-template-columns: 1fr;
+}
+.sc-theme .sc-statblock-entry-block,
+.sc-theme .sc-statblock-entry-aside {
+  min-width: 0;
+}
+/* bandPosition "bottom" (a wide entry only — a no-op grid-template-columns:
+   1fr 1fr on a column entry has no second row to reorder into) puts the art/
+   lore ahead of the band instead of after it. */
+.sc-theme .sc-statblock-entry--wide[data-band-position="bottom"] .sc-statblock-entry-block {
+  order: 2;
+}
+.sc-theme .sc-statblock-entry--wide[data-band-position="bottom"] .sc-statblock-entry-aside {
+  order: 1;
+  margin-bottom: 0.75rem;
+}
+.sc-theme .sc-statblock-entry-aside .sc-entity-art {
+  display: block;
+  margin: 0 auto 0.75rem;
+}
+.sc-theme .sc-statblock-entry-lore p:last-child {
+  margin-bottom: 0;
 }

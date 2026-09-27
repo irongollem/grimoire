@@ -61,6 +61,12 @@ const CR_XP: Record<string, number> = {
   "29": 135000, "30": 155000,
 };
 
+/** Escape the four HTML-significant characters in a plain-text value before
+ *  interpolating it into an assembled HTML string. */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function countWords(html: string): number {
   const text = html
     .replace(/<[^>]+>/g, " ")
@@ -279,7 +285,6 @@ interface BuildStatBlockOpts {
    *  for an NPC's generic "Statistics" frame, which has no size/type/alignment). */
   name: string;
   typeLine: string;
-  size: StatBlockSize;
   theme: ScriptoriumTheme;
   armorClass: number;
   hitPoints: string;
@@ -299,16 +304,23 @@ interface BuildStatBlockOpts {
   sections: StatBlockSection[];
 }
 
-function buildStatBlockHtml(opts: BuildStatBlockOpts): string {
+/**
+ * Build the stat block's own content — everything the reader sees inside the
+ * frame — WITHOUT the outer `.sc-statblock sc-statblock--SIZE` wrapper. Split
+ * out from `buildStatBlockHtml()` so the size decision (below) can measure
+ * this exact string before it's known which size class to wrap it in, rather
+ * than duplicating the property-line/section assembly in a separate estimator
+ * that could drift from what actually renders.
+ */
+function buildStatBlockInnerHtml(opts: Omit<BuildStatBlockOpts, "theme"> & { theme: ScriptoriumTheme }): string {
   const {
-    name, typeLine, size, theme, armorClass, hitPoints, speed, abilities,
+    name, typeLine, theme, armorClass, hitPoints, speed, abilities,
     initiativeOverride, savingThrows, proficiencyBonus, challengeRating,
     skills, damageVulnerabilities, damageResistances, damageImmunities,
     conditionImmunities, senses, languages, sections,
   } = opts;
 
-  let html = `<div class="sc-statblock sc-statblock--${size}">\n`;
-  html += `<p class="sc-statblock-name">${name}</p>\n`;
+  let html = `<p class="sc-statblock-name">${name}</p>\n`;
   html += `<div class="sc-statblock-rule"></div>\n`;
   if (typeLine) html += `<p class="sc-statblock-type"><em>${typeLine}</em></p>\n`;
 
@@ -333,7 +345,11 @@ function buildStatBlockHtml(opts: BuildStatBlockOpts): string {
   ];
   html += abilityScoresHtml(abs, savingThrows ?? null, theme) + "\n";
 
-  if (savingThrows) html += `<p class="sc-statblock-prop"><strong>Saving Throws</strong> ${savingThrows}</p>\n`;
+  // 2024 never prints a separate Saving Throws line — every ability's own
+  // Save is already a column in the ability table above. 2014's table has no
+  // such column, so it still needs the explicit line (#915 story 6 round 2).
+  if (theme === "phb2014" && savingThrows)
+    html += `<p class="sc-statblock-prop"><strong>Saving Throws</strong> ${savingThrows}</p>\n`;
   if (skills && Object.keys(skills).length) {
     const skillsStr = Object.entries(skills)
       .map(([k, v]) => `${skillLabel(k)} ${v}`)
@@ -361,22 +377,66 @@ function buildStatBlockHtml(opts: BuildStatBlockOpts): string {
     html += `</div>\n`;
   });
 
-  html += `</div>\n`;
   return html;
 }
 
-// Paged.js can't measure a block's rendered height before laying the page
-// out, so "auto" sizing is decided from the stat block's own data instead.
-// Six short entries (traits + actions + bonus actions + reactions +
-// legendary actions + lair actions, combined) is roughly what a single A4
-// column holds at this font size before either overflowing badly or leaving
-// the rest of its column empty; past that, a wide block spanning both page
-// columns (with its own internal two-column flow — theme-base.css) reads
-// better than a column-locked one running many pages deep.
-const WIDE_STATBLOCK_ENTRY_THRESHOLD = 6;
+/*
+ * A stat block above this many TEXT characters (tags stripped) is taller than
+ * one A4 column can hold at this font size and needs to go "wide" — a band
+ * spanning both page columns with its own internal two-column flow — rather
+ * than staying "column" sized, which relied on a Paged.js column-break to
+ * place it and, before this size decision existed, on entry COUNT rather than
+ * actual length (#915 story 6 round 2).
+ *
+ * Text length, not the assembled HTML's length, is what's measured: the same
+ * six creatures' stat blocks run 1882–4604 HTML characters depending on
+ * theme (2024's extra table markup for the AC/Initiative line and two tinted
+ * ability panels roughly doubles it over 2014's plainer markup) but only
+ * 854–1871 TEXT characters regardless of theme — the two themes print
+ * materially the same words, so text length is the theme-agnostic proxy for
+ * rendered height that HTML length can't be.
+ *
+ * Calibrated against the Sugarwell booklet's six creatures (measured against
+ * production data, #915 story 6 round 2):
+ *   Spun Glass Hound   854 (2024) / 859 (2014) — fits a column, fine as-is
+ *   Brittle Knight     923 / 918                — fits a column, fine as-is
+ *   Marzipan Sentry   1120 / 1116                — fits a column, fine as-is
+ *   Toffee Maw        1304 / 1299                — the tallest column that
+ *     still fits (measured 976px of a ~1013px column) — the round-1 bug here
+ *     was never its SIZE, it was the column-break mechanism placing its art
+ *     on an otherwise empty next page, which the new two-cell grid fixes
+ *     without changing this creature's size at all.
+ *   Candy Archer      1439 / 1434                — split its Actions across a
+ *     page under the old entry-count threshold (6 items counted as "still
+ *     fits"); needs "wide".
+ *   Caramel Crusher   1871 / 1867                — same split-Actions bug,
+ *     the longest of the six; needs "wide".
+ *
+ * 1,350 sits just above Toffee Maw (the top of what a column can actually
+ * hold) and comfortably below Candy Archer (the shortest creature that
+ * can't) — the gap between the two is wide enough that the exact number
+ * matters less than being between them.
+ */
+const WIDE_STATBLOCK_CHAR_THRESHOLD = 1350;
 
-function autoStatBlockSize(entryCount: number): StatBlockSize {
-  return entryCount > WIDE_STATBLOCK_ENTRY_THRESHOLD ? "wide" : "column";
+/** Strip tags and collapse whitespace to approximate the text a reader would
+ *  actually see, for the size estimate above. */
+function textLength(html: string): number {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().length;
+}
+
+function estimateStatBlockSize(innerHtml: string): StatBlockSize {
+  return textLength(innerHtml) > WIDE_STATBLOCK_CHAR_THRESHOLD ? "wide" : "column";
+}
+
+/** Build the full framed stat block: decides its own size from the content
+ *  (see `estimateStatBlockSize` above) and returns both the size it chose —
+ *  the caller needs it to lay out the surrounding entry (#915 story 6 round
+ *  2) — and the finished HTML, wrapped accordingly. */
+function buildStatBlockHtml(opts: BuildStatBlockOpts): { html: string; size: StatBlockSize } {
+  const inner = buildStatBlockInnerHtml(opts);
+  const size = estimateStatBlockSize(inner);
+  return { html: `<div class="sc-statblock sc-statblock--${size}">\n${inner}</div>\n`, size };
 }
 
 function traitList(traits: Array<{ name: string; description: string }>): string {
@@ -385,29 +445,78 @@ function traitList(traits: Array<{ name: string; description: string }>): string
       const desc = t.description ?? "";
       // Trait descriptions may be stored as Tiptap JSON (from the rich-text editor)
       // or as plain text (Open5e imports before the RichTextEditor was adopted).
+      let html: string;
       if (desc.trimStart().startsWith("{")) {
         const bodyHtml = tiptapJsonToHtml(desc);
         // Merge the bold name into the first <p> so it reads as a single paragraph
-        if (bodyHtml.startsWith("<p>")) {
-          return bodyHtml.replace(/^<p>/, `<p><strong>${t.name}.</strong> `);
-        }
-        return `<p><strong>${t.name}.</strong></p>\n${bodyHtml}`;
+        html = bodyHtml.startsWith("<p>")
+          ? bodyHtml.replace(/^<p>/, `<p><strong>${t.name}.</strong> `)
+          : `<p><strong>${t.name}.</strong></p>\n${bodyHtml}`;
+      } else {
+        html = `<p><strong>${t.name}.</strong> ${desc}</p>`;
       }
-      return `<p><strong>${t.name}.</strong> ${desc}</p>`;
+      return italicizeAttackRunins(html);
     })
     .join("\n");
 }
 
 /**
- * Render a rich-text field that may be stored as Tiptap JSON or plain text.
- * Falls back to a plain `<p>` wrapping if not valid JSON.
+ * The attack/outcome run-ins both editions print in italics ("Melee Weapon
+ * Attack:", "Hit:", …), wherever they land inside a trait/action's own
+ * description text — CSS can't select on a text match, so this runs once
+ * over the assembled HTML instead (#915 story 6 round 2). Longest phrase
+ * first so "Melee or Ranged Weapon Attack:" isn't left partly un-italicised
+ * by "Melee Weapon Attack:" matching a prefix of it first — none of the
+ * others overlap this way, but the ordering costs nothing and removes the
+ * question.
  */
-function richTextOrPlain(value: string | null): string {
+const ATTACK_RUNIN_PHRASES = [
+  "Melee or Ranged Weapon Attack:",
+  "Melee Weapon Attack:",
+  "Ranged Weapon Attack:",
+  "Melee Spell Attack:",
+  "Ranged Spell Attack:",
+  "Melee Attack Roll:",
+  "Ranged Attack Roll:",
+  "Hit:",
+  "Miss:",
+  "Failure:",
+  "Success:",
+] as const;
+
+const ATTACK_RUNIN_RE = new RegExp(
+  `(?<!<em>)(${ATTACK_RUNIN_PHRASES.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+  "g",
+);
+
+function italicizeAttackRunins(html: string): string {
+  return html.replace(ATTACK_RUNIN_RE, "<em>$1</em>");
+}
+
+/**
+ * Render a rich-text field that may be stored as Tiptap JSON (the rich-text
+ * editor's own shape) or plain text (an Open5e import, or older data typed
+ * before a field had a rich-text editor at all — both shapes coexist in real
+ * data, #915 story 6 round 2). Plain text is escaped before wrapping — this
+ * used to interpolate it straight into the HTML string unescaped, which is
+ * safe only by luck for content that happens to contain no `&`/`<`/`>`.
+ */
+function richTextOrPlain(value: string | null | undefined): string {
   if (!value) return "";
   if (value.trimStart().startsWith("{")) {
-    return tiptapJsonToHtml(value) || `<p>${value}</p>\n`;
+    try {
+      JSON.parse(value);
+      // A genuinely empty Tiptap doc (e.g. `{"type":"doc","content":[]}`, left
+      // behind by a field that was opened and never filled in) correctly
+      // converts to "" — that's "no lore", not a reason to fall back to
+      // dumping the raw JSON string as text.
+      return tiptapJsonToHtml(value);
+    } catch {
+      // Looked like JSON (starts with "{") but wasn't valid — treat the whole
+      // value as plain text instead of silently producing nothing.
+    }
   }
-  return `<p>${value}</p>\n`;
+  return `<p>${escapeHtml(value)}</p>\n`;
 }
 
 function capitalize(s: string): string {
@@ -480,12 +589,10 @@ const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> =
       if (sb.legendary_actions?.length)
         sections.push({ label: "Legendary Actions", items: sb.legendary_actions });
       if (sb.lair_actions?.length) sections.push({ label: "Lair Actions", items: sb.lair_actions });
-      const entryCount = sections.reduce((n, s) => n + s.items.length, 0);
 
       html += buildStatBlockHtml({
         name: "Statistics",
         typeLine: "",
-        size: autoStatBlockSize(entryCount),
         theme,
         armorClass: sb.armor_class,
         hitPoints: sb.hit_points,
@@ -503,7 +610,7 @@ const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> =
         senses: sb.senses,
         languages: sb.languages,
         sections,
-      });
+      }).html;
     }
 
     return {
@@ -548,24 +655,22 @@ const monsterFormatter: AssetFormatter<Monster> = {
     }
     if (sb.lair_actions?.length) sections.push({ label: "Lair Actions", items: sb.lair_actions });
 
-    const entryCount = sections.reduce((n, s) => n + s.items.length, 0);
-    const size = autoStatBlockSize(entryCount);
-
     // A monster is rendered as a Monster Manual ENTRY, not just a stat block:
     // a real document heading (h2 — this one, unlike the block's own
     // sections, is meant to be in the TOC, exactly like a Monster Manual's
-    // own creature-name entries) followed by the framed stat block, then the
-    // creature's lore and portrait. In two-column layout a column-break
-    // between the stat block and the lore/art sends the block to the left
-    // column and the lore+art to the right (only a short/"column" block
-    // leaves a right column to fill this way; a "wide" one already spans
-    // both). See EntityEmbedView.vue for the size/art toggles.
-    const entryHeadingHtml = `<h2 class="sc-statblock-entry-heading">${monster.name}</h2>\n`;
-
-    const statBlockHtml = buildStatBlockHtml({
+    // own creature-name entries), the framed stat block, and the creature's
+    // lore and portrait. Round 1 sent the lore/art to a "spare" page column
+    // via a manual `.sc-column-break`, which Paged.js doesn't honour
+    // reliably (a tall stat block's art could spill onto an otherwise empty
+    // next page). Round 2 replaces that with a deterministic layout: the
+    // whole entry spans the page (`column-span: all`, same escape hatch a
+    // cover or the TOC uses) and lays out its own CSS grid — nothing here
+    // depends on where Paged.js decides to break the surrounding two-column
+    // flow. See EntityEmbedView.vue for the size/art/lore/band toggles, and
+    // theme-base.css's "Linked entity ENTRY layout" section for the grid.
+    const { html: statBlockHtml, size } = buildStatBlockHtml({
       name: monster.name,
       typeLine: statBlockTypeLine(monster.size, monster.monster_type, monster.alignment),
-      size,
       theme,
       armorClass: sb.armor_class,
       hitPoints: sb.hit_points,
@@ -586,24 +691,51 @@ const monsterFormatter: AssetFormatter<Monster> = {
     });
 
     // The `sc-entity-art` class is a stable hook for resolveEntityEmbeds() to
-    // remove this figure when a linked embed's `showArt` is off; it carries
-    // no styling of its own beyond the inline float already on the tag.
+    // remove this figure when a linked embed's `showArt` is off. It no longer
+    // floats — the art now has its own grid cell (column size) or its own
+    // full-width slot above/below the band (wide size), so a float would only
+    // fight the layout that already places it.
     const artHtml = monster.image_url
-      ? `<img src="${monster.image_url}" class="sc-entity-art" data-align="right" style="float:right;margin:0 0 10px 14px;width:200px;" alt="${monster.name}" />\n`
+      ? `<img src="${monster.image_url}" class="sc-entity-art" alt="${monster.name}" style="display:block;width:100%;max-width:220px;margin:0 auto 0.75rem;" />\n`
       : "";
-    const loreHtml = monster.description ? tiptapJsonToHtml(monster.description) : "";
+    // A monster's description may be Tiptap JSON (the rich-text editor's own
+    // shape) or plain text (an Open5e import, or older data typed before a
+    // field had a rich-text editor at all) — both shapes exist in real data
+    // (#915 story 6 round 2). richTextOrPlain() handles both and escapes the
+    // plain-text case, unlike the direct tiptapJsonToHtml() call this used to
+    // make, which silently produced nothing at all for a plain-text
+    // description (JSON.parse threw, caught, returned "").
+    const loreHtml = richTextOrPlain(monster.description);
+    const hasLore = Boolean(loreHtml.trim());
 
-    // Only a column-size block leaves a column for the column-break to send
-    // the lore/art into; a wide block already spans both, so the lore/art
-    // simply flows on beneath it in the normal two-column reading order.
-    const columnBreakHtml =
-      size === "column" && (artHtml || loreHtml) ? `<div class="sc-column-break" data-type="column-break"></div>\n` : "";
+    // The entry heading duplicated the stat block's own name directly under
+    // it when there was no lore to justify a second, larger name above the
+    // frame (#915 story 6 round 2). With lore, both show — exactly like a
+    // Monster Manual entry, whose page-top name is a different, larger
+    // treatment than the stat block's own title. Without it, the heading
+    // stays in the DOM (so it still enters the table of contents and the
+    // phone reader's contents list — see pagedToc.ts / readerToc.ts) but is
+    // visually hidden, leaving the frame's own name as the only visible one.
+    const entryHeadingClass = hasLore
+      ? "sc-statblock-entry-heading"
+      : "sc-statblock-entry-heading sc-statblock-entry-heading--no-lore";
+    const entryHeadingHtml = `<h2 class="${entryHeadingClass}">${monster.name}</h2>\n`;
 
-    let html = entryHeadingHtml + statBlockHtml + columnBreakHtml + artHtml + loreHtml;
+    const asideHtml =
+      artHtml || loreHtml
+        ? `<div class="sc-statblock-entry-aside">${artHtml}<div class="sc-statblock-entry-lore">${loreHtml}</div></div>\n`
+        : "";
+
+    let html =
+      `<div class="sc-statblock-entry sc-statblock-entry--${size}" data-band-position="top">\n` +
+      entryHeadingHtml +
+      `<div class="sc-statblock-entry-body">\n` +
+      `<div class="sc-statblock-entry-block">\n${statBlockHtml}</div>\n` +
+      asideHtml +
+      `</div>\n</div>\n`;
 
     if (monster.notes) {
-      const notesHtml = tiptapJsonToHtml(monster.notes) || `<p>${monster.notes}</p>\n`;
-      html += "<h2>DM Notes</h2>\n" + notesHtml;
+      html += "<h2>DM Notes</h2>\n" + richTextOrPlain(monster.notes);
     }
 
     return {

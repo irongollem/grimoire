@@ -132,6 +132,8 @@ import { usePagedPreview } from "@/composables/scriptorium/usePagedPreview";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
 import { expandTocPlaceholder, fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
+import { promoteTableHeaders } from "@/lib/scriptorium/pagedTables";
+import { classifyLongBoxes } from "@/lib/scriptorium/pagedBoxes";
 import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmpty";
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import { useFurnitureEditing } from "@/composables/scriptorium/useFurnitureEditing";
@@ -235,8 +237,14 @@ const {
 } = usePagedPreview({
   content: () => {
     // Expand the TOC to full height before layout so heading page numbers stay
-    // accurate even when the TOC overflows onto extra pages (#465).
-    const html = expandTocPlaceholder(stripTrailingEmptyParagraphs(bodyHtml), { showPageNumbers });
+    // accurate even when the TOC overflows onto extra pages (#465) — pageSize
+    // decides its column count (tocColumnCount(), pagedToc.ts). Table headers
+    // and long-box classification (#915 story 6 round 2) run the same
+    // pre-layout pass useScriptoriumPrint.ts's PDF export already does, so
+    // the live preview and the exported PDF paginate identically.
+    const toc = expandTocPlaceholder(stripTrailingEmptyParagraphs(bodyHtml), { showPageNumbers, pageSize });
+    const tables = promoteTableHeaders(toc);
+    const html = classifyLongBoxes(tables);
     return isTwoColumn ? `<div class="phb-two-col">${html}</div>` : html;
   },
   stylesheets: () => [

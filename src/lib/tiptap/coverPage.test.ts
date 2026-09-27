@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { generateHTML } from "@tiptap/core";
 import { buildFront, buildBack } from "./coverPage";
 import type { CoverPageAttrs } from "./coverPage";
+import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
+
+const EXT = createScriptoriumExtensions();
 
 const base: CoverPageAttrs = {
   variant: "front",
@@ -104,5 +108,51 @@ describe("buildBack cover art strip", () => {
   it("keeps the soft accent placeholder dim when there is no art", () => {
     const strip = flattenAll(buildBack({ ...base, variant: "back", backgroundImage: "" }))[0];
     expect(strip.style).toContain("opacity:0.75");
+  });
+});
+
+// #915 story 6 round 2: an empty tagline must render nothing, never invented
+// boilerplate — this was "AN UNOFFICIAL GRIMOIRE SUPPLEMENT" appearing on
+// every front cover that had never set its own tagline.
+describe("cover tagline — no invented text", () => {
+  it("the node schema defaults a front cover with no tagline set to no tagline text at all", () => {
+    // A front cover inserted with no `tagline` override (frontCoverTemplate
+    // doesn't set one) used to fall back to the node's own schema default,
+    // "An unofficial Grimoire supplement" — printed on every such cover
+    // whether or not the DM ever typed a tagline.
+    const html = generateHTML(
+      { type: "doc", content: [{ type: "coverPage", attrs: { variant: "front" } }] },
+      EXT,
+    );
+    expect(html).not.toContain("An unofficial Grimoire supplement");
+    // buildFront omits the tagline <p> entirely when tagline is falsy — its
+    // distinctive style (letter-spacing:0.25em) shouldn't appear at all.
+    expect(html).not.toContain("letter-spacing:0.25em");
+  });
+
+  it("buildBack's bottom bar prints an empty tagline as nothing, never a fallback phrase", () => {
+    const all = flattenAll(buildBack({ ...base, variant: "back", tagline: "" }));
+    const html = JSON.stringify(all);
+    expect(html).not.toContain("An Unofficial Supplement");
+  });
+
+  it("buildBack's bottom bar still prints a set tagline", () => {
+    const spec = buildBack({ ...base, variant: "back", tagline: "A Late in the Kind Country side-trip" });
+    expect(JSON.stringify(spec)).toContain("A Late in the Kind Country side-trip");
+  });
+});
+
+describe("cover art image opt-out from the generic paged image cap (#915 story 6 round 2)", () => {
+  it("classes the front and inside cover's art image sc-cover-art", () => {
+    const front = generateHTML(
+      { type: "doc", content: [{ type: "coverPage", attrs: { variant: "front", backgroundImage: "art.png" } }] },
+      EXT,
+    );
+    const inside = generateHTML(
+      { type: "doc", content: [{ type: "coverPage", attrs: { variant: "inside", backgroundImage: "art.png" } }] },
+      EXT,
+    );
+    expect(front).toContain('class="sc-cover-art"');
+    expect(inside).toContain('class="sc-cover-art"');
   });
 });

@@ -1,5 +1,17 @@
 <template>
-  <NodeViewWrapper as="div" class="sc-entity-embed" contenteditable="false">
+  <!-- NodeViewWrapper does not automatically forward the node's schema
+       attributes (data-entity-type etc. from entityEmbed.ts's renderHTML) to
+       this live DOM element the way the static HTML serialization path does
+       — only data-block-id is bound explicitly here, because the phone
+       reader's contents list (readerToc.ts, #915 story 6 round 2) needs it
+       to resolve a monster/NPC entry's own name heading (raw injected HTML
+       with no block id of its own) back to a scrollable target. -->
+  <NodeViewWrapper
+    as="div"
+    class="sc-entity-embed"
+    :data-block-id="props.node.attrs.blockId"
+    contenteditable="false"
+  >
     <div v-if="isEditable" class="sc-entity-embed-toolbar" contenteditable="false">
       <span class="sc-entity-embed-badge">{{ typeLabel }} · linked</span>
       <div class="sc-entity-embed-actions">
@@ -21,6 +33,24 @@
           :active="showArt"
           :tooltip="showArt ? 'Hide the portrait/art' : 'Show the portrait/art'"
           @click="toggleShowArt"
+        />
+        <AppButton
+          v-if="showLoreToggle"
+          size="xs"
+          variant="ghost"
+          fill="muted"
+          label="Lore"
+          :active="showLore"
+          :tooltip="showLore ? 'Hide the lore text' : 'Show the lore text'"
+          @click="toggleShowLore"
+        />
+        <SegmentedControl
+          v-if="showBandPositionToggle"
+          :model-value="bandPosition"
+          :options="BAND_POSITION_OPTIONS"
+          size="xs"
+          variant="ghost"
+          @update:model-value="setBandPosition"
         />
         <AppButton
           size="xs"
@@ -100,6 +130,27 @@ const showArtToggle = computed(() => entityType.value === "monster");
 const showArt = computed(() => (props.node.attrs.showArt as boolean | undefined) ?? true);
 function toggleShowArt() {
   props.updateAttributes({ showArt: !showArt.value });
+}
+
+// showLore/bandPosition are monster-only too (#915 story 6 round 2) — the
+// two-cell grid / band composition they affect only exists for a monster
+// entry's own layout.
+const showLoreToggle = computed(() => entityType.value === "monster");
+const showLore = computed(() => (props.node.attrs.showLore as boolean | undefined) ?? true);
+function toggleShowLore() {
+  props.updateAttributes({ showLore: !showLore.value });
+}
+
+const showBandPositionToggle = computed(() => entityType.value === "monster");
+const bandPosition = computed(
+  () => (props.node.attrs.bandPosition as "top" | "bottom" | undefined) ?? "top",
+);
+const BAND_POSITION_OPTIONS: SegmentedOption<"top" | "bottom">[] = [
+  { value: "top", label: "Top", tooltip: "Band first, art/lore below (default)" },
+  { value: "bottom", label: "Bottom", tooltip: "Art/lore first, band below — a wide entry only" },
+];
+function setBandPosition(next: "top" | "bottom") {
+  props.updateAttributes({ bandPosition: next });
 }
 
 const startsPage = computed(() => (props.node.attrs.startsPage as boolean | undefined) ?? true);

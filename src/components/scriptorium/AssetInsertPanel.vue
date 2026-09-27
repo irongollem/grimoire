@@ -259,13 +259,20 @@ const TAB_TO_ENTITY_TYPE: Record<TabKey, EntityEmbedType> = {
 
 function insertItem(item: ListItem) {
   if (!props.editor) return;
+  const entityType = TAB_TO_ENTITY_TYPE[item.type];
   const endPos = props.editor.state.doc.content.size;
   props.editor
     .chain()
     .focus()
     .insertContentAt(endPos, {
       type: "entityEmbed",
-      attrs: { entityType: TAB_TO_ENTITY_TYPE[item.type], entityId: item.id },
+      // Explicit, not the node's own schema default (which is unconditionally
+      // true): only a monster starts its own page by default, matching a
+      // Monster Manual entry — an inserted NPC/spell/location shouldn't force
+      // a page break just because it landed on the entityEmbed's own default
+      // (#915 story 6 round 2). Mirrors buildEntityEmbedDocumentJson's same
+      // rule for "Send to Scriptorium" (entityEmbeds.ts).
+      attrs: { entityType, entityId: item.id, startsPage: entityType === "monster" },
     })
     .run();
   emit("close");

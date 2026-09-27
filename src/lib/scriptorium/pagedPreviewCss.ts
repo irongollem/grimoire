@@ -67,15 +67,25 @@ hr, .sc-page-break {
 /* Cover pages own a full, edge-to-edge page. They sit on a zero-margin named
    page so the art bleeds to the sheet edges, with an explicit full-page height
    (the cover's inner art/overlay are absolutely positioned, so it has no
-   intrinsic height). break-before starts it on a fresh page; its full height
-   pushes following content to the next page (no break-after → no trailing
-   blank); break-inside: avoid keeps it from splitting. */
+   intrinsic height). break-inside: avoid keeps a cover from splitting.
+
+   break-before: page is required, not just a full height pushing the next
+   thing along — two consecutive covers (front then inside) share the SAME
+   named page ("sc-cover"), and a shared page name does not by itself force a
+   break between them: Paged.js placed both on page 1, with the second
+   clipped invisible under the page box's own overflow:hidden (#915 story 6
+   round 2 — "the inside cover doesn't render at all"). break-before makes
+   every cover start its own fresh page regardless of what preceded it. No
+   break-after: the LAST cover (the back cover) has nothing following it to
+   push onto a new page, and a break-before on the very first cover is a
+   no-op (it's already first). */
 @page sc-cover {
   size: ${size};
   margin: 0;
 }
 .sc-cover {
   page: sc-cover;
+  break-before: page;
   break-inside: avoid;
   height: ${coverHeightPx}px;
 }
@@ -84,8 +94,14 @@ hr, .sc-page-break {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   margin: 0 auto 1.5rem;
 }
-/* See imageMaxHeightPx above: no image may be taller than a page can hold. */
-.pagedjs_page_content img {
+/* See imageMaxHeightPx above: no image may be taller than a page can hold.
+   .sc-cover-art (coverPage.ts) opts a cover's own full-bleed/art-slot image
+   out of the max-height cap above — the same rule that stops an oversized
+   inline image from overflowing its page was ALSO silently capping a cover's
+   art at ~72% of the sheet (object-fit:contain shrinking a full-bleed photo
+   to fit), leaving the rest of the page showing whatever was underneath
+   instead of more art (#915 story 6 round 2). */
+.pagedjs_page_content img:not(.sc-cover-art) {
   max-height: ${imageMaxHeightPx}px;
   object-fit: contain;
   break-inside: avoid;
@@ -106,15 +122,42 @@ h2, h3, .sc-statblock-section-title {
 }
 /* Boxed content stays in one column/page unless it is genuinely taller than
    one — "avoid" is a hint the layout falls back from when it truly can't fit,
-   which is exactly the "unless taller than a column" carve-out (#915 story 6). */
+   which is exactly the "unless taller than a column" carve-out (#915 story 6).
+
+   A stat block/entry is deliberately NOT given the "long boxes may break"
+   carve-out below (#915 story 6 round 2): its own size (column vs wide,
+   estimateStatBlockSize() in scriptoriumImport.ts) is what keeps it inside
+   one page's height in the first place, so relaxing avoid here would only
+   let a mis-sized one split rather than surface the sizing bug. */
 .sc-descriptive,
 .sc-note,
 .sc-quote,
 .sc-statblock,
+.sc-statblock-entry,
 .sc-statblock-section,
 .sc-ability-table,
 table {
   break-inside: avoid;
+}
+/* A table row never splits mid-cell — a table allowed to break across a page
+   (below) still breaks BETWEEN rows, never inside one (#915 story 6 round 2:
+   this used to split a check-frequency table's row as "check within / 1
+   hour" across a column). */
+tr {
+  break-inside: avoid;
+}
+/* Long boxes and tables (classified before layout — pagedBoxes.ts,
+   pagedTables.ts) may break after all: EVERY box/table above defaults to
+   break-inside: avoid, which is right for a short one (a box/table jumping
+   whole to the next page reads fine) but wrong for a long one, which instead
+   left the bottom third of the page before it blank (#915 story 6 round 2).
+   Naming both the base class and the "--long" modifier gives each of these
+   two extra classes of specificity over the blanket rule above, so they win
+   outright regardless of declaration order. */
+.sc-note.sc-box--long,
+.sc-descriptive.sc-box--long,
+table.sc-table--long {
+  break-inside: auto;
 }
 /* A monster/NPC entry (entityEmbed.ts) starts its own fresh page by default —
    a Monster Manual entry gets one, and the DM turns this off per node for a

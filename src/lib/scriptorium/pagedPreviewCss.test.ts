@@ -21,7 +21,7 @@ describe("buildPagedPreviewCss", () => {
     // 80% of the 1014px content box is 811px.
     expect(buildPagedPreviewCss({ pageSize: "A4", inkFriendly: false })).toContain("max-height: 811px");
     const a5 = buildPagedPreviewCss({ pageSize: "A5", inkFriendly: false });
-    expect(a5).toMatch(/\.pagedjs_page_content img \{[^}]*max-height: \d+px[^}]*object-fit: contain/);
+    expect(a5).toMatch(/\.pagedjs_page_content img:not\(\.sc-cover-art\) \{[^}]*max-height: \d+px[^}]*object-fit: contain/);
   });
 
   it("drops the page background in ink-friendly mode", () => {
@@ -62,8 +62,27 @@ describe("buildPagedPreviewCss", () => {
     expect(boxRule).toContain(".sc-note");
     expect(boxRule).toContain(".sc-quote");
     expect(boxRule).toContain(".sc-statblock");
+    expect(boxRule).toContain(".sc-statblock-entry");
     expect(boxRule).toContain(".sc-ability-table");
     expect(boxRule).toContain("table");
     expect(boxRule).toContain("break-inside: avoid");
+  });
+
+  it("starts every cover on its own fresh page (#915 story 6 round 2 — two consecutive covers sharing a page name)", () => {
+    const css = buildPagedPreviewCss(base);
+    expect(css).toMatch(/\.sc-cover\s*\{[^}]*break-before:\s*page/);
+  });
+
+  it("never lets a table row split mid-cell", () => {
+    const css = buildPagedPreviewCss(base);
+    expect(css).toMatch(/\btr\s*\{\s*break-inside:\s*avoid;?\s*\}/);
+  });
+
+  it("lets a long box or table break after all, overriding the blanket avoid rule", () => {
+    const css = buildPagedPreviewCss(base);
+    const longRule = css.match(/\.sc-note\.sc-box--long[\s\S]*?\{[\s\S]*?\}/)?.[0] ?? "";
+    expect(longRule).toContain(".sc-descriptive.sc-box--long");
+    expect(longRule).toContain("table.sc-table--long");
+    expect(longRule).toContain("break-inside: auto");
   });
 });

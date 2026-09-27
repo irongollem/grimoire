@@ -232,13 +232,20 @@ function scrollToHeading(blockId: string) {
   float: none !important;
   position: static !important;
   width: 100% !important;
-  /* The theme caps a wrap image's wrapper at 50% of the (two-column-sized)
-     page measure — needed there, wrong here where the wrapper IS the column.
-     max-width overrides width regardless of !important (it's a clamp CSS
-     applies across the two properties, not a same-property conflict), so
-     this has to be reset too or the 100% above is silently capped back down. */
-  max-width: 100% !important;
   margin: 0 !important;
+}
+/* The theme caps a wrap image's wrapper at 50% of the (two-column-sized) page
+   measure (.sc-theme .sc-img-wrap--wrapLeft/-wrapRight, theme-base.css) —
+   needed there, wrong here where the wrapper IS the column. Unlike the
+   properties above, max-width is never set inline (scriptoriumImage.ts only
+   puts top/left/right/bottom/width inline, and only in the "absolute" layout
+   mode), so this is a pure CSS-vs-CSS fight a more specific selector settles
+   outright — three classes (.sc-theme + the base + the modifier) beats the
+   theme rule's two, no !important needed now that the theme's own image
+   rules have settled (#915 story 6 round 2). */
+:deep(.sc-theme .sc-img-wrap.sc-img-wrap--wrapLeft),
+:deep(.sc-theme .sc-img-wrap.sc-img-wrap--wrapRight) {
+  max-width: 100%;
 }
 
 /* Tables scroll inside their own frame, never the page. @tiptap/extension-
@@ -252,8 +259,12 @@ function scrollToHeading(blockId: string) {
   overflow-x: auto;
   margin: 0.75rem 0;
 }
+/* No !important needed (#915 story 6 round 2): the theme's own rule is
+   `.sc-theme table` (one class, one type — theme-base.css), and this
+   selector is already more specific (the scope root plus two classes and a
+   type) without reaching for it. */
 :deep(.tableWrapper table) {
-  width: auto !important;
+  width: auto;
   min-width: 100%;
 }
 </style>

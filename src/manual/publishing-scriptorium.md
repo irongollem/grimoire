@@ -67,6 +67,8 @@ An NPC, Monster, Spell, Location, or Quest brought in through **Insert** (or the
 
 If the source entity is later deleted, the block shows a plain "no longer available" notice instead of stale or blank content, both in the galley and in the exported book.
 
+A linked **Monster** (or NPC) embeds as a full entry — name, framed stat block, art, and lore — laid out automatically as a column-width block or a page-wide band depending on how much the stat block holds. Its hover toolbar adds: a size toggle (Auto/Column/Wide), a portrait toggle, a **Lore** toggle (hide the description text — useful for a pure reference sheet), a Top/Bottom toggle for a wide entry's band position, and **New page** (on by default, so each entry starts fresh like a Monster Manual page; turn it off for a variant that should share its family's first entry, e.g. a second animated-object type right after the first).
+
 ### Decorating a page (furniture)
 
 Watercolor splatters, watermarks, and artist credits aren't part of the text: they're **furniture**, positioned on the page independent of the flowing content. Add one from **Insert Block → Decoration**, then drag it directly on the live book to reposition it; a right-hand inspector panel lets you set its colour, layer (above or below the text), width, or delete it.
@@ -99,7 +101,7 @@ A document scoped to a campaign can only be attached as a quest handout within t
 
 The document list and its filters work on a phone exactly as they do everywhere else, but writing does not: the page layout, art placement, and formatting tools need more room than a phone gives them, so **New Document** is hidden there and opening one for editing shows a short explanation with a way back to the list instead.
 
-Tapping a document from the list instead opens it as a **reader**: a single flowing column, like an e-book, rather than the paginated book. Page and column breaks disappear (a page break leaves a faint divider), a cover page becomes a compact card at the top with its title and art, back-cover blurbs become a closing card, images run the full width of the screen, and tables scroll sideways inside their own frame so they never widen the page. If the document has any headings, a tappable **Contents** list sits above the text and jumps straight to the section you tap.
+Tapping a document from the list instead opens it as a **reader**: a single flowing column, like an e-book, rather than the paginated book. Page and column breaks disappear (a page break leaves a faint divider), a cover page becomes a compact card at the top with its title and art, back-cover blurbs become a closing card, images run the full width of the screen, and tables scroll sideways inside their own frame so they never widen the page. If the document has any headings, a tappable **Contents** list sits above the text and jumps straight to the section you tap — the same headings that would appear in the printed book's own table of contents, including a linked monster/NPC's own entry name, even when its stat block frame is showing the only visible copy of the name.
 
 ## Tips
 

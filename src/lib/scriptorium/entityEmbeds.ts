@@ -78,12 +78,22 @@ export function missingEntityMarkerHtml(type: EntityEmbedType): string {
  * "auto" size when it's an explicit "column"/"wide": the formatted body HTML
  * a ref resolves to is shared by every embed of that entity (the lookup is
  * keyed by entity identity, not by node), so per-node sizing is applied here,
- * after injection, by swapping the resolved `.sc-statblock`'s own size class
+ * after injection, by swapping the resolved `.sc-statblock`'s (and its
+ * surrounding `.sc-statblock-entry`'s — #915 story 6 round 2) own size class
  * rather than by formatting the body differently per node. `data-show-art`
  * is handled the same way: when it's explicitly "false", the resolved art
  * figure (`.sc-entity-art`, scriptoriumImport.ts) is removed after injection
  * — again because the lookup's formatted HTML is shared across every embed
  * of that entity and can't itself vary per node.
+ *
+ * `data-show-lore` and `data-band-position` (#915 story 6 round 2) follow the
+ * same per-node-after-injection pattern: "false" lore removes the entry's
+ * lore text and hides its heading (the same "no lore" treatment the formatter
+ * itself applies when the entity simply has no description — see
+ * scriptoriumImport.ts), and a "bottom" band position flips the entry's
+ * `data-band-position` attribute, which the paged stylesheet reads to reorder
+ * a WIDE entry's band vs its art/lore (no-op on a column entry's two-cell
+ * grid).
  */
 export function resolveEntityEmbeds(html: string, lookup: EntityEmbedLookup): string {
   if (!html.includes('data-type="entity-embed"')) return html;
@@ -103,10 +113,28 @@ export function resolveEntityEmbeds(html: string, lookup: EntityEmbedLookup): st
         block.classList.remove("sc-statblock--column", "sc-statblock--wide");
         block.classList.add(`sc-statblock--${size}`);
       });
+      el.querySelectorAll(".sc-statblock-entry").forEach((entry) => {
+        entry.classList.remove("sc-statblock-entry--column", "sc-statblock-entry--wide");
+        entry.classList.add(`sc-statblock-entry--${size}`);
+      });
     }
 
     if (el.getAttribute("data-show-art") === "false") {
       el.querySelectorAll(".sc-entity-art").forEach((art) => art.remove());
+    }
+
+    if (el.getAttribute("data-show-lore") === "false") {
+      el.querySelectorAll(".sc-statblock-entry-lore").forEach((lore) => lore.remove());
+      el.querySelectorAll(".sc-statblock-entry-heading").forEach((heading) =>
+        heading.classList.add("sc-statblock-entry-heading--no-lore"),
+      );
+    }
+
+    const bandPosition = el.getAttribute("data-band-position");
+    if (bandPosition === "bottom") {
+      el.querySelectorAll(".sc-statblock-entry").forEach((entry) =>
+        entry.setAttribute("data-band-position", "bottom"),
+      );
     }
   });
   return container.innerHTML;

@@ -99,11 +99,30 @@ describe("formatMonsterForScriptorium — stat block frame (#915 story 6)", () =
     expect(content).toContain("sc-statblock sc-statblock--column");
   });
 
-  it("switches to the wide size once combined trait/action entries pass the threshold", () => {
+  // Text length, not entry count, decides the size (#915 story 6 round 2) —
+  // seven short one-line entries stay a column; two long ones (each well past
+  // a paragraph) push the same block over WIDE_STATBLOCK_CHAR_THRESHOLD.
+  const LONG_DESCRIPTION =
+    "This trait's description runs on at considerable length, well past what a single short line would hold, " +
+    "the way an actual creature's action or trait often does in practice with a full attack routine and damage " +
+    "roll spelled out in prose, plus a second sentence of exactly the same sort so the whole entry runs long. ";
+
+  it("stays the column size for many SHORT trait/action entries (text length, not item count, decides)", () => {
     const trait = { name: "Trait", description: "Does a thing." };
     const many: Partial<MonsterStatBlock> = {
       special_abilities: [trait, trait, trait],
       actions: [trait, trait, trait, trait],
+    };
+    const { content } = formatMonsterForScriptorium(monster({ stat_block: { ...monster().stat_block, ...many } }));
+    expect(content).toContain("sc-statblock--column");
+    expect(content).not.toContain("sc-statblock--wide");
+  });
+
+  it("switches to the wide size once the stat block's own text passes the length threshold", () => {
+    const long = { name: "Trait", description: LONG_DESCRIPTION };
+    const many: Partial<MonsterStatBlock> = {
+      special_abilities: [long, long, long],
+      actions: [long, long, long],
     };
     const { content } = formatMonsterForScriptorium(monster({ stat_block: { ...monster().stat_block, ...many } }));
     expect(content).toContain("sc-statblock--wide");
@@ -187,22 +206,55 @@ describe("formatMonsterForScriptorium — stat block frame (#915 story 6)", () =
 });
 
 describe("formatMonsterForScriptorium — entry composition (heading, lore, art)", () => {
-  it("opens with a real, TOC-visible h2 entry heading naming the creature", () => {
+  // #915 story 6 round 2: the column-break mechanism (a manual
+  // `.sc-column-break` Paged.js didn't reliably honour, sending art/lore to
+  // an otherwise empty next page) is gone. Every entry is now
+  // `.sc-statblock-entry`, a deterministic grid: two side-by-side cells for a
+  // column-size entry, or a stat block band plus a full-width art/lore slot
+  // for a wide one.
+
+  it("opens with a document heading naming the creature, inside the entry wrapper", () => {
     const { content } = formatMonsterForScriptorium(monster());
-    expect(content).toMatch(/^<h2 class="sc-statblock-entry-heading">Owlbear<\/h2>/);
+    expect(content).toMatch(/^<div class="sc-statblock-entry sc-statblock-entry--column"/);
+    expect(content).toContain('<h2 class="sc-statblock-entry-heading');
+    expect(content).toContain(">Owlbear</h2>");
   });
 
-  it("places the portrait outside the stat block frame, classed for the showArt toggle", () => {
+  it("hides the entry heading visually when there is no lore, but keeps it for the TOC", () => {
+    const { content } = formatMonsterForScriptorium(monster({ description: null }));
+    expect(content).toContain("sc-statblock-entry-heading sc-statblock-entry-heading--no-lore");
+  });
+
+  it("shows both the entry heading and the frame's own name when there is lore", () => {
+    const { content } = formatMonsterForScriptorium(
+      monster({ description: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Lore."}]}]}' }),
+    );
+    expect(content).not.toContain("sc-statblock-entry-heading--no-lore");
+    expect(content).toContain('<p class="sc-statblock-name">Owlbear</p>');
+  });
+
+  it("treats a genuinely empty Tiptap description (no lore ever typed) as no lore, not as dumped JSON", () => {
+    const { content } = formatMonsterForScriptorium(monster({ description: '{"type":"doc","content":[]}' }));
+    expect(content).toContain("sc-statblock-entry-heading--no-lore");
+    expect(content).not.toContain('"type":"doc"');
+    expect(content).not.toMatch(/sc-statblock-entry-lore">\s*<p/);
+  });
+
+  it("converts a plain-text description (escaped) — both shapes exist in real data", () => {
+    const { content } = formatMonsterForScriptorium(monster({ description: "Ampersands & <brackets> need escaping." }));
+    expect(content).toContain("Ampersands &amp; &lt;brackets&gt; need escaping.");
+    expect(content).not.toContain("Ampersands & <brackets>");
+  });
+
+  it("places the portrait in the entry's aside cell, classed for the showArt toggle", () => {
     const { content } = formatMonsterForScriptorium(monster({ image_url: "https://example.com/owlbear.webp" }));
     expect(content).toContain('class="sc-entity-art"');
-    // The art tag lands after the whole frame's content (name through the
-    // CR line), not nested somewhere inside it.
-    const nameIndex = content.indexOf("sc-statblock-name");
-    const crIndex = content.indexOf("<strong>CR</strong>");
+    const asideIndex = content.indexOf("sc-statblock-entry-aside");
     const artIndex = content.indexOf("sc-entity-art");
-    expect(nameIndex).toBeGreaterThan(-1);
-    expect(crIndex).toBeGreaterThan(nameIndex);
-    expect(artIndex).toBeGreaterThan(crIndex);
+    expect(asideIndex).toBeGreaterThan(-1);
+    expect(artIndex).toBeGreaterThan(asideIndex);
+    // No float any more — the aside cell places it, not an inline float.
+    expect(content).not.toMatch(/float:\s*right/);
   });
 
   it("omits the art figure entirely when the monster has no image", () => {
@@ -211,24 +263,35 @@ describe("formatMonsterForScriptorium — entry composition (heading, lore, art)
     expect(content).not.toContain("<img");
   });
 
-  it("inserts a column-break between the stat block and the lore/art for a column-size entry", () => {
+  it("places art and lore in the entry's aside cell for a column-size entry, with no column-break", () => {
     const { content } = formatMonsterForScriptorium(
-      monster({ image_url: "https://example.com/owlbear.webp", description: '{"type":"doc","content":[]}' }),
+      monster({
+        image_url: "https://example.com/owlbear.webp",
+        description: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Lore."}]}]}',
+      }),
     );
-    expect(content).toContain("sc-statblock--column");
-    expect(content).toContain('<div class="sc-column-break" data-type="column-break"></div>');
-  });
-
-  it("omits the column-break when there is no lore or art to send to the next column", () => {
-    const { content } = formatMonsterForScriptorium(monster({ image_url: null, description: null }));
+    expect(content).toContain("sc-statblock-entry--column");
+    expect(content).toContain("sc-statblock-entry-aside");
     expect(content).not.toContain("sc-column-break");
   });
 
-  it("omits the column-break for a wide entry (it already spans both columns)", () => {
-    const trait = { name: "Trait", description: "Does a thing." };
+  it("omits the aside cell entirely when there is no lore or art", () => {
+    const { content } = formatMonsterForScriptorium(monster({ image_url: null, description: null }));
+    expect(content).not.toContain("sc-statblock-entry-aside");
+    expect(content).not.toContain("sc-column-break");
+  });
+
+  it("uses the wide entry class for a long stat block, still with no column-break", () => {
+    const long = {
+      name: "Trait",
+      description:
+        "This trait's description runs on at considerable length, well past what a single short line would " +
+        "hold, the way an actual creature's action or trait often does in practice with a full attack routine " +
+        "and damage roll spelled out in prose, plus a second sentence of the same sort so the entry runs long. ",
+    };
     const many: Partial<MonsterStatBlock> = {
-      special_abilities: [trait, trait, trait],
-      actions: [trait, trait, trait, trait],
+      special_abilities: [long, long, long],
+      actions: [long, long, long],
     };
     const { content } = formatMonsterForScriptorium(
       monster({
@@ -236,7 +299,13 @@ describe("formatMonsterForScriptorium — entry composition (heading, lore, art)
         stat_block: { ...monster().stat_block, ...many },
       }),
     );
+    expect(content).toContain("sc-statblock-entry--wide");
     expect(content).toContain("sc-statblock--wide");
     expect(content).not.toContain("sc-column-break");
+  });
+
+  it("defaults a wide entry's band position to top", () => {
+    const { content } = formatMonsterForScriptorium(monster());
+    expect(content).toContain('data-band-position="top"');
   });
 });

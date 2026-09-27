@@ -39,7 +39,7 @@ export const ENTITY_EMBED_TYPES: readonly EntityEmbedType[] = [
 
 /**
  * Stat-block size (#915 story 6). "auto" is the default and picks itself from
- * the entity's own content (see autoStatBlockSize() in scriptoriumImport.ts) —
+ * the entity's own content (see estimateStatBlockSize() in scriptoriumImport.ts) —
  * a short stat block reads as a "column" box in its own text column, a long
  * one as a "wide" block spanning both page columns with its own internal
  * two-column flow, matching how the printed books lay out a creature too
@@ -65,6 +65,18 @@ export interface EntityEmbedAttrs {
    * to that heading (see the paged stylesheet).
    */
   startsPage?: boolean;
+  /**
+   * A wide (band) monster entry's art+lore sits below the stat block band by
+   * default ("top"); "bottom" puts art+lore above the band instead (#915
+   * story 6 round 2). No effect on a column-sized entry, which always uses
+   * the two-cell grid (stat block left, art/lore right) regardless.
+   */
+  bandPosition?: "top" | "bottom";
+  /** Show the entity's lore/description beside (or above/below) the stat
+   *  block (monster entries only). Default true. Turning it off also hides
+   *  the entry's document heading, matching the "no lore" case — the frame's
+   *  own name is then the only visible name (#915 story 6 round 2). */
+  showLore?: boolean;
 }
 
 declare module "@tiptap/core" {
@@ -118,6 +130,21 @@ export const EntityEmbed = Node.create({
         parseHTML: (el: HTMLElement) => el.getAttribute("data-starts-page") !== "false",
         renderHTML: (attrs: { startsPage?: boolean }) => ({
           "data-starts-page": String(attrs.startsPage ?? true),
+        }),
+      },
+      bandPosition: {
+        default: "top" as "top" | "bottom",
+        parseHTML: (el: HTMLElement) =>
+          (el.getAttribute("data-band-position") as "top" | "bottom") ?? "top",
+        renderHTML: (attrs: { bandPosition?: "top" | "bottom" }) => ({
+          "data-band-position": attrs.bandPosition ?? "top",
+        }),
+      },
+      showLore: {
+        default: true,
+        parseHTML: (el: HTMLElement) => el.getAttribute("data-show-lore") !== "false",
+        renderHTML: (attrs: { showLore?: boolean }) => ({
+          "data-show-lore": String(attrs.showLore ?? true),
         }),
       },
     };

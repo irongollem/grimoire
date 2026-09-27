@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
-import { promoteTableHeaders, COLUMN_SHORT_MAX } from "./pagedTables";
+import { promoteTableHeaders, COLUMN_SHORT_MAX, LONG_TABLE_ROW_THRESHOLD } from "./pagedTables";
 
 describe("promoteTableHeaders", () => {
   it("returns the html unchanged when there is no table", () => {
@@ -75,5 +75,35 @@ describe("promoteTableHeaders", () => {
     const out = promoteTableHeaders(html);
     expect(out).not.toContain("sc-table-col-center");
     expect(out).not.toContain("sc-table-col-left");
+  });
+
+  function tableWithRows(n: number): string {
+    const rows = Array.from({ length: n - 1 }, (_, i) => `<tr><td>${i}</td></tr>`).join("");
+    return `<table><tbody><tr><th>Header</th></tr>${rows}</tbody></table>`;
+  }
+
+  it(`leaves a table at or below ${LONG_TABLE_ROW_THRESHOLD} total rows unclassified`, () => {
+    const out = promoteTableHeaders(tableWithRows(LONG_TABLE_ROW_THRESHOLD));
+    expect(out).not.toContain("sc-table--long");
+  });
+
+  it(`classifies a table above ${LONG_TABLE_ROW_THRESHOLD} total rows sc-table--long`, () => {
+    const out = promoteTableHeaders(tableWithRows(LONG_TABLE_ROW_THRESHOLD + 1));
+    expect(out).toContain("sc-table--long");
+  });
+
+  it("never classifies a table that already has its own thead (a specialised, always-short table)", () => {
+    const rows = Array.from({ length: LONG_TABLE_ROW_THRESHOLD + 5 }, (_, i) => `<tr><td>${i}</td></tr>`).join("");
+    const html = `<table class="sc-ability-table"><thead><tr><th>X</th></tr></thead><tbody>${rows}</tbody></table>`;
+    expect(promoteTableHeaders(html)).not.toContain("sc-table--long");
+  });
+
+  it("classifies a long table using colspan/rowspan too (row count doesn't depend on column classification)", () => {
+    const rows = Array.from(
+      { length: LONG_TABLE_ROW_THRESHOLD },
+      () => '<tr><td colspan="2">x</td></tr>',
+    ).join("");
+    const html = `<table><tbody><tr><th rowspan="2">Level</th><th colspan="2">Slots</th></tr>${rows}</tbody></table>`;
+    expect(promoteTableHeaders(html)).toContain("sc-table--long");
   });
 });

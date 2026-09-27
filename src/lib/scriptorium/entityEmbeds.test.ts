@@ -146,6 +146,50 @@ describe("resolveEntityEmbeds", () => {
     expect(resolveEntityEmbeds(withoutAttr, lookup)).toContain("sc-entity-art");
   });
 
+  it("swaps the surrounding entry's size class too, not just the inner stat block (#915 story 6 round 2)", () => {
+    const html =
+      '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a" data-size="wide"></div>';
+    const out = resolveEntityEmbeds(html, {
+      "monster:a":
+        '<div class="sc-statblock-entry sc-statblock-entry--column"><div class="sc-statblock sc-statblock--column"></div></div>',
+    });
+    expect(out).toContain("sc-statblock-entry--wide");
+    expect(out).not.toContain("sc-statblock-entry--column");
+  });
+
+  it("removes the resolved lore and hides the entry heading when data-show-lore is explicitly false", () => {
+    const html =
+      '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a" data-show-lore="false"></div>';
+    const out = resolveEntityEmbeds(html, {
+      "monster:a":
+        '<div class="sc-statblock-entry"><h2 class="sc-statblock-entry-heading">Owlbear</h2>' +
+        '<div class="sc-statblock-entry-aside"><div class="sc-statblock-entry-lore"><p>Lore.</p></div></div></div>',
+    });
+    expect(out).not.toContain("sc-statblock-entry-lore");
+    expect(out).toContain("sc-statblock-entry-heading--no-lore");
+  });
+
+  it("keeps the resolved lore and heading visible when data-show-lore is true or absent", () => {
+    const lookup = {
+      "monster:a":
+        '<div class="sc-statblock-entry"><h2 class="sc-statblock-entry-heading">Owlbear</h2>' +
+        '<div class="sc-statblock-entry-lore"><p>Lore.</p></div></div>',
+    };
+    const withoutAttr = '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a"></div>';
+    const out = resolveEntityEmbeds(withoutAttr, lookup);
+    expect(out).toContain("sc-statblock-entry-lore");
+    expect(out).not.toContain("sc-statblock-entry-heading--no-lore");
+  });
+
+  it("flips the entry's band position when data-band-position is bottom", () => {
+    const html =
+      '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a" data-band-position="bottom"></div>';
+    const out = resolveEntityEmbeds(html, {
+      "monster:a": '<div class="sc-statblock-entry" data-band-position="top"></div>',
+    });
+    expect(out).toContain('data-band-position="bottom"');
+  });
+
   it("resolves multiple embeds independently", () => {
     const html =
       '<div data-type="entity-embed" data-entity-type="npc" data-entity-id="a"></div>' +

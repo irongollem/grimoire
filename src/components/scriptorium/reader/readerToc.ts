@@ -38,15 +38,51 @@ export interface ReaderTocEntry {
  *  to real content nodes. */
 const HEADING_SELECTOR = "h1[data-block-id], h2[data-block-id], h3[data-block-id]";
 
-/** Every heading under `root` with a `blockId`, in document order. A heading
- *  with no text (blank) is skipped rather than listed as a dead entry. */
+/** A monster/NPC entry's own name heading (scriptoriumImport.ts) — raw
+ *  injected HTML with no `data-block-id` of its own (see below), so it needs
+ *  its own selector rather than matching HEADING_SELECTOR. */
+const ENTRY_HEADING_SELECTOR = ".sc-statblock-entry-heading";
+
+/** A regular document heading counts for the reader's contents list unless
+ *  it's inside a sidebar, a read-aloud box, or a linked entity embed's own
+ *  body — mirrors pagedToc.ts's isContentHeading(), which the printed book's
+ *  TOC already excludes these from (#915 story 6 round 2: the reader's own
+ *  list had no such exclusion at all). */
+function isReaderContentHeading(heading: HTMLElement): boolean {
+  return (
+    !heading.closest(".sc-note") &&
+    !heading.closest(".sc-descriptive") &&
+    !heading.closest('[data-type="entity-embed"]')
+  );
+}
+
+/** Every heading under `root` that belongs in the reader's contents list, in
+ *  document order. A heading with no text (blank) is skipped rather than
+ *  listed as a dead entry.
+ *
+ *  A monster/NPC entry's own name heading is the one exception to "needs a
+ *  blockId": it's raw HTML injected by the entity-embed resolution pipeline
+ *  (EntityEmbedView.vue / entityEmbeds.ts), never part of the Tiptap document
+ *  BlockId assigns ids to, so it borrows the id of its entityEmbed wrapper
+ *  instead — which IS a real content node. It still belongs in the list,
+ *  exactly like a Monster Manual entry, even when hidden by CSS because the
+ *  entry has no lore (see theme-base.css's `--no-lore` modifier). */
 export function collectReaderToc(root: ParentNode): ReaderTocEntry[] {
   const entries: ReaderTocEntry[] = [];
-  root.querySelectorAll<HTMLElement>(HEADING_SELECTOR).forEach((heading) => {
-    const blockId = heading.getAttribute("data-block-id");
-    const text = heading.textContent?.trim() ?? "";
-    if (!blockId || !text) return;
-    entries.push({ blockId, level: Number(heading.tagName[1]), text });
+  root.querySelectorAll<HTMLElement>(`${HEADING_SELECTOR}, ${ENTRY_HEADING_SELECTOR}`).forEach((el) => {
+    const text = el.textContent?.trim() ?? "";
+    if (!text) return;
+
+    if (el.classList.contains("sc-statblock-entry-heading")) {
+      const blockId = el.closest<HTMLElement>("[data-block-id]")?.getAttribute("data-block-id");
+      if (blockId) entries.push({ blockId, level: 2, text });
+      return;
+    }
+
+    if (!isReaderContentHeading(el)) return;
+    const blockId = el.getAttribute("data-block-id");
+    if (!blockId) return;
+    entries.push({ blockId, level: Number(el.tagName[1]), text });
   });
   return entries;
 }

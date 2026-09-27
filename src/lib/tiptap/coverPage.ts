@@ -88,7 +88,14 @@ export const CoverPage = Node.create({
       blurb1: strAttr("blurb1", "Your adventure begins here. Replace this blurb with a compelling hook that draws readers in."),
       blurb2: strAttr("blurb2", "Describe the stakes, the world, or the conflict. Make it vivid."),
       blurb3: strAttr("blurb3", "A final line to close the back-cover pitch. Short and punchy."),
-      tagline: strAttr("tagline", "An unofficial Grimoire supplement"),
+      // No invented default text (#915 story 6 round 2) — an empty tagline
+      // renders nothing (see buildFront/buildBack below), rather than every
+      // cover that hasn't set one silently printing the same boilerplate
+      // line. The templates below still seed an editable placeholder for a
+      // NEW back cover, same as "Document Title" does for the title field;
+      // that's authored content the DM is expected to change, not a
+      // render-time fallback.
+      tagline: strAttr("tagline", ""),
       productUrl: strAttr("productUrl", "grimoire.example.com"),
       backgroundImage: strAttr("backgroundImage", ""),
       titleScrim: boolAttr("titleScrim", true),
@@ -196,8 +203,15 @@ const FRONT_TITLE_STYLE =
 const FRONT_BODY_STYLE = "display:flex;flex-direction:column";
 
 export function buildFront(attrs: CoverPageAttrs): NodeSpec[] {
+  // `sc-cover-art` (#915 story 6 round 2) opts this image out of the paged
+  // stylesheet's generic `img { max-height; object-fit: contain }` rule
+  // (pagedPreviewCss.ts) — that rule exists to stop an oversized inline image
+  // from overflowing its page, but it also silently capped a full-bleed cover
+  // photo at ~72% of the sheet, object-fit:contain shrinking it to fit and
+  // leaving the bottom of the page showing whatever was underneath instead of
+  // more art.
   const coverBg: NodeSpec = attrs.backgroundImage
-    ? ["img", { src: attrs.backgroundImage, style: FRONT_ART_IMG_STYLE, alt: "" }]
+    ? ["img", { src: attrs.backgroundImage, class: "sc-cover-art", style: FRONT_ART_IMG_STYLE, alt: "" }]
     : ["div", { style: FRONT_ART_DIV_STYLE }];
 
   return [
@@ -246,7 +260,7 @@ function buildInside(attrs: CoverPageAttrs): NodeSpec[] {
   // When there's a background image use an <img> for proper CORS/html2canvas
   // handling; otherwise fall back to a CSS background-image on a <div>.
   const artEl: NodeSpec = attrs.backgroundImage
-    ? ["img", { src: attrs.backgroundImage, style: INSIDE_ART_IMG_STYLE, alt: "" }]
+    ? ["img", { src: attrs.backgroundImage, class: "sc-cover-art", style: INSIDE_ART_IMG_STYLE, alt: "" }]
     : [
         "div",
         {
@@ -357,7 +371,9 @@ export function buildBack(attrs: CoverPageAttrs): NodeSpec[] {
       [
         "div",
         { style: BACK_BOTTOM_BAR_STYLE },
-        ["span", {}, attrs.tagline || "An Unofficial Supplement"],
+        // No invented fallback text (#915 story 6 round 2) — an empty
+        // tagline renders as an empty span, not "An Unofficial Supplement".
+        ["span", {}, attrs.tagline],
         ["span", {}, attrs.productUrl],
       ],
     ],
