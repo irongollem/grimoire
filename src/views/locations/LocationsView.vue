@@ -10,13 +10,15 @@
     <template #actions>
       <ListActionButton
         :icon="planarMutation.isPending.value ? IconLoading : IconFaction"
-        :label="planarStatusLabel"
+        :label="planarMutation.isPending.value ? 'Populating…' : 'Populate Planes'"
+        tooltip="Add the planes of existence as places"
         :disabled="planarMutation.isPending.value"
         @click="handlePopulatePlanes"
       />
       <ListActionButton
         :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
-        :label="populateStatusLabel"
+        :label="populateMutation.isPending.value ? 'Populating…' : 'Populate Setting'"
+        tooltip="Add the well-known places of your campaign's setting"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
@@ -53,7 +55,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { useToast } from "@/composables/useToast";
+import { pluralizeCount } from "@/lib/utils";
 import { IconAdd, IconFaction, IconGenerate, IconLoading, IconPopulate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -76,63 +79,35 @@ const TYPE_OPTIONS = [
   ...Object.entries(LOCATION_TYPE_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
-const populateMutation = usePopulateLocations();
-const populateStatus = ref<"idle" | "done" | "uptodate">("idle");
-const populatedCount = ref(0);
-const populateError = ref<string | null>(null);
+// The outcome of a populate is a toast, not the button's label: below `sm` a
+// list action collapses to its icon, so a result written into the label
+// ("Already up to date", "Added 12 locations", an error) was invisible on a
+// phone and the button looked like it did nothing (27 Sep 2026).
+const toast = useToast();
 
-const populateStatusLabel = computed(() => {
-  if (populateMutation.isPending.value) return "Populating…";
-  if (populateError.value) return `Error: ${populateError.value}`;
-  if (populateStatus.value === "done") return `Added ${populatedCount.value} locations`;
-  if (populateStatus.value === "uptodate") return "Already up to date";
-  return "Populate Setting";
-});
+const populateMutation = usePopulateLocations();
 
 async function handlePopulate() {
-  populateStatus.value = "idle";
-  populateError.value = null;
   try {
     const count = await populateMutation.mutateAsync();
-    populatedCount.value = count;
-    populateStatus.value = count === 0 ? "uptodate" : "done";
+    if (count === 0) toast.info("Every place from your setting is already in the Atlas.");
+    else toast.success(`Added ${pluralizeCount(count, "place", "places")} from your setting.`);
   } catch (e) {
     if (gateQuotaError(e)) return; // free-tier cap hit → show paywall, not a raw error
-    populateError.value = e instanceof Error ? e.message : String(e);
+    toast.error(toast.fromError(e, "The setting's places could not be added."));
   }
-  setTimeout(() => {
-    populateStatus.value = "idle";
-    populateError.value = null;
-  }, 8000);
 }
 
 const planarMutation = usePopulatePlanarLocations();
-const planarStatus = ref<"idle" | "done" | "uptodate">("idle");
-const planarCount = ref(0);
-const planarError = ref<string | null>(null);
-
-const planarStatusLabel = computed(() => {
-  if (planarMutation.isPending.value) return "Populating…";
-  if (planarError.value) return `Error: ${planarError.value}`;
-  if (planarStatus.value === "done") return `Added ${planarCount.value} planes`;
-  if (planarStatus.value === "uptodate") return "Planes up to date";
-  return "Populate Planes";
-});
 
 async function handlePopulatePlanes() {
-  planarStatus.value = "idle";
-  planarError.value = null;
   try {
     const count = await planarMutation.mutateAsync();
-    planarCount.value = count;
-    planarStatus.value = count === 0 ? "uptodate" : "done";
+    if (count === 0) toast.info("Every plane of existence is already in the Atlas.");
+    else toast.success(`Added ${pluralizeCount(count, "plane", "planes")}.`);
   } catch (e) {
     if (gateQuotaError(e)) return; // free-tier cap hit → show paywall, not a raw error
-    planarError.value = e instanceof Error ? e.message : String(e);
+    toast.error(toast.fromError(e, "The planes could not be added."));
   }
-  setTimeout(() => {
-    planarStatus.value = "idle";
-    planarError.value = null;
-  }, 8000);
 }
 </script>
