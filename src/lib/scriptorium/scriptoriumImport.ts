@@ -281,6 +281,9 @@ interface StatBlockAbilities {
 export type StatBlockSize = "column" | "wide";
 
 interface BuildStatBlockOpts {
+  /** A visible entry heading sits above the frame (the creature has lore),
+   *  which takes room from the column the block must fit in. */
+  headingAbove?: boolean;
   /** The block's own title. Empty string omits the type line entirely (used
    *  for an NPC's generic "Statistics" frame, which has no size/type/alignment). */
   name: string;
@@ -419,14 +422,29 @@ function buildStatBlockInnerHtml(opts: Omit<BuildStatBlockOpts, "theme"> & { the
  */
 const WIDE_STATBLOCK_CHAR_THRESHOLD = 1350;
 
+/**
+ * The same limit when the entry heading is VISIBLE above the block (the
+ * creature has lore, so its name prints large above the frame). Measured on
+ * the live booklet once lore rendered (26 Sep 2026): a column stat block
+ * runs 0.73 to 0.87px of height per character, the page's content box is
+ * about 1,014px, and the visible heading plus its gaps take about 75px, so
+ * roughly 930px remain; 930 / 0.87 is about 1,070. At the old 1,350 the
+ * Marzipan Sentry (1,116 characters) left a near-empty spill page and the
+ * Toffee Maw (1,328) overflowed and Paged.js drew it twice. 1,050 keeps the
+ * Spun Glass Hound (881) and Brittle Knight (918) in a column and sends the
+ * other four wide.
+ */
+const WIDE_STATBLOCK_CHAR_THRESHOLD_UNDER_HEADING = 1050;
+
 /** Strip tags and collapse whitespace to approximate the text a reader would
  *  actually see, for the size estimate above. */
 function textLength(html: string): number {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().length;
 }
 
-function estimateStatBlockSize(innerHtml: string): StatBlockSize {
-  return textLength(innerHtml) > WIDE_STATBLOCK_CHAR_THRESHOLD ? "wide" : "column";
+function estimateStatBlockSize(innerHtml: string, headingAbove: boolean): StatBlockSize {
+  const limit = headingAbove ? WIDE_STATBLOCK_CHAR_THRESHOLD_UNDER_HEADING : WIDE_STATBLOCK_CHAR_THRESHOLD;
+  return textLength(innerHtml) > limit ? "wide" : "column";
 }
 
 /** Build the full framed stat block: decides its own size from the content
@@ -435,7 +453,7 @@ function estimateStatBlockSize(innerHtml: string): StatBlockSize {
  *  2) — and the finished HTML, wrapped accordingly. */
 function buildStatBlockHtml(opts: BuildStatBlockOpts): { html: string; size: StatBlockSize } {
   const inner = buildStatBlockInnerHtml(opts);
-  const size = estimateStatBlockSize(inner);
+  const size = estimateStatBlockSize(inner, opts.headingAbove ?? false);
   return { html: `<div class="sc-statblock sc-statblock--${size}">\n${inner}</div>\n`, size };
 }
 
@@ -668,7 +686,12 @@ const monsterFormatter: AssetFormatter<Monster> = {
     // depends on where Paged.js decides to break the surrounding two-column
     // flow. See EntityEmbedView.vue for the size/art/lore/band toggles, and
     // theme-base.css's "Linked entity ENTRY layout" section for the grid.
+    // Lore decides whether the entry heading shows, and a visible heading
+    // shrinks the column the stat block must fit (see the size thresholds).
+    const loreHtml = richTextOrPlain(monster.description);
+    const hasLore = Boolean(loreHtml.trim());
     const { html: statBlockHtml, size } = buildStatBlockHtml({
+      headingAbove: hasLore,
       name: monster.name,
       typeLine: statBlockTypeLine(monster.size, monster.monster_type, monster.alignment),
       theme,
@@ -705,8 +728,6 @@ const monsterFormatter: AssetFormatter<Monster> = {
     // plain-text case, unlike the direct tiptapJsonToHtml() call this used to
     // make, which silently produced nothing at all for a plain-text
     // description (JSON.parse threw, caught, returned "").
-    const loreHtml = richTextOrPlain(monster.description);
-    const hasLore = Boolean(loreHtml.trim());
 
     // The entry heading duplicated the stat block's own name directly under
     // it when there was no lore to justify a second, larger name above the

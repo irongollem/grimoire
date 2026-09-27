@@ -1108,6 +1108,29 @@
   display: block;
   margin: 0 auto 0.75rem;
 }
+/* A wide entry's art and lore sit side by side in the page's two columns
+   under (or over) the band, the way a book lays out a long creature, rather
+   than stacked full width. Stacked, the Toffee Maw's entry reached 1,000px of
+   a 1,014px page, overflowed the page's column container and was painted off
+   the page, leaving it blank (#915 story 6, 26 Sep 2026). */
+.sc-theme .sc-statblock-entry--wide .sc-statblock-entry-aside {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.5rem;
+  align-items: start;
+  margin-top: 0.75rem;
+}
+.sc-theme .sc-statblock-entry--wide .sc-statblock-entry-aside:not(:has(.sc-entity-art)) {
+  grid-template-columns: 1fr;
+}
+.sc-theme .sc-statblock-entry--wide[data-band-position="bottom"] .sc-statblock-entry-aside {
+  margin-top: 0;
+}
+.sc-theme .sc-statblock-entry--wide .sc-statblock-entry-aside .sc-entity-art {
+  margin: 0 auto;
+  max-height: 16rem;
+  width: auto;
+}
 .sc-theme .sc-statblock-entry-lore p:last-child {
   margin-bottom: 0;
 }

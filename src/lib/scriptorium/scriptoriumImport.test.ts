@@ -129,6 +129,26 @@ describe("formatMonsterForScriptorium — stat block frame (#915 story 6)", () =
     expect(content).not.toContain("sc-statblock--column");
   });
 
+  // A visible entry heading (the creature has lore) takes room from the
+  // column, so a mid-length block that fits a column on its own goes wide
+  // once lore puts the heading above it. Calibrated on the demo booklet: the
+  // Marzipan Sentry and Toffee Maw overflowed at the single threshold.
+  it("goes wide at a shorter length when lore makes the entry heading visible", () => {
+    const medium = {
+      name: "Trait",
+      description:
+        "A mid-length trait that runs to a couple of sentences, long enough that four of them together " +
+        "push the block past a thousand characters without reaching the page-wide threshold on their own.",
+    };
+    const block = { ...monster().stat_block, special_abilities: [medium, medium], actions: [medium, medium, medium] };
+    const noLore = formatMonsterForScriptorium(monster({ stat_block: block })).content;
+    const withLore = formatMonsterForScriptorium(
+      monster({ stat_block: block, description: "An owlbear is a lot of bear with a beak." }),
+    ).content;
+    expect(noLore).toContain("sc-statblock--column");
+    expect(withLore).toContain("sc-statblock--wide");
+  });
+
   it("title-cases the type line with a comma before the alignment (onednd2024)", () => {
     const { content } = formatMonsterForScriptorium(
       monster({ size: "small", monster_type: "construct", alignment: "unaligned" }),
