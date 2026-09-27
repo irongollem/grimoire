@@ -120,6 +120,8 @@ const castDeviceName = ref<string | null>(null);
 /** Drawn before the SDK exists, so it cannot ask the SDK; hidden if the SDK later says no. */
 const isCastAvailable = computed(() => browserSupportsCast() && sdkState.value !== "unavailable");
 const isCastLoading = computed(() => sdkState.value === "loading");
+/** The picker failed to open right after a first-time load: say to click again. */
+const needsSecondClick = ref(false);
 
 const SDK_URL = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1";
 /** Per-browser memory that this viewer has chosen to cast, so preloading is their choice. */
@@ -236,6 +238,7 @@ export function useCast() {
   return {
     isCastAvailable,
     isCastLoading,
+    needsSecondClick,
     isCasting: computed(() => store.isCasting),
     castDeviceName,
     openDevicePicker,
@@ -249,12 +252,16 @@ async function openDevicePicker(): Promise<void> {
     return;
   }
   rememberCastUse();
+  needsSecondClick.value = false;
+  const firstLoad = sdkState.value !== "ready";
   if (!(await loadSdk())) return;
-  // On a first click the picker opens after a network fetch. If Chrome judges
-  // the click too long ago to open it, the SDK is loaded now and the next
-  // click opens it at once.
   castCtx()?.requestSession().catch(() => {
-    // User cancelled the device picker or no devices available — ignore
+    // Usually the user cancelled or no devices are on the network — ignore.
+    // But on a first load the picker opens after a network fetch, and Chrome
+    // may judge the click too long ago to open it. We cannot tell that apart
+    // from a cancel by error code, so after a first load always offer a retry;
+    // the SDK is loaded now and the next click opens the picker at once.
+    if (firstLoad) needsSecondClick.value = true;
   });
 }
 

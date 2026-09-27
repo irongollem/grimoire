@@ -58,4 +58,28 @@ describe("useCast", () => {
     expect(cast.isCastAvailable.value).toBe(false);
     expect(injected).toEqual([]);
   });
+
+  it("offers a retry when the picker fails right after a first-time load", async () => {
+    const requestSession = vi.fn().mockRejectedValue("session_error");
+    const listener = { addEventListener: vi.fn() };
+    const w = window as unknown as Record<string, unknown>;
+    w.cast = {
+      framework: {
+        CastContext: {
+          getInstance: () => ({ setOptions: vi.fn(), requestSession, ...listener }),
+        },
+        RemotePlayer: class {},
+        RemotePlayerController: class { addEventListener = vi.fn(); },
+        CastContextEventType: { SESSION_STATE_CHANGED: "s" },
+        RemotePlayerEventType: { PLAYER_STATE_CHANGED: "p" },
+      },
+    };
+    const cast = await freshUseCast();
+    const opened = cast.openDevicePicker();
+    (w.__onGCastApiAvailable as (ok: boolean) => void)(true);
+    await opened;
+    await vi.waitFor(() => expect(cast.needsSecondClick.value).toBe(true));
+    expect(requestSession).toHaveBeenCalledOnce();
+    delete w.cast;
+  });
 });
