@@ -1196,6 +1196,26 @@
     16rem
   );
 }
+/* A linked item is a treasure entry (scriptoriumImport.ts's item formatter):
+   name, italic type line, text, with the art floated beside it the way a
+   Dungeon Master's Guide sets a magic item. The entry contains its float so
+   the next entry starts below the picture (#917). */
+.sc-theme .sc-item-entry {
+  display: flow-root;
+  margin: 0 0 0.75rem;
+}
+.sc-theme .sc-item-entry .sc-entity-art {
+  float: right;
+  width: 40%;
+  max-width: 10rem;
+  margin: 0.25rem 0 0.5rem 1rem;
+}
+.sc-theme .sc-item-entry-name {
+  margin-top: 0;
+}
+.sc-theme .sc-item-entry-type {
+  margin-bottom: 0.4rem;
+}
 .sc-theme .sc-statblock-entry-lore p:last-child {
   margin-bottom: 0;
 }

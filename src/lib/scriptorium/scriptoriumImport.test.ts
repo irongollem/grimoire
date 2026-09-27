@@ -7,6 +7,7 @@ import {
 } from "@/lib/scriptorium/scriptoriumImport";
 import type { Npc } from "@/types/npc.types";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
+import type { Item } from "@/types/item.types";
 
 function npc(overrides: Partial<Npc> = {}): Npc {
   return {
@@ -373,5 +374,46 @@ describe("estimateWideBandHeightPx (#917)", () => {
       monster({ description: "A brute." }),
     );
     expect(content).toMatch(/class="sc-statblock-entry[^"]*"[^>]*style="--sc-band-est: \d+px"/);
+  });
+});
+
+describe("item entries in a book (#917)", () => {
+  const item = {
+    id: "i1",
+    name: 'The "Master\'s" Recipe Book',
+    item_type: "gear",
+    rarity: "uncommon",
+    subtype: null,
+    image_url: "https://example.com/book.webp",
+    description: "Bound in candied leather.\n\nOne recipe works as a keepsake.",
+    cost: null,
+    weight: 2,
+    damage_rolls: [],
+    armor_class: null,
+    properties: [],
+    requires_attunement: false,
+    attunement_requirements: null,
+    charges: null,
+    recharge: null,
+    tags: [],
+    source: null,
+  } as unknown as Item;
+
+  it("sets a treasure as an entry, not a chapter: small heading, type line, text, art alongside", () => {
+    const html = formatEntityEmbedBodyHtml({ type: "item", item, spells: [] });
+    const el = document.createElement("div");
+    el.innerHTML = html;
+    const entry = el.querySelector(".sc-item-entry");
+    expect(entry).not.toBeNull();
+    expect(el.querySelector("h1")).toBeNull();
+    expect(entry?.querySelector("h3")?.textContent).toBe('The "Master\'s" Recipe Book');
+    expect(entry?.querySelector(".sc-item-entry-type")?.textContent).toContain("Uncommon");
+    expect(entry?.querySelector('img[data-art-kind="picture"]')?.getAttribute("alt")).toBe('The "Master\'s" Recipe Book');
+    expect([...(entry?.querySelectorAll("p") ?? [])].map((p) => p.textContent)).toContain("One recipe works as a keepsake.");
+  });
+
+  it("leaves the art out when the item has none", () => {
+    const html = formatEntityEmbedBodyHtml({ type: "item", item: { ...item, image_url: null }, spells: [] });
+    expect(html).not.toContain("<img");
   });
 });

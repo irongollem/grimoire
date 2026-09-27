@@ -879,59 +879,57 @@ const spellFormatter: AssetFormatter<Spell> = {
 
 const itemFormatter: AssetFormatter<{ item: Item; spells: Spell[] }> = {
   format({ item, spells }): ScriptoriumImportData {
-    let html = "";
-
-    if (item.image_url) {
-      html += `<img src="${item.image_url}" alt="${item.name}" width="200" style="float:right;margin:0 0 10px 14px;width:200px" />\n`;
-    }
-
-    html += `<h1>${item.name}</h1>\n`;
-
-    // Type line
+    // A treasure entry the way a Dungeon Master's Guide sets one: the name as
+    // a small heading, an italic type line, the numbers, then the text, with
+    // the art floated beside it. This used to open with an <h1>, which in a
+    // two-column book is a chapter title spanning the page, so an appendix of
+    // eleven treasures read as eleven chapters (#917). The whole entry is one
+    // `.sc-item-entry` so the paged book keeps a short one together.
     const rarity = ITEM_RARITY_LABELS[item.rarity];
     const type = ITEM_TYPE_LABELS[item.item_type];
     const typeLine = [rarity !== "Mundane" ? rarity : null, type, item.subtype]
       .filter(Boolean)
       .join(" · ");
-    html += `<p><em>${typeLine}</em></p>\n`;
 
-    // Physical stats
-    const physRows = [
-      item.cost && `<strong>Cost</strong> ${item.cost}`,
-      item.weight && `<strong>Weight</strong> ${item.weight}`,
+    // Cost and weight share one line, as a book prints them.
+    const costWeight = [
+      item.cost && `<strong>Cost</strong> ${escapeHtml(item.cost)}`,
+      item.weight && `<strong>Weight</strong> ${item.weight} lb.`,
+    ].filter(Boolean).join(" · ");
+    const statRows = [
+      costWeight,
       item.damage_rolls?.length &&
         `<strong>Damage</strong> ${item.damage_rolls.map((r) => (r.type ? `${r.dice} ${r.type}` : r.dice)).join(" + ")}`,
       item.armor_class && `<strong>Armor Class</strong> ${item.armor_class}`,
-      item.properties.length && `<strong>Properties</strong> ${item.properties.join(", ")}`,
+      item.properties.length && `<strong>Properties</strong> ${escapeHtml(item.properties.join(", "))}`,
     ].filter(Boolean) as string[];
 
-    if (physRows.length) {
-      physRows.forEach((row) => {
-        html += `<p>${row}</p>\n`;
-      });
-    }
-
-    // Magic properties
     if (item.rarity !== "mundane") {
       if (item.requires_attunement) {
-        const req = item.attunement_requirements ? ` (${item.attunement_requirements})` : "";
-        html += `<p><strong>Attunement</strong> Required${req}</p>\n`;
+        const req = item.attunement_requirements ? ` (${escapeHtml(item.attunement_requirements)})` : "";
+        statRows.push(`<strong>Attunement</strong> Required${req}`);
       }
       if (item.charges) {
-        html += `<p><strong>Charges</strong> ${item.charges}${item.recharge ? ` · ${item.recharge}` : ""}</p>\n`;
+        statRows.push(`<strong>Charges</strong> ${item.charges}${item.recharge ? ` · ${escapeHtml(item.recharge)}` : ""}`);
       }
       if (spells.length) {
-        html += `<p><strong>Spells</strong> ${spells.map((s) => `${s.name} (${spellLevelLabel(s.level)})`).join(", ")}</p>\n`;
+        statRows.push(`<strong>Spells</strong> ${spells.map((s) => `${escapeHtml(s.name)} (${spellLevelLabel(s.level)})`).join(", ")}`);
       }
     }
 
-    // Description
+    let html = `<div class="sc-item-entry">\n`;
+    html += entityArtFiguresHtml({ picture: item.image_url, cutout: null, alt: item.name });
+    html += `<h3 class="sc-item-entry-name">${escapeHtml(item.name)}</h3>\n`;
+    if (typeLine) html += `<p class="sc-item-entry-type"><em>${typeLine}</em></p>\n`;
+    statRows.forEach((row) => {
+      html += `<p>${row}</p>\n`;
+    });
     if (item.description) {
-      html += `<h2>Description</h2>\n`;
       item.description.split("\n\n").forEach((para) => {
-        if (para.trim()) html += `<p>${para.trim()}</p>\n`;
+        if (para.trim()) html += `<p>${escapeHtml(para.trim())}</p>\n`;
       });
     }
+    html += `</div>\n`;
 
     const tags = uniqueTags(
       ["item", item.item_type, item.rarity !== "mundane" ? "magic-item" : null],

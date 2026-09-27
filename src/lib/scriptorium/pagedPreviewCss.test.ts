@@ -76,6 +76,7 @@ describe("buildPagedPreviewCss", () => {
     expect(boxRule).toContain(".sc-statblock-entry");
     expect(boxRule).toContain(".sc-ability-table");
     expect(boxRule).toContain(".sc-float-group");
+    expect(boxRule).toContain(".sc-item-entry");
     expect(boxRule).toContain("table");
     expect(boxRule).toContain("break-inside: avoid");
   });
