@@ -29,6 +29,30 @@ function slotKey(category: PackCategory, variant: number, side?: string): string
   return `${category}|${side ?? ""}|${variant}`;
 }
 
+function groupKey(category: PackCategory, side?: string): string {
+  return `${category}|${side ?? ""}`;
+}
+
+/**
+ * The drawn variant that stands in for one with no art, or null when the
+ * group has none drawn at all.
+ *
+ * A manifest declares every slot a pack may fill, and publishing requires
+ * only the required ones, so a published pack can list floor variants 8 and
+ * 9 with no bytes behind them (Stone Dungeon and Forest both did, 27 Sep
+ * 2026). The editor picks among every declared variant, so about one floor
+ * cell in five rendered as a placeholder square in the middle of real art.
+ * Borrowing a drawn sibling of the same category and side fixes maps already
+ * painted as well as new ones, and the slot shows its own art the moment a
+ * gap-fill run draws it. Deterministic, so a cell never flickers between
+ * renders or between the editor and the baked image.
+ */
+export function standInVariant(drawn: readonly number[], variant: number): number | null {
+  if (drawn.length === 0) return null;
+  const sorted = [...drawn].sort((a, b) => a - b);
+  return sorted[Math.abs(variant) % sorted.length]!;
+}
+
 async function fetchManifest(url: string): Promise<TilePackManifest> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch pack manifest at ${url}: ${res.status}`);
@@ -75,12 +99,24 @@ async function buildRuntime(manifest: TilePackManifest, manifestUrl: string): Pr
   }
   await Promise.all(loadTasks);
 
+  const drawnVariants = new Map<string, number[]>();
+  for (const [cat, slots] of Object.entries(manifest.assets)) {
+    for (const slot of (slots ?? []) as AssetSlot[]) {
+      if (!slotImages.has(slotKey(cat as PackCategory, slot.variant, slot.side))) continue;
+      const key = groupKey(cat as PackCategory, slot.side);
+      drawnVariants.set(key, [...(drawnVariants.get(key) ?? []), slot.variant]);
+    }
+  }
+
   const runtime: TilePackRuntime = {
     manifest,
     validation,
     getTile(category, variant, side) {
       const real = slotImages.get(slotKey(category, variant, side));
       if (real) return { source: real, isPlaceholder: false };
+      const standIn = standInVariant(drawnVariants.get(groupKey(category, side)) ?? [], variant);
+      const borrowed = standIn === null ? undefined : slotImages.get(slotKey(category, standIn, side));
+      if (borrowed) return { source: borrowed, isPlaceholder: false };
       return {
         source: getPlaceholderTile({ pack_id: manifest.pack_id, category, side, variant }, manifest.palette),
         isPlaceholder: true,
