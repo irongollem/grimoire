@@ -19,7 +19,7 @@ const WATERMARK = "a small 'dungeongrimoire.com' text watermark in the bottom-ri
  * isometric preset opts out: re-projecting the layout is what it is for.
  */
 const KEEP_LAYOUT =
-  "Repaint this top-down map image in the style below without changing its layout: every wall, door, stair and room outline stays exactly where the input image draws it, at the same size and position. Do not add rooms, walls, corridors or buildings the input does not have, and do not add a title, banner or cartouche.";
+  "Repaint this top-down map image in the style below without changing its layout: every wall, door, stair and room outline stays exactly where the input image draws it, at the same size and position. Do not add rooms, walls, corridors or buildings the input does not have, and do not add a title, banner or cartouche. The small white words on the input are notes saying what belongs where: paint those things, and do not write the words.";
 
 // Style words only, never a publisher's product or house art: asking the model
 // to imitate a named book is asking it to reproduce someone's trade dress.

@@ -63,7 +63,6 @@
 
 import { computed, ref, watch } from "vue";
 import { bakeAiStyleInput, styledPictureCalibration } from "@/cartographer/aiStyleInput";
-import { bakeMapForAI } from "@/cartographer/bake";
 import { blobToBase64, base64ToBlob } from "@/cartographer/imageCodec";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
@@ -212,9 +211,8 @@ export function useMapExport(opts: {
     styleGenerating.value = true;
     try {
       const target = fixedTarget.value;
-      const { blob: pngBlob, geometry, size } = target
-        ? await bakeAiStyleInput(map, opts.runtimes(), target.picture, opts.glyphs(), imageProviderKey.value)
-        : await bakeMapForAI(map, opts.runtimes(), {}, opts.glyphs(), imageProviderKey.value);
+      const { blob: pngBlob, geometry, size } =
+        await bakeAiStyleInput(map, opts.runtimes(), target?.picture ?? null, opts.glyphs(), imageProviderKey.value);
       const image_b64 = await blobToBase64(pngBlob);
 
       const { data, error } = await supabase.functions.invoke<StyleMapResponse>("style-map", {

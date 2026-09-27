@@ -8,9 +8,9 @@
 // zones) and the runtime-only layers (tokens, fog) never go into this image
 // — they aren't visual art, they're data drawn as an overlay elsewhere.
 //
-// The standalone `/cartographer/:id` route has no site Picture at all, so
-// `useMapExport` keeps calling `bakeMapForAI` directly there rather than
-// through this module — see that composable's `site` option. Both paths fit
+// The standalone `/cartographer/:id` route has no site Picture at all, and
+// comes through here too with `picture` null, so both routes send the same
+// margin-free bake (`STYLE_INPUT_PADDING_CELLS`). Both paths fit
 // to the resolved provider's accepted aspect window and pixel budget before
 // sending (`bake.ts`'s `fitStyleInputCanvas`) — see `bakeMapForAI`'s own doc
 // for why — and both return the fitting geometry a save uses to write
@@ -25,6 +25,17 @@ import { placePicture } from "@/lib/locations/mapStack";
 import type { MapImageLayer, MapStack } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY, type GridCalibration } from "@/types/location.types";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
+
+/**
+ * No margin around the plan in the styler's input. The image model fills its
+ * frame: given the usual 3-cell margin it grew a floor by a third to fill it,
+ * even when told not to, so the render no longer sat on the grid (27 Sep
+ * 2026, measured 1.33x/1.42x). With the plan filling the frame there is
+ * nothing to grow into, and a trial render's walls landed on the drawn ones.
+ * The bake, the Picture's placement and the saved calibration all read this
+ * one value; if they disagreed, the grid would be off by the difference.
+ */
+export const STYLE_INPUT_PADDING_CELLS = 0;
 
 /**
  * The calibration the Drawing's CURRENT bake would carry if it were
@@ -66,7 +77,7 @@ export function liveDrawingCalibration(map: DungeonMap, paddingCells?: number): 
  * panel's Calibrate action stays available to correct.
  */
 export function styledPictureCalibration(map: DungeonMap, geometry: AspectPadGeometry): GridCalibration {
-  const { origin_cell_x, origin_cell_y } = liveDrawingCalibration(map);
+  const { origin_cell_x, origin_cell_y } = liveDrawingCalibration(map, STYLE_INPUT_PADDING_CELLS);
   return {
     cells_per_image_width: geometry.cellsPerImageWidth,
     origin_x_pct: geometry.originXPct,
@@ -106,15 +117,17 @@ export async function bakeAiStyleInput(
   glyphs: Record<CellKey, PackCategory> = {},
   provider: StyleImageProvider = "openai",
 ): Promise<{ blob: Blob; geometry: AspectPadGeometry; size: { width: number; height: number } }> {
-  if (!picture?.calibration) return bakeMapForAI(map, runtimes, {}, glyphs, provider);
+  if (!picture?.calibration) {
+    return bakeMapForAI(map, runtimes, { paddingCells: STYLE_INPUT_PADDING_CELLS }, glyphs, provider);
+  }
 
   const ts = BASE_TILE_SIZE;
-  const dims = computeBakedDimensions(map);
+  const dims = computeBakedDimensions(map, STYLE_INPUT_PADDING_CELLS);
   const frameW = dims.cols * ts;
   const frameH = dims.rows * ts;
 
   const [drawingBlob, pictureBitmap] = await Promise.all([
-    bakeMap(map, runtimes, { transparent: true }, glyphs),
+    bakeMap(map, runtimes, { transparent: true, paddingCells: STYLE_INPUT_PADDING_CELLS }, glyphs),
     loadBitmap(picture.url),
   ]);
   const drawingBitmap = await createImageBitmap(drawingBlob);
@@ -123,7 +136,7 @@ export async function bakeAiStyleInput(
   // rest of this shape is never consulted, so it's filled with inert values.
   const stackForPlacement: MapStack = {
     picture,
-    drawing: { kind: "drawing", url: "", calibration: liveDrawingCalibration(map) },
+    drawing: { kind: "drawing", url: "", calibration: liveDrawingCalibration(map, STYLE_INPUT_PADDING_CELLS) },
     primary: null,
     frameCalibration: null,
     blank: null,

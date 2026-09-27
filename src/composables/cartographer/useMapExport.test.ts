@@ -19,7 +19,6 @@ const mocks = vi.hoisted(() => {
   return {
     fakeGeometry,
     bakeAiStyleInput: vi.fn().mockResolvedValue({ blob: new Blob(["composite"], { type: "image/png" }), geometry: fakeGeometry, size: fakeSize }),
-    bakeMapForAI: vi.fn().mockResolvedValue({ blob: new Blob(["plain"], { type: "image/png" }), geometry: fakeGeometry, size: fakeSize }),
     blobToBase64: vi.fn().mockResolvedValue("b64"),
     base64ToBlob: vi.fn().mockReturnValue(new Blob(["result"], { type: "image/webp" })),
     uploadToBucket: vi.fn().mockResolvedValue("https://cdn.example/styled.webp"),
@@ -47,10 +46,6 @@ const mocks = vi.hoisted(() => {
 vi.mock("@/cartographer/aiStyleInput", async () => {
   const actual = await vi.importActual<typeof import("@/cartographer/aiStyleInput")>("@/cartographer/aiStyleInput");
   return { ...actual, bakeAiStyleInput: mocks.bakeAiStyleInput };
-});
-vi.mock("@/cartographer/bake", async () => {
-  const actual = await vi.importActual<typeof import("@/cartographer/bake")>("@/cartographer/bake");
-  return { ...actual, bakeMapForAI: mocks.bakeMapForAI };
 });
 vi.mock("@/cartographer/imageCodec", () => ({
   blobToBase64: mocks.blobToBase64,
@@ -104,7 +99,6 @@ function fakeMap(): DungeonMap {
 describe("useMapExport", () => {
   beforeEach(() => {
     mocks.bakeAiStyleInput.mockClear();
-    mocks.bakeMapForAI.mockClear();
     mocks.updatePicture.mockClear();
     mocks.saveStyledSitePicture.mockClear();
     mocks.imageMultiplierFor.mockClear();
@@ -146,8 +140,7 @@ describe("useMapExport", () => {
       expect(exp.styleFixedTargetLabel.value).toBeNull();
 
       await exp.onGenerateStyle();
-      expect(mocks.bakeAiStyleInput).not.toHaveBeenCalled();
-      expect(mocks.bakeMapForAI).toHaveBeenCalledWith(map, expect.any(Map), {}, {}, "openai");
+      expect(mocks.bakeAiStyleInput).toHaveBeenCalledWith(map, expect.any(Map), null, {}, "openai");
 
       exp.styleAtlasLocationId.value = "loc-9";
       await exp.onSaveStyledToAtlas();
@@ -162,8 +155,8 @@ describe("useMapExport", () => {
           cells_per_image_width: 7,
           origin_x_pct: 0,
           origin_y_pct: 0,
-          origin_cell_x: -3,
-          origin_cell_y: -3,
+          origin_cell_x: 0,
+          origin_cell_y: 0,
           grid_opacity: expect.any(Number),
         },
       });
@@ -212,7 +205,6 @@ describe("useMapExport", () => {
         site: siteWithPicture(picture),
       });
       await exp.onGenerateStyle();
-      expect(mocks.bakeMapForAI).not.toHaveBeenCalled();
       expect(mocks.bakeAiStyleInput).toHaveBeenCalledWith(map, expect.any(Map), picture, {}, "openai");
     });
 
@@ -247,8 +239,8 @@ describe("useMapExport", () => {
           cells_per_image_width: 7,
           origin_x_pct: 0,
           origin_y_pct: 0,
-          origin_cell_x: -3,
-          origin_cell_y: -3,
+          origin_cell_x: 0,
+          origin_cell_y: 0,
           grid_opacity: expect.any(Number),
         },
       });
@@ -272,11 +264,11 @@ describe("useMapExport", () => {
       const [payload] = mocks.saveStyledSitePicture.mock.calls[0] as [{ calibration: Record<string, unknown> }];
       // Matches `styledPictureCalibration(map, fakeGeometry)`: cells/origin
       // pct straight from the geometry, cell coordinates from the map's own
-      // (unpadded) bake — see aiStyleInput.test.ts for the unit coverage of
+      // margin-free bake (an empty map starts at cell 0) — see aiStyleInput.test.ts for the unit coverage of
       // that function itself.
       expect(payload.calibration.cells_per_image_width).toBe(7);
-      expect(payload.calibration.origin_cell_x).toBe(-3);
-      expect(payload.calibration.origin_cell_y).toBe(-3);
+      expect(payload.calibration.origin_cell_x).toBe(0);
+      expect(payload.calibration.origin_cell_y).toBe(0);
     });
   });
 
@@ -320,7 +312,7 @@ describe("useMapExport", () => {
         glyphs: () => ({}),
       });
       await exp.onGenerateStyle();
-      expect(mocks.bakeMapForAI).toHaveBeenCalledWith(map, expect.any(Map), {}, {}, "gemini");
+      expect(mocks.bakeAiStyleInput).toHaveBeenCalledWith(map, expect.any(Map), null, {}, "gemini");
     });
   });
 });

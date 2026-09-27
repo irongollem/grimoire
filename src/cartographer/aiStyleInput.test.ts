@@ -18,7 +18,7 @@ vi.mock("./bake", async () => {
   };
 });
 
-import { liveDrawingCalibration, styledPictureCalibration, bakeAiStyleInput } from "./aiStyleInput";
+import { liveDrawingCalibration, styledPictureCalibration, bakeAiStyleInput, STYLE_INPUT_PADDING_CELLS } from "./aiStyleInput";
 
 function emptyMap(): DungeonMap {
   return {
@@ -68,7 +68,7 @@ describe("liveDrawingCalibration", () => {
 });
 
 describe("styledPictureCalibration", () => {
-  it("takes cells/origin-pct from the padding geometry and cell coordinates from the map's own bake", () => {
+  it("takes cells/origin-pct from the padding geometry and cell coordinates from the styler's margin-free bake", () => {
     const map = emptyMap();
     map.layers.floor["5,3"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
     map.layers.floor["7,4"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
@@ -77,8 +77,11 @@ describe("styledPictureCalibration", () => {
       cells_per_image_width: 9,
       origin_x_pct: 0,
       origin_y_pct: 0.25,
-      origin_cell_x: 2, // from liveDrawingCalibration, unaffected by padding
-      origin_cell_y: 0,
+      // The plan's own first cell: the styler's input has no margin, so image
+      // cell (0,0) is map cell (5,3). A default-padded origin here would put
+      // the render three cells off the grid.
+      origin_cell_x: 5,
+      origin_cell_y: 3,
       grid_opacity: expect.any(Number),
     });
   });
@@ -91,12 +94,13 @@ describe("bakeAiStyleInput", () => {
     mocks.bakeMap.mockClear();
   });
 
-  it("falls back to bakeMapForAI, untouched, when there is no Picture", async () => {
+  it("falls back to a margin-free bakeMapForAI when there is no Picture", async () => {
     const map = emptyMap();
     const runtimes = new Map();
     const glyphs = {};
     const result = await bakeAiStyleInput(map, runtimes, null, glyphs);
-    expect(mocks.bakeMapForAI).toHaveBeenCalledWith(map, runtimes, {}, glyphs, "openai");
+    expect(STYLE_INPUT_PADDING_CELLS).toBe(0);
+    expect(mocks.bakeMapForAI).toHaveBeenCalledWith(map, runtimes, { paddingCells: 0 }, glyphs, "openai");
     expect(mocks.bakeMap).not.toHaveBeenCalled();
     expect(result.blob).toBeInstanceOf(Blob);
     expect(result.geometry).toBe(fakeGeometry);
