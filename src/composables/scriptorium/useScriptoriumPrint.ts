@@ -7,7 +7,8 @@
  *   1. Render the document with Paged.js into an off-screen host in the main
  *      document (Paged.js needs real layout + injects its page-sizing rules
  *      into document.head via insertRule, so textContent is empty).
- *   2. Inject footers (shared numbering algorithm — parity with the preview).
+ *   2. Inject footers (shared numbering algorithm — parity with the preview)
+ *      and redraw pictures at print size (printImages.ts).
  *   3. Serialise the Paged.js-injected styles (cssRules) and transplant the
  *      rendered pages + all required CSS into a hidden same-origin iframe.
  *   4. Print the iframe → the user's "Save as PDF" yields a vector PDF.
@@ -23,6 +24,7 @@ import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
 import { fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
 import { preparePagedBody } from "@/lib/scriptorium/pagedPrepare";
+import { compactPrintImages } from "@/lib/scriptorium/printImages";
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
 import type { ScriptoriumPageSize, ScriptoriumTheme } from "@/types/scriptorium.types";
@@ -153,6 +155,10 @@ export function useScriptoriumPrint() {
       });
       fillPagedTocPages(host, { showPageNumbers: opts.showPageNumbers, start: opts.pageNumberStart });
       renderFurniture(host, opts.furniture); // non-interactive — decorations only
+      // Pictures at 300 ppi of their printed size, opaque ones as JPEG, before
+      // the pages are copied: otherwise every WebP goes into the PDF
+      // losslessly at full size (printImages.ts).
+      await compactPrintImages(host);
 
       // 2. Capture the page-sizing rules Paged.js injected into the main head.
       const pagedStyles = Array.from(document.head.querySelectorAll("style"))
