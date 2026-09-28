@@ -129,9 +129,23 @@ describe("levelsOf with a site's own plan", () => {
     expect(levelsOf(index, index.byId.get("shop")!, onWellPlan)).toBeNull();
   });
 
-  it("still lists it before the plan draws it", () => {
+  it("leaves out the shop with no plan at all, because a venue is never a floor", () => {
     const index = buildAtlasIndex(WELL);
-    expect(levelsOf(index, index.byId.get("well")!, NO_PLANS)?.levels.map((l) => l.id)).toEqual(["well", "shop", "middle", "deep"]);
+    expect(levelsOf(index, index.byId.get("well")!, NO_PLANS)?.levels.map((l) => l.id)).toEqual(["well", "middle", "deep"]);
+    expect(levelsOf(index, index.byId.get("shop")!, NO_PLANS)).toBeNull();
+  });
+
+  it("leaves out a nested dungeon the plan draws, so a crypt in a hall is a place", () => {
+    const index = buildAtlasIndex([...WELL, loc("crypt", "dungeon", "well", { sort_order: 4 })]);
+    const withCrypt = drawnSpaceIds([region("crypt", ["3,3"])]);
+    const plans = (id: string) => (id === "well" ? withCrypt : NO_PLANS(id));
+    expect(levelsOf(index, index.byId.get("well")!, plans)?.levels.map((l) => l.id)).toEqual(["well", "middle", "deep"]);
+    expect(levelsOf(index, index.byId.get("well")!, NO_PLANS)?.levels.map((l) => l.id)).toEqual(["well", "middle", "deep", "crypt"]);
+  });
+
+  it("lets a venue hold levels of its own, like a tavern's cellar", () => {
+    const index = buildAtlasIndex([loc("tavern", "tavern"), loc("cellar", "dungeon", "tavern")]);
+    expect(levelsOf(index, index.byId.get("cellar")!, NO_PLANS)?.levels.map((l) => l.id)).toEqual(["tavern", "cellar"]);
   });
 
   it("counts only space regions with cells as drawn", () => {
