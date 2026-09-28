@@ -24,6 +24,9 @@ export interface ToolContext {
   supabase: SupabaseClient;
   /** The authenticated DM's user id (from the validated JWT). */
   userId: string;
+  /** The account's email, as Supabase Auth reports it. Absent for an account
+   *  without one; `whoami` reports that as null rather than guessing. */
+  email: string | undefined;
 }
 
 export interface ToolDef {
@@ -327,6 +330,13 @@ export function listTools(): ToolDef[] {
   };
   return [
     {
+      name: "whoami",
+      description:
+        "Which Grimoire account this connection is signed in as (id, email), and the campaigns it runs as DM and plays in. " +
+        "Call this when every other tool comes back empty: the usual cause is a connection authorized with the wrong account.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    },
+    {
       name: "list_campaigns",
       description:
         "List the DM's campaigns (id, name, setting). Use this first to find a campaign_id to scope other calls to.",
@@ -462,6 +472,8 @@ export async function callTool(
   args: Record<string, unknown>,
 ): Promise<unknown> {
   switch (name) {
+    case "whoami":
+      return whoami(ctx);
     case "list_campaigns":
       return listCampaigns(ctx);
     case "search":
@@ -483,13 +495,33 @@ export async function callTool(
   }
 }
 
+// Exists because an empty answer from every tool looks exactly like a broken
+// server when the real cause is the OAuth consent: on 28 Sep 2026 the connector
+// was re-authorized with a player account, and the DM's campaigns "vanished".
+// Splitting by owner (not filtering: RLS already decides what is visible) is
+// what tells a DM account from a player one at a glance.
+async function whoami(ctx: ToolContext) {
+  const { data, error } = await ctx.supabase
+    .from("campaigns")
+    .select("id, name, user_id")
+    .order("updated_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  const pick = ({ id, name }: { id: string; name: string }) => ({ id, name });
+  return {
+    user_id: ctx.userId,
+    email: ctx.email ?? null,
+    campaigns_as_dm: data.filter((c) => c.user_id === ctx.userId).map(pick),
+    campaigns_as_player: data.filter((c) => c.user_id !== ctx.userId).map(pick),
+  };
+}
+
 async function listCampaigns(ctx: ToolContext) {
   const { data, error } = await ctx.supabase
     .from("campaigns")
     .select("id, name, setting, description, updated_at")
     .order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return { campaigns: data ?? [] };
+  return { campaigns: data };
 }
 
 async function search(ctx: ToolContext, args: Record<string, unknown>) {

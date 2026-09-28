@@ -165,7 +165,7 @@ Deno.serve(withErrorReporting(async (req: Request) => {
     return new Response(JSON.stringify({ error: "account_check_failed" }), { status: 500, headers: jsonHeaders });
   }
 
-  const ctx: ToolContext = { supabase, userId: user.id };
+  const ctx: ToolContext = { supabase, userId: user.id, email: user.email };
 
   // ── Parse + dispatch JSON-RPC (single message; batching removed in 2025 spec) ─
   let body: unknown;

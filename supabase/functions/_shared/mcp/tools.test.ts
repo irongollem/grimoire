@@ -304,3 +304,33 @@ describe("create/update — embed-on-write (#838)", () => {
     }
   });
 });
+
+describe("whoami", () => {
+  function ctxWith(email: string | undefined) {
+    const rows = [
+      { id: "c-1", name: "Curse of Strahd", user_id: "dm-1" },
+      { id: "c-2", name: "A friend's table", user_id: "dm-2" },
+    ];
+    const ctx = {
+      userId: "dm-1",
+      email,
+      supabase: {
+        from: () => ({ select: () => ({ order: () => Promise.resolve({ data: rows, error: null }) }) }),
+      },
+    };
+    return ctx as unknown as Parameters<typeof callTool>[0];
+  }
+
+  it("names the account and splits the campaigns it can see into run and played", async () => {
+    await expect(callTool(ctxWith("dm@example.invalid"), "whoami", {})).resolves.toEqual({
+      user_id: "dm-1",
+      email: "dm@example.invalid",
+      campaigns_as_dm: [{ id: "c-1", name: "Curse of Strahd" }],
+      campaigns_as_player: [{ id: "c-2", name: "A friend's table" }],
+    });
+  });
+
+  it("reports a missing email as null rather than dropping the key", async () => {
+    await expect(callTool(ctxWith(undefined), "whoami", {})).resolves.toMatchObject({ email: null });
+  });
+});
