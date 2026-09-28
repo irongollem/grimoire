@@ -37,6 +37,7 @@ export interface LevelsInfo {
  * the identical way. Either direction produces the same `[container,
  * ...levels]` array, so `levelOrdinal` returns the same number for the same
  * location regardless of which level the reader started from.
+ * A flagged level stays in its parent's list even when it has levels of its own.
  *
  * Returns `null` when `location` has no place in a level list at all: it
  * has no `is_level` children of its own AND it is not itself flagged
@@ -44,17 +45,19 @@ export interface LevelsInfo {
  * refuses `is_level` on anything that isn't site-tier.
  */
 export function levelsOf(index: AtlasIndex, location: Location): LevelsInfo | null {
+  if (location.is_level && location.parent_id) {
+    const parent = index.byId.get(location.parent_id);
+    if (parent) {
+      const siblingLevels = childrenOf(index, parent.id).filter(isLevelChild);
+      return { container: parent, levels: [parent, ...siblingLevels] };
+    }
+  }
+
   const ownLevelChildren = childrenOf(index, location.id).filter(isLevelChild);
   if (ownLevelChildren.length > 0) {
     return { container: location, levels: [location, ...ownLevelChildren] };
   }
-
-  if (!location.is_level || !location.parent_id) return null;
-  const parent = index.byId.get(location.parent_id);
-  if (!parent) return null;
-
-  const siblingLevels = childrenOf(index, parent.id).filter(isLevelChild);
-  return { container: parent, levels: [parent, ...siblingLevels] };
+  return null;
 }
 
 /** 1-based position of `id` within `levels`, or `null` if it isn't in the list. */

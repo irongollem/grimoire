@@ -73,6 +73,18 @@ describe("levelsOf", () => {
     expect(info?.levels.map((l) => l.id)).toEqual(["s", "a", "b"]);
   });
 
+  it("a flagged child with a flagged child still uses its parent's level list", () => {
+    const index = buildAtlasIndex([
+      ...SITE_WITH_LEVELS,
+      loc("nested", "dungeon", "a", { is_level: true }),
+    ]);
+
+    const info = levelsOf(index, index.byId.get("a")!);
+    expect(info?.container.id).toBe("s");
+    expect(info?.levels.map((l) => l.id)).toEqual(["s", "a", "b"]);
+    expect(levelsOf(index, index.byId.get("nested")!)?.levels.map((l) => l.id)).toEqual(["a", "nested"]);
+  });
+
   it("gives every level the same ordinal from every page — S is 1, A is 2, B is 3", () => {
     const index = buildAtlasIndex(SITE_WITH_LEVELS);
     for (const startId of ["s", "a", "b"]) {
