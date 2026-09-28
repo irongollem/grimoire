@@ -6,11 +6,20 @@
  * (no custom receiver app required). Only one audio stream is cast at a time —
  * music playlists are fully supported; ambient layering is browser-only.
  *
- * Call once from App.vue. All state is module-level (singleton) so subsequent
- * calls to useCast() return the same reactive refs.
+ * All state is module-level (singleton) so every useCast() caller shares the
+ * same reactive refs.
  *
  * Cast is only available in Chrome/Edge on desktop and Android. Other browsers
  * silently receive isCastAvailable = false and all methods are no-ops.
+ *
+ * The SDK is loaded from Google only when someone asks to cast. It used to load
+ * whenever the soundboard opened, which handed every DM's IP address to Google
+ * although hardly anyone casts, which is the same GDPR exposure the self-hosted
+ * fonts (src/assets/fonts.ts) removed. So the button is drawn from a browser
+ * check alone, and the first click fetches the SDK and then opens the picker.
+ * A browser that has actually cast before (a session started) remembers it
+ * (CAST_USED_KEY) and preloads on first use, which keeps auto-rejoining a running session working for the
+ * people who actually use it.
  */
 
 import { ref, computed, watch } from "vue";
@@ -103,15 +112,54 @@ interface CastWindow {
 
 // ── Singleton module-level state ──────────────────────────────────────────────
 
-const isCastAvailable = ref(false);
+type SdkState = "idle" | "loading" | "ready" | "unavailable";
+
+const sdkState = ref<SdkState>("idle");
 const castDeviceName = ref<string | null>(null);
+
+/** Drawn before the SDK exists, so it cannot ask the SDK; hidden if the SDK later says no. */
+const isCastAvailable = computed(() => browserSupportsCast() && sdkState.value !== "unavailable");
+const isCastLoading = computed(() => sdkState.value === "loading");
+/** The picker failed to open right after a first-time load: say to click again. */
+const needsSecondClick = ref(false);
+
+const SDK_URL = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1";
+/** Set when a session has started in this browser, so preloading follows a real, completed choice. */
+const CAST_USED_KEY = "grimoire:cast-used";
 
 // Non-reactive SDK object references (same pattern as audioInstances in soundboard.ts)
 let remotePlayer: RemotePlayerAPI | null = null;
 let playerController: RemotePlayerControllerAPI | null = null;
 let initialized = false;
+let sdkLoad: Promise<boolean> | null = null;
 
 // ── SDK access helpers ────────────────────────────────────────────────────────
+
+/**
+ * Chromium on desktop and Android. The SDK itself is the authority, but asking
+ * it means loading it; `window.chrome` is present in Chrome and Edge and absent
+ * in Firefox and Safari, and iOS browsers cannot cast at all.
+ */
+function browserSupportsCast(): boolean {
+  if (typeof window === "undefined") return false;
+  return "chrome" in window && !/iPhone|iPad|iPod/.test(navigator.userAgent);
+}
+
+function hasCastBefore(): boolean {
+  try {
+    return localStorage.getItem(CAST_USED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function rememberCastUse(): void {
+  try {
+    localStorage.setItem(CAST_USED_KEY, "1");
+  } catch {
+    // Private mode or blocked storage: this viewer just loads on click next time.
+  }
+}
 
 function castFramework(): CastFramework | undefined {
   return (window as CastWindow).cast?.framework;
@@ -182,28 +230,38 @@ function loadMedia(
 export function useCast() {
   if (!import.meta.env.SSR && !initialized) {
     initialized = true;
-    _init();
+    if (browserSupportsCast() && hasCastBefore()) void loadSdk();
   }
 
   const store = useSoundboardStore();
 
   return {
     isCastAvailable,
+    isCastLoading,
+    needsSecondClick,
     isCasting: computed(() => store.isCasting),
     castDeviceName,
     openDevicePicker,
   };
 }
 
-function openDevicePicker(): void {
+async function openDevicePicker(): Promise<void> {
   const store = useSoundboardStore();
   if (store.isCasting) {
     castCtx()?.endCurrentSession(true);
-  } else {
-    castCtx()?.requestSession().catch(() => {
-      // User cancelled the device picker or no devices available — ignore
-    });
+    return;
   }
+  needsSecondClick.value = false;
+  const firstLoad = sdkState.value !== "ready";
+  if (!(await loadSdk())) return;
+  castCtx()?.requestSession().catch(() => {
+    // Usually the user cancelled or no devices are on the network — ignore.
+    // But on a first load the picker opens after a network fetch, and Chrome
+    // may judge the click too long ago to open it. We cannot tell that apart
+    // from a cancel by error code, so after a first load always offer a retry;
+    // the SDK is loaded now and the next click opens the picker at once.
+    if (firstLoad) needsSecondClick.value = true;
+  });
 }
 
 // Convenience alias — called from module-scope event handlers that run after
@@ -212,28 +270,42 @@ function useCastStore() {
   return useSoundboardStore();
 }
 
-// ── Initialization (runs once when the soundboard widget first opens) ─────────
+// ── SDK loading (once, on the first request to cast) ──────────────────────────
 
-function _init(): void {
-  // Register the callback BEFORE injecting the script — the Cast SDK invokes
-  // __onGCastApiAvailable synchronously as the script executes, so the
-  // assignment must already be in place.
-  (window as CastWindow).__onGCastApiAvailable = (available: boolean) => {
-    if (available) onSdkReady();
-  };
-
-  // Lazily inject the Cast SDK only when the user first opens the soundboard
-  // widget. Loading it at app startup caused the SDK's continuous mDNS device
-  // discovery to starve audio streaming bandwidth, producing crackling every
-  // ~1.3 seconds on remote audio.
-  const s = document.createElement("script");
-  s.src = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1";
-  document.head.appendChild(s);
+/**
+ * Resolves true once the framework is usable, false if this browser cannot cast.
+ * Never at app startup either: the SDK's continuous mDNS device discovery once
+ * starved audio streaming bandwidth there, crackling every ~1.3 seconds.
+ */
+function loadSdk(): Promise<boolean> {
+  if (sdkLoad) return sdkLoad;
+  sdkState.value = "loading";
+  sdkLoad = new Promise<boolean>((resolve) => {
+    // Register the callback BEFORE injecting the script — the Cast SDK invokes
+    // __onGCastApiAvailable synchronously as the script executes, so the
+    // assignment must already be in place.
+    (window as CastWindow).__onGCastApiAvailable = (available: boolean) => {
+      const ready = available && onSdkReady();
+      sdkState.value = ready ? "ready" : "unavailable";
+      resolve(ready);
+    };
+    const s = document.createElement("script");
+    s.src = SDK_URL;
+    s.onerror = () => {
+      // Blocked or offline: allow a later click to try again.
+      sdkState.value = "idle";
+      sdkLoad = null;
+      s.remove();
+      resolve(false);
+    };
+    document.head.appendChild(s);
+  });
+  return sdkLoad;
 }
 
-function onSdkReady(): void {
+function onSdkReady(): boolean {
   const fw = castFramework();
-  if (!fw) return;
+  if (!fw) return false;
 
   const ctx = fw.CastContext.getInstance();
   const cc  = chromeCast();
@@ -246,10 +318,9 @@ function onSdkReady(): void {
   remotePlayer     = new fw.RemotePlayer();
   playerController = new fw.RemotePlayerController(remotePlayer);
 
-  // Mark as available as soon as the SDK is loaded — device discovery is async
-  // and getCastState() often returns NO_DEVICES_AVAILABLE on the first call even
+  // Available as soon as the SDK is loaded — device discovery is async and
+  // getCastState() often returns NO_DEVICES_AVAILABLE on the first call even
   // when speakers are on the network. The picker handles the no-device case.
-  isCastAvailable.value = true;
 
   ctx.addEventListener(fw.CastContextEventType.SESSION_STATE_CHANGED, (e) => {
     onSessionStateChanged(e as SessionStateEvent);
@@ -260,6 +331,7 @@ function onSdkReady(): void {
   });
 
   setupStoreWatchers();
+  return true;
 }
 
 function onSessionStateChanged(e: SessionStateEvent): void {
@@ -270,6 +342,10 @@ function onSessionStateChanged(e: SessionStateEvent): void {
   switch (e.sessionState) {
     case fw.SessionState.SESSION_STARTED:
     case fw.SessionState.SESSION_RESUMED: {
+      // Remembered only once a speaker is actually connected: a click that
+      // was cancelled, failed or found no device must not turn a later visit
+      // into an automatic request to Google.
+      rememberCastUse();
       store.isCasting = true;
       castDeviceName.value =
         e.session?.getSessionObj()?.receiver?.friendlyName ?? null;

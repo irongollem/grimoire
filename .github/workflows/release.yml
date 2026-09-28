@@ -351,4 +351,9 @@ jobs:
       - name: Build with the production env
         run: vercel build --prod --token="$VERCEL_TOKEN"
       - name: Deploy to Vercel production
-        run: vercel deploy --prebuilt --prod --scope="$VERCEL_TEAM_SLUG" --token="$VERCEL_TOKEN"
+        # --archive=tgz uploads the build as one archive instead of file by
+        # file. Without it every content-hashed asset is its own upload, and
+        # the free plan allows 5,000 a day: on 27 Sep 2026 two releases in a
+        # row died with "Too many requests (api-upload-free)" after a busy day
+        # of deploys, the self-hosted @fontsource files adding ~1,100 more.
+        run: vercel deploy --prebuilt --archive=tgz --prod --scope="$VERCEL_TEAM_SLUG" --token="$VERCEL_TOKEN"

@@ -5,12 +5,15 @@
     :size="size"
     icon-size="xs"
     :active="isCasting"
+    :loading="isCastLoading"
     active-fill="none"
     class="shrink-0"
     :icon="IconCast"
     :tooltip="isCasting
       ? `Casting to ${castDeviceName ?? 'Google Home'} — click to stop`
-      : 'Cast audio to Google Home'"
+      : needsSecondClick
+        ? 'Cast is ready — click again to choose a speaker'
+        : 'Cast audio to Google Home'"
     @click="openDevicePicker()"
   />
 </template>
@@ -41,5 +44,5 @@ const { variant = "ghost", size = "icon-2xs" } = defineProps<{
   size?: ButtonSize;
 }>();
 
-const { isCastAvailable, isCasting, castDeviceName, openDevicePicker } = useCast();
+const { isCastAvailable, isCastLoading, needsSecondClick, isCasting, castDeviceName, openDevicePicker } = useCast();
 </script>
