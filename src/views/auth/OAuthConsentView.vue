@@ -13,6 +13,16 @@
       {{ errorMessage }}
     </p>
 
+    <!-- A young player's account can't authorize an external AI client (#919):
+         it never holds credentials worth reading, and the client itself would
+         hit the server's own `child_account` gate on every call anyway. -->
+    <div v-else-if="details && isChild" class="space-y-5">
+      <p class="text-body text-muted-foreground">
+        Young players' accounts can't authorize AI clients.
+      </p>
+      <AppButton type="button" variant="outline" fill="muted" size="lg" label="Back" @click="goBack" />
+    </div>
+
     <div v-else-if="details" class="space-y-5">
       <div class="rounded-md border border-input bg-background px-4 py-3">
         <p class="font-cinzel text-sm font-semibold text-foreground">
@@ -26,7 +36,7 @@
       <div class="space-y-2 text-body text-foreground">
         <p>This will let it, acting as <strong>{{ details.user.email }}</strong>:</p>
         <ul class="list-disc pl-5 space-y-1 text-muted-foreground">
-          <li><strong class="text-foreground">Read</strong> your campaigns and their content — NPCs, monsters, spells, items, locations, quests, notes and more.</li>
+          <li><strong class="text-foreground">Read</strong> your campaigns and their content: NPCs, monsters, spells, items, locations, quests, notes and more.</li>
           <li>Only see what you can see; your row-level permissions still apply.</li>
         </ul>
         <p class="text-muted-foreground italic">
@@ -65,12 +75,19 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import { supabase } from "@/lib/supabase";
+import { useChildAccount } from "@/composables/account/useChildAccount";
 import type { OAuthAuthorizationDetails } from "@supabase/supabase-js";
 
 const route = useRoute();
+const router = useRouter();
+const { isChild } = useChildAccount();
+
+function goBack() {
+  router.push("/account");
+}
 
 const loading = ref(true);
 const deciding = ref(false);

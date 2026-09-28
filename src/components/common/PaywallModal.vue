@@ -15,7 +15,8 @@
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
       <div class="px-5 pt-4">
         <p class="text-body text-muted-foreground leading-snug">
-          <template v-if="props.message">{{ props.message }}</template>
+          <template v-if="isChild">AI features aren't available on young players' accounts.</template>
+          <template v-else-if="props.message">{{ props.message }}</template>
           <template v-else>
             Free DMs can create up to
             <span class="text-foreground font-semibold">{{ limitText }}</span>.
@@ -23,38 +24,40 @@
           </template>
         </p>
       </div>
-      <!-- Pro benefits -->
-      <div class="px-5 pb-4 border-t border-border/50 pt-4">
-        <p class="font-cinzel text-xs font-semibold text-foreground tracking-wide mb-3">
-          Pro DM unlocks
-        </p>
-        <ul class="space-y-2">
-          <li
-            v-for="benefit in BENEFITS"
-            :key="benefit"
-            class="flex items-start gap-2 text-body text-muted-foreground leading-snug"
-          >
-            <span class="text-amber-400 shrink-0 mt-0.5">✦</span>
-            <span>{{ benefit }}</span>
-          </li>
-        </ul>
-      </div>
 
-      <!-- Price -->
-      <div class="px-5 pb-4">
-        <div class="rounded-lg border border-amber-500/25 bg-amber-500/5 px-4 py-3 flex items-center justify-between gap-4">
-          <div>
-            <p class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro DM</p>
-            <p v-if="yearlyLabel" class="text-caption text-muted-foreground mt-0.5">
-              or {{ yearlyLabel }} / year<span v-if="savedMonths > 0"> — save {{ savedMonths }} month{{ savedMonths > 1 ? 's' : '' }}</span>
+      <template v-if="!isChild">
+        <!-- Pro benefits -->
+        <div class="px-5 pb-4 border-t border-border/50 pt-4">
+          <p class="font-cinzel text-xs font-semibold text-foreground tracking-wide mb-3">
+            Pro DM unlocks
+          </p>
+          <ul class="space-y-2">
+            <li
+              v-for="benefit in BENEFITS"
+              :key="benefit"
+              class="flex items-start gap-2 text-body text-muted-foreground leading-snug"
+            >
+              <span class="text-amber-400 shrink-0 mt-0.5">✦</span>
+              <span>{{ benefit }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Price -->
+        <div class="px-5 pb-4">
+          <div class="rounded-lg border border-amber-500/25 bg-amber-500/5 px-4 py-3 flex items-center justify-between gap-4">
+            <div>
+              <p class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro DM</p>
+              <p v-if="yearlyLabel" class="text-caption text-muted-foreground mt-0.5">
+                or {{ yearlyLabel }} / year<span v-if="savedMonths > 0"> — save {{ savedMonths }} month{{ savedMonths > 1 ? 's' : '' }}</span>
+              </p>
+            </div>
+            <p v-if="monthlyLabel" class="text-heading font-bold text-amber-400 shrink-0">
+              {{ monthlyLabel }}<span class="text-xs text-muted-foreground font-normal">/mo</span>
             </p>
           </div>
-          <p v-if="monthlyLabel" class="text-heading font-bold text-amber-400 shrink-0">
-            {{ monthlyLabel }}<span class="text-xs text-muted-foreground font-normal">/mo</span>
-          </p>
         </div>
-      </div>
-
+      </template>
     </div>
 
     <!-- Actions -->
@@ -63,6 +66,7 @@
            recipe: Pro's amber is `tone="caution"` (`--tone-caution` IS amber-500),
            and black text on it is the compound's doing rather than each site's. -->
       <AppButton
+        v-if="!isChild"
         variant="tinted"
         tone="caution"
         emphasis="solid"
@@ -71,7 +75,7 @@
         label="Upgrade to Pro"
         @click="upgrade"
       />
-      <AppButton variant="subtle" size="md" label="Maybe later" @click="close" />
+      <AppButton variant="subtle" size="md" :class="isChild ? 'flex-1' : ''" label="Maybe later" @click="close" />
     </div>
   </AppModal>
 </template>
@@ -85,6 +89,7 @@ import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useProPricing } from "@/composables/billing/useProPricing";
+import { useChildAccount } from "@/composables/account/useChildAccount";
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
 
@@ -96,6 +101,7 @@ const props = defineProps<{
 
 const { quota } = useQuota(props.resource ?? 'npcs')
 const { monthlyLabel, yearlyLabel, savedMonths, monthlyCredits: proMonthlyCredits } = useProPricing()
+const { isChild } = useChildAccount()
 const router = useRouter()
 
 const limitText = computed(() => {

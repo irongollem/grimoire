@@ -40,12 +40,16 @@ the accepted cost — do not "fix" this by adding a trigger.
 2. Re-derives recipients from DB state: for notes, the claimed "added" ids are
    intersected with the row's actual `player_visible_to`, then mapped
    `party_member_id → campaign_members.user_id`; the caller is always excluded.
-3. Filters through `notification_preferences` (missing row = opted in).
-4. Rate-limits (`email_notify`: 30 invocations/hour/user — one invocation may
+3. **Drops active child accounts** (`filterOutChildAccounts`, #919) before
+   anything else touches the id list. A young player's account has no email
+   of its own (see [young-players.md](young-players.md)), and this also stops
+   an RSVP token being minted for an address nothing can ever answer from.
+4. Filters through `notification_preferences` (missing row = opted in).
+5. Rate-limits (`email_notify`: 30 invocations/hour/user — one invocation may
    email a whole party).
-5. Resolves addresses server-side via `auth.admin.getUserById` — **player
+6. Resolves addresses server-side via `auth.admin.getUserById` — **player
    emails exist only in `auth.users` and must never reach the browser.**
-6. Sends one email per recipient via Resend's REST API. Titles and names are
+7. Sends one email per recipient via Resend's REST API. Titles and names are
    HTML-escaped in `emails.ts` (pure module, vitest-covered).
 
 A proposal email is **composed per recipient**, not once for the party, because
@@ -124,7 +128,7 @@ toggles).
 Without configuration the function is deployed but inert (`{ configured:
 false }` — the poll-meshy-jobs precedent). To activate:
 
-```
+```bash
 supabase secrets set RESEND_API_KEY=re_...
 supabase secrets set NOTIFY_FROM_EMAIL="Grimoire <notifications@dungeongrimoire.com>"  # optional, this is the default
 

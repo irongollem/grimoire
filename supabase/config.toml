@@ -111,6 +111,16 @@ verify_jwt = false
 [functions.poll-meshy-jobs]
 verify_jwt = false
 
+# Parent-consent email request (#919). A young player asking a parent to set
+# up or approve their account has, by definition, no Grimoire account of
+# their own yet — the pure signup-page path has no JWT to send. When the
+# caller DOES have a session (an existing account the Terms gate found to be
+# under 16, asking a parent to approve it), the function reads the
+# Authorization header itself and verifies it manually; it never trusts a
+# caller-supplied id. See request-parental-consent/index.ts.
+[functions.request-parental-consent]
+verify_jwt = false
+
 # ── OAuth 2.1 Server (authorization server for the MCP connector) ─────────────
 # Turns Supabase Auth into the OAuth 2.1 + OIDC authorization server that backs
 # the MCP connector: it hosts /authorize, /token, JWKS and discovery, and (with

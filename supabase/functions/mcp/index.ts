@@ -17,6 +17,7 @@ import { withErrorReporting } from "../_shared/observability/report.ts";
 import { createClient } from "@supabase/supabase-js";
 import { callTool, isMcpContentResult, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
+import { isChildAccount } from "../_shared/accountGate.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -147,6 +148,22 @@ Deno.serve(withErrorReporting(async (req: Request) => {
   });
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return unauthorized("Invalid or expired token.");
+
+  // A child account (#919) never reaches this server: an external AI client
+  // reading and editing a child's campaign is exactly what the parent's
+  // consent does not cover. Uses the RLS-scoped `supabase` client above
+  // (never a service-role client — see the file header) rather than a
+  // separate admin client: `child_accounts`' select policy already lets a
+  // caller see their own row, which is all this needs. Fails CLOSED: a
+  // lookup error refuses the tool call rather than risk exposing one.
+  try {
+    if (await isChildAccount(supabase, user.id)) {
+      return new Response(JSON.stringify({ error: "child_account" }), { status: 403, headers: jsonHeaders });
+    }
+  } catch (e) {
+    console.error("mcp: child-account check failed:", e);
+    return new Response(JSON.stringify({ error: "account_check_failed" }), { status: 500, headers: jsonHeaders });
+  }
 
   const ctx: ToolContext = { supabase, userId: user.id };
 

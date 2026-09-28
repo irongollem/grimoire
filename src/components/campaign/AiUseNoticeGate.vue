@@ -73,6 +73,8 @@ import {
   shouldShowAiUseNotice,
 } from "@/composables/ai/useAiUseNoticeDismissal";
 import { useLazyMount } from "@/composables/useLazyMount";
+import { useTermsGate } from "@/composables/account/useTermsGate";
+import { useChildAccount } from "@/composables/account/useChildAccount";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { AI_USE_NOTICE_VERSION, AI_PRO_REOFFER_NOTICE_VERSION } from "@/lib/legal";
 
@@ -87,6 +89,8 @@ const {
   acknowledge,
 } = useAiAcknowledgements();
 const { dismissed, dismissForSession } = useAiUseNoticeDismissal();
+const { visible: termsGateVisible, settled: termsSettled } = useTermsGate();
+const { isChild } = useChildAccount();
 const { mutateAsync: updateCampaign } = useUpdateCampaign();
 
 const open = ref(false);
@@ -104,8 +108,18 @@ watch(
     acknowledgementsError.value,
     acknowledgements.value,
     auth.isDM,
+    termsGateVisible.value,
+    termsSettled.value,
+    isChild.value,
   ] as const,
-  ([c, userId, pro, loading, loadFailed]) => {
+  ([c, userId, pro, loading, loadFailed, , , termsVisible, settled, child]) => {
+    // The Terms gate (#919) is answered first: opening now would take the top
+    // of the modal stack and bury it. A child account never uses AI at all,
+    // so it is never offered the choice or the notice.
+    if (!settled || termsVisible || child) {
+      open.value = false;
+      return;
+    }
     // `hasAcknowledged()` reads an async query. Do not interpret its initial
     // empty value as an explicit "not acknowledged" result, and observe the
     // rows themselves so this watcher reruns when the fetch completes.

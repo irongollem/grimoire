@@ -1,5 +1,12 @@
 <template>
-  <form class="max-w-md flex flex-col gap-6" @submit.prevent="save">
+  <!-- A young DM's campaign (#919): no controls to show at all, rather than a
+       toggle that would flip a DB field the store's own `isAiEnabled` then
+       overrides anyway — that reads as broken, not as a boundary. -->
+  <div v-if="isChild" class="max-w-md rounded-lg border border-border bg-card p-4">
+    <p class="text-body text-muted-foreground">AI features aren't available on young players' accounts.</p>
+  </div>
+
+  <form v-else class="max-w-md flex flex-col gap-6" @submit.prevent="save">
 
     <!-- AI enabled toggle — free users can turn this on/off; everything else
          in this tab (BYOK keys, provider pickers, setting prompt) is Pro. -->
@@ -259,6 +266,7 @@ import { encryptApiKey, decryptApiKey, primeDecryptCache } from "@/lib/apiKeyVau
 import { encryptLocalKey, decryptLocalKey, isLocalCiphertext } from "@/lib/localKeyVault";
 import { getSetting } from "@/settings/index";
 import { useSubscription } from "@/composables/billing/useSubscription";
+import { useChildAccount } from "@/composables/account/useChildAccount";
 import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/ai/useProviderConfig";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
@@ -274,6 +282,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 
 const { isPro } = useSubscription();
+const { isChild } = useChildAccount();
 const { hasAcknowledged } = useAiAcknowledgements();
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";

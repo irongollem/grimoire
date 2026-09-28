@@ -11,7 +11,7 @@ import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import { withCors } from "../_shared/cors.ts";
-import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { generationRefusal } from "../_shared/accountGate.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry, publicUrlFor } from "../_shared/storage-upload.ts";
 import { markGeneratedImage } from "../_shared/provenance/mark.ts";
@@ -210,8 +210,10 @@ serve(withCors(async (req: Request) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return text("Unauthorized", 401);
 
-  // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
+  // Frozen or child accounts cannot generate — including BYOK, which skips
+  // the credit gate for both (#919).
+  const accountRefusal = await generationRefusal(admin, user.id);
+  if (accountRefusal) return accountRefusal;
 
   let campaign_id: string, subject: string, portrait_urls: string[],
       text_descriptions: string[], size: string, image_model: string,

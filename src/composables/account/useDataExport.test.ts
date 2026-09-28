@@ -37,6 +37,10 @@ describe("dataExportErrorMessage", () => {
     expect(dataExportErrorMessage("export_failed")).toMatch(/could not be built/i);
   });
 
+  it("maps the parent-link refusal to human copy (#919)", () => {
+    expect(dataExportErrorMessage("not_your_child")).toMatch(/child account you actively parent/i);
+  });
+
   it("passes an unrecognised code through verbatim", () => {
     expect(dataExportErrorMessage("some_new_code")).toBe("some_new_code");
   });
@@ -45,6 +49,22 @@ describe("dataExportErrorMessage", () => {
 describe("exportFilename", () => {
   it("dates the file so a user can keep several", () => {
     expect(exportFilename(new Date("2026-08-11T13:45:00Z"))).toBe("grimoire-my-data-2026-08-11.json");
+  });
+
+  it("uses a label to distinguish a parent's download of a child's account (#919)", () => {
+    expect(exportFilename(new Date("2026-08-11T13:45:00Z"), "bramka")).toBe(
+      "grimoire-bramka-data-2026-08-11.json",
+    );
+  });
+
+  it("sanitizes a label that isn't already filename-safe", () => {
+    expect(exportFilename(new Date("2026-08-11T13:45:00Z"), "Bram's Kid!")).toBe(
+      "grimoire-bram-s-kid-data-2026-08-11.json",
+    );
+  });
+
+  it("falls back to the default subject when the label sanitizes to nothing", () => {
+    expect(exportFilename(new Date("2026-08-11T13:45:00Z"), "!!!")).toBe("grimoire-my-data-2026-08-11.json");
   });
 });
 
@@ -64,6 +84,17 @@ describe("useDataExport", () => {
     await useDataExport().exportData();
 
     expect(invokeMock).toHaveBeenCalledWith("export-my-data", { body: {} });
+  });
+
+  it("passes a targetUserId through for a parent exporting a child's account (#919)", async () => {
+    const anchor = stubDownload();
+    invokeMock.mockResolvedValue({ data: { identity: {}, tables: {} }, error: null });
+
+    const result = await useDataExport().exportData("child-1", "bramka");
+
+    expect(result).toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith("export-my-data", { body: { targetUserId: "child-1" } });
+    expect(anchor.download).toBe(exportFilename(new Date(), "bramka"));
   });
 
   it("downloads the returned document verbatim as pretty-printed JSON", async () => {

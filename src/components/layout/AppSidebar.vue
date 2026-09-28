@@ -256,10 +256,11 @@ const visibleNavGroups = computed(() =>
 );
 const { mutateAsync: updateMember } = useUpdateCampaignMember();
 
-const userEmail   = computed(() => auth.userEmail ?? "");
 const displayName = computed(() => auth.membership?.display_name ?? "");
-const shownName   = computed(() => displayName.value || userEmail.value);
-const userInitial = computed(() => (displayName.value || userEmail.value).charAt(0).toUpperCase() || "?");
+// Never the account's own email when it's a child's internal marker address
+// (#919) — `accountDisplayLabel` falls back to the login name instead.
+const shownName   = computed(() => auth.accountDisplayLabel);
+const userInitial = computed(() => shownName.value.charAt(0).toUpperCase() || "?");
 
 const editingName = ref(false);
 const nameInput   = ref("");

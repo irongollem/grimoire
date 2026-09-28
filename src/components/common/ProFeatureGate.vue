@@ -5,9 +5,10 @@
       <span class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro feature</span>
     </div>
     <p class="text-body text-muted-foreground leading-relaxed">
-      {{ message }}
+      {{ isChild ? "AI features aren't available on young players' accounts." : message }}
     </p>
     <AppButton
+      v-if="!isChild"
       variant="tinted"
       tone="caution"
       emphasis="solid"
@@ -23,10 +24,13 @@
 import { useRouter } from "vue-router";
 import { IconDM } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import { useChildAccount } from "@/composables/account/useChildAccount";
 
 const { message } = defineProps<{
   message: string;
 }>();
+
+const { isChild } = useChildAccount();
 
 // See PaywallModal: checkout needs the withdrawal-consent tick from /billing, so
 // this gate routes there rather than 400'ing against stripe-create-checkout.

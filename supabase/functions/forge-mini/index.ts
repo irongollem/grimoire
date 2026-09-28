@@ -42,7 +42,7 @@ import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import { buildMiniStylizePrompt } from "../_shared/image-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
-import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { generationRefusal } from "../_shared/accountGate.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry, fetchBytes, publicUrlFor } from "../_shared/storage-upload.ts";
 import { deleteByPrefix } from "../_shared/storage-delete.ts";
@@ -735,10 +735,11 @@ serve(withCors(async (req: Request) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return json({ error: "unauthorized" }, 401);
 
-  // Frozen accounts cannot generate — Simulacrum has no BYOK path to worry
-  // about skipping the credit gate, but the freeze must still block sculpt/
-  // resculpt/stylize alike.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
+  // Frozen or child accounts cannot generate (#919) — Simulacrum has no BYOK
+  // path to worry about skipping the credit gate, but both must still block
+  // sculpt/resculpt/stylize alike.
+  const accountRefusal = await generationRefusal(admin, user.id);
+  if (accountRefusal) return accountRefusal;
 
   let body: Record<string, unknown>;
   try {

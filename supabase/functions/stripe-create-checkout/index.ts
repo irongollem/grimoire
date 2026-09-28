@@ -7,6 +7,7 @@ import { renewalDisclosure, WITHDRAWAL_CONSENT_VERSION } from "../_shared/consen
 import { reportEdgeError } from "../_shared/observability/report.ts";
 import { checkoutReturnUrls, termsAcceptanceMessage } from "../_shared/checkoutUrls.ts";
 import { hasLiveStripeSubscription } from "../_shared/subscriptionGuard.ts";
+import { childAccountResponse, isChildAccount } from "../_shared/accountGate.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2026-07-29.dahlia",
@@ -56,6 +57,16 @@ serve(withCors(async (req: Request) => {
     );
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return json({ error: "Unauthorized" }, 401);
+
+    // A child account (#919) may never reach checkout. Fails CLOSED, unlike
+    // the generation gate: a purchase refused on a transient DB blip is just
+    // retried, but a child reaching Stripe is not an acceptable failure mode.
+    try {
+      if (await isChildAccount(admin, user.id)) return childAccountResponse();
+    } catch (e) {
+      console.error("stripe-create-checkout: child-account check failed:", e);
+      return json({ error: "account_check_failed" }, 500);
+    }
 
     // Get or create Stripe Customer
     const { data: sub } = await admin

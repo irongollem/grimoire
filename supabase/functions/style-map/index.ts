@@ -14,7 +14,7 @@ import { isFlexibleOpenAiModel } from "../_shared/openaiImageModel.ts";
 import { isPromptRejected } from "../_shared/moderation.ts";
 import { buildMapStylePrompt, MAP_STYLE_OPENAI_MODEL } from "../_shared/mapStylePrompt.ts";
 import { withCors } from "../_shared/cors.ts";
-import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 
@@ -40,8 +40,10 @@ serve(withCors(async (req: Request) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
-  // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
+  // Frozen or child accounts cannot generate — including BYOK, which skips
+  // the credit gate for both (#919).
+  const accountRefusal = await generationRefusal(admin, user.id);
+  if (accountRefusal) return accountRefusal;
 
   let campaign_id: string, preset_id: string, image_b64: string,
       map_name: string, map_description: string | null, prompt_suffix: string | null;

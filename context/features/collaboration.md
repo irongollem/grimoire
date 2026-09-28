@@ -40,6 +40,8 @@ Invite URLs take the form `<origin>/join/<token>` (constructed at runtime from `
 
 The join operation itself is performed by the `join_campaign_via_invite(p_token, p_party_member_id default null)` PostgreSQL function (security definer). It validates the token (not expired, not over max uses), inserts the membership row, increments the use count, and returns the `campaign_id` — all atomically. If the calling user is already a member, it returns the `campaign_id` idempotently without error or duplicate membership. Since #730 it optionally binds a character from the joiner's pool: the character must be owned by the caller and unattached (or already attached to this campaign — idempotent re-joins), it is attached and linked as the joiner's active character without ever clobbering an existing link. `JoinCampaignView` shows a "Bring a character?" chooser when the authenticated joiner has unattached characters, auto-joins exactly as before when they have none, and sets `userMode = "player"` on success.
 
+Since #919 the token-validation-and-membership-insert half is lifted into `private.consume_campaign_invite(p_token, p_user_id)`, which `join_campaign_via_invite` calls with `auth.uid()`. That split exists for a second caller: a young player under 16 never lands on `/join/<token>` themselves (see [young-players.md](young-players.md)). A parent creating or approving their account instead passes the invite token through, and the service-role-only `join_campaign_for_child(p_token, p_child_user_id)` calls the same private helper with the child's id, after verifying the caller is `service_role` and the target is an active child account. Both paths therefore validate the token and insert the membership through one shared implementation.
+
 ## Campaign Members
 
 Members are managed in `src/components/campaign/MembersTab.vue`, backed by the `campaign_members` table.
@@ -348,8 +350,8 @@ entirely by re-stamping ownership instead. See #180.
 When a player visits an invite URL (`/join/<token>`):
 
 1. If not authenticated, they see a sign-up/sign-in toggle form.
-   - Sign-up requires username, email, and password (min 8 chars). After sign-up, Supabase sends an email confirmation; the UI displays "Check your email to confirm, then sign in to join."
-   - Sign-in requires email and password only.
+   - Sign-up opens on an age question first (#919). 16 or older continues to the ordinary form: username, email, and password (min 8 chars); after sign-up, Supabase sends an email confirmation and the UI tells them to check their email, promising the confirmation link brings them straight back here to join. Under 16 swaps to `ParentRequestForm` instead, which emails a parent a link to approve the account; the invite token rides along so the parent's approval joins the child to this campaign in the same step. See [young-players.md](young-players.md).
+   - Sign-in takes an email or a child's login name: `useAuthStore.signIn` maps a login name to the reserved internal address before authenticating.
 2. Once authenticated (either by signing in, or if they were already logged in when they opened the link), `joinCampaignViaInvite(token)` is called automatically via a `watch` on `auth.isAuthenticated`.
 3. A loading spinner is shown while the join RPC executes.
 4. On success: `auth.refreshMembership(campaignId)` updates the auth store's membership state, the campaign is set as active, and the router navigates to `/play`.

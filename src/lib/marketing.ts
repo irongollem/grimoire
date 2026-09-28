@@ -6,7 +6,7 @@ export const MARKETING_URL =
   (import.meta.env.VITE_MARKETING_URL as string | undefined)?.replace(/\/$/, "") ??
   "https://dungeongrimoire.com";
 
-export type LegalDoc = "privacy" | "terms" | "refunds";
+export type LegalDoc = "privacy" | "terms" | "refunds" | "young-players";
 
 export function legalUrl(doc: LegalDoc): string {
   return `${MARKETING_URL}/${doc}`;

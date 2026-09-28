@@ -26,7 +26,7 @@
 import { RouterLink } from "vue-router";
 import { legalUrl, type LegalDoc } from "@/lib/marketing";
 
-// Single source of truth for the public legal links. Privacy/Terms/Refunds
+// Single source of truth for the public legal links. Privacy/Terms/Refunds/Young players
 // are canonical on the marketing site, so we link out to them there — no
 // in-app duplication or drift. Licenses is the one exception: it's an in-app
 // route (see LicensesTab.vue), not a marketing-site document.
@@ -34,5 +34,6 @@ const LEGAL_LINKS: { doc: LegalDoc; label: string }[] = [
   { doc: "privacy", label: "Privacy" },
   { doc: "terms", label: "Terms" },
   { doc: "refunds", label: "Refunds" },
+  { doc: "young-players", label: "Young players" },
 ];
 </script>

@@ -35,7 +35,7 @@ import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import { isPromptRejected } from "../_shared/moderation.ts";
 import { withCors } from "../_shared/cors.ts";
-import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { generationRefusal } from "../_shared/accountGate.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
@@ -81,10 +81,12 @@ serve(withCors(async (req: Request) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
-  // Frozen accounts cannot generate — including BYOK, which skips the credit
-  // gate (see isAccountSuspended's own doc). This feature has no BYOK path at
-  // all, but the check stays first regardless, matching every other generator.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
+  // Frozen or child accounts cannot generate (#919) — including BYOK, which
+  // skips the credit gate for both (see generationRefusal's own doc). This
+  // feature has no BYOK path at all, but the check stays first regardless,
+  // matching every other generator.
+  const accountRefusal = await generationRefusal(admin, user.id);
+  if (accountRefusal) return accountRefusal;
 
   let body: unknown;
   try {

@@ -16,6 +16,7 @@ The same popover menu also has **Edit display name** (the name other members see
 - **Account**: one row, the email address on file, plus a link on to **Billing & Subscription**.
 - **Data export**: a GDPR access/portability request you can trigger yourself at any time.
 - **Delete account**: permanently removes your account; campaigns you own go with it.
+- **Family**: if you manage a young player's account for a player under 16, it's a separate page reached from the account menu, not part of this one. See [Young Players' Accounts](#young-players-accounts).
 
 ## Forgotten your password
 
@@ -57,3 +58,4 @@ Nothing here is player-visible: this page is your own account identity, export, 
 - [Campaign Settings](#campaign-settings)
 - [Player Portal: Overview](#player-portal-overview)
 - [Journal, Party & Live Play](#journal-party-live-play): where players control their own email notifications.
+- [Young Players' Accounts](#young-players-accounts): managing an account for a player under 16.

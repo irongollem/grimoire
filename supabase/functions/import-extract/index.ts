@@ -9,7 +9,7 @@
  * creates no content rows — the review wizard (a later chunk) does that only
  * after the DM confirms each entity.
  *
- * Structure mirrors `generate-trap/index.ts` — auth → suspension → campaign +
+ * Structure mirrors `generate-trap/index.ts` — auth → account gate → campaign +
  * membership → ai_enabled → prompt fetch → BYOK-vs-platform key resolution →
  * rate limit → credit reservation → provider call → release + record. That
  * order is security-ordered (CLAUDE.md), not arbitrary, so it is kept intact
@@ -62,7 +62,7 @@ import {
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
-import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { generationRefusal } from "../_shared/accountGate.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import {
   callDocument,
@@ -469,7 +469,8 @@ serve(withCors(async (req: Request) => {
   // already-non-null type into those closures instead.
   const userId = user.id;
 
-  if (await isAccountSuspended(admin, userId)) return suspendedResponse();
+  const accountRefusal = await generationRefusal(admin, userId);
+  if (accountRefusal) return accountRefusal;
 
   // Fire-and-forget, after authentication so it is not reachable by an
   // unauthenticated caller, and before the body is parsed so a malformed

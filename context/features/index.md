@@ -33,6 +33,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | [notifications.md](notifications.md)                     | Player email notifications (note shared, session date proposed), per-user opt-out, send-notification-email edge function + Resend setup          |
 | [document-import.md](document-import.md)                 | Document Import: PDF / page-photo upload, AI extraction, seven-step review wizard, per-page credit cost — DM-only, no player surface            |
 | [demo-campaign.md](demo-campaign.md)                     | Demo campaign: a published template any DM copies into their own account, quota-free; reset/remove, admin publish, the catalogue-driven copy and its template rules |
+| [young-players.md](young-players.md)                     | Parent-managed accounts for players under 16: the parent link, login-name sign-in, the three paths to a child account, every restriction layer, parent controls, graduation at 16, the Terms gate |
 
 Adding or changing an AI generator? Read
 [../compliance/ai-act.md](../compliance/ai-act.md) first — the AI Act

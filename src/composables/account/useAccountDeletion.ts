@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { functionErrorCode } from "@/lib/functionError";
 import { useAuthStore } from "@/stores/auth";
 
-/** `delete-account` edge function error codes (#631) -> human copy. */
+/** `delete-account` edge function error codes (#631, #919) -> human copy. */
 const ERROR_MESSAGES: Record<string, string> = {
   confirm_required: "Type DELETE exactly to confirm.",
   cannot_delete_admin: "Admin accounts can't be deleted this way.",
@@ -12,6 +12,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   storage_purge_failed: "Some of your data could not be purged. Contact support before trying again.",
   erasure_preparation_failed: "Account deletion failed. Please try again or contact support.",
   deletion_failed: "Account deletion failed. Please try again or contact support.",
+  has_child_accounts:
+    "Remove your child accounts first: a young player's account can't be left without its parent.",
+  Forbidden: "You don't have permission to delete this account.",
 };
 
 /** Maps a `delete-account` error code to human copy; an unrecognised code passes through verbatim. */

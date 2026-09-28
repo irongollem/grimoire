@@ -247,13 +247,35 @@ export const routes: RouteRecordRaw[] = [
     name: "billing",
     component: () => import("@/views/BillingView.vue"),
     // accountScoped: reachable in DM mode with no campaign — see DmCampaignGate.
-    meta: { requiresAuth: true, accountScoped: true, title: "Billing & Subscription" },
+    // playerReadable: the account is not DM/player-scoped, it is per-user, so a
+    // player following the "Manage account & billing" link from PlayerSettingsView
+    // must reach it too — see the same note on /account below.
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true, title: "Billing & Subscription" },
   },
   {
     path: "/account",
     name: "account",
     component: () => import("@/views/AccountSettingsView.vue"),
-    meta: { requiresAuth: true, accountScoped: true, title: "My Account" },
+    // playerReadable: this route holds no campaign, so `routeLens()` never
+    // fences it (see lens.ts), but the ordinary player-mode redirect above it
+    // does — every real player (not just a DM previewing) reaches this page
+    // from PlayerSettingsView's "Manage account & billing" link, and #919's
+    // Family page hangs off it the same way.
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true, title: "My Account" },
+  },
+  {
+    path: "/account/family",
+    name: "family",
+    component: () => import("@/views/FamilyView.vue"),
+    // Same reachability as /account above — a parent may be in either lens.
+    // The child-account guard in router/index.ts sends a child away from here.
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true, title: "Family" },
+  },
+  {
+    path: "/account/family/add",
+    name: "family-add",
+    component: () => import("@/views/AddChildView.vue"),
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true, title: "Add a Young Player" },
   },
   {
     path: "/campaign/settings",

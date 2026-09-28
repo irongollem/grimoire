@@ -217,8 +217,11 @@
     </div>
 
     <!-- ── Calendar subscription ──────────────────────────────────────── -->
+    <!-- Hidden for a child DM (#919): the feed is only useful paired with an
+         email calendar app, and a young player's account never sends or
+         receives email. -->
     <div
-      v-if="icalFeedUrl"
+      v-if="icalFeedUrl && !isChild"
       class="rounded-lg border border-border bg-muted/30 p-4 space-y-3"
     >
       <h3
@@ -316,11 +319,13 @@ import { useAuthStore } from "@/stores/auth";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { notifyProposalCreated } from "@/composables/campaign/useEmailNotify";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
+import { useChildAccount } from "@/composables/account/useChildAccount";
 import type { SessionProposal } from "@/types/scheduling.types";
 import { buildSessionFeed, type IcsSessionEvent } from "@edge-shared/ics.ts";
 
 const campaign = useCampaignStore();
 const auth = useAuthStore();
+const { isChild } = useChildAccount();
 const { data: proposals } = useSessionProposals();
 const { data: allAvailability } = useAllSessionAvailability();
 const { data: members } = useCampaignMembers();

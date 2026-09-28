@@ -7,7 +7,7 @@ import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { fetchCreditCost, releaseCredits, reserveCredits, reservationFailureResponse, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
-import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText } from "../_shared/textGen.ts";
 import {
   buildStructureMessage,
@@ -309,7 +309,9 @@ serve(withCors(async (req: Request) => {
   });
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
+  // Frozen or child accounts cannot generate (#919).
+  const accountRefusal = await generationRefusal(admin, user.id);
+  if (accountRefusal) return accountRefusal;
 
   let campaignId: string, soundName: string;
   let category: SoundCategory, pageId: string | null, requestId: string, imageUrls: string[];

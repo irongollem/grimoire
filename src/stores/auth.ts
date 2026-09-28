@@ -3,8 +3,12 @@ import { ref, computed, watch } from "vue";
 import { supabase, setCachedUser } from "@/lib/supabase";
 import { setErrorTrackingUser } from "@/lib/observability/sentry";
 import { TERMS_VERSION } from "@/lib/legal";
+import { signInEmail } from "@edge-shared/childAccount.ts";
+import { CHILD_ACCOUNT_COLUMNS, isActiveChildLink } from "@/lib/childAccount";
+import { accountLabel } from "@/lib/accountLabel";
 import type { User, Session } from "@supabase/supabase-js";
 import type { CampaignMember, CampaignRole } from "@/types/campaign.types";
+import type { ChildAccountLink } from "@/types/childAccount.types";
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
@@ -13,6 +17,14 @@ export const useAuthStore = defineStore("auth", () => {
   const initialized = ref(false);
   const membership = ref<CampaignMember | null>(null);
   const username = ref<string | null>(null);
+  // Parent-managed child account link (#919). `childLinkLoaded` is distinct
+  // from "isLoading": it stays false across a failed lookup (see
+  // `loadChildLink`) so a gate reading it can tell "confirmed not a child"
+  // from "unknown, don't act yet" — the same distinction `isAppAdmin` doesn't
+  // need, because a stale-false admin check merely hides an admin control,
+  // while a stale-false child check would show AI/billing UI to a child.
+  const childLink = ref<ChildAccountLink | null>(null);
+  const childLinkLoaded = ref(false);
 
   const isAuthenticated = computed(() => !!user.value);
   const userEmail = computed(() => user.value?.email ?? null);
@@ -38,14 +50,48 @@ export const useAuthStore = defineStore("auth", () => {
    * answers "what do the others see me as" resolves it here, so there is one
    * place to be wrong.
    *
-   * `userEmail` stays available and is still correct for showing a user their
-   * *own* address — the account page and the sidebar do exactly that.
+   * `userEmail` stays available for showing a user their *own* address on the
+   * account page — but never bare, since a child account's own "email" is an
+   * internal marker (#919); see `accountLabel` below for that one.
    */
   const publicName = computed<string | null>(
     () => membership.value?.display_name?.trim() || username.value?.trim() || null,
   );
+  /**
+   * What to call the signed-in account in the app's own chrome (sidebar menu,
+   * account settings) — prefers a display name/username exactly like
+   * `publicName` above, and falls back to the account's own email *unless*
+   * it's a child account's internal marker address, in which case it falls to
+   * the child's login name instead (#919). See `accountLabel`'s own docblock
+   * for why this never leaks the marker address even mid-load.
+   */
+  const accountDisplayLabel = computed<string>(() =>
+    accountLabel({
+      displayName: membership.value?.display_name,
+      username: username.value,
+      email: userEmail.value,
+      childLoginName: childLink.value?.login_name,
+    }),
+  );
   const isAppAdmin = computed(
     () => user.value?.app_metadata?.["role"] === "admin",
+  );
+  /**
+   * Whether the signed-in account is a parent-managed child account right now
+   * (#919). An identity fact, loaded alongside membership/username rather than
+   * behind a `useQuery` composable: a Pinia setup store's own computed cannot
+   * open a TanStack query (no injection context outside a mounted app — every
+   * store test in this repo, including this file's own, builds the store
+   * without one), so `campaign.isAiEnabled` needs this to live here instead.
+   * `useChildAccount()` is now a thin reader over these two refs.
+   *
+   * This is presentation only, same as `useChildAccount`'s original docblock:
+   * the boundary is the server (`private.is_child_account` behind the spend
+   * gate and `is_user_pro`, and the edge functions' account gate), so a stale
+   * `false` here shows a button that then refuses, never a feature that works.
+   */
+  const isChildAccount = computed(
+    () => childLink.value !== null && isActiveChildLink(childLink.value),
   );
   const currentRole = computed<CampaignRole | null>(
     () => membership.value?.role ?? null,
@@ -63,6 +109,31 @@ export const useAuthStore = defineStore("auth", () => {
       .eq("user_id", userId)
       .single();
     username.value = data?.username ?? null;
+  }
+
+  /**
+   * Loads this account's own `child_accounts` row (RLS lets a child read it).
+   * On error, deliberately leaves `childLinkLoaded` exactly as it was rather
+   * than setting it true: a failed *first* load must not read as "confirmed
+   * not a child" (the gates below treat unloaded as unknown, not as false),
+   * and a failed *refetch* must not erase an already-known-good link. Logged
+   * rather than thrown so it never breaks sign-in — the same reasoning
+   * `loadMembership`/`loadUsername` already apply by swallowing their own
+   * errors into a null default, made explicit here because "leave it alone"
+   * needs a comment where "default to null" does not.
+   */
+  async function loadChildLink(userId: string) {
+    const { data, error } = await supabase
+      .from("child_accounts")
+      .select(CHILD_ACCOUNT_COLUMNS)
+      .eq("child_user_id", userId)
+      .maybeSingle();
+    if (error) {
+      console.error("Failed to load child-account link:", error);
+      return;
+    }
+    childLink.value = data as ChildAccountLink | null;
+    childLinkLoaded.value = true;
   }
 
   async function loadMembership(userId: string, campaignId?: string) {
@@ -127,6 +198,7 @@ export const useAuthStore = defineStore("auth", () => {
           await Promise.all([
             loadMembership(user.value.id, storedCampaignId),
             loadUsername(user.value.id),
+            loadChildLink(user.value.id),
           ]);
         }
 
@@ -156,10 +228,13 @@ export const useAuthStore = defineStore("auth", () => {
                 localStorage.getItem("grimoire_active_campaign") ?? undefined;
               void loadMembership(userId, storedCampaignId);
               void loadUsername(userId);
+              void loadChildLink(userId);
             }, 0);
           } else {
             membership.value = null;
             username.value = null;
+            childLink.value = null;
+            childLinkLoaded.value = false;
             // TOKEN_REFRESHED failure, reuse detection, or explicit sign-out — all
             // arrive here as SIGNED_OUT. The router guard will redirect to /login on
             // the next navigation; if we're mid-session we do it immediately.
@@ -182,11 +257,19 @@ export const useAuthStore = defineStore("auth", () => {
     return initPromise;
   }
 
-  async function signIn(email: string, password: string) {
+  /**
+   * `identifier` is either an email or a child's login name (#919) — anything
+   * without an `@` is a login name, mapped to the child's internal
+   * `@players.dungeongrimoire.invalid` address by `signInEmail`. Mapped here
+   * rather than at each call site so every caller (LoginView, the
+   * JoinCampaignView login tab) gets it for free, and none of them needs to
+   * know the child-account scheme exists.
+   */
+  async function signIn(identifier: string, password: string) {
     loading.value = true;
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: signInEmail(identifier),
         password,
       });
       if (error) throw error;
@@ -203,6 +286,7 @@ export const useAuthStore = defineStore("auth", () => {
         await Promise.all([
           loadMembership(data.user.id, storedCampaignId),
           loadUsername(data.user.id),
+          loadChildLink(data.user.id),
         ]);
       }
     } finally {
@@ -296,6 +380,8 @@ export const useAuthStore = defineStore("auth", () => {
     session.value = null;
     membership.value = null;
     username.value = null;
+    childLink.value = null;
+    childLinkLoaded.value = false;
     setCachedUser(null);
   }
 
@@ -334,10 +420,14 @@ export const useAuthStore = defineStore("auth", () => {
     initialized,
     membership,
     username,
+    childLink,
+    childLinkLoaded,
     isAuthenticated,
     isAppAdmin,
+    isChildAccount,
     userEmail,
     publicName,
+    accountDisplayLabel,
     currentRole,
     isDM,
     isPlayer,
@@ -348,6 +438,7 @@ export const useAuthStore = defineStore("auth", () => {
     requestPasswordReset,
     updatePassword,
     signOut,
+    loadChildLink,
     refreshMembership,
     inferUserMode,
     clearMembership,

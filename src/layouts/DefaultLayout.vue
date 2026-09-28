@@ -77,6 +77,11 @@
          before any portrait-bearing generation (Simulacrum, chronicle scene
          references, group portrait, NPC disguise) -->
     <LikenessNoticeGate />
+
+    <!-- Blocking re-consent gate for an account whose terms_version predates
+         the current one (#919) — also the only path by which a pre-existing
+         account discovers it needs to become parent-managed. -->
+    <TermsGate />
   </div>
 </template>
 
@@ -97,6 +102,7 @@ import DowngradeCampaignPickerModal from "@/components/billing/DowngradeCampaign
 import SuspensionBanner from "@/components/billing/SuspensionBanner.vue";
 import AiUseNoticeGate from "@/components/campaign/AiUseNoticeGate.vue";
 import LikenessNoticeGate from "@/components/campaign/LikenessNoticeGate.vue";
+import TermsGate from "@/components/account/TermsGate.vue";
 import { useAudioThemeTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
 import { usePartyAmbience } from "@/composables/campaign/usePartyAmbience";
 import { useAuthStore } from "@/stores/auth";

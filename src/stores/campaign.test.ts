@@ -7,7 +7,15 @@ vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => null }));
 vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey: async () => "" }));
 vi.mock("@/composables/useTheme", () => ({ useTheme: () => ({ setTheme: () => {} }) }));
 
+// isAiEnabled reads useAuthStore().isChildAccount directly (#919) rather than
+// the useQuery-backed useChildAccount() composable, which a Pinia setup
+// store's own computed cannot call (no injection context outside a mounted
+// app). Mocked wholesale so this file never has to build a real auth store.
+const mockUseAuthStore = vi.fn(() => ({ isChildAccount: false }));
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => mockUseAuthStore() }));
+
 import { useCampaignStore } from "./campaign";
+import type { Campaign } from "@/types/campaign.types";
 
 const DM_SLOT = "grimoire_active_campaign_dm";
 const PLAYER_SLOT = "grimoire_active_campaign_player";
@@ -87,5 +95,44 @@ describe("switchUserMode — the lens decides which campaign may be restored", (
     // player slot still points at it — this is the ownership-transfer path.
     expect(localStorage.getItem(DM_SLOT)).toBeNull();
     expect(store.activeCampaignId).toBe("handed-over");
+  });
+});
+
+describe("isAiEnabled — the campaign toggle and the child-account fence (#919)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    mockUseAuthStore.mockReturnValue({ isChildAccount: false });
+  });
+
+  it("is off when the campaign has never turned AI on", () => {
+    const store = useCampaignStore();
+    store.activeCampaign = { ai_enabled: null } as unknown as Campaign;
+
+    expect(store.isAiEnabled).toBe(false);
+  });
+
+  it("is off when the campaign explicitly declined AI", () => {
+    const store = useCampaignStore();
+    store.activeCampaign = { ai_enabled: false } as unknown as Campaign;
+
+    expect(store.isAiEnabled).toBe(false);
+  });
+
+  it("is on when the campaign enabled AI and the account is not a child", () => {
+    const store = useCampaignStore();
+    store.activeCampaign = { ai_enabled: true } as unknown as Campaign;
+
+    expect(store.isAiEnabled).toBe(true);
+  });
+
+  // The gap #919 leaves without this: a child account DMing its own campaign
+  // with the toggle on must still not see the ~34 AI generate buttons.
+  it("is off for a child account even when the campaign enabled AI", () => {
+    mockUseAuthStore.mockReturnValue({ isChildAccount: true });
+    const store = useCampaignStore();
+    store.activeCampaign = { ai_enabled: true } as unknown as Campaign;
+
+    expect(store.isAiEnabled).toBe(false);
   });
 });

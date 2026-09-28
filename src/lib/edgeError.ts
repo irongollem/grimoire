@@ -27,6 +27,8 @@ export async function edgeErrorMessage(
   switch (body?.error) {
     case "account_suspended":
       return "Your account is frozen — AI generation and purchases are paused. Email info@dungeongrimoire.com to resolve this.";
+    case "child_account":
+      return "AI features aren't available on young players' accounts.";
     case "rate_limited":
       return body.message ?? "You're generating too fast for a new account. Please try again shortly.";
     case "insufficient_credits": {

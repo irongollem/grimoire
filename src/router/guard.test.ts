@@ -13,12 +13,30 @@ import type { User } from "@supabase/supabase-js";
  * redirecting home while already home — which vue-router counts towards its
  * infinite-redirection limit and aborts the navigation for.
  */
+// A configurable stand-in for the one `child_accounts` lookup the child-account
+// fence triggers (`auth.loadChildLink`, when the store has not loaded the
+// fact yet). Mutated per test via `childAccountsTable.resolve`;
+// `vi.hoisted` is required because `vi.mock` factories run before ordinary
+// module-level `const`s are assigned.
+const { childAccountsTable } = vi.hoisted(() => ({
+  childAccountsTable: {
+    resolve: async () => ({ data: null as unknown, error: null as unknown }),
+  },
+}));
+
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
       getSession: async () => ({ data: { session: null } }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
     },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: () => childAccountsTable.resolve(),
+        }),
+      }),
+    }),
   },
   getCurrentUser: () => null,
   setCachedUser: () => {},
@@ -51,7 +69,25 @@ const TEST_ROUTES: RouteRecordRaw[] = [
     path: "/account",
     name: "account",
     component: Stub,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true },
+  },
+  {
+    path: "/billing",
+    name: "billing",
+    component: Stub,
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true },
+  },
+  {
+    path: "/account/family",
+    name: "family",
+    component: Stub,
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true },
+  },
+  {
+    path: "/account/family/add",
+    name: "family-add",
+    component: Stub,
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true },
   },
   { path: "/login", name: "login", component: Stub, meta: { layout: "auth", requiresGuest: true } },
   { path: "/welcome", name: "welcome", component: Stub, meta: { layout: "auth", requiresAuth: true } },
@@ -207,6 +243,170 @@ describe("the lens fence", () => {
 
     expect(fetchQuery).not.toHaveBeenCalled();
     expect(useCampaignStore().activeCampaignId).toBe("c1");
+  });
+});
+
+/** Signed in, in the player lens — a real player, not a DM previewing. */
+async function signedInPlayer() {
+  const auth = useAuthStore();
+  await auth.initialize();
+  auth.user = { id: "u1" } as User;
+  useUiStore().userMode = "player";
+}
+
+describe("account-scoped routes reachable from the player lens (#919)", () => {
+  beforeEach(() => {
+    childAccountsTable.resolve = async () => ({ data: null, error: null });
+  });
+
+  // /account and /billing hold no campaign, but until `playerReadable` was set
+  // on them a real player was bounced home by the "away from DM routes" check
+  // below — the link PlayerSettingsView renders to "Manage account & billing"
+  // led nowhere. #919's Family page hangs off the same page, so this is a
+  // precondition for it rather than incidental.
+  it("lets a real player reach /account", async () => {
+    const { router } = makeRouter([]);
+    await signedInPlayer();
+
+    await router.push("/account");
+
+    expect(router.currentRoute.value.name).toBe("account");
+  });
+
+  it("lets a real player reach /billing", async () => {
+    const { router } = makeRouter([]);
+    await signedInPlayer();
+
+    await router.push("/billing");
+
+    expect(router.currentRoute.value.name).toBe("billing");
+  });
+});
+
+describe("the child-account fence (#919)", () => {
+  beforeEach(() => {
+    childAccountsTable.resolve = async () => ({ data: null, error: null });
+  });
+
+  it("sends a child away from billing to /account", async () => {
+    childAccountsTable.resolve = async () => ({
+      data: {
+        child_user_id: "u1",
+        parent_user_id: "parent1",
+        login_name: "kid-hero",
+        adult_on: "2099-01-01",
+        consent_version: "2026-09-28",
+        consented_at: "2020-01-01",
+      },
+      error: null,
+    });
+    const { router } = makeRouter([]);
+    await signedInDm(null);
+
+    await router.push("/billing");
+
+    expect(router.currentRoute.value.name).toBe("account");
+  });
+
+  it("sends a child away from the family page to /account", async () => {
+    childAccountsTable.resolve = async () => ({
+      data: {
+        child_user_id: "u1",
+        parent_user_id: "parent1",
+        login_name: "kid-hero",
+        adult_on: "2099-01-01",
+        consent_version: "2026-09-28",
+        consented_at: "2020-01-01",
+      },
+      error: null,
+    });
+    const { router } = makeRouter([]);
+    await signedInPlayer();
+
+    await router.push("/account/family");
+
+    expect(router.currentRoute.value.name).toBe("account");
+  });
+
+  it("leaves a non-child account on billing", async () => {
+    const { router } = makeRouter([]);
+    await signedInDm(null);
+
+    await router.push("/billing");
+
+    expect(router.currentRoute.value.name).toBe("billing");
+  });
+
+  it("leaves a child whose adult_on has already passed alone (grown up)", async () => {
+    childAccountsTable.resolve = async () => ({
+      data: {
+        child_user_id: "u1",
+        parent_user_id: "parent1",
+        login_name: "kid-hero",
+        adult_on: "2000-01-01",
+        consent_version: "2026-09-28",
+        consented_at: "1999-01-01",
+      },
+      error: null,
+    });
+    const { router } = makeRouter([]);
+    await signedInDm(null);
+
+    await router.push("/billing");
+
+    expect(router.currentRoute.value.name).toBe("billing");
+  });
+
+  it("does not fence a route the child restriction doesn't cover", async () => {
+    childAccountsTable.resolve = async () => ({
+      data: {
+        child_user_id: "u1",
+        parent_user_id: "parent1",
+        login_name: "kid-hero",
+        adult_on: "2099-01-01",
+        consent_version: "2026-09-28",
+        consented_at: "2020-01-01",
+      },
+      error: null,
+    });
+    const { router } = makeRouter([]);
+    await signedInDm(null);
+
+    await router.push("/account");
+
+    expect(router.currentRoute.value.name).toBe("account");
+  });
+});
+
+describe("account pages for an account with no mode yet (#919)", () => {
+  beforeEach(() => {
+    childAccountsTable.resolve = async () => ({ data: null, error: null });
+  });
+
+  // A parent who signs up from a young player's request email has no mode
+  // and no campaign. The welcome redirect would swallow the approval form.
+  it("lets a brand-new parent reach the approval form", async () => {
+    const { router } = makeRouter([]);
+    const auth = useAuthStore();
+    await auth.initialize();
+    auth.user = { id: "u1" } as User;
+    vi.spyOn(auth, "inferUserMode").mockResolvedValue(null);
+
+    await router.push("/account/family/add?request=abc");
+
+    expect(router.currentRoute.value.name).toBe("family-add");
+  });
+});
+
+describe("the child-account fence when the lookup fails (#919)", () => {
+  it("keeps billing closed while child status is unknown", async () => {
+    childAccountsTable.resolve = async () => ({ data: null, error: { message: "network down" } });
+    const { router } = makeRouter([]);
+    await signedInDm(null);
+
+    await router.push("/billing");
+
+    expect(router.currentRoute.value.name).toBe("account");
   });
 });
 

@@ -2,7 +2,7 @@ import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
-import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { isAccountSuspended, isChildAccount, suspendedResponse } from "../_shared/accountGate.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
@@ -330,6 +330,20 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
   if (authError || !user) return json({ error: "Unauthorized" }, 401);
 
   if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
+
+  // Single mode runs fire-and-forget after a save, so a child is skipped with
+  // a 200 rather than refused: a 403 would surface as nothing the child could
+  // act on, and a child never queries retrieval anyway. A failed lookup is
+  // refused, though, not waved through: embedding is free, so no credit or Pro
+  // check further down would stop a child's text reaching the provider.
+  let child = false;
+  try {
+    child = await isChildAccount(admin, user.id);
+  } catch (e) {
+    console.error("embed-monsters: child-account check failed:", e);
+    return json({ error: "account_check_failed" }, 503);
+  }
+  if (child) return json({ skipped: "child_account" }, 200);
 
   const { data: monsterData, error: monsterError } = await admin
     .from("monsters")

@@ -1,4 +1,4 @@
-import type { Router } from "vue-router";
+import type { Router, RouteLocationNormalized } from "vue-router";
 import type { QueryClient } from "@tanstack/vue-query";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -13,6 +13,19 @@ import {
 } from "./lens";
 
 export { routes } from "./routes";
+
+/**
+ * Routes a child account is fenced away from (#919): billing, and the family
+ * pages that manage *other* accounts. Everything else a child can reach
+ * (`/account` itself, the player portal, a DM's own campaign if they run one)
+ * stays open. The server is the real boundary (the edge functions' own
+ * `child_account` gate, `is_user_pro`); this is presentation only.
+ */
+const CHILD_BLOCKED_ROUTE_NAMES = new Set(["billing", "family", "family-add"]);
+
+function isChildBlockedRoute(to: Pick<RouteLocationNormalized, "name">): boolean {
+  return typeof to.name === "string" && CHILD_BLOCKED_ROUTE_NAMES.has(to.name);
+}
 
 export function setupRouterGuard(router: Router, queryClient: QueryClient) {
   router.beforeEach(async (to) => {
@@ -48,10 +61,13 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
       return home();
     }
 
-    // Routes an account must reach whatever its mode: redeeming an invite, and
-    // setting a new password from a reset link — which is how a brand-new
-    // account with no mode yet gets back in.
-    const modeless = to.name === "join-campaign" || to.name === "reset-password";
+    // Routes an account must reach whatever its mode: redeeming an invite,
+    // setting a new password from a reset link (how a brand-new account with
+    // no mode yet gets back in), and the account pages, which belong to no
+    // campaign. The last matters for a parent who signs up from a young
+    // player's request email (#919): with no mode yet, sending them to
+    // /welcome would lose the approval form they came for.
+    const modeless = to.name === "join-campaign" || to.name === "reset-password" || to.meta.accountScoped === true;
 
     if (auth.isAuthenticated && !mode && !to.meta.requiresGuest && to.name !== "welcome" && !modeless) {
       return { name: "welcome" };
@@ -112,6 +128,19 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
         const target = home();
         if (to.name !== target.name) return target;
       }
+    }
+
+    // The child-account fence (#919). Independent of the lens fence above: a
+    // child may be a DM or a player, and either lens can reach billing or the
+    // family pages by path even though nothing in that lens links to them.
+    // The auth store holds the fact; a deep link can arrive before it has
+    // loaded, so load it here rather than let an unknown read as "not a child".
+    // Still unknown after that (the lookup failed) is treated as closed: the
+    // next navigation retries, which costs an adult one click, never a child
+    // a page it should not see.
+    if (auth.isAuthenticated && auth.user && isChildBlockedRoute(to)) {
+      if (!auth.childLinkLoaded) await auth.loadChildLink(auth.user.id);
+      if (!auth.childLinkLoaded || auth.isChildAccount) return { name: "account" };
     }
 
     // Deliberately not awaited, and deliberately last. The shells are lazy

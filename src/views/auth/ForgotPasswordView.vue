@@ -34,6 +34,12 @@
       />
     </form>
 
+    <!-- A young player's account (#919) has no email to send a link to; the
+         parent who set it up resets its password from Account → Family. -->
+    <p class="mt-4 text-center text-caption text-muted-foreground">
+      Sign in with a login name instead of an email? Ask the parent who set up your account: they can reset your password from Account → Family.
+    </p>
+
     <p class="mt-6 text-center text-body text-muted-foreground">
       Remembered it?
       <RouterLink to="/login" class="text-gold-400 hover:text-gold-300 underline">

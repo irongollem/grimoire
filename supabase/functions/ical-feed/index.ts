@@ -30,6 +30,7 @@
 import { withErrorReporting } from "../_shared/observability/report.ts";
 import { createClient } from "@supabase/supabase-js";
 import { buildSessionFeed, type IcsSessionEvent } from "../_shared/ics.ts";
+import { isChildAccount } from "../_shared/accountGate.ts";
 
 const RESPOND_URL = "https://app.dungeongrimoire.com/play/settings";
 
@@ -47,6 +48,7 @@ interface SessionRow {
 interface CampaignRow {
   id: string;
   name: string;
+  user_id: string;
 }
 
 Deno.serve(withErrorReporting(async (req: Request) => {
@@ -71,11 +73,26 @@ Deno.serve(withErrorReporting(async (req: Request) => {
   // Look up the campaign by ical_token
   const { data: campaign, error: campErr } = await supabase
     .from("campaigns")
-    .select("id, name")
+    .select("id, name, user_id")
     .eq("ical_token", token)
     .single<CampaignRow>();
 
   if (campErr || !campaign) {
+    return new Response("Not Found", { status: 404 });
+  }
+
+  // A child account (#919) never publishes a link-shareable surface — the
+  // token alone would otherwise hand any holder a standing read on a child's
+  // schedule with no parental gate in the way. Respond exactly as for an
+  // unknown token so this feed can never be used to learn which owners are
+  // children. Fails CLOSED: a lookup error refuses to serve rather than risk
+  // publishing one.
+  try {
+    if (await isChildAccount(supabase, campaign.user_id)) {
+      return new Response("Not Found", { status: 404 });
+    }
+  } catch (e) {
+    console.error("ical-feed: child-account check failed:", e);
     return new Response("Not Found", { status: 404 });
   }
 
