@@ -104,4 +104,17 @@ describe("generationRefusal", () => {
     expect(res).toBeNull();
     spy.mockRestore();
   });
+
+  it("refuses with 503 on a lookup error when the caller asks to fail closed", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const res = await generationRefusal(
+      stubClient({ user_subscriptions: { data: null }, child_accounts: { data: null, error: { message: "offline" } } }),
+      "u1",
+      { failClosed: true },
+    );
+    expect(res).not.toBeNull();
+    expect(res!.status).toBe(503);
+    await expect(res!.json()).resolves.toEqual({ error: "account_check_failed" });
+    spy.mockRestore();
+  });
 });

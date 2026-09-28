@@ -15,10 +15,10 @@ function baseState(overrides: Partial<TermsGateState> = {}): TermsGateState {
 }
 
 describe("isTermsGateExemptPath", () => {
-  it("exempts /account and everything nested under it", () => {
+  it("exempts /account itself but not the Family pages under it", () => {
     expect(isTermsGateExemptPath("/account")).toBe(true);
-    expect(isTermsGateExemptPath("/account/family")).toBe(true);
-    expect(isTermsGateExemptPath("/account/family/add")).toBe(true);
+    expect(isTermsGateExemptPath("/account/family")).toBe(false);
+    expect(isTermsGateExemptPath("/account/family/add")).toBe(false);
   });
 
   it("exempts /billing and everything nested under it", () => {
@@ -61,9 +61,12 @@ describe("shouldShowTermsGate", () => {
     expect(shouldShowTermsGate(baseState({ termsVersion: null }))).toBe(true);
   });
 
-  it("stays out of the way on /account, /billing and their children so the decline links work", () => {
+  it("stays out of the way on /account and /billing so the decline links work", () => {
     expect(shouldShowTermsGate(baseState({ currentPath: "/account" }))).toBe(false);
-    expect(shouldShowTermsGate(baseState({ currentPath: "/account/family/add" }))).toBe(false);
     expect(shouldShowTermsGate(baseState({ currentPath: "/billing" }))).toBe(false);
+  });
+
+  it("shows on the Family pages, since adding a young player needs the current Terms", () => {
+    expect(shouldShowTermsGate(baseState({ currentPath: "/account/family/add" }))).toBe(true);
   });
 });

@@ -54,6 +54,7 @@ import {
   PARENTAL_CONSENT_VERSION,
   type BirthMonth,
 } from "../_shared/childAccount.ts";
+import { TERMS_VERSION } from "../_shared/consent.ts";
 import {
   asString,
   isDuplicateEmailError,
@@ -173,7 +174,38 @@ interface CreateResult {
   joinedCampaign: { id: string; name: string } | null;
 }
 
+/**
+ * Why the caller may not act as a parent, or null when they may. Grimoire
+ * keeps no adult flag, so two things the account told us stand in for one:
+ * an open request asking its own parent means it said it is under 16, and
+ * acceptance of the current Terms means it answered the age question as 16 or
+ * older, at signup or at the Terms gate. "Not an active child" alone is not
+ * enough: an under-16 still waiting for its parent is not one yet.
+ */
+async function parentRefusal(callerId: string): Promise<Response | null> {
+  const [{ count: openRequests, error: requestError }, { data: sub, error: subError }] = await Promise.all([
+    admin
+      .from("parental_consent_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("child_user_id", callerId)
+      .gt("expires_at", new Date().toISOString()),
+    admin.from("user_subscriptions").select("terms_version").eq("user_id", callerId).maybeSingle(),
+  ]);
+  if (requestError || subError || openRequests === null) {
+    console.error("child-account: parent check failed", requestError ?? subError);
+    return json({ error: "account_check_failed" }, 503);
+  }
+  if (openRequests > 0) return json({ error: "awaiting_parent" }, 403);
+  if ((sub as { terms_version: string | null } | null)?.terms_version !== TERMS_VERSION) {
+    return json({ error: "terms_not_accepted" }, 403);
+  }
+  return null;
+}
+
 async function handleCreate(body: Record<string, unknown>, callerId: string, callerEmail: string | null): Promise<Response> {
+  const refusal = await parentRefusal(callerId);
+  if (refusal) return refusal;
+
   const consentVersion = asString(body.consentVersion);
   if (consentVersion !== PARENTAL_CONSENT_VERSION) {
     return json({ error: "stale_consent" }, 409);

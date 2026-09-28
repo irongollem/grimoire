@@ -19,6 +19,11 @@ describe("childAccountErrorMessage", () => {
     );
   });
 
+  it("explains why an account that is not a verified adult cannot add a young player", () => {
+    expect(childAccountErrorMessage("awaiting_parent")).toContain("waiting for its own parent");
+    expect(childAccountErrorMessage("terms_not_accepted")).toContain("Accept the updated Terms");
+  });
+
   it("passes an unrecognised code through verbatim", () => {
     expect(childAccountErrorMessage("some_new_code")).toBe("some_new_code");
   });

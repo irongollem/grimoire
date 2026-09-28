@@ -64,7 +64,14 @@ new `auth.users` row or **converts** one that already exists (see below).
 parent fills in display name, login name, password, the child's birth month
 and year, ticks the consent checkbox, and submits. `useCreateChild` posts
 `{ action: "create", consentVersion: PARENTAL_CONSENT_VERSION, ... }`.
-`handleCreate` in the edge function checks the consent version is current,
+`handleCreate` in the edge function first checks the caller may act as a
+parent at all (`parentRefusal`): Grimoire keeps no adult flag, so two things
+the account told us stand in for one. An open `parental_consent_requests` row
+for the caller means it said it is under 16 (`awaiting_parent`); a
+`terms_version` other than the current one means it never answered the age
+question as 16+ (`terms_not_accepted`). "Not an active child" alone is not
+enough, since an under-16 still waiting for its parent is not one yet. It then
+checks the consent version is current,
 the birth month makes the child under 16 (a 16+ answer is refused with
 `not_a_child`, since that path is for younger players only), the login name
 and password are valid, then calls `createNewAccount`: `auth.admin.createUser`
@@ -123,7 +130,10 @@ answer. Standard age-gate hygiene, not paranoia specific to this feature.
 
 `TermsGate.vue` is a blocking dialog mounted once in `DefaultLayout` and
 `PlayerLayout`, shown whenever `subscription.terms_version !== TERMS_VERSION`
-(`shouldShowTermsGate` in `src/components/account/termsGate.ts`). Every
+(`shouldShowTermsGate` in `src/components/account/termsGate.ts`), except on
+exactly `/account` and `/billing`, where its "I don't agree" links lead. The
+Family pages are *not* exempt: adding a young player needs the current Terms,
+so a parent arriving from a request email answers the gate first. Every
 account created before #919 has a stale `terms_version` and was never asked
 the age question, since a brand-new signup now stamps the current version and
 age answer at creation. The gate asks the new Terms *and* the age question
@@ -172,7 +182,7 @@ even if a client-side check is stale or skipped.
 | --- | --- | --- |
 | Spend gate | `public.assert_spend_allowed` (migration) | `private.is_child_account` check before the freeze/velocity checks; both `reserve_credits` and `spend_credits` delegate to it, so paid AI is closed everywhere at once |
 | Pro status | `public.is_user_pro` | `and not private.is_child_account(...)`, so a child never ranks as Pro whatever its `user_subscriptions.plan_id` says. This is what closes bring-your-own-key: BYOK/local mode requires Pro and never touches the server, so gating Pro itself is the only way to close that path |
-| Generation edge functions | `_shared/accountGate.ts` `generationRefusal` / `isChildAccount` | Called by every `generate-*` function, `embed-content`, `embed-monsters`, `import-extract`, `import-match`, `style-map`, `tile-pack-generator`, `quest-designer-turn`, `forge-mini`, `generate-chronicle-*`. Fails **open** on a query error (a legitimate user must not be blocked by a DB blip) but the platform-credit path is independently, fail-closed refused by the spend gate, and BYOK by `is_user_pro` |
+| Generation edge functions | `_shared/accountGate.ts` `generationRefusal` / `isChildAccount` | Called by every `generate-*` function, `embed-content`, `embed-monsters`, `import-extract`, `import-match`, `style-map`, `tile-pack-generator`, `quest-designer-turn`, `forge-mini`, `generate-chronicle-*`. Fails **open** on a query error (a legitimate user must not be blocked by a DB blip) but the platform-credit path is independently, fail-closed refused by the spend gate, and BYOK by `is_user_pro`. The exceptions are the free embedding paths, which have no such check behind them: `embed-content` and `embed-monsters` return 503 on a lookup error, and `import-match` calls `generationRefusal(..., { failClosed: true })` |
 | Stripe | `stripe-create-checkout`, `stripe-create-credit-checkout`, `stripe-create-portal` | `isChildAccount` check, fails **closed**: a checkout/portal request refused on a transient blip is just retried, but a child reaching Stripe is not acceptable |
 | Calendar feed | `ical-feed` | `isChildAccount(supabase, campaign.user_id)`, since a link-shareable surface must not exist for a young DM's campaign; fails closed |
 | MCP | `mcp/index.ts` | `isChildAccount` before serving any tool call, since an external AI client reading/editing a child's campaign is exactly what parental consent doesn't cover; fails closed |
@@ -234,9 +244,8 @@ Nothing "happens" to a child account at 16 beyond two things, both driven by
    simply an ordinary one with a stale `terms_version` (it was never set for a
    child, since the parent's consent covered acceptance), so the Terms gate
    catches it on next visit and asks the now-16-year-old to accept the Terms
-   themselves. The age question doesn't reappear, because `wasAnsweredUnder16`
-   isn't what gates a re-ask; `shouldShowTermsGate` is purely
-   `termsVersion !== TERMS_VERSION`.
+   themselves, together with the gate's age question, which they now answer as
+   16 or older.
 
 ## Game content vs. real likenesses in AI
 
@@ -276,7 +285,7 @@ uploaded image.
 | Login-name sign-in | `src/views/auth/LoginView.vue`, `src/stores/auth.ts` (`signIn` calls `signInEmail`) |
 | Router fence | `src/router/index.ts` (`CHILD_BLOCKED_ROUTE_NAMES`, `resolveIsChild`) |
 | No AI controls for a child DM | `src/components/campaign/AiTab.vue` |
-| Terms version, consent version | `src/lib/legal.ts` (`TERMS_VERSION`), `_shared/childAccount.ts` (`PARENTAL_CONSENT_VERSION`) |
+| Terms version, consent version | `_shared/consent.ts` (`TERMS_VERSION`, re-exported by `src/lib/legal.ts`; `accept_terms` accepts only `private.current_terms_version()`, which `consent.test.ts` holds equal to it), `_shared/childAccount.ts` (`PARENTAL_CONSENT_VERSION`) |
 
 ## Tests
 

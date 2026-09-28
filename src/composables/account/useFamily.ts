@@ -180,6 +180,9 @@ const CHILD_ACCOUNT_ERROR_MESSAGES: Record<string, string> = {
   already_child: "This account is already a young player's account.",
   create_failed: "Something went wrong creating the account. Please try again.",
   not_your_child: "That account isn't one of the young players you manage.",
+  awaiting_parent: "This account is waiting for its own parent to approve it, so it can't add young players.",
+  terms_not_accepted: "Accept the updated Terms first. Reload this page and you'll be asked.",
+  account_check_failed: "We couldn't check your account just now. Please try again.",
   cannot_convert: "This account can't be turned into a young player's account. Contact us at info@dungeongrimoire.com and we'll sort it out.",
 };
 

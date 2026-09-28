@@ -1,17 +1,18 @@
 import { TERMS_VERSION } from "@/lib/legal";
 
 /**
- * Routes the gate's "I don't agree" state links to (Account settings,
- * Billing) — and everything nested under them, e.g. the parent-managed
- * account settings that will live under `/account/family`. The gate must get
- * out of its own way there, or the very links it offers as the way out stop
- * working: a blocking dialog re-appearing on top of `/account` traps the
- * person it was meant to let leave.
+ * The routes the gate's "I don't agree" state links to: Account settings and
+ * Billing. The gate must get out of its own way there, or the very links it
+ * offers as the way out stop working: a blocking dialog re-appearing on top
+ * of `/account` traps the person it was meant to let leave.
+ *
+ * `/account` exactly, not its children. The Family pages under it must show
+ * the gate: adding a young player requires having accepted the current Terms
+ * (child-account refuses otherwise), so a parent arriving from a request
+ * email answers the gate first and then carries on with the form.
  */
-const EXEMPT_PATH_PREFIXES = ["/account", "/billing"] as const;
-
 export function isTermsGateExemptPath(path: string): boolean {
-  return EXEMPT_PATH_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+  return path === "/account" || path === "/billing" || path.startsWith("/billing/");
 }
 
 export interface TermsGateState {

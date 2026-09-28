@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(37);
 
 -- Cover for parent-managed accounts (#919, 20260928053257_child_accounts).
 --
@@ -151,6 +151,8 @@ select set_config('request.jwt.claims',
   '{"sub":"c41d0000-0000-4000-8000-000000000003","role":"authenticated"}', true);
 select throws_ok($$ select public.accept_terms('latest') $$,
   'Invalid terms version', 'the version must be a date');
+select throws_ok($$ select public.accept_terms('2026-09-27') $$,
+  'Invalid terms version', 'and it must be the current one, not any date');
 -- Stranger (…003) has an open parent request from the fixture: they said they
 -- were under 16, so a later adult answer must not reopen the account.
 select throws_ok($$ select public.accept_terms('2026-09-28') $$,

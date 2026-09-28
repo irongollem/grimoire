@@ -1,8 +1,23 @@
-// EU right-of-withdrawal consent version, shared by the checkout functions. The
-// buyer ticks a timestamped checkbox in the app (recorded in purchase_consents
-// with this version). The customer-facing restatement on invoices/receipts lives
-// in the Stripe Dashboard "Default footer" (single source of truth), so it isn't
-// duplicated here. Keep in step with src/lib/legal.ts::WITHDRAWAL_CONSENT_VERSION.
+/**
+ * Current version of the Terms of Service / Privacy Policy. The one copy:
+ * the client re-exports it from `src/lib/legal.ts` (`@edge-shared`), and the
+ * edge functions import it here, so the two can never disagree.
+ *
+ * Bump it whenever the legal documents change materially, in the same change
+ * as a migration redefining `private.current_terms_version()` (which
+ * `accept_terms` checks against; `consent.test.ts` fails until they match),
+ * and keep it in step with the "Last updated" date in the marketing site's
+ * terms.md. Signup and the Terms gate record the accepted version in
+ * `user_subscriptions.terms_version`.
+ */
+export const TERMS_VERSION = "2026-09-28";
+
+// EU right-of-withdrawal consent version, shared by the checkout functions and
+// re-exported to the client by src/lib/legal.ts. The buyer ticks a timestamped
+// checkbox in the app (recorded in purchase_consents with this version). The
+// customer-facing restatement on invoices/receipts lives in the Stripe
+// Dashboard "Default footer" (single source of truth), so it isn't duplicated
+// here.
 export const WITHDRAWAL_CONSENT_VERSION = "2026-06";
 
 /**

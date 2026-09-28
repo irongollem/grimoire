@@ -331,21 +331,17 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
 
   if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
-  // Single mode runs fire-and-forget after a save (queueMonsterEmbedding() in
-  // src/composables/monsters/useMonsters.ts), so a 403 here would surface as
-  // a swallowed console error at best — no toast, nothing the child could act
-  // on — but would also leave every save silently unembedded for their whole
-  // account lifetime. A child never generates or queries retrieval either, so
-  // skipping with 200 costs nothing real; refusing loudly would only add
-  // noise. Fails open on a lookup error like isAccountSuspended above: this
-  // call is free (recordFreeGeneration logs delta 0) and a stale check
-  // blocking every save would be worse than the rare miss (see
-  // accountGate.ts's header for why that stays safe for children generally).
+  // Single mode runs fire-and-forget after a save, so a child is skipped with
+  // a 200 rather than refused: a 403 would surface as nothing the child could
+  // act on, and a child never queries retrieval anyway. A failed lookup is
+  // refused, though, not waved through: embedding is free, so no credit or Pro
+  // check further down would stop a child's text reaching the provider.
   let child = false;
   try {
     child = await isChildAccount(admin, user.id);
   } catch (e) {
     console.error("embed-monsters: child-account check failed:", e);
+    return json({ error: "account_check_failed" }, 503);
   }
   if (child) return json({ skipped: "child_account" }, 200);
 

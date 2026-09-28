@@ -219,6 +219,18 @@ $function$;
 -- A child account cannot accept: its Terms were accepted by the parent, as part
 -- of the consent recorded on child_accounts.
 
+-- The current Terms version, for accept_terms to check against. Redefined by
+-- the migration that accompanies every TERMS_VERSION bump; consent.test.ts
+-- fails until the newest definition here equals the TypeScript constant.
+create or replace function private.current_terms_version()
+returns text
+language sql
+immutable
+set search_path = ''
+as $$ select '2026-09-28'::text $$;
+
+revoke execute on function private.current_terms_version() from public, anon, authenticated;
+
 create or replace function public.accept_terms(p_version text)
 returns void
 language plpgsql
@@ -231,7 +243,9 @@ begin
   if v_uid is null then
     raise exception 'Not authenticated';
   end if;
-  if p_version is null or p_version !~ '^\d{4}-\d{2}-\d{2}$' then
+  -- Only the current version: recording any other would be consent metadata
+  -- for a document nobody was shown.
+  if p_version is distinct from private.current_terms_version() then
     raise exception 'Invalid terms version';
   end if;
   if private.is_child_account(v_uid) then

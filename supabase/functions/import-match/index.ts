@@ -287,7 +287,9 @@ serve(withCors(async (req: Request) => {
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
   const userId = user.id;
 
-  const accountRefusal = await generationRefusal(admin, userId);
+  // Fail closed: the semantic tier embeds for free, so no credit or Pro check
+  // further down would stop a child whose status could not be read.
+  const accountRefusal = await generationRefusal(admin, userId, { failClosed: true });
   if (accountRefusal) return accountRefusal;
 
   let payload: ReturnType<typeof validatePayload>;

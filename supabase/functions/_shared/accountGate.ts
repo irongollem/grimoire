@@ -111,19 +111,36 @@ export function childAccountResponse(): Response {
  * `spend_credits`), and the bring-your-own-key path requires Pro, which
  * `is_user_pro` denies to a child and which itself fails CLOSED on a query
  * error. So a miss here is caught by a check downstream that does not miss.
+ *
+ * That argument needs a downstream check. A caller whose AI call is free
+ * (embeddings) has none, and passes `failClosed: true` instead.
  */
 export async function generationRefusal(
   admin: SupabaseClient,
   userId: string,
+  { failClosed = false }: { failClosed?: boolean } = {},
 ): Promise<Response | null> {
   const [suspended, child] = await Promise.all([
     isAccountSuspended(admin, userId),
-    isChildAccount(admin, userId).catch((e: unknown) => {
+    isChildAccount(admin, userId).catch((e: unknown): boolean | "unknown" => {
       console.error("child-account check failed:", e);
-      return false;
+      return failClosed ? "unknown" : false;
     }),
   ]);
   if (suspended) return suspendedResponse();
+  if (child === "unknown") return accountCheckFailedResponse();
   if (child) return childAccountResponse();
   return null;
+}
+
+/**
+ * 503 for a caller whose child-account status could not be read. Only
+ * returned with `failClosed`, for a caller that reaches a provider with no
+ * credit or Pro check behind this one (free embeddings: import-match).
+ */
+export function accountCheckFailedResponse(): Response {
+  return new Response(
+    JSON.stringify({ error: "account_check_failed" }),
+    { status: 503, headers: { "Content-Type": "application/json" } },
+  );
 }
