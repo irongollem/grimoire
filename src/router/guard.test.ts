@@ -69,19 +69,25 @@ const TEST_ROUTES: RouteRecordRaw[] = [
     path: "/account",
     name: "account",
     component: Stub,
-    meta: { requiresAuth: true, playerReadable: true },
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true },
   },
   {
     path: "/billing",
     name: "billing",
     component: Stub,
-    meta: { requiresAuth: true, playerReadable: true },
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true },
   },
   {
     path: "/account/family",
     name: "family",
     component: Stub,
-    meta: { requiresAuth: true, playerReadable: true },
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true },
+  },
+  {
+    path: "/account/family/add",
+    name: "family-add",
+    component: Stub,
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true },
   },
   { path: "/login", name: "login", component: Stub, meta: { layout: "auth", requiresGuest: true } },
   { path: "/welcome", name: "welcome", component: Stub, meta: { layout: "auth", requiresAuth: true } },
@@ -367,6 +373,38 @@ describe("the child-account fence (#919)", () => {
     await signedInDm(null);
 
     await router.push("/account");
+
+    expect(router.currentRoute.value.name).toBe("account");
+  });
+});
+
+describe("account pages for an account with no mode yet (#919)", () => {
+  beforeEach(() => {
+    childAccountsTable.resolve = async () => ({ data: null, error: null });
+  });
+
+  // A parent who signs up from a young player's request email has no mode
+  // and no campaign. The welcome redirect would swallow the approval form.
+  it("lets a brand-new parent reach the approval form", async () => {
+    const { router } = makeRouter([]);
+    const auth = useAuthStore();
+    await auth.initialize();
+    auth.user = { id: "u1" } as User;
+    vi.spyOn(auth, "inferUserMode").mockResolvedValue(null);
+
+    await router.push("/account/family/add?request=abc");
+
+    expect(router.currentRoute.value.name).toBe("family-add");
+  });
+});
+
+describe("the child-account fence when the lookup fails (#919)", () => {
+  it("keeps billing closed while child status is unknown", async () => {
+    childAccountsTable.resolve = async () => ({ data: null, error: { message: "network down" } });
+    const { router } = makeRouter([]);
+    await signedInDm(null);
+
+    await router.push("/billing");
 
     expect(router.currentRoute.value.name).toBe("account");
   });
