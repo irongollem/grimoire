@@ -88,8 +88,9 @@ async function handleSubmit() {
     return;
   }
   try {
-    await auth.updatePassword(password.value);
-    toast.success("Password updated.");
+    const { othersSignedOut } = await auth.updatePassword(password.value);
+    if (othersSignedOut) toast.success("Password updated.");
+    else toast.error("Password updated, but your other devices could not be signed out. Sign out on them to be sure.");
     // The guard sends this on to /welcome or the player portal as the
     // account's mode requires.
     router.push("/dashboard");

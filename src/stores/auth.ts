@@ -268,15 +268,23 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function updatePassword(password: string) {
+  /**
+   * Set a new password, then end the account's other sessions. Resolves to
+   * whether that second step worked.
+   *
+   * A new password does not end the other sessions on its own, so whoever had
+   * the old one would stay signed in. `others` keeps this device's session and
+   * fires no SIGNED_OUT here. Its failure is reported rather than thrown: the
+   * password has already changed by then, and retrying the whole call would be
+   * refused for reusing that same password.
+   */
+  async function updatePassword(password: string): Promise<{ othersSignedOut: boolean }> {
     loading.value = true;
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      // A new password does not end the account's other sessions on its own,
-      // so whoever had the old one would stay signed in. `others` keeps this
-      // device's session and fires no SIGNED_OUT here.
-      await supabase.auth.signOut({ scope: "others" });
+      const { error: signOutError } = await supabase.auth.signOut({ scope: "others" });
+      return { othersSignedOut: !signOutError };
     } finally {
       loading.value = false;
     }
