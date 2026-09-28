@@ -140,6 +140,7 @@ function mountDetail(monsterProp: Monster | null) {
         RichTextEditor: true,
         TagInput: true,
         PaywallModal: true,
+        EntityBacklinks: true,
       },
     },
   });

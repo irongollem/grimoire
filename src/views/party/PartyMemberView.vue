@@ -24,6 +24,13 @@
       @level-up="editOpen = true"
     />
 
+    <!--
+      DM-only: this view (unlike PlayerCharacterView, shared with the player
+      portal) never renders for the player themselves, so session-note
+      backlinks are safe to show here without leaking DM-side content.
+    -->
+    <EntityBacklinks v-if="member" :entity-id="member.id" />
+
     <PartyMemberForm
       v-if="editOpen && member"
       :member="member"
@@ -39,6 +46,7 @@ import { IconEdit } from '@/lib/icons';
 import { useParty } from "@/composables/party/useParty";
 import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
 
 // Lazy-load to avoid pulling Tiptap into the same chunk (prevents TDZ init error)
 const PartyMemberForm = defineAsyncComponent(

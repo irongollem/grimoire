@@ -362,6 +362,14 @@ TanStack Query key: `"notes"`.
 
 All mutations call `queryClient.invalidateQueries({ queryKey: ["notes"] })` on success.
 
+**Backlinks: "Mentioned in" (epic #932, story 1).** `useEntityBacklinks(entityId)` (`src/composables/notes/useEntityBacklinks.ts`) lists the notes whose body @mentions an entity, rendered by `EntityBacklinks.vue` on the DM's NPC (`NpcTabContent` + `NpcDetailMobile`), location (`LocationDetailSections`), faction (`FactionDetailView`), monster (`MonsterDetail`, user-owned only) and party member (`PartyMemberView`) surfaces. Three things to know:
+
+- **The `like` is a prefilter, not the answer.** `content like '%<id>%'` narrows the rows cheaply, then `contentMentionsEntity` (`src/lib/tiptap/mentions.ts`) parses each note and walks it for an `entityMention` node whose `attrs.id` matches. The substring alone can hit a calendar ref, a block id or pasted text.
+- **Its key is `["notes", "backlinks", campaignId, entityId]`.** Because the key sits under `"notes"`, the invalidation above refreshes every open backlinks section without any wiring of its own.
+- **It is never mounted on a surface the player shares.** `PlayerCharacterView` renders for the player too, so the party mount sits in `PartyMemberView` (DM-only), not inside the sheet. Note titles are DM content even when the note body is not.
+
+Only `NoteEditor` and the player journal enable @mentions today, so backlinks can only come from notes. Widening mentions to entity description fields is story 3 of #932.
+
 ### View Components
 
 **`src/views/notes/NotesView.vue`**

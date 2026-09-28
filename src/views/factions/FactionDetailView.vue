@@ -42,6 +42,9 @@
           <div class="border-t border-border pt-6">
             <EntityNotesPanel entity-type="faction" :entity-id="faction.id" :campaign-id="faction.campaign_id" />
           </div>
+          <div class="border-t border-border pt-6">
+            <EntityBacklinks :entity-id="faction.id" heading-class="text-label-lg font-semibold text-muted-foreground uppercase" />
+          </div>
         </template>
       </div>
     </template>
@@ -62,6 +65,7 @@ import FactionLocationsSection from "@/components/factions/FactionLocationsSecti
 import FactionItemsSection from "@/components/factions/FactionItemsSection.vue";
 import FactionRelationsSection from "@/components/factions/FactionRelationsSection.vue";
 import EntityNotesPanel from "@/components/common/EntityNotesPanel.vue";
+import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
 
 const route     = useRoute();
 const isNew     = computed(() => route.name === "faction-new");

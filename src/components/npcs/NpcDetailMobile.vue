@@ -185,6 +185,8 @@
           >
             No lore recorded for this NPC.
           </p>
+
+          <EntityBacklinks :entity-id="npc.id" heading-class="text-label-lg font-bold text-muted-foreground uppercase" />
         </div>
       </NpcAccordionSection>
 
@@ -308,6 +310,7 @@ import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
 import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
+import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
 import { IconDelete, IconEdit, IconGenerate, IconReveal, IconScrollText, IconTag } from "@/lib/icons";
 import { useDeleteNpc } from "@/composables/npcs/useNpcs";
 import { useNpcFactions } from "@/composables/factions/useFactions";

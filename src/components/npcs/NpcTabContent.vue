@@ -30,6 +30,8 @@
         class="text-body text-muted-foreground italic">
         No lore recorded for this NPC.
       </p>
+
+      <EntityBacklinks :entity-id="npc.id" heading-class="text-label-lg font-bold text-muted-foreground uppercase" />
     </div>
 
     <!-- Inventory tab -->
@@ -72,6 +74,7 @@ import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import NpcRelationsTab from "@/components/npcs/NpcRelationsTab.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
+import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import type { Npc } from "@/types/npc.types";
 

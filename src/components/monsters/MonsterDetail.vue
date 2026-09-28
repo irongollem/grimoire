@@ -248,6 +248,8 @@
         </div>
       </fieldset>
     </div>
+
+    <EntityBacklinks v-if="backlinksMonsterId" :entity-id="backlinksMonsterId" />
   </div>
 
   <!-- AI generation dialog -->
@@ -283,6 +285,7 @@ import { IconCopy, IconGenerate } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
 import EntitySendMenu from "@/components/common/EntitySendMenu.vue";
 import MonsterEditMobile from "@/components/monsters/MonsterEditMobile.vue";
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
@@ -341,6 +344,13 @@ const props = defineProps<{ monster: Monster | null }>();
 const router = useRouter();
 
 const isShared = computed(() => !!props.monster?.is_shared);
+// Only a campaign/user-owned monster has notes that could mention it — a
+// shared library reference (whose id may be a text id like `srd_owlbear`
+// rather than a uuid) is never editable and never the target of an
+// @mention in the first place.
+const backlinksMonsterId = computed(() =>
+  !isShared.value && props.monster?.id ? props.monster.id : null,
+);
 
 const aiContext = computed(() =>
   buildEntityContext([

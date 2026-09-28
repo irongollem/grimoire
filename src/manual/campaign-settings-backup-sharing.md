@@ -27,6 +27,8 @@ The **Backup** tab exports a full snapshot of the current campaign.
 
 Click **Export Campaign** to download a `.grimoire-backup` file. It includes party members, character classes and spells, NPCs, factions, locations, quests, encounters, notes, calendar events, party inventory, crafting recipes, roll and loot tables, session scheduling, puzzle rooms, and sounds. It deliberately leaves out API keys and Spotify credentials, campaign members and invite links (so a restore starts fresh on membership), chat history and live combat state, and your personal monster/item/spell library (those are account-scoped, not campaign-scoped).
 
+Click **Export as Markdown** for a `.zip` of plain `.md` files instead: one per party member, NPC, location, faction, quest and note, in a folder per type, plus a `README.md` listing them all. Each file starts with a short block of fields (type, tags, status and so on) and turns your @mentions into links, so the folder opens as a linked vault in Obsidian or any Markdown editor. Grimoire cannot restore from it, so keep the `.grimoire-backup` as your backup.
+
 To **import** a `.grimoire-backup` file, use **Import from backup** in the campaign switcher at the top of the sidebar, not this tab.
 
 ## Sharing content as a World Bundle

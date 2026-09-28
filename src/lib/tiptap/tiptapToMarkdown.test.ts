@@ -166,6 +166,133 @@ describe("tiptapToMarkdown — inline marks and breaks", () => {
   });
 });
 
+describe("tiptapToMarkdown — marks added for #932 (link, strike, code)", () => {
+  it("renders a link mark as [text](href)", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [{
+        type: "paragraph",
+        content: [{ type: "text", text: "the guide", marks: [{ type: "link", attrs: { href: "https://example.com" } }] }],
+      }],
+    });
+    expect(md).toBe("[the guide](https://example.com)");
+  });
+
+  it("wraps a bold link outermost: [**bold**](href)", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [{
+        type: "paragraph",
+        content: [{
+          type: "text",
+          text: "bold link",
+          marks: [{ type: "bold" }, { type: "link", attrs: { href: "https://example.com" } }],
+        }],
+      }],
+    });
+    expect(md).toBe("[**bold link**](https://example.com)");
+  });
+
+  it("ignores a link mark with no href", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "plain", marks: [{ type: "link", attrs: {} }] }] }],
+    });
+    expect(md).toBe("plain");
+  });
+
+  it("renders strike as ~~text~~", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "gone", marks: [{ type: "strike" }] }] }],
+    });
+    expect(md).toBe("~~gone~~");
+  });
+
+  it("renders code as `text`", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "npc.name", marks: [{ type: "code" }] }] }],
+    });
+    expect(md).toBe("`npc.name`");
+  });
+});
+
+describe("tiptapToMarkdown — image node (#932)", () => {
+  it("renders an image node as ![alt](src)", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "https://cdn.example.com/portrait.webp", alt: "Owlbear" } }],
+    });
+    expect(md).toBe("![Owlbear](https://cdn.example.com/portrait.webp)");
+  });
+
+  it("renders an empty alt as an empty bracket, not the word 'null'", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "https://cdn.example.com/portrait.webp" } }],
+    });
+    expect(md).toBe("![](https://cdn.example.com/portrait.webp)");
+  });
+
+  it("skips an image node with no src", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "Before" }] },
+        { type: "image", attrs: { alt: "orphaned" } },
+        { type: "paragraph", content: [{ type: "text", text: "After" }] },
+      ],
+    });
+    expect(md).toBe("Before\n\nAfter");
+  });
+});
+
+describe("tiptapToMarkdown — entityMention (#932)", () => {
+  const mentionDoc = {
+    type: "doc",
+    content: [{
+      type: "paragraph",
+      content: [
+        { type: "text", text: "Ask " },
+        { type: "entityMention", attrs: { id: "npc-1", entityType: "npc", label: "Elminster" } },
+        { type: "text", text: " about it." },
+      ],
+    }],
+  };
+
+  it("renders the plain label by default — unchanged behaviour for existing callers", () => {
+    expect(tiptapToMarkdown(mentionDoc)).toBe("Ask Elminster about it.");
+  });
+
+  it("renders through the mention resolver when one is passed", () => {
+    const md = tiptapToMarkdown(mentionDoc, {
+      mention: (attrs) => `[[${attrs.label}]]`,
+    });
+    expect(md).toBe("Ask [[Elminster]] about it.");
+  });
+
+  it("passes id/entityType/label through to the resolver", () => {
+    let seen: unknown;
+    tiptapToMarkdown(mentionDoc, {
+      mention: (attrs) => {
+        seen = attrs;
+        return attrs.label;
+      },
+    });
+    expect(seen).toEqual({ id: "npc-1", entityType: "npc", label: "Elminster" });
+  });
+
+  it("falls back to the plain label when the resolver throws", () => {
+    const md = tiptapToMarkdown(mentionDoc, {
+      mention: () => {
+        throw new Error("boom");
+      },
+    });
+    expect(md).toBe("Ask Elminster about it.");
+  });
+});
+
 describe("tiptapToMarkdown — round trip with markdownToTiptap", () => {
   it("round-trips headings, a blockquote and a list back to equivalent markdown", () => {
     const source = "## Chapter Title\n\n> Boxed text for the party.\n\n- First\n- Second";

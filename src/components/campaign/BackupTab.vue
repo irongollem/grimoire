@@ -6,7 +6,7 @@
         <h3 class="font-cinzel text-sm font-semibold text-foreground">Export Campaign</h3>
         <p class="text-body text-muted-foreground italic mt-1">
           Downloads a <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">.grimoire-backup</code> file
-          containing all campaign data — party, NPCs, locations, quests, encounters, notes, and more.
+          containing all campaign data: party, NPCs, locations, quests, encounters, notes, and more.
         </p>
       </div>
 
@@ -28,16 +28,43 @@
         </ul>
       </div>
 
-      <button
-        :disabled="isExporting"
-        class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+      <AppButton
+        variant="primary"
+        size="md"
+        :icon="IconDownload"
+        :loading="isExporting"
+        :label="isExporting ? 'Exporting…' : 'Export Campaign'"
         @click="doExport"
-      >
-        <IconDownload class="h-3.5 w-3.5" />
-        {{ isExporting ? "Exporting…" : "Export Campaign" }}
-      </button>
+      />
 
       <p v-if="exportError" class="text-caption text-destructive">{{ exportError }}</p>
+    </section>
+
+    <div class="border-t border-border" />
+
+    <!-- Markdown export -->
+    <section class="space-y-3">
+      <div>
+        <h3 class="font-cinzel text-sm font-semibold text-foreground">Export as Markdown</h3>
+        <p class="text-body text-muted-foreground italic mt-1">
+          Downloads a <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">.zip</code> of readable
+          <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">.md</code> files, one per party member, NPC,
+          location, faction, quest and note, linked to each other so they open in Obsidian or any Markdown editor.
+          It is for reading and taking your data elsewhere, and cannot be restored; use the
+          <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">.grimoire-backup</code> above for that.
+        </p>
+      </div>
+
+      <AppButton
+        variant="outline"
+        size="md"
+        :icon="IconDownload"
+        :loading="isExportingMarkdown"
+        :label="isExportingMarkdown ? 'Exporting…' : 'Export as Markdown'"
+        @click="doMarkdownExport"
+      />
+
+      <p v-if="markdownExportError" class="text-caption text-destructive">{{ markdownExportError }}</p>
     </section>
 
     <div class="border-t border-border" />
@@ -56,8 +83,10 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconDownload } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useExportCampaign } from "@/composables/campaign/useCampaignBackup";
+import { useExportCampaignMarkdown } from "@/composables/campaign/useCampaignMarkdownExport";
 
 const campaignStore = useCampaignStore();
 const { mutateAsync: runExport, isPending: isExporting } = useExportCampaign();
@@ -71,6 +100,20 @@ async function doExport() {
     await runExport(id);
   } catch (err) {
     exportError.value = err instanceof Error ? err.message : "Export failed";
+  }
+}
+
+const { mutateAsync: runMarkdownExport, isPending: isExportingMarkdown } = useExportCampaignMarkdown();
+const markdownExportError = ref<string | null>(null);
+
+async function doMarkdownExport() {
+  const id = campaignStore.activeCampaignId;
+  if (!id) return;
+  markdownExportError.value = null;
+  try {
+    await runMarkdownExport(id);
+  } catch (err) {
+    markdownExportError.value = err instanceof Error ? err.message : "Export failed";
   }
 }
 </script>

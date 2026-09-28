@@ -204,6 +204,8 @@
         </RouterLink>
       </div>
     </section>
+
+    <EntityBacklinks :entity-id="location.id" />
   </div>
 </template>
 
@@ -211,6 +213,7 @@
 import { computed, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
+import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LocationDoors from "@/components/locations/LocationDoors.vue";
 import LocationLootPanel from "@/components/locations/LocationLootPanel.vue";

@@ -4,7 +4,7 @@ section: Running the Table
 section_order: 1
 order: 2
 summary: Free-form notes for session recaps, lore, and secrets: pin them, tag them, and share exactly the ones your players should see.
-keywords: notes, campaign notes, session log, lore, secrets, pin, tags, share, chronicler, session recap
+keywords: notes, campaign notes, mention, mentioned in, backlinks, session log, lore, secrets, pin, tags, share, chronicler, session recap
 ---
 
 Campaign Notes is your free-form space for anything that doesn't have a dedicated home elsewhere: session recaps, lore you haven't turned into a Quest or Faction yet, secrets you're not ready to reveal, or planning scratch-space. Find it under **Campaign → Notes** in the sidebar (`/notes`).
@@ -25,6 +25,10 @@ Campaign Notes is your free-form space for anything that doesn't have a dedicate
 3. If the category is **Session**, a session-dates panel appears for the in-game start/end date and a real-world date.
 4. Add **Tags** freely to make the note easier to find later.
 5. Click **Pin note** (the pin icon) to keep it at the top of your list.
+
+## Mentioning people and places
+
+Type **@** in a note's body to mention a party member, NPC, monster, location or faction. The mention becomes a chip that opens that page. It also works in the other direction: the NPC, location, faction, party member or monster lists the note under **Mentioned in**, so you can see every session a character has turned up in.
 
 ## Finding a note
 
