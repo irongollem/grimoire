@@ -7,6 +7,7 @@ describe("parentRequestErrorMessage", () => {
     expect(parentRequestErrorMessage("same_as_account_email")).toContain("your own email");
     expect(parentRequestErrorMessage("already_child")).toContain("already linked");
     expect(parentRequestErrorMessage("send_failed")).toContain("try again");
+    expect(parentRequestErrorMessage("unauthorized")).toContain("sign-in has expired");
   });
 
   it("falls back to a generic message for an unrecognised code", () => {

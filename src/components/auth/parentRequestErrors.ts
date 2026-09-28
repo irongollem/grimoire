@@ -4,6 +4,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   same_as_account_email: "That's your own email. Enter your parent or guardian's email instead.",
   already_child: "This account is already linked to a parent.",
   send_failed: "We couldn't send that email. Please try again in a moment.",
+  unauthorized: "Your sign-in has expired. Sign out, sign back in, and try again.",
 };
 
 /** Maps a `request-parental-consent` error code to human copy; an unrecognised code gets a generic fallback. */

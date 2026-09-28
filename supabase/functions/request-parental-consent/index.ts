@@ -11,10 +11,10 @@
  *    gateway check being off doesn't mean the token is trusted unchecked).
  *
  * Every word of the email is fixed — see email.ts's header for why. This
- * function's job is only to validate the parent's address, resolve an
- * optional campaign invite to a name, rate-limit by address, and record
- * enough to let child-account's `create` action finish the job once the
- * parent clicks through.
+ * function's job is only to validate the parent's address, check an
+ * optional campaign invite is still valid, rate-limit (see RATE_LIMITS), and
+ * record enough to let child-account's `create` action finish the job once
+ * the parent clicks through.
  */
 import { serve } from "std/http/server.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -22,7 +22,15 @@ import { withCors } from "../_shared/cors.ts";
 import { isoDate } from "../_shared/childAccount.ts";
 import { resendApiKey, sendEmail } from "../_shared/resend.ts";
 import { parentConsentRequestEmail } from "./email.ts";
-import { asString, isValidParentEmail } from "./validation.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { addressRateLimitKey, asString, bearerSubject, isValidParentEmail } from "./validation.ts";
+
+/**
+ * The key for the app-wide anonymous bucket in `rate_limit_events`. Not an
+ * account: that log has no foreign key, and this uuid can never be a user's,
+ * so export and erasure (which key on real ids) never see it.
+ */
+const ANONYMOUS_BUCKET = "00000000-0000-4919-8000-000000000000";
 
 const admin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -31,25 +39,6 @@ const admin: SupabaseClient = createClient(
 
 function json(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-}
-
-/** Three or more requests for this address in the trailing 24h: stop silently — see the file's rate-limit comment below for why silently. */
-async function isRateLimited(admin: SupabaseClient, parentEmail: string): Promise<boolean> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count, error } = await admin
-    .from("parental_consent_requests")
-    .select("id", { count: "exact", head: true })
-    .eq("parent_email", parentEmail)
-    .gte("created_at", since);
-  if (error) throw error;
-  if (count === null) {
-    // A `head: true, count: "exact"` query always returns a count when there
-    // is no error; treat the otherwise-impossible null as "over the limit"
-    // (fail closed) rather than silently opening the gate on a shape we
-    // didn't expect.
-    return true;
-  }
-  return count >= 3;
 }
 
 async function isActiveChildAccount(admin: SupabaseClient, userId: string): Promise<boolean> {
@@ -63,31 +52,18 @@ async function isActiveChildAccount(admin: SupabaseClient, userId: string): Prom
   return data !== null;
 }
 
-interface ValidInvite {
-  campaignId: string;
-  campaignName: string | null;
-}
-
-/** A campaign_invites row the token names, only if it's still unexpired and under its use cap. Anything else is silently ignored — see the body spec. */
-async function resolveInvite(admin: SupabaseClient, inviteToken: string): Promise<ValidInvite | null> {
+/** Whether the token names a campaign invite that is still unexpired and under its use cap. Anything else is silently ignored. */
+async function isValidInvite(admin: SupabaseClient, inviteToken: string): Promise<boolean> {
   const { data: invite, error } = await admin
     .from("campaign_invites")
-    .select("campaign_id, expires_at, max_uses, use_count")
+    .select("expires_at, max_uses, use_count")
     .eq("token", inviteToken)
     .maybeSingle();
   if (error) throw error;
-  if (!invite) return null;
-
+  if (!invite) return false;
   const unexpired = invite.expires_at === null || new Date(invite.expires_at as string).getTime() > Date.now();
   const underCap = invite.max_uses === null || (invite.use_count as number) < (invite.max_uses as number);
-  if (!unexpired || !underCap) return null;
-
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("name")
-    .eq("id", invite.campaign_id as string)
-    .maybeSingle();
-  return { campaignId: invite.campaign_id as string, campaignName: (campaign?.name as string | undefined) ?? null };
+  return unexpired && underCap;
 }
 
 serve(withCors(async (req: Request) => {
@@ -107,21 +83,22 @@ serve(withCors(async (req: Request) => {
   const parentEmail = parentEmailInput.trim().toLowerCase();
   if (!isValidParentEmail(parentEmail)) return json({ error: "invalid_email" }, 422);
 
-  // Present only for the existing-account path — see the file header.
+  // Present only for the existing-account path — see the file header. A
+  // token that claims a user must verify; it never falls back to the
+  // anonymous path (see bearerSubject for why that would strand the child).
   let callerId: string | null = null;
   let callerEmail: string | null = null;
   const authHeader = req.headers.get("Authorization");
-  if (authHeader) {
+  if (bearerSubject(authHeader) !== null) {
     const callerClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
+      { global: { headers: { Authorization: authHeader as string } } },
     );
-    const { data: { user } } = await callerClient.auth.getUser();
-    if (user) {
-      callerId = user.id;
-      callerEmail = asString(user.email);
-    }
+    const { data: { user }, error: userError } = await callerClient.auth.getUser();
+    if (userError || !user) return json({ error: "unauthorized" }, 401);
+    callerId = user.id;
+    callerEmail = asString(user.email);
   }
 
   if (callerId) {
@@ -132,14 +109,18 @@ serve(withCors(async (req: Request) => {
   }
 
   const inviteToken = asString(body.inviteToken);
-  const invite = inviteToken ? await resolveInvite(admin, inviteToken) : null;
+  const invite = inviteToken !== null && (await isValidInvite(admin, inviteToken)) ? inviteToken : null;
 
-  // Never reveal whether this address has been asked before — a prober
-  // sending a fourth request in a day gets the identical response a first
-  // request would get, so the rate limit itself carries no signal.
-  if (await isRateLimited(admin, parentEmail)) {
-    return json({ sent: true });
-  }
+  // Every limit is checked before any row is touched, in the append-only
+  // rate_limit_events log. Counting this function's own rows was bypassable:
+  // the signed-in path replaces the caller's previous request, so the count
+  // never grew. A limited request gets the same answer a sent one does, so
+  // the limit carries no signal about an address.
+  const allowed =
+    (callerId === null || (await checkRateLimit(admin, callerId, "parental_consent_caller"))) &&
+    (await checkRateLimit(admin, await addressRateLimitKey(parentEmail), "parental_consent_address")) &&
+    (callerId !== null || (await checkRateLimit(admin, ANONYMOUS_BUCKET, "parental_consent_anonymous")));
+  if (!allowed) return json({ sent: true });
 
   // One open request per account: replace rather than accumulate, matching
   // the unique index on child_user_id.
@@ -155,7 +136,7 @@ serve(withCors(async (req: Request) => {
     .from("parental_consent_requests")
     .insert({
       parent_email: parentEmail,
-      campaign_invite_token: invite ? inviteToken : null,
+      campaign_invite_token: invite,
       child_user_id: callerId,
     })
     .select("token")
@@ -168,7 +149,7 @@ serve(withCors(async (req: Request) => {
 
   const appOrigin = (Deno.env.get("APP_URL") ?? "https://app.dungeongrimoire.com").replace(/\/+$/, "");
   const content = parentConsentRequestEmail({
-    campaignName: invite?.campaignName ?? null,
+    fromInvite: invite !== null,
     addUrl: `${appOrigin}/account/family/add?request=${token}`,
   });
 

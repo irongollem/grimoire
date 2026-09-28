@@ -82,15 +82,26 @@ Answering under 16 swaps to `ParentRequestForm`, which posts the parent's
 email to `request-parental-consent` (`verify_jwt = false`, since there's no
 session yet to attach a bearer token to). That function:
 
-- Validates the address, resolves an optional campaign invite token to a
-  campaign name (silently ignored if expired or revoked; the parent's form
+- Validates the address and checks an optional campaign invite token is
+  still valid (silently ignored if expired or revoked; the parent's form
   just creates the child unjoined in that case),
-- Rate-limits at 3 requests per address per 24h, answering identically
-  whether or not the limit was hit (`{ sent: true }` either way, so a fourth
-  attempt reveals nothing about whether the address was asked before),
+- Treats a bearer token that claims a user as a session that must verify
+  (401 `unauthorized` otherwise). Only the anon or publishable key, which
+  supabase-js sends when signed out, counts as anonymous. Falling back to
+  anonymous would record an existing account's request as a new signup
+  that can never convert, stranding the child on the waiting screen,
+- Rate-limits in the append-only `rate_limit_events` log, before touching any
+  row: 3 per address per 24h (keyed by a hash of the address, so the log
+  never holds it), 3 per signed-in caller per 24h, and 60 an hour across all
+  anonymous callers, which is what bounds how many *different* addresses can
+  be mailed. A limited request gets `{ sent: true }` like a sent one, so the
+  limit reveals nothing about an address. (Counting this function's own rows
+  was bypassable: the signed-in path replaces the caller's previous request.)
 - Inserts a `parental_consent_requests` row (`token`, `parent_email`,
   `campaign_invite_token`, `child_user_id: null` for this path) and emails
-  the parent a link to `/account/family/add?request=<token>`.
+  the parent a link to `/account/family/add?request=<token>`. The email is
+  fixed text: it says an invite was involved but never names the campaign,
+  because anyone can name a campaign and have it mailed to any address.
 
 The parent opens that link; `AddChildView` calls `inspect-request` to show
 what they're approving (existing account or not, campaign name), then submits

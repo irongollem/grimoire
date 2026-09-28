@@ -8,10 +8,11 @@
  * the layout shell) are kept small and duplicated rather than reached for
  * across a function boundary.
  *
- * Every word is fixed. NOTHING the requester typed reaches this template —
- * only a token and, when it resolved to one, a campaign name already stored
- * in the database. A free-text field here would turn a parent's inbox into a
- * spam vector for an address they never gave out themselves.
+ * Every word is fixed. Nothing the requester controls reaches this template,
+ * only the request token inside the link. That includes the campaign name:
+ * anyone can create a campaign, name it with a phishing line and an invite,
+ * and have it mailed to any address. The parent sees the campaign's name in
+ * the app, after signing in with the address the request was sent to.
  */
 
 export interface EmailContent {
@@ -30,17 +31,17 @@ export function escapeHtml(s: string): string {
 }
 
 export interface ParentConsentRequestArgs {
-  /** null when the request carried no invite, or an invalid/expired/exhausted one. */
-  campaignName: string | null;
+  /** The request came from a valid campaign invite. Never the campaign's name: see the header. */
+  fromInvite: boolean;
   /** Full URL to the parent's "Add a child player" review screen, carrying the request token. */
   addUrl: string;
 }
 
-export function parentConsentRequestEmail({ campaignName, addUrl }: ParentConsentRequestArgs): EmailContent {
-  const campaignLine = campaignName
-    ? `They would join the campaign <strong>${escapeHtml(campaignName)}</strong>.`
-    : "";
-  const campaignLineText = campaignName ? `They would join the campaign: ${campaignName}.\n\n` : "";
+const INVITE_LINE = "They were invited to join a campaign, and you'll see which one when you review the request.";
+
+export function parentConsentRequestEmail({ fromInvite, addUrl }: ParentConsentRequestArgs): EmailContent {
+  const campaignLine = fromInvite ? INVITE_LINE : "";
+  const campaignLineText = fromInvite ? `${INVITE_LINE}\n\n` : "";
 
   return {
     subject: "A young player asked you to set up a Grimoire account",

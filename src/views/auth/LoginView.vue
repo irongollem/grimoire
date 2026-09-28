@@ -48,7 +48,7 @@
 
     <p class="mt-6 text-center text-body text-muted-foreground">
       New to Grimoire?
-      <RouterLink to="/signup" class="text-gold-400 hover:text-gold-300 underline">
+      <RouterLink :to="signupLink" class="text-gold-400 hover:text-gold-300 underline">
         Create an account
       </RouterLink>
     </p>
@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter, useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import AppInput from "@/components/common/AppInput.vue";
@@ -70,6 +70,15 @@ const route = useRoute();
 const identifier = ref("");
 const password = ref("");
 const errorMessage = ref("");
+
+// A parent arriving from a young player's request email lands here with a
+// ?redirect= to the approval form; signing up must carry it, or the
+// confirmation email returns them somewhere else (#919).
+const signupLink = computed(() =>
+  typeof route.query.redirect === "string"
+    ? { path: "/signup", query: { redirect: route.query.redirect } }
+    : { path: "/signup" },
+);
 
 async function handleSubmit() {
   errorMessage.value = "";

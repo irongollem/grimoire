@@ -1,42 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { parentConsentRequestEmail } from "./email";
 
+const addUrl = "https://app.dungeongrimoire.com/account/family/add?request=abc-123";
+
 describe("parentConsentRequestEmail", () => {
-  it("mentions the campaign name and includes the add URL when a campaign resolved", () => {
-    const content = parentConsentRequestEmail({
-      campaignName: "Curse of Strahd",
-      addUrl: "https://app.dungeongrimoire.com/account/family/add?request=abc-123",
-    });
-    expect(content.html).toContain("Curse of Strahd");
-    expect(content.html).toContain("https://app.dungeongrimoire.com/account/family/add?request=abc-123");
-    expect(content.text).toContain("Curse of Strahd");
-    expect(content.text).toContain("https://app.dungeongrimoire.com/account/family/add?request=abc-123");
+  it("includes the review link", () => {
+    const content = parentConsentRequestEmail({ fromInvite: false, addUrl });
+    expect(content.html).toContain(addUrl);
+    expect(content.text).toContain(addUrl);
   });
 
-  it("omits the campaign line entirely when there is no campaign", () => {
-    const content = parentConsentRequestEmail({
-      campaignName: null,
-      addUrl: "https://app.dungeongrimoire.com/account/family/add?request=abc-123",
-    });
-    expect(content.html).not.toContain("They would join");
-    expect(content.text).not.toContain("They would join");
+  it("says an invite was involved without naming the campaign", () => {
+    const content = parentConsentRequestEmail({ fromInvite: true, addUrl });
+    expect(content.html).toContain("invited to join a campaign");
+    expect(content.text).toContain("invited to join a campaign");
   });
 
-  it("HTML-escapes the campaign name so it cannot inject markup", () => {
-    const content = parentConsentRequestEmail({
-      campaignName: `<img src=x onerror=alert(1)> & "Friends"`,
-      addUrl: "https://app.dungeongrimoire.com/account/family/add?request=abc-123",
-    });
-    expect(content.html).not.toContain("<img src=x onerror=alert(1)>");
-    expect(content.html).toContain("&lt;img src=x onerror=alert(1)&gt;");
-    expect(content.html).toContain("&amp;");
-    expect(content.html).toContain("&quot;Friends&quot;");
+  it("omits the invite line when there was no invite", () => {
+    const content = parentConsentRequestEmail({ fromInvite: false, addUrl });
+    expect(content.html).not.toContain("invited to join");
+    expect(content.text).not.toContain("invited to join");
   });
 
-  it("never mentions a request token or free text from the requester", () => {
-    // The whole point of a fixed template: nothing but the URL and an
-    // already-stored campaign name ever reaches this email.
-    const content = parentConsentRequestEmail({ campaignName: null, addUrl: "https://app.dungeongrimoire.com/x" });
+  it("has no parameter that could carry text the requester controls", () => {
+    // A campaign name is chosen by whoever made the campaign, so it would let
+    // anyone mail a phishing line to any address. The signature is the guard.
+    const content = parentConsentRequestEmail({ fromInvite: true, addUrl });
     expect(content.subject).toBe("A young player asked you to set up a Grimoire account");
   });
 });

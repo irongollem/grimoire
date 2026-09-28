@@ -50,6 +50,17 @@ export const RATE_LIMITS = {
    * out loud rather than reporting as failure.
    */
   entity_embedding: { action: "entity_embedding", limit: 2_000, windowSeconds: 86_400 },
+  /**
+   * A young player asking a parent to approve their account (#919). That
+   * endpoint sends an email to an address the caller types, before any
+   * account may exist, so it is bounded three ways: per address (keyed by a
+   * hash of it, so the log never holds the address), per signed-in caller,
+   * and one app-wide bucket for anonymous callers, which is what bounds how
+   * many *different* addresses can be mailed. A real family needs one or two.
+   */
+  parental_consent_address:   { action: "parental_consent_address",   limit: 3,  windowSeconds: 86_400 },
+  parental_consent_caller:    { action: "parental_consent_caller",    limit: 3,  windowSeconds: 86_400 },
+  parental_consent_anonymous: { action: "parental_consent_anonymous", limit: 60, windowSeconds: 3_600 },
 } as const;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;
