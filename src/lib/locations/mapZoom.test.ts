@@ -45,6 +45,7 @@ function place(over: Partial<Location> = {}): Location {
     audio_theme: null,
     sort_order: null,
     map_published_rev: null,
+    is_level: false,
     created_at: "",
     updated_at: "",
     ...over,

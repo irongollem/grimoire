@@ -47,11 +47,6 @@ vi.mock("@/composables/locations/useSiteStructure", () => ({
     layerCounts: { value: { spaces: 0, ways: 0, zones: 0, prepared: 0 } },
   }),
 }));
-// Levels read map regions through a query; these tests are about ambience.
-vi.mock("@/composables/locations/useSiteLevels", async () => {
-  const { computed } = await import("vue");
-  return { useSiteLevels: () => computed(() => null) };
-});
 vi.mock("@/composables/quests/useBeatsStagedAt", () => ({
   useBeatsStagedAt: () => ({ data: { value: [] } }),
 }));
@@ -71,7 +66,8 @@ function place(over: Partial<Location> & { id: string }): Location {
     related_location_ids: [], source_map_id: null, is_battle_map: false,
     grid_calibration: null, map_layer_url: null, map_layer_calibration: null,
     plan_size: null, era_start: null, era_end: null, audio_theme: null,
-    sort_order: null, map_published_rev: null, created_at: "", updated_at: "",
+    sort_order: null, map_published_rev: null, is_level: false,
+    created_at: "", updated_at: "",
     ...over,
   } as Location;
 }

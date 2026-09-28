@@ -206,6 +206,17 @@
       </div>
     </div>
 
+    <!-- Whether this place is one of its parent's floors, assigned by the DM
+         rather than inferred (#884, migration `20260928195128`) — a
+         structural control, so Build only. Offered whenever both ends of the
+         relationship are site-tier, which is everything `is_level` can hold. -->
+    <SiteLevelAssignment
+      v-if="building && parentSite"
+      :location="location"
+      :parent-name="parentSite.name"
+      class="mt-2"
+    />
+
     <div class="py-3">
       <AtlasScaleRail :current-type="location.location_type" :occupied="occupied" />
     </div>
@@ -337,6 +348,7 @@ import AtlasSiteMapMode from "@/components/locations/AtlasSiteMapMode.vue";
 import AtlasTreeRow from "@/components/locations/AtlasTreeRow.vue";
 import LocationDetailSections from "@/components/locations/LocationDetailSections.vue";
 import LocationRevealControl from "@/components/locations/LocationRevealControl.vue";
+import SiteLevelAssignment from "@/components/locations/SiteLevelAssignment.vue";
 import SiteMapLayerBar from "@/components/locations/SiteMapLayerBar.vue";
 import SiteReadinessMeter from "@/components/locations/SiteReadinessMeter.vue";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
@@ -359,8 +371,7 @@ import {
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { resolveInheritedTheme } from "@/lib/locations/ambience";
 import { isLocationOutOfEra } from "@/lib/locations/era";
-import { levelOrdinal } from "@/lib/locations/levels";
-import { useSiteLevels } from "@/composables/locations/useSiteLevels";
+import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { visibleTags } from "@/lib/locations/tags";
 import { groupByTier, isInteriorType, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
@@ -405,10 +416,19 @@ const children = computed(() => (location ? childrenOf(index, location.id) : [])
 
 const isSite = computed(() => !!location && isSiteType(location.location_type));
 
+/** The site-tier parent, when there is one — the only shape `is_level` can
+ *  ever hold (`guard_location_room_parent`), so it also gates the assignment
+ *  control below. */
+const parentSite = computed<Location | null>(() => {
+  if (!location?.parent_id) return null;
+  const parent = index.byId.get(location.parent_id);
+  return parent && isSiteType(parent.location_type) ? parent : null;
+});
+
 /** "Ashmouth Undercroft · three levels" (#868, frame 06) — the site itself is
  *  level 1, so a stack of N child sites reads as N + 1 levels; null (no
  *  suffix at all) for a site with no levels to stack. */
-const levelsInfo = useSiteLevels(() => location, () => index);
+const levelsInfo = computed(() => (location ? levelsOf(index, location) : null));
 const levelsSuffix = computed(() => {
   const info = levelsInfo.value;
   return info && location && info.container.id === location.id ? `${info.levels.length} levels` : null;
@@ -590,12 +610,13 @@ const eraLabel = computed(() => {
 });
 
 /**
- * "Level N" for a nested-site child of a site (#868, frame 02) — N is the
- * child's 1-based position in `levelsOf`'s list, which is `location` itself
- * (level 1) followed by its site-typed children in `compareSiblings` order.
- * Shared with the Map-mode rail (`AtlasSiteMapMode`, `SiteLevelsColumn`) so
- * Contents mode and Map mode never disagree on the same page — they used to,
- * because this chip numbered `group.locations` on its own, which excludes
+ * "Level N" for a child the DM has assigned as one of this site's floors
+ * (`is_level`, #868 frame 02, formalised by migration `20260928195128`) — N
+ * is the child's 1-based position in `levelsOf`'s list, which is `location`
+ * itself (level 1) followed by its `is_level` children in `compareSiblings`
+ * order. Shared with the Map-mode rail (`AtlasSiteMapMode`, `SiteLevelsColumn`)
+ * so Contents mode and Map mode never disagree on the same page — they used
+ * to, because this chip numbered `group.locations` on its own, which excludes
  * the parent the rail counts as level 1.
  */
 function levelChipFor(group: TierGroup, child: Location): number | null {

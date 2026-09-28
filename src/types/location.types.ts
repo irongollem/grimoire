@@ -268,6 +268,14 @@ export interface Location {
    * against the live map's `rev` to say "the drawing moved on".
    */
   map_published_rev: number | null;
+  /**
+   * This place is a floor of its parent site, assigned by the DM and never
+   * inferred from type or plan (migration `20260928195128`). Guarded by
+   * `guard_location_room_parent`: only a site-tier place inside another
+   * site-tier place can be one, and moving it under a non-site parent clears
+   * the flag automatically.
+   */
+  is_level: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -320,6 +328,7 @@ export type LocationInsert = Omit<
   | "map_layer_url"
   | "map_layer_calibration"
   | "plan_size"
+  | "is_level"
 > & {
   /** Omit to take the column default of null — no audio is requested. */
   audio_theme?: string | null;
@@ -327,6 +336,8 @@ export type LocationInsert = Omit<
   sort_order?: number | null;
   /** Written by Publish to Atlas only. */
   map_published_rev?: number | null;
+  /** Omit to take the column default of false — a place on its parent's floor. */
+  is_level?: boolean;
   /** Omit to take the column default of null — no drawing yet. */
   map_layer_url?: string | null;
   /** Omit to take the column default of null — no drawing yet. */

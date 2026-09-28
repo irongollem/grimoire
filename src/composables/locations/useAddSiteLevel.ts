@@ -8,11 +8,13 @@ import type { Location } from "@/types/location.types";
 /**
  * Adds the next level to a site and opens it in Build, ready to draw.
  *
- * A level is a place of the site's own type filed under it (`levelsOf`), so
- * this creates exactly that, in the site's campaign rather than whichever one
- * is active (a global site's `null` survives). Shared by the Browse rail's
- * "Draw level N" and the Build canvas's level picker, which is the only way
- * to add the FIRST level: the Browse rail only appears once a site has one.
+ * A level is a place its DM has flagged `is_level` (migration
+ * `20260928195128`, `levelsOf`) — so this creates a new place of the site's
+ * own type, filed under it, with that flag already set, in the site's
+ * campaign rather than whichever one is active (a global site's `null`
+ * survives). Shared by the Browse rail's "Draw level N" and the Build
+ * canvas's level picker, which is the only way to add the FIRST level: the
+ * Browse rail only appears once a site has one.
  */
 export function useAddSiteLevel() {
   const router = useRouter();
@@ -54,6 +56,7 @@ export function useAddSiteLevel() {
         era_start: null,
         era_end: null,
         audio_theme: null,
+        is_level: true,
       });
       await router.push({ query: { ...route.query, at: level.id, build: "true" } });
       return "added";

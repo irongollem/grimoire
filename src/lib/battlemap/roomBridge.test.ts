@@ -55,6 +55,7 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
     audio_theme: null,
     sort_order: null,
     map_published_rev: null,
+    is_level: false,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
