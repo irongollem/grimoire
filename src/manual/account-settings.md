@@ -4,7 +4,7 @@ section: Campaign & Account
 section_order: 16
 order: 3
 summary: Your account identity, a full data export, and deleting your account, plus where email notifications are actually controlled.
-keywords: account, profile, display name, gdpr, data export, delete account, notifications, email
+keywords: account, profile, password, reset password, forgot password, display name, gdpr, data export, delete account, notifications, email
 ---
 
 **Your Account** is your identity across every campaign, not campaign-specific settings. Open it from the account menu at the bottom of the sidebar (click your name, then **Account**), or go straight to `/account`.
@@ -17,6 +17,14 @@ The same popover menu also has **Edit display name** (the name other members see
 - **Data export**: a GDPR access/portability request you can trigger yourself at any time.
 - **Delete account**: permanently removes your account; campaigns you own go with it.
 - **Family**: if you manage a young player's account for a player under 16, it's a separate page reached from the account menu, not part of this one. See [Young Players' Accounts](#young-players-accounts).
+
+## Forgotten your password
+
+1. On the sign-in page, click **Forgot password?** above the password field.
+2. Enter the email address you signed up with and click **Send reset link**.
+3. Open the link in the email and choose a new password. You are signed in straight away.
+
+The link also confirms your email address, so it gets you in even if the original confirmation email never arrived. Each link works once and expires; if yours has, the page offers to send a fresh one.
 
 ## Downloading your data
 

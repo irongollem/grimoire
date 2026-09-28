@@ -20,7 +20,12 @@
       </div>
 
       <div class="space-y-1.5">
-        <label class="text-body text-foreground" for="password">Password</label>
+        <div class="flex items-baseline justify-between">
+          <label class="text-body text-foreground" for="password">Password</label>
+          <RouterLink to="/forgot-password" class="text-caption text-gold-400 hover:text-gold-300 underline">
+            Forgot password?
+          </RouterLink>
+        </div>
         <AppInput
           id="password"
           v-model="password"

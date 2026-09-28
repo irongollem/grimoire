@@ -44,7 +44,7 @@ import {
  * Mirrors the branch the guard has always used to keep the two shells apart —
  * `/play` is the player area, everything else authenticated is DM. The four
  * exclusions are routes with no campaign to contradict: the auth shell (login,
- * signup, invite join, `/welcome`, OAuth consent, the Spotify callback), the
+ * signup, password reset, invite join, `/welcome`, OAuth consent, the Spotify callback), the
  * unauthenticated dev harnesses and the 404, and `/admin`, which is
  * account-scoped and carries its own fence.
  */
