@@ -6,7 +6,11 @@ import { supabase } from "@/lib/supabase";
 // text-model expansion step) is server-only now; this is only the minimal
 // hand-composed fallback the local-BYOK path still needs — see
 // generateMusicLocally's doc comment below.
-export { composeFallbackPrompt, type MusicRequest as FallbackPromptRequest } from "@edge-shared/musicPrompt.ts";
+export {
+  composeFallbackPrompt,
+  MUSIC_PROMPT_MAX_CHARS,
+  type MusicRequest as FallbackPromptRequest,
+} from "@edge-shared/musicPrompt.ts";
 
 /** Selectable target lengths for a generated track. Lyria 3.5 is one model —
  * length is steered by the prompt (a target duration plus a timestamped

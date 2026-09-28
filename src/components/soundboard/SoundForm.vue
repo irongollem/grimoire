@@ -200,13 +200,49 @@
 
 
         <!-- Status / error -->
-        <p v-if="isGenerating" class="text-caption text-muted-foreground text-center">
-          Generating… a full track can take a while
-        </p>
+        <div v-if="isGenerating" class="flex flex-col items-center gap-2 py-2">
+          <IconGenerate class="h-6 w-6 text-primary animate-pulse" />
+          <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
+          <p class="text-caption-sm text-muted-foreground/60 text-center">A full track can take a few minutes.</p>
+          <!-- Server runs only: the local-key path lives in this tab. -->
+          <AppButton
+            v-if="music.isGenerating.value"
+            variant="ghost"
+            size="inline-caption"
+            class="underline underline-offset-2"
+            label="Continue in background"
+            @click="$emit('cancel')"
+          />
+        </div>
         <p v-if="isBusy && !isGenerating" class="text-caption text-muted-foreground text-center">
           {{ statusText }}
         </p>
-        <p v-if="generateError" class="text-caption text-destructive">{{ generateError }}</p>
+        <p v-if="shownGenerateError" class="text-caption text-destructive">{{ shownGenerateError }}</p>
+
+        <!-- The prompt Lyria refused, handed back to be reworded. Google names
+             no word, only "sensitive words", so the DM has to see the text. -->
+        <div v-if="editedPrompt !== null" class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label for="sound-form-lyria-prompt" class="text-caption text-muted-foreground">Prompt sent to Lyria</label>
+            <span
+              class="text-caption-sm tabular-nums"
+              :class="editedPrompt.length > MUSIC_PROMPT_MAX_CHARS - 200 ? 'text-amber-400' : 'text-muted-foreground'"
+            >{{ editedPrompt.length }} / {{ MUSIC_PROMPT_MAX_CHARS }}</span>
+          </div>
+          <textarea
+            id="sound-form-lyria-prompt"
+            v-model="editedPrompt"
+            rows="10"
+            :maxlength="MUSIC_PROMPT_MAX_CHARS"
+            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500 resize-y"
+          />
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-caption-sm text-muted-foreground/60">
+              Reword whatever Google objected to, then generate again. This prompt goes to Lyria exactly as written, so the description, length and vocals above no longer change it.
+            </p>
+            <AppButton variant="ghost" size="inline-xs" label="Discard" class="shrink-0" @click="editedPrompt = null" />
+          </div>
+        </div>
       </div>
 
       <!-- Browse Freesound -->
@@ -274,7 +310,6 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from "vue";
-import { useQueryClient } from "@tanstack/vue-query";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconGenerate } from "@/lib/icons";
 import ProBadge from "@/components/common/ProBadge.vue";
@@ -298,19 +333,16 @@ import {
   MUSIC_GENERATION_TYPE,
   MUSIC_MAX_IMAGES,
   LYRICS_MAX_CHARS,
+  MUSIC_PROMPT_MAX_CHARS,
   type FallbackPromptRequest,
   type MusicLengthSeconds,
   type MusicVocals,
 } from "@/lib/audio/aiMusic";
 import { logUsage, useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
-import {
-  acknowledgeAiGenerationJob,
-  listUnconsumedAiGenerationJobs,
-  waitForAiGenerationJob,
-} from "@/ai/useAiGenerationJob";
+import { useMusicGeneration } from "@/ai/useMusicGeneration";
+import { currentLoadingQuote, startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
+import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import SoundProviderBrowser from "@/components/soundboard/SoundProviderBrowser.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
@@ -350,7 +382,15 @@ const showPaywall = ref(false);
 
 type SourceTab = "url" | "upload" | "spotify" | "generate" | "browse";
 
-const activeSourceTab = ref<SourceTab>("url");
+const music = useMusicGeneration();
+
+// A music draft that is running, failed, or holds a refused prompt reopens on
+// the Generate tab, since that is what the badge's "Reopen" is for.
+const activeSourceTab = ref<SourceTab>(
+  isAiEnabled.value && (music.isGenerating.value || music.error.value || music.draft.editedPrompt.value !== null)
+    ? "generate"
+    : "url",
+);
 // The Generate tab is hidden while the campaign's AI is off; if the toggle
 // flips with the dialog open on that tab, fall back rather than strand a form
 // whose tab no longer exists.
@@ -358,106 +398,18 @@ watch(isAiEnabled, (enabled) => {
   if (!enabled && activeSourceTab.value === "generate") activeSourceTab.value = "url";
 });
 
-interface MusicGenerationResult {
-  campaign_id: string;
-  sound_id: string;
-}
-
-const MUSIC_REQUEST_STORAGE_PREFIX = "grimoire_music_request:";
-
-interface PendingMusicRequest {
-  requestId: string;
-  fingerprint: string;
-}
-
-/**
- * Store the idempotency key before the HTTP request leaves this tab. Reusing it
- * for the same draft turns a lost invoke response into a safe retry instead of
- * a second paid generation.
- */
-async function getOrCreateMusicRequestId(originCampaignId: string, fingerprint: string): Promise<string> {
-  const storageKey = `${MUSIC_REQUEST_STORAGE_PREFIX}${originCampaignId}`;
-  try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) ?? "null") as PendingMusicRequest | null;
-    if (saved?.requestId && saved.fingerprint === fingerprint) {
-      // A retry reuses a pending request, but a terminal result must not trap
-      // the same form inputs behind an old failed/consumed job forever.
-      const { data, error } = await supabase
-        .from("ai_generation_jobs")
-        .select("status, consumed_at")
-        .eq("generator_type", "music")
-        .eq("idempotency_key", saved.requestId)
-        .maybeSingle();
-      const job = data as { status: string; consumed_at: string | null } | null;
-      if (error || !job || (job.status !== "failed" && !(job.status === "ready" && job.consumed_at))) {
-        return saved.requestId;
-      }
-      localStorage.removeItem(storageKey);
-    }
-    const requestId = crypto.randomUUID();
-    localStorage.setItem(storageKey, JSON.stringify({ requestId, fingerprint } satisfies PendingMusicRequest));
-    return requestId;
-  } catch {
-    // The server-side job is still durable once the request reaches it.
-    return crypto.randomUUID();
-  }
-}
-
-function forgetMusicRequest(originCampaignId: string, requestId?: string): void {
-  if (!requestId) return;
-  try {
-    const storageKey = `${MUSIC_REQUEST_STORAGE_PREFIX}${originCampaignId}`;
-    const saved = JSON.parse(localStorage.getItem(storageKey) ?? "null") as PendingMusicRequest | null;
-    if (saved?.requestId === requestId) localStorage.removeItem(storageKey);
-  } catch {
-    // Nothing else to clean up.
-  }
-}
-
 const form = ref<{ name: string; category: SoundCategory; external_url: string }>({
-  name: "",
-  category: "ambient",
+  // Reopened on a running or failed track: show the name and section it was started with.
+  name: activeSourceTab.value === "generate" ? music.concept.value : "",
+  category: activeSourceTab.value === "generate" ? music.draft.category.value : "ambient",
   external_url: "",
 });
-const queryClient = useQueryClient();
-
-async function saveReadyMusicJob(
-  jobId: string,
-  job: Awaited<ReturnType<typeof waitForAiGenerationJob<MusicGenerationResult>>>,
-  requestId?: string,
-): Promise<void> {
-  if (!job.artifacts.url || !job.artifacts.storagePath || !job.result_json?.sound_id) {
-    throw new Error("The music job finished without a stored sound.");
-  }
-  await queryClient.invalidateQueries({ queryKey: ["sounds", job.result_json.campaign_id] });
-  await acknowledgeAiGenerationJob(jobId);
-  forgetMusicRequest(job.result_json.campaign_id, requestId);
-}
-
-async function resumeMusicJob(jobId: string, expectedCampaignId: string, requestId?: string): Promise<void> {
-  const job = await waitForAiGenerationJob<MusicGenerationResult>(jobId);
-  if (job.consumedAt) {
-    forgetMusicRequest(expectedCampaignId, requestId);
-    return;
-  }
-  if (job.result_json?.campaign_id !== expectedCampaignId) {
-    throw new Error("This music job belongs to a different campaign.");
-  }
-  await saveReadyMusicJob(jobId, job, requestId);
-}
-
+// Tracks that finished while nothing was waiting on them (a reload mid-run)
+// are applied here; the badge then says so, like any background generation.
 async function recoverReadyMusicJobs(): Promise<void> {
   if (!campaignId) return;
   try {
-    const jobs = await listUnconsumedAiGenerationJobs<MusicGenerationResult>({
-      campaignId,
-      generatorType: "music",
-    });
-    for (const job of jobs) {
-      if (!job.result_json?.sound_id || job.result_json.campaign_id !== campaignId) continue;
-      await saveReadyMusicJob(job.id, job);
-      emit("saved");
-    }
+    await music.recoverReadyJobs(campaignId);
   } catch (error) {
     generateError.value = error instanceof Error ? error.message : "Could not recover completed music.";
   }
@@ -578,12 +530,20 @@ const isValidSpotifyUrl = computed(() =>
 
 // ── Generate tab ──────────────────────────────────────────────────────────
 
-const generateDescription = ref("");
-const generateLyrics = ref("");
-const generateLengthSeconds = ref<MusicLengthSeconds>(60);
-const generateVocals = ref<MusicVocals>("instrumental");
-const isGenerating = ref(false);
+// The draft lives in useMusicGeneration so it outlives this dialog.
+const {
+  description: generateDescription,
+  lyrics: generateLyrics,
+  lengthSeconds: generateLengthSeconds,
+  vocals: generateVocals,
+  editedPrompt,
+} = music.draft;
+// The local-vault BYOK path runs here in the foreground; the server path's
+// progress is the module-level music.isGenerating.
+const localGenerating = ref(false);
+const isGenerating = computed(() => music.isGenerating.value || localGenerating.value);
 const generateError = ref("");
+const shownGenerateError = computed(() => generateError.value || music.error.value);
 
 // @-mentions in the description resolve against the same campaign entities
 // the Chronicler reads — their images go to Lyria, their descriptions go to
@@ -626,7 +586,9 @@ const submitDisabled = computed(() => {
   if (anyBusy.value) return true;
   if (activeSourceTab.value === "spotify") return !isValidSpotifyUrl.value;
   if (activeSourceTab.value === "generate") {
-    return !generateDescription.value.trim();
+    // Every generator waits for the others, as the NPC and roll-table panels do.
+    return isAnyAiGenerating.value || !generateDescription.value.trim() ||
+      (editedPrompt.value !== null && !editedPrompt.value.trim());
   }
   return false;
 });
@@ -644,6 +606,7 @@ const submitLabel = computed(() => {
 async function handleSubmit() {
   uploadError.value = "";
   generateError.value = "";
+  music.clearError();
 
   // Browse tab has its own per-row add flow; nothing for the form to do.
   if (activeSourceTab.value === "browse") return;
@@ -731,72 +694,56 @@ async function handleSubmit() {
     const originatingCampaignId = campaignId;
     const originatingPageId = pageId ?? null;
 
-    // Structuring (expanding the request into a full Lyria prompt via a text
-    // model) runs server-side inside generate-music now — see aiMusic.ts's
-    // top comment for why it moved out of the browser. The local-vault BYOK
-    // path below remains browser-owned and legacy per the BYOK-tier policy,
-    // so it sends a hand-composed prompt (composeFallbackPrompt) instead of
-    // adding a second BYOK text-provider call here.
-    isGenerating.value = true;
-    let file: File | null = null;
+    const promptOverride = editedPrompt.value?.trim() || null;
     const isLocalMode = typeof localStorage !== "undefined" && localStorage.getItem("grimoire_key_local_mode") === "local";
 
-    try {
-      if (isLocalMode && geminiApiKey) {
-        const finalPrompt = composeFallbackPrompt(musicRequest);
-        const generated = await generateMusicLocally(finalPrompt, geminiApiKey, imageUrls);
-        file = generated.file;
-        logUsage({ reason: "music_generation", imageUsage: { model: generated.model, provider: "google", image_count: 1 } });
-      } else {
-        if (!originatingCampaignId) throw new Error("No campaign or API key configured for music generation.");
-        const requestFingerprint = JSON.stringify({
-          // Keys the retry to the DM's original intent (not the structured
-          // prompt, which no longer exists client-side) so a lost invoke
-          // response cannot turn a differently worded retry into another
-          // paid request.
-          description: musicRequest.description,
-          lengthSeconds: musicRequest.lengthSeconds,
-          vocals: musicRequest.vocals,
-          lyrics: musicRequest.lyrics ?? null,
-          name: soundName,
-          category: soundCategory,
-          pageId: originatingPageId,
-          imageUrls: [...imageUrls].sort(),
-        });
-        const requestId = await getOrCreateMusicRequestId(originatingCampaignId, requestFingerprint);
-        const { data, error } = await supabase.functions.invoke("generate-music", {
-          body: {
-            request_id: requestId,
-            campaign_id: originatingCampaignId,
-            sound_name: soundName,
-            category: soundCategory,
-            page_id: originatingPageId,
-            description: musicRequest.description,
-            length_seconds: musicRequest.lengthSeconds,
-            vocals: musicRequest.vocals,
-            lyrics: musicRequest.lyrics,
-            mentions: musicRequest.mentions,
-            image_urls: imageUrls,
-          },
-        });
-        if (error) throw new Error(await edgeErrorMessage(error));
-        if (data?.error) throw new Error(data.error);
-
-        const jobId = (data as { job_id?: string } | null)?.job_id;
-        if (!jobId) throw new Error("Music generator did not return a job id.");
-        await resumeMusicJob(jobId, originatingCampaignId, requestId);
-        emit("saved");
-        resetForm();
+    // Server path: structuring and Lyria both run in generate-music's worker,
+    // and useMusicGeneration waits on the job at module level, so the DM can
+    // close this dialog ("Continue in background") and the badge takes over.
+    if (!(isLocalMode && geminiApiKey)) {
+      if (!originatingCampaignId) {
+        generateError.value = "No campaign or API key configured for music generation.";
         return;
       }
-    } catch (err) {
-      generateError.value = err instanceof Error ? err.message : "Generation failed.";
+      const done = await music.generate({
+        campaignId: originatingCampaignId,
+        pageId: originatingPageId,
+        soundName,
+        category: soundCategory,
+        request: musicRequest,
+        imageUrls,
+        prompt: promptOverride,
+      });
+      if (done) {
+        emit("saved");
+        resetForm();
+      }
       return;
-    } finally {
-      isGenerating.value = false;
     }
 
-    const result = await upload(file!);
+    // Local-vault BYOK path: browser-owned and legacy per the BYOK-tier
+    // policy, so it runs in the foreground and sends a hand-composed prompt
+    // (composeFallbackPrompt) rather than adding a second BYOK text-provider
+    // call here.
+    localGenerating.value = true;
+    startAiQuotes("music");
+    let file: File;
+    // Built here, so a refusal can hand it back to be reworded.
+    const localPrompt = promptOverride ?? composeFallbackPrompt(musicRequest);
+    try {
+      const generated = await generateMusicLocally(localPrompt, geminiApiKey, imageUrls);
+      file = generated.file;
+      logUsage({ reason: "music_generation", imageUsage: { model: generated.model, provider: "google", image_count: 1 } });
+    } catch (err) {
+      generateError.value = err instanceof Error ? err.message : "Generation failed.";
+      editedPrompt.value = localPrompt;
+      return;
+    } finally {
+      localGenerating.value = false;
+      stopAiQuotes();
+    }
+
+    const result = await upload(file);
     if (!result) {
       generateError.value = "Upload failed. Please try again.";
       return;
@@ -858,10 +805,8 @@ function resetForm() {
   form.value = { name: "", category: "ambient", external_url: "" };
   selectedFile.value = null;
   uploadError.value = "";
-  generateDescription.value = "";
-  generateLyrics.value = "";
-  generateLengthSeconds.value = 60;
-  generateVocals.value = "instrumental";
+  music.resetDraft();
+  music.clearError();
   generateError.value = "";
 }
 </script>

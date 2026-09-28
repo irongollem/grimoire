@@ -67,7 +67,21 @@ const MAP_QUOTES = [
   "Hanging cobwebs in the corners…",
 ];
 
-const QUOTE_POOLS = { text: TEXT_QUOTES, image: IMAGE_QUOTES, map: MAP_QUOTES } as const;
+// A soundboard track: a bard's band rehearsing, not a scribe or a painter.
+const MUSIC_QUOTES = [
+  "Tuning the lute…",
+  "Waking the drummer…",
+  "Rosining the fiddle bows…",
+  "Arguing over the key signature…",
+  "Teaching the choir the chorus…",
+  "Counting in the band…",
+  "Finding a rhyme for \"dungeon\"…",
+  "Rehearsing the bridge one more time…",
+  "Warming up the bard's voice…",
+  "Tapping the tempo on the tavern table…",
+];
+
+const QUOTE_POOLS = { text: TEXT_QUOTES, image: IMAGE_QUOTES, map: MAP_QUOTES, music: MUSIC_QUOTES } as const;
 
 const _quotePool = ref<readonly string[]>(TEXT_QUOTES);
 const _quoteIndex = ref(0);

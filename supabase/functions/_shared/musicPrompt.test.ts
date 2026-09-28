@@ -53,6 +53,18 @@ describe("buildStructureMessage", () => {
     expect(msg).not.toContain("Lyrics:");
   });
 
+  it("leads with the sound's title when there is one", () => {
+    const req: MusicRequest = { title: "  Rosie's Defense ", description: "a duel", lengthSeconds: 60, vocals: "instrumental" };
+    expect(buildStructureMessage(req)).toBe(
+      "Title: Rosie's Defense\nDescription: a duel\nTarget length: 1:00 (60 seconds)\nVocals: instrumental",
+    );
+  });
+
+  it("omits a blank title", () => {
+    const req: MusicRequest = { title: "   ", description: "a duel", lengthSeconds: 60, vocals: "instrumental" };
+    expect(buildStructureMessage(req)).not.toContain("Title:");
+  });
+
   it("formats a 3-minute length correctly", () => {
     const req: MusicRequest = { description: "epic finale", lengthSeconds: 180, vocals: "instrumental" };
     expect(buildStructureMessage(req)).toContain("Target length: 3:00 (180 seconds)");

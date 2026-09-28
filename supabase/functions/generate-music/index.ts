@@ -11,6 +11,7 @@ import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText } from "../_shared/textGen.ts";
 import {
   buildStructureMessage,
+  MUSIC_PROMPT_MAX_CHARS,
   MUSIC_STRUCTURE_SYSTEM,
   type MusicLengthSeconds,
   type MusicMention,
@@ -23,6 +24,7 @@ import {
   finalizeMusicGenerationJob,
   findGenerationJob,
   persistGenerationArtifact,
+  recordGenerationJobMetadata,
   type GenerationJob,
 } from "../_shared/aiGenerationJob.ts";
 import { uploadWithRetry, publicUrlFor } from "../_shared/storage-upload.ts";
@@ -72,6 +74,12 @@ interface MusicJobRequest {
   vocals: MusicVocals;
   lyrics: string | null;
   mentions: MusicMention[];
+  /**
+   * A complete Lyria prompt the DM wrote or edited — sent as written, with no
+   * structuring step. Set when Google refused a structured prompt and the DM
+   * reworded it (see the worker's comment on recording the prompt).
+   */
+  prompt: string | null;
   model: string;
   name: string;
   category: SoundCategory;
@@ -102,12 +110,15 @@ function requestFromJob(job: GenerationJob): MusicJobRequest {
   const vocals = request.vocals;
   const mentions = request.mentions;
   const lyrics = request.lyrics;
+  // Absent on jobs queued before the DM could edit a prompt; null means structure it.
+  const prompt = request.prompt ?? null;
   if (
     typeof request.description !== "string" || typeof request.model !== "string" ||
     typeof request.name !== "string" || !["ambient", "music", "effects", "misc"].includes(String(category)) ||
     !MUSIC_LENGTHS.includes(Number(lengthSeconds) as MusicLengthSeconds) ||
     !MUSIC_VOCALS.includes(String(vocals) as MusicVocals) ||
     (lyrics !== null && typeof lyrics !== "string") ||
+    (prompt !== null && (typeof prompt !== "string" || !prompt.trim() || prompt.length > MUSIC_PROMPT_MAX_CHARS)) ||
     !Array.isArray(mentions) || !mentions.every(isValidMention) ||
     // There are no old jobs to be compatible with — image_urls is required, always an
     // array, and re-validated here because a durable snapshot can be re-executed on retry.
@@ -121,6 +132,7 @@ function requestFromJob(job: GenerationJob): MusicJobRequest {
     vocals: vocals as MusicVocals,
     lyrics: lyrics as string | null,
     mentions: mentions as MusicMention[],
+    prompt: prompt as string | null,
     model: request.model,
     name: request.name,
     category: category as SoundCategory,
@@ -199,39 +211,58 @@ async function runMusicGeneration(jobId: string, request: MusicRuntimeRequest): 
     }
 
     // Step 1: expand the DM's request into a complete Lyria prompt with a
-    // text model. This used to run in the browser via a BYOK-only provider
-    // that threw for every platform-credit DM (see this file's top comment)
-    // — deliberately NO fallback to a hand-composed prompt here. A silent
-    // downgrade is exactly what hid that bug for four months, so a failed
-    // structuring step fails the whole job instead.
-    const { data: promptRow } = await admin
-      .from("ai_system_prompts").select("content").eq("generator_type", "music_structure").maybeSingle();
-    const structureSystem = promptRow?.content ?? MUSIC_STRUCTURE_SYSTEM;
-    const structureMessage = buildStructureMessage({
-      description: request.description,
-      lengthSeconds: request.lengthSeconds,
-      vocals: request.vocals,
-      lyrics: request.lyrics ?? undefined,
-      mentions: request.mentions,
-      imageCount: request.imageUrls.length,
-    });
-
+    // text model — unless the DM supplied the prompt themselves, which is
+    // sent exactly as written. This used to run in the browser via a
+    // BYOK-only provider that threw for every platform-credit DM (see this
+    // file's top comment) — deliberately NO fallback to a hand-composed
+    // prompt here. A silent downgrade is exactly what hid that bug for four
+    // months, so a failed structuring step fails the whole job instead.
     let structuredPrompt: string;
-    try {
-      const textResult = await callText({
-        provider: request.textProvider,
-        keys: request.textKeys,
-        model: request.textModel,
-        system: structureSystem,
-        user: structureMessage,
-        outputFormat: "text",
+    if (request.prompt) {
+      structuredPrompt = request.prompt.trim();
+    } else {
+      const { data: promptRow } = await admin
+        .from("ai_system_prompts").select("content").eq("generator_type", "music_structure").maybeSingle();
+      const structureSystem = promptRow?.content ?? MUSIC_STRUCTURE_SYSTEM;
+      const structureMessage = buildStructureMessage({
+        title: request.name,
+        description: request.description,
+        lengthSeconds: request.lengthSeconds,
+        vocals: request.vocals,
+        lyrics: request.lyrics ?? undefined,
+        mentions: request.mentions,
+        imageCount: request.imageUrls.length,
       });
-      structuredPrompt = textResult.content.trim();
-      if (!structuredPrompt) throw new Error("Structuring model returned an empty prompt.");
-    } catch (e) {
-      console.error("Music prompt structuring failed:", e);
-      throw new Error("Could not prepare the music prompt.");
+
+      try {
+        const textResult = await callText({
+          provider: request.textProvider,
+          keys: request.textKeys,
+          model: request.textModel,
+          system: structureSystem,
+          user: structureMessage,
+          outputFormat: "text",
+        });
+        structuredPrompt = textResult.content.trim();
+        if (!structuredPrompt) throw new Error("Structuring model returned an empty prompt.");
+      } catch (e) {
+        console.error("Music prompt structuring failed:", e);
+        throw new Error("Could not prepare the music prompt.");
+      }
     }
+
+    // Record the prompt before Lyria sees it, so it survives a refusal. Google
+    // screens the text for "sensitive words" and answers only with that
+    // phrase; without the prompt on the failed job the DM cannot see what
+    // tripped it, only that something did (28 Sep 2026: a song about an NPC,
+    // with nothing but her name and portrait to go on, was refused once and
+    // passed on retry, and nobody could say why). The form hands it back to
+    // be reworded.
+    await recordGenerationJobMetadata(admin, jobId, {
+      model: request.model,
+      provider: "google",
+      prompt: structuredPrompt,
+    });
 
     // Step 2: Lyria generates the audio from the structured prompt. Images
     // (if any) ride alongside it in the same Interactions API call.
@@ -316,7 +347,7 @@ serve(withCors(async (req: Request) => {
   let campaignId: string, soundName: string;
   let category: SoundCategory, pageId: string | null, requestId: string, imageUrls: string[];
   let description: string, lengthSeconds: MusicLengthSeconds, vocals: MusicVocals;
-  let lyrics: string | null, mentions: MusicMention[];
+  let lyrics: string | null, mentions: MusicMention[], prompt: string | null;
   try {
     const body = await req.json();
     campaignId = body.campaign_id;
@@ -329,6 +360,14 @@ serve(withCors(async (req: Request) => {
     vocals = body.vocals;
     const rawLyrics = body.lyrics;
     lyrics = typeof rawLyrics === "string" && rawLyrics.trim() ? rawLyrics.trim() : null;
+    const rawPrompt = body.prompt;
+    if (rawPrompt === undefined || rawPrompt === null) {
+      prompt = null;
+    } else if (typeof rawPrompt === "string" && rawPrompt.trim()) {
+      prompt = rawPrompt.trim();
+    } else {
+      throw new Error("invalid");
+    }
     const rawMentions = body.mentions;
     if (rawMentions === undefined) {
       mentions = [];
@@ -351,6 +390,7 @@ serve(withCors(async (req: Request) => {
       !description || description.length > MAX_DESCRIPTION_CHARS ||
       !MUSIC_LENGTHS.includes(lengthSeconds) || !MUSIC_VOCALS.includes(vocals) ||
       (lyrics !== null && lyrics.length > MAX_LYRICS_CHARS) ||
+      (prompt !== null && prompt.length > MUSIC_PROMPT_MAX_CHARS) ||
       mentions.length > MAX_MENTIONS ||
       !mentions.every((m) =>
         m.label.length > 0 && m.label.length <= MAX_MENTION_LABEL_CHARS &&
@@ -362,7 +402,8 @@ serve(withCors(async (req: Request) => {
     return new Response(
       "Invalid body — need request_id, campaign_id, sound_name, category, page_id, description (non-empty, " +
         `max ${MAX_DESCRIPTION_CHARS} chars), length_seconds (60|120|180), vocals (instrumental|choir|vocals), ` +
-        `lyrics (optional, max ${MAX_LYRICS_CHARS} chars), mentions (optional, max ${MAX_MENTIONS}, label max ` +
+        `lyrics (optional, max ${MAX_LYRICS_CHARS} chars), prompt (optional, a complete Lyria prompt sent as ` +
+        `written, max ${MUSIC_PROMPT_MAX_CHARS} chars), mentions (optional, max ${MAX_MENTIONS}, label max ` +
         `${MAX_MENTION_LABEL_CHARS} chars, description max ${MAX_MENTION_DESCRIPTION_CHARS} chars or null) and ` +
         "image_urls (max 10, our storage/CDN only)",
       { status: 400 },
@@ -482,7 +523,7 @@ serve(withCors(async (req: Request) => {
       return new Response(JSON.stringify({ error: "No music model is configured. Ask your admin to set one under Admin → AI Providers." }), { status: 503, headers: { "Content-Type": "application/json" } });
     }
     durableRequest = {
-      campaignId, userId: user.id, description, lengthSeconds, vocals, lyrics, mentions,
+      campaignId, userId: user.id, description, lengthSeconds, vocals, lyrics, mentions, prompt,
       model: configuredModel, name: soundName, category, pageId, imageUrls,
     };
   }
@@ -512,6 +553,7 @@ serve(withCors(async (req: Request) => {
           vocals: durableRequest.vocals,
           lyrics: durableRequest.lyrics,
           mentions: durableRequest.mentions,
+          prompt: durableRequest.prompt,
           model: durableRequest.model,
           name: soundName,
           category,

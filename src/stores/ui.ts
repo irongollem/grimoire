@@ -506,6 +506,14 @@ export const useUiStore = defineStore("ui", () => {
   // board left while open. Session-scoped like chatOpen, not persisted.
   const soundboardMixerOpen = ref(false);
 
+  // The Add Sound dialog, mounted app-wide in AiGeneratorPanels like every
+  // generator panel, because music generation runs in the background and the
+  // badge's "Reopen" has to bring the dialog back from whatever page the DM
+  // is on. The page is chosen when it opens (SoundboardView's openAddSound)
+  // and kept, so a reopened retry still lands on the board it started from.
+  const addSoundDialogOpen = ref(false);
+  const addSoundPageId = ref<string | null>(null);
+
   // Board settings. Lives here rather than inside the mixer because the mixer is
   // only mounted while its drawer is open, and the dialog now has an entry point
   // in the page header too — the mixer's status row used to be the only way in,
@@ -1266,6 +1274,8 @@ export const useUiStore = defineStore("ui", () => {
     soundboardBoardMode,
     soundboardPadSize,
     soundboardMixerOpen,
+    addSoundDialogOpen,
+    addSoundPageId,
     soundboardSettingsOpen,
     soundboardCreateSignal,
 

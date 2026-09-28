@@ -12,12 +12,10 @@
  * text generator uses.
  *
  * Pure: no Deno/network/DB imports, so this is unit-tested exactly like
- * lyria.ts (see musicPrompt.test.ts). Deno cannot import browser TS, so
- * `composeFallbackPrompt` and its `MusicVocals`/`MusicLengthSeconds` types
- * still exist as a second, client-only copy in src/lib/audio/aiMusic.ts for
- * the local-BYOK generation path — keep the two in sync (same convention as
- * freesound.ts). aiMusic.test.ts imports both copies and asserts identical
- * output across a table of inputs so they cannot drift unnoticed.
+ * lyria.ts (see musicPrompt.test.ts), and the browser imports it directly —
+ * src/lib/audio/aiMusic.ts re-exports `composeFallbackPrompt` and
+ * `MUSIC_PROMPT_MAX_CHARS` from here for the local-BYOK path, so there is one
+ * copy of each.
  */
 
 export type MusicLengthSeconds = 60 | 120 | 180;
@@ -37,7 +35,18 @@ export interface MusicMention {
   description: string | null;
 }
 
+/**
+ * Ceiling on a Lyria prompt the DM edits by hand. When Google refuses a
+ * structured prompt, the DM gets it back to reword and resubmit as written —
+ * this bounds that text. A structured prompt with the full 2,200-character
+ * lyrics allowance and a timeline sits well under it.
+ */
+export const MUSIC_PROMPT_MAX_CHARS = 6000;
+
 export interface MusicRequest {
+  /** The sound's name on the soundboard ("Rosie's Defense") — often the best
+   * single statement of what the track is for, and nothing else carries it. */
+  title?: string;
   description: string;
   lengthSeconds: MusicLengthSeconds;
   vocals: MusicVocals;
@@ -118,6 +127,7 @@ function formatLength(seconds: MusicLengthSeconds): string {
  */
 export function buildStructureMessage(req: MusicRequest): string {
   const lines = [
+    ...(req.title?.trim() ? [`Title: ${req.title.trim()}`] : []),
     `Description: ${req.description}`,
     `Target length: ${formatLength(req.lengthSeconds)}`,
     `Vocals: ${req.vocals}`,
@@ -160,7 +170,7 @@ export function composeFallbackPrompt(req: MusicRequest): string {
   let prompt = `${description}. A ${req.lengthSeconds / 60}-minute track.`;
   if (req.vocals === "instrumental") prompt += " Instrumental only, no vocals.";
   if (req.vocals === "choir") prompt += " Wordless choir only: sung vowels such as ooh and aah, no lyrics, no solo singer.";
-  // Mentions are ignored here on purpose: a fallback stays minimal.
+  // Mentions and the title are ignored here on purpose: a fallback stays minimal.
   if (req.imageCount && req.imageCount > 0) {
     prompt += " Take the instrumentation, colour and atmosphere from the attached images.";
   }

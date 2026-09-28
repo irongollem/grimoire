@@ -152,6 +152,26 @@ export async function persistGenerationArtifact(
   if (error || !data) throw new Error(`persistGenerationArtifact failed: ${error?.message ?? "job was not running"}`);
 }
 
+/**
+ * Record what a running job is about to send its provider, ahead of the call,
+ * so the record outlives a provider refusal. `persistGenerationArtifact`
+ * replaces it on success; `fail_ai_generation_job` leaves it in place.
+ */
+export async function recordGenerationJobMetadata(
+  admin: SupabaseClient,
+  jobId: string,
+  metadata: GenerationJson,
+): Promise<void> {
+  const { data, error } = await admin
+    .from("ai_generation_jobs")
+    .update({ artifact_metadata: metadata })
+    .eq("id", jobId)
+    .eq("status", "running")
+    .select("id")
+    .maybeSingle();
+  if (error || !data) throw new Error(`recordGenerationJobMetadata failed: ${error?.message ?? "job was not running"}`);
+}
+
 /** Settles the reservation, records the real spend, and exposes the ready result in one DB transaction. */
 export async function settleGenerationJob(
   admin: SupabaseClient,

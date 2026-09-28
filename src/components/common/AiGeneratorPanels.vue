@@ -19,6 +19,8 @@
   <RollTableGeneratorPanel />
   <LootTableGeneratorPanel />
   <EncounterGeneratorPanel />
+  <!-- Add Sound hosts music generation (useMusicGeneration). -->
+  <AddSoundDialog />
 </template>
 
 <script setup lang="ts">
@@ -38,4 +40,5 @@ import LocationGeneratorPanel from "@/components/locations/LocationGeneratorPane
 import RollTableGeneratorPanel from "@/components/dungeon-features/RollTableGeneratorPanel.vue";
 import LootTableGeneratorPanel from "@/components/dungeon-features/LootTableGeneratorPanel.vue";
 import EncounterGeneratorPanel from "@/components/encounters/EncounterGeneratorPanel.vue";
+import AddSoundDialog from "@/components/soundboard/AddSoundDialog.vue";
 </script>

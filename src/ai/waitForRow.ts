@@ -5,7 +5,9 @@ import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtim
  * Generic "wait for a row to settle" machine: subscribes to Realtime
  * postgres_changes UPDATE events on `${table}` (id=eq.${id}) and polls the
  * row on an interval as a fallback, resolving when `resolveWhen` matches and
- * rejecting when `rejectWhen` returns an error message (or on timeout).
+ * rejecting when `rejectWhen` returns an error message — or an Error, when the
+ * caller needs the failed row on it (see AiGenerationJobFailedError) — or on
+ * timeout.
  * Shared by src/ai/useImageJob.ts and src/ai/useMiniForge.ts.
  */
 export function waitForRow<Row>(opts: {
@@ -13,7 +15,7 @@ export function waitForRow<Row>(opts: {
   id: string;
   select: string;
   resolveWhen: (row: Row) => boolean;
-  rejectWhen: (row: Row) => string | null;
+  rejectWhen: (row: Row) => string | Error | null;
   timeoutMs: number;
   timeoutMessage: string;
   pollIntervalMs?: number;
@@ -59,7 +61,7 @@ export function waitForRow<Row>(opts: {
       if (failure !== null) {
         settled = true;
         cleanup();
-        reject(new Error(failure));
+        reject(typeof failure === "string" ? new Error(failure) : failure);
       }
     };
 

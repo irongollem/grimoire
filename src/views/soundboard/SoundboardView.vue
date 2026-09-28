@@ -185,14 +185,6 @@
 
     <template v-else>
 
-    <AddSoundDialog
-      :open="showForm"
-      :page-id="newSoundPageId"
-      :gemini-api-key="geminiApiKey"
-      :campaign-id="activeCampaignId ?? null"
-      @close="showForm = false"
-    />
-
     <PaywallModal v-model="showSoundPaywall" resource="sounds" />
 
     <!-- Loading -->
@@ -348,7 +340,6 @@ import SoundCard from "@/components/soundboard/SoundCard.vue";
 import StarterScenesCard from "@/components/soundboard/StarterScenesCard.vue";
 import NowRail from "@/components/soundboard/NowRail.vue";
 import KeyCap from "@/components/soundboard/KeyCap.vue";
-import AddSoundDialog from "@/components/soundboard/AddSoundDialog.vue";
 import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
@@ -374,7 +365,6 @@ const { canCreate: canCreateSound, quota: soundQuota } = useQuota("sounds");
 const showSoundPaywall = ref(false);
 const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
-const geminiApiKey = computed(() => campaignStore.decryptedGeminiKey || null);
 
 onMounted(() => spotifyStore.initSDK());
 
@@ -401,11 +391,12 @@ watch(
   },
 );
 
-const showForm = ref(false);
-
+// The dialog itself is mounted app-wide (AiGeneratorPanels) so music
+// generation can be reopened from the badge on any page.
 function openAddSound() {
   if (!canCreateSound.value) { showSoundPaywall.value = true; return; }
-  showForm.value = true;
+  ui.addSoundPageId = newSoundPageId.value;
+  ui.addSoundDialogOpen = true;
 }
 
 // Page to assign new sounds to:

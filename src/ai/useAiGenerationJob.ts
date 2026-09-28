@@ -53,6 +53,21 @@ function toJob<Result>(row: AiGenerationJobRow<Result>): AiGenerationJob<Result>
   };
 }
 
+/**
+ * A job that ended `failed`, carrying the row so a caller can offer more than
+ * the message — music puts the prompt Google refused on
+ * `artifacts.metadata.prompt`, so the DM can reword it and try again.
+ */
+export class AiGenerationJobFailedError<Result = unknown> extends Error {
+  readonly job: AiGenerationJob<Result>;
+
+  constructor(job: AiGenerationJob<Result>) {
+    super(job.error ?? "AI generation failed.");
+    this.name = "AiGenerationJobFailedError";
+    this.job = job;
+  }
+}
+
 const JOB_SELECT = [
   "id",
   "status",
@@ -82,7 +97,7 @@ export async function waitForAiGenerationJob<Result = unknown>(
     select: JOB_SELECT,
     resolveWhen: (candidate) => candidate.status === "ready",
     rejectWhen: (candidate) => candidate.status === "failed"
-      ? (candidate.error ?? "AI generation failed.")
+      ? new AiGenerationJobFailedError(toJob(candidate))
       : null,
     timeoutMs: opts.timeoutMs ?? 35 * 60 * 1_000,
     timeoutMessage: "This generation is taking longer than expected. It remains safely saved and may still finish shortly.",
