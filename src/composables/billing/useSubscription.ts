@@ -5,11 +5,18 @@ import { useAuthStore } from "@/stores/auth";
 import { useChildAccount } from "@/composables/account/useChildAccount";
 import type { UserSubscription } from "@/types/subscription.types";
 
-async function fetchSubscription(): Promise<UserSubscription | null> {
-  const { data } = await supabase
+// Filtered on the caller's own id rather than left to RLS: an admin's
+// `user_subscriptions_select_admin` policy returns every account's row, so an
+// unfiltered `maybeSingle()` errors on the multi-row result. With the error
+// swallowed that read as "no row", which kept the #919 Terms gate open forever
+// for the admin after `accept_terms` had already succeeded.
+async function fetchSubscription(userId: string): Promise<UserSubscription | null> {
+  const { data, error } = await supabase
     .from("user_subscriptions")
     .select("*")
+    .eq("user_id", userId)
     .maybeSingle();
+  if (error) throw error;
   return data as UserSubscription | null;
 }
 
@@ -46,7 +53,11 @@ export function useSubscription() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["subscription"],
-    queryFn: fetchSubscription,
+    queryFn: () => {
+      const userId = auth.user?.id;
+      if (!userId) throw new Error("fetchSubscription ran without a signed-in user");
+      return fetchSubscription(userId);
+    },
     staleTime: 60_000,
     enabled: computed(() => !!auth.user),
   });
