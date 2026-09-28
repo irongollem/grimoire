@@ -42,7 +42,7 @@ import SiteLevelsRail from "@/components/locations/SiteLevelsRail.vue";
 import type { SiteLevelSummary } from "@/components/locations/SiteLevelsRail.vue";
 import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
-import { useSiteLevels } from "@/composables/locations/useSiteLevels";
+import { levelsOf } from "@/lib/locations/levels";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { bindableSpaces, isInteriorType } from "@/lib/locations/tiers";
 import { childrenOf, type AtlasIndex } from "@/lib/locations/tree";
@@ -66,7 +66,7 @@ defineEmits<{ select: [id: string] }>();
 // the doc comment on `levelsOf` (#868 fix: numbering used to disagree
 // depending on whether the rail was reached from the container or from one
 // of its own levels).
-const levelsInfo = useSiteLevels(() => location, () => index);
+const levelsInfo = computed(() => levelsOf(index, location));
 
 /** Whose children the rail is listing — this site's own, or its parent's,
  *  when this place has no levels of its own but IS one (#868, S6). */

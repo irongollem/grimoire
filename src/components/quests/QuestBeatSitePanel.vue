@@ -113,7 +113,6 @@ import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { bindableSpaces, isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";
-import { drawnSpaceIds, isLevelOf } from "@/lib/locations/levels";
 import { pluralizeCount } from "@/lib/utils";
 import { reachableRoomIds } from "@/lib/locations/siteRun";
 import { placeRoute } from "@/lib/locations/placeRoute";
@@ -165,22 +164,20 @@ const roomCountLabel = computed(() => {
 });
 
 // Frame 15's site row ("Ashmouth Undercroft — Dungeon · 3 levels · plan
-// published rev 14") — a level is a nested site (a floor), same set
-// `AtlasSiteMapMode`'s own `childSites` reads; omitted entirely for a site
-// with none, same as the frame shows for a single-floor dungeon.
-// A venue, or a nested site the plan draws, is a place on this floor, not a
-// level (`isLevelOf`, the rule `levelsOf` applies everywhere else).
-const childSiteCount = computed(() => {
+// published rev 14") — a level is a child the DM has flagged `is_level`
+// (migration `20260928195128`, `src/lib/locations/levels.ts`), the same flag
+// `AtlasSiteMapMode`'s own `levelsOf` reads; omitted entirely for a site with
+// none, same as the frame shows for a single-floor dungeon.
+const levelCount = computed(() => {
   if (!site.value) return 0;
-  const drawn = drawnSpaceIds(regions.value);
   return locationOptions.value.filter((candidate) =>
-    candidate.parent_id === site.value!.id && isLevelOf(candidate, drawn)).length;
+    candidate.parent_id === site.value!.id && candidate.is_level).length;
 });
 const hasTracedPlan = computed(() => regions.value.some((r) => r.region_role === "space" && r.cells.length > 0));
 const siteMetaCaption = computed(() => {
   if (!site.value) return "";
   const parts = [LOCATION_TYPE_LABELS[site.value.location_type]];
-  if (childSiteCount.value > 0) parts.push(`${childSiteCount.value} level${childSiteCount.value === 1 ? "" : "s"}`);
+  if (levelCount.value > 0) parts.push(`${levelCount.value} level${levelCount.value === 1 ? "" : "s"}`);
   // Three states, not two. "never published from the Cartographer" was
   // strictly true of a site whose rooms the DM had traced by hand in the
   // Atlas — `map_published_rev` is written only by the Cartographer's own

@@ -1,91 +1,63 @@
-import { isSiteType } from "./tiers";
 import { childrenOf } from "./tree";
 import type { AtlasIndex } from "./tree";
-import { STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
-import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
-/** Which children a site's own map draws as spaces, by site id. */
-export type DrawnOnPlan = (siteId: string) => ReadonlySet<string>;
-
-const NOTHING_DRAWN: ReadonlySet<string> = new Set();
-/** For a caller with no plans to consult (a test, a site with no map). */
-export const NO_PLANS: DrawnOnPlan = () => NOTHING_DRAWN;
-
-/**
- * The children a site's plan draws: every space region with cells, by the
- * place it is bound to. A nested site among them is a place on that floor
- * (a shop off a lane, a shrine in a hall), not a floor of its own.
- */
-export function drawnSpaceIds(regions: readonly LocationMapRegion[]): ReadonlySet<string> {
-  const ids = new Set<string>();
-  for (const region of regions) {
-    if (region.region_role === "space" && region.space_location_id && region.cells.length > 0) ids.add(region.space_location_id);
-  }
-  return ids;
-}
-
-/**
- * Whether a child of a site can be one of its floors: a site-tier place that
- * is neither drawn on the site's own plan nor a venue. A store, tavern or inn
- * is a business standing on a floor, never the floor itself, and a site with
- * only a scanned picture has no plan to say so (28 Sep 2026: Fondant's Window
- * was still the Well's level 4 after the plan rule, because the Well has
- * none). A venue can still hold levels of its own: a tavern's cellar.
- */
-export function isLevelOf(child: Location, drawnOnParent: ReadonlySet<string>): boolean {
-  return isSiteType(child.location_type)
-    && !STORE_LOCATION_TYPES.has(child.location_type)
-    && !drawnOnParent.has(child.id);
+/** A child that its DM has assigned as one of the parent's floors. */
+function isLevelChild(child: Location): boolean {
+  return child.is_level === true;
 }
 
 export interface LevelsInfo {
   /** The site whose levels these are — always the top of the list. */
   container: Location;
-  /** `[container, ...container's site-typed children]`, in sibling order. */
+  /** `[container, ...container's is_level children]`, in sibling order. */
   levels: Location[];
 }
 
 /**
  * The levels of a site, viewed from either end of the relationship.
  *
- * A "level" is a site-typed child of a site — S contains A and B, so S/A/B
- * are S's three levels. The list is always anchored on the container (S),
- * never on whichever end is currently being looked at, so the numbering
- * a DM sees does not depend on which page they opened: from S's own page
- * the container IS `location`; from A's or B's page the container is
- * `location.parent_id`, resolved and re-listed the identical way. Either
- * direction produces the same `[container, ...children]` array, so
- * `levelOrdinal` returns the same number for the same location regardless
- * of which level the reader started from.
+ * A level is `child.is_level === true` and nothing else (migration
+ * `20260928195128`). It used to be read off the tree — every nested site,
+ * later "corrected" by guessing from the parent's own plan (a nested site
+ * the plan drew as a space was "not a level") and then from type (a store,
+ * tavern or inn was "never a level"). Both guesses broke: frame 06 itself
+ * enters a level by clicking its polygon on the floor above, so "drawn on
+ * the parent" cannot mean "not a level"; and a department store's own
+ * floors are stores. The maintainer, 28 Sep 2026: "shouldn't levels just be
+ * formally assigned as such rather than drawing arbitrary conclusions?" So
+ * neither type nor plan decides — the DM says it, with the `is_level` flag
+ * (guarded by `guard_location_room_parent`), and nothing infers it.
  *
- * Returns `null` when `location` has no place in a level list at all: it has
- * no site-typed children of its own AND either it is not itself a site type,
- * or its parent isn't one either. A room is never a level (even one filed
- * directly under a site with other levels) — only site-typed places are.
+ * `levelsOf` reads that flag from either end of the relationship — S is 1,
+ * A is 2, B is 3, whether the DM is looking at S, A, or B — so the list is
+ * always anchored on the container (S), never on whichever end is currently
+ * being looked at: from S's own page the container IS `location`; from A's
+ * or B's page the container is `location.parent_id`, resolved and re-listed
+ * the identical way. Either direction produces the same `[container,
+ * ...levels]` array, so `levelOrdinal` returns the same number for the same
+ * location regardless of which level the reader started from.
+ * A flagged level stays in its parent's list even when it has levels of its own.
  *
- * Nor is a venue, or a nested site the parent's own map draws as a space
- * (`isLevelOf`): a shop off the Crook is a place on the Well's first floor,
- * not the Well's fourth. A level is never drawn on the floor above it. Required rather than defaulted, so no surface can
- * count levels without it and disagree with the others (27 Sep 2026: the
- * Well listed Fondant's Window as level 4).
+ * Returns `null` when `location` has no place in a level list at all: it
+ * has no `is_level` children of its own AND it is not itself flagged
+ * `is_level` with a resolvable parent. A room is never a level — the guard
+ * refuses `is_level` on anything that isn't site-tier.
  */
-export function levelsOf(index: AtlasIndex, location: Location, drawnOn: DrawnOnPlan): LevelsInfo | null {
-  const ownDrawn = drawnOn(location.id);
-  const ownSiteChildren = childrenOf(index, location.id).filter((c) => isLevelOf(c, ownDrawn));
-  if (ownSiteChildren.length > 0) {
-    return { container: location, levels: [location, ...ownSiteChildren] };
+export function levelsOf(index: AtlasIndex, location: Location): LevelsInfo | null {
+  if (location.is_level && location.parent_id) {
+    const parent = index.byId.get(location.parent_id);
+    if (parent) {
+      const siblingLevels = childrenOf(index, parent.id).filter(isLevelChild);
+      return { container: parent, levels: [parent, ...siblingLevels] };
+    }
   }
 
-  if (!isSiteType(location.location_type) || !location.parent_id) return null;
-  const parent = index.byId.get(location.parent_id);
-  if (!parent || !isSiteType(parent.location_type)) return null;
-  // Drawn on the parent's own map, or a venue: a place on that floor.
-  const parentDrawn = drawnOn(parent.id);
-  if (!isLevelOf(location, parentDrawn)) return null;
-
-  const siblingSites = childrenOf(index, parent.id).filter((c) => isLevelOf(c, parentDrawn));
-  return { container: parent, levels: [parent, ...siblingSites] };
+  const ownLevelChildren = childrenOf(index, location.id).filter(isLevelChild);
+  if (ownLevelChildren.length > 0) {
+    return { container: location, levels: [location, ...ownLevelChildren] };
+  }
+  return null;
 }
 
 /** 1-based position of `id` within `levels`, or `null` if it isn't in the list. */

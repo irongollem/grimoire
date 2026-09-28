@@ -37,6 +37,7 @@ function loc(over: Partial<Location> = {}): Location {
     audio_theme: null,
     sort_order: null,
     map_published_rev: null,
+    is_level: false,
     created_at: "",
     updated_at: "",
     ...over,
@@ -108,6 +109,22 @@ describe("planCloneLevel", () => {
     expect(plan.siteInsert.map_url).toBe("/map.webp");
     expect(plan.siteInsert.source_map_id).toBe("map-1");
     expect(plan.siteInsert.map_published_rev).toBeUndefined();
+  });
+
+  it("a clone of a floor is a floor: is_level carries over to the new sibling", () => {
+    const level = loc({ ...site, is_level: true });
+    const plan = planCloneLevel({ site: level, rooms: [room1, room2], regions: [], doors: [] });
+    expect(plan.siteInsert.is_level).toBe(true);
+  });
+
+  it("a clone of a place on the floor stays a place on the floor", () => {
+    const plan = planCloneLevel({ site, rooms: [room1, room2], regions: [], doors: [] });
+    expect(plan.siteInsert.is_level).toBe(false);
+  });
+
+  it("never gives a cloned room its own is_level — rooms stay off the flag", () => {
+    const plan = planCloneLevel({ site, rooms: [room1, room2], regions: [], doors: [] });
+    expect(plan.rooms[0].insert.is_level).toBeUndefined();
   });
 
   it("carries the site's Drawing and blank-grid fields into the clone, alongside map_url", () => {

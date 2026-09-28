@@ -125,6 +125,9 @@ export function planCloneLevel(source: CloneLevelSource): CloneLevelPlan {
     map_layer_url: site.map_layer_url,
     map_layer_calibration: site.map_layer_calibration,
     plan_size: site.plan_size,
+    // A clone of a floor is a floor: the flag is a fact about the
+    // relationship to the parent, which the clone keeps (same parent_id).
+    is_level: site.is_level,
   };
 
   const roomPlans: RoomPlan[] = rooms.map((room) => ({

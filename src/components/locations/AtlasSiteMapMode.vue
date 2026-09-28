@@ -72,9 +72,10 @@
       </div>
 
       <div class="flex items-start gap-3">
-        <!-- "A level is a sibling site" (#868, frame 06) — not a new table,
-             just this site's own child sites, or its parent's when this
-             place IS one of them. -->
+        <!-- "A level is a sibling site" (#868, frame 06) — assigned by the
+             DM (`is_level`, migration `20260928195128`), read off this
+             site's own children, or its parent's when this place IS one of
+             them. -->
         <SiteLevelsColumn
           v-if="showLevelsRail"
           :location="location"
@@ -243,8 +244,7 @@ import { useSiteDrawingEditor } from "@/composables/locations/useSiteDrawingEdit
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { IconChevronRight, IconChevronUp, IconStairs } from "@/lib/icons";
 import { verticalWays } from "@/lib/locations/doors";
-import { levelOrdinal } from "@/lib/locations/levels";
-import { useSiteLevels } from "@/composables/locations/useSiteLevels";
+import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { planAscent, planDescent, regionOrigin } from "@/lib/locations/mapZoom";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
@@ -517,21 +517,22 @@ function clearZoom() {
 
 onBeforeUnmount(clearZoom);
 
-// ── Levels (#868, frame 06) — "not a new table: it lists this site's
-//    children that are themselves sites, ordered by `sort_order`." A level's
-//    number must be the same no matter which level's page it is read from —
-//    S is 1, A is 2, B is 3, whether the DM is looking at S, A, or B — so the
-//    list is always anchored on the container (the site that HAS the levels),
-//    never on whichever end `location` happens to be: viewing S, the
-//    container is S itself; viewing A or B, `levelsOf` resolves the same
-//    container (S) via `parent_id` and returns the identical list. Before
-//    this, the two branches disagreed — the child branch listed the parent's
-//    children WITHOUT the parent, so the DM saw "Level 2 · A" from S's page
-//    and "Level 1 · A" one click later, on A's own. `levelsOf` is shared with
-//    `SiteLevelsColumn` and `AtlasPlacePane` so all three surfaces agree.
-//    Built entirely off the already-loaded `index` — no query of its own
-//    beyond the room-state batch below. ──────────────────────────────────────
-const levelsInfo = useSiteLevels(() => location, () => index);
+// ── Levels (#868, frame 06; migration `20260928195128`) — "not a new
+//    table: it lists this site's children the DM has flagged `is_level`,
+//    ordered by `sort_order`." A level's number must be the same no matter
+//    which level's page it is read from — S is 1, A is 2, B is 3, whether
+//    the DM is looking at S, A, or B — so the list is always anchored on the
+//    container (the site that HAS the levels), never on whichever end
+//    `location` happens to be: viewing S, the container is S itself; viewing
+//    A or B, `levelsOf` resolves the same container (S) via `parent_id` and
+//    returns the identical list. Before this, the two branches disagreed —
+//    the child branch listed the parent's children WITHOUT the parent, so
+//    the DM saw "Level 2 · A" from S's page and "Level 1 · A" one click
+//    later, on A's own. `levelsOf` is shared with `SiteLevelsColumn` and
+//    `AtlasPlacePane` so all three surfaces agree. Built entirely off the
+//    already-loaded `index` — no query of its own beyond the room-state
+//    batch below. ──────────────────────────────────────────────────────────
+const levelsInfo = computed(() => levelsOf(index, location));
 
 /** Whose children the rail is listing — this site's own, or its parent's. */
 const levelsContainer = computed<Location | null>(() => levelsInfo.value?.container ?? null);
@@ -575,7 +576,7 @@ function onLevelSelect(id: string) {
   if (id === location.id) return; // already here — the rail's own active row
   // Our own children — the same zoom a pin gives, per the frame's own words.
   // (`levelsContainer` is `location` itself exactly when it has its own
-  // site-typed children — see `levelsOf`.)
+  // `is_level` children — see `levelsOf`.)
   if (levelsContainer.value?.id === location.id) descendTo(id);
   // A sibling level: a plain selection, not a descent between two maps that
   // don't stand in a parent/child relationship to each other.

@@ -240,13 +240,29 @@ describe("QuestBeatSitePanel", () => {
   it("names the site's type, its levels and its publish rev in the site row (frame 15)", () => {
     mocks.locationOptions = [
       ...defaultLocations().map((loc) => (loc.id === "site-1" ? { ...loc, location_type: "dungeon", map_published_rev: 14 } : loc)),
-      { id: "level-2", name: "Second Floor", location_type: "dungeon", parent_id: "site-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+      { id: "level-2", name: "Second Floor", location_type: "dungeon", parent_id: "site-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null, is_level: true },
     ];
     const wrapper = mount(QuestBeatSitePanel, {
       props: { beat: beat({ staged_at_location_id: "site-1" }) },
       global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
     });
     expect(wrapper.text()).toContain("Dungeon · 1 level · plan published rev 14");
+  });
+
+  // Levels are assigned (`is_level`, migration `20260928195128`), not read
+  // off the tree — a nested site the DM hasn't flagged is a place on this
+  // floor, not one of its own, however it was drawn or typed.
+  it("does not count a nested site as a level unless the DM has assigned it", () => {
+    mocks.locationOptions = [
+      ...defaultLocations().map((loc) => (loc.id === "site-1" ? { ...loc, location_type: "dungeon", map_published_rev: 14 } : loc)),
+      { id: "shop-1", name: "Fondant's Window", location_type: "store", parent_id: "site-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null, is_level: false },
+    ];
+    const wrapper = mount(QuestBeatSitePanel, {
+      props: { beat: beat({ staged_at_location_id: "site-1" }) },
+      global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
+    });
+    expect(wrapper.text()).toContain("Dungeon · plan published rev 14");
+    expect(wrapper.text()).not.toContain("level");
   });
 
   it("says a site with no regions has no floor plan at all, and omits levels for a single-floor site", () => {
