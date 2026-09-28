@@ -1,6 +1,7 @@
 import { isSiteType } from "./tiers";
 import { childrenOf } from "./tree";
 import type { AtlasIndex } from "./tree";
+import { STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
@@ -22,6 +23,20 @@ export function drawnSpaceIds(regions: readonly LocationMapRegion[]): ReadonlySe
     if (region.region_role === "space" && region.space_location_id && region.cells.length > 0) ids.add(region.space_location_id);
   }
   return ids;
+}
+
+/**
+ * Whether a child of a site can be one of its floors: a site-tier place that
+ * is neither drawn on the site's own plan nor a venue. A store, tavern or inn
+ * is a business standing on a floor, never the floor itself, and a site with
+ * only a scanned picture has no plan to say so (28 Sep 2026: Fondant's Window
+ * was still the Well's level 4 after the plan rule, because the Well has
+ * none). A venue can still hold levels of its own: a tavern's cellar.
+ */
+export function isLevelOf(child: Location, drawnOnParent: ReadonlySet<string>): boolean {
+  return isSiteType(child.location_type)
+    && !STORE_LOCATION_TYPES.has(child.location_type)
+    && !drawnOnParent.has(child.id);
 }
 
 export interface LevelsInfo {
@@ -49,17 +64,15 @@ export interface LevelsInfo {
  * or its parent isn't one either. A room is never a level (even one filed
  * directly under a site with other levels) — only site-typed places are.
  *
- * Nor is a nested site the parent's own map draws as a space (`drawnOn`,
- * from `drawnSpaceIds`): a shop off the Crook is a place on the Well's first
- * floor, not the Well's fourth. A level is never drawn on the floor above
- * it, so that is the line. Required rather than defaulted, so no surface can
+ * Nor is a venue, or a nested site the parent's own map draws as a space
+ * (`isLevelOf`): a shop off the Crook is a place on the Well's first floor,
+ * not the Well's fourth. A level is never drawn on the floor above it. Required rather than defaulted, so no surface can
  * count levels without it and disagree with the others (27 Sep 2026: the
  * Well listed Fondant's Window as level 4).
  */
 export function levelsOf(index: AtlasIndex, location: Location, drawnOn: DrawnOnPlan): LevelsInfo | null {
   const ownDrawn = drawnOn(location.id);
-  const ownSiteChildren = childrenOf(index, location.id)
-    .filter((c) => isSiteType(c.location_type) && !ownDrawn.has(c.id));
+  const ownSiteChildren = childrenOf(index, location.id).filter((c) => isLevelOf(c, ownDrawn));
   if (ownSiteChildren.length > 0) {
     return { container: location, levels: [location, ...ownSiteChildren] };
   }
@@ -67,12 +80,11 @@ export function levelsOf(index: AtlasIndex, location: Location, drawnOn: DrawnOn
   if (!isSiteType(location.location_type) || !location.parent_id) return null;
   const parent = index.byId.get(location.parent_id);
   if (!parent || !isSiteType(parent.location_type)) return null;
-  // Drawn on the parent's own map: a place on that floor, so not a level.
+  // Drawn on the parent's own map, or a venue: a place on that floor.
   const parentDrawn = drawnOn(parent.id);
-  if (parentDrawn.has(location.id)) return null;
+  if (!isLevelOf(location, parentDrawn)) return null;
 
-  const siblingSites = childrenOf(index, parent.id)
-    .filter((c) => isSiteType(c.location_type) && !parentDrawn.has(c.id));
+  const siblingSites = childrenOf(index, parent.id).filter((c) => isLevelOf(c, parentDrawn));
   return { container: parent, levels: [parent, ...siblingSites] };
 }
 

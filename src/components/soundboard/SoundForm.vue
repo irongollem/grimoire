@@ -78,11 +78,12 @@
           @click="activeSourceTab = 'spotify'"
         />
         <AppButton
-          v-if="geminiApiKey || campaignId"
+          v-if="isAiEnabled && (geminiApiKey || campaignId)"
           :variant="activeSourceTab === 'generate' ? 'tinted' : 'subtle'"
           tone="arcane"
           emphasis="strong"
           size="sm"
+          :icon="IconGenerate"
           label="Generate"
           class="flex-1"
           @click="activeSourceTab = 'generate'"
@@ -134,8 +135,6 @@
 
       <!-- AI Generate -->
       <div v-else-if="activeSourceTab === 'generate'" class="space-y-3">
-        <AiOffNotice v-if="!isAiEnabled" />
-        <template v-else>
         <!-- Description -->
         <div class="space-y-1">
           <label class="text-caption text-muted-foreground">Description</label>
@@ -208,7 +207,6 @@
           {{ statusText }}
         </p>
         <p v-if="generateError" class="text-caption text-destructive">{{ generateError }}</p>
-      </template>
       </div>
 
       <!-- Browse Freesound -->
@@ -264,6 +262,7 @@
         :tone="activeSourceTab === 'generate' ? 'arcane' : 'primary'"
         emphasis="strong"
         size="sm"
+        :icon="activeSourceTab === 'generate' ? IconGenerate : undefined"
         :label="submitLabel"
         :disabled="submitDisabled"
       />
@@ -274,9 +273,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import AppButton from "@/components/common/AppButton.vue";
+import { IconGenerate } from "@/lib/icons";
 import ProBadge from "@/components/common/ProBadge.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -284,7 +284,6 @@ import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import { useCreateSound, useSoundUpload } from "@/composables/soundboard/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
@@ -352,6 +351,12 @@ const showPaywall = ref(false);
 type SourceTab = "url" | "upload" | "spotify" | "generate" | "browse";
 
 const activeSourceTab = ref<SourceTab>("url");
+// The Generate tab is hidden while the campaign's AI is off; if the toggle
+// flips with the dialog open on that tab, fall back rather than strand a form
+// whose tab no longer exists.
+watch(isAiEnabled, (enabled) => {
+  if (!enabled && activeSourceTab.value === "generate") activeSourceTab.value = "url";
+});
 
 interface MusicGenerationResult {
   campaign_id: string;
@@ -621,7 +626,7 @@ const submitDisabled = computed(() => {
   if (anyBusy.value) return true;
   if (activeSourceTab.value === "spotify") return !isValidSpotifyUrl.value;
   if (activeSourceTab.value === "generate") {
-    return !isAiEnabled.value || !generateDescription.value.trim();
+    return !generateDescription.value.trim();
   }
   return false;
 });
@@ -691,8 +696,8 @@ async function handleSubmit() {
   }
 
   if (activeSourceTab.value === "generate") {
-    // Defensive: the tab shows AiOffNotice and the submit button is disabled
-    // while the toggle is off, so this only guards a stray trigger.
+    // Defensive: the Generate tab is hidden while the toggle is off, so this
+    // only guards a stray trigger.
     if (!isAiEnabled.value) return;
     if (!geminiApiKey && !campaignId) return;
 
