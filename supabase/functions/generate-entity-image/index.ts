@@ -18,7 +18,7 @@ import {
 } from "../_shared/ai-prompt.ts";
 import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
-import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, type TextResult } from "../_shared/textGen.ts";
@@ -53,8 +53,10 @@ serve(withCors(async (req: Request) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
-  // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
+  // Frozen or child accounts cannot generate — including BYOK, which skips
+  // the credit gate for both (#919).
+  const accountRefusal = await generationRefusal(admin, user.id);
+  if (accountRefusal) return accountRefusal;
 
   let campaign_id: string, kind: string, context: string;
 

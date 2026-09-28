@@ -7,15 +7,15 @@
 
     <form class="space-y-4" @submit.prevent="handleSubmit">
       <div class="space-y-1.5">
-        <label class="text-body text-foreground" for="email">Email</label>
+        <label class="text-body text-foreground" for="email">Email or login name</label>
         <AppInput
           id="email"
-          v-model="email"
-          type="email"
-          autocomplete="email"
+          v-model="identifier"
+          type="text"
+          autocomplete="username"
           required
           size="body"
-          placeholder="wizard@faerûn.com"
+          placeholder="wizard@faerûn.com or your login name"
         />
       </div>
 
@@ -66,14 +66,15 @@ const auth = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 
-const email = ref("");
+// Email or a child's login name (#919) — auth.signIn maps it.
+const identifier = ref("");
 const password = ref("");
 const errorMessage = ref("");
 
 async function handleSubmit() {
   errorMessage.value = "";
   try {
-    await auth.signIn(email.value, password.value);
+    await auth.signIn(identifier.value, password.value);
     // Only honour same-app relative paths — reject `//host`, `/\host`, or absolute
     // URLs so a crafted ?redirect= can't bounce the user off-site.
     const raw = (route.query.redirect as string) || "/dashboard";

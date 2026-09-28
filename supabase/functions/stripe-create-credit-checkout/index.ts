@@ -6,6 +6,7 @@ import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 import { reportEdgeError } from "../_shared/observability/report.ts";
 import { checkoutReturnUrls, termsAcceptanceMessage } from "../_shared/checkoutUrls.ts";
+import { childAccountResponse, isChildAccount } from "../_shared/accountGate.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2026-07-29.dahlia",
@@ -47,6 +48,19 @@ serve(withCors(async (req: Request) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
     return new Response("Unauthorized", { status: 401 });
+  }
+
+  // A child account (#919) may never reach checkout. Fails CLOSED, unlike the
+  // generation gate: a purchase refused on a transient DB blip is just
+  // retried, but a child reaching Stripe is not an acceptable failure mode.
+  try {
+    if (await isChildAccount(admin, user.id)) return childAccountResponse();
+  } catch (e) {
+    console.error("stripe-create-credit-checkout: child-account check failed:", e);
+    return new Response(JSON.stringify({ error: "account_check_failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   // Frozen accounts can't buy credits.

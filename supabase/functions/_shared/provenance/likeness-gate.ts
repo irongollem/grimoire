@@ -6,7 +6,7 @@
  * or credit reservation. The client pre-flights the identical check via
  * `useLikenessGate`, so this should rarely actually block — it exists to
  * close the direct-API-call gap the client can't guard, same pattern as
- * `isAccountSuspended` (../suspension.ts).
+ * `isAccountSuspended`/`generationRefusal` (../accountGate.ts).
  *
  * Deno-only (imports the supabase-js admin client type) — deliberately a
  * separate file from ./consent.ts, which stays pure TS so the browser can

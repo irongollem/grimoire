@@ -31,10 +31,11 @@ import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { buildSessionInvite, type IcsSessionEvent } from "../_shared/ics.ts";
+import { isoDate } from "../_shared/childAccount.ts";
+import { resendApiKey, sendEmail, type OutgoingEmail } from "../_shared/resend.ts";
 import {
   noteSharedEmail,
   proposalCreatedEmail,
-  type EmailContent,
   type RsvpLinks,
 } from "./emails.ts";
 
@@ -42,8 +43,6 @@ const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
-
-const DEFAULT_FROM = "Grimoire <notifications@dungeongrimoire.com>";
 
 interface MemberRow {
   user_id: string;
@@ -59,18 +58,9 @@ interface Recipient {
   displayName: string | null;
 }
 
-interface Attachment {
-  filename: string;
-  content: string;
-  content_type: string;
-}
-
-interface OutgoingMail {
-  to: string;
-  content: EmailContent;
-  attachments?: Attachment[];
-  replyTo?: string;
-}
+// Local alias kept so the rest of this file (written before the extraction)
+// doesn't have to rename every call site — same shape as _shared/resend.ts.
+type OutgoingMail = OutgoingEmail;
 
 async function fetchMembers(campaignId: string): Promise<MemberRow[]> {
   const { data, error } = await admin
@@ -129,26 +119,30 @@ async function resolveRecipients(userIds: string[], members: MemberRow[]): Promi
 async function sendAll(mails: OutgoingMail[], apiKey: string): Promise<number> {
   let sent = 0;
   for (const mail of mails) {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: Deno.env.get("NOTIFY_FROM_EMAIL") || DEFAULT_FROM,
-        to: [mail.to],
-        subject: mail.content.subject,
-        html: mail.content.html,
-        text: mail.content.text,
-        ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
-        ...(mail.attachments?.length ? { attachments: mail.attachments } : {}),
-      }),
-    });
-    if (res.ok) sent++;
-    else console.error(`send-notification-email: Resend ${res.status} for one recipient:`, await res.text());
+    if (await sendEmail(apiKey, mail)) sent++;
   }
   return sent;
+}
+
+/**
+ * Drop recipients who are active child accounts (#919). Their address is on
+ * CHILD_LOGIN_DOMAIN, a reserved `.invalid` TLD that can never receive mail —
+ * so this filter isn't strictly load-bearing against a bounce — but it is
+ * made explicit anyway: relying on an unreachable domain as the only thing
+ * standing between a child and an email is a property nobody asked for, and
+ * it also means the RSVP-token mint below (which fires on the ids that reach
+ * it) never wastes a token on an address nothing can answer from.
+ */
+async function filterOutChildAccounts(userIds: string[]): Promise<string[]> {
+  if (!userIds.length) return [];
+  const { data, error } = await admin
+    .from("child_accounts")
+    .select("child_user_id")
+    .in("child_user_id", userIds)
+    .gt("adult_on", isoDate(new Date()));
+  if (error) throw error;
+  const children = new Set((data ?? []).map((row) => (row as { child_user_id: string }).child_user_id));
+  return userIds.filter((id) => !children.has(id));
 }
 
 /** UTF-8 → base64, which is how Resend takes an attachment body. */
@@ -341,11 +335,13 @@ serve(withCors(async (req: Request) => {
     return json({ error: "Unknown type" }, 400);
   }
 
-  recipientIds = [...new Set(recipientIds)];
+  // Never a child account, before anything else touches the id list — see
+  // filterOutChildAccounts for why this runs ahead of the RSVP token mint too.
+  recipientIds = await filterOutChildAccounts([...new Set(recipientIds)]);
   const optedIn = await filterByPreference(recipientIds, prefColumn);
   if (!optedIn.length) return json({ sent: 0 });
 
-  const apiKey = Deno.env.get("RESEND_API_KEY");
+  const apiKey = resendApiKey();
   if (!apiKey) return json({ sent: 0, configured: false });
 
   if (!(await checkRateLimit(admin, user.id, "email_notify"))) {

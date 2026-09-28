@@ -23,8 +23,69 @@
         @update:model-value="(v) => (activeTab = v)"
       />
 
-      <form class="space-y-4" @submit.prevent="handleAuth">
-        <div v-if="activeTab === 'signup'" class="space-y-1.5">
+      <!-- Login tab -->
+      <form v-if="activeTab === 'login'" class="space-y-4" @submit.prevent="handleAuth">
+        <div class="space-y-1.5">
+          <label class="text-body text-foreground" for="join-email">Email or login name</label>
+          <AppInput
+            id="join-email"
+            v-model="identifier"
+            type="text"
+            size="body"
+            autocomplete="username"
+            required
+            placeholder="wizard@faerûn.com or your login name"
+          />
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-body text-foreground" for="join-password">Password</label>
+          <AppInput
+            id="join-password"
+            v-model="password"
+            type="password"
+            size="body"
+            autocomplete="current-password"
+            required
+            placeholder="••••••••"
+          />
+        </div>
+
+        <p v-if="authMessage" class="text-body text-elven-green">{{ authMessage }}</p>
+        <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
+
+        <AppButton
+          type="submit"
+          variant="primary"
+          size="lg"
+          block
+          class="py-2.5"
+          :disabled="auth.loading || !!authMessage"
+          :label="auth.loading ? 'Entering the realm…' : 'Sign In & Join'"
+        />
+      </form>
+
+      <!-- Signup tab, step 1: the age question, asked before anything else
+           can be typed in — nothing about the answer is stored for an adult,
+           only the under-16 branch below writes anything down (#919). -->
+      <template v-else-if="signupStep === 'age'">
+        <AgeQuestionStep
+          button-class="py-2.5"
+          @adult="signupStep = 'form'"
+          @under16="signupStep = 'parent-request'"
+        />
+      </template>
+
+      <!-- Signup tab, step 2a: under 16 — no self-signup, a parent sets the
+           account up and is handed this invite to bring the child along.
+           ParentRequestForm's own opening line explains why. -->
+      <template v-else-if="signupStep === 'parent-request'">
+        <ParentRequestForm :invite-token="token" />
+      </template>
+
+      <!-- Signup tab, step 2b: 16 or older — the ordinary signup form -->
+      <form v-else class="space-y-4" @submit.prevent="handleAuth">
+        <div class="space-y-1.5">
           <label class="text-body text-foreground" for="join-display-name">Username</label>
           <AppInput
             id="join-display-name"
@@ -38,9 +99,9 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-body text-foreground" for="join-email">Email</label>
+          <label class="text-body text-foreground" for="join-signup-email">Email</label>
           <AppInput
-            id="join-email"
+            id="join-signup-email"
             v-model="email"
             type="email"
             size="body"
@@ -51,23 +112,23 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-body text-foreground" for="join-password">Password</label>
+          <label class="text-body text-foreground" for="join-signup-password">Password</label>
           <AppInput
-            id="join-password"
+            id="join-signup-password"
             v-model="password"
             type="password"
             size="body"
-            :autocomplete="activeTab === 'signup' ? 'new-password' : 'current-password'"
+            autocomplete="new-password"
             required
-            :minlength="activeTab === 'signup' ? 8 : undefined"
-            :placeholder="activeTab === 'signup' ? 'At least 8 characters' : '••••••••'"
+            minlength="8"
+            placeholder="At least 8 characters"
           />
         </div>
 
         <p v-if="authMessage" class="text-body text-elven-green">{{ authMessage }}</p>
         <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
-        <SignupConsent v-if="activeTab === 'signup'" v-model="agreedToTerms" />
+        <SignupConsent v-model="agreedToTerms" />
 
         <AppButton
           type="submit"
@@ -75,10 +136,8 @@
           size="lg"
           block
           class="py-2.5"
-          :disabled="auth.loading || !!authMessage || (activeTab === 'signup' && !agreedToTerms)"
-          :label="auth.loading
-            ? (activeTab === 'signup' ? 'Creating your tome…' : 'Entering the realm…')
-            : (activeTab === 'signup' ? 'Create Account & Join' : 'Sign In & Join')"
+          :disabled="auth.loading || !!authMessage || !agreedToTerms"
+          :label="auth.loading ? 'Creating your tome…' : 'Create Account & Join'"
         />
       </form>
     </template>
@@ -173,9 +232,12 @@ import { joinCampaignViaInvite } from "@/composables/campaign/useCampaignMembers
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
 import { useModeSwitch } from "@/composables/useModeSwitch";
 import { usePlayerCampaigns } from "@/composables/campaign/useCampaigns";
+import { wasAnsweredUnder16 } from "@/lib/ageGateSession";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import SignupConsent from "@/components/auth/SignupConsent.vue";
+import AgeQuestionStep from "@/components/auth/AgeQuestionStep.vue";
+import ParentRequestForm from "@/components/auth/ParentRequestForm.vue";
 
 const auth = useAuthStore();
 const campaign = useCampaignStore();
@@ -192,6 +254,17 @@ const AUTH_TABS = [
 ] as const satisfies readonly SegmentedOption<string>[];
 
 const activeTab = ref<"signup" | "login">("signup");
+
+// Signup tab: the age question, asked before anything else (#919). Skips
+// straight to the parent-request branch if this browser session already
+// answered "under 16" — same rule as SignupView, and the same session key, so
+// switching between /signup and a join link can't be used to re-answer it.
+type SignupStep = "age" | "parent-request" | "form";
+const signupStep = ref<SignupStep>(wasAnsweredUnder16() ? "parent-request" : "age");
+
+// Login tab: email or a child's login name (#919) — auth.signIn maps it.
+// Kept separate from the signup tab's `email`, which is always a real address.
+const identifier = ref("");
 const displayName = ref("");
 const email = ref("");
 const password = ref("");
@@ -272,9 +345,9 @@ async function handleAuth() {
         return;
       }
       await auth.signUp(email.value, password.value, displayName.value.trim() || undefined, window.location.href);
-      authMessage.value = "Check your email to confirm — the link will bring you straight back here to join.";
+      authMessage.value = "Check your email to confirm. The link brings you straight back here to join.";
     } else {
-      await auth.signIn(email.value, password.value);
+      await auth.signIn(identifier.value, password.value);
       // onAuthStateChange will fire → watch(isAuthenticated) below decides
     }
   } catch (err) {

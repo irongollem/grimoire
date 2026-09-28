@@ -28,6 +28,14 @@ describe("accountDeletionErrorMessage", () => {
     expect(accountDeletionErrorMessage("user_not_found")).toMatch(/could not be found/i);
   });
 
+  it("maps a parent-blocking-deletion code to human copy (#919)", () => {
+    expect(accountDeletionErrorMessage("has_child_accounts")).toMatch(/child accounts first/i);
+  });
+
+  it("maps the admin-gate refusal a non-parent caller hits to human copy", () => {
+    expect(accountDeletionErrorMessage("Forbidden")).toMatch(/permission/i);
+  });
+
   it("passes an unrecognised code through verbatim", () => {
     expect(accountDeletionErrorMessage("some_new_code")).toBe("some_new_code");
   });
@@ -103,6 +111,17 @@ describe("useAccountDeletion", () => {
 
     expect(result).toBe(false);
     expect(error.value).toBe(accountDeletionErrorMessage("storage_purge_failed"));
+    expect(signOutMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces has_child_accounts (#919) the same way as any other 2xx-body error", async () => {
+    invokeMock.mockResolvedValue({ data: { error: "has_child_accounts" }, error: null });
+    const { error, deleteAccount } = useAccountDeletion();
+
+    const result = await deleteAccount("user-123");
+
+    expect(result).toBe(false);
+    expect(error.value).toBe(accountDeletionErrorMessage("has_child_accounts"));
     expect(signOutMock).not.toHaveBeenCalled();
   });
 

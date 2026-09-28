@@ -62,16 +62,32 @@ referenced it has been nulled — so it is not a re-identification route.
 
 `supabase/functions/delete-account/index.ts`:
 
-1. **Authorize** — self-serve (caller deletes self) or admin (`requireAdmin`).
-   Accounts with `app_metadata.role === "admin"` are refused; de-privilege first.
+1. **Authorize** — self-serve (caller deletes self), the caller is the target's
+   active parent (`child_accounts`, service-role query — #919, also how a
+   parent withdraws consent), or admin (`requireAdmin`). Accounts with
+   `app_metadata.role === "admin"` are refused; de-privilege first.
 2. **Confirm** — `confirm: "DELETE"` gate.
-3. **Purge storage in both stores** — every Supabase bucket via recursive listing
+3. **Refuse if the target still actively parents a child account** — 409
+   `has_child_accounts`. `child_accounts.parent_user_id` is `on delete
+   restrict`, precisely so an under-16's account can never silently lose its
+   parent. This is checked here, before any destructive work, rather than left
+   for `prepare_user_erasure` to discover on its own: that RPC runs *after* the
+   storage purge (step 4), which cannot be undone, so leaving the check there
+   would let a target's storage be purged and then have the auth delete refuse
+   anyway — a half-erased account. Applies to self-serve, parent, and
+   admin-initiated deletion alike, since any of the three can target an account
+   that still manages a child.
+4. **Purge storage in both stores** — every Supabase bucket via recursive listing
    (`list()` is one level deep and paginates at 100, both handled in
    `_shared/storage-purge.ts`), and every R2 bucket by prefix. The whole request
    fails if any bucket fails.
-4. **`prepare_user_erasure(p_user_id, p_actor_id, p_actor_kind)`** — writes the
-   audit entry, then clears the rows no cascade reaches.
-5. **`auth.admin.deleteUser`** — the cascades and set-nulls do the rest.
+5. **`prepare_user_erasure(p_user_id, p_actor_id, p_actor_kind)`** — writes the
+   audit entry, then clears the rows no cascade reaches. `p_actor_kind` is
+   `self`, `parent`, or `admin`; a `parent` erasure re-verifies the same active
+   link step 1 already checked, independently rather than trusted from the
+   edge function, and (redundantly with step 3) sweeps its own graduated child
+   links and refuses if any active one remains.
+6. **`auth.admin.deleteUser`** — the cascades and set-nulls do the rest.
 
 Storage is purged **first** because an object whose owner no longer exists cannot
 be found by any per-user listing path again: a partial purge would strand files
@@ -106,7 +122,10 @@ Each of these has already cost a bug once. They are enforced by pgTAP in
 5. **The actor is derived from the verified JWT**, never from the request body —
    otherwise an admin could file their own deletion as the user's request.
    `prepare_user_erasure` additionally refuses `actor_kind = 'self'` unless the
-   actor really is the target.
+   actor really is the target, and (#919) refuses `actor_kind = 'parent'`
+   unless the actor actively parents the target — the same `child_accounts`
+   link the edge function already checked, re-verified independently rather
+   than trusted from the caller.
 
 ## 4a. Publication — the boundary erasure cannot reach
 
@@ -312,6 +331,17 @@ plausible document and an unlawful answer. So `export_user_data` walks the
    the check read as though it covered everything. Any future `subject_user_id`
    or `owner_user_id` would have escaped the same way.
 
+   `child_accounts` (`child_user_id`, `parent_user_id`) and
+   `parental_consent_requests` (`child_user_id`, nullable) both carry an FK to
+   `auth.users` (#919), so they enter the walk here with no hand-written entry
+   the way `child_accounts`'s deletion fate needed one in §2 — the FK graph is
+   why a parent's or a child's export already includes them without anyone
+   having to add a line for it. Their capability columns —
+   `parental_consent_requests.token` and `.campaign_invite_token` — are caught
+   by the same whole-word `token` match `private.is_credential_column` already
+   applies to `campaign_invite_token` elsewhere in the schema, so both render
+   `"[redacted]"` rather than handing out a live capability through an export.
+
 Storage objects are the third source and live outside Postgres, so the edge
 function enumerates them from `_shared/storage-inventory.ts` — extracted from
 `delete-account` for this, so the listing that reports and the listing that
@@ -362,6 +392,21 @@ Four positions worth not re-deriving:
    sole caller and derives the id from the verified JWT. Both the grant and the
    in-body `service_role` guard are asserted, because `drop function` + `create`
    resets an ACL to the `PUBLIC` default — the exact route #650 took.
+5. **One exception to "there is no admin export path": a parent exporting their
+   child's account (#919).** This is not the same justification as
+   `delete-account`'s admin path ("an operator sometimes must reach an account
+   its owner cannot") and does not widen it — it is COPPA/Art. 8: the parent is
+   who exercises an under-16's rights, so an export the parent cannot get is a
+   right the child does not effectively have. `export_user_data` now takes an
+   optional `p_parent_user_id`; when set, it re-derives and re-checks the active
+   `child_accounts` link itself — the same check the edge function already ran
+   — before it will read a `p_user_id` that isn't the caller's own. The rate
+   limit still keys on the caller (the parent), not the target, so a parent
+   with several children is bounded once rather than once per child. A
+   parent-initiated export or erasure logs its DSR entry with
+   `identity_verification = 'parent_session'`, distinct from
+   `'authenticated_session'` (self-serve) and `'admin_initiated'` — the record
+   names which of the three checks actually authorized the request.
 
 **Deliberately not done:** no server-side archive, no emailed link, no
 asynchronous job. The response is built and returned in one request because it
@@ -509,3 +554,6 @@ would reach it only by coincidence of matching the address.
 | Retention periods — the register | `context/compliance/retention.md` |
 | Retention horizon, guard exceptions, the purge, the schedule | `supabase/migrations/20260810000004_retention_periods.sql` |
 | Retention invariant tests | `supabase/tests/retention_periods.test.sql` |
+| Parent actor for erasure/export, has-child-accounts refusal (#919) | `supabase/migrations/20260928053257_child_accounts.sql` |
+| Parent export/delete client calls + error copy | `src/composables/account/useDataExport.ts`, `useAccountDeletion.ts` |
+| §2/§3/§4/§4e invariant tests for the parent path | `supabase/tests/child_accounts.test.sql` |

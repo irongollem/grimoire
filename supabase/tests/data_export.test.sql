@@ -20,15 +20,15 @@ select plan(24);
 -- bound on how often a full dump can be built.
 
 select ok(
-  not has_function_privilege('authenticated', 'public.export_user_data(uuid)', 'EXECUTE'),
+  not has_function_privilege('authenticated', 'public.export_user_data(uuid, uuid)', 'EXECUTE'),
   'authenticated cannot execute export_user_data');
 
 select ok(
-  not has_function_privilege('anon', 'public.export_user_data(uuid)', 'EXECUTE'),
+  not has_function_privilege('anon', 'public.export_user_data(uuid, uuid)', 'EXECUTE'),
   'anon cannot execute export_user_data');
 
 select ok(
-  has_function_privilege('service_role', 'public.export_user_data(uuid)', 'EXECUTE'),
+  has_function_privilege('service_role', 'public.export_user_data(uuid, uuid)', 'EXECUTE'),
   'service_role can execute export_user_data');
 
 -- The grant is one half; the function refuses on its own too, so a future

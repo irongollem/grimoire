@@ -2,6 +2,7 @@ import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { withCors } from "../_shared/cors.ts";
+import { childAccountResponse, isChildAccount } from "../_shared/accountGate.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2026-07-29.dahlia",
@@ -31,6 +32,17 @@ serve(withCors(async (req: Request) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // A child account (#919) has never been able to buy anything, so it has
+    // no billing portal to open. Fails CLOSED, unlike the generation gate: a
+    // request refused on a transient DB blip is just retried, but a child
+    // reaching Stripe is not an acceptable failure mode.
+    try {
+      if (await isChildAccount(admin, user.id)) return childAccountResponse();
+    } catch (e) {
+      console.error("stripe-create-portal: child-account check failed:", e);
+      return json({ error: "account_check_failed" }, 500);
+    }
 
     const { data: sub } = await admin
       .from("user_subscriptions")

@@ -6,7 +6,7 @@
     <div class="space-y-4">
       <p class="text-body text-muted-foreground">
         Your profile, campaign memberships, subscription and consent records, credit history,
-        journals, notes and preferences — plus a list of every file stored under your account.
+        journals, notes and preferences, plus a list of every file stored under your account.
         API keys and invite links are left out, so the file is safe to keep but can't be used to
         sign in anywhere.
       </p>
@@ -16,7 +16,7 @@
         block
         label="Download my data"
         :loading="exporting"
-        @click="exportData"
+        @click="() => exportData()"
       />
       <p v-if="error" class="text-caption text-destructive">{{ error }}</p>
     </div>

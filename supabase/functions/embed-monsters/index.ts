@@ -2,7 +2,7 @@ import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
-import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { isAccountSuspended, isChildAccount, suspendedResponse } from "../_shared/accountGate.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
@@ -330,6 +330,24 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
   if (authError || !user) return json({ error: "Unauthorized" }, 401);
 
   if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
+
+  // Single mode runs fire-and-forget after a save (queueMonsterEmbedding() in
+  // src/composables/monsters/useMonsters.ts), so a 403 here would surface as
+  // a swallowed console error at best — no toast, nothing the child could act
+  // on — but would also leave every save silently unembedded for their whole
+  // account lifetime. A child never generates or queries retrieval either, so
+  // skipping with 200 costs nothing real; refusing loudly would only add
+  // noise. Fails open on a lookup error like isAccountSuspended above: this
+  // call is free (recordFreeGeneration logs delta 0) and a stale check
+  // blocking every save would be worse than the rare miss (see
+  // accountGate.ts's header for why that stays safe for children generally).
+  let child = false;
+  try {
+    child = await isChildAccount(admin, user.id);
+  } catch (e) {
+    console.error("embed-monsters: child-account check failed:", e);
+  }
+  if (child) return json({ skipped: "child_account" }, 200);
 
   const { data: monsterData, error: monsterError } = await admin
     .from("monsters")

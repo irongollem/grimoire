@@ -1,18 +1,27 @@
 <template>
   <AccountSummarySection link-to="/billing" link-label="Billing &amp; Subscription →" />
 
+  <!-- Family (#919) — a child can't have children of their own, so this only
+       ever shows for the account actually managing someone. -->
+  <SettingsSection v-if="!isChild" title="Family">
+    <div class="flex items-center justify-between gap-4">
+      <p class="text-body text-muted-foreground">The young players' accounts you manage.</p>
+      <AppButton variant="link" size="inline" to="/account/family" label="Manage family →" />
+    </div>
+  </SettingsSection>
+
   <AccountDataExport />
 
   <!-- Danger zone (#631) — same accent-recoloured section shell as PlayerSettingsInstall,
        since SettingsSection has no accent prop. -->
-  <section class="rounded-lg border border-destructive/40 bg-destructive/5 overflow-hidden">
+  <section v-if="!isChild" class="rounded-lg border border-destructive/40 bg-destructive/5 overflow-hidden">
     <header class="px-4 py-3 border-b border-destructive/20">
       <h3 class="font-cinzel text-sm font-bold text-destructive tracking-wide">Delete Account</h3>
-      <p class="text-caption text-muted-foreground italic mt-0.5">Permanent — there is no undo.</p>
+      <p class="text-caption text-muted-foreground italic mt-0.5">Permanent. There is no undo.</p>
     </header>
     <div class="p-4 space-y-4">
       <p class="text-body text-muted-foreground">
-        Campaigns you own — and everything in them — are deleted, and your players lose access.
+        Campaigns you own, and everything in them, are deleted, and your players lose access.
         Content you created in other people's campaigns is removed. Billing records are kept in
         anonymized form, as legally required. If you want your campaigns to live on, transfer
         ownership first.
@@ -37,10 +46,13 @@ import { ref } from "vue";
 import AccountSummarySection from "@/components/account/AccountSummarySection.vue";
 import AccountDataExport from "@/components/account/AccountDataExport.vue";
 import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
+import SettingsSection from "@/components/common/SettingsSection.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { useAccountDeletion } from "@/composables/account/useAccountDeletion";
+import { useChildAccount } from "@/composables/account/useChildAccount";
 
 const { deleting, error, deleteAccount } = useAccountDeletion();
+const { isChild } = useChildAccount();
 
 const deleteConfirmInput = ref("");
 

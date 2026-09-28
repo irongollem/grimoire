@@ -16,7 +16,7 @@ import { PROOF_SLOT_IDENTITIES, PROOF_SLOTS, baseReferenceCandidates, initialGen
 import { fetchCreditCost, recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
-import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { generationRefusal } from "../_shared/accountGate.ts";
 import { tilePackSlug, webpDimensions } from "../_shared/tilePackGeneration.ts";
 import { attemptCharge, attemptsRemaining, canAttempt } from "../../../src/cartographer/generationBudget.ts";
 import { isStalled, stalledBefore } from "../../../src/cartographer/generationLiveness.ts";
@@ -1266,7 +1266,9 @@ serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const user = await requireUser(req);
   if (!user) return new Response("Unauthorized", { status: 401 });
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
+  // Frozen or child accounts cannot generate (#919).
+  const accountRefusal = await generationRefusal(admin, user.id);
+  if (accountRefusal) return accountRefusal;
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
   switch (body.action) {

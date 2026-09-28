@@ -483,14 +483,14 @@ Personal preferences for the player's session:
 - **Session Availability** — 3-way response (Yes/No/no answer) for each proposed session date
 - **Calendar Subscription** — iCal feed URL for the campaign schedule; one-click subscribe in calendar app. Carries **suggested dates as well as confirmed ones**: a suggestion arrives as a tentative, `TRANSP:TRANSPARENT` event prefixed "Proposed:" so it shows up without booking the evening out, and it becomes the real event in place when the DM confirms (same UID). See `supabase/functions/_shared/ics.ts`.
 - **Navigation** — Drag-to-reorder list of all nav items; first 4 (or 7 on tablet) appear in the quick bar
-- **Email Notifications** — Toggles for emails when the DM publishes something for you
+- **Email Notifications** — Toggles for emails when the DM publishes something for you. Hidden entirely for a young player's account (#919): it has no email of its own to notify, so `PlayerSettingsNotifications.vue` renders nothing for this section when `useChildAccount().isChild` is true. See [young-players.md](young-players.md)
 - **Combat Notifications** — Toggle for turn audio cue (chime when your turn starts) and dice roll sounds (clack per roll; distinct crit/fumble sounds)
 - **Dice** — Tool mode (digital dice roller) vs Physical mode (prompts to enter your own roll result)
 - **Appearance** — Theme override: Campaign (DM's chosen theme) / Light / Dark / System
 - **Timestamps** — Override chat timestamp format; defaults to the browser's locale
 - **Screen** — Wake lock toggle (prevents device sleep during long sessions)
 - **App** — Install PWA prompt (native on Chrome/Edge, manual instructions for iOS/Android)
-- **Account** — Read-only email and current role
+- **Account** — Read-only email and current role; a young player's account signs in with a login name rather than an email, and is managed from the parent's own Account → Family page, not from here
 
 ## Live Encounter (Player)
 

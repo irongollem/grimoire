@@ -31,7 +31,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
-import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { generationRefusal } from "../_shared/accountGate.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
@@ -287,7 +287,8 @@ serve(withCors(async (req: Request) => {
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
   const userId = user.id;
 
-  if (await isAccountSuspended(admin, userId)) return suspendedResponse();
+  const accountRefusal = await generationRefusal(admin, userId);
+  if (accountRefusal) return accountRefusal;
 
   let payload: ReturnType<typeof validatePayload>;
   try {

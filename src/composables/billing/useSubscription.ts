@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
+import { useChildAccount } from "@/composables/account/useChildAccount";
 import type { UserSubscription } from "@/types/subscription.types";
 
 async function fetchSubscription(): Promise<UserSubscription | null> {
@@ -41,6 +42,7 @@ export function isCancellationPending(
 
 export function useSubscription() {
   const auth = useAuthStore();
+  const { isChild } = useChildAccount();
 
   const { data, isLoading } = useQuery({
     queryKey: ["subscription"],
@@ -49,7 +51,12 @@ export function useSubscription() {
     enabled: computed(() => !!auth.user),
   });
 
+  // Mirrors the server's `is_user_pro` (#919): a child account is never Pro,
+  // regardless of what the row underneath it says — checked first, so it also
+  // overrides the admin comp below for the (currently impossible, but not
+  // worth trusting) case of an admin account that is also a child.
   const isPro = computed(() => {
+    if (isChild.value) return false;
     if (auth.isAppAdmin) return true;
     const sub = data.value;
     return (

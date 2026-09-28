@@ -40,6 +40,11 @@ When a player opens your invite link:
 
 Players stay linked to your campaign permanently and can return any time by logging in.
 
+If the player is under 16, signing up from the invite link asks their age
+first and routes them to a parent instead of a normal signup form; approving
+the request joins them to your campaign at the same time. See
+[Young Players' Accounts](#young-players-accounts).
+
 ## Assigning a character
 
 After a player joins, find their row on the **Members & Invites** tab and use the **Assign character…** combobox to link them to a party member (character sheet). Only characters not already assigned to someone else appear in the list. Players can also create their own character from the Player Portal instead, if you'd rather they build it themselves.

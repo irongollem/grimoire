@@ -113,22 +113,30 @@ export interface SpendResult {
   insufficient?: boolean;
   /** Account frozen — spend refused (distinct from insufficient). */
   suspended?: boolean;
+  /** Active child account (#919) — spend refused, distinct from suspended. */
+  child_account?: boolean;
   /** New-account velocity cap hit — spend refused. */
   velocity?: boolean;
 }
 
 /**
  * Build the HTTP error response for a refused paid spend, mapping the distinct
- * reasons (frozen / rate-limited / insufficient) to the right status + message.
- * Shared by every generator + deduct-ai-credit so the surfaced reason is honest.
- * CORS headers are applied uniformly by the `withCors` wrapper, not here.
+ * reasons (frozen / child account / rate-limited / insufficient) to the right
+ * status + message. Shared by every generator + deduct-ai-credit so the
+ * surfaced reason is honest. CORS headers are applied uniformly by the
+ * `withCors` wrapper, not here.
  */
 export function reservationFailureResponse(
-  r: { suspended?: boolean; velocity?: boolean; balance?: number },
+  r: { suspended?: boolean; child_account?: boolean; velocity?: boolean; balance?: number },
 ): Response {
   const headers = { "Content-Type": "application/json" };
   if (r.suspended) {
     return new Response(JSON.stringify({ error: "account_suspended" }), { status: 403, headers });
+  }
+  // Checked right after suspended, same order assert_spend_allowed evaluates
+  // them in (supabase/migrations/20260928053257_child_accounts.sql).
+  if (r.child_account) {
+    return new Response(JSON.stringify({ error: "child_account" }), { status: 403, headers });
   }
   if (r.velocity) {
     return new Response(
@@ -152,6 +160,8 @@ export interface Reservation {
   insufficient?: boolean;
   /** Account is frozen — paid generation refused (distinct from insufficient). */
   suspended?: boolean;
+  /** Active child account (#919) — paid generation refused, distinct from suspended. */
+  child_account?: boolean;
   /** New-account velocity cap hit — paid generation refused. */
   velocity?: boolean;
   balance?: number;
@@ -181,8 +191,14 @@ export async function reserveCredits(
     console.error(`Failed to reserve credits (${reason}):`, error);
     return { ok: false, ids: [] };
   }
-  const res = data as { ok: boolean; ids?: string[]; insufficient?: boolean; suspended?: boolean; velocity?: boolean; balance?: number };
-  return { ok: res.ok, ids: res.ids ?? [], insufficient: res.insufficient, suspended: res.suspended, velocity: res.velocity, balance: res.balance };
+  const res = data as {
+    ok: boolean; ids?: string[]; insufficient?: boolean; suspended?: boolean;
+    child_account?: boolean; velocity?: boolean; balance?: number;
+  };
+  return {
+    ok: res.ok, ids: res.ids ?? [], insufficient: res.insufficient, suspended: res.suspended,
+    child_account: res.child_account, velocity: res.velocity, balance: res.balance,
+  };
 }
 
 /** Drop a pending reservation hold (call on both the success and failure paths). */

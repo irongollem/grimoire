@@ -220,6 +220,11 @@
        references, group portrait, NPC disguise) -->
   <LikenessNoticeGate />
 
+  <!-- Blocking re-consent gate for an account whose terms_version predates
+       the current one (#919) — also the only path by which a pre-existing
+       account discovers it needs to become parent-managed. -->
+  <TermsGate />
+
   <!-- Hamburger dropdown -->
   <Teleport to="body">
     <div v-if="showMenu" class="fixed inset-0 z-50" @click="showMenu = false">
@@ -371,6 +376,7 @@ import ModeToggle from "@/components/layout/ModeToggle.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import PlayerLocationDialog from "@/components/play/PlayerLocationDialog.vue";
 import LikenessNoticeGate from "@/components/campaign/LikenessNoticeGate.vue";
+import TermsGate from "@/components/account/TermsGate.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import PlayerAudioStream from "@/components/soundboard/PlayerAudioStream.vue";
 import { useQuota } from "@/composables/billing/useQuota";

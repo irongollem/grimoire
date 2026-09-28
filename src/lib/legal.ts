@@ -7,7 +7,7 @@
  * "Last updated" date in the marketing site's terms.md
  * (grimoire-marketing/src/pages/terms.md).
  */
-export const TERMS_VERSION = "2026-07-20";
+export const TERMS_VERSION = "2026-09-28";
 
 /**
  * Version of the EU right-of-withdrawal waiver wording shown as its own checkbox

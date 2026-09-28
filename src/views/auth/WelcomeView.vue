@@ -2,7 +2,7 @@
   <div>
     <h2 class="text-heading-lg font-semibold text-foreground mb-1">What are you?</h2>
     <p class="text-body text-muted-foreground italic mb-6">
-      This decides where you land when you sign in — you can switch anytime.
+      This decides where you land when you sign in. You can switch anytime.
     </p>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

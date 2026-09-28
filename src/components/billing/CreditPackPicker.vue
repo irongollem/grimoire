@@ -1,18 +1,24 @@
 <template>
-  <div class="space-y-2">
+  <p v-if="isChild" class="text-body text-muted-foreground">
+    AI features aren't available on young players' accounts.
+  </p>
+  <div v-else class="space-y-2">
     <WithdrawalConsent v-model="consent" kind="credit_pack" />
     <div class="grid grid-cols-3 gap-2">
-      <button
+      <AppButton
         v-for="pack in creditPacks"
         :key="pack.pack_id"
-        class="flex flex-col items-center gap-1 rounded-lg border border-border bg-muted/30 p-3 text-center hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        variant="subtle"
+        surface="muted"
+        size="md"
+        class="h-auto flex-col gap-1 p-3 text-center"
         :disabled="purchaseLoading || !consent"
         @click="purchasePack(pack.pack_id, consent, returnPath)"
       >
         <span class="font-cinzel text-xs font-bold text-foreground">{{ pack.credits }} credits</span>
         <span class="text-caption italic text-muted-foreground">{{ formatPackPrice(pack, currency) }}</span>
         <span class="text-eyebrow text-muted-foreground/70">{{ pack.label }}</span>
-      </button>
+      </AppButton>
     </div>
     <p class="text-caption text-muted-foreground/60 italic">
       Taxes calculated at checkout based on your location.
@@ -25,9 +31,11 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import WithdrawalConsent from "@/components/billing/WithdrawalConsent.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useCreditPacks } from "@/composables/billing/useCreditConfig";
+import { useChildAccount } from "@/composables/account/useChildAccount";
 import { formatPackPrice } from "@/lib/pricing";
 
 /**
@@ -45,4 +53,5 @@ const { currency, returnPath } = defineProps<{
 const consent = ref(false);
 const { purchasePack, purchaseLoading, purchaseError } = useAiCredits();
 const { data: creditPacks } = useCreditPacks();
+const { isChild } = useChildAccount();
 </script>

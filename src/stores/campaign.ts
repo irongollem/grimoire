@@ -205,7 +205,19 @@ export const useCampaignStore = defineStore("campaign", () => {
   // Tri-state: only an explicit `true` counts as on. `null` (never chosen)
   // and `false` (explicitly declined) both hide AI UI — see
   // context/compliance/ai-act.md §4.
-  const isAiEnabled = computed(() => activeCampaign.value?.ai_enabled === true);
+  //
+  // Also hides AI UI for a child account (#919), even one DMing its own
+  // campaign with the toggle on — presentation only, the server is the real
+  // boundary (the edge functions' `child_account` gate, `is_user_pro`). This
+  // reads `useAuthStore().isChildAccount` rather than the `useQuery`-backed
+  // `useChildAccount()` composable: a Pinia setup store's own computed cannot
+  // open a TanStack query (no injection context outside a mounted app — every
+  // store test in this repo, including this file's own, builds the store
+  // without one). `isChildAccount` is a plain ref loaded onto the auth store
+  // instead, for exactly this reason.
+  const isAiEnabled = computed(
+    () => activeCampaign.value?.ai_enabled === true && !useAuthStore().isChildAccount,
+  );
 
   const todayYear  = computed(() => activeCampaign.value?.current_year ?? 1495);
   const todayMonth = computed(() => activeCampaign.value?.current_month ?? 1);

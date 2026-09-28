@@ -1,5 +1,6 @@
-// GDPR account deletion (#631) — self-serve and admin-initiated. The contract
-// this implements is context/compliance/data-subject-rights.md §2-§4.
+// GDPR account deletion (#631) — self-serve, admin-initiated, and
+// parent-initiated (#919). The contract this implements is
+// context/compliance/data-subject-rights.md §2-§4.
 //
 // Deletes the auth.users row (which cascades/set-nulls through every other
 // table per migration 20260808000001) after first purging the user's storage
@@ -14,6 +15,22 @@
 // again, so a partial purge would leave unreachable, undeletable files behind
 // forever. Erasure-preparation and the user delete happen only after a clean
 // purge.
+//
+// A parent deleting their child's account is also how consent is withdrawn
+// (#919): the caller is checked against `child_accounts` for an active link
+// (service-role query, re-verified again by `prepare_user_erasure` itself)
+// before falling back to the admin gate, so a parent who is not also an app
+// admin can still act on their own child. Whichever gate passes, the actor
+// handed to `prepare_user_erasure` is always the verified caller, never the
+// request body.
+//
+// A target that still parents an active child account is refused up front,
+// before the storage purge — for self-serve and admin/parent deletion alike.
+// `child_accounts.parent_user_id` is `on delete restrict`, so leaving this to
+// surface only when `prepare_user_erasure` hits the same constraint would mean
+// the storage purge (which runs first and cannot be undone) had already
+// happened to an account the auth delete then refuses to remove: a half-erased
+// account with no way back.
 
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
@@ -23,6 +40,7 @@ import { chunk } from "../_shared/storage-purge.ts";
 import { listUserStorage } from "../_shared/storage-inventory.ts";
 import { r2ConfigFrom, r2ObjectKey } from "../_shared/r2/config.ts";
 import { deleteObjects } from "../_shared/r2/client.ts";
+import { isoDate } from "../_shared/childAccount.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -104,9 +122,28 @@ serve(withCors(async (req: Request) => {
   const targetUserId = requestedTarget && requestedTarget !== caller.id ? requestedTarget : caller.id;
   const isSelfServe = targetUserId === caller.id;
 
+  // A parent deleting their child's account (#919). Checked before the admin
+  // gate so a parent who is not also an app admin can still act on their own
+  // child; `prepare_user_erasure` re-verifies this same link independently.
+  let isParentDeletion = false;
   if (!isSelfServe) {
-    const gate = await requireAdmin(req);
-    if (gate instanceof Response) return gate;
+    const { count, error: linkError } = await admin
+      .from("child_accounts")
+      .select("child_user_id", { count: "exact", head: true })
+      .eq("child_user_id", targetUserId)
+      .eq("parent_user_id", caller.id)
+      .gt("adult_on", isoDate(new Date()));
+    if (linkError) {
+      console.error("delete-account: child_accounts lookup failed", linkError);
+      return json({ error: "deletion_failed" }, 500);
+    }
+    // `count` is null only when the head query failed, which linkError covers.
+    isParentDeletion = count !== null && count > 0;
+
+    if (!isParentDeletion) {
+      const gate = await requireAdmin(req);
+      if (gate instanceof Response) return gate;
+    }
   }
 
   if (body.confirm !== "DELETE") return json({ error: "confirm_required" }, 400);
@@ -122,6 +159,24 @@ serve(withCors(async (req: Request) => {
   // admin-initiated.
   if (target.app_metadata?.role === "admin") return json({ error: "cannot_delete_admin" }, 400);
 
+  // Refused before any destructive work: the storage purge below cannot be
+  // undone, and child_accounts.parent_user_id is `on delete restrict`, so a
+  // target that still actively parents a child would have its storage purged
+  // and then survive the auth delete anyway — a half-erased account. Applies
+  // to self-serve and admin/parent deletion alike, since either can target an
+  // account that still manages a child.
+  const { count: childCount, error: childCountError } = await admin
+    .from("child_accounts")
+    .select("child_user_id", { count: "exact", head: true })
+    .eq("parent_user_id", target.id)
+    .gt("adult_on", isoDate(new Date()));
+  // Fails closed: an unknown count must never reach the irreversible purge.
+  if (childCountError || childCount === null) {
+    console.error("delete-account: child_accounts lookup failed for target", target.id, childCountError);
+    return json({ error: "deletion_failed" }, 500);
+  }
+  if (childCount > 0) return json({ error: "has_child_accounts" }, 409);
+
   const purgeErrors = await purgeStorage(target.id);
   if (purgeErrors.length > 0) {
     console.error("delete-account: storage purge failed for user", target.id, purgeErrors);
@@ -134,7 +189,7 @@ serve(withCors(async (req: Request) => {
   const { error: prepareError } = await admin.rpc("prepare_user_erasure", {
     p_user_id: target.id,
     p_actor_id: caller.id,
-    p_actor_kind: isSelfServe ? "self" : "admin",
+    p_actor_kind: isSelfServe ? "self" : isParentDeletion ? "parent" : "admin",
   });
   if (prepareError) {
     console.error("delete-account: prepare_user_erasure failed for user", target.id, prepareError);

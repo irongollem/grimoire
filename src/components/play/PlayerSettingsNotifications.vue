@@ -1,6 +1,7 @@
 <template>
-  <!-- Email notifications -->
-  <SettingsSection title="Email Notifications" description="Emails when your DM publishes something for you.">
+  <!-- Email notifications — a young player's account has no email of its own
+       (#919), so there is nothing here to toggle. -->
+  <SettingsSection v-if="!isChild" title="Email Notifications" description="Emails when your DM publishes something for you.">
     <div class="space-y-4">
       <SettingsToggleRow
         label="Shared session notes"
@@ -73,6 +74,7 @@ import SettingsSection from "@/components/common/SettingsSection.vue";
 import SettingsToggleRow from "@/components/common/SettingsToggleRow.vue";
 import { usePlayerCombatPrefs } from "@/composables/play/usePlayerCombatPrefs";
 import { useDicePrefs } from "@/composables/dice/useDicePrefs";
+import { useChildAccount } from "@/composables/account/useChildAccount";
 import {
   useNotificationPreferences,
   useUpdateNotificationPreferences,
@@ -80,6 +82,7 @@ import {
   type NotificationPreferences,
 } from "@/composables/account/useNotificationPreferences";
 
+const { isChild } = useChildAccount();
 const { turnAudioEnabled, setTurnAudio } = usePlayerCombatPrefs();
 const { diceAudioEnabled, setDiceAudio, diceMode, setDiceMode } = useDicePrefs();
 
