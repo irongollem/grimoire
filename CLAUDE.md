@@ -138,6 +138,16 @@ Workflow:
 2. Write the SQL body into the created file
 3. Push to main — **migrations auto-apply from CI**. Do NOT run `supabase db push` by hand: it applies every pending migration in your working tree, including other sessions' unmerged ones.
 
+## Client Reads — scope to the caller in the query, and read the error
+
+**RLS is a ceiling, not a filter.** It bounds what a caller *may* see, not what a query *will* return. A read meant to fetch "my row" must say so itself (`.eq("user_id", auth.user.id)`), never leave it to the `auth.uid() = user_id` policy. The moment any wider policy exists on that table (an admin read, a DM read over campaign members, a shared-content read), the same unfiltered query returns more than one row for exactly the accounts that policy covers, and `.single()` / `.maybeSingle()` fails for them and only them.
+
+**Never destructure `data` alone.** `const { data } = await supabase...` turns every failure into "no row", which is indistinguishable from a legitimate absence. Take `error` too and throw it, so TanStack Query reports it and Sentry sees it.
+
+Both together are what locked the admin out of the whole app on 28 Sep 2026. `useSubscription` read `user_subscriptions` with no `user_id` filter (since April) and dropped the error; `user_subscriptions_select_admin` (May) made that read return all 31 rows for the admin, so the admin's subscription had silently been `null` for five months. Nothing depended on the row for an admin until the #919 Terms gate, which correctly fails closed on a missing `terms_version`: `accept_terms` succeeded, the refetch still read `null`, and the gate never closed. Fixed in `54877bcf`. A bug that only exists under a wider policy is invisible from every narrower account, so no ordinary test run finds it.
+
+**A gate that blocks the whole app must be exercised as every kind of account it can meet**: an ordinary user, the admin, and (for #919) a parent and a child. Failing closed is right for a consent or safety gate, which is exactly why a wrong input to it costs the whole site rather than one widget.
+
 ## Post-Mutation Navigation
 
 After any create, save, or delete operation, always navigate back to the list view — this confirms the action succeeded.
@@ -229,6 +239,8 @@ learns about it.
 `dev:auth` (`scripts/dev-auth.ts`) sets `grimoire-local-dev` as the password on three **local** accounts and prints them. It reads the running stack's own keys from `supabase status` and **refuses to run against anything but loopback**, so it cannot address the hosted project. Remote work still needs a real token, via the Supabase MCP as usual. Player-portal surfaces specifically need the player fixture: `/play` is lens- and role-guarded away from DM accounts, so no amount of DM-fixture testing reaches them.
 
 **Sign in as `dm-fixture@example.invalid`, not the admin.** `seed.sql` is a dump of real data, so every row belongs to whoever pulled it — the admin — which leaves the admin as the only account with anything in it. That is precisely the fixture that hid #736: an RLS-scoped read path tested clean as admin and broke every real user. `dev:auth` clones a campaign and its locations onto a plain non-admin user for this reason. Use the admin login only when you are specifically exercising an admin path.
+
+The inverse also holds, so "not the admin" is a default and not a rule: an admin-only bug is invisible from `dm-fixture`. Anything every signed-in account passes through (a sign-in gate, the layout shell, a subscription or plan read) is an admin path too, and needs one pass as the admin as well. See [Client Reads](#client-reads--scope-to-the-caller-in-the-query-and-read-the-error) for the case that proved it.
 
 Do **not** add an `import.meta.env.DEV` auto-login to `src/` instead. The repo is public, so auth-bypass-shaped code is readable whether or not it ships; and because every read is RLS-scoped on `auth.uid()`, a faked client session renders zero rows — you would be checking layouts against an empty world.
 
