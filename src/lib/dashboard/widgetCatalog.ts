@@ -202,7 +202,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     id: "pinned-notes",
     title: "Pinned notes",
     description: "Notes pinned for quick reference.",
-    widths: FULL_ONLY,
+    widths: LIST_WIDTHS,
     defaultWidth: "full",
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
