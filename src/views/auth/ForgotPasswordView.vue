@@ -46,6 +46,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { RouterLink } from "vue-router";
+import { isAuthApiError } from "@supabase/supabase-js";
 import { useAuthStore } from "@/stores/auth";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -60,13 +61,16 @@ async function handleSubmit() {
   errorMessage.value = "";
   try {
     await auth.requestPasswordReset(email.value.trim());
-    // The same message whether or not the address has an account — Supabase
-    // answers both alike, and so does this page, so it cannot be used to
-    // probe who is signed up.
     sent.value = true;
   } catch (err) {
-    errorMessage.value =
-      err instanceof Error ? err.message : "Could not send the reset link. Please try again.";
+    // Any answer from the auth server reads as "sent". Supabase's per-account
+    // cooldown returns a 429 only for an address that has an account, so
+    // showing its message would tell a visitor who is signed up — and for a
+    // real account inside the cooldown, a link genuinely was just sent. Only a
+    // failure to reach the server at all, which cannot depend on the account,
+    // gets its own message.
+    if (isAuthApiError(err)) sent.value = true;
+    else errorMessage.value = "Could not reach the server. Check your connection and try again.";
   }
 }
 </script>
