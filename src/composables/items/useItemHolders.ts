@@ -13,7 +13,13 @@ export interface ItemHolder {
   to: string;
 }
 
-export function useItemHolders(itemId: MaybeRefOrGetter<string>) {
+/**
+ * Who holds an item: NPCs, party members and shops. DM-only by nature: the NPC
+ * half embeds `npcs`, which players cannot read (20260928233302), and the list
+ * names holders a player may not know about. So a player view passes
+ * `enabled: false` rather than fetching a list it will not render.
+ */
+export function useItemHolders(itemId: MaybeRefOrGetter<string>, enabled: MaybeRefOrGetter<boolean>) {
   return useQuery({
     queryKey: computed(() => ["item-holders", toValue(itemId)]),
     queryFn: async (): Promise<ItemHolder[]> => {
@@ -84,6 +90,6 @@ export function useItemHolders(itemId: MaybeRefOrGetter<string>) {
 
       return holders;
     },
-    enabled: computed(() => !!toValue(itemId)),
+    enabled: computed(() => toValue(enabled) && !!toValue(itemId)),
   });
 }

@@ -12,6 +12,7 @@ import {
 import { useCampaignStore } from "@/stores/campaign";
 import { adoptCampaignSession, refetchCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
+import { PLAYER_NPCS_KEY } from "@/composables/npcs/useNpcs";
 import { THREADS_KEY } from "@/composables/quests/useQuestThreads";
 import type { CampaignSessionState } from "@/types/session.types";
 import { useAuthStore } from "@/stores/auth";
@@ -113,6 +114,12 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // doorbell (20260928225909) tells players to re-read their projection. The
   // DM's own copy is a store fed by the handler below, not a query.
   ["campaign_session_state", ["player-session-state"]],
+  // Not a table: the name `npcs` rings on insert and update (20260928233302).
+  // Players cannot read `npcs` rows, so their subscription to it carries
+  // nothing; this tells them to re-read their projection. The DM hears it too
+  // and has only preview caches under this root, so the rows they already
+  // received are not refetched. A delete still rings as `npcs`.
+  ["npcs_player", [PLAYER_NPCS_KEY]],
   // Not in SYNC_TABLES — it has exact-row handlers below instead of a registry
   // entry. `items` as well: an item leaving the party's inventory leaves the
   // player-visible projection with it.

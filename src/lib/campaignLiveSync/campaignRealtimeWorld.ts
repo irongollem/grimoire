@@ -83,11 +83,14 @@ function invalidatePlayerLocationCaches(queryClient: QueryClient, campaignId: st
 }
 
 function invalidatePlayerNpcCaches(queryClient: QueryClient, campaignId: string): void {
-  invalidate(queryClient, (key) => key[0] === "npcs" && (
-    (key[1] === "shared" && key[2] === campaignId)
+  // `player-npcs` is PLAYER_NPCS_KEY (useNpcs.ts). Only the DM reaches this now,
+  // for their preview-as-player caches: players cannot read `npcs`, so they hear
+  // about a change from the `npcs_player` doorbell signal instead.
+  invalidate(queryClient, (key) => key[0] === "player-npcs" && (
+    key[1] === campaignId
     // The multi-location projection key has no campaign component. There is
     // only one active campaign per client, so these are active-campaign views.
-    || key[1] === "shared-by-locations"
+    || key[1] === "by-locations"
   ));
 }
 
@@ -189,7 +192,7 @@ function applyNpcs(queryClient: QueryClient, change: Change, context: Context): 
     applyRealtimeRow(queryClient, change, {
       rootKey: "npcs",
       include: (key) => (
-        key.length === 2 && isString(key[1]) && key[1] !== "shared"
+        key.length === 2 && isString(key[1])
       ) || (
         key.length === 3 && key[1] === "by-location" && isString(key[2])
       ) || (

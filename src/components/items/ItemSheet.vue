@@ -306,7 +306,7 @@ const props = defineProps<{
 }>();
 
 const containedIn = useLootTablesByItem(computed(() => props.item.id));
-const { data: holders } = useItemHolders(computed(() => props.item.id));
+const { data: holders } = useItemHolders(computed(() => props.item.id), () => !props.playerView);
 const { data: allCampaigns } = useDmCampaigns();
 
 const sheetArtTab = ref<'identified' | 'mundane'>('identified');

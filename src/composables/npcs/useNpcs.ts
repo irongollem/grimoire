@@ -12,6 +12,15 @@ import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 
 const QUERY_KEY = "npcs";
 
+/**
+ * The players' NPC projection (`get_player_visible_npcs`) lives under its own
+ * root, not under `npcs`. Players cannot read the `npcs` table at all
+ * (20260928233302), so their client learns of a change only from the
+ * `npcs_player` doorbell signal, and that signal must refresh this projection
+ * without touching the DM's row caches under `npcs`.
+ */
+export const PLAYER_NPCS_KEY = "player-npcs";
+
 async function fetchNpcs(campaignId: string): Promise<Npc[]> {
   const { data, error } = await supabase
     .from("npcs")
@@ -247,8 +256,8 @@ export function useSharedNpcs() {
   // needs the previewed member id to know whose view to render.
   const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "shared", campaignId.value, previewMemberId.value] as const),
-    queryFn: async ({ queryKey: [, , cid, previewId] }) => {
+    queryKey: computed(() => [PLAYER_NPCS_KEY, campaignId.value, previewMemberId.value] as const),
+    queryFn: async ({ queryKey: [, cid, previewId] }) => {
       if (!cid) throw new Error("useSharedNpcs fetched without a campaign");
       // Server-side projection: strips DM-only columns and swaps disguised NPCs
       // to their cover identity so the real one never reaches the client. See
@@ -271,7 +280,7 @@ export function useSharedNpcsByLocations(locationIds: Ref<string[]>) {
   const ui = useUiStore();
   const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "shared-by-locations", locationIds.value, previewMemberId.value] as const),
+    queryKey: computed(() => [PLAYER_NPCS_KEY, "by-locations", locationIds.value, previewMemberId.value] as const),
     queryFn: async ({ queryKey: [, , ids, previewId] }) => {
       if (!ids.length) return [];
       // Same projection RPC as useSharedNpcs, filtered by location.

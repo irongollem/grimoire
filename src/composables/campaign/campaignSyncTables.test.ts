@@ -20,11 +20,13 @@ import { THREADS_KEY } from "@/composables/quests/useQuestThreads";
  */
 const REGISTRY_TEST = resolve(process.cwd(), "supabase/tests/live_sync_registry.test.sql");
 
-function pgTapList(table: "live_sync_subscribed" | "live_sync_doorbell"): string[] {
+function pgTapList(table: "live_sync_subscribed" | "live_sync_doorbell" | "live_sync_named_signal"): string[] {
   const sql = readFileSync(REGISTRY_TEST, "utf8");
-  const block = new RegExp(`insert into ${table} \\(name\\) values([\\s\\S]*?);`).exec(sql);
+  const block = new RegExp(`insert into ${table} \\([a-z_, ]+\\) values([\\s\\S]*?);`).exec(sql);
   if (!block) throw new Error(`could not find the ${table} list in live_sync_registry.test.sql`);
-  return [...block[1].matchAll(/\('([a-z_]+)'\)/g)].map((m) => m[1]).sort();
+  // The first quoted value of each tuple is the name; a named signal's second
+  // is its source table.
+  return [...block[1].matchAll(/\('([a-z_]+)'/g)].map((m) => m[1]).sort();
 }
 
 describe("live sync registries", () => {
@@ -36,7 +38,11 @@ describe("live sync registries", () => {
   });
 
   it("maps every table that can ring the doorbell, and nothing else", () => {
-    const canRing = [...new Set([...pgTapList("live_sync_subscribed"), ...pgTapList("live_sync_doorbell")])].sort();
+    const canRing = [...new Set([
+      ...pgTapList("live_sync_subscribed"),
+      ...pgTapList("live_sync_doorbell"),
+      ...pgTapList("live_sync_named_signal"),
+    ])].sort();
     expect([...SIGNAL_KEYS.keys()].sort()).toEqual(canRing);
   });
 

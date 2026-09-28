@@ -102,8 +102,8 @@ describe("applyCampaignRealtimeWorld", () => {
     qc.setQueryData(["npcs", "campaign-1"], []);
     qc.setQueryData(["npcs", "by-location", "inn-1"], []);
     qc.setQueryData(["npcs", "by-locations", ["inn-1", "market-1"]], []);
-    qc.setQueryData(["npcs", "shared", "campaign-1", null], shared);
-    qc.setQueryData(["npcs", "shared-by-locations", ["inn-1"], null], shared);
+    qc.setQueryData(["player-npcs", "campaign-1", null], shared);
+    qc.setQueryData(["player-npcs", "by-locations", ["inn-1"], null], shared);
     qc.setQueryData(["npcs", "spell-casters", "campaign-1", "spell-1"], [{ npc_id: "old", name: "Old" }]);
     qc.setQueryData(["global-search", "alp", "campaign-1"], []);
     qc.setQueryData(["faction-npcs", "faction-1"], [{ npc: { id: "npc-1", name: "Old" } }]);
@@ -112,10 +112,10 @@ describe("applyCampaignRealtimeWorld", () => {
     expect(qc.getQueryData(["npcs", "campaign-1"])).toEqual([npc]);
     expect(qc.getQueryData(["npcs", "by-location", "inn-1"])).toEqual([npc]);
     expect(qc.getQueryData(["npcs", "by-locations", ["inn-1", "market-1"]])).toEqual([npc]);
-    expect(qc.getQueryData(["npcs", "shared", "campaign-1", null])).toBe(shared);
-    expect(qc.getQueryData(["npcs", "shared-by-locations", ["inn-1"], null])).toBe(shared);
-    expect(invalidated(qc, ["npcs", "shared", "campaign-1", null])).toBe(true);
-    expect(invalidated(qc, ["npcs", "shared-by-locations", ["inn-1"], null])).toBe(true);
+    expect(qc.getQueryData(["player-npcs", "campaign-1", null])).toBe(shared);
+    expect(qc.getQueryData(["player-npcs", "by-locations", ["inn-1"], null])).toBe(shared);
+    expect(invalidated(qc, ["player-npcs", "campaign-1", null])).toBe(true);
+    expect(invalidated(qc, ["player-npcs", "by-locations", ["inn-1"], null])).toBe(true);
     expect(invalidated(qc, ["npcs", "spell-casters", "campaign-1", "spell-1"])).toBe(true);
     expect(invalidated(qc, ["global-search", "alp", "campaign-1"])).toBe(true);
     expect(invalidated(qc, ["faction-npcs", "faction-1"])).toBe(true);
