@@ -246,6 +246,50 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
+  /**
+   * Email a password-reset link that lands on `/reset-password`.
+   *
+   * The link signs the user in with a recovery session, which is all
+   * `updatePassword` needs. Following it also confirms the address, so it is
+   * the way back in for an account whose confirmation email went missing too.
+   * That redirect URL must be on the project's allow-list (Supabase dashboard
+   * → Authentication → URL Configuration); an unlisted one silently falls
+   * back to the Site URL and the user lands on the dashboard, not the form.
+   */
+  async function requestPasswordReset(email: string) {
+    loading.value = true;
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  /**
+   * Set a new password, then end the account's other sessions. Resolves to
+   * whether that second step worked.
+   *
+   * A new password does not end the other sessions on its own, so whoever had
+   * the old one would stay signed in. `others` keeps this device's session and
+   * fires no SIGNED_OUT here. Its failure is reported rather than thrown: the
+   * password has already changed by then, and retrying the whole call would be
+   * refused for reusing that same password.
+   */
+  async function updatePassword(password: string): Promise<{ othersSignedOut: boolean }> {
+    loading.value = true;
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      const { error: signOutError } = await supabase.auth.signOut({ scope: "others" });
+      return { othersSignedOut: !signOutError };
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
     user.value = null;
@@ -301,6 +345,8 @@ export const useAuthStore = defineStore("auth", () => {
     initialize,
     signIn,
     signUp,
+    requestPasswordReset,
+    updatePassword,
     signOut,
     refreshMembership,
     inferUserMode,

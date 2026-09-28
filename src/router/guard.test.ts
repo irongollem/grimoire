@@ -54,6 +54,8 @@ const TEST_ROUTES: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   { path: "/login", name: "login", component: Stub, meta: { layout: "auth", requiresGuest: true } },
+  { path: "/welcome", name: "welcome", component: Stub, meta: { layout: "auth", requiresAuth: true } },
+  { path: "/reset-password", name: "reset-password", component: Stub, meta: { layout: "auth" } },
 ];
 
 function makeRouter(memberships: { campaign_id: string; role: "dm" | "player" }[] | Error) {
@@ -205,5 +207,46 @@ describe("the lens fence", () => {
 
     expect(fetchQuery).not.toHaveBeenCalled();
     expect(useCampaignStore().activeCampaignId).toBe("c1");
+  });
+});
+
+describe("the password reset link", () => {
+  // The emailed link signs the account in with a recovery session before the
+  // guard runs. A brand-new account has no mode yet, and the welcome redirect
+  // would swallow the form it came for — the case that prompted the feature.
+  it("reaches the form from an account with no mode yet", async () => {
+    const { router } = makeRouter([]);
+    const auth = useAuthStore();
+    await auth.initialize();
+    auth.user = { id: "u1" } as User;
+    vi.spyOn(auth, "inferUserMode").mockResolvedValue(null);
+
+    await router.push("/reset-password");
+
+    expect(router.currentRoute.value.name).toBe("reset-password");
+  });
+
+  it("reaches the form from the player lens", async () => {
+    const { router } = makeRouter([]);
+    const auth = useAuthStore();
+    await auth.initialize();
+    auth.user = { id: "u1" } as User;
+    useUiStore().userMode = "player";
+
+    await router.push("/reset-password");
+
+    expect(router.currentRoute.value.name).toBe("reset-password");
+  });
+
+  it("still sends a modeless account elsewhere to the welcome choice", async () => {
+    const { router } = makeRouter([]);
+    const auth = useAuthStore();
+    await auth.initialize();
+    auth.user = { id: "u1" } as User;
+    vi.spyOn(auth, "inferUserMode").mockResolvedValue(null);
+
+    await router.push("/npcs");
+
+    expect(router.currentRoute.value.name).toBe("welcome");
   });
 });

@@ -24,6 +24,20 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/auth/SignupView.vue"),
     meta: { layout: "auth", requiresGuest: true },
   },
+  {
+    path: "/forgot-password",
+    name: "forgot-password",
+    component: () => import("@/views/auth/ForgotPasswordView.vue"),
+    meta: { layout: "auth", requiresGuest: true },
+  },
+  // Not requiresGuest: the emailed link arrives signed in with a recovery
+  // session, and the form is what that session is for.
+  {
+    path: "/reset-password",
+    name: "reset-password",
+    component: () => import("@/views/auth/ResetPasswordView.vue"),
+    meta: { layout: "auth" },
+  },
 
   // ── Invite join (auth layout, accessible before login) ────────────────
   {
