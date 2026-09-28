@@ -48,7 +48,12 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
       return home();
     }
 
-    if (auth.isAuthenticated && !mode && !to.meta.requiresGuest && to.name !== "welcome" && to.name !== "join-campaign") {
+    // Routes an account must reach whatever its mode: redeeming an invite, and
+    // setting a new password from a reset link — which is how a brand-new
+    // account with no mode yet gets back in.
+    const modeless = to.name === "join-campaign" || to.name === "reset-password";
+
+    if (auth.isAuthenticated && !mode && !to.meta.requiresGuest && to.name !== "welcome" && !modeless) {
       return { name: "welcome" };
     }
     if (auth.isAuthenticated && mode && to.name === "welcome") {
@@ -60,7 +65,7 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
     const dmManagingMember = auth.isDM && !!to.query.memberId;
 
     // Player-mode users are redirected away from DM routes...
-    if (auth.isAuthenticated && mode === "player" && !inPlayerArea && !to.meta.playerReadable && to.name !== "join-campaign") {
+    if (auth.isAuthenticated && mode === "player" && !inPlayerArea && !to.meta.playerReadable && !modeless) {
       return home();
     }
 

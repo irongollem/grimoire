@@ -55,7 +55,7 @@ const ALL_ROUTES = flatten(routes);
  * This is the "DM routes carry it" assertion, and it is written as the
  * complement on purpose. Asserting that today's DM routes are fenced passes
  * forever while saying nothing about the route added next week; asserting that
- * *these eleven and no others* are unfenced fails the moment a campaign
+ * *these thirteen and no others* are unfenced fails the moment a campaign
  * surface slips out of the fence, and makes adding one a decision someone has
  * to write down here.
  *
@@ -68,6 +68,8 @@ const ALL_ROUTES = flatten(routes);
 const UNFENCED = [
   "login",
   "signup",
+  "forgot-password",
+  "reset-password",
   "join-campaign",
   "welcome",
   "oauth-consent",
