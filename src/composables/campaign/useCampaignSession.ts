@@ -130,8 +130,9 @@ export function useCampaignSession() {
       if (error) throw error;
       await fetchSession(campaignId);
       // The RPC paused every open chain inside its own transaction, so every
-      // runtime view the client is holding is now stale. `useCampaignLiveQuests`
-      // would self-heal on its 5s poll; the cockpit's context would not.
+      // runtime view the client is holding is now stale. Live sync will say so
+      // too, but this device should not wait on the round trip to learn what it
+      // just did.
       for (const key of QUEST_RUNTIME_QUERY_KEYS) {
         void queryClient.invalidateQueries({ queryKey: [key] });
       }
@@ -250,10 +251,10 @@ export function formatSessionElapsed(
  * when. Read through `get_player_session_state`, which hands back strictly less
  * than the row — the DM-only policy on `campaign_session_state` is unchanged.
  *
- * Polled rather than subscribed. The campaign realtime channel carries this
- * table's events, but only for readers RLS lets through, and a player is not
- * one — so a subscription would deliver nothing. A session begins and ends
- * roughly twice an evening, so a slow poll is the honest shape.
+ * Refreshed by the `campaign_sync` doorbell, not by this table's row events:
+ * the channel carries those only for readers RLS lets through, and a player is
+ * not one. The doorbell (20260928225909) names the table without the row, so a
+ * start or end reaches players as it happens rather than on a poll.
  */
 export function usePlayerSessionState(campaignId: MaybeRefOrGetter<string>) {
   return useQuery({
@@ -267,6 +268,5 @@ export function usePlayerSessionState(campaignId: MaybeRefOrGetter<string>) {
       return { isRunning: row?.is_running === true, startedAt: row?.started_at ?? null };
     },
     enabled: () => !!toValue(campaignId),
-    refetchInterval: 60_000,
   });
 }

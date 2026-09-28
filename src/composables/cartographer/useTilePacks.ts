@@ -16,6 +16,11 @@ import { cloneManifest } from "@/cartographer/cloneManifest";
 const PACKS_KEY = "user-tile-packs";
 const RUNS_KEY = "tile-pack-generation-runs";
 
+/** A run whose progress is being written server-side right now. The rest are
+ *  settled, or waiting on the user (`awaiting_approval`), and nothing but this
+ *  client's own mutations can move them, which invalidate the list already. */
+const IN_FLIGHT = new Set<TilePackGenerationRun["status"]>(["proof_pending", "generating", "cancelling"]);
+
 async function fetchPacks(): Promise<UserTilePack[]> {
   const { data, error } = await supabase.from("user_tile_packs")
     .select("*, campaign_tile_packs(campaign_id)").order("updated_at", { ascending: false });
@@ -102,7 +107,9 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
     queryKey: [RUNS_KEY],
     queryFn: fetchRuns,
     enabled: includeRuns,
-    refetchInterval: includeRuns ? 5_000 : false,
+    // Job progress, the one sanctioned kind of poll (CLAUDE.md, Live Data):
+    // only while a run is in flight, so an idle manager sends nothing.
+    refetchInterval: (query) => (query.state.data?.some((run) => IN_FLIGHT.has(run.status)) ? 5_000 : false),
   });
 
   const upload = useMutation({

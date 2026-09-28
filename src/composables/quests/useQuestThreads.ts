@@ -5,7 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { BEATS_KEY, QUEST_RUNTIME_QUERY_KEYS } from "./useQuestFlow";
 import type { QuestRuntimeContext, QuestThread } from "@/types/quest.types";
 
-const THREADS_KEY = "quest_threads";
+export const THREADS_KEY = "quest_threads";
 
 function asRef(value: string | Ref<string>): Ref<string> {
   return isRef(value) ? value : ref(value);
@@ -50,8 +50,8 @@ async function ensureQuestMainThread(campaignId: string, questId: string): Promi
 
 /** Every thread a quest holds, live and closed alike — the thread bar reads
  *  this rather than `QuestRuntimeContext.threads` when it needs closed/merged
- *  threads too. Polls like the runtime queries: a thread can open or merge
- *  from another open tab or another DM device. */
+ *  threads too. A thread opened or merged from another tab or DM device
+ *  arrives through `useCampaignLiveSync`, like every runtime view. */
 export function useQuestThreads(questId: string | Ref<string>) {
   const id = asRef(questId);
   const campaign = useCampaignStore();
@@ -64,7 +64,6 @@ export function useQuestThreads(questId: string | Ref<string>) {
     queryKey: computed(() => [THREADS_KEY, id.value, campaignId.value] as const),
     queryFn: ({ queryKey: [, qid, cid] }) => fetchQuestThreads(qid, cid),
     enabled: () => !!id.value,
-    refetchInterval: 5_000,
   });
 }
 

@@ -388,12 +388,13 @@ Migration `20260904230420` adds one row per campaign — `campaign_id`, `changed
 
 It is a doorbell, not a log: one row per campaign, upserted in place, nothing to prune. And it is deliberately a signal rather than a copy of the row — the client already knows how to read its own data correctly (RLS, embeds, redacted projections), so telling it to read again is both smaller and impossible to get subtly wrong.
 
-Two things ride it beyond deletes:
+Three things ride it beyond deletes:
 
 - **`store_items` for every event.** That table has no `campaign_id`, only `location_id`, so it could not join the campaign-filtered channel for inserts or updates either, and was absent from the registry entirely (#811). Its three triggers derive the campaign through `locations`.
+- **Every write to a table whose rows must not travel** (`20260928225909`). The quest runtime (`quest_runtime_state`, `quest_threads`, `quest_beat_transitions`) is DM-only history that `20260810000012` keeps out of the publication on purpose, and `campaign_session_state` is a row players may not read though they may know it changed. Each rings on insert, update and delete; the client maps the three runtime tables to every runtime cache, because one transition writes all of them. These replaced four 5-second polls and a 60-second one.
 - **The player-visible item projection.** A store row and a party-inventory row each carry only an `item_id`; the name behind it comes from `get_player_visible_items`. So both map to `["items"]` as well as their own key — refresh one without the other and a newly stocked shop lists "Unknown item".
 
-`campaignSyncTables.test.ts` holds the trigger list in the migration and the two client registries to the same set of tables, so a table added to one and not the others fails the suite instead of going quietly un-synced.
+`supabase/tests/live_sync_registry.test.sql` checks the database half against the replayed schema: every subscribed table is published, carries `campaign_id` and rings on delete; every doorbell-only table rings on insert, update and delete. `campaignSyncTables.test.ts` holds that file's two lists equal to `SYNC_TABLES` and `SIGNAL_KEYS`, so a table added on one side and not the other fails the suite instead of going quietly un-synced.
 
 **What a member learns from it, and why that is accepted.** The doorbell carries a table name and a timestamp — no ids, no content — to every member of the campaign. A few of the 29 tables are not player-readable at all (`loot_placements` is `is_campaign_dm`; `discovered_monsters` and the downtime tables are partly DM-only), so a player can infer *"the DM just deleted something in loot_placements"*. That is spoiler-shaped metadata rather than a data leak, and it is kept deliberately: filtering DM-only tables out of the signal would also drop the player-visible deletions in the tables that are only *partly* DM-only, which is the failure this whole mechanism exists to end. Revisit it if a table is ever added whose mere name is a spoiler.
 
@@ -401,7 +402,7 @@ Ten of the triggered tables have a *nullable* `campaign_id` (general-scope rows 
 
 **Realtime is the primary read path.** HTTP reads are deliberately confined to three cases: initial load, genuine gap recovery, and the query shapes explicitly derived for it. Anything else re-fetching over HTTP is a bug — it means a subscription that should have carried the change is either missing or not trusted, and adding a poll on top hides that rather than fixing it.
 
-A table must also actually be in the `supabase_realtime` publication for any of this to fire; subscribing to an unpublished table is silent. Verify with `select tablename from pg_publication_tables where pubname = 'supabase_realtime'`.
+A table must also actually be in the `supabase_realtime` publication for any of this to fire; subscribing to an unpublished table is silent. `live_sync_registry.test.sql` now fails on it, so add the table to that file's list along with `SYNC_TABLES`.
 
 **`useCampaignPresence`** (`src/composables/campaign/useCampaignPresence.ts`)
 Uses Supabase Realtime Presence to track who is currently online. Each connected client broadcasts `{ user_id, display_name, online_at }`. The `MembersTab` uses `isOnline(userId)` to show a green/grey dot next to each member. This is the same channel referenced by the campaign chat system.

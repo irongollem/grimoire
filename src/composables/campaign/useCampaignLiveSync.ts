@@ -11,6 +11,8 @@ import {
 } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
 import { adoptCampaignSession, refetchCampaignSession } from "@/composables/campaign/useCampaignSession";
+import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
+import { THREADS_KEY } from "@/composables/quests/useQuestThreads";
 import type { CampaignSessionState } from "@/types/session.types";
 import { useAuthStore } from "@/stores/auth";
 import type { PartyInventoryItem } from "@/types/inventory.types";
@@ -27,8 +29,9 @@ let clearPendingInvalidations: (() => void) | null = null;
 // One registry for every campaign-scoped table. Normal events go through typed
 // exact-row reducers; redacted projections, joins, and RLS-dependent shapes use
 // targeted invalidation in those reducers. The key is also the recovery root.
-// Exported for `campaignSyncTables.test.ts`, which holds this list and the
-// delete triggers in migration 20260904230420 to the same set of tables.
+// Exported for `campaignSyncTables.test.ts`, which holds this list equal to
+// supabase/tests/live_sync_registry.test.sql, where the database proves each
+// table is published and rings the doorbell on delete.
 export const SYNC_TABLES = [
   ["notes",                   "notes"],
   ["quests",                  "quests"],
@@ -85,6 +88,10 @@ export const SYNC_TABLES = [
   ["item_entries",            "item-entries"],
 ] as const;
 
+/** One transition writes a cursor, a log row and sometimes a thread, and the
+ *  run context joins all three — so any of them refreshes every runtime view. */
+const QUEST_RUNTIME_SYNC_KEYS = [...QUEST_RUNTIME_QUERY_KEYS, THREADS_KEY] as const;
+
 /**
  * Which query keys a `campaign_sync` doorbell refreshes, keyed by the table that
  * rang it (migration `20260904230420`).
@@ -96,6 +103,16 @@ export const SYNC_TABLES = [
  */
 export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   ...SYNC_TABLES.map(([table, key]) => [table, [key]] as [string, readonly string[]]),
+  // The quest runtime (20260928225909) rings rather than subscribes: its rows
+  // are DM-only quest history, which 20260810000012 keeps out of realtime
+  // payloads altogether. These replaced four 5-second polls.
+  ["quest_runtime_state", QUEST_RUNTIME_SYNC_KEYS],
+  ["quest_threads", QUEST_RUNTIME_SYNC_KEYS],
+  ["quest_beat_transitions", QUEST_RUNTIME_SYNC_KEYS],
+  // Players cannot read this table, so its row events reach only the DM; the
+  // doorbell (20260928225909) tells players to re-read their projection. The
+  // DM's own copy is a store fed by the handler below, not a query.
+  ["campaign_session_state", ["player-session-state"]],
   // Not in SYNC_TABLES — it has exact-row handlers below instead of a registry
   // entry. `items` as well: an item leaving the party's inventory leaves the
   // player-visible projection with it.
@@ -109,7 +126,7 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
 
 // Deduped set of every key the sync owns, plus "campaigns" (handled specially
 // below). Reconciling these after a gap re-derives state from the DB.
-const RECONCILE_KEYS = [...new Set([...SYNC_TABLES.map(([, key]) => key), "party-inventory"]), "campaigns"];
+const RECONCILE_KEYS = [...new Set([...SIGNAL_KEYS.values()].flat()), "campaigns"];
 
 function sortPartyInventory(items: PartyInventoryItem[]): PartyInventoryItem[] {
   return items.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));

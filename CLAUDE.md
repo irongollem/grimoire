@@ -148,6 +148,30 @@ Both together are what locked the admin out of the whole app on 28 Sep 2026. `us
 
 **A gate that blocks the whole app must be exercised as every kind of account it can meet**: an ordinary user, the admin, and (for #919) a parent and a child. Failing closed is right for a consent or safety gate, which is exactly why a wrong input to it costs the whole site rather than one widget.
 
+## Live Data — push through the campaign channel, never poll
+
+**Data another client can change reaches the screen through `useCampaignLiveSync`, never a `refetchInterval`.** There is one channel per campaign, one registry of what it carries, and one way to extend it. A poll is not a simpler version of that; it is a second sync mechanism that nothing else knows about, costs a request every few seconds per open tab whether anything changed or not, and hides a subscription that is missing.
+
+This is written down because it went wrong at scale. The quest runtime (#755, #850) never joined the channel, and four queries polled at 5s instead. Because they fired out of step, a DM with the app open sent a runtime request about every second, around the clock, visible in devtools as a wall of calls "initiated by Sentry" (Sentry wraps `fetch`, so it is named as the initiator of *every* request; that attribution means nothing). Fixed in `20260928225909`.
+
+Pick the route by what the subscriber may see, not by what is convenient:
+
+| The table…                                                        | Route                                                                                                    |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| has `campaign_id`, and its readers may read the rows               | add it to `SYNC_TABLES` (plus a reducer if an exact-row edit beats a refetch)                             |
+| has no `campaign_id`, or its readers may not read the row, or its rows must not travel as payloads | ring the **`campaign_sync` doorbell** on insert, update and delete, and map it in `SIGNAL_KEYS`           |
+
+Either way the same change also: publishes the table (subscribed route only; an unpublished subscription joins and receives nothing, forever), adds the `<table>_signal_delete` trigger (a campaign-filtered DELETE never arrives, see `context/features/collaboration.md`), and adds the table to `supabase/tests/live_sync_registry.test.sql`, which checks the real schema and which `campaignSyncTables.test.ts` holds equal to the client registry. Skip the last one and the suite fails, which is the point.
+
+**Check the table's history before publishing it.** Some tables are kept out of `supabase_realtime` deliberately: `20260810000012` removed the raw quest topology and its runtime history so that no DM-only quest row ever travels as a payload, and `player_quest_beats_security.test.sql` holds that line. The doorbell exists for exactly those tables; it carries a table name, never a row.
+
+**The sanctioned polls.** A poll is right only when there is no row change to subscribe to, or none this client may hear about, and each must say why at the call site:
+
+- **Progress of a server job the user started** (document-import extraction, tile-pack generation runs). `refetchInterval` must be a *function* that returns `false` once the job settles, so an idle screen sends nothing. A bare number here is the bug.
+- **State outside any campaign channel**: an account-level wait, such as a child account waiting on a parent's emailed consent.
+
+Anything else with a `refetchInterval` is a missing subscription. Add the subscription; do not tune the interval.
+
 ## Post-Mutation Navigation
 
 After any create, save, or delete operation, always navigate back to the list view — this confirms the action succeeded.

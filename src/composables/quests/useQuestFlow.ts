@@ -662,7 +662,6 @@ export function useQuestRuntimeState(questId: string | Ref<string>, threadId: st
       return data as QuestRuntimeState | null;
     },
     enabled: () => !!campaignId.value && !!id.value && !!thread.value,
-    refetchInterval: 5_000,
   });
 }
 
@@ -688,7 +687,6 @@ export function useQuestRuntimeContext(questId: string | Ref<string>, threadId: 
       return data as QuestRuntimeContext;
     },
     enabled: () => !!campaignId.value && !!id.value && !!thread.value,
-    refetchInterval: 5_000,
   });
 }
 
@@ -706,7 +704,6 @@ export function useCampaignLiveQuests() {
       return (data ?? []) as CampaignLiveQuest[];
     },
     enabled: () => !!campaignId.value,
-    refetchInterval: 5_000,
   });
 }
 

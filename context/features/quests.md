@@ -1145,8 +1145,12 @@ show first. Below the header:
   is "the only place a thread is created" now (see below). "Something else…"
   opens the same dialog with its improvise option selected.
 
-Runtime context, live chains and runtime state all poll at 5s; every command
-carries `expectedVersion`. `QuestRunContainedTool` opens an attachment in
+Runtime context, live chains, runtime state and the thread list refresh when
+the `campaign_sync` doorbell rings for `quest_runtime_state`, `quest_threads` or
+`quest_beat_transitions` (`20260928225909`); none of them polls. The tables are
+never published as rows: `20260810000012` keeps DM-only quest history out of
+realtime payloads, and the doorbell carries only the table's name. Every
+command carries `expectedVersion`. `QuestRunContainedTool` opens an attachment in
 place: encounters embed `EncounterRunSurface`; objectives get a next-status
 button; notes and handouts render their bodies. Despite the name it is also
 the prep-time viewer, mounted from `QuestBeatAttachmentsPanel`.
@@ -1510,7 +1514,7 @@ merged.
 `get_quest_runtime_context(campaign, quest, thread)` — one thread's state,
 current beat, previous, outgoing edges (each carrying `route_kind`,
 `thread_label`, `converge_mode`, `site`, `gate`, `effects`, `payoff`, `loot`),
-return target, the most recent **100** transitions (the cockpit polls it),
+return target, the most recent **100** transitions (re-read whenever the runtime doorbell rings),
 plus — since #850 — `thread` (this thread's own summary), `threads` (every
 sibling thread of the quest, each with its own current beat and status), and
 `held` (the quest's held-but-not-fired payoff events).
