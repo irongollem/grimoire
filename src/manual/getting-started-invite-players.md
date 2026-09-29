@@ -45,6 +45,12 @@ first and routes them to a parent instead of a normal signup form; approving
 the request joins them to your campaign at the same time. See
 [Young Players' Accounts](#young-players-accounts).
 
+A join that involves a young player waits for a parent's yes. That covers a
+young player opening your link, and an adult joining a table where a young
+player already sits. Nobody is added until a parent approves, and the parents
+get an email asking them to. Once they say yes, the campaign appears in the
+joiner's list.
+
 ## Assigning a character
 
 After a player joins, find their row on the **Members & Invites** tab and use the **Assign character…** combobox to link them to a party member (character sheet). Only characters not already assigned to someone else appear in the list. Players can also create their own character from the Player Portal instead, if you'd rather they build it themselves.

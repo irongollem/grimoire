@@ -228,6 +228,50 @@ account the auth delete then refuses to remove. The client message: "Remove
 your child accounts first: a young player's account can't be left without its
 parent."
 
+## Who a young player plays with (#927)
+
+A parent decides who is at their child's table. A join that involves a child
+is a **request**, not a membership, until every parent it concerns says yes
+(`20260929211745_parent_approved_tables`):
+
+| Joiner | Campaign owner | Needs a yes from |
+| --- | --- | --- |
+| a child | an adult who isn't their parent | the joiner's parent |
+| a child | their own parent | nobody (the parent chose it by running it) |
+| a child | another family's child | both parents |
+| a child | their sibling | their shared parent, once |
+| an adult | a child | the DM's parent, unless the adult *is* that parent |
+
+- `join_campaign_via_invite` returns `{status: 'joined' | 'pending', campaign_id, request_id?}`.
+  A pending joiner has **no `campaign_members` row**, so every RLS policy keyed
+  on membership keeps them out with no new condition anywhere.
+- `campaign_join_requests` holds only pending requests. Approving the last
+  side admits the joiner (`private.admit_campaign_member`, which also brings
+  the character they chose) and deletes the row; declining deletes it. A capped
+  invite counts the request as its use.
+- A parent creating their child from a campaign invite
+  (`join_campaign_for_child`, service role, with the verified parent id) has
+  approved their own side already; only the other family's parent is asked.
+- `decide_campaign_join_request` re-derives the parent link from
+  `child_accounts` at call time (`private.parent_of_child`) instead of trusting
+  the row, so a child who has come of age, or a parent link that is gone, no
+  longer counts.
+- `remove_from_family_campaign`: a parent can take their child out of any
+  table, and anyone but the owner out of a table their child runs.
+- `get_family_campaigns` is the Family page's one read: each child's tables
+  and who is at them, and the requests waiting on the caller. A parent is not
+  a member of those campaigns, so RLS alone would show them nothing.
+- Emails: the joiner's page calls `notify-join-request`, and `child-account`
+  does the same when a parent-created child waits on the other family. Both go
+  through `_shared/joinRequestNotify.ts`: one email per parent still to answer
+  (one, not two, when a parent is on both sides), fixed text with no campaign
+  or player name in it (both are attacker-controlled; the names are shown in
+  the app), sent once per request (`notified_at`), rate-limited per parent.
+- Whispers (story 5, `20260929104117`): no whisper between a child and an
+  adult who isn't their parent, enforced in the `campaign_messages` insert
+  policy; immersive rolls, which reach the DM as a whisper, roll openly
+  between them instead.
+
 ## Graduation
 
 Nothing "happens" to a child account at 16 beyond two things, both driven by
@@ -277,6 +321,9 @@ uploaded image.
 | Email recipient filter | `supabase/functions/send-notification-email/index.ts` (`filterOutChildAccounts`) |
 | Family page, per-child actions | `src/views/FamilyView.vue`, `src/components/account/FamilyChildCard.vue`, `ResetChildPasswordDialog.vue`, `DeleteChildAccountDialog.vue`, `src/composables/account/useFamily.ts` |
 | Add/approve a child | `src/views/AddChildView.vue` |
+| Join requests, approvals, removal, the Family page's read | `supabase/migrations/20260929211745_parent_approved_tables.sql` |
+| Parent emails for a pending join | `supabase/functions/notify-join-request/index.ts`, `_shared/joinRequestNotify.ts`, `_shared/joinRequestEmail.ts` |
+| Whispers between a child and an adult | `supabase/migrations/20260929104117_whispers_respect_young_players.sql`, `src/composables/campaign/useWhisperRecipients.ts` |
 | Whether the signed-in account is an active child (presentation only) | `src/composables/account/useChildAccount.ts` |
 | Terms gate | `src/components/account/TermsGate.vue`, `termsGate.ts` |
 | Age question, session memory | `src/components/auth/BirthMonthField.vue`, `src/lib/ageGateSession.ts` |
@@ -296,6 +343,12 @@ uploaded image.
   RLS (parent sees their children, child sees only their own row, nobody can
   write from the browser, `parental_consent_requests` invisible to everyone
   including the child it concerns).
+- `supabase/tests/parent_approved_tables.test.sql`: who must approve in every
+  pairing (including the automatic and sibling cases), that a pending joiner
+  holds no membership, one request per joiner and invite use, who can see a
+  request, who can decide it, removal rules, the Family read, grants.
+- `supabase/tests/whisper_young_players.test.sql`: the whisper rule as each
+  sender, and the "To:" list.
 - `src/router/guard.test.ts`: "the child-account fence (#919)". Sends a child
   away from billing and the family page, leaves a non-child alone, leaves a
   grown-up (`adult_on` passed) alone, doesn't fence routes the restriction
@@ -333,3 +386,18 @@ uploaded image.
 - **A child account can never itself be a parent**, and an account with a
   live paid subscription can never be converted into one, both enforced in
   `isConvertible`, not merely encouraged by the form.
+- **No client-writable policy on `campaign_join_requests`, ever.** Same
+  reasoning as `child_accounts`: the approvals on that row decide who is let
+  in, so they are written only by the definer functions that check who is
+  approving. A request is never made "approved" by an update from the browser.
+- **A pending joiner gets no membership row.** Not a membership with a
+  `pending` flag: every policy in the schema keys on `campaign_members`, and a
+  flag would have to be remembered in all of them. The request table is where
+  a pending joiner lives until the last yes.
+- **A DM cannot write a member row.** `campaign_members_dm_all` (insert,
+  update, delete) became update and delete only in `20260929211745`, and
+  `guard_campaign_member_self_update` pins `user_id` and `campaign_id` for
+  everyone, the DM included. Both are load-bearing for the approvals above: a
+  DM inserting a row by hand, or re-pointing a player's row at another account,
+  would seat anyone without an invite or a parent's yes. Every legitimate
+  insert is a definer function; nothing in the client ever needed the policy.

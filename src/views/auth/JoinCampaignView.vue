@@ -154,6 +154,19 @@
           </p>
         </div>
 
+        <div v-else-if="waitingForParent" class="space-y-4" data-testid="join-waiting">
+          <h2 class="text-heading font-semibold text-foreground">Almost there</h2>
+          <p class="text-body text-muted-foreground italic">
+            A parent needs to say yes before you can join this table. Once they do, it will appear in your campaigns.
+          </p>
+          <RouterLink
+            to="/dashboard"
+            class="inline-block mt-2 text-body text-gold-400 hover:text-gold-300 underline"
+          >
+            Go to your dashboard
+          </RouterLink>
+        </div>
+
         <div v-else-if="joinError" class="space-y-4">
           <p class="text-heading-lg font-semibold text-destructive">Invalid Invite</p>
           <p class="text-body text-muted-foreground italic">{{ joinError }}</p>
@@ -229,6 +242,9 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useQueryClient } from "@tanstack/vue-query";
 import { joinCampaignViaInvite } from "@/composables/campaign/useCampaignMembers";
+import { postgrestMessage } from "@/composables/campaign/chatSendErrors";
+import { supabase } from "@/lib/supabase";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
 import { useModeSwitch } from "@/composables/useModeSwitch";
 import { usePlayerCampaigns } from "@/composables/campaign/useCampaigns";
@@ -274,6 +290,9 @@ const authMessage = ref("");
 const joining = ref(false);
 const joinError = ref("");
 const decidingJoin = ref(false);
+// A join that involves a young player waits for a parent's yes; no membership
+// exists yet, so this is a resting state rather than a redirect.
+const waitingForParent = ref(false);
 
 // #730: characters are durable and campaign-agnostic until attached — only
 // ones with no campaign yet can be brought along here.
@@ -291,6 +310,7 @@ const showChooser = computed(
   () =>
     !joining.value &&
     !joinError.value &&
+    !waitingForParent.value &&
     !hasChosen.value &&
     !myCharactersQuery.isPending.value &&
     unattachedCharacters.value.length > 0,
@@ -304,7 +324,14 @@ async function attemptJoin(partyMemberId?: string) {
   joining.value = true;
   joinError.value = "";
   try {
-    const campaignId = await joinCampaignViaInvite(token, partyMemberId);
+    const result = await joinCampaignViaInvite(token, partyMemberId);
+    if (result.status === "pending") {
+      waitingForParent.value = true;
+      joining.value = false;
+      await notifyParents(result.requestId);
+      return;
+    }
+    const campaignId = result.campaignId;
     // Preserve the current DM campaign in its per-mode slot before activating
     // the joined campaign. When already in player mode, the explicit cache
     // invalidation still exposes the newly-created membership immediately.
@@ -324,8 +351,21 @@ async function attemptJoin(partyMemberId?: string) {
     }
     await router.replace({ name: "play" });
   } catch (err) {
-    joinError.value = err instanceof Error ? err.message : "This invite link is invalid or has expired.";
+    joinError.value = postgrestMessage(err) ?? "This invite link is invalid or has expired.";
     joining.value = false;
+  }
+}
+
+// Emails the parents. A failure must not break the page: the request already
+// exists and shows in the parents' family view, so report it and move on.
+async function notifyParents(requestId: string) {
+  try {
+    const { error } = await supabase.functions.invoke("notify-join-request", {
+      body: { request_id: requestId },
+    });
+    if (error) throw error;
+  } catch (err) {
+    reportHandledError(err, "JoinCampaignView.notifyParents", { requestId });
   }
 }
 

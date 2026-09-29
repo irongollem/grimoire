@@ -127,8 +127,8 @@ select throws_like(
 
 select is(
   public.join_campaign_via_invite('73000000-0000-4000-8000-0000000000aa', '73000000-0000-4000-8000-000000000020'),
-  '73000000-0000-4000-8000-000000000010'::uuid,
-  'joining with a character returns the campaign id');
+  '{"status": "joined", "campaign_id": "73000000-0000-4000-8000-000000000010"}'::jsonb,
+  'joining with a character admits at once (no young player involved) and names the campaign');
 
 select isnt(
   current_setting('grimoire.pm_campaign_transition', true),

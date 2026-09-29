@@ -98,7 +98,9 @@ export interface CreateChildInput {
 export interface CreateChildResult {
   childUserId: string;
   loginName: string;
-  joinedCampaign: { id: string; name: string } | null;
+  /** `pending` when the join waits on a parent's yes (a young player joining
+   *  another family's campaign, or the reverse). */
+  joinedCampaign: { id: string; name: string; status: "joined" | "pending" } | null;
 }
 
 /** Creates a young player's account. Invalidates the family list on success. */

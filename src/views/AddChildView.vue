@@ -206,7 +206,15 @@ async function submit() {
       birth: { month: birthMonth.value, year: birthYear.value },
       requestToken: requestToken.value ?? undefined,
     });
-    success(`${displayName.value.trim()} can now sign in as ${result.loginName}.`);
+    const name = displayName.value.trim();
+    const joined = result.joinedCampaign;
+    if (joined?.status === "pending") {
+      success(
+        `${name} can now sign in as ${result.loginName}. They'll join ${joined.name} once the other family's parent says yes.`,
+      );
+    } else {
+      success(`${name} can now sign in as ${result.loginName}.`);
+    }
     router.push("/account/family");
   } catch (err) {
     submitError.value = childAccountErrorMessage(err instanceof Error ? err.message : String(err));

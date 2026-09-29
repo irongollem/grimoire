@@ -177,18 +177,36 @@ export function useMemberByUserId() {
 
 // ── Join via invite (called from JoinCampaign view) ───────────────────────────
 
-export async function joinCampaignViaInvite(token: string, partyMemberId?: string): Promise<string> {
-  // Omitting the defaulted argument keeps character-less joins compatible
-  // while the database and frontend roll out in either order.
+/** What a join came to. A join that involves a young player waits for a
+ *  parent's yes: no membership exists until then, so the caller must not treat
+ *  `pending` as a campaign the account can open. */
+export type JoinResult =
+  | { status: "joined"; campaignId: string }
+  | { status: "pending"; campaignId: string; requestId: string };
+
+/** Parse the jsonb `join_campaign_via_invite` returns. Throws on any other
+ *  shape rather than guessing, so a schema change fails loudly. */
+export function parseJoinResult(data: unknown): JoinResult {
+  if (typeof data === "object" && data !== null && "status" in data && "campaign_id" in data) {
+    const { status, campaign_id: campaignId } = data;
+    if (typeof campaignId === "string" && campaignId !== "") {
+      if (status === "joined") return { status, campaignId };
+      if (status === "pending" && "request_id" in data) {
+        const requestId = data.request_id;
+        if (typeof requestId === "string" && requestId !== "") {
+          return { status, campaignId, requestId };
+        }
+      }
+    }
+  }
+  throw new Error("Unexpected response from join_campaign_via_invite");
+}
+
+export async function joinCampaignViaInvite(token: string, partyMemberId?: string): Promise<JoinResult> {
   const args = partyMemberId
     ? { p_token: token, p_party_member_id: partyMemberId }
     : { p_token: token };
-  let { data, error } = await supabase.rpc("join_campaign_via_invite", args);
-  if (error?.code === "PGRST202" && partyMemberId) {
-    // Old database during a rolling deploy: joining is still more useful than
-    // rejecting the invite. The character remains safely in the resting pool.
-    ({ data, error } = await supabase.rpc("join_campaign_via_invite", { p_token: token }));
-  }
+  const { data, error } = await supabase.rpc("join_campaign_via_invite", args);
   if (error) throw error;
-  return data as string; // campaign_id
+  return parseJoinResult(data);
 }

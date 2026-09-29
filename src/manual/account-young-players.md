@@ -110,6 +110,35 @@ If they don't have an account yet and try to sign up from the invite link,
 Grimoire asks their age and routes them to the parent-request flow above,
 carrying the invite along so approving the account also joins the campaign.
 
+## Approving who your young player plays with
+
+A young player can't simply drop into someone's campaign. When a join involves
+a young player, it waits as a request until each parent it concerns has said
+yes:
+
+- **Your young player wants to join a campaign.** You are asked, unless you
+  run that campaign yourself.
+- **Someone wants to join your young player's campaign.** You are asked,
+  unless that someone is you.
+- **Both are young players.** Each parent is asked. If they are siblings, one
+  yes from you covers both sides.
+
+Requests waiting on you appear at the top of the Family page, under **Waiting
+on you**. Each one says who wants to join which campaign and who runs it. Click
+**Approve** to let them in, or **Decline** to turn the request down. A declined
+player isn't told why and can ask again with the invite link. If the other
+parent still has to answer, the request shows "You said yes. Waiting for the
+other parent." until they do.
+
+Until a request is approved, the player has no access to the campaign at all.
+
+Each young player's card on the Family page also lists the campaigns they are
+at, and who sits at each table. Young players are marked, and so are you. From
+there you can take your young player out of any campaign they play in, and you
+can remove anyone (except the person running it) from a campaign your young
+player runs. Removing someone detaches their characters from the campaign but
+doesn't delete them. The person who runs a campaign can't be removed here.
+
 ## Related
 
 - [Your Account](#your-account)

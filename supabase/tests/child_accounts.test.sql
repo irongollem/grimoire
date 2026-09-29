@@ -75,9 +75,9 @@ select ok(not has_function_privilege('anon', 'public.accept_terms(text)', 'EXECU
   'anon cannot accept terms');
 select ok(has_function_privilege('authenticated', 'public.accept_terms(text)', 'EXECUTE'),
   'a signed-in user can accept terms');
-select ok(not has_function_privilege('authenticated', 'public.join_campaign_for_child(uuid, uuid)', 'EXECUTE'),
+select ok(not has_function_privilege('authenticated', 'public.join_campaign_for_child(uuid, uuid, uuid)', 'EXECUTE'),
   'joining a campaign on a child''s behalf is not callable from the browser');
-select ok(not has_function_privilege('anon', 'public.join_campaign_for_child(uuid, uuid)', 'EXECUTE'),
+select ok(not has_function_privilege('anon', 'public.join_campaign_for_child(uuid, uuid, uuid)', 'EXECUTE'),
   'nor by anon');
 
 -- The function refuses on its own too, so a drop-and-create that resets the
@@ -85,19 +85,19 @@ select ok(not has_function_privilege('anon', 'public.join_campaign_for_child(uui
 select set_config('request.jwt.claims',
   '{"sub":"c41d0000-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select throws_ok(
-  $$ select public.join_campaign_for_child('c41d0000-0000-4000-8000-0000000000a1', 'c41d0000-0000-4000-8000-000000000002') $$,
+  $$ select public.join_campaign_for_child('c41d0000-0000-4000-8000-0000000000a1', 'c41d0000-0000-4000-8000-000000000002', 'c41d0000-0000-4000-8000-000000000001') $$,
   'join_campaign_for_child can only be called by service_role',
   'a signed-in parent holding EXECUTE still cannot call it directly');
 
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 select throws_ok(
-  $$ select public.join_campaign_for_child('c41d0000-0000-4000-8000-0000000000a1', 'c41d0000-0000-4000-8000-000000000003') $$,
-  'Not a child account',
-  'it only ever joins child accounts');
+  $$ select public.join_campaign_for_child('c41d0000-0000-4000-8000-0000000000a1', 'c41d0000-0000-4000-8000-000000000003', 'c41d0000-0000-4000-8000-000000000001') $$,
+  'Not this child''s parent',
+  'it only ever joins a child account, for that child''s own parent');
 select is(
-  public.join_campaign_for_child('c41d0000-0000-4000-8000-0000000000a1', 'c41d0000-0000-4000-8000-000000000002'),
-  'c41d0000-0000-4000-8000-000000000010'::uuid,
-  'service_role joins the child to the invite''s campaign');
+  public.join_campaign_for_child('c41d0000-0000-4000-8000-0000000000a1', 'c41d0000-0000-4000-8000-000000000002', 'c41d0000-0000-4000-8000-000000000001'),
+  '{"status": "joined", "campaign_id": "c41d0000-0000-4000-8000-000000000010"}'::jsonb,
+  'service_role joins the child to their parent''s campaign at once: the parent is the DM');
 select is(
   (select role from public.campaign_members
     where campaign_id = 'c41d0000-0000-4000-8000-000000000010'

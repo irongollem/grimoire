@@ -61,6 +61,15 @@ export const RATE_LIMITS = {
   parental_consent_address:   { action: "parental_consent_address",   limit: 3,  windowSeconds: 86_400 },
   parental_consent_caller:    { action: "parental_consent_caller",    limit: 3,  windowSeconds: 86_400 },
   parental_consent_anonymous: { action: "parental_consent_anonymous", limit: 60, windowSeconds: 3_600 },
+  /**
+   * Join-request emails (#927). notify-join-request mails the parents a join
+   * involving a young player needs approval from. Bounded per caller (the
+   * joiner, who can re-ask endlessly) and per approving parent (so one
+   * parent's inbox cannot be flooded from many accounts). The copy is fixed
+   * and carries nothing user-controlled, so this only bounds volume.
+   */
+  join_request_caller: { action: "join_request_caller", limit: 10, windowSeconds: 86_400 },
+  join_request_parent: { action: "join_request_parent", limit: 10, windowSeconds: 86_400 },
 } as const;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;

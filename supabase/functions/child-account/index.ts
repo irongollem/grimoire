@@ -42,6 +42,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
+import { notifyJoinRequest } from "../_shared/joinRequestNotify.ts";
 import {
   adultOn,
   childLoginEmail,
@@ -145,22 +146,38 @@ async function campaignNameOf(campaignId: string): Promise<string | null> {
   return (data?.name as string | undefined) ?? null;
 }
 
-/** Best-effort, non-fatal: an invite can be revoked between the child's ask and the parent's approval. */
+/**
+ * Best-effort, non-fatal: an invite can be revoked between the child's ask and
+ * the parent's approval. A join involving another family's child or campaign
+ * comes back `pending`, and that family's parent is emailed here, since the
+ * child has no session to ring notify-join-request from.
+ */
 async function joinCampaignForChild(
   campaignInviteToken: string,
   childUserId: string,
-): Promise<{ id: string; name: string } | null> {
-  const { data: campaignId, error } = await admin.rpc("join_campaign_for_child", {
+  parentUserId: string,
+): Promise<JoinedCampaign | null> {
+  const { data, error } = await admin.rpc("join_campaign_for_child", {
     p_token: campaignInviteToken,
     p_child_user_id: childUserId,
+    p_parent_user_id: parentUserId,
   });
   if (error) {
     console.error("child-account: join_campaign_for_child failed (non-fatal)", error);
     return null;
   }
-  if (typeof campaignId !== "string") return null;
-  const name = await campaignNameOf(campaignId);
-  return { id: campaignId, name: name ?? "Your campaign" };
+  const outcome = data as { status?: unknown; campaign_id?: unknown; request_id?: unknown } | null;
+  if (!outcome || typeof outcome.campaign_id !== "string") return null;
+  if (outcome.status !== "joined" && outcome.status !== "pending") return null;
+  if (outcome.status === "pending" && typeof outcome.request_id === "string") {
+    try {
+      await notifyJoinRequest(admin, outcome.request_id);
+    } catch (notifyError) {
+      console.error("child-account: notifying the approving parent failed (non-fatal)", notifyError);
+    }
+  }
+  const name = await campaignNameOf(outcome.campaign_id);
+  return { id: outcome.campaign_id, name: name ?? "Your campaign", status: outcome.status };
 }
 
 async function deleteRequest(id: string): Promise<void> {
@@ -168,10 +185,17 @@ async function deleteRequest(id: string): Promise<void> {
   if (error) console.error("child-account: failed to delete a used consent request", error);
 }
 
+interface JoinedCampaign {
+  id: string;
+  name: string;
+  /** `pending` while a parent of the other side has yet to approve. */
+  status: "joined" | "pending";
+}
+
 interface CreateResult {
   childUserId: string;
   loginName: string;
-  joinedCampaign: { id: string; name: string } | null;
+  joinedCampaign: JoinedCampaign | null;
 }
 
 /**
@@ -255,9 +279,9 @@ async function handleCreate(body: Record<string, unknown>, callerId: string, cal
     : await createNewAccount({ loginName, password, displayName, callerId, consentVersion, birth });
   if (result instanceof Response) return result;
 
-  let joinedCampaign: { id: string; name: string } | null = null;
+  let joinedCampaign: JoinedCampaign | null = null;
   if (consentRequest?.campaign_invite_token) {
-    joinedCampaign = await joinCampaignForChild(consentRequest.campaign_invite_token, result.childUserId);
+    joinedCampaign = await joinCampaignForChild(consentRequest.campaign_invite_token, result.childUserId, callerId);
   }
   if (consentRequest) await deleteRequest(consentRequest.id);
 

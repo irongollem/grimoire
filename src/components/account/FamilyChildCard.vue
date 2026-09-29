@@ -12,6 +12,9 @@
         Becomes their own account on <span class="text-foreground">{{ becomesOwnOn }}</span>.
       </p>
 
+      <FamilyChildTables v-if="campaigns" :child-user-id="child.child_user_id" :campaigns="campaigns" />
+      <p v-else-if="tablesFailed" class="text-caption text-destructive">Couldn't load their tables.</p>
+
       <div class="flex flex-wrap gap-2">
         <AppButton variant="outline" size="sm" :icon="IconKey" label="Reset password" @click="showReset = true" />
         <AppButton
@@ -47,13 +50,22 @@
  */
 import { ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import FamilyChildTables from "@/components/account/FamilyChildTables.vue";
 import ResetChildPasswordDialog from "@/components/account/ResetChildPasswordDialog.vue";
 import DeleteChildAccountDialog from "@/components/account/DeleteChildAccountDialog.vue";
 import { useDataExport } from "@/composables/account/useDataExport";
+import type { FamilyCampaign } from "@/composables/account/useFamilyCampaigns";
 import { formatAdultOn, type FamilyChild } from "@/composables/account/useFamily";
 import { IconDelete, IconDownload, IconKey } from "@/lib/icons";
 
-const { child } = defineProps<{ child: FamilyChild }>();
+/** `campaigns` is undefined until the tables read has answered (or failed, in
+ *  which case `tablesFailed` says so), so "not at any table yet" only ever
+ *  means an empty list, never an unloaded one. */
+const { child } = defineProps<{
+  child: FamilyChild;
+  campaigns?: FamilyCampaign[];
+  tablesFailed?: boolean;
+}>();
 
 const becomesOwnOn = formatAdultOn(child.adult_on);
 
