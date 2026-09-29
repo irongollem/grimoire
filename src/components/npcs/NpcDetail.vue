@@ -229,6 +229,7 @@ import { deepEqual } from '@/lib/utils'
 import type { NpcAiGenerated } from '@/ai/types'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/npcs/useNpcs'
 import { useCampaignMessages } from '@/composables/campaign/useCampaignMessages'
+import { useChatSendFailure } from '@/composables/campaign/chatSendErrors'
 import { useUiStore } from '@/stores/ui'
 import { useLocationTree } from '@/composables/locations/useLocations'
 import { useAllMonsters, useCreateMonster } from '@/composables/monsters/useMonsters'
@@ -292,6 +293,7 @@ const { mutateAsync: deleteNpc } = useDeleteNpc()
 const { mutateAsync: createMonster } = useCreateMonster()
 const ui = useUiStore()
 const { sendNarrativeEvent } = useCampaignMessages()
+const { reportChatFailure } = useChatSendFailure()
 const isPromoting = ref(false)
 const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument()
 const campaign = useCampaignStore()
@@ -670,7 +672,7 @@ async function save() {
         name: form.name.trim() || null,
       }) ?? NPC_UNNAMED_IN_PROSE
       // Fire-and-forget — chat failure must not block the save navigation.
-      void sendNarrativeEvent(`You encounter ${announced}.`, savedNpcId ?? undefined)
+      sendNarrativeEvent(`You encounter ${announced}.`, savedNpcId ?? undefined).catch((e) => reportChatFailure(e, 'announce the encounter in the chat'))
     }
 
     // Back to the list, which is the confirmation that the save landed. On

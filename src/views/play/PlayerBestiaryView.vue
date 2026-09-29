@@ -299,6 +299,7 @@ import { useParty } from "@/composables/party/useParty";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { parseExpression } from "@/lib/dice/dice";
 import type { DieSize } from "@/lib/dice/dice";
 import { parseCr, formatHitPoints } from "@/lib/utils";
@@ -329,6 +330,7 @@ interface FormEntry { monster: PlayerVisibleMonster; name: string; imageUrl: str
 const ui = useUiStore();
 const auth = useAuthStore();
 const { sendRoll } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
 const { data: discoveries, isLoading: isLoadingDiscoveries } = usePlayerDiscoveries();
 const { isNew } = useReadItems("discovery");
@@ -574,7 +576,7 @@ async function rollActionDamage(desc: string, actionName: string) {
     // Non-standard dice — fallback
     const { total, breakdown } = rollParsed(parsed);
     lastRoll.value = { label, total };
-    void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true }, null, member.value?.name);
+    sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true }, null, member.value?.name).catch((e) => reportChatFailure(e, "post the roll to the chat"));
     return;
   }
 

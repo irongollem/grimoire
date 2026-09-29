@@ -111,6 +111,7 @@ import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/party/useParty";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useEnsureOwnedItem } from "@/composables/items/useItems";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
@@ -121,6 +122,7 @@ const ui = useUiStore();
 const { data: party } = useParty();
 const { mutateAsync: addInventoryItem } = useAddInventoryItem();
 const { sendItemDrop } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { ensureOwnedItem } = useEnsureOwnedItem();
 
 const open = ref(false);
@@ -233,6 +235,8 @@ async function dropInChat() {
     );
     open.value = false;
     ui.chatOpen = true;
+  } catch (e) {
+    reportChatFailure(e, "drop the item to the chat");
   } finally {
     isDroppingInChat.value = false;
   }

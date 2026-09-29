@@ -155,6 +155,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { initiativeModifier } from "@/rules/combatantSort";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
@@ -178,6 +179,7 @@ const toast = useToast();
 const { isLive, goLive, schedulePush, endLive } = useEncounterLive(encounterId.value);
 const goingLive = ref(false);
 const { sendSystemMessages } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 
 // The runner resolves combatants' stored monster_id (detail panel, auto-discover
 // on go-live) rather than letting the DM pick, so scoping must stay off here.
@@ -436,7 +438,9 @@ watch(
     const messages = [...store.pendingBroadcasts];
     for (const msg of messages) store.clearPendingBroadcast(msg);
     // One insert for the whole burst; posting is best-effort from the runner.
-    await sendSystemMessages(messages, "⚔ Encounter");
+    await sendSystemMessages(messages, "⚔ Encounter").catch((e) =>
+      reportChatFailure(e, "post the encounter events to the chat"),
+    );
   },
 );
 

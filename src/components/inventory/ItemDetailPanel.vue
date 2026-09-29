@@ -341,6 +341,7 @@ import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import { useUpdateInventoryItem } from "@/composables/items/usePartyInventory";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useMarkRead } from "@/composables/play/useReadItems";
 import { useAuthStore } from "@/stores/auth";
@@ -557,6 +558,7 @@ const { data: itemSpells } = useQuery({
 });
 
 const { sendFlavorMessage, sendRoll } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
 
 const isScrollType = computed(() => props.vaultItem?.item_type === "scroll");
@@ -585,7 +587,7 @@ async function castFromItem(spell: Spell) {
   isCasting.value = true;
   try {
     // Flavor message
-    await sendFlavorMessage(`casts ${spell.name} from ${props.inv.name}`, "spell");
+    await sendFlavorMessage(`casts ${spell.name} from ${props.inv.name}`, "spell").catch((e) => reportChatFailure(e, "announce the cast in the chat"));
 
     // Auto-roll damage
     if (spell.damage_rolls?.length) {
@@ -597,7 +599,7 @@ async function castFromItem(spell: Spell) {
         const counts = parsedToCounts(parsed.terms);
         if (Object.keys(counts).length === 0) {
           const { total, breakdown } = rollParsed(parsed);
-          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
+          sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true }).catch((e) => reportChatFailure(e, "post the roll to the chat"));
         } else {
           await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });
         }
@@ -612,7 +614,7 @@ async function castFromItem(spell: Spell) {
         const counts = parsedToCounts(parsed.terms);
         if (Object.keys(counts).length === 0) {
           const { total, breakdown } = rollParsed(parsed);
-          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false });
+          sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false }).catch((e) => reportChatFailure(e, "post the roll to the chat"));
         } else {
           await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: false });
         }

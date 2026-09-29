@@ -4,6 +4,7 @@ import { playDiceRollSound } from "@/lib/dice/diceAudio";
 import type { DieSize, RollMode, RollResult, DieResult } from "@/lib/dice/dice";
 import { useDicePrefs } from "@/composables/dice/useDicePrefs";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 
 export interface PromptedRollArgs {
   counts: Partial<Record<DieSize, number>>;
@@ -47,6 +48,7 @@ function buildLabel(
 export function usePromptedRoll() {
   const { diceMode } = useDicePrefs();
   const { sendRoll } = useCampaignMessages();
+  const { reportChatFailure } = useChatSendFailure();
 
   async function promptRoll(args: PromptedRollArgs): Promise<RollResult | null> {
     const mode = args.mode ?? "normal";
@@ -77,7 +79,11 @@ export function usePromptedRoll() {
       if (args.label) result.label = args.label;
       if (args.isDamage) result.isDamage = true;
       if (!args.silent) {
-        await sendRoll(result, args.recipientUserId ?? null, args.senderName);
+        // The roll happened whether or not the table hears of it, so a failed
+        // post toasts and the caller still gets its result.
+        await sendRoll(result, args.recipientUserId ?? null, args.senderName).catch((e) =>
+          reportChatFailure(e, "post the roll to the chat"),
+        );
       }
     }
     return result;

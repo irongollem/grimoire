@@ -101,6 +101,7 @@ import {
 } from "@/lib/dungeon-features/lootTableRoll";
 import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import type { LootTable } from "@/types/lootTable.types";
 import type { Item } from "@/types/item.types";
 import type { LootChestAtom, LootChestMetadata } from "@/types/chat.types";
@@ -201,6 +202,7 @@ function closeDropDialog() {
 }
 
 const { sendLootChest } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 
 async function onDrop() {
   const cap = effectiveCap.value;
@@ -219,6 +221,9 @@ async function onDrop() {
   try {
     await sendLootChest(metadata);
     closeDropDialog();
+  } catch (e) {
+    // The dialog stays open so the roll is not lost and the drop can be retried.
+    reportChatFailure(e, "drop the loot chest to the chat");
   } finally {
     dropping.value = false;
   }

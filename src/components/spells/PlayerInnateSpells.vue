@@ -174,6 +174,7 @@ import {
 } from "@/composables/party/useCharacterSpells";
 import { useCastCharacterSpell, useParty } from "@/composables/party/useParty";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useUiStore } from "@/stores/ui";
@@ -212,6 +213,7 @@ const { data: allEntries } = useCharacterSpellsWithDetails(
 const { mutate: removeById, isPending: isRemoving } = useRemoveCharacterSpellById();
 const { mutateAsync: commitCast, isPending: isCasting } = useCastCharacterSpell();
 const { sendFlavorMessage, sendRoll } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
 const { data: partyList } = useParty();
 const { prepareConcentration } = useConcentration();
@@ -289,7 +291,7 @@ async function rollInnateDamage(entry: CharacterSpellEntry) {
     const counts = parsedToCounts(parsed.terms);
     if (Object.keys(counts).length === 0) {
       const { total, breakdown } = rollParsed(parsed);
-      void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
+      sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true }).catch((e) => reportChatFailure(e, "post the roll to the chat"));
     } else {
       await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });
     }
@@ -308,7 +310,7 @@ async function rollInnateHealing(entry: CharacterSpellEntry) {
   const counts = parsedToCounts(parsed.terms);
   if (Object.keys(counts).length === 0) {
     const { total, breakdown } = rollParsed(parsed);
-    void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false });
+    sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false }).catch((e) => reportChatFailure(e, "post the roll to the chat"));
   } else {
     await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: false });
   }
@@ -346,8 +348,8 @@ async function castSpell(entry: CharacterSpellEntry) {
       text += ` (DC ${saveDc} ${spell.save_attribute ?? ""})`;
     }
     if (entry.source_label) text += ` [${entry.source_label}]`;
-    await sendFlavorMessage(text, "spell");
-    if (concentrationState) await sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name);
+    await sendFlavorMessage(text, "spell").catch((e) => reportChatFailure(e, "announce the cast in the chat"));
+    if (concentrationState) await sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name).catch((e) => reportChatFailure(e, "announce the cast in the chat"));
 
     if (spell.mechanics_reviewed !== false && spell.effects?.length) {
       openEffectResolution(entry);

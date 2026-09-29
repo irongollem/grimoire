@@ -9,6 +9,7 @@ import {
   useReorderInventoryItems,
 } from "@/composables/items/usePartyInventory";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import type {
   PartyInventoryItem,
   InventoryLocation,
@@ -40,6 +41,7 @@ export function useInventoryMutations({
   const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
   const { mutate: reorderInventoryItems } = useReorderInventoryItems();
   const { sendItemDrop, sendPlayerOffer } = useCampaignMessages();
+  const { reportChatFailure } = useChatSendFailure();
 
   // ── Container picker ──────────────────────────────────────────────────────────
   const showContainerPicker = ref(false);
@@ -140,17 +142,23 @@ export function useInventoryMutations({
     const linkedItem = ref
       ? (allItems.value?.find((it) => it.id === ref) ?? null)
       : null;
-    await sendItemDrop(
-      inv.name,
-      // `ref`, not `inv.item_id` — it is resolved two lines up and was then
-      // ignored here. A library-sourced row keeps its reference in
-      // `library_item_id`, so passing the raw column dropped it and the claim
-      // landed as unlinked free text. Third instance of the same miss; the
-      // other two were in PartyInventoryInline and NpcInventorySection.
-      ref,
-      inv.quantity,
-      linkedItem?.rarity ?? null,
-    );
+    // Post first, remove after: a failed post must not cost the player the item.
+    try {
+      await sendItemDrop(
+        inv.name,
+        // `ref`, not `inv.item_id` — it is resolved two lines up and was then
+        // ignored here. A library-sourced row keeps its reference in
+        // `library_item_id`, so passing the raw column dropped it and the claim
+        // landed as unlinked free text. Third instance of the same miss; the
+        // other two were in PartyInventoryInline and NpcInventorySection.
+        ref,
+        inv.quantity,
+        linkedItem?.rarity ?? null,
+      );
+    } catch (e) {
+      reportChatFailure(e, "drop the item to the chat");
+      return;
+    }
     await removeInventoryItem(inv.id);
   }
 
@@ -294,22 +302,27 @@ export function useInventoryMutations({
   ) {
     const inv = selectedInv.value;
     if (!inv || !member.value) return;
-    await sendPlayerOffer(
-      inv.name,
-      // Resolved reference, not the raw `item_id` column — a library-sourced
-      // row keeps its reference in `library_item_id`, and passing the column
-      // directly silently dropped the link for shared-content offers (same
-      // miss as `dropItemToChat` above).
-      inventoryItemRef(inv),
-      inv.id,
-      inv.quantity,
-      member.value.id,
-      pp,
-      gp,
-      ep,
-      sp,
-      cp,
-    );
+    try {
+      await sendPlayerOffer(
+        inv.name,
+        // Resolved reference, not the raw `item_id` column — a library-sourced
+        // row keeps its reference in `library_item_id`, and passing the column
+        // directly silently dropped the link for shared-content offers (same
+        // miss as `dropItemToChat` above).
+        inventoryItemRef(inv),
+        inv.id,
+        inv.quantity,
+        member.value.id,
+        pp,
+        gp,
+        ep,
+        sp,
+        cp,
+      );
+    } catch (e) {
+      reportChatFailure(e, "send the offer to the chat");
+      return;
+    }
     selectedInv.value = null;
   }
 

@@ -1,6 +1,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import type { ConcentrationState, PartyMember } from "@/types/party.types";
 import type { Spell } from "@/types/spell.types";
@@ -26,6 +27,7 @@ export function useConcentration() {
   const { mutateAsync: updateMember } = useUpdatePartyMember();
   const { confirm } = useConfirm();
   const { sendFlavorMessage } = useCampaignMessages();
+  const { reportChatFailure } = useChatSendFailure();
   const { promptRoll } = usePromptedRoll();
 
   async function prepareConcentration(
@@ -63,7 +65,9 @@ export function useConcentration() {
     const state = await prepareConcentration(member, spell, opts);
     if (!state) return false;
     await updateMember({ id: member.id, update: { concentration: state } });
-    void sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name);
+    sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name).catch((e) =>
+      reportChatFailure(e, "announce the concentration in the chat"),
+    );
     return true;
   }
 
@@ -77,7 +81,9 @@ export function useConcentration() {
     await updateMember({ id: member.id, update: { concentration: null } });
     if (!opts.silent) {
       const tail = opts.reason ? ` (${opts.reason})` : "";
-      void sendFlavorMessage(`concentration on ${prevName} ends${tail}`, prevName);
+      sendFlavorMessage(`concentration on ${prevName} ends${tail}`, prevName).catch((e) =>
+        reportChatFailure(e, "announce the end of concentration in the chat"),
+      );
     }
   }
 

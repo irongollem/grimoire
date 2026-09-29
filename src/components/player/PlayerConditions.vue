@@ -82,6 +82,7 @@
 import { computed } from "vue";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import {
@@ -99,6 +100,7 @@ const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifie
 
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { sendRoll } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
 const { ruleset } = useRuleset();
 
@@ -150,6 +152,6 @@ async function rollDeathSave() {
   await updateMember({ id: props.member.id, update });
   const label = `${name} — Death Save (${outcome})`;
   emit("roll", { label, dice: d, modifier: 0, total: d });
-  await sendRoll({ ...r, label });
+  await sendRoll({ ...r, label }).catch((e) => reportChatFailure(e, "post the death save to the chat"));
 }
 </script>

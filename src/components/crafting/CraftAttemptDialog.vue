@@ -191,6 +191,8 @@ import { IconCheckCircle, IconClose, IconCloseCircle, IconDiceRoll, IconWarning 
 import { getDiscipline } from "@/lib/crafting-disciplines";
 import { useAttemptCraft } from "@/composables/crafting/useCrafting";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { chatFailureMessage } from "@/composables/campaign/chatSendErrors";
+import { reportHandledError } from "@/lib/observability/sentry";
 
 import type { CraftingRecipe, CraftingOutput, CraftingModifier, CraftingAttemptResult } from "@/types/crafting.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
@@ -455,7 +457,12 @@ async function attempt() {
     else if (res.outcome === "ruin") msg += `\n💀 **Critical failure!** Primary ingredient ruined.`;
     else msg += `\n❌ **Failed.** Ingredients consumed.`;
 
-    sendMessage(msg);
+    // The attempt already happened, so a failed post must not read as a failed craft:
+    // it surfaces inline (no toast here, on purpose) and the result stays on screen.
+    await sendMessage(msg).catch((e) => {
+      reportHandledError(e, "craft-attempt-chat-post");
+      attemptError.value = chatFailureMessage("post the result to the chat");
+    });
   } catch (err) {
     attemptError.value = err instanceof Error ? err.message : "An unexpected error occurred.";
   } finally {

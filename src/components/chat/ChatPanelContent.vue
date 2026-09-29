@@ -265,7 +265,7 @@
 
     <!-- Whisper target selector -->
     <div
-      v-if="members && members.length > 1"
+      v-if="otherMembers.length"
       class="pb-2 shrink-0 px-2 pt-1.5 flex items-center gap-2"
     >
       <span
@@ -375,6 +375,7 @@ import type { DieSize, RollMode, RollResult } from "@/lib/dice/dice";
 import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
 import { COINS, type CoinKey, toCP } from "@/rules/currency";
 import { useAuthStore } from "@/stores/auth";
+import { useWhisperRecipients } from "@/composables/campaign/useWhisperRecipients";
 import { useUiStore } from "@/stores/ui";
 
 const ui = useUiStore();
@@ -593,8 +594,9 @@ watch(
 );
 
 // ── Members for whisper ────────────────────────────────────────────────────────
+const { allowedIds, whisperable } = useWhisperRecipients();
 const otherMembers = computed(() =>
-  (props.members ?? []).filter((m) => m.user_id !== auth.user?.id),
+  whisperable((props.members ?? []).filter((m) => m.user_id !== auth.user?.id)),
 );
 
 /** Priority: linked character name → display_name → email prefix → "Player" */
@@ -617,6 +619,9 @@ function recipientName(userId: string): string {
 
 // ── Whisper target ─────────────────────────────────────────────────────────────
 const whisperTarget = ref<string>("");
+watch(allowedIds, (allowed) => {
+  if (whisperTarget.value && !allowed.has(whisperTarget.value)) whisperTarget.value = "";
+});
 
 // ── Input ──────────────────────────────────────────────────────────────────────
 const inputText = ref("");

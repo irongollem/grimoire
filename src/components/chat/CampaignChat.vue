@@ -26,7 +26,7 @@
         :focus-request="ui.chatFocusRequest"
         @send="handleSend"
         @send-roll="handleRoll"
-        @delete="deleteMessage"
+        @delete="handleDelete"
         @delete-all="handleDeleteAll"
         @claim="handleClaim"
         @grab="handleGrab"
@@ -87,7 +87,7 @@
         :focus-request="ui.chatFocusRequest"
         @send="handleSend"
         @send-roll="handleRoll"
-        @delete="deleteMessage"
+        @delete="handleDelete"
         @delete-all="handleDeleteAll"
         @claim="handleClaim"
         @grab="handleGrab"
@@ -112,6 +112,8 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
+import { useToast } from "@/composables/useToast";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useItems } from "@/composables/items/useItems";
@@ -195,6 +197,8 @@ const ui = useUiStore();
 const auth = useAuthStore();
 const { messages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
+const toast = useToast();
+const { reportChatFailure, reportMessageFailure } = useChatSendFailure();
 // The chat widget is mounted on every DM page so it can raise the unread badge,
 // but members / party / item catalogue / NPCs are only ever read by the panel's
 // own UI and its claim handlers. Gate them on the panel actually being open —
@@ -316,7 +320,11 @@ async function handleClaimCurrency({ messageId }: { messageId: string }) {
 }
 
 async function handleSendVendorOffer(payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number }) {
-  await sendVendorOffer(payload.description, payload.itemName, payload.itemId, payload.pp, payload.gp, payload.ep, payload.sp, payload.cp);
+  try {
+    await sendVendorOffer(payload.description, payload.itemName, payload.itemId, payload.pp, payload.gp, payload.ep, payload.sp, payload.cp);
+  } catch (e) {
+    reportChatFailure(e, "post the offer to the chat");
+  }
 }
 
 async function handlePayVendorOffer({ messageId }: { messageId: string }) {
@@ -388,7 +396,11 @@ async function handleSend({
   text: string;
   recipientUserId: string | null;
 }) {
-  await sendMessage(text, recipientUserId);
+  try {
+    await sendMessage(text, recipientUserId);
+  } catch (e) {
+    reportMessageFailure(e, recipientUserId !== null);
+  }
 }
 async function handleRoll({
   result,
@@ -397,7 +409,11 @@ async function handleRoll({
   result: RollResult;
   recipientUserId: string | null;
 }) {
-  await sendRoll(result, recipientUserId);
+  try {
+    await sendRoll(result, recipientUserId);
+  } catch (e) {
+    reportMessageFailure(e, recipientUserId !== null);
+  }
 }
 
 async function handleClaimLootChest({ messageId, atomId }: { messageId: string; atomId: string }) {
@@ -424,9 +440,12 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
   try {
     await claimLootChestAtom(messageId, atomId, claimerName);
   } catch (e) {
-    // Lost the race / chest empty / item already claimed.
-    // The chest UI re-renders from realtime so the user sees the new state immediately.
-    // TODO: surface this as a toast notification.
+    // Losing the race is normal: another player's click took the lock first
+    // (claim_loot_chest_atom raises these two), and the chest re-renders from
+    // realtime. Anything else is a real failure.
+    const lostRace = e instanceof Error && /^(Item already claimed|Chest is empty)$/.test(e.message);
+    if (lostRace) toast.info("Someone else claimed that first.");
+    else reportChatFailure(e, "claim that from the chest");
     return;
   }
 
@@ -489,7 +508,19 @@ async function handleClaimToNpc({ messageId, npcId, npcName }: { messageId: stri
 
 async function handleDeleteAll() {
   if (!confirm("Delete all messages in this chat? This cannot be undone.")) return;
-  await deleteAllMessages();
+  try {
+    await deleteAllMessages();
+  } catch (e) {
+    reportChatFailure(e, "delete the messages");
+  }
+}
+
+async function handleDelete(id: string) {
+  try {
+    await deleteMessage(id);
+  } catch (e) {
+    reportChatFailure(e, "delete the message");
+  }
 }
 </script>
 

@@ -199,16 +199,7 @@
           :currency-pools="form.reward_currency_pools"
           @update:item-ids="form.item_ids = $event"
           @update:currency-pools="form.reward_currency_pools = $event"
-          @drop-pool="
-            sendCurrencyDrop(
-              $event.pp,
-              $event.gp,
-              $event.ep,
-              $event.sp,
-              $event.cp,
-              $event.label || undefined,
-            )
-          "
+          @drop-pool="handleDropLootPool($event)"
           @drop-item="handleDropLootItem($event.item, $event.qty)"
         />
 
@@ -268,6 +259,7 @@ import { useQuestsForEncounter } from "@/composables/quests/useQuests";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { supabase } from "@/lib/supabase";
 import {
   DEFAULT_FACTIONS,
@@ -344,6 +336,7 @@ const { data: allItems } = useItems();
 const { data: allTraps } = useTraps(() => ({ includeAllScopes: true }));
 const { data: pickableTraps } = useTraps();
 const { sendCurrencyDrop, sendItemDrop } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { data: allLocations } = useAllLocations();
 const { data: linkedQuests } = useQuestsForEncounter(
   computed(() => props.encounter?.id ?? ""),
@@ -630,11 +623,32 @@ async function toggleFinished() {
   });
 }
 
+async function handleDropLootPool(pool: {
+  pp: number;
+  gp: number;
+  ep: number;
+  sp: number;
+  cp: number;
+  label?: string | null;
+}) {
+  try {
+    await sendCurrencyDrop(pool.pp, pool.gp, pool.ep, pool.sp, pool.cp, pool.label || undefined);
+  } catch (e) {
+    reportChatFailure(e, "drop the coins to the chat");
+  }
+}
+
 async function handleDropLootItem(
   item: import("@/types/item.types").Item,
   qty: number,
 ) {
-  await sendItemDrop(item.name, item.id, qty, item.rarity ?? null);
+  // Post first, remove after: a failed post must not drop the item from the encounter's loot.
+  try {
+    await sendItemDrop(item.name, item.id, qty, item.rarity ?? null);
+  } catch (e) {
+    reportChatFailure(e, "drop the item to the chat");
+    return;
+  }
   removeAllOfItem(item.id);
   await handleSave();
 }

@@ -135,6 +135,7 @@ import type { RollMode } from "@/lib/dice/roller";
 import { parsedToCounts } from "@/lib/dice/dice";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { validateCustomAttack, customAttackDamageExpression } from "@/rules/customAttack";
 import { signedNum } from "@/rules/weaponAttack";
@@ -154,6 +155,7 @@ const emit = defineEmits<{
 
 const { promptRoll } = usePromptedRoll();
 const { sendRoll } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 
 // Local optimistic array — mirrors the weapon_masteries pattern in PlayerCombatTab,
@@ -197,7 +199,7 @@ async function rollDamage(attack: CustomAttack) {
     // Flat expression (e.g. "4") — no physical-dice prompt needed.
     const { total, breakdown } = rollParsed(parsed);
     emit("roll", { label, dice: total - parsed.modifier, modifier: parsed.modifier, total });
-    void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
+    sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true }).catch((e) => reportChatFailure(e, "post the roll to the chat"));
     return;
   }
   const result = await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });

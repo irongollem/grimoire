@@ -1,5 +1,6 @@
 import { inventoryItemRef } from "@/lib/itemRef";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/items/usePartyInventory";
 import { consumeOneFromStack } from "@/composables/encounters/useAmmoConsumption";
 import type { PartyInventoryItem } from "@/types/inventory.types";
@@ -17,24 +18,32 @@ import type { Item } from "@/types/item.types";
  */
 export function useThrownWeapon() {
   const { sendItemDrop } = useCampaignMessages();
+  const { reportChatFailure } = useChatSendFailure();
   const updateInventoryItem = useUpdateInventoryItem();
   const removeInventoryItem = useRemoveInventoryItem();
 
   async function throwWeapon(inv: PartyInventoryItem, item: Item | null, senderName?: string) {
     // Land one on the ground — a normal recoverable chat drop anyone can grab.
-    await sendItemDrop(
-      inv.name,
-      // The resolved reference, not the raw column: a library-sourced weapon
-      // keeps its catalogue link in `library_item_id`, and passing `item_id`
-      // put it on the ground as unlinked free text.
-      inventoryItemRef(inv),
-      1,
-      item?.rarity ?? "mundane",
-      senderName,
-      item?.image_url ?? null,
-      item?.description ?? null,
-      false,
-    );
+    // Post first, consume after: a failed post must not use up the weapon.
+    // Handled here because both callers fire and forget.
+    try {
+      await sendItemDrop(
+        inv.name,
+        // The resolved reference, not the raw column: a library-sourced weapon
+        // keeps its catalogue link in `library_item_id`, and passing `item_id`
+        // put it on the ground as unlinked free text.
+        inventoryItemRef(inv),
+        1,
+        item?.rarity ?? "mundane",
+        senderName,
+        item?.image_url ?? null,
+        item?.description ?? null,
+        false,
+      );
+    } catch (e) {
+      reportChatFailure(e, "drop the thrown weapon to the chat");
+      return;
+    }
     // Remove it from the wielder's equipped stack.
     consumeOneFromStack(inv, { updateInventoryItem, removeInventoryItem });
   }

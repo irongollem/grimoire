@@ -200,6 +200,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { TRAP_TYPE_VAR } from "@/types/trap.types";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { parseExpression } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
 import type { DieSize, RollResult } from "@/lib/dice/roller";
@@ -220,6 +221,7 @@ const emit = defineEmits<{
 
 const store = useEncounterRunStore();
 const { sendRoll, sendSystemMessage } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { data: companions } = useCompanions();
 
 // ── Trap detail ───────────────────────────────────────────────────────────────
@@ -279,7 +281,9 @@ function actionDiceLabel(desc: string): string {
 
 async function postRollToChat(result: RollResult, senderName: string) {
   if (chatMode.value === "silent") return;
-  await sendRoll(result, null, senderName);
+  await sendRoll(result, null, senderName).catch((e) =>
+    reportChatFailure(e, "post the roll to the chat"),
+  );
 }
 
 function rollAttack(attackBonus: number, actionName: string, onResolved?: (rolled: boolean) => void) {
@@ -359,7 +363,7 @@ async function announceSpellSave(spell: SpellType, dc: number) {
   await sendSystemMessage(
     `casts ${spell.name} — DC ${dc} ${ability} saving throw${effect}`,
     selectedMember.value?.name ?? selectedCombatant.value?.name ?? "Player",
-  );
+  ).catch((e) => reportChatFailure(e, "announce the saving throw in the chat"));
 }
 
 // ── Combatant selection ───────────────────────────────────────────────────────

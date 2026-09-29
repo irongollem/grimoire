@@ -100,12 +100,14 @@
 import { ref, computed } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import AppButton from "@/components/common/AppButton.vue";
 
 const store = useEncounterRunStore();
 // Chat posting is best-effort from the runner — sendSystemMessage no-ops
-// without an active campaign and swallows a failed insert.
+// without an active campaign, and a failed insert toasts without blocking the action.
 const { sendSystemMessage } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 
 const showSurprise = ref(false);
 const surprisedCount = computed(() => store.combatants.filter((c) => c.surprised).length);
@@ -152,13 +154,17 @@ async function fireLairAction(action: { name: string; description: string }) {
   const owner = store.combatants.find((c) => c.instance_id === store.lairOwnerInstanceId);
   if (!owner) return;
   store.markLairFired();
-  await sendSystemMessage(`uses Lair Action: ${action.name}`, `⚔ ${owner.name} (lair)`);
+  await sendSystemMessage(`uses Lair Action: ${action.name}`, `⚔ ${owner.name} (lair)`).catch((e) =>
+    reportChatFailure(e, "announce the lair action in the chat"),
+  );
 }
 
 async function fireLegendaryAction(instanceId: string, name: string, action: { name: string; description: string }) {
   const cost = actionCost(action.name);
   const spent = store.spendLegendaryActions(instanceId, cost);
   if (spent === 0) return;
-  await sendSystemMessage(`uses legendary action: ${action.name}`, `⚔ ${name}`);
+  await sendSystemMessage(`uses legendary action: ${action.name}`, `⚔ ${name}`).catch((e) =>
+    reportChatFailure(e, "announce the legendary action in the chat"),
+  );
 }
 </script>

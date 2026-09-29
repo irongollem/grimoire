@@ -144,12 +144,14 @@ import { IconAdd, IconClose, IconCoins } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 
 const model = defineModel<RewardCurrencyPool[]>({ required: true });
 defineProps<{ embedded?: boolean }>();
 
 const { sendCurrencyDrop } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 
 const COIN_TYPES = [
   { key: "pp", label: "PP", color: "#a855f7" },
@@ -181,6 +183,10 @@ function updatePool(id: string, key: string, value: string | number) {
 }
 
 async function drop(pool: RewardCurrencyPool) {
-  await sendCurrencyDrop(pool.pp, pool.gp, pool.ep, pool.sp, pool.cp, pool.label || undefined);
+  try {
+    await sendCurrencyDrop(pool.pp, pool.gp, pool.ep, pool.sp, pool.cp, pool.label || undefined);
+  } catch (e) {
+    reportChatFailure(e, "drop the coins to the chat");
+  }
 }
 </script>

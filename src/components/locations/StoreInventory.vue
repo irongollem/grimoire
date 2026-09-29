@@ -239,6 +239,7 @@ import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES, RARITY_PRICE_HINTS } from "@/types/item.types";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { COINS, type CoinKey, parseCoinText } from "@/rules/currency";
 
 const props = defineProps<{ locationId: string; ownerNpcName?: string | null }>();
@@ -252,6 +253,7 @@ const { mutate: addMany, isPending: isFilling } = useAddStoreItems();
 const { mutate: update } = useUpdateStoreItem(locationIdRef);
 const { mutate: removeItem } = useRemoveStoreItem(locationIdRef);
 const { sendVendorOffer } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 
 // ── Add item search ─────────────────────────────────────────────────────────────
 const search = ref("");
@@ -356,13 +358,19 @@ function toggleOffer(si: StoreItem) {
 
 async function postOffer(si: StoreItem) {
   if (!offerDesc.value.trim() || !offerHasPrice.value) return;
-  await sendVendorOffer(
-    offerDesc.value.trim(),
-    si.item.name,
-    si.item_id,
-    offerPrice.pp, offerPrice.gp, offerPrice.ep, offerPrice.sp, offerPrice.cp,
-    props.ownerNpcName ?? undefined,
-  );
+  try {
+    await sendVendorOffer(
+      offerDesc.value.trim(),
+      si.item.name,
+      si.item_id,
+      offerPrice.pp, offerPrice.gp, offerPrice.ep, offerPrice.sp, offerPrice.cp,
+      props.ownerNpcName ?? undefined,
+    );
+  } catch (e) {
+    // Keep the offer form open so the DM can retry without retyping it.
+    reportChatFailure(e, "post the offer to the chat");
+    return;
+  }
   offeringId.value = null;
 }
 </script>

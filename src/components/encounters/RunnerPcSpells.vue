@@ -59,6 +59,7 @@ import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";
 import { useCastCharacterSpell } from "@/composables/party/useParty";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useToast } from "@/composables/useToast";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
 
@@ -74,6 +75,7 @@ const props = defineProps<{
 const { mutateAsync: commitCast } = useCastCharacterSpell();
 const { prepareConcentration } = useConcentration();
 const { sendFlavorMessage } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const toast = useToast();
 const castingId = ref<string | null>(null);
 const lastCastLevels = ref<Record<string, number>>({});
@@ -160,8 +162,8 @@ async function cast(entry: CharacterSpellEntry) {
       castText += entry.spell.save_attribute ? ` (DC ${saveDc} ${entry.spell.save_attribute})` : ` (DC ${saveDc})`;
     }
     if (entry.source_type !== "class" && entry.source_label) castText += ` [${entry.source_label}]`;
-    await sendFlavorMessage(castText, "spell");
-    if (concentrationState) await sendFlavorMessage(`begins concentrating on ${entry.spell.name}`, entry.spell.name);
+    await sendFlavorMessage(castText, "spell").catch((e) => reportChatFailure(e, "announce the cast in the chat"));
+    if (concentrationState) await sendFlavorMessage(`begins concentrating on ${entry.spell.name}`, entry.spell.name).catch((e) => reportChatFailure(e, "announce the cast in the chat"));
     if (entry.spell.mechanics_reviewed !== false && entry.spell.effects?.length) {
       openEffectResolution(entry, resolvedCastLevel);
     } else if (entry.spell.mechanics_reviewed === false) {

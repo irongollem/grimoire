@@ -34,6 +34,7 @@ import RevealControl from "@/components/common/RevealControl.vue";
 import RevealedFieldsPanel from "@/components/common/RevealedFieldsPanel.vue";
 import NpcAlterEgoControl from "@/components/npcs/NpcAlterEgoControl.vue";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useParty } from "@/composables/party/useParty";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
 import {
@@ -54,6 +55,7 @@ const { npc, form = "button" } = defineProps<{
 const { mutate: updateNpc } = useUpdateNpc();
 const { data: partyData } = useParty();
 const { sendNarrativeEvent } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const ui = useUiStore();
 
 /** Local optimistic state, so a toggle lands without waiting for the refetch. */
@@ -88,17 +90,17 @@ const adapter: RevealAdapter = {
     const nextFields = apply(next);
     if (adding && ui.dmMode === "play") {
       const who = (partyData.value ?? []).find((m) => m.id === memberId)?.name;
-      void sendNarrativeEvent(
+      sendNarrativeEvent(
         `${who ?? "A party member"} encounters ${announcedName(nextFields)}.`,
         npc.id,
-      );
+      ).catch((e) => reportChatFailure(e, "announce the reveal in the chat"));
     }
   },
   setWholeParty: () => {
     const wasHidden = visibleTo.value.length === 0;
     const nextFields = apply((partyData.value ?? []).map((m) => m.id));
     if (wasHidden && ui.dmMode === "play") {
-      void sendNarrativeEvent(`The party encounters ${announcedName(nextFields)}.`, npc.id);
+      sendNarrativeEvent(`The party encounters ${announcedName(nextFields)}.`, npc.id).catch((e) => reportChatFailure(e, "announce the reveal in the chat"));
     }
   },
   unshare: () => void apply([]),
@@ -168,7 +170,7 @@ function setRevealed(next: boolean) {
       revealed && cover && cover !== revealed ? `${cover} is revealed to be ${revealed}.`
       : revealed ? `${revealed} has been revealed.`
       : "A disguise falls away.";
-    void sendNarrativeEvent(msg, npc.id);
+    sendNarrativeEvent(msg, npc.id).catch((e) => reportChatFailure(e, "announce the reveal in the chat"));
   }
 }
 </script>

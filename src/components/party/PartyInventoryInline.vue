@@ -196,6 +196,7 @@ import { ITEM_TYPE_LABELS, RARITY_SURFACE_BG } from "@/types/item.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import type { PartyMember } from "@/types/party.types";
 import { inventoryItemRef, itemRefColumns, type ItemRefColumns } from "@/lib/itemRef";
 
@@ -204,6 +205,7 @@ const { party } = defineProps<{ party: PartyMember[] }>();
 const router = useRouter();
 const campaign = useCampaignStore();
 const { sendItemDrop } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { data: inventoryAll } = usePartyInventory();
 const inventory = computed(() => (inventoryAll.value ?? []).filter((i) => i.carried_by === null));
 const { mutateAsync: addInventoryItem, isPending: addingItem } = useAddInventoryItem();
@@ -334,7 +336,13 @@ async function dropInventoryItemToChat(item: { id: string; name: string; quantit
   const linked = item.item_id ? catalogItemMap.value.get(item.item_id) : undefined;
   // The resolved reference, so a library item does not arrive in chat as
   // unlinked free text.
-  await sendItemDrop(item.name, inventoryItemRef(item), item.quantity, linked?.rarity ?? null);
+  // Post first, remove after: a failed post must not cost the party the item.
+  try {
+    await sendItemDrop(item.name, inventoryItemRef(item), item.quantity, linked?.rarity ?? null);
+  } catch (e) {
+    reportChatFailure(e, "drop the item to the chat");
+    return;
+  }
   await removeInventoryItem(item.id);
 }
 
@@ -342,7 +350,13 @@ async function dropNewItemToChat() {
   const name = newItem.name.trim();
   if (!name) return;
   const linked = newItem.selectedItemId ? catalogItemMap.value.get(newItem.selectedItemId) : undefined;
-  await sendItemDrop(name, newItem.selectedItemId || null, newItem.quantity, linked?.rarity ?? null);
+  try {
+    await sendItemDrop(name, newItem.selectedItemId || null, newItem.quantity, linked?.rarity ?? null);
+  } catch (e) {
+    // Keep the add form as typed so the DM can retry.
+    reportChatFailure(e, "drop the item to the chat");
+    return;
+  }
   addItemOpen.value = false;
   showItemDropdown.value = false;
   newItem.name = ''; newItem.quantity = 1; newItem.carried_by = ''; newItem.notes = ''; newItem.selectedItemId = '';

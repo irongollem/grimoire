@@ -339,7 +339,8 @@ export function useCampaignMessages() {
       type: "system",
       metadata,
     };
-    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (error) throw error;
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
@@ -355,7 +356,8 @@ export function useCampaignMessages() {
       type: "chat",
       metadata: null,
     };
-    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (error) throw error;
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
@@ -377,7 +379,8 @@ export function useCampaignMessages() {
       type: "system",
       metadata: npcId ? { entity_type: "npc", entity_id: npcId } : null,
     };
-    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (error) throw error;
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
@@ -403,7 +406,8 @@ export function useCampaignMessages() {
       type: "system",
       metadata: null,
     }));
-    const { data } = await supabase.from("campaign_messages").insert(inserts).select();
+    const { data, error } = await supabase.from("campaign_messages").insert(inserts).select();
+    if (error) throw error;
     for (const row of (data ?? [])) _optimisticPush(row as CampaignMessage);
   }
 
@@ -425,7 +429,8 @@ export function useCampaignMessages() {
       type: effectiveRecipient ? "dm_roll" : "roll",
       metadata: result,
     };
-    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (error) throw error;
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
@@ -457,7 +462,8 @@ export function useCampaignMessages() {
       type: "item_drop",
       metadata,
     };
-    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (error) throw error;
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
@@ -484,7 +490,8 @@ export function useCampaignMessages() {
       type: "currency_drop",
       metadata,
     };
-    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (error) throw error;
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
@@ -506,7 +513,8 @@ export function useCampaignMessages() {
       type: "vendor_offer",
       metadata,
     };
-    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (error) throw error;
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
@@ -597,7 +605,8 @@ export function useCampaignMessages() {
       type: "loot_chest",
       metadata,
     };
-    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (error) throw error;
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
@@ -617,7 +626,8 @@ export function useCampaignMessages() {
   }
 
   async function deleteMessage(id: string) {
-    await supabase.from("campaign_messages").delete().eq("id", id);
+    const { error } = await supabase.from("campaign_messages").delete().eq("id", id);
+    if (error) throw error;
     deletedMessageIds.add(id);
     messages.value = messages.value.filter(m => m.id !== id);
   }
@@ -625,7 +635,8 @@ export function useCampaignMessages() {
   async function deleteAllMessages() {
     const cid = campaign.activeCampaignId;
     if (!cid) return;
-    await supabase.from("campaign_messages").delete().eq("campaign_id", cid);
+    const { error } = await supabase.from("campaign_messages").delete().eq("campaign_id", cid);
+    if (error) throw error;
     latestFetchId++;
     messages.value = [];
     deletedMessageIds = new Set();
@@ -666,7 +677,8 @@ export function useCampaignMessages() {
       type: "player_offer",
       metadata,
     };
-    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (error) throw error;
     if (data) _optimisticPush(data as CampaignMessage);
   }
 

@@ -261,6 +261,7 @@ import { useThrownWeapon } from "@/composables/encounters/useThrownWeapon";
 import { weaponAmmoTag, weaponUsesChargesAsAmmo } from "@/rules/ammunition";
 import { isThrownWeapon } from "@/rules/thrownWeapon";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
@@ -300,6 +301,7 @@ const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifie
 const { data: inventory } = usePartyInventory();
 const { data: allItems } = usePlayerVisibleItems();
 const { sendRoll } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
 
 // Badge next to each Attack button: "Dis" under 2014 exhaustion/conditions,
@@ -567,7 +569,7 @@ async function rollDamageLabelled(parsed: ParsedExpression, mod: number, label: 
     const { total: diceTotal, breakdown } = rollParsed(parsed);
     const total = diceTotal + mod;
     emit("roll", { label, dice: diceTotal, modifier: mod, total });
-    void sendRoll({ total, label, modifier: mod, breakdown, isCrit: false, isFumble: false });
+    sendRoll({ total, label, modifier: mod, breakdown, isCrit: false, isFumble: false }).catch((e) => reportChatFailure(e, "post the roll to the chat"));
     return;
   }
   const result = await promptRoll({ counts, modifier: mod + parsed.modifier, label });

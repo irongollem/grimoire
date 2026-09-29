@@ -343,6 +343,7 @@ import {
 } from "@/composables/party/useCharacterSpells";
 import { useUpdatePartyMember, useParty, useCastCharacterSpell } from "@/composables/party/useParty";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { useUiStore } from "@/stores/ui";
 import { SCHOOL_BG } from "@/types/spell.types";
@@ -416,6 +417,7 @@ const { mutate: togglePreparedMutation, isPending: isToggling } = useTogglePrepa
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { mutateAsync: commitCast } = useCastCharacterSpell();
 const { sendFlavorMessage, sendRoll } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
 const { data: partyList } = useParty();
 const { prepareConcentration } = useConcentration();
@@ -496,7 +498,7 @@ async function promptSpellSave(entry: CharacterSpellEntry) {
     entry.spell.save_effect === "half" ? " (half on save)"
     : entry.spell.save_effect === "negates" ? " (negates on save)"
     : "";
-  await sendFlavorMessage(`calls for a DC ${dc} ${ability} saving throw vs ${entry.spell.name}${effect}`, "spell");
+  await sendFlavorMessage(`calls for a DC ${dc} ${ability} saving throw vs ${entry.spell.name}${effect}`, "spell").catch((e) => reportChatFailure(e, "announce the saving throw in the chat"));
 }
 
 // ── Cast ───────────────────────────────────────────────────────────────────────
@@ -552,7 +554,7 @@ async function applyReactiveMetamagic(entry: CharacterSpellEntry, name: string) 
       characterSpellId: entry.id,
       parentCastId,
     });
-    await sendFlavorMessage(`uses ${name} on ${entry.spell.name}`, "spell");
+    await sendFlavorMessage(`uses ${name} on ${entry.spell.name}`, "spell").catch((e) => reportChatFailure(e, "announce the metamagic in the chat"));
     if (name === "Seeking Spell") await rollSpellAttack(entry);
     else toast.info("Reroll up to your Charisma modifier in damage dice; you must use the new rolls.");
   } catch (error) {
@@ -696,7 +698,7 @@ async function rollSpellDamage(entry: CharacterSpellEntry, castLevel: number, da
     const counts = parsedToCounts(parsed.terms);
     if (Object.keys(counts).length === 0) {
       const { total, breakdown } = rollParsed(parsed);
-      void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
+      sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true }).catch((e) => reportChatFailure(e, "post the roll to the chat"));
     } else {
       await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });
     }
@@ -719,7 +721,7 @@ async function rollSpellHealing(entry: CharacterSpellEntry, castLevel: number) {
   const counts = parsedToCounts(parsed.terms);
   if (Object.keys(counts).length === 0) {
     const { total, breakdown } = rollParsed(parsed);
-    void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false });
+    sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false }).catch((e) => reportChatFailure(e, "post the roll to the chat"));
   } else {
     await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: false });
   }
@@ -781,9 +783,9 @@ async function castSpell(
     } else if (castLevel > 0 && dc !== null && spell.attack_type === "save") {
       text += ` — DC ${dc} ${spell.save_attribute ?? ""}`;
     }
-    await sendFlavorMessage(text, "spell");
+    await sendFlavorMessage(text, "spell").catch((e) => reportChatFailure(e, "announce the cast in the chat"));
     if (concentrationState) {
-      await sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name);
+      await sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name).catch((e) => reportChatFailure(e, "announce the cast in the chat"));
     }
 
     if (spell.mechanics_reviewed !== false && spell.effects?.length) {

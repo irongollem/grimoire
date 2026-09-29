@@ -77,9 +77,12 @@ import AppButton from "@/components/common/AppButton.vue";
 import type { RollMode } from "@/lib/dice/roller";
 import { combineModes } from "@/lib/dice/roller";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
+import { useWhisperRecipients } from "@/composables/campaign/useWhisperRecipients";
 import { skillCheckBonus } from "@/rules/skillCheck";
 import { SKILLS } from "@/types/party.types";
 import type { PartyMember, SkillProficiencies } from "@/types/party.types";
@@ -95,10 +98,23 @@ const props = defineProps<{
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number; masked?: boolean }] }>();
 
 const { sendFlavorMessage } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
 const { data: campaignMembers } = useCampaignMembers();
 const campaignStore = useCampaignStore();
 const dmUserId = computed(() => campaignMembers.value?.find((m) => m.role === "dm")?.user_id ?? null);
+const auth = useAuthStore();
+const { allowedIds: whisperableIds } = useWhisperRecipients();
+// An immersive roll reaches the DM as a whisper, and a young player and an
+// adult who isn't their parent may not whisper each other (#927). So immersive
+// rolls don't apply between them: the check rolls openly instead. A parent and
+// their own child still play immersively, and a DM previewing as a player
+// whispers only themselves.
+const canWhisperDm = computed(() => {
+  const dm = dmUserId.value;
+  if (dm === null) return false;
+  return dm === auth.user?.id || whisperableIds.value.has(dm);
+});
 
 function signedNum(n: number) { return n >= 0 ? `+${n}` : `${n}`; }
 
@@ -155,7 +171,8 @@ function modeTag(mode: RollMode) {
 }
 
 async function rollSkill(skill: (typeof SKILLS)[number], override: RollMode | null = null) {
-  const isImmersive = campaignStore.activeCampaign?.immersive_rolls && IMMERSIVE_SKILL_KEYS.has(skill.key);
+  const isImmersive =
+    campaignStore.activeCampaign?.immersive_rolls && IMMERSIVE_SKILL_KEYS.has(skill.key) && canWhisperDm.value;
   // Player-picked mode (long-press/right-click) combined with any
   // condition-imposed disadvantage — opposing sources cancel to normal (5e RAW).
   const mode: RollMode = combineModes(
@@ -167,7 +184,7 @@ async function rollSkill(skill: (typeof SKILLS)[number], override: RollMode | nu
 
   if (isImmersive) {
     const label = `${skill.label} Check`;
-    await sendFlavorMessage(immersiveFlavor(label), skill.label);
+    await sendFlavorMessage(immersiveFlavor(label), skill.label).catch((e) => reportChatFailure(e, "announce the check in the chat"));
     const result = await promptRoll({
       counts: { 20: 1 },
       modifier,

@@ -132,6 +132,7 @@ import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useInventorySlots } from "@/composables/items/useInventorySlots";
 import { useInventoryMutations } from "@/composables/items/useInventoryMutations";
 import { inventoryItemRef } from "@/lib/itemRef";
@@ -156,6 +157,7 @@ const { data: inventory } = usePartyInventory();
 const { data: allItems } = usePlayerVisibleItems();
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const { sendCurrencyDrop } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 
 /**
  * Whose inventory this page is showing.
@@ -444,10 +446,16 @@ async function submitCoinDrop() {
     pp: coin(coinDrop.pp), gp: coin(coinDrop.gp), ep: coin(coinDrop.ep), sp: coin(coinDrop.sp), cp: coin(coinDrop.cp),
   };
   if (!COINS.some((c) => clamped[c.key] > 0)) return; // nothing droppable after clamping
-  await sendCurrencyDrop(
-    clamped.pp, clamped.gp, clamped.ep, clamped.sp, clamped.cp,
-    member.value.name ?? undefined,
-  );
+  // The purse is debited only after the drop is posted, so a failed post loses no coin.
+  try {
+    await sendCurrencyDrop(
+      clamped.pp, clamped.gp, clamped.ep, clamped.sp, clamped.cp,
+      member.value.name ?? undefined,
+    );
+  } catch (e) {
+    reportChatFailure(e, "drop the coins to the chat");
+    return;
+  }
   for (const c of COINS) {
     if (clamped[c.key] > 0) {
       setCurrency(c.key, Math.max(0, (member.value[c.key] ?? 0) - clamped[c.key]));

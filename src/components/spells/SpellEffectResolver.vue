@@ -65,6 +65,7 @@ import { effectsForCast, resolveSpellEffects } from "@/rules/spellEffects";
 import { parseExpression } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useToast } from "@/composables/useToast";
 import { metamagicReminders, metamagicTargetBonus } from "@/rules/metamagicPolicy";
 import { useRuleset } from "@/composables/rules/useRuleset";
@@ -84,6 +85,7 @@ const { spell, castLevel, characterLevel, spellcastingModifier = 0, damageTypeOv
 }>();
 const emit = defineEmits<{ close: [] }>();
 const { sendRoll, sendFlavorMessage } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
 const toast = useToast();
 const { ruleset } = useRuleset();
 const targetCount = ref(1);
@@ -163,9 +165,9 @@ async function resolveSelectedPhase() {
         const total = Math.floor(rolled.total * effect.multiplier);
         const damageType = damageTypeOverride ?? effect.damageType;
         const label = `${spell.name} — ${target}: ${effect.kind}${damageType ? ` (${damageType})` : ""}${effect.multiplier === 0.5 ? " · successful save, half" : ""}`;
-        await sendRoll({ total, label, modifier: parsed.modifier + abilityModifier, breakdown: rolled.breakdown, isCrit: outcomes[targetId] === "critical_hit", isFumble: false, isDamage: effect.kind === "damage" });
+        await sendRoll({ total, label, modifier: parsed.modifier + abilityModifier, breakdown: rolled.breakdown, isCrit: outcomes[targetId] === "critical_hit", isFumble: false, isDamage: effect.kind === "damage" }).catch((e) => reportChatFailure(e, "post the roll to the chat"));
       } else if (effect.condition || effect.description) {
-        await sendFlavorMessage(`${target}: ${effect.condition ?? effect.description}`, spell.name);
+        await sendFlavorMessage(`${target}: ${effect.condition ?? effect.description}`, spell.name).catch((e) => reportChatFailure(e, "post the effect to the chat"));
       }
     }
   } catch (error) {

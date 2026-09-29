@@ -160,7 +160,10 @@
         <div class="flex-1 min-w-0">
           <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Immersive Rolls</span>
           <p class="text-caption text-muted-foreground mt-0.5">
-            Stealth, knowledge and insight checks show only flavor text in chat. Full result whispered to DM only — player does not see their dice outcome.
+            Stealth, knowledge and insight checks show only flavor text in chat. Full result whispered to DM only. The player does not see their dice outcome.
+          </p>
+          <p class="text-caption text-muted-foreground mt-0.5">
+            Not used with young players: a young player, or an adult at a young player's table who isn't their parent, rolls openly.
           </p>
         </div>
       </label>

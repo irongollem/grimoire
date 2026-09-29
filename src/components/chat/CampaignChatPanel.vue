@@ -146,6 +146,8 @@ import { ref, computed, watch, nextTick, onMounted } from "vue";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
+import { useWhisperRecipients } from "@/composables/campaign/useWhisperRecipients";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useAuthStore } from "@/stores/auth";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -160,6 +162,8 @@ const { messages, loading, loadingOlder, hasOlder, loadOlder, sendMessage } = us
 const { data: partyMembers } = useParty();
 const { data: members } = useCampaignMembers();
 const auth = useAuthStore();
+const { reportMessageFailure } = useChatSendFailure();
+const { allowedIds, whisperable } = useWhisperRecipients();
 
 const chatInput = ref("");
 const scrollEl = ref<HTMLElement | null>(null);
@@ -167,8 +171,12 @@ const whisperTarget = ref<string>("");
 let prependAnchor: { height: number; top: number } | null = null;
 
 const otherMembers = computed(() =>
-  (members.value ?? []).filter((m) => m.user_id !== auth.user?.id),
+  whisperable((members.value ?? []).filter((m) => m.user_id !== auth.user?.id)),
 );
+
+watch(allowedIds, (allowed) => {
+  if (whisperTarget.value && !allowed.has(whisperTarget.value)) whisperTarget.value = "";
+});
 
 function bestName(member: CampaignMember): string {
   if (member.party_member_id) {
@@ -231,8 +239,14 @@ watch(
 async function sendChat() {
   const text = chatInput.value.trim();
   if (!text) return;
+  const recipient = whisperTarget.value || null;
   chatInput.value = "";
-  await sendMessage(text, whisperTarget.value || null);
+  try {
+    await sendMessage(text, recipient);
+  } catch (e) {
+    chatInput.value = text;
+    reportMessageFailure(e, recipient !== null);
+  }
 }
 
 const { chatLocale } = useLocalePrefs();
