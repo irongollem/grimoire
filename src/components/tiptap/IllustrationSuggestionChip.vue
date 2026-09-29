@@ -3,8 +3,8 @@
     <button
       type="button"
       class="illus-chip"
-      :class="isEditable ? 'illus-chip--editor' : 'illus-chip--viewer'"
-      :title="isEditable ? `Click to generate illustration: ${prompt}` : prompt"
+      :class="canGenerate ? 'illus-chip--editor' : 'illus-chip--viewer'"
+      :title="canGenerate ? `Click to generate illustration: ${prompt}` : prompt"
       @click="handleClick"
     >
       <IconImage class="illus-icon" />
@@ -12,7 +12,7 @@
         <span class="illus-prefix font-cinzel">Illustration suggestion</span>
         <span class="illus-prompt">{{ truncated }}</span>
       </span>
-      <IconGenerate v-if="isEditable" class="illus-action-icon" />
+      <IconGenerate v-if="canGenerate" class="illus-action-icon" />
     </button>
   </NodeViewWrapper>
 </template>
@@ -21,11 +21,16 @@
 import { computed } from "vue";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import { IconGenerate, IconImage } from '@/lib/icons';
+import { useCampaignStore } from "@/stores/campaign";
 import type { IllustrationSuggestionOptions } from "@/lib/tiptap/IllustrationSuggestion";
 
 const props = defineProps({ ...nodeViewProps });
 
+const campaignStore = useCampaignStore();
 const isEditable = computed(() => props.editor.isEditable);
+// The chip only offers to generate when AI is on; with AI off it reads as a
+// plain note, like it does for a viewer.
+const canGenerate = computed(() => isEditable.value && campaignStore.isAiEnabled);
 const prompt     = computed(() => (props.node.attrs.prompt as string) || "");
 const truncated  = computed(() => {
   const p = prompt.value;
@@ -33,7 +38,7 @@ const truncated  = computed(() => {
 });
 
 function handleClick() {
-  if (!isEditable.value) return;
+  if (!canGenerate.value) return;
   const options = props.extension.options as IllustrationSuggestionOptions;
   options.onPromptClick?.(prompt.value);
 }

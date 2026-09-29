@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import MonsterFormCard from "./MonsterFormCard.vue";
+import { buildAiProvenance } from "@/ai/provenance";
 import type { Monster } from "@/types/monster.types";
 
 /**
@@ -66,5 +67,30 @@ describe("MonsterFormCard", () => {
     });
     expect(wrapper.text()).toContain("1/4");
     expect(wrapper.text()).not.toContain(CR_UNKNOWN);
+  });
+
+  it("badges the art for a viewer who did not generate it", () => {
+    const withProv = mount(MonsterFormCard, {
+      props: {
+        monster: monster(null),
+        name: "Grell",
+        imageUrl: "https://cdn.test/grell.webp",
+        aiProvenance: buildAiProvenance("monster_generation", "openai", "gpt-image"),
+      },
+      global: { stubs: { FocalImage: true } },
+    });
+    expect(withProv.text()).toContain("AI");
+    const without = mount(MonsterFormCard, {
+      props: { monster: monster(null), name: "Grell", imageUrl: "https://cdn.test/grell.webp" },
+      global: { stubs: { FocalImage: true } },
+    });
+    expect(without.text()).not.toContain("AI");
+  });
+
+  it("does not badge the initial placeholder when there is no image", () => {
+    const w = mount(MonsterFormCard, {
+      props: { monster: monster(null), name: "Grell", imageUrl: null, aiProvenance: buildAiProvenance("monster_generation", "openai", "gpt-image") },
+    });
+    expect(w.text()).not.toContain("AI");
   });
 });

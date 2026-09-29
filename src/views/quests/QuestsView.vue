@@ -9,6 +9,7 @@
 
     <template #actions>
       <ListActionButton
+        v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
         @click="ui.questGeneratorOpen = true"
@@ -108,11 +109,14 @@ import QuestList from "@/components/quests/QuestList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import { useAllQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/quests/useQuests";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { countQuestBoardFilters } from "@/lib/quests/board";
 
 const ui = useUiStore();
+const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { data: entityOptions } = useQuestFilterEntities();
 const { data: allQuests } = useAllQuests();
 const { data: campaignRefs } = useCampaignQuestRefs();

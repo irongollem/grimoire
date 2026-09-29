@@ -34,6 +34,7 @@
         @click="toggleSelecting"
       />
       <ListActionButton
+        v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
         @click="ui.itemGeneratorOpen = true"
@@ -175,6 +176,7 @@ const {
   pruneTo,
 } = useBulkSelection();
 const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const itemListRef = ref<InstanceType<typeof ItemList> | null>(null);
 
 function toggleSelecting() {

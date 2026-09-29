@@ -2,15 +2,17 @@
   <div class="flex flex-col h-full">
     <div class="h-1 w-full shrink-0" :class="crBg(monster?.stat_block?.challenge_rating)" />
     <div class="flex flex-1">
-      <div class="shrink-0 w-20 h-24 bg-muted overflow-hidden">
-        <FocalImage
-          v-if="imageUrl"
-          :src="imageUrl"
-          :alt="name"
-          format="portrait"
-          :focal-point="monster?.portrait_focal_point"
-          class="group-hover:scale-105 transition-transform duration-300"
-        />
+      <div class="relative shrink-0 w-20 h-24 bg-muted overflow-hidden">
+        <template v-if="imageUrl">
+          <FocalImage
+            :src="imageUrl"
+            :alt="name"
+            format="portrait"
+            :focal-point="monster?.portrait_focal_point"
+            class="group-hover:scale-105 transition-transform duration-300"
+          />
+          <AiGeneratedBadge variant="chip" :provenance="aiProvenance" />
+        </template>
         <div
           v-else
           class="w-full h-full flex items-center justify-center text-title font-bold"
@@ -51,6 +53,8 @@
 
 <script setup lang="ts">
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
+import type { AiProvenance } from "@/ai/provenance";
 // `PlayerVisibleMonster` rather than `Monster` (#842): this card renders on
 // player surfaces, where the projection nulls `stat_block` for an unrevealed
 // creature. A full `Monster` still satisfies it, so DM callers are unaffected —
@@ -63,6 +67,8 @@ defineProps<{
   monster: PlayerVisibleMonster | null;
   name: string;
   imageUrl: string | null;
+  /** Provenance of the creature's art; set by player surfaces, where the viewer did not generate it. */
+  aiProvenance?: AiProvenance | null;
   revealStats?: boolean;
 }>();
 </script>

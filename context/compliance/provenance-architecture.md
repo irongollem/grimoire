@@ -90,7 +90,10 @@ Material human edit flips `edited: true` (never removes the record).
 
 `AiGeneratedBadge` (common component) renders from `ai_provenance` /
 image-job provenance wherever the viewer isn't the generator: player portal
-recap + scene art, shared minis, group portraits. Promo reuse of Chronicler
+recap + scene art, shared minis, group portraits, and the player NPC, location,
+monster (bestiary) and puzzle images (`PlayerNpcCard`, `EntityLightbox`,
+`PlayerLocationDetailPanel`, `MonsterFormCard`, the puzzle views). The chip's
+corner is a prop (`corner="left"`) for hosts whose right corner is taken. Promo reuse of Chronicler
 images is labelled at the marketing surface.
 
 ### 8. Log hardening (#609)

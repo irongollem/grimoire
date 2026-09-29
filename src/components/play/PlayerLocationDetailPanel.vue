@@ -5,7 +5,7 @@
       <button
         v-if="loc.image_url"
         type="button"
-        class="w-14 shrink-0 rounded-md overflow-hidden aspect-3/4 cursor-zoom-in"
+        class="relative w-14 shrink-0 rounded-md overflow-hidden aspect-3/4 cursor-zoom-in"
         @click="$emit('lightbox', loc.image_url!)"
       >
         <FocalImage
@@ -14,6 +14,7 @@
           format="portrait"
           :focal-point="null"
         />
+        <AiGeneratedBadge variant="chip" :provenance="loc.ai_provenance" />
       </button>
       <p v-if="loc.player_summary" class="text-body text-foreground italic flex-1">
         {{ loc.player_summary }}
@@ -103,6 +104,7 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerStoreWares from "@/components/locations/PlayerStoreWares.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";

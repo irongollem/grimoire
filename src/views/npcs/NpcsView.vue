@@ -20,6 +20,7 @@
         @click="handlePopulate"
       />
       <ListActionButton
+        v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
         @click="ui.npcGeneratorOpen = true"
@@ -287,6 +288,7 @@
           variant="menu"
           size="body"
           block
+          v-if="isAiEnabled"
           label="Generate"
           @click="overflowOpen = false; ui.npcGeneratorOpen = true"
         >
@@ -368,6 +370,7 @@ type LocationOption = { id: string; name: string; depth: number };
 
 const ui = useUiStore();
 const campaign = useCampaignStore();
+const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { showPaywall, handleNew, gateQuotaError } = useCreateGate("npcs", "/npcs/new");
 const isMobile = useMediaQuery("(max-width: 767px)");
 

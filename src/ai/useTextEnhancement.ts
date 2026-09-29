@@ -24,8 +24,10 @@ export function useTextEnhancement() {
   const isEnhancing = ref(false);
   const campaign = useCampaignStore();
 
+  // The Enhance bubble menu shows only while this is true. With the
+  // campaign's AI switched off there is no menu at all, whatever key is stored.
   function hasTextProvider(): boolean {
-    return !!campaign.decryptedApiKey;
+    return campaign.isAiEnabled && !!campaign.decryptedApiKey;
   }
 
   async function enhance(
@@ -33,6 +35,7 @@ export function useTextEnhancement() {
     context: string,
     options?: EnhanceOptions,
   ): Promise<string> {
+    if (!campaign.isAiEnabled) throw new Error("AI is off for this campaign.");
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
     let systemPrompt = ENHANCE_SYSTEM_PROMPT
       .replace("{context}", context)

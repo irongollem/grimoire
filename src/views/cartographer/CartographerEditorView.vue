@@ -13,6 +13,7 @@
           @click="onDownloadPng"
         />
         <AppButton
+          v-if="isAiEnabled"
           variant="tinted"
           tone="primary"
           emphasis="outline"
@@ -71,7 +72,7 @@
 
       <CartographerAiStyleModal
         v-model:atlasLocationId="styleAtlasLocationId"
-        :show-picker="showStylePicker"
+        :show-picker="showStylePicker && isAiEnabled"
         :show-result="showStyleResult"
         :presets="CARTOGRAPHER_STYLE_PRESETS"
         :selected-preset-id="selectedPresetId"
@@ -121,6 +122,7 @@
 // actually needs one: Save, Cancel, opening Publish/AI-Style, the PNG bake.
 // See MapWorkbench's own docblock for the full exposed surface.
 import { computed, ref } from "vue";
+import { useCampaignStore } from "@/stores/campaign";
 import { useRoute, useRouter } from "vue-router";
 
 import { IconSave, IconGenerate, IconUpload } from "@/lib/icons";
@@ -154,6 +156,9 @@ const mapId = computed(() => {
   const p = route.params.id;
   return typeof p === "string" && p ? p : "";
 });
+// The AI Style control is hidden, not disabled, while the campaign owner has AI off.
+const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const isNew = computed(() => !mapId.value);
 // View vs edit mode — derived from the URL (matches the NPC/Location/Item convention).
 // `/cartographer/:id`           → view mode

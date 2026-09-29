@@ -52,6 +52,7 @@ export function useGroupPortrait() {
   }
 
   async function generateGroupPortrait() {
+    if (!store.isAiEnabled) return;
     if (!store.activeCampaignId || !store.activeCampaign) return;
     if (!(await ensureLikenessAck())) return;
     if (!requireCredits(groupPortraitCost.value, groupPortraitByok.value)) return;

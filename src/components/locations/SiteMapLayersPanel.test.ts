@@ -17,6 +17,11 @@ const mocks = vi.hoisted(() => ({
   previewLoading: false,
   previewError: null as unknown,
   previewEnabledRef: null as unknown,
+  aiEnabled: true,
+}));
+
+vi.mock("@/stores/campaign", () => ({
+  useCampaignStore: () => ({ isAiEnabled: mocks.aiEnabled }),
 }));
 
 vi.mock("@/composables/locations/useLocations", () => ({
@@ -107,6 +112,7 @@ describe("SiteMapLayersPanel", () => {
     mocks.previewLoading = false;
     mocks.previewError = null;
     mocks.previewEnabledRef = null;
+    mocks.aiEnabled = true;
   });
 
   describe("Picture row", () => {
@@ -211,6 +217,12 @@ describe("SiteMapLayersPanel", () => {
       const wrapper = mountPanel({ location: site({ source_map_id: "map-1" }), map: { name: "X", rev: 1 } });
       await findButton(wrapper, "Style with AI").trigger("click");
       expect(wrapper.emitted("style-with-ai")).toHaveLength(1);
+    });
+
+    it("hides Style with AI while the campaign's AI is off", () => {
+      mocks.aiEnabled = false;
+      const wrapper = mountPanel({ location: site({ source_map_id: "map-1" }), map: { name: "X", rev: 1 } });
+      expect(() => findButton(wrapper, "Style with AI")).toThrow();
     });
 
     it("does not offer Style with AI before there is a drawing to style", () => {

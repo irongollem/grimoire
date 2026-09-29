@@ -43,12 +43,14 @@ const ui = {
 };
 vi.mock("@/stores/ui", () => ({ useUiStore: () => ui }));
 
+const aiFlag = vi.hoisted(() => ({ on: false }));
 vi.mock("@/stores/campaign", () => ({
   // Wrapped in `reactive()`, matching the real Pinia-store shape so
   // `campaign.activeCampaign` reads back the object rather than a Ref.
   useCampaignStore: () => reactive({
     activeCampaignId: ref("camp-1"),
     activeCampaign: ref({ id: "camp-1", name: "Neverwinter" }),
+    isAiEnabled: computed(() => aiFlag.on),
   }),
 }));
 
@@ -346,3 +348,16 @@ async function flushMicrotasks() {
   await Promise.resolve();
   await Promise.resolve();
 }
+
+describe("FactionListView — AI off", () => {
+  const generateButton = (wrapper: ReturnType<typeof mountView>) =>
+    wrapper.findAll("button").find((b) => b.text().includes("Generate"));
+
+  it("hides the Generate button when the campaign's AI is off, shows it when on", () => {
+    aiFlag.on = false;
+    expect(generateButton(mountView())).toBeUndefined();
+    aiFlag.on = true;
+    expect(generateButton(mountView())).toBeDefined();
+    aiFlag.on = false;
+  });
+});

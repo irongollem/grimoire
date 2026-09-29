@@ -5,7 +5,7 @@
   <div class="events-panel">
     <div class="events-header">
       <span class="events-title">EVENTS</span>
-      <div class="events-actions">
+      <div v-if="isAiEnabled" class="events-actions">
         <button
           type="button"
           class="gen-btn"
@@ -99,12 +99,13 @@
     </div>
   </div>
 
-  <ComplicationGeneratorDialog v-model="generatorOpen" :mode="generatorMode" />
+  <ComplicationGeneratorDialog v-if="isAiEnabled" v-model="generatorOpen" :mode="generatorMode" />
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import { useCampaignStore } from "@/stores/campaign";
 import { TRAP_TYPE_VAR } from "@/types/trap.types";
 import { IconMonster, IconWarning } from "@/lib/icons";
 import ComplicationGeneratorDialog from "./ComplicationGeneratorDialog.vue";
@@ -113,6 +114,9 @@ import type { ComplicationMode } from "@/ai/useComplicationGeneration";
 const selectedTrapId = defineModel<string | null>("selectedTrapId", { required: true });
 
 const store = useEncounterRunStore();
+const campaignStore = useCampaignStore();
+// Complication / Reinforce run the campaign's AI: hidden, not disabled, when it is off.
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
 const generatorOpen = ref(false);
 const generatorMode = ref<ComplicationMode>("complication");

@@ -3,7 +3,9 @@
     EU AI Act Art 50(4) disclosure — the single read point for `ai_provenance`
     (see context/compliance/provenance-architecture.md §7). Two variants:
 
-    - `chip`   — small muted overlay for images. Positions itself
+    - `chip`   — small muted overlay for images, on screen only: it never
+                 prints (the maintainer's call, 29 Sep 2026; printed cards
+                 carry no badge, and the XMP mark stays in the file). Positions itself
                  `absolute bottom-*-right-*` — the host element must be
                  `relative`-positioned (same contract as MiniPortraitOverlay's
                  badge button).
@@ -23,7 +25,8 @@
   -->
   <span
     v-if="provenance && variant === 'chip'"
-    class="absolute bottom-1.5 right-1.5 inline-flex items-center gap-0.5 rounded bg-black/60 px-1 py-0.5 text-label text-white/90"
+    class="absolute bottom-1.5 inline-flex items-center gap-0.5 rounded bg-black/60 px-1 py-0.5 text-label text-white/90 print:hidden"
+    :class="corner === 'left' ? 'left-1.5' : 'right-1.5'"
     :title="tooltipText"
   ><IconGenerate class="h-2.5 w-2.5 shrink-0" />AI</span>
 
@@ -46,10 +49,12 @@ export interface AiBadgeProvenance {
   edited?: boolean;
 }
 
-const { variant, provenance } = defineProps<{
+const { variant, provenance, corner = "right" } = defineProps<{
   /** `chip` = absolute-positioned image overlay; `line` = inline text-draft disclosure. */
   variant: "chip" | "line";
   provenance?: AiBadgeProvenance | null;
+  /** Bottom corner the `chip` sits in; `left` for hosts whose right corner is taken (the NPC card's mini button). */
+  corner?: "left" | "right";
 }>();
 
 const lineText = computed(() =>

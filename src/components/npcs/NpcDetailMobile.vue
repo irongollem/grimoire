@@ -242,6 +242,7 @@
   <MobileSheet v-model:open="showMenu" :title="displayName">
     <div class="flex flex-col gap-1 pb-2">
       <AppButton
+        v-if="isAiEnabled"
         :to="`/npcs/${npc.id}?edit=true`"
         variant="menu"
         size="body"
@@ -324,11 +325,14 @@ import {
   npcStatusBg,
 } from "@/lib/npcDisplay";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { useCampaignStore } from "@/stores/campaign";
 import { NPC_RELATIONSHIP_LABELS, type Npc } from "@/types/npc.types";
 
 const { npc } = defineProps<{ npc: Npc }>();
 
 const router = useRouter();
+const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
 // ── Scroll-driven app bar ──────────────────────────────────────────────────────
 // The root fills the DefaultLayout <main> (which has no padding of its own) and

@@ -35,8 +35,9 @@ vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ r
 vi.mock("@/composables/ai/useProviderConfig", () => ({
   useProviderConfig: () => ({ imageMultiplierFor: () => 1 }),
 }));
+const simulacrumVisible = { value: false };
 vi.mock("@/composables/simulacrum/useSimulacrumConfig", () => ({
-  useSimulacrumConfig: () => ({ isVisible: { value: false } }),
+  useSimulacrumConfig: () => ({ isVisible: simulacrumVisible }),
 }));
 
 const hasTransparencyMock = vi.fn();
@@ -186,5 +187,26 @@ describe('EntityImageBlock — "Cut out from picture" (#917 story 5)', () => {
     await flushPromises();
 
     expect(wrapper.emitted("update:modelValue")).toBeUndefined();
+  });
+});
+
+describe("EntityImageBlock — Mini entry point", () => {
+  // The Mini button starts a paid generation flow, so it follows the AI switch.
+  const miniProps = { miniSource: { table: "npcs", id: "n1" }, modelValue: "https://cdn.test/a.webp" };
+  const miniButton = (wrapper: ReturnType<typeof mountBlock>) =>
+    wrapper.findAllComponents(AppButton).find((b) => b.props("label") === "Mini");
+
+  beforeEach(() => {
+    simulacrumVisible.value = true;
+  });
+
+  it("shows when AI is on", () => {
+    campaignMock.isAiEnabled = true;
+    expect(miniButton(mountBlock(miniProps))).toBeDefined();
+  });
+
+  it("is hidden when the campaign has AI disabled", () => {
+    campaignMock.isAiEnabled = false;
+    expect(miniButton(mountBlock(miniProps))).toBeUndefined();
   });
 });

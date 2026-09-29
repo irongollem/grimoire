@@ -158,6 +158,26 @@ this entry records the decision and its current build status.
   toggle-driven, so content generated while AI was on stays badged even if
   the campaign later switches AI off. "No AI" means no *new* AI and no AI
   features; it never means silently un-labelling history.
+- **What the switch does not cover (decided 29 Sep 2026, #933).** The switch
+  governs *generators*. Three server paths run whatever it says, because none
+  of them generates content:
+  - **Embeddings** (`embed-content`, `embed-monsters`): saving an NPC, faction,
+    location, note, item or monster sends its text to the embedding provider
+    (table in §2) to index it for search and retrieval. Search indexing is not
+    generation, and gating it would make search degrade silently for a DM who
+    said no.
+  - **`import-match`**: matching imported names against existing entities
+    uses the same embeddings (`supabase/functions/import-match/index.ts:22-30`
+    records why it is deliberately ungated).
+  - **The `mcp` server's reads and writes**: the DM's own AI client reading
+    and writing their campaign. The DM chooses that client, and a write queues
+    the same embedding as an in-app save. Its one generating tool,
+    `voice_coach`, is *not* an exception: it calls the in-app generator, which
+    refuses when the NPC's campaign has AI off.
+
+  /about-ai (grimoire-marketing) states the same exception and names the
+  content that is sent. Keep the two in step: if a fourth ungated path is ever
+  added, it goes in this list and on that page in the same change.
 
 **Implementation status, 4 Aug 2026 (end of day) — built.** The
 `ai_acknowledgements` table (migration `20260804000003`), the `ai_use` dialog

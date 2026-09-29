@@ -16,6 +16,7 @@
               :placeholder="placeholder"
               class="w-full h-full object-cover"
             />
+            <AiGeneratedBadge variant="chip" :provenance="aiProvenance" />
           </div>
           <button
             type="button"
@@ -38,6 +39,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiGeneratedBadge, { type AiBadgeProvenance } from "@/components/common/AiGeneratedBadge.vue";
 import { IconClose } from "@/lib/icons";
 
 type FocalPoint = { x: number; y: number } | null | undefined;
@@ -50,6 +52,7 @@ const {
   placeholder,
   maxWidth = "md",
   portraitHeight = "72",
+  aiProvenance,
 } = defineProps<{
   open: boolean;
   portraitSrc?: string | null;
@@ -58,6 +61,8 @@ const {
   placeholder?: string;
   maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl";
   portraitHeight?: "48" | "72";
+  /** Provenance of the portrait, for viewers who did not generate it; renders the AI badge over the image. */
+  aiProvenance?: AiBadgeProvenance | null;
 }>();
 
 defineEmits<{ close: [] }>();

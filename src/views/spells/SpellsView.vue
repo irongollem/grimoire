@@ -34,6 +34,7 @@
         @click="toggleSelecting"
       />
       <ListActionButton
+        v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
         @click="ui.spellGeneratorOpen = true"
@@ -114,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import { IconAdd, IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -164,6 +165,7 @@ const {
   pruneTo,
 } = useBulkSelection();
 const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const spellListRef = ref<InstanceType<typeof SpellList> | null>(null);
 
 function toggleSelecting() {

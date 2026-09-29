@@ -28,6 +28,7 @@
       </SourcesPickerPanel>
 
       <ListActionButton
+        v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
         @click="ui.monsterGeneratorOpen = true"
@@ -234,6 +235,7 @@
           variant="menu"
           size="body"
           block
+          v-if="isAiEnabled"
           label="Generate"
           @click="overflowOpen = false; ui.monsterGeneratorOpen = true"
         >
@@ -294,6 +296,7 @@ import MobileSheet from "@/components/common/MobileSheet.vue";
 import MonsterList from "@/components/monsters/MonsterList.vue";
 import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import { useRouter } from "vue-router";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
@@ -306,6 +309,8 @@ const IconFilter = IconSettings;
 
 const router = useRouter();
 const ui = useUiStore();
+const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { canCreate } = useQuota("monsters");
 const showPaywall = ref(false);
 const isMobile = useMediaQuery("(max-width: 767px)");

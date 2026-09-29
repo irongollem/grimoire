@@ -224,7 +224,7 @@
   <!-- NPC lightbox -->
   <AppModal :open="!!selectedNpc" size="md" :labelled-by="npcHeadingId" @close="selectedNpc = null">
     <div class="relative shrink-0">
-      <div v-if="selectedNpc?.player_visible_fields?.includes('portrait') && getNpcDisplayPortrait(selectedNpc)" class="w-full h-72 overflow-hidden">
+      <div v-if="selectedNpc?.player_visible_fields?.includes('portrait') && getNpcDisplayPortrait(selectedNpc)" class="relative w-full h-72 overflow-hidden">
         <FocalImage
           :src="getNpcDisplayPortrait(selectedNpc)!"
           :alt="getNpcDisplayName(selectedNpc) ?? '???'"
@@ -232,6 +232,7 @@
           :focal-point="getNpcDisplayFocalPoint(selectedNpc)"
           :lightbox="true"
         />
+        <AiGeneratedBadge variant="chip" :provenance="selectedNpc.ai_provenance" />
       </div>
       <AppButton
         variant="ghost"
@@ -284,6 +285,7 @@ import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
 import PlayerQuestStoryThread from "@/components/player/PlayerQuestStoryThread.vue";
 import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
 

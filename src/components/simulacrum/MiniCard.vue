@@ -70,7 +70,7 @@
         />
 
         <AppButton
-          v-if="canResume"
+          v-if="canResume && isAiEnabled"
           :to="resumeTo"
           variant="subtle"
           size="icon-xs"
@@ -128,6 +128,7 @@ import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { IconClose, IconDelete, IconDownload, IconRefresh, IconReveal } from "@/lib/icons";
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteMini } from "@/composables/simulacrum/useMinis";
+import { useCampaignStore } from "@/stores/campaign";
 import { getPublicUrl } from "@/lib/storage";
 import { MINI_FORMAT_LABELS, MINI_STATUS_LABELS } from "@/types/mini.types";
 import type { Mini } from "@/types/mini.types";
@@ -140,6 +141,10 @@ const FORMAT_BADGE_CLASSES: Record<Mini["format"], string> = {
 };
 
 const { confirm } = useConfirm();
+// Resume re-enters the forge wizard, which is AI generation: hidden, not
+// disabled, when the campaign's AI is off. Delete stays (it is not generation).
+const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { mutateAsync: deleteMini, isPending: deleting } = useDeleteMini();
 
 const previewOpen = ref(false);

@@ -13,6 +13,7 @@
         @click="handlePopulate"
       />
       <ListActionButton
+        v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
         @click="ui.factionGeneratorOpen = true"
@@ -159,6 +160,7 @@ import { bulkScopeAllowsGeneral } from "@/composables/campaign/useBulkCampaignSc
 
 const ui = useUiStore();
 const campaign = useCampaignStore();
+const isAiEnabled = computed(() => campaign.isAiEnabled);
 
 // faction_deities has a NOT NULL campaign_id (#885) — a general move can
 // never carry a faction's deity links, so the bar never offers it here. See

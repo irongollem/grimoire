@@ -99,26 +99,25 @@
       @insert-calendar-event="showEventModal = true"
       @illustration-click="onIllustrationClick"
     >
-      <template v-if="hasImageProvider || hasTextProvider" #toolbar-end>
+      <template v-if="hasImageProvider || showWriteChronicle" #toolbar-end>
         <div class="w-px h-5 bg-border mx-0.5" />
         <AppButton
-          v-if="hasTextProvider"
+          v-if="showWriteChronicle"
           variant="ghost"
           size="icon-xs"
           :icon="IconNote"
           class="hover:bg-accent"
-          :disabled="!campaignStore.isAiEnabled"
-          :tooltip="campaignStore.isAiEnabled ? 'Write Chronicle' : AI_OFF_TOOLTIP"
+          tooltip="Write Chronicle"
           @click="openChroniclerWrite"
         />
         <template v-if="hasImageProvider">
           <AppButton
+            v-if="campaignStore.isAiEnabled"
             variant="ghost"
             size="icon-xs"
             :icon="IconGenerate"
             class="hover:bg-accent"
-            :disabled="!campaignStore.isAiEnabled"
-            :tooltip="campaignStore.isAiEnabled ? 'Generate scene illustration' : AI_OFF_TOOLTIP"
+            tooltip="Generate scene illustration"
             @click="openChroniclerGenerate"
           />
           <!-- Scene library browses images already generated — not itself a
@@ -172,8 +171,6 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { useToast } from "@/composables/useToast";
-const { info } = useToast();
 import { ref, computed } from "vue";
 import { useRouter, type RouteLocationNormalized } from "vue-router";
 import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
@@ -274,10 +271,6 @@ const showChroniclerGenerate = ref(false);
 const showChroniclerLibrary  = ref(false);
 const showChroniclerWrite    = ref(false);
 
-// Mirrors AiOffNotice's copy for the toolbar's icon-only buttons, which have
-// no room for the component itself — a tooltip is the honest equivalent here.
-const AI_OFF_TOOLTIP = "AI is off for this campaign. Turn it on in campaign settings.";
-
 const campaignStore = useCampaignStore();
 // Image generation runs through the shared provider abstraction on both the
 // server-side and BYOK local-vault paths, and both support every provider we
@@ -288,9 +281,12 @@ const hasImageProvider = computed(() => !!(campaignStore.activeCampaign?.image_p
 // so the toolbar button only needs a campaign + configured provider — not a
 // decrypted client-side key.
 const hasTextProvider = computed(() => !!(campaignStore.activeCampaign?.text_provider ?? "openai"));
+// With AI off the generate/write controls are hidden outright; the scene
+// library (browsing images already made) stays.
+const showWriteChronicle = computed(() => hasTextProvider.value && campaignStore.isAiEnabled);
 
 function openChroniclerGenerate() {
-  // Defensive: the toolbar button is disabled while AI is off, so this only
+  // Defensive: the toolbar button is hidden while AI is off, so this only
   // guards a stray keyboard/programmatic trigger.
   if (!campaignStore.isAiEnabled) return;
   showChroniclerGenerate.value = true;
@@ -345,13 +341,8 @@ function onChroniclerWrite(chronicle: ChronicleInsert) {
 const illustrationPrompt = ref("");
 
 function onIllustrationClick(prompt: string) {
-  // Unlike the toolbar buttons, this chip lives inside already-written note
-  // content and can't show a disabled state — so a click while AI is off gets
-  // the same message as AiOffNotice, via toast, rather than doing nothing.
-  if (!campaignStore.isAiEnabled) {
-    info(AI_OFF_TOOLTIP, undefined, { action: { label: "Turn it on", run: () => router.push("/campaign/settings?tab=ai") } });
-    return;
-  }
+  // The chip renders inert while AI is off; this guards a stray trigger.
+  if (!campaignStore.isAiEnabled) return;
   illustrationPrompt.value = prompt;
   showChroniclerGenerate.value = true;
 }

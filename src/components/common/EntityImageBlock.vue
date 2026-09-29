@@ -201,7 +201,7 @@ const showAiButton = computed(
 const router = useRouter();
 const { isVisible: simulacrumVisible } = useSimulacrumConfig();
 const showMiniButton = computed(
-  () => !!miniSource && !!modelValue && simulacrumVisible.value && !disabled,
+  () => !!miniSource && !!modelValue && simulacrumVisible.value && !disabled && campaign.isAiEnabled,
 );
 
 function goToMiniForge() {

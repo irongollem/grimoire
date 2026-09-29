@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   moveScope: vi.fn(async () => ({ moved: 3 })),
   isMovingScope: false,
   activeCampaignName: "Icewind Dale" as string | null,
+  aiEnabled: false,
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
@@ -56,6 +57,7 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     activeCampaign: mocks.activeCampaignName ? { name: mocks.activeCampaignName } : null,
     activeCampaignId: "campaign-1",
+    get isAiEnabled() { return mocks.aiEnabled; },
   }),
 }));
 vi.mock("@/composables/useToast", () => ({
@@ -246,5 +248,22 @@ describe("ItemsView — bulk copy-to-campaign (#598)", () => {
     expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
     // stopSelecting() follows a successful copy, same as a successful move.
     expect(wrapper.text()).not.toContain("selected");
+  });
+});
+
+describe("ItemsView — AI off", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it("hides the Generate button when the campaign's AI is off", () => {
+    mocks.aiEnabled = false;
+    expect(findButton(mountView(), "Generate")).toBeUndefined();
+  });
+
+  it("shows the Generate button when AI is on", () => {
+    mocks.aiEnabled = true;
+    expect(findButton(mountView(), "Generate")).toBeDefined();
+    mocks.aiEnabled = false;
   });
 });

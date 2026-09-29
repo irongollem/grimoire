@@ -127,6 +127,7 @@
                  site's Picture with it (epic #884 decision 1) — the DM picks
                  no location, the target is always this site. -->
             <AppButton
+              v-if="isAiEnabled"
               variant="ghost"
               size="inline-xs"
               :icon="IconGenerate"
@@ -245,6 +246,7 @@
  * `useSaveStyledSitePicture` for what saving there actually flattens.
  */
 import { computed, ref } from "vue";
+import { useCampaignStore } from "@/stores/campaign";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -299,6 +301,10 @@ const { location, map, staleness, counts, styling = false } = defineProps<{
 }>();
 
 const emit = defineEmits<{ "open-drawing": []; "review-changes": []; "style-with-ai": [] }>();
+
+// Style with AI is hidden, not disabled, while the campaign owner has AI off.
+const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
 const stack = computed(() => buildMapStack(location));
 

@@ -6,6 +6,7 @@
 
     <template #actions>
       <ListActionButton
+        v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
         @click="ui.encounterGeneratorOpen = true"
@@ -57,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd, IconCheckDouble, IconGenerate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -70,11 +71,14 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import EncounterList from "@/components/encounters/EncounterList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import { useAllQuests } from "@/composables/quests/useQuests";
 import { useQuota } from "@/composables/billing/useQuota";
 
 const router = useRouter();
 const ui = useUiStore();
+const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { data: quests } = useAllQuests();
 const { canCreate } = useQuota("encounters");
 const showPaywall = ref(false);

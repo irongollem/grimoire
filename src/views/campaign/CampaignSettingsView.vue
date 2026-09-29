@@ -141,7 +141,7 @@ const VALID_TABS = new Set<SettingsTab>([
   "ai", "connections", "spotify", "backup", "bundle", "import", "danger",
 ]);
 
-const tabs: { id: SettingsTab; label: string }[] = [
+const ALL_TABS: { id: SettingsTab; label: string }[] = [
   { id: "details", label: "Details" },
   { id: "members", label: "Members & Invites" },
   { id: "scheduling", label: "Scheduling" },
@@ -161,9 +161,20 @@ const route = useRoute();
 const router = useRouter();
 const campaignStore = useCampaignStore();
 
+// Import Document is AI extraction: hidden, not disabled, while the campaign
+// owner has AI off. The AI Assistant / Connections tabs stay, since they are
+// where it is switched back on.
+const tabs = computed(() =>
+  campaignStore.isAiEnabled ? ALL_TABS : ALL_TABS.filter((t) => t.id !== "import"),
+);
+
+// A deep link (or a tab that was open when AI went off) to a hidden tab falls
+// back to the default rather than rendering it.
 const activeTab = computed<SettingsTab>(() => {
   const t = route.query.tab as string;
-  return VALID_TABS.has(t as SettingsTab) ? (t as SettingsTab) : "details";
+  return VALID_TABS.has(t as SettingsTab) && tabs.value.some((x) => x.id === t)
+    ? (t as SettingsTab)
+    : "details";
 });
 
 function setTab(tab: SettingsTab) {

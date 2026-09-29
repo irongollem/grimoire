@@ -50,6 +50,7 @@
             @click="uploadInput?.click()"
           />
           <AppButton
+            v-if="isAiEnabled"
             variant="subtle"
             size="sm"
             class="bg-background"
@@ -63,7 +64,7 @@
         </div>
       </div>
 
-      <div v-if="hasPartyMembers && !generating" class="px-4 pt-2 flex justify-end">
+      <div v-if="isAiEnabled && hasPartyMembers && !generating" class="px-4 pt-2 flex justify-end">
         <GenerationCostBadge :credits="groupPortraitCost" :byok="groupPortraitByok" :show-balance="false" />
       </div>
 
@@ -97,7 +98,12 @@ import AppButton from "@/components/common/AppButton.vue";
 import PartyTracker from "@/components/party/PartyTracker.vue";
 import PartyMilestonesPanel from "@/components/party/PartyMilestonesPanel.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import { useCampaignStore } from "@/stores/campaign";
 import { useGroupPortrait } from "@/composables/party/useGroupPortrait";
+
+// Hidden, not disabled, while the campaign owner has AI off (the server would 403).
+const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
 const tracker     = ref<InstanceType<typeof PartyTracker> | null>(null);
 const uploadInput = ref<HTMLInputElement | null>(null);

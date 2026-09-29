@@ -168,7 +168,7 @@
     <CartographerAiStyleModal
       v-if="isSite"
       v-model:atlasLocationId="styleAtlasLocationId"
-      :show-picker="showStylePicker"
+      :show-picker="showStylePicker && campaignAiEnabled"
       :show-result="showStyleResult"
       :presets="CARTOGRAPHER_STYLE_PRESETS"
       :selected-preset-id="selectedPresetId"
@@ -236,6 +236,7 @@ import SiteLevelPicker from "@/components/locations/SiteLevelPicker.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useAddSiteLevel } from "@/composables/locations/useAddSiteLevel";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
+import { useCampaignStore } from "@/stores/campaign";
 import { useMapExport } from "@/composables/cartographer/useMapExport";
 import { useMapPublish } from "@/composables/cartographer/useMapPublish";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
@@ -257,6 +258,9 @@ import type { Location } from "@/types/location.types";
  *  constant rather than `[]` inline in the template, which would recreate
  *  the array every render for a prop nothing reads. */
 const NO_LOCATION_OPTIONS: { id: string; name: string }[] = [];
+
+const campaignStore = useCampaignStore();
+const campaignAiEnabled = computed(() => campaignStore.isAiEnabled);
 
 const { location, index, children, building = false } = defineProps<{
   /** Only ever mounted once the caller has confirmed `hasMap` — never null. */
@@ -358,6 +362,7 @@ const {
 });
 
 function onStyleWithAi(): void {
+  if (!campaignAiEnabled.value) return;
   showStylePicker.value = true;
 }
 

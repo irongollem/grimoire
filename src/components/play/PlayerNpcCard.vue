@@ -23,6 +23,14 @@
         <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
           <IconUser class="h-10 w-10" />
         </div>
+        <!-- Only when a real portrait is on show: the mystery figure is a static asset. The
+             mini button owns the bottom-right corner, so the chip takes the left. -->
+        <AiGeneratedBadge
+          v-if="npc.player_visible_fields.includes('portrait') && displayPortrait"
+          variant="chip"
+          corner="left"
+          :provenance="npc.ai_provenance"
+        />
         <EntityNewDot :is-new="isNew ?? false" class="absolute top-1.5 left-1.5 z-10" />
         <!-- Relationship always shown — "unknown" is a valid soft-hidden state. -->
         <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-eyebrow font-bold text-white">
@@ -61,6 +69,7 @@ import { computed } from "vue";
 import { IconUser } from '@/lib/icons';
 import { artUrl } from "@/lib/assets/artUrl";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import NpcRatingStars from "@/components/play/NpcRatingStars.vue";

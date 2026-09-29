@@ -23,6 +23,7 @@
         @click="handlePopulate"
       />
       <ListActionButton
+        v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
         @click="ui.locationGeneratorOpen = true"
@@ -55,6 +56,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { useToast } from "@/composables/useToast";
 import { pluralizeCount } from "@/lib/utils";
 import { IconAdd, IconFaction, IconGenerate, IconLoading, IconPopulate } from '@/lib/icons';
@@ -69,9 +71,12 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { usePopulateLocations, usePopulatePlanarLocations } from "@/composables/locations/useLocations";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 
 const ui = useUiStore();
+const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { showPaywall, handleNew, gateQuotaError } = useCreateGate("locations", "/locations/new");
 
 const TYPE_OPTIONS = [

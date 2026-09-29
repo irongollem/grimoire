@@ -130,13 +130,14 @@
       @close="watchingLocation = null"
     />
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-      <div v-if="watchingLocation?.image_url" class="w-full aspect-video">
+      <div v-if="watchingLocation?.image_url" class="relative w-full aspect-video">
         <FocalImage
           :src="watchingLocation.image_url"
           :alt="watchingLocation.name"
           format="landscape"
           class="w-full h-full"
         />
+        <AiGeneratedBadge variant="chip" :provenance="watchingLocation.ai_provenance" />
       </div>
       <div class="px-4 py-4 flex flex-col gap-4">
         <p v-if="watchingLocation?.player_summary" class="text-body text-foreground italic">
@@ -180,6 +181,8 @@ import ModalHeader from "@/components/common/ModalHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
+import type { AiProvenance } from "@/ai/provenance";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import PlayerLocationFiltersBar from "@/components/play/PlayerLocationFiltersBar.vue";
@@ -194,6 +197,8 @@ interface WatchTarget {
   location_type: LocationType;
   image_url: string | null;
   player_summary: string | null;
+  /** Absent for a pin-only target: a map pin carries the child's image but not its provenance. */
+  ai_provenance?: AiProvenance | null;
 }
 
 const { data: locations, isLoading } = useSharedLocations();
@@ -415,6 +420,7 @@ function onPinWatch(childId: string) {
       location_type: fullLoc.location_type,
       image_url: fullLoc.image_url,
       player_summary: fullLoc.player_summary,
+      ai_provenance: fullLoc.ai_provenance,
     };
     return;
   }

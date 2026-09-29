@@ -31,6 +31,7 @@
           @click="handleTrapsPopulate"
         />
         <ListActionButton
+          v-if="isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
           @click="ui.trapGeneratorOpen = true"
@@ -54,6 +55,7 @@
             @click="handleRollTablesPopulate"
           />
           <ListActionButton
+            v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
             @click="ui.rollTableGeneratorOpen = true"
@@ -78,6 +80,7 @@
       <!-- Loot Tables tab actions -->
       <template v-else-if="activeTab === 'loot-tables'">
         <ListActionButton
+          v-if="isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
           @click="ui.lootTableGeneratorOpen = true"
@@ -111,6 +114,7 @@
           @click="handlePuzzlesPopulate"
         />
         <ListActionButton
+          v-if="isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
           @click="ui.puzzleGeneratorOpen = true"
@@ -149,6 +153,7 @@ import { usePopulatePuzzles } from "@/composables/dungeon-features/usePuzzles";
 import { usePopulateRollTables } from "@/composables/dungeon-features/useRollTables";
 
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
@@ -165,6 +170,8 @@ import DungeonCraftCartographerTab from "@/components/dungeon-features/DungeonCr
 const route  = useRoute();
 const router = useRouter();
 const ui     = useUiStore();
+const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
 type Tab = "features" | "traps" | "puzzles" | "roll-tables" | "loot-tables" | "cartographer";
 const TABS: { id: Tab; label: string }[] = [

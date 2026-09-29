@@ -57,6 +57,7 @@
               :monster="entry.monster"
               :name="entry.monster?.name ?? 'Unknown creature'"
               :image-url="entry.monster?.image_url ?? null"
+              :ai-provenance="entry.monster?.ai_provenance"
               :reveal-stats="entry.discovery.reveal_stats"
             />
           </div>

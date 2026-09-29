@@ -1,5 +1,5 @@
 <template>
-  <PageHeader title="Tile Packs" description="Upload a validated pack, generate one from a theme, or share it with your active campaign.">
+  <PageHeader title="Tile Packs" :description="isAiEnabled ? 'Upload a validated pack, generate one from a theme, or share it with your active campaign.' : 'Upload a validated pack or share it with your active campaign.'">
     <template #title-suffix>
       <ManualHelpLink page="cartographer-tile-packs" />
     </template>
@@ -7,7 +7,7 @@
       <AppButton variant="outline" label="Back to maps" @click="router.push('/cartographer')" />
     </template>
 
-    <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.72fr)]">
+    <div class="grid gap-4" :class="{ 'xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.72fr)]': isAiEnabled }">
       <section class="space-y-4">
         <div class="rounded-xl border border-border bg-card p-4">
           <div class="flex items-start justify-between gap-3">
@@ -75,13 +75,10 @@
         </div>
       </section>
 
-      <section class="space-y-4">
-        <div v-if="!campaign.isAiEnabled" class="rounded-xl border border-border bg-card p-4">
-          <h2 class="font-cinzel text-heading-sm text-foreground">Generate a complete pack</h2>
-          <AiOffNotice class="mt-2" />
-        </div>
-
-        <div v-else class="rounded-xl border border-border bg-card p-4">
+      <!-- Generation and its runs (retry, approve, cancel) are all AI: the
+           whole column is hidden, not disabled, when the campaign's AI is off. -->
+      <section v-if="isAiEnabled" class="space-y-4">
+        <div class="rounded-xl border border-border bg-card p-4">
           <h2 class="font-cinzel text-heading-sm text-foreground">Generate a complete pack</h2>
           <p class="mt-1 text-body text-muted-foreground">GPT Image 2 low generates three reusable proof assets first. Approve the family, then the remaining schema jobs continue.</p>
           <div class="mt-4 space-y-3">
@@ -185,7 +182,6 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { attemptCharge, attemptsRemaining } from "@/cartographer/generationBudget";
@@ -203,6 +199,7 @@ const router = useRouter();
 const auth = useAuthStore();
 const campaign = useCampaignStore();
 const { isPro } = useSubscription();
+const isAiEnabled = computed(() => campaign.isAiEnabled);
 const activeCampaignId = computed(() => campaign.activeCampaignId);
 const userId = computed(() => auth.user?.id ?? "");
 const { confirm } = useConfirm();
@@ -276,9 +273,9 @@ async function onUploadFiles(event: Event): Promise<void> {
 }
 
 async function startRun(): Promise<void> {
-  // Defensive: the form is replaced by AiOffNotice while the toggle is off,
-  // so this only guards a stray trigger — the server enforces the same gate.
-  if (!campaign.isAiEnabled) return;
+  // Defensive: the form is hidden while the toggle is off, so this only
+  // guards a stray trigger. The server enforces the same gate.
+  if (!isAiEnabled.value) return;
   if (!activeCampaignId.value) return;
   if (!requireCredits(PROOF_PHASE_SLOTS * tileCreditCost.value)) return;
   const result = await createRun.mutateAsync({ name: conceptName.value.trim(), description: conceptDescription.value.trim(), campaignId: activeCampaignId.value });
