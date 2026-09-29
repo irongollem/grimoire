@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { applyCampaignFilter, callTool, resolveImageColumn, validateFields } from "./tools.ts";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { applyCampaignFilter, audioRefusal, callTool, listTools, resolveImageColumn, validateFields } from "./tools.ts";
 import { CREATABLE_TYPES, ENTITY_REGISTRY, ENTITY_TYPES } from "./registry.ts";
 
 const quest = ENTITY_REGISTRY.quest;
@@ -332,5 +332,137 @@ describe("whoami", () => {
 
   it("reports a missing email as null rather than dropping the key", async () => {
     await expect(callTool(ctxWith(undefined), "whoami", {})).resolves.toMatchObject({ email: null });
+  });
+});
+
+const CAMPAIGN = "123e4567-e89b-12d3-a456-426614174000";
+const NPC_ID = "223e4567-e89b-12d3-a456-426614174000";
+type Ctx = Parameters<typeof callTool>[0];
+
+describe("new tools are listed", () => {
+  it("offers the soundboard, audio and voice coach tools", () => {
+    const names = listTools().map((t) => t.name);
+    expect(names).toEqual(expect.arrayContaining(["soundboard", "get_audio", "voice_coach"]));
+  });
+});
+
+describe("soundboard", () => {
+  function ctxWith(results: Record<string, { data: unknown; error: { message: string } | null }>) {
+    const from = vi.fn((table: string) => {
+      const chain = { select: () => chain, eq: () => chain, order: () => Promise.resolve(results[table]) };
+      return chain;
+    });
+    return { ctx: { userId: "dm-1", email: undefined, supabase: { from } } as unknown as Ctx, from };
+  }
+
+  it("returns pages, playlists with their sounds in play order, and sounds", async () => {
+    const { ctx } = ctxWith({
+      soundboard_pages: { data: [{ id: "p1", name: "Tavern", sort_order: 0 }], error: null },
+      soundboard_playlists: {
+        data: [{
+          id: "pl1", name: "Battle", playlist_type: "music",
+          soundboard_playlist_tracks: [{ sound_id: "s2", sort_order: 1 }, { sound_id: "s1", sort_order: 0 }],
+        }],
+        error: null,
+      },
+      sounds: { data: [{ id: "s1", name: "Drums" }, { id: "s2", name: "Horns" }], error: null },
+    });
+    const out = await callTool(ctx, "soundboard", { campaign_id: CAMPAIGN });
+    expect(out).toEqual({
+      campaign_id: CAMPAIGN,
+      pages: [{ id: "p1", name: "Tavern", sort_order: 0 }],
+      playlists: [{ id: "pl1", name: "Battle", playlist_type: "music", track_sound_ids: ["s1", "s2"] }],
+      sounds: [{ id: "s1", name: "Drums" }, { id: "s2", name: "Horns" }],
+    });
+  });
+
+  it("throws a read error rather than reporting an empty board", async () => {
+    const { ctx } = ctxWith({
+      soundboard_pages: { data: [], error: null },
+      soundboard_playlists: { data: null, error: { message: "permission denied" } },
+      sounds: { data: [], error: null },
+    });
+    await expect(callTool(ctx, "soundboard", { campaign_id: CAMPAIGN })).rejects.toThrow("permission denied");
+  });
+
+  it("requires a campaign", async () => {
+    const { ctx, from } = ctxWith({});
+    await expect(callTool(ctx, "soundboard", {})).rejects.toThrow(/campaign_id/);
+    expect(from).not.toHaveBeenCalled();
+  });
+});
+
+describe("audioRefusal", () => {
+  const g = globalThis as typeof globalThis & { Deno?: { env: { get(k: string): string | undefined } } };
+  beforeEach(() => {
+    const env: Record<string, string> = { SUPABASE_URL: "https://ref.supabase.co", ASSET_CDN_URL: "https://cdn.example.com" };
+    g.Deno = { env: { get: (k: string) => env[k] } };
+  });
+  afterEach(() => {
+    delete g.Deno;
+  });
+
+  it("fetches our own uploads and library sounds, from the CDN or the origin", () => {
+    expect(audioRefusal({ source_type: "upload", file_url: "https://cdn.example.com/sounds/u1/a.mp3" })).toBeNull();
+    expect(audioRefusal({ source_type: "library", file_url: "https://ref.supabase.co/storage/v1/object/public/sounds/library/x.ogg" })).toBeNull();
+  });
+
+  it("sends Spotify back as a link, never a fetch", () => {
+    expect(audioRefusal({ source_type: "spotify", file_url: "https://open.spotify.com/track/1" })).toMatch(/Spotify/);
+  });
+
+  it("never proxies another host, whatever the source says it is", () => {
+    expect(audioRefusal({ source_type: "freesound", file_url: "https://cdn.freesound.org/previews/1/1.mp3" })).toMatch(/externally/);
+    expect(audioRefusal({ source_type: "upload", file_url: "http://169.254.169.254/latest" })).toMatch(/externally/);
+  });
+});
+
+describe("voice_coach", () => {
+  function ctxWith(npc: unknown, invokeResult: { data: unknown; error: unknown }) {
+    const invoke = vi.fn(() => Promise.resolve(invokeResult));
+    const chain = { select: () => chain, eq: () => chain, maybeSingle: () => Promise.resolve({ data: npc, error: null }) };
+    const ctx = { userId: "dm-1", email: undefined, supabase: { from: () => chain, functions: { invoke } } };
+    return { ctx: ctx as unknown as Ctx, invoke };
+  }
+
+  it("asks generate-npc-voice in the NPC's own campaign and returns its lines", async () => {
+    const { ctx, invoke } = ctxWith(
+      { id: NPC_ID, name: "Mirela", campaign_id: CAMPAIGN },
+      { data: { lines: ["Ask the harbourmaster.", "What shipment?"] }, error: null },
+    );
+    await expect(callTool(ctx, "voice_coach", { npc_id: NPC_ID, situation: " Where did it go? " })).resolves.toEqual({
+      npc_id: NPC_ID,
+      lines: ["Ask the harbourmaster.", "What shipment?"],
+    });
+    expect(invoke).toHaveBeenCalledWith("generate-npc-voice", {
+      body: { campaign_id: CAMPAIGN, npc_id: NPC_ID, situation: "Where did it go?" },
+    });
+  });
+
+  it("reports a refusal in words, not as a bare non-2xx", async () => {
+    const { ctx } = ctxWith(
+      { id: NPC_ID, name: "Mirela", campaign_id: CAMPAIGN },
+      {
+        data: null,
+        error: {
+          message: "Edge Function returned a non-2xx status code",
+          context: new Response(JSON.stringify({ error: "insufficient_credits", balance: 0 })),
+        },
+      },
+    );
+    await expect(callTool(ctx, "voice_coach", { npc_id: NPC_ID, situation: "Hi" })).rejects.toThrow(/Insufficient credits \(0 left\)/);
+  });
+
+  it("refuses an NPC outside any campaign before spending anything", async () => {
+    const { ctx, invoke } = ctxWith({ id: NPC_ID, name: "Mirela", campaign_id: null }, { data: null, error: null });
+    await expect(callTool(ctx, "voice_coach", { npc_id: NPC_ID, situation: "Hi" })).rejects.toThrow(/no campaign/);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("validates its arguments", async () => {
+    const { ctx } = ctxWith(null, { data: null, error: null });
+    await expect(callTool(ctx, "voice_coach", { npc_id: "nope", situation: "Hi" })).rejects.toThrow(/UUID/);
+    await expect(callTool(ctx, "voice_coach", { npc_id: NPC_ID, situation: "  " })).rejects.toThrow(/situation/);
+    await expect(callTool(ctx, "voice_coach", { npc_id: NPC_ID, situation: "Hi" })).rejects.toThrow(/No NPC found/);
   });
 });

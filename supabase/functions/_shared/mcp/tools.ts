@@ -19,6 +19,8 @@ import {
   listColumns,
 } from "./registry.ts";
 import type { EntityDef, FieldDef } from "./registry.ts";
+import { isSafeStorageUrl } from "../storage-url.ts";
+import { edgeErrorMessage } from "../edgeError.ts";
 
 export interface ToolContext {
   supabase: SupabaseClient;
@@ -36,14 +38,15 @@ export interface ToolDef {
 }
 
 /**
- * MCP content blocks a tool can return directly (text or inline image). Most
- * tools return plain data that the transport JSON-stringifies into a text
- * block; `get_image` returns this shape so the transport emits a real image
- * block instead. `isMcpContentResult` lets the transport tell them apart.
+ * MCP content blocks a tool can return directly (text, inline image or audio).
+ * Most tools return plain data that the transport JSON-stringifies into a text
+ * block; `get_image` and `get_audio` return this shape so the transport emits a
+ * real media block instead. `isMcpContentResult` lets the transport tell them apart.
  */
 export type McpContent =
   | { type: "text"; text: string }
-  | { type: "image"; data: string; mimeType: string };
+  | { type: "image"; data: string; mimeType: string }
+  | { type: "audio"; data: string; mimeType: string };
 
 export interface McpContentResult {
   _mcpContent: McpContent[];
@@ -221,13 +224,6 @@ export function resolveImageColumn(def: EntityDef, which: unknown): { which: str
     throw new Error(`Unknown image "${requested}" for ${def.label}. Available: ${keys.join(", ")}.`);
   }
   return { which: requested, column };
-}
-
-/** Public prefix of this project's Supabase storage, or null outside Deno (tests). */
-function storageObjectPrefix(): string | null {
-  const deno = (globalThis as { Deno?: { env?: { get(k: string): string | undefined } } }).Deno;
-  const url = deno?.env?.get("SUPABASE_URL");
-  return url ? `${url}/storage/v1/object/` : null;
 }
 
 /** Base64-encode bytes in chunks (avoids the arg-count limit of `btoa(String.fromCharCode(...))`). */
@@ -463,6 +459,56 @@ export function listTools(): ToolDef[] {
         additionalProperties: false,
       },
     },
+    {
+      name: "soundboard",
+      description:
+        "One campaign's soundboard: its pages, its playlists (music and ambient scenes, with their sounds in play order as " +
+        "`track_sound_ids`), and every sound on it (name, category, source, tags, artist, attribution, URL). " +
+        "Use `get_audio` with a sound's id to fetch the audio itself.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          campaign_id: { type: "string", description: "The campaign whose soundboard to read." },
+        },
+        required: ["campaign_id"],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: "get_audio",
+      description:
+        "Fetch a soundboard sound's audio as an inline audio block, the way `get_image` fetches art. Works for uploaded, " +
+        `AI-generated and Grimoire-library sounds up to ${MAX_INLINE_AUDIO_BYTES / 1024 / 1024} MB. Spotify tracks, Freesound ` +
+        "previews and pasted URLs are hosted elsewhere, so those come back as a link instead.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "The sound's id (UUID), from `soundboard`." },
+        },
+        required: ["id"],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: "voice_coach",
+      description:
+        "The NPC Voice Coach: 2-3 short lines the DM can read aloud in an NPC's voice, each taking a different tack " +
+        "(forthcoming, evasive, turning the question back). Grounded in the NPC's personality, backstory and relationship to the " +
+        "party, and in the campaign's setting. A disguised, unrevealed NPC speaks as their disguise. " +
+        "Costs AI credits like the in-app button, and needs AI enabled on the NPC's campaign.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          npc_id: { type: "string", description: "The NPC's id (UUID)." },
+          situation: {
+            type: "string",
+            description: 'What the NPC is responding to, in a line, e.g. "The rogue asks where the missing shipment went."',
+          },
+        },
+        required: ["npc_id", "situation"],
+        additionalProperties: false,
+      },
+    },
   ];
 }
 
@@ -490,6 +536,12 @@ export async function callTool(
       return update(ctx, args);
     case "campaign_overview":
       return campaignOverview(ctx, args);
+    case "soundboard":
+      return soundboard(ctx, args);
+    case "get_audio":
+      return getAudio(ctx, args);
+    case "voice_coach":
+      return voiceCoach(ctx, args);
     default:
       throw new Error(`Unknown tool "${name}".`);
   }
@@ -587,11 +639,11 @@ async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promis
   const url = data[column];
   if (typeof url !== "string" || !url) throw new Error(`This ${def.label} has no ${which} image set.`);
 
-  // SSRF guard: only inline-fetch objects from this project's own Supabase
-  // storage. Externally-hosted art (or any unexpected URL) is returned as a link
-  // for the client to follow itself, never proxied through the server.
-  const prefix = storageObjectPrefix();
-  if (!prefix || !url.startsWith(prefix)) {
+  // SSRF guard: only inline-fetch objects from our own storage (the Supabase
+  // origin or the asset CDN). Externally-hosted art (or any unexpected URL) is
+  // returned as a link for the client to follow itself, never proxied through
+  // the server.
+  if (!isSafeStorageUrl(url)) {
     return { _mcpContent: [{ type: "text", text: `Image is hosted externally; load it directly: ${url}` }] };
   }
 
@@ -606,6 +658,136 @@ async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promis
       { type: "text", text: url },
     ],
   };
+}
+
+// ── Soundboard ────────────────────────────────────────────────────────────────
+
+/** Columns a soundboard listing shows per sound: enough to pick one, not the mixer state. */
+const SOUND_COLUMNS =
+  "id, name, category, source_type, page_id, tags, artist, attribution, attribution_url, file_url";
+
+// Every pages/playlists/sounds policy is owner-only, so the campaign filter is
+// what narrows the DM's whole library to one board; RLS already keeps it theirs.
+async function soundboard(ctx: ToolContext, args: Record<string, unknown>) {
+  const campaignId = campaignArg(args.campaign_id);
+  if (!campaignId) throw new Error("`campaign_id` is required.");
+
+  const [pages, playlists, sounds] = await Promise.all([
+    ctx.supabase.from("soundboard_pages").select("id, name, sort_order").eq("campaign_id", campaignId).order("sort_order"),
+    ctx.supabase
+      .from("soundboard_playlists")
+      .select("id, name, playlist_type, page_id, shuffle, repeat, tags, soundboard_playlist_tracks(sound_id, sort_order)")
+      .eq("campaign_id", campaignId)
+      .order("sort_order"),
+    ctx.supabase.from("sounds").select(SOUND_COLUMNS).eq("campaign_id", campaignId).order("sort_order"),
+  ]);
+  if (pages.error) throw new Error(pages.error.message);
+  if (playlists.error) throw new Error(playlists.error.message);
+  if (sounds.error) throw new Error(sounds.error.message);
+
+  return {
+    campaign_id: campaignId,
+    pages: pages.data,
+    playlists: playlists.data.map(({ soundboard_playlist_tracks: tracks, ...p }) => ({
+      ...p,
+      track_sound_ids: [...tracks].sort((a, b) => a.sort_order - b.sort_order).map((t) => t.sound_id),
+    })),
+    sounds: sounds.data,
+  };
+}
+
+/**
+ * Past this an inline clip stops being useful to an MCP client (a 12 MB file
+ * is 16 MB of base64 in one message). Covers every generated music track stored
+ * as of 29 Sep 2026 (the largest MP3 is 11.3 MB); a longer file comes back as a
+ * link instead.
+ */
+export const MAX_INLINE_AUDIO_BYTES = 12 * 1024 * 1024;
+
+/**
+ * Why a sound cannot be fetched inline, or null when it can. Pure (the storage
+ * guard aside) so the refusals are unit-tested while the fetch stays an
+ * integration concern.
+ */
+export function audioRefusal(sound: { source_type: string; file_url: string }): string | null {
+  if (sound.source_type === "spotify") {
+    return `This is a Spotify track; its audio only plays through Spotify: ${sound.file_url}`;
+  }
+  // Same SSRF rule as get_image. Freesound previews and pasted URLs live on
+  // someone else's host, so the client follows the link itself.
+  if (!isSafeStorageUrl(sound.file_url)) {
+    return `Audio is hosted externally; load it directly: ${sound.file_url}`;
+  }
+  return null;
+}
+
+async function getAudio(ctx: ToolContext, args: Record<string, unknown>): Promise<McpContentResult> {
+  const id = String(args.id ?? "").trim();
+  if (!UUID_RE.test(id)) throw new Error("`id` must be a sound's UUID (see `soundboard`).");
+
+  const { data, error } = await ctx.supabase
+    .from("sounds")
+    .select("id, name, source_type, file_url")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error(`No sound found with id ${id} (it may not exist or you may not have access).`);
+
+  const refusal = audioRefusal(data);
+  if (refusal) return { _mcpContent: [{ type: "text", text: refusal }] };
+
+  const tooLong = `"${data.name}" is over ${MAX_INLINE_AUDIO_BYTES / 1024 / 1024} MB, too large to send inline; load it directly: ${data.file_url}`;
+  const res = await fetch(data.file_url);
+  if (!res.ok) throw new Error(`Failed to fetch "${data.name}" (HTTP ${res.status}).`);
+  // Refuse on the header before reading the body where the server sends one,
+  // and on the bytes themselves where it does not.
+  if (Number(res.headers.get("content-length")) > MAX_INLINE_AUDIO_BYTES) {
+    await res.body?.cancel();
+    return { _mcpContent: [{ type: "text", text: tooLong }] };
+  }
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes.length > MAX_INLINE_AUDIO_BYTES) return { _mcpContent: [{ type: "text", text: tooLong }] };
+
+  const mimeType = res.headers.get("content-type")?.split(";")[0]?.trim() || "audio/*";
+  return {
+    _mcpContent: [
+      { type: "audio", data: base64FromBytes(bytes), mimeType },
+      { type: "text", text: `${data.name}: ${data.file_url}` },
+    ],
+  };
+}
+
+// ── NPC voice coach ───────────────────────────────────────────────────────────
+
+/**
+ * The app's at-the-table dialogue suggester (#336), run through the same
+ * `generate-npc-voice` function under the caller's token, so its credit charge,
+ * rate limit, campaign AI switch and disguise rule (a disguised NPC's true name
+ * never reaches the model) all apply unchanged. The campaign is read off the NPC
+ * rather than taken as an argument, as the NPC page does.
+ */
+async function voiceCoach(ctx: ToolContext, args: Record<string, unknown>) {
+  const npcId = String(args.npc_id ?? "").trim();
+  if (!UUID_RE.test(npcId)) throw new Error("`npc_id` must be an NPC's UUID.");
+  const situation = typeof args.situation === "string" ? args.situation.trim() : "";
+  if (!situation) throw new Error("`situation` must describe what the NPC is responding to.");
+
+  const { data: npc, error } = await ctx.supabase
+    .from("npcs")
+    .select("id, name, campaign_id")
+    .eq("id", npcId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!npc) throw new Error(`No NPC found with id ${npcId} (it may not exist or you may not have access).`);
+  if (!npc.campaign_id) throw new Error(`${npc.name} has no campaign, and the voice coach speaks in a campaign's setting.`);
+
+  const { data, error: fnError } = await ctx.supabase.functions.invoke("generate-npc-voice", {
+    body: { campaign_id: npc.campaign_id, npc_id: npc.id, situation },
+  });
+  if (fnError) throw new Error(await edgeErrorMessage(fnError));
+  const lines = (data as { lines?: unknown } | null)?.lines;
+  if (!Array.isArray(lines) || lines.length === 0) throw new Error("The voice coach returned no lines. Try again.");
+  return { npc_id: npc.id, lines };
 }
 
 async function list(ctx: ToolContext, args: Record<string, unknown>) {

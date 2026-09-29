@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { functionErrorCode, functionErrorPayload, functionErrorText } from "./functionError";
+import { functionErrorCode, functionErrorPayload, functionErrorText } from "./functionError.ts";
 
 const failure = (body: string) => ({ message: "Edge Function returned a non-2xx status code", context: new Response(body) });
 

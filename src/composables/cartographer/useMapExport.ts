@@ -80,7 +80,7 @@ import {
   useUpdateLocationPicture,
 } from "@/composables/locations/useLocations";
 import { useCampaignStore } from "@/stores/campaign";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 

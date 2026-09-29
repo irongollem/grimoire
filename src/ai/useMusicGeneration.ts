@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { useQueryClient, type QueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { useUiStore } from "@/stores/ui";
 import type { SoundCategory } from "@/types/sound.types";
 import type { FallbackPromptRequest, MusicLengthSeconds, MusicVocals } from "@/lib/audio/aiMusic";

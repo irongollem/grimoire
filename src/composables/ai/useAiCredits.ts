@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { supabase } from '@/lib/supabase'
-import { edgeErrorMessage } from '@/lib/edgeError'
+import { edgeErrorMessage } from '@edge-shared/edgeError.ts'
 import { CREDIT_COST, type CreditBuckets } from '@/types/subscription.types'
 import { useGenerationCreditCosts } from '@/composables/billing/useCreditConfig'
 import type { TextUsage, ImageUsage } from '@/ai/providers/types'

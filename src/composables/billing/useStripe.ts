@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 
 export function useStripe() {
   const loading = ref(false);

@@ -42,7 +42,7 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { MAX_UPLOAD_BYTES, validateTotalUploadBytes } from "@/lib/documentImport/limits";
 import { downscalePagePhoto } from "@/lib/documentImport/downscale";
 import { useGenerationCreditCosts } from "@/composables/billing/useCreditConfig";

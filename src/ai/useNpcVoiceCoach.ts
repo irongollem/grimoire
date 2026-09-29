@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { buildCampaignContext, wrapUserInput } from "./utils";
 import { getTextProvider } from "./providers";
 import { fetchSystemPrompt } from "./systemPrompts";

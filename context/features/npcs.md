@@ -205,6 +205,8 @@ At the table, a player asks the NPC something the DM didn't prep for. The Voice 
 
 **Credit cost.** 1 credit, `npc_voice_generation` in `ai_generation_credit_costs`, multiplied by the active text provider's `text_multiplier` — the same convention as every other text generator. The system prompt lives in `ai_system_prompts` under `generator_type = 'npc_voice'`. Both rows are seeded by migration `20260802000001_npc_voice_coach_ai.sql`. BYOK generations are charged 0 credits but still recorded via `recordGeneration` (server) / `logUsage` (client), so generation history stays complete even when nothing was spent.
 
+**Over MCP too (29 Sep 2026).** The MCP server's `voice_coach` tool (`supabase/functions/_shared/mcp/tools.ts`) invokes `generate-npc-voice` under the connection's own OAuth token, so the credit charge, rate limit, campaign `ai_enabled` switch and the disguise rule apply unchanged, and refusals read the same as in the app via the shared `_shared/edgeError.ts`. It reads the campaign off the NPC row rather than taking one as an argument. Keep new voice-coach behaviour in the edge function, not in either caller, or the two drift.
+
 **Client-side (BYOK/local) mirror.** `src/lib/npcs/buildNpcVoiceProfile.ts` is a hand-kept client copy of the edge function's `buildNpcProfile()`, used when the DM is in local-vault BYOK mode (`grimoire_key_local_mode === "local"` in `localStorage`) so the NPC profile can be built in-browser without a server round trip that would leak the local key. Same precedent as `_shared/ai-prompt.ts` mirroring `src/ai/utils.ts` — there is no shared source of truth between edge and client for this logic, so the two must be changed together by hand.
 
 ### Reveal (#741)

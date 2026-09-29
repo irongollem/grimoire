@@ -1,7 +1,7 @@
 import { computed, ref } from "vue";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { functionErrorPayload } from "@/lib/functionError";
+import { functionErrorPayload } from "@edge-shared/functionError.ts";
 import { useCampaignStore } from "@/stores/campaign";
 
 /**

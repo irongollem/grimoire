@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
-import { functionErrorCode } from "@/lib/functionError";
+import { functionErrorCode } from "@edge-shared/functionError.ts";
 
 /** `export-my-data` edge function error codes (#632, #919) -> human copy. */
 const ERROR_MESSAGES: Record<string, string> = {

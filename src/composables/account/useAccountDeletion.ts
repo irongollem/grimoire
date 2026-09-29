@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { supabase } from "@/lib/supabase";
-import { functionErrorCode } from "@/lib/functionError";
+import { functionErrorCode } from "@edge-shared/functionError.ts";
 import { useAuthStore } from "@/stores/auth";
 
 /** `delete-account` edge function error codes (#631, #919) -> human copy. */
@@ -27,7 +27,7 @@ export function accountDeletionErrorMessage(code: string): string {
  * throwing an `Error` whose `.message` is the server's error code otherwise.
  * Shared by `useAccountDeletion` (self-service) and `useAdminUsers.deleteUser`
  * (admin). The `functions.invoke` payload-extraction quirk it used to spell out
- * here now lives in `@/lib/functionError` — this file claimed to be its single
+ * here now lives in `@edge-shared/functionError.ts` — this file claimed to be its single
  * owner while two other call sites held their own copies.
  */
 export async function invokeDeleteAccount(targetUserId?: string): Promise<void> {

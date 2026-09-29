@@ -1,7 +1,7 @@
 import { type Ref } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from '@/lib/supabase'
-import { functionErrorPayload } from '@/lib/functionError'
+import { functionErrorPayload } from '@edge-shared/functionError.ts'
 
 /** One purchased credit pack with FIFO-computed refund eligibility. */
 export interface PackLot {

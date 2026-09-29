@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { wrapUserInput, buildCampaignContext } from "./utils";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useRuleset } from "@/composables/rules/useRuleset";

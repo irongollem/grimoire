@@ -1,4 +1,4 @@
-import { functionErrorText } from "@/lib/functionError";
+import { functionErrorText } from "./functionError.ts";
 
 /**
  * supabase-js wraps a non-2xx Edge Function response as a `FunctionsHttpError`
@@ -6,6 +6,9 @@ import { functionErrorText } from "@/lib/functionError";
  * "Edge Function returned a non-2xx status code". Our paid endpoints return
  * structured reasons the user needs to see (account frozen, rate limited,
  * insufficient credits), so read the body back and turn it into a clear message.
+ *
+ * Lives in `_shared` because the MCP server invokes paid functions under the
+ * caller's token too, and its refusals must read the same as the app's.
  *
  * Use at every generation/spend call site:
  *   if (error) throw new Error(await edgeErrorMessage(error));

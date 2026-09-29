@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import {
   buildCampaignContext,
 } from "./utils";

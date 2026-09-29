@@ -19,6 +19,14 @@
 
 const STORAGE_PUBLIC_PREFIX = "/storage/v1/object/public/";
 
+// Read through `globalThis` rather than the `Deno` global so this module also
+// type-checks under the app's tsconfig, which includes `_shared/mcp/**` (the
+// MCP tools guard their fetches with it) and has no Deno types. Absent outside
+// Deno, which fails the guard closed.
+function env(key: string): string | undefined {
+  return (globalThis as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get(key);
+}
+
 // Private / link-local / loopback literals — defense in depth in case the
 // project origin host ever resolves to one of these (it shouldn't).
 function isPrivateHostLiteral(host: string): boolean {
@@ -46,7 +54,7 @@ function isPrivateHostLiteral(host: string): boolean {
  * Use `assertSafeStorageUrl` when you want to throw instead.
  */
 export function isSafeStorageUrl(url: string): boolean {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseUrl = env("SUPABASE_URL");
   if (!supabaseUrl) return false;
 
   let parsed: URL;
@@ -67,7 +75,7 @@ export function isSafeStorageUrl(url: string): boolean {
 
   // A malformed ASSET_CDN_URL must not widen the guard, so it is parsed
   // rather than string-compared — an unparseable value simply matches nothing.
-  const cdnUrl = Deno.env.get("ASSET_CDN_URL");
+  const cdnUrl = env("ASSET_CDN_URL");
   if (!cdnUrl) return false;
   let cdnOrigin: string;
   try {

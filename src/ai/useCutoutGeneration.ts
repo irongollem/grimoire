@@ -3,7 +3,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { useImageGenerationLog, type ImageGenKind } from "@/composables/ai/useImageGenerationLog";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
 
 export type CutoutTable = "monsters" | "npcs";

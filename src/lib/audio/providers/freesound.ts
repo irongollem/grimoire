@@ -6,7 +6,7 @@
 // rewrite — stays in here.
 
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { rewriteToCdn } from "@/lib/audio/freesound";
 import type {
   SoundProvider,

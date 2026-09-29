@@ -1,6 +1,6 @@
 import { computed, ref } from "vue";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { useCampaignStore } from "@/stores/campaign";
 import type { AiProvenance } from "@/ai/provenance";
 import {

@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type { ComplicationAiResult } from "./types";
 import {
   createAiGenerationState,

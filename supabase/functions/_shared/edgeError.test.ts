@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { edgeErrorMessage } from "./edgeError";
+import { edgeErrorMessage } from "./edgeError.ts";
 
 const withBody = (body: unknown) => ({
   message: "Edge Function returned a non-2xx status code",

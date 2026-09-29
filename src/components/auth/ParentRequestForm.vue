@@ -68,7 +68,7 @@
  */
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
-import { functionErrorCode } from "@/lib/functionError";
+import { functionErrorCode } from "@edge-shared/functionError.ts";
 import { legalUrl } from "@/lib/marketing";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";

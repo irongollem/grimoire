@@ -13,7 +13,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { getEntityKindEntry } from "@/lib/documentImport/entityKinds";
 import { parseImportMatches, type EntityCandidate } from "@/lib/documentImport/entityMatching";
 import type { UsableEntity } from "@/lib/documentImport/sanitizeEntities";

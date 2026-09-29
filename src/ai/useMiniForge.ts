@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { waitForImageJob } from "@/ai/useImageJob";
 import { waitForRow } from "@/ai/waitForRow";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";

@@ -2,7 +2,7 @@ import { ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { getTextProvider, getImageProvider, OPENAI_IMAGE_MODEL_KEY } from "./providers";
 import { fetchImageBasePrompt } from "./systemPrompts";
 import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "./imagePrompt";

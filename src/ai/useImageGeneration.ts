@@ -5,7 +5,7 @@ import {
   uploadWithVariants,
   type BucketKey,
 } from "@/lib/storage";
-import { edgeErrorMessage } from "@/lib/edgeError";
+import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { b64ToBlob } from "@/ai/utils";
 import { fetchImageBasePrompt } from "@/ai/systemPrompts";
 import {

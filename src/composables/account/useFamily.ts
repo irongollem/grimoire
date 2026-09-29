@@ -1,7 +1,7 @@
 import { computed } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { functionErrorCode } from "@/lib/functionError";
+import { functionErrorCode } from "@edge-shared/functionError.ts";
 import { useAuthStore } from "@/stores/auth";
 import {
   CHILD_ACCOUNT_COLUMNS,

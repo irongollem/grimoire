@@ -36,11 +36,13 @@
       <div class="space-y-2 text-body text-foreground">
         <p>This will let it, acting as <strong>{{ details.user.email }}</strong>:</p>
         <ul class="list-disc pl-5 space-y-1 text-muted-foreground">
-          <li><strong class="text-foreground">Read</strong> your campaigns and their content: NPCs, monsters, spells, items, locations, quests, notes and more.</li>
+          <li><strong class="text-foreground">Read</strong> your campaigns and their content: NPCs, monsters, spells, items, locations, quests, notes and more, including soundboard audio.</li>
+          <li><strong class="text-foreground">Create and edit</strong> that content, as you could in the app.</li>
+          <li><strong class="text-foreground">Spend AI credits</strong> when you ask it to use the NPC Voice Coach, as the button in the app does.</li>
           <li>Only see what you can see; your row-level permissions still apply.</li>
         </ul>
         <p class="text-muted-foreground italic">
-          It <strong class="text-foreground not-italic">cannot</strong> create, edit, or delete anything, and it never sees your password or API keys.
+          It <strong class="text-foreground not-italic">cannot</strong> delete anything, and it never sees your password or API keys.
         </p>
       </div>
 

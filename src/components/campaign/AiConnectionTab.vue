@@ -4,12 +4,13 @@
     <div class="space-y-2">
       <p class="text-body text-foreground">
         Connect your own AI assistant (Claude Desktop, claude.ai, or Claude Code) to
-        <strong>read</strong> your Grimoire by conversation — ask it for an NPC's backstory, a
-        monster's stat block, or a recap of an active quest, instead of clicking through pages.
+        <strong>read and write</strong> your Grimoire by conversation. Ask it for an NPC's backstory,
+        a monster's stat block or a recap of an active quest, have it transcribe a stat block into your
+        library, or ask the NPC Voice Coach for a line mid-session.
       </p>
       <p class="text-body text-muted-foreground italic">
-        It is read-only: your AI can look things up, but cannot create, edit, or delete anything.
-        Whatever you ask is sent to your AI provider, so connect one you trust.
+        It can create and edit your content but never delete it, and the Voice Coach spends AI credits
+        as it does in the app. Whatever you ask is sent to your AI provider, so connect one you trust.
       </p>
     </div>
 
@@ -20,14 +21,14 @@
       </p>
       <div class="flex items-stretch gap-2">
         <code class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground break-all">{{ mcpUrl }}</code>
-        <button
-          type="button"
-          class="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 font-cinzel text-xs tracking-wide text-foreground transition-colors hover:bg-muted"
-          :class="copied ? 'text-primary' : ''"
+        <AppButton
+          variant="outline"
+          size="sm"
+          class="shrink-0"
+          :icon="copied ? IconCheck : IconCopy"
+          :label="copied ? 'Copied!' : 'Copy'"
           @click="copyUrl"
-        >
-          {{ copied ? "Copied!" : "Copy" }}
-        </button>
+        />
       </div>
       <p class="text-caption text-muted-foreground">
         In claude.ai or Claude Desktop, go to <strong>Settings → Connectors → Add custom
@@ -64,14 +65,14 @@
               Connected {{ formatDate(grant.granted_at) }}
             </p>
           </div>
-          <button
-            type="button"
-            :disabled="revokingId === grant.client.id"
-            class="shrink-0 rounded-md border border-input bg-background px-3 py-1.5 font-cinzel text-xs tracking-wide text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+          <AppButton
+            variant="destructive"
+            size="sm"
+            class="shrink-0"
+            :loading="revokingId === grant.client.id"
+            :label="revokingId === grant.client.id ? 'Revoking…' : 'Revoke'"
             @click="revoke(grant.client.id)"
-          >
-            {{ revokingId === grant.client.id ? "Revoking…" : "Revoke" }}
-          </button>
+          />
         </li>
       </ul>
     </div>
@@ -81,6 +82,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { supabase } from "@/lib/supabase";
+import { IconCheck, IconCopy } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import type { OAuthGrant } from "@supabase/supabase-js";
 
 const mcpUrl = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/mcp`;

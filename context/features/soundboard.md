@@ -299,6 +299,8 @@ A DM can share **the music slot only** with players in the portal. `soundboard_b
 
 What a player can reach is `soundboard_broadcast`, SELECT only, via `PlayerAudioStream` in `PlayerLayout` — and only when the DM has switched sharing on for that session and the player has pressed Join on their own device. A player can never start, stop or retarget the table's audio: there is no player-facing INSERT, UPDATE or DELETE policy on that table.
 
+**Over MCP (29 Sep 2026).** Two read tools in `supabase/functions/_shared/mcp/tools.ts`: `soundboard` lists one campaign's pages, playlists (tracks as ordered `track_sound_ids`) and sounds, and `get_audio` returns one sound's bytes as an MCP `audio` content block, capped at `MAX_INLINE_AUDIO_BYTES` (12 MB). Both run under the connection's token, so the owner-only RLS above is the whole access story. `get_audio` fetches only URLs `isSafeStorageUrl` accepts (Supabase origin or the asset CDN); Spotify, Freesound previews and pasted URLs come back as links, never proxied.
+
 ## Known Gaps
 
 Tracked in [#572](https://github.com/irongollem/grimoire/issues/572), which sequences
