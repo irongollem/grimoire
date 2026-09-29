@@ -49,6 +49,15 @@ describe("FamilyRequests", () => {
     expect(w.text()).toContain("Jo is a young player too.");
   });
 
+  it("names just the campaign when the DM has no name", () => {
+    const joining = mount(FamilyRequests, { props: { requests: [request({ dmName: null })] } });
+    expect(joining.text()).toContain("Jo wants to join Ashen Vale.");
+    const hosting = mount(FamilyRequests, {
+      props: { requests: [request({ kind: "joining_child_campaign", dmName: null })] },
+    });
+    expect(hosting.text()).toContain("Jo wants to join the campaign Ashen Vale.");
+  });
+
   it("shows the waiting line instead of buttons after a yes", () => {
     const w = mount(FamilyRequests, { props: { requests: [request({ waitingOnOtherParent: true })] } });
     expect(w.find("[data-testid=waiting]").text()).toBe("You said yes. Waiting for the other parent.");

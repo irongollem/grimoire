@@ -266,7 +266,9 @@ is a **request**, not a membership, until every parent it concerns says yes
   through `_shared/joinRequestNotify.ts`: one email per parent still to answer
   (one, not two, when a parent is on both sides), fixed text with no campaign
   or player name in it (both are attacker-controlled; the names are shown in
-  the app), sent once per request (`notified_at`), rate-limited per parent.
+  the app), sent once per parent per request (`joiner_parent_notified_at`,
+  `dm_parent_notified_at`), rate-limited per parent; a parent skipped by the
+  limit stays un-notified, so the next call reaches them.
 - Whispers (story 5, `20260929104117`): no whisper between a child and an
   adult who isn't their parent, enforced in the `campaign_messages` insert
   policy; immersive rolls, which reach the DM as a whisper, roll openly

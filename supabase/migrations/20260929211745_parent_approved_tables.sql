@@ -42,9 +42,11 @@ create table public.campaign_join_requests (
   joiner_parent_approved_at  timestamptz,
   dm_parent_id               uuid references auth.users (id) on delete cascade,
   dm_parent_approved_at      timestamptz,
-  -- Set by notify-join-request once the approving parents have been emailed,
-  -- so a remounted join page never mails them twice.
-  notified_at                timestamptz,
+  -- Set by notify-join-request once each parent has been emailed, so a
+  -- remounted join page never mails them twice. Per parent, because one may be
+  -- skipped by the email rate limit while the other is reached.
+  joiner_parent_notified_at  timestamptz,
+  dm_parent_notified_at      timestamptz,
   created_at                 timestamptz not null default now(),
   updated_at                 timestamptz not null default now(),
   unique (campaign_id, user_id),
@@ -84,6 +86,23 @@ $$;
 revoke execute on function private.parent_of_child(uuid) from public, anon;
 grant execute on function private.parent_of_child(uuid) to authenticated;
 
+-- The parent of a campaign's owner, while the owner is a child. A definer, so
+-- the request policy below can ask it for a campaign the caller cannot read:
+-- a DM's parent is usually not at their child's table, and a lookup of
+-- campaigns under their own RLS would come back empty.
+create or replace function private.parent_of_campaign_owner(p_campaign_id uuid)
+returns uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select private.parent_of_child(k.user_id) from public.campaigns k where k.id = p_campaign_id;
+$$;
+
+revoke execute on function private.parent_of_campaign_owner(uuid) from public, anon;
+grant execute on function private.parent_of_campaign_owner(uuid) to authenticated;
+
 -- Readable by the joiner and by the parents who must approve, while they are
 -- still that child's parent (a child who has come of age, or a link that is
 -- gone, takes the row out of the old parent's sight). There are no write
@@ -95,7 +114,7 @@ create policy "campaign_join_requests_select" on public.campaign_join_requests
     or ((select auth.uid()) = joiner_parent_id
         and private.parent_of_child(user_id) = (select auth.uid()))
     or ((select auth.uid()) = dm_parent_id
-        and private.parent_of_child((select k.user_id from public.campaigns k where k.id = campaign_id)) = (select auth.uid()))
+        and private.parent_of_campaign_owner(campaign_id) = (select auth.uid()))
   );
 
 -- ── Membership is granted, never written ───────────────────────────────────
@@ -134,6 +153,14 @@ begin
 
   -- DMs of this campaign may change the rest (role, name, character).
   if private.is_campaign_dm(old.campaign_id) then
+    return new;
+  end if;
+
+  -- Admission (private.admit_campaign_member) links the character the joiner
+  -- chose, and has checked it is theirs. It runs as whoever gave the last yes,
+  -- usually a parent, who owns no character here, so the per-caller check
+  -- below would refuse every approval that brings one.
+  if current_setting('grimoire.pm_campaign_transition', true) = 'on' then
     return new;
   end if;
 
@@ -224,6 +251,42 @@ $$;
 
 revoke execute on function private.admit_campaign_member(uuid, uuid, text, text, uuid) from public, anon, authenticated;
 
+-- Admit the joiner if nobody's yes is still owed, judged by the parent links
+-- as they stand now rather than as the row recorded them: a side whose child
+-- has come of age no longer needs a parent's say, and a request must never sit
+-- waiting forever on a parent who can no longer answer it. True when admitted.
+create or replace function private.settle_join_request(p_request_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_req public.campaign_join_requests%rowtype;
+begin
+  select * into v_req from public.campaign_join_requests where id = p_request_id;
+  if not found then
+    return false;
+  end if;
+
+  if (v_req.joiner_parent_id is not null
+      and v_req.joiner_parent_approved_at is null
+      and private.parent_of_child(v_req.user_id) is not distinct from v_req.joiner_parent_id)
+     or (v_req.dm_parent_id is not null
+      and v_req.dm_parent_approved_at is null
+      and private.parent_of_campaign_owner(v_req.campaign_id) is not distinct from v_req.dm_parent_id) then
+    return false;
+  end if;
+
+  perform private.admit_campaign_member(
+    v_req.campaign_id, v_req.user_id, v_req.role, v_req.display_name, v_req.party_member_id
+  );
+  return true;
+end;
+$$;
+
+revoke execute on function private.settle_join_request(uuid) from public, anon, authenticated;
+
 -- ── Joining ─────────────────────────────────────────────────────────────────
 
 -- Replaces the #919 helper of the same name, which admitted unconditionally.
@@ -248,18 +311,12 @@ declare
   v_joiner_parent uuid;
   v_dm_parent uuid;
   v_request_id uuid;
-  v_new_request boolean;
 begin
   if p_user_id is null then
     raise exception 'Not authenticated';
   end if;
 
-  select * into v_invite
-  from public.campaign_invites
-  where token = p_token
-    and (expires_at is null or expires_at > now())
-    and (max_uses is null or use_count < max_uses);
-
+  select * into v_invite from public.campaign_invites where token = p_token;
   if not found then
     raise exception 'Invalid or expired invite token';
   end if;
@@ -270,19 +327,45 @@ begin
     raise exception 'Campaign owner cannot join as player';
   end if;
 
-  -- Already at the table: re-opening a link is a no-op, never a new request.
-  if exists (
-    select 1 from public.campaign_members
-     where campaign_id = v_invite.campaign_id and user_id = p_user_id
-  ) then
-    return jsonb_build_object('status', 'joined', 'campaign_id', v_invite.campaign_id);
-  end if;
-
   v_name := coalesce(
     (select username from public.profiles where user_id = p_user_id),
     nullif(trim((select raw_user_meta_data->>'display_name' from auth.users where id = p_user_id)), ''),
     '(unnamed player)'
   );
+
+  -- Already at the table: re-opening a link is never a new request, but a
+  -- character chosen this time is still brought (the membership insert is a
+  -- no-op; the attach is not). Checked before the invite's limits, so a member
+  -- is never told their own table's link is dead.
+  if exists (
+    select 1 from public.campaign_members
+     where campaign_id = v_invite.campaign_id and user_id = p_user_id
+  ) then
+    perform private.admit_campaign_member(v_invite.campaign_id, p_user_id, v_invite.role, v_name, p_party_member_id);
+    return jsonb_build_object('status', 'joined', 'campaign_id', v_invite.campaign_id);
+  end if;
+
+  -- Already asked: the same request stands, whatever the invite's limits say
+  -- now (on a single-use link the request itself took the one seat), and it is
+  -- settled against today's parent links in case a side no longer applies.
+  select id into v_request_id from public.campaign_join_requests
+   where campaign_id = v_invite.campaign_id and user_id = p_user_id;
+  if found then
+    if p_party_member_id is not null then
+      update public.campaign_join_requests set party_member_id = p_party_member_id where id = v_request_id;
+    end if;
+    if private.settle_join_request(v_request_id) then
+      return jsonb_build_object('status', 'joined', 'campaign_id', v_invite.campaign_id);
+    end if;
+    return jsonb_build_object(
+      'status', 'pending', 'campaign_id', v_invite.campaign_id, 'request_id', v_request_id
+    );
+  end if;
+
+  if (v_invite.expires_at is not null and v_invite.expires_at <= now())
+     or (v_invite.max_uses is not null and v_invite.use_count >= v_invite.max_uses) then
+    raise exception 'Invalid or expired invite token';
+  end if;
 
   v_joiner_parent := private.parent_of_child(p_user_id);
   v_dm_parent := private.parent_of_child(v_owner);
@@ -322,15 +405,11 @@ begin
     case when p_approving_parent is not null and p_approving_parent = v_joiner_parent then now() end,
     v_dm_parent
   )
-  on conflict (campaign_id, user_id) do update
-    set party_member_id = coalesce(excluded.party_member_id, public.campaign_join_requests.party_member_id)
-  returning id, (xmax = 0) into v_request_id, v_new_request;
+  returning id into v_request_id;
 
   -- A capped invite counts the request as its use: the seat is spoken for
   -- while the parents decide.
-  if v_new_request then
-    update public.campaign_invites set use_count = use_count + 1 where id = v_invite.id;
-  end if;
+  update public.campaign_invites set use_count = use_count + 1 where id = v_invite.id;
 
   return jsonb_build_object(
     'status', 'pending', 'campaign_id', v_invite.campaign_id, 'request_id', v_request_id
@@ -360,6 +439,11 @@ begin
     raise exception 'Not authenticated';
   end if;
 
+  select campaign_id into v_campaign_id from public.campaign_invites where token = p_token;
+  if not found then
+    raise exception 'Invalid or expired invite token';
+  end if;
+
   -- The character is checked up front so a bad choice is refused now, not
   -- discovered when a parent approves days later (#730's rules: the caller's
   -- own character, and not already at another table).
@@ -371,7 +455,6 @@ begin
     if v_pm.owner_user_id is distinct from v_caller then
       raise exception 'Only the character''s owner can bring it to a campaign';
     end if;
-    select campaign_id into v_campaign_id from public.campaign_invites where token = p_token;
     if v_pm.campaign_id is not null and v_pm.campaign_id is distinct from v_campaign_id then
       raise exception 'Character is already in another campaign';
     end if;
@@ -423,7 +506,6 @@ as $$
 declare
   v_caller uuid := auth.uid();
   v_req public.campaign_join_requests%rowtype;
-  v_owner uuid;
   v_as_joiner_parent boolean;
   v_as_dm_parent boolean;
 begin
@@ -439,14 +521,12 @@ begin
     raise exception 'Request not found';
   end if;
 
-  select user_id into v_owner from public.campaigns where id = v_req.campaign_id;
-
   -- Re-derived rather than trusted from the row: the link must still hold now
   -- (a child who has come of age, or a parent link removed, no longer counts).
   v_as_joiner_parent := v_req.joiner_parent_id = v_caller
     and private.parent_of_child(v_req.user_id) is not distinct from v_caller;
   v_as_dm_parent := v_req.dm_parent_id = v_caller
-    and private.parent_of_child(v_owner) is not distinct from v_caller;
+    and private.parent_of_campaign_owner(v_req.campaign_id) is not distinct from v_caller;
 
   if not coalesce(v_as_joiner_parent, false) and not coalesce(v_as_dm_parent, false) then
     raise exception 'Not authorized';
@@ -472,12 +552,7 @@ begin
    where id = v_req.id
   returning * into v_req;
 
-  if (v_req.joiner_parent_id is null or v_req.joiner_parent_approved_at is not null)
-     and (v_req.dm_parent_id is null or v_req.dm_parent_approved_at is not null) then
-    perform private.admit_campaign_member(
-      v_req.campaign_id, v_req.user_id, v_req.role, v_req.display_name, v_req.party_member_id
-    );
-    delete from public.campaign_join_requests where id = v_req.id;
+  if private.settle_join_request(v_req.id) then
     return 'joined';
   end if;
 
@@ -563,7 +638,13 @@ begin
             'members', (
               select jsonb_agg(jsonb_build_object(
                 'user_id', o.user_id,
-                'display_name', o.display_name,
+                -- The same fallback a join records, so a member row with no
+                -- name still reads as someone.
+                'display_name', coalesce(
+                  o.display_name,
+                  (select pr.username from public.profiles pr where pr.user_id = o.user_id),
+                  '(unnamed player)'
+                ),
                 'role', o.role,
                 'is_owner', o.user_id = k.user_id,
                 'is_young_player', private.parent_of_child(o.user_id) is not null,
@@ -593,8 +674,13 @@ begin
         -- Which of the caller's children this concerns, and how.
         'child_user_id', case when r.joiner_parent_id = v_caller then r.user_id else k.user_id end,
         'kind', case when r.joiner_parent_id = v_caller then 'child_joining' else 'joining_child_campaign' end,
-        'dm_name', (select o.display_name from public.campaign_members o
-                     where o.campaign_id = k.id and o.user_id = k.user_id),
+        -- Null only when the owner has neither a named member row nor a
+        -- profile name; the page then names just the campaign.
+        'dm_name', coalesce(
+          (select o.display_name from public.campaign_members o
+            where o.campaign_id = k.id and o.user_id = k.user_id),
+          (select pr.username from public.profiles pr where pr.user_id = k.user_id)
+        ),
         'waiting_on_other_parent',
           (r.joiner_parent_id = v_caller and r.joiner_parent_approved_at is not null)
           or (r.dm_parent_id = v_caller and r.dm_parent_approved_at is not null),

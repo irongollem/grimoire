@@ -8,7 +8,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(43);
+select plan(52);
 
 -- ── Fixture ──────────────────────────────────────────────────────────────────
 -- Paula has two children, Kit (who runs a campaign) and Sid. Quinn is Jo's
@@ -42,6 +42,12 @@ insert into public.campaign_invites (campaign_id, token, role, created_by) value
   ('92800000-0000-4000-8000-0000000000c1', '92800000-0000-4000-8000-0000000000a1', 'player', '92800000-0000-4000-8000-000000000002'),
   ('92800000-0000-4000-8000-0000000000c2', '92800000-0000-4000-8000-0000000000a2', 'player', '92800000-0000-4000-8000-000000000006'),
   ('92800000-0000-4000-8000-0000000000c3', '92800000-0000-4000-8000-0000000000a3', 'player', '92800000-0000-4000-8000-000000000001');
+
+-- Jo's character, and a single-use invite to Ada's table.
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
+values ('92800000-0000-4000-8000-0000000000e1', '92800000-0000-4000-8000-000000000005', '92800000-0000-4000-8000-000000000005', null, 'Jo''s ranger');
+insert into public.campaign_invites (campaign_id, token, role, created_by, max_uses) values
+  ('92800000-0000-4000-8000-0000000000c2', '92800000-0000-4000-8000-0000000000a4', 'player', '92800000-0000-4000-8000-000000000006', 1);
 
 create function pg_temp.as_user(p_n int) returns void language sql as $$
   select set_config('request.jwt.claims',
@@ -77,6 +83,8 @@ select is(public.join_campaign_via_invite('92800000-0000-4000-8000-0000000000a1'
   'an adult joining a child''s table waits');
 
 select pg_temp.as_user(1);
+select is((select count(*)::int from public.campaign_join_requests), 2,
+  'the DM''s parent sees the requests waiting on them without being at the table');
 select is(public.join_campaign_via_invite('92800000-0000-4000-8000-0000000000a1') ->> 'status', 'joined',
   'the DM''s own parent joins their child''s table at once');
 
@@ -177,6 +185,33 @@ select is(
   (select count(*)::int from public.campaign_join_requests where campaign_id = '92800000-0000-4000-8000-0000000000c1'),
   0, 'decided requests are gone');
 
+-- ── Bringing a character ────────────────────────────────────────────────────
+
+set local role authenticated;
+select pg_temp.as_user(5);
+select is(
+  (public.join_campaign_via_invite('92800000-0000-4000-8000-0000000000a2', '92800000-0000-4000-8000-0000000000e1') ->> 'request_id')::uuid,
+  pg_temp.request_for('c2', 5),
+  'choosing a character on a second visit updates the same request');
+select pg_temp.as_user(4);
+select is(public.decide_campaign_join_request(pg_temp.request_for('c2', 5), true), 'joined',
+  'a parent''s yes admits a joiner who brings a character (the yes-sayer owns no character)');
+reset role;
+select ok(
+  (select m.party_member_id = '92800000-0000-4000-8000-0000000000e1'
+     from public.campaign_members m
+    where m.campaign_id = '92800000-0000-4000-8000-0000000000c2' and m.user_id = '92800000-0000-4000-8000-000000000005')
+  and (select campaign_id = '92800000-0000-4000-8000-0000000000c2' from public.party_members where id = '92800000-0000-4000-8000-0000000000e1'),
+  'and the character came with them');
+
+set local role authenticated;
+select pg_temp.as_user(5);
+select throws_ok(
+  $$ select public.join_campaign_via_invite('92800000-0000-4000-8000-0000000000ff', '92800000-0000-4000-8000-0000000000e1') $$,
+  'P0001', 'Invalid or expired invite token',
+  'a dead link says so, whatever the chosen character''s state');
+reset role;
+
 -- ── No seat without the flow ────────────────────────────────────────────────
 -- A DM used to be able to write member rows from the browser, which skipped
 -- every approval above.
@@ -251,6 +286,29 @@ select is(public.get_family_campaigns(), '{"children": [], "requests": []}'::jso
   'someone with no children sees nothing');
 
 reset role;
+
+-- ── A single-use link, and coming of age while waiting ──────────────────────
+
+set local role authenticated;
+select pg_temp.as_user(3);
+select is(public.join_campaign_via_invite('92800000-0000-4000-8000-0000000000a4') ->> 'status', 'pending',
+  'Sid asks for Ada''s table on a single-use link');
+select is(
+  (public.join_campaign_via_invite('92800000-0000-4000-8000-0000000000a4') ->> 'request_id')::uuid,
+  pg_temp.request_for('c2', 3),
+  'reopening it shows the same waiting request, not a dead link, though the request took the one seat');
+reset role;
+
+update public.child_accounts set adult_on = current_date
+ where child_user_id = '92800000-0000-4000-8000-000000000003';
+
+set local role authenticated;
+select pg_temp.as_user(3);
+select is(public.join_campaign_via_invite('92800000-0000-4000-8000-0000000000a4') ->> 'status', 'joined',
+  'once Sid comes of age nobody''s yes is owed, so reopening the link lets them in');
+reset role;
+select ok(pg_temp.is_member('c2', 3) and pg_temp.request_for('c2', 3) is null,
+  'and the request is gone');
 
 -- ── Grants ───────────────────────────────────────────────────────────────────
 

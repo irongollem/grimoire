@@ -89,7 +89,7 @@ async function remove(campaign: FamilyCampaign, member: FamilyCampaignMember) {
     await removeMember.mutateAsync({ campaignId: campaign.campaignId, userId: member.userId });
     toast.success(`${member.displayName} was removed from ${campaign.name}.`);
   } catch (err) {
-    toast.error(familyCampaignErrorMessage(err));
+    toast.error(familyCampaignErrorMessage(err, "remove"));
   }
 }
 </script>

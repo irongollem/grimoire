@@ -17,11 +17,12 @@
       <li v-for="request in requests" :key="request.requestId" class="p-4 space-y-3" data-testid="family-request">
         <p class="text-body text-foreground leading-relaxed">
           <template v-if="request.kind === 'child_joining'">
-            <strong>{{ request.joinerName }}</strong> wants to join <strong>{{ request.campaignName }}</strong>,
-            run by {{ request.dmName }}.
+            <strong>{{ request.joinerName }}</strong> wants to join <strong>{{ request.campaignName }}</strong><template v-if="request.dmName">,
+            run by {{ request.dmName }}</template>.
           </template>
           <template v-else>
-            <strong>{{ request.joinerName }}</strong> wants to join {{ request.dmName }}'s campaign
+            <strong>{{ request.joinerName }}</strong> wants to join
+            {{ request.dmName ? `${request.dmName}'s campaign` : "the campaign" }}
             <strong>{{ request.campaignName }}</strong>.
             <span v-if="request.joinerIsYoungPlayer" class="text-muted-foreground">
               {{ request.joinerName }} is a young player too.
@@ -104,7 +105,7 @@ async function decide(request: FamilyJoinRequest, approve: boolean) {
     if (decision === "joined") toast.success(message);
     else toast.info(message);
   } catch (err) {
-    toast.error(familyCampaignErrorMessage(err));
+    toast.error(familyCampaignErrorMessage(err, "decide"));
   } finally {
     deciding.value = null;
   }

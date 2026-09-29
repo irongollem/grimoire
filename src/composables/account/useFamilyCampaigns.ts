@@ -51,7 +51,9 @@ export interface FamilyJoinRequest {
   joinerIsYoungPlayer: boolean;
   childUserId: string;
   kind: JoinRequestKind;
-  dmName: string;
+  /** The campaign owner's name at their own table; null when the owner has no
+   *  member row there (the copy then names only the campaign). */
+  dmName: string | null;
   waitingOnOtherParent: boolean;
   createdAt: string;
 }
@@ -84,6 +86,13 @@ function str(o: Obj, key: string): string {
   const v = o[key];
   if (typeof v === "string") return v;
   throw new Error(`get_family_campaigns: ${key} is not text`);
+}
+
+function nullableStr(o: Obj, key: string): string | null {
+  const v = o[key];
+  if (v === null) return null;
+  if (typeof v === "string") return v;
+  throw new Error(`get_family_campaigns: ${key} is not text or null`);
 }
 
 function bool(o: Obj, key: string): boolean {
@@ -138,7 +147,7 @@ function parseRequest(raw: unknown): FamilyJoinRequest {
     joinerIsYoungPlayer: bool(o, "joiner_is_young_player"),
     childUserId: str(o, "child_user_id"),
     kind,
-    dmName: str(o, "dm_name"),
+    dmName: nullableStr(o, "dm_name"),
     waitingOnOtherParent: bool(o, "waiting_on_other_parent"),
     createdAt: str(o, "created_at"),
   };
@@ -155,18 +164,30 @@ export function parseFamilyCampaigns(data: unknown): FamilyCampaigns {
 
 // ── Error copy ───────────────────────────────────────────────────────────────
 
-const RPC_ERROR_MESSAGES: Record<string, string> = {
-  "Not authorized": "That isn't yours to decide. It belongs to one of the other parents.",
-  "Request not found": "That request is gone. Someone may have already answered it.",
-  "The campaign's owner cannot be removed": "The person who runs a campaign can't be removed from it here.",
-  "Campaign not found": "That campaign no longer exists.",
+export type FamilyAction = "decide" | "remove";
+
+// Both RPCs raise 'Not authorized', meaning different things, so the copy is
+// chosen by what the parent was doing.
+const RPC_ERROR_MESSAGES: Record<FamilyAction, Record<string, string>> = {
+  decide: {
+    "Not authorized": "That isn't yours to decide. It belongs to one of the other parents.",
+    "Request not found": "That request is gone. Someone may have already answered it.",
+  },
+  remove: {
+    "Not authorized": "You can't remove them from this table any more. Your young player may have come of age.",
+    "The campaign's owner cannot be removed": "The person who runs a campaign can't be removed from it here.",
+    "Campaign not found": "That campaign no longer exists.",
+  },
 };
 
 /** An RPC's raise message as plain copy. Unknown messages get a generic line,
- *  never the raw database text. */
-export function familyCampaignErrorMessage(err: unknown): string {
-  const message = err instanceof Error ? err.message : typeof err === "object" && err !== null && "message" in err ? String(err.message) : "";
-  return RPC_ERROR_MESSAGES[message] ?? "Something went wrong. Please try again.";
+ *  never the raw database text. Read structurally: a PostgREST error is a
+ *  plain object, not an Error. */
+export function familyCampaignErrorMessage(err: unknown, action: FamilyAction): string {
+  const message = typeof err === "object" && err !== null && "message" in err && typeof err.message === "string"
+    ? err.message
+    : null;
+  return (message !== null ? RPC_ERROR_MESSAGES[action][message] : undefined) ?? "Something went wrong. Please try again.";
 }
 
 // ── Query and mutations ──────────────────────────────────────────────────────
@@ -247,7 +268,8 @@ export function canRemoveMember(
 export function decisionMessage(decision: JoinDecision, request: FamilyJoinRequest): string {
   if (decision === "declined") return "Request declined.";
   if (decision === "pending") return "Waiting for the other parent.";
-  return request.kind === "child_joining"
-    ? `${request.joinerName} can now join ${request.campaignName}.`
-    : `${request.joinerName} can now join ${request.dmName}'s table.`;
+  if (request.kind === "child_joining" || request.dmName === null) {
+    return `${request.joinerName} can now join ${request.campaignName}.`;
+  }
+  return `${request.joinerName} can now join ${request.dmName}'s table.`;
 }

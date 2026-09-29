@@ -43,6 +43,11 @@ describe("parseFamilyCampaigns", () => {
     expect(parsed.requests[0]).toMatchObject({ kind: "joining_child_campaign", joinerIsYoungPlayer: true });
   });
 
+  it("accepts a request whose DM has no name at their own table, rather than failing the whole page", () => {
+    const parsed = parseFamilyCampaigns({ children: [], requests: [{ ...rawRequest, dm_name: null }] });
+    expect(parsed.requests[0].dmName).toBeNull();
+  });
+
   it("accepts empty lists", () => {
     expect(parseFamilyCampaigns({ children: [], requests: [] })).toEqual({ children: [], requests: [] });
   });
@@ -57,16 +62,22 @@ describe("parseFamilyCampaigns", () => {
 
 describe("familyCampaignErrorMessage", () => {
   it("maps the RPC raise messages to plain copy", () => {
-    expect(familyCampaignErrorMessage(new Error("Request not found"))).toContain("gone");
-    expect(familyCampaignErrorMessage({ message: "Not authorized" })).toContain("isn't yours");
-    expect(familyCampaignErrorMessage(new Error("The campaign's owner cannot be removed"))).toContain("can't be removed");
+    expect(familyCampaignErrorMessage({ message: "Request not found" }, "decide")).toContain("gone");
+    expect(familyCampaignErrorMessage({ message: "Not authorized" }, "decide")).toContain("isn't yours");
+    expect(familyCampaignErrorMessage({ message: "The campaign's owner cannot be removed" }, "remove")).toContain("can't be removed");
+  });
+
+  it("words 'Not authorized' for what the parent was doing", () => {
+    expect(familyCampaignErrorMessage({ message: "Not authorized" }, "remove")).toContain("can't remove");
+    expect(familyCampaignErrorMessage({ message: "Not authorized" }, "remove")).not.toContain("decide");
   });
 
   it("never leaks raw database text or an em-dash", () => {
-    const generic = familyCampaignErrorMessage(new Error("duplicate key value violates constraint"));
+    const generic = familyCampaignErrorMessage({ message: "duplicate key value violates constraint" }, "decide");
     expect(generic).toBe("Something went wrong. Please try again.");
     for (const m of ["Not authorized", "Request not found", "Campaign not found"]) {
-      expect(familyCampaignErrorMessage(new Error(m))).not.toContain("—");
+      expect(familyCampaignErrorMessage({ message: m }, "decide")).not.toContain("—");
+      expect(familyCampaignErrorMessage({ message: m }, "remove")).not.toContain("—");
     }
   });
 });
