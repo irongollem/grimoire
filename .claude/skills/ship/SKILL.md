@@ -105,9 +105,12 @@ Then:
 mcp__supabase__get_advisors({ type: "security" })
 ```
 
-Baseline is **87 findings** (12 Aug 2026). The count rises with ordinary
-feature work, so a rising number is not the signal — **a name you cannot
-account for is.** Resolve anything new before pushing.
+Read it by category, not total. A client-callable definer function is proven
+by `supabase/tests/definer_refusal_registry.test.sql` and its vitest cross-check
+(#936), which the test step above already ran: a new RPC fails the suite until
+it is registered with a refusal test. Any category other than the definer,
+no-policy and `pg_net` findings is a regression until explained. Resolve
+anything new before pushing.
 
 ## Step 6 — Conventions review (always)
 

@@ -117,33 +117,23 @@ Work from function bodies. Grep tells you where to look and nothing more.
    grant — that is how the three RPCs in #650 became anon-reachable without
    anyone granting anything.
 
-5. **Run `mcp__supabase__get_advisors({ type: "security" })`** and diff against
-   the baseline below.
+5. **Check the refusal registry.** Every client-callable `SECURITY DEFINER`
+   function must be listed in `supabase/tests/definer_refusal_registry.test.sql`
+   (#936) as `refuses`, `self` or `public`, and a `refuses` one needs a
+   `throws_ok` / `is_empty` in `supabase/tests/` that calls it as the wrong
+   person, with a positive control beside it. A new function missing from the
+   registry, or registered without that test, is a finding. So is a refusal
+   test that would pass on a broken fixture (a "not found" where an
+   authorization message belongs), or an `is_empty` read as the refused user
+   under RLS, which passes vacuously.
 
-## The baseline is 87 findings, and it is not a backlog
-
-Measured 12 Aug 2026. A **new** finding is a regression; the 87 are the
-expected shape of an app whose entire write path is RPCs.
-
-- **77 `*_security_definer_function_executable`** (72 authenticated, 5 anon).
-  Five are deliberately anon-reachable and pinned by
-  `supabase/tests/anon_rpc_surface.test.sql`: `validate_app_invite` (runs before
-  login by definition — the token is the credential) and the four
-  `get_library_*_sources` (shared content, intentionally not account-gated). A
-  sixth must not arrive by accident; if one is added on purpose it goes in that
-  test with a reason.
-- **9 `rls_enabled_no_policy` (INFO)** — eight `*_embeddings` tables plus
-  `disposable_email_domains`. RLS on with no policy is deny-all. These are read
-  only through `SECURITY DEFINER` RPCs and written only by edge functions, so
-  the absence of policies **is** the lockdown. Adding policies here would
-  *widen* access.
-- **1 `extension_in_public`** — `pg_net`, used by cron/webhooks. Relocating it
-  is a real migration with real blast radius.
-
-The count **rises with ordinary feature work** — every write path that moves
-from client table access into a gated RPC adds one, which is the direction you
-want. So a rising number is not itself the signal. **A name you cannot account
-for is.**
+6. **Run `mcp__supabase__get_advisors({ type: "security" })`** and read it by
+   category, not total (CLAUDE.md, the advisor entry under Sanctioned
+   Exceptions): `*_security_definer_function_executable` is proven by the
+   registry above, `rls_enabled_no_policy` and `extension_in_public` are the
+   known deny-all tables and `pg_net`, and **any other category is a
+   regression until explained**. The advisor sees neither policies nor
+   triggers, so a clean report proves nothing about them.
 
 Also note: "unused index" advisor hits are a known false positive here (a
 ~7.5-month stats window, and the largest table holding a zero-scan index is
