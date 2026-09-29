@@ -7,6 +7,7 @@
         placeholder="Physical description, clothing, distinguishing features…"
         size="md"
         :ai-context="`NPC appearance — ${npcName || 'unnamed NPC'}`"
+        :entity-mention-items="entityMentionItems"
         @update:model-value="emit('update:appearance', $event)"
       />
     </div>
@@ -17,6 +18,7 @@
         placeholder="Traits, mannerisms, ideals, bonds, flaws…"
         size="md"
         :ai-context="`NPC personality — ${npcName || 'unnamed NPC'}`"
+        :entity-mention-items="entityMentionItems"
         @update:model-value="emit('update:personality', $event)"
       />
     </div>
@@ -27,6 +29,7 @@
         placeholder="History, origin, formative events…"
         size="md"
         :ai-context="`NPC backstory — ${npcName || 'unnamed NPC'}`"
+        :entity-mention-items="entityMentionItems"
         @update:model-value="emit('update:backstory', $event)"
       />
     </div>
@@ -37,6 +40,7 @@
         placeholder="Session notes, secrets, loose threads…"
         size="md"
         :ai-context="`NPC notes — ${npcName || 'unnamed NPC'}`"
+        :entity-mention-items="entityMentionItems"
         @update:model-value="emit('update:notes', $event)"
       />
     </div>
@@ -45,6 +49,11 @@
 
 <script setup lang="ts">
 import RichTextEditor from '@/components/common/RichTextEditor.vue'
+import { useEntityMentionItems } from '@/composables/notes/useEntityMentionItems'
+
+// NPC lore is a DM-only surface (this tab is never mounted from /play), so the
+// full mention list is always the DM's — see NoteEditor.vue for the same call.
+const { mentionItems: entityMentionItems } = useEntityMentionItems()
 
 const {
   npcName = '',

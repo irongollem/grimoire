@@ -362,13 +362,20 @@ TanStack Query key: `"notes"`.
 
 All mutations call `queryClient.invalidateQueries({ queryKey: ["notes"] })` on success.
 
-**Backlinks: "Mentioned in" (epic #932, story 1).** `useEntityBacklinks(entityId)` (`src/composables/notes/useEntityBacklinks.ts`) lists the notes whose body @mentions an entity, rendered by `EntityBacklinks.vue` on the DM's NPC (`NpcTabContent` + `NpcDetailMobile`), location (`LocationDetailSections`), faction (`FactionDetailView`), monster (`MonsterDetail`, user-owned only) and party member (`PartyMemberView`) surfaces. Three things to know:
+**@mentions store who, never what they are called (epic #932, story 3).** A mention node is `{ type: "entityMention", attrs: { id, entityType } }`. It used to carry `label`, the entity's real name when written, and the chip printed it for every reader, so a note shared with players that mentioned a disguised NPC showed them its true name on screen and in the JSON they downloaded. Now `EntityMentionChip` resolves the name per reader through `useMentionName(entityType, id)` (`src/composables/notes/useMentionName.ts`):
 
-- **The `like` is a prefilter, not the answer.** `content like '%<id>%'` narrows the rows cheaply, then `contentMentionsEntity` (`src/lib/tiptap/mentions.ts`) parses each note and walks it for an `entityMention` node whose `attrs.id` matches. The substring alone can hit a calendar ref, a block id or pasted text.
-- **Its key is `["notes", "backlinks", campaignId, entityId]`.** Because the key sits under `"notes"`, the invalidation above refreshes every open backlinks section without any wiring of its own.
-- **It is never mounted on a surface the player shares.** `PlayerCharacterView` renders for the player too, so the party mount sits in `PartyMemberView` (DM-only), not inside the sheet. Note titles are DM content even when the note body is not.
+- **Player portal** (`isPlayerArea`, `src/router/lens.ts`): only the player-gated sources: `get_player_visible_npcs` (the cover name while a disguise is unrevealed, null when the name is not shared), shared locations, visible factions, discovered monsters, and the party. Unknown renders as an inert `???` chip that links nowhere.
+- **DM**: the campaign lists, plus a per-id monster lookup (`monsterNameTable` picks `monsters` for a uuid and `library_monsters` for a text id; asking `monsters` for `srd_owlbear` is a uuid syntax error, not a miss).
+- Each chip calls only the one source its `entityType` needs, so a rich-text viewer with no mentions subscribes to nothing.
 
-Only `NoteEditor` and the player journal enable @mentions today, so backlinks can only come from notes. Widening mentions to entity description fields is story 3 of #932.
+Migration `20260928233906` stripped `label` from mentions already stored; `remapMentionIds` (`src/lib/campaign/mentionRemap.ts`) drops it from old backups on restore and remaps mention ids to the restored rows. The picker's `EntityMentionItem` still has a `label`; it is never stored. Mentions are enabled in notes, the player journal, NPC lore, location and faction descriptions, quest beat text (`dm_content`, `read_aloud`, `how_it_plays`) and party member persona fields. None of the entity editors render in the player portal, so all of them use the DM list (`useEntityMentionItems`).
+
+**Backlinks: "Mentioned in" (epic #932).** `useEntityBacklinks(entityId)` (`src/composables/notes/useEntityBacklinks.ts`) lists every place an entity is @mentioned: notes, NPC lore, location and faction descriptions, quest beats and party member persona fields. `EntityBacklinks.vue` renders it on the DM's NPC (`NpcTabContent` + `NpcDetailMobile`), location (`LocationDetailSections`), faction (`FactionDetailView`), monster (`MonsterDetail`, user-owned only) and party member (`PartyMemberView`) surfaces. Four things to know:
+
+- **The `like` is a prefilter, not the answer.** A `like '%<id>%'` per column narrows the rows cheaply, then `contentMentionsEntity` (`src/lib/tiptap/mentions.ts`) parses the matched column and walks it for an `entityMention` node whose `attrs.id` matches. The substring alone can hit a calendar ref, a block id or pasted text.
+- **An entity does not list itself.** A self-mention in an NPC's own backstory is not a reference from elsewhere.
+- **It is not cached.** The sources live under six query roots, and following all of them would re-run the search on every party HP tick, so the query uses `staleTime: 0` with `refetchOnMount: "always"`. Every edit that could change a mention ends by navigating away, so reopening the entity gives a fresh read.
+- **It is never mounted on a surface the player shares.** `PlayerCharacterView` renders for the player too, so the party mount sits in `PartyMemberView` (DM-only), not inside the sheet. Titles of notes and quest beats are DM content even when a note body is shared.
 
 ### View Components
 

@@ -10,6 +10,7 @@ import {
   remapKeepArr as rArr,
   type IdMap,
 } from "@/lib/campaign/campaignSerialization";
+import { remapMentionIds as rMention } from "@/lib/campaign/mentionRemap";
 import { disposeHomebrewAndDeleteCampaign } from "@/composables/campaign/useCampaigns";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -495,6 +496,13 @@ async function executeImport(
         user_id: userId,
         current_location_id: r(pm.current_location_id, idMap),
         owner_user_id: null,  // players re-link after import
+        notes: rMention(pm.notes, idMap),
+        physical_description: rMention(pm.physical_description, idMap),
+        personality_traits: rMention(pm.personality_traits, idMap),
+        ideals: rMention(pm.ideals, idMap),
+        bonds: rMention(pm.bonds, idMap),
+        flaws: rMention(pm.flaws, idMap),
+        player_description: rMention(pm.player_description, idMap),
       })),
     );
 
@@ -511,6 +519,7 @@ async function executeImport(
         npc_owner_id: r(loc.npc_owner_id, idMap),
         player_visible_to: rArr(loc.player_visible_to, idMap),
         map_pins: remapMapPins(loc.map_pins, idMap),
+        description: rMention(loc.description, idMap),
       })),
     );
 
@@ -522,6 +531,7 @@ async function executeImport(
         id: r(doc.id, idMap),
         campaign_id: newCampaignId,
         user_id: userId,
+        content: rMention(doc.content, idMap),
       })),
     );
 
@@ -539,6 +549,10 @@ async function executeImport(
         // account-wide one keeps its id. linked_monster_id is a user-library
         // ref and is kept as-is.
         scriptorium_doc_id: r(npc.scriptorium_doc_id, idMap),
+        appearance: rMention(npc.appearance, idMap),
+        personality: rMention(npc.personality, idMap),
+        backstory: rMention(npc.backstory, idMap),
+        notes: rMention(npc.notes, idMap),
       })),
     );
 
@@ -551,6 +565,7 @@ async function executeImport(
         campaign_id: newCampaignId,
         user_id: userId,
         player_visible_to: rArr(f.player_visible_to, idMap),
+        description: rMention(f.description, idMap),
       })),
     );
 
@@ -605,6 +620,7 @@ async function executeImport(
         party_member_ids: rArr(enc.party_member_ids, idMap),
         companion_ids: rArr(enc.companion_ids, idMap),
         // item_ids, trap_ids, combatants JSONB kept as-is (user-library refs)
+        description: rMention(enc.description, idMap),
       })),
     );
 
@@ -618,6 +634,7 @@ async function executeImport(
         user_id: userId,
         linked_calendar_event_id: r(n.linked_calendar_event_id, idMap),
         player_visible_to: rArr(n.player_visible_to, idMap),
+        content: rMention(n.content, idMap),
       })),
     );
 
@@ -634,6 +651,7 @@ async function executeImport(
         linked_location_id: r(ev.linked_location_id, idMap),
         linked_note_id: r(ev.linked_note_id, idMap),
         travel_party_member_ids: rArr(ev.travel_party_member_ids, idMap),
+        description: rMention(ev.description, idMap),
       })),
     );
 
@@ -681,6 +699,7 @@ async function executeImport(
         campaign_id: newCampaignId,
         user_id: userId,
         player_visible_to: rArr(rec.player_visible_to, idMap),
+        description: rMention(rec.description, idMap),
       })),
     );
 
@@ -714,6 +733,11 @@ async function executeImport(
         campaign_id: newCampaignId,
         user_id: userId,
         player_visible_to: rArr(pz.player_visible_to, idMap),
+        description: rMention(pz.description, idMap),
+        solution: rMention(pz.solution, idMap),
+        success_outcome: rMention(pz.success_outcome, idMap),
+        failure_consequence: rMention(pz.failure_consequence, idMap),
+        notes: rMention(pz.notes, idMap),
       })),
     );
 
@@ -762,6 +786,7 @@ async function executeImport(
         carried_by: r(inv.carried_by, idMap),
         container_id: r(inv.container_id, idMap),
         // item_id kept as-is (user-library ref)
+        notes: rMention(inv.notes, idMap),
       })),
     );
 
@@ -786,6 +811,7 @@ async function executeImport(
         user_id: userId,
         npc_id: r(note.npc_id, idMap),
         party_member_id: r(note.party_member_id, idMap),
+        notes: rMention(note.notes, idMap),
       })),
     );
     await batchInsert(
@@ -1007,6 +1033,7 @@ async function executeImport(
         campaign_id: newCampaignId,
         user_id: userId,
         entity_id: r(en.entity_id, idMap) ?? en.entity_id,
+        content: rMention(en.content, idMap),
       })),
     );
   } catch (err) {

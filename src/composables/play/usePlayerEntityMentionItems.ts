@@ -29,11 +29,16 @@ export function usePlayerEntityMentionItems() {
         entityType: "player" as const,
         label: m.name,
       })),
-      ...(sharedNpcs.value ?? []).map((n) => ({
-        id: n.id,
-        entityType: "npc" as const,
-        label: n.name ?? "???",
-      })),
+      // A player can only mention what they can name — an NPC whose name
+      // isn't player-visible (get_player_visible_npcs returns null) used to
+      // become a literal "???" suggestion; now it's simply not offered.
+      ...(sharedNpcs.value ?? [])
+        .filter((n): n is typeof n & { name: string } => n.name !== null)
+        .map((n) => ({
+          id: n.id,
+          entityType: "npc" as const,
+          label: n.name,
+        })),
       ...discoveredMonsters.map((m) => ({
         id: m.id,
         entityType: "monster" as const,

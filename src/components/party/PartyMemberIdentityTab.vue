@@ -195,6 +195,7 @@
       :model-value="form.notes"
       placeholder="Background, personality, goals…"
       size="md"
+      :entity-mention-items="entityMentionItems"
       @update:model-value="patch({ notes: $event })"
     />
   </div>
@@ -206,6 +207,7 @@ import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import type { IdentityFormSlice } from "./partyMemberForm.types";
 import { buildEntityContext } from "@/ai/utils";
 
@@ -266,6 +268,12 @@ const aiContext = computed(() =>
     form.level ? `level ${form.level}` : "",
   ]),
 );
+
+// PartyMemberForm (this tab's only mount point) is DM-only — a player editing
+// their own character goes through CharacterEditTabs at /play/character/edit,
+// which has its own separate Notes field — so the full mention list is
+// always the DM's. See NoteEditor.vue for the same call.
+const { mentionItems: entityMentionItems } = useEntityMentionItems();
 
 const emit = defineEmits<{
   "update:form": [patch: Partial<IdentityFormSlice>];

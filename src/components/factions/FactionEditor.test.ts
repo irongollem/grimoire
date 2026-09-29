@@ -57,6 +57,14 @@ vi.mock("@/composables/factions/useFactions", () => ({
   useDeleteFaction: () => ({ mutateAsync: deleteFaction }),
 }));
 
+// FactionEditor now passes @mention items to its description RichTextEditor
+// (epic #932, story 3); mocked at this boundary rather than pulling in the
+// five composables useEntityMentionItems fans out to (party/npcs/monsters/
+// locations/factions), none of which this file otherwise sets up.
+vi.mock("@/composables/notes/useEntityMentionItems", () => ({
+  useEntityMentionItems: () => ({ mentionItems: { value: [] } }),
+}));
+
 const toastSuccess = vi.fn();
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({

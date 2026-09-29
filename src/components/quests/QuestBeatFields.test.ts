@@ -9,6 +9,14 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useUpdateQuestBeat: () => ({ mutateAsync: mocks.update }),
 }));
 
+// QuestBeatFields now passes @mention items to its RichTextEditors (epic
+// #932, story 3); mocked at this boundary rather than pulling in the five
+// composables useEntityMentionItems fans out to (party/npcs/monsters/
+// locations/factions), none of which this file otherwise sets up.
+vi.mock("@/composables/notes/useEntityMentionItems", () => ({
+  useEntityMentionItems: () => ({ mentionItems: { value: [] } }),
+}));
+
 const stubs = { RichTextEditor: true, MentionTextarea: true };
 
 const beat = (): QuestBeat => ({

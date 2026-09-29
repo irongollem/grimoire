@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMarkdownVault, type MarkdownVaultInput } from "./markdownVault";
+import { buildMarkdownVault, collectMentionedMonsterIds, type MarkdownVaultInput } from "./markdownVault";
 import type { Npc } from "@/types/npc.types";
 import type { Location } from "@/types/location.types";
 import type { Faction } from "@/types/faction.types";
@@ -11,14 +11,14 @@ function tiptapDoc(text: string): string {
   return JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 }
 
-function mentionDoc(id: string, entityType: string, label: string): string {
+function mentionDoc(id: string, entityType: string): string {
   return JSON.stringify({
     type: "doc",
     content: [{
       type: "paragraph",
       content: [
         { type: "text", text: "See " },
-        { type: "entityMention", attrs: { id, entityType, label } },
+        { type: "entityMention", attrs: { id, entityType } },
         { type: "text", text: "." },
       ],
     }],
@@ -127,7 +127,7 @@ describe("buildMarkdownVault — @mentions become wikilinks", () => {
     const files = buildMarkdownVault(baseInput({
       npcs: [
         npc({ id: "npc-1", name: "Elminster", appearance: null }),
-        npc({ id: "npc-2", name: "Bandit", appearance: mentionDoc("npc-1", "npc", "Elminster") }),
+        npc({ id: "npc-2", name: "Bandit", appearance: mentionDoc("npc-1", "npc") }),
       ],
     }));
     expect(files["NPCs/Bandit.md"]).toContain("See [[NPCs/Elminster|Elminster]].");
@@ -138,25 +138,40 @@ describe("buildMarkdownVault — @mentions become wikilinks", () => {
       npcs: [
         npc({ id: "npc-1", name: "Bandit", appearance: null }),
         npc({ id: "npc-2", name: "Bandit", appearance: null }),
-        npc({ id: "npc-3", name: "Witness", appearance: mentionDoc("npc-2", "npc", "Bandit") }),
+        npc({ id: "npc-3", name: "Witness", appearance: mentionDoc("npc-2", "npc") }),
       ],
     }));
     // npc-2 is the second "Bandit" processed, so it was deduped to "Bandit (2)".
     expect(files["NPCs/Witness.md"]).toContain("See [[NPCs/Bandit (2)|Bandit (2)]].");
   });
 
-  it("falls back to the plain label for a mention type this vault never exports (e.g. a monster)", () => {
+  it("resolves a monster mention through the caller-supplied monsterNames map", () => {
     const files = buildMarkdownVault(baseInput({
-      npcs: [npc({ appearance: mentionDoc("mon-1", "monster", "Owlbear") })],
+      npcs: [npc({ appearance: mentionDoc("mon-1", "monster") })],
+      monsterNames: { "mon-1": "Owlbear" },
     }));
     expect(files["NPCs/Elminster.md"]).toContain("See Owlbear.");
   });
 
-  it("falls back to the plain label for a mention id that isn't in the export (stale/deleted)", () => {
+  it("renders '???' for a monster mention whose id isn't in the monsterNames map", () => {
     const files = buildMarkdownVault(baseInput({
-      npcs: [npc({ appearance: mentionDoc("npc-ghost", "npc", "Deleted NPC") })],
+      npcs: [npc({ appearance: mentionDoc("mon-1", "monster") })],
     }));
-    expect(files["NPCs/Elminster.md"]).toContain("See Deleted NPC.");
+    expect(files["NPCs/Elminster.md"]).toContain("See ???.");
+  });
+
+  it("renders the whole-party sentinel mention as prose, not a link", () => {
+    const files = buildMarkdownVault(baseInput({
+      npcs: [npc({ appearance: mentionDoc("party-group", "party") })],
+    }));
+    expect(files["NPCs/Elminster.md"]).toContain("See the party.");
+  });
+
+  it("renders '???' for a mention id that isn't in the export (stale/deleted)", () => {
+    const files = buildMarkdownVault(baseInput({
+      npcs: [npc({ appearance: mentionDoc("npc-ghost", "npc") })],
+    }));
+    expect(files["NPCs/Elminster.md"]).toContain("See ???.");
   });
 
   it("resolves a party-member mention (entityType 'player') to the Party folder's file name", () => {
@@ -213,7 +228,7 @@ describe("buildMarkdownVault — @mentions become wikilinks", () => {
     };
     const files = buildMarkdownVault(baseInput({
       partyMembers: [pm],
-      npcs: [npc({ appearance: mentionDoc("pm-1", "player", "Aria Stormwind") })],
+      npcs: [npc({ appearance: mentionDoc("pm-1", "player") })],
     }));
     expect(files["Party/Aria Stormwind.md"]).toContain('type: "party_member"');
     expect(files["Party/Aria Stormwind.md"]).toContain("level: 5");
@@ -432,5 +447,35 @@ describe("buildMarkdownVault — README", () => {
   it("omits a folder's section entirely when the campaign has none of that entity", () => {
     const files = buildMarkdownVault(baseInput());
     expect(files["README.md"]).not.toContain("## NPCs");
+  });
+});
+
+describe("collectMentionedMonsterIds", () => {
+  it("finds a monster mention nested inside an NPC's rich-text field", () => {
+    const ids = collectMentionedMonsterIds(baseInput({
+      npcs: [npc({ appearance: mentionDoc("mon-1", "monster") })],
+    }));
+    expect(ids).toEqual(["mon-1"]);
+  });
+
+  it("dedupes the same monster id mentioned in more than one field/entity", () => {
+    const ids = collectMentionedMonsterIds(baseInput({
+      npcs: [
+        npc({ id: "npc-1", appearance: mentionDoc("mon-1", "monster") }),
+        npc({ id: "npc-2", personality: mentionDoc("mon-1", "monster") }),
+      ],
+    }));
+    expect(ids).toEqual(["mon-1"]);
+  });
+
+  it("ignores non-monster mentions", () => {
+    const ids = collectMentionedMonsterIds(baseInput({
+      npcs: [npc({ appearance: mentionDoc("npc-2", "npc") })],
+    }));
+    expect(ids).toEqual([]);
+  });
+
+  it("returns an empty array when there is nothing to scan", () => {
+    expect(collectMentionedMonsterIds(baseInput())).toEqual([]);
   });
 });

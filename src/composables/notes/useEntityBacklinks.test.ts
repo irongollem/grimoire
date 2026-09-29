@@ -22,16 +22,16 @@ function doc(...nodes: unknown[]) {
 }
 
 const mocks = vi.hoisted(() => ({
-  rows: [] as { id: string; title: string; content: string | null }[],
-  calls: [] as { method: string; args: unknown[] }[],
+  rowsByTable: {} as Record<string, unknown[]>,
+  calls: [] as { table: string; method: string; args: unknown[] }[],
 }));
 
-function makeQueryChain() {
-  const chain = Promise.resolve({ data: mocks.rows, error: null }) as
+function makeQueryChain(table: string) {
+  const chain = Promise.resolve({ data: mocks.rowsByTable[table] ?? [], error: null }) as
     Promise<{ data: unknown[]; error: null }> & Record<string, (...args: unknown[]) => unknown>;
-  for (const method of ["select", "eq", "like"]) {
+  for (const method of ["select", "eq", "neq", "like", "or"]) {
     chain[method] = (...args: unknown[]) => {
-      mocks.calls.push({ method, args });
+      mocks.calls.push({ table, method, args });
       return chain;
     };
   }
@@ -40,12 +40,7 @@ function makeQueryChain() {
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
-    from: () => ({
-      select: (...args: unknown[]) => {
-        mocks.calls.push({ method: "select", args });
-        return makeQueryChain();
-      },
-    }),
+    from: (table: string) => makeQueryChain(table),
   },
 }));
 
@@ -68,26 +63,26 @@ function withQueryClient<T>(setup: () => T): { result: T; unmount: () => void } 
 describe("useEntityBacklinks", () => {
   beforeEach(() => {
     activeCampaignId.value = "campaign-1";
-    mocks.rows = [];
+    mocks.rowsByTable = {};
     mocks.calls = [];
   });
 
   it("returns notes confirmed to mention the entity, sorted by title", async () => {
-    mocks.rows = [
+    mocks.rowsByTable.notes = [
       { id: "note-b", title: "Bravo", content: doc(mentionNode("npc-1")) },
       { id: "note-a", title: "Alpha", content: doc(mentionNode("npc-1")) },
     ];
     const { result, unmount } = withQueryClient(() => useEntityBacklinks(ref("npc-1")));
     await flushPromises();
     expect(result.data.value).toEqual([
-      { id: "note-a", title: "Alpha" },
-      { id: "note-b", title: "Bravo" },
+      { kind: "note", id: "note-a", title: "Alpha", to: "/notes/note-a" },
+      { kind: "note", id: "note-b", title: "Bravo", to: "/notes/note-b" },
     ]);
     unmount();
   });
 
   it("drops a substring-only match that the like filter surfaced but no mention node confirms", async () => {
-    mocks.rows = [
+    mocks.rowsByTable.notes = [
       { id: "note-1", title: "False Positive", content: doc(mentionNode("npc-123")) },
     ];
     const { result, unmount } = withQueryClient(() => useEntityBacklinks(ref("npc-1")));
@@ -97,7 +92,7 @@ describe("useEntityBacklinks", () => {
   });
 
   it("drops a row with malformed JSON content instead of throwing", async () => {
-    mocks.rows = [{ id: "note-1", title: "Broken", content: "{not json" }];
+    mocks.rowsByTable.notes = [{ id: "note-1", title: "Broken", content: "{not json" }];
     const { result, unmount } = withQueryClient(() => useEntityBacklinks(ref("npc-1")));
     await flushPromises();
     expect(result.data.value).toEqual([]);
@@ -121,11 +116,96 @@ describe("useEntityBacklinks", () => {
     unmount();
   });
 
-  it("scopes the query to the active campaign and a content substring match", async () => {
+  it("scopes the notes query to the active campaign and a content substring match", async () => {
     const { unmount } = withQueryClient(() => useEntityBacklinks(ref("npc-1")));
     await flushPromises();
-    expect(mocks.calls).toContainEqual({ method: "eq", args: ["campaign_id", "campaign-1"] });
-    expect(mocks.calls).toContainEqual({ method: "like", args: ["content", "%npc-1%"] });
+    expect(mocks.calls).toContainEqual({ table: "notes", method: "eq", args: ["campaign_id", "campaign-1"] });
+    expect(mocks.calls).toContainEqual({ table: "notes", method: "like", args: ["content", "%npc-1%"] });
+    unmount();
+  });
+
+  it("returns a confirmed mention from a non-note source (an NPC's lore fields)", async () => {
+    mocks.rowsByTable.npcs = [
+      {
+        id: "npc-2",
+        name: "Innkeeper Rosa",
+        appearance: null,
+        personality: doc(mentionNode("npc-1")),
+        backstory: null,
+        notes: null,
+      },
+    ];
+    const { result, unmount } = withQueryClient(() => useEntityBacklinks(ref("npc-1")));
+    await flushPromises();
+    expect(result.data.value).toEqual([
+      { kind: "npc", id: "npc-2", title: "Innkeeper Rosa", to: "/npcs/npc-2" },
+    ]);
+    unmount();
+  });
+
+  it("returns a confirmed mention from a quest beat, titled 'quest · beat'", async () => {
+    mocks.rowsByTable.quest_beats = [
+      {
+        id: "beat-1",
+        title: "The Ambush",
+        quest_id: "quest-1",
+        dm_content: doc(mentionNode("npc-1")),
+        read_aloud: null,
+        how_it_plays: null,
+        quest: { title: "The Long Road" },
+      },
+    ];
+    const { result, unmount } = withQueryClient(() => useEntityBacklinks(ref("npc-1")));
+    await flushPromises();
+    expect(result.data.value).toEqual([
+      { kind: "quest-beat", id: "beat-1", title: "The Long Road · The Ambush", to: "/quests/quest-1/beats/beat-1" },
+    ]);
+    unmount();
+  });
+
+  it("returns a confirmed mention from a party member's persona fields", async () => {
+    mocks.rowsByTable.party_members = [
+      {
+        id: "pm-2",
+        name: "Aric Stormblade",
+        physical_description: null,
+        personality_traits: null,
+        ideals: null,
+        bonds: doc(mentionNode("npc-1")),
+        flaws: null,
+        notes: null,
+      },
+    ];
+    const { result, unmount } = withQueryClient(() => useEntityBacklinks(ref("npc-1")));
+    await flushPromises();
+    expect(result.data.value).toEqual([
+      { kind: "party-member", id: "pm-2", title: "Aric Stormblade", to: "/party/pm-2" },
+    ]);
+    unmount();
+  });
+
+  it("excludes an entity's own row from its own backlinks (self-mention)", async () => {
+    // npc-1 mentioning itself in its own backstory must not appear in npc-1's
+    // "Mentioned in" list — the `.neq("id", id)` filter drops it before the
+    // like/confirm step ever runs, so the mock never even offers the row a
+    // chance to confirm.
+    mocks.rowsByTable.npcs = [
+      { id: "npc-1", name: "Self Mentioner", appearance: null, personality: null, backstory: doc(mentionNode("npc-1")), notes: null },
+    ];
+    const { result, unmount } = withQueryClient(() => useEntityBacklinks(ref("npc-1")));
+    await flushPromises();
+    expect(mocks.calls).toContainEqual({ table: "npcs", method: "neq", args: ["id", "npc-1"] });
+    expect(result.data.value).toEqual([]);
+    unmount();
+  });
+
+  it("drops a location whose description merely contains the id as a substring of an unrelated mention", async () => {
+    mocks.rowsByTable.locations = [
+      { id: "loc-1", name: "The Sunken Crypt", description: doc(mentionNode("npc-999")) },
+    ];
+    const { result, unmount } = withQueryClient(() => useEntityBacklinks(ref("npc-99")));
+    await flushPromises();
+    expect(result.data.value).toEqual([]);
     unmount();
   });
 });

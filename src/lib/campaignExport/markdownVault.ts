@@ -14,9 +14,14 @@
  * @mentions in rich-text fields become `[[Exact File Name]]` wikilinks,
  * resolved against the file names this module itself assigns (so a renamed
  * or deduped file still links correctly) — see `buildMentionResolver`. A
- * mention of an entity type this vault doesn't export (a monster, or the
- * "whole party" sentinel mention) falls back to its plain label, the same
- * as `tiptapToMarkdown`'s own default.
+ * stored mention carries no name of its own (#932 story 3), so the three
+ * entity types this vault has no file for get their own rendering: the
+ * "whole party" sentinel renders as "the party", a monster renders through
+ * a `monsterNames` map the caller fetches and passes in (see
+ * `collectMentionedMonsterIds`, since this module stays pure/Supabase-free
+ * and cannot fetch them itself), and anything else unresolvable — a stale
+ * id, a type this vault doesn't recognize — renders as "???", the app's
+ * convention for a withheld name.
  */
 import type { Faction } from "@/types/faction.types";
 import type { Location } from "@/types/location.types";
@@ -37,12 +42,17 @@ export interface MarkdownVaultInput {
   questObjectives: QuestObjective[];
   partyMembers: PartyMember[];
   notes: Note[];
+  /** id -> name, for every monster mentioned anywhere in the rich-text fields
+   *  below. Fetched by the caller (`useCampaignMarkdownExport.ts`) via
+   *  `collectMentionedMonsterIds`, since this module has no Supabase access
+   *  of its own. Omitted/missing ids render as "???". */
+  monsterNames?: Record<string, string>;
 }
 
 /** One vault file's id -> assigned display name (no folder, no `.md`) — what a `[[wikilink]]` names. */
 type EntityFileNames = Map<string, string>;
 
-/** The four entity kinds `EntityMention.ts`'s `EntityType` can resolve to a file in this vault. "monster" and "party" (the whole-party sentinel mention) are deliberately absent — nothing exports a Monsters or Party-group folder, so those mention types always fall back to their plain label. */
+/** The four entity kinds `EntityMention.ts`'s `EntityType` can resolve to a file in this vault. "monster" and "party" (the whole-party sentinel mention) are deliberately absent — nothing exports a Monsters or Party-group folder, so those two are handled directly in `buildMentionResolver` instead of through this table. */
 interface MentionTargets {
   npc: EntityFileNames;
   location: EntityFileNames;
@@ -92,12 +102,68 @@ function wikilink(folder: Folder, name: string | undefined): string | null {
   return name ? `[[${folder}/${name}|${name}]]` : null;
 }
 
-/** `options.mention` for `tiptapToMarkdown`: an exported entity becomes a wikilink to its assigned file; anything else (a monster, the whole-party sentinel, a stale id) keeps its plain label. */
-function buildMentionResolver(targets: MentionTargets): TiptapToMarkdownOptions["mention"] {
+/** `options.mention` for `tiptapToMarkdown`: an exported entity (npc/location/
+ *  faction/player) becomes a wikilink to its assigned file; the whole-party
+ *  sentinel renders as prose ("the party"); a monster renders through the
+ *  caller-supplied name map (see `collectMentionedMonsterIds`); anything
+ *  else unresolvable — a stale id, an unrecognized type — renders "???". */
+function buildMentionResolver(targets: MentionTargets, monsterNames: Map<string, string>): TiptapToMarkdownOptions["mention"] {
   return (attrs) => {
+    if (attrs.entityType === "party") return "the party";
+    if (attrs.entityType === "monster") return monsterNames.get(attrs.id) ?? "???";
     const hit = lookupMentionTable(targets, attrs.entityType);
-    return (hit && wikilink(hit[0], hit[1].get(attrs.id))) || attrs.label;
+    return (hit && wikilink(hit[0], hit[1].get(attrs.id))) || "???";
   };
+}
+
+// ── Monster mention ids (no vault file of their own — names come from a caller-fetched map) ──
+
+interface MentionNode {
+  type?: unknown;
+  attrs?: { id?: unknown; entityType?: unknown };
+  content?: unknown;
+}
+
+function collectMentionIdsOfType(node: unknown, entityType: string, into: Set<string>): void {
+  if (!node || typeof node !== "object") return;
+  const n = node as MentionNode;
+  if (n.type === "entityMention" && n.attrs?.entityType === entityType && typeof n.attrs.id === "string") {
+    into.add(n.attrs.id);
+  }
+  if (Array.isArray(n.content)) {
+    for (const child of n.content) collectMentionIdsOfType(child, entityType, into);
+  }
+}
+
+function parseRichText(json: string | null | undefined): unknown {
+  if (!json) return null;
+  try {
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every monster-mention id across all the rich-text fields this vault will
+ * convert, so the caller (`useCampaignMarkdownExport.ts`) knows exactly which
+ * monster names to fetch before calling `buildMarkdownVault` — this module
+ * stays pure/Supabase-free, so it cannot fetch them itself, and monsters have
+ * no exported file/folder of their own for a wikilink to point at.
+ */
+export function collectMentionedMonsterIds(
+  input: Pick<MarkdownVaultInput, "npcs" | "locations" | "factions" | "partyMembers" | "notes">,
+): string[] {
+  const ids = new Set<string>();
+  const richTextFields: Array<string | null | undefined> = [
+    ...input.npcs.flatMap((n) => [n.appearance, n.personality, n.backstory, n.notes]),
+    ...input.locations.map((l) => l.description),
+    ...input.factions.map((f) => f.description),
+    ...input.partyMembers.flatMap((p) => [p.physical_description, p.personality_traits, p.ideals, p.bonds, p.flaws, p.notes]),
+    ...input.notes.map((n) => n.content),
+  ];
+  for (const field of richTextFields) collectMentionIdsOfType(parseRichText(field), "monster", ids);
+  return [...ids];
 }
 
 // ── Per-entity file bodies ──────────────────────────────────────────────────
@@ -266,7 +332,8 @@ export function buildMarkdownVault(input: MarkdownVaultInput): Record<string, st
   const noteNames = assignFileNames(input.notes, (n) => n.title);
 
   const mentionTargets: MentionTargets = { npc: npcNames, location: locationNames, faction: factionNames, player: partyNames };
-  const mention: TiptapToMarkdownOptions = { mention: buildMentionResolver(mentionTargets) };
+  const monsterNames = new Map(Object.entries(input.monsterNames ?? {}));
+  const mention: TiptapToMarkdownOptions = { mention: buildMentionResolver(mentionTargets, monsterNames) };
 
   const objectivesByQuest = new Map<string, QuestObjective[]>();
   for (const obj of input.questObjectives) {

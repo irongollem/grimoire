@@ -28,7 +28,11 @@ Campaign Notes is your free-form space for anything that doesn't have a dedicate
 
 ## Mentioning people and places
 
-Type **@** in a note's body to mention a party member, NPC, monster, location or faction. The mention becomes a chip that opens that page. It also works in the other direction: the NPC, location, faction, party member or monster lists the note under **Mentioned in**, so you can see every session a character has turned up in.
+Type **@** in a note's body to mention a party member, NPC, monster, location or faction. The mention becomes a chip that opens that page. The same works in NPC lore, location and faction descriptions, quest beat text and your party's character descriptions.
+
+It also works in the other direction: each NPC, location, faction, party member or monster lists everything that mentions it under **Mentioned in**, so you can see every session a character has turned up in and every place their name comes up.
+
+Mentions are safe to share. When players read a note you've shared, each mention shows the name *they* know: a disguised NPC appears under their disguise, and anyone whose name you haven't revealed, or a monster they haven't met, appears as **???**. Their real name never reaches the player's screen.
 
 ## Finding a note
 

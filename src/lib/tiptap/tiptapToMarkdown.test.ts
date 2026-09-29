@@ -249,47 +249,48 @@ describe("tiptapToMarkdown — image node (#932)", () => {
 });
 
 describe("tiptapToMarkdown — entityMention (#932)", () => {
+  // Stored mentions carry no name (#932 story 3) — just id/entityType.
   const mentionDoc = {
     type: "doc",
     content: [{
       type: "paragraph",
       content: [
         { type: "text", text: "Ask " },
-        { type: "entityMention", attrs: { id: "npc-1", entityType: "npc", label: "Elminster" } },
+        { type: "entityMention", attrs: { id: "npc-1", entityType: "npc" } },
         { type: "text", text: " about it." },
       ],
     }],
   };
 
-  it("renders the plain label by default — unchanged behaviour for existing callers", () => {
-    expect(tiptapToMarkdown(mentionDoc)).toBe("Ask Elminster about it.");
+  it("renders '???' by default — nothing to fall back to without a resolver", () => {
+    expect(tiptapToMarkdown(mentionDoc)).toBe("Ask ??? about it.");
   });
 
   it("renders through the mention resolver when one is passed", () => {
     const md = tiptapToMarkdown(mentionDoc, {
-      mention: (attrs) => `[[${attrs.label}]]`,
+      mention: (attrs) => `[[${attrs.id}]]`,
     });
-    expect(md).toBe("Ask [[Elminster]] about it.");
+    expect(md).toBe("Ask [[npc-1]] about it.");
   });
 
-  it("passes id/entityType/label through to the resolver", () => {
+  it("passes id/entityType through to the resolver", () => {
     let seen: unknown;
     tiptapToMarkdown(mentionDoc, {
       mention: (attrs) => {
         seen = attrs;
-        return attrs.label;
+        return attrs.id;
       },
     });
-    expect(seen).toEqual({ id: "npc-1", entityType: "npc", label: "Elminster" });
+    expect(seen).toEqual({ id: "npc-1", entityType: "npc" });
   });
 
-  it("falls back to the plain label when the resolver throws", () => {
+  it("falls back to '???' when the resolver throws", () => {
     const md = tiptapToMarkdown(mentionDoc, {
       mention: () => {
         throw new Error("boom");
       },
     });
-    expect(md).toBe("Ask Elminster about it.");
+    expect(md).toBe("Ask ??? about it.");
   });
 });
 

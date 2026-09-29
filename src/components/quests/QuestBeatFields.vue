@@ -21,16 +21,16 @@
 
     <label class="block space-y-1 text-caption font-semibold text-foreground">
       DM lead
-      <RichTextEditor v-model="draft.dm_content" placeholder="What should the DM know first?" />
+      <RichTextEditor v-model="draft.dm_content" placeholder="What should the DM know first?" :entity-mention-items="entityMentionItems" />
     </label>
 
     <label class="block space-y-1 text-caption font-semibold text-foreground">
       Read aloud or paraphrase
-      <RichTextEditor v-model="draft.read_aloud" size="md" placeholder="Player-safe boxed text…" />
+      <RichTextEditor v-model="draft.read_aloud" size="md" placeholder="Player-safe boxed text…" :entity-mention-items="entityMentionItems" />
     </label>
     <label class="block space-y-1 text-caption font-semibold text-foreground">
       How it plays
-      <RichTextEditor v-model="draft.how_it_plays" size="md" placeholder="Checks, pacing, social pressure, exploration, or combat guidance…" />
+      <RichTextEditor v-model="draft.how_it_plays" size="md" placeholder="Checks, pacing, social pressure, exploration, or combat guidance…" :entity-mention-items="entityMentionItems" />
     </label>
 
     <div class="grid gap-3 md:grid-cols-2">
@@ -66,10 +66,15 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 
 const { beat } = defineProps<{ beat: QuestBeat }>();
 const emit = defineEmits<{ saved: [beat: QuestBeat] }>();
 const updateBeat = useUpdateQuestBeat();
+// QuestBeatDetailView is DM-only (the player equivalent, PlayerQuestDetailView
+// at /play/quests/:id, is read-only and doesn't mount this component), so the
+// full mention list is always the DM's — see NoteEditor.vue for the same call.
+const { mentionItems: entityMentionItems } = useEntityMentionItems();
 const draft = reactive(questBeatToDraft(beat));
 let baseline = questBeatToDraft(beat);
 const activeBeatId = ref(beat.id);

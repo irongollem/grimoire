@@ -174,6 +174,7 @@
         placeholder="Describe this location…"
         size="md"
         :ai-context="`location description — ${name || 'unnamed location'}`"
+        :entity-mention-items="entityMentionItems"
       />
     </div>
 
@@ -328,6 +329,7 @@ import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import { isSiteType } from "@/lib/locations/tiers";
 import { placeRoute } from "@/lib/locations/placeRoute";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 
 const props = defineProps<{
   location: Location | null;
@@ -502,6 +504,9 @@ watch(
 
 // ── Description ────────────────────────────────────────────────────────────────
 const description = ref<string>(props.location?.description ?? "");
+// The Atlas place pane is DM-only (never mounted from /play), so the full
+// mention list is always the DM's — see NoteEditor.vue for the same call.
+const { mentionItems: entityMentionItems } = useEntityMentionItems();
 
 const aiContext = computed(() =>
   buildEntityContext([

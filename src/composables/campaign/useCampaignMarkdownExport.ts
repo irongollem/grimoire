@@ -11,7 +11,7 @@
 import { strToU8, zipSync } from "fflate";
 import { useMutation } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { buildMarkdownVault } from "@/lib/campaignExport/markdownVault";
+import { buildMarkdownVault, collectMentionedMonsterIds } from "@/lib/campaignExport/markdownVault";
 import type { Faction } from "@/types/faction.types";
 import type { Location } from "@/types/location.types";
 import type { Npc } from "@/types/npc.types";
@@ -45,6 +45,28 @@ async function fetchCampaignRows(campaignId: string) {
   };
 }
 
+/**
+ * Monster mentions have no vault file/folder of their own (#932 story 3 also
+ * dropped the `label` a mention used to carry), so their display name has to
+ * come from a fetched map instead — built here, for exactly the ids
+ * mentioned anywhere in this export, never the whole shared library. Checks
+ * both the user's own `monsters` table and the shared `library_monsters`
+ * table, since a mentioned id can be either.
+ */
+async function fetchMonsterNames(ids: string[]): Promise<Record<string, string>> {
+  const names: Record<string, string> = {};
+  if (!ids.length) return names;
+  const [userRes, libRes] = await Promise.all([
+    supabase.from("monsters").select("id, name").in("id", ids),
+    supabase.from("library_monsters").select("id, name").in("id", ids),
+  ]);
+  if (userRes.error) throw userRes.error;
+  if (libRes.error) throw libRes.error;
+  for (const row of userRes.data ?? []) names[row.id] = row.name;
+  for (const row of libRes.data ?? []) names[row.id] = row.name;
+  return names;
+}
+
 async function buildVault(campaignId: string): Promise<{ campaignName: string; files: Record<string, string> }> {
   const { campaignName, npcs, locations, factions, quests, partyMembers, notes } = await fetchCampaignRows(campaignId);
 
@@ -58,6 +80,10 @@ async function buildVault(campaignId: string): Promise<{ campaignName: string; f
     questObjectives = (data ?? []) as QuestObjective[];
   }
 
+  const monsterNames = await fetchMonsterNames(
+    collectMentionedMonsterIds({ npcs, locations, factions, partyMembers, notes }),
+  );
+
   const files = buildMarkdownVault({
     campaignName,
     exportedAt: new Date(),
@@ -68,6 +94,7 @@ async function buildVault(campaignId: string): Promise<{ campaignName: string; f
     questObjectives,
     partyMembers,
     notes,
+    monsterNames,
   });
   return { campaignName, files };
 }

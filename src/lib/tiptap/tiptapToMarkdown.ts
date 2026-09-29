@@ -21,6 +21,19 @@
  * "must not throw" contract below; it has nothing meaningful to say as
  * markdown anyway.
  *
+ * A stored `entityMention` carries only `{ id, entityType }` (#932 story 3 —
+ * the name is resolved per viewer at render time, never stored, so a
+ * disguised NPC's true name can't leak through a note's raw JSON). This
+ * module has no viewer to resolve a name for, so a mention renders through
+ * `options.mention` when the caller supplies one (the Obsidian export turns
+ * it into a `[[wikilink]]`), and "???" — the app's convention for a withheld
+ * name — otherwise. This is a behaviour change from before #932 story 3,
+ * when a mention carried its own `label` and rendered that by default; its
+ * only resolver-less callers today (`QuestPasteImportPanel.vue`,
+ * `DocumentImportPasteStep.vue`) convert freshly-pasted plain text/HTML that
+ * has never passed through the mention-insertion UI, so they never see an
+ * `entityMention` node in practice.
+ *
  * Every conversion function here returns `null`/skips on a node it doesn't
  * recognize rather than throwing, and the outermost `tiptapToMarkdown` wraps
  * the whole per-node conversion in a try/catch besides — a malformed or
@@ -31,17 +44,18 @@
 type JsonRecord = Record<string, unknown>;
 
 /**
- * How to render an `entityMention` node. Defaults to the mention's plain
- * `label` (the importer's existing behaviour — a mention carries no meaning
- * outside the app it was written in). The Obsidian export passes a resolver
- * that turns it into a `[[wikilink]]` against its own exported file names.
+ * How to render an `entityMention` node — the node itself no longer carries
+ * a name to fall back on (#932 story 3), so a caller with no viewer to
+ * resolve one for must supply this to get anything but "???". The Obsidian
+ * export passes a resolver that turns it into a `[[wikilink]]` against its
+ * own exported file names.
  *
- * Called inside a try/catch — a throwing resolver degrades to the plain
- * label rather than aborting the whole conversion, matching the "must not
- * throw" contract of everything else in this module.
+ * Called inside a try/catch — a throwing resolver degrades to "???" rather
+ * than aborting the whole conversion, matching the "must not throw" contract
+ * of everything else in this module.
  */
 export interface TiptapToMarkdownOptions {
-  mention?: (attrs: { id: string; entityType: string; label: string }) => string;
+  mention?: (attrs: { id: string; entityType: string }) => string;
 }
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -72,22 +86,20 @@ function applyMarks(text: string, marks: unknown): string {
 }
 
 /**
- * `entityMention` attrs are `{ id, entityType, label }` (`EntityMention.ts`).
- * Renders via `options.mention` when given, else the plain label — the
- * mention has nothing else to say as markdown, and this is the one node this
- * module renders instead of skipping (`atom: true`, so it never nests text
- * of its own for the default path to fall back to).
+ * `entityMention` attrs are `{ id, entityType }` (`EntityMention.ts`) — no
+ * name. Renders via `options.mention` when given, else "???" — this is the
+ * one node this module renders instead of skipping (`atom: true`, so it
+ * never nests text of its own for the default path to fall back to).
  */
 function mentionToMarkdown(node: JsonRecord, options: TiptapToMarkdownOptions | undefined): string {
   const attrs = isRecord(node.attrs) ? node.attrs : {};
   const id = typeof attrs.id === "string" ? attrs.id : "";
   const entityType = typeof attrs.entityType === "string" ? attrs.entityType : "";
-  const label = typeof attrs.label === "string" ? attrs.label : "";
-  if (!options?.mention) return label;
+  if (!options?.mention) return "???";
   try {
-    return options.mention({ id, entityType, label });
+    return options.mention({ id, entityType });
   } catch {
-    return label;
+    return "???";
   }
 }
 

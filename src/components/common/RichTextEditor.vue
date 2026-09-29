@@ -502,6 +502,10 @@ function selectSuggestionItem(index: number) {
   }
 }
 
+// A stored mention carries no name (#932 story 3) — `EntityMentionChip`
+// resolves it itself via `useMentionName`, never read back off the node's
+// own attrs and never wired through here (see the comment on
+// `RichTextViewer.vue`'s module-scope extension for why).
 const entityMentionExtension = createEntityMentionExtension({
   items: ({ query }) =>
     (entityMentionItems ?? [])
@@ -568,7 +572,6 @@ const entityMentionExtension = createEntityMentionExtension({
     const mentionAttrs: EntityMentionAttrs = {
       id: (item as EntityMentionItem).id,
       entityType: (item as EntityMentionItem).entityType,
-      label: (item as EntityMentionItem).label,
     };
     editor.chain().focus().deleteRange(range).insertEntityMention(mentionAttrs).run();
   },

@@ -48,6 +48,13 @@ import { PendingImage } from "@/lib/tiptap/PendingImage";
 import { AiGenerated } from "@/lib/tiptap/AiGenerated";
 import { usePendingImageResolver } from "@/composables/usePendingImageResolver";
 
+// A stored mention carries no name (#932 story 3) — `EntityMentionChip`
+// resolves it itself via `useMentionName`, so this extension needs no
+// per-viewer wiring and can stay a module-scope singleton like every other
+// extension here. `RichTextViewer` alone has 57 call sites (some rendering
+// dozens of instances at once), so anything built per-instance here would
+// have subscribed every one of them to every entity kind's query regardless
+// of whether the document actually mentions one.
 const EntityMentionViewer = createEntityMentionExtension({});
 
 const props = defineProps<{ content: object | string | null }>();

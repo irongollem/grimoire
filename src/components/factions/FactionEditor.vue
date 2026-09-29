@@ -106,6 +106,7 @@
           v-model="form.description"
           placeholder="History, motives, known activities…"
           size="md"
+          :entity-mention-items="entityMentionItems"
         />
       </div>
 
@@ -188,6 +189,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 
 const props = defineProps<{
   faction: Faction | null;
@@ -234,6 +236,11 @@ const { copyOpen, copyIds, openCopy, onCopied, onQuotaExceeded } = useCopyEntity
     showPaywall.value = true;
   },
 });
+
+// FactionDetailView is DM-only (never mounted from /play; the player-portal
+// equivalent is PlayerFactionsView, a read-only list), so the full mention
+// list is always the DM's — see NoteEditor.vue for the same call.
+const { mentionItems: entityMentionItems } = useEntityMentionItems();
 
 const form = ref({
   name: "",

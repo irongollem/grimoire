@@ -5,25 +5,36 @@
     <span
       v-if="isEditable"
       class="entity-chip"
-      :class="`entity-chip--${entityType}--edit`"
+      :class="[`entity-chip--${entityType}--edit`, isUnknown && 'entity-chip--unknown']"
       contenteditable="false"
     >
       <span class="entity-chip-at">@</span>
-      <span class="entity-chip-label">{{ label }}</span>
+      <span class="entity-chip-label">{{ displayName }}</span>
     </span>
 
-    <!-- ── VIEWER MODE: clickable chip ───────────────────────────────────── -->
+    <!-- ── VIEWER MODE, unknown to this viewer: inert chip, no navigation ─── -->
+    <span
+      v-else-if="isUnknown"
+      class="entity-chip entity-chip--unknown"
+      contenteditable="false"
+      title="Unknown"
+    >
+      <span class="entity-chip-at">@</span>
+      <span class="entity-chip-label">{{ displayName }}</span>
+    </span>
+
+    <!-- ── VIEWER MODE, known: clickable chip ──────────────────────────────── -->
     <button
       v-else
       type="button"
       class="entity-chip"
       :class="`entity-chip--${entityType}`"
       contenteditable="false"
-      :title="`Go to ${entityType}: ${label}`"
+      :title="`Go to ${entityType}: ${displayName}`"
       @click="navigate"
     >
       <span class="entity-chip-at">@</span>
-      <span class="entity-chip-label">{{ label }}</span>
+      <span class="entity-chip-label">{{ displayName }}</span>
     </button>
   </NodeViewWrapper>
 </template>
@@ -33,14 +44,30 @@ import { computed } from "vue";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import { useRouter, useRoute } from "vue-router";
 import { useUiStore } from "@/stores/ui";
+import { isPlayerArea } from "@/router/lens";
+import { useMentionName } from "@/composables/notes/useMentionName";
 import type { EntityType } from "@/lib/tiptap/EntityMention";
 
 const props = defineProps({ ...nodeViewProps });
 
 const isEditable = computed(() => props.editor.isEditable);
 const entityType = computed(() => props.node.attrs.entityType as EntityType);
-const label = computed(() => props.node.attrs.label as string);
 const entityId = computed(() => props.node.attrs.id as string);
+
+/**
+ * The mention no longer carries its own name (#932 story 3 — a stored label
+ * would leak a disguised NPC's true identity to every viewer, player portal
+ * included). This chip resolves it itself, one mention at a time, via
+ * `useMentionName` — rather than an extension option built once per
+ * containing editor/viewer, which would subscribe every `RichTextViewer`
+ * instance (57 call sites) to every entity kind's query regardless of
+ * whether its document mentions one. `null` means this viewer doesn't know
+ * the name, rendered as "???" and — in viewer mode — as a non-clickable chip
+ * rather than a link to nowhere.
+ */
+const resolvedName = useMentionName(entityType.value, entityId.value);
+const isUnknown = computed(() => resolvedName.value === null);
+const displayName = computed(() => resolvedName.value ?? "???");
 
 const router = useRouter();
 const route = useRoute();
@@ -67,7 +94,7 @@ const PLAYER_LIST_ROUTES: Record<EntityType, string> = {
 };
 
 function navigate() {
-  if (route.path.startsWith("/play/")) {
+  if (isPlayerArea(route.path)) {
     // Locations open in a quick-view dialog over the current page rather than
     // yanking the player off to the Atlas list (issue #442).
     if (entityType.value === "location") {
@@ -223,5 +250,13 @@ function navigate() {
 .entity-chip--faction:hover {
   background: theme(colors.cyan-400 / 20%);
   border-color: theme(colors.cyan-400 / 60%);
+}
+
+/* ── Unknown to this viewer (withheld name) — muted, inert ─────────────── */
+.entity-chip--unknown {
+  border-color: theme(colors.muted-foreground / 30%);
+  background: theme(colors.muted-foreground / 8%);
+  color: theme(colors.muted-foreground);
+  cursor: default;
 }
 </style>

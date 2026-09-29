@@ -80,6 +80,7 @@
         :model-value="form.physical_description"
         size="sm"
         placeholder="Hair, build, scars, anything that helps the table picture them."
+        :entity-mention-items="entityMentionItems"
         @update:model-value="patch({ physical_description: $event })"
       />
     </label>
@@ -91,6 +92,7 @@
         :model-value="form.personality_traits"
         size="sm"
         placeholder="Two short traits that shape their behaviour."
+        :entity-mention-items="entityMentionItems"
         @update:model-value="patch({ personality_traits: $event })"
       />
     </label>
@@ -100,6 +102,7 @@
         :model-value="form.ideals"
         size="sm"
         placeholder="What drives them — justice, freedom, knowledge…"
+        :entity-mention-items="entityMentionItems"
         @update:model-value="patch({ ideals: $event })"
       />
     </label>
@@ -109,6 +112,7 @@
         :model-value="form.bonds"
         size="sm"
         placeholder="People, places, or artifacts they'd die for."
+        :entity-mention-items="entityMentionItems"
         @update:model-value="patch({ bonds: $event })"
       />
     </label>
@@ -118,6 +122,7 @@
         :model-value="form.flaws"
         size="sm"
         placeholder="One clear weakness that gets them in trouble."
+        :entity-mention-items="entityMentionItems"
         @update:model-value="patch({ flaws: $event })"
       />
     </label>
@@ -128,6 +133,7 @@
 import { ref, computed } from "vue";
 import { useAllDeities } from "@/composables/deities/useDeities";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import type { PersonaFormSlice } from "./partyMemberForm.types";
 
 const { form } = defineProps<{ form: PersonaFormSlice }>();
@@ -135,6 +141,12 @@ const { form } = defineProps<{ form: PersonaFormSlice }>();
 const emit = defineEmits<{
   "update:form": [patch: Partial<PersonaFormSlice>];
 }>();
+
+// PartyMemberForm (this tab's only mount point) is DM-only — a player editing
+// their own character goes through CharacterEditTabs at /play/character/edit,
+// which has no persona tab — so the full mention list is always the DM's.
+// See NoteEditor.vue for the same call.
+const { mentionItems: entityMentionItems } = useEntityMentionItems();
 
 function patch(p: Partial<PersonaFormSlice>) {
   emit("update:form", p);
