@@ -104,16 +104,21 @@ const { data: campaignMembers } = useCampaignMembers();
 const campaignStore = useCampaignStore();
 const dmUserId = computed(() => campaignMembers.value?.find((m) => m.role === "dm")?.user_id ?? null);
 const auth = useAuthStore();
-const { allowedIds: whisperableIds } = useWhisperRecipients();
+const { allowedIds: whisperableIds, query: whisperQuery } = useWhisperRecipients();
 // An immersive roll reaches the DM as a whisper, and a young player and an
 // adult who isn't their parent may not whisper each other (#927). So immersive
 // rolls don't apply between them: the check rolls openly instead. A parent and
 // their own child still play immersively, and a DM previewing as a player
-// whispers only themselves.
+// whispers only themselves. Until the server has answered who may be whispered,
+// stay immersive: rolling openly by default would publish exactly the result
+// the table chose to hide, and the insert policy refuses a whisper that isn't
+// allowed anyway.
 const canWhisperDm = computed(() => {
   const dm = dmUserId.value;
   if (dm === null) return false;
-  return dm === auth.user?.id || whisperableIds.value.has(dm);
+  if (dm === auth.user?.id) return true;
+  if (!whisperQuery.isSuccess.value) return true;
+  return whisperableIds.value.has(dm);
 });
 
 function signedNum(n: number) { return n >= 0 ? `+${n}` : `${n}`; }

@@ -3,8 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 const { reportHandledError } = vi.hoisted(() => ({ reportHandledError: vi.fn() }));
 vi.mock("@/lib/observability/sentry", () => ({ reportHandledError }));
 
-import { PostgrestError } from "@supabase/supabase-js";
-import { chatFailureMessage, sendFailureMessage, useChatSendFailure } from "./chatSendErrors";
+import { chatFailureMessage, postgrestCode, sendFailureMessage, useChatSendFailure } from "./chatSendErrors";
 import { useToast } from "@/composables/useToast";
 
 describe("chatSendErrors", () => {
@@ -29,7 +28,7 @@ describe("chatSendErrors", () => {
     expect(reportHandledError).toHaveBeenCalledWith(err, "campaign-chat-send", { what: "send the item" });
   });
   it("explains a refused whisper without reporting it: the rule working is not a fault", () => {
-    const refused = new PostgrestError({ message: "row-level security", details: "", hint: "", code: "42501" });
+    const refused = ({ message: "row-level security", details: "", hint: "", code: "42501" });
     useChatSendFailure().reportMessageFailure(refused, true);
     const { toasts } = useToast();
     expect(toasts.value[0]).toMatchObject({ type: "error", message: "Message not sent. You can't whisper that player privately." });
@@ -45,7 +44,7 @@ describe("chatSendErrors", () => {
 
 describe("sendFailureMessage", () => {
   const rls = () =>
-    new PostgrestError({
+    ({
       message: 'new row violates row-level security policy for table "campaign_messages"',
       details: "",
       hint: "",
@@ -59,5 +58,16 @@ describe("sendFailureMessage", () => {
   it("falls back to a generic message otherwise", () => {
     expect(sendFailureMessage(new Error("network"), true)).toBe("Message not sent. Please try again.");
     expect(sendFailureMessage(rls(), false)).toBe("Message not sent. Please try again.");
+  });
+});
+
+describe("postgrestCode", () => {
+  it("reads the code off the plain object supabase-js returns", () => {
+    expect(postgrestCode({ message: "denied", code: "42501", details: null, hint: null })).toBe("42501");
+  });
+  it("answers null for anything without one", () => {
+    expect(postgrestCode(new Error("network"))).toBeNull();
+    expect(postgrestCode(null)).toBeNull();
+    expect(postgrestCode("42501")).toBeNull();
   });
 });

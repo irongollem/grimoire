@@ -1,8 +1,10 @@
-import { computed } from "vue";
-import { useQuery } from "@tanstack/vue-query";
+import { computed, ref, toValue, watch, type MaybeRefOrGetter } from "vue";
+import { keepPreviousData, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
+import { useAuthStore } from "@/stores/auth";
+import type { CampaignMember } from "@/types/campaign.types";
 
 /**
  * The user ids the caller may whisper in a campaign (#927). Whether another
@@ -36,7 +38,15 @@ export function useWhisperRecipients() {
       if (cid === null) throw new Error("useWhisperRecipients fetched without a campaign");
       return fetchWhisperRecipients(cid);
     },
-    enabled: () => !!campaignId.value,
+    // Wait for the member list: before it loads the signature is empty, and that
+    // first RPC would be thrown away the moment the list arrives.
+    enabled: () => !!campaignId.value && members.value !== undefined,
+    // A member joining or leaving changes the key. Keep the last answer standing
+    // while the new one loads, so allowedIds never blinks to empty (which would
+    // reset an open whisper). Not across campaigns: another campaign's answer is
+    // not this one's.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === campaignId.value ? keepPreviousData(previous) : undefined,
   });
 
   const allowedIds = computed(() => new Set(query.data.value ?? []));
@@ -47,4 +57,30 @@ export function useWhisperRecipients() {
   }
 
   return { allowedIds, whisperable, query };
+}
+
+/**
+ * The whisper picker's state, shared by both chat surfaces: who the caller may
+ * whisper, the selected target, and the reset that drops a target the server no
+ * longer allows. The reset acts only on a settled answer, never on the empty
+ * interval while a new member signature is being fetched, or the next message
+ * typed as a whisper would post publicly.
+ */
+export function useWhisperTarget(members: MaybeRefOrGetter<readonly CampaignMember[] | undefined>) {
+  const auth = useAuthStore();
+  const { allowedIds, whisperable, query } = useWhisperRecipients();
+  const whisperTarget = ref("");
+
+  const whisperableMembers = computed(() =>
+    whisperable((toValue(members) ?? []).filter((m) => m.user_id !== auth.user?.id)),
+  );
+
+  const settled = computed(() => query.isSuccess.value && !query.isPlaceholderData.value);
+  watch([allowedIds, settled], ([allowed, isSettled]) => {
+    if (isSettled && whisperTarget.value && !allowed.has(whisperTarget.value)) {
+      whisperTarget.value = "";
+    }
+  });
+
+  return { whisperTarget, whisperableMembers };
 }

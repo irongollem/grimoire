@@ -375,7 +375,7 @@ import type { DieSize, RollMode, RollResult } from "@/lib/dice/dice";
 import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
 import { COINS, type CoinKey, toCP } from "@/rules/currency";
 import { useAuthStore } from "@/stores/auth";
-import { useWhisperRecipients } from "@/composables/campaign/useWhisperRecipients";
+import { useWhisperTarget } from "@/composables/campaign/useWhisperRecipients";
 import { useUiStore } from "@/stores/ui";
 
 const ui = useUiStore();
@@ -396,11 +396,12 @@ const props = defineProps<{
   npcs: { id: string; name: string }[];
   focusMessageId?: string | null;
   focusRequest?: number;
+  /** Posts the message; resolves false when it failed, so the draft can be restored. */
+  sendText: (payload: { text: string; recipientUserId: string | null }) => Promise<boolean>;
 }>();
 
 const emit = defineEmits<{
   close: [];
-  send: [payload: { text: string; recipientUserId: string | null }];
   sendRoll: [payload: { result: RollResult; recipientUserId: string | null }];
   delete: [id: string];
   "delete-all": [];
@@ -594,10 +595,7 @@ watch(
 );
 
 // ── Members for whisper ────────────────────────────────────────────────────────
-const { allowedIds, whisperable } = useWhisperRecipients();
-const otherMembers = computed(() =>
-  whisperable((props.members ?? []).filter((m) => m.user_id !== auth.user?.id)),
-);
+const { whisperTarget, whisperableMembers: otherMembers } = useWhisperTarget(() => props.members);
 
 /** Priority: linked character name → display_name → email prefix → "Player" */
 function bestName(member: CampaignMember): string {
@@ -617,12 +615,6 @@ function recipientName(userId: string): string {
   return m ? bestName(m) : "Player";
 }
 
-// ── Whisper target ─────────────────────────────────────────────────────────────
-const whisperTarget = ref<string>("");
-watch(allowedIds, (allowed) => {
-  if (whisperTarget.value && !allowed.has(whisperTarget.value)) whisperTarget.value = "";
-});
-
 // ── Input ──────────────────────────────────────────────────────────────────────
 const inputText = ref("");
 
@@ -632,14 +624,15 @@ function autoResize(e: Event) {
   el.style.height = Math.min(el.scrollHeight, 80) + "px";
 }
 
-function send() {
-  if (!inputText.value.trim()) return;
-  emit("send", {
-    text: inputText.value,
-    recipientUserId: whisperTarget.value || null,
-  });
+async function send() {
+  const text = inputText.value;
+  if (!text.trim()) return;
   inputText.value = "";
   if (inputEl.value) inputEl.value.style.height = "auto";
+  const posted = await props.sendText({ text, recipientUserId: whisperTarget.value || null });
+  // A failed send hands the words back, unless the reader has already started
+  // typing something else.
+  if (!posted && !inputText.value) inputText.value = text;
 }
 
 // ── Dice ───────────────────────────────────────────────────────────────────────

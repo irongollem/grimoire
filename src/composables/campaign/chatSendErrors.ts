@@ -1,11 +1,24 @@
-import { PostgrestError } from "@supabase/supabase-js";
 import { useToast } from "@/composables/useToast";
 import { reportHandledError } from "@/lib/observability/sentry";
 
 /** Why a chat send failed, in words for a toast. A refused whisper arrives as an
  *  RLS violation, which PostgREST reports as SQLSTATE 42501. */
+/** The SQLSTATE a PostgREST error carries, if any. Read structurally: the
+ *  `error` supabase-js returns is the parsed response body, a plain object, and
+ *  only `throwOnError()` wraps it in a `PostgrestError` instance. */
+export function postgrestCode(e: unknown): string | null {
+  if (typeof e !== "object" || e === null || !("code" in e)) return null;
+  return typeof e.code === "string" ? e.code : null;
+}
+
+/** The message a PostgREST error carries, read the same structural way. */
+export function postgrestMessage(e: unknown): string | null {
+  if (typeof e !== "object" || e === null || !("message" in e)) return null;
+  return typeof e.message === "string" ? e.message : null;
+}
+
 function isRefusedWhisper(e: unknown, wasWhisper: boolean): boolean {
-  return wasWhisper && e instanceof PostgrestError && e.code === "42501";
+  return wasWhisper && postgrestCode(e) === "42501";
 }
 
 export function sendFailureMessage(e: unknown, wasWhisper: boolean): string {

@@ -24,7 +24,7 @@
         :npcs="npcs"
         :focus-message-id="ui.chatFocusMessageId"
         :focus-request="ui.chatFocusRequest"
-        @send="handleSend"
+        :send-text="handleSend"
         @send-roll="handleRoll"
         @delete="handleDelete"
         @delete-all="handleDeleteAll"
@@ -85,7 +85,7 @@
         :npcs="npcs"
         :focus-message-id="ui.chatFocusMessageId"
         :focus-request="ui.chatFocusRequest"
-        @send="handleSend"
+        :send-text="handleSend"
         @send-roll="handleRoll"
         @delete="handleDelete"
         @delete-all="handleDeleteAll"
@@ -113,7 +113,7 @@ import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages"
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
 import { useToast } from "@/composables/useToast";
-import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
+import { postgrestMessage, useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useItems } from "@/composables/items/useItems";
@@ -395,11 +395,13 @@ async function handleSend({
 }: {
   text: string;
   recipientUserId: string | null;
-}) {
+}): Promise<boolean> {
   try {
     await sendMessage(text, recipientUserId);
+    return true;
   } catch (e) {
     reportMessageFailure(e, recipientUserId !== null);
+    return false;
   }
 }
 async function handleRoll({
@@ -443,7 +445,8 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
     // Losing the race is normal: another player's click took the lock first
     // (claim_loot_chest_atom raises these two), and the chest re-renders from
     // realtime. Anything else is a real failure.
-    const lostRace = e instanceof Error && /^(Item already claimed|Chest is empty)$/.test(e.message);
+    const message = postgrestMessage(e);
+    const lostRace = message === "Item already claimed" || message === "Chest is empty";
     if (lostRace) toast.info("Someone else claimed that first.");
     else reportChatFailure(e, "claim that from the chest");
     return;

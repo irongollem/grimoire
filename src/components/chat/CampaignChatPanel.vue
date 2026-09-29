@@ -142,13 +142,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from "vue";
+import { ref, watch, nextTick, onMounted } from "vue";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
-import { useWhisperRecipients } from "@/composables/campaign/useWhisperRecipients";
+import { useWhisperTarget } from "@/composables/campaign/useWhisperRecipients";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
-import { useAuthStore } from "@/stores/auth";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -161,22 +160,13 @@ import { useLocalePrefs } from "@/composables/useLocalePrefs";
 const { messages, loading, loadingOlder, hasOlder, loadOlder, sendMessage } = useCampaignMessages();
 const { data: partyMembers } = useParty();
 const { data: members } = useCampaignMembers();
-const auth = useAuthStore();
 const { reportMessageFailure } = useChatSendFailure();
-const { allowedIds, whisperable } = useWhisperRecipients();
 
 const chatInput = ref("");
 const scrollEl = ref<HTMLElement | null>(null);
-const whisperTarget = ref<string>("");
 let prependAnchor: { height: number; top: number } | null = null;
 
-const otherMembers = computed(() =>
-  whisperable((members.value ?? []).filter((m) => m.user_id !== auth.user?.id)),
-);
-
-watch(allowedIds, (allowed) => {
-  if (whisperTarget.value && !allowed.has(whisperTarget.value)) whisperTarget.value = "";
-});
+const { whisperTarget, whisperableMembers: otherMembers } = useWhisperTarget(members);
 
 function bestName(member: CampaignMember): string {
   if (member.party_member_id) {

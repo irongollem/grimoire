@@ -119,6 +119,9 @@
         <p class="text-caption text-destructive">{{ attemptError }}</p>
       </div>
 
+      <!-- The craft worked; only the chat post failed. Quiet, and no retry wording. -->
+      <p v-if="chatNotice" class="text-caption text-muted-foreground" role="status">{{ chatNotice }}</p>
+
       <!-- Roll result -->
       <div v-if="result" class="rounded-lg border px-4 py-3 text-center"
         :class="{
@@ -191,7 +194,6 @@ import { IconCheckCircle, IconClose, IconCloseCircle, IconDiceRoll, IconWarning 
 import { getDiscipline } from "@/lib/crafting-disciplines";
 import { useAttemptCraft } from "@/composables/crafting/useCrafting";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
-import { chatFailureMessage } from "@/composables/campaign/chatSendErrors";
 import { reportHandledError } from "@/lib/observability/sentry";
 
 import type { CraftingRecipe, CraftingOutput, CraftingModifier, CraftingAttemptResult } from "@/types/crafting.types";
@@ -240,6 +242,9 @@ const { sendMessage } = useCampaignMessages();
 const result = ref<CraftingAttemptResult | null>(null);
 const attempting = ref(false);
 const attemptError = ref<string | null>(null);
+// The craft itself worked; only the chat post failed. Kept apart from attemptError
+// so it never reads as a failed craft that invites another attempt.
+const chatNotice = ref<string | null>(null);
 const selectedModifiers = ref<Set<number>>(new Set());
 const workspaceEnabled = ref(false);
 const poorIngredientsEnabled = ref(false);
@@ -399,6 +404,7 @@ async function attempt() {
   if (!canAttempt.value) return;
   attempting.value = true;
   attemptError.value = null;
+  chatNotice.value = null;
 
   const { consumption, primaryId, primaryItem } = resolveIngredientConsumption();
   const primaryItemDef = props.allItems.find((i) => i.id === (primaryItem ? inventoryItemRef(primaryItem) : null));
@@ -461,7 +467,7 @@ async function attempt() {
     // it surfaces inline (no toast here, on purpose) and the result stays on screen.
     await sendMessage(msg).catch((e) => {
       reportHandledError(e, "craft-attempt-chat-post");
-      attemptError.value = chatFailureMessage("post the result to the chat");
+      chatNotice.value = "Your craft went through, but the result could not be posted to the chat.";
     });
   } catch (err) {
     attemptError.value = err instanceof Error ? err.message : "An unexpected error occurred.";
