@@ -9,10 +9,10 @@
     <!-- Credit purchase success banner -->
     <div
       v-if="creditPurchaseSuccess"
-      class="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 flex items-center gap-3"
+      class="rounded-lg border border-tone-success/30 bg-tone-success/10 px-4 py-3 flex items-center gap-3"
     >
-      <IconGenerate class="h-4 w-4 text-green-400 shrink-0" />
-      <p class="text-body text-green-400">
+      <IconGenerate class="h-4 w-4 text-ink-success shrink-0" />
+      <p class="text-body text-ink-success">
         Credits added to your account — thanks for your purchase!
       </p>
     </div>
@@ -33,11 +33,11 @@
 
       <template v-else>
         <div class="flex items-center gap-3">
-          <IconDM v-if="isPro" class="h-5 w-5 text-amber-400 shrink-0" />
+          <IconDM v-if="isPro" class="h-5 w-5 text-ink-caution shrink-0" />
           <IconQuest v-else class="h-5 w-5 text-muted-foreground shrink-0" />
           <span
             class="text-heading font-bold"
-            :class="isPro ? 'text-amber-400' : 'text-foreground'"
+            :class="isPro ? 'text-ink-caution' : 'text-foreground'"
           >
             {{ isPro ? "Pro DM" : "Free DM" }}
           </span>
@@ -52,7 +52,7 @@
 
         <p
           v-if="isPendingCancellation && cancelDate"
-          class="text-body text-amber-400 italic"
+          class="text-body text-ink-caution italic"
         >
           Cancels {{ cancelDate }}. Pro access until then.
         </p>
@@ -64,7 +64,7 @@
         </p>
         <p
           v-else-if="subscription?.status === 'past_due'"
-          class="text-body text-red-400 italic"
+          class="text-body text-destructive italic"
         >
           Payment failed — update your payment method to restore access.
         </p>
@@ -78,9 +78,9 @@
         <!-- Pre-downgrade impact warning — shown when cancellation is pending + user is over free quotas -->
         <div
           v-if="isPendingCancellation && downgradeImpact.length > 0"
-          class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-1"
+          class="rounded-md border border-tone-caution/30 bg-tone-caution/5 px-3 py-2.5 space-y-1"
         >
-          <p class="text-eyebrow font-semibold text-amber-400">
+          <p class="text-eyebrow font-semibold text-ink-caution">
             On cancellation
           </p>
           <ul class="space-y-0.5">
@@ -107,7 +107,7 @@
           label="Manage billing"
           @click="openBillingPortal()"
         />
-        <p v-if="stripeError && stripeErrorFrom === 'portal'" role="alert" class="text-caption text-red-400 italic">
+        <p v-if="stripeError && stripeErrorFrom === 'portal'" role="alert" class="text-caption text-destructive italic">
           {{ stripeError }}
         </p>
       </template>
@@ -116,19 +116,19 @@
     <!-- Upgrade CTA (free, lapsed and beta-tester accounts — see canStartProCheckout) -->
     <div
       v-if="!isLoading && canUpgrade"
-      class="rounded-xl border border-amber-500/30 bg-amber-500/5 relative overflow-hidden p-6 space-y-5"
+      class="rounded-xl border border-tone-caution/30 bg-tone-caution/5 relative overflow-hidden p-6 space-y-5"
     >
       <div
-        class="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-amber-400/50 to-transparent"
+        class="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-tone-caution/50 to-transparent"
       />
 
       <div>
         <p
-          class="font-cinzel text-xs font-semibold tracking-[0.2em] text-amber-400 uppercase mb-1"
+          class="font-cinzel text-xs font-semibold tracking-[0.2em] text-ink-caution uppercase mb-1"
         >
           Upgrade to Pro
         </p>
-        <h2 class="text-heading-lg font-bold text-amber-400">
+        <h2 class="text-heading-lg font-bold text-ink-caution">
           Unlock your full legend
         </h2>
       </div>
@@ -160,7 +160,7 @@
         </div>
         <div>
           <p
-            class="font-cinzel font-semibold text-amber-400 mb-2 tracking-wide"
+            class="font-cinzel font-semibold text-ink-caution mb-2 tracking-wide"
           >
             Pro
           </p>
@@ -171,7 +171,7 @@
               class="flex items-start gap-2"
             >
               <span
-                class="h-3.5 w-3.5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5 text-2xs text-amber-400 font-bold"
+                class="h-3.5 w-3.5 rounded-full bg-tone-caution/15 flex items-center justify-center shrink-0 mt-0.5 text-2xs text-ink-caution font-bold"
                 >✓</span
               >
               <span
@@ -205,7 +205,7 @@
           @click="annual = true"
         >
           Annual
-          <span v-if="savedMonths > 0" class="ml-1 text-2xs text-amber-400">save {{ savedMonths }} months</span>
+          <span v-if="savedMonths > 0" class="ml-1 text-2xs text-ink-caution">save {{ savedMonths }} months</span>
         </AppButton>
         <SegmentedControl
           v-if="pricingCurrencies.length > 1"
@@ -217,7 +217,7 @@
       </div>
 
       <div class="flex items-end gap-2">
-        <span class="text-display font-bold text-amber-400">{{ activeProPrice ?? "—" }}</span>
+        <span class="text-display font-bold text-ink-caution">{{ activeProPrice ?? "—" }}</span>
         <span class="text-body text-muted-foreground italic mb-1">{{
           annual ? "/ year" : "/ month"
         }}</span>
@@ -229,7 +229,7 @@
 
       <p
         v-if="proMonthlyCredits > 0"
-        class="text-caption text-amber-400/90 italic -mt-2"
+        class="text-caption text-ink-caution/90 italic -mt-2"
       >
         Includes {{ proMonthlyCredits.toLocaleString() }} AI credits every month.
       </p>
@@ -264,7 +264,7 @@
       <p
         v-if="stripeError && stripeErrorFrom === 'checkout'"
         role="alert"
-        class="text-caption text-red-400 italic text-center"
+        class="text-caption text-destructive italic text-center"
       >
         {{ stripeError }}
       </p>
@@ -477,11 +477,11 @@ const cancelDate = computed(() => {
 const statusClass = computed(() => {
   switch (subscription.value?.status) {
     case "active":
-      return "bg-green-500/15 text-green-400";
+      return "bg-tone-success/15 text-ink-success";
     case "trialing":
-      return "bg-blue-500/15 text-blue-400";
+      return "bg-tone-info/15 text-ink-info";
     case "past_due":
-      return "bg-orange-500/15 text-orange-400";
+      return "bg-tone-caution/15 text-ink-caution";
     default:
       return "bg-muted text-muted-foreground";
   }

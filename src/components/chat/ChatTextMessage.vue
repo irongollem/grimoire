@@ -45,7 +45,7 @@
       </p>
       <span
         v-if="recipientName"
-        class="text-caption-sm text-amber-400 italic"
+        class="text-caption-sm text-ink-caution italic"
       >
         → {{ recipientName }}
       </span>

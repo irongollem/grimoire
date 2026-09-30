@@ -326,9 +326,9 @@ const carryColor = computed(() => {
   // Thresholds match the burden bands (proportional thirds) so the bar colour and
   // the burden label never disagree at a boundary.
   if (carryPercent.value >= 100) return "bg-destructive";
-  if (carryPercent.value >= 66.67) return "bg-amber-500";
-  if (carryPercent.value >= 33.33) return "bg-amber-400/70";
-  return "bg-green-500";
+  if (carryPercent.value >= 66.67) return "bg-tone-caution";
+  if (carryPercent.value >= 33.33) return "bg-tone-caution/70";
+  return "bg-tone-success";
 });
 
 const encumberedThreshold = computed(() => {

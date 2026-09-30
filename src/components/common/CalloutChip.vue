@@ -22,7 +22,7 @@ const { variant = "primary", label } = defineProps<{
 
 const variantClasses = computed(() => {
   switch (variant) {
-    case "amber":       return "bg-amber-500/10 border-amber-500/30";
+    case "amber":       return "bg-tone-caution/10 border-tone-caution/30";
     case "destructive": return "bg-destructive/10 border-destructive/30";
     case "muted":       return "bg-muted/30 border-border";
     case "primary":
@@ -32,7 +32,7 @@ const variantClasses = computed(() => {
 
 const labelClasses = computed(() => {
   switch (variant) {
-    case "amber":       return "text-amber-400 uppercase";
+    case "amber":       return "text-ink-caution uppercase";
     case "destructive": return "text-destructive uppercase";
     case "muted":       return "text-muted-foreground uppercase";
     case "primary":

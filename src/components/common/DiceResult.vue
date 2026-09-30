@@ -87,7 +87,7 @@ onUnmounted(clearTimers);
 }
 
 .dice-crit {
-  @apply text-amber-500;
+  @apply text-ink-caution;
   animation: dice-crit-flash 0.6s ease-out forwards;
 }
 

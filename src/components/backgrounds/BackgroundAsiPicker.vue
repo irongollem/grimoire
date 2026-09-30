@@ -45,7 +45,7 @@
       </div>
     </div>
 
-    <p v-if="missingHint" class="text-caption text-amber-600 dark:text-amber-400 italic">
+    <p v-if="missingHint" class="text-caption text-ink-caution  italic">
       {{ missingHint }}
     </p>
   </div>

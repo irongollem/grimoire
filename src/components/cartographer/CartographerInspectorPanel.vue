@@ -43,7 +43,7 @@
       </div>
       <p
         v-if="packValidationMissing > 0"
-        class="text-caption-sm text-amber-500 mt-1.5"
+        class="text-caption-sm text-ink-caution mt-1.5"
       >
         {{ packValidationMissing }} slot(s) missing — using placeholders.
       </p>

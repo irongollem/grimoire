@@ -28,7 +28,7 @@
           <span class="text-label-lg font-bold text-foreground">
             {{ group.label }}
           </span>
-          <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20">
+          <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-tone-arcane/15 text-ink-arcane border border-tone-arcane/20">
             {{ SOURCE_TYPE_LABELS[group.entries[0].source_type] ?? group.entries[0].source_type }}
           </span>
           <span class="ml-auto text-label text-muted-foreground">
@@ -101,7 +101,7 @@
               :label="entry.spell.effects?.length ? 'Resolve' : 'Healing'"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : rollInnateHealing(entry)"
             />
-            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-amber-500">Manual</span>
+            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 font-cinzel text-2xs text-ink-caution">Manual</span>
 
             <!-- Use tracking: pips or "At will" -->
             <template v-if="entry.uses_per_day !== null">
@@ -111,7 +111,7 @@
                   :key="i"
                   class="h-2.5 w-2.5 rounded-full border-2 transition-colors"
                   :class="i <= (entry.uses_remaining ?? 0)
-                    ? 'bg-violet-500 border-violet-500'
+                    ? 'bg-tone-arcane border-tone-arcane'
                     : 'border-muted-foreground/30'"
                 />
               </div>
@@ -121,7 +121,7 @@
             </template>
             <span
               v-else
-              class="shrink-0 text-label text-emerald-500/70 border border-emerald-500/20 rounded px-1.5 py-0.5"
+              class="shrink-0 text-label text-ink-success/70 border border-tone-success/20 rounded px-1.5 py-0.5"
             >At will</span>
 
             <!-- Cast button -->

@@ -2,14 +2,14 @@
   <div
     class="rounded-lg border p-4 flex flex-col"
     :class="[
-      tone === 'amber' ? 'border-amber-700/40 bg-amber-950/10' : 'border-border bg-card/50',
+      tone === 'amber' ? 'border-tone-caution/40 bg-tone-caution/10' : 'border-border bg-card/50',
       gap === 3 ? 'gap-3' : 'gap-2',
     ]"
   >
     <div v-if="toggleLabel" class="flex items-center justify-between gap-2">
       <h3
         class="text-label-lg font-bold uppercase"
-        :class="tone === 'amber' ? 'text-amber-300/80' : 'text-muted-foreground'"
+        :class="tone === 'amber' ? 'text-ink-caution/80' : 'text-muted-foreground'"
       >
         {{ title }}
         <span
@@ -28,7 +28,7 @@
     <h3
       v-else
       class="text-label-lg font-bold uppercase"
-      :class="tone === 'amber' ? 'text-amber-300/80' : 'text-muted-foreground'"
+      :class="tone === 'amber' ? 'text-ink-caution/80' : 'text-muted-foreground'"
     >
       {{ title }}
       <span

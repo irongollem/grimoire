@@ -377,11 +377,11 @@ export const buttonVariants = cva(
       // contrast against white, which is why the two hand-rolled amber CTAs this
       // replaces both wrote `text-black` themselves.
       { variant: "tinted", tone: "primary", emphasis: "solid", class: "bg-tone-primary border-tone-primary text-white hover:opacity-90" },
-      { variant: "tinted", tone: "danger", emphasis: "solid", class: "bg-tone-danger border-tone-danger text-white hover:opacity-90" },
-      { variant: "tinted", tone: "success", emphasis: "solid", class: "bg-tone-success border-tone-success text-white hover:opacity-90" },
-      { variant: "tinted", tone: "info", emphasis: "solid", class: "bg-tone-info border-tone-info text-white hover:opacity-90" },
-      { variant: "tinted", tone: "arcane", emphasis: "solid", class: "bg-tone-arcane border-tone-arcane text-white hover:opacity-90" },
-      { variant: "tinted", tone: "caution", emphasis: "solid", class: "bg-tone-caution border-tone-caution text-black hover:opacity-90" },
+      { variant: "tinted", tone: "danger", emphasis: "solid", class: "bg-tone-danger border-tone-danger text-on-danger hover:opacity-90" },
+      { variant: "tinted", tone: "success", emphasis: "solid", class: "bg-tone-success border-tone-success text-on-success hover:opacity-90" },
+      { variant: "tinted", tone: "info", emphasis: "solid", class: "bg-tone-info border-tone-info text-on-info hover:opacity-90" },
+      { variant: "tinted", tone: "arcane", emphasis: "solid", class: "bg-tone-arcane border-tone-arcane text-on-arcane hover:opacity-90" },
+      { variant: "tinted", tone: "caution", emphasis: "solid", class: "bg-tone-caution border-tone-caution text-on-caution hover:opacity-90" },
       { variant: "tinted", tone: "neutral", emphasis: "solid", class: "bg-muted border-border text-foreground hover:opacity-90" },
 
       // ── fill="tone" × tone ────────────────────────────────────────────────

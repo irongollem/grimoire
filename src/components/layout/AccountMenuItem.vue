@@ -6,7 +6,7 @@
     :to="to"
     :tooltip="tooltip"
     :aria-label="label"
-    :class="cn('justify-start gap-2 px-3 py-2 text-caption hover:bg-secondary/60', danger && 'text-red-400/80 hover:text-red-400')"
+    :class="cn('justify-start gap-2 px-3 py-2 text-caption hover:bg-secondary/60', danger && 'text-destructive/80 hover:text-destructive')"
     @click="emit('click', $event)"
   >
     <template #icon>

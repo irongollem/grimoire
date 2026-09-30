@@ -367,7 +367,7 @@ function clearAll() {
   @apply text-display font-bold text-foreground;
 }
 .result-crit {
-  @apply text-amber-500;
+  @apply text-ink-caution;
 }
 .result-fumble {
   @apply text-destructive;

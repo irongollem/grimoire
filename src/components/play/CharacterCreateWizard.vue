@@ -47,7 +47,7 @@
     <CharacterCreateDoneStep v-else-if="currentStepId === 'done'" :form="form" />
 
     <!-- Footer nav (not shown on Done step — actions are inline there) -->
-    <p v-if="blockedByAsiChoice" class="text-caption text-amber-600 dark:text-amber-400 italic text-right">
+    <p v-if="blockedByAsiChoice" class="text-caption text-ink-caution  italic text-right">
       Finish the ability score choice above, or clear it, before continuing.
     </p>
     <div class="flex items-center justify-between pt-2 border-t border-border">

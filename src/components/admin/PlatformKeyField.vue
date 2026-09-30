@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between">
       <span class="text-eyebrow font-semibold text-muted-foreground">{{ label }}</span>
       <div class="flex items-center gap-2">
-        <span v-if="isSet" class="font-cinzel text-2xs tracking-widest text-emerald-500 uppercase">
+        <span v-if="isSet" class="font-cinzel text-2xs tracking-widest text-ink-success uppercase">
           Set · {{ updatedAtLabel }}
         </span>
         <span v-else class="font-cinzel text-2xs tracking-widest text-muted-foreground/60 uppercase">Not configured</span>

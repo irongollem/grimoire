@@ -4,11 +4,11 @@
     :class="
       empty
         ? 'border-border bg-muted/40'
-        : 'border-amber-500/30 bg-amber-500/5'
+        : 'border-tone-caution/30 bg-tone-caution/5'
     "
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
-      <IconPackageOpen class="h-3.5 w-3.5 text-amber-400 shrink-0" />
+      <IconPackageOpen class="h-3.5 w-3.5 text-ink-caution shrink-0" />
       <span class="text-label text-muted-foreground flex-1 truncate">
         {{ senderName }} dropped {{ meta.loot_table_name }}
       </span>
@@ -55,7 +55,7 @@
 
           <!-- Currency atom -->
           <template v-else-if="atom.type === 'currency'">
-            <IconCoins class="w-5 h-5 text-amber-400 shrink-0" />
+            <IconCoins class="w-5 h-5 text-ink-caution shrink-0" />
             <div class="flex-1 min-w-0">
               <div class="flex items-baseline gap-2">
                 <span class="text-body font-semibold text-foreground truncate">

@@ -29,8 +29,8 @@
         />
       </div>
 
-      <div class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-1.5">
-        <p class="text-caption text-amber-700 dark:text-amber-400 font-semibold">
+      <div class="rounded-md border border-tone-caution/30 bg-tone-caution/5 px-3 py-2.5 space-y-1.5">
+        <p class="text-caption text-ink-caution  font-semibold">
           What moves with the campaign
         </p>
         <p class="text-caption text-muted-foreground">
@@ -69,9 +69,9 @@
 
       <div
         v-else-if="hasScopedCopies"
-        class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-2.5"
+        class="rounded-md border border-tone-caution/30 bg-tone-caution/5 px-3 py-2.5 space-y-2.5"
       >
-        <p class="text-caption text-amber-700 dark:text-amber-400">
+        <p class="text-caption text-ink-caution ">
           This campaign has <span class="font-semibold">{{ scopedCopiesSummary }}</span>
           scoped exclusively to it. Copies move to the new DM. Choose what happens
           to your originals:

@@ -81,8 +81,8 @@
         </div>
 
         <!-- Warning note -->
-        <div class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5">
-          <p class="text-caption text-amber-700 dark:text-amber-400">
+        <div class="rounded-md border border-tone-caution/30 bg-tone-caution/5 px-3 py-2.5">
+          <p class="text-caption text-ink-caution ">
             References to your monster, item, and spell library are preserved by ID.
             If a referenced entity doesn't exist in your account, those links will appear broken
             until you restore the library entry.

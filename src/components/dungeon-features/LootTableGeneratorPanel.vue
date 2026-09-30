@@ -82,7 +82,7 @@
                     <span class="text-muted-foreground"> ×{{ entry.dice ?? entry.fixedQty }}</span>
                   </template>
                   <template v-else-if="entry.kind === 'currency'">
-                    <IconCoins class="inline h-3 w-3 mb-0.5 mr-0.5 text-amber-400" />
+                    <IconCoins class="inline h-3 w-3 mb-0.5 mr-0.5 text-ink-caution" />
                     {{ entry.label ?? "Coins" }}
                     <span class="text-muted-foreground"> — {{ formatCoins(entry) }}</span>
                   </template>
@@ -118,7 +118,7 @@
             v-if="unresolvedCount"
             class="rounded-md border border-border bg-muted/30 px-3 py-2 flex gap-2"
           >
-            <IconWarning class="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+            <IconWarning class="h-3.5 w-3.5 text-ink-caution shrink-0 mt-0.5" />
             <p class="text-caption text-muted-foreground">
               {{ unresolvedCount }} {{ unresolvedCount === 1 ? "entry" : "entries" }} couldn't be matched to a real
               item and {{ unresolvedCount === 1 ? "is" : "are" }} left out of the table.

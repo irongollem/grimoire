@@ -20,7 +20,7 @@
 
       <!-- Completed -->
       <template v-else-if="entry.completedEntityId.value">
-        <IconCheckCircle class="h-4 w-4 text-emerald-500 shrink-0" />
+        <IconCheckCircle class="h-4 w-4 text-ink-success shrink-0" />
         <span class="text-foreground italic">{{ entry.label }} ready!</span>
         <AppButton
           variant="link"

@@ -106,10 +106,10 @@
 
           <!-- Background skill choice ("choose one of …") -->
           <div v-for="(choice, ci) in bgSkillChoices" :key="`bgchoice-${ci}`"
-            class="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2">
-            <p class="font-cinzel text-2xs text-amber-700 dark:text-amber-400 mb-1.5">
+            class="mb-2 rounded-md border border-tone-caution/30 bg-tone-caution/5 p-2">
+            <p class="font-cinzel text-2xs text-ink-caution  mb-1.5">
               BACKGROUND CHOICE — pick {{ choice.count }}
-              <span class="text-amber-600/70">({{ bgChosenSkills.length }}/{{ bgChoiceLimit }} chosen)</span>
+              <span class="text-ink-caution/70">({{ bgChosenSkills.length }}/{{ bgChoiceLimit }} chosen)</span>
             </p>
             <div class="flex flex-wrap gap-1.5">
               <AppButton v-for="opt in (choice.options.length ? choice.options : SKILLS.map(s => s.key))"
@@ -153,7 +153,7 @@
 
               <!-- Background badge OR bonus -->
               <span v-if="isFromBackground(skill.key)"
-                class="font-cinzel text-2xs px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                class="font-cinzel text-2xs px-1 py-0.5 rounded bg-tone-caution/15 text-ink-caution  border border-tone-caution/30 shrink-0">
                 BG
               </span>
               <span v-else class="font-cinzel text-2xs text-muted-foreground shrink-0">
@@ -166,7 +166,7 @@
           <p v-if="f.class" class="font-cinzel text-2xs text-muted-foreground/60 mt-2 leading-relaxed">
             <span v-if="classSkillData?.skills.length">In-class skills are full opacity · dimmed skills are outside your class list · </span>
             <span v-else>Your class may choose from any skill · </span>
-            <span class="text-amber-600 dark:text-amber-400">BG</span> = granted by background, not counted against your picks.
+            <span class="text-ink-caution ">BG</span> = granted by background, not counted against your picks.
           </p>
         </div>
 

@@ -4,8 +4,8 @@
     <div class="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-border bg-card">
       <div class="flex items-center gap-2">
         <span v-if="liveState" class="relative flex h-2 w-2 shrink-0">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tone-success opacity-75" />
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-tone-success" />
         </span>
         <IconEncounter v-else class="h-3.5 w-3.5 text-muted-foreground/40" />
         <span class="text-label-lg font-bold text-foreground">ENCOUNTER</span>
@@ -60,10 +60,10 @@
           <!-- Lobby header -->
           <div
             v-if="isInLobby"
-            class="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3"
+            class="flex items-center gap-3 rounded-lg border border-tone-caution/30 bg-tone-caution/5 px-4 py-3"
           >
-            <IconEncounter class="h-4 w-4 text-amber-500/60 shrink-0" />
-            <span class="font-cinzel text-sm font-semibold text-amber-500/80 tracking-wider">Gathering Party…</span>
+            <IconEncounter class="h-4 w-4 text-ink-caution/60 shrink-0" />
+            <span class="font-cinzel text-sm font-semibold text-ink-caution/80 tracking-wider">Gathering Party…</span>
             <span class="text-caption text-muted-foreground italic ml-auto">DM is preparing</span>
           </div>
 
@@ -71,9 +71,9 @@
                Writes combat_ready directly; the DM's runner reacts to the change live. -->
           <div
             v-if="isInLobby && myCompanions.length > 0"
-            class="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-2"
+            class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 px-3 py-2.5 space-y-2"
           >
-            <span class="text-label-lg font-semibold text-amber-500/80 tracking-wider">YOUR COMPANIONS</span>
+            <span class="text-label-lg font-semibold text-ink-caution/80 tracking-wider">YOUR COMPANIONS</span>
             <div
               v-for="companion in myCompanions"
               :key="companion.id"
@@ -172,15 +172,15 @@
             <div
               v-for="event in playerVisibleFiredEvents"
               :key="event.id"
-              class="flex gap-2.5 items-start rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2.5"
+              class="flex gap-2.5 items-start rounded-lg border border-tone-caution/40 bg-tone-caution/5 px-3 py-2.5"
             >
-              <IconScrollText class="h-3.5 w-3.5 text-amber-500/60 shrink-0 mt-0.5" />
+              <IconScrollText class="h-3.5 w-3.5 text-ink-caution/60 shrink-0 mt-0.5" />
               <div class="min-w-0">
                 <p v-if="getEventMessage(event)" class="text-body text-foreground/90 italic leading-snug">
                   {{ getEventMessage(event) }}
                 </p>
                 <p
-                  class="text-eyebrow text-amber-500/70"
+                  class="text-eyebrow text-ink-caution/70"
                   :class="getEventMessage(event) ? 'mt-1' : 'text-sm text-foreground'"
                 >
                   {{ event.name }}

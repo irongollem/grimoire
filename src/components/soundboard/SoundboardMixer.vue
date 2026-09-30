@@ -2,7 +2,7 @@
   <div class="space-y-2">
     <p
       v-if="store.isCasting"
-      class="flex w-full items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-2xs text-amber-500"
+      class="flex w-full items-start gap-1.5 rounded-md border border-tone-caution/30 bg-tone-caution/10 px-2 py-1.5 text-2xs text-ink-caution"
     >
       <IconWarning class="mt-0.5 h-3 w-3 shrink-0" />
       <span>Casting plays the original audio. Mixer levels, effects, fades, and ducking do not apply.</span>
@@ -12,7 +12,7 @@
          where a DM looks when the sound is not doing what the faders say. -->
     <p
       v-if="store.directOutput"
-      class="flex w-full items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-2xs text-amber-500"
+      class="flex w-full items-start gap-1.5 rounded-md border border-tone-caution/30 bg-tone-caution/10 px-2 py-1.5 text-2xs text-ink-caution"
     >
       <IconWarning class="mt-0.5 h-3 w-3 shrink-0" />
       <span>

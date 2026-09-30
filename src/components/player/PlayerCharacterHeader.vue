@@ -106,9 +106,9 @@
             tooltip="Click to clear temp HP"
             @click="clearTempHp"
           >+{{ member.temp_hp }} tmp <span class="text-tone-info/50">×</span></AppButton>
-          <span v-if="attackDisadvantage" class="text-label text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
-          <span v-if="checkDisadvantage"  class="text-label text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
-          <span v-if="exhaustionD20Penalty !== 0" class="text-label text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Exhaustion penalty on every d20 Test (attack rolls, ability checks, saving throws)">{{ exhaustionD20Penalty }} d20</span>
+          <span v-if="attackDisadvantage" class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
+          <span v-if="checkDisadvantage"  class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
+          <span v-if="exhaustionD20Penalty !== 0" class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20 ml-1" title="Exhaustion penalty on every d20 Test (attack rolls, ability checks, saving throws)">{{ exhaustionD20Penalty }} d20</span>
           <AppButton
             v-if="member.concentration"
             variant="tinted"
@@ -145,7 +145,7 @@
           <RestButtons :member="member" />
           <button
             ref="conditionPickerBtn"
-            class="h-6 w-6 flex items-center justify-center rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground/50 hover:border-amber-500/60 hover:text-amber-500 transition-colors text-base leading-none"
+            class="h-6 w-6 flex items-center justify-center rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground/50 hover:border-tone-caution/60 hover:text-ink-caution transition-colors text-base leading-none"
             title="Add condition"
             @click="openConditionPicker"
           >+</button>
@@ -194,7 +194,7 @@
     <div class="h-1.5 w-full bg-muted overflow-hidden md:hidden">
       <div class="h-full flex">
         <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpBarWidthPct}%` }" />
-        <div v-if="tempHpBarPct > 0" class="h-full transition-all bg-blue-500" :style="{ width: `${tempHpBarPct}%` }" />
+        <div v-if="tempHpBarPct > 0" class="h-full transition-all bg-tone-info" :style="{ width: `${tempHpBarPct}%` }" />
       </div>
     </div>
   </div>
@@ -425,14 +425,14 @@ const hpColor = computed(() => {
   const p = hpPct.value;
   if (p <= 0) return "text-destructive";
   if (p < 33) return "text-destructive";
-  if (p < 66) return "text-amber-400";
+  if (p < 66) return "text-ink-caution";
   return "text-elven-green";
 });
 const hpBarColor = computed(() => {
   const p = hpPct.value;
   if (p <= 0) return "bg-muted-foreground/40";
   if (p < 33) return "bg-destructive";
-  if (p < 66) return "bg-amber-500";
+  if (p < 66) return "bg-tone-caution";
   return "bg-elven-green";
 });
 

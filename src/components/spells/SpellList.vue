@@ -1,8 +1,8 @@
 <template>
   <div>
-    <div v-if="candidate" class="rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-2 mb-3 text-body">
+    <div v-if="candidate" class="rounded-lg border border-tone-arcane/30 bg-tone-arcane/10 px-4 py-2 mb-3 text-body">
       Choose a replacement for <strong>{{ candidate.spell.name }}</strong>.
-      <button type="button" class="ml-2 text-violet-400 underline" @click="clearReplacement">Cancel</button>
+      <button type="button" class="ml-2 text-ink-arcane underline" @click="clearReplacement">Cancel</button>
     </div>
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -179,7 +179,7 @@
                 :tooltip="casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"
                 :class="[
                   CARD_OVERLAY_SCRIM,
-                  isRemoving ? 'text-muted-foreground hover:text-muted-foreground' : 'text-emerald-400 hover:text-red-400',
+                  isRemoving ? 'text-muted-foreground hover:text-muted-foreground' : 'text-ink-success hover:text-destructive',
                   'absolute bottom-2 right-2 z-10 max-md:min-h-11 max-md:px-3',
                   '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
                 ]"

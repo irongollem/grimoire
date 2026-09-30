@@ -99,9 +99,9 @@ const eqAccent = computed(() => category.value);
 const chipClass = computed(() => {
   switch (chip) {
     case "music":   return "border-gold-500/30 text-gold-400";
-    case "ambient": return "border-green-500/30 text-green-400";
-    case "effects": return "border-blue-500/30 text-blue-400";
-    case "scene":   return "border-green-500/30 text-green-400";
+    case "ambient": return "border-tone-success/30 text-ink-success";
+    case "effects": return "border-tone-info/30 text-ink-info";
+    case "scene":   return "border-tone-success/30 text-ink-success";
     default:        return "border-border text-muted-foreground";
   }
 });

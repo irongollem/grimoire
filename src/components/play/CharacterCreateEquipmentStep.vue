@@ -62,9 +62,9 @@
     </div>
 
     <div v-if="!classEquipmentPack && !selectedBg?.equipment"
-      class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 flex items-start gap-2">
-      <span class="text-amber-500 shrink-0 mt-0.5">⚡</span>
-      <p class="text-body text-amber-700 dark:text-amber-400">
+      class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 p-3 flex items-start gap-2">
+      <span class="text-ink-caution shrink-0 mt-0.5">⚡</span>
+      <p class="text-body text-ink-caution ">
         No starting equipment — pick a class and background first, or continue and add gear manually.
       </p>
     </div>

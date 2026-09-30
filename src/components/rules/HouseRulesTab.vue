@@ -57,7 +57,7 @@
                 />
               </template>
               <span class="flex-1">{{ def.name }}</span>
-              <span class="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 text-label text-emerald-400">active</span>
+              <span class="shrink-0 px-1.5 py-0.5 rounded bg-tone-success/10 text-label text-ink-success">active</span>
             </AppButton>
             <div v-if="openBuiltIns.has(def.key)" class="px-4 pb-4 border-t border-border">
               <p class="text-caption text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>

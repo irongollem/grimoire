@@ -135,9 +135,9 @@
 
           <!-- Published badge -->
           <div v-if="doc.is_published" class="flex items-center gap-1">
-            <IconFaction class="h-3 w-3 text-green-500" />
+            <IconFaction class="h-3 w-3 text-ink-success" />
             <span
-              class="text-label text-green-500 font-semibold"
+              class="text-label text-ink-success font-semibold"
               >Published</span
             >
           </div>

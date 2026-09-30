@@ -50,8 +50,8 @@
         class="md:hidden"
       >
         <span class="relative flex h-2 w-2 shrink-0">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tone-success opacity-75" />
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-tone-success" />
         </span>
         Live
       </AppButton>
@@ -67,8 +67,8 @@
         @click="showEncounterPanel = !showEncounterPanel"
       >
         <span class="relative flex h-2 w-2 shrink-0">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tone-success opacity-75" />
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-tone-success" />
         </span>
         Live
       </AppButton>
@@ -105,7 +105,7 @@
     <!-- DM preview banner -->
     <div
       v-if="ui.dmPreviewMode"
-      class="bg-amber-500 px-4 py-2 flex items-center gap-3 shrink-0"
+      class="bg-tone-caution px-4 py-2 flex items-center gap-3 shrink-0"
     >
       <IconReveal class="h-3.5 w-3.5 text-black/70 shrink-0" />
       <span class="text-label-lg text-black font-semibold shrink-0">Previewing as:</span>
@@ -134,12 +134,12 @@
         <!-- Mobile: tap navigates to encounter view -->
         <RouterLink
           :to="{ name: 'player-encounter' }"
-          class="md:hidden rounded-lg border border-green-500/40 bg-card shadow-xl px-4 py-3 flex items-start gap-3"
+          class="md:hidden rounded-lg border border-tone-success/40 bg-card shadow-xl px-4 py-3 flex items-start gap-3"
           @click="encounterLiveToast = false"
         >
-          <IconEncounter class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+          <IconEncounter class="h-4 w-4 text-ink-success shrink-0 mt-0.5" />
           <div class="flex-1 min-w-0">
-            <p class="text-label-lg font-semibold text-green-400">Encounter Started!</p>
+            <p class="text-label-lg font-semibold text-ink-success">Encounter Started!</p>
             <p class="text-body text-foreground mt-0.5">Your DM has started a live encounter. Tap to join.</p>
           </div>
           <AppButton
@@ -153,11 +153,11 @@
         </RouterLink>
         <!-- Tablet+: tap dismisses (panel already opened automatically) -->
         <div
-          class="hidden md:flex rounded-lg border border-green-500/40 bg-card shadow-xl px-4 py-3 items-start gap-3"
+          class="hidden md:flex rounded-lg border border-tone-success/40 bg-card shadow-xl px-4 py-3 items-start gap-3"
         >
-          <IconEncounter class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+          <IconEncounter class="h-4 w-4 text-ink-success shrink-0 mt-0.5" />
           <div class="flex-1 min-w-0">
-            <p class="text-label-lg font-semibold text-green-400">Encounter Started!</p>
+            <p class="text-label-lg font-semibold text-ink-success">Encounter Started!</p>
             <p class="text-body text-foreground mt-0.5">Live encounter panel opened on the left.</p>
           </div>
           <AppButton

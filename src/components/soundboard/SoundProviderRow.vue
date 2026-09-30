@@ -29,8 +29,8 @@
           class="shrink-0 px-1 py-0.5 rounded text-caption-sm tracking-wide"
           :class="
             hit.license === 'public-domain'
-              ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-              : 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
+              ? 'bg-tone-success/15 text-ink-success border border-tone-success/30'
+              : 'bg-tone-info/15 text-ink-info border border-tone-info/30'
           "
         >
           {{ hit.license === "public-domain" ? "Public domain" : "Credit required" }}

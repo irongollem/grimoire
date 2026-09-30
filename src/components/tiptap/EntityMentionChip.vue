@@ -141,115 +141,115 @@ function navigate() {
 
 /* ── Player (blue) ──────────────────────────────────────────────────────── */
 .entity-chip--player--edit {
-  border-color: theme(colors.blue-400 / 35%);
-  background: theme(colors.blue-400 / 10%);
-  color: theme(colors.blue-400);
+  border-color: theme(colors.kind-player / 35%);
+  background: theme(colors.kind-player / 10%);
+  color: theme(colors.kind-player);
   cursor: default;
 }
 .entity-chip--player {
-  border-color: theme(colors.blue-400 / 40%);
-  background: theme(colors.blue-400 / 10%);
-  color: theme(colors.blue-400);
+  border-color: theme(colors.kind-player / 40%);
+  background: theme(colors.kind-player / 10%);
+  color: theme(colors.kind-player);
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
 }
 .entity-chip--player:hover {
-  background: theme(colors.blue-400 / 20%);
-  border-color: theme(colors.blue-400 / 60%);
+  background: theme(colors.kind-player / 20%);
+  border-color: theme(colors.kind-player / 60%);
 }
 
 /* ── NPC (violet) ───────────────────────────────────────────────────────── */
 .entity-chip--npc--edit {
-  border-color: theme(colors.violet-400 / 35%);
-  background: theme(colors.violet-400 / 10%);
-  color: theme(colors.violet-400);
+  border-color: theme(colors.kind-npc / 35%);
+  background: theme(colors.kind-npc / 10%);
+  color: theme(colors.kind-npc);
   cursor: default;
 }
 .entity-chip--npc {
-  border-color: theme(colors.violet-400 / 40%);
-  background: theme(colors.violet-400 / 10%);
-  color: theme(colors.violet-400);
+  border-color: theme(colors.kind-npc / 40%);
+  background: theme(colors.kind-npc / 10%);
+  color: theme(colors.kind-npc);
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
 }
 .entity-chip--npc:hover {
-  background: theme(colors.violet-400 / 20%);
-  border-color: theme(colors.violet-400 / 60%);
+  background: theme(colors.kind-npc / 20%);
+  border-color: theme(colors.kind-npc / 60%);
 }
 
 /* ── Monster (rose) ─────────────────────────────────────────────────────── */
 .entity-chip--monster--edit {
-  border-color: theme(colors.rose-400 / 35%);
-  background: theme(colors.rose-400 / 10%);
-  color: theme(colors.rose-400);
+  border-color: theme(colors.kind-monster / 35%);
+  background: theme(colors.kind-monster / 10%);
+  color: theme(colors.kind-monster);
   cursor: default;
 }
 .entity-chip--monster {
-  border-color: theme(colors.rose-400 / 40%);
-  background: theme(colors.rose-400 / 10%);
-  color: theme(colors.rose-400);
+  border-color: theme(colors.kind-monster / 40%);
+  background: theme(colors.kind-monster / 10%);
+  color: theme(colors.kind-monster);
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
 }
 .entity-chip--monster:hover {
-  background: theme(colors.rose-400 / 20%);
-  border-color: theme(colors.rose-400 / 60%);
+  background: theme(colors.kind-monster / 20%);
+  border-color: theme(colors.kind-monster / 60%);
 }
 
 /* ── Location (emerald) ─────────────────────────────────────────────────── */
 .entity-chip--location--edit {
-  border-color: theme(colors.emerald-400 / 35%);
-  background: theme(colors.emerald-400 / 10%);
-  color: theme(colors.emerald-400);
+  border-color: theme(colors.kind-location / 35%);
+  background: theme(colors.kind-location / 10%);
+  color: theme(colors.kind-location);
   cursor: default;
 }
 .entity-chip--location {
-  border-color: theme(colors.emerald-400 / 40%);
-  background: theme(colors.emerald-400 / 10%);
-  color: theme(colors.emerald-400);
+  border-color: theme(colors.kind-location / 40%);
+  background: theme(colors.kind-location / 10%);
+  color: theme(colors.kind-location);
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
 }
 .entity-chip--location:hover {
-  background: theme(colors.emerald-400 / 20%);
-  border-color: theme(colors.emerald-400 / 60%);
+  background: theme(colors.kind-location / 20%);
+  border-color: theme(colors.kind-location / 60%);
 }
 
 .entity-chip--party--edit {
-  border-color: theme(colors.amber-400 / 35%);
-  background: theme(colors.amber-400 / 10%);
-  color: theme(colors.amber-400);
+  border-color: theme(colors.kind-party / 35%);
+  background: theme(colors.kind-party / 10%);
+  color: theme(colors.kind-party);
   cursor: default;
 }
 .entity-chip--party {
-  border-color: theme(colors.amber-400 / 40%);
-  background: theme(colors.amber-400 / 10%);
-  color: theme(colors.amber-400);
+  border-color: theme(colors.kind-party / 40%);
+  background: theme(colors.kind-party / 10%);
+  color: theme(colors.kind-party);
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
 }
 .entity-chip--party:hover {
-  background: theme(colors.amber-400 / 20%);
-  border-color: theme(colors.amber-400 / 60%);
+  background: theme(colors.kind-party / 20%);
+  border-color: theme(colors.kind-party / 60%);
 }
 
 /* ── Faction (cyan) ─────────────────────────────────────────────────────── */
 .entity-chip--faction--edit {
-  border-color: theme(colors.cyan-400 / 35%);
-  background: theme(colors.cyan-400 / 10%);
-  color: theme(colors.cyan-400);
+  border-color: theme(colors.kind-faction / 35%);
+  background: theme(colors.kind-faction / 10%);
+  color: theme(colors.kind-faction);
   cursor: default;
 }
 .entity-chip--faction {
-  border-color: theme(colors.cyan-400 / 40%);
-  background: theme(colors.cyan-400 / 10%);
-  color: theme(colors.cyan-400);
+  border-color: theme(colors.kind-faction / 40%);
+  background: theme(colors.kind-faction / 10%);
+  color: theme(colors.kind-faction);
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
 }
 .entity-chip--faction:hover {
-  background: theme(colors.cyan-400 / 20%);
-  border-color: theme(colors.cyan-400 / 60%);
+  background: theme(colors.kind-faction / 20%);
+  border-color: theme(colors.kind-faction / 60%);
 }
 
 /* ── Unknown to this viewer (withheld name) — muted, inert ─────────────── */

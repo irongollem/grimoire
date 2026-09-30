@@ -17,7 +17,7 @@
       <span v-if="rule.category" class="text-label-lg font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground">
         {{ rule.category }}
       </span>
-      <span v-if="rule.is_player_visible" class="text-label-lg font-semibold px-2 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
+      <span v-if="rule.is_player_visible" class="text-label-lg font-semibold px-2 py-0.5 rounded bg-tone-success/10 text-ink-success  border border-tone-success/20">
         Visible to players
       </span>
       <span
@@ -112,12 +112,12 @@ function hasContent(content: object | null | undefined): boolean {
 }
 
 const LEVEL_COLOR_CLASSES: Record<string, string> = {
-  green:  "text-green-600 dark:text-green-400",
-  yellow: "text-yellow-600 dark:text-yellow-400",
-  orange: "text-orange-600 dark:text-orange-400",
-  red:    "text-red-600 dark:text-red-400",
-  blue:   "text-blue-600 dark:text-blue-400",
-  purple: "text-purple-600 dark:text-purple-400",
+  green:  "text-ink-success ",
+  yellow: "text-ink-caution ",
+  orange: "text-ink-caution ",
+  red:    "text-destructive ",
+  blue:   "text-ink-info ",
+  purple: "text-ink-arcane ",
 };
 
 function levelColorClass(color?: string): string {

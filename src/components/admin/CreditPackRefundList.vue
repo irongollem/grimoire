@@ -66,7 +66,7 @@
 
         <!-- Inline confirm / override -->
         <div v-if="confirmingPi === lot.paymentIntentId" class="space-y-2 border-t border-border/60 pt-2">
-          <p v-if="!lot.eligible" class="text-caption-sm text-amber-400">
+          <p v-if="!lot.eligible" class="text-caption-sm text-ink-caution">
             {{ ineligibleReason(lot) }} This will still issue a full Stripe refund; clawback is clamped to the available balance.
           </p>
           <AppInput
@@ -99,7 +99,7 @@
       </div>
     </div>
 
-    <p v-if="successMsg" class="text-caption text-green-500">{{ successMsg }}</p>
+    <p v-if="successMsg" class="text-caption text-ink-success">{{ successMsg }}</p>
   </div>
 </template>
 

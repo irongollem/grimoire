@@ -67,7 +67,7 @@
           </p>
           <span
             v-if="isInDisguise(member)"
-            class="inline-flex items-center gap-1 text-label text-amber-500/80"
+            class="inline-flex items-center gap-1 text-label text-ink-caution/80"
             title="Currently in disguise"
           >◈ disguised</span>
           <p v-if="member.player_name" class="text-caption text-muted-foreground">
@@ -101,7 +101,7 @@
               HP
               <span class="ml-2 text-sm font-bold" :class="hpColor(displayHp, displayMaxHp)">{{ displayHp }}</span>
               <span class="text-muted-foreground font-normal"> / {{ displayMaxHp }}</span>
-              <span v-if="member.temp_hp > 0" class="ml-1 text-blue-400 font-bold">+{{ member.temp_hp }} tmp</span>
+              <span v-if="member.temp_hp > 0" class="ml-1 text-ink-info font-bold">+{{ member.temp_hp }} tmp</span>
               <span
                 v-if="member.wildshape_state"
                 class="ml-1 font-normal italic text-elven-green"
@@ -112,8 +112,8 @@
               :class="[
                 'w-7 h-7 rounded-full flex items-center justify-center transition-colors shrink-0',
                 member.inspiration
-                  ? 'bg-yellow-400/20 text-yellow-400'
-                  : 'text-muted-foreground/40 hover:text-yellow-400',
+                  ? 'bg-tone-caution/20 text-ink-caution'
+                  : 'text-muted-foreground/40 hover:text-ink-caution',
               ]"
               title="Toggle inspiration"
               @click="toggleInspiration"
@@ -435,17 +435,17 @@ const passiveReligion = computed(() => 10 + mod(member.int) + profAdd(member.ski
 function hpColor(current: number, max: number) {
   const pct = current / max;
   if (current <= 0) return "text-destructive";
-  if (pct <= 0.25) return "text-orange-400";
-  if (pct <= 0.5) return "text-yellow-400";
-  return "text-green-400";
+  if (pct <= 0.25) return "text-destructive";
+  if (pct <= 0.5) return "text-ink-caution";
+  return "text-ink-success";
 }
 
 function hpBarColor(current: number, max: number) {
   const pct = current / max;
   if (current <= 0) return "bg-destructive";
-  if (pct <= 0.25) return "bg-orange-400";
-  if (pct <= 0.5) return "bg-yellow-400";
-  return "bg-green-500";
+  if (pct <= 0.25) return "bg-tone-danger";
+  if (pct <= 0.5) return "bg-tone-caution";
+  return "bg-tone-success";
 }
 
 function companionSourceName(c: Companion): string {

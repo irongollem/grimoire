@@ -28,7 +28,7 @@
         <!-- Free DMs are offered Pro first: its monthly allowance is the better
              deal for anyone generating regularly. Pro and comped accounts never
              see this — they are out of credits, not missing a plan. -->
-        <section v-if="!isPro" class="space-y-2 rounded-lg border border-amber-500/25 bg-amber-500/5 p-4">
+        <section v-if="!isPro" class="space-y-2 rounded-lg border border-tone-caution/25 bg-tone-caution/5 p-4">
           <p class="font-cinzel text-sm font-bold text-foreground tracking-wide">Go Pro</p>
           <p class="text-body text-muted-foreground leading-snug">
             <template v-if="monthlyCredits > 0">
@@ -56,7 +56,7 @@
             :label="savedMonths > 0 ? `or ${yearlyLabel}/year — ${savedMonths} months free` : `or ${yearlyLabel}/year`"
             @click="createCheckoutSession('year', subConsent, returnPath)"
           />
-          <p v-if="stripeError" role="alert" class="text-caption text-red-400 italic">{{ stripeError }}</p>
+          <p v-if="stripeError" role="alert" class="text-caption text-destructive italic">{{ stripeError }}</p>
         </section>
 
         <section class="space-y-2">

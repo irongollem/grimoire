@@ -74,7 +74,7 @@
         </span>
         <span
           v-if="entry.is_private && entry.shared_with_dm"
-          class="text-eyebrow px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600/80 dark:text-amber-400/80 border border-amber-500/20"
+          class="text-eyebrow px-1.5 py-0.5 rounded bg-tone-caution/10 text-ink-caution/80  border border-tone-caution/20"
         >DM</span>
       </template>
 
@@ -158,7 +158,7 @@
               accent="amber"
               label-role="label-lg"
               label-weight="normal"
-          label-class="text-amber-600/80 dark:text-amber-400/80"
+          label-class="text-ink-caution/80 "
               label="Share with DM"
               :model-value="editForm.shared_with_dm"
               @update:model-value="$emit('editFormChange', { shared_with_dm: $event })"

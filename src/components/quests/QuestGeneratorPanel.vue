@@ -127,7 +127,7 @@
                 @click="createFromHook(hook, i)"
               />
               <template v-else>
-                <span class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-emerald-500">
+                <span class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-ink-success">
                   <IconCheckCircle class="h-3.5 w-3.5" />
                   Created
                 </span>

@@ -4,11 +4,11 @@
     :class="
       meta.claimed_by_user_id
         ? 'border-border bg-muted/40'
-        : 'border-amber-500/30 bg-amber-500/5'
+        : 'border-tone-caution/30 bg-tone-caution/5'
     "
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
-      <IconCoins class="h-3.5 w-3.5 text-amber-400 shrink-0" />
+      <IconCoins class="h-3.5 w-3.5 text-ink-caution shrink-0" />
       <span class="text-label text-muted-foreground">
         {{ senderName }} dropped currency
       </span>
@@ -54,7 +54,7 @@
       <button
         v-else-if="canClaim"
         type="button"
-        class="mt-2 px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-label text-amber-400 hover:bg-amber-500/30 transition-colors"
+        class="mt-2 px-2.5 py-1 rounded bg-tone-caution/20 border border-tone-caution/40 text-label text-ink-caution hover:bg-tone-caution/30 transition-colors"
         @click="emit('claim-currency', { messageId })"
       >
         Add to Purse

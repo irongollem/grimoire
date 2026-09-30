@@ -107,7 +107,7 @@ function renderTraitDesc(desc: string): string {
 }
 
 .trait-atk-btn {
-  @apply bg-blue-500/15 text-blue-500 border border-blue-500/30 hover:bg-blue-500/25;
+  @apply bg-tone-info/15 text-ink-info border border-tone-info/30 hover:bg-tone-info/25;
 }
 
 .trait-dmg-btn {

@@ -2,14 +2,14 @@
   <div class="flex items-center gap-3 p-2 rounded bg-destructive/10 border border-destructive/20">
     <span class="text-label font-bold text-destructive">DEATH SAVES</span>
     <div class="flex items-center gap-1">
-      <span class="font-cinzel text-2xs text-green-500">✓</span>
+      <span class="font-cinzel text-2xs text-ink-success">✓</span>
       <div class="flex gap-1">
         <button
           v-for="i in 3"
           :key="`s${i}`"
           type="button"
           class="w-4 h-4 rounded-full border transition-colors"
-          :class="i <= member.death_save_successes ? 'bg-green-500 border-green-500' : 'border-muted-foreground/40'"
+          :class="i <= member.death_save_successes ? 'bg-tone-success border-tone-success' : 'border-muted-foreground/40'"
           @click="toggleDeathSave('success')"
         />
       </div>

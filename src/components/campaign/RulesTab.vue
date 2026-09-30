@@ -21,7 +21,7 @@
           <p class="text-caption text-muted-foreground mt-1">{{ option.description }}</p>
         </button>
       </div>
-      <p class="text-caption text-amber-500/90">
+      <p class="text-caption text-ink-caution/90">
         Changing edition can alter character progression and available content. Existing character choices are preserved for review.
       </p>
     </section>
@@ -53,7 +53,7 @@
             <span class="font-cinzel text-xs font-semibold text-foreground">{{ def.name }}</span>
             <span
               v-if="isEnabled(def.key)"
-              class="font-cinzel text-2xs tracking-widest text-emerald-400/80 uppercase"
+              class="font-cinzel text-2xs tracking-widest text-ink-success/80 uppercase"
             >active</span>
           </div>
           <p class="text-caption text-muted-foreground mt-0.5">{{ def.summary }}</p>

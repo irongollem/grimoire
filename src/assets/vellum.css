@@ -116,12 +116,6 @@
   color: var(--pip);
 }
 
-/* Solid toned buttons: the class recipe hard-codes text-white (and text-black
-   for caution), which fails on Lamplight's light pigments. Take the label from
-   the ground instead: parchment on Vellum's dark pigments, walnut on Lamplight's. */
-:root[data-theme="vellum"] [data-variant="tinted"][data-emphasis="solid"]:not([data-tone="neutral"]) { color: #faf6ee; }
-:root[data-theme="vellum-dark"] [data-variant="tinted"][data-emphasis="solid"]:not([data-tone="neutral"]) { color: var(--background); }
-
 /* ── Torn-paper panels ────────────────────────────────────────────────────
    The fill and border move to a pseudo-element roughened by the #vl-rough
    SVG filter (declared once in App.vue); the content stays crisp and the

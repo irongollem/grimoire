@@ -32,7 +32,7 @@
             </div>
             <!-- Feat badge -->
             <div v-if="bg.feat_grant_name"
-              class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-label text-amber-300 leading-none">
+              class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-label text-ink-caution leading-none">
               ✦ {{ bg.feat_grant_name }}
             </div>
           </div>
@@ -79,10 +79,10 @@
 
       <!-- Feat grant preview (legacy free-text display, kept for backgrounds without a structured origin_feat) -->
       <div v-else-if="selectedBg?.feat_grant_name"
-        class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
+        class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 p-3 space-y-1">
         <div class="flex items-center gap-2">
-          <p class="text-label-lg font-semibold text-amber-600 dark:text-amber-400">FEAT GRANT</p>
-          <span class="text-eyebrow text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
+          <p class="text-label-lg font-semibold text-ink-caution ">FEAT GRANT</p>
+          <span class="text-eyebrow text-ink-caution/60 ">2024 PHB</span>
         </div>
         <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedBg.feat_grant_name }}</p>
         <p v-if="selectedBg.feat_grant_description && typeof selectedBg.feat_grant_description === 'string' && !selectedBg.feat_grant_description.startsWith('{')"

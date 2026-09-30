@@ -10,7 +10,7 @@
     </p>
   </template>
   <p v-else-if="errorMsg" class="text-caption text-destructive">{{ errorMsg }}</p>
-  <p v-else-if="resultMessage" class="text-caption" :class="resultMessage.kind === 'success' ? 'text-green-500' : 'text-muted-foreground'">
+  <p v-else-if="resultMessage" class="text-caption" :class="resultMessage.kind === 'success' ? 'text-ink-success' : 'text-muted-foreground'">
     {{ resultMessage.text }}
   </p>
 </template>

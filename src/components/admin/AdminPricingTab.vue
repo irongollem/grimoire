@@ -70,7 +70,7 @@
                 tone="filled"
                 size="body-xs"
                 class="font-mono text-xs placeholder:text-muted-foreground/50"
-                :class="draftPacks[pack.pack_id].stripe_price_id ? 'text-green-400' : 'text-amber-400'"
+                :class="draftPacks[pack.pack_id].stripe_price_id ? 'text-ink-success' : 'text-ink-caution'"
               />
             </td>
             <td class="py-2 pl-2 text-right">
@@ -159,25 +159,25 @@
               <!-- Below cost — every call loses money. Its own case, not a matter of degree. -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'loss'"
-                class="font-cinzel text-2xs text-red-500 tracking-wide whitespace-nowrap font-semibold"
+                class="font-cinzel text-2xs text-destructive tracking-wide whitespace-nowrap font-semibold"
                 :title="calibrationTitle(calibrationHints[gen.generation_type], 'Below cost — every call loses money')"
               >⚠ ↑ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
               <!-- Fair — within the threshold of the target margin. -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'ok'"
-                class="font-cinzel text-2xs text-green-500 tracking-wide"
+                class="font-cinzel text-2xs text-ink-success tracking-wide"
                 :title="calibrationTitle(calibrationHints[gen.generation_type], 'On target')"
               >✓</span>
               <!-- Thinner than intended, but still above cost. -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'under'"
-                class="font-cinzel text-2xs text-amber-500 tracking-wide whitespace-nowrap"
+                class="font-cinzel text-2xs text-ink-caution tracking-wide whitespace-nowrap"
                 :title="calibrationTitle(calibrationHints[gen.generation_type], 'Under target margin')"
               >↑ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
               <!-- Above the target margin — the fairness half of the warning. -->
               <span
                 v-else
-                class="font-cinzel text-2xs text-sky-400 tracking-wide whitespace-nowrap"
+                class="font-cinzel text-2xs text-ink-info tracking-wide whitespace-nowrap"
                 :title="calibrationTitle(calibrationHints[gen.generation_type], 'Above target margin')"
               >↓ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
             </td>
@@ -324,11 +324,11 @@ const COST_CATEGORY: Record<string, CostCategory> = {
   entity_embedding: "embedding",
 };
 const CATEGORY_CLASS: Record<CostCategory, string> = {
-  text:  "bg-sky-500/15 text-sky-500",
-  image: "bg-violet-500/15 text-violet-500",
-  audio: "bg-amber-500/15 text-amber-500",
-  "3d":  "bg-emerald-500/15 text-emerald-500",
-  embedding: "bg-slate-500/15 text-slate-500",
+  text:  "bg-tone-info/15 text-ink-info",
+  image: "bg-tone-arcane/15 text-ink-arcane",
+  audio: "bg-tone-caution/15 text-ink-caution",
+  "3d":  "bg-tone-success/15 text-ink-success",
+  embedding: "bg-muted/15 text-muted-foreground",
 };
 function categoryOf(generationType: string): CostCategory {
   return COST_CATEGORY[generationType] ?? "text";

@@ -44,7 +44,7 @@
             size="body-xs"
             placeholder="Search vault…"
             autocomplete="off"
-            :class="addName && !addSelectedId ? 'border-amber-500/50' : ''"
+            :class="addName && !addSelectedId ? 'border-tone-caution/50' : ''"
             @input="onInput"
             @focus="onInput"
             @keydown.escape="showSuggestions = false"

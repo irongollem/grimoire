@@ -194,7 +194,7 @@
             placeholder="Vault item to give on payment (optional)"
             autocomplete="off"
             class="bg-muted/30 placeholder:text-muted-foreground/60"
-            :class="vendorItemQuery && !vendorItemId ? 'border-amber-500/50' : ''"
+            :class="vendorItemQuery && !vendorItemId ? 'border-tone-caution/50' : ''"
             @input="vendorItemId = ''"
             @focus="vendorShowItems = true"
             @keydown.escape="vendorShowItems = false"
@@ -235,7 +235,7 @@
         <button
           type="button"
           :disabled="!vendorDesc.trim() || !vendorHasPrice"
-          class="w-full py-1.5 text-label-lg font-bold bg-emerald-600 text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
+          class="w-full py-1.5 text-label-lg font-bold bg-tone-success text-on-success rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
           @click="postVendorOffer"
         >Post Offer</button>
       </div>
@@ -319,7 +319,7 @@
         rows="1"
         :placeholder="whisperTarget ? 'Whisper…' : 'Type a message…'"
         class="flex-1 resize-none bg-muted/40 border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring leading-snug overflow-hidden"
-        :class="whisperTarget ? 'border-amber-500/40 bg-amber-500/5' : ''"
+        :class="whisperTarget ? 'border-tone-caution/40 bg-tone-caution/5' : ''"
         style="max-height: 5rem; min-height: 2rem"
         @keydown.enter.exact.prevent="send"
         @input="autoResize"

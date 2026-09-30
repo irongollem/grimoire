@@ -21,8 +21,8 @@
       No safe {{ ruleset }} counterpart was found for {{ rulesetReviewSpells.map(entry => entry.spell.name).join(", ") }}.
       Review the spell text before play.
     </RulesetReviewBanner>
-    <div v-if="legacySpells.length" class="rounded-lg border border-amber-500/35 bg-amber-500/10 p-4 space-y-2">
-      <p class="text-label-lg font-bold text-amber-500">Review legacy spell sources</p>
+    <div v-if="legacySpells.length" class="rounded-lg border border-tone-caution/35 bg-tone-caution/10 p-4 space-y-2">
+      <p class="text-label-lg font-bold text-ink-caution">Review legacy spell sources</p>
       <p class="text-body text-muted-foreground">These spells predate multiclass source tracking. Assign each one before changing its preparation.</p>
       <div v-for="entry in legacySpells" :key="entry.id" class="flex items-center gap-3">
         <span class="text-body flex-1">{{ entry.spell.name }}</span>

@@ -3,7 +3,7 @@
     <template #header>
       <h3 class="text-label-lg text-muted-foreground uppercase">{{ title }}</h3>
       <span class="font-cinzel text-xs font-bold"
-        :class="selectedIds.size === needed ? 'text-green-500' : 'text-primary'">
+        :class="selectedIds.size === needed ? 'text-ink-success' : 'text-primary'">
         {{ selectedIds.size }} / {{ needed }}
       </span>
     </template>

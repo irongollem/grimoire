@@ -30,7 +30,7 @@
       </div>
       <div v-if="props.difficulty.hazardXp > 0" class="flex justify-between">
         <span class="text-muted-foreground">Trap / Hazard XP</span>
-        <span class="font-bold text-amber-500">+ {{ props.difficulty.hazardXp.toLocaleString() }}</span>
+        <span class="font-bold text-ink-caution">+ {{ props.difficulty.hazardXp.toLocaleString() }}</span>
       </div>
       <template v-if="props.difficulty.allyAdjustedXp > 0">
         <div class="flex justify-between">
@@ -38,7 +38,7 @@
             Ally offset
             <span class="text-2xs">(× {{ props.difficulty.allyMultiplier }})</span>
           </span>
-          <span class="font-bold text-green-500">− {{ props.difficulty.allyAdjustedXp.toLocaleString() }}</span>
+          <span class="font-bold text-ink-success">− {{ props.difficulty.allyAdjustedXp.toLocaleString() }}</span>
         </div>
         <div class="flex justify-between border-t border-border pt-1.5 mt-0.5">
           <span class="text-muted-foreground">Net XP</span>

@@ -133,7 +133,7 @@
             @click="menuOpen = false"
           >
             <template #trailing>
-              <span v-if="isPro" class="ml-auto text-eyebrow font-semibold text-amber-400">Pro</span>
+              <span v-if="isPro" class="ml-auto text-eyebrow font-semibold text-ink-caution">Pro</span>
             </template>
           </AccountMenuItem>
 

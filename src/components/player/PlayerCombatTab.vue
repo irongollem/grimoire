@@ -41,7 +41,7 @@
         <span class="font-cinzel text-xs" :class="stealthBonus >= 0 ? 'text-elven-green' : 'text-destructive'">
           {{ signedNum(stealthBonus) }}
         </span>
-        <span v-if="checkBadgeLabel" class="font-cinzel text-2xs text-amber-500">{{ checkBadgeLabel }}</span>
+        <span v-if="checkBadgeLabel" class="font-cinzel text-2xs text-ink-caution">{{ checkBadgeLabel }}</span>
       </AppButton>
       <AppButton
         v-else
@@ -82,7 +82,7 @@
                   <span class="font-cinzel text-xs" :class="parseBeastAttackBonus(action.description)! >= 0 ? 'text-elven-green' : 'text-destructive'">
                     {{ signedNum(parseBeastAttackBonus(action.description)!) }}
                   </span>
-                  <span v-if="attackBadgeLabel" class="font-cinzel text-2xs text-amber-500">{{ attackBadgeLabel }}</span>
+                  <span v-if="attackBadgeLabel" class="font-cinzel text-2xs text-ink-caution">{{ attackBadgeLabel }}</span>
                 </AppButton>
               </div>
               <p class="text-caption text-muted-foreground leading-relaxed">{{ action.description }}</p>
@@ -134,7 +134,7 @@
               <span class="font-cinzel text-xs" :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(weaponAttackMod(item)) }}
               </span>
-              <span v-if="attackBadgeLabel" class="text-label text-amber-500">{{ attackBadgeLabel }}</span>
+              <span v-if="attackBadgeLabel" class="text-label text-ink-caution">{{ attackBadgeLabel }}</span>
             </AppButton>
             <AppButton
               v-if="weaponIsThrowable(inv, item)"
@@ -156,10 +156,10 @@
               variant="subtle"
               fill="muted"
               size="sm"
-              class="group hover:border-amber-500/50"
+              class="group hover:border-tone-caution/50"
               @click="rollWeaponDamage(inv, item)"
             >
-              <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
+              <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-ink-caution transition-colors" />
               <span class="font-cinzel text-xs text-foreground">{{ weaponDamageExpr(item) }}</span>
               <span class="font-cinzel text-xs text-muted-foreground">{{ item?.damage_rolls?.[0]?.type ?? 'bludgeoning' }}</span>
             </AppButton>
@@ -204,7 +204,7 @@
               <span class="font-cinzel text-xs" :class="unarmedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(unarmedAttackMod) }}
               </span>
-              <span v-if="attackBadgeLabel" class="text-label text-amber-500">{{ attackBadgeLabel }}</span>
+              <span v-if="attackBadgeLabel" class="text-label text-ink-caution">{{ attackBadgeLabel }}</span>
             </AppButton>
             <span class="font-cinzel text-xs text-muted-foreground">{{ unarmedDamage }} bludgeoning</span>
           </div>
@@ -227,16 +227,16 @@
               <span class="font-cinzel text-xs" :class="improvisedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(improvisedAttackMod) }}
               </span>
-              <span v-if="attackBadgeLabel" class="text-label text-amber-500">{{ attackBadgeLabel }}</span>
+              <span v-if="attackBadgeLabel" class="text-label text-ink-caution">{{ attackBadgeLabel }}</span>
             </AppButton>
             <AppButton
               variant="subtle"
               fill="muted"
               size="sm"
-              class="group hover:border-amber-500/50"
+              class="group hover:border-tone-caution/50"
               @click="rollImprovisedDamage"
             >
-              <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
+              <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-ink-caution transition-colors" />
               <span class="font-cinzel text-xs text-foreground">1d4</span>
               <span class="font-cinzel text-xs text-muted-foreground">{{ signedNum(improvisedAttackMod) }}</span>
             </AppButton>

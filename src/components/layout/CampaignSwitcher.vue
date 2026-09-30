@@ -55,9 +55,9 @@
               v-if="onlineCount > 0"
               class="inline-flex items-center gap-0.5 not-italic"
             >
-              <span class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+              <span class="h-1.5 w-1.5 rounded-full bg-tone-success shrink-0" />
               <span
-                class="text-label text-green-500"
+                class="text-label text-ink-success"
                 >{{ onlineCount }}</span
               >
             </span>

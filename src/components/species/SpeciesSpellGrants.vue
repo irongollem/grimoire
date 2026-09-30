@@ -9,15 +9,15 @@
         :key="i"
         class="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2"
       >
-        <div class="h-2 w-2 rounded-full shrink-0" :class="grant.spell_id ? 'bg-violet-400' : 'bg-amber-400'" />
+        <div class="h-2 w-2 rounded-full shrink-0" :class="grant.spell_id ? 'bg-tone-arcane' : 'bg-tone-caution'" />
         <span class="text-body text-foreground flex-1 truncate">{{ grant.spell_name }}</span>
-        <span v-if="grant.subrace" class="font-cinzel text-2xs text-sky-400 shrink-0">{{ grant.subrace }}</span>
-        <span v-if="!grant.spell_id" class="font-cinzel text-2xs text-amber-500 shrink-0">player picks</span>
+        <span v-if="grant.subrace" class="font-cinzel text-2xs text-ink-info shrink-0">{{ grant.subrace }}</span>
+        <span v-if="!grant.spell_id" class="font-cinzel text-2xs text-ink-caution shrink-0">player picks</span>
         <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
           {{ grant.uses_per_day === null ? "At will" : `${grant.uses_per_day}/day` }}
           <template v-if="grant.uses_per_day !== null"> · {{ grant.resets_on === 'short_rest' ? 'SR' : 'LR' }}</template>
         </span>
-        <span v-if="grant.min_level > 1" class="font-cinzel text-2xs text-amber-500 shrink-0">Lvl {{ grant.min_level }}+</span>
+        <span v-if="grant.min_level > 1" class="font-cinzel text-2xs text-ink-caution shrink-0">Lvl {{ grant.min_level }}+</span>
         <AppButton variant="ghost" tone="danger" size="inline-xs" label="✕" class="shrink-0" @click="emit('remove', i)" />
       </div>
     </div>
@@ -35,8 +35,8 @@
       <!-- Spell search (hidden for free pick) -->
       <div v-if="!grantForm.isFreePick" class="space-y-1">
         <label class="text-label font-semibold text-muted-foreground">SPELL</label>
-        <div v-if="grantForm.spell" class="flex items-center gap-2 px-2 py-1.5 rounded bg-violet-500/10 border border-violet-500/30">
-          <div class="h-2 w-2 rounded-full bg-violet-400 shrink-0" />
+        <div v-if="grantForm.spell" class="flex items-center gap-2 px-2 py-1.5 rounded bg-tone-arcane/10 border border-tone-arcane/30">
+          <div class="h-2 w-2 rounded-full bg-tone-arcane shrink-0" />
           <span class="text-body flex-1 truncate">{{ grantForm.spell.name }}</span>
           <span class="font-cinzel text-2xs text-muted-foreground">{{ grantForm.spell.level === 0 ? 'Cantrip' : `Lvl ${grantForm.spell.level}` }}</span>
           <AppButton variant="ghost" size="inline-xs" label="×" @click="grantForm.spell = null; grantForm.spellSearch = ''" />

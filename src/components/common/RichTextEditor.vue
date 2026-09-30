@@ -1016,7 +1016,7 @@ async function onEnhance() {
 
 /* Highlight */
 .rte-content :deep(.ProseMirror mark) {
-  @apply bg-yellow-400/25 text-foreground rounded-sm px-0.5;
+  @apply bg-tone-caution/25 text-foreground rounded-sm px-0.5;
 }
 
 /* Link */
@@ -1079,14 +1079,14 @@ async function onEnhance() {
   flex-shrink: 0;
 }
 .entity-suggestion-badge--player {
-  color: theme(colors.blue-400);
-  border-color: theme(colors.blue-400 / 40%);
-  background: theme(colors.blue-400 / 10%);
+  color: theme(colors.kind-player);
+  border-color: theme(colors.kind-player / 40%);
+  background: theme(colors.kind-player / 10%);
 }
 .entity-suggestion-badge--npc {
-  color: theme(colors.violet-400);
-  border-color: theme(colors.violet-400 / 40%);
-  background: theme(colors.violet-400 / 10%);
+  color: theme(colors.kind-npc);
+  border-color: theme(colors.kind-npc / 40%);
+  background: theme(colors.kind-npc / 10%);
 }
 /* ── Enhance error toast transition ─────────────────────────────────────── */
 .enhance-error-enter-active { transition: all 0.15s ease-out; }
@@ -1095,23 +1095,23 @@ async function onEnhance() {
 .enhance-error-leave-to    { opacity: 0; transform: translateY(0.25rem); }
 
 .entity-suggestion-badge--monster {
-  color: theme(colors.rose-400);
-  border-color: theme(colors.rose-400 / 40%);
-  background: theme(colors.rose-400 / 10%);
+  color: theme(colors.kind-monster);
+  border-color: theme(colors.kind-monster / 40%);
+  background: theme(colors.kind-monster / 10%);
 }
 .entity-suggestion-badge--location {
-  color: theme(colors.emerald-400);
-  border-color: theme(colors.emerald-400 / 40%);
-  background: theme(colors.emerald-400 / 10%);
+  color: theme(colors.kind-location);
+  border-color: theme(colors.kind-location / 40%);
+  background: theme(colors.kind-location / 10%);
 }
 .entity-suggestion-badge--party {
-  color: theme(colors.amber-400);
-  border-color: theme(colors.amber-400 / 40%);
-  background: theme(colors.amber-400 / 10%);
+  color: theme(colors.kind-party);
+  border-color: theme(colors.kind-party / 40%);
+  background: theme(colors.kind-party / 10%);
 }
 .entity-suggestion-badge--faction {
-  color: theme(colors.cyan-400);
-  border-color: theme(colors.cyan-400 / 40%);
-  background: theme(colors.cyan-400 / 10%);
+  color: theme(colors.kind-faction);
+  border-color: theme(colors.kind-faction / 40%);
+  background: theme(colors.kind-faction / 10%);
 }
 </style>

@@ -45,7 +45,7 @@
           :key="faction.id"
           class="rounded-lg border overflow-hidden cursor-pointer transition-colors"
           :class="myFactionIds.has(faction.id)
-            ? 'border-emerald-500/50 bg-emerald-900/10 hover:border-emerald-400/70'
+            ? 'border-tone-success/50 bg-tone-success/10 hover:border-tone-success/70'
             : 'border-border bg-card hover:border-primary/50'"
           @click="open(faction)"
         >
@@ -126,7 +126,7 @@
                   :key="entry.id"
                   class="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2"
                   :class="entry.party_member.id === myMemberId
-                    ? 'border-emerald-500/50 bg-emerald-900/10'
+                    ? 'border-tone-success/50 bg-tone-success/10'
                     : 'border-border'"
                 >
                   <div class="flex-1 min-w-0">
@@ -134,7 +134,7 @@
                     <span v-if="speciesNameMap.get(entry.party_member.species_id ?? '') || entry.party_member.class" class="text-caption text-muted-foreground italic ml-2">
                       {{ [speciesNameMap.get(entry.party_member.species_id ?? ''), entry.party_member.class].filter(Boolean).join(' · ') }}
                     </span>
-                    <span v-if="entry.party_member.id === myMemberId" class="text-label text-emerald-400 ml-2">(You)</span>
+                    <span v-if="entry.party_member.id === myMemberId" class="text-label text-ink-success ml-2">(You)</span>
                   </div>
                   <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ entry.role ?? 'Member' }}</span>
                 </div>

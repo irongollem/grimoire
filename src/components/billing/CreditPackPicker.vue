@@ -23,7 +23,7 @@
     <p class="text-caption text-muted-foreground/60 italic">
       Taxes calculated at checkout based on your location.
     </p>
-    <p v-if="purchaseError" class="text-caption text-red-400 italic">
+    <p v-if="purchaseError" class="text-caption text-destructive italic">
       {{ purchaseError }}
     </p>
   </div>

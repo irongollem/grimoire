@@ -62,8 +62,8 @@ const emit = defineEmits<{
   flex-shrink: 0;
 }
 .la-pip-on {
-  background: theme(colors.purple.500 / 80%);
-  border-color: theme(colors.purple.400 / 100%);
+  background: theme(colors.tone-arcane / 80%);
+  border-color: theme(colors.tone-arcane / 100%);
 }
 .la-pip-off {
   background: transparent;
@@ -82,14 +82,14 @@ const emit = defineEmits<{
   font-weight: 700;
   padding: 0.125rem 0.4375rem;
   border-radius: 0.1875rem;
-  border: 1px solid theme(colors.purple.500 / 50%);
-  color: theme(colors.purple.400 / 100%);
+  border: 1px solid theme(colors.tone-arcane / 50%);
+  color: theme(colors.ink-arcane / 100%);
   background: transparent;
   cursor: pointer;
   transition: all 0.15s;
 }
 .la-spend-btn:hover:not(:disabled) {
-  background: theme(colors.purple.500 / 15%);
+  background: theme(colors.tone-arcane / 15%);
 }
 .la-spend-btn:disabled {
   opacity: 0.35;

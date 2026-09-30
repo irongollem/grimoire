@@ -104,18 +104,18 @@
     </div>
 
     <!-- Player insights shared with DM (only DMs can see these via RLS) -->
-    <div v-if="dmSharedNotes.length" class="rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
-      <div class="flex items-center gap-2 px-3 py-2 border-b border-amber-500/20 bg-amber-500/10">
-        <IconLock class="h-3 w-3 text-amber-500/70 shrink-0" />
-        <span class="text-label-lg font-semibold text-amber-600/80 dark:text-amber-400/80">
+    <div v-if="dmSharedNotes.length" class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 overflow-hidden">
+      <div class="flex items-center gap-2 px-3 py-2 border-b border-tone-caution/20 bg-tone-caution/10">
+        <IconLock class="h-3 w-3 text-ink-caution/70 shrink-0" />
+        <span class="text-label-lg font-semibold text-ink-caution/80 ">
           Player Insights
-          <span class="font-fell font-normal text-amber-500/60"> · {{ dmSharedNotes.length }}</span>
+          <span class="font-fell font-normal text-ink-caution/60"> · {{ dmSharedNotes.length }}</span>
         </span>
-        <span class="text-caption-sm text-amber-500/50 italic">Shared with you privately</span>
+        <span class="text-caption-sm text-ink-caution/50 italic">Shared with you privately</span>
       </div>
-      <div class="divide-y divide-amber-500/20">
+      <div class="divide-y divide-tone-caution/20">
         <div v-for="note in dmSharedNotes" :key="note.id" class="px-3 py-2.5 space-y-1">
-          <p class="text-label font-semibold text-amber-600/70 dark:text-amber-400/70">
+          <p class="text-label font-semibold text-ink-caution/70 ">
             {{ authorName(note.user_id) }}
           </p>
           <RichTextViewer :content="note.content" />

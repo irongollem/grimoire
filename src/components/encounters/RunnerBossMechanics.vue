@@ -2,10 +2,10 @@
   <!-- Pre-combat: Mark surprised combatants -->
   <div
     v-if="!store.started && hasAnyCombatants"
-    class="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2 mb-2"
+    class="rounded-lg border border-dashed border-tone-caution/40 bg-tone-caution/5 px-3 py-2 mb-2"
   >
     <div class="flex items-center justify-between gap-2">
-      <span class="text-label-lg font-semibold text-amber-500">
+      <span class="text-label-lg font-semibold text-ink-caution">
         SURPRISE — Optional
       </span>
       <AppButton
@@ -30,7 +30,7 @@
         @click="store.toggleSurprised(c.instance_id)"
       >{{ c.name }}{{ c.surprised ? ' ✦' : '' }}</AppButton>
     </div>
-    <p v-if="!showSurprise && surprisedCount > 0" class="text-caption text-amber-400 mt-0.5">
+    <p v-if="!showSurprise && surprisedCount > 0" class="text-caption text-ink-caution mt-0.5">
       {{ surprisedCount }} surprised creature{{ surprisedCount > 1 ? 's' : '' }}.
     </p>
   </div>
@@ -39,11 +39,11 @@
   <div
     v-if="store.started && store.lairEnabled && store.lairOwnerInstanceId"
     class="rounded-lg border bg-card px-3 py-2 mb-2"
-    :class="store.lairCanFireThisRound ? 'border-violet-500/60 bg-violet-500/5' : 'border-border opacity-70'"
+    :class="store.lairCanFireThisRound ? 'border-tone-arcane/60 bg-tone-arcane/5' : 'border-border opacity-70'"
   >
     <div class="flex items-center gap-2 flex-wrap">
       <span class="text-label-lg font-semibold"
-        :class="store.lairCanFireThisRound ? 'text-violet-400' : 'text-muted-foreground'"
+        :class="store.lairCanFireThisRound ? 'text-ink-arcane' : 'text-muted-foreground'"
       >✦ INIT 20 — LAIR ACTION</span>
       <span class="text-caption text-muted-foreground flex-1">
         <template v-if="!store.lairCanFireThisRound">Fired this round. Resets on round rollover.</template>
@@ -71,10 +71,10 @@
   <div
     v-for="legendary in activeLegendaryOthers"
     :key="legendary.instance_id"
-    class="rounded-lg border border-rose-500/40 bg-rose-500/5 px-3 py-2 mb-2"
+    class="rounded-lg border border-tone-danger/40 bg-tone-danger/5 px-3 py-2 mb-2"
   >
     <div class="flex items-center gap-2 flex-wrap">
-      <span class="text-label-lg font-semibold text-rose-400">
+      <span class="text-label-lg font-semibold text-destructive">
         ⚔ {{ legendary.name.toUpperCase() }} — LEGENDARY ACTIONS
       </span>
       <span class="font-cinzel text-2xs text-muted-foreground">

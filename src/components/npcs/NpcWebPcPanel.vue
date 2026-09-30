@@ -17,7 +17,7 @@
         <IconClose class="h-4 w-4" />
       </button>
     </div>
-    <div class="flex items-center gap-1.5 text-label font-bold text-amber-400">
+    <div class="flex items-center gap-1.5 text-label font-bold text-ink-caution">
       <IconShield class="h-3 w-3" />
       Party Member
     </div>

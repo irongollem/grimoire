@@ -15,7 +15,7 @@
           size="body"
           placeholder="Search vault…"
           autocomplete="off"
-          :class="newItemName && !newItemSelectedId ? 'border-amber-500/50' : ''"
+          :class="newItemName && !newItemSelectedId ? 'border-tone-caution/50' : ''"
           @input="onAddInput"
           @focus="onAddInput"
           @keydown.escape="showDropdown = false"

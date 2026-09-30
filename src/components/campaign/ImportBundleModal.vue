@@ -125,12 +125,12 @@
         </div>
 
         <!-- Warning -->
-        <div class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-1">
-          <p class="text-caption text-amber-700 dark:text-amber-400">
+        <div class="rounded-md border border-tone-caution/30 bg-tone-caution/5 px-3 py-2.5 space-y-1">
+          <p class="text-caption text-ink-caution ">
             Entities are added with fresh IDs — duplicates may appear if imported before.
             Player visibility flags are cleared; party-member links are reset.
           </p>
-          <p class="text-caption text-amber-700 dark:text-amber-400">
+          <p class="text-caption text-ink-caution ">
             Monster, item, and spell references from your library are preserved by original ID.
           </p>
         </div>

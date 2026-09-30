@@ -81,7 +81,7 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
 .menu-item {
   @apply text-left font-cinzel text-sm font-bold tracking-wider rounded-md px-3 py-2 text-foreground transition-colors;
 }
-.opt-adv:hover { @apply bg-green-500/15 text-green-600 dark:text-green-400; }
+.opt-adv:hover { @apply bg-tone-success/15 text-ink-success ; }
 .opt-normal:hover { @apply bg-muted/60; }
 .opt-dis:hover { @apply bg-destructive/15 text-destructive; }
 </style>

@@ -8,8 +8,8 @@
     />
 
     <div v-if="spell" class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
-      <div v-if="spell.mechanics_reviewed === false || !castEffects.length" class="rounded border border-amber-500/30 bg-amber-500/10 p-3">
-        <p class="font-cinzel text-xs font-semibold text-amber-500">Manual resolution required</p>
+      <div v-if="spell.mechanics_reviewed === false || !castEffects.length" class="rounded border border-tone-caution/30 bg-tone-caution/10 p-3">
+        <p class="font-cinzel text-xs font-semibold text-ink-caution">Manual resolution required</p>
         <p class="text-body text-muted-foreground">This imported spell has not been mechanically reviewed, so Grimoire will not present its partial data as authoritative automation.</p>
       </div>
 
@@ -41,7 +41,7 @@
         <div class="rounded border border-border bg-muted/20 p-3 text-body text-muted-foreground">
           {{ phaseSummary }}
         </div>
-        <ul v-if="reminders.length" class="list-disc space-y-1 pl-5 text-body text-violet-400">
+        <ul v-if="reminders.length" class="list-disc space-y-1 pl-5 text-body text-ink-arcane">
           <li v-for="reminder in reminders" :key="reminder">{{ reminder }}</li>
         </ul>
 

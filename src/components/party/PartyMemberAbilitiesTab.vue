@@ -22,7 +22,7 @@
       />
       <span
         class="font-cinzel text-xs font-bold"
-        :class="mod(form[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'"
+        :class="mod(form[stat.key]) >= 0 ? 'text-ink-success' : 'text-destructive'"
       >
         {{ mod(form[stat.key]) >= 0 ? "+" : "" }}{{ mod(form[stat.key]) }}
       </span>

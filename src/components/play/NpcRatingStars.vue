@@ -7,7 +7,7 @@
       class="leading-none transition-colors select-none touch-manipulation p-0.5 pointer-coarse:p-1.5 pointer-coarse:text-xl"
       :class="[
         size === 'lg' ? 'text-lg' : 'text-base',
-        n <= rating ? 'text-yellow-400' : 'text-muted-foreground/25 hover:text-yellow-400/60',
+        n <= rating ? 'text-ink-caution' : 'text-muted-foreground/25 hover:text-ink-caution/60',
       ]"
       :title="n === 1 ? 'Not relevant' : n === 5 ? 'Very relevant' : `Relevance ${n}`"
       :aria-label="`Relevance ${n} of 5`"

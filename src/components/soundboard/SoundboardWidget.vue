@@ -47,7 +47,7 @@
             v-if="spotifyStore.isConnected && spotifyStore.trackName"
             class="group/spotify space-y-1.5 pb-1.5 border-b border-border/50"
           >
-            <div class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-green-500/5 border border-green-500/20">
+            <div class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-tone-success/5 border border-tone-success/20">
               <img
                 v-if="spotifyStore.albumArtUrl"
                 :src="spotifyStore.albumArtUrl"
@@ -108,7 +108,7 @@
               </span>
               <div class="flex-1 h-1 bg-border/50 rounded-full">
                 <div
-                  class="h-full bg-green-500/50 rounded-full"
+                  class="h-full bg-tone-success/50 rounded-full"
                   :style="{ width: spotifyProgress + '%' }"
                 />
               </div>
@@ -220,9 +220,9 @@
             <div
               v-for="scene in store.activeAmbientPlaylists"
               :key="scene.playlistId"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-green-500/5 border border-green-500/20"
+              class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-tone-success/5 border border-tone-success/20"
             >
-              <IconWind class="h-3.5 w-3.5 text-green-400 shrink-0" />
+              <IconWind class="h-3.5 w-3.5 text-ink-success shrink-0" />
               <div class="flex-1 min-w-0">
                 <p class="font-cinzel text-xs font-medium text-foreground truncate">
                   {{ scene.playlistName }}

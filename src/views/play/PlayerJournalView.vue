@@ -106,7 +106,7 @@
               accent="amber"
               label-role="label-lg"
               label-weight="normal"
-          label-class="text-amber-600/80 dark:text-amber-400/80"
+          label-class="text-ink-caution/80 "
               label="Share with DM"
             />
           </div>

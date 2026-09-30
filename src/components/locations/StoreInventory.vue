@@ -36,7 +36,7 @@
             <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ si.item.name }}</span>
             <span class="text-caption-sm text-muted-foreground italic">
               {{ ITEM_TYPE_LABELS[si.item.item_type] }}
-              <span v-if="!si.visible" class="text-amber-500/70"> · under the counter</span>
+              <span v-if="!si.visible" class="text-ink-caution/70"> · under the counter</span>
             </span>
           </button>
 
@@ -83,7 +83,7 @@
 
         <!-- Inline offer form -->
         <div v-if="offeringId === si.id" class="border-t border-border/60 bg-muted/20 px-3 py-2 space-y-2">
-          <p class="font-cinzel text-2xs text-emerald-400/80 tracking-widest uppercase">Vendor Offer</p>
+          <p class="font-cinzel text-2xs text-ink-success/80 tracking-widest uppercase">Vendor Offer</p>
           <AppInput
             v-model="offerDesc"
             type="text"

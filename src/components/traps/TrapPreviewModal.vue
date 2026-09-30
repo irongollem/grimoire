@@ -49,7 +49,7 @@
                 <span
                   v-for="dmg in trap.damage_immunities"
                   :key="dmg"
-                  class="text-label px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 capitalize"
+                  class="text-label px-2 py-0.5 rounded bg-tone-caution/10 text-ink-caution capitalize"
                 >{{ dmg }}</span>
               </div>
             </div>

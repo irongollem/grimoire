@@ -308,15 +308,15 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .wildshape-banner {
-  @apply flex items-center justify-between gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2;
+  @apply flex items-center justify-between gap-2 rounded-md bg-tone-caution/10 border border-tone-caution/30 px-3 py-2;
 }
 
 .wildshape-banner-label {
-  @apply font-cinzel text-xs font-semibold text-amber-400;
+  @apply font-cinzel text-xs font-semibold text-ink-caution;
 }
 
 .wildshape-revert-btn {
-  @apply font-cinzel text-2xs px-2 py-1 rounded border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors shrink-0;
+  @apply font-cinzel text-2xs px-2 py-1 rounded border border-tone-caution/40 text-ink-caution hover:bg-tone-caution/10 transition-colors shrink-0;
 }
 
 .wildshape-popover {

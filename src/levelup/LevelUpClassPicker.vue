@@ -24,7 +24,7 @@
         v-if="newClassName && !prereq.ok"
         class="rounded-md px-3 py-2 flex items-start gap-2"
         :class="ignorePrereqs
-          ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+          ? 'bg-tone-caution/10 border border-tone-caution/30 text-ink-caution'
           : 'bg-destructive/10 border border-destructive/30 text-destructive'"
       >
         <span class="text-label shrink-0">{{ ignorePrereqs ? 'PREREQ IGNORED' : 'PREREQ' }}</span>

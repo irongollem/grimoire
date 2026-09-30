@@ -24,7 +24,7 @@
             <component
               :is="row.hasName ? IconCheck : IconCircle"
               class="h-3.5 w-3.5 mt-0.5 shrink-0"
-              :class="row.hasName ? 'text-emerald-500' : 'text-muted-foreground/50'"
+              :class="row.hasName ? 'text-ink-success' : 'text-muted-foreground/50'"
             />
           </template>
           <span class="min-w-0 flex-1 text-left">

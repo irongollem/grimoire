@@ -65,14 +65,14 @@ function handleClick() {
 }
 
 .illus-chip--editor {
-  border-color: theme(colors.amber-500 / 50%);
-  background: theme(colors.amber-500 / 6%);
-  color: theme(colors.amber-600);
+  border-color: theme(colors.tone-caution / 50%);
+  background: theme(colors.tone-caution / 6%);
+  color: theme(colors.ink-caution);
   cursor: pointer;
 }
 .illus-chip--editor:hover {
-  background: theme(colors.amber-500 / 14%);
-  border-color: theme(colors.amber-500 / 70%);
+  background: theme(colors.tone-caution / 14%);
+  border-color: theme(colors.tone-caution / 70%);
 }
 
 .illus-chip--viewer {

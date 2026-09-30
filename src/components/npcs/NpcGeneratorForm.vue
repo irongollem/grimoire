@@ -183,7 +183,7 @@
     />
     <p
       v-if="generateAlterEgo"
-      class="text-caption text-amber-500 italic"
+      class="text-caption text-ink-caution italic"
     >
       ⚠ Uses 2× generation credits — a true-form portrait is generated
       first, then used as seed for the disguise portrait.

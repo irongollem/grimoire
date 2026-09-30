@@ -110,9 +110,9 @@
 
           <div
             v-if="resolved.unmatched.length"
-            class="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 space-y-1.5"
+            class="rounded-md border border-tone-caution/30 bg-tone-caution/10 px-3 py-2 space-y-1.5"
           >
-            <p class="flex items-center gap-1.5 text-caption font-semibold text-amber-500">
+            <p class="flex items-center gap-1.5 text-caption font-semibold text-ink-caution">
               <IconWarning class="h-3 w-3 shrink-0" />
               Not in your Bestiary — add these manually
             </p>
@@ -120,7 +120,7 @@
               <li
                 v-for="(entry, i) in resolved.unmatched"
                 :key="i"
-                class="text-caption text-amber-500/90"
+                class="text-caption text-ink-caution/90"
               >
                 {{ entry.count }}× {{ unmatchedLabel(entry) }}
               </li>

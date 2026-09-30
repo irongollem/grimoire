@@ -53,10 +53,10 @@
       <div class="p-4 flex flex-col gap-3">
         <AppCheckbox v-model="localModeEnabled" label="Store keys locally on this device only" />
         <p class="text-caption text-muted-foreground italic">
-          <span v-if="localModeEnabled" class="block text-yellow-600 dark:text-yellow-500 font-semibold mb-1">
+          <span v-if="localModeEnabled" class="block text-ink-caution  font-semibold mb-1">
             ⚠️ Local storage only: Your keys are not saved to your account. Using Grimoire on a different browser or device will require re-entering them.
           </span>
-          <span v-else class="block text-green-600 dark:text-green-500">
+          <span v-else class="block text-ink-success ">
             ✓ Encrypted in your account: Your keys are encrypted and stored securely in your campaign.
           </span>
         </p>
@@ -77,7 +77,7 @@
           <div class="flex items-center justify-between">
             <label class="font-cinzel text-xs text-muted-foreground tracking-wide">
               {{ p.label }}
-              <span v-if="clearedKeys[p.id]" class="ml-1.5 text-caption-sm normal-case tracking-normal text-yellow-600 dark:text-yellow-500">— will be removed on save</span>
+              <span v-if="clearedKeys[p.id]" class="ml-1.5 text-caption-sm normal-case tracking-normal text-ink-caution ">— will be removed on save</span>
               <span v-else-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 text-caption-sm normal-case tracking-normal text-primary/80">— key on file (leave blank to keep)</span>
             </label>
             <div class="flex items-center gap-3">
@@ -150,7 +150,7 @@
           <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
             No provider selected
           </div>
-          <p v-if="hasByokTextKey && availableTextProviders.length === 0" class="text-caption text-yellow-600 dark:text-yellow-500 font-semibold">
+          <p v-if="hasByokTextKey && availableTextProviders.length === 0" class="text-caption text-ink-caution  font-semibold">
             ⚠ Enter an API key above to enable text generation.
           </p>
           <p v-else-if="hasByokTextKey" class="text-caption text-muted-foreground">

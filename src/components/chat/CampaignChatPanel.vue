@@ -126,7 +126,7 @@
           :placeholder="whisperTarget ? `Whisper…` : 'Say something…'"
           tone="muted"
           size="body"
-          :class="whisperTarget ? 'border-amber-500/40 bg-amber-500/5' : ''"
+          :class="whisperTarget ? 'border-tone-caution/40 bg-tone-caution/5' : ''"
           @keydown.enter="sendChat"
         />
         <AppButton

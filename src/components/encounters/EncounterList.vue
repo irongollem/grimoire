@@ -66,10 +66,10 @@
             </span>
             <span
               v-else-if="isEncounterRunning(encounter.id)"
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label font-bold text-green-400 bg-green-500/15 border border-green-500/30"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label font-bold text-ink-success bg-tone-success/15 border border-tone-success/30"
             >
               <span
-                class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse"
+                class="h-1.5 w-1.5 rounded-full bg-tone-success animate-pulse"
               />
               Live
             </span>

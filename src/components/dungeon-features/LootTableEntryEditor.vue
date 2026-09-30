@@ -170,7 +170,7 @@
           <!-- Pool size hint — amber when empty, since the entry can only ever under-deliver -->
           <p
             class="text-caption-sm italic"
-            :class="(randomPoolSizes.get(entry.id) ?? 0) === 0 ? 'text-amber-500' : 'text-muted-foreground'"
+            :class="(randomPoolSizes.get(entry.id) ?? 0) === 0 ? 'text-ink-caution' : 'text-muted-foreground'"
           >
             {{ randomPoolSizes.get(entry.id) ?? 0 }} matching item{{ randomPoolSizes.get(entry.id) === 1 ? '' : 's' }} in vault{{ (randomPoolSizes.get(entry.id) ?? 0) === 0 ? ' — this entry will drop nothing' : '' }}
           </p>

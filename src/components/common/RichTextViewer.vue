@@ -177,7 +177,7 @@ function onContentClick(e: MouseEvent) {
   @apply underline;
 }
 .rte-content :deep(.ProseMirror mark) {
-  @apply bg-yellow-400/25 text-foreground rounded-sm px-0.5;
+  @apply bg-tone-caution/25 text-foreground rounded-sm px-0.5;
 }
 .rte-content :deep(.ProseMirror a) {
   @apply text-primary underline cursor-pointer;
