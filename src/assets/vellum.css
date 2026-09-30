@@ -18,7 +18,6 @@
   --vl-serif: "Alegreya", "Crimson Pro", Georgia, serif;
   --vl-sans: "Source Sans 3", Roboto, Helvetica, sans-serif;
   --vl-paper: url("/assets/scriptorium/page-background.webp");
-  --vl-ink: url("/assets/scriptorium/watercolor/ink_asset_04_corner_seep.png");
 }
 
 /* ── Paper ground ─────────────────────────────────────────────────────────
@@ -159,23 +158,27 @@
 }
 
 /* ── Ink ──────────────────────────────────────────────────────────────────
-   One watercolour ink seep behind an element (EmptyState uses it). Visible,
-   not a watermark: 30% on parchment, inverted at 12% on Lamplight. */
+   One watercolour ink stain behind an element. Which of the nine assets, where,
+   how big and at what angle comes from inkSeepStyle() (src/lib/inkSeep.ts) as
+   custom properties, seeded per place so screens differ but a stain never
+   jumps. No --ink-src, no stain. Strength jitters 15–30% on parchment (--ink-alpha);
+   Lamplight inverts it at 40% of that. */
 :root[data-theme^="vellum"] .ink-seep { position: relative; isolation: isolate; }
 :root[data-theme^="vellum"] .ink-seep::before {
   content: "";
   position: absolute;
   z-index: -1;
-  top: -1.5rem;
-  left: 50%;
-  width: 16rem;
-  height: 16rem;
-  translate: -50% 0;
-  background: var(--vl-ink) center / contain no-repeat;
-  opacity: 0.3;
+  left: var(--ink-x, 50%);
+  top: var(--ink-y, 30%);
+  width: var(--ink-size, 16rem);
+  height: var(--ink-size, 16rem);
+  translate: -50% -50%;
+  transform: rotate(var(--ink-rot, 0deg)) scaleX(var(--ink-flip, 1));
+  background: var(--ink-src, none) center / contain no-repeat;
+  opacity: var(--ink-alpha, 0.3);
   pointer-events: none;
 }
-:root[data-theme="vellum-dark"] .ink-seep::before { filter: invert(1); opacity: 0.12; }
+:root[data-theme="vellum-dark"] .ink-seep::before { filter: invert(1); opacity: calc(var(--ink-alpha, 0.3) * 0.4); }
 
 /* ── Drop-cap initial ─────────────────────────────────────────────────────
    Opt-in with `.initial` on the first paragraph of long-form text. */
