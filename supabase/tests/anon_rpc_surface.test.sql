@@ -19,18 +19,19 @@ select plan(7);
 -- names. A test naming the three would pass while a *new* SECURITY DEFINER
 -- function shipped with the PUBLIC default — the same bug, one function later.
 -- Pinning the set means anything reaching anon has to be added here
--- deliberately, by someone who has read why the existing five are allowed.
+-- deliberately, by someone who has read why the existing one is allowed.
 
 -- ── The anon-executable SECURITY DEFINER surface, in full ────────────────────
--- These five are deliberate; see CLAUDE.md → Sanctioned Exceptions.
+-- One, and deliberate:
 --   validate_app_invite      — runs before login by definition; the token is
 --                              the credential, so gating it on a session is
 --                              circular.
---   get_library_*_sources    — shared Open5e/library content metadata,
---                              intentionally not account-gated (content
---                              licensing decision).
+-- The four get_library_*_sources were here too until #936 made them SECURITY
+-- INVOKER: the library tables are readable by anon through their own
+-- `using (true)` policies, so a definer added nothing. They are still pinned by
+-- the invoker-inclusive assertion below.
 --
--- Adding a sixth is not automatically wrong, but it is a decision: an
+-- Adding another is not automatically wrong, but it is a decision: an
 -- unauthenticated caller will reach that function body with auth.uid() null.
 
 select set_eq(
@@ -42,12 +43,8 @@ select set_eq(
       and p.prosecdef
       and has_function_privilege('anon', p.oid, 'EXECUTE')
   $$,
-  $$ values ('validate_app_invite'),
-            ('get_library_item_sources'),
-            ('get_library_monster_sources'),
-            ('get_library_species_sources'),
-            ('get_library_spell_sources') $$,
-  'exactly five SECURITY DEFINER functions are reachable by anon, and they are the sanctioned ones'
+  $$ values ('validate_app_invite') $$,
+  'exactly one SECURITY DEFINER function is reachable by anon, and it is the sanctioned one'
 );
 
 -- ── The same question, without the `prosecdef` filter ────────────────────────

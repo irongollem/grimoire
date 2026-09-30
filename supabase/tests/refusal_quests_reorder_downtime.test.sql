@@ -211,16 +211,19 @@ select is((select sort_order from public.party_inventory where id = '93650000-00
 
 -- ── resolve_downtime_draw (DM of the draw's own campaign) ───────────────────
 
+-- resolve_downtime_draw runs as the caller since #936: the downtime_draws
+-- policies are DM-only, so a caller who is not this campaign's DM cannot even
+-- lock the draw, and is told it does not exist.
 select pg_temp.as_user(3);
 select throws_ok(
   $$ select public.resolve_downtime_draw('93650000-0000-4000-8000-0000000000d1', 'Fine', 'A vignette', null, null, '[]'::jsonb, null) $$,
-  '42501', 'Only the DM may resolve a downtime draw',
+  'P0002', 'Draw not found',
   'resolve_downtime_draw: another campaign''s DM cannot resolve c1''s draw');
 
 select pg_temp.as_user(2);
 select throws_ok(
   $$ select public.resolve_downtime_draw('93650000-0000-4000-8000-0000000000d1', 'Fine', 'A vignette', null, null, '[]'::jsonb, null) $$,
-  '42501', 'Only the DM may resolve a downtime draw',
+  'P0002', 'Draw not found',
   'resolve_downtime_draw: the player who spent the draw cannot resolve their own outcome');
 
 select pg_temp.as_user(1);

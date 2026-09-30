@@ -8,12 +8,11 @@ export interface ReorderEntry {
 
 /**
  * The per-table reorder RPCs — the first 5 from
- * supabase/migrations/20260730000008_reorder_sort_order_rpc.sql, each a
- * SECURITY DEFINER function that re-derives the caller from auth.uid() and
- * verifies ownership of every id before writing anything. `reorder_locations`
- * (20260904014714) is SECURITY INVOKER instead — the table's own UPDATE
- * policy is the authorization there — but takes the same `p_ids`/`p_orders`
- * shape, so it fits this one call surface without a special case.
+ * supabase/migrations/20260730000008_reorder_sort_order_rpc.sql, plus
+ * `reorder_locations` (20260904014714). All six are SECURITY INVOKER (the first
+ * five since #936): each table's own UPDATE policy is the authorization, and the
+ * function additionally verifies ownership of every id before writing anything.
+ * They share the `p_ids`/`p_orders` shape, so one call surface serves them all.
  *
  * The obvious `upsert(rows, { onConflict: "id" })` was tried and rejected:
  * sending only `{ id, sort_order }` violates NOT NULL on every other column

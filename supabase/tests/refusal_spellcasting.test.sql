@@ -96,8 +96,10 @@ select pg_temp.as_user(3);
 
 select throws_ok($$ select public.activate_innate_sorcery('93610000-0000-4000-8000-0000000000e1') $$,
   'P0001', 'Access denied', 'a stranger cannot activate another table''s Innate Sorcery');
+-- end_innate_sorcery runs as the caller since #936, so RLS hides the row from a
+-- stranger before the function's own guard is reached.
 select throws_ok($$ select public.end_innate_sorcery('93610000-0000-4000-8000-0000000000e1') $$,
-  'P0001', 'Access denied', 'a stranger cannot end another table''s Innate Sorcery');
+  'P0001', 'Party member not found', 'a stranger cannot end another table''s Innate Sorcery');
 select throws_ok($$ select public.convert_sorcery_points('93610000-0000-4000-8000-0000000000e1', 'points_to_slot', 1, 'spellcasting') $$,
   'P0001', 'Access denied', 'a stranger cannot convert another character''s sorcery points');
 select throws_ok($$ select public.restore_sorcery_points('93610000-0000-4000-8000-0000000000e1') $$,

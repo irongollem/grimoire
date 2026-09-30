@@ -108,7 +108,7 @@ All four: RLS on, 4 policies, `updated_at` trigger, in the realtime publication.
 
 > Granting needs **no RPC** — a plain insert guarded by an RLS policy is sufficient and keeps the `SECURITY DEFINER` surface minimal.
 >
-> The reward entity (the cloned NPC) is created **before** `resolve_downtime_draw` as an ordinary RLS-checked insert, and its id passed in — so the definer function never creates entities on the caller's behalf.
+> The reward entity (the cloned NPC) is created **before** `resolve_downtime_draw` as an ordinary RLS-checked insert, and its id passed in, so the function never creates entities on the caller's behalf. (It runs as the caller since #936; the `downtime_*` policies already confine it to the DM.)
 
 Both RPCs: `revoke execute from public, anon; grant execute to authenticated, service_role;`
 

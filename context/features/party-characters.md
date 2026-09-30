@@ -498,7 +498,7 @@ The shapeshifter disguise feature lets one party member appear to be a different
 4. This sets `disguise_species_id`, `disguise_race`, `disguise_subrace` on the `party_members` row.
 
 **Player control (`PlayerAppearanceSection`):**
-The player can toggle their own disguise on/off using DB functions `set_shapeshifter_appearance(member_id, target_species)` and `clear_shapeshifter_appearance(member_id)`. These bypass the normal DM-only update RLS policy.
+The player can toggle their own disguise on/off using DB functions `set_shapeshifter_appearance(member_id, target_species)` and `clear_shapeshifter_appearance(member_id)`. They run as the caller (`SECURITY INVOKER` since #936), so `party_members_creator_update` and `party_members_player_update` decide who may write; the functions add their own check on top.
 
 **Display logic (`src/lib/partyMemberDisplay.ts`):**
 

@@ -16,11 +16,15 @@ import { describe, it, expect } from "vitest";
 const TESTS_DIR = resolve(process.cwd(), "supabase/tests");
 const REGISTRY = "definer_refusal_registry.test.sql";
 
-function registry(): { name: string; kind: string }[] {
+function registryBlock(): string {
   const sql = readFileSync(resolve(TESTS_DIR, REGISTRY), "utf8");
   const block = /insert into definer_registry \(name, kind, reason\) values([\s\S]*?);\n/.exec(sql);
   if (!block) throw new Error(`could not find the registry in ${REGISTRY}`);
-  return [...block[1].matchAll(/\('([a-z0-9_]+)', '(refuses|self|public)'/g)].map((m) => ({
+  return block[1];
+}
+
+function registry(): { name: string; kind: string }[] {
+  return [...registryBlock().matchAll(/\('([a-z0-9_]+)', '(refuses|self|public)'/g)].map((m) => ({
     name: m[1],
     kind: m[2],
   }));
@@ -43,8 +47,13 @@ describe("SECURITY DEFINER refusal registry", () => {
 
   it("reads the whole registry", () => {
     // The SQL side holds this list equal to pg_proc; a parse that silently
-    // dropped rows would let an unproven function through here.
-    expect(entries.length).toBeGreaterThan(90);
+    // dropped rows would let an unproven function through here. So every row
+    // of the values list must parse. Counted against the rows themselves rather
+    // than a fixed floor, because the registry is meant to shrink: #936 turned
+    // 23 definers into invokers, and a floor of 90 read that as a parse failure.
+    const rows = [...registryBlock().matchAll(/^\s*\('/gm)];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(entries.length).toBe(rows.length);
     expect(new Set(entries.map((e) => e.name)).size).toBe(entries.length);
   });
 
