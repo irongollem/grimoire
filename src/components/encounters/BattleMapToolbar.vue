@@ -248,7 +248,7 @@ const BRUSH_SIZES = [1, 3, 5] as const;
 }
 
 .topbar-caption {
-  font-family: var(--font-fell, "IM Fell English", serif);
+  font-family: var(--font-fell, "Crimson Pro", Georgia, serif);
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.55);
 }
@@ -268,7 +268,7 @@ const BRUSH_SIZES = [1, 3, 5] as const;
 }
 
 .hint {
-  font-family: var(--font-fell, "IM Fell English", serif);
+  font-family: var(--font-fell, "Crimson Pro", Georgia, serif);
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.55);
 }
@@ -280,7 +280,7 @@ const BRUSH_SIZES = [1, 3, 5] as const;
   flex-wrap: wrap;
 }
 .layer-caption {
-  font-family: var(--font-fell, "IM Fell English", serif);
+  font-family: var(--font-fell, "Crimson Pro", Georgia, serif);
   font-size: 0.75rem;
   font-style: italic;
   color: rgba(255, 255, 255, 0.45);

@@ -65,7 +65,7 @@ const ZONE_COLOR = "#22d3ee";
   padding: 0.5rem 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.4);
-  font-family: var(--font-fell, "IM Fell English", serif);
+  font-family: var(--font-fell, "Crimson Pro", Georgia, serif);
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.65);
 }

@@ -33,7 +33,7 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: "IM Fell English", serif;
+    font-family: var(--font-fell);
   }
 
   h1,
@@ -42,7 +42,7 @@
   h4,
   h5,
   h6 {
-    font-family: "Cinzel", serif;
+    font-family: var(--font-cinzel);
   }
 }
 /* ─────────────────────────────────────────────────────────────────────────────

@@ -521,7 +521,7 @@ const gridStrokeOpacity = computed(
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-family: var(--font-fell, "IM Fell English", serif);
+  font-family: var(--font-fell, "Crimson Pro", Georgia, serif);
   font-size: 1rem;
   color: rgba(255, 255, 255, 0.55);
   padding: 2rem;
