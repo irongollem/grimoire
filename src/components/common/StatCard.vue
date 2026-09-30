@@ -1,7 +1,7 @@
 <template>
   <RouterLink
     :to="to"
-    class="flex flex-col gap-2 rounded-lg border border-border bg-card px-4 py-4 hover:border-gold-700 transition-colors"
+    class="torn flex flex-col gap-2 rounded-lg border border-border bg-card px-4 py-4 hover:border-gold-700 transition-colors"
   >
     <div class="flex items-center justify-between">
       <span class="text-body text-muted-foreground">{{ label }}</span>

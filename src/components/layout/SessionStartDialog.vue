@@ -40,7 +40,7 @@
     <div class="flex shrink-0 justify-end gap-2 px-5 pb-5">
       <AppButton variant="subtle" size="sm" label="Cancel" @click="emit('update:open', false)" />
       <AppButton
-        variant="primary"
+        variant="live"
         size="sm"
         :disabled="pending"
         label="Start session"

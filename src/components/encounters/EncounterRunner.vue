@@ -35,6 +35,7 @@
           :disabled="store.rollingInitiative"
           @click="handleStartCombat"
           class="start-combat-btn"
+          data-variant="live"
           title="Start Combat"
         >
           <IconEncounter class="h-3.5 w-3.5" />

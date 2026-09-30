@@ -9,11 +9,20 @@
  * The theme picker (when built) will read THEMES automatically.
  */
 
+import { VELLUM, VELLUM_LAMPLIGHT } from "./themes.vellum";
+
 export interface GrimoireTheme {
   /** Internal key — stored in localStorage */
   id: string;
   /** Display name shown in the theme picker */
   label: string;
+  /**
+   * Themes come in light/dark pairs that share a look. The player's
+   * light/dark/system override picks the member of the campaign theme's family
+   * rather than always jumping to tome/grimoire.
+   */
+  family: string;
+  mode: "light" | "dark";
   /** CSS custom property values applied to :root */
   vars: Record<string, string>;
 }
@@ -22,6 +31,8 @@ export const THEMES: GrimoireTheme[] = [
   {
     id: "grimoire",
     label: "Grimoire (Dark)",
+    family: "classic",
+    mode: "dark",
     vars: {
       "--background":            "hsl(222 47% 7%)",
       "--foreground":            "hsl(38 60% 88%)",
@@ -49,6 +60,8 @@ export const THEMES: GrimoireTheme[] = [
   {
     id: "tome",
     label: "Tome (Light)",
+    family: "classic",
+    mode: "light",
     vars: {
       "--background":            "hsl(40 30% 95%)",
       "--foreground":            "hsl(222 40% 14%)",
@@ -73,7 +86,10 @@ export const THEMES: GrimoireTheme[] = [
     },
   },
 
-  // Add new themes here — no CSS changes needed, just a new entry.
+  VELLUM,
+  VELLUM_LAMPLIGHT,
+
+  // Add new themes here — a colour-only theme needs no CSS, just a new entry.
 ];
 
 export const DEFAULT_THEME_ID = "tome";

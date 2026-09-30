@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex items-center gap-2 rounded-md border px-3 py-2"
+    class="torn torn-wash flex items-center gap-2 rounded-md border px-3 py-2"
     :class="variantClasses"
   >
     <span

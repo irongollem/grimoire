@@ -1,0 +1,190 @@
+/* Vellum and Vellum Lamplight: everything beyond colour.
+
+   Colours come from src/lib/themes.vellum.ts like any other theme. This file adds
+   what a colour swap cannot do: the paper ground, the type roles, the shape, the
+   gilt and oxblood buttons and the torn-paper panels. Every selector is scoped to
+   `[data-theme^="vellum"]` (applyTheme sets it on <html>), so tome and grimoire
+   render exactly as before.
+
+   Deliberately UNLAYERED, like the select and iOS rules in base.css: Tailwind
+   utilities sit in `@layer utilities`, and an unlayered rule beats any layer
+   regardless of specificity. That is what lets these override `bg-card`,
+   `rounded-xl` or `font-cinzel` without touching the 1,200+ call sites. Keep it
+   out of any layer.
+
+   Design reference: the "Dungeon Grimoire" design system, section "Vellum". */
+
+:root[data-theme^="vellum"] {
+  --vl-serif: "Alegreya", "Crimson Pro", Georgia, serif;
+  --vl-sans: "Source Sans 3", Roboto, Helvetica, sans-serif;
+  --vl-paper: url("/assets/scriptorium/page-background.webp");
+  --vl-ink: url("/assets/scriptorium/watercolor/ink_asset_04_corner_seep.png");
+}
+
+/* ── Paper ground ─────────────────────────────────────────────────────────
+   Painted on body and on every `bg-background` surface with a fixed
+   attachment, so nested page containers continue one sheet instead of
+   covering it with flat colour. Lamplight multiplies it into the dark ground. */
+:root[data-theme^="vellum"] body,
+:root[data-theme^="vellum"] .bg-background {
+  background-image: var(--vl-paper);
+  background-size: 1024px auto;
+  background-attachment: fixed;
+}
+:root[data-theme="vellum-dark"] body,
+:root[data-theme="vellum-dark"] .bg-background {
+  background-blend-mode: multiply;
+}
+
+/* ── Type ─────────────────────────────────────────────────────────────────
+   Alegreya reads, Source Sans 3 labels the controls, Cinzel only at display
+   size. Sizes step up a little because Alegreya has a smaller x-height than
+   Crimson Pro. */
+:root[data-theme^="vellum"] body,
+:root[data-theme^="vellum"] .font-fell,
+:root[data-theme^="vellum"] .font-cinzel,
+:root[data-theme^="vellum"] :is(h2, h3, h4, h5, h6) {
+  font-family: var(--vl-serif);
+}
+:root[data-theme^="vellum"] .text-body { font-family: var(--vl-serif); font-size: 0.9375rem; }
+:root[data-theme^="vellum"] .text-caption { font-family: var(--vl-serif); font-size: 0.8125rem; }
+:root[data-theme^="vellum"] .text-caption-sm { font-family: var(--vl-serif); font-size: 0.6875rem; }
+:root[data-theme^="vellum"] :is(.text-heading-sm, .text-heading, .text-heading-lg) {
+  font-family: var(--vl-serif);
+  font-weight: 700;
+}
+:root[data-theme^="vellum"] .text-label { font-family: var(--vl-sans); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.02em; }
+:root[data-theme^="vellum"] .text-label-lg { font-family: var(--vl-sans); font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.01em; }
+:root[data-theme^="vellum"] .text-eyebrow { font-family: var(--vl-sans); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; }
+/* Display stays engraved: listed last so it wins over `.font-cinzel` above. */
+:root[data-theme^="vellum"] :is(h1, .text-title, .text-display) {
+  font-family: "Cinzel", Georgia, serif;
+}
+
+/* ── Shape ────────────────────────────────────────────────────────────────
+   `--radius` is 0.25rem in these themes, which already squares rounded-lg/md/sm
+   (they are derived from it). The fixed Tailwind radii are squared here. */
+:root[data-theme^="vellum"] :is(.rounded-xl, .rounded-2xl) { border-radius: 4px; }
+:root[data-theme^="vellum"] .rounded-t-2xl { border-top-left-radius: 4px; border-top-right-radius: 4px; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────────
+   AppButton mirrors its variant, size, tone and emphasis as data attributes,
+   so the Vellum recipes hook in here without adding classes that the
+   class-list tests (AppButton.test.ts) would read as a different recipe. */
+:root[data-theme^="vellum"] [data-variant="primary"] {
+  background-color: var(--primary-fill);
+  color: var(--primary-fill-foreground);
+  box-shadow: inset 0 0 0 1px var(--primary-edge), inset 0 2px 0 rgb(255 246 214 / 0.45), 0 1px 0 rgb(43 32 25 / 0.18);
+}
+:root[data-theme^="vellum"] [data-variant="primary"]:hover { opacity: 1; filter: brightness(1.06); }
+:root[data-theme^="vellum"] [data-variant="live"] {
+  background-color: var(--live);
+  color: var(--live-foreground);
+  box-shadow: inset 0 0 0 1px var(--live-edge), inset 0 1px 0 rgb(255 220 200 / 0.18), 0 1px 0 rgb(43 32 25 / 0.2);
+}
+:root[data-theme^="vellum"] [data-variant="live"]:hover { opacity: 1; filter: brightness(1.1); }
+/* A little more room on the everyday sizes. */
+:root[data-theme^="vellum"] [data-size="sm"] { padding-inline: 0.875rem; }
+:root[data-theme^="vellum"] [data-size="md"] { padding-inline: 1rem; }
+:root[data-theme^="vellum"] [data-size="lg"] { padding-inline: 1.25rem; font-family: "Cinzel", Georgia, serif; }
+
+/* Toned buttons: colour as a pigment accent, never a pastel wash. Soft and
+   outline become an ink label on the card with a small diamond in the tone;
+   icon-only buttons keep the tone as their icon colour instead. */
+:root[data-theme^="vellum"] [data-tone="primary"] { --pip: var(--primary); }
+:root[data-theme^="vellum"] [data-tone="danger"]  { --pip: var(--tone-danger); }
+:root[data-theme^="vellum"] [data-tone="success"] { --pip: var(--tone-success); }
+:root[data-theme^="vellum"] [data-tone="info"]    { --pip: var(--tone-info); }
+:root[data-theme^="vellum"] [data-tone="arcane"]  { --pip: var(--tone-arcane); }
+:root[data-theme^="vellum"] [data-tone="caution"] { --pip: var(--tone-caution); }
+:root[data-theme^="vellum"] [data-variant="tinted"]:is([data-emphasis="soft"], [data-emphasis="outline"]):not([data-tone="neutral"]) {
+  background-color: var(--card);
+  border-color: var(--input);
+  color: var(--foreground);
+}
+:root[data-theme^="vellum"] [data-variant="tinted"]:is([data-emphasis="soft"], [data-emphasis="outline"]):not([data-tone="neutral"]):hover {
+  background-color: var(--accent);
+}
+:root[data-theme^="vellum"] [data-variant="tinted"]:is([data-emphasis="soft"], [data-emphasis="outline"]):not([data-tone="neutral"]):not([data-size^="icon"])::before {
+  content: "";
+  width: 0.5em;
+  height: 0.5em;
+  flex: none;
+  rotate: 45deg;
+  background: var(--pip);
+}
+:root[data-theme^="vellum"] [data-variant="tinted"]:is([data-emphasis="soft"], [data-emphasis="outline"])[data-size^="icon"] {
+  color: var(--pip);
+}
+
+/* Solid toned buttons: the class recipe hard-codes text-white (and text-black
+   for caution), which fails on Lamplight's light pigments. Take the label from
+   the ground instead: parchment on Vellum's dark pigments, walnut on Lamplight's. */
+:root[data-theme="vellum"] [data-variant="tinted"][data-emphasis="solid"]:not([data-tone="neutral"]) { color: #faf6ee; }
+:root[data-theme="vellum-dark"] [data-variant="tinted"][data-emphasis="solid"]:not([data-tone="neutral"]) { color: var(--background); }
+
+/* ── Torn-paper panels ────────────────────────────────────────────────────
+   The fill and border move to a pseudo-element roughened by the #vl-rough
+   SVG filter (declared once in App.vue); the content stays crisp and the
+   colours still come from the theme. Applied to every modal panel, and to
+   any element with `.torn` (NoticeCard, StatCard, CalloutChip…). `.torn-wash`
+   gives the borderless secondary wash used for callouts. */
+:root[data-theme^="vellum"] :is([data-modal-panel], .torn) {
+  position: relative;
+  isolation: isolate;
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+:root[data-theme^="vellum"] :is([data-modal-panel], .torn)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--torn-fill, var(--card));
+  border: 1px solid var(--torn-edge, var(--border));
+  filter: url(#vl-rough) drop-shadow(0 1px 1.5px rgb(43 32 25 / 0.16));
+  pointer-events: none;
+}
+:root[data-theme="vellum-dark"] :is([data-modal-panel], .torn)::before {
+  filter: url(#vl-rough) drop-shadow(0 1px 2px rgb(0 0 0 / 0.45));
+}
+:root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
+/* Modal panels keep overflow-hidden, so the rough edge reads as small notches
+   torn inward, like a page edge, rather than spilling past the panel. */
+:root[data-theme^="vellum"] [data-modal-backdrop] {
+  background: rgb(43 32 25 / 0.55);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ── Ink ──────────────────────────────────────────────────────────────────
+   One watercolour ink seep behind an element (EmptyState uses it). Visible,
+   not a watermark: 30% on parchment, inverted at 12% on Lamplight. */
+:root[data-theme^="vellum"] .ink-seep { position: relative; isolation: isolate; }
+:root[data-theme^="vellum"] .ink-seep::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -1.5rem;
+  left: 50%;
+  width: 16rem;
+  height: 16rem;
+  translate: -50% 0;
+  background: var(--vl-ink) center / contain no-repeat;
+  opacity: 0.3;
+  pointer-events: none;
+}
+:root[data-theme="vellum-dark"] .ink-seep::before { filter: invert(1); opacity: 0.12; }
+
+/* ── Drop-cap initial ─────────────────────────────────────────────────────
+   Opt-in with `.initial` on the first paragraph of long-form text. */
+:root[data-theme^="vellum"] .initial::first-letter {
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  color: var(--destructive);
+  font-size: 3.1em;
+  line-height: 0.8;
+  float: left;
+  margin: 0.3rem 0.5rem 0 0;
+}

@@ -23,6 +23,10 @@ export const buttonVariants = cva(
       variant: {
         /** Gold CTA. One per surface — "New X", "Save", "Create". */
         primary: "bg-primary text-primary-foreground hover:opacity-90",
+        // Live play: the action that starts something at the table (Start session,
+        // Begin combat). Identical to `primary` on tome and grimoire; the Vellum
+        // themes paint it oxblood through [data-variant="live"] in vellum.css.
+        live: "bg-primary text-primary-foreground hover:opacity-90",
         /** Outlined, full-strength text. Generate, Import, Populate. */
         outline: "border border-border text-foreground hover:bg-accent hover:text-accent-foreground",
         /** Outlined, muted text. The single most common control in the app. */
@@ -578,7 +582,7 @@ export type ButtonSurface = NonNullable<ButtonVariants["surface"]>;
 type Assert<T extends true> = T;
 
 export const BUTTON_VARIANTS = [
-  "primary", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu",
+  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu",
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [
