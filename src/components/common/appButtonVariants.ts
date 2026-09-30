@@ -376,7 +376,7 @@ export const buttonVariants = cva(
       // `caution` takes black text rather than white: amber at full opacity fails
       // contrast against white, which is why the two hand-rolled amber CTAs this
       // replaces both wrote `text-black` themselves.
-      { variant: "tinted", tone: "primary", emphasis: "solid", class: "bg-tone-primary border-tone-primary text-white hover:opacity-90" },
+      { variant: "tinted", tone: "primary", emphasis: "solid", class: "bg-tone-primary border-tone-primary text-on-primary hover:opacity-90" },
       { variant: "tinted", tone: "danger", emphasis: "solid", class: "bg-tone-danger border-tone-danger text-on-danger hover:opacity-90" },
       { variant: "tinted", tone: "success", emphasis: "solid", class: "bg-tone-success border-tone-success text-on-success hover:opacity-90" },
       { variant: "tinted", tone: "info", emphasis: "solid", class: "bg-tone-info border-tone-info text-on-info hover:opacity-90" },
