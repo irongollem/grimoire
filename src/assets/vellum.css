@@ -12,6 +12,11 @@
    `rounded-xl` or `font-cinzel` without touching the 1,200+ call sites. Keep it
    out of any layer.
 
+   Oxblood has two tokens. `--live` is the fill (the live button, the bookmark
+   ribbon, the diamond under a name); anything drawn as words, glyphs, icon
+   strokes or hairlines uses `--live-ink`, because Lamplight's fill is 2.1:1
+   on the walnut ground. See themes.vellum.ts.
+
    Design reference: the "Dungeon Grimoire" design system, section "Vellum". */
 
 :root[data-theme^="vellum"] {
@@ -312,7 +317,7 @@
   text-transform: uppercase;
   color: color-mix(in oklab, var(--foreground) 60%, transparent);
 }
-:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > p:not(.italic) svg { color: var(--live); }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > p:not(.italic) svg { color: var(--live-ink); }
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap { justify-content: center; gap: 0; padding-top: 0.45rem; }
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap > span:not(.italic) {
   background: transparent;
@@ -324,7 +329,7 @@
   letter-spacing: 0;
   color: color-mix(in oklab, var(--foreground) 65%, transparent);
 }
-:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap > span + span::before { content: "·"; margin: 0 0.4rem; font-style: normal; color: var(--live); }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap > span + span::before { content: "·"; margin: 0 0.4rem; font-style: normal; color: var(--live-ink); }
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap > span.italic::before { content: ""; margin: 0 0.25rem; }
 /* Badges beside the name (monster source book and CR) crowd a centred
    title; they move onto the bottom-right of the plate as labels instead:
@@ -379,10 +384,10 @@
 }
 :root[data-theme^="vellum"] .tab-bar > [role="tab"]:hover,
 :root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] { color: var(--foreground); }
-:root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] svg { color: var(--live); }
+:root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] svg { color: var(--live-ink); }
 /* Narrow screens: tab rows scroll sideways (overflow-x-auto), which would
    clip a hanging ribbon, so the active tab gets an oxblood underline there. */
-:root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--live); }
+:root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--live-ink); }
 @media (min-width: 48rem) {
   :root[data-theme^="vellum"] .tab-bar { overflow: visible; }
   :root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] { box-shadow: none; }
@@ -428,14 +433,14 @@
   vertical-align: 0.2em;
   font-size: 0.55rem;
   font-style: normal;
-  color: color-mix(in oklab, var(--live) 55%, transparent);
+  color: color-mix(in oklab, var(--live-ink) 55%, transparent);
 }
 :root[data-theme^="vellum"] .section-tabs > [role="tab"]:hover { color: var(--foreground); }
 :root[data-theme^="vellum"] .section-tabs > [role="tab"][aria-selected="true"] {
   font-style: normal;
   font-weight: 700;
-  color: var(--live);
-  text-decoration: underline 1px color-mix(in oklab, var(--live) 60%, transparent);
+  color: var(--live-ink);
+  text-decoration: underline 1px color-mix(in oklab, var(--live-ink) 60%, transparent);
   text-underline-offset: 0.35em;
 }
 :root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
@@ -547,13 +552,13 @@
   font-family: "Cinzel", Georgia, serif;
   font-size: 0.6875rem;
   letter-spacing: 0.14em;
-  color: var(--live);
+  color: var(--live-ink);
 }
 :root[data-theme^="vellum"] .cal-week-label::after {
   content: "";
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, color-mix(in oklab, var(--live) 35%, transparent), transparent);
+  background: linear-gradient(90deg, color-mix(in oklab, var(--live-ink) 35%, transparent), transparent);
 }
 :root[data-theme^="vellum"] .cal-week { gap: 0; position: relative; isolation: isolate; padding: 4px; }
 :root[data-theme^="vellum"] .cal-week::before {
@@ -583,7 +588,7 @@
   font-weight: 600;
   color: color-mix(in oklab, var(--foreground) 70%, transparent);
 }
-:root[data-theme^="vellum"] .cal-day.has-events > span:first-child { color: var(--live); font-weight: 700; }
+:root[data-theme^="vellum"] .cal-day.has-events > span:first-child { color: var(--live-ink); font-weight: 700; }
 :root[data-theme^="vellum"] .cal-day.is-today {
   background: color-mix(in oklab, var(--primary-fill) 12%, transparent);
   box-shadow: inset 0 0 0 1px var(--primary-edge), inset 0 0 0 3px var(--card), inset 0 0 0 4px var(--primary-fill);
@@ -609,7 +614,7 @@
   pointer-events: none;
 }
 :root[data-theme^="vellum"] .cal-festival > div:first-child { justify-content: center; }
-:root[data-theme^="vellum"] .cal-festival .text-gold-400 { color: var(--live); }
+:root[data-theme^="vellum"] .cal-festival .text-gold-400 { color: var(--live-ink); }
 :root[data-theme^="vellum"] .cal-festival .font-cinzel { font-size: 1rem; letter-spacing: 0.12em; }
 :root[data-theme^="vellum"] .cal-events > * {
   margin: 0;
@@ -638,14 +643,14 @@
   content: "";
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, color-mix(in oklab, var(--live) 40%, transparent), transparent);
+  background: linear-gradient(90deg, color-mix(in oklab, var(--live-ink) 40%, transparent), transparent);
 }
 :root[data-theme^="vellum"] .screen-table h3 {
   font-family: "Cinzel", Georgia, serif;
   font-size: 0.9rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--live);
+  color: var(--live-ink);
 }
 :root[data-theme^="vellum"] :is(.screen-table, .page-sheet) thead tr { background: transparent; }
 :root[data-theme^="vellum"] :is(.screen-table, .page-sheet) :is(table th, .manual-content table th) {
@@ -674,8 +679,8 @@
   font-size: 1rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--live);
-  border-bottom-color: color-mix(in oklab, var(--live) 30%, transparent);
+  color: var(--live-ink);
+  border-bottom-color: color-mix(in oklab, var(--live-ink) 30%, transparent);
 }
 :root[data-theme^="vellum"] .page-sheet :is(.manual-content, .prose-dm) { font-size: 1.0625rem; line-height: 1.65; }
 :root[data-theme^="vellum"] .page-sheet :is(.manual-content, .prose-dm) > p:first-of-type { display: flow-root; }

@@ -10,6 +10,11 @@
  * `--primary` is a text-safe gold (5.4:1 on the parchment ground); the gilt
  * button fill is the separate `--primary-fill`, because gold leaf is 2.3:1 as text.
  * `--live` is the oxblood reserved for live-play actions (AppButton variant="live").
+ * It is a fill. Oxblood set as words, rules or icon strokes reads `--live-ink`,
+ * the same split as `--primary-fill` / `--primary`: on parchment the two are one
+ * colour, but Lamplight's fill is 2.1:1 on the walnut ground, so its ink is the
+ * same hue lifted until it clears 4.5:1 on every surface text sits on
+ * (themes.vellum.test.ts holds that).
  */
 import type { GrimoireTheme } from "./themes";
 
@@ -166,6 +171,7 @@ export const VELLUM: GrimoireTheme = {
     "--live": "#6e1f1a",
     "--live-edge": "#4a1411",
     "--live-foreground": "#faf6ee",
+    "--live-ink": "#6e1f1a",
     "--radius": "0.25rem",
   },
 };
@@ -323,6 +329,7 @@ export const VELLUM_LAMPLIGHT: GrimoireTheme = {
     "--live": "#8a2b22",
     "--live-edge": "#b0463a",
     "--live-foreground": "#faf6ee",
+    "--live-ink": "#de857c",
     "--radius": "0.25rem",
   },
 };
