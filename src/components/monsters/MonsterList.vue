@@ -120,7 +120,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useMediaQuery } from "@vueuse/core";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconNavBestiary } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { useUiStore } from "@/stores/ui";
@@ -160,7 +160,7 @@ const ui = useUiStore();
 const search = computed(() => ui.monstersSearch);
 const typeFilter = computed(() => ui.monstersFilterType);
 const sourceFilter = computed(() => ui.monstersFilterSource);
-const isMobile = useMediaQuery("(max-width: 767px)");
+const isMobile = useIsMobile();
 const layout = computed({
   get: () => ui.entityListLayout,
   set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },

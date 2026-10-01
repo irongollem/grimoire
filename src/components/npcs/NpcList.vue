@@ -136,7 +136,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useMediaQuery } from "@vueuse/core";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { IconNavNpcs } from "@/lib/icons";
@@ -194,7 +194,7 @@ const props = defineProps<{
 
 const { data: npcs, isLoading } = useNpcs();
 const ui = useUiStore();
-const isMobile = useMediaQuery("(max-width: 767px)");
+const isMobile = useIsMobile();
 const layout = computed({
   get: () => ui.entityListLayout,
   set: (v: "rows" | "gallery") => {

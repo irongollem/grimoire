@@ -1,7 +1,7 @@
 <template>
   <!--
     Mobile-only (<md) monster detail (read) screen. Rendered by
-    MonsterDetailView when useMediaQuery("(max-width: 767px)") is true; the
+    MonsterDetailView when useIsMobile() is true; the
     desktop MonsterSheet is shown otherwise, byte-identical to before.
 
     Mirrors NpcDetailMobile's structure, with monster-specific differences:

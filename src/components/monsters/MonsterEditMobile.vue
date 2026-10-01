@@ -1,7 +1,7 @@
 <template>
   <!--
     Mobile-only (<md) monster edit screen. Rendered by MonsterDetail when
-    useMediaQuery("(max-width: 767px)") is true; the desktop two-column grid
+    useIsMobile() is true; the desktop two-column grid
     form is shown otherwise (byte-identical to before).
 
     The reactive `form` / `sb` live in MonsterDetail and are passed down here by

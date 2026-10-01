@@ -221,7 +221,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMediaQuery } from '@vueuse/core'
+import { useIsMobile } from '@/composables/useBreakpoint'
 import NpcGenerateDialog from '@/ai/NpcGenerateDialog.vue'
 import { toTiptapJson } from '@/ai/useNpcGeneration'
 import { markEdited } from '@/ai/provenance'
@@ -280,7 +280,7 @@ const props = defineProps<{ npc?: Npc | null }>()
 
 // Mobile (<md) renders NpcEditMobile instead of the desktop grid form. Desktop
 // markup is unchanged and only conditionally rendered (v-if on the <form>).
-const isMobile = useMediaQuery('(max-width: 767px)')
+const isMobile = useIsMobile()
 
 // ── Store + mutations ─────────────────────────────────────────────────────────
 

@@ -140,7 +140,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useMediaQuery } from "@vueuse/core";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconDelete, IconGenerate } from '@/lib/icons';
 import { useNpc } from "@/composables/npcs/useNpcs";
 import { useDetailModal } from "@/composables/useDetailModal";
@@ -173,7 +173,7 @@ const { asModal, close } = useDetailModal("/npcs");
 // under the list, so `asModal` is false there regardless.
 const isEditing = computed(() => isNewNpc.value || route.query.edit === "true");
 
-const isMobile = useMediaQuery("(max-width: 767px)");
+const isMobile = useIsMobile();
 const showMobileRead = computed(() => isMobile.value && !isEditing.value && !isNewNpc.value);
 // NpcDetail owns its own mobile chrome (NpcEditMobile), so no PageHeader here.
 const showMobileEdit = computed(() => isMobile.value && isEditing.value && !isLoading.value);

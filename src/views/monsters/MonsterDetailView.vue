@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useMediaQuery } from "@vueuse/core";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconDocument } from '@/lib/icons';
 import { useMonsterWithArt } from "@/composables/monsters/useMonsters";
 import { useDetailModal } from "@/composables/useDetailModal";
@@ -68,7 +68,7 @@ const { asModal, close } = useDetailModal("/monsters");
 // under the list, so `asModal` is false there regardless.
 const isEditing = computed(() => isNew.value || route.query.edit === "true");
 
-const isMobile = useMediaQuery("(max-width: 767px)");
+const isMobile = useIsMobile();
 const showMobileRead = computed(() => isMobile.value && !isEditing.value && !isNew.value);
 // MonsterDetail owns its own mobile chrome (MonsterEditMobile), so no PageHeader.
 const showMobileEdit = computed(() => isMobile.value && isEditing.value && !isLoading.value);

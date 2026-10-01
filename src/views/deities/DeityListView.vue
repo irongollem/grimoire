@@ -149,7 +149,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useMediaQuery } from "@vueuse/core";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconAdd, IconFire, IconLoading, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities, useUpdateDeity } from "@/composables/deities/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
@@ -206,7 +206,7 @@ const filtered = computed(() => {
   });
 });
 
-const isMobile = useMediaQuery("(max-width: 767px)");
+const isMobile = useIsMobile();
 const layout = computed({
   get: () => ui.entityListLayout,
   set: (v: "rows" | "gallery") => {

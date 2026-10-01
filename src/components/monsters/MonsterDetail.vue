@@ -279,7 +279,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, reactive, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useMediaQuery } from "@vueuse/core";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { storeToRefs } from "pinia";
 import { IconCopy, IconGenerate } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
@@ -364,7 +364,7 @@ const aiContext = computed(() =>
 
 // Mobile-only edit layer (<md). Desktop keeps the existing two-column grid form,
 // byte-identical to before.
-const isMobile = useMediaQuery("(max-width: 767px)");
+const isMobile = useIsMobile();
 
 // Leaving edit mode on mobile: existing monsters drop the ?edit=true flag (back
 // to the read view); a brand-new monster has no detail page to fall back to, so

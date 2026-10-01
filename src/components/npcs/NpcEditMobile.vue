@@ -1,7 +1,7 @@
 <template>
   <!--
     Mobile-only (<md) NPC edit screen. Rendered by NpcDetail when
-    useMediaQuery("(max-width: 767px)") is true; the desktop grid form is shown
+    useIsMobile() is true; the desktop grid form is shown
     otherwise (byte-identical to before).
 
     The reactive `form` / `statBlock` live in NpcDetail and are passed down here,

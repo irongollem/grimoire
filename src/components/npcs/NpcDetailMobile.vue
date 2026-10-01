@@ -1,7 +1,7 @@
 <template>
   <!--
     Mobile-only (<md) NPC detail (read) screen. Rendered by NpcDetailView
-    when useMediaQuery("(max-width: 767px)") is true; the desktop NpcSheet
+    when useIsMobile() is true; the desktop NpcSheet
     is shown otherwise, byte-identical to before.
 
     Scroll layout top → bottom:

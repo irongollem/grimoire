@@ -1,5 +1,5 @@
 import { computed } from "vue";
-import { useMediaQuery } from "@vueuse/core";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { useRoute, useRouter } from "vue-router";
 
 /**
@@ -28,7 +28,7 @@ export function useDetailModal(listPath: string, takesWholeScreen?: () => boolea
 
   // Mirrors the breakpoint the rest of the app splits on: below `md` is the
   // full-screen takeover, tablets and up get the desktop treatment.
-  const isMobile = useMediaQuery("(max-width: 767px)");
+  const isMobile = useIsMobile();
   const isEditing = computed(() => route.query.edit === "true");
 
   /** Either reason a detail surface refuses to be a dismissable popover. */

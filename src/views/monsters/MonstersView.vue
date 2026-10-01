@@ -278,7 +278,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useMediaQuery } from "@vueuse/core";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { useDetailModal } from "@/composables/useDetailModal";
 import {
   IconAdd, IconCheck, IconClose, IconGenerate, IconLibrary,
@@ -313,7 +313,7 @@ const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { canCreate } = useQuota("monsters");
 const showPaywall = ref(false);
-const isMobile = useMediaQuery("(max-width: 767px)");
+const isMobile = useIsMobile();
 
 // False only while the nested detail route has taken the whole screen. An open
 // modal keeps this true, which is what leaves the grid — and its scroll position

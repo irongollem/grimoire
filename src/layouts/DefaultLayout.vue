@@ -88,7 +88,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from "vue";
 import { useRoute } from "vue-router";
-import { useMediaQuery } from "@vueuse/core";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppTopBar from "@/components/layout/AppTopBar.vue";
 import DmBottomNav from "@/components/layout/DmBottomNav.vue";
@@ -142,7 +142,7 @@ void initPlaceholderFocalPoints();
 const route = useRoute();
 const auth = useAuthStore();
 const isDm = computed(() => auth.currentRole === "dm");
-const isMobile = useMediaQuery("(max-width: 767px)");
+const isMobile = useIsMobile();
 const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscreenMobile);
 const returnTo = computed(() => typeof route.query.returnTo === "string"
   ? safeQuestReturnTo(route.query.returnTo, "")
