@@ -178,7 +178,7 @@ The script reads the webhook URL from `DISCORD_WHATS_NEW_WEBHOOK` in `.env.local
 
 What the exit code means:
 
-- **0**: every message is up. Go to Step 6.
+- **0**: every message is up. Go to Step 6, and remind the user to press **Publish** on the message: the channel is an announcement channel, so servers that follow it only receive a post once someone publishes it, and a webhook cannot do that (crossposting needs a bot token).
 - **2**: no webhook is configured on this machine. Nothing is wrong: tell the user to paste the blocks themselves, ask them to confirm once they have, and only then go to Step 6.
 - **1**: refused or failed, and the output says which and how many messages got out first. Do not retry blindly: a retry after a partial post puts the first message up twice. Report it and let the user decide.
 
