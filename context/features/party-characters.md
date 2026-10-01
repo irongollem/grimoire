@@ -339,6 +339,19 @@ the `wotc-srd` baseline when no campaign is active (`useSpecies.ts`), since
 `my-characters`, which useParty.ts owns for the campaign-scoped champions
 list).
 
+**An unattached character's ruleset.** A ruleset is a property of a campaign,
+so a character with no campaign has none of its own and plays under 2014. The
+client says so in `normalizeRuleset()` and the database in
+`private.party_member_ruleset(party_member_id)`, which is the only function
+allowed to resolve a character's ruleset. Until migration `20261001220509`,
+fifteen functions each joined the member to its campaign instead, and the join
+returns no row for an unattached character: the class trigger raised `P0002`,
+so standalone creation could not finish at all, and five spellcasting RPCs read
+the ruleset as NULL. `supabase/tests/standalone_character_ruleset.test.sql`
+fails if a function reads a campaign's ruleset inline again. Giving a
+standalone character a ruleset of its own means changing that one function
+body and `useRuleset()`, nothing else.
+
 ### Champions List (`/play/champions` — `PlayerChampionsView.vue`)
 
 A player may have multiple characters in a campaign (e.g. a backup character). The Champions view lists all their owned characters with:
