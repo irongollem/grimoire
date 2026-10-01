@@ -17,6 +17,9 @@
 :root[data-theme^="vellum"] {
   --vl-serif: "Alegreya", "Crimson Pro", Georgia, serif;
   --vl-sans: "Source Sans 3", Roboto, Helvetica, sans-serif;
+  /* Component CSS that reads var(--font-fell) directly (RichTextViewer) gets
+     the reading face too, not only the .font-fell utility. */
+  --font-fell: var(--vl-serif);
   --vl-paper: url("/assets/vellum/paper.webp");
 }
 
@@ -200,7 +203,9 @@
 :root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky))::before {
   content: "";
   position: absolute;
-  inset: 0;
+  /* #vl-rough displaces up to 3px; insetting by that keeps the whole torn
+     edge inside cards that clip with overflow-hidden. */
+  inset: 3px;
   z-index: -1;
   background: var(--torn-fill, var(--card));
   border: 1px solid var(--torn-edge, var(--border));
@@ -211,13 +216,59 @@
   filter: url(#vl-rough) drop-shadow(0 1px 2px rgb(0 0 0 / 0.45));
 }
 :root[data-theme^="vellum"] .bg-card.border[class*="hover:border-"]:hover::before { border-color: var(--primary-edge); }
+/* Scrolling bodies inside a torn card (dashboard widgets) stop above the
+   torn bottom edge and leave a little room at the end of the scroll. */
+:root[data-theme^="vellum"] .bg-card.border :is(.widget-scroll, [class*="overflow-y-auto"]):not(.bg-card) {
+  margin-bottom: 6px;
+  padding-bottom: 0.5rem;
+}
 :root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
+
+/* The 6px colour strip on top of category cards (NoteCard and friends)
+   becomes a bookmark ribbon hanging from the top edge. */
+:root[data-theme^="vellum"] .bg-card.border > .w-full.shrink-0:is(.h-1, .h-1\.5, .h-2) {
+  position: absolute;
+  top: 3px;
+  right: 0.75rem;
+  width: 0.7rem;
+  height: 1.6rem;
+  z-index: 1;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  opacity: 0.9;
+}
+
+/* Hairline grids (`gap-px bg-border`, e.g. the dashboard party and stats
+   widgets) draw their lines with the parent's fill, which shows as a solid
+   tan block in empty cells. Here the cells draw their own lines instead,
+   and a bordered grid gets the torn panel like any other card. */
+:root[data-theme^="vellum"] .gap-px.bg-border { background-color: transparent; }
+:root[data-theme^="vellum"] .gap-px.bg-border > .bg-card {
+  background-color: transparent;
+  box-shadow: 1px 0 0 var(--border), 0 1px 0 var(--border);
+}
+:root[data-theme^="vellum"] .gap-px.bg-border.border.rounded-lg {
+  position: relative;
+  isolation: isolate;
+  border-color: transparent;
+  overflow: hidden;
+}
+:root[data-theme^="vellum"] .gap-px.bg-border.border.rounded-lg::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  z-index: -1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  filter: url(#vl-rough) drop-shadow(0 1px 1.5px rgb(43 32 25 / 0.16));
+  pointer-events: none;
+}
 /* Modal panels keep overflow-hidden, so the rough edge reads as small notches
    torn inward, like a page edge, rather than spilling past the panel. */
 :root[data-theme^="vellum"] [data-modal-backdrop] {
   background: rgb(43 32 25 / 0.55);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  /* Zero the blur through Tailwind's own variable: the production build drops
+     a plain `backdrop-filter: none` here, so the blur survived. */
+  --tw-backdrop-blur: blur(0);
 }
 
 /* ── Ink ──────────────────────────────────────────────────────────────────
@@ -247,8 +298,12 @@
    Opt-in with `.initial` on the first paragraph of long-form text, or
    `.longform` on the box around a RichTextViewer (session logs, lore). */
 :root[data-theme^="vellum"] .longform { padding: 1.75rem 2rem; }
-:root[data-theme^="vellum"] .longform .rte-content { font-size: 1.0625rem; line-height: 1.65; }
-:root[data-theme^="vellum"] :is(.initial, .longform .ProseMirror > p:first-child)::first-letter {
+:root[data-theme^="vellum"] .longform .ProseMirror { font-size: 1.0625rem; line-height: 1.65; }
+/* Generated text wraps its paragraphs in a <div data-ai-generated>, so the
+   first paragraph may sit one level down. flow-root keeps the initial inside
+   it when it is a single short line. */
+:root[data-theme^="vellum"] .longform .ProseMirror > :is(p:first-child, div:first-child > p:first-child) { display: flow-root; }
+:root[data-theme^="vellum"] :is(.initial, .longform .ProseMirror > p:first-child, .longform .ProseMirror > div:first-child > p:first-child)::first-letter {
   font-family: "Cinzel", Georgia, serif;
   font-weight: 700;
   color: var(--destructive);
