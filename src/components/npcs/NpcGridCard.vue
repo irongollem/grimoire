@@ -26,12 +26,12 @@
         />
       </div>
 
-      <p v-if="npc.race" class="truncate text-caption text-muted-foreground italic">
-        {{ npc.race }} - {{ npc.occupation }}
+      <p v-if="npc.race || npc.occupation" class="truncate text-caption text-muted-foreground italic">
+        {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
       </p>
 
       <p v-if="locationName" class="truncate text-caption text-muted-foreground">
-        📍 {{ locationName }}
+        <IconLocation class="mr-0.5 inline h-3 w-3 -translate-y-px" aria-hidden="true" />{{ locationName }}
       </p>
 
       <div v-if="npc.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
@@ -81,7 +81,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/appButtonVariants";
 import EntityGridCard from "@/components/common/EntityGridCard.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
-import { IconEdit } from "@/lib/icons";
+import { IconEdit, IconLocation } from "@/lib/icons";
 import {
   getNpcDisplayFocalPoint,
   getNpcDisplayName,

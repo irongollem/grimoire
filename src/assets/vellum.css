@@ -274,6 +274,64 @@
   border-radius: 0;
   opacity: 1;
 }
+/* Text under the plate is set like a wanted poster: name centred in
+   engraved capitals over a rule with an oxblood diamond, the role in italic,
+   the place in spaced small capitals, tags as italic words between dots.
+   The status dot becomes a diamond in front of the name. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 { text-align: center; align-items: center; gap: 0.15rem; padding: 0.7rem 1rem 1rem; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:first-child {
+  position: relative;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  gap: 0.45rem;
+  padding-bottom: 0.55rem;
+  margin-bottom: 0.25rem;
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:first-child::after {
+  content: "";
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 0;
+  height: 7px;
+  background:
+    linear-gradient(var(--border), var(--border)) left center / calc(50% - 7px) 1px no-repeat,
+    linear-gradient(var(--border), var(--border)) right center / calc(50% - 7px) 1px no-repeat,
+    linear-gradient(var(--live), var(--live)) center / 5px 5px no-repeat;
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 h3 {
+  flex: none;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 h3 + span { order: -1; margin: 0; width: 0.4rem; height: 0.4rem; border-radius: 0; rotate: 45deg; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > p { width: 100%; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > p.italic { font-size: 0.875rem; color: color-mix(in oklab, var(--foreground) 75%, transparent); }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > p:not(.italic) {
+  font-family: var(--vl-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--foreground) 60%, transparent);
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:last-child { justify-content: center; gap: 0; padding-top: 0.45rem; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:last-child > span:not(.italic) {
+  background: transparent;
+  padding: 0;
+  font-family: var(--vl-serif);
+  font-size: 0.8125rem;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: color-mix(in oklab, var(--foreground) 65%, transparent);
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:last-child > span + span::before { content: "·"; margin: 0 0.4rem; font-style: normal; color: var(--live); }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:last-child > span.italic::before { content: ""; margin: 0 0.25rem; }
 :root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
 
 /* The 6px colour strip on top of category cards (NoteCard and friends)

@@ -56,7 +56,7 @@
       <p v-if="npc.player_visible_fields.includes('occupation') && npc.occupation" class="text-caption text-muted-foreground truncate">
         {{ npc.occupation }}
       </p>
-      <p v-if="location" class="text-caption text-muted-foreground truncate">📍 {{ location }}</p>
+      <p v-if="location" class="text-caption text-muted-foreground truncate"><IconLocation class="mr-0.5 inline h-3 w-3 -translate-y-px" aria-hidden="true" />{{ location }}</p>
 
       <!-- Relevance stars — pinned to bottom -->
       <NpcRatingStars :npc-id="npc.id" class="pt-1 mt-auto" />
@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconUser } from '@/lib/icons';
+import { IconLocation, IconUser } from '@/lib/icons';
 import { artUrl } from "@/lib/assets/artUrl";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
