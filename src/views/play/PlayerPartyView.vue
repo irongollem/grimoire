@@ -38,7 +38,7 @@
           <AiGeneratedBadge variant="chip" :provenance="groupPortraitAiProvenance" />
         </div>
         <template v-for="entry in sortedParty" :key="entry.data.id">
-          <CharacterSpeciesName v-if="entry.kind === 'member'" v-slot="{ name: speciesName }" :member="entry.data">
+          <CharacterSpeciesName v-if="entry.kind === 'member'" v-slot="{ speciesName }" :member="entry.data">
             <PlayerPartyMemberCard
               :member="entry.data"
               :is-own="entry.data.id === auth.linkedPartyMemberId"

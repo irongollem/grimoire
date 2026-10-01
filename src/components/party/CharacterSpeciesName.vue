@@ -1,5 +1,5 @@
 <template>
-  <slot :name="name" />
+  <slot :species-name="name" />
 </template>
 
 <script setup lang="ts">
@@ -25,5 +25,8 @@ provideCharacterRuleset(() => member);
 const speciesNameMap = useSpeciesNameMap();
 const name = computed(() => (member.species_id ? (speciesNameMap.value.get(member.species_id) ?? null) : null));
 
-defineSlots<{ default(props: { name: string | null }): unknown }>();
+// The slot prop is `speciesName`, never `name`: on a <slot>, `name` is the slot's
+// own name, so `<slot :name="...">` renders a slot called "Human" (or nothing)
+// instead of the default one, and every row wrapped in this component vanished.
+defineSlots<{ default(props: { speciesName: string | null }): unknown }>();
 </script>

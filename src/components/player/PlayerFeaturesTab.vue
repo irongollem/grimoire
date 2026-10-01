@@ -10,7 +10,7 @@
       :acknowledging="acknowledgingBackgroundReview"
       @acknowledge="acknowledgeBackgroundReview"
     >
-      {{ member.name }} was converted to the {{ rulesetLabel(member.ruleset) }} rules. Review the background ability scores and Origin feat.
+      {{ member.name }} was converted to the {{ rulesetRules(member.ruleset) }}. Review the background ability scores and Origin feat.
     </RulesetReviewBanner>
 
     <!-- ── Beast traits (only when wildshaped) ──────────────────────────────── -->
@@ -183,7 +183,7 @@ import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "@/composables/useToast";
 import AppButton from "@/components/common/AppButton.vue";
-import { rulesetLabel } from "@/composables/party/useCharacterRuleset";
+import { rulesetRules } from "@/composables/party/useCharacterRuleset";
 import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
 import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
 import PlayerResourcePools from "./PlayerResourcePools.vue";

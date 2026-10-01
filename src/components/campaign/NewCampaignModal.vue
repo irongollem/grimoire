@@ -13,7 +13,7 @@
           <AppCheckbox
             v-model="form.allows_mixed_rulesets"
             label="Allow characters built with the other edition"
-            hint="Off: a character built with the other edition is asked to bring a converted copy."
+            hint="When unticked, a character built with the other edition is asked to bring a converted copy."
             class="mt-2 gap-2.5"
           />
         </div>

@@ -70,7 +70,7 @@
                     class="shrink-0 text-label px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
                   >Active</span>
                 </div>
-                <CharacterSpeciesName v-slot="{ name: speciesName }" :member="char">
+                <CharacterSpeciesName v-slot="{ speciesName }" :member="char">
                   <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
                     {{ charSummary(char, speciesName) }}
                   </p>
@@ -162,7 +162,7 @@
             <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
               <div>
                 <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
-                <CharacterSpeciesName v-slot="{ name: speciesName }" :member="char">
+                <CharacterSpeciesName v-slot="{ speciesName }" :member="char">
                   <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
                     {{ charSummary(char, speciesName) }}
                   </p>

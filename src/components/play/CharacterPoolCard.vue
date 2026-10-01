@@ -60,7 +60,7 @@
                   block
                   :label="tableLabel(c)"
                   :disabled="attaching"
-                  class="justify-start"
+                  class="justify-start text-left whitespace-normal"
                   @click="attachTo(c)"
                 />
               </div>
@@ -103,7 +103,7 @@ import { useAttachCharacter, useDetachCharacter, useCloneCharacter, useDeletePoo
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
-import { isRulesetAdmissible, parseRulesetBounce } from "@/composables/party/useCharacterRuleset";
+import { isRulesetAdmissible, parseRulesetBounce, rulesetRules, rulesetYear } from "@/composables/party/useCharacterRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Campaign } from "@/types/campaign.types";
@@ -137,12 +137,14 @@ const summary = computed(() => {
   if (character.subrace) parts.push(character.subrace);
   const levelStr = character.level ? `Level ${character.level}` : "Not yet levelled";
   const base = parts.length ? `${parts.join(" · ")} · ${levelStr}` : levelStr;
-  return `${base} · ${character.ruleset}`;
+  return `${base} · ${rulesetYear(character.ruleset)}`;
 });
 
 // Tables list their edition, and say so when they will not take this character.
 function tableLabel(c: Campaign): string {
-  return isRulesetAdmissible(character, c) ? `${c.name} · ${c.ruleset}` : `${c.name} · plays ${c.ruleset}`;
+  return isRulesetAdmissible(character, c)
+    ? `${c.name} · ${rulesetYear(c.ruleset)}`
+    : `${c.name} · plays the ${rulesetRules(c.ruleset)}`;
 }
 
 const showAttachPicker = ref(false);

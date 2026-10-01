@@ -13,10 +13,10 @@ import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composable
 import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { useBackgrounds } from "@/composables/rules/useBackgrounds";
-import { provideCharacterRuleset, provideRuleset, useRuleset } from "@/composables/rules/useRuleset";
-import { isRulesetAdmissible, parseRulesetBounce } from "@/composables/party/useCharacterRuleset";
-import { creationLandingCampaign, initialCreationRuleset } from "@/composables/party/characterCreationEdition";
-import type { RulesetKey } from "@/types/ruleset.types";
+import { useRuleset } from "@/composables/rules/useRuleset";
+import { useCharacterCreationEdition } from "@/composables/party/useCharacterCreationEdition";
+import { isRulesetAdmissible, parseRulesetBounce, rulesetRules } from "@/composables/party/useCharacterRuleset";
+import { campaignToAttachAfterCreate } from "@/composables/party/characterCreationEdition";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import { applySpeciesSpellGrants } from "@/composables/party/useCharacterSpells";
 import type { SpeciesSpellGrant } from "@/types/species.types";
@@ -58,29 +58,6 @@ function buildPlainEquipmentRow(
     is_attuned: false, is_equipped: false, notes: null,
     current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
   };
-}
-
-/**
- * The campaign a player's newly-created character should be brought to, or
- * null when it stays in the pool.
- *
- * A player's character is always created in the pool (see
- * resolveCharacterPlacement below), and a seat may only point at a character
- * that is already in its campaign, so the seat cannot simply be written. For
- * two months it was: the wizard created the pool row, wrote it onto the
- * player's seat, the membership guard refused ("Cannot link a character from
- * another campaign"), and the rollback deleted the character. Every player who
- * already sat at a table got "Couldn't save the character" (found 2 Oct 2026).
- * The character goes through attach instead, which moves it into the campaign
- * and fills the seat only when the seat is empty. Exported for testing.
- */
-export function resolveCampaignToJoin(opts: {
-  isDmCreate: boolean;
-  activeCampaignId: string | null;
-  isMemberOfActiveCampaign: boolean;
-}): string | null {
-  if (opts.isDmCreate) return null;
-  return opts.isMemberOfActiveCampaign ? opts.activeCampaignId : null;
 }
 
 /**
@@ -176,30 +153,16 @@ export function useCharacterCreationForm() {
   // ── Edition scope ─────────────────────────────────────────────────────────────
   // A character carries its own edition (#943) and every list below (species,
   // backgrounds, classes) is filtered by it, so the scope is provided BEFORE any
-  // of them is called, and everything its getter reads is declared above this
-  // line. Creating: the edition the player picks on the first step, null until
-  // then (the lists fall back to the campaign's). Editing: the character's own.
-  const landingCampaign = computed(() => creationLandingCampaign({
-    isDmCreate: isDmCreate.value,
-    activeCampaign: campaign.activeCampaign,
-    isMemberOfActiveCampaign: (campaignMembers.value ?? []).some((cm) => cm.user_id === auth.user?.id),
-  }));
-  const chosenRuleset = ref<RulesetKey | null>(
-    isEditMode.value ? null : initialCreationRuleset(landingCampaign.value),
-  );
-  let editionTouched = false;
-  function chooseRuleset(next: RulesetKey) {
-    editionTouched = true;
-    chosenRuleset.value = next;
-  }
-  // The campaign's members load after setup, so a player's table may only become
-  // known once the wizard is open; seed the edition then, but never over a choice.
-  watch(landingCampaign, (landing) => {
-    if (isEditMode.value || editionTouched || chosenRuleset.value !== null) return;
-    chosenRuleset.value = initialCreationRuleset(landing);
+  // of them is called, and everything its getters read is declared above this
+  // line (reading something declared later is a temporal-dead-zone error).
+  // Creating: the edition the player picks on the first step, null until then
+  // (the lists fall back to the campaign's). Editing: the character's own.
+  const { landingCampaign, chosenRuleset, chooseRuleset, onEditionChange } = useCharacterCreationEdition({
+    isEditMode,
+    isDmCreate,
+    existingMember,
+    isMemberOfActiveCampaign: () => (campaignMembers.value ?? []).some((cm) => cm.user_id === auth.user?.id),
   });
-  if (isEditMode.value) provideCharacterRuleset(() => existingMember.value);
-  else provideRuleset(() => chosenRuleset.value);
 
   // Pickers offer only what the campaign permits (`campaignSpecies` /
   // `campaignSystemClasses`); resolution of what a character already has runs
@@ -448,12 +411,9 @@ export function useCharacterCreationForm() {
   }
 
   // ── Changing the edition ──────────────────────────────────────────────────────
-  // Species, background and class are all edition-specific, so a different
-  // edition invalidates them. Synchronous on purpose: the lists below re-key on
-  // the new edition asynchronously, and the old species must still be resolvable
-  // here to take back the languages and speed it granted.
-  watch(chosenRuleset, (next, previous) => {
-    if (isEditMode.value || next === null || previous === null || next === previous) return;
+  // The reset for a different edition (see `useCharacterCreationEdition`): it
+  // needs the form fields and handlers declared above, hence registered here.
+  onEditionChange(() => {
     const oldSpecies = selectedSpecies.value;
     for (const lang of oldSpecies?.languages ?? []) {
       const idx = f.languages.indexOf(lang);
@@ -467,7 +427,7 @@ export function useCharacterCreationForm() {
     f.subclass = "";
     f.saving_throw_proficiencies = [];
     resetSlotsToDefault();
-  }, { flush: "sync" });
+  });
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -652,11 +612,7 @@ export function useCharacterCreationForm() {
         // stays in the pool.
         let landedCampaignId = created.campaign_id;
         try {
-          const joinCampaignId = resolveCampaignToJoin({
-            isDmCreate: isDmCreate.value,
-            activeCampaignId: campaign.activeCampaignId,
-            isMemberOfActiveCampaign: (campaignMembers.value ?? []).some((cm) => cm.user_id === creatorId),
-          });
+          const joinCampaignId = campaignToAttachAfterCreate(landingCampaign.value, isDmCreate.value);
           if (joinCampaignId) {
             // A table that does not take this edition leaves the character in
             // the pool, and so does a bounce on the attach itself (the DM may
@@ -675,7 +631,7 @@ export function useCharacterCreationForm() {
             }
             if (restsInPool) {
               const tableName = table?.name ?? "That table";
-              const tableRules = table ? `plays the ${table.ruleset} rules` : "does not take this edition";
+              const tableRules = table ? `plays the ${rulesetRules(table.ruleset)}` : "does not take this edition";
               useToast().info(`${f.name.trim()} rests in your pool: ${tableName} ${tableRules}.`);
             }
           }

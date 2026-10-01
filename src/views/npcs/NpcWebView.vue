@@ -259,7 +259,7 @@
           />
 
           <!-- ── PC panel ────────────────────────────────── -->
-          <CharacterSpeciesName v-else-if="panelPc" v-slot="{ name: speciesName }" :member="panelPc">
+          <CharacterSpeciesName v-else-if="panelPc" v-slot="{ speciesName }" :member="panelPc">
             <NpcWebPcPanel :pc="panelPc" :species-name="speciesName" @close="clearSelection" />
           </CharacterSpeciesName>
         </div>

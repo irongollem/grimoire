@@ -22,7 +22,7 @@
           </span>
         </template>
         <template #subtitle>
-          <CharacterSpeciesName v-slot="{ name: speciesName }" :member="m.party_member">
+          <CharacterSpeciesName v-slot="{ speciesName }" :member="m.party_member">
             <p v-if="speciesName || memberClassLabel(m.party_member.id, m.party_member.class)" class="text-caption text-muted-foreground italic truncate">
               {{ [speciesName, memberClassLabel(m.party_member.id, m.party_member.class), memberLevelDisplay(m.party_member.id, m.party_member.level) ? `Lv${memberLevelDisplay(m.party_member.id, m.party_member.level)}` : ''].filter(Boolean).join(' · ') }}
             </p>
@@ -63,7 +63,7 @@
             <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ m.party_member.name }}</span>
           </template>
           <template #subtitle>
-            <CharacterSpeciesName v-slot="{ name: speciesName }" :member="m.party_member">
+            <CharacterSpeciesName v-slot="{ speciesName }" :member="m.party_member">
               <p v-if="speciesName || m.party_member.class" class="text-caption text-muted-foreground italic truncate">
                 {{ [speciesName, m.party_member.class].filter(Boolean).join(' · ') }}
               </p>

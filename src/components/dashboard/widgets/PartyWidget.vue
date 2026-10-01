@@ -35,7 +35,7 @@
           </div>
           <div class="min-w-0 flex-1">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate leading-tight">{{ member.name }}</p>
-            <CharacterSpeciesName v-slot="{ name: speciesName }" :member="member">
+            <CharacterSpeciesName v-slot="{ speciesName }" :member="member">
               <p class="text-caption text-muted-foreground italic truncate leading-tight">{{ memberSubtitle(member, speciesName) }}</p>
             </CharacterSpeciesName>
           </div>

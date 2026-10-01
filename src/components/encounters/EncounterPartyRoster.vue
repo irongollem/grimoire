@@ -23,7 +23,7 @@
       >
         <div class="flex-1 min-w-0">
           <span class="font-cinzel text-sm font-semibold text-foreground">{{ member.name }}</span>
-          <CharacterSpeciesName v-slot="{ name: speciesName }" :member="member">
+          <CharacterSpeciesName v-slot="{ speciesName }" :member="member">
           <span class="ml-2 text-caption text-muted-foreground italic">
             {{
               [

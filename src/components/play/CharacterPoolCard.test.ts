@@ -52,7 +52,7 @@ describe("CharacterPoolCard editions", () => {
     const wrapper = mountCard();
     expect(wrapper.text()).toContain("Level 3 · 2024");
     await openPicker(wrapper);
-    expect(wrapper.text()).toContain("Old Keep · plays 2014");
+    expect(wrapper.text()).toContain("Old Keep · plays the 2014 rules");
     expect(wrapper.text()).toContain("New Keep · 2024");
   });
 

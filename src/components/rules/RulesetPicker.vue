@@ -6,8 +6,9 @@
 
     Each option is an AppButton laid out as a two-line card: only the layout
     tokens are overridden (stack, left-align, wrap), the border, radius, hover
-    and selected states are the primitive's. It is a radio group, so it says so:
-    one tab stop, and the arrow keys move the choice.
+    and selected states are the primitive's. The description and note drop the
+    button's label weight: three bold lines per card read as shouting. It is a
+    radio group, so it says so: one tab stop, and the arrow keys move the choice.
   -->
   <div
     ref="groupRef"
@@ -31,8 +32,8 @@
       @click="emit('update:modelValue', option.value)"
     >
       <span class="font-cinzel text-xs font-semibold text-foreground">{{ option.label }}</span>
-      <span class="text-caption text-muted-foreground">{{ option.description }}</span>
-      <span v-if="notes?.[option.value]" class="text-caption text-ink-caution">{{ notes[option.value] }}</span>
+      <span class="text-caption font-normal text-muted-foreground">{{ option.description }}</span>
+      <span v-if="notes?.[option.value]" class="text-caption font-normal text-ink-caution">{{ notes[option.value] }}</span>
     </AppButton>
   </div>
 </template>

@@ -23,13 +23,13 @@
       >
         <div class="min-w-0 flex-1">
           <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ character.name }}</p>
-          <p class="text-caption text-muted-foreground">Built with {{ rulesetLabel(character.ruleset) }}</p>
+          <p class="text-caption text-muted-foreground">Built with the {{ rulesetRules(character.ruleset) }}</p>
         </div>
         <AppButton
           v-if="character.owner_user_id === null"
           variant="subtle"
           size="sm"
-          :label="`Convert to ${rulesetLabel(campaignRuleset)}`"
+          :label="`Convert to the ${rulesetRules(campaignRuleset)}`"
           :disabled="convert.isPending.value"
           @click="convertCharacter(character)"
         />
@@ -41,7 +41,7 @@
 
 <script setup lang="ts">
 import AppButton from "@/components/common/AppButton.vue";
-import { rulesetLabel, useConvertCharacterRuleset } from "@/composables/party/useCharacterRuleset";
+import { rulesetRules, rulesetYear, useConvertCharacterRuleset } from "@/composables/party/useCharacterRuleset";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import type { PartyMember } from "@/types/party.types";
@@ -58,15 +58,15 @@ const { confirm } = useConfirm();
 const toast = useToast();
 
 async function convertCharacter(character: PartyMember) {
-  const edition = rulesetLabel(campaignRuleset);
+  const rules = rulesetRules(campaignRuleset);
   const ok = await confirm(
-    `${character.name} itself is changed to ${edition}. Classes and spells move to their ${edition} counterparts; anything without one is kept and flagged for review.`,
-    { title: `Convert ${character.name} to ${edition}?`, confirmLabel: "Convert", danger: false },
+    `${character.name} itself is changed to the ${rules}. Classes and spells move to their ${rulesetYear(campaignRuleset)} counterparts; anything without one is kept and flagged for review.`,
+    { title: `Convert ${character.name} to the ${rules}?`, confirmLabel: "Convert", danger: false },
   );
   if (!ok) return;
   try {
     await convert.mutateAsync({ partyMemberId: character.id, ruleset: campaignRuleset });
-    toast.success(`${character.name} now plays by ${edition}.`);
+    toast.success(`${character.name} now plays the ${rules}.`);
   } catch (error) {
     toast.error(toast.fromError(error));
   }

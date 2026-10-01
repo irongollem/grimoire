@@ -12,11 +12,28 @@ import { RULESET_KEYS, RULESET_OPTIONS, type RulesetKey } from "@/types/ruleset.
  * say so *before* the round trip, and read the refusal when it comes anyway.
  */
 
-/** What the two editions are called in a sentence: "2014" reads as a year, "the 2014 rules" as an edition. */
+/**
+ * How an edition is worded, by where it appears. A picker or a standalone label
+ * uses `rulesetLabel` ("D&D 5e (2014)"); a sentence or a button uses
+ * `rulesetRules` ("2014 rules": "plays the 2014 rules", "Convert to the 2024
+ * rules"); a compact suffix on a card or chooser row uses `rulesetYear`. No
+ * template interpolates the key itself, so the wording stays in one place.
+ */
 export function rulesetLabel(ruleset: RulesetKey): string {
   const option = RULESET_OPTIONS.find((candidate) => candidate.value === ruleset);
   if (!option) throw new Error(`Unknown ruleset: ${ruleset}`);
   return option.label;
+}
+
+/** The short form for a sentence: "2014 rules". */
+export function rulesetRules(ruleset: RulesetKey): string {
+  return `${rulesetYear(ruleset)} rules`;
+}
+
+/** The bare year, for a compact suffix such as `Level 3 · 2014`. */
+export function rulesetYear(ruleset: RulesetKey): string {
+  if (!RULESET_KEYS.includes(ruleset)) throw new Error(`Unknown ruleset: ${ruleset}`);
+  return ruleset;
 }
 
 /** The other edition. There are two, and a conversion is always to the one a character is not. */

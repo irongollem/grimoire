@@ -50,8 +50,8 @@ describe("RulesetBounceDialog", () => {
     const wrapper = mountDialog(vi.fn());
     expect(wrapper.text()).toContain("This table plays the 2014 rules");
     expect(wrapper.text()).toContain("Mira is built with the 2024 rules");
-    expect(wrapper.text()).toContain("D&D 5e (2014)");
-    expect(wrapper.text()).toContain("D&D 5e (2024)");
+    expect(wrapper.text()).toContain("plays the 2014 rules and does not take characters built with the 2024 rules");
+    expect(wrapper.text()).not.toContain("D&D 5e");
   });
 
   it("converts a copy, brings it, then emits joined with the new id", async () => {

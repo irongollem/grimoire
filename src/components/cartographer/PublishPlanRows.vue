@@ -63,10 +63,10 @@
       </ul>
     </section>
 
-    <div class="flex items-start gap-2 rounded-md border border-tone-caution/40 bg-tone-caution/10 px-3 py-2 text-caption-sm text-foreground">
+    <CautionNotice class="flex items-start gap-2 text-caption-sm text-foreground">
       <IconWarning class="h-4 w-4 mt-0.5 text-tone-caution shrink-0" />
       <span><strong>Nothing is deleted.</strong> A room whose cells disappeared is marked orphaned and keeps its notes, loot, placements and state log. Removing it stays a deliberate act in the Rooms panel.</span>
-    </div>
+    </CautionNotice>
   </div>
 </template>
 
@@ -79,6 +79,7 @@
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import CautionNotice from "@/components/common/CautionNotice.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconStar, IconWarning } from "@/lib/icons";
 import { DOOR_KIND_LABELS } from "@/types/locationDoor.types";

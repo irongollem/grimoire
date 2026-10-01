@@ -4,7 +4,7 @@
       <div>
         <h2 class="font-cinzel text-sm font-semibold text-foreground">Rules edition</h2>
         <p class="text-caption text-muted-foreground mt-1">
-          The edition is what this table plays by, and it governs all rules-aware features. A character keeps the edition it was built with. Characters built with the other edition are listed below until they are converted or the table allows both.
+          The edition this table plays by. Every character keeps the edition it was built with.
         </p>
       </div>
       <RulesetPicker
@@ -13,32 +13,33 @@
         @update:model-value="setRuleset"
       />
       <p class="text-caption text-ink-caution/90">
-        Changing the edition does not change anyone's character. Characters built with the other edition stay seated.
+        Changing the edition does not change anyone's character. Characters built with the other edition keep their seat and are listed below.
       </p>
-    </section>
-
-    <div class="flex items-start gap-3 rounded-md border border-border bg-card px-3 py-2.5">
-      <ToggleSwitch
-        size="lg"
-        class="mt-0.5"
-        :model-value="allowsMixed"
-        :aria-label="allowsMixed ? 'Require one edition' : 'Allow both editions'"
-        :disabled="saving"
-        @update:model-value="setAllowsMixed"
-      />
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2">
-          <span class="font-cinzel text-xs font-semibold text-foreground">Allow both editions</span>
-          <span
-            v-if="allowsMixed"
-            class="font-cinzel text-2xs tracking-widest text-ink-success/80 uppercase"
-          >active</span>
+      <!-- Inside this section, not beside the optional rules below: it is half of
+           the same decision (which edition, and whether the other one may sit down). -->
+      <div class="flex items-start gap-3 border-t border-border pt-3">
+        <ToggleSwitch
+          size="lg"
+          class="mt-0.5"
+          :model-value="allowsMixed"
+          :aria-label="allowsMixed ? 'Require one edition' : 'Allow both editions'"
+          :disabled="saving"
+          @update:model-value="setAllowsMixed"
+        />
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-cinzel text-xs font-semibold text-foreground">Allow both editions</span>
+            <span
+              v-if="allowsMixed"
+              class="font-cinzel text-2xs tracking-widest text-ink-success/80 uppercase"
+            >active</span>
+          </div>
+          <p class="text-caption text-muted-foreground mt-0.5">
+            On: characters of either edition may join and stay as they are. Off: a character built with the other edition is asked to bring a converted copy.
+          </p>
         </div>
-        <p class="text-caption text-muted-foreground mt-0.5">
-          On: characters of either edition may join and stay as they are. Off: a character built with the other edition is asked to bring a converted copy.
-        </p>
       </div>
-    </div>
+    </section>
 
     <RulesEditionMismatchList
       v-if="mismatched.length"

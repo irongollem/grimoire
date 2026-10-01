@@ -131,7 +131,7 @@
                 >
                   <div class="flex-1 min-w-0">
                     <span class="font-cinzel text-xs font-semibold text-foreground">{{ entry.party_member.name }}</span>
-                    <CharacterSpeciesName v-slot="{ name: speciesName }" :member="entry.party_member">
+                    <CharacterSpeciesName v-slot="{ speciesName }" :member="entry.party_member">
                       <span v-if="speciesName || entry.party_member.class" class="text-caption text-muted-foreground italic ml-2">
                         {{ [speciesName, entry.party_member.class].filter(Boolean).join(' · ') }}
                       </span>

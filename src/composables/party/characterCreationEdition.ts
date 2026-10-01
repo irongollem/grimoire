@@ -8,8 +8,9 @@ import type { RulesetKey } from "@/types/ruleset.types";
  * tested without mounting the wizard.
  */
 
-/** The three fields of a campaign the edition step reads. */
+/** The four fields of a campaign the edition step reads. */
 export interface EditionCampaign {
+  id: string;
   name: string;
   ruleset: RulesetKey;
   allows_mixed_rulesets: boolean;
@@ -19,7 +20,8 @@ export interface EditionCampaign {
  * The campaign a new character will be placed at, or null when it starts in the
  * pool. A DM roster create lands on the active campaign's roster; a player's
  * character is brought to the active campaign only when they sit at that table
- * (the same condition `resolveCampaignToJoin` applies after the create).
+ * (`campaignToAttachAfterCreate` reads the same answer after the create, so the
+ * membership rule lives only here).
  */
 export function creationLandingCampaign(opts: {
   isDmCreate: boolean;
@@ -28,6 +30,27 @@ export function creationLandingCampaign(opts: {
 }): EditionCampaign | null {
   if (!opts.activeCampaign) return null;
   return opts.isDmCreate || opts.isMemberOfActiveCampaign ? opts.activeCampaign : null;
+}
+
+/**
+ * The campaign a newly-created character should be attached to, or null when
+ * nothing needs attaching. Takes the landing campaign so the membership rule is
+ * not restated.
+ *
+ * A DM roster row is created in its campaign, so there is nothing to attach. A
+ * player's character is always created in the pool (see
+ * resolveCharacterPlacement), and a seat may only point at a character that is
+ * already in its campaign, so the seat cannot simply be written. For two months
+ * it was: the wizard created the pool row, wrote it onto the player's seat, the
+ * membership guard refused ("Cannot link a character from another campaign"),
+ * and the rollback deleted the character. Every player who already sat at a
+ * table got "Couldn't save the character" (found 2 Oct 2026). The character goes
+ * through attach instead, which moves it into the campaign and fills the seat
+ * only when the seat is empty.
+ */
+export function campaignToAttachAfterCreate(landing: EditionCampaign | null, isDmCreate: boolean): string | null {
+  if (isDmCreate || !landing) return null;
+  return landing.id;
 }
 
 /**

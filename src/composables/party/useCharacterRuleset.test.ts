@@ -4,6 +4,8 @@ import {
   otherRuleset,
   parseRulesetBounce,
   rulesetLabel,
+  rulesetRules,
+  rulesetYear,
 } from "./useCharacterRuleset";
 
 describe("isRulesetAdmissible", () => {
@@ -57,5 +59,22 @@ describe("edition names", () => {
   it("knows the other edition", () => {
     expect(otherRuleset("2014")).toBe("2024");
     expect(otherRuleset("2024")).toBe("2014");
+  });
+});
+
+describe("edition wording", () => {
+  it("names an edition for a picker or a standalone label", () => {
+    expect(rulesetLabel("2014")).toBe("D&D 5e (2014)");
+    expect(rulesetLabel("2024")).toBe("D&D 5e (2024)");
+  });
+
+  it("names it for a sentence or a button", () => {
+    expect(rulesetRules("2014")).toBe("2014 rules");
+    expect(rulesetRules("2024")).toBe("2024 rules");
+  });
+
+  it("gives the bare year for a compact suffix", () => {
+    expect(rulesetYear("2014")).toBe("2014");
+    expect(rulesetYear("2024")).toBe("2024");
   });
 });

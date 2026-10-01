@@ -203,7 +203,7 @@
                   {{ pm.name }}
                 </span>
                 <span class="text-caption text-muted-foreground italic block truncate">
-                  {{ pm.class || "Adventurer" }}{{ pm.level ? ` · Level ${pm.level}` : "" }} · {{ pm.ruleset }}
+                  {{ pm.class || "Adventurer" }}{{ pm.level ? ` · Level ${pm.level}` : "" }} · {{ rulesetYear(pm.ruleset) }}
                 </span>
               </div>
             </label>
@@ -263,7 +263,7 @@ import { usePlayerCampaigns } from "@/composables/campaign/useCampaigns";
 import { wasAnsweredUnder16 } from "@/lib/ageGateSession";
 import AppButton from "@/components/common/AppButton.vue";
 import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
-import { parseRulesetBounce } from "@/composables/party/useCharacterRuleset";
+import { parseRulesetBounce, rulesetYear } from "@/composables/party/useCharacterRuleset";
 import type { PartyMember } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import AppInput from "@/components/common/AppInput.vue";

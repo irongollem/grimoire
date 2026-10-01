@@ -8,7 +8,7 @@
       :acknowledging="acknowledgingRulesetReview"
       @acknowledge="acknowledgeRulesetReview"
     >
-      This character was converted to the {{ rulesetLabel(ruleset) }} rules. Review {{ rulesetReviewClasses.map(entry => entry.label).join(", ") }} before changing its spells.
+      This character was converted to the {{ rulesetRules(ruleset) }}. Review {{ rulesetReviewClasses.map(entry => entry.label).join(", ") }} before changing its spells.
     </RulesetReviewBanner>
     <RulesetReviewBanner
       v-if="rulesetReviewSpells.length"
@@ -195,7 +195,7 @@ import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
 import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
 import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
-import { rulesetLabel } from "@/composables/party/useCharacterRuleset";
+import { rulesetRules } from "@/composables/party/useCharacterRuleset";
 import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";

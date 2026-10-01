@@ -1,8 +1,8 @@
 <template>
   <AppModal :open="open" size="md" role="alertdialog" @close="dismiss">
     <ModalHeader
-      :title="`${campaignName ?? 'This table'} plays the ${campaignRuleset} rules`"
-      :subtitle="`${character.name} is built with the ${character.ruleset} rules.`"
+      :title="`This table plays the ${rulesetRules(campaignRuleset)}`"
+      :subtitle="`${character.name} is built with the ${rulesetRules(character.ruleset)}.`"
       :icon="IconWarning"
       tone="gold"
       closeable
@@ -11,19 +11,18 @@
 
     <div class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-4 text-body text-foreground">
       <p>
-        {{ tableName }} plays {{ rulesetLabel(campaignRuleset) }} and does not take
-        {{ rulesetLabel(character.ruleset) }} characters.
+        {{ tableName }} plays the {{ rulesetRules(campaignRuleset) }} and does not take characters built with the
+        {{ rulesetRules(character.ruleset) }}.
       </p>
       <p class="text-muted-foreground">
         You can bring a copy of {{ character.name }} instead. The copy is rebuilt for
-        {{ rulesetLabel(campaignRuleset) }} and joins in their place. The original stays exactly as it is in
+        the {{ rulesetRules(campaignRuleset) }} and joins in their place. The original stays exactly as it is in
         your pool, and anything that has no counterpart in the other edition is kept and flagged for you to review.
       </p>
       <p v-if="error" class="text-caption text-destructive" role="alert" data-testid="bounce-error">{{ error }}</p>
     </div>
 
     <footer class="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border px-5 py-3">
-      <AppButton variant="ghost" size="sm" label="Cancel" :disabled="working" @click="dismiss" />
       <AppButton
         variant="subtle"
         size="sm"
@@ -49,13 +48,20 @@
  * copy takes its place, and the original is never touched. The dialog does not
  * know how a character reaches the table, so `bring` is the caller's: the pool
  * attaches, the join page joins through the invite.
+ *
+ * The title states the fact and never the campaign's name: a long name pushed
+ * "plays the 2014 rules" past the header's truncation, which left a warning
+ * that named a table and said nothing about it. The body names the table.
+ * Two actions, not three: the close control already cancels, and a third button
+ * wrapped the footer onto a second row.
  */
 import { computed, ref, watch } from "vue";
 import AppModal from "@/components/common/AppModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import { IconWarning } from "@/lib/icons";
-import { rulesetLabel, useConvertCharacterCopy } from "@/composables/party/useCharacterRuleset";
+import { useToast } from "@/composables/useToast";
+import { rulesetRules, useConvertCharacterCopy } from "@/composables/party/useCharacterRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 const { open, character, campaignRuleset, campaignName, bring } = defineProps<{
@@ -74,6 +80,8 @@ const emit = defineEmits<{
   joined: [partyMemberId: string];
 }>();
 
+// Errors stay inline in the dialog, but read through the same helper every other surface uses.
+const { fromError } = useToast();
 const { mutateAsync: convertCopy } = useConvertCharacterCopy();
 
 const working = ref(false);
@@ -94,12 +102,6 @@ function dismiss() {
   emit("close");
 }
 
-function messageOf(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (typeof e === "object" && e !== null && "message" in e && typeof e.message === "string") return e.message;
-  return "Something went wrong.";
-}
-
 async function convertAndBring() {
   working.value = true;
   error.value = "";
@@ -107,14 +109,14 @@ async function convertAndBring() {
   try {
     copyId = await convertCopy({ partyMemberId: character.id, ruleset: campaignRuleset });
   } catch (e) {
-    error.value = `The copy could not be made. ${messageOf(e)}`;
+    error.value = `The copy could not be made. ${fromError(e)}`;
     working.value = false;
     return;
   }
   try {
     await bring(copyId);
   } catch (e) {
-    error.value = `The copy of ${character.name} was made and is in your pool, but it could not join. ${messageOf(e)}`;
+    error.value = `The copy of ${character.name} was made and is in your pool, but it could not join. ${fromError(e)}`;
     working.value = false;
     return;
   }
