@@ -16,11 +16,11 @@
     <!-- ── Active built-in optional rules ──────────────────────────────── -->
     <div v-if="enabledBuiltIns.length" class="mb-6 space-y-2">
       <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground uppercase">Active Optional Rules</p>
-      <div class="flex flex-col gap-1">
+      <!-- One sheet with dividers rather than a stack of separate boxes. -->
+      <div class="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
         <div
           v-for="def in enabledBuiltIns"
           :key="def.key"
-          class="rounded-lg border border-border bg-card overflow-hidden"
         >
           <button
             type="button"
@@ -32,9 +32,8 @@
               :class="openBuiltIns.has(def.key) ? 'rotate-90' : ''"
             />
             <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ def.name }}</span>
-            <span class="shrink-0 px-1.5 py-0.5 rounded bg-tone-success/10 text-label text-ink-success">active</span>
           </button>
-          <div v-if="openBuiltIns.has(def.key)" class="px-4 pb-4 border-t border-border">
+          <div v-if="openBuiltIns.has(def.key)" class="px-4 pb-4 pl-9.5">
             <p class="text-caption text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>
             <!-- eslint-disable-next-line vue/no-v-html -->
             <div class="prose-grimoire" v-html="renderMarkdown(def.description)" />
