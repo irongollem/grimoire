@@ -10,9 +10,14 @@
 --                class functions resolve through (20261001220509)
 --   the door     attach, join and a direct insert all refuse the other edition
 --                with SQLSTATE RS001 unless the table allows mixed rulesets
+--   ownership    a client cannot write a character's owner; the DM assigning
+--                an unowned character to a seat hands it over, and nothing else
+--                does (not another campaign's DM, not a player linking
+--                themselves, not an offered character, which is taken as a copy)
 --   the switch   a campaign changing edition changes no character
 --   conversion   in place by the owner (or the DM, for a character nobody
---                owns); as a copy for anyone who may clone it
+--                owns), and only to an edition the table takes; as a copy for
+--                anyone who may clone it
 --
 --   1 Dana  DM of c1 (2014, no mixed)     3 Sam  DM of c2 (2024, mixed allowed)
 --   2 Pia   plays at c1 and c2            4 Oz   plays at c1
@@ -20,11 +25,13 @@
 --   e1 Pia's 2014 Sorcerer, unattached    e3 Dana's roster character at c1
 --   e2 Pia's 2024 Cleric, unattached      e4 Pia's second 2014 character
 --   e6 Sam's 2024 character, unattached   e7 Sam's 2014 character
+--   e8 Dana's OFFERED Sorcerer at c1 (is_dm_managed), with a class spell, an
+--      always-prepared grant, and a pouch inside a backpack
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(43);
+select plan(65);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94300000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -200,6 +207,108 @@ select lives_ok($$
   select public.join_campaign_via_invite('94300000-0000-4000-8000-0000000000a1', '94300000-0000-4000-8000-0000000000e7')
 $$, 'joining with a 2014 character is welcome');
 
+-- ── Ownership ────────────────────────────────────────────────────────────────
+
+reset role;
+
+insert into public.party_members (id, user_id, owner_user_id, is_dm_managed, campaign_id, name, class, level, cha, proficiency_bonus, custom_attacks)
+values ('94300000-0000-4000-8000-0000000000e8', '94300000-0000-4000-8000-000000000001', null, true,
+        '94300000-0000-4000-8000-0000000000c1', 'Offered sorcerer', 'Sorcerer', 1, 16, 2, '[{"name":"Probe strike"}]'::jsonb);
+insert into public.character_classes (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
+values ('94300000-0000-4000-8000-0000000000f8', '94300000-0000-4000-8000-0000000000e8', 'Sorcerer', 1, true,
+  (select id from public.system_classes where ruleset = '2014' and class_name = 'Sorcerer'), 'system');
+insert into public.spells (id, user_id, campaign_id, name, level, casting_time, range, duration, description, classes, attack_type, damage_rolls, target_description)
+values ('94300000-0000-4000-8000-000000000051', '94300000-0000-4000-8000-000000000001', '94300000-0000-4000-8000-0000000000c1',
+  'Offer Flame', 1, 'Action', '60 ft.', 'Instantaneous', 'Test damage.', array['Sorcerer'], 'automatic', '[{"dice":"2d6","type":"fire"}]'::jsonb, '1 creature');
+insert into public.character_spells (party_member_id, spell_id, source_type, source_class_id, is_known, is_prepared, always_prepared, casting_ability, source_label) values
+  ('94300000-0000-4000-8000-0000000000e8', '94300000-0000-4000-8000-000000000051', 'class', '94300000-0000-4000-8000-0000000000f8', true, true, false, null, null),
+  ('94300000-0000-4000-8000-0000000000e8', 'offer-granted-spell', 'feat', null, true, true, true, 'cha', 'Offer feat');
+insert into public.party_inventory (id, campaign_id, user_id, name, quantity, carried_by, is_container, container_id) values
+  ('94300000-0000-4000-8000-0000000000b1', '94300000-0000-4000-8000-0000000000c1', '94300000-0000-4000-8000-000000000001', 'Backpack', 1, '94300000-0000-4000-8000-0000000000e8', true, null),
+  ('94300000-0000-4000-8000-0000000000b2', '94300000-0000-4000-8000-0000000000c1', '94300000-0000-4000-8000-000000000001', 'Pouch', 1, '94300000-0000-4000-8000-0000000000e8', false, '94300000-0000-4000-8000-0000000000b1');
+
+-- Oz's copy of the offer, read as a definer so RLS does not decide the answer.
+create function pg_temp.assumed() returns public.party_members language sql security definer as $$
+  select * from public.party_members
+   where name = 'Offered sorcerer' and owner_user_id = '94300000-0000-4000-8000-000000000004';
+$$;
+create function pg_temp.assumed_facts() returns jsonb language sql security definer as $$
+  with copy as (select (pg_temp.assumed()).id as id)
+  select jsonb_build_object(
+    'class_edition', (select sc.ruleset from public.character_classes cc
+        join public.system_classes sc on sc.id = cc.class_definition_id, copy where cc.party_member_id = copy.id),
+    'spell_class_is_own', (select bool_and(cc.party_member_id = copy.id) from public.character_spells cs
+        join public.character_classes cc on cc.id = cs.source_class_id, copy
+       where cs.party_member_id = copy.id and cs.source_type = 'class'),
+    'grant', (select jsonb_build_object('always_prepared', cs.always_prepared, 'casting_ability', cs.casting_ability)
+        from public.character_spells cs, copy where cs.party_member_id = copy.id and cs.source_type = 'feat'),
+    'pouch_in_own_backpack', (select bag.carried_by = copy.id and bag.name = 'Backpack' and bag.id <> '94300000-0000-4000-8000-0000000000b1'
+        from public.party_inventory pouch join public.party_inventory bag on bag.id = pouch.container_id, copy
+       where pouch.carried_by = copy.id and pouch.name = 'Pouch'));
+$$;
+
+set local role authenticated;
+
+-- A client cannot write the owner, in either direction.
+select pg_temp.as_user(1);
+select throws_ok($$
+  update public.party_members set owner_user_id = '94300000-0000-4000-8000-000000000001'
+   where id = '94300000-0000-4000-8000-0000000000e3'
+$$, '42501', 'A character changes owner only by being claimed',
+  'a character''s creator cannot write themselves in as its owner');
+select throws_ok($$
+  insert into public.party_members (user_id, owner_user_id, campaign_id, name, ruleset)
+  values ('94300000-0000-4000-8000-000000000001', '94300000-0000-4000-8000-000000000002', null, 'A gift nobody asked for', '2014')
+$$, '42501', 'A character can only be created for its own player',
+  'nobody can create a character into someone else''s pool');
+
+-- A player linking themselves gets the sheet to edit, as before, and nothing more.
+select pg_temp.as_user(4);
+select lives_ok($$
+  update public.campaign_members set party_member_id = '94300000-0000-4000-8000-0000000000e3'
+   where campaign_id = '94300000-0000-4000-8000-0000000000c1' and user_id = '94300000-0000-4000-8000-000000000004'
+$$, 'a player may link their seat to an unowned roster character');
+select is((pg_temp.pm('e3')).owner_user_id, null, 'but linking themselves does not make it theirs');
+
+select lives_ok($$
+  update public.campaign_members set party_member_id = '94300000-0000-4000-8000-0000000000e8'
+   where campaign_id = '94300000-0000-4000-8000-0000000000c1' and user_id = '94300000-0000-4000-8000-000000000004'
+$$, 'a player may link their seat to an offered character');
+select is((pg_temp.pm('e8')).owner_user_id, null, 'and an offered character is never handed over by a link');
+
+update public.campaign_members set party_member_id = null
+ where campaign_id = '94300000-0000-4000-8000-0000000000c1' and user_id = '94300000-0000-4000-8000-000000000004';
+
+-- An offered character is taken as a copy, and the copy is whole.
+select isnt(public.assume_character('94300000-0000-4000-8000-0000000000e8'), null,
+  'a player assumes an offered spellcaster (its class spells used to point at the original''s class rows, which refused the copy)');
+select is((pg_temp.assumed()).is_dm_managed, false, 'the copy is the player''s own, not an offer');
+select ok((pg_temp.pm('e8')).owner_user_id is null and (pg_temp.pm('e8')).is_dm_managed, 'the offer itself stays the DM''s');
+select is(jsonb_build_object('ruleset', (pg_temp.assumed()).ruleset, 'custom_attacks', (pg_temp.assumed()).custom_attacks),
+  '{"ruleset": "2014", "custom_attacks": [{"name": "Probe strike"}]}'::jsonb,
+  'the copy carries the offer''s edition and the columns a hand-written list had missed');
+select is(pg_temp.assumed_facts() ->> 'class_edition', '2014', 'its class keeps its definition pin');
+select is(pg_temp.assumed_facts() ->> 'spell_class_is_own', 'true', 'its class spell points at its own class row');
+select is(pg_temp.assumed_facts() -> 'grant', '{"always_prepared": true, "casting_ability": "cha"}'::jsonb,
+  'an always-prepared grant stays one, with its casting ability');
+select is(pg_temp.assumed_facts() ->> 'pouch_in_own_backpack', 'true', 'and what it carries sits in its own containers');
+
+-- A DM cannot reach into another table.
+select pg_temp.as_user(3);
+select throws_ok($$
+  update public.campaign_members set party_member_id = '94300000-0000-4000-8000-0000000000e3'
+   where campaign_id = '94300000-0000-4000-8000-0000000000c2' and user_id = '94300000-0000-4000-8000-000000000003'
+$$, 'P0001', 'Cannot link a character from another campaign',
+  'a DM cannot point their own seat at an unowned character in someone else''s campaign');
+select is((pg_temp.pm('e3')).owner_user_id, null, 'so that character is still nobody''s');
+
+-- An owned character is never re-owned, whoever moves the seat.
+select pg_temp.as_user(1);
+update public.campaign_members set party_member_id = '94300000-0000-4000-8000-0000000000e1'
+ where campaign_id = '94300000-0000-4000-8000-0000000000c1' and user_id = '94300000-0000-4000-8000-000000000004';
+select is((pg_temp.pm('e1')).owner_user_id, '94300000-0000-4000-8000-000000000002'::uuid,
+  'a DM pointing another seat at an owned character does not change its owner');
+
 -- ── The switch ───────────────────────────────────────────────────────────────
 
 reset role;
@@ -234,6 +343,10 @@ select lives_ok($$ select public.convert_party_member_ruleset('94300000-0000-400
   'the owner converts their own character in place');
 select is((pg_temp.pm('e1')).ruleset, '2024', 'the character is now 2024');
 
+select throws_ok($$ select public.convert_party_member_ruleset('94300000-0000-4000-8000-0000000000e1', '2014') $$,
+  'RS001', 'This table plays the 2024 rules and does not take 2014 characters',
+  'a seated character cannot be converted into an edition its table does not take');
+
 -- A copy: the bounce's offer.
 select pg_temp.as_user(3);
 select throws_ok($$ select public.convert_party_member_copy('94300000-0000-4000-8000-0000000000e2', '2014') $$,
@@ -265,6 +378,33 @@ reset role;
 
 select is((pg_temp.pm('e3')).owner_user_id, '94300000-0000-4000-8000-000000000004'::uuid,
   'a DM assigning a roster character to a player''s seat hands the character to that player');
+
+-- ── What a client can reach ──────────────────────────────────────────────────
+
+select ok(not has_function_privilege('anon', 'public.convert_party_member_ruleset(uuid,text)', 'EXECUTE'),
+  'anon cannot convert a character');
+select ok(not has_function_privilege('anon', 'public.convert_party_member_copy(uuid,text)', 'EXECUTE'),
+  'anon cannot take a converted copy');
+
+-- ruleset_reviews has no campaign_id, so it rings the doorbell of whichever
+-- table the character sits at instead of travelling as a filtered row.
+insert into public.campaign_sync (campaign_id, changed_table, updated_at)
+values ('94300000-0000-4000-8000-0000000000c1', 'probe', now())
+on conflict (campaign_id) do update set changed_table = excluded.changed_table;
+insert into public.ruleset_reviews (party_member_id, flag_type)
+values ('94300000-0000-4000-8000-0000000000e1', 'background');
+select is((select changed_table from public.campaign_sync where campaign_id = '94300000-0000-4000-8000-0000000000c1'),
+  'ruleset_reviews', 'a review on a seated character rings its campaign''s doorbell');
+
+-- The two flags that stand a guard down are raised by a fixed set of functions
+-- and by nothing a client can call with a key of its choosing.
+select is_empty($q$
+  select n.nspname || '.' || p.proname
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname in ('public', 'private') and p.prokind = 'f'
+    and p.prosrc ~ 'set_config\(\s*''grimoire\.(spell_limits|pm_ruleset_transition)'''
+    and (n.nspname, p.proname) not in (('private', 'convert_party_member_ruleset'), ('private', 'copy_party_member'))
+$q$, 'only the conversion and the copy may suspend the spell limit or admit a ruleset write');
 
 -- ── One reader, structurally ─────────────────────────────────────────────────
 -- Body-based on purpose: an outcome test covers only the functions someone

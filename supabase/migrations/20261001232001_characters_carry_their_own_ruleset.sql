@@ -30,7 +30,8 @@
 --     campaign-less copy can carry reviews. With no campaign_id its rows cannot
 --     be a filtered realtime subscription, so it leaves the publication and
 --     rings the campaign_sync doorbell instead.
---   * Linking a seat to a character nobody owns makes that member its owner.
+--   * A DM assigning an unowned character to a seat makes that member its
+--     owner, and owner_user_id is no longer something a client can write.
 --
 -- Existing rows are migrated here, not accommodated: an attached character
 -- takes its campaign's ruleset, an unattached one the edition of its pinned
@@ -66,18 +67,24 @@ update public.party_members pm
       limit 1), '2014')
  where pm.campaign_id is null;
 
+-- A character a member is already playing becomes theirs, under the rule the
+-- claim trigger applies from here on: in the seat's own campaign, and not an
+-- offered (is_dm_managed) character. Who made each existing link is not
+-- recorded, so every one of them counts as the hand-over it was in practice.
 -- One seat per character is the rule (guard_campaign_member_self_update); the
 -- ordering only makes the choice deterministic if a row ever broke it.
 update public.party_members pm
    set owner_user_id = link.user_id
   from (
-    select distinct on (cm.party_member_id) cm.party_member_id, cm.user_id
+    select distinct on (cm.party_member_id) cm.party_member_id, cm.user_id, cm.campaign_id
       from public.campaign_members cm
      where cm.party_member_id is not null
      order by cm.party_member_id, cm.joined_at, cm.id
   ) link
  where link.party_member_id = pm.id
-   and pm.owner_user_id is null;
+   and link.campaign_id = pm.campaign_id
+   and pm.owner_user_id is null
+   and not pm.is_dm_managed;
 
 alter table public.party_members enable trigger user;
 
@@ -196,11 +203,139 @@ create trigger party_members_guard_ruleset
   for each row when (new.ruleset is distinct from old.ruleset)
   execute procedure public.guard_party_member_ruleset();
 
--- ── 4. Claiming transfers ownership ──────────────────────────────────────────
+-- ── 4. Ownership: who may write it, and when a link hands it over ────────────
 
--- A seat pointing at a character nobody owns is a claim, whether the player
--- linked it or the DM assigned it. An owned character is never re-owned: the
--- seat link moves between a player's own characters freely.
+-- The update policy lets a character's creator write any column, owner_user_id
+-- included, and the insert policy lets them insert a row owned by anyone. That
+-- was harmless while ownership decided little. It now decides who may convert a
+-- character, clone it, delete it and keep it, so a creator rewriting the owner
+-- takes a claimed character back, and a creator inserting one "for" a stranger
+-- puts it in that stranger's pool.
+--
+-- SECURITY INVOKER on purpose, which is what makes the rule simple: a write made
+-- directly by a client runs as `authenticated`; a write made by one of the
+-- definer paths (the claim below, clone, assume, admission) or by the owner
+-- foreign key's ON DELETE SET NULL runs as the function or table owner. So "a
+-- client may not" needs no flag for the sanctioned paths to raise.
+create function public.guard_party_member_owner()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+  if tg_op = 'INSERT' then
+    if new.owner_user_id is not null and new.owner_user_id is distinct from (select auth.uid()) then
+      raise exception 'A character can only be created for its own player' using errcode = '42501';
+    end if;
+    return new;
+  end if;
+  raise exception 'A character changes owner only by being claimed' using errcode = '42501';
+end;
+$$;
+
+revoke execute on function public.guard_party_member_owner() from public, anon, authenticated;
+
+create trigger party_members_guard_owner_insert
+  before insert on public.party_members
+  for each row execute procedure public.guard_party_member_owner();
+
+create trigger party_members_guard_owner_update
+  before update of owner_user_id on public.party_members
+  for each row when (new.owner_user_id is distinct from old.owner_user_id)
+  execute procedure public.guard_party_member_owner();
+
+-- A DM's seat write used to skip every check on the character it names. That
+-- cost nothing while a link granted nothing outside the DM's own campaign; with
+-- a link able to hand a character over, it let any DM name an unowned character
+-- at someone else's table and become its owner. A seat points only at a
+-- character in its own campaign, for the DM too. Everything else in this
+-- function is unchanged.
+create or replace function public.guard_campaign_member_self_update()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+begin
+  -- A membership row belongs to one person at one table, for everyone, the DM
+  -- included: moving it is how a seat would be granted without an invite or a
+  -- parent's yes (#927).
+  if new.user_id is distinct from old.user_id
+     or new.campaign_id is distinct from old.campaign_id then
+    raise exception 'A membership cannot be moved to another person or campaign';
+  end if;
+
+  -- DMs of this campaign may change the rest (role, name, character).
+  if private.is_campaign_dm(old.campaign_id) then
+    if new.party_member_id is distinct from old.party_member_id
+       and new.party_member_id is not null
+       and not exists (
+         select 1 from public.party_members pm
+         where pm.id = new.party_member_id
+           and pm.campaign_id = new.campaign_id
+       ) then
+      raise exception 'Cannot link a character from another campaign';
+    end if;
+    return new;
+  end if;
+
+  -- Admission (private.admit_campaign_member) links the character the joiner
+  -- chose, and has checked it is theirs. It runs as whoever gave the last yes,
+  -- usually a parent, who owns no character here, so the per-caller check
+  -- below would refuse every approval that brings one.
+  if current_setting('grimoire.pm_campaign_transition', true) = 'on' then
+    return new;
+  end if;
+
+  -- Non-DM self-update: role stays pinned to its prior value.
+  if new.role is distinct from old.role then
+    raise exception 'Not allowed to change role or campaign assignment';
+  end if;
+
+  -- party_member_id may change (claim / self-create / assume), but only to a
+  -- character the player is allowed to take: same campaign, not owned by someone
+  -- else, and not already claimed by another member. Clearing it is always allowed.
+  if new.party_member_id is distinct from old.party_member_id
+     and new.party_member_id is not null then
+
+    if not exists (
+      select 1 from public.party_members pm
+      where pm.id = new.party_member_id
+        and pm.campaign_id = new.campaign_id
+        and (pm.owner_user_id is null or pm.owner_user_id = (select auth.uid()))
+    ) then
+      raise exception 'Cannot link a character from another campaign or owned by another player';
+    end if;
+
+    if exists (
+      select 1 from public.campaign_members cm
+      where cm.party_member_id = new.party_member_id
+        and cm.id is distinct from new.id
+    ) then
+      raise exception 'That character is already claimed by another player';
+    end if;
+  end if;
+
+  return new;
+end;
+$function$;
+
+-- Claiming transfers ownership. A seat pointing at a character nobody owns
+-- hands it to that member when the DM assigned it, or when the member made the
+-- character themselves. Three things it deliberately is not:
+--
+--   * not for a character in another campaign (see the guard above);
+--   * not for an offered character (is_dm_managed): that one stays the DM's and
+--     a player takes a copy of it through assume_character();
+--   * not a player linking themselves to a roster character the DM made. That
+--     link has always given the player the sheet to edit, and still does; it
+--     takes the DM's assignment to make it theirs to keep, and to delete.
+--
+-- An owned character is never re-owned: the seat link moves between a player's
+-- own characters freely.
 create function public.claim_party_member_on_link()
 returns trigger
 language plpgsql
@@ -211,7 +346,10 @@ begin
   update public.party_members pm
      set owner_user_id = new.user_id
    where pm.id = new.party_member_id
-     and pm.owner_user_id is null;
+     and pm.owner_user_id is null
+     and pm.campaign_id = new.campaign_id
+     and not pm.is_dm_managed
+     and (pm.user_id = new.user_id or private.is_campaign_dm(new.campaign_id));
   return null;
 end;
 $$;
@@ -648,6 +786,13 @@ begin
     return;
   end if;
 
+  -- A seated character converts only to an edition its table takes. A table
+  -- switching edition may leave a character mismatched; its owner converting it
+  -- INTO a mismatch would be walking round the door.
+  if v_pm.campaign_id is not null then
+    perform private.assert_ruleset_admissible(p_ruleset, v_pm.campaign_id);
+  end if;
+
   perform private.convert_party_member_ruleset(p_party_member_id, p_ruleset);
 end;
 $$;
@@ -678,72 +823,47 @@ $$;
 revoke execute on function public.convert_party_member_copy(uuid, text) from public, anon;
 grant execute on function public.convert_party_member_copy(uuid, text) to authenticated, service_role;
 
--- ── 9. A clone is a whole copy ───────────────────────────────────────────────
+-- ── 9. A copy is a whole copy ────────────────────────────────────────────────
 
--- The sheet already travelled through jsonb, so `ruleset` comes along. The
--- class and spell rows were copied by a hand-written column list that predated
--- three columns and never learned them: a clone lost its class and subclass
--- definition pins (so it fell back to resolving by name), and every
+-- clone_party_member() and assume_character() each copied a character with
+-- hand-written column lists, and each list had stopped at the columns that
+-- existed the day it was written. A clone lost its class and subclass
+-- definition pins (so it fell back to resolving by name) and every
 -- always-prepared grant came back as an ordinary pick with no casting ability.
--- A converted copy is only as good as the copy, so the lists are complete now.
-create or replace function public.clone_party_member(p_party_member_id uuid)
- returns uuid
- language plpgsql
- security definer
- set search_path to 'public'
-as $function$
+-- An assumed character lost the same, plus weapon masteries, custom attacks and
+-- its deity; its class spells still pointed at the ORIGINAL's class rows, which
+-- validate_character_spell_source refuses, so an offered spellcaster could not
+-- be assumed at all; and its containers still pointed at the original's items.
+--
+-- One routine copies the sheet now, through jsonb so a future column comes
+-- along without anyone remembering, and both callers say only what differs.
+-- Not a definer and not client-callable: each caller authorizes first.
+create function private.copy_party_member(p_source_id uuid, p_overrides jsonb)
+returns uuid
+language plpgsql
+set search_path = ''
+as $$
 declare
-  v_uid uuid := auth.uid();
-  v_pm public.party_members%rowtype;
   v_new_id uuid := gen_random_uuid();
-  v_new jsonb;
   v_class record;
   v_new_class_id uuid;
   v_class_map jsonb := '{}'::jsonb;
   v_prev_limits text := current_setting('grimoire.spell_limits', true);
 begin
-  if v_uid is null then
-    raise exception 'Not authenticated';
-  end if;
-
-  select * into v_pm from public.party_members where id = p_party_member_id;
+  insert into public.party_members
+  select (jsonb_populate_record(null::public.party_members,
+            to_jsonb(pm)
+            || jsonb_build_object('id', v_new_id, 'created_at', now(), 'updated_at', now())
+            || p_overrides)).*
+    from public.party_members pm
+   where pm.id = p_source_id;
   if not found then
     raise exception 'Character not found';
   end if;
 
-  -- Total predicate (see attach), and deliberately narrower than "owner or
-  -- creator": once a player has claimed a character, nobody else — the
-  -- creating DM included — may copy their sheet into another pool.
-  if not coalesce(
-    v_pm.owner_user_id = v_uid
-      or (v_pm.owner_user_id is null and v_pm.user_id = v_uid),
-    false
-  ) then
-    raise exception 'Only the character''s owner can clone it';
-  end if;
-
-  v_new := to_jsonb(v_pm) || jsonb_build_object(
-    'id', v_new_id,
-    'user_id', v_uid,
-    'owner_user_id', v_uid,
-    'is_dm_managed', false,
-    'campaign_id', null,
-    'name', v_pm.name || ' (copy)',
-    'current_initiative', null,
-    'current_location_id', null,
-    'concentration', null,
-    'wildshape_state', null,
-    'sort_order', 0,
-    'created_at', now(),
-    'updated_at', now()
-  );
-
-  insert into public.party_members
-    select (jsonb_populate_record(null::public.party_members, v_new)).*;
-
   for v_class in
     select * from public.character_classes
-     where party_member_id = p_party_member_id
+     where party_member_id = p_source_id
      order by sort_order
   loop
     insert into public.character_classes
@@ -770,8 +890,134 @@ begin
          cs.source_type, cs.uses_per_day, cs.uses_remaining, cs.resets_on,
          cs.source_label, cs.always_prepared, cs.casting_ability
     from public.character_spells cs
-   where cs.party_member_id = p_party_member_id;
+   where cs.party_member_id = p_source_id;
   perform set_config('grimoire.spell_limits', coalesce(v_prev_limits, ''), true);
+
+  return v_new_id;
+end;
+$$;
+
+revoke execute on function private.copy_party_member(uuid, jsonb) from public, anon, authenticated;
+
+create or replace function public.clone_party_member(p_party_member_id uuid)
+ returns uuid
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare
+  v_uid uuid := auth.uid();
+  v_pm public.party_members%rowtype;
+begin
+  if v_uid is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  select * into v_pm from public.party_members where id = p_party_member_id;
+  if not found then
+    raise exception 'Character not found';
+  end if;
+
+  -- Total predicate (see attach), and deliberately narrower than "owner or
+  -- creator": once a player has claimed a character, nobody else — the
+  -- creating DM included — may copy their sheet into another pool.
+  if not coalesce(
+    v_pm.owner_user_id = v_uid
+      or (v_pm.owner_user_id is null and v_pm.user_id = v_uid),
+    false
+  ) then
+    raise exception 'Only the character''s owner can clone it';
+  end if;
+
+  -- Into the caller's pool, unattached. Campaign-bound state does not travel.
+  return private.copy_party_member(p_party_member_id, jsonb_build_object(
+    'user_id', v_uid,
+    'owner_user_id', v_uid,
+    'is_dm_managed', false,
+    'campaign_id', null,
+    'name', v_pm.name || ' (copy)',
+    'current_initiative', null,
+    'current_location_id', null,
+    'concentration', null,
+    'wildshape_state', null,
+    'sort_order', 0
+  ));
+end;
+$function$;
+
+-- A player takes an offered character: their own copy, at the same table, with
+-- what it carries. The offer itself stays the DM's. The copy keeps the
+-- original's ruleset, so an offer built under an edition the table no longer
+-- takes is refused by the insert trigger (RS001) until the DM converts it.
+create or replace function public.assume_character(p_original_id uuid)
+ returns uuid
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare
+  v_caller        uuid := auth.uid();
+  v_original      party_members%rowtype;
+  v_membership    campaign_members%rowtype;
+  v_new_id        uuid;
+  v_item          record;
+  v_new_item_id   uuid;
+  v_item_map      jsonb := '{}'::jsonb;
+begin
+  -- Load the original character
+  select * into v_original from party_members where id = p_original_id;
+  if not found then
+    raise exception 'Character not found';
+  end if;
+
+  -- Verify it is an unclaimed DM-managed character
+  if not (v_original.is_dm_managed and v_original.owner_user_id is null) then
+    raise exception 'Character is not available for assumption';
+  end if;
+
+  -- Verify the caller is a player in the same campaign
+  select * into v_membership
+  from campaign_members
+  where campaign_id = v_original.campaign_id
+    and user_id = v_caller
+    and role = 'player'
+  limit 1;
+  if not found then
+    raise exception 'Not a campaign player';
+  end if;
+
+  -- The whole sheet, owned by the player and no longer an offer.
+  v_new_id := private.copy_party_member(p_original_id, jsonb_build_object(
+    'owner_user_id', v_caller,
+    'is_dm_managed', false
+  ));
+
+  -- What it carries, with containers re-pointed at the copies. A container the
+  -- original does not itself carry is not copied, so its contents come loose.
+  for v_item in
+    select * from party_inventory where carried_by = p_original_id
+  loop
+    v_new_item_id := gen_random_uuid();
+    insert into party_inventory
+    select (jsonb_populate_record(null::party_inventory,
+              to_jsonb(v_item) || jsonb_build_object(
+                'id', v_new_item_id, 'carried_by', v_new_id,
+                'container_id', null, 'updated_at', now()))).*;
+    v_item_map := v_item_map || jsonb_build_object(v_item.id::text, v_new_item_id::text);
+  end loop;
+
+  update party_inventory copy
+     set container_id = (v_item_map ->> source.container_id::text)::uuid
+    from party_inventory source
+   where source.carried_by = p_original_id
+     and source.container_id is not null
+     and v_item_map ? source.container_id::text
+     and copy.id = (v_item_map ->> source.id::text)::uuid;
+
+  -- Set the new character as the player's active character
+  update campaign_members
+  set party_member_id = v_new_id
+  where id = v_membership.id;
 
   return v_new_id;
 end;

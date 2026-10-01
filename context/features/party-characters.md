@@ -364,7 +364,8 @@ joiner is admitted and a character the table no longer takes stays in the pool.
 every seated character is gone. Characters keep their edition and their seat;
 the mismatch is derivable (`party_members.ruleset <> campaigns.ruleset`) and has
 no table of its own. The owner converts in place when they choose to; the DM can
-convert only a character nobody owns.
+convert only a character nobody owns. A seated character converts only to an
+edition its table takes, so conversion cannot be used to walk round the door.
 
 **What follows the character and what follows the table.** Build rules (classes,
 subclasses, features, spells and their preparation, slots, feats, background,
@@ -374,14 +375,66 @@ the campaign while the character is seated there, and the character when it is
 not. On the client that is `useRuleset()` and `useTableRuleset()` in
 `src/composables/rules/useRuleset.ts`, which resolve the nearest ruleset scope:
 a surface showing one character calls `provideCharacterRuleset(member)`, and
-with no scope both fall back to the active campaign.
+with no scope both fall back to the active campaign. A list that shows several
+characters resolves each one's own things per character: `CharacterSpeciesName`
+provides the row's scope and hands the name down a slot, and `useSpeciesByIds`
+looks species up by id with no edition filter for the two callers that have no
+per-character component (the token forge's party list, the group portrait).
 
-**Claiming transfers ownership.** Linking a seat to a character nobody owns
-(`campaign_members.party_member_id`, whether the player links it or the DM
-assigns it) sets `owner_user_id` to that member, by trigger. Before #943 nothing
-did, so a player could play a DM-made character for months and lose it to a
-detach or to the DM deleting their account. An owned character is never
-re-owned; the seat link moves freely between a player's own characters.
+**Where the edition is asked and shown.**
+
+- *Wizard*: `CharacterCreateEditionStep` is the first step in create mode.
+  Nothing is preselected for a character with no table; a character that will
+  land at a table starts on that table's edition, with a note under each option
+  saying what the table takes. Changing it later clears species, background and
+  class. The rules are pure functions in `characterCreationEdition.ts`.
+- *New Campaign* asks the edition first and starts unchosen; *Rules* in campaign
+  settings holds the edition, "Allow both editions", and a list of seated
+  characters built with the other edition (`RulesEditionMismatchList`).
+  `RulesetPicker` is the one control all three use.
+- *The bounce*: `RulesetBounceDialog` opens from the pool's Attach menu (for a
+  table marked as not taking the character, or on an `RS001` that arrives
+  anyway) and from the join page. It converts a copy and brings the copy.
+- *A seated mismatch*: `CharacterEditionNotice` on the champions list and the
+  character sheet, informational at a table that takes both editions, otherwise
+  offering "Convert" to whoever the database will let convert.
+
+**Claiming transfers ownership, and only one thing is a claim.** A seat
+(`campaign_members.party_member_id`) pointing at a character nobody owns hands
+that character to the seat's member when **the DM assigned it** (Members tab,
+which confirms first: "Give X to Y?") or when the member made the character
+themselves. A trigger sets `owner_user_id`; before #943 nothing did, so a player
+could play a DM-made character for months and lose it to a detach or to the DM
+deleting their account. Three things are deliberately not a claim:
+
+- A player linking their own seat to a roster character the DM made. The link
+  still gives them the sheet to edit, as it always has; it does not make the
+  character theirs to keep or delete.
+- An **offered** character (`is_dm_managed`). It stays the DM's, and a player
+  takes their own copy through `assume_character()`.
+- A character in another campaign. A DM's seat write used to skip every check on
+  the character it named, which was harmless only while a link granted nothing.
+  `guard_campaign_member_self_update` now holds the DM to "same campaign" too.
+
+An owned character is never re-owned; the seat link moves freely between a
+player's own characters. And `owner_user_id` is not client-writable at all:
+`guard_party_member_owner` refuses a direct update, and an insert for anyone but
+the caller. It is `SECURITY INVOKER` on purpose, so a direct client write runs as
+`authenticated` and is refused, while the definer paths (claim, clone, assume,
+admission) and the owner foreign key's `ON DELETE SET NULL` run as the owner and
+pass without a flag. This closed a hole that predated #943 (a creator could
+write themselves back in as owner) and mattered once ownership decided who may
+convert, clone and delete a character.
+
+**A copy is a whole copy.** `clone_party_member()` and `assume_character()` both
+go through `private.copy_party_member()`, which copies the sheet through jsonb
+so a new column comes along without anyone remembering. Each used to carry its
+own hand-written column lists, frozen on the day they were written: a clone lost
+its class and subclass definition pins and its always-prepared grants; an
+assumed character lost those too, its class spells still pointed at the
+original's class rows (which the spell-source trigger refuses, so an offered
+spellcaster could not be assumed at all), and its containers at the original's
+items.
 
 `supabase/tests/character_ruleset.test.sql` holds all of the above, each refusal
 beside a control.
