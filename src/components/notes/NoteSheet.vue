@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-5 max-w-3xl">
+  <div class="mx-auto flex w-full max-w-3xl flex-col gap-5">
     <!-- Action bar -->
     <div class="flex items-center justify-end gap-2">
       <!--
