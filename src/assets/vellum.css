@@ -313,8 +313,8 @@
   color: color-mix(in oklab, var(--foreground) 60%, transparent);
 }
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > p:not(.italic) svg { color: var(--live); }
-:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:last-child { justify-content: center; gap: 0; padding-top: 0.45rem; }
-:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:last-child > span:not(.italic) {
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap { justify-content: center; gap: 0; padding-top: 0.45rem; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap > span:not(.italic) {
   background: transparent;
   padding: 0;
   font-family: var(--vl-serif);
@@ -324,8 +324,8 @@
   letter-spacing: 0;
   color: color-mix(in oklab, var(--foreground) 65%, transparent);
 }
-:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:last-child > span + span::before { content: "·"; margin: 0 0.4rem; font-style: normal; color: var(--live); }
-:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:last-child > span.italic::before { content: ""; margin: 0 0.25rem; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap > span + span::before { content: "·"; margin: 0 0.4rem; font-style: normal; color: var(--live); }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap > span.italic::before { content: ""; margin: 0 0.25rem; }
 /* Badges beside the name (monster source book and CR) crowd a centred
    title; they move onto the bottom-right of the plate as labels instead:
    the source as a paper label, CR keeping its ramp colour. Positioned
