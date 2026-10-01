@@ -1,5 +1,9 @@
 <template>
-  <div class="rounded-lg border border-border bg-card overflow-hidden">
+  <!-- No overflow-hidden here: the Attach menu opens below the action row, past
+       the card's bottom edge, and clipping the card clipped the menu to a
+       sliver, so a pool character could not be attached at all. Nothing in the
+       card needs the clip; the portrait rounds itself. -->
+  <div class="rounded-lg border border-border bg-card">
     <div class="flex gap-3 p-3">
       <!-- Portrait -->
       <div class="w-16 h-20 rounded-md overflow-hidden bg-muted shrink-0 flex items-center justify-center">
