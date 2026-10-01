@@ -371,6 +371,12 @@
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
   opacity: 0.9;
 }
+/* A card that already names the category in a badge beside its title
+   (encounter difficulty) keeps the badge; a ribbon too would say it twice
+   and hang right next to it. */
+:root[data-theme^="vellum"] .bg-card.border:has(> div > div:first-child > h3 + span) > .w-full.shrink-0:is(.h-1, .h-1\.5, .h-2) {
+  display: none;
+}
 
 /* Hairline grids (`gap-px bg-border`, e.g. the dashboard party and stats
    widgets) draw their lines with the parent's fill, which shows as a solid
