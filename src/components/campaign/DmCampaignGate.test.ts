@@ -45,6 +45,18 @@ vi.mock("@/components/campaign/NewCampaignModal.vue", () => ({
   }),
 }));
 
+// The paywall is not what this file is about, and mounted for real it reads
+// pricing and the child-account flag over the network: requests nothing here
+// answers, which the test DOM then aborts at teardown with a stack trace in
+// the middle of an otherwise green run.
+vi.mock("@/components/common/PaywallModal.vue", () => ({
+  __esModule: true,
+  default: defineComponent({
+    props: { modelValue: Boolean },
+    setup: (props) => () => h("div", { "data-test": "paywall-modal", "data-open": String(props.modelValue) }),
+  }),
+}));
+
 vi.mock("vue-router", () => ({
   useRoute: () => ({ meta: mocks.meta }),
   useRouter: () => ({ push: vi.fn() }),
