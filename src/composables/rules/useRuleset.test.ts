@@ -144,4 +144,42 @@ describe("useRuleset scope", () => {
     mount(wizard);
     expect(seen[0]).toEqual({ build: "2024", table: "2024" });
   });
+
+  it("provideRuleset with no edition chosen yet falls back to the campaign, then follows the choice", () => {
+    setCampaign("c1", "2024");
+    const chosen = ref<RulesetKey | null>(null);
+    const seen: Seen[] = [];
+    mount(defineComponent({
+      setup() {
+        provideRuleset(chosen);
+        return () => h(Reader(seen));
+      },
+    }));
+    expect(seen[0]).toEqual({ build: "2024", table: "2024" });
+    chosen.value = "2014";
+    expect(seen[0]).toEqual({ build: "2014", table: "2014" });
+  });
+
+  it("provideRuleset with no edition and no campaign falls back to 2014, and to an enclosing scope when there is one", () => {
+    setCampaign(null, null);
+    const seen: Seen[] = [];
+    mount(defineComponent({
+      setup() {
+        provideRuleset(() => undefined);
+        return () => h(Reader(seen));
+      },
+    }));
+    expect(seen[0]).toEqual({ build: "2014", table: "2014" });
+
+    const nested: Seen[] = [];
+    const outerMember = ref<RulesetScopeMember | null>({ ruleset: "2024", campaign_id: null });
+    const inner = defineComponent({
+      setup() {
+        provideRuleset(null);
+        return () => h(Reader(nested));
+      },
+    });
+    mount(Provider(outerMember, inner));
+    expect(nested[0]).toEqual({ build: "2024", table: "2024" });
+  });
 });

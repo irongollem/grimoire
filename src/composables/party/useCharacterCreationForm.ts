@@ -13,7 +13,10 @@ import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composable
 import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { useBackgrounds } from "@/composables/rules/useBackgrounds";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { provideCharacterRuleset, provideRuleset, useRuleset } from "@/composables/rules/useRuleset";
+import { isRulesetAdmissible, parseRulesetBounce } from "@/composables/party/useCharacterRuleset";
+import { creationLandingCampaign, initialCreationRuleset } from "@/composables/party/characterCreationEdition";
+import type { RulesetKey } from "@/types/ruleset.types";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import { applySpeciesSpellGrants } from "@/composables/party/useCharacterSpells";
 import type { SpeciesSpellGrant } from "@/types/species.types";
@@ -150,6 +153,54 @@ export function useCharacterCreationForm() {
   const campaign = useCampaignStore();
   const queryClient = useQueryClient();
 
+  const isEditMode = computed(() => route.name === "play-character-edit");
+  const isDmCreate = computed(() => route.name === "party-member-new");
+  const { data: partyMembers }    = useParty();
+  const { data: myCharacters }    = useCharacterPool();
+  const { data: campaignMembers } = useCampaignMembers();
+
+  const editMemberId = computed(() =>
+    (route.query.memberId as string | undefined) ?? auth.linkedPartyMemberId ?? null,
+  );
+  // partyMembers (useParty) is the active campaign's roster — a DM managing a
+  // member via ?memberId= resolves there. A standalone character (#729/#730,
+  // no campaign) never appears in that campaign-scoped list, so an owner
+  // editing their own unattached character falls back to myCharacters
+  // (useCharacterPool), which RLS already scopes to rows the caller owns.
+  const existingMember = computed(() => {
+    if (!editMemberId.value) return null;
+    return partyMembers.value?.find((m) => m.id === editMemberId.value)
+      ?? myCharacters.value?.find((m) => m.id === editMemberId.value)
+      ?? null;
+  });
+  // ── Edition scope ─────────────────────────────────────────────────────────────
+  // A character carries its own edition (#943) and every list below (species,
+  // backgrounds, classes) is filtered by it, so the scope is provided BEFORE any
+  // of them is called, and everything its getter reads is declared above this
+  // line. Creating: the edition the player picks on the first step, null until
+  // then (the lists fall back to the campaign's). Editing: the character's own.
+  const landingCampaign = computed(() => creationLandingCampaign({
+    isDmCreate: isDmCreate.value,
+    activeCampaign: campaign.activeCampaign,
+    isMemberOfActiveCampaign: (campaignMembers.value ?? []).some((cm) => cm.user_id === auth.user?.id),
+  }));
+  const chosenRuleset = ref<RulesetKey | null>(
+    isEditMode.value ? null : initialCreationRuleset(landingCampaign.value),
+  );
+  let editionTouched = false;
+  function chooseRuleset(next: RulesetKey) {
+    editionTouched = true;
+    chosenRuleset.value = next;
+  }
+  // The campaign's members load after setup, so a player's table may only become
+  // known once the wizard is open; seed the edition then, but never over a choice.
+  watch(landingCampaign, (landing) => {
+    if (isEditMode.value || editionTouched || chosenRuleset.value !== null) return;
+    chosenRuleset.value = initialCreationRuleset(landing);
+  });
+  if (isEditMode.value) provideCharacterRuleset(() => existingMember.value);
+  else provideRuleset(() => chosenRuleset.value);
+
   // Pickers offer only what the campaign permits (`campaignSpecies` /
   // `campaignSystemClasses`); resolution of what a character already has runs
   // against the ungated lists, so a species/class disabled after the fact still
@@ -214,11 +265,6 @@ export function useCharacterCreationForm() {
   const derivedSpeed    = computed(() => selectedSpecies.value?.speed?.walk ?? 30);
   const derivedInitiative = computed(() => mod(f.dex));
 
-  const isEditMode = computed(() => route.name === "play-character-edit");
-  const isDmCreate = computed(() => route.name === "party-member-new");
-  const { data: partyMembers }    = useParty();
-  const { data: myCharacters }    = useCharacterPool();
-  const { data: campaignMembers } = useCampaignMembers();
   const { mutateAsync: create }               = useCreatePartyMember();
   const { mutateAsync: update }               = useUpdatePartyMember();
   const { mutateAsync: addCharacterClass }    = useAddCharacterClass();
@@ -226,20 +272,6 @@ export function useCharacterCreationForm() {
   const { mutateAsync: addInventoryItems }     = useAddInventoryItems();
   const { mutateAsync: attachCharacter } = useAttachCharacter();
 
-  const editMemberId = computed(() =>
-    (route.query.memberId as string | undefined) ?? auth.linkedPartyMemberId ?? null,
-  );
-  // partyMembers (useParty) is the active campaign's roster — a DM managing a
-  // member via ?memberId= resolves there. A standalone character (#729/#730,
-  // no campaign) never appears in that campaign-scoped list, so an owner
-  // editing their own unattached character falls back to myCharacters
-  // (useCharacterPool), which RLS already scopes to rows the caller owns.
-  const existingMember = computed(() => {
-    if (!editMemberId.value) return null;
-    return partyMembers.value?.find((m) => m.id === editMemberId.value)
-      ?? myCharacters.value?.find((m) => m.id === editMemberId.value)
-      ?? null;
-  });
   // A memberId query param means either "DM managing a campaign member" (the
   // established affordance — /party is a DM route) or "owner editing their own
   // unattached character" (#729/#730); only the DM case belongs on /party.
@@ -415,6 +447,28 @@ export function useCharacterCreationForm() {
     resetSlotsToDefault();
   }
 
+  // ── Changing the edition ──────────────────────────────────────────────────────
+  // Species, background and class are all edition-specific, so a different
+  // edition invalidates them. Synchronous on purpose: the lists below re-key on
+  // the new edition asynchronously, and the old species must still be resolvable
+  // here to take back the languages and speed it granted.
+  watch(chosenRuleset, (next, previous) => {
+    if (isEditMode.value || next === null || previous === null || next === previous) return;
+    const oldSpecies = selectedSpecies.value;
+    for (const lang of oldSpecies?.languages ?? []) {
+      const idx = f.languages.indexOf(lang);
+      if (idx >= 0) f.languages.splice(idx, 1);
+    }
+    if (oldSpecies) f.speed = 30;
+    onSpeciesSelect("");
+    onBackgroundSelect("");
+    selectedClassKey.value = "";
+    f.class = "";
+    f.subclass = "";
+    f.saving_throw_proficiencies = [];
+    resetSlotsToDefault();
+  }, { flush: "sync" });
+
   // ── Helpers ───────────────────────────────────────────────────────────────────
 
   function mod(score: number) { return Math.floor((score - 10) / 2); }
@@ -573,8 +627,13 @@ export function useCharacterCreationForm() {
         // An unowned character is not a degraded success — no list view in the
         // app returns one (#738). Refuse to create it rather than orphan it.
         if (!creatorId) throw new Error("You must be signed in to create a character.");
+        // The edition step cannot be left without a choice; this is the last
+        // line against a character that has none (the database refuses it too).
+        const ruleset = chosenRuleset.value;
+        if (!ruleset) throw new Error("Choose an edition before creating the character.");
         const created = await create({
           ...basePayload,
+          ruleset,
           ...resolveCharacterPlacement({
             isDmCreate: isDmCreate.value,
             activeCampaignId: campaign.activeCampaignId,
@@ -599,8 +658,26 @@ export function useCharacterCreationForm() {
             isMemberOfActiveCampaign: (campaignMembers.value ?? []).some((cm) => cm.user_id === creatorId),
           });
           if (joinCampaignId) {
-            await attachCharacter({ partyMemberId: created.id, campaignId: joinCampaignId });
-            landedCampaignId = joinCampaignId;
+            // A table that does not take this edition leaves the character in
+            // the pool, and so does a bounce on the attach itself (the DM may
+            // have changed the setting since the step was shown). Anything else
+            // failing is a real error and rolls back below.
+            const table = campaign.activeCampaign;
+            let restsInPool = !!table && !isRulesetAdmissible({ ruleset }, table);
+            if (!restsInPool) {
+              try {
+                await attachCharacter({ partyMemberId: created.id, campaignId: joinCampaignId });
+                landedCampaignId = joinCampaignId;
+              } catch (attachErr) {
+                if (!parseRulesetBounce(attachErr)) throw attachErr;
+                restsInPool = true;
+              }
+            }
+            if (restsInPool) {
+              const tableName = table?.name ?? "That table";
+              const tableRules = table ? `plays the ${table.ruleset} rules` : "does not take this edition";
+              useToast().info(`${f.name.trim()} rests in your pool: ${tableName} ${tableRules}.`);
+            }
           }
 
           // Seed level 1 character_classes row
@@ -701,6 +778,8 @@ export function useCharacterCreationForm() {
     auth,
     // form state
     f, activeTab, wizardStep, saving, scoreMode,
+    // edition (new characters): chosen on the first step, never written after create
+    chosenRuleset, chooseRuleset, landingCampaign,
     portraitUrl, focalPoint, spellSlotMaxes,
     importBackgroundEquipment,
     classEquipmentChoice, importClassEquipment, classEquipmentPack,

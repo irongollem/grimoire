@@ -89,7 +89,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   CONDITIONS,
   getConditionDescription,
@@ -102,7 +102,7 @@ import type { PartyMember } from "@/types/party.types";
 
 const { member } = defineProps<{ member: PartyMember }>();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
-const { ruleset } = useRuleset();
+const { ruleset } = useTableRuleset();
 
 const conditionOpen = ref(false);
 const conditionOpenUp = ref(false);

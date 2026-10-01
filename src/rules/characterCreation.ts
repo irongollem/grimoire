@@ -23,6 +23,7 @@ export const EDIT_TABS = [
 ] as const;
 
 export const WIZARD_STEPS = [
+  { id: "edition",    label: "Edition" },
   { id: "basics",     label: "Basics" },
   { id: "abilities",  label: "Abilities" },
   { id: "background", label: "Background" },

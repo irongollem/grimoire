@@ -143,7 +143,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useBackgrounds } from "@/composables/rules/useBackgrounds";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/play/useRulesetReviews";
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
 import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
@@ -180,13 +180,15 @@ const ui = useUiStore();
 const queryClient = useQueryClient();
 const { data: party } = useParty();
 const { mutateAsync: update } = useUpdatePartyMember();
-const { is2024 } = useRuleset();
 
 // Resolve the party member: real player uses linkedPartyMemberId; DM preview uses dmPreviewPartyMemberId
 const resolvedMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
 );
 const me = computed(() => party.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
+// Backgrounds are build rules: the list shown is the character's edition (useRuleset.ts).
+provideCharacterRuleset(() => me.value);
+const { is2024 } = useRuleset();
 const { data: rulesetReviews } = useRulesetReviews(resolvedMemberId);
 const { mutateAsync: acknowledgeRulesetReviews } = useAcknowledgeRulesetReviews();
 

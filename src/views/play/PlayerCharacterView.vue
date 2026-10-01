@@ -15,6 +15,12 @@
     </div>
 
     <template v-else>
+      <!-- Status banner: shown only for a character seated at the active table; silent when the editions match. -->
+      <CharacterEditionNotice
+        v-if="campaign.activeCampaign && member.campaign_id === campaign.activeCampaign.id"
+        :member="member"
+        :campaign="campaign.activeCampaign"
+      />
       <!-- ── Always visible ─────────────────────────────────── -->
       <!-- Outer wrapper: unified card on tablet+; stacked cards on mobile -->
       <div class="md:rounded-lg md:border md:border-border md:overflow-hidden">
@@ -236,8 +242,9 @@ import { combineModes } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/party/useParty";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { provideCharacterRuleset, useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   hasAttackDisadvantage,
   hasCheckDisadvantage,
@@ -254,6 +261,7 @@ import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import RollToast from "@/components/common/RollToast.vue";
 import type { RollResult } from "@/components/common/RollToast.vue";
+import CharacterEditionNotice from "@/components/play/CharacterEditionNotice.vue";
 import PlayerCharacterHeader from "@/components/player/PlayerCharacterHeader.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
 import PlayerTracksSection from "@/components/player/PlayerTracksSection.vue";
@@ -269,6 +277,20 @@ const emit = defineEmits<{ (e: "level-up"): void }>();
 
 const auth = useAuthStore();
 const ui = useUiStore();
+const campaign = useCampaignStore();
+
+// The character is resolved first so its ruleset scope is provided before any
+// composable below (or any child) reads an edition. See useRuleset.ts.
+const { data: partyMembers } = useParty();
+const resolvedMemberId = computed(() =>
+  props.memberId ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId),
+);
+const member = computed<PartyMember | null>(() =>
+  resolvedMemberId.value && partyMembers.value
+    ? (partyMembers.value.find((m) => m.id === resolvedMemberId.value) ?? null)
+    : null,
+);
+provideCharacterRuleset(() => member.value);
 
 // DM preview gets all rules; players get only player-visible ones.
 const { data: dmRules }     = useRules();
@@ -279,13 +301,9 @@ const customTrackers = computed(() => {
     .filter((r) => r.tracker !== null)
     .map((r) => ({ ruleId: r.id, def: r.tracker! }));
 });
-const { data: partyMembers } = useParty();
 const { promptRoll } = usePromptedRoll();
-const { ruleset } = useRuleset();
-
-const resolvedMemberId = computed(() =>
-  props.memberId ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId),
-);
+// Only used for condition-effect helpers (table rules); build rules live in the tabs.
+const { ruleset } = useTableRuleset();
 
 // ── Wild Shape ─────────────────────────────────────────────────────────────────
 const { mutateAsync: updateMember } = useUpdatePartyMember();
@@ -394,12 +412,6 @@ const effectiveScores = computed(() => {
   if (!sb) return m;
   return { ...m, str: sb.str, dex: sb.dex, con: sb.con };
 });
-
-const member = computed<PartyMember | null>(() =>
-  resolvedMemberId.value && partyMembers.value
-    ? (partyMembers.value.find((m) => m.id === resolvedMemberId.value) ?? null)
-    : null,
-);
 
 const isOwner = computed(
   () => !ui.dmPreviewMode && !!auth.linkedPartyMemberId && auth.linkedPartyMemberId === member.value?.id,

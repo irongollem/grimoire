@@ -8,7 +8,7 @@
       :acknowledging="acknowledgingRulesetReview"
       @acknowledge="acknowledgeRulesetReview"
     >
-      The campaign rules changed. Review {{ rulesetReviewClasses.map(entry => entry.label).join(", ") }} before changing its spells.
+      This character was converted to the {{ rulesetLabel(ruleset) }} rules. Review {{ rulesetReviewClasses.map(entry => entry.label).join(", ") }} before changing its spells.
     </RulesetReviewBanner>
     <RulesetReviewBanner
       v-if="rulesetReviewSpells.length"
@@ -195,6 +195,7 @@ import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
 import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
 import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
+import { rulesetLabel } from "@/composables/party/useCharacterRuleset";
 import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -205,7 +206,7 @@ import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared } from "@/types/spell.
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy, policyValueAtLevel } from "@/rules/spellPreparationPolicy";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/play/useRulesetReviews";
@@ -225,12 +226,15 @@ const LEVEL_FILTERS = [
 
 const auth = useAuthStore();
 const ui = useUiStore();
-const { ruleset } = useRuleset();
 const { data: partyMembers } = useParty();
 
 const resolvedMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
 );
+// Member first, then the scope, then every composable that reads an edition (useRuleset.ts).
+const member = computed(() => partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
+provideCharacterRuleset(() => member.value);
+const { ruleset } = useRuleset();
 
 const memberClass = computed(() => {
   const id = resolvedMemberId.value;
@@ -272,7 +276,6 @@ async function acknowledgeRulesetReview() {
 }
 const { data: allSystemClasses } = useAllSystemClasses();
 const { data: allCustomClasses } = useAllCustomClasses();
-const member      = computed(() => partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
 const memberClassEntry = computed(() =>
   (characterClasses.value ?? []).find((entry) => entry.class_name === memberClass.value),
 );

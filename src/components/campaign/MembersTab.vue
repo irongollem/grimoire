@@ -73,11 +73,12 @@
             Character:
           </label>
           <EntityCombobox
+            :key="`${member.id}-${comboboxKey}`"
             :model-value="member.party_member_id ?? ''"
             :options="characterOptions(member)"
             placeholder="Assign character…"
             class="min-w-40"
-            @update:model-value="assignPartyMember(member.id, $event)"
+            @update:model-value="assignPartyMember(member, $event)"
           />
         </div>
 
@@ -244,6 +245,8 @@ const deleteCharacter = useDeletePartyMember();
 const detachCharacter = useDetachCharacter();
 const { confirm } = useConfirm();
 const toast = useToast();
+// Bumped when a cancelled hand-over must put every seat dropdown back on its stored value.
+const comboboxKey = ref(0);
 
 const members = computed(() => membersQuery.data.value ?? []);
 const partyMembers = computed(() => partyQuery.data.value ?? []);
@@ -309,11 +312,26 @@ function characterOptions(forMember: CampaignMember): { id: string; name: string
   }));
 }
 
-function assignPartyMember(memberId: string, partyMemberId: string) {
-  updateMember.mutate({
-    id: memberId,
-    update: { party_member_id: partyMemberId || null },
-  });
+async function assignPartyMember(member: CampaignMember, partyMemberId: string) {
+  const character = partyMembers.value.find((pm) => pm.id === partyMemberId);
+  // Linking a character nobody owns hands it to the player (the database makes
+  // them its owner). Clearing a seat, or re-linking one they own, hands over nothing.
+  if (character && character.owner_user_id === null) {
+    const player = member.display_name || "this player";
+    const ok = await confirm(
+      "It becomes their character. They keep it if they leave the campaign, and only they can delete it.",
+      { title: `Give ${character.name} to ${player}?`, confirmLabel: "Give character", danger: false },
+    );
+    if (!ok) {
+      // The combobox shows the new pick already; remount it on the seat's real value.
+      comboboxKey.value += 1;
+      return;
+    }
+  }
+  updateMember.mutate(
+    { id: member.id, update: { party_member_id: partyMemberId || null } },
+    { onError: (error) => toast.error(toast.fromError(error)) },
+  );
 }
 
 const memberToRemove = ref<CampaignMember | null>(null);

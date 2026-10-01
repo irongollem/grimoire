@@ -70,9 +70,17 @@
                     class="shrink-0 text-label px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
                   >Active</span>
                 </div>
-                <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
-                  {{ charSummary(char) }}
-                </p>
+                <CharacterSpeciesName v-slot="{ name: speciesName }" :member="char">
+                  <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
+                    {{ charSummary(char, speciesName) }}
+                  </p>
+                </CharacterSpeciesName>
+                <CharacterEditionNotice
+                  v-if="activeCampaign"
+                  :member="char"
+                  :campaign="activeCampaign"
+                  class="mt-1.5"
+                />
               </div>
 
               <!-- Actions -->
@@ -154,9 +162,11 @@
             <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
               <div>
                 <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
-                <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
-                  {{ charSummary(char) }}
-                </p>
+                <CharacterSpeciesName v-slot="{ name: speciesName }" :member="char">
+                  <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
+                    {{ charSummary(char, speciesName) }}
+                  </p>
+                </CharacterSpeciesName>
               </div>
               <div class="flex items-center gap-2 mt-2">
                 <AppButton
@@ -185,12 +195,15 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { storeToRefs } from 'pinia';
 import { IconAdd, IconDM } from '@/lib/icons';
 import { useMyCharacters, useSetActiveCharacter, useParty, useOfferedCharacters, useAssumeCharacter } from '@/composables/party/useParty';
 import { useDetachCharacter, useCloneCharacter } from '@/composables/party/useCharacterPool';
 import { useConfirm } from '@/composables/useConfirm';
-import { useSpeciesNameMap } from '@/composables/rules/useSpecies';
+import CharacterSpeciesName from '@/components/party/CharacterSpeciesName.vue';
 import { useAuthStore } from '@/stores/auth';
+import { useCampaignStore } from '@/stores/campaign';
+import CharacterEditionNotice from '@/components/play/CharacterEditionNotice.vue';
 import { useUiStore } from '@/stores/ui';
 import AppButton from '@/components/common/AppButton.vue';
 import FocalImage from '@/components/common/FocalImage.vue';
@@ -200,6 +213,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const auth = useAuthStore();
 const ui   = useUiStore();
+const { activeCampaign } = storeToRefs(useCampaignStore());
 const { data: myChars,        isPending: myPending }  = useMyCharacters();
 const { data: allChars,       isPending: allPending }  = useParty();
 const { data: offeredCharacters } = useOfferedCharacters();
@@ -207,7 +221,6 @@ const characters = computed(() => ui.dmPreviewMode ? allChars.value  : myChars.v
 const isPending  = computed(() => ui.dmPreviewMode ? allPending.value : myPending.value);
 const { mutateAsync: setActiveChar } = useSetActiveCharacter();
 const { mutateAsync: assumeChar }    = useAssumeCharacter();
-const speciesNameMap = useSpeciesNameMap();
 
 const settingActive = ref<string | null>(null);
 const setActiveError = ref('');
@@ -218,9 +231,8 @@ function isActive(char: PartyMember): boolean {
   return char.id === auth.linkedPartyMemberId;
 }
 
-function charSummary(char: PartyMember): string {
+function charSummary(char: PartyMember, species: string | null): string {
   const parts: string[] = [];
-  const species = speciesNameMap.value.get(char.species_id ?? '');
   if (species) parts.push(species);
   if (char.class) {
     parts.push(char.subclass ? `${char.class} (${char.subclass})` : char.class);

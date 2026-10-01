@@ -22,9 +22,11 @@
           </span>
         </template>
         <template #subtitle>
-          <p v-if="speciesNameMap.get(m.party_member.species_id ?? '') || memberClassLabel(m.party_member.id, m.party_member.class)" class="text-caption text-muted-foreground italic truncate">
-            {{ [speciesNameMap.get(m.party_member.species_id ?? ''), memberClassLabel(m.party_member.id, m.party_member.class), memberLevelDisplay(m.party_member.id, m.party_member.level) ? `Lv${memberLevelDisplay(m.party_member.id, m.party_member.level)}` : ''].filter(Boolean).join(' · ') }}
-          </p>
+          <CharacterSpeciesName v-slot="{ name: speciesName }" :member="m.party_member">
+            <p v-if="speciesName || memberClassLabel(m.party_member.id, m.party_member.class)" class="text-caption text-muted-foreground italic truncate">
+              {{ [speciesName, memberClassLabel(m.party_member.id, m.party_member.class), memberLevelDisplay(m.party_member.id, m.party_member.level) ? `Lv${memberLevelDisplay(m.party_member.id, m.party_member.level)}` : ''].filter(Boolean).join(' · ') }}
+            </p>
+          </CharacterSpeciesName>
         </template>
       </FactionMemberRow>
     </div>
@@ -61,9 +63,11 @@
             <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ m.party_member.name }}</span>
           </template>
           <template #subtitle>
-            <p v-if="speciesNameMap.get(m.party_member.species_id ?? '') || m.party_member.class" class="text-caption text-muted-foreground italic truncate">
-              {{ [speciesNameMap.get(m.party_member.species_id ?? ''), m.party_member.class].filter(Boolean).join(' · ') }}
-            </p>
+            <CharacterSpeciesName v-slot="{ name: speciesName }" :member="m.party_member">
+              <p v-if="speciesName || m.party_member.class" class="text-caption text-muted-foreground italic truncate">
+                {{ [speciesName, m.party_member.class].filter(Boolean).join(' · ') }}
+              </p>
+            </CharacterSpeciesName>
           </template>
         </FactionMemberRow>
       </div>
@@ -104,7 +108,7 @@ import {
   type FactionPartyMemberWithMember,
 } from "@/composables/factions/useFactions";
 import { useParty } from "@/composables/party/useParty";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import CharacterSpeciesName from "@/components/party/CharacterSpeciesName.vue";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
@@ -116,7 +120,6 @@ const props = defineProps<{ factionId: string }>();
 
 const { data: members }     = useFactionPartyMembers(props.factionId);
 const { data: allMembers }  = useParty();
-const speciesNameMap = useSpeciesNameMap();
 const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
 const classesByMember = computed(() => {
   const m = new Map<string, CharacterClass[]>();

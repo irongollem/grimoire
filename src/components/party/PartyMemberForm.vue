@@ -112,6 +112,7 @@ import PartyMemberIdentityTab from "./PartyMemberIdentityTab.vue";
 import PartyMemberAbilitiesTab from "./PartyMemberAbilitiesTab.vue";
 import PartyMemberProficienciesTab from "./PartyMemberProficienciesTab.vue";
 import PartyMemberPersonaTab from "./PartyMemberPersonaTab.vue";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import {
   useCreatePartyMember,
@@ -147,6 +148,10 @@ type TabId = typeof TABS[number]["id"];
 
 const props = defineProps<{ member: PartyMember | null }>();
 const emit = defineEmits<{ close: [] }>();
+
+// Editing resolves the species/class pickers against the hero's own edition; adding a
+// hero (null member) falls through to the campaign's (useRuleset.ts).
+provideCharacterRuleset(() => props.member);
 
 // Multiclass / builder data
 const memberId = computed(() => props.member?.id ?? null);

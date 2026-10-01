@@ -77,10 +77,19 @@ export function provideCharacterRuleset(
   return scope;
 }
 
-/** For a surface with an edition but no character row yet (the creation wizard). build and table are both the given value. */
-export function provideRuleset(ruleset: MaybeRefOrGetter<RulesetKey>): RulesetScope {
-  const edition = computed(() => toValue(ruleset));
-  const scope: RulesetScope = { build: edition, table: edition };
+/**
+ * For a surface with an edition but no character row yet (the creation wizard).
+ * build and table are both the given value. While it is null or undefined (a
+ * new character whose player has not chosen yet) both fall back to the enclosing
+ * scope, as `provideCharacterRuleset` does for a character still loading:
+ * coercing "not chosen" to 2014 would be inventing an answer.
+ */
+export function provideRuleset(ruleset: MaybeRefOrGetter<RulesetKey | null | undefined>): RulesetScope {
+  const outer = enclosingScope();
+  const scope: RulesetScope = {
+    build: computed(() => toValue(ruleset) ?? outer.build.value),
+    table: computed(() => toValue(ruleset) ?? outer.table.value),
+  };
   provideLocal(RULESET_SCOPE_KEY, scope);
   return scope;
 }

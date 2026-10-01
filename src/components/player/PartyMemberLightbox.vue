@@ -205,6 +205,7 @@ import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useSpecies, useSpeciesNameMap } from "@/composables/rules/useSpecies";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { getDisplayRace, getDisplaySpeciesId } from "@/lib/partyMemberDisplay";
@@ -215,6 +216,8 @@ import type { Species } from "@/types/species.types";
 const props = defineProps<{ member: PartyMember | null }>();
 defineEmits<{ close: [] }>();
 
+// One character shown: its species name resolves in its own edition, not the campaign's.
+provideCharacterRuleset(() => props.member);
 const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();

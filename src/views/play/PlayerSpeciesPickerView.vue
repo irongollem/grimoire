@@ -145,6 +145,7 @@ import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import type { Species } from "@/types/species.types";
 import { applySpeciesSpellGrants, removeSpeciesSpellGrants } from "@/composables/party/useCharacterSpells";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 
 const SIZE_OPTIONS = [
@@ -159,13 +160,15 @@ const router = useRouter();
 const auth = useAuthStore();
 const ui = useUiStore();
 const { data: party } = useParty();
-const { data: allSpecies } = useAllSpecies();
 const { mutateAsync: update } = useUpdatePartyMember();
 
 const resolvedMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
 );
 const me = computed(() => party.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
+// Species are build rules: the list shown is the character's edition (useRuleset.ts).
+provideCharacterRuleset(() => me.value);
+const { data: allSpecies } = useAllSpecies();
 
 const currentSpeciesId = computed(() => me.value?.species_id ?? "");
 

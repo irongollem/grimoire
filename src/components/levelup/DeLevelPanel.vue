@@ -88,7 +88,7 @@ import { getMulticlassSpellSlots } from '@/types/spell.types';
 import type { PartyMember, LevelChoiceEntry, SpellSlotEntry } from '@/types/party.types';
 import type { CharacterClass } from '@/types/multiclass.types';
 import type { CustomResource } from '@/levelup/customTypes';
-import { useRuleset } from '@/composables/rules/useRuleset';
+import { provideCharacterRuleset, useRuleset } from '@/composables/rules/useRuleset';
 
 const props = defineProps<{
   member: PartyMember;
@@ -99,6 +99,7 @@ const showConfirmation = ref(false);
 const isPending = ref(false);
 const error = ref('');
 
+provideCharacterRuleset(() => props.member);
 const queryClient = useQueryClient();
 const { ruleset } = useRuleset();
 

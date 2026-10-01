@@ -30,11 +30,12 @@ vi.mock("@/composables/useModeSwitch", () => ({ useModeSwitch: () => ({ switchMo
 vi.mock("@/composables/campaign/useCampaigns", () => ({
   usePlayerCampaigns: () => ({ refetch: vi.fn() }),
 }));
+let pool: Array<{ id: string; name: string; class: string; level: number; ruleset: string; campaign_id: string | null }> = [];
 vi.mock("@/composables/party/useCharacterPool", () => ({
   useCharacterPool: () => ({
-    data: ref([]),
+    data: ref(pool),
     isPending: ref(false),
-    refetch: () => Promise.resolve({ data: [], error: null }),
+    refetch: () => Promise.resolve({ data: pool, error: null }),
   }),
 }));
 vi.mock("@/lib/ageGateSession", () => ({ wasAnsweredUnder16: () => false }));
@@ -47,12 +48,14 @@ function mountView() {
         SignupConsent: true,
         AgeQuestionStep: true,
         ParentRequestForm: true,
+        RulesetBounceDialog: true,
       },
     },
   });
 }
 
 beforeEach(() => {
+  pool = [];
   Object.values(mocks).forEach((m) => m.mockReset());
   mocks.invoke.mockResolvedValue({ error: null });
 });
@@ -82,5 +85,31 @@ describe("JoinCampaignView", () => {
     const wrapper = mountView();
     await flushPromises();
     expect(wrapper.text()).toContain("Invite has expired");
+  });
+
+  it("offers a converted copy instead of 'Invalid Invite' when the table refuses the edition", async () => {
+    pool = [{ id: "pm1", name: "Mira", class: "Wizard", level: 3, ruleset: "2024", campaign_id: null }];
+    mocks.join.mockRejectedValue({
+      code: "RS001",
+      message: "This table plays the 2014 rules and does not take 2024 characters",
+      details: JSON.stringify({ character_ruleset: "2024", campaign_ruleset: "2014" }),
+    });
+    const wrapper = mountView();
+    await flushPromises();
+    expect(wrapper.text()).toContain("Wizard · Level 3 · 2024");
+    await wrapper.get("input[type='radio'][value='pm1']").setValue();
+    const join = wrapper.findAll("button").find((b) => b.text() === "Join");
+    await join?.trigger("click");
+    await flushPromises();
+    const dialog = wrapper.findComponent({ name: "RulesetBounceDialog" });
+    expect(dialog.exists()).toBe(true);
+    expect(dialog.props("campaignRuleset")).toBe("2014");
+    expect(dialog.props("campaignName")).toBeNull();
+    expect(wrapper.text()).not.toContain("Invalid Invite");
+
+    dialog.vm.$emit("chooseAnother");
+    await flushPromises();
+    expect(wrapper.findComponent({ name: "RulesetBounceDialog" }).exists()).toBe(false);
+    expect(wrapper.text()).toContain("Bring a character?");
   });
 });

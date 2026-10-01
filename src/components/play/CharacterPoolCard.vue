@@ -43,7 +43,7 @@
               />
               <div
                 v-if="showAttachPicker"
-                class="absolute z-20 mt-1 w-48 rounded-md border border-border bg-card shadow-lg p-1.5 space-y-1"
+                class="absolute z-20 mt-1 w-60 rounded-md border border-border bg-card shadow-lg p-1.5 space-y-1"
               >
                 <p v-if="!availableCampaigns.length" class="text-caption text-muted-foreground italic px-1.5 py-1">
                   No campaigns to join yet.
@@ -54,10 +54,10 @@
                   variant="ghost"
                   size="xs"
                   block
-                  :label="c.name"
+                  :label="tableLabel(c)"
                   :disabled="attaching"
                   class="justify-start"
-                  @click="attachTo(c.id)"
+                  @click="attachTo(c)"
                 />
               </div>
             </div>
@@ -68,6 +68,18 @@
         </div>
       </div>
     </div>
+
+    <RulesetBounceDialog
+      v-if="bounce"
+      :open="true"
+      :character="character"
+      :campaign-ruleset="bounce.campaignRuleset"
+      :campaign-name="bounce.campaignName"
+      :bring="bringToBounceTable"
+      @close="bounce = null"
+      @choose-another="chooseAnotherTable"
+      @joined="onBounceJoined"
+    />
   </div>
 </template>
 
@@ -86,6 +98,9 @@ import { useAuthStore } from "@/stores/auth";
 import { useAttachCharacter, useDetachCharacter, useCloneCharacter, useDeletePoolCharacter } from "@/composables/party/useCharacterPool";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
+import { isRulesetAdmissible, parseRulesetBounce } from "@/composables/party/useCharacterRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Campaign } from "@/types/campaign.types";
 
@@ -117,8 +132,14 @@ const summary = computed(() => {
   }
   if (character.subrace) parts.push(character.subrace);
   const levelStr = character.level ? `Level ${character.level}` : "Not yet levelled";
-  return parts.length ? `${parts.join(" · ")} · ${levelStr}` : levelStr;
+  const base = parts.length ? `${parts.join(" · ")} · ${levelStr}` : levelStr;
+  return `${base} · ${character.ruleset}`;
 });
+
+// Tables list their edition, and say so when they will not take this character.
+function tableLabel(c: Campaign): string {
+  return isRulesetAdmissible(character, c) ? `${c.name} · ${c.ruleset}` : `${c.name} · plays ${c.ruleset}`;
+}
 
 const showAttachPicker = ref(false);
 const attachRoot = useTemplateRef<HTMLDivElement>("attachRoot");
@@ -153,13 +174,49 @@ async function cloneCharacter() {
   }
 }
 
-async function attachTo(campaignId: string) {
+// A refused attach offers a converted copy instead of an error (#943).
+interface BounceTarget {
+  campaignId: string;
+  campaignName: string;
+  campaignRuleset: RulesetKey;
+}
+const bounce = ref<BounceTarget | null>(null);
+
+function openBounce(c: Campaign, campaignRuleset: RulesetKey) {
+  bounce.value = { campaignId: c.id, campaignName: c.name, campaignRuleset };
+}
+
+async function attachTo(c: Campaign) {
   showAttachPicker.value = false;
-  try {
-    await attachChar({ partyMemberId: character.id, campaignId });
-  } catch (e) {
-    toast.error(toast.fromError(e));
+  if (!isRulesetAdmissible(character, c)) {
+    openBounce(c, c.ruleset);
+    return;
   }
+  try {
+    await attachChar({ partyMemberId: character.id, campaignId: c.id });
+  } catch (e) {
+    // The table's setting may have changed since the list loaded.
+    const refused = parseRulesetBounce(e);
+    if (refused) openBounce(c, refused.campaignRuleset);
+    else toast.error(toast.fromError(e));
+  }
+}
+
+async function bringToBounceTable(partyMemberId: string) {
+  if (!bounce.value) throw new Error("No table to join.");
+  await attachChar({ partyMemberId, campaignId: bounce.value.campaignId });
+}
+
+function chooseAnotherTable() {
+  bounce.value = null;
+  showAttachPicker.value = true;
+}
+
+function onBounceJoined() {
+  if (!bounce.value) return;
+  const table = bounce.value.campaignName;
+  bounce.value = null;
+  toast.success(`${character.name} (copy) joined ${table}. The original is still in your pool.`);
 }
 
 function editCharacter() {

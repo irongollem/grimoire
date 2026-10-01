@@ -259,12 +259,9 @@
           />
 
           <!-- ── PC panel ────────────────────────────────── -->
-          <NpcWebPcPanel
-            v-else-if="panelPc"
-            :pc="panelPc"
-            :species-name="speciesNameMap.get(panelPc.species_id ?? '') ?? null"
-            @close="clearSelection"
-          />
+          <CharacterSpeciesName v-else-if="panelPc" v-slot="{ name: speciesName }" :member="panelPc">
+            <NpcWebPcPanel :pc="panelPc" :species-name="speciesName" @close="clearSelection" />
+          </CharacterSpeciesName>
         </div>
       </transition>
     </div>
@@ -286,7 +283,7 @@ import NpcWebNpcPanel from "@/components/npcs/NpcWebNpcPanel.vue";
 import NpcWebPcPanel from "@/components/npcs/NpcWebPcPanel.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import CharacterSpeciesName from "@/components/party/CharacterSpeciesName.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDeleteNpcRelation } from "@/composables/factions/useNpcRelations";
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
@@ -322,7 +319,6 @@ const { locationOptions, getDescendantIds } = useLocationTree();
 
 const { data: allNpcs, isLoading: npcsLoading } = useNpcs();
 const { data: partyMembers, isLoading: partyLoading } = useParty();
-const speciesNameMap = useSpeciesNameMap();
 const { data: npcRelations, isLoading: relLoading } = useAllNpcRelations();
 const { data: pcNotes, isLoading: pcNotesLoading } = useAllNpcPcNotes();
 // Membership badges are additive — the graph draws without them, so they are

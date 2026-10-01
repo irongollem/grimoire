@@ -198,13 +198,15 @@ import type { PartyMember } from "@/types/party.types";
 import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef, FeatureEntry } from "./types";
 import { mapFeatureIds } from "./types";
 import type { CustomResource } from "@/levelup/customTypes";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 
 const props = defineProps<{
   member: PartyMember;
   targetLevel?: number;
   backRoute?: string;
 }>();
+// Level-up is build rules: the character's own edition, not the table's (useRuleset.ts).
+provideCharacterRuleset(() => props.member);
 const { ruleset } = useRuleset();
 
 // ── Multiclass state ───────────────────────────────────────────────────────────

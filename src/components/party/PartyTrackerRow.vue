@@ -60,7 +60,7 @@
           </div>
           <p class="text-caption text-muted-foreground italic">
             {{
-              [speciesNameMap.get(member.species_id ?? '') ?? null, classLabel, levelDisplay ? `Lv${levelDisplay}` : ""]
+              [speciesName, classLabel, levelDisplay ? `Lv${levelDisplay}` : ""]
                 .filter(Boolean)
                 .join(" · ")
             }}
@@ -273,6 +273,8 @@ import { IconGenerate, IconLocation, IconReveal, IconScrollText } from '@/lib/ic
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
+import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { useReadItems } from "@/composables/play/useReadItems";
 import PlayerJournalDmModal from "./PlayerJournalDmModal.vue";
@@ -295,7 +297,6 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const {
   member,
-  speciesNameMap,
   locationNameMap,
   classLabel,
   levelDisplay,
@@ -304,7 +305,6 @@ const {
   dmPlayerName = "",
 } = defineProps<{
   member: PartyMember;
-  speciesNameMap: Map<string, string>;
   locationNameMap: Map<string, string>;
   classLabel: string;
   levelDisplay: number;
@@ -312,6 +312,12 @@ const {
   dmSharedJournal?: PlayerJournalEntry[];
   dmPlayerName?: string;
 }>();
+
+// One row per member: conditions and anything else below resolve per character.
+provideCharacterRuleset(() => member);
+// Resolved here, in the member's scope: a map built by the list would be filtered to the campaign's edition.
+const speciesNameMap = useSpeciesNameMap();
+const speciesName = computed(() => (member.species_id ? (speciesNameMap.value.get(member.species_id) ?? null) : null));
 
 const emit = defineEmits<{
   'open-companion-form': [payload: { companion: Companion | null; ownerId?: string }];

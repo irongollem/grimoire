@@ -70,12 +70,13 @@ export function useEnabledSources() {
 }
 
 /**
- * The SRD baseline a user reads when they belong to no campaign. Without a
- * campaign `useRuleset` resolves to 2014, so this is the edition that matches;
- * a 2024 slug here would be inert anyway, since every library fetch filters on
- * `ruleset` server-side.
+ * The SRD baseline a user reads when they belong to no campaign. A character
+ * carries its own edition (#943), so a campaign-less 2024 character needs the
+ * 2024 SRD as much as a 2014 one needs the 2014 SRD. Every library fetch filters
+ * on `ruleset` server-side, so listing both lets the character's own edition
+ * pick the one it reads.
  */
-const STANDALONE_LIBRARY_SLUGS: string[] = ["srd-2014"];
+const STANDALONE_LIBRARY_SLUGS: string[] = ["srd-2014", "srd-2024"];
 
 /**
  * Which library sources a shared-content query should read: the active

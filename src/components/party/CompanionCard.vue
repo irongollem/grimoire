@@ -197,7 +197,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useUpdateCompanion } from "@/composables/encounters/useCompanions";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   CONDITIONS,
   getConditionDescription,
@@ -226,7 +226,7 @@ defineEmits<{
 }>();
 
 const { mutateAsync: updateCompanion } = useUpdateCompanion();
-const { ruleset } = useRuleset();
+const { ruleset } = useTableRuleset();
 
 const hpAmount = ref(1);
 const addingCondition = ref(false);

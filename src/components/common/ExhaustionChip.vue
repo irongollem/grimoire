@@ -37,7 +37,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { MAX_EXHAUSTION, getConditionDescription } from "@/rules/conditions";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useIsTouch } from "@/composables/useBreakpoint";
 
 const isTouch = useIsTouch();
@@ -54,7 +54,7 @@ const emit = defineEmits<{
   (e: "update", newLevel: number): void;
 }>();
 
-const { ruleset } = useRuleset();
+const { ruleset } = useTableRuleset();
 
 const tooltip = computed(() => getConditionDescription(`Exhausted ${level}`, ruleset.value));
 

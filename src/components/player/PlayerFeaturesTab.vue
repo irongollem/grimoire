@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
 
-    <!-- ── Background ruleset review (campaign edition changed) ─────────────── -->
+    <!-- ── Background ruleset review (character converted to the other edition) ─────────────── -->
     <RulesetReviewBanner
       v-if="hasBackgroundRulesetReview"
       link-to="/play/background"
@@ -10,7 +10,7 @@
       :acknowledging="acknowledgingBackgroundReview"
       @acknowledge="acknowledgeBackgroundReview"
     >
-      The campaign rules changed. Review {{ member.name }}'s background ability scores and Origin feat.
+      {{ member.name }} was converted to the {{ rulesetLabel(member.ruleset) }} rules. Review the background ability scores and Origin feat.
     </RulesetReviewBanner>
 
     <!-- ── Beast traits (only when wildshaped) ──────────────────────────────── -->
@@ -183,6 +183,7 @@ import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "@/composables/useToast";
 import AppButton from "@/components/common/AppButton.vue";
+import { rulesetLabel } from "@/composables/party/useCharacterRuleset";
 import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
 import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
 import PlayerResourcePools from "./PlayerResourcePools.vue";

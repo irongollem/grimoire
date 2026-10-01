@@ -128,6 +128,7 @@ import {
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
@@ -152,7 +153,6 @@ import PlayerSlotEquipModal from "@/components/play/PlayerSlotEquipModal.vue";
 const auth = useAuthStore();
 const ui = useUiStore();
 const { data: partyMembers } = useParty();
-const speciesNameMap = useSpeciesNameMap();
 const { data: inventory } = usePartyInventory();
 const { data: allItems } = usePlayerVisibleItems();
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
@@ -189,6 +189,9 @@ const member = computed<PartyMember | null>(
   () =>
     partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null,
 );
+// Species (Powerful Build) resolves in the character's own edition, not the campaign's.
+provideCharacterRuleset(() => member.value);
+const speciesNameMap = useSpeciesNameMap();
 
 // ── Inventory slices ───────────────────────────────────────────────────────────
 const myItems = computed(() =>

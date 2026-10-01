@@ -72,6 +72,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useParty } from "@/composables/party/useParty";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { useItems } from "@/composables/items/useItems";
 import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
@@ -82,12 +83,6 @@ const route = useRoute();
 const auth = useAuthStore();
 
 const { data: partyMembers, isLoading: partyLoading } = useParty();
-const { data: inventoryItems, isLoading: inventoryLoading } = usePartyInventory();
-const { data: items } = useItems();
-const speciesMap = useSpeciesNameMap();
-const backgroundMap = useBackgroundNameMap();
-
-const isLoading = computed(() => partyLoading.value || inventoryLoading.value);
 
 /** Selected character — seeds from the route param (when reached via
  *  /character-sheet/:id) and otherwise defaults to the first party member.
@@ -106,6 +101,16 @@ const memberId = computed(() => selectedId.value);
 const member = computed(() =>
   partyMembers.value?.find((m) => m.id === memberId.value) ?? null,
 );
+
+// The picker can switch character without a route change, so the scope follows
+// `member`. The name maps below list that character's edition (useRuleset.ts).
+provideCharacterRuleset(() => member.value);
+const { data: inventoryItems, isLoading: inventoryLoading } = usePartyInventory();
+const { data: items } = useItems();
+const speciesMap = useSpeciesNameMap();
+const backgroundMap = useBackgroundNameMap();
+
+const isLoading = computed(() => partyLoading.value || inventoryLoading.value);
 
 const inventory = computed(() =>
   (inventoryItems.value ?? []).filter((i) => i.carried_by === memberId.value),

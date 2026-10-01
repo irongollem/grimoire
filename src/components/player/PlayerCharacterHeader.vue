@@ -212,7 +212,7 @@ import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { applyDamage as damagePools, applyHealing as healPools, betterTempHp } from "@/rules/hitPoints";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   CONDITIONS,
   getConditionDescription,
@@ -436,7 +436,7 @@ const hpBarColor = computed(() => {
   return "bg-elven-green";
 });
 
-const { ruleset } = useRuleset();
+const { ruleset } = useTableRuleset();
 const attackDisadvantage = computed(() => hasAttackDisadvantage(props.member.conditions ?? [], ruleset.value));
 const checkDisadvantage  = computed(() => hasCheckDisadvantage(props.member.conditions ?? [], ruleset.value));
 const exhaustionD20Penalty = computed(() => getExhaustionD20Penalty(props.member.conditions ?? [], ruleset.value));

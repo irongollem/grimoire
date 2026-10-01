@@ -153,7 +153,7 @@ import TabBar from "@/components/common/TabBar.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import type { TabItem } from "@/components/common/TabBar.vue";
 import { useParty } from "@/composables/party/useParty";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useMonsters } from "@/composables/monsters/useMonsters";
 import { drawToken, renderMysteryBack, type TokenEntity } from "@/lib/tokenRenderer";
@@ -341,7 +341,8 @@ const tokenBackSheet = computed(() => tokenBackOrder(renderedTokenUrls.value));
 
 const sourceTab = ref<SourceTab>("party");
 const { data: partyMembers } = useParty();
-const speciesNameMap = useSpeciesNameMap();
+// By id, not from the campaign-edition list: a character of the other edition keeps its species.
+const { data: speciesById } = useSpeciesByIds(() => (partyMembers.value ?? []).map((m) => m.species_id));
 const { data: npcs }         = useNpcs();
 const { data: allMonsters }  = useMonsters();
 
@@ -349,7 +350,7 @@ const partyEntities = computed<TokenEntity[]>(() =>
   (partyMembers.value ?? []).map((m) => ({
     id:          m.id,
     name:        m.name,
-    subtitle:    [speciesNameMap.value.get(m.species_id ?? ''), m.class].filter(Boolean).join(" · ") || "Party Member",
+    subtitle:    [speciesById.value.get(m.species_id ?? '')?.name, m.class].filter(Boolean).join(" · ") || "Party Member",
     imageUrl:    m.portrait_url ?? null,
     focalPoint:  m.portrait_focal_point ?? null,
     bgGradient:  ["#1e3a5f", "#060d1a"],

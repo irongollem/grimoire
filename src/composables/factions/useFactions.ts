@@ -203,12 +203,12 @@ export function usePlayerFactionPartyMembers(factionId: Ref<string>, enabled: Re
     queryFn: async ({ queryKey: [, fid] }) => {
       const { data, error } = await supabase
         .from("faction_party_members")
-        .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url, portrait_focal_point)")
+        .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url, portrait_focal_point, ruleset, campaign_id)")
         .eq("faction_id", fid)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as (FactionPartyMember & {
-        party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url" | "portrait_focal_point">;
+        party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url" | "portrait_focal_point" | "ruleset" | "campaign_id">;
       })[];
     },
     enabled: computed(() => !!factionId.value && enabled.value),
@@ -744,7 +744,7 @@ export function useDeleteFactionRelation() {
 // ── Faction Party Members ──────────────────────────────────────────────────────
 
 export interface FactionPartyMemberWithMember extends FactionPartyMember {
-  party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url" | "portrait_focal_point">;
+  party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url" | "portrait_focal_point" | "ruleset" | "campaign_id">;
 }
 
 export function useFactionPartyMembers(factionId: string) {
@@ -753,7 +753,7 @@ export function useFactionPartyMembers(factionId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faction_party_members")
-        .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url, portrait_focal_point)")
+        .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url, portrait_focal_point, ruleset, campaign_id)")
         .eq("faction_id", factionId)
         .order("created_at", { ascending: true });
       if (error) throw error;

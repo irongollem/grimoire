@@ -121,7 +121,7 @@ import { useCharacterSpellsWithDetails } from "@/composables/party/useCharacterS
 import { useAllCustomClasses, useAllSystemClasses, useClassByName } from "@/composables/rules/useCustomClasses";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
 import { pickSpellcastingStats } from "@/types/multiclass.types";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
@@ -141,6 +141,9 @@ const emit = defineEmits<{
 }>();
 
 // ── Stores & composables ──────────────────────────────────────────────────────
+
+// A PC built under the other edition must not read the campaign's (useRuleset.ts).
+provideCharacterRuleset(() => member);
 
 const store = useEncounterRunStore();
 const speciesNameMap = useSpeciesNameMap();

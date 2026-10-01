@@ -45,6 +45,7 @@ import { RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/party/useParty";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
@@ -63,14 +64,15 @@ const linkedMemberId = computed(() =>
 );
 
 const { data: partyMembers, isLoading } = useParty();
+const member = computed(() =>
+  partyMembers.value?.find((m) => m.id === linkedMemberId.value) ?? null,
+);
+// The name maps below list the character's edition, not the table's (useRuleset.ts).
+provideCharacterRuleset(() => member.value);
 const { data: inventoryItems } = usePartyInventory();
 const { data: items } = usePlayerVisibleItems();
 const speciesMap = useSpeciesNameMap();
 const backgroundMap = useBackgroundNameMap();
-
-const member = computed(() =>
-  partyMembers.value?.find((m) => m.id === linkedMemberId.value) ?? null,
-);
 
 const inventory = computed(() =>
   (inventoryItems.value ?? []).filter((i) => i.carried_by === linkedMemberId.value),

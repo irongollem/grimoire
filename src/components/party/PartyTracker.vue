@@ -38,7 +38,6 @@
         v-for="member in sortedMembers"
         :key="member.id"
         :member="member"
-        :species-name-map="speciesNameMap"
         :location-name-map="locationNameMap"
         :class-label="memberClassLabel(member.id, member.class)"
         :level-display="memberLevelDisplay(member.id, member.level)"
@@ -96,7 +95,6 @@ import { useCompanions, useDeleteCompanion } from "@/composables/encounters/useC
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useDmAllSharedJournalEntries } from "@/composables/notes/usePlayerJournal";
 import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
-import { useAllSpecies } from "@/composables/rules/useSpecies";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
@@ -119,13 +117,6 @@ const { data: allLocations } = useAllLocations();
 const locationNameMap = computed(() => {
   const m = new Map<string, string>();
   for (const l of allLocations.value ?? []) m.set(l.id, l.name);
-  return m;
-});
-
-const { data: allSpecies } = useAllSpecies();
-const speciesNameMap = computed(() => {
-  const m = new Map<string, string>();
-  for (const s of allSpecies.value ?? []) m.set(s.id, s.name);
   return m;
 });
 

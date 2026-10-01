@@ -35,6 +35,11 @@
         </div>
       </div>
 
+      <!-- Read-only: an edition changes only through conversion, never by editing the sheet. -->
+      <p v-if="existingMember" class="text-caption text-muted-foreground">
+        Built with {{ rulesetLabel(existingMember.ruleset) }}
+      </p>
+
       <div class="grid grid-cols-2 gap-3">
         <div>
           <span class="field-label">Species</span>
@@ -183,6 +188,7 @@
 <script setup lang="ts">
 import { inject, computed, watch } from "vue";
 import { CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
+import { rulesetLabel } from "@/composables/party/useCharacterRuleset";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { armorAcFor } from "@/rules/armorAc";
 import type { PartyMember } from "@/types/party.types";

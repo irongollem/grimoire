@@ -2,7 +2,7 @@ import { ref, computed } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { useParty } from "@/composables/party/useParty";
-import { useAllSpecies } from "@/composables/rules/useSpecies";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { generateChroniclerImage } from "@/ai/useChroniclerImageGeneration";
 import { captureImageGenerationContext } from "@/ai/useImageGeneration";
 import { buildAiProvenance } from "@/ai/provenance";
@@ -27,7 +27,8 @@ export function useGroupPortrait() {
   const store = useCampaignStore();
   const { ensureLikenessAck } = useLikenessGate();
   const { data: partyMembers } = useParty();
-  const { data: allSpecies }   = useAllSpecies();
+  // By id, not from the campaign-edition list: a member of the other edition keeps its species.
+  const { data: speciesById } = useSpeciesByIds(() => (partyMembers.value ?? []).map((m) => m.species_id));
   const { mutateAsync: updateCampaign } = useUpdateCampaign();
   const { costOf } = useAiCredits();
   const { requireCredits } = useOutOfCredits();
@@ -46,7 +47,7 @@ export function useGroupPortrait() {
 
   function resolveHeight(speciesId: string | null, override: string | null | undefined): string | null {
     if (override) return override;
-    const species = allSpecies.value?.find((s) => s.id === speciesId);
+    const species = speciesId ? speciesById.value.get(speciesId) : undefined;
     if (!species) return null;
     return species.avg_height ?? (species.size ? SIZE_HEIGHT_DEFAULTS[species.size] : null);
   }
