@@ -1,6 +1,6 @@
 ---
 name: whats-new
-description: Write a "What's new" post for the Dungeon Grimoire Discord from the commits released since the last one, as a short bullet list of the new things users will be glad to have and the annoyances that are now gone, and record the commit it ended on. Use when the user asks for release notes, a changelog post, a Discord update, or "what's new". Takes an optional commit to start from.
+description: Write a "What's new" post for the Dungeon Grimoire Discord from the commits released since the last one, as a short bullet list of the new things users will be glad to have and the annoyances that are now gone; post it to the channel once the user approves the text, and record the commit it ended on. Use when the user asks for release notes, a changelog post, a Discord update, or "what's new". Takes an optional commit to start from.
 user-invocable: true
 allowed-tools:
   - Bash
@@ -18,7 +18,7 @@ The output is a post for the people who use the app: DMs and their players. It i
 
 **The post exists to make users happy.** There are exactly two reasons a line earns its place: it is something new they will want to try, or it is something that bugged them and no longer does. A change that is merely true, visible and correct does not qualify. Nobody is glad to learn a settings page was re-laid-out. Most of the work in this skill is deciding what to leave out, and the first run got that wrong by listing nineteen things where ten mattered (the maintainer's words, 2 Oct 2026: "They dont care for small and insignificant updates").
 
-State lives in `.claude/skills/whats-new/last-posted.json`. The record of what shipped stays the git history (see Work Tracking in `CLAUDE.md`); this file only remembers where the last post stopped, so the next one diffs from there instead of from the beginning of the repo.
+It ends in the channel: once the user has approved the exact text, the skill posts it through a webhook. State lives in `.claude/skills/whats-new/last-posted.json`. The record of what shipped stays the git history (see Work Tracking in `CLAUDE.md`); this file only remembers where the last post stopped, so the next one diffs from there instead of from the beginning of the repo.
 
 ---
 
@@ -43,7 +43,7 @@ gh run list --workflow release.yml --branch main --status success --limit 10 \
 
 That is the head of the last **successful** "Test and release" run, not `origin/main` and not local `HEAD`. The three differ more often than you would think: local `main` regularly carries unpushed commits, and a push whose run is red or still going has not deployed (a red `database` job strands the release). Announcing something that is not live is the one mistake a reader will notice immediately.
 
-If `gh` is unavailable, use `git rev-parse origin/main` and say in the hand-over that the end was not checked against a release.
+If `gh` is unavailable, use `git rev-parse origin/main` and say, when you show the post, that the end was not checked against a release.
 
 **Check the pair before reading anything:**
 
@@ -127,7 +127,7 @@ Say who it is for when it is not everyone: `(players)` for the player portal und
 
 **Discord format.** Discord renders `#`/`##` headings, `- ` bullets, `**bold**`, `-# ` small text and `[text](url)` links. It has no tables. A bare URL unfurls into a preview card; wrap it as `<https://…>` to stop that. The app lives at `https://app.dungeongrimoire.com`.
 
-**A message is capped at 2,000 characters.** Count before you hand it over (`wc -m` on a scratchpad copy). A post over the cap is usually a post with too much in it, so go back to the bar above first. Only when every remaining bullet has earned its place do you split at the section boundary into two messages, each a complete block on its own.
+**A message is capped at 2,000 characters.** Count before you show it (`wc -m` on the scratchpad file). A post over the cap is usually a post with too much in it, so go back to the bar above first. Only when every remaining bullet has earned its place do you split at the section boundary into two messages, each a complete block on its own.
 
 Shape:
 
@@ -150,7 +150,41 @@ The date line is the commit date of the first commit after `<base>` to the commi
 git log -1 --date=format:'%-d %b %Y' --format=%ad <end>
 ```
 
-## Step 4 — Record where it ended
+## Step 4 — Show it and wait
+
+Write each message to its own file in the scratchpad (`whats-new-1.md`, and `whats-new-2.md` only if it was split). Those files are what gets posted, so what the user approves and what Discord receives cannot differ.
+
+Then show the user:
+
+1. The post, in a fenced `md` block per Discord message.
+2. Below it, briefly: the range (`<short base>..<short end>`, dates, commit count), the character count per message, and anything they should know before it goes out:
+   - commits on `origin/main` or local `main` newer than `<end>`, which were left out because they are not released;
+   - a judgment call worth a second look (a feature you could not confirm is reachable, a credit cost you could not verify).
+3. Where it will go, from `.claude/skills/whats-new/post-to-discord.sh --check`, which names the webhook and its channel without posting anything. Ask whether to post it.
+
+**Stop there.** Posting is public and cannot be taken back quietly: people are notified the moment it lands. It needs a yes to *this* text in *this* run. A yes from an earlier run, the fact that the user invoked the skill, or approval of a draft that has since changed is not that. If they ask for changes, edit the files, show the result and ask again.
+
+## Step 5 — Post it
+
+On a yes:
+
+```bash
+.claude/skills/whats-new/post-to-discord.sh <scratchpad>/whats-new-1.md [<scratchpad>/whats-new-2.md]
+```
+
+The script reads the webhook URL from `DISCORD_WHATS_NEW_WEBHOOK` in `.env.local` and posts each file as one message, in order. It checks every file against the 2,000-character cap before sending the first, disables pings (the text may say "@mention"; it must never notify anyone), suppresses link previews, and prints the id of each message Discord confirms.
+
+**Never read, echo or `curl` the webhook URL yourself.** Whoever holds it can post to the channel, the repo is public, and anything you print lands in a transcript. Everything that touches it goes through the script, which never prints it.
+
+What the exit code means:
+
+- **0**: every message is up. Go to Step 6.
+- **2**: no webhook is configured on this machine. Nothing is wrong: tell the user to paste the blocks themselves, ask them to confirm once they have, and only then go to Step 6.
+- **1**: refused or failed, and the output says which and how many messages got out first. Do not retry blindly: a retry after a partial post puts the first message up twice. Report it and let the user decide.
+
+## Step 6 — Record where it ended
+
+Only once the post is actually in the channel. Recording on generation would mark commits as announced when nobody was told, and the next run would skip them.
 
 Write `.claude/skills/whats-new/last-posted.json` with full 40-character hashes:
 
@@ -163,9 +197,9 @@ Write `.claude/skills/whats-new/last-posted.json` with full 40-character hashes:
 }
 ```
 
-`previous` is there so a post that was generated but never sent can be redone: run `/whats-new <previous>`.
+`previous` is the way back: `/whats-new <previous>` covers the same range again.
 
-Commit that one file, by path, so it is not left loose in a checkout other work commits from with `-a`. The path after `--` is what keeps anything else already staged out of the commit; the `add` is needed because on the first run the file is untracked, and a path-limited commit refuses a file git does not know:
+Commit that one file, by path, so it is not left loose in a checkout other work commits from with `-a`. The path after `--` is what keeps anything else already staged out of the commit; the `add` is there because a path-limited commit refuses a file git does not know yet:
 
 ```bash
 git add .claude/skills/whats-new/last-posted.json
@@ -174,15 +208,6 @@ git commit -m "chore(whats-new): record <short end> as the last announced commit
   -- .claude/skills/whats-new/last-posted.json
 ```
 
-Do not push. Rewording the post afterwards needs no new record; the range has not changed.
+Do not push.
 
-If the range held nothing a user would be glad to hear about, write no post and leave the state file alone. The next run reads those commits again, which costs nothing.
-
-## Step 5 — Hand it over
-
-1. The post, in a fenced `md` block per Discord message so it copies verbatim.
-2. Below it, briefly: the range (`<short base>..<short end>`, dates, commit count), the character count per message, and anything the user should know before posting:
-   - commits on `origin/main` or local `main` newer than `<end>`, which were left out because they are not released;
-   - a judgment call worth a second look (a feature you could not confirm is reachable, a credit cost you could not verify).
-
-The user posts it. This skill never sends anything to Discord.
+If the range held nothing a user would be glad to hear about, there is no post, no question to ask and no record to write. Say so and stop; the next run reads those commits again, which costs nothing.
