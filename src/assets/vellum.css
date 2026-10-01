@@ -222,6 +222,12 @@
   margin-bottom: 6px;
   padding-bottom: 0.5rem;
 }
+/* Row dividers and header rules run edge to edge; inside a torn card they
+   would poke out past the rough edge, so they stop 6px short of it. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) :is(.divide-y, [class*="divide-y-"]),
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > :is(.border-b, .border-t):not(.absolute) {
+  margin-inline: 6px;
+}
 :root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
 
 /* The 6px colour strip on top of category cards (NoteCard and friends)
@@ -312,3 +318,90 @@
   float: left;
   margin: 0.3rem 0.5rem 0 0;
 }
+
+/* ── Calendar ─────────────────────────────────────────────────────────────
+   A manuscript kalendarium instead of a box grid (hooks in CalendarGrid.vue):
+   each tenday is one torn, ruled strip; days with events are red-letter
+   days; today gets a double gilt rule; event dots become pigment diamonds;
+   the festival is a rubricated wash; the month's events are a dotted ledger. */
+:root[data-theme^="vellum"] .cal-week-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  color: var(--live);
+}
+:root[data-theme^="vellum"] .cal-week-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--live) 35%, transparent), transparent);
+}
+:root[data-theme^="vellum"] .cal-week { gap: 0; position: relative; isolation: isolate; padding: 4px; }
+:root[data-theme^="vellum"] .cal-week::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  z-index: -1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  filter: url(#vl-rough) drop-shadow(0 1px 1.5px rgb(43 32 25 / 0.16));
+  pointer-events: none;
+}
+:root[data-theme^="vellum"] .cal-day {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  --tw-ring-shadow: 0 0 #0000;
+  min-height: 4.25rem;
+  padding: 0.45rem 0.5rem;
+}
+:root[data-theme^="vellum"] .cal-day + .cal-day { box-shadow: inset 1px 0 0 color-mix(in oklab, var(--border) 80%, transparent); }
+:root[data-theme^="vellum"] .cal-day:not(.is-blank):hover { background: color-mix(in oklab, var(--accent) 60%, transparent); }
+:root[data-theme^="vellum"] .cal-day > span:first-child {
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: color-mix(in oklab, var(--foreground) 70%, transparent);
+}
+:root[data-theme^="vellum"] .cal-day.has-events > span:first-child { color: var(--live); font-weight: 700; }
+:root[data-theme^="vellum"] .cal-day.is-today {
+  background: color-mix(in oklab, var(--primary-fill) 12%, transparent);
+  box-shadow: inset 0 0 0 1px var(--primary-edge), inset 0 0 0 3px var(--card), inset 0 0 0 4px var(--primary-fill);
+}
+:root[data-theme^="vellum"] .cal-day.is-today > span:first-child { color: var(--primary); }
+:root[data-theme^="vellum"] .cal-day > div { gap: 0.3rem; padding-left: 0.1rem; }
+:root[data-theme^="vellum"] :is(.cal-day, .cal-events) .rounded-full { border-radius: 0; rotate: 45deg; width: 0.4rem; height: 0.4rem; }
+:root[data-theme^="vellum"] .cal-festival {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+  border-color: transparent;
+  text-align: center;
+  padding: 1rem 1.5rem;
+}
+:root[data-theme^="vellum"] .cal-festival::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  z-index: -1;
+  background: var(--secondary);
+  filter: url(#vl-rough);
+  pointer-events: none;
+}
+:root[data-theme^="vellum"] .cal-festival > div:first-child { justify-content: center; }
+:root[data-theme^="vellum"] .cal-festival .text-gold-400 { color: var(--live); }
+:root[data-theme^="vellum"] .cal-festival .font-cinzel { font-size: 1rem; letter-spacing: 0.12em; }
+:root[data-theme^="vellum"] .cal-events > * {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px dotted color-mix(in oklab, var(--foreground) 25%, transparent);
+  padding: 0.55rem 0.25rem;
+}
+:root[data-theme^="vellum"] .cal-events > *:hover { background: color-mix(in oklab, var(--accent) 60%, transparent); }
+:root[data-theme^="vellum"] .cal-events .rounded-full { width: 0.5rem; height: 0.5rem; }

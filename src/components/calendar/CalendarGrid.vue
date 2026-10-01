@@ -80,22 +80,23 @@
 
       <!-- Week rows -->
       <div v-for="(row, rowIdx) in gridRows" :key="rowIdx" class="mb-4">
-        <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-2">
+        <p class="cal-week-label font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-2">
           {{ weekRowLabel(rowIdx) }}
         </p>
-        <div :class="gridColsClass" :style="gridColsStyle" class="grid gap-1">
+        <div :class="gridColsClass" :style="gridColsStyle" class="cal-week grid gap-1">
           <div
             v-for="(day, colIdx) in row"
             :key="colIdx"
-            class="relative rounded-md border min-h-14 p-1.5 flex flex-col transition-colors"
+            class="cal-day relative rounded-md border min-h-14 p-1.5 flex flex-col transition-colors"
             :class="[
               day !== null && !readOnly
                 ? 'border-border bg-card hover:border-primary/50 cursor-pointer'
                 : day !== null
                   ? 'border-border bg-card'
                   : 'border-transparent bg-transparent',
-              day !== null && hasEvents(day) ? 'ring-1 ring-primary/40' : '',
-              day !== null && day === todayDayInView ? 'ring-2 ring-primary bg-primary/5' : '',
+              day !== null && hasEvents(day) ? 'has-events ring-1 ring-primary/40' : '',
+              day !== null && day === todayDayInView ? 'is-today ring-2 ring-primary bg-primary/5' : '',
+              day === null && 'is-blank',
             ]"
             @click="!readOnly && day !== null && emit('create-event', day)"
           >
@@ -128,7 +129,7 @@
       <div
         v-for="festival in festivalsAfterCurrentMonth"
         :key="festival.name"
-        class="mt-5 rounded-md border border-gold-500/40 bg-gold-500/10 px-4 py-3"
+        class="cal-festival mt-5 rounded-md border border-gold-500/40 bg-gold-500/10 px-4 py-3"
       >
         <div class="flex items-center gap-2 mb-1">
           <span class="text-gold-400 text-lg">✦</span>
@@ -158,10 +159,10 @@
 
       <!-- Events list for the month -->
       <div v-if="monthEvents.length" class="mt-6">
-        <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-3">
+        <p class="cal-week-label font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-3">
           EVENTS THIS MONTH
         </p>
-        <div class="space-y-1.5">
+        <div class="cal-events space-y-1.5">
           <component
             :is="entityLink(event) ? RouterLink : 'div'"
             v-for="event in monthEvents"
