@@ -319,6 +319,7 @@
   text-transform: uppercase;
   color: color-mix(in oklab, var(--foreground) 60%, transparent);
 }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > p:not(.italic) svg { color: var(--live); }
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:last-child { justify-content: center; gap: 0; padding-top: 0.45rem; }
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:last-child > span:not(.italic) {
   background: transparent;

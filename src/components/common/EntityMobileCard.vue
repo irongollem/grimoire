@@ -47,7 +47,7 @@
             v-if="location"
             class="min-w-0 truncate font-fell italic text-muted-foreground"
           >
-            <IconLocation class="mr-0.5 inline h-3 w-3 -translate-y-px" aria-hidden="true" />{{ location }}
+            <IconCompassRose class="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{{ location }}
           </span>
           <IconReveal
             v-if="shared"
@@ -114,7 +114,7 @@
 
 <script setup lang="ts">
 import FocalImage from "@/components/common/FocalImage.vue";
-import { IconLocation, IconReveal } from "@/lib/icons";
+import { IconCompassRose, IconReveal } from "@/lib/icons";
 
 const {
   layout = "rows",
