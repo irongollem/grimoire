@@ -5,7 +5,7 @@ import {
   buildCampaignContext,
 } from "./utils";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { getTextProvider } from "./providers";
 import { wrapUserInput } from "./utils";
 import {
@@ -44,7 +44,7 @@ registerAiGenerator({
 export { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 
 export function useNpcGeneration() {
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
   const { ensureLikenessAck } = useLikenessGate();
 
   async function generate(

@@ -15,6 +15,7 @@ function member(overrides: Partial<PartyMember> = {}): PartyMember {
     owner_user_id: null,
     is_dm_managed: false,
     campaign_id: "c1",
+    ruleset: "2014",
     name: "Elowen Ashvale",
     player_name: "Jamie",
     class: "Wizard",

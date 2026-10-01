@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { LibraryRule, Rule, RuleInsert, RuleUpdate } from "@/types/rule.types";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 // ── SRD Rules ─────────────────────────────────────────────────────────────────
@@ -21,7 +21,7 @@ async function fetchLibraryRules(ruleset: RulesetKey): Promise<LibraryRule[]> {
 }
 
 export function useLibraryRules() {
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
   return useQuery({
     queryKey: computed(() => [LIBRARY_KEY, ruleset.value] as const),
     queryFn: ({ queryKey: [, rs] }) => fetchLibraryRules(rs),
@@ -80,7 +80,7 @@ async function deleteRule(id: string): Promise<void> {
 export function useRules() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
   return useQuery({
     queryKey: computed(() => [CUSTOM_KEY, campaignId.value, ruleset.value] as const),
     queryFn: ({ queryKey: [, cid, rs] }) => {
@@ -94,7 +94,7 @@ export function useRules() {
 
 /** Player-facing: returns player-visible rules from the campaign DM (via RLS). */
 export function usePlayerVisibleRules() {
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
   return useQuery({
     queryKey: computed(() => [CUSTOM_KEY, "player-visible", ruleset.value] as const),
     queryFn: async ({ queryKey: [, , rs] }): Promise<Rule[]> => {

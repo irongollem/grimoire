@@ -216,14 +216,6 @@ export function dispatchCampaignRealtimeSystem(
       return true;
     }
 
-    case "ruleset_reviews":
-      applyRealtimeRow(queryClient, asRow(change), {
-        rootKey: "ruleset_reviews",
-        include: (key) => isKey(key, "ruleset_reviews", 2),
-        matches: (key, row) => key[1] === stringAt(row, "party_member_id"),
-      });
-      return true;
-
     case "campaign_rules":
       applyCampaignRule(queryClient, change, context.campaignId);
       return true;

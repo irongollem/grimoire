@@ -183,7 +183,7 @@ import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import ConditionPicker from "@/components/encounters/ConditionPicker.vue";
 import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { getExhaustionLevel, getConditionDescription } from "@/rules/conditions";
 import { useRunnerCombatant } from "@/composables/encounters/useRunnerCombatant";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -197,7 +197,7 @@ const { combatant, selectedId } = defineProps<{
 const emit = defineEmits<{ select: [id: string | null] }>();
 
 const store = useEncounterRunStore();
-const { ruleset } = useRuleset();
+const { ruleset } = useTableRuleset();
 
 const {
   wildshape,

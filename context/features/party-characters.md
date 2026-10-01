@@ -339,18 +339,52 @@ the `wotc-srd` baseline when no campaign is active (`useSpecies.ts`), since
 `my-characters`, which useParty.ts owns for the campaign-scoped champions
 list).
 
-**An unattached character's ruleset.** A ruleset is a property of a campaign,
-so a character with no campaign has none of its own and plays under 2014. The
-client says so in `normalizeRuleset()` and the database in
-`private.party_member_ruleset(party_member_id)`, which is the only function
-allowed to resolve a character's ruleset. Until migration `20261001220509`,
-fifteen functions each joined the member to its campaign instead, and the join
-returns no row for an unattached character: the class trigger raised `P0002`,
-so standalone creation could not finish at all, and five spellcasting RPCs read
-the ruleset as NULL. `supabase/tests/standalone_character_ruleset.test.sql`
-fails if a function reads a campaign's ruleset inline again. Giving a
-standalone character a ruleset of its own means changing that one function
-body and `useRuleset()`, nothing else.
+**A character's ruleset is its own (#943, migration `20261001232001`).**
+`party_members.ruleset` is NOT NULL with no default. A roster character created
+inside a campaign takes that campaign's; a character with no campaign must state
+one, which is why the creation wizard asks for the edition first. It is written
+by nothing but `convert_party_member_ruleset()`: a guard trigger refuses a bare
+column write, because changing the edition without re-pinning classes and spells
+leaves the sheet on two editions at once. `private.party_member_ruleset(id)` is
+the only function that resolves it, and the fifteen class and spell functions
+all read through it. Until `20261001220509` they each joined the member to its
+campaign instead, a join that returns no row for an unattached character, so
+the class trigger raised `P0002` and standalone creation could not finish.
+
+**The table decides who sits down.** `campaigns.allows_mixed_rulesets` (default
+false) gates `attach_party_member_to_campaign`, `join_campaign_via_invite` and a
+direct insert, all through `private.assert_ruleset_admissible()`. A refusal
+raises SQLSTATE `RS001` with both rulesets in `detail` as JSON; the client's
+bounce dialog keys on that code and offers a converted copy
+(`convert_party_member_copy`, which leaves the original untouched) or another
+character. Admission that runs later (a parent's approval) never raises: the
+joiner is admitted and a character the table no longer takes stays in the pool.
+
+**A campaign switching edition changes no character.** The trigger that rewrote
+every seated character is gone. Characters keep their edition and their seat;
+the mismatch is derivable (`party_members.ruleset <> campaigns.ruleset`) and has
+no table of its own. The owner converts in place when they choose to; the DM can
+convert only a character nobody owns.
+
+**What follows the character and what follows the table.** Build rules (classes,
+subclasses, features, spells and their preparation, slots, feats, background,
+species, metamagic, weapon mastery) follow the character. Table rules
+(conditions and exhaustion, monsters, items, house rules, AI generators) follow
+the campaign while the character is seated there, and the character when it is
+not. On the client that is `useRuleset()` and `useTableRuleset()` in
+`src/composables/rules/useRuleset.ts`, which resolve the nearest ruleset scope:
+a surface showing one character calls `provideCharacterRuleset(member)`, and
+with no scope both fall back to the active campaign.
+
+**Claiming transfers ownership.** Linking a seat to a character nobody owns
+(`campaign_members.party_member_id`, whether the player links it or the DM
+assigns it) sets `owner_user_id` to that member, by trigger. Before #943 nothing
+did, so a player could play a DM-made character for months and lose it to a
+detach or to the DM deleting their account. An owned character is never
+re-owned; the seat link moves freely between a player's own characters.
+
+`supabase/tests/character_ruleset.test.sql` holds all of the above, each refusal
+beside a control.
 
 ### Champions List (`/play/champions` — `PlayerChampionsView.vue`)
 
@@ -373,7 +407,7 @@ Both are provided the shared `useCharacterCreationForm` composable via `provide(
 
 **2024 background step (#558)** — for a background with `asi_ability_trio` set, `CharacterCreateBackgroundStep.vue` renders `BackgroundAsiPicker.vue`: the player picks either +2/+1 split across two of the trio's abilities or +1/+1/+1 across all three. The choice is stored in `class_choices.background_asi` (via the `backgroundAsiChoice` computed in `useCharacterCreationForm`) and applied to the character's ability scores the same way species ASI is — once, at the point the choice is made. If the background also grants an `origin_feat`, `BackgroundOriginFeatBadge.vue` shows it and resolves it to a full-text `class_features` row by `conceptual_key` when one has been imported; unresolved feats still save their raw name (`class_choices.background_feat`) — a feat grant is never silently dropped just because the matching feature hasn't been imported yet.
 
-**Ruleset-switch safety net** — a campaign ruleset change (2014⇄2024) can invalidate or newly require a player choice: a background ASI/Origin-feat pick, a class/subclass whose progression changed, or a spell with no safe counterpart in the new edition. Rather than a per-domain boolean column, every such case is recorded as a row in the generic `ruleset_reviews` table (`flag_type`: `'class' | 'subclass' | 'spell' | 'background'`, plus `character_class_id`/`character_spell_id` when applicable) by DB triggers — clients only read it via `useRulesetReviews(memberId)`. `PlayerFeaturesTab` (background), `PlayerSpellsView` (class/subclass and spell), all show the shared `RulesetReviewBanner` component when a matching row exists for the member. Acknowledging calls the single `acknowledge_ruleset_reviews(p_party_member_id, p_flag_types)` RPC (SECURITY DEFINER, authorizes the caller against the party member, idempotent) via `useAcknowledgeRulesetReviews()`, which deletes the matching rows.
+**Conversion reviews** — converting a character to the other edition (`convert_party_member_ruleset`, or the converted copy a bounce offers) can invalidate or newly require a choice: a background ASI/Origin-feat pick, a class or subclass with no counterpart, or a spell with no safe counterpart. Each case is a row in `ruleset_reviews` (`flag_type`: `'class' | 'subclass' | 'spell' | 'background'`, plus `character_class_id`/`character_spell_id` when applicable), written by the conversion and keyed on the character alone: the table has no `campaign_id` since #943, so a campaign-less copy can carry reviews. Clients read it via `useRulesetReviews(memberId)`. `PlayerFeaturesTab` (background) and `PlayerSpellsView` (class/subclass and spell) show the shared `RulesetReviewBanner` when a matching row exists. Acknowledging calls `acknowledge_ruleset_reviews(p_party_member_id, p_flag_types)` via `useAcknowledgeRulesetReviews()`, which deletes the matching rows. A conversion suspends the spell count limit for its own statement: it keeps every choice the player made, and the other edition's limit may be lower, so the limit applies again at the next spell change rather than refusing the conversion.
 
 ### Character Sheet (`/play` — `PlayerCharacterView.vue`)
 

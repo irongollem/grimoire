@@ -14,6 +14,8 @@ export interface Campaign {
   name: string;
   /** Campaign-wide rules edition used by every rules-aware subsystem. */
   ruleset: RulesetKey;
+  /** When true, characters of either edition may be seated in this campaign. */
+  allows_mixed_rulesets: boolean;
   description: string | null;
   setting: string;
   current_year: number;
@@ -83,6 +85,7 @@ export type CampaignInsert = Omit<
   | "immersive_rolls"
   | "optional_rules"
   | "ruleset"
+  | "allows_mixed_rulesets"
   | ApiKeyFields
   | ProviderFields
   | "ai_setting_prompt"
@@ -106,6 +109,7 @@ export type CampaignInsert = Omit<
   immersive_rolls?: boolean;
   optional_rules?: CampaignOptionalRules;
   ruleset?: RulesetKey;
+  allows_mixed_rulesets?: boolean;
   openai_api_key?: string | null;
   anthropic_api_key?: string | null;
   gemini_api_key?: string | null;

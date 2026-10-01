@@ -63,19 +63,19 @@
  * once turns a fixed-height card into an unpredictable one, and the widget's
  * whole job is to sit in a grid cell without moving the widgets under it.
  *
- * Edition-aware through `useRuleset()`, and read through `getConditions()`
+ * Edition-aware through `useTableRuleset()`, and read through `getConditions()`
  * rather than the `srdConditions2014`/`2024` data modules — those are baked
  * per edition and the patches in `conditionPatches.ts` are applied on the way
  * out, so reading the raw modules would silently skip them.
  */
 import { computed, ref } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { getConditions } from "@/rules/conditions";
 import { IconChevronDown } from "@/lib/icons";
 import { drawerTransition } from "@/lib/motion";
 
-const { ruleset } = useRuleset();
+const { ruleset } = useTableRuleset();
 
 const conditions = computed(() => getConditions(ruleset.value));
 

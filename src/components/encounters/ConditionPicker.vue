@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { CONDITIONS, getExhaustionLevel, getConditionShort } from "@/rules/conditions";
 import type { ConditionName } from "@/rules/conditions";
 
@@ -42,7 +42,7 @@ const emit = defineEmits<{
   pick: [name: ConditionName];
 }>();
 
-const { ruleset } = useRuleset();
+const { ruleset } = useTableRuleset();
 const open = ref(false);
 const root = ref<HTMLElement | null>(null);
 

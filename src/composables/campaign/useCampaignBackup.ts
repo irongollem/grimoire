@@ -466,6 +466,8 @@ async function executeImport(
 
   // 1. Insert campaign
   const campaignInsert: Row = {
+    // `ruleset` and `allows_mixed_rulesets` ride along in this spread: the
+    // restored campaign must keep both for its characters' editions to stay valid.
     ...backup.campaign,
     id: newCampaignId,
     user_id: userId,
@@ -489,8 +491,16 @@ async function executeImport(
     // 2. Party members
     await batchInsert(
       "party_members",
-      backup.party_members.map((pm) => ({
+      backup.party_members.map(({ ruleset, ...pm }) => ({
         ...pm,
+        // The restored campaign keeps the backed-up campaign's edition, so a
+        // character's own edition is carried only when the campaign still
+        // accepts it; otherwise the database seats it at the campaign's.
+        // Backups from before characters carried an edition have none.
+        ...(ruleset !== undefined
+          && (ruleset === backup.campaign.ruleset || backup.campaign.allows_mixed_rulesets === true)
+          ? { ruleset }
+          : {}),
         id: r(pm.id, idMap),
         campaign_id: newCampaignId,
         user_id: userId,

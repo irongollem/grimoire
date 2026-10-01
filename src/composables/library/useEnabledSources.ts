@@ -2,7 +2,7 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useRuleset, useTableRuleset } from "@/composables/rules/useRuleset";
 
 const ENABLED_KEY          = "enabled-sources";
 const AVAILABLE_KEY        = "available-library-sources";
@@ -117,7 +117,7 @@ export function resolveLibrarySlugs(
 }
 
 export function useAvailableLibrarySources() {
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
   return useQuery({
     queryKey: computed(() => [AVAILABLE_KEY, ruleset.value] as const),
     queryFn: ({ queryKey: [, rs] }) => fetchAvailableLibrarySources(rs),
@@ -147,7 +147,7 @@ async function fetchAvailableLibraryItemSources(ruleset: "2014" | "2024"): Promi
 }
 
 export function useAvailableLibraryItemSources() {
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
   return useQuery({
     queryKey: computed(() => [AVAILABLE_ITEM_KEY, ruleset.value] as const),
     queryFn: ({ queryKey: [, rs] }) => fetchAvailableLibraryItemSources(rs),

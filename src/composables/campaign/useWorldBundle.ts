@@ -62,6 +62,8 @@ export interface GrimoireBundle {
    * the wrong ruleset tripping the content-identity trigger.
    */
   ruleset?: RulesetKey;
+  /** Source campaign's mixed-edition setting; carried with `ruleset` when a new campaign is created from the bundle. */
+  allows_mixed_rulesets?: boolean;
   // Campaign-scoped
   npcs?: Row[];
   npc_relationships?: Row[];
@@ -208,11 +210,14 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
 
   const { data: sourceCampaign, error: campaignError } = await supabase
     .from("campaigns")
-    .select("ruleset")
+    .select("ruleset, allows_mixed_rulesets")
     .eq("id", campaignId)
     .single();
   if (campaignError) throw new Error(`Failed to read source campaign: ${campaignError.message}`);
-  const sourceRuleset = (sourceCampaign as { ruleset: RulesetKey }).ruleset;
+  const { ruleset: sourceRuleset, allows_mixed_rulesets: sourceAllowsMixed } = sourceCampaign as {
+    ruleset: RulesetKey;
+    allows_mixed_rulesets: boolean;
+  };
 
   await Promise.all([
 
@@ -463,6 +468,7 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
     ...(author ? { author } : {}),
     exported_at: new Date().toISOString(),
     ruleset: sourceRuleset,
+    allows_mixed_rulesets: sourceAllowsMixed,
     ...bundle,
     _meta: { entity_counts: entityCounts, app_version: "1.0.0" },
   };
@@ -522,6 +528,13 @@ export interface ImportRemapCtx {
    * instead of carrying a possibly-invalid pin.
    */
   stripClassDefinitionPins?: boolean;
+  /**
+   * The destination campaign's ruleset. A character keeps its own `ruleset`
+   * only when it equals this; otherwise the field is omitted from the insert
+   * and the database seats the character at the destination's edition (the
+   * same rule, for the same reason, as `stripClassDefinitionPins`).
+   */
+  destinationRuleset?: RulesetKey;
 }
 
 /**
@@ -548,8 +561,10 @@ export const remapSpellForImport = remapLibraryRowForImport;
 
 /** Imported characters land unassigned (DM characters): owner_user_id null. */
 export function remapPartyMemberForImport(pm: Row, ctx: ImportRemapCtx): Row {
+  const { ruleset, ...rest } = pm;
   return {
-    ...pm,
+    ...rest,
+    ...(ruleset !== undefined && ruleset === ctx.destinationRuleset ? { ruleset } : {}),
     id: freshId(pm.id, ctx.idMap),
     campaign_id: ctx.campaignId,
     user_id: ctx.userId,
@@ -661,7 +676,12 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
     destinationRuleset = bundle.ruleset ?? "2014";
     const { data, error } = await supabase
       .from("campaigns")
-      .insert({ name: opts.newCampaignName.trim(), user_id: userId, ruleset: destinationRuleset })
+      .insert({
+        name: opts.newCampaignName.trim(),
+        user_id: userId,
+        ruleset: destinationRuleset,
+        ...(bundle.allows_mixed_rulesets !== undefined ? { allows_mixed_rulesets: bundle.allows_mixed_rulesets } : {}),
+      })
       .select()
       .single();
     if (error) throw new Error(`Campaign creation failed: ${error.message}`);
@@ -682,7 +702,7 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
   // pin may reference a definition from the other ruleset's edition and trip
   // the content-identity trigger. Fall back to name-based class resolution.
   const stripClassDefinitionPins = bundle.ruleset === undefined || bundle.ruleset !== destinationRuleset;
-  const ctx: ImportRemapCtx = { idMap, campaignId, userId, stripClassDefinitionPins };
+  const ctx: ImportRemapCtx = { idMap, campaignId, userId, stripClassDefinitionPins, destinationRuleset };
 
   // ── Campaign-scoped entities ──────────────────────────────────────────────
 

@@ -140,6 +140,26 @@ describe("remapCustomSubclassForImport", () => {
   });
 });
 
+describe("remapPartyMemberForImport ruleset", () => {
+  const ctx: ImportRemapCtx = { idMap: new Map([["pm-1", "pm-fresh"]]), campaignId: "camp-new", userId: "dm-importer" };
+  const row = { id: "pm-1", name: "Brannor", ruleset: "2014" };
+
+  it("carries the character's ruleset when it equals the destination campaign's", () => {
+    const result = remapPartyMemberForImport(row, { ...ctx, destinationRuleset: "2014" });
+    expect(result.ruleset).toBe("2014");
+  });
+
+  it("omits it when the editions differ so the database assigns the destination's", () => {
+    const result = remapPartyMemberForImport(row, { ...ctx, destinationRuleset: "2024" });
+    expect("ruleset" in result).toBe(false);
+  });
+
+  it("omits it when the bundle row has none", () => {
+    const result = remapPartyMemberForImport({ id: "pm-1", name: "Old" }, { ...ctx, destinationRuleset: "2024" });
+    expect("ruleset" in result).toBe(false);
+  });
+});
+
 describe("remapCharacterClassForImport", () => {
   const idMap = new Map([["cc-1", "cc-fresh"], ["pm-1", "pm-fresh"]]);
   const baseCtx: ImportRemapCtx = { idMap, campaignId: "camp-new", userId: "dm-importer" };

@@ -293,6 +293,7 @@ const sampleMember: PartyMember = {
   user_id: "calib-user-0000-0000-000000000001",
   owner_user_id: null,
   is_dm_managed: false,
+  ruleset: "2014",
   campaign_id: null,
   name: "Seraphina Emberlyn Duskwhisper-Ashford, Blade of the Sundered Vale",
   player_name: "Calibration Player",

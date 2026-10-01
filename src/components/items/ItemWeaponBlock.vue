@@ -58,7 +58,7 @@ import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types
 import type { DamageRoll } from "@/lib/dice/dice";
 import type { WeaponMasteryProperty } from "@/types/item.types";
 import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 
 const {
   damageRolls = [],
@@ -82,7 +82,7 @@ const emit = defineEmits<{
   "update:mastery": [value: WeaponMasteryProperty | null];
 }>();
 
-const { is2024 } = useRuleset();
+const { is2024 } = useTableRuleset();
 
 // AppInput/AppSelect require v-model; these bridge the component's existing
 // prop-down/emit-up contract (unchanged) onto that, same as a native

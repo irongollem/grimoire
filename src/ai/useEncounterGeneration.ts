@@ -14,7 +14,7 @@ import { useUiStore } from "@/stores/ui";
 import { getTextProvider } from "./providers";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
 import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 
@@ -42,7 +42,7 @@ export interface EncounterGenerationOptions {
 
 export function useEncounterGeneration() {
   const campaign = useCampaignStore();
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,
