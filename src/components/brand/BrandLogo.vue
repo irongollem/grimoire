@@ -7,7 +7,7 @@
     alt="Dungeon Grimoire"
     width="960"
     height="222"
-    class="block h-auto max-w-full select-none"
+    class="block max-w-full select-none"
     draggable="false"
   />
 </template>
