@@ -45,7 +45,7 @@ export { PictureInPicture2 as IconPopOut }
 export { Plus as IconAdd }
 export { Minus as IconMinus }
 export { Trash2 as IconDelete }
-export { Pencil as IconEdit }
+export { Feather as IconEdit }
 export { Save as IconSave }
 export { Copy as IconCopy }
 export { X as IconClose }

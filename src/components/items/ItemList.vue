@@ -84,7 +84,7 @@
                 :is="itemTypeIcon(item.item_type)"
                 class="mb-px h-3.5 w-3.5 shrink-0 text-white/70"
               />
-              <IconFeather
+              <IconDocument
                 v-if="item.content !== null"
                 class="mb-px h-3.5 w-3.5 shrink-0 text-white/70"
               />
@@ -137,7 +137,7 @@
 
 <script setup lang="ts">
 import { computed, type Component as VueComponent } from "vue";
-import { IconCaravan, IconCircle, IconCoins, IconComponent, IconEdit, IconFeather, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconNavItemVault, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';
+import { IconCaravan, IconCircle, IconCoins, IconComponent, IconDocument, IconEdit, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconNavItemVault, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import EntityGridCard from "@/components/common/EntityGridCard.vue";

@@ -16,7 +16,7 @@
     </div>
 
     <!-- Written contents indicator -->
-    <IconFeather
+    <IconDocument
       v-if="hasContent"
       class="h-3.5 w-3.5 shrink-0 text-muted-foreground/50"
       title="Has written contents"
@@ -110,7 +110,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconAdd, IconArrowUp, IconDelete, IconDrag, IconFeather, IconMinus, IconScissors, IconShop } from '@/lib/icons';
+import { IconAdd, IconArrowUp, IconDelete, IconDocument, IconDrag, IconMinus, IconScissors, IconShop } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
