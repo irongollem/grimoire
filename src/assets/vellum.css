@@ -229,6 +229,19 @@
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > :is(.border-b, .border-t):not(.absolute) {
   margin-inline: 6px;
 }
+/* Card artwork (NPC portraits and other entity cards) is a plate printed
+   on the sheet, like a wanted poster: inset from the torn edge, framed with
+   a double ink rule, and warmed slightly toward the paper. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) {
+  margin: 0.7rem 0.7rem 0;
+  border-radius: 0;
+  outline: 1px solid color-mix(in oklab, var(--foreground) 55%, transparent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--foreground) 25%, transparent);
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) img {
+  filter: sepia(0.18) saturate(0.92) contrast(1.02);
+}
 :root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
 
 /* The 6px colour strip on top of category cards (NoteCard and friends)
