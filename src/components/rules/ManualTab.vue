@@ -179,7 +179,14 @@ function selectPage(id: string) {
 function onContentClick(event: MouseEvent) {
   if (!(event.target instanceof Element)) return;
   const href = event.target.closest("a")?.getAttribute("href");
-  if (!href?.startsWith("#")) return;
+  if (!href) return;
+  // In-app links (What's New actions) navigate in place instead of reloading.
+  if (href.startsWith("/")) {
+    event.preventDefault();
+    router.push(href);
+    return;
+  }
+  if (!href.startsWith("#")) return;
   event.preventDefault();
   selectPage(href.slice(1));
 }

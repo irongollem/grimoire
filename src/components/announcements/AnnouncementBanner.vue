@@ -12,12 +12,17 @@
           :label="current.action.label"
         />
         <AppButton variant="ghost" size="sm" label="Got it" @click="dismiss(current.id)" />
+        <RouterLink
+          to="/rules?tab=manual&page=whats-new"
+          class="ml-auto text-caption text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        >All notices</RouterLink>
       </template>
     </NoticeCard>
   </div>
 </template>
 
 <script setup lang="ts">
+import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import NoticeCard from "@/components/common/NoticeCard.vue";
 import { useAnnouncements } from "@/composables/useAnnouncements";

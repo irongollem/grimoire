@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { manualSections } from "@/lib/manualLoader";
+import { ANNOUNCEMENTS } from "@/lib/announcements";
 
 const pages = manualSections.flatMap((s) => s.pages);
 
@@ -15,6 +16,12 @@ describe("manual structure", () => {
       [p.title, p.summary ?? ""].some((v) => /^["']|["']$/.test(v)),
     );
     expect(quoted.map((p) => p.id)).toEqual([]);
+  });
+
+  it("lists every announcement on the What's New page", () => {
+    const page = pages.find((p) => p.id === "whats-new");
+    expect(page).toBeDefined();
+    for (const a of ANNOUNCEMENTS) expect(page!.html).toContain(a.title);
   });
 
   it("gives every page a summary", () => {

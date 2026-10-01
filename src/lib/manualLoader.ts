@@ -17,6 +17,7 @@
  */
 
 import { marked } from "marked";
+import { ANNOUNCEMENTS } from "@/lib/announcements";
 
 export interface ManualPage {
   id: string;          // derived from filename
@@ -76,6 +77,40 @@ function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/**
+ * "What's New": every in-app announcement (src/lib/announcements.ts), newest
+ * first, so a notice someone dismissed too quickly can still be read. Built
+ * from the same list the banner uses, so there is nothing to keep in sync.
+ */
+export function whatsNewPage(): ManualPage {
+  const entries = [...ANNOUNCEMENTS].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  const date = (iso: string) =>
+    new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const html = entries.length
+    ? entries
+        .map(
+          (a) =>
+            `<h2>${escapeHtml(a.title)}</h2><p><em>${date(a.publishedAt)}</em></p><p>${escapeHtml(a.body)}</p>` +
+            (a.action ? `<p><a href="${escapeHtml(a.action.to)}">${escapeHtml(a.action.label)} →</a></p>` : ""),
+        )
+        .join("")
+    : "<p>Nothing announced yet.</p>";
+  return {
+    id: "whats-new",
+    title: "What's New",
+    section: "Getting Started",
+    sectionOrder: 0,
+    order: 0.5,
+    summary: "Every notice shown at the top of the app, newest first.",
+    keywords: ["what's new", "whats new", "changelog", "updates", "notices", "announcements"],
+    html,
+  };
+}
+
 function buildPages(): ManualSection[] {
   const pages: ManualPage[] = Object.entries(rawFiles).map(([path, raw]) => {
     const filename = path.split("/").pop()?.replace(/\.md$/, "") ?? path;
@@ -92,6 +127,8 @@ function buildPages(): ManualSection[] {
       html: wrapTables(marked(body, { async: false }) as string),
     };
   });
+
+  pages.push(whatsNewPage());
 
   // Group into sections, preserving section order
   const sectionMap = new Map<string, ManualSection>();
