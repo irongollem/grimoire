@@ -50,10 +50,16 @@
       class="min-h-0 min-w-0 flex-1 flex-col lg:shrink-0 lg:overflow-hidden lg:transition-[max-width,padding-right,border-width] lg:duration-200 lg:ease-out motion-reduce:lg:transition-none"
       :class="[
         selectedId ? 'hidden lg:flex' : 'flex',
+        // A set width (not flex-1 capped by max-w): with both columns flex-1
+        // the tree could never grow past half the row, so dragging further did
+        // nothing. max-w is what the fold animates.
+        'lg:w-(--atlas-tree-w) lg:flex-none',
         ui.locationsTreeCollapsed
           ? 'lg:max-w-0 lg:border-r-0 lg:pr-0'
-          : 'lg:max-w-md lg:border-r lg:border-border lg:pr-4',
+          : 'lg:max-w-(--atlas-tree-w) lg:border-r lg:border-border lg:pr-4',
+        dragging && 'lg:transition-none',
       ]"
+      :style="{ '--atlas-tree-w': `${treeWidth}px` }"
     >
       <AtlasTree
         :index="index"
@@ -68,6 +74,36 @@
         @collapse-all="ui.collapseAllLocations()"
         @collapse-tree="ui.locationsTreeCollapsed = true"
       />
+    </div>
+
+    <!--
+      The divider is a handle: drag it (or focus it and use the arrow keys) to
+      give the tree more or less room; double-click puts it back. The width is
+      remembered per browser. Desktop only, like the fold.
+    -->
+    <div
+      v-if="!ui.locationsTreeCollapsed"
+      class="relative hidden w-0 shrink-0 lg:block"
+    >
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize location tree"
+        :aria-valuenow="treeWidth"
+        :aria-valuemin="TREE_MIN"
+        :aria-valuemax="TREE_MAX"
+        tabindex="0"
+        class="group absolute inset-y-0 -left-1.5 z-10 flex w-3 cursor-col-resize justify-center outline-none"
+        @pointerdown="startDrag"
+        @dblclick="treeWidth = TREE_DEFAULT"
+        @keydown.left.prevent="treeWidth = clampWidth(treeWidth - 24)"
+        @keydown.right.prevent="treeWidth = clampWidth(treeWidth + 24)"
+      >
+        <span
+          class="h-full w-0.5 transition-colors group-hover:bg-primary/60 group-focus-visible:bg-primary"
+          :class="dragging ? 'bg-primary' : 'bg-transparent'"
+        />
+      </div>
     </div>
 
     <!--
@@ -135,7 +171,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { useLocalStorage } from "@vueuse/core";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/AppButton.vue";
@@ -152,6 +189,41 @@ import { ancestorIds, buildAtlasIndex } from "@/lib/locations/tree";
 import { extractTiptapText } from "@/lib/utils";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
+
+// ── Resizable tree column (desktop) ────────────────────────────────────────
+const TREE_MIN = 240;
+const TREE_MAX = 720;
+const TREE_DEFAULT = 448; // the old fixed max-w-md
+const clampWidth = (w: number) => Math.round(Math.min(TREE_MAX, Math.max(TREE_MIN, w)));
+const treeWidth = useLocalStorage("grimoire-atlas-tree-width", TREE_DEFAULT);
+const dragging = ref(false);
+let dragStartX = 0;
+let dragStartW = 0;
+
+function onDragMove(e: PointerEvent) {
+  treeWidth.value = clampWidth(dragStartW + e.clientX - dragStartX);
+}
+function stopDrag() {
+  dragging.value = false;
+  window.removeEventListener("pointermove", onDragMove);
+  window.removeEventListener("pointerup", stopDrag);
+  document.body.style.removeProperty("cursor");
+  document.body.style.removeProperty("user-select");
+}
+function startDrag(e: PointerEvent) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  dragging.value = true;
+  dragStartX = e.clientX;
+  dragStartW = treeWidth.value;
+  // Keep the resize cursor and stop text selection while the pointer is
+  // anywhere on the page, not only over the thin handle.
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
+  window.addEventListener("pointermove", onDragMove);
+  window.addEventListener("pointerup", stopDrag);
+}
+onBeforeUnmount(stopDrag);
 
 const ui = useUiStore();
 const route = useRoute();

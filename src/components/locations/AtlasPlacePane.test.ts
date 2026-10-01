@@ -82,7 +82,7 @@ const stubs = {
   LocationRevealControl: true,
   SiteMapLayerBar: true,
   SiteReadinessMeter: true,
-  SegmentedControl: true,
+  TabBar: true,
 };
 
 // Every test mounts through this so `afterEach` can always tear it down.

@@ -233,7 +233,7 @@
       "not mapped", even though the toggle it would otherwise share the row
       with has nothing to switch between yet.
     -->
-    <div v-if="hasMap || isSite" class="mb-3 flex flex-wrap items-center gap-2">
+    <div v-if="hasMap || isSite" class="relative mb-3 flex flex-wrap items-center gap-2">
       <!--
         Reachable while building even with no layer yet (#884, S5) — Build
         mode on a mapless site is exactly when the DM needs Map mode, to see
@@ -241,25 +241,26 @@
         has nothing to switch to, so the toggle stays hidden there, same as
         before.
       -->
-      <SegmentedControl
+      <!-- Real tabs, not a small segmented toggle: Overview and Map are two
+           views of the place, and the toggle was easy to miss entirely. -->
+      <TabBar
         v-if="hasMap || building"
+        :tabs="MODE_TABS"
         :model-value="paneMode"
-        :options="MODE_OPTIONS"
-        size="xs"
-        class="self-start"
+        wrapper-class="w-full"
         @update:model-value="$emit('update:paneMode', $event)"
       />
       <SiteReadinessMeter
         v-if="isSite && paneMode === 'places'"
         :readiness="siteReadiness"
-        class="ml-auto"
+        :class="hasMap || building ? 'absolute right-0 top-1/2 -translate-y-1/2' : 'ml-auto'"
         @open-map="onOpenMap"
       />
       <SiteMapLayerBar
         v-if="isSite && hasMap && paneMode === 'map'"
         :counts="siteLayerCounts"
         :layers="siteImageLayers"
-        class="ml-auto"
+        class="absolute right-0 top-1/2 -translate-y-1/2"
       />
     </div>
 
@@ -284,12 +285,17 @@
       />
 
       <template v-else>
+        <!-- What the place is first (description, people, notes), then what is
+             inside it: the child list used to come first and push the
+             interesting content below the fold. -->
+        <LocationDetailSections ref="sectionsRef" :location="location" :building="building" />
+
         <!--
           Children grouped by scale rather than laid out as equal cards. This is
           the part that has to carry the pane for a DM with no artwork at all,
           so it leans on the taxonomy instead of on images.
         -->
-        <section v-for="group in groups" :key="group.label" class="pb-3">
+        <section v-for="(group, gi) in groups" :key="group.label" class="pb-3" :class="gi === 0 && sections?.hasSubstance ? 'mt-4 border-t border-border pt-4' : ''">
           <h3
             class="pb-1 font-cinzel text-label-lg font-semibold tracking-wide text-muted-foreground"
           >
@@ -324,7 +330,6 @@
           </ul>
         </section>
 
-        <LocationDetailSections ref="sectionsRef" :location="location" :building="building" />
 
         <p
           v-if="!groups.length && !sections?.hasSubstance"
@@ -342,7 +347,7 @@ import { computed, onBeforeUnmount, useTemplateRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import TabBar from "@/components/common/TabBar.vue";
 import AtlasScaleRail from "@/components/locations/AtlasScaleRail.vue";
 import AtlasSiteMapMode from "@/components/locations/AtlasSiteMapMode.vue";
 import AtlasTreeRow from "@/components/locations/AtlasTreeRow.vue";
@@ -390,9 +395,9 @@ const { index, location, paneMode, todayYear } = defineProps<{
 
 const emit = defineEmits<{ select: [id: string]; "update:paneMode": [mode: "places" | "map"] }>();
 
-const MODE_OPTIONS = [
-  { value: "places", label: "Contents", icon: IconLocation },
-  { value: "map", label: "Map", icon: IconMap },
+const MODE_TABS = [
+  { id: "places", label: "Overview", icon: IconLocation },
+  { id: "map", label: "Map", icon: IconMap },
 ] as const;
 
 // "Nothing inside here yet" must mean *nothing* — no sub-places and no body.
