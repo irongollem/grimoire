@@ -43,6 +43,14 @@ const rawFiles = import.meta.glob("../manual/*.md", {
   eager: true,
 }) as Record<string, string>;
 
+/** YAML lets a value be quoted (titles with a colon must be); the quotes are
+ *  syntax, not part of the value. Without this the index showed them. */
+function unquote(val: string): string {
+  if (val.length >= 2 && val.startsWith('"') && val.endsWith('"')) return val.slice(1, -1).replace(/\\"/g, '"');
+  if (val.length >= 2 && val.startsWith("'") && val.endsWith("'")) return val.slice(1, -1).replace(/''/g, "'");
+  return val;
+}
+
 function parseFrontmatter(raw: string): { meta: Record<string, string>; body: string } {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
   if (!match) return { meta: {}, body: raw };
@@ -51,8 +59,7 @@ function parseFrontmatter(raw: string): { meta: Record<string, string>; body: st
     const colon = line.indexOf(":");
     if (colon === -1) continue;
     const key = line.slice(0, colon).trim();
-    const val = line.slice(colon + 1).trim();
-    meta[key] = val;
+    meta[key] = unquote(line.slice(colon + 1).trim());
   }
   return { meta, body: match[2] };
 }

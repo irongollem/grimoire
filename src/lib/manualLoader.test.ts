@@ -10,6 +10,13 @@ describe("manual structure", () => {
     expect(ids.length).toBe(new Set(ids).size);
   });
 
+  it("strips YAML quotes from titles, sections and summaries", () => {
+    const quoted = pages.filter((p) =>
+      [p.title, p.summary ?? ""].some((v) => /^["']|["']$/.test(v)),
+    );
+    expect(quoted.map((p) => p.id)).toEqual([]);
+  });
+
   it("gives every page a summary", () => {
     expect(pages.filter((p) => !p.summary).map((p) => p.id)).toEqual([]);
   });
