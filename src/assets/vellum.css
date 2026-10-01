@@ -24,9 +24,10 @@
 }
 
 /* ── Paper ground ─────────────────────────────────────────────────────────
-   A 640px SEAMLESS tile (public/assets/vellum/paper.webp: the Scriptorium
-   parchment with its large blotches filtered out, edges cross-faded so it
-   repeats without a seam). Painted on body and every `bg-background` surface
+   A SEAMLESS rag-paper tile (public/assets/vellum/paper.webp: 1254px source
+   with fibres and pulp cloudiness, edges cross-faded so it repeats without a
+   seam, retinted to the parchment). Drawn at half size so it stays sharp on
+   2x screens. Painted on body and every `bg-background` surface
    with a fixed attachment, so nested page containers continue one sheet.
    Lamplight multiplies it into the dark ground. Form controls that use
    bg-background get a plain card fill instead: a field is paper you write on,
@@ -34,7 +35,7 @@
 :root[data-theme^="vellum"] body,
 :root[data-theme^="vellum"] .bg-background {
   background-image: var(--vl-paper);
-  background-size: 640px 640px;
+  background-size: 627px 627px;
   background-repeat: repeat;
   background-attachment: fixed;
 }
