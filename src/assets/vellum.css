@@ -242,6 +242,38 @@
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) img {
   filter: sepia(0.18) saturate(0.92) contrast(1.02);
 }
+/* Controls and the status badge over the plate are paper labels, not dark
+   glass: card fill, ink text, a thin rule, no blur. The control strip moves
+   in to sit inside the inset plate; a revealed entity keeps its gilt. The
+   badge's colour wash becomes a pigment diamond. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .absolute.top-2.left-2 { top: 1.2rem; left: 1.2rem; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .absolute.top-2.left-2 :is(button, a)[class*="bg-black"],
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) span.absolute.top-2.right-2.backdrop-blur-sm {
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  color: var(--foreground);
+  border: 1px solid color-mix(in oklab, var(--foreground) 35%, transparent);
+  border-radius: 0;
+  --tw-backdrop-blur: blur(0);
+  box-shadow: 0 1px 0 rgb(43 32 25 / 0.25);
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .absolute.top-2.left-2 :is(button, a)[class*="bg-black"]:hover { background: var(--card); border-color: var(--primary-edge); }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .absolute.top-2.left-2 :is(button, a)[class*="bg-black"].text-gold-300 {
+  color: var(--primary);
+  border-color: var(--primary-edge);
+  background: color-mix(in oklab, var(--primary-fill) 22%, var(--card));
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) span.absolute.top-2.right-2.backdrop-blur-sm { padding-left: 1.35rem; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) span.absolute.top-2.right-2.backdrop-blur-sm > span.absolute.inset-0 {
+  inset: auto;
+  left: 0.5rem;
+  top: 50%;
+  width: 0.45rem;
+  height: 0.45rem;
+  translate: 0 -50%;
+  rotate: 45deg;
+  border-radius: 0;
+  opacity: 1;
+}
 :root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
 
 /* The 6px colour strip on top of category cards (NoteCard and friends)
