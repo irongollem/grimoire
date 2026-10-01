@@ -349,6 +349,14 @@
   font-weight: 400;
 }
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden.h-36 img) > .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div > span:last-child { border: 1px solid rgb(0 0 0 / 0.25); }
+/* The character-sheet export preview is a real page lying on the desk:
+   square corners and a soft contact-plus-lift shadow (the one place a
+   shadow belongs, since it stands for printed paper). */
+:root[data-theme^="vellum"] .sheet-preview {
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: 0 1px 2px rgb(43 32 25 / 0.25), 0 12px 32px rgb(43 32 25 / 0.18);
+}
 :root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
 
 /* The 6px colour strip on top of category cards (NoteCard and friends)

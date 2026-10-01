@@ -8,28 +8,71 @@
   Mode "illustrated"→ the baked-plate IllustratedSheetDocument (front + back).
 -->
 <template>
-  <div class="space-y-4">
-    <!-- Toolbar -->
-    <div class="flex flex-wrap items-center gap-3">
-      <slot name="back" />
+  <!-- A print dialog: the sheet sits centred on the page like paper on a desk,
+       the settings live in a side card (stacked above the sheet on narrow
+       screens). -->
+  <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]">
+    <!-- Preview (scaled-down rendition of the sheet).
+         zoom collapses the rendered element's layout size (unlike transform:scale) —
+         the sheet is 794px wide; at 0.75 zoom it displays at ~596px. -->
+    <div class="order-last flex min-w-0 justify-center lg:order-first">
+      <div class="sheet-preview inline-block max-w-full overflow-hidden rounded-lg border border-border shadow-lg">
+        <div class="pointer-events-none zoom-[0.75] xl:zoom-[0.9]">
+          <IllustratedSheetDocument
+            v-if="mode === 'illustrated'"
+            :member="member"
+            :inventory="inventory"
+            :theme="illustratedTheme"
+            :page-size="pageSize"
+            :species-name="speciesName"
+            :background-name="backgroundName"
+            :ac-bonus="acBonus"
+            :items="items"
+            :debug="showBoxes"
+          />
+          <CharacterSheetRenderer
+            v-else
+            :member="member"
+            :inventory="inventory"
+            :page-size="pageSize"
+            :theme="theme"
+            :species-name="speciesName"
+            :background-name="backgroundName"
+            :ac-bonus="acBonus"
+          />
+        </div>
+      </div>
+    </div>
 
-      <AppSelect v-model="mode" size="sm" aria-label="Export style">
-        <option value="clean">Clean</option>
-        <option value="illustrated">Illustrated</option>
-      </AppSelect>
+    <!-- Settings -->
+    <aside class="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 lg:sticky lg:top-0">
+      <slot name="subject" />
 
-      <AppSelect v-model="pageSize" size="sm" aria-label="Page size">
-        <option value="A4">A4</option>
-        <option value="Letter">Letter</option>
-      </AppSelect>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-label-lg font-semibold text-muted-foreground">Style</span>
+        <AppSelect v-model="mode" size="sm" aria-label="Export style">
+          <option value="clean">Clean</option>
+          <option value="illustrated">Illustrated</option>
+        </AppSelect>
+      </label>
 
-      <AppSelect v-if="mode === 'clean'" v-model="theme" size="sm" aria-label="Theme">
-        <option v-for="t in SHEET_THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
-      </AppSelect>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-label-lg font-semibold text-muted-foreground">Page size</span>
+        <AppSelect v-model="pageSize" size="sm" aria-label="Page size">
+          <option value="A4">A4</option>
+          <option value="Letter">Letter</option>
+        </AppSelect>
+      </label>
 
-      <AppSelect v-else v-model="illustratedTheme" size="sm" aria-label="Illustrated theme">
-        <option v-for="t in ILLUSTRATED_THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
-      </AppSelect>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-label-lg font-semibold text-muted-foreground">Theme</span>
+        <AppSelect v-if="mode === 'clean'" v-model="theme" size="sm" aria-label="Theme">
+          <option v-for="t in SHEET_THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
+        </AppSelect>
+        <AppSelect v-else v-model="illustratedTheme" size="sm" aria-label="Illustrated theme">
+          <option v-for="t in ILLUSTRATED_THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
+        </AppSelect>
+      </label>
 
       <!-- Calibration overlay toggle — preview only; never affects the exported PDF. -->
       <AppButton
@@ -45,41 +88,16 @@
       <AppButton
         variant="primary"
         size="md"
+        class="w-full"
         :label="isGenerating ? 'Generating PDF…' : 'Export PDF'"
         :disabled="isGenerating"
         @click="doExport"
       />
-    </div>
 
-    <!-- Preview (scaled-down rendition of the sheet).
-         zoom collapses the rendered element's layout size (unlike transform:scale) —
-         the sheet is 794px wide; at 0.75 zoom it displays at ~596px. -->
-    <div class="inline-block max-w-full overflow-hidden rounded-lg border border-border shadow-lg">
-      <div class="pointer-events-none zoom-[0.75]">
-        <IllustratedSheetDocument
-          v-if="mode === 'illustrated'"
-          :member="member"
-          :inventory="inventory"
-          :theme="illustratedTheme"
-          :page-size="pageSize"
-          :species-name="speciesName"
-          :background-name="backgroundName"
-          :ac-bonus="acBonus"
-          :items="items"
-          :debug="showBoxes"
-        />
-        <CharacterSheetRenderer
-          v-else
-          :member="member"
-          :inventory="inventory"
-          :page-size="pageSize"
-          :theme="theme"
-          :species-name="speciesName"
-          :background-name="backgroundName"
-          :ac-bonus="acBonus"
-        />
+      <div class="flex justify-center">
+        <slot name="back" />
       </div>
-    </div>
+    </aside>
   </div>
 </template>
 
