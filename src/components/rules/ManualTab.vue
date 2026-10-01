@@ -57,7 +57,7 @@
       class="flex-1 min-w-0 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6"
     >
       <!-- Page content -->
-      <div v-if="selectedPage" class="max-w-3xl space-y-4">
+      <div v-if="selectedPage" class="page-sheet mx-auto w-full max-w-3xl space-y-4 rounded-lg border border-border bg-card p-6 md:p-8">
         <AppButton
           v-if="isMobile"
           variant="ghost"

@@ -534,3 +534,70 @@
 }
 :root[data-theme^="vellum"] .cal-events > *:hover { background: color-mix(in oklab, var(--accent) 60%, transparent); }
 :root[data-theme^="vellum"] .cal-events .rounded-full { width: 0.5rem; height: 0.5rem; }
+
+/* ── Reliquary ────────────────────────────────────────────────────────────
+   DM screen tables (ScreenTab) are rubricated reference panels; compendium
+   and manual pages (.page-sheet) are torn book pages with a drop cap. */
+:root[data-theme^="vellum"] .screen-table { padding: 0.35rem 0.6rem 0.6rem; }
+:root[data-theme^="vellum"] .screen-table > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 0.6rem 0.35rem;
+  background: transparent;
+  border: 0;
+}
+:root[data-theme^="vellum"] .screen-table > div:first-child::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--live) 40%, transparent), transparent);
+}
+:root[data-theme^="vellum"] .screen-table h3 {
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--live);
+}
+:root[data-theme^="vellum"] :is(.screen-table, .page-sheet) thead tr { background: transparent; }
+:root[data-theme^="vellum"] :is(.screen-table, .page-sheet) :is(table th, .manual-content table th) {
+  padding-top: 0.25rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--vl-sans);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--foreground) 55%, transparent);
+}
+:root[data-theme^="vellum"] :is(.screen-table, .page-sheet) :is(table td, .manual-content table td) {
+  border: 0;
+  border-bottom: 1px dotted color-mix(in oklab, var(--foreground) 22%, transparent);
+}
+:root[data-theme^="vellum"] .screen-table tbody tr { border-bottom: 0; }
+:root[data-theme^="vellum"] .screen-table td { padding-top: 0.5rem; padding-bottom: 0.5rem; font-size: 0.9rem; }
+:root[data-theme^="vellum"] .screen-table td:first-child { font-family: var(--vl-serif); font-weight: 700; }
+
+:root[data-theme^="vellum"] .page-sheet { padding: 2rem 2.5rem 2.5rem; }
+:root[data-theme^="vellum"] .page-sheet h2 { font-family: "Cinzel", Georgia, serif; font-size: 1.5rem; letter-spacing: 0.02em; }
+:root[data-theme^="vellum"] .page-sheet .manual-content h2 {
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--live);
+  border-bottom-color: color-mix(in oklab, var(--live) 30%, transparent);
+}
+:root[data-theme^="vellum"] .page-sheet :is(.manual-content, .prose-dm) { font-size: 1.0625rem; line-height: 1.65; }
+:root[data-theme^="vellum"] .page-sheet :is(.manual-content, .prose-dm) > p:first-of-type { display: flow-root; }
+:root[data-theme^="vellum"] .page-sheet :is(.manual-content, .prose-dm) > p:first-of-type::first-letter {
+  float: left;
+  margin: 0.3rem 0.5rem 0 0;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 3.1em;
+  font-weight: 700;
+  line-height: 0.8;
+  color: var(--destructive);
+}

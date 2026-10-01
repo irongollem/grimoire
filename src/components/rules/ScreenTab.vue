@@ -17,11 +17,13 @@
 
     <!-- Active section tables -->
     <div v-for="section in sections" :key="section.id">
-      <div v-if="activeSection === section.id" class="space-y-6">
+      <!-- Two columns from xl: a DM screen is scanned, and a two-column table
+           1,300px wide put the description a long way from its name. -->
+      <div v-if="activeSection === section.id" class="columns-1 gap-6 xl:columns-2">
         <div
           v-for="table in section.tables"
           :key="table.id"
-          class="rounded-lg border border-border overflow-hidden"
+          class="screen-table torn mb-6 break-inside-avoid rounded-lg border border-border overflow-hidden"
         >
           <div class="bg-muted/40 px-4 py-2.5 border-b border-border">
             <h3 class="font-cinzel text-sm font-bold text-foreground tracking-wider">{{ table.title }}</h3>
