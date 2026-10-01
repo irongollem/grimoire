@@ -437,7 +437,7 @@
 /* Generated text wraps its paragraphs in a <div data-ai-generated>, so the
    first paragraph may sit one level down. flow-root keeps the initial inside
    it when it is a single short line. */
-:root[data-theme^="vellum"] .longform .ProseMirror > :is(p:first-child, div:first-child > p:first-child) { display: flow-root; }
+:root[data-theme^="vellum"] :is(.longform .ProseMirror > p:first-child, .longform .ProseMirror > div:first-child > p:first-child) { display: flow-root; }
 :root[data-theme^="vellum"] :is(.initial, .longform .ProseMirror > p:first-child, .longform .ProseMirror > div:first-child > p:first-child)::first-letter {
   font-family: "Cinzel", Georgia, serif;
   font-weight: 700;
