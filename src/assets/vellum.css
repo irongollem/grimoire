@@ -402,6 +402,42 @@
   filter: drop-shadow(0 1px 0 rgb(43 32 25 / 0.3));
 }
 }
+/* Second-level tabs (.section-tabs, e.g. the DM screen's sections): a
+   contents line rather than buttons, quieter than the bookmark tabs above
+   them. Italic words in faded ink between small oxblood stars; the open one
+   upright, bold and oxblood with a fine underline. */
+:root[data-theme^="vellum"] .section-tabs { gap: 0; align-items: baseline; }
+:root[data-theme^="vellum"] .section-tabs > [role="tab"] {
+  position: relative;
+  padding: 0.25rem 0.15rem 0.4rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: var(--vl-serif);
+  font-size: 1rem;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: color-mix(in oklab, var(--foreground) 60%, transparent);
+}
+:root[data-theme^="vellum"] .section-tabs > [role="tab"] + [role="tab"]::before {
+  content: "✦";
+  display: inline-block; /* keeps the active tab's underline off the star */
+  margin: 0 0.85rem;
+  vertical-align: 0.2em;
+  font-size: 0.55rem;
+  font-style: normal;
+  color: color-mix(in oklab, var(--live) 55%, transparent);
+}
+:root[data-theme^="vellum"] .section-tabs > [role="tab"]:hover { color: var(--foreground); }
+:root[data-theme^="vellum"] .section-tabs > [role="tab"][aria-selected="true"] {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--live);
+  text-decoration: underline 1px color-mix(in oklab, var(--live) 60%, transparent);
+  text-underline-offset: 0.35em;
+}
 :root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
 
 /* The 6px colour strip on top of category cards (NoteCard and friends)

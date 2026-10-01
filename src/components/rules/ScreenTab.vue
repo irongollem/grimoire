@@ -1,10 +1,13 @@
 <template>
   <div class="space-y-8 overflow-y-auto h-full px-4 pt-4 pb-4 md:px-6 md:pt-6">
     <!-- Section tabs -->
-    <div class="flex flex-wrap gap-2">
+    <div class="section-tabs flex flex-wrap gap-2" role="tablist" aria-label="DM screen sections">
       <button
         v-for="section in sections"
         :key="section.id"
+        type="button"
+        role="tab"
+        :aria-selected="activeSection === section.id"
         class="px-3 py-1.5 rounded-md text-label-lg font-semibold transition-colors"
         :class="activeSection === section.id
           ? 'bg-primary text-primary-foreground'
