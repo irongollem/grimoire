@@ -119,6 +119,7 @@
 </template>
 
 <script setup lang="ts">
+import { DEFAULT_THEME_ID } from "@/lib/themes";
 import { ref, watch } from "vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { listCalendarAdapters, getCalendarAdapter, createDefaultCustomCalendarDef } from "@/calendars/index";
@@ -209,7 +210,7 @@ async function submit() {
       calendar_id: form.value.calendar_id,
       current_year: form.value.current_year,
       ruleset: form.value.ruleset,
-      theme: "grimoire",
+      theme: DEFAULT_THEME_ID,
       health_visibility: "strategic",
       immersive_rolls: false,
       description: null,

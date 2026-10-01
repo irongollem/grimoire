@@ -15,7 +15,7 @@
       class="px-5 py-10 flex flex-col items-center gap-3 text-center"
     >
       <div
-        class="flex items-center justify-center w-12 h-12 rounded-full bg-green-500/15 text-green-400"
+        class="flex items-center justify-center w-12 h-12 rounded-full bg-tone-success/15 text-ink-success"
       >
         <IconCircleCheck class="h-6 w-6" />
       </div>

@@ -46,8 +46,8 @@ const ENTITY_CHIP_ICON: Record<ResolvedEntity["kind"], typeof IconUser> = {
 };
 
 const ENTITY_CHIP_CLASS: Record<ResolvedEntity["kind"], string> = {
-  npc: "border-violet-400/40 bg-violet-400/10 text-violet-400 hover:bg-violet-400/20 hover:border-violet-400/60",
-  location: "border-emerald-400/40 bg-emerald-400/10 text-emerald-400 hover:bg-emerald-400/20 hover:border-emerald-400/60",
-  faction: "border-amber-400/40 bg-amber-400/10 text-amber-400 hover:bg-amber-400/20 hover:border-amber-400/60",
+  npc: "border-kind-npc/40 bg-kind-npc/10 text-kind-npc hover:bg-kind-npc/20 hover:border-kind-npc/60",
+  location: "border-kind-location/40 bg-kind-location/10 text-kind-location hover:bg-kind-location/20 hover:border-kind-location/60",
+  faction: "border-kind-faction/40 bg-kind-faction/10 text-kind-faction hover:bg-kind-faction/20 hover:border-kind-faction/60",
 };
 </script>

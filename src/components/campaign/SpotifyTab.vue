@@ -33,7 +33,7 @@
             @click="copyRedirectUri"
           >
             <template #icon>
-              <IconCheck v-if="copied" class="h-3.5 w-3.5 text-green-400" />
+              <IconCheck v-if="copied" class="h-3.5 w-3.5 text-ink-success" />
               <IconCopy v-else class="h-3.5 w-3.5" />
             </template>
           </AppButton>
@@ -99,19 +99,19 @@
 
         <!-- Connection status -->
         <div v-if="campaign.activeCampaign?.spotify_client_id" class="flex flex-col gap-1.5">
-          <div v-if="spotifyStore.spotifyUser" class="flex items-start gap-1.5 px-2.5 py-2 rounded-md bg-green-500/10 border border-green-500/20">
-            <span class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0 mt-1" />
+          <div v-if="spotifyStore.spotifyUser" class="flex items-start gap-1.5 px-2.5 py-2 rounded-md bg-tone-success/10 border border-tone-success/20">
+            <span class="h-1.5 w-1.5 rounded-full bg-tone-success shrink-0 mt-1" />
             <div class="text-caption leading-snug">
-              <p class="text-green-400 font-semibold">{{ spotifyStore.spotifyUser.display_name }}</p>
+              <p class="text-ink-success font-semibold">{{ spotifyStore.spotifyUser.display_name }}</p>
               <p class="text-muted-foreground">{{ spotifyStore.spotifyUser.email }}</p>
               <p class="text-muted-foreground capitalize">
-                Plan: <span :class="spotifyStore.spotifyUser.product === 'premium' ? 'text-green-400' : 'text-destructive'">{{ spotifyStore.spotifyUser.product }}</span>
+                Plan: <span :class="spotifyStore.spotifyUser.product === 'premium' ? 'text-ink-success' : 'text-destructive'">{{ spotifyStore.spotifyUser.product }}</span>
               </p>
             </div>
           </div>
           <div v-else class="flex items-center gap-1.5">
-            <span class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
-            <span class="text-caption text-green-500">Client ID saved — connect your account from the Soundboard.</span>
+            <span class="h-1.5 w-1.5 rounded-full bg-tone-success shrink-0" />
+            <span class="text-caption text-ink-success">Client ID saved — connect your account from the Soundboard.</span>
           </div>
         </div>
       </div>

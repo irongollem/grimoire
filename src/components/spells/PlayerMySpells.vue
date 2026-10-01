@@ -26,9 +26,9 @@
 
     <!-- Grouped spell list -->
     <template v-else>
-      <div v-if="replacementCandidate" class="rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-2 mb-2 text-body">
+      <div v-if="replacementCandidate" class="rounded-lg border border-tone-arcane/30 bg-tone-arcane/10 px-4 py-2 mb-2 text-body">
         Replacing <strong>{{ replacementCandidate.spell.name }}</strong>. Choose its replacement in All Spells.
-        <button class="ml-2 text-violet-400 underline" type="button" @click="clearReplacement">Cancel</button>
+        <button class="ml-2 text-ink-arcane underline" type="button" @click="clearReplacement">Cancel</button>
       </div>
       <!-- Prepared count vs. max banner (Wizard prepared tab) -->
       <div
@@ -66,7 +66,7 @@
           <!-- Slot pips for this level -->
           <template v-for="slot in slotsForLevel(group.level)" :key="spellSlotKey(slot)">
             <div class="flex items-center gap-0.5 ml-1" @click.stop>
-              <span v-if="slotPool(slot) !== 'spellcasting'" class="font-cinzel text-2xs text-violet-400">
+              <span v-if="slotPool(slot) !== 'spellcasting'" class="font-cinzel text-2xs text-ink-arcane">
                 {{ slotPool(slot) === 'pact' ? 'PACT' : slotPool(slot) === 'temporary' ? 'CREATED' : 'FEATURE' }}
               </span>
               <!--
@@ -136,7 +136,7 @@
             <!-- Subclass-granted (always prepared, doesn't count toward limit) -->
             <span
               v-if="entry.always_prepared"
-              class="shrink-0 text-label text-emerald-500/80 border border-emerald-500/30 rounded px-2 py-0.5"
+              class="shrink-0 text-label text-ink-success/80 border border-tone-success/30 rounded px-2 py-0.5"
               title="Granted by your subclass — always prepared, doesn't count toward your prepared limit"
             >Granted</span>
 
@@ -197,13 +197,13 @@
               :label="entry.spell.effects?.length ? 'Resolve' : 'Healing'"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellHealing(entry, lastCastLevel(entry))"
             />
-            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-amber-500" title="Imported mechanics have not been reviewed; resolve from the spell text">Manual</span>
+            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 font-cinzel text-2xs text-ink-caution" title="Imported mechanics have not been reviewed; resolve from the spell text">Manual</span>
 
             <AppSelect
               v-if="eligibleMetamagic(entry).length"
               v-model="selectedMetamagic[entry.id]"
               size="xs"
-              class="max-w-28 shrink-0 border-violet-500/30 bg-violet-500/10 text-violet-500"
+              class="max-w-28 shrink-0 border-tone-arcane/30 bg-tone-arcane/10 text-ink-arcane"
               title="Apply Metamagic to this casting"
               aria-label="Metamagic option"
               @click.stop
@@ -218,7 +218,7 @@
               v-if="selectedMetamagicNames(entry).includes('Transmuted Spell')"
               v-model="transmutedDamageType[entry.id]"
               size="xs"
-              class="max-w-24 shrink-0 border-violet-500/30 bg-violet-500/10 text-violet-500"
+              class="max-w-24 shrink-0 border-tone-arcane/30 bg-tone-arcane/10 text-ink-arcane"
               title="Choose the new damage type"
               aria-label="Transmuted damage type"
               @click.stop
@@ -231,7 +231,7 @@
               v-if="canCombineMetamagic && eligibleSecondaryMetamagic(entry).length"
               v-model="selectedSecondMetamagic[entry.id]"
               size="xs"
-              class="max-w-28 shrink-0 border-violet-500/30 bg-violet-500/10 text-violet-500"
+              class="max-w-28 shrink-0 border-tone-arcane/30 bg-tone-arcane/10 text-ink-arcane"
               title="Sorcery Incarnate: apply a second Metamagic option"
               aria-label="Second Metamagic option"
               @click.stop
@@ -286,7 +286,7 @@
             <!-- Cantrip always-prepared badge (Wizard spellbook only) -->
             <span
               v-else-if="showPrepareToggle && entry.spell.level === 0"
-              class="shrink-0 text-label text-emerald-500/70 border border-emerald-500/20 rounded px-2 py-0.5"
+              class="shrink-0 text-label text-ink-success/70 border border-tone-success/20 rounded px-2 py-0.5"
             >Always</span>
 
             <!-- Remove button — hidden for subclass-granted spells (locked) -->
@@ -901,9 +901,9 @@ const showPreparedCounter = computed(
 const preparedCounterClass = computed(() => {
   if (props.maxPrepared === null || props.maxPrepared === undefined) return "";
   const n = preparedNonCantrips.value;
-  if (n > props.maxPrepared) return "text-red-400";
-  if (n === props.maxPrepared) return "text-amber-400";
-  return "text-emerald-400";
+  if (n > props.maxPrepared) return "text-destructive";
+  if (n === props.maxPrepared) return "text-ink-caution";
+  return "text-ink-success";
 });
 
 // ── Footer ─────────────────────────────────────────────────────────────────────

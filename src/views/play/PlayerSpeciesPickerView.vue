@@ -98,11 +98,11 @@
             <div
               v-for="grant in freePickGrants"
               :key="grant.spell_name"
-              class="flex items-center gap-2 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20"
+              class="flex items-center gap-2 px-2 py-1 rounded bg-tone-caution/10 border border-tone-caution/20"
             >
-              <div class="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+              <div class="h-1.5 w-1.5 rounded-full bg-tone-caution shrink-0" />
               <span class="text-body text-foreground flex-1">{{ grant.spell_name }}</span>
-              <span class="font-cinzel text-2xs text-amber-500">
+              <span class="font-cinzel text-2xs text-ink-caution">
                 {{ grant.uses_per_day === null ? "At will" : `${grant.uses_per_day}/day` }}
               </span>
             </div>

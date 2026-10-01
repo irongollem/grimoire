@@ -11,9 +11,9 @@
   <!-- ── Spotify not-connected fallback ─────────────────────────────── -->
   <div
     v-else-if="!spotifyStore.isConnected"
-    class="flex items-center gap-2 py-1 px-2 rounded-md bg-green-500/5 border border-green-500/20"
+    class="flex items-center gap-2 py-1 px-2 rounded-md bg-tone-success/5 border border-tone-success/20"
   >
-    <IconMusicNote class="h-3.5 w-3.5 text-green-400/70 shrink-0" />
+    <IconMusicNote class="h-3.5 w-3.5 text-ink-success/70 shrink-0" />
     <p class="text-caption text-muted-foreground italic flex-1">Connect Spotify to play</p>
     <AppButton
       variant="link"
@@ -109,7 +109,7 @@
         @click="handleSpotifySeek"
       >
         <div
-          class="absolute inset-y-0 left-0 bg-green-500/60 rounded-full"
+          class="absolute inset-y-0 left-0 bg-tone-success/60 rounded-full"
           :style="{ width: spotifyProgressPercent + '%' }"
         />
       </div>
@@ -119,7 +119,7 @@
       <!-- IconRepeat -->
       <button
         class="shrink-0 p-0.5 rounded transition-all [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-        :class="spotifyStore.repeatMode > 0 ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
+        :class="spotifyStore.repeatMode > 0 ? 'text-ink-success' : 'text-muted-foreground hover:text-foreground'"
         :title="repeatTitle"
         @click="cycleRepeat"
       >

@@ -194,10 +194,10 @@
                       <RichTextViewer v-if="selectedBackground.feat_grant_description" :content="selectedBackground.feat_grant_description" />
                     </BackgroundOriginFeatBadge>
                     <div v-else-if="selectedBackground.feat_grant_name"
-                      class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
+                      class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 p-3 space-y-1">
                       <div class="flex items-center gap-2">
-                        <p class="text-eyebrow font-semibold text-amber-600 dark:text-amber-400">FEAT GRANT</p>
-                        <span class="text-label text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
+                        <p class="text-eyebrow font-semibold text-ink-caution ">FEAT GRANT</p>
+                        <span class="text-label text-ink-caution/60 ">2024 PHB</span>
                       </div>
                       <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedBackground.feat_grant_name }}</p>
                       <RichTextViewer v-if="selectedBackground.feat_grant_description" :content="selectedBackground.feat_grant_description" />

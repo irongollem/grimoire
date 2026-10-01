@@ -1,7 +1,7 @@
 <template>
-  <div class="rounded-lg border border-violet-500/25 bg-violet-500/5 overflow-hidden">
-    <div class="px-4 py-2.5 border-b border-violet-500/20">
-      <p class="text-label-lg font-semibold text-violet-500">Flexible Casting</p>
+  <div class="rounded-lg border border-tone-arcane/25 bg-tone-arcane/5 overflow-hidden">
+    <div class="px-4 py-2.5 border-b border-tone-arcane/20">
+      <p class="text-label-lg font-semibold text-ink-arcane">Flexible Casting</p>
     </div>
     <div class="grid gap-3 p-3 sm:grid-cols-2">
       <div class="flex items-center gap-2">

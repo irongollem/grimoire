@@ -62,6 +62,16 @@
   --color-tone-arcane: var(--tone-arcane);
   --color-tone-caution: var(--tone-caution);
 
+  /* Text on a SOLID tone fill (`bg-tone-x text-on-x`). These were text-white and,
+     for caution, text-black: right for these hues on tome and grimoire, wrong
+     for any theme whose tones are dark (Vellum) or pale (Lamplight). */
+  --color-on-primary: var(--on-primary);
+  --color-on-danger: var(--on-danger);
+  --color-on-success: var(--on-success);
+  --color-on-info: var(--on-info);
+  --color-on-arcane: var(--on-arcane);
+  --color-on-caution: var(--on-caution);
+
   /* ── Ink variants (Quest Manager Redesign, 8 Sep 2026) ───────────────────
      The tone tokens are surface strength: as TEXT on parchment `--tone-success`
      reads at about 2.6:1. These are the same hues pulled toward the theme's
@@ -197,6 +207,23 @@
   --color-doctype-npc-sheet: var(--doctype-npc-sheet);
   --color-doctype-location: var(--doctype-location);
   --color-doctype-quest: var(--doctype-quest);
+
+  /* ── Categorical colours (the colour cleanup) ────────────────────────────
+     Two sets that mean "which kind", not "how it went", so they cannot be tones:
+     the entity a mention points at, and a soundboard category. They were Tailwind
+     palette literals (blue/violet/rose/emerald/amber/cyan-400, green-400,
+     blue-500) that no theme could reach. Same values as before on tome and
+     grimoire; the Vellum themes set their own. */
+  --color-kind-player: var(--kind-player);
+  --color-kind-npc: var(--kind-npc);
+  --color-kind-monster: var(--kind-monster);
+  --color-kind-location: var(--kind-location);
+  --color-kind-party: var(--kind-party);
+  --color-kind-faction: var(--kind-faction);
+  --color-sound-music: var(--sound-music);
+  --color-sound-ambient: var(--sound-ambient);
+  --color-sound-effects: var(--sound-effects);
+  --color-sound-misc: var(--sound-misc);
 
   /* Border radius */
   --radius-lg: var(--radius);
@@ -414,6 +441,28 @@
   --doctype-npc-sheet: #0f766e;
   --doctype-location: #0369a1;
   --doctype-quest: #b45309;
+
+  /* Text on solid tone fills — the values the classes hard-coded before. */
+  --on-primary: #fff;
+  --on-danger: #fff;
+  --on-success: #fff;
+  --on-info: #fff;
+  --on-arcane: #fff;
+  --on-caution: #000;
+
+  /* Categorical: entity kinds (mention chips, generated-entity chips) */
+  --kind-player: #60a5fa;
+  --kind-npc: #a78bfa;
+  --kind-monster: #fb7185;
+  --kind-location: #34d399;
+  --kind-party: #fbbf24;
+  --kind-faction: #22d3ee;
+
+  /* Categorical: soundboard categories */
+  --sound-music: #f0c74a;
+  --sound-ambient: #4ade80;
+  --sound-effects: #3b82f6;
+  --sound-misc: #9b7fc4;
 
   /* MONSTER_TYPE_BG */
   --monstertype-aberration: #7c3aed;

@@ -4,11 +4,11 @@
     :class="
       meta.sold_to_user_id
         ? 'border-border bg-muted/40'
-        : 'border-sky-500/30 bg-sky-500/5'
+        : 'border-tone-info/30 bg-tone-info/5'
     "
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
-      <IconTag class="h-3.5 w-3.5 text-sky-400 shrink-0" />
+      <IconTag class="h-3.5 w-3.5 text-ink-info shrink-0" />
       <span class="text-label text-muted-foreground">
         {{ senderName }} offers for sale
       </span>

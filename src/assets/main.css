@@ -21,3 +21,6 @@
 @import "./utilities.css";
 @import "./components.css";
 @import "./base.css";
+/* Vellum themes: paper, type, shape and buttons. Unlayered and scoped to
+   [data-theme^="vellum"]; last so it wins. See the file header. */
+@import "./vellum.css";

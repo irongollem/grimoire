@@ -59,91 +59,72 @@
     </p>
 
     <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      <div
+      <!-- Same card shell as NPCs and monsters (EntityGridCard), so heroes get
+           the same artwork plate, corner chips and, in Vellum, the poster. -->
+      <EntityGridCard
         v-for="hero in filtered"
         :key="hero.id"
-        class="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-shadow hover:shadow-md"
+        :to="`/hall-of-heroes/${hero.id}`"
+        :title="hero.name"
+        :image-url="hero.portrait_url"
+        :focal-point="hero.portrait_focal_point"
+        :placeholder="placeholderUrl('npc')"
+        :badge-text="settingLabel(hero.setting)"
+        :badge-class="campaignSetting && hero.setting === campaignSetting ? 'bg-primary' : undefined"
       >
-        <RouterLink :to="`/hall-of-heroes/${hero.id}`" class="flex flex-1 flex-col">
-          <div class="relative h-36 shrink-0 overflow-hidden bg-muted">
-            <FocalImage
-              v-if="hero.portrait_url"
-              :src="hero.portrait_url"
-              :focal-point="hero.portrait_focal_point"
-              format="portrait"
-              :alt="hero.name"
-              class="h-full w-full object-cover"
-            />
-            <div
-              v-else
-              class="flex h-full w-full items-center justify-center text-title font-bold text-muted-foreground/40"
-            >
-              {{ hero.name.charAt(0) }}
-            </div>
-
+        <template #body>
+          <div class="flex items-start justify-between gap-1">
+            <h3 class="line-clamp-1 flex-1 font-cinzel text-sm leading-tight font-bold text-foreground">
+              {{ hero.name }}
+            </h3>
+          </div>
+          <p v-if="hero.race || hero.occupation" class="truncate text-caption text-muted-foreground italic">
+            {{ [hero.race, hero.occupation].filter(Boolean).join(" · ") }}
+          </p>
+          <div v-if="hero.tags.length" class="flex flex-wrap gap-1 pt-1">
             <span
-              class="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-eyebrow font-semibold text-white backdrop-blur-sm"
-            >
-              {{ settingLabel(hero.setting) }}
-            </span>
-
-            <span
-              v-if="campaignSetting && hero.setting === campaignSetting"
-              class="absolute top-2 right-2 rounded-full bg-primary/80 px-1.5 py-0.5 text-eyebrow font-semibold text-primary-foreground backdrop-blur-sm"
-              title="Matches your campaign's setting"
-            >
-              ✦
+              v-for="tag in hero.tags.slice(0, 3)"
+              :key="tag"
+              class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+            >{{ tag }}</span>
+            <span v-if="hero.tags.length > 3" class="self-center text-caption-sm text-muted-foreground italic">
+              +{{ hero.tags.length - 3 }}
             </span>
           </div>
-
-          <div class="flex flex-1 flex-col gap-1 p-3 min-h-18">
-            <p class="font-cinzel text-sm font-semibold leading-tight line-clamp-1">{{ hero.name }}</p>
-            <p v-if="hero.race || hero.occupation" class="text-caption text-muted-foreground line-clamp-1">
-              {{ [hero.race, hero.occupation].filter(Boolean).join(' · ') }}
-            </p>
-            <div v-if="hero.tags.length" class="mt-1 flex flex-wrap gap-1">
-              <span
-                v-for="tag in hero.tags.slice(0, 3)"
-                :key="tag"
-                class="rounded-full bg-muted px-2 py-0.5 text-caption-sm text-muted-foreground"
-              >{{ tag }}</span>
-              <span v-if="hero.tags.length > 3" class="text-caption-sm text-muted-foreground">+{{ hero.tags.length - 3 }}</span>
-            </div>
-          </div>
-        </RouterLink>
-
-        <div class="flex items-center gap-2 border-t border-border px-3 py-2">
-          <button
-            type="button"
+          <!-- Above the whole-card link (z-2), like the corner chips. -->
+          <AppButton
+            class="relative z-10 mt-auto w-full"
+            variant="tinted"
+            tone="primary"
+            size="sm"
             :disabled="!hasCampaign || isImporting === hero.id"
-            :title="hasCampaign ? 'Add to current campaign' : 'No active campaign'"
-            class="flex-1 rounded-md bg-primary/10 px-2 py-1.5 font-cinzel text-xs font-semibold text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            :tooltip="hasCampaign ? 'Add to current campaign' : 'No active campaign'"
+            :label="isImporting === hero.id ? 'Adding…' : 'Add to Campaign'"
             @click="handleImport(hero)"
-          >
-            {{ isImporting === hero.id ? 'Adding…' : 'Add to Campaign' }}
-          </button>
+          />
+        </template>
 
-          <template v-if="isAppAdmin">
-            <AppButton
-              :to="`/hall-of-heroes/${hero.id}/edit`"
-              variant="ghost"
-              fill="muted"
-              size="icon-xs"
-              :icon="IconEdit"
-              tooltip="Edit"
-            />
-            <AppButton
-              variant="ghost"
-              fill="tone"
-              tone="danger"
-              size="icon-xs"
-              :icon="IconDelete"
-              tooltip="Delete"
-              @click="handleDelete(hero)"
-            />
-          </template>
-        </div>
-      </div>
+        <template v-if="isAppAdmin" #actions-start>
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            :class="[CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
+            :icon="IconEdit"
+            :to="`/hall-of-heroes/${hero.id}/edit`"
+            tooltip="Edit hero"
+            aria-label="Edit hero"
+          />
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            :class="[CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
+            :icon="IconDelete"
+            tooltip="Delete hero"
+            aria-label="Delete hero"
+            @click="handleDelete(hero)"
+          />
+        </template>
+      </EntityGridCard>
     </div>
     </div><!-- /listRef -->
 
@@ -173,7 +154,9 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import EntityGridCard from "@/components/common/EntityGridCard.vue";
+import { CARD_OVERLAY_ACTION } from "@/components/common/appButtonVariants";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { HallOfHero } from "@/types/npc.types";
 import { DND_SETTINGS } from "@/data/dndSettings";
 

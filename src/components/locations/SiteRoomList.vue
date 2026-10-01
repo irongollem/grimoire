@@ -159,9 +159,9 @@ function rowClass(room: Location): string[] {
 }
 
 function numberClass(room: Location): string {
-  if (unwrittenIds.has(room.id)) return "bg-tone-caution text-black";
-  if (isCleared(room)) return "bg-tone-success text-white";
-  if (room.id === currentRoomId) return "bg-tone-info text-white";
+  if (unwrittenIds.has(room.id)) return "bg-tone-caution text-on-caution";
+  if (isCleared(room)) return "bg-tone-success text-on-success";
+  if (room.id === currentRoomId) return "bg-tone-info text-on-info";
   return "bg-muted text-muted-foreground";
 }
 

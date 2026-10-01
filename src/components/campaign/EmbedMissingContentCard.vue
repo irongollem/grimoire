@@ -11,7 +11,7 @@
         free and can be run any time.
       </p>
 
-      <p v-if="partialResultMessage" class="text-caption text-yellow-600 dark:text-yellow-500">
+      <p v-if="partialResultMessage" class="text-caption text-ink-caution ">
         {{ partialResultMessage }}
       </p>
 

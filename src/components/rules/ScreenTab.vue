@@ -1,10 +1,13 @@
 <template>
   <div class="space-y-8 overflow-y-auto h-full px-4 pt-4 pb-4 md:px-6 md:pt-6">
     <!-- Section tabs -->
-    <div class="flex flex-wrap gap-2">
+    <div class="section-tabs flex flex-wrap gap-2" role="tablist" aria-label="DM screen sections">
       <button
         v-for="section in sections"
         :key="section.id"
+        type="button"
+        role="tab"
+        :aria-selected="activeSection === section.id"
         class="px-3 py-1.5 rounded-md text-label-lg font-semibold transition-colors"
         :class="activeSection === section.id
           ? 'bg-primary text-primary-foreground'
@@ -17,11 +20,13 @@
 
     <!-- Active section tables -->
     <div v-for="section in sections" :key="section.id">
-      <div v-if="activeSection === section.id" class="space-y-6">
+      <!-- Two columns from xl: a DM screen is scanned, and a two-column table
+           1,300px wide put the description a long way from its name. -->
+      <div v-if="activeSection === section.id" class="columns-1 gap-6 xl:columns-2">
         <div
           v-for="table in section.tables"
           :key="table.id"
-          class="rounded-lg border border-border overflow-hidden"
+          class="screen-table torn mb-6 break-inside-avoid rounded-lg border border-border overflow-hidden"
         >
           <div class="bg-muted/40 px-4 py-2.5 border-b border-border">
             <h3 class="font-cinzel text-sm font-bold text-foreground tracking-wider">{{ table.title }}</h3>

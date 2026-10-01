@@ -26,7 +26,7 @@
     <button
       type="button"
       class="ml-0.5 text-base leading-none opacity-70 hover:opacity-100 transition-opacity"
-      :class="variant === 'amber' ? 'text-amber-600 dark:text-amber-400' : 'text-destructive'"
+      :class="variant === 'amber' ? 'text-ink-caution ' : 'text-destructive'"
       aria-label="Remove exhaustion"
       title="Remove exhaustion"
       @click.stop="emit('update', 0)"
@@ -61,7 +61,7 @@ const tooltip = computed(() => getConditionDescription(`Exhausted ${level}`, rul
 const wrapperClass = computed(() => {
   const base = "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5";
   if (variant === "amber") {
-    return `${base} bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-400`;
+    return `${base} bg-tone-caution/15 border-tone-caution/40 text-ink-caution `;
   }
   return `${base} bg-destructive/10 border-destructive/30 text-destructive`;
 });
@@ -70,8 +70,8 @@ function pipClass(i: number) {
   const isFilled = i <= level;
   if (variant === "amber") {
     return isFilled
-      ? "bg-amber-500 border-amber-500 hover:bg-amber-400"
-      : "border-amber-500/40 hover:border-amber-500/70";
+      ? "bg-tone-caution border-tone-caution hover:bg-tone-caution"
+      : "border-tone-caution/40 hover:border-tone-caution/70";
   }
   return isFilled
     ? "bg-destructive border-destructive hover:opacity-80"

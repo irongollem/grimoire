@@ -18,7 +18,7 @@
         <div class="flex items-center gap-2">
           <span class="font-cinzel text-xs text-muted-foreground">Points remaining:</span>
           <span class="font-cinzel text-sm font-bold"
-            :class="pointsRemaining < 0 ? 'text-destructive' : pointsRemaining === 0 ? 'text-green-500' : 'text-primary'">
+            :class="pointsRemaining < 0 ? 'text-destructive' : pointsRemaining === 0 ? 'text-ink-success' : 'text-primary'">
             {{ pointsRemaining }}
           </span>
         </div>
@@ -52,7 +52,7 @@
             +{{ racialBonusMap[stat.key] }} racial
           </span>
           <span class="font-cinzel text-xs font-bold"
-            :class="totalMod(stat.key) >= 0 ? 'text-green-500' : 'text-destructive'">
+            :class="totalMod(stat.key) >= 0 ? 'text-ink-success' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
           </span>
           <span class="font-cinzel text-2xs text-muted-foreground">{{ POINT_BUY_COSTS[f[stat.key]] ?? 0 }} pts</span>
@@ -99,7 +99,7 @@
             +{{ racialBonusMap[stat.key] }} racial
           </span>
           <span class="font-cinzel text-xs font-bold"
-            :class="totalMod(stat.key) >= 0 ? 'text-green-500' : 'text-destructive'">
+            :class="totalMod(stat.key) >= 0 ? 'text-ink-success' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
           </span>
         </div>
@@ -127,7 +127,7 @@
             +{{ racialBonusMap[stat.key] }} racial
           </span>
           <span class="font-cinzel text-xs font-bold"
-            :class="totalMod(stat.key) >= 0 ? 'text-green-500' : 'text-destructive'">
+            :class="totalMod(stat.key) >= 0 ? 'text-ink-success' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
           </span>
         </label>
@@ -169,7 +169,7 @@
       <div v-else-if="asiMode === 'custom'" class="space-y-2">
         <p class="text-caption text-muted-foreground italic">
           Distribute 3 free points across any abilities (max +2 per ability).
-          <span :class="customAsiTotal >= 3 ? 'text-green-500 font-bold not-italic' : 'text-primary'">
+          <span :class="customAsiTotal >= 3 ? 'text-ink-success font-bold not-italic' : 'text-primary'">
             {{ customAsiTotal < 3 ? `${3 - customAsiTotal} remaining` : 'All assigned' }}.
           </span>
         </p>

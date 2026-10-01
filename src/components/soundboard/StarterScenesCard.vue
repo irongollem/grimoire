@@ -57,7 +57,7 @@
         :disabled="!canAdd"
         @click="add"
       />
-      <p v-if="justAdded" class="text-caption text-emerald-300">
+      <p v-if="justAdded" class="text-caption text-ink-success">
         Added {{ addedCount }} {{ addedCount === 1 ? "scene" : "scenes" }}.
       </p>
       <p v-else-if="errorMessage" class="text-caption text-destructive">{{ errorMessage }}</p>

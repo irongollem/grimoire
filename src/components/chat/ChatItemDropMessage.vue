@@ -4,11 +4,11 @@
     :class="
       meta.claimed_by_user_id
         ? 'border-border bg-muted/40'
-        : 'border-amber-500/30 bg-amber-500/5'
+        : 'border-tone-caution/30 bg-tone-caution/5'
     "
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
-      <IconLoot class="h-3.5 w-3.5 text-amber-400 shrink-0" />
+      <IconLoot class="h-3.5 w-3.5 text-ink-caution shrink-0" />
       <span class="text-label text-muted-foreground">
         {{ senderName }} dropped loot
       </span>
@@ -28,7 +28,7 @@
           class="text-body font-semibold text-foreground text-left"
           :class="
             meta.item_id
-              ? 'hover:text-amber-400 transition-colors cursor-pointer'
+              ? 'hover:text-ink-caution transition-colors cursor-pointer'
               : ''
           "
           @click="meta.item_id && emit('toggle-details', messageId)"
@@ -40,7 +40,7 @@
               meta.quantity > 1 &&
               meta.quantity_remaining! < meta.quantity
             "
-            class="font-cinzel text-2xs text-amber-400/70 ml-1"
+            class="font-cinzel text-2xs text-ink-caution/70 ml-1"
           >({{ meta.quantity_remaining }} left)</span>
         </component>
         <span
@@ -87,7 +87,7 @@
         </div>
         <!-- Still available -->
         <template v-else>
-          <p class="font-cinzel text-2xs text-amber-400/80 mt-1">
+          <p class="font-cinzel text-2xs text-ink-caution/80 mt-1">
             {{ meta.quantity_remaining }} remaining
           </p>
           <div

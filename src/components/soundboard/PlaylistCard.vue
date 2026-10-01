@@ -7,7 +7,7 @@
     <span
       v-if="isActive"
       class="absolute top-2 inset-e-2 h-2 w-2 rounded-full animate-pulse"
-      :class="playlist.playlist_type === 'music' ? 'bg-gold-400' : 'bg-green-400'"
+      :class="playlist.playlist_type === 'music' ? 'bg-gold-400' : 'bg-tone-success'"
     />
 
     <!-- Type + name -->
@@ -15,7 +15,7 @@
       <component
         :is="typeIcon"
         class="h-4 w-4 shrink-0 mt-0.5"
-        :class="playlist.playlist_type === 'music' ? 'text-gold-400' : 'text-green-400'"
+        :class="playlist.playlist_type === 'music' ? 'text-gold-400' : 'text-ink-success'"
       />
       <div class="flex-1 min-w-0">
         <p class="font-cinzel text-xs font-semibold text-foreground leading-snug truncate">

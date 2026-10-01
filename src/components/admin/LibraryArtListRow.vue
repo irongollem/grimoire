@@ -175,7 +175,7 @@ function resolvedFocalPoint() {
               <AlertCircleIcon v-if="status === 'error'" class="h-3 w-3 shrink-0" />
               <CheckIcon
                 v-else-if="status === 'done' || entity.has_user_art"
-                class="h-3 w-3 shrink-0 text-green-500"
+                class="h-3 w-3 shrink-0 text-ink-success"
               />
               <UploadIcon v-else class="h-3 w-3 shrink-0" />
             </template>

@@ -47,7 +47,7 @@
         >
           {{ update.isPending.value ? 'Saving…' : 'Save' }}
         </AppButton>
-        <span v-if="saved" class="text-caption text-green-500 self-center">Saved.</span>
+        <span v-if="saved" class="text-caption text-ink-success self-center">Saved.</span>
       </div>
 
       <!-- Buy-signal counter -->

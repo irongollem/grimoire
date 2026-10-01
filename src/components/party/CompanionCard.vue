@@ -33,7 +33,7 @@
             · <RouterLink :to="sourceLink ?? '#'" class="hover:text-primary transition-colors">{{ sourceName }}</RouterLink>
           </template>
           <!-- Subtle benched indicator — the toggle chip below is the primary control -->
-          <span v-if="!companion.combat_ready" class="text-amber-500">· Elsewhere</span>
+          <span v-if="!companion.combat_ready" class="text-ink-caution">· Elsewhere</span>
         </p>
       </div>
 
@@ -241,17 +241,17 @@ const hpPct = computed(() =>
 const hpTextColor = computed(() => {
   const pct = hpPct.value / 100;
   if (pct <= 0)    return "text-muted-foreground";
-  if (pct <= 0.25) return "text-red-500";
-  if (pct <= 0.5)  return "text-amber-500";
-  return "text-green-500";
+  if (pct <= 0.25) return "text-destructive";
+  if (pct <= 0.5)  return "text-ink-caution";
+  return "text-ink-success";
 });
 
 const hpBarColor = computed(() => {
   const pct = hpPct.value / 100;
   if (pct <= 0)    return "bg-muted-foreground/40";
-  if (pct <= 0.25) return "bg-red-500";
-  if (pct <= 0.5)  return "bg-amber-500";
-  return "bg-green-500";
+  if (pct <= 0.25) return "bg-tone-danger";
+  if (pct <= 0.5)  return "bg-tone-caution";
+  return "bg-tone-success";
 });
 
 const availableConditions = computed(() => {

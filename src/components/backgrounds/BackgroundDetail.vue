@@ -128,7 +128,7 @@
       </div>
       <p
         class="text-caption italic"
-        :class="isAsiTrioInvalid ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'"
+        :class="isAsiTrioInvalid ? 'text-ink-caution ' : 'text-muted-foreground'"
       >
         {{ asiTrioSet.size === 0
           ? "No trio set — this background grants no 2024 ASI."

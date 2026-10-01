@@ -1,4 +1,12 @@
 <template>
+  <!-- Torn-paper edge for the Vellum themes (vellum.css, `.torn` and modal
+       panels). Declared once; inert in every other theme. -->
+  <svg width="0" height="0" class="absolute" aria-hidden="true" focusable="false">
+    <filter id="vl-rough" x="-3%" y="-3%" width="106%" height="106%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.045 0.07" numOctaves="3" seed="11" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="6" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
   <LoadingScreen v-if="showLoading" />
   <template v-else>
     <component :is="layout">

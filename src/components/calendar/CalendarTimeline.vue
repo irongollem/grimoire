@@ -144,9 +144,9 @@
           class="absolute inset-y-0 z-30 pointer-events-none"
           style="transform: translateX(-50%)"
         >
-          <div class="w-px h-full bg-amber-400/70" />
+          <div class="w-px h-full bg-tone-caution/70" />
           <span
-            class="absolute font-cinzel text-xs font-bold text-amber-400 whitespace-nowrap"
+            class="absolute font-cinzel text-xs font-bold text-ink-caution whitespace-nowrap"
             style="top: 0.25rem; left: 50%; transform: translateX(-50%)"
           >
             ◆ Today

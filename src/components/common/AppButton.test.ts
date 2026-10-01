@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { mount } from "@vue/test-utils";
 import { h } from "vue";
 import { RouterLinkStub } from "@vue/test-utils";
@@ -783,11 +785,27 @@ describe("tinted solid emphasis (#648)", () => {
     }
   });
 
-  // amber at full opacity fails contrast against white — which is why both
-  // hand-rolled amber CTAs this replaces wrote text-black themselves.
-  it("gives caution black text and the rest white", () => {
-    expect(buttonVariants({ variant: "tinted", tone: "caution", emphasis: "solid" })).toContain("text-black");
-    expect(buttonVariants({ variant: "tinted", tone: "danger", emphasis: "solid" })).toContain("text-white");
+  // The label colour comes from the theme (`--on-<tone>`), not a literal: dark
+  // text on a pale fill and light text on a dark one depends on the theme's
+  // tones (Vellum's are dark pigments, Lamplight's are pale), so a fixed
+  // text-white/text-black could only ever be right for some of them.
+  it("takes solid label colour from the tone's --on-* token", () => {
+    for (const tone of BUTTON_COLOUR_TONES) {
+      const cls = buttonVariants({ variant: "tinted", tone, emphasis: "solid" });
+      expect(cls, tone).toContain(`text-on-${tone}`);
+      expect(cls, tone).not.toMatch(/\btext-(white|black)\b/);
+    }
+  });
+
+  // On tome and grimoire the tokens keep the values the classes hard-coded:
+  // amber at full opacity fails contrast against white, which is why both
+  // hand-rolled amber CTAs this replaced wrote text-black themselves.
+  it("keeps caution black and the rest white on the classic themes", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/assets/theme.css"), "utf8");
+    expect(css).toMatch(/--on-caution:\s*#000;/);
+    for (const tone of ["primary", "danger", "success", "info", "arcane"]) {
+      expect(css, tone).toMatch(new RegExp(`--on-${tone}:\\s*#fff;`));
+    }
   });
 
   it("leaves the softer emphases translucent", () => {

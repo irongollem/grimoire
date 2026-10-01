@@ -114,7 +114,7 @@
           </span>
           <span
             v-if="trap.save_type && trap.save_dc"
-            class="text-label-lg font-semibold bg-amber-500/10 text-amber-400 rounded px-2.5 py-1"
+            class="text-label-lg font-semibold bg-tone-caution/10 text-ink-caution rounded px-2.5 py-1"
           >
             {{ trap.save_type }} Save DC {{ trap.save_dc }}
           </span>

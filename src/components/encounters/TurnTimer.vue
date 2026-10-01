@@ -63,7 +63,7 @@ const stateClass = computed(() => {
 }
 
 .turn-timer.is-warning {
-  @apply border-amber-500/50 text-amber-500 bg-amber-500/10;
+  @apply border-tone-caution/50 text-ink-caution bg-tone-caution/10;
 }
 
 .turn-timer.is-expired {

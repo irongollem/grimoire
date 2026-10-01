@@ -27,7 +27,7 @@
         <div class="flex items-center gap-1.5 shrink-0">
           <span
             v-if="powerfulBuild"
-            class="text-eyebrow text-amber-400/70"
+            class="text-eyebrow text-ink-caution/70"
           >Powerful Build</span>
           <span class="font-cinzel text-2xs text-foreground">{{ formatWeightLb(totalCarriedWeight) }}</span>
           <span class="font-cinzel text-2xs text-muted-foreground/40">/</span>
@@ -63,7 +63,7 @@
             v-else
             variant="ghost"
             size="inline-xs"
-            :class="hasCapacityOverride ? 'text-amber-400 hover:text-amber-400' : ''"
+            :class="hasCapacityOverride ? 'text-ink-caution hover:text-ink-caution' : ''"
             @click="$emit('open-capacity')"
           >
             {{ formatWeightLb(effectiveCapacity) }}
@@ -116,9 +116,9 @@ import AppInput from '@/components/common/AppInput.vue';
 type BurdenLevel = 'unencumbered' | 'encumbered' | 'heavily_encumbered' | 'over_encumbered';
 
 const BURDEN_META: Record<BurdenLevel, { label: string; img: string; color: string }> = {
-  unencumbered: { label: 'Unencumbered', img: artUrl('/assets/unencumbered.webp'), color: 'text-green-500' },
-  encumbered: { label: 'Encumbered', img: artUrl('/assets/encumbered.webp'), color: 'text-amber-400' },
-  heavily_encumbered: { label: 'Heavily Encumbered', img: artUrl('/assets/heavily_encumbered.webp'), color: 'text-orange-500' },
+  unencumbered: { label: 'Unencumbered', img: artUrl('/assets/unencumbered.webp'), color: 'text-ink-success' },
+  encumbered: { label: 'Encumbered', img: artUrl('/assets/encumbered.webp'), color: 'text-ink-caution' },
+  heavily_encumbered: { label: 'Heavily Encumbered', img: artUrl('/assets/heavily_encumbered.webp'), color: 'text-ink-caution' },
   over_encumbered: { label: 'Over Encumbered', img: artUrl('/assets/over_encumbered.webp'), color: 'text-destructive' },
 };
 

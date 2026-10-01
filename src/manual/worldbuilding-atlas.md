@@ -28,7 +28,7 @@ The Atlas is a two-pane explorer: a **location tree** on the left, and a **place
 - Search and the **Type** filter (top of the page) flatten the tree to a flat list of matches.
 - Selecting a place is remembered in your browser's address bar, so the Back button walks the trail of places you've visited instead of leaving the Atlas.
 
-The place pane shows: a breadcrumb of clickable ancestors, the sigil, name and type badge, a "N quests staged here" note when a quest beat is waiting at this place or one of its rooms, the **scale rail**, then either **Contents** (its children, grouped by tier, followed by the full detail body below) or **Map** (its map, if it has one, see Sites for site-tier places).
+The place pane shows: a breadcrumb of clickable ancestors, the sigil, name and type badge, a "N quests staged here" note when a quest beat is waiting at this place or one of its rooms, the **scale rail**, then two tabs: **Overview** (the full detail body first, then its children grouped by tier) and **Map** (its map, if it has one, see Sites for site-tier places).
 
 ## Creating a location
 

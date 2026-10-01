@@ -90,7 +90,7 @@
                   <span class="text-body text-foreground flex-1 truncate">
                     {{ entry.currency_label || 'Currency' }}
                   </span>
-                  <span class="font-cinzel text-2xs text-amber-400 shrink-0">
+                  <span class="font-cinzel text-2xs text-ink-caution shrink-0">
                     {{ formatCoinParts(entry.pp ?? 0, entry.gp ?? 0, entry.ep ?? 0, entry.sp ?? 0, entry.cp ?? 0).join(', ') || '—' }}
                   </span>
                 </template>

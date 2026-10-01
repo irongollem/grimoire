@@ -56,12 +56,12 @@ const ENTITY_LABELS: Record<EntityType, string> = {
 };
 
 const BADGE_CLASSES: Record<EntityType, string> = {
-  player:   "text-blue-400 border-blue-400/40 bg-blue-400/10",
-  npc:      "text-violet-400 border-violet-400/40 bg-violet-400/10",
-  monster:  "text-rose-400 border-rose-400/40 bg-rose-400/10",
-  location: "text-emerald-400 border-emerald-400/40 bg-emerald-400/10",
-  party:    "text-amber-400 border-amber-400/40 bg-amber-400/10",
-  faction:  "text-cyan-400 border-cyan-400/40 bg-cyan-400/10",
+  player:   "text-ink-info border-tone-info/40 bg-tone-info/10",
+  npc:      "text-ink-arcane border-tone-arcane/40 bg-tone-arcane/10",
+  monster:  "text-destructive border-tone-danger/40 bg-tone-danger/10",
+  location: "text-ink-success border-tone-success/40 bg-tone-success/10",
+  party:    "text-ink-caution border-tone-caution/40 bg-tone-caution/10",
+  faction:  "text-ink-info border-tone-info/40 bg-tone-info/10",
 };
 
 const model = defineModel<string>({ required: true });

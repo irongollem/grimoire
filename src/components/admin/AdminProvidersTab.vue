@@ -177,10 +177,10 @@
               <span
                 class="text-label px-1.5 py-0.5 rounded shrink-0"
                 :class="{
-                  'text-sky-400 bg-sky-400/10':    m.model_type === 'text',
-                  'text-violet-400 bg-violet-400/10': m.model_type === 'image',
-                  'text-amber-400 bg-amber-400/10':  m.model_type === 'audio',
-                  'text-slate-400 bg-slate-400/10':  m.model_type === 'embedding',
+                  'text-ink-info bg-tone-info/10':    m.model_type === 'text',
+                  'text-ink-arcane bg-tone-arcane/10': m.model_type === 'image',
+                  'text-ink-caution bg-tone-caution/10':  m.model_type === 'audio',
+                  'text-muted-foreground bg-muted/10':  m.model_type === 'embedding',
                 }"
               >{{ m.model_type.toUpperCase() }}</span>
 
@@ -256,7 +256,7 @@
                     @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'cost_per_image_usd', e)"
                   />
                 </div>
-                <span class="font-cinzel text-2xs text-amber-400/60 shrink-0">est.</span>
+                <span class="font-cinzel text-2xs text-ink-caution/60 shrink-0">est.</span>
               </template>
               <template v-else>
                 <!-- embedding: input-token-only, no completion -- see the migration's

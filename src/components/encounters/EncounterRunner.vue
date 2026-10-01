@@ -35,6 +35,7 @@
           :disabled="store.rollingInitiative"
           @click="handleStartCombat"
           class="start-combat-btn"
+          data-variant="live"
           title="Start Combat"
         >
           <IconEncounter class="h-3.5 w-3.5" />
@@ -574,14 +575,14 @@ async function handleEndCombat() {
 }
 
 .start-combat-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-600 text-white font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity;
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-tone-success text-on-success font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity;
 }
 
 .go-live-btn {
   @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground font-cinzel text-xs font-semibold hover:border-primary hover:text-primary transition-colors disabled:opacity-50;
 }
 .live-active {
-  @apply border-green-500/50 text-green-500 bg-green-500/10 hover:border-green-500 hover:text-green-400;
+  @apply border-tone-success/50 text-ink-success bg-tone-success/10 hover:border-tone-success hover:text-ink-success;
 }
 
 .runner-body-wrap {

@@ -217,7 +217,7 @@
 
         <section v-if="currentRoom" class="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
           <header class="flex items-center gap-2">
-            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-tone-info font-cinzel text-label font-bold text-white">
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-tone-info font-cinzel text-label font-bold text-on-info">
               {{ roomOrdinalValue }}
             </span>
             <div class="min-w-0 flex-1">

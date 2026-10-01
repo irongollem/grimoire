@@ -64,7 +64,7 @@
             <span
               v-for="sid in sub.granted_spells[lvl.toString()]"
               :key="sid"
-              class="text-label bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded px-2 py-0.5"
+              class="text-label bg-tone-success/10 text-ink-success  rounded px-2 py-0.5"
             >{{ spellNameById(sid) }}</span>
           </div>
         </div>

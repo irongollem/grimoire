@@ -158,7 +158,7 @@
         <div class="flex items-center gap-2">
           <span
             v-if="grantDone"
-            class="text-label text-emerald-500"
+            class="text-label text-ink-success"
           >Added!</span>
           <AppButton
             v-if="hasCampaign"

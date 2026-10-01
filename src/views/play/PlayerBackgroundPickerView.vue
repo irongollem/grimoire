@@ -52,12 +52,12 @@
 
         <!-- Feat grant (legacy free-text display, kept for backgrounds without a structured origin_feat) -->
         <div v-else-if="pendingBg?.feat_grant_name"
-          class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
+          class="rounded-md border border-tone-caution/30 bg-tone-caution/5 p-3 space-y-1">
           <div class="flex items-center gap-2">
-            <p class="text-eyebrow font-semibold text-amber-600 dark:text-amber-400">
+            <p class="text-eyebrow font-semibold text-ink-caution ">
               FEAT GRANT
             </p>
-            <span class="text-eyebrow text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
+            <span class="text-eyebrow text-ink-caution/60 ">2024 PHB</span>
           </div>
           <p class="font-cinzel text-sm font-bold text-foreground">{{ pendingBg.feat_grant_name }}</p>
         </div>
@@ -84,9 +84,9 @@
         <!-- Removal offer when swapping from an existing background -->
         <div
           v-if="pendingRemovals"
-          class="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 space-y-2"
+          class="rounded-md border border-tone-caution/30 bg-tone-caution/10 p-3 space-y-2"
         >
-          <p class="font-cinzel text-xs font-semibold text-amber-600 dark:text-amber-400">
+          <p class="font-cinzel text-xs font-semibold text-ink-caution ">
             Remove {{ pendingRemovals.prevBgName }}'s proficiencies that don't carry over?
           </p>
           <ul class="text-caption text-muted-foreground list-disc pl-4 space-y-0.5">
@@ -100,7 +100,7 @@
               size="sm"
               :active="removeOld"
               label="Yes, remove them"
-              :class="removeOld ? 'border-amber-600 bg-amber-600 text-white hover:bg-amber-600 hover:text-white' : ''"
+              :class="removeOld ? 'border-tone-caution bg-tone-caution text-on-caution hover:bg-tone-caution hover:text-on-caution' : ''"
               @click="removeOld = true"
             />
             <AppButton
@@ -116,7 +116,7 @@
 
       <!-- Action buttons -->
       <div class="shrink-0 px-5 pb-5">
-        <p v-if="asiChoiceIncomplete" class="text-caption text-amber-600 dark:text-amber-400 italic mb-2">
+        <p v-if="asiChoiceIncomplete" class="text-caption text-ink-caution  italic mb-2">
           Finish the ability score choice above, or clear it, before confirming.
         </p>
         <div class="flex gap-3">

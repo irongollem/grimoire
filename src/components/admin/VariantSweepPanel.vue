@@ -50,7 +50,7 @@
             <span class="text-caption text-muted-foreground shrink-0 w-20 text-right">{{ row.complete }}</span>
             <span
               class="font-cinzel text-xs shrink-0 w-20 text-right"
-              :class="row.missingCount > 0 ? 'text-amber-400' : 'text-muted-foreground'"
+              :class="row.missingCount > 0 ? 'text-ink-caution' : 'text-muted-foreground'"
             >{{ row.missingCount }}</span>
           </template>
         </div>
@@ -78,7 +78,7 @@
       <p
         v-else-if="backfillDone"
         class="text-caption"
-        :class="backfillProgress.failed > 0 ? 'text-amber-400' : 'text-green-500'"
+        :class="backfillProgress.failed > 0 ? 'text-ink-caution' : 'text-ink-success'"
       >
         Backfill complete — healed {{ backfillProgress.healed }} / {{ backfillProgress.total }}.
         <template v-if="backfillProgress.failed > 0">{{ backfillProgress.failed }} failed — re-run the scan to check what's left.</template>

@@ -45,7 +45,7 @@
             <span class="font-cinzel text-xs" :class="attack.attack_bonus >= 0 ? 'text-elven-green' : 'text-destructive'">
               {{ signedNum(attack.attack_bonus) }}
             </span>
-            <span v-if="attackBadgeLabel" class="text-label text-amber-500">{{ attackBadgeLabel }}</span>
+            <span v-if="attackBadgeLabel" class="text-label text-ink-caution">{{ attackBadgeLabel }}</span>
           </AppButton>
           <AppButton
             variant="subtle"
@@ -55,7 +55,7 @@
             class="group"
             @click="rollDamage(attack)"
           >
-            <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
+            <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-ink-caution transition-colors" />
             <span class="font-cinzel text-xs text-foreground">{{ attack.damage }}</span>
             <span v-if="attack.damage_type" class="font-cinzel text-xs text-muted-foreground">{{ attack.damage_type }}</span>
           </AppButton>

@@ -34,7 +34,7 @@
           <div class="flex items-center gap-2">
             <span
               v-if="plan.id !== 'free'"
-              class="text-label-lg font-semibold text-amber-400 border border-amber-400/40 px-2 py-0.5 rounded"
+              class="text-label-lg font-semibold text-ink-caution border border-tone-caution/40 px-2 py-0.5 rounded"
             >
               Unlimited
             </span>
@@ -183,8 +183,8 @@
                   :class="[
                     'flex-1 font-mono text-xs placeholder:text-muted-foreground/50',
                     draftPlanPrices[plan.id].monthlyPriceId
-                      ? 'text-green-400'
-                      : 'text-amber-400',
+                      ? 'text-ink-success'
+                      : 'text-ink-caution',
                   ]"
                 />
                 <span
@@ -216,8 +216,8 @@
                   :class="[
                     'flex-1 font-mono text-xs placeholder:text-muted-foreground/50',
                     draftPlanPrices[plan.id].annualPriceId
-                      ? 'text-green-400'
-                      : 'text-amber-400',
+                      ? 'text-ink-success'
+                      : 'text-ink-caution',
                   ]"
                 />
                 <span

@@ -16,8 +16,9 @@
     </div>
 
     <template v-else>
-      <!-- Character picker — the DM exporter isn't tied to a single member. -->
-      <div class="mb-6 max-w-56">
+      <!-- Character picker — the DM exporter isn't tied to a single member.
+           Once a character is chosen it moves into the settings card. -->
+      <div v-if="!member" class="mx-auto mb-6 max-w-56">
         <EntityCombobox
           v-model="selectedId"
           :options="partyMembers"
@@ -36,10 +37,20 @@
         :background-name="backgroundName"
         :items="items"
       >
+        <template #subject>
+          <label class="flex flex-col gap-1.5">
+            <span class="text-label-lg font-semibold text-muted-foreground">Character</span>
+            <EntityCombobox
+              v-model="selectedId"
+              :options="partyMembers"
+              placeholder="Choose a character…"
+            />
+          </label>
+        </template>
         <template #back>
           <RouterLink
             :to="backRoute"
-            class="text-body text-muted-foreground hover:text-foreground transition-colors order-last"
+            class="text-body text-muted-foreground hover:text-foreground transition-colors"
           >
             ← Back
           </RouterLink>

@@ -24,7 +24,7 @@
         placeholder="Search combatants…"
         @update:model-value="$emit('update:lair-owner-def-id', $event || null)"
       />
-      <p v-if="lairEnabled && !lairOwnerDefId" class="text-caption text-amber-500/80 italic">
+      <p v-if="lairEnabled && !lairOwnerDefId" class="text-caption text-ink-caution/80 italic">
         Pick a combatant whose stat block has Lair Actions. Without one, the runner won't show the lair card.
       </p>
     </div>

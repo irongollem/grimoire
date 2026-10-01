@@ -13,7 +13,7 @@
       <div class="ml-auto flex flex-wrap items-center gap-2">
         <span
           v-if="thisIsLive"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-green-500/15 border border-green-500/30 text-label-lg font-semibold text-green-500 animate-pulse"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-tone-success/15 border border-tone-success/30 text-label-lg font-semibold text-ink-success animate-pulse"
         >● In Progress</span>
 
         <!-- Difficulty badge -->

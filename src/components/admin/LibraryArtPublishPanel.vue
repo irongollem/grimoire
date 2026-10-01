@@ -57,7 +57,7 @@ const headingClass = computed(() =>
     ? "font-cinzel text-sm font-semibold tracking-wide text-foreground"
     : "text-label-lg font-semibold text-muted-foreground uppercase",
 );
-const successClass = computed(() => (variant === "card" ? "text-green-500" : "text-elven-green"));
+const successClass = computed(() => (variant === "card" ? "text-ink-success" : "text-elven-green"));
 
 const statsQuery = useLibraryArtDefaultStats();
 const bulkPublish = useBulkPublishLibraryArtDefaults();

@@ -1,5 +1,10 @@
 import { computed, type MaybeRefOrGetter, toValue } from "vue";
 
+/**
+ * Derive a reactive HP ratio, text/bar colour classes and immersive health label
+ * from values, refs or getters. A zero maximum yields a ratio of zero; other
+ * ratios are not clamped.
+ */
 export function useHpDisplay(
   currentHp: MaybeRefOrGetter<number>,
   maxHp: MaybeRefOrGetter<number>
@@ -12,12 +17,12 @@ export function useHpDisplay(
 
   const hpColor = computed(() => {
     const p = hpPct.value;
-    return p < 0.33 ? "text-destructive" : p < 0.66 ? "text-amber-400" : "text-elven-green";
+    return p < 0.33 ? "text-destructive" : p < 0.66 ? "text-ink-caution" : "text-elven-green";
   });
 
   const hpBarColor = computed(() => {
     const p = hpPct.value;
-    return p < 0.33 ? "bg-destructive" : p < 0.66 ? "bg-amber-400" : "bg-elven-green";
+    return p < 0.33 ? "bg-destructive" : p < 0.66 ? "bg-tone-caution" : "bg-elven-green";
   });
 
   const immersiveHpLabel = computed(() => {

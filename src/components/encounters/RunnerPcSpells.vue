@@ -27,7 +27,7 @@
         class="trait-roll-btn trait-dmg-btn"
         @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : emit('roll-spell', spellForLastCast(entry))"
       >🎲 {{ entry.spell.effects?.length ? "Resolve" : entry.spell.damage_rolls[0].dice }}</button>
-      <span v-if="entry.spell.mechanics_reviewed === false" class="text-2xs text-amber-500">Manual</span>
+      <span v-if="entry.spell.mechanics_reviewed === false" class="text-2xs text-ink-caution">Manual</span>
       <button
         v-if="entry.spell.attack_type === 'save' && saveDcFor(entry)"
         type="button"
@@ -227,10 +227,10 @@ const emit = defineEmits<{
 }
 
 .spell-save-btn {
-  @apply text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20;
+  @apply text-ink-caution  bg-tone-caution/10 border border-tone-caution/30 hover:bg-tone-caution/20;
 }
 
 .spell-cast-btn {
-  @apply bg-violet-500/10 text-violet-500 border border-violet-500/30 hover:bg-violet-500/20 disabled:opacity-40 disabled:cursor-not-allowed;
+  @apply bg-tone-arcane/10 text-ink-arcane border border-tone-arcane/30 hover:bg-tone-arcane/20 disabled:opacity-40 disabled:cursor-not-allowed;
 }
 </style>

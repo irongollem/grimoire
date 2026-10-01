@@ -30,7 +30,7 @@
             </div>
             <span
               class="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card"
-              :class="partyMemberOnline(member.id) ? 'bg-green-500' : 'bg-muted-foreground/30'"
+              :class="partyMemberOnline(member.id) ? 'bg-tone-success' : 'bg-muted-foreground/30'"
             />
           </div>
           <div class="min-w-0 flex-1">
@@ -64,7 +64,7 @@
         <!-- Conditions + Curses -->
         <div v-if="member.conditions?.length || member.curses?.length" class="flex flex-wrap gap-1">
           <span v-for="cond in member.conditions" :key="cond" class="px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 text-label text-destructive">{{ cond }}</span>
-          <span v-for="curse in member.curses" :key="curse" class="px-1.5 py-0.5 rounded bg-violet-500/10 border border-violet-500/30 text-label text-violet-400">Cursed: {{ curse }}</span>
+          <span v-for="curse in member.curses" :key="curse" class="px-1.5 py-0.5 rounded bg-tone-arcane/10 border border-tone-arcane/30 text-label text-ink-arcane">Cursed: {{ curse }}</span>
         </div>
         <!-- DM tracker buttons -->
         <DmTrackerButtons
@@ -151,17 +151,17 @@ function partyMemberOnline(partyMemberId: string): boolean {
 function hpColor(current: number, max: number): string {
   const pct = max > 0 ? current / max : 0;
   if (pct <= 0)    return "text-muted-foreground";
-  if (pct <= 0.25) return "text-red-500";
-  if (pct <= 0.5)  return "text-amber-500";
-  return "text-green-500";
+  if (pct <= 0.25) return "text-destructive";
+  if (pct <= 0.5)  return "text-ink-caution";
+  return "text-ink-success";
 }
 
 function hpBarColor(current: number, max: number): string {
   const pct = max > 0 ? current / max : 0;
   if (pct <= 0)    return "bg-muted-foreground/40";
-  if (pct <= 0.25) return "bg-red-500";
-  if (pct <= 0.5)  return "bg-amber-500";
-  return "bg-green-500";
+  if (pct <= 0.25) return "bg-tone-danger";
+  if (pct <= 0.5)  return "bg-tone-caution";
+  return "bg-tone-success";
 }
 
 function abilityMod(score: number): number { return Math.floor((score - 10) / 2); }

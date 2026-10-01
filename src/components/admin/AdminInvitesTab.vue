@@ -68,7 +68,7 @@
                 class="px-1.5 py-0.5 rounded text-eyebrow font-semibold"
                 :class="invite.granted_plan === 'admin'
                   ? 'bg-primary/10 text-primary'
-                  : 'bg-amber-500/10 text-amber-400'"
+                  : 'bg-tone-caution/10 text-ink-caution'"
               >{{ invite.granted_plan }}</span>
             </div>
             <p class="text-caption text-muted-foreground italic">
@@ -96,7 +96,7 @@
           <button
             class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-xs font-cinzel tracking-wide transition-colors"
             :class="copiedId === invite.id
-              ? 'bg-green-500/20 text-green-400'
+              ? 'bg-tone-success/20 text-ink-success'
               : 'border border-border text-foreground hover:bg-muted'"
             @click="copyInvite(invite)"
           >

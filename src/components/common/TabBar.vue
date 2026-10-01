@@ -1,9 +1,11 @@
 <template>
-  <div class="flex items-center gap-0 border-b border-border" :class="wrapperClass">
+  <div class="tab-bar flex items-center gap-0 border-b border-border" role="tablist" :class="wrapperClass">
     <button
       v-for="tab in tabs"
       :key="String(tab.id)"
       type="button"
+      role="tab"
+      :aria-selected="modelValue === tab.id"
       class="flex items-center gap-1.5 px-4 py-2 text-label-lg font-semibold border-b-2 -mb-px transition-colors shrink-0"
       :class="modelValue === tab.id
         ? 'border-primary text-primary'

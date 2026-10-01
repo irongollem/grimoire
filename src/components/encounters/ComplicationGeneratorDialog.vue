@@ -79,8 +79,8 @@
               </li>
             </ul>
 
-            <div v-if="resolved.environment" class="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 space-y-1">
-              <p class="text-label-lg font-semibold text-amber-500 flex items-center gap-1">
+            <div v-if="resolved.environment" class="rounded-md border border-tone-caution/30 bg-tone-caution/10 p-2.5 space-y-1">
+              <p class="text-label-lg font-semibold text-ink-caution flex items-center gap-1">
                 <IconWarning class="h-3.5 w-3.5 shrink-0" />
                 {{ resolved.environment.label }}
               </p>
@@ -91,13 +91,13 @@
           <!-- Anything silently impossible, made loud — see resolveGeneratedComplication. -->
           <div v-if="resolved.warnings.length" class="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-1.5">
             <div v-for="(w, i) in resolved.warnings" :key="i" class="flex gap-2">
-              <IconWarning class="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+              <IconWarning class="h-3.5 w-3.5 text-ink-caution shrink-0 mt-0.5" />
               <p class="text-caption text-muted-foreground">{{ w }}</p>
             </div>
           </div>
 
           <div v-if="result?.grounded === false" class="rounded-md border border-border bg-muted/30 px-3 py-2 flex gap-2">
-            <IconWarning class="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+            <IconWarning class="h-3.5 w-3.5 text-ink-caution shrink-0 mt-0.5" />
             <p class="text-caption text-muted-foreground">
               This generation ran without your bestiary/cast index (the semantic index isn't available), so any
               unresolved creature name above is the model guessing rather than checked against your roster.

@@ -1,6 +1,8 @@
 import { defineStore } from "pinia";
-import { ref, shallowRef, watch } from "vue";
+import { computed, ref, shallowRef, watch } from "vue";
 import { useLocalStorage } from "@vueuse/core";
+import { useTheme } from "@/composables/useTheme";
+import { THEMES } from "@/lib/themes";
 
 export type CardSizeId = "mtg" | "tarot";
 export type CardStyleId = "inked" | "modern";
@@ -43,7 +45,11 @@ function emptyBuckets(): Record<SourceId, Set<string>> {
 }
 
 const LIBRARY_KEY = "cardforge_library";
-const STYLE_KEY = "cardforge_style";
+/** Legacy key: written with its "inked" default on first visit, so it cannot
+ *  tell a choice from the default. Only "modern" there was a real choice. */
+const LEGACY_STYLE_KEY = "cardforge_style";
+/** An explicit choice only; absent means "follow the theme". */
+const STYLE_CHOICE_KEY = "cardforge_style_choice";
 const MODE_KEY = "cardforge_mode";
 const DECK_BACK_KEY = "cardforge_deck_back";
 const DOWNTIME_DECK_BACK_KEY = "cardforge_downtime_deck_back";
@@ -57,7 +63,26 @@ export const useCardForgeStore = defineStore("cardForge", () => {
   const selectedIds = shallowRef<Record<SourceId, Set<string>>>(emptyBuckets());
 
   const cardSize = ref<CardSizeId>("mtg");
-  const cardStyle = useLocalStorage<CardStyleId>(STYLE_KEY, "inked");
+  /**
+   * Card style follows the app theme until the user picks one: Vellum (the
+   * illuminated family) defaults to the inked cards, Tome and Grimoire to the
+   * modern ones. Picking a style stores it and stops the following.
+   */
+  const ls = typeof localStorage !== "undefined" ? localStorage : null;
+  const legacy = ls?.getItem(LEGACY_STYLE_KEY);
+  const styleChoice = useLocalStorage<CardStyleId | null>(
+    STYLE_CHOICE_KEY,
+    legacy === "modern" || legacy === '"modern"' ? "modern" : null,
+    { writeDefaults: false, serializer: { read: (v) => (v === "inked" || v === "modern" ? v : null), write: (v) => v ?? "" } },
+  );
+  const { activeThemeId } = useTheme();
+  const themeCardStyle = computed<CardStyleId>(() =>
+    THEMES.find((t) => t.id === activeThemeId.value)?.family === "vellum" ? "inked" : "modern",
+  );
+  const cardStyle = computed<CardStyleId>({
+    get: () => styleChoice.value ?? themeCardStyle.value,
+    set: (v) => { styleChoice.value = v; },
+  });
 
   /** "collection" = mixed cards, full front+back per item.
    *  "loot"       = items only, all info on front, shared back image. */

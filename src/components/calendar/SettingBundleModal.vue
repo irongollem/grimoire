@@ -35,7 +35,7 @@
               Importing {{ imported }} / {{ bundle.events.length }} events…
             </span>
           </div>
-          <div v-else-if="result === 'success'" class="flex items-center gap-2 text-green-500">
+          <div v-else-if="result === 'success'" class="flex items-center gap-2 text-ink-success">
             <span class="font-cinzel text-sm font-semibold">✓ {{ imported }} events imported</span>
           </div>
           <div v-else-if="result === 'error'" class="text-destructive">

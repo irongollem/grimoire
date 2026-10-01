@@ -24,7 +24,7 @@ import {
   Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
   Moon, MousePointer2, MoveHorizontal, MoveVertical, Music, Music2,
   Navigation, Network,
-  Package, PackageOpen, PackagePlus, PaintBucket, Paintbrush, Pause, PawPrint, Pen, Pencil,
+  Package, PackageOpen, PackagePlus, PaintBucket, Paintbrush, Pause, PawPrint, Pen,
   PencilLine, PencilRuler, Pickaxe, Pin, Play, Plus, Printer,
   Puzzle, Quote, Radio, RectangleHorizontal, Redo2, RefreshCw,
   Repeat, Repeat1, RotateCcw, Ruler,
@@ -45,7 +45,7 @@ export { PictureInPicture2 as IconPopOut }
 export { Plus as IconAdd }
 export { Minus as IconMinus }
 export { Trash2 as IconDelete }
-export { Pencil as IconEdit }
+export { Feather as IconEdit }
 export { Save as IconSave }
 export { Copy as IconCopy }
 export { X as IconClose }
@@ -299,6 +299,12 @@ import { NAV_GLYPHS as ASSET_GLYPHS } from "@/lib/navGlyphs.assets.generated";
 // redrawn, and everything in this file is built to tint with `currentColor`.
 // They live in src/components/brand/ and render verbatim — see BrandMark.vue.
 
+// Compass rose: where an entity is (NPC card locations). A drawn glyph
+// rather than Lucide's map pin, which reads as a phone maps app.
+export const IconCompassRose = glyph(
+  '<path d="M71 29 59 50 71 71 50 59 29 71 41 50 29 29 50 41Z" opacity=".55"/>' +
+    '<path fill-rule="evenodd" d="M50 3 58 42 97 50 58 58 50 97 42 58 3 50 42 42Z M50 44a6 6 0 1 0 0 12a6 6 0 1 0 0-12Z"/>',
+);
 export const IconNavDashboard = glyph(NAV_GLYPHS.dashboard);
 export const IconNavNotes = glyph(NAV_GLYPHS.notes);
 export const IconNavCalendar = glyph(NAV_GLYPHS.calendar);

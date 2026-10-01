@@ -16,8 +16,8 @@
         </template>
       </p>
 
-      <div v-if="hasHomebrew && !isDemoCopy" class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-2.5">
-        <p class="text-caption text-amber-700 dark:text-amber-400">
+      <div v-if="hasHomebrew && !isDemoCopy" class="rounded-md border border-tone-caution/30 bg-tone-caution/5 px-3 py-2.5 space-y-2.5">
+        <p class="text-caption text-ink-caution ">
           This campaign has <span class="font-semibold">{{ homebrewSummary }}</span> scoped exclusively to it.
           Choose what happens to that homebrew:
         </p>

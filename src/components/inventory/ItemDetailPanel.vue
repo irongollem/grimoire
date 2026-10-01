@@ -37,12 +37,12 @@
           class="rounded-lg border p-3 flex items-center justify-between gap-3 transition-colors"
           :class="localIdentified
             ? 'border-border bg-card/50'
-            : 'border-amber-500/30 bg-amber-500/5'"
+            : 'border-tone-caution/30 bg-tone-caution/5'"
         >
           <div class="flex flex-col gap-0.5">
             <span
               class="text-label-lg font-semibold uppercase"
-              :class="localIdentified ? 'text-muted-foreground' : 'text-amber-500/80'"
+              :class="localIdentified ? 'text-muted-foreground' : 'text-ink-caution/80'"
             >{{ localIdentified ? 'Identified' : 'Unidentified' }}</span>
             <span class="text-caption text-muted-foreground italic">
               {{ localIdentified ? 'Players see the full description' : 'Players see only the mundane description' }}
@@ -291,7 +291,7 @@
             @click="openSell"
           />
           <div v-else class="space-y-2">
-            <p class="font-cinzel text-2xs text-amber-400/80 tracking-widest uppercase">List for Sale</p>
+            <p class="font-cinzel text-2xs text-ink-caution/80 tracking-widest uppercase">List for Sale</p>
             <div class="grid grid-cols-5 gap-1">
               <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
                 <span class="font-cinzel text-2xs font-bold" :class="coin.color">{{ coin.symbol }}</span>

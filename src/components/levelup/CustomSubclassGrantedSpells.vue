@@ -15,7 +15,7 @@
             <span
               v-for="sid in grantedSpells[lvl.toString()]"
               :key="sid"
-              class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-caption text-emerald-600 dark:text-emerald-400"
+              class="inline-flex items-center gap-1 rounded-full bg-tone-success/10 border border-tone-success/20 px-2.5 py-0.5 text-caption text-ink-success "
             >
               {{ spellNameById(sid) }}
               <AppButton

@@ -14,10 +14,10 @@
   </div>
 
   <BackgroundOriginFeatBadge v-if="backgroundOriginFeat" :origin-feat="backgroundOriginFeat" />
-  <div v-else-if="backgroundFeat" class="rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
-    <div class="px-4 py-2.5 border-b border-amber-500/20 bg-amber-500/10 flex items-center gap-2">
-      <p class="text-label-lg font-semibold text-amber-600 dark:text-amber-400">Background Feat</p>
-      <span class="text-eyebrow text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
+  <div v-else-if="backgroundFeat" class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 overflow-hidden">
+    <div class="px-4 py-2.5 border-b border-tone-caution/20 bg-tone-caution/10 flex items-center gap-2">
+      <p class="text-label-lg font-semibold text-ink-caution ">Background Feat</p>
+      <span class="text-eyebrow text-ink-caution/60 ">2024 PHB</span>
     </div>
     <div class="px-4 py-3">
       <p class="font-cinzel text-sm font-bold text-foreground">{{ backgroundFeat }}</p>

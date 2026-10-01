@@ -98,7 +98,7 @@ defineExpose({ close });
 }
 
 .picker-chip-active {
-  @apply bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/50 hover:bg-destructive/15 hover:text-destructive hover:border-destructive/40;
+  @apply bg-tone-caution/20 text-ink-caution  border-tone-caution/50 hover:bg-destructive/15 hover:text-destructive hover:border-destructive/40;
 }
 
 .picker-chip-inactive {

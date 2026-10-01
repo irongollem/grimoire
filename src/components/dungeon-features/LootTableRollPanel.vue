@@ -22,13 +22,13 @@
               <span class="text-body text-foreground truncate">{{ r.item_name }}</span>
             </template>
             <template v-else-if="r.type === 'currency'">
-              <span class="font-cinzel text-sm font-bold text-amber-400 shrink-0 w-7 text-right">💰</span>
+              <span class="font-cinzel text-sm font-bold text-ink-caution shrink-0 w-7 text-right">💰</span>
               <span class="text-body text-foreground truncate">
                 {{ r.currency_label ? r.currency_label + ': ' : '' }}{{ formatCoinParts(r.pp, r.gp, r.ep, r.sp, r.cp).join(', ') || '0 GP' }}
               </span>
             </template>
             <template v-else-if="r.type === 'unresolved'">
-              <span class="font-cinzel text-sm font-bold text-amber-500 shrink-0 w-7 text-right" title="This entry hit but produced no loot">⚠</span>
+              <span class="font-cinzel text-sm font-bold text-ink-caution shrink-0 w-7 text-right" title="This entry hit but produced no loot">⚠</span>
               <span class="text-body text-muted-foreground truncate italic">
                 {{ r.wanted }} — {{ unresolvedReasonLabel(r.reason) }}
               </span>

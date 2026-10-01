@@ -2,17 +2,17 @@
   <!-- Hidden roll (dm_roll) — only visible to the DM -->
   <div
     v-if="isDmRoll"
-    class="max-w-[90%] rounded-lg px-3 py-2 border border-dashed border-purple-500/50 bg-purple-500/8"
+    class="max-w-[90%] rounded-lg px-3 py-2 border border-dashed border-tone-arcane/50 bg-tone-arcane/8"
   >
     <!-- DM-only badge -->
     <div class="flex items-center gap-1 mb-1.5">
-      <IconHide class="h-3 w-3 text-purple-500 dark:text-purple-400 shrink-0" />
-      <span class="font-cinzel text-2xs text-purple-500 dark:text-purple-400 tracking-widest">HIDDEN ROLL</span>
+      <IconHide class="h-3 w-3 text-ink-arcane  shrink-0" />
+      <span class="font-cinzel text-2xs text-ink-arcane  tracking-widest">HIDDEN ROLL</span>
     </div>
     <!-- Sender row -->
     <p class="text-label text-foreground/60 mb-1">
-      <span class="font-semibold text-purple-600 dark:text-purple-300">{{ senderName }}</span>
-      {{ " " }}rolled <span class="text-purple-600/70 dark:text-purple-400">{{ roll.label }}</span>
+      <span class="font-semibold text-ink-arcane ">{{ senderName }}</span>
+      {{ " " }}rolled <span class="text-ink-arcane/70 ">{{ roll.label }}</span>
     </p>
     <!-- Flavor line -->
     <p
@@ -21,7 +21,7 @@
     >
       <span
         v-if="flavorSkillLabel"
-        class="text-label font-semibold text-purple-600 dark:text-purple-400 not-italic"
+        class="text-label font-semibold text-ink-arcane  not-italic"
       >
         {{ flavorSkillLabel }}:
       </span>
@@ -33,23 +33,23 @@
         class="shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-lg border"
         :class="
           roll.isCrit
-            ? 'border-amber-400/50 bg-amber-400/10'
+            ? 'border-tone-caution/50 bg-tone-caution/10'
             : roll.isFumble
               ? 'border-destructive/50 bg-destructive/10'
-              : 'border-purple-500/50 bg-purple-500/10'
+              : 'border-tone-arcane/50 bg-tone-arcane/10'
         "
       >
         <span
           class="text-title font-bold leading-none"
           :class="
             roll.isCrit
-              ? 'text-amber-400'
+              ? 'text-ink-caution'
               : roll.isFumble
                 ? 'text-destructive'
-                : 'text-purple-800 dark:text-purple-100'
+                : 'text-ink-arcane '
           "
         >{{ roll.total ?? "?" }}</span>
-        <span v-if="roll.isCrit" class="font-cinzel text-2xs text-amber-400 tracking-widest mt-0.5">CRIT</span>
+        <span v-if="roll.isCrit" class="font-cinzel text-2xs text-ink-caution tracking-widest mt-0.5">CRIT</span>
         <span v-else-if="roll.isFumble" class="font-cinzel text-2xs text-destructive tracking-widest mt-0.5">FAIL</span>
       </div>
       <div class="flex-1 min-w-0">
@@ -58,11 +58,11 @@
             v-for="(d, i) in roll.breakdown"
             :key="i"
             class="font-cinzel text-2xs px-1.5 py-0.5 rounded"
-            :class="d.dropped ? 'line-through text-muted-foreground/30 bg-muted/30' : 'bg-purple-500/20 text-purple-800 dark:text-purple-100'"
+            :class="d.dropped ? 'line-through text-muted-foreground/30 bg-muted/30' : 'bg-tone-arcane/20 text-ink-arcane '"
           >{{ d.val }}</span>
           <span
             v-if="roll.modifier !== 0"
-            class="font-cinzel text-2xs text-purple-600 dark:text-purple-400 px-1"
+            class="font-cinzel text-2xs text-ink-arcane  px-1"
           >{{ roll.modifier > 0 ? `+${roll.modifier}` : roll.modifier }}</span>
         </div>
         <p class="text-caption-sm text-muted-foreground/50">{{ timeLabel }}</p>
@@ -83,7 +83,7 @@
     <!-- Sender row -->
     <p class="text-label text-muted-foreground mb-1.5">
       <span class="font-semibold text-primary">{{ senderName }}</span>
-      <span v-if="isWhisper" class="text-amber-400"> whispers</span>
+      <span v-if="isWhisper" class="text-ink-caution"> whispers</span>
       {{ " " }}rolled <span class="text-primary/70">{{ roll.label }}</span>
     </p>
     <!-- Horizontal layout: total left, breakdown right -->
@@ -93,7 +93,7 @@
         class="shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-lg border"
         :class="
           roll.isCrit
-            ? 'border-amber-400/50 bg-amber-400/10'
+            ? 'border-tone-caution/50 bg-tone-caution/10'
             : roll.isFumble
               ? 'border-destructive/50 bg-destructive/10'
               : isOwn
@@ -105,7 +105,7 @@
           class="text-title font-bold leading-none"
           :class="
             roll.isCrit
-              ? 'text-amber-400'
+              ? 'text-ink-caution'
               : roll.isFumble
                 ? 'text-destructive'
                 : 'text-foreground'
@@ -113,7 +113,7 @@
         >{{ roll.total ?? "?" }}</span>
         <span
           v-if="roll.isCrit"
-          class="font-cinzel text-2xs text-amber-400 tracking-widest mt-0.5"
+          class="font-cinzel text-2xs text-ink-caution tracking-widest mt-0.5"
         >CRIT</span>
         <span
           v-else-if="roll.isFumble"

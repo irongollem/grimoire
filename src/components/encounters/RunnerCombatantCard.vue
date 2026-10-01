@@ -244,9 +244,9 @@ const hpFieldModel = computed<string | number>({
 .reveal-btn {
   @apply absolute bottom-0 right-0 flex items-center justify-center w-4 h-4 rounded-tl text-2xs transition-colors;
 }
-.reveal-hidden   { @apply bg-muted/80 text-muted-foreground hover:bg-amber-500/80 hover:text-white; }
-.reveal-unseen   { @apply bg-amber-500/80 text-white hover:bg-green-500/80; }
-.reveal-revealed { @apply bg-green-500/80 text-white hover:bg-muted/80 hover:text-muted-foreground; }
+.reveal-hidden   { @apply bg-muted/80 text-muted-foreground hover:bg-tone-caution/80 hover:text-on-caution; }
+.reveal-unseen   { @apply bg-tone-caution/80 text-on-caution hover:bg-tone-success/80 hover:text-on-success; }
+.reveal-revealed { @apply bg-tone-success/80 text-on-success hover:bg-muted/80 hover:text-muted-foreground; }
 
 /* ── Shared badge + chip styles ─────────────────────────────────────────── */
 .combatant-name {
@@ -265,22 +265,22 @@ const hpFieldModel = computed<string | number>({
 .dead-badge { @apply text-destructive text-xs; }
 
 .wildshape-row-badge {
-  @apply text-caption-sm text-amber-400 italic ml-1;
+  @apply text-caption-sm text-ink-caution italic ml-1;
 }
 
 .surprised-set-btn {
-  @apply text-label text-muted-foreground/50 px-1 py-0.5 rounded border border-dashed border-muted-foreground/20 hover:text-amber-500 hover:border-amber-500/40 transition-colors;
+  @apply text-label text-muted-foreground/50 px-1 py-0.5 rounded border border-dashed border-muted-foreground/20 hover:text-ink-caution hover:border-tone-caution/40 transition-colors;
 }
 
 .cond-badge {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
+  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold bg-tone-caution/20 text-ink-caution  border border-tone-caution/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
 }
 
 .reaction-chip {
   @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold border transition-colors cursor-pointer;
 }
-.reaction-ready { @apply bg-sky-500/10 text-sky-400 border-sky-500/30 hover:bg-sky-500/20; }
-.reaction-used  { @apply bg-muted text-muted-foreground/40 border-border line-through hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30; }
+.reaction-ready { @apply bg-tone-info/10 text-ink-info border-tone-info/30 hover:bg-tone-info/20; }
+.reaction-used  { @apply bg-muted text-muted-foreground/40 border-border line-through hover:bg-tone-danger/10 hover:text-destructive hover:border-tone-danger/30; }
 
 /* ── Shared HP styles ───────────────────────────────────────────────────── */
 .hp-btn {
@@ -308,7 +308,7 @@ const hpFieldModel = computed<string | number>({
   white-space: nowrap;
 }
 .damage-flash.is-damage { @apply text-destructive; }
-.damage-flash.is-heal   { @apply text-green-500; }
+.damage-flash.is-heal   { @apply text-ink-success; }
 
 /* ── Mobile card layout ─────────────────────────────────────────────────── */
 .mc-card {
@@ -390,7 +390,7 @@ const hpFieldModel = computed<string | number>({
 .mc-stat-label { @apply text-label text-muted-foreground; }
 .mc-stat-value { @apply font-cinzel text-sm font-bold text-foreground; }
 .mc-stat-sep   { @apply text-muted-foreground font-normal mx-0.5; }
-.mc-stat-temp  { @apply font-cinzel text-2xs font-bold text-sky-400; }
+.mc-stat-temp  { @apply font-cinzel text-2xs font-bold text-ink-info; }
 
 .mc-hp-controls {
   display: flex;

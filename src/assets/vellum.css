@@ -1,0 +1,690 @@
+/* Vellum and Vellum Lamplight: everything beyond colour.
+
+   Colours come from src/lib/themes.vellum.ts like any other theme. This file adds
+   what a colour swap cannot do: the paper ground, the type roles, the shape, the
+   gilt and oxblood buttons and the torn-paper panels. Every selector is scoped to
+   `[data-theme^="vellum"]` (applyTheme sets it on <html>), so tome and grimoire
+   render exactly as before.
+
+   Deliberately UNLAYERED, like the select and iOS rules in base.css: Tailwind
+   utilities sit in `@layer utilities`, and an unlayered rule beats any layer
+   regardless of specificity. That is what lets these override `bg-card`,
+   `rounded-xl` or `font-cinzel` without touching the 1,200+ call sites. Keep it
+   out of any layer.
+
+   Design reference: the "Dungeon Grimoire" design system, section "Vellum". */
+
+:root[data-theme^="vellum"] {
+  --vl-serif: "Alegreya", "Crimson Pro", Georgia, serif;
+  --vl-sans: "Source Sans 3", Roboto, Helvetica, sans-serif;
+  /* Component CSS that reads var(--font-fell) directly (RichTextViewer) gets
+     the reading face too, not only the .font-fell utility. */
+  --font-fell: var(--vl-serif);
+  --vl-paper: url("/assets/vellum/paper.webp");
+}
+
+/* ── Paper ground ─────────────────────────────────────────────────────────
+   A SEAMLESS rag-paper tile (public/assets/vellum/paper.webp: 1254px source
+   with fibres and pulp cloudiness, edges cross-faded so it repeats without a
+   seam, retinted to the parchment). Drawn at half size so it stays sharp on
+   2x screens. Painted on body and every `bg-background` surface
+   with a fixed attachment, so nested page containers continue one sheet.
+   Lamplight multiplies it into the dark ground. Form controls that use
+   bg-background get a plain card fill instead: a field is paper you write on,
+   not a hole cut into the page. */
+:root[data-theme^="vellum"] body,
+:root[data-theme^="vellum"] .bg-background {
+  background-image: var(--vl-paper);
+  background-size: 627px 627px;
+  background-repeat: repeat;
+  background-attachment: fixed;
+}
+:root[data-theme^="vellum"] :is(input, select, textarea, button).bg-background {
+  background-image: none;
+  background-color: var(--card);
+}
+:root[data-theme^="vellum"] select.bg-background:not([multiple]):not([size]) {
+  /* keep base.css's gradient caret, drop only the paper */
+  background-image:
+    linear-gradient(45deg, transparent 42%, var(--muted-foreground) 42%, var(--muted-foreground) 66%, transparent 66%),
+    linear-gradient(135deg, transparent 34%, var(--muted-foreground) 34%, var(--muted-foreground) 58%, transparent 58%);
+}
+:root[data-theme="vellum-dark"] body,
+:root[data-theme="vellum-dark"] .bg-background {
+  background-blend-mode: multiply;
+}
+
+/* ── Type ─────────────────────────────────────────────────────────────────
+   Alegreya reads, Source Sans 3 labels the controls, Cinzel only at display
+   size. Sizes step up a little because Alegreya has a smaller x-height than
+   Crimson Pro. */
+:root[data-theme^="vellum"] body,
+:root[data-theme^="vellum"] .font-fell,
+:root[data-theme^="vellum"] .font-cinzel,
+:root[data-theme^="vellum"] :is(h2, h3, h4, h5, h6) {
+  font-family: var(--vl-serif);
+}
+:root[data-theme^="vellum"] .text-body { font-family: var(--vl-serif); font-size: 0.9375rem; }
+:root[data-theme^="vellum"] .text-caption { font-family: var(--vl-serif); font-size: 0.8125rem; }
+:root[data-theme^="vellum"] .text-caption-sm { font-family: var(--vl-serif); font-size: 0.6875rem; }
+:root[data-theme^="vellum"] :is(.text-heading-sm, .text-heading, .text-heading-lg) {
+  font-family: var(--vl-serif);
+  font-weight: 700;
+}
+:root[data-theme^="vellum"] .text-label { font-family: var(--vl-sans); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.02em; }
+:root[data-theme^="vellum"] .text-label-lg { font-family: var(--vl-sans); font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.01em; }
+:root[data-theme^="vellum"] .text-eyebrow { font-family: var(--vl-sans); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; }
+/* Display stays engraved: listed last so it wins over `.font-cinzel` above. */
+:root[data-theme^="vellum"] :is(h1, .text-title, .text-display) {
+  font-family: "Cinzel", Georgia, serif;
+}
+
+/* ── Shape ────────────────────────────────────────────────────────────────
+   `--radius` is 0.25rem in these themes, which already squares rounded-lg/md/sm
+   (they are derived from it). The fixed Tailwind radii are squared here. */
+:root[data-theme^="vellum"] :is(.rounded-xl, .rounded-2xl) { border-radius: 4px; }
+:root[data-theme^="vellum"] .rounded-t-2xl { border-top-left-radius: 4px; border-top-right-radius: 4px; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────────
+   AppButton mirrors its variant, size, tone and emphasis as data attributes,
+   so the Vellum recipes hook in here without adding classes that the
+   class-list tests (AppButton.test.ts) would read as a different recipe. */
+:root[data-theme^="vellum"] [data-variant="primary"] {
+  background-color: var(--primary-fill);
+  color: var(--primary-fill-foreground);
+  box-shadow: inset 0 0 0 1px var(--primary-edge), inset 0 2px 0 rgb(255 246 214 / 0.45), 0 1px 0 rgb(43 32 25 / 0.18);
+}
+:root[data-theme^="vellum"] [data-variant="primary"]:hover { opacity: 1; filter: brightness(1.06); }
+:root[data-theme^="vellum"] [data-variant="live"] {
+  background-color: var(--live);
+  color: var(--live-foreground);
+  box-shadow: inset 0 0 0 1px var(--live-edge), inset 0 1px 0 rgb(255 220 200 / 0.18), 0 1px 0 rgb(43 32 25 / 0.2);
+}
+:root[data-theme^="vellum"] [data-variant="live"]:hover { opacity: 1; filter: brightness(1.1); }
+/* A little more room on the everyday sizes. */
+:root[data-theme^="vellum"] [data-size="sm"] { padding-inline: 0.875rem; }
+:root[data-theme^="vellum"] [data-size="md"] { padding-inline: 1rem; }
+:root[data-theme^="vellum"] [data-size="lg"] { padding-inline: 1.25rem; font-family: "Cinzel", Georgia, serif; }
+
+/* Toned buttons: colour as a pigment accent, never a pastel wash. Soft and
+   outline become an ink label on the card with a small diamond in the tone;
+   icon-only buttons keep the tone as their icon colour instead. */
+:root[data-theme^="vellum"] [data-tone="primary"] { --pip: var(--primary); }
+:root[data-theme^="vellum"] [data-tone="danger"]  { --pip: var(--tone-danger); }
+:root[data-theme^="vellum"] [data-tone="success"] { --pip: var(--tone-success); }
+:root[data-theme^="vellum"] [data-tone="info"]    { --pip: var(--tone-info); }
+:root[data-theme^="vellum"] [data-tone="arcane"]  { --pip: var(--tone-arcane); }
+:root[data-theme^="vellum"] [data-tone="caution"] { --pip: var(--tone-caution); }
+:root[data-theme^="vellum"] [data-variant="tinted"]:is([data-emphasis="soft"], [data-emphasis="outline"]):not([data-tone="neutral"]) {
+  background-color: var(--card);
+  border-color: var(--input);
+  color: var(--foreground);
+}
+:root[data-theme^="vellum"] [data-variant="tinted"]:is([data-emphasis="soft"], [data-emphasis="outline"]):not([data-tone="neutral"]):hover {
+  background-color: var(--accent);
+}
+:root[data-theme^="vellum"] [data-variant="tinted"]:is([data-emphasis="soft"], [data-emphasis="outline"]):not([data-tone="neutral"]):not([data-size^="icon"])::before {
+  content: "";
+  width: 0.5em;
+  height: 0.5em;
+  flex: none;
+  rotate: 45deg;
+  background: var(--pip);
+}
+:root[data-theme^="vellum"] [data-variant="tinted"]:is([data-emphasis="soft"], [data-emphasis="outline"])[data-size^="icon"] {
+  color: var(--pip);
+}
+
+/* ── Lamplight: entity colours used as text ───────────────────────────────
+   The ramps (CR, NPC attitude and relation, spell school, note category) are
+   fills first: dark pigments under parchment text. Several maps also use the
+   same colour as TEXT, where a dark pigment on Lamplight's walnut ground is
+   1.6–3:1. Same remedy as the app's ink-* tones: mix toward the foreground.
+   45% pigment keeps every one of them at 4.8:1 or better on background, card
+   and muted. Generated from the text-<ramp> classes in use; add a line here
+   when a new one appears. */
+:root[data-theme="vellum-dark"] .text-cr-deadly { color: color-mix(in oklab, var(--cr-deadly) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-cr-high { color: color-mix(in oklab, var(--cr-high) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-cr-low { color: color-mix(in oklab, var(--cr-low) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-cr-moderate { color: color-mix(in oklab, var(--cr-moderate) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-cr-trivial { color: color-mix(in oklab, var(--cr-trivial) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-cr-unknown { color: color-mix(in oklab, var(--cr-unknown) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-faction { color: color-mix(in oklab, var(--note-faction) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-general { color: color-mix(in oklab, var(--note-general) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-location { color: color-mix(in oklab, var(--note-location) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-lore { color: color-mix(in oklab, var(--note-lore) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-quest { color: color-mix(in oklab, var(--note-quest) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-session { color: color-mix(in oklab, var(--note-session) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-ally { color: color-mix(in oklab, var(--relation-ally) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-apprentice { color: color-mix(in oklab, var(--relation-apprentice) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-chosen-family { color: color-mix(in oklab, var(--relation-chosen-family) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-contact { color: color-mix(in oklab, var(--relation-contact) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-enemy { color: color-mix(in oklab, var(--relation-enemy) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-family { color: color-mix(in oklab, var(--relation-family) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-former-ally { color: color-mix(in oklab, var(--relation-former-ally) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-former-enemy { color: color-mix(in oklab, var(--relation-former-enemy) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-friend { color: color-mix(in oklab, var(--relation-friend) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-lover { color: color-mix(in oklab, var(--relation-lover) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-mentor { color: color-mix(in oklab, var(--relation-mentor) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-rival { color: color-mix(in oklab, var(--relation-rival) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-sibling { color: color-mix(in oklab, var(--relation-sibling) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-subordinate { color: color-mix(in oklab, var(--relation-subordinate) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-superior { color: color-mix(in oklab, var(--relation-superior) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-friendly { color: color-mix(in oklab, var(--relationship-friendly) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-helpful { color: color-mix(in oklab, var(--relationship-helpful) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-hostile { color: color-mix(in oklab, var(--relationship-hostile) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-indifferent { color: color-mix(in oklab, var(--relationship-indifferent) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-unfriendly { color: color-mix(in oklab, var(--relationship-unfriendly) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-unknown { color: color-mix(in oklab, var(--relationship-unknown) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-abjuration { color: color-mix(in oklab, var(--school-abjuration) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-conjuration { color: color-mix(in oklab, var(--school-conjuration) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-divination { color: color-mix(in oklab, var(--school-divination) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-enchantment { color: color-mix(in oklab, var(--school-enchantment) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-evocation { color: color-mix(in oklab, var(--school-evocation) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-illusion { color: color-mix(in oklab, var(--school-illusion) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-necromancy { color: color-mix(in oklab, var(--school-necromancy) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-transmutation { color: color-mix(in oklab, var(--school-transmutation) 45%, var(--foreground)); }
+
+/* ── Torn-paper panels ────────────────────────────────────────────────────
+   The fill and border move to a pseudo-element roughened by the #vl-rough
+   SVG filter (declared once in App.vue); the content stays crisp and the
+   colours still come from the theme. Applied to every modal panel, to any
+   element with `.torn` (NoticeCard, StatCard, CalloutChip…), and to every
+   in-flow card the app draws as `bg-card border rounded-lg|xl` (note cards,
+   panels, sheets: ~480 call sites). Positioned ones (absolute/fixed/sticky:
+   menus, popovers, toolbars) are left alone. `.torn-wash` gives the
+   borderless secondary wash used for callouts. */
+:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)) {
+  position: relative;
+  isolation: isolate;
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky))::before {
+  content: "";
+  position: absolute;
+  /* #vl-rough displaces up to 3px; insetting by that keeps the whole torn
+     edge inside cards that clip with overflow-hidden. */
+  inset: 3px;
+  z-index: -1;
+  background: var(--torn-fill, var(--card));
+  border: 1px solid var(--torn-edge, var(--border));
+  filter: url(#vl-rough) drop-shadow(0 1px 1.5px rgb(43 32 25 / 0.16));
+  pointer-events: none;
+}
+:root[data-theme="vellum-dark"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky))::before {
+  filter: url(#vl-rough) drop-shadow(0 1px 2px rgb(0 0 0 / 0.45));
+}
+:root[data-theme^="vellum"] .bg-card.border[class*="hover:border-"]:hover::before { border-color: var(--primary-edge); }
+/* Scrolling bodies inside a torn card (dashboard widgets) stop above the
+   torn bottom edge and leave a little room at the end of the scroll. */
+:root[data-theme^="vellum"] .bg-card.border :is(.widget-scroll, [class*="overflow-y-auto"]):not(.bg-card) {
+  margin-bottom: 6px;
+  padding-bottom: 0.5rem;
+}
+/* Row dividers and header rules run edge to edge; inside a torn card they
+   would poke out past the rough edge, so they stop 6px short of it. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) :is(.divide-y, [class*="divide-y-"]),
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > :is(.border-b, .border-t):not(.absolute) {
+  margin-inline: 6px;
+}
+/* Card artwork (NPC portraits and other entity cards) is a plate printed
+   on the sheet, like a wanted poster: inset from the torn edge, framed with
+   a double ink rule, and warmed slightly toward the paper. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) {
+  margin: 0.7rem 0.7rem 0;
+  border-radius: 0;
+  outline: 1px solid color-mix(in oklab, var(--foreground) 55%, transparent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--foreground) 25%, transparent);
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) img {
+  filter: sepia(0.18) saturate(0.92) contrast(1.02);
+}
+/* Controls and the status badge over the plate are paper labels, not dark
+   glass: card fill, ink text, a thin rule, no blur. The control strip moves
+   in to sit inside the inset plate; a revealed entity keeps its gilt. The
+   badge's colour wash becomes a pigment diamond. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .absolute.top-2.left-2 { top: 1.2rem; left: 1.2rem; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .absolute.top-2.left-2 :is(button, a)[class*="bg-black"],
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) span.absolute.top-2.right-2.backdrop-blur-sm {
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  color: var(--foreground);
+  border: 1px solid color-mix(in oklab, var(--foreground) 35%, transparent);
+  border-radius: 0;
+  --tw-backdrop-blur: blur(0);
+  box-shadow: 0 1px 0 rgb(43 32 25 / 0.25);
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .absolute.top-2.left-2 :is(button, a)[class*="bg-black"]:hover { background: var(--card); border-color: var(--primary-edge); }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .absolute.top-2.left-2 :is(button, a)[class*="bg-black"].text-gold-300 {
+  color: var(--primary);
+  border-color: var(--primary-edge);
+  background: color-mix(in oklab, var(--primary-fill) 22%, var(--card));
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) span.absolute.top-2.right-2.backdrop-blur-sm { padding-left: 1.35rem; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) span.absolute.top-2.right-2.backdrop-blur-sm > span.absolute.inset-0 {
+  inset: auto;
+  left: 0.5rem;
+  top: 50%;
+  width: 0.45rem;
+  height: 0.45rem;
+  translate: 0 -50%;
+  rotate: 45deg;
+  border-radius: 0;
+  opacity: 1;
+}
+/* Text under the plate is set like a wanted poster: name centred in
+   engraved capitals over a rule with an oxblood diamond, the role in italic,
+   the place in spaced small capitals, tags as italic words between dots.
+   The status dot becomes a diamond in front of the name. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 { text-align: center; align-items: center; gap: 0.15rem; padding: 0.7rem 1rem 1rem; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div:first-child {
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  gap: 0.45rem;
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.25rem;
+  /* The rule under the name: two hairlines and an oxblood square, drawn as
+     backgrounds so the row needs no positioning (badges below escape it). */
+  background:
+    linear-gradient(var(--border), var(--border)) 22% calc(100% - 2px) / calc(28% - 7px) 1px no-repeat,
+    linear-gradient(var(--border), var(--border)) 78% calc(100% - 2px) / calc(28% - 7px) 1px no-repeat,
+    linear-gradient(var(--live), var(--live)) 50% 100% / 5px 5px no-repeat;
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 h3 {
+  flex: none;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 h3 + span { order: -1; margin: 0; width: 0.4rem; height: 0.4rem; border-radius: 0; rotate: 45deg; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > p { width: 100%; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > p.italic { font-size: 0.875rem; color: color-mix(in oklab, var(--foreground) 75%, transparent); }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > p:not(.italic) {
+  font-family: var(--vl-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--foreground) 60%, transparent);
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > p:not(.italic) svg { color: var(--live); }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap { justify-content: center; gap: 0; padding-top: 0.45rem; }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap > span:not(.italic) {
+  background: transparent;
+  padding: 0;
+  font-family: var(--vl-serif);
+  font-size: 0.8125rem;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: color-mix(in oklab, var(--foreground) 65%, transparent);
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap > span + span::before { content: "·"; margin: 0 0.4rem; font-style: normal; color: var(--live); }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 > div.flex-wrap > span.italic::before { content: ""; margin: 0 0.25rem; }
+/* Badges beside the name (monster source book and CR) crowd a centred
+   title; they move onto the bottom-right of the plate as labels instead:
+   the source as a paper label, CR keeping its ramp colour. Positioned
+   against the card, so only for the standard h-36 plate. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden.h-36 img) > .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div {
+  position: absolute;
+  z-index: 3;
+  top: calc(0.7rem + 9rem - 1.85rem);
+  right: 1.2rem;
+  gap: 0.3rem;
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden.h-36 img) > .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div > span { border-radius: 0; padding: 0.15rem 0.4rem; box-shadow: 0 1px 0 rgb(43 32 25 / 0.25); }
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden.h-36 img) > .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div > span:not(:last-child) {
+  max-width: none;
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  border: 1px solid color-mix(in oklab, var(--foreground) 35%, transparent);
+  color: var(--foreground);
+  font-family: var(--vl-serif);
+  font-size: 0.75rem;
+  font-style: italic;
+  font-weight: 400;
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden.h-36 img) > .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div > span:last-child { border: 1px solid rgb(0 0 0 / 0.25); }
+/* The character-sheet export preview is a real page lying on the desk:
+   square corners and a soft contact-plus-lift shadow (the one place a
+   shadow belongs, since it stands for printed paper). */
+:root[data-theme^="vellum"] .sheet-preview {
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: 0 1px 2px rgb(43 32 25 / 0.25), 0 12px 32px rgb(43 32 25 / 0.18);
+}
+/* Tabs (TabBar): small spaced capitals on a ruled line, and the active tab
+   marked by a bookmark ribbon hanging from the rule, the logo's bookmark,
+   instead of an underline. */
+:root[data-theme^="vellum"] .tab-bar {
+  gap: 0.25rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--foreground) 30%, transparent);
+  box-shadow: 0 3px 0 -2px color-mix(in oklab, var(--foreground) 14%, transparent);
+}
+:root[data-theme^="vellum"] .tab-bar > [role="tab"] {
+  position: relative;
+  margin-bottom: 0;
+  padding: 0.65rem 1rem 0.75rem;
+  border-bottom: 0;
+  font-family: var(--vl-sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--foreground) 55%, transparent);
+}
+:root[data-theme^="vellum"] .tab-bar > [role="tab"]:hover,
+:root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] { color: var(--foreground); }
+:root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] svg { color: var(--live); }
+/* Narrow screens: tab rows scroll sideways (overflow-x-auto), which would
+   clip a hanging ribbon, so the active tab gets an oxblood underline there. */
+:root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--live); }
+@media (min-width: 48rem) {
+  :root[data-theme^="vellum"] .tab-bar { overflow: visible; }
+  :root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] { box-shadow: none; }
+}
+@media (min-width: 48rem) {
+:root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: -1.2rem;
+  width: 0.75rem;
+  height: 1.2rem;
+  translate: -50% 0;
+  background: var(--live);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%);
+  filter: drop-shadow(0 1px 0 rgb(43 32 25 / 0.3));
+}
+}
+/* Second-level tabs (.section-tabs, e.g. the DM screen's sections): a
+   contents line rather than buttons, quieter than the bookmark tabs above
+   them. Italic words in faded ink between small oxblood stars; the open one
+   upright, bold and oxblood with a fine underline. */
+:root[data-theme^="vellum"] .section-tabs { gap: 0; align-items: baseline; }
+:root[data-theme^="vellum"] .section-tabs > [role="tab"] {
+  position: relative;
+  padding: 0.25rem 0.15rem 0.4rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: var(--vl-serif);
+  font-size: 1rem;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: color-mix(in oklab, var(--foreground) 60%, transparent);
+}
+:root[data-theme^="vellum"] .section-tabs > [role="tab"] + [role="tab"]::before {
+  content: "✦";
+  display: inline-block; /* keeps the active tab's underline off the star */
+  margin: 0 0.85rem;
+  vertical-align: 0.2em;
+  font-size: 0.55rem;
+  font-style: normal;
+  color: color-mix(in oklab, var(--live) 55%, transparent);
+}
+:root[data-theme^="vellum"] .section-tabs > [role="tab"]:hover { color: var(--foreground); }
+:root[data-theme^="vellum"] .section-tabs > [role="tab"][aria-selected="true"] {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--live);
+  text-decoration: underline 1px color-mix(in oklab, var(--live) 60%, transparent);
+  text-underline-offset: 0.35em;
+}
+:root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
+
+/* The 6px colour strip on top of category cards (NoteCard and friends)
+   becomes a bookmark ribbon hanging from the top edge. */
+:root[data-theme^="vellum"] .bg-card.border > .w-full.shrink-0:is(.h-1, .h-1\.5, .h-2) {
+  position: absolute;
+  top: 3px;
+  right: 0.75rem;
+  width: 0.7rem;
+  height: 1.6rem;
+  z-index: 1;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  opacity: 0.9;
+}
+/* A card that already names the category in a badge beside its title
+   (encounter difficulty) keeps the badge; a ribbon too would say it twice
+   and hang right next to it. */
+:root[data-theme^="vellum"] .bg-card.border:has(> div > div:first-child > h3 + span) > .w-full.shrink-0:is(.h-1, .h-1\.5, .h-2) {
+  display: none;
+}
+
+/* Hairline grids (`gap-px bg-border`, e.g. the dashboard party and stats
+   widgets) draw their lines with the parent's fill, which shows as a solid
+   tan block in empty cells. Here the cells draw their own lines instead,
+   and a bordered grid gets the torn panel like any other card. */
+:root[data-theme^="vellum"] .gap-px.bg-border { background-color: transparent; }
+:root[data-theme^="vellum"] .gap-px.bg-border > .bg-card {
+  background-color: transparent;
+  box-shadow: 1px 0 0 var(--border), 0 1px 0 var(--border);
+}
+:root[data-theme^="vellum"] .gap-px.bg-border.border.rounded-lg {
+  position: relative;
+  isolation: isolate;
+  border-color: transparent;
+  overflow: hidden;
+}
+:root[data-theme^="vellum"] .gap-px.bg-border.border.rounded-lg::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  z-index: -1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  filter: url(#vl-rough) drop-shadow(0 1px 1.5px rgb(43 32 25 / 0.16));
+  pointer-events: none;
+}
+/* Modal panels keep overflow-hidden, so the rough edge reads as small notches
+   torn inward, like a page edge, rather than spilling past the panel. */
+:root[data-theme^="vellum"] [data-modal-backdrop] {
+  background: rgb(43 32 25 / 0.55);
+  /* Zero the blur through Tailwind's own variable: the production build drops
+     a plain `backdrop-filter: none` here, so the blur survived. */
+  --tw-backdrop-blur: blur(0);
+}
+
+/* ── Ink ──────────────────────────────────────────────────────────────────
+   One watercolour ink stain behind an element. Which of the nine assets, where,
+   how big and at what angle comes from inkSeepStyle() (src/lib/inkSeep.ts) as
+   custom properties, seeded per place so screens differ but a stain never
+   jumps. No --ink-src, no stain. Strength jitters 15–30% on parchment (--ink-alpha);
+   Lamplight inverts it at 40% of that. */
+:root[data-theme^="vellum"] .ink-seep { position: relative; isolation: isolate; }
+:root[data-theme^="vellum"] .ink-seep::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: var(--ink-x, 50%);
+  top: var(--ink-y, 30%);
+  width: var(--ink-size, 16rem);
+  height: var(--ink-size, 16rem);
+  translate: -50% -50%;
+  transform: rotate(var(--ink-rot, 0deg)) scaleX(var(--ink-flip, 1));
+  background: var(--ink-src, none) center / contain no-repeat;
+  opacity: var(--ink-alpha, 0.3);
+  pointer-events: none;
+}
+:root[data-theme="vellum-dark"] .ink-seep::before { filter: invert(1); opacity: calc(var(--ink-alpha, 0.3) * 0.4); }
+
+/* ── Drop-cap initial ─────────────────────────────────────────────────────
+   Opt-in with `.initial` on the first paragraph of long-form text, or
+   `.longform` on the box around a RichTextViewer (session logs, lore). */
+:root[data-theme^="vellum"] .longform { padding: 1.75rem 2rem; }
+:root[data-theme^="vellum"] .longform .ProseMirror { font-size: 1.0625rem; line-height: 1.65; }
+/* Generated text wraps its paragraphs in a <div data-ai-generated>, so the
+   first paragraph may sit one level down. flow-root keeps the initial inside
+   it when it is a single short line. */
+:root[data-theme^="vellum"] :is(.longform .ProseMirror > p:first-child, .longform .ProseMirror > div:first-child > p:first-child) { display: flow-root; }
+:root[data-theme^="vellum"] :is(.initial, .longform .ProseMirror > p:first-child, .longform .ProseMirror > div:first-child > p:first-child)::first-letter {
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  color: var(--destructive);
+  font-size: 3.1em;
+  line-height: 0.8;
+  float: left;
+  margin: 0.3rem 0.5rem 0 0;
+}
+
+/* ── Calendar ─────────────────────────────────────────────────────────────
+   A manuscript kalendarium instead of a box grid (hooks in CalendarGrid.vue):
+   each tenday is one torn, ruled strip; days with events are red-letter
+   days; today gets a double gilt rule; event dots become pigment diamonds;
+   the festival is a rubricated wash; the month's events are a dotted ledger. */
+:root[data-theme^="vellum"] .cal-week-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  color: var(--live);
+}
+:root[data-theme^="vellum"] .cal-week-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--live) 35%, transparent), transparent);
+}
+:root[data-theme^="vellum"] .cal-week { gap: 0; position: relative; isolation: isolate; padding: 4px; }
+:root[data-theme^="vellum"] .cal-week::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  z-index: -1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  filter: url(#vl-rough) drop-shadow(0 1px 1.5px rgb(43 32 25 / 0.16));
+  pointer-events: none;
+}
+:root[data-theme^="vellum"] .cal-day {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  --tw-ring-shadow: 0 0 #0000;
+  min-height: 4.25rem;
+  padding: 0.45rem 0.5rem;
+}
+:root[data-theme^="vellum"] .cal-day + .cal-day { box-shadow: inset 1px 0 0 color-mix(in oklab, var(--border) 80%, transparent); }
+:root[data-theme^="vellum"] .cal-day:not(.is-blank):hover { background: color-mix(in oklab, var(--accent) 60%, transparent); }
+:root[data-theme^="vellum"] .cal-day > span:first-child {
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: color-mix(in oklab, var(--foreground) 70%, transparent);
+}
+:root[data-theme^="vellum"] .cal-day.has-events > span:first-child { color: var(--live); font-weight: 700; }
+:root[data-theme^="vellum"] .cal-day.is-today {
+  background: color-mix(in oklab, var(--primary-fill) 12%, transparent);
+  box-shadow: inset 0 0 0 1px var(--primary-edge), inset 0 0 0 3px var(--card), inset 0 0 0 4px var(--primary-fill);
+}
+:root[data-theme^="vellum"] .cal-day.is-today > span:first-child { color: var(--primary); }
+:root[data-theme^="vellum"] .cal-day > div { gap: 0.3rem; padding-left: 0.1rem; }
+:root[data-theme^="vellum"] :is(.cal-day, .cal-events) .rounded-full { border-radius: 0; rotate: 45deg; width: 0.4rem; height: 0.4rem; }
+:root[data-theme^="vellum"] .cal-festival {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+  border-color: transparent;
+  text-align: center;
+  padding: 1rem 1.5rem;
+}
+:root[data-theme^="vellum"] .cal-festival::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  z-index: -1;
+  background: var(--secondary);
+  filter: url(#vl-rough);
+  pointer-events: none;
+}
+:root[data-theme^="vellum"] .cal-festival > div:first-child { justify-content: center; }
+:root[data-theme^="vellum"] .cal-festival .text-gold-400 { color: var(--live); }
+:root[data-theme^="vellum"] .cal-festival .font-cinzel { font-size: 1rem; letter-spacing: 0.12em; }
+:root[data-theme^="vellum"] .cal-events > * {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px dotted color-mix(in oklab, var(--foreground) 25%, transparent);
+  padding: 0.55rem 0.25rem;
+}
+:root[data-theme^="vellum"] .cal-events > *:hover { background: color-mix(in oklab, var(--accent) 60%, transparent); }
+:root[data-theme^="vellum"] .cal-events .rounded-full { width: 0.5rem; height: 0.5rem; }
+
+/* ── Reliquary ────────────────────────────────────────────────────────────
+   DM screen tables (ScreenTab) are rubricated reference panels; compendium
+   and manual pages (.page-sheet) are torn book pages with a drop cap. */
+:root[data-theme^="vellum"] .screen-table { padding: 0.35rem 0.6rem 0.6rem; }
+:root[data-theme^="vellum"] .screen-table > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 0.6rem 0.35rem;
+  background: transparent;
+  border: 0;
+}
+:root[data-theme^="vellum"] .screen-table > div:first-child::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--live) 40%, transparent), transparent);
+}
+:root[data-theme^="vellum"] .screen-table h3 {
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--live);
+}
+:root[data-theme^="vellum"] :is(.screen-table, .page-sheet) thead tr { background: transparent; }
+:root[data-theme^="vellum"] :is(.screen-table, .page-sheet) :is(table th, .manual-content table th) {
+  padding-top: 0.25rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--vl-sans);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--foreground) 55%, transparent);
+}
+:root[data-theme^="vellum"] :is(.screen-table, .page-sheet) :is(table td, .manual-content table td) {
+  border: 0;
+  border-bottom: 1px dotted color-mix(in oklab, var(--foreground) 22%, transparent);
+}
+:root[data-theme^="vellum"] .screen-table tbody tr { border-bottom: 0; }
+:root[data-theme^="vellum"] .screen-table td { padding-top: 0.5rem; padding-bottom: 0.5rem; font-size: 0.9rem; }
+:root[data-theme^="vellum"] .screen-table td:first-child { font-family: var(--vl-serif); font-weight: 700; }
+
+:root[data-theme^="vellum"] .page-sheet { padding: 2rem 2.5rem 2.5rem; }
+:root[data-theme^="vellum"] .page-sheet h2 { font-family: "Cinzel", Georgia, serif; font-size: 1.5rem; letter-spacing: 0.02em; }
+:root[data-theme^="vellum"] .page-sheet .manual-content h2 {
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--live);
+  border-bottom-color: color-mix(in oklab, var(--live) 30%, transparent);
+}
+:root[data-theme^="vellum"] .page-sheet :is(.manual-content, .prose-dm) { font-size: 1.0625rem; line-height: 1.65; }
+:root[data-theme^="vellum"] .page-sheet :is(.manual-content, .prose-dm) > p:first-of-type { display: flow-root; }
+:root[data-theme^="vellum"] .page-sheet :is(.manual-content, .prose-dm) > p:first-of-type::first-letter {
+  float: left;
+  margin: 0.3rem 0.5rem 0 0;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 3.1em;
+  font-weight: 700;
+  line-height: 0.8;
+  color: var(--destructive);
+}

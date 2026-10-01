@@ -10,7 +10,7 @@
         <span
           class="flex h-4 w-4 shrink-0 items-center justify-center rounded"
           :class="attachment.is_required
-            ? (attachment.target_exists ? 'bg-tone-success text-white' : 'border border-dashed border-tone-caution text-ink-caution')
+            ? (attachment.target_exists ? 'bg-tone-success text-on-success' : 'border border-dashed border-tone-caution text-ink-caution')
             : 'border border-border text-transparent'"
         >
           <IconCheck v-if="attachment.is_required && attachment.target_exists" class="h-2.5 w-2.5" />

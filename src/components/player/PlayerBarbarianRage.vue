@@ -1,24 +1,24 @@
 <template>
   <div
     class="rounded-lg border overflow-hidden"
-    :class="localActive ? 'border-red-500/50 bg-red-500/5' : 'border-border bg-card'"
+    :class="localActive ? 'border-tone-danger/50 bg-tone-danger/5' : 'border-border bg-card'"
   >
     <div
       class="px-4 py-2.5 border-b flex items-center justify-between"
-      :class="localActive ? 'border-red-500/30' : 'border-border'"
+      :class="localActive ? 'border-tone-danger/30' : 'border-border'"
     >
-      <p class="text-label-lg font-semibold" :class="localActive ? 'text-red-600' : 'text-muted-foreground'">
+      <p class="text-label-lg font-semibold" :class="localActive ? 'text-destructive' : 'text-muted-foreground'">
         Rage
       </p>
-      <span class="text-label" :class="localActive ? 'text-red-600' : 'text-muted-foreground'">
+      <span class="text-label" :class="localActive ? 'text-destructive' : 'text-muted-foreground'">
         {{ rageUsesCurrent }} / {{ rageUsesMax }} uses
       </span>
     </div>
 
     <!-- Active rage -->
     <div v-if="localActive" class="px-4 py-3 space-y-2">
-      <div class="rounded-md bg-red-500/10 border border-red-500/30 px-3 py-2 space-y-1">
-        <p class="font-cinzel text-xs font-semibold text-red-600">Raging</p>
+      <div class="rounded-md bg-tone-danger/10 border border-tone-danger/30 px-3 py-2 space-y-1">
+        <p class="font-cinzel text-xs font-semibold text-destructive">Raging</p>
         <p class="text-body text-foreground">+{{ rageBonus }} melee damage (STR-based)</p>
         <p class="text-body text-muted-foreground">Resistance: bludgeoning, piercing, slashing</p>
         <p class="text-body text-muted-foreground">Advantage on STR checks and saving throws</p>

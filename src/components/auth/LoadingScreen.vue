@@ -1,9 +1,16 @@
 <template>
+  <!-- Drawn identically by the static boot splash in index.html, which shows
+       until Vue mounts; keep the two in step. -->
   <div class="loading-screen">
-    <img src="/logo.webp" alt="Dungeon Grimoire" class="loading-logo" />
-    <div class="loading-spinner" aria-label="Loading…" />
+    <BrandLogo class="loading-logo" />
+    <BannerLoader :width="44" />
   </div>
 </template>
+
+<script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
+import BrandLogo from "@/components/brand/BrandLogo.vue";
+</script>
 
 <style scoped>
 .loading-screen {
@@ -13,26 +20,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2rem;
+  gap: 2.5rem;
   background-color: var(--background);
   z-index: 9999;
 }
 
 .loading-logo {
-  max-width: min(30rem, 80vw);
-  height: auto;
-}
-
-.loading-spinner {
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 3px solid color-mix(in oklch, var(--primary) 25%, transparent);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+  width: min(26rem, 80vw);
 }
 </style>

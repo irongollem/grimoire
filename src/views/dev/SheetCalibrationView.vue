@@ -90,17 +90,17 @@
             v-for="(f, i) in editFields"
             :key="f.section + i"
             class="absolute cursor-move touch-none"
-            :class="i === selected ? 'outline-2 outline-dashed outline-red-600 bg-red-500/10 z-10' : 'outline-1 outline-dashed outline-blue-500/60 hover:bg-blue-500/10'"
+            :class="i === selected ? 'outline-2 outline-dashed outline-tone-danger bg-tone-danger/10 z-10' : 'outline-1 outline-dashed outline-tone-info/60 hover:bg-tone-info/10'"
             :style="{ left: f.box[0] + '%', top: f.box[1] + '%', width: f.box[2] + '%', height: f.box[3] + '%', outlineStyle: 'dashed' }"
             @pointerdown.prevent="startDrag($event, i, 'move')"
           >
             <span
               v-if="i === selected"
-              class="absolute -top-4 left-0 whitespace-nowrap bg-red-600 px-1 font-mono text-2xs text-white"
+              class="absolute -top-4 left-0 whitespace-nowrap bg-tone-danger px-1 font-mono text-2xs text-on-danger"
             >{{ f.section }} [{{ f.box.join(", ") }}]</span>
             <span
-              class="absolute -right-1 -bottom-1 size-3 cursor-nwse-resize rounded-sm bg-blue-600"
-              :class="{ 'bg-red-600': i === selected }"
+              class="absolute -right-1 -bottom-1 size-3 cursor-nwse-resize rounded-sm bg-tone-info"
+              :class="{ 'bg-tone-danger': i === selected }"
               @pointerdown.stop.prevent="startDrag($event, i, 'resize')"
             />
           </div>

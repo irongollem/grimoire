@@ -42,7 +42,7 @@
           :label="update.isPending.value ? 'Saving…' : 'Save'"
           @click="save"
         />
-        <span v-if="saved" class="text-caption text-green-500 self-center">Saved.</span>
+        <span v-if="saved" class="text-caption text-ink-success self-center">Saved.</span>
       </div>
     </template>
   </div>

@@ -75,8 +75,17 @@ const ART_EXTENSIONS = new Set([
  * inherits the main document's CSS custom properties, so a runtime-set
  * `--sc-*` variable can't reach it either. The only fix that works
  * everywhere is to keep this one file living at its literal path forever.
+ *
+ * `/assets/vellum/paper.webp` — the Vellum themes' paper tile, referenced by
+ * a literal `url()` in src/assets/vellum.css (plain CSS, no `artUrl()`). In
+ * the manifest, artStripPlugin would drop it from `dist/` and every Vellum
+ * page would lose its ground whenever the CDN base is unset. 15 KB; it stays
+ * at its literal path.
  */
-const MANIFEST_EXCLUSIONS = new Set<string>(["/assets/scriptorium/page-background.webp"]);
+const MANIFEST_EXCLUSIONS = new Set<string>([
+  "/assets/scriptorium/page-background.webp",
+  "/assets/vellum/paper.webp",
+]);
 
 export interface ArtFile {
   /** Absolute path on disk. */

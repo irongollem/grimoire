@@ -71,7 +71,7 @@
               <input class="sr-only" type="file" webkitdirectory multiple @change="onUploadFiles" />
             </label>
           </div>
-          <p v-if="uploadMessage" class="mt-3 text-caption" :class="uploadError ? 'text-red-500' : 'text-emerald-500'">{{ uploadMessage }}</p>
+          <p v-if="uploadMessage" class="mt-3 text-caption" :class="uploadError ? 'text-destructive' : 'text-ink-success'">{{ uploadMessage }}</p>
         </div>
       </section>
 
@@ -90,7 +90,7 @@
               <span class="mb-1 block text-label text-muted-foreground">Description</span>
               <textarea v-model="conceptDescription" maxlength="1000" rows="4" class="w-full rounded-md border border-border bg-background px-3 py-2 text-body text-foreground" placeholder="Materials, motifs, palette, mood…" />
             </label>
-            <p v-if="!activeCampaignId" class="text-caption text-amber-500">Select an active campaign before generating.</p>
+            <p v-if="!activeCampaignId" class="text-caption text-ink-caution">Select an active campaign before generating.</p>
             <AppButton
               variant="primary"
               block
@@ -121,7 +121,7 @@
               <div class="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                 <div class="h-full bg-primary transition-[width]" :style="{ width: `${Math.round(run.completed_jobs / run.total_jobs * 100)}%` }" />
               </div>
-              <p v-if="runError[run.id]" class="mt-2 text-caption text-red-500">{{ runError[run.id] }}</p>
+              <p v-if="runError[run.id]" class="mt-2 text-caption text-destructive">{{ runError[run.id] }}</p>
               <div v-if="run.status === 'awaiting_approval'" class="mt-3">
                 <div v-if="proofUrls[run.id]?.length" class="mb-3 grid grid-cols-3 gap-2">
                   <div v-for="proof in proofUrls[run.id]" :key="proof.jobId" class="space-y-1">
@@ -155,7 +155,7 @@
               />
               <div v-if="failedJobs(run).length" class="mt-3 space-y-1">
                 <div v-for="{ job, reason } in failedJobs(run)" :key="job.id" class="flex items-center justify-between gap-2 text-caption">
-                  <span class="truncate text-red-500">{{ job.slot_id }}: {{ reason }}</span>
+                  <span class="truncate text-destructive">{{ job.slot_id }}: {{ reason }}</span>
                   <AppButton
                     v-if="attemptsLeft(job)"
                     variant="ghost"

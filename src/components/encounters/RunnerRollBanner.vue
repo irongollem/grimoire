@@ -51,7 +51,7 @@ const rollResultClass = computed(() => {
 .roll-result-total {
   @apply text-title font-bold text-foreground min-w-10 text-center;
 }
-.roll-crit .roll-result-total   { @apply text-amber-500; }
+.roll-crit .roll-result-total   { @apply text-ink-caution; }
 .roll-fumble .roll-result-total { @apply text-destructive; }
 .roll-result-info {
   @apply flex flex-col;

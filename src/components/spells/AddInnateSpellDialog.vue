@@ -27,7 +27,7 @@
         </div>
 
         <!-- Selected spell display -->
-        <div v-if="selectedSpell" class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-violet-500/10 border border-violet-500/30">
+        <div v-if="selectedSpell" class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-tone-arcane/10 border border-tone-arcane/30">
           <div class="h-2 w-2 rounded-full shrink-0" :class="SCHOOL_BG[selectedSpell.school]" />
           <span class="text-body text-foreground flex-1">{{ selectedSpell.name }}</span>
           <span class="font-cinzel text-2xs text-muted-foreground">{{ selectedSpell.level === 0 ? 'Cantrip' : `Lvl ${selectedSpell.level}` }}</span>

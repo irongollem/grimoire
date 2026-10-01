@@ -36,8 +36,8 @@
         <!-- Preset grid -->
         <!-- LEFT: no matching AppButton variant — a vertical tile (icon over
              label over description) rather than the primitive's horizontal
-             icon+label row, and its selected state (border-amber-500/60
-             bg-amber-500/10 text-amber-400) uses the documented-unsupported
+             icon+label row, and its selected state (border-tone-caution/60
+             bg-tone-caution/10 text-ink-caution) uses the documented-unsupported
              amber "coin gold" tone. -->
         <div class="grid grid-cols-3 gap-2 mb-4">
           <button
@@ -48,8 +48,8 @@
             :class="[
               'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors',
               selectedPresetId === preset.id
-                ? 'border-amber-500/60 bg-amber-500/10 text-amber-400'
-                : 'border-border bg-background text-muted-foreground hover:border-amber-500/30 hover:text-foreground',
+                ? 'border-tone-caution/60 bg-tone-caution/10 text-ink-caution'
+                : 'border-border bg-background text-muted-foreground hover:border-tone-caution/30 hover:text-foreground',
             ]"
             @click="$emit('update:selectedPresetId', preset.id)"
           >
@@ -148,7 +148,7 @@
           placeholder="Search locations…"
         />
       </template>
-      <p v-if="atlasTargetHasMap" class="mt-2 text-caption text-amber-500">
+      <p v-if="atlasTargetHasMap" class="mt-2 text-caption text-ink-caution">
         {{ fixedTargetLabel ? "This site already has a Picture. Saving will replace it." : "This location already has a map. Saving will replace it." }}
       </p>
       <p v-if="atlasError" class="mt-2 text-caption text-destructive">{{ atlasError }}</p>

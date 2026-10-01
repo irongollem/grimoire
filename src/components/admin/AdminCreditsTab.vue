@@ -44,7 +44,7 @@
           </div>
           <span
             class="font-cinzel text-sm font-bold tracking-wide shrink-0"
-            :class="ledger.balance.value > 0 ? 'text-amber-400' : 'text-muted-foreground'"
+            :class="ledger.balance.value > 0 ? 'text-ink-caution' : 'text-muted-foreground'"
           >
             {{ ledger.balance.value }} credits
           </span>
@@ -82,7 +82,7 @@
             :label="usersQuery.grantCredits.isPending.value ? 'Granting…' : 'Grant'"
             @click="doGrantCredits"
           />
-          <p v-if="grantSuccess" class="text-caption text-green-500 self-center">Granted.</p>
+          <p v-if="grantSuccess" class="text-caption text-ink-success self-center">Granted.</p>
         </div>
 
         <!-- Ledger summary -->
@@ -126,7 +126,7 @@
             </div>
             <span
               class="font-cinzel text-xs shrink-0 w-16 text-right"
-              :class="row.delta > 0 ? 'text-green-500' : row.delta < 0 ? 'text-destructive' : 'text-muted-foreground'"
+              :class="row.delta > 0 ? 'text-ink-success' : row.delta < 0 ? 'text-destructive' : 'text-muted-foreground'"
             >
               {{ row.delta > 0 ? '+' : '' }}{{ row.delta }}
             </span>

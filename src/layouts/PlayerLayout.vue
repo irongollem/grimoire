@@ -3,7 +3,7 @@
     <!-- Top bar: branding + character + sign out -->
     <header class="h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
       <div class="flex items-center gap-2 shrink-0">
-        <span class="font-cinzel text-base font-bold text-gold-500 tracking-widest">Grimoire</span>
+        <BrandLogo class="h-7 w-auto" />
         <span class="text-caption text-muted-foreground italic hidden sm:inline">
           · {{ campaignName }}
         </span>
@@ -50,8 +50,8 @@
         class="md:hidden"
       >
         <span class="relative flex h-2 w-2 shrink-0">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tone-success opacity-75" />
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-tone-success" />
         </span>
         Live
       </AppButton>
@@ -67,8 +67,8 @@
         @click="showEncounterPanel = !showEncounterPanel"
       >
         <span class="relative flex h-2 w-2 shrink-0">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tone-success opacity-75" />
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-tone-success" />
         </span>
         Live
       </AppButton>
@@ -105,20 +105,20 @@
     <!-- DM preview banner -->
     <div
       v-if="ui.dmPreviewMode"
-      class="bg-amber-500 px-4 py-2 flex items-center gap-3 shrink-0"
+      class="bg-tone-caution px-4 py-2 flex items-center gap-3 shrink-0"
     >
-      <IconReveal class="h-3.5 w-3.5 text-black/70 shrink-0" />
-      <span class="text-label-lg text-black font-semibold shrink-0">Previewing as:</span>
+      <IconReveal class="h-3.5 w-3.5 text-on-caution/70 shrink-0" />
+      <span class="text-label-lg text-on-caution font-semibold shrink-0">Previewing as:</span>
       <select
         :value="ui.dmPreviewPartyMemberId ?? ''"
-        class="flex-1 min-w-0 max-w-48 bg-black/10 border border-black/20 rounded px-2 py-0.5 text-caption text-black focus:outline-none focus:ring-1 focus:ring-black/30"
+        class="flex-1 min-w-0 max-w-48 bg-on-caution/10 border border-on-caution/20 rounded px-2 py-0.5 text-caption text-on-caution focus:outline-none focus:ring-1 focus:ring-on-caution/30"
         @change="ui.dmPreviewPartyMemberId = ($event.target as HTMLSelectElement).value || null"
       >
         <option value="">— pick a character —</option>
         <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
       </select>
       <button
-        class="text-label md:text-xs text-black font-semibold border border-black/30 hover:bg-black/10 px-2 py-0.5 rounded transition-colors shrink-0"
+        class="text-label md:text-xs text-on-caution font-semibold border border-on-caution/30 hover:bg-on-caution/10 px-2 py-0.5 rounded transition-colors shrink-0"
         @click="exitPreview"
       >
         Exit Preview
@@ -134,12 +134,12 @@
         <!-- Mobile: tap navigates to encounter view -->
         <RouterLink
           :to="{ name: 'player-encounter' }"
-          class="md:hidden rounded-lg border border-green-500/40 bg-card shadow-xl px-4 py-3 flex items-start gap-3"
+          class="md:hidden rounded-lg border border-tone-success/40 bg-card shadow-xl px-4 py-3 flex items-start gap-3"
           @click="encounterLiveToast = false"
         >
-          <IconEncounter class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+          <IconEncounter class="h-4 w-4 text-ink-success shrink-0 mt-0.5" />
           <div class="flex-1 min-w-0">
-            <p class="text-label-lg font-semibold text-green-400">Encounter Started!</p>
+            <p class="text-label-lg font-semibold text-ink-success">Encounter Started!</p>
             <p class="text-body text-foreground mt-0.5">Your DM has started a live encounter. Tap to join.</p>
           </div>
           <AppButton
@@ -153,11 +153,11 @@
         </RouterLink>
         <!-- Tablet+: tap dismisses (panel already opened automatically) -->
         <div
-          class="hidden md:flex rounded-lg border border-green-500/40 bg-card shadow-xl px-4 py-3 items-start gap-3"
+          class="hidden md:flex rounded-lg border border-tone-success/40 bg-card shadow-xl px-4 py-3 items-start gap-3"
         >
-          <IconEncounter class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+          <IconEncounter class="h-4 w-4 text-ink-success shrink-0 mt-0.5" />
           <div class="flex-1 min-w-0">
-            <p class="text-label-lg font-semibold text-green-400">Encounter Started!</p>
+            <p class="text-label-lg font-semibold text-ink-success">Encounter Started!</p>
             <p class="text-body text-foreground mt-0.5">Live encounter panel opened on the left.</p>
           </div>
           <AppButton
@@ -349,6 +349,7 @@
 </template>
 
 <script setup lang="ts">
+import BrandLogo from "@/components/brand/BrandLogo.vue";
 import { ref, computed, watch, defineAsyncComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";

@@ -73,9 +73,9 @@
       <!-- Under-delivery warning: entries that hit but produced no loot -->
       <div
         v-if="unresolved.length"
-        class="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 flex flex-col gap-1.5"
+        class="rounded-md border border-tone-caution/40 bg-tone-caution/10 p-3 flex flex-col gap-1.5"
       >
-        <span class="text-eyebrow font-semibold text-amber-500 flex items-center gap-1.5">
+        <span class="text-eyebrow font-semibold text-ink-caution flex items-center gap-1.5">
           <IconWarning class="h-3 w-3" />
           Under-delivered ({{ unresolved.length }})
         </span>

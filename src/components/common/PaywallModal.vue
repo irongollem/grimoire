@@ -37,7 +37,7 @@
               :key="benefit"
               class="flex items-start gap-2 text-body text-muted-foreground leading-snug"
             >
-              <span class="text-amber-400 shrink-0 mt-0.5">✦</span>
+              <span class="text-ink-caution shrink-0 mt-0.5">✦</span>
               <span>{{ benefit }}</span>
             </li>
           </ul>
@@ -45,14 +45,14 @@
 
         <!-- Price -->
         <div class="px-5 pb-4">
-          <div class="rounded-lg border border-amber-500/25 bg-amber-500/5 px-4 py-3 flex items-center justify-between gap-4">
+          <div class="rounded-lg border border-tone-caution/25 bg-tone-caution/5 px-4 py-3 flex items-center justify-between gap-4">
             <div>
               <p class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro DM</p>
               <p v-if="yearlyLabel" class="text-caption text-muted-foreground mt-0.5">
                 or {{ yearlyLabel }} / year<span v-if="savedMonths > 0"> — save {{ savedMonths }} month{{ savedMonths > 1 ? 's' : '' }}</span>
               </p>
             </div>
-            <p v-if="monthlyLabel" class="text-heading font-bold text-amber-400 shrink-0">
+            <p v-if="monthlyLabel" class="text-heading font-bold text-ink-caution shrink-0">
               {{ monthlyLabel }}<span class="text-xs text-muted-foreground font-normal">/mo</span>
             </p>
           </div>

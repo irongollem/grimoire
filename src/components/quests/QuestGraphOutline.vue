@@ -18,7 +18,7 @@
              dot while a cursor stands here, an outlined square once cut off —
              everything else (ahead, unplayed) keeps the same width so titles
              still line up without claiming a state we don't draw. -->
-        <span v-if="reach(beat.id) === 'visited'" class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-tone-success text-white" aria-hidden="true">
+        <span v-if="reach(beat.id) === 'visited'" class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-tone-success text-on-success" aria-hidden="true">
           <IconCheck class="h-2.5 w-2.5" />
         </span>
         <span v-else-if="reach(beat.id) === 'current'" class="h-1.5 w-1.5 shrink-0 rounded-full" :class="rowDot(beat.id) ?? 'bg-muted-foreground'" aria-hidden="true" />

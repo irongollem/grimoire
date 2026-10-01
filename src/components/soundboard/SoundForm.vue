@@ -143,7 +143,7 @@
             :rows="2"
             placeholder="e.g. the passage-grove at night, @Vesper waiting — soft and serene"
             :items="mentionItems"
-            input-class="rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+            input-class="rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-none"
           />
           <p v-if="mentionedWithImages.length > 0" class="text-caption-sm text-muted-foreground/60">
             Lyria will read {{ mentionedWithImages.length }} {{ mentionedWithImages.length === 1 ? 'picture' : 'pictures' }}: {{ mentionedWithImages.join(', ') }}
@@ -183,7 +183,7 @@
             </label>
             <span
               class="text-caption-sm tabular-nums transition-colors"
-              :class="lyricsCharsLeft < 200 ? (lyricsCharsLeft < 0 ? 'text-destructive' : 'text-amber-400') : 'text-muted-foreground'"
+              :class="lyricsCharsLeft < 200 ? (lyricsCharsLeft < 0 ? 'text-destructive' : 'text-ink-caution') : 'text-muted-foreground'"
             >{{ generateLyrics.length }} / {{ LYRICS_MAX_CHARS }}</span>
           </div>
           <textarea
@@ -191,7 +191,7 @@
             rows="5"
             :maxlength="LYRICS_MAX_CHARS"
             placeholder="[Verse 1]&#10;In the depths of shadow and stone…&#10;&#10;[Chorus]&#10;Rise, brave adventurer, rise…"
-            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-none"
           />
           <p class="text-caption-sm text-muted-foreground/60">
             Use [Verse], [Chorus], [Bridge] markers. Parentheses for backing vocals.
@@ -226,7 +226,7 @@
             <label for="sound-form-lyria-prompt" class="text-caption text-muted-foreground">Prompt sent to Lyria</label>
             <span
               class="text-caption-sm tabular-nums"
-              :class="editedPrompt.length > MUSIC_PROMPT_MAX_CHARS - 200 ? 'text-amber-400' : 'text-muted-foreground'"
+              :class="editedPrompt.length > MUSIC_PROMPT_MAX_CHARS - 200 ? 'text-ink-caution' : 'text-muted-foreground'"
             >{{ editedPrompt.length }} / {{ MUSIC_PROMPT_MAX_CHARS }}</span>
           </div>
           <textarea
@@ -234,7 +234,7 @@
             v-model="editedPrompt"
             rows="10"
             :maxlength="MUSIC_PROMPT_MAX_CHARS"
-            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500 resize-y"
+            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-y"
           />
           <div class="flex items-start justify-between gap-2">
             <p class="text-caption-sm text-muted-foreground/60">

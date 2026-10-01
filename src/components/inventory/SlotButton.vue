@@ -4,7 +4,7 @@
     :class="item
       ? 'bg-primary/20 border-2 border-primary text-primary'
       : warn
-        ? 'bg-red-500/10 border-2 border-dashed border-red-400 text-red-400 hover:border-red-300'
+        ? 'bg-tone-danger/10 border-2 border-dashed border-tone-danger text-destructive hover:border-tone-danger'
         : disabled
           ? 'border border-border/20 text-muted-foreground/10 cursor-not-allowed opacity-30'
           : 'bg-card/60 border-2 border-dashed border-muted-foreground/40 text-muted-foreground/60 hover:border-primary/60 hover:text-primary/60'"

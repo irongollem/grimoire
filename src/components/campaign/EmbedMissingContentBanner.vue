@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="total > 0 && !dismissed"
-    class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 flex items-center gap-3 text-sm text-amber-700 dark:text-amber-300"
+    class="rounded-md border border-tone-caution/40 bg-tone-caution/10 px-3 py-2 flex items-center gap-3 text-sm text-ink-caution "
     role="status"
   >
     <!--
@@ -30,7 +30,7 @@
       :icon="IconClose"
       tooltip="Dismiss"
       aria-label="Dismiss"
-      class="shrink-0 text-amber-700 dark:text-amber-300"
+      class="shrink-0 text-ink-caution "
       @click="dismiss"
     />
   </div>

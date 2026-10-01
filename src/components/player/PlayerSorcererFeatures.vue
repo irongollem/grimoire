@@ -1,7 +1,7 @@
 <template>
-  <div class="rounded-lg border border-violet-500/30 bg-violet-500/5 overflow-hidden">
-    <div class="px-4 py-2.5 border-b border-violet-500/20 bg-violet-500/10">
-      <p class="text-label-lg font-semibold text-violet-500">2024 Sorcerer</p>
+  <div class="rounded-lg border border-tone-arcane/30 bg-tone-arcane/5 overflow-hidden">
+    <div class="px-4 py-2.5 border-b border-tone-arcane/20 bg-tone-arcane/10">
+      <p class="text-label-lg font-semibold text-ink-arcane">2024 Sorcerer</p>
     </div>
     <div class="p-4 space-y-3 text-body">
       <div class="flex items-center gap-3">
@@ -30,7 +30,7 @@
         >Active · End</AppButton>
       </div>
 
-      <div v-if="level >= 5" class="flex items-center gap-3 border-t border-violet-500/15 pt-3">
+      <div v-if="level >= 5" class="flex items-center gap-3 border-t border-tone-arcane/15 pt-3">
         <div class="flex-1">
           <p class="font-cinzel text-xs font-semibold">Sorcerous Restoration</p>
           <p class="text-muted-foreground">After a Short Rest, regain up to {{ restoration }} SP. Once per Long Rest.</p>
@@ -44,7 +44,7 @@
         >Restore ({{ sorcery.current }}/{{ sorcery.max }})</AppButton>
       </div>
 
-      <p v-if="level >= 20" class="border-t border-violet-500/15 pt-3 text-muted-foreground">
+      <p v-if="level >= 20" class="border-t border-tone-arcane/15 pt-3 text-muted-foreground">
         Arcane Apotheosis automatically makes the first Metamagic option you use each turn free while Innate Sorcery is active.
       </p>
     </div>

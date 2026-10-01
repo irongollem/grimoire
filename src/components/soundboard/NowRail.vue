@@ -45,10 +45,10 @@
       <div
         v-for="scene in scenes"
         :key="scene.playlistId"
-        class="group/row relative flex min-w-36 flex-[1_1_10rem] items-center gap-1.5 overflow-hidden rounded-md border border-green-400/40 bg-green-400/10 py-1.5 pe-2 ps-3"
+        class="group/row relative flex min-w-36 flex-[1_1_10rem] items-center gap-1.5 overflow-hidden rounded-md border border-tone-success/40 bg-tone-success/10 py-1.5 pe-2 ps-3"
       >
-        <span class="absolute inset-y-0 inset-s-0 w-0.75 bg-green-400" />
-        <IconWind class="h-3.5 w-3.5 shrink-0 text-green-400" />
+        <span class="absolute inset-y-0 inset-s-0 w-0.75 bg-tone-success" />
+        <IconWind class="h-3.5 w-3.5 shrink-0 text-ink-success" />
         <div class="min-w-0 flex-1">
           <div class="flex min-w-0 items-center gap-1">
             <span class="truncate font-cinzel text-sm font-semibold">{{ scene.playlistName }}</span>
@@ -127,14 +127,14 @@ const { data: sounds } = useSounds();
 /** Lane colouring per category — written out for Tailwind's scanner. */
 const CATEGORY_LANE_BORDER: Record<SoundCategory, string> = {
   music: "border-gold-400/45",
-  ambient: "border-green-400/40",
-  effects: "border-blue-500/40",
+  ambient: "border-tone-success/40",
+  effects: "border-tone-info/40",
   misc: "border-arcane-purple-light/40",
 };
 const CATEGORY_LANE_TINT: Record<SoundCategory, string> = {
   music: "bg-gold-400/12",
-  ambient: "bg-green-400/10",
-  effects: "bg-blue-500/10",
+  ambient: "bg-tone-success/10",
+  effects: "bg-tone-info/10",
   misc: "bg-arcane-purple-light/10",
 };
 

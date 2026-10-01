@@ -17,7 +17,7 @@
           class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
         >{{ originFeat.variant }}</span>
       </div>
-      <p v-if="!resolved?.feature" class="text-caption text-amber-600 dark:text-amber-400 italic">
+      <p v-if="!resolved?.feature" class="text-caption text-ink-caution  italic">
         Not yet imported — import SRD feats from
         <RouterLink to="/codex/abilities" class="underline font-semibold">Codex → Abilities</RouterLink>
         to link this grant to its full text.

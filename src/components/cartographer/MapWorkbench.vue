@@ -107,12 +107,12 @@
         />
         <span>
           Pack: <strong class="text-foreground">{{ packLabel }}</strong>
-          <span v-if="packLoadError" class="text-red-500"> ({{ packLoadError }})</span>
+          <span v-if="packLoadError" class="text-destructive"> ({{ packLoadError }})</span>
         </span>
         <span v-if="cellsPainted > 0">
           Floor cells: <strong class="text-foreground">{{ cellsPainted }}</strong>
         </span>
-        <span v-if="changedRegionsCaution" class="ml-auto text-amber-500">{{ changedRegionsCaution }}</span>
+        <span v-if="changedRegionsCaution" class="ml-auto text-ink-caution">{{ changedRegionsCaution }}</span>
       </div>
 
       <!-- The active tool by name, top left where the eye lands first; view

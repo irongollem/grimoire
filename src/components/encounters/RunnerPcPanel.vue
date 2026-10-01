@@ -19,7 +19,7 @@
         <span>HP</span>
         <strong>
           {{ member.current_hp }}/{{ member.max_hp }}
-          <span v-if="member.temp_hp > 0" class="text-blue-400">+{{ member.temp_hp }}</span>
+          <span v-if="member.temp_hp > 0" class="text-ink-info">+{{ member.temp_hp }}</span>
         </strong>
       </div>
       <div class="detail-stat"><span>Speed</span><strong>{{ member.speed }} ft.</strong></div>
@@ -331,7 +331,7 @@ function handleWildshape(monster: Monster) {
 }
 
 .check-expertise {
-  @apply border-l-2 border-l-amber-500/80;
+  @apply border-l-2 border-l-tone-caution/80;
 }
 
 .detail-section-label {

@@ -110,7 +110,7 @@
       <div class="p-4 space-y-1.5">
         <div v-for="mod in modifiers" :key="mod.id" class="flex items-center justify-between gap-2">
           <span class="text-body text-foreground">{{ mod.description }}</span>
-          <span class="font-cinzel text-xs font-bold text-green-600 dark:text-green-400 shrink-0">+{{ mod.bonus }}</span>
+          <span class="font-cinzel text-xs font-bold text-ink-success  shrink-0">+{{ mod.bonus }}</span>
         </div>
       </div>
     </div>

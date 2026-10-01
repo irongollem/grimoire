@@ -20,40 +20,40 @@ import type { SoundCategory } from "@/types/sound.types";
 
 /** Text colour. */
 export const CATEGORY_TEXT: Record<SoundCategory, string> = {
-  music: "text-gold-400",
-  ambient: "text-green-400",
-  effects: "text-blue-500",
-  misc: "text-arcane-purple-light",
+  music: "text-sound-music",
+  ambient: "text-sound-ambient",
+  effects: "text-sound-effects",
+  misc: "text-sound-misc",
 };
 
 /** The card/pad spine — the thing that makes the category readable at a glance. */
 export const CATEGORY_SPINE: Record<SoundCategory, string> = {
-  music: "bg-gold-400",
-  ambient: "bg-green-400",
-  effects: "bg-blue-500",
-  misc: "bg-arcane-purple-light",
+  music: "bg-sound-music",
+  ambient: "bg-sound-ambient",
+  effects: "bg-sound-effects",
+  misc: "bg-sound-misc",
 };
 
 /** Border for an active/playing surface. */
 export const CATEGORY_BORDER: Record<SoundCategory, string> = {
-  music: "border-gold-400",
-  ambient: "border-green-400",
-  effects: "border-blue-500",
-  misc: "border-arcane-purple-light",
+  music: "border-sound-music",
+  ambient: "border-sound-ambient",
+  effects: "border-sound-effects",
+  misc: "border-sound-misc",
 };
 
 /** Tinted fill for an active/playing surface. */
 export const CATEGORY_TINT: Record<SoundCategory, string> = {
-  music: "bg-gold-400/12",
-  ambient: "bg-green-400/12",
-  effects: "bg-blue-500/12",
-  misc: "bg-arcane-purple-light/12",
+  music: "bg-sound-music/12",
+  ambient: "bg-sound-ambient/12",
+  effects: "bg-sound-effects/12",
+  misc: "bg-sound-misc/12",
 };
 
 /** Pill/chip styling for the category filter, so the filter speaks the same colour. */
 export const CATEGORY_PILL: Record<SoundCategory, string> = {
-  music: "bg-gold-400/15 border-gold-400/40 text-gold-300",
-  ambient: "bg-green-400/15 border-green-400/40 text-green-300",
-  effects: "bg-blue-500/15 border-blue-500/40 text-blue-300",
-  misc: "bg-arcane-purple-light/15 border-arcane-purple-light/40 text-arcane-purple-light",
+  music: "bg-sound-music/15 border-sound-music/40 text-sound-music",
+  ambient: "bg-sound-ambient/15 border-sound-ambient/40 text-sound-ambient",
+  effects: "bg-sound-effects/15 border-sound-effects/40 text-sound-effects",
+  misc: "bg-sound-misc/15 border-sound-misc/40 text-sound-misc",
 };

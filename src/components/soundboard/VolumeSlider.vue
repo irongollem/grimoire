@@ -53,7 +53,7 @@
 // generator-vs-file distinction in `SceneMixer` / `PlaylistTrackRow`.
 const ACCENT_CLASS = {
   primary: "accent-primary",
-  green: "accent-green-500",
+  green: "accent-tone-success",
 } as const;
 
 const {

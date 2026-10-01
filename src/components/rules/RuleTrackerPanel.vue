@@ -78,12 +78,12 @@ const activeEffects = computed<TrackerEffect[]>(() => {
 });
 
 const LEVEL_COLORS: Record<string, { badge: string; bar: string }> = {
-  green:  { badge: "bg-green-500/20 text-green-400",   bar: "bg-green-500" },
-  yellow: { badge: "bg-yellow-500/20 text-yellow-400", bar: "bg-yellow-500" },
-  orange: { badge: "bg-orange-500/20 text-orange-400", bar: "bg-orange-500" },
-  red:    { badge: "bg-red-500/20 text-red-400",       bar: "bg-red-500" },
-  blue:   { badge: "bg-blue-500/20 text-blue-400",     bar: "bg-blue-500" },
-  purple: { badge: "bg-purple-500/20 text-purple-400", bar: "bg-purple-500" },
+  green:  { badge: "bg-tone-success/20 text-ink-success",   bar: "bg-tone-success" },
+  yellow: { badge: "bg-tone-caution/20 text-ink-caution", bar: "bg-tone-caution" },
+  orange: { badge: "bg-tone-caution/20 text-ink-caution", bar: "bg-tone-caution" },
+  red:    { badge: "bg-tone-danger/20 text-destructive",       bar: "bg-tone-danger" },
+  blue:   { badge: "bg-tone-info/20 text-ink-info",     bar: "bg-tone-info" },
+  purple: { badge: "bg-tone-arcane/20 text-ink-arcane", bar: "bg-tone-arcane" },
 };
 
 function levelColorClass(color?: string): string {

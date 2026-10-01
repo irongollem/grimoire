@@ -4,11 +4,11 @@
     :class="
       meta.paid_by_user_id
         ? 'border-border bg-muted/40'
-        : 'border-emerald-500/30 bg-emerald-500/5'
+        : 'border-tone-success/30 bg-tone-success/5'
     "
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
-      <IconShop class="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+      <IconShop class="h-3.5 w-3.5 text-ink-success shrink-0" />
       <span class="text-label text-muted-foreground">
         {{ senderName }} offers
       </span>

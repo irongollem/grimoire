@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col items-center justify-center py-16 text-center px-4">
+  <div class="ink-seep flex flex-col items-center justify-center py-16 text-center px-4" :style="inkStyle">
     <!-- Icon slot or default scroll icon -->
     <div class="mb-4 text-muted-foreground/40">
       <slot name="icon">
@@ -19,10 +19,17 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { IconQuest } from '@/lib/icons';
+import { inkSeepStyle } from '@/lib/inkSeep';
 
-defineProps<{
+const { title, description, inkSeed } = defineProps<{
   title: string;
   description: string;
+  /** Seeds the Vellum ink stain (asset, position, angle). Defaults to the title,
+   *  so each empty screen keeps its own stain across renders. */
+  inkSeed?: string;
 }>();
+
+const inkStyle = computed(() => inkSeepStyle(inkSeed ?? title));
 </script>

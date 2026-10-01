@@ -58,7 +58,7 @@ export const checkboxBoxVariants = cva(
        */
       accent: {
         primary: "accent-primary",
-        amber: "accent-amber-500",
+        amber: "accent-tone-caution",
       },
     },
     defaultVariants: { size: "md", align: "center", accent: "primary" },

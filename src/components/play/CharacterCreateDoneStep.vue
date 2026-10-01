@@ -30,7 +30,7 @@
           <p class="text-label text-muted-foreground">{{ stat.label }}</p>
           <p class="font-cinzel text-sm font-bold">{{ displayScore(stat.key) }}</p>
           <p class="font-cinzel text-2xs"
-            :class="totalMod(stat.key) >= 0 ? 'text-green-500' : 'text-destructive'">
+            :class="totalMod(stat.key) >= 0 ? 'text-ink-success' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
           </p>
         </div>
@@ -88,9 +88,9 @@
     </div>
 
     <!-- Warning: no class selected -->
-    <div v-if="!f.class" class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 flex items-start gap-2">
-      <span class="text-amber-500 shrink-0 mt-0.5">⚡</span>
-      <p class="text-body text-amber-700 dark:text-amber-400">
+    <div v-if="!f.class" class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 p-3 flex items-start gap-2">
+      <span class="text-ink-caution shrink-0 mt-0.5">⚡</span>
+      <p class="text-body text-ink-caution ">
         No class selected — HP will default to 8. You can set your class later via the Edit screen.
       </p>
     </div>

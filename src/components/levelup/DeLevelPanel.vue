@@ -3,7 +3,7 @@
   <template v-if="member.level > 1">
     <!-- No history warning (subtle) -->
     <div v-if="!lastChoice" class="flex items-center gap-2 pt-2">
-      <span class="text-eyebrow text-amber-500/70">No level history</span>
+      <span class="text-eyebrow text-ink-caution/70">No level history</span>
       <span class="text-caption text-muted-foreground">— ask your DM to seed <code class="font-mono">level_choices</code> before de-leveling</span>
     </div>
 
@@ -36,11 +36,11 @@
 
         <div
           v-if="manualReviewItems.length > 0"
-          class="rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 space-y-1"
+          class="rounded-md bg-tone-caution/10 border border-tone-caution/30 px-3 py-2 space-y-1"
         >
-          <p class="text-eyebrow text-amber-400">REVIEW MANUALLY</p>
+          <p class="text-eyebrow text-ink-caution">REVIEW MANUALLY</p>
           <ul class="space-y-0.5">
-            <li v-for="item in manualReviewItems" :key="item" class="text-caption text-amber-400">• {{ item }}</li>
+            <li v-for="item in manualReviewItems" :key="item" class="text-caption text-ink-caution">• {{ item }}</li>
           </ul>
         </div>
 

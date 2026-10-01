@@ -48,7 +48,7 @@
         <div class="hidden md:block h-1.5 bg-muted overflow-hidden">
           <div class="h-full flex">
             <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpBarWidthPct}%` }" />
-            <div v-if="tempHpBarPct > 0" class="h-full transition-all bg-blue-500" :style="{ width: `${tempHpBarPct}%` }" />
+            <div v-if="tempHpBarPct > 0" class="h-full transition-all bg-tone-info" :style="{ width: `${tempHpBarPct}%` }" />
           </div>
         </div>
       </div>
@@ -469,7 +469,7 @@ const hpBarColor = computed(() => {
   const p = hpPct.value;
   if (p <= 0) return "bg-muted-foreground/40";
   if (p < 33) return "bg-destructive";
-  if (p < 66) return "bg-amber-500";
+  if (p < 66) return "bg-tone-caution";
   return "bg-elven-green";
 });
 // Temp HP is a buffer in front of whichever HP pool is active — it survives

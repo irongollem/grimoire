@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-5 max-w-3xl">
+  <div class="mx-auto flex w-full max-w-3xl flex-col gap-5">
     <!-- Action bar -->
     <div class="flex items-center justify-end gap-2">
       <!--
@@ -53,7 +53,7 @@
     </div>
 
     <!-- Content -->
-    <div v-if="hasContent(note.content)" class="rounded-lg border border-border bg-card p-4">
+    <div v-if="hasContent(note.content)" class="longform rounded-lg border border-border bg-card p-4">
       <RichTextViewer :content="note.content!" />
     </div>
     <p v-else class="text-body text-muted-foreground italic">No content yet.</p>

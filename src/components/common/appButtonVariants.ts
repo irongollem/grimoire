@@ -23,6 +23,10 @@ export const buttonVariants = cva(
       variant: {
         /** Gold CTA. One per surface — "New X", "Save", "Create". */
         primary: "bg-primary text-primary-foreground hover:opacity-90",
+        // Live play: the action that starts something at the table (Start session,
+        // Begin combat). Identical to `primary` on tome and grimoire; the Vellum
+        // themes paint it oxblood through [data-variant="live"] in vellum.css.
+        live: "bg-primary text-primary-foreground hover:opacity-90",
         /** Outlined, full-strength text. Generate, Import, Populate. */
         outline: "border border-border text-foreground hover:bg-accent hover:text-accent-foreground",
         /** Outlined, muted text. The single most common control in the app. */
@@ -384,12 +388,12 @@ export const buttonVariants = cva(
       // `caution` takes black text rather than white: amber at full opacity fails
       // contrast against white, which is why the two hand-rolled amber CTAs this
       // replaces both wrote `text-black` themselves.
-      { variant: "tinted", tone: "primary", emphasis: "solid", class: "bg-tone-primary border-tone-primary text-white hover:opacity-90" },
-      { variant: "tinted", tone: "danger", emphasis: "solid", class: "bg-tone-danger border-tone-danger text-white hover:opacity-90" },
-      { variant: "tinted", tone: "success", emphasis: "solid", class: "bg-tone-success border-tone-success text-white hover:opacity-90" },
-      { variant: "tinted", tone: "info", emphasis: "solid", class: "bg-tone-info border-tone-info text-white hover:opacity-90" },
-      { variant: "tinted", tone: "arcane", emphasis: "solid", class: "bg-tone-arcane border-tone-arcane text-white hover:opacity-90" },
-      { variant: "tinted", tone: "caution", emphasis: "solid", class: "bg-tone-caution border-tone-caution text-black hover:opacity-90" },
+      { variant: "tinted", tone: "primary", emphasis: "solid", class: "bg-tone-primary border-tone-primary text-on-primary hover:opacity-90" },
+      { variant: "tinted", tone: "danger", emphasis: "solid", class: "bg-tone-danger border-tone-danger text-on-danger hover:opacity-90" },
+      { variant: "tinted", tone: "success", emphasis: "solid", class: "bg-tone-success border-tone-success text-on-success hover:opacity-90" },
+      { variant: "tinted", tone: "info", emphasis: "solid", class: "bg-tone-info border-tone-info text-on-info hover:opacity-90" },
+      { variant: "tinted", tone: "arcane", emphasis: "solid", class: "bg-tone-arcane border-tone-arcane text-on-arcane hover:opacity-90" },
+      { variant: "tinted", tone: "caution", emphasis: "solid", class: "bg-tone-caution border-tone-caution text-on-caution hover:opacity-90" },
       { variant: "tinted", tone: "neutral", emphasis: "solid", class: "bg-muted border-border text-foreground hover:opacity-90" },
 
       // ── fill="tone" × tone ────────────────────────────────────────────────
@@ -590,7 +594,7 @@ export type ButtonSurface = NonNullable<ButtonVariants["surface"]>;
 type Assert<T extends true> = T;
 
 export const BUTTON_VARIANTS = [
-  "primary", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu",
+  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu",
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [

@@ -30,9 +30,9 @@
     <div
       v-for="curse in member.curses"
       :key="curse"
-      class="flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5"
+      class="flex items-center rounded-full border border-tone-arcane/30 bg-tone-arcane/10 px-2.5 py-0.5"
     >
-      <span class="text-label-lg text-violet-400 leading-none">{{ curse }}</span>
+      <span class="text-label-lg text-ink-arcane leading-none">{{ curse }}</span>
     </div>
 
   </div>

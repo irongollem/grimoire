@@ -162,8 +162,8 @@ const filteredUsers = computed(() => {
 });
 
 function planBadgeClass(planId: string) {
-  if (planId === "pro") return "border-amber-400/40 text-amber-400";
-  if (planId === "tester") return "border-blue-400/40 text-blue-400";
+  if (planId === "pro") return "border-tone-caution/40 text-ink-caution";
+  if (planId === "tester") return "border-tone-info/40 text-ink-info";
   return "border-border text-muted-foreground";
 }
 

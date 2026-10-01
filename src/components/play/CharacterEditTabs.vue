@@ -75,7 +75,7 @@
         <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
           <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
           <AppInput v-model.number="f[stat.key]" type="number" min="1" max="30" tone="filled" size="body" align="center" class="px-1" />
-          <span class="font-cinzel text-xs font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
+          <span class="font-cinzel text-xs font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-ink-success' : 'text-destructive'">
             {{ mod(f[stat.key]) >= 0 ? "+" : "" }}{{ mod(f[stat.key]) }}
           </span>
         </label>

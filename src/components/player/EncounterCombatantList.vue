@@ -63,7 +63,7 @@
               <span
                 v-for="cond in combatant.conditions"
                 :key="cond"
-                class="shrink-0 text-label px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500"
+                class="shrink-0 text-label px-1.5 py-0.5 rounded bg-tone-caution/15 text-ink-caution"
               >{{ cond }}</span>
             </div>
             <div
@@ -83,7 +83,7 @@
               <template v-if="combatant.type === 'player'">
                 <span class="font-cinzel text-sm font-bold" :class="hpColor(combatant)">{{ displayHp(combatant) }}</span>
                 <span class="text-caption text-muted-foreground">/{{ displayMaxHp(combatant) }}</span>
-                <span v-if="displayTempHp(combatant) > 0" class="text-caption text-blue-400 ml-1">+{{ displayTempHp(combatant) }}</span>
+                <span v-if="displayTempHp(combatant) > 0" class="text-caption text-ink-info ml-1">+{{ displayTempHp(combatant) }}</span>
               </template>
               <template v-else>
                 <span class="text-caption text-muted-foreground italic">{{ hpLabel(combatant) }}</span>
@@ -173,16 +173,16 @@ function displayTempHp(c: RunCombatant): number {
 function hpColor(c: RunCombatant) {
   const pct = displayHp(c) / displayMaxHp(c);
   if (pct <= 0) return "text-muted-foreground";
-  if (pct <= 0.25) return "text-red-500";
-  if (pct <= 0.5) return "text-amber-500";
-  return "text-green-500";
+  if (pct <= 0.25) return "text-destructive";
+  if (pct <= 0.5) return "text-ink-caution";
+  return "text-ink-success";
 }
 function hpBarColor(c: RunCombatant) {
   const pct = displayHp(c) / displayMaxHp(c);
   if (pct <= 0) return "bg-muted-foreground/30";
-  if (pct <= 0.25) return "bg-red-500";
-  if (pct <= 0.5) return "bg-amber-500";
-  return "bg-green-500";
+  if (pct <= 0.25) return "bg-tone-danger";
+  if (pct <= 0.5) return "bg-tone-caution";
+  return "bg-tone-success";
 }
 function hpLabel(c: RunCombatant): string {
   const pct = displayHp(c) / displayMaxHp(c);

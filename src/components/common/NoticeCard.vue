@@ -1,6 +1,6 @@
 <template>
   <div
-    class="rounded-lg border border-border bg-card px-4 py-4 flex flex-col gap-3"
+    class="torn rounded-lg border border-border bg-card px-4 py-4 flex flex-col gap-3"
     role="status"
   >
     <div class="flex flex-col gap-1">

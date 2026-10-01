@@ -136,8 +136,8 @@ import type { Mini } from "@/types/mini.types";
 const { mini } = defineProps<{ mini: Mini }>();
 
 const FORMAT_BADGE_CLASSES: Record<Mini["format"], string> = {
-  print: "bg-slate-500/80 text-white",
-  vtt: "bg-violet-500/80 text-white",
+  print: "bg-muted/80 text-white",
+  vtt: "bg-tone-arcane/80 text-white",
 };
 
 const { confirm } = useConfirm();

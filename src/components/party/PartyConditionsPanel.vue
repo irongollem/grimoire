@@ -18,7 +18,7 @@
     <span
       v-for="curse in member.curses"
       :key="curse"
-      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/30 font-cinzel text-2xs font-semibold text-violet-400"
+      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tone-arcane/10 border border-tone-arcane/30 font-cinzel text-2xs font-semibold text-ink-arcane"
     >
       Cursed: {{ curse }}
       <AppButton variant="link" tone="arcane" size="inline-xs" label="×" @click="removeCurse(curse)" />
@@ -32,7 +32,7 @@
         tone="bare"
         shape="pill"
         placeholder="Curse name…"
-        class="border border-violet-500/50 bg-violet-500/10 text-violet-400 placeholder:text-violet-400/40 focus:ring-0 w-32"
+        class="border border-tone-arcane/50 bg-tone-arcane/10 text-ink-arcane placeholder:text-ink-arcane/40 focus:ring-0 w-32"
         @keydown.enter.prevent="addCurse"
         @keydown.escape="curseInputOpen = false"
       />

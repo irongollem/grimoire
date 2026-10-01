@@ -230,7 +230,7 @@ const hpColor = computed(() => {
   const p = previewHpPct.value;
   if (p <= 0) return "text-destructive";
   if (p < 33) return "text-destructive";
-  if (p < 66) return "text-amber-400";
+  if (p < 66) return "text-ink-caution";
   return "text-elven-green";
 });
 
@@ -238,7 +238,7 @@ const hpBarColor = computed(() => {
   const p = previewHpPct.value;
   if (p <= 0) return "bg-muted-foreground/40";
   if (p < 33) return "bg-destructive";
-  if (p < 66) return "bg-amber-500";
+  if (p < 66) return "bg-tone-caution";
   return "bg-elven-green";
 });
 
