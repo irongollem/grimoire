@@ -693,24 +693,38 @@ function onReset() {
   roll it up" guessable without a word of instruction. Below `lg` the card
   grows in the flow and covers nothing, so nothing dims.
 
-  Not while customizing: the frame makes every widget inert there, so a card
+  Not while customizing: the frame makes every widget `inert` there, so a card
   cannot be unrolled in the first place.
 */
-/* `[data-widget-key]` is a customize frame, which carries a transition of its
-   own for the just-added ring; this rule is unlayered and would replace it. */
-.dashboard-grid > *:not([data-widget-key]) {
-  transition: opacity 150ms ease;
-}
-
 @media (min-width: 64rem) {
   .dashboard-grid:has(> [data-unrolled]) > *:not([data-unrolled]) {
     opacity: 0.55;
   }
 }
 
+/*
+  The fade for that dim, and it is in a layer on purpose. Unlayered CSS beats
+  every Tailwind utility whatever its specificity, so a bare
+  `.dashboard-grid > * { transition: ... }` replaced the transition of any
+  widget whose root declares one: `LiveEncounterBanner`'s hover fade snapped,
+  and so did the customize frame's just-added ring. In `components` it sits
+  under `utilities`, so a root with a transition of its own keeps it and simply
+  dims without a fade, and every other card fades.
+*/
+@layer components {
+  .dashboard-grid > * {
+    transition: opacity 150ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dashboard-grid > * {
+      transition: none;
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .dashboard-dragging > *,
-  .dashboard-grid > *:not([data-widget-key]) {
+  .dashboard-dragging > * {
     transition: none;
   }
 }

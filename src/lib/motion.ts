@@ -53,6 +53,29 @@ export function revealInScrollParent(el: Element): void {
 }
 
 /**
+ * `revealInScrollParent`, but only for an element that cannot be seen at all.
+ *
+ * "Nearest" still scrolls for an element that is *partly* on screen, to bring
+ * the rest of it in. That is right when the element is what the user is
+ * working on and wrong when it merely changed size nearby: a card rolling up
+ * at the bottom edge would drag the page a few rows and move whatever the
+ * pointer was over. This asks the stricter question, and asks it of an
+ * `IntersectionObserver` because that is the one thing that already accounts
+ * for every scrolling ancestor between the element and the screen.
+ *
+ * Absent in the test DOM, where it does nothing, like the scroll it guards.
+ */
+export function revealIfOutOfView(el: Element): void {
+  if (typeof IntersectionObserver === "undefined") return;
+  const observer = new IntersectionObserver((entries) => {
+    observer.disconnect();
+    if (entries.some((entry) => entry.isIntersecting)) return;
+    revealInScrollParent(el);
+  });
+  observer.observe(el);
+}
+
+/**
  * Whether to animate at all. Web Animations is absent in the test DOM, so there
  * every panel opens instantly — as it does for anyone who asked it to.
  */
@@ -394,6 +417,19 @@ export function resizeDuration(distance: number): number {
 }
 
 /**
+ * A resize in flight, by element. `overflow` is what the panel had before the
+ * *first* of an overlapping run clipped it, so a second call restores that and
+ * not the `hidden` its predecessor wrote.
+ */
+interface BlockResizeRun {
+  animation: Animation;
+  overflow: string;
+  superseded: boolean;
+}
+
+const blockResizes = new WeakMap<HTMLElement, BlockResizeRun>();
+
+/**
  * A panel that is already on screen changing height: a card unrolling to show
  * everything it holds, and rolling back up.
  *
@@ -402,29 +438,62 @@ export function resizeDuration(distance: number): number {
  * Read `from` off the element *before* the state change, call this once the
  * DOM reflects it, and it measures where the panel ended up.
  *
- * `done` always runs, whether the height animated, there was nothing to
- * animate, or the animation was cancelled, so a caller can hang "the panel is
- * at rest again" on it without a second code path for the test DOM.
+ * **Safe to call again before it lands.** A double-click, or a roll-up that
+ * arrives mid-unroll, replaces the run in flight: the old animation is
+ * cancelled *before* the destination is measured (or the measurement would be
+ * the height it was passing through), its `done` is dropped, and the new run
+ * inherits the overflow the first one saved. `done` therefore runs exactly
+ * once per rest, for the call that actually reached it: whether the height
+ * animated, there was nothing to animate, or the animation was cancelled from
+ * outside. A caller can hang "the panel is at rest again" on it without a
+ * second code path for the test DOM.
+ *
+ * **The travel holds `max-height` open.** A panel rolling up usually regains a
+ * ceiling the moment its state flips (`max-h-*` on the rolled-up class), and a
+ * ceiling clamps an animated `height` for the whole run: the panel snaps shut
+ * and then animates nothing for 300ms. The destination was measured with the
+ * ceiling applied, so releasing it for the journey changes where nothing ends
+ * up.
  */
 export function playBlockResize(el: HTMLElement, from: number, done: () => void = () => {}): void {
+  const previous = blockResizes.get(el);
+  const overflow = previous === undefined ? el.style.overflow : previous.overflow;
+  if (previous !== undefined) {
+    previous.superseded = true;
+    blockResizes.delete(el);
+    previous.animation.cancel();
+  }
+
   const to = el.getBoundingClientRect().height;
   if (!canAnimate(el) || Math.abs(to - from) < FLIP_MOVE_THRESHOLD_PX) {
+    el.style.overflow = overflow;
     done();
     return;
   }
   // Clipped while it travels, exactly as a drawer is: a panel growing to a
   // height its contents already have would otherwise show them hanging out of
   // the box until it caught up.
-  const overflow = el.style.overflow;
   el.style.overflow = "hidden";
-  whenSettled(
-    el.animate([{ height: `${from}px` }, { height: `${to}px` }], {
-      duration: resizeDuration(to - from),
-      easing: to > from ? "cubic-bezier(0.22, 1, 0.36, 1)" : "ease-in",
-    }),
-    () => {
-      el.style.overflow = overflow;
-      done();
-    },
-  );
+  const run: BlockResizeRun = {
+    animation: el.animate(
+      [
+        { height: `${from}px`, maxHeight: "none" },
+        { height: `${to}px`, maxHeight: "none" },
+      ],
+      {
+        duration: resizeDuration(to - from),
+        easing: to > from ? "cubic-bezier(0.22, 1, 0.36, 1)" : "ease-in",
+      },
+    ),
+    overflow,
+    superseded: false,
+  };
+  blockResizes.set(el, run);
+  whenSettled(run.animation, () => {
+    // A newer run owns the panel now: its overflow, and its `done`.
+    if (run.superseded) return;
+    blockResizes.delete(el);
+    el.style.overflow = overflow;
+    done();
+  });
 }

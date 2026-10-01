@@ -192,6 +192,30 @@ describe("customizing — emitted intent", () => {
     expect(wrapper.get(".dashboard-customize-grip").element.closest(".pointer-events-none")).toBeNull();
   });
 
+  // `pointer-events-none` stops a pointer and nothing else. Tab still walked
+  // into every widget, so a keyboard user could follow a link off the board,
+  // or land below a card's cut and unroll it over the frames beneath.
+  it("takes the widget out of the tab order too, not only away from the pointer", () => {
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(QUESTS), widget: QUESTS, customizing: true },
+      slots: { default: CONTENT_SLOT },
+    });
+    const host = wrapper.get(".pointer-events-none");
+    expect(host.attributes("inert")).toBeDefined();
+    expect(wrapper.get(".dashboard-customize-grip").element.closest("[inert]")).toBeNull();
+  });
+
+  // `inert` also hides the widget's own title from assistive tech, so the frame
+  // has to say which widget its controls belong to.
+  it("names the frame after its widget, since the widget's own title is inert", () => {
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(QUESTS), widget: QUESTS, customizing: true },
+      slots: { default: CONTENT_SLOT },
+    });
+    expect(wrapper.attributes("role")).toBe("group");
+    expect(wrapper.attributes("aria-label")).toBe(QUESTS.title);
+  });
+
   it("emits remove with the entry's key, and nothing else, on click", async () => {
     const entry = entryFor(QUESTS);
     const wrapper = mount(DashboardCustomizeFrame, {

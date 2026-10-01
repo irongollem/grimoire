@@ -293,8 +293,14 @@ describe("playBlockResize", () => {
       settle = resolve;
       fail = reject;
     });
-    const animate = vi.fn(() => ({ finished }) as unknown as Animation);
-    return { el, animate, settle, fail };
+    const cancel = vi.fn(() => fail(new DOMException("cancelled", "AbortError")));
+    const animate = vi.fn(() => ({ finished, cancel }) as unknown as Animation);
+    return { el, animate, settle, fail, cancel };
+  }
+
+  /** Let a settled or rejected `finished` reach its handlers. */
+  async function flush() {
+    for (let i = 0; i < 4; i++) await Promise.resolve();
   }
 
   it("reports done at once where Web Animations is unavailable", () => {
@@ -323,7 +329,10 @@ describe("playBlockResize", () => {
     playBlockResize(el, 200, done);
 
     expect(animate).toHaveBeenCalledWith(
-      [{ height: "200px" }, { height: "600px" }],
+      [
+        { height: "200px", maxHeight: "none" },
+        { height: "600px", maxHeight: "none" },
+      ],
       expect.objectContaining({ duration: resizeDuration(400) }),
     );
     expect(el.style.overflow).toBe("hidden");
@@ -349,5 +358,82 @@ describe("playBlockResize", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(done).toHaveBeenCalledOnce();
+  });
+
+  it("holds max-height open for the journey, so a ceiling cannot clamp it", () => {
+    // Rolling up, the panel regains `max-h-*` the instant its state flips. An
+    // animated height above that ceiling is clamped to it for the whole run:
+    // the card snapped shut and then animated nothing.
+    const { el, animate } = panel(304);
+    el.animate = animate as unknown as typeof el.animate;
+    playBlockResize(el, 800);
+    const [keyframes] = animate.mock.calls[0] as unknown as [Keyframe[]];
+    expect(keyframes.every((frame) => frame.maxHeight === "none")).toBe(true);
+  });
+
+  it("replaces a run in flight instead of stacking on it", async () => {
+    // A double-click. The first run must not report rest while the second is
+    // travelling, and must not leave its `hidden` behind as the value to restore.
+    const el = document.createElement("div");
+    Object.defineProperty(el, "getBoundingClientRect", { value: () => ({ height: 600 }) as DOMRect });
+    el.style.overflow = "visible";
+
+    const runs: Array<{ settle: () => void; cancel: ReturnType<typeof vi.fn> }> = [];
+    el.animate = vi.fn(() => {
+      let settle: () => void = () => {};
+      let fail: (reason: unknown) => void = () => {};
+      const finished = new Promise<void>((resolve, reject) => {
+        settle = resolve;
+        fail = reject;
+      });
+      const cancel = vi.fn(() => fail(new DOMException("cancelled", "AbortError")));
+      runs.push({ settle, cancel });
+      return { finished, cancel } as unknown as Animation;
+    }) as unknown as typeof el.animate;
+
+    const first = vi.fn();
+    const second = vi.fn();
+    playBlockResize(el, 200, first);
+    playBlockResize(el, 400, second);
+
+    expect(runs[0].cancel).toHaveBeenCalledOnce();
+    await flush();
+    // The cancelled run is silent: no `done`, and the panel is still clipped
+    // for the run that replaced it.
+    expect(first).not.toHaveBeenCalled();
+    expect(second).not.toHaveBeenCalled();
+    expect(el.style.overflow).toBe("hidden");
+
+    runs[1].settle();
+    await flush();
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledOnce();
+    // What the panel had before the *first* run, not the `hidden` that run wrote.
+    expect(el.style.overflow).toBe("visible");
+  });
+
+  it("measures the destination only after cancelling the run in flight", () => {
+    // Measured first, the "destination" would be whatever height the old
+    // animation happened to be passing through.
+    const order: string[] = [];
+    const el = document.createElement("div");
+    Object.defineProperty(el, "getBoundingClientRect", {
+      value: () => {
+        order.push("measure");
+        return { height: 600 } as DOMRect;
+      },
+    });
+    el.animate = vi.fn(
+      () =>
+        ({
+          finished: new Promise<void>(() => {}),
+          cancel: () => order.push("cancel"),
+        }) as unknown as Animation,
+    ) as unknown as typeof el.animate;
+
+    playBlockResize(el, 200);
+    order.length = 0;
+    playBlockResize(el, 400);
+    expect(order).toEqual(["cancel", "measure"]);
   });
 });

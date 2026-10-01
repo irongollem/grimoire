@@ -12,9 +12,11 @@
   <div
     v-else
     :data-widget-key="entry.key"
+    role="group"
+    :aria-label="widget.title"
     :class="['relative scroll-mt-4', $attrs.class]"
   >
-    <div ref="slotHost" v-show="!slotIsEmpty" class="pointer-events-none h-full min-h-0">
+    <div ref="slotHost" v-show="!slotIsEmpty" inert class="pointer-events-none h-full min-h-0">
       <slot />
     </div>
 
@@ -138,12 +140,22 @@
  * and it buys exact geometric parity between the two modes, with no gap or top
  * padding to pay for at all.
  *
- * **The widget is also made inert while the mode is open** (`pointer-events-none`
- * on the slot host, which the pill is a sibling of, so the controls keep
- * theirs). It is rendered at full fidelity — you still judge the real board,
- * which is the governing rule — you simply cannot click *into* it. That fixes
- * a real trap as well as freeing the overlay: a stray click on a widget's own
- * link used to navigate off the dashboard in the middle of arranging it.
+ * **The widget is also made inert while the mode is open** (`inert` on the slot
+ * host, which the pill is a sibling of, so the controls keep theirs). It is
+ * rendered at full fidelity — you still judge the real board, which is the
+ * governing rule — you simply cannot click or tab *into* it. That fixes a real
+ * trap as well as freeing the overlay: a stray click on a widget's own link
+ * used to navigate off the dashboard in the middle of arranging it.
+ *
+ * `inert` and not only `pointer-events-none`, which this was until 2 Oct 2026.
+ * The class stops a pointer and nothing else: Tab still walked into every
+ * widget, so a keyboard user could follow a link off the board, and once cards
+ * learned to unroll, focus landing below the cut opened one over the frames
+ * beneath it — in the one mode whose job is to show the board as arranged.
+ * `inert` also takes the widget out of the accessibility tree, title included,
+ * which is why the frame carries `role="group"` and the widget's name itself:
+ * without it a screen-reader user would be moving unnamed boxes. The class
+ * stays for the browsers that predate the attribute.
  *
  * `h-full min-h-0` on that host is load-bearing and easy to lose. Outside this
  * mode the widget *is* the grid item, so `DashboardWidget`'s own `h-full`

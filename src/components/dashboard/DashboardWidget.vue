@@ -116,14 +116,13 @@
           <AppButton
             ref="toggle"
             variant="ghost"
-            size="xs"
+            size="strip"
             block
-            class="rounded-none py-1.5 font-cinzel tracking-wide"
             :label="expanded ? 'Show less' : 'Show more'"
             :icon-right="expanded ? IconChevronUp : IconChevronDown"
             :aria-expanded="expanded"
             :aria-controls="bodyId"
-            @click="setExpanded(!expanded)"
+            @click="setExpanded(!expanded, true)"
           />
         </div>
       </template>
@@ -146,7 +145,7 @@ import {
 import { onClickOutside } from "@vueuse/core";
 import { cn } from "@/lib/utils";
 import { IconChevronDown, IconChevronUp } from "@/lib/icons";
-import { playBlockResize, revealInScrollParent } from "@/lib/motion";
+import { playBlockResize, revealIfOutOfView } from "@/lib/motion";
 import { useAbove } from "@/composables/useBreakpoint";
 import AppButton from "@/components/common/AppButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -172,8 +171,9 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
  * board from `lg` and in place below it, and "Show less", Escape or a click
  * anywhere else rolls it back. The grid's fixed rows are untouched either way,
  * which is what #768 was protecting. In Customize mode the footer cannot be
- * pressed (the frame makes the widget inert) and so reads as what it also is:
- * a sign that this card is too short for what it holds.
+ * pressed or focused (`DashboardCustomizeFrame` makes the widget `inert`) and
+ * so reads as what it also is: a sign that this card is too short for what it
+ * holds.
  *
  * @see DashboardQuestsPanel for the fullest example: three sections, one card.
  */
@@ -250,7 +250,10 @@ const expanded = ref(false);
  *  and keeps `measure` from reading a height that is only passing through. */
 const settling = ref(false);
 /** Whether an unrolled card lies *over* the board (from `lg`) rather than
- *  growing in the flow of a single column. */
+ *  growing in the flow of a single column. `useAbove` asks the same rem-based
+ *  question the `lg:` classes in the template do; when it asked in pixels the
+ *  two disagreed for anyone with an enlarged default font, and a card that CSS
+ *  had left in the flow was treated as an overlay and shut the moment it opened. */
 const overlays = useAbove("lg");
 
 /**
@@ -284,7 +287,10 @@ function onUse(): void {
  *
  * **An unrolled card with nothing left to show rolls back up.** From `lg` it is
  * lying over its neighbours with the board dimmed behind it, and once the
- * search is cleared or the drawer shut that is a cost paid for nothing.
+ * search is cleared or the drawer shut that is a cost paid for nothing. The
+ * footer is left out of that sum for the same reason it is handed back below:
+ * rolled up, a card that fits has no footer, so counting the "Show less" strip
+ * would keep open a card that is only too tall because of the strip.
  *
  * The footer takes its own height out of the body the moment it appears, so
  * that height is handed back before comparing. Without it a card whose content
@@ -306,9 +312,9 @@ function measure(): void {
   if (expanded.value) {
     const card = cardEl.value;
     const slot = slotEl.value;
-    if (overlays.value && card !== null && slot !== null && card.offsetHeight <= slot.offsetHeight + 1) {
-      void setExpanded(false);
-    }
+    if (!overlays.value || card === null || slot === null) return;
+    const strip = footerEl.value === null ? 0 : footerEl.value.offsetHeight;
+    if (card.offsetHeight - strip <= slot.offsetHeight + 1) void setExpanded(false);
     return;
   }
 
@@ -323,39 +329,75 @@ function measure(): void {
 /**
  * Re-measured when the body or anything directly in it changes size: a query
  * landing, a search narrowing, a portrait finishing loading, the DM giving the
- * card another half-row. `onUpdated` re-syncs the observed set because the
- * slot's children are replaced, not resized, when a widget's data arrives.
- * Absent in the test DOM, where `onMounted`/`onUpdated` measure directly.
+ * card another half-row.
+ *
+ * `onUpdated` only reconciles *which* elements are watched, because a widget's
+ * data arriving replaces the slot's children rather than resizing them. It
+ * does not measure and does not rebuild the set: this hook runs on every
+ * re-render of every card (each keystroke in a search, each row synced in),
+ * and tearing down and re-observing a dozen cards' children each time was a
+ * forced layout and a burst of observer callbacks per keystroke for nothing.
+ * An element newly observed reports once on its own, which is the measurement.
+ *
+ * Where there is no `ResizeObserver` the hooks measure directly instead.
  */
 let observer: ResizeObserver | null = null;
+const observed = new Set<Element>();
 
-function observeBody(): void {
-  measure();
-  if (typeof ResizeObserver === "undefined") return;
+function syncObserved(): void {
+  if (typeof ResizeObserver === "undefined") {
+    measure();
+    return;
+  }
   observer ??= new ResizeObserver(measure);
-  observer.disconnect();
   const body = bodyEl.value;
-  if (body === null) return;
-  observer.observe(body);
-  for (const child of body.children) observer.observe(child);
+  const wanted = new Set<Element>(body === null ? [] : [body, ...body.children]);
+  for (const el of observed) {
+    if (wanted.has(el)) continue;
+    observer.unobserve(el);
+    observed.delete(el);
+  }
+  for (const el of wanted) {
+    if (observed.has(el)) continue;
+    observer.observe(el);
+    observed.add(el);
+  }
+  // Nothing left to report a size, so nothing will say the footer should go.
+  if (body === null) measure();
 }
 
-onMounted(observeBody);
-onUpdated(observeBody);
-onBeforeUnmount(() => observer?.disconnect());
+onMounted(syncObserved);
+onUpdated(syncObserved);
+onBeforeUnmount(() => {
+  observer?.disconnect();
+  observed.clear();
+});
 
-async function setExpanded(next: boolean): Promise<void> {
+/**
+ * `follow` is whether the DM asked from the card itself (the footer, Escape).
+ * Only then is their attention on it, and only then may the page move to keep
+ * it in sight. A card that rolls up because they clicked something else, or
+ * because it ran out of things to show, must leave the page exactly where it
+ * is: scrolling then moves whatever they were reaching for.
+ */
+async function setExpanded(next: boolean, follow = false): Promise<void> {
   const card = cardEl.value;
   if (card === null || expanded.value === next) return;
+  // Mid-flight this is the height the card is passing through, which is where
+  // a reversed animation has to start from.
   const from = card.getBoundingClientRect().height;
   expanded.value = next;
   settling.value = true;
   await nextTick();
   playBlockResize(card, from, () => {
     settling.value = false;
-    // A long card rolled up from its far end leaves the page scrolled past
-    // where the card now stops. Does nothing when the card is still in view.
-    if (!next && slotEl.value !== null) revealInScrollParent(slotEl.value);
+    // Every size report during the travel was ignored, and the last frame of
+    // it is the resting height, so nothing fires again by itself.
+    measure();
+    // A long card rolled up from its far end can leave the page scrolled past
+    // where the card now stops. Only when none of it is left on screen: a card
+    // still partly in view stays put, and so does the page.
+    if (!next && follow && slotEl.value !== null) revealIfOutOfView(slotEl.value);
   });
 }
 
@@ -378,10 +420,21 @@ onClickOutside(cardEl, () => {
   if (expanded.value && overlays.value) void setExpanded(false);
 });
 
+/**
+ * Escape rolls the card up, unless the key already belongs to something
+ * inside it. A text field owns its Escape (it closes a combobox's dropdown,
+ * clears a search), and none of those handlers stop the event, so it arrives
+ * here having already done its job. Taking it as well made one press shut the
+ * dropdown, hide the field below the cut and pull focus off the input.
+ */
 function onEscape(event: KeyboardEvent): void {
-  if (!expanded.value) return;
+  if (!expanded.value || event.defaultPrevented) return;
+  const target = event.target;
+  if (target instanceof HTMLElement && (target.isContentEditable || target.matches("input, textarea, select"))) {
+    return;
+  }
   event.stopPropagation();
-  void setExpanded(false);
+  void setExpanded(false, true);
   // Focus may be on a row that is about to be cut off. The footer is the one
   // control guaranteed to still be showing, and it is what reopens the card.
   const toggle: unknown = toggleEl.value?.$el;

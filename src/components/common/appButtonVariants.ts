@@ -122,6 +122,18 @@ export const buttonVariants = cva(
          */
         toolbar: "gap-1 rounded px-2 h-6.5 text-label",
         /**
+         * A strip closing a card edge to edge: the dashboard widget's "Show more"
+         * footer. Pair with `block`. No radius, because the strip has no corners
+         * of its own; the card it sits in clips them. Taller than `xs` because the
+         * whole width is the target and it is pressed with a thumb as often as a
+         * pointer.
+         *
+         * A size rather than `xs` plus `class="rounded-none py-1.5"`, which is what
+         * the footer first shipped with: two overrides at a call site is a recipe
+         * the catalogue cannot show and the next strip would copy by hand.
+         */
+        strip: "gap-1 px-3 py-1.5 text-label",
+        /**
          * 20px. The floor was `icon-xs` (24px) and nine controls sat below it, which
          * is why they each stayed a hand-rolled `<button>` through five waves of the
          * #648 sweep: the ItemRow and CoinRow quantity steppers and PlayerLoadout at
@@ -582,7 +594,7 @@ export const BUTTON_VARIANTS = [
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [
-  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "icon-2xs", "icon-xs", "icon-sm",
+  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "strip", "icon-2xs", "icon-xs", "icon-sm",
 ] as const satisfies readonly ButtonSize[];
 
 // `[X] extends [never]` rather than `X extends never`: a naked conditional

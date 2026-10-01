@@ -35,6 +35,10 @@ beforeEach(() => {
   mocks.overlays = ref(true);
   layout.content = 0;
   layout.room = 0;
+  // The test DOM ships a `ResizeObserver` that never reports. Without one the
+  // card measures from its own lifecycle hooks, which is the path these tests
+  // drive; the observer path has its own test at the bottom.
+  vi.stubGlobal("ResizeObserver", undefined);
 
   vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(function (
     this: HTMLElement,
@@ -67,6 +71,7 @@ beforeEach(() => {
 afterEach(() => {
   wrapper?.unmount();
   wrapper = null;
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -76,7 +81,8 @@ function mountWidget(attrs: Record<string, unknown> = {}) {
     props: { title: "Conditions" },
     attrs,
     slots: {
-      default: '<div data-test-content><button data-test-row type="button">Blinded</button></div>',
+      default:
+        '<div data-test-content><button data-test-row type="button">Blinded</button><input data-test-input /></div>',
     },
     global: { stubs: { RouterLink: true } },
   });
@@ -183,6 +189,22 @@ describe("DashboardWidget", () => {
     expect(document.activeElement).toBe(toggle(w).element);
   });
 
+  it("leaves Escape to a text field inside it", async () => {
+    // The field's own Escape (close a dropdown, clear a search) has already
+    // run by the time the key bubbles here. Taking it too shut the dropdown
+    // *and* the card on one press.
+    layout.content = 600;
+    layout.room = 260;
+    const w = mountWidget();
+    await nextTick();
+    await toggle(w).trigger("click");
+    await nextTick();
+
+    await w.find("[data-test-input]").trigger("keydown", { key: "Escape" });
+    await nextTick();
+    expect(isUnrolled(w)).toBe(true);
+  });
+
   it("rolls up on a click elsewhere while it lies over the board", async () => {
     layout.content = 600;
     layout.room = 260;
@@ -269,6 +291,24 @@ describe("DashboardWidget", () => {
     expect(toggle(w).exists()).toBe(false);
   });
 
+  it("rolls up a card that is only too tall because of its own footer", async () => {
+    // 250 of content in 260 of room has no footer rolled up. Unrolled, the
+    // "Show less" strip makes the card taller than its slot, and counting that
+    // strip left the card open over a dimmed board with nothing to show.
+    layout.content = 600;
+    layout.room = 260;
+    const w = mountWidget();
+    await nextTick();
+    await toggle(w).trigger("click");
+    await nextTick();
+
+    layout.content = 250;
+    await remeasure(w, 1);
+
+    expect(isUnrolled(w)).toBe(false);
+    expect(toggle(w).exists()).toBe(false);
+  });
+
   it("rolls up when its body goes away", async () => {
     layout.content = 600;
     layout.room = 260;
@@ -290,5 +330,57 @@ describe("DashboardWidget", () => {
     const w = mountWidget({ class: "lg:col-span-2 lg:row-span-3" });
     expect(w.classes()).toContain("lg:col-span-2");
     expect(w.find("section").classes()).not.toContain("lg:col-span-2");
+  });
+
+  it("watches the body once, not again on every re-render", async () => {
+    // `onUpdated` runs for every keystroke in a search and every row synced
+    // in, on every card. Rebuilding the observed set each time was a forced
+    // layout and a burst of callbacks per card per keystroke.
+    const observe = vi.fn();
+    const unobserve = vi.fn();
+    const disconnect = vi.fn();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe = observe;
+        unobserve = unobserve;
+        disconnect = disconnect;
+      },
+    );
+    layout.content = 200;
+    layout.room = 260;
+    const w = mountWidget();
+    await nextTick();
+    // The body, and the one element in it.
+    expect(observe).toHaveBeenCalledTimes(2);
+
+    await w.setProps({ count: 1 });
+    await w.setProps({ count: 2 });
+    await nextTick();
+
+    expect(observe).toHaveBeenCalledTimes(2);
+    expect(unobserve).not.toHaveBeenCalled();
+    expect(disconnect).not.toHaveBeenCalled();
+  });
+
+  it("stops watching a body that has gone", async () => {
+    const observe = vi.fn();
+    const unobserve = vi.fn();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe = observe;
+        unobserve = unobserve;
+        disconnect = vi.fn();
+      },
+    );
+    layout.content = 200;
+    layout.room = 260;
+    const w = mountWidget();
+    await nextTick();
+
+    await w.setProps({ loading: true });
+    await nextTick();
+    expect(unobserve).toHaveBeenCalledTimes(2);
   });
 });
