@@ -28,6 +28,10 @@ export interface GrimoireTheme {
 }
 
 export const THEMES: GrimoireTheme[] = [
+  // Vellum first: it is the default, and pickers list themes in this order.
+  VELLUM,
+  VELLUM_LAMPLIGHT,
+
   {
     id: "grimoire",
     label: "Grimoire (Dark)",
@@ -86,10 +90,9 @@ export const THEMES: GrimoireTheme[] = [
     },
   },
 
-  VELLUM,
-  VELLUM_LAMPLIGHT,
-
   // Add new themes here — a colour-only theme needs no CSS, just a new entry.
 ];
 
-export const DEFAULT_THEME_ID = "tome";
+/** The house theme: new campaigns, campaigns with no theme, and screens shown
+ *  before any campaign is loaded. Tome and Grimoire stay selectable. */
+export const DEFAULT_THEME_ID = "vellum";

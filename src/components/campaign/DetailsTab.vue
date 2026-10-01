@@ -196,6 +196,7 @@
 </template>
 
 <script setup lang="ts">
+import { DEFAULT_THEME_ID } from "@/lib/themes";
 import { ref, computed, watch } from "vue";
 import { IconCheck, IconGenerate } from '@/lib/icons';
 import { useTheme } from "@/composables/useTheme";
@@ -233,7 +234,7 @@ function buildForm(c: typeof campaign.value) {
     setting: c?.setting ?? "",
     calendar_id: c?.calendar_id ?? "faerun",
     current_year: c?.current_year ?? 1495,
-    theme: c?.theme ?? "grimoire",
+    theme: c?.theme ?? DEFAULT_THEME_ID,
     health_visibility: (c?.health_visibility as "strategic" | "immersive" | "unknown") ?? "strategic",
     immersive_rolls: c?.immersive_rolls ?? false,
     battle_map_show_tokens: c?.battle_map_show_tokens ?? true,

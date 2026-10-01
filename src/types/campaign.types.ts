@@ -22,7 +22,7 @@ export interface Campaign {
   calendar_id: string; // references CalendarAdapter.id, defaults to 'faerun'; 'custom' uses custom_calendar
   /** When calendar_id === 'custom', this holds the per-campaign calendar definition used to build a runtime adapter. */
   custom_calendar: SettingCalendarDef | null;
-  theme: string; // references GrimoireTheme.id, defaults to 'grimoire'
+  theme: string; // references GrimoireTheme.id, defaults to 'vellum' (DEFAULT_THEME_ID)
   health_visibility: "strategic" | "immersive" | "unknown";
   immersive_rolls: boolean;
   /** When false, hide the VTT token layer from players entirely. The DM

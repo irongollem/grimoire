@@ -5,6 +5,7 @@ import { useTheme } from "@/composables/useTheme";
 import { useAuthStore } from "@/stores/auth";
 import { decryptApiKey } from "@/lib/apiKeyVault";
 import { isLocalCiphertext, encryptLocalKey, decryptLocalKey } from "@/lib/localKeyVault";
+import { DEFAULT_THEME_ID } from "@/lib/themes";
 
 const STORAGE_KEY      = "grimoire_active_campaign";
 const LOCAL_MODE_KEY   = "grimoire_key_local_mode";
@@ -117,7 +118,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     activeCampaignId.value = campaign.id;
     activeCampaign.value   = campaign;
 
-    useTheme().setTheme(campaign.theme ?? "grimoire");
+    useTheme().setTheme(campaign.theme ?? DEFAULT_THEME_ID);
 
     loadProviderKeys(campaign);
 
