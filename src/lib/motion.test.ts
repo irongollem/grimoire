@@ -11,6 +11,8 @@ import {
   FLIP_MOVE_THRESHOLD_PX,
   cardTurnStyle,
   CARD_TURN_MS,
+  playBlockResize,
+  resizeDuration,
   type FlipSnapshot,
 } from "./motion";
 
@@ -254,5 +256,98 @@ describe("drawerTransition / railTransition", () => {
       expect(left).toHaveBeenCalledOnce();
       expect(hooks.css).toBe(false);
     }
+  });
+});
+
+describe("resizeDuration", () => {
+  it("gives a short hop the drawer's time and never less", () => {
+    expect(resizeDuration(0)).toBe(200);
+    expect(resizeDuration(40)).toBe(200);
+  });
+
+  it("gives distance more time, so a long unroll is seen to travel", () => {
+    // The soundboard widget's ~640px crossing is the measured reference point.
+    expect(resizeDuration(640)).toBe(340);
+    expect(resizeDuration(300)).toBeGreaterThan(resizeDuration(100));
+  });
+
+  it("stops growing past a screen's worth of travel", () => {
+    expect(resizeDuration(5000)).toBe(380);
+  });
+
+  it("times a collapse by how far it travels, not by its sign", () => {
+    expect(resizeDuration(-640)).toBe(resizeDuration(640));
+  });
+});
+
+describe("playBlockResize", () => {
+  /** An element with a fixed measured height and a spy standing in for Web Animations. */
+  function panel(height: number) {
+    const el = document.createElement("div");
+    Object.defineProperty(el, "getBoundingClientRect", {
+      value: () => ({ height }) as DOMRect,
+    });
+    let settle: () => void = () => {};
+    let fail: (reason: unknown) => void = () => {};
+    const finished = new Promise<void>((resolve, reject) => {
+      settle = resolve;
+      fail = reject;
+    });
+    const animate = vi.fn(() => ({ finished }) as unknown as Animation);
+    return { el, animate, settle, fail };
+  }
+
+  it("reports done at once where Web Animations is unavailable", () => {
+    // The test DOM, and anyone who asked for reduced motion: the card is simply
+    // at its new height, and the caller still hears that it is at rest.
+    const { el } = panel(600);
+    const done = vi.fn();
+    playBlockResize(el, 200, done);
+    expect(done).toHaveBeenCalledOnce();
+  });
+
+  it("does not animate a height that did not change", () => {
+    const { el, animate } = panel(300);
+    el.animate = animate as unknown as typeof el.animate;
+    const done = vi.fn();
+    playBlockResize(el, 300, done);
+    expect(animate).not.toHaveBeenCalled();
+    expect(done).toHaveBeenCalledOnce();
+  });
+
+  it("travels from the old height to the measured new one, clipped on the way", async () => {
+    const { el, animate, settle } = panel(600);
+    el.animate = animate as unknown as typeof el.animate;
+    el.style.overflow = "visible";
+    const done = vi.fn();
+    playBlockResize(el, 200, done);
+
+    expect(animate).toHaveBeenCalledWith(
+      [{ height: "200px" }, { height: "600px" }],
+      expect.objectContaining({ duration: resizeDuration(400) }),
+    );
+    expect(el.style.overflow).toBe("hidden");
+    expect(done).not.toHaveBeenCalled();
+
+    settle();
+    await Promise.resolve();
+    await Promise.resolve();
+    // Restored, not blanked: the panel had an overflow of its own.
+    expect(el.style.overflow).toBe("visible");
+    expect(done).toHaveBeenCalledOnce();
+  });
+
+  it("still reports done when the animation is cancelled", async () => {
+    // A cancelled animation rejects. A caller waiting on `done` to drop its
+    // "in flight" state would otherwise wait forever.
+    const { el, animate, fail } = panel(600);
+    el.animate = animate as unknown as typeof el.animate;
+    const done = vi.fn();
+    playBlockResize(el, 200, done);
+    fail(new DOMException("cancelled", "AbortError"));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(done).toHaveBeenCalledOnce();
   });
 });

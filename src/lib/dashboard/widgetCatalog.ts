@@ -101,9 +101,9 @@ export interface DashboardWidgetDef {
    * Both optional, unlike `widths`, and that asymmetry is deliberate. A width
    * changes how many columns a card occupies, and most widgets genuinely have
    * an opinion about that. A height is just how much of the content you want
-   * on screen — every widget scrolls inside whatever it is given, so none of
-   * them *break* at any height, and the premise of this epic is that the DM
-   * arranges their own screen.
+   * on screen — a card shows what fits and unrolls for the rest (see
+   * `DashboardWidget`), so none of them *break* at any height, and the premise
+   * of this epic is that the DM arranges their own screen.
    *
    * So `heights` stays empty in practice: it exists for a widget that would
    * genuinely render wrong at some height, and nothing does yet. What the

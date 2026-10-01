@@ -21,9 +21,9 @@ import type { LibraryRule } from "@/types/rule.types";
  * predicate.
  */
 
-/** Small enough that a card can show every row without its own scroll doing
- *  the work — the point of a dashboard widget is the answer at a glance, not
- *  a second copy of the compendium's sidebar. */
+/** Small enough that a card can show every row without being unrolled — the
+ *  point of a dashboard widget is the answer at a glance, not a second copy of
+ *  the compendium's sidebar. */
 export const RULES_SEARCH_RESULT_LIMIT = 5;
 
 export function searchLibraryRules(

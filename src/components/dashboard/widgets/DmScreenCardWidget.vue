@@ -27,8 +27,8 @@
  * `src/lib/dashboard/dmScreenCard.ts` and `DmScreenCardSettings.vue`.
  *
  * No `maxHeight="none"`: a long table (the spell-slot grid is fifteen rows)
- * scrolls inside the card, which is what keeps six of these from turning the
- * dashboard into a document.
+ * is cut at the card's height and unrolls on "Show more", which is what keeps
+ * six of these from turning the dashboard into a document.
  */
 import { computed } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";

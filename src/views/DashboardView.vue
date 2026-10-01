@@ -686,8 +686,31 @@ function onReset() {
   transition: opacity 150ms ease;
 }
 
+/*
+  An unrolled card (see `DashboardWidget`) lies over its neighbours from `lg`,
+  and the board says so the same way it does during a drag: everything that is
+  not the thing in hand steps back. That is what makes "click anywhere else to
+  roll it up" guessable without a word of instruction. Below `lg` the card
+  grows in the flow and covers nothing, so nothing dims.
+
+  Not while customizing: the frame makes every widget inert there, so a card
+  cannot be unrolled in the first place.
+*/
+/* `[data-widget-key]` is a customize frame, which carries a transition of its
+   own for the just-added ring; this rule is unlayered and would replace it. */
+.dashboard-grid > *:not([data-widget-key]) {
+  transition: opacity 150ms ease;
+}
+
+@media (min-width: 64rem) {
+  .dashboard-grid:has(> [data-unrolled]) > *:not([data-unrolled]) {
+    opacity: 0.55;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .dashboard-dragging > * {
+  .dashboard-dragging > *,
+  .dashboard-grid > *:not([data-widget-key]) {
     transition: none;
   }
 }

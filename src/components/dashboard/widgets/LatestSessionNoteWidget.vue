@@ -46,8 +46,8 @@
  * different ideas of "when", and campaigns fill in different ones.
  *
  * `max-height="none"` because the card is a single clamped excerpt and is
- * therefore its own size. A scroll region around four lines of text would be
- * a scrollbar around nothing.
+ * therefore its own size. Cutting four lines of text short would put a "Show
+ * more" under something that is already the short version.
  */
 import { computed } from "vue";
 import { RouterLink } from "vue-router";

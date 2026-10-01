@@ -379,3 +379,52 @@ export function playFlipTransition(snapshot: FlipSnapshot, duration = FLIP_MS): 
     );
   }
 }
+
+/**
+ * How long a panel takes to change height, given how far its edge travels.
+ *
+ * "Distance wants duration", written down as arithmetic instead of a constant
+ * per call site. A drawer's 200ms is right for a short hop; the soundboard
+ * widget crosses about 640px and needed 340ms, and below that the eye registers
+ * that something changed without seeing it travel. Capped, because past a
+ * screen's worth of travel more time only reads as slow.
+ */
+export function resizeDuration(distance: number): number {
+  return Math.round(Math.min(380, Math.max(REVEAL_MS, 180 + Math.abs(distance) * 0.25)));
+}
+
+/**
+ * A panel that is already on screen changing height: a card unrolling to show
+ * everything it holds, and rolling back up.
+ *
+ * Not a drawer. `drawerTransition` opens from nothing and fades in; this
+ * travels between two real heights and nothing about it appears or leaves.
+ * Read `from` off the element *before* the state change, call this once the
+ * DOM reflects it, and it measures where the panel ended up.
+ *
+ * `done` always runs, whether the height animated, there was nothing to
+ * animate, or the animation was cancelled, so a caller can hang "the panel is
+ * at rest again" on it without a second code path for the test DOM.
+ */
+export function playBlockResize(el: HTMLElement, from: number, done: () => void = () => {}): void {
+  const to = el.getBoundingClientRect().height;
+  if (!canAnimate(el) || Math.abs(to - from) < FLIP_MOVE_THRESHOLD_PX) {
+    done();
+    return;
+  }
+  // Clipped while it travels, exactly as a drawer is: a panel growing to a
+  // height its contents already have would otherwise show them hanging out of
+  // the box until it caught up.
+  const overflow = el.style.overflow;
+  el.style.overflow = "hidden";
+  whenSettled(
+    el.animate([{ height: `${from}px` }, { height: `${to}px` }], {
+      duration: resizeDuration(to - from),
+      easing: to > from ? "cubic-bezier(0.22, 1, 0.36, 1)" : "ease-in",
+    }),
+    () => {
+      el.style.overflow = overflow;
+      done();
+    },
+  );
+}
