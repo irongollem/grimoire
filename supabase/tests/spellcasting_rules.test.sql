@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(64);
+select plan(65);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values ('00000000-0000-4000-8000-000000000549', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
@@ -484,24 +484,35 @@ select is((select (class_resources #>> '{sorcery_points,current}')::integer
   from public.party_members where id = '00000000-0000-4000-8000-000000000544'), 1,
   'Arcane Apotheosis grants one free Metamagic option per turn starting at level 18, not only level 20');
 
+-- #943: the table switching edition changes no character; each is converted
+-- on its own, which is what the retired campaign trigger used to do for all.
 update public.campaigns set ruleset = '2014'
 where id = '00000000-0000-4000-8000-000000000543';
+select is((select ruleset from public.party_members where id = '00000000-0000-4000-8000-000000000544'), '2024',
+  'a campaign switching edition leaves its characters on their own');
+do $$
+declare v_id uuid;
+begin
+  for v_id in select id from public.party_members where campaign_id = '00000000-0000-4000-8000-000000000543' loop
+    perform private.convert_party_member_ruleset(v_id, '2014');
+  end loop;
+end $$;
 select ok(exists(
   select 1 from public.character_classes cc
   join public.system_classes definition on definition.id = cc.class_definition_id
   where cc.id = '00000000-0000-4000-8000-000000000546'
     and cc.class_definition_kind = 'system' and definition.ruleset = '2014'
-), 'ruleset switches remap official classes to the matching edition definition');
+), 'a conversion remaps official classes to the matching edition definition');
 select ok(not exists(select 1 from public.ruleset_reviews
   where character_class_id = '00000000-0000-4000-8000-000000000546' and flag_type = 'class'),
   'an automatically remapped official class does not require manual review');
 select is((select class_definition_id from public.character_classes
   where id = '00000000-0000-4000-8000-000000000564'),
   '00000000-0000-4000-8000-000000000570'::uuid,
-  'edition-neutral custom class choices remain pinned across a ruleset switch');
+  'edition-neutral custom class choices remain pinned across a conversion');
 select is((select spell_id from public.character_spells
   where id = '00000000-0000-4000-8000-000000000572'), 'test-edition-flame-2014',
-  'ruleset switches preserve an official spell choice through its exact target-edition record');
+  'a conversion preserves an official spell choice through its exact target-edition record');
 select ok(not exists(
   select 1 from public.class_spellcasting_policies policy
   where policy.ruleset = '2024' and not exists (

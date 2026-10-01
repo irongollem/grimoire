@@ -59,6 +59,8 @@ insert into definer_registry (name, kind, reason) values
   ('claim_vendor_offer', 'refuses', null),
   ('clone_party_member', 'refuses', null),
   ('consume_app_invite', 'refuses', null),
+  ('convert_party_member_copy', 'refuses', null),
+  ('convert_party_member_ruleset', 'refuses', null),
   ('convert_sorcery_points', 'refuses', null),
   ('decide_campaign_join_request', 'refuses', null),
   ('delete_campaign_with_homebrew', 'refuses', null),
