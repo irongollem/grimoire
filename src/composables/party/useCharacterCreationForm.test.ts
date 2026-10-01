@@ -3,6 +3,7 @@ import {
   partitionBundleEntries,
   buildBackgroundEquipmentRows,
   resolveCharacterPlacement,
+  resolveCampaignToJoin,
 } from "./useCharacterCreationForm";
 import type { VaultEntry } from "./useCharacterEquipmentSeeding";
 
@@ -143,5 +144,29 @@ describe("resolveCharacterPlacement", () => {
         expect(campaign_id === null && owner_user_id === null).toBe(false);
       }
     }
+  });
+});
+
+describe("resolveCampaignToJoin", () => {
+  it("brings a seated player's new character to the table they are playing at", () => {
+    expect(resolveCampaignToJoin({
+      isDmCreate: false, activeCampaignId: "campaign-1", isMemberOfActiveCampaign: true,
+    })).toBe("campaign-1");
+  });
+
+  it("leaves a character in the pool when its creator sits at no table", () => {
+    expect(resolveCampaignToJoin({
+      isDmCreate: false, activeCampaignId: null, isMemberOfActiveCampaign: false,
+    })).toBeNull();
+    // An active campaign the creator is not a member of is not theirs to join.
+    expect(resolveCampaignToJoin({
+      isDmCreate: false, activeCampaignId: "campaign-1", isMemberOfActiveCampaign: false,
+    })).toBeNull();
+  });
+
+  it("never attaches a DM roster create: that row is already in its campaign, unowned", () => {
+    expect(resolveCampaignToJoin({
+      isDmCreate: true, activeCampaignId: "campaign-1", isMemberOfActiveCampaign: true,
+    })).toBeNull();
   });
 });

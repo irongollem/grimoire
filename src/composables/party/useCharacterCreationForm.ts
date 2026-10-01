@@ -7,7 +7,8 @@ import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composab
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
 import { useAddCharacterClass } from "@/composables/party/useCharacterClasses";
 import { useAddInventoryItem, useAddInventoryItems } from "@/composables/items/usePartyInventory";
-import { useCampaignMembers, useUpdateCampaignMember } from "@/composables/campaign/useCampaignMembers";
+import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
+import { useAttachCharacter } from "@/composables/party/useCharacterPool";
 import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/rules/useCustomClasses";
 import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
@@ -54,6 +55,29 @@ function buildPlainEquipmentRow(
     is_attuned: false, is_equipped: false, notes: null,
     current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
   };
+}
+
+/**
+ * The campaign a player's newly-created character should be brought to, or
+ * null when it stays in the pool.
+ *
+ * A player's character is always created in the pool (see
+ * resolveCharacterPlacement below), and a seat may only point at a character
+ * that is already in its campaign, so the seat cannot simply be written. For
+ * two months it was: the wizard created the pool row, wrote it onto the
+ * player's seat, the membership guard refused ("Cannot link a character from
+ * another campaign"), and the rollback deleted the character. Every player who
+ * already sat at a table got "Couldn't save the character" (found 2 Oct 2026).
+ * The character goes through attach instead, which moves it into the campaign
+ * and fills the seat only when the seat is empty. Exported for testing.
+ */
+export function resolveCampaignToJoin(opts: {
+  isDmCreate: boolean;
+  activeCampaignId: string | null;
+  isMemberOfActiveCampaign: boolean;
+}): string | null {
+  if (opts.isDmCreate) return null;
+  return opts.isMemberOfActiveCampaign ? opts.activeCampaignId : null;
 }
 
 /**
@@ -200,7 +224,7 @@ export function useCharacterCreationForm() {
   const { mutateAsync: addCharacterClass }    = useAddCharacterClass();
   const { mutateAsync: addInventoryItem }      = useAddInventoryItem();
   const { mutateAsync: addInventoryItems }     = useAddInventoryItems();
-  const { mutateAsync: updateCampaignMember } = useUpdateCampaignMember();
+  const { mutateAsync: attachCharacter } = useAttachCharacter();
 
   const editMemberId = computed(() =>
     (route.query.memberId as string | undefined) ?? auth.linkedPartyMemberId ?? null,
@@ -564,13 +588,19 @@ export function useCharacterCreationForm() {
         // (which a retry would then duplicate). party_members delete cascades
         // character_classes/character_spells and SET-NULLs the campaign_member
         // link; seeded inventory only SET-NULLs carried_by, so delete it first.
+        // The campaign the character ends up in: a DM roster row is created
+        // there, a seated player's character is brought there, anything else
+        // stays in the pool.
+        let landedCampaignId = created.campaign_id;
         try {
-          // Link as active character for this player (skip when DM creates an unclaimed character)
-          if (!isDmCreate.value) {
-            const myMembership = (campaignMembers.value ?? []).find((cm) => cm.user_id === auth.user?.id);
-            if (myMembership) {
-              await updateCampaignMember({ id: myMembership.id, update: { party_member_id: created.id } });
-            }
+          const joinCampaignId = resolveCampaignToJoin({
+            isDmCreate: isDmCreate.value,
+            activeCampaignId: campaign.activeCampaignId,
+            isMemberOfActiveCampaign: (campaignMembers.value ?? []).some((cm) => cm.user_id === creatorId),
+          });
+          if (joinCampaignId) {
+            await attachCharacter({ partyMemberId: created.id, campaignId: joinCampaignId });
+            landedCampaignId = joinCampaignId;
           }
 
           // Seed level 1 character_classes row
@@ -593,7 +623,7 @@ export function useCharacterCreationForm() {
           }
 
           // Seed class + background starting equipment as inventory rows — only
-          // when the character actually has a campaign. party_inventory.campaign_id
+          // when the character actually landed in a campaign. party_inventory.campaign_id
           // is NOT NULL, and a standalone character (#729/#730) has none to seed
           // into; class_choices/character_classes/character_spells above are keyed
           // on the character alone, so those still run regardless.
@@ -602,7 +632,7 @@ export function useCharacterCreationForm() {
           // generated id before their contents can be inserted, so those go
           // through seedEquipmentEntry (which itself batches the pack's
           // sub-items) one at a time — see partitionBundleEntries above.
-          if (created.campaign_id) {
+          if (landedCampaignId) {
             const plainRows: Omit<PartyInventoryInsert, "campaign_id">[] = [];
             let packEntries: EquipmentEntry[] = [];
             let packVaultMap: Map<string, VaultEntry> = new Map();
@@ -641,7 +671,7 @@ export function useCharacterCreationForm() {
         // the pool, not on a roster, so /party would be an empty list view
         // (#738). Ordering this after the isDmCreate branch is what sent the
         // character somewhere it could never appear.
-        if (!created.campaign_id) {
+        if (!landedCampaignId) {
           // Standalone create (#729/#730): no campaign to land in — the character
           // pool is the list view / success feedback, same as any other create.
           void queryClient.invalidateQueries({ queryKey: ["character-pool"] });
