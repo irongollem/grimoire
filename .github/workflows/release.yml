@@ -247,7 +247,19 @@ jobs:
       # function code with no rollback. Retrying closes the common case. The
       # skew window itself is inherent to deploying schema and code in two
       # steps, and is why the error below says so out loud.
+      #
+      # Bundling runs in the CLI's edge-runtime image, which it pulls from
+      # public.ecr.aws by default. ECR Public caps anonymous pulls by data per
+      # source IP, and GitHub's runners share their IPs, so on 30 Sep 2026 run
+      # 36786738781 failed all three attempts on "toomanyrequests: Data limit
+      # exceeded" after `db push` had applied, and the frontend release was
+      # skipped. The same image is published to ghcr.io, which GitHub's own
+      # runners reach without that cap. (`--use-api` would avoid Docker
+      # entirely, but server-side bundling caps a function at 5 MB, not 20, and
+      # cannot ship static files.)
       - name: Deploy Edge Functions to production
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
         run: |
           for attempt in 1 2 3; do
             if supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID"; then
