@@ -6,9 +6,8 @@
     <div class="px-4 py-4 border-b border-border space-y-2.5">
       <!-- Brand row: title left, status indicators right -->
       <div class="flex items-start justify-between gap-2">
-        <RouterLink to="/dashboard" class="block min-w-0">
-          <h1 class="font-cinzel text-xl font-bold text-gold-500 tracking-widest leading-none">Grimoire</h1>
-          <p class="text-caption text-muted-foreground italic mt-1">Campaign Companion</p>
+        <RouterLink to="/dashboard" class="block min-w-0 pt-0.5">
+          <BrandLogo class="w-38" />
         </RouterLink>
         <!-- The dice roller stays: it is a tool the DM reaches for, not a thing
              that is running. The AI spinner and the green Live pill that used to
@@ -194,6 +193,7 @@
 </template>
 
 <script setup lang="ts">
+import BrandLogo from "@/components/brand/BrandLogo.vue";
 import { ref, computed, defineAsyncComponent } from "vue";
 import { useRouter } from "vue-router";
 import { IconBilling, IconBug, IconCheck, IconClose, IconDownload, IconEdit, IconLogOut, IconShieldCheck, IconSort, IconUserCircle } from '@/lib/icons';

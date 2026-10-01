@@ -3,7 +3,7 @@
     <!-- Top bar: branding + character + sign out -->
     <header class="h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
       <div class="flex items-center gap-2 shrink-0">
-        <span class="font-cinzel text-base font-bold text-gold-500 tracking-widest">Grimoire</span>
+        <BrandLogo class="h-7 w-auto" />
         <span class="text-caption text-muted-foreground italic hidden sm:inline">
           · {{ campaignName }}
         </span>
@@ -349,6 +349,7 @@
 </template>
 
 <script setup lang="ts">
+import BrandLogo from "@/components/brand/BrandLogo.vue";
 import { ref, computed, watch, defineAsyncComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";

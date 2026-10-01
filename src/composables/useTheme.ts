@@ -76,7 +76,7 @@ function applyTheme(theme: GrimoireTheme) {
   localStorage.setItem(STORAGE_KEY, theme.id);
   localStorage.setItem(
     SPLASH_COLORS_KEY,
-    JSON.stringify({ background: theme.vars["--background"], primary: theme.vars["--primary"] }),
+    JSON.stringify({ background: theme.vars["--background"], primary: theme.vars["--primary"], mode: theme.mode }),
   );
   activeId.value = theme.id;
 }

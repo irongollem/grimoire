@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="public/logo.webp" alt="Dungeon Grimoire" width="200" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/brand/logo-dark.webp" />
+    <img src="public/brand/logo-light.webp" alt="Dungeon Grimoire" width="320" />
+  </picture>
 </p>
 
 <h1 align="center">Dungeon Grimoire</h1>
