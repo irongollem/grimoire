@@ -116,6 +116,56 @@
   color: var(--pip);
 }
 
+/* ── Lamplight: entity colours used as text ───────────────────────────────
+   The ramps (CR, NPC attitude and relation, spell school, note category) are
+   fills first: dark pigments under parchment text. Several maps also use the
+   same colour as TEXT, where a dark pigment on Lamplight's walnut ground is
+   1.6–3:1. Same remedy as the app's ink-* tones: mix toward the foreground.
+   45% pigment keeps every one of them at 4.8:1 or better on background, card
+   and muted. Generated from the text-<ramp> classes in use; add a line here
+   when a new one appears. */
+:root[data-theme="vellum-dark"] .text-cr-deadly { color: color-mix(in oklab, var(--cr-deadly) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-cr-high { color: color-mix(in oklab, var(--cr-high) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-cr-low { color: color-mix(in oklab, var(--cr-low) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-cr-moderate { color: color-mix(in oklab, var(--cr-moderate) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-cr-trivial { color: color-mix(in oklab, var(--cr-trivial) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-cr-unknown { color: color-mix(in oklab, var(--cr-unknown) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-faction { color: color-mix(in oklab, var(--note-faction) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-general { color: color-mix(in oklab, var(--note-general) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-location { color: color-mix(in oklab, var(--note-location) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-lore { color: color-mix(in oklab, var(--note-lore) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-quest { color: color-mix(in oklab, var(--note-quest) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-note-session { color: color-mix(in oklab, var(--note-session) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-ally { color: color-mix(in oklab, var(--relation-ally) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-apprentice { color: color-mix(in oklab, var(--relation-apprentice) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-chosen-family { color: color-mix(in oklab, var(--relation-chosen-family) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-contact { color: color-mix(in oklab, var(--relation-contact) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-enemy { color: color-mix(in oklab, var(--relation-enemy) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-family { color: color-mix(in oklab, var(--relation-family) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-former-ally { color: color-mix(in oklab, var(--relation-former-ally) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-former-enemy { color: color-mix(in oklab, var(--relation-former-enemy) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-friend { color: color-mix(in oklab, var(--relation-friend) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-lover { color: color-mix(in oklab, var(--relation-lover) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-mentor { color: color-mix(in oklab, var(--relation-mentor) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-rival { color: color-mix(in oklab, var(--relation-rival) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-sibling { color: color-mix(in oklab, var(--relation-sibling) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-subordinate { color: color-mix(in oklab, var(--relation-subordinate) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relation-superior { color: color-mix(in oklab, var(--relation-superior) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-friendly { color: color-mix(in oklab, var(--relationship-friendly) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-helpful { color: color-mix(in oklab, var(--relationship-helpful) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-hostile { color: color-mix(in oklab, var(--relationship-hostile) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-indifferent { color: color-mix(in oklab, var(--relationship-indifferent) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-unfriendly { color: color-mix(in oklab, var(--relationship-unfriendly) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-relationship-unknown { color: color-mix(in oklab, var(--relationship-unknown) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-abjuration { color: color-mix(in oklab, var(--school-abjuration) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-conjuration { color: color-mix(in oklab, var(--school-conjuration) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-divination { color: color-mix(in oklab, var(--school-divination) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-enchantment { color: color-mix(in oklab, var(--school-enchantment) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-evocation { color: color-mix(in oklab, var(--school-evocation) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-illusion { color: color-mix(in oklab, var(--school-illusion) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-necromancy { color: color-mix(in oklab, var(--school-necromancy) 45%, var(--foreground)); }
+:root[data-theme="vellum-dark"] .text-school-transmutation { color: color-mix(in oklab, var(--school-transmutation) 45%, var(--foreground)); }
+
 /* ── Torn-paper panels ────────────────────────────────────────────────────
    The fill and border move to a pseudo-element roughened by the #vl-rough
    SVG filter (declared once in App.vue); the content stays crisp and the

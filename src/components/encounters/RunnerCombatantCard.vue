@@ -244,9 +244,9 @@ const hpFieldModel = computed<string | number>({
 .reveal-btn {
   @apply absolute bottom-0 right-0 flex items-center justify-center w-4 h-4 rounded-tl text-2xs transition-colors;
 }
-.reveal-hidden   { @apply bg-muted/80 text-muted-foreground hover:bg-tone-caution/80 hover:text-white; }
-.reveal-unseen   { @apply bg-tone-caution/80 text-white hover:bg-tone-success/80; }
-.reveal-revealed { @apply bg-tone-success/80 text-white hover:bg-muted/80 hover:text-muted-foreground; }
+.reveal-hidden   { @apply bg-muted/80 text-muted-foreground hover:bg-tone-caution/80 hover:text-on-caution; }
+.reveal-unseen   { @apply bg-tone-caution/80 text-on-caution hover:bg-tone-success/80 hover:text-on-success; }
+.reveal-revealed { @apply bg-tone-success/80 text-on-success hover:bg-muted/80 hover:text-muted-foreground; }
 
 /* ── Shared badge + chip styles ─────────────────────────────────────────── */
 .combatant-name {

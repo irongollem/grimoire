@@ -107,18 +107,18 @@
       v-if="ui.dmPreviewMode"
       class="bg-tone-caution px-4 py-2 flex items-center gap-3 shrink-0"
     >
-      <IconReveal class="h-3.5 w-3.5 text-black/70 shrink-0" />
-      <span class="text-label-lg text-black font-semibold shrink-0">Previewing as:</span>
+      <IconReveal class="h-3.5 w-3.5 text-on-caution/70 shrink-0" />
+      <span class="text-label-lg text-on-caution font-semibold shrink-0">Previewing as:</span>
       <select
         :value="ui.dmPreviewPartyMemberId ?? ''"
-        class="flex-1 min-w-0 max-w-48 bg-black/10 border border-black/20 rounded px-2 py-0.5 text-caption text-black focus:outline-none focus:ring-1 focus:ring-black/30"
+        class="flex-1 min-w-0 max-w-48 bg-on-caution/10 border border-on-caution/20 rounded px-2 py-0.5 text-caption text-on-caution focus:outline-none focus:ring-1 focus:ring-on-caution/30"
         @change="ui.dmPreviewPartyMemberId = ($event.target as HTMLSelectElement).value || null"
       >
         <option value="">— pick a character —</option>
         <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
       </select>
       <button
-        class="text-label md:text-xs text-black font-semibold border border-black/30 hover:bg-black/10 px-2 py-0.5 rounded transition-colors shrink-0"
+        class="text-label md:text-xs text-on-caution font-semibold border border-on-caution/30 hover:bg-on-caution/10 px-2 py-0.5 rounded transition-colors shrink-0"
         @click="exitPreview"
       >
         Exit Preview

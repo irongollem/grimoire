@@ -32,7 +32,7 @@
             </div>
             <!-- Feat badge -->
             <div v-if="bg.feat_grant_name"
-              class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-label text-ink-caution leading-none">
+              class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-label text-gold-300 leading-none">
               ✦ {{ bg.feat_grant_name }}
             </div>
           </div>
