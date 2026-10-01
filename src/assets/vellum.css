@@ -17,18 +17,33 @@
 :root[data-theme^="vellum"] {
   --vl-serif: "Alegreya", "Crimson Pro", Georgia, serif;
   --vl-sans: "Source Sans 3", Roboto, Helvetica, sans-serif;
-  --vl-paper: url("/assets/scriptorium/page-background.webp");
+  --vl-paper: url("/assets/vellum/paper.webp");
 }
 
 /* ── Paper ground ─────────────────────────────────────────────────────────
-   Painted on body and on every `bg-background` surface with a fixed
-   attachment, so nested page containers continue one sheet instead of
-   covering it with flat colour. Lamplight multiplies it into the dark ground. */
+   A 640px SEAMLESS tile (public/assets/vellum/paper.webp: the Scriptorium
+   parchment with its large blotches filtered out, edges cross-faded so it
+   repeats without a seam). Painted on body and every `bg-background` surface
+   with a fixed attachment, so nested page containers continue one sheet.
+   Lamplight multiplies it into the dark ground. Form controls that use
+   bg-background get a plain card fill instead: a field is paper you write on,
+   not a hole cut into the page. */
 :root[data-theme^="vellum"] body,
 :root[data-theme^="vellum"] .bg-background {
   background-image: var(--vl-paper);
-  background-size: 1024px auto;
+  background-size: 640px 640px;
+  background-repeat: repeat;
   background-attachment: fixed;
+}
+:root[data-theme^="vellum"] :is(input, select, textarea, button).bg-background {
+  background-image: none;
+  background-color: var(--card);
+}
+:root[data-theme^="vellum"] select.bg-background:not([multiple]):not([size]) {
+  /* keep base.css's gradient caret, drop only the paper */
+  background-image:
+    linear-gradient(45deg, transparent 42%, var(--muted-foreground) 42%, var(--muted-foreground) 66%, transparent 66%),
+    linear-gradient(135deg, transparent 34%, var(--muted-foreground) 34%, var(--muted-foreground) 58%, transparent 58%);
 }
 :root[data-theme="vellum-dark"] body,
 :root[data-theme="vellum-dark"] .bg-background {
@@ -169,17 +184,20 @@
 /* ── Torn-paper panels ────────────────────────────────────────────────────
    The fill and border move to a pseudo-element roughened by the #vl-rough
    SVG filter (declared once in App.vue); the content stays crisp and the
-   colours still come from the theme. Applied to every modal panel, and to
-   any element with `.torn` (NoticeCard, StatCard, CalloutChip…). `.torn-wash`
-   gives the borderless secondary wash used for callouts. */
-:root[data-theme^="vellum"] :is([data-modal-panel], .torn) {
+   colours still come from the theme. Applied to every modal panel, to any
+   element with `.torn` (NoticeCard, StatCard, CalloutChip…), and to every
+   in-flow card the app draws as `bg-card border rounded-lg|xl` (note cards,
+   panels, sheets: ~480 call sites). Positioned ones (absolute/fixed/sticky:
+   menus, popovers, toolbars) are left alone. `.torn-wash` gives the
+   borderless secondary wash used for callouts. */
+:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)) {
   position: relative;
   isolation: isolate;
   background-color: transparent;
   border-color: transparent;
   box-shadow: none;
 }
-:root[data-theme^="vellum"] :is([data-modal-panel], .torn)::before {
+:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky))::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -189,9 +207,10 @@
   filter: url(#vl-rough) drop-shadow(0 1px 1.5px rgb(43 32 25 / 0.16));
   pointer-events: none;
 }
-:root[data-theme="vellum-dark"] :is([data-modal-panel], .torn)::before {
+:root[data-theme="vellum-dark"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky))::before {
   filter: url(#vl-rough) drop-shadow(0 1px 2px rgb(0 0 0 / 0.45));
 }
+:root[data-theme^="vellum"] .bg-card.border[class*="hover:border-"]:hover::before { border-color: var(--primary-edge); }
 :root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
 /* Modal panels keep overflow-hidden, so the rough edge reads as small notches
    torn inward, like a page edge, rather than spilling past the panel. */
@@ -225,8 +244,11 @@
 :root[data-theme="vellum-dark"] .ink-seep::before { filter: invert(1); opacity: calc(var(--ink-alpha, 0.3) * 0.4); }
 
 /* ── Drop-cap initial ─────────────────────────────────────────────────────
-   Opt-in with `.initial` on the first paragraph of long-form text. */
-:root[data-theme^="vellum"] .initial::first-letter {
+   Opt-in with `.initial` on the first paragraph of long-form text, or
+   `.longform` on the box around a RichTextViewer (session logs, lore). */
+:root[data-theme^="vellum"] .longform { padding: 1.75rem 2rem; }
+:root[data-theme^="vellum"] .longform .rte-content { font-size: 1.0625rem; line-height: 1.65; }
+:root[data-theme^="vellum"] :is(.initial, .longform .ProseMirror > p:first-child)::first-letter {
   font-family: "Cinzel", Georgia, serif;
   font-weight: 700;
   color: var(--destructive);

@@ -53,7 +53,7 @@
     </div>
 
     <!-- Content -->
-    <div v-if="hasContent(note.content)" class="rounded-lg border border-border bg-card p-4">
+    <div v-if="hasContent(note.content)" class="longform rounded-lg border border-border bg-card p-4">
       <RichTextViewer :content="note.content!" />
     </div>
     <p v-else class="text-body text-muted-foreground italic">No content yet.</p>
