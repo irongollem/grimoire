@@ -27,6 +27,7 @@
         <div v-if="returnTo" class="border-b border-border bg-card px-3 py-2">
           <AppButton :to="returnTo" label="Back to quest beat" size="sm" variant="subtle" />
         </div>
+        <AnnouncementBanner />
         <DmCampaignGate>
           <slot />
         </DmCampaignGate>
@@ -101,6 +102,7 @@ import GlobalHotkeys from "@/components/layout/GlobalHotkeys.vue";
 import DowngradeCampaignPickerModal from "@/components/billing/DowngradeCampaignPickerModal.vue";
 import SuspensionBanner from "@/components/billing/SuspensionBanner.vue";
 import AiUseNoticeGate from "@/components/campaign/AiUseNoticeGate.vue";
+import AnnouncementBanner from "@/components/announcements/AnnouncementBanner.vue";
 import LikenessNoticeGate from "@/components/campaign/LikenessNoticeGate.vue";
 import TermsGate from "@/components/account/TermsGate.vue";
 import { useAudioThemeTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
