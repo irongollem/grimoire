@@ -502,8 +502,8 @@ definition to live on). There is now one:
   tool's `class` on create resolves the name to a definition and inserts the
   row, and refuses a name that resolves to nothing.
 - **A definition that is deleted** leaves a pin pointing at nothing, flagged
-  `missing`. Removing it deletes the class row (a class is its definition) or
-  clears the subclass.
+  `missing`. Removing it deletes the class row (a class is its definition),
+  with the spells learned through that class, or clears the subclass.
 
 The migration moved the old shapes rather than tolerating them. A typed class
 became a row pinned to the official class of that name in the character's own
@@ -523,13 +523,46 @@ first, and `demo_campaign.test.sql` holds a template character with a pinned
 class and subclass. `publish_demo_version()` dry-runs the copy, so a template
 that drifts that way later is refused at publish time.
 
-Left on purpose: nine older database functions still say
-`coalesce(class_definition_kind, 'system')` or `class_definition_id is null or`.
-With the columns NOT NULL those are no-ops, and re-declaring some 700 lines of
-function body to delete a no-op was judged the worse trade.
+The older spell and level functions carried their own tolerance for an unpinned
+row (`coalesce(class_definition_kind, 'system')`, `class_definition_id is null
+or`, a name-based fallback in `validate_character_spell_source`). That went
+when they were re-declared for the owner rule below.
 
 `supabase/tests/one_class_model.test.sql` holds the constraints, the mirror and
 the classless state.
+
+#### The owner acts for a character (migration `20261002153212`)
+
+A character has a creator (`user_id`) and an owner (`owner_user_id`). They
+differ once a DM-made character is handed to a player. Seventeen functions (the
+level and spell RPCs) and eight policies were written before that mattered and
+admitted "creator or owner", so the account that made a character kept its
+rights after handing it over. A security audit of the one class model did it
+for real: as the creator of a character someone else owned, and which he could
+no longer even read, `apply_de_level` rewrote its hit points.
+
+The rule, everywhere: **the owner, or the creator while nobody owns it**, plus
+(where it was already so) the DM of the character's table and the member seated
+on it.
+
+```sql
+owner_user_id = auth.uid() or (owner_user_id is null and user_id = auth.uid())
+```
+
+- The functions were re-declared from their production bodies (checked by hash)
+  with that one clause replaced. Copy the clause from a sibling and it is now
+  the right one; `character_owner_acts.test.sql` fails if "creator or owner" is
+  written again in any function or policy.
+- **Class rows are read by whoever may read the character.** The old read
+  policy admitted creator and owner only. A DM is neither for a character its
+  player made, so the DM read no class rows for most characters at the table.
+  Nobody noticed, because every screen fell back to the typed class text; once
+  that fallback was removed (the one class model), the DM would have seen no
+  class at all. Class rows are written directly only by the owner (or the
+  creator of an unowned character); the DM changes a class through the level
+  RPCs.
+- `crafting_recipe_grants_select` asked for the creator alone, so the owner of
+  a DM-made character could not read the recipes granted to their own character.
 
 #### What a table approves (#943 wave 4, migration `20261002151708`)
 
