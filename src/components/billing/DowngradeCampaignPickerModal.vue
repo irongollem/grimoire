@@ -1,14 +1,14 @@
 <template>
   <!--
-    `dismissable: false` — the only one of these that genuinely cannot be
-    waved away. The account is already on the free plan; until a campaign is
-    chosen the app has more active campaigns than the plan allows, so there is
+    `dismissable: false`, the only one of these that genuinely cannot be
+    waved away. The account is already over its limit; until a campaign is
+    chosen the app has more active campaigns than it allows, so there is
     no state to return to. Every other dialog in the app keeps Escape.
   -->
   <AppModal :open="show" size="md" :dismissable="false">
     <ModalHeader
       title="Choose your active campaign"
-      :subtitle="`You're now on the free plan (${campaignLimit} active campaign). Select which campaign to keep — the rest will be archived and can be restored by upgrading.`"
+      :subtitle="subtitle"
       subtitle-role="body"
       :icon="IconArchive"
       tone="caution"
@@ -52,10 +52,13 @@
         size="md"
         block
         :disabled="!selected || isArchiving"
-        :label="isArchiving ? 'Archiving…' : `Keep &quot;${selectedCampaign?.name ?? ''}&quot; — archive the rest`"
+        :label="isArchiving ? 'Archiving…' : `Keep &quot;${selectedCampaign?.name ?? ''}&quot; and archive the rest`"
         @click="confirm"
       />
+      <!-- Never offered to a young player's account: a direct exhortation to a
+           child to buy (or to get a parent to) is banned (UCPD Annex I, 28). -->
       <AppButton
+        v-if="!childAccount"
         variant="tinted"
         tone="caution"
         emphasis="outline"
@@ -78,7 +81,22 @@ import AppButton from '@/components/common/AppButton.vue'
 import AppModal from '@/components/common/AppModal.vue'
 import ModalHeader from '@/components/common/ModalHeader.vue'
 
-defineProps<{ show: boolean; campaignLimit: number }>()
+/** `childAccount`: a young player's account, which must never be shown wording
+ *  about plans, Pro or upgrading (#928), so it gets neutral copy and no upgrade
+ *  button. The limit itself comes from `check_quota`, not from a plan name. */
+const { campaignLimit, childAccount = false } = defineProps<{
+  show: boolean;
+  campaignLimit: number;
+  childAccount?: boolean;
+}>()
+
+const subtitle = computed(() => {
+  const campaigns = `${campaignLimit} active ${campaignLimit === 1 ? 'campaign' : 'campaigns'}`
+  if (childAccount) {
+    return `Your account can have ${campaigns}. Choose which to keep. The rest are archived, not deleted.`
+  }
+  return `You're now on the free plan (${campaigns}). Select which campaign to keep. The rest will be archived and can be restored by upgrading.`
+})
 
 const router = useRouter()
 const campaignStore = useCampaignStore()

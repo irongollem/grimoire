@@ -64,10 +64,12 @@
     <!-- App-wide shortcuts: the sound palette and the shortcut cheat sheet -->
     <GlobalHotkeys />
 
-    <!-- Shown after downgrade when the user has more active campaigns than their free-plan limit -->
+    <!-- Shown when the account has more active campaigns than its limit allows,
+         e.g. after a downgrade, or when a young player's inherited limits lapse -->
     <DowngradeCampaignPickerModal
       :show="showDowngradePicker"
       :campaign-limit="campaignLimit"
+      :child-account="auth.isChildAccount"
     />
 
     <!-- EU AI Act Art 50(1) consent gate — once-per-account notice for
@@ -112,9 +114,7 @@ import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence"
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
 import { useDueConsequences } from "@/composables/quests/useDueConsequences";
 import { usePartyLive } from "@/composables/party/useParty";
-import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
-import { useSubscription } from "@/composables/billing/useSubscription";
-import { usePlan } from "@/composables/billing/usePlan";
+import { isOverQuota, useQuota } from "@/composables/billing/useQuota";
 import { initPlaceholderFocalPoints } from "@/lib/placeholderFocalPoints";
 import { safeQuestReturnTo } from "@/lib/quests/navigation";
 import AppButton from "@/components/common/AppButton.vue";
@@ -169,17 +169,12 @@ useAudioThemeTriggers();
 // per-route concern.
 usePartyAmbience();
 
-const { isPro } = useSubscription();
-const { data: campaigns } = useDmCampaigns();
-const { data: freePlan } = usePlan("free");
+// The database's own count and limit (`check_quota`), so the picker follows
+// whatever limits the account really has, including a young player's inherited
+// ones. It already leaves out archived campaigns and the demo campaign (#912),
+// which occupies no slot, so loading it never sends anyone to the picker.
+const { quota: campaignQuota } = useQuota("campaigns");
 
-const campaignLimit = computed(() => freePlan.value?.quotas.campaigns ?? 1);
-
-// Counts what check_quota counts: the demo campaign (#912) occupies no slot, so
-// loading it must not send a Free DM to the archive picker.
-const showDowngradePicker = computed(() => {
-  if (isPro.value) return false;
-  const count = campaigns.value?.filter((c) => c.demo_source === null).length ?? 0;
-  return count > campaignLimit.value;
-});
+const showDowngradePicker = computed(() => isOverQuota(campaignQuota.value));
+const campaignLimit = computed(() => campaignQuota.value?.limit ?? 0);
 </script>

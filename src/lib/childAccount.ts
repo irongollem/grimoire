@@ -10,9 +10,34 @@ import type { ChildAccountLink } from "@/types/childAccount.types";
  */
 
 export const CHILD_ACCOUNT_COLUMNS =
-  "child_user_id, parent_user_id, login_name, adult_on, consent_version, consented_at";
+  "child_user_id, parent_user_id, login_name, adult_on, consent_version, consented_at, created_at";
 
 /** Mirrors `private.is_child_account`: a link counts until its adult_on. */
 export function isActiveChildLink(link: Pick<ChildAccountLink, "adult_on">, today = new Date()): boolean {
   return link.adult_on > isoDate(today);
+}
+
+/** How many of a parent's young players inherit the parent's Pro limits (#928). */
+export const INHERITING_CHILD_LIMIT = 5;
+
+/**
+ * The ids of the young players that inherit their parent's Pro limits: the
+ * first five active links, ordered by `created_at` then `child_user_id`.
+ * Mirrors `private.effective_quotas` for the Family page's display only; the
+ * database decides the quota itself. The parent being Pro is the caller's
+ * condition, not this function's.
+ */
+export function inheritingChildIds(
+  links: Pick<ChildAccountLink, "child_user_id" | "adult_on" | "created_at">[],
+  today = new Date(),
+): Set<string> {
+  const ordered = links
+    .filter((l) => isActiveChildLink(l, today))
+    .sort((a, b) => {
+      // Timestamps compare as instants: the database orders timestamptz.
+      const byCreated = Date.parse(a.created_at) - Date.parse(b.created_at);
+      if (byCreated !== 0) return byCreated;
+      return a.child_user_id < b.child_user_id ? -1 : a.child_user_id > b.child_user_id ? 1 : 0;
+    });
+  return new Set(ordered.slice(0, INHERITING_CHILD_LIMIT).map((l) => l.child_user_id));
 }

@@ -6,6 +6,10 @@
         and consent. It can't use AI features, buy anything or receive email.
       </p>
 
+      <p v-if="!isLoading && !error && !subscriptionLoading" class="text-body text-muted-foreground leading-relaxed">
+        {{ limitsNote }}
+      </p>
+
       <div v-if="isLoading" class="flex justify-center py-8">
         <BannerLoader class="h-10" />
       </div>
@@ -23,6 +27,7 @@
             :child="child"
             :campaigns="tablesByChild.get(child.child_user_id)"
             :tables-failed="tablesError !== null"
+            :beyond-cover="isPro && !covered.has(child.child_user_id)"
           />
         </div>
         <AppButton variant="outline" size="md" block :icon="IconAddUser" label="Add a young player" to="/account/family/add" />
@@ -47,6 +52,7 @@
 <script setup lang="ts">
 /** The Family page (#919) — a parent's list of the young players' accounts
  *  they manage. Reachable from `/account` in both the DM and player lens. */
+import { computed } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -54,8 +60,20 @@ import FamilyRequests from "@/components/account/FamilyRequests.vue";
 import FamilyChildCard from "@/components/account/FamilyChildCard.vue";
 import { useFamily } from "@/composables/account/useFamily";
 import { useFamilyCampaigns } from "@/composables/account/useFamilyCampaigns";
+import { useSubscription } from "@/composables/billing/useSubscription";
+import { inheritingChildIds, INHERITING_CHILD_LIMIT } from "@/lib/childAccount";
 import { IconAddUser } from "@/lib/icons";
 
 const { children, isLoading, error } = useFamily();
+const { isPro, isLoading: subscriptionLoading } = useSubscription();
+
+// Display only: the database decides the quota (private.effective_quotas), and
+// this mirrors its "first five active links" rule so each card can say which side it is on.
+const covered = computed(() => inheritingChildIds(children.value));
+const limitsNote = computed(() =>
+  isPro.value
+    ? `Your young players get the same limits as your Pro plan, for up to ${INHERITING_CHILD_LIMIT} accounts.`
+    : `Young players' accounts follow the standard limits. With Pro, up to ${INHERITING_CHILD_LIMIT} of them get Pro limits.`,
+);
 const { requests, tablesByChild, error: tablesError } = useFamilyCampaigns();
 </script>
