@@ -17,6 +17,7 @@
       @pointerdown="startPan"
       @pointermove="continuePan"
       @pointerup="endPan"
+      @pointercancel="endPan"
       @pointerleave="endPan"
     >
       <div v-if="loadingState" class="empty-state">{{ loadingState }}</div>

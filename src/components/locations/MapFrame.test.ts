@@ -73,4 +73,44 @@ describe("MapFrame", () => {
     await wrapper.find("img").trigger("error");
     expect(wrapper.vm.imageFailed).toBe(true);
   });
+
+  it("keeps the point under the cursor fixed when a zoom lands mid-transition", async () => {
+    const wrapper = mount(MapFrame, {
+      props: { stack: stackFor("https://example.test/map.webp") },
+      attachTo: document.body,
+    });
+    // The template opens with comments, so in a dev build the component is a
+    // fragment and `wrapper.element` is the mount point, not the frame.
+    const frame = wrapper.find<HTMLElement>("div.select-none").element;
+    const container = frame.firstElementChild as HTMLElement;
+    const rect = (left: number, top: number, width: number, height: number) =>
+      ({ left, top, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON: () => ({}) }) as DOMRect;
+
+    frame.getBoundingClientRect = () => rect(0, 0, 400, 300);
+    Object.defineProperties(container, {
+      offsetWidth: { value: 400 },
+      offsetHeight: { value: 300 },
+      offsetLeft: { value: 0 },
+      offsetTop: { value: 0 },
+    });
+    // What a trackpad pinch sees on every event after the first: the drawn box
+    // is still travelling toward the last target, so its rect disagrees with
+    // tx/ty. The zoom must not read its anchor from it.
+    container.getBoundingClientRect = () => rect(30, 20, 400, 300);
+
+    // happy-dom's WheelEvent drops the modifier and pointer fields of its init
+    // dict, so they are set on the instance.
+    const pinch = new WheelEvent("wheel", { deltaY: -Math.log(2) * 100, bubbles: true, cancelable: true }); // exactly 2x
+    Object.defineProperties(pinch, { ctrlKey: { value: true }, clientX: { value: 100 }, clientY: { value: 60 } });
+    frame.dispatchEvent(pinch);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.scale).toBeCloseTo(2);
+    // The map point under (100, 60) at 1x sits at (200, 120) at 2x, so the
+    // container moves by exactly (-100, -60) to hold it under the cursor.
+    const [, tx, ty] = /translate3d\((-?[\d.]+)px, (-?[\d.]+)px/.exec(container.style.transform)!;
+    expect(Number(tx)).toBeCloseTo(-100);
+    expect(Number(ty)).toBeCloseTo(-60);
+    wrapper.unmount();
+  });
 });
