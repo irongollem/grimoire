@@ -473,7 +473,7 @@ Not every discipline maps to an artisan's tool. Herbalism, Poisoncraft and Forge
 - **Crafting time** + unit (minutes, hours, days)
 - **Description** — rich text editor
 - **Outputs** — searchable item picker; at least one output is required to save. Each output has a quantity. The first output is the "primary" result.
-- **Ingredients** — searchable specific-item picker OR tag-based wildcards (e.g. `any "meat"` or `any ["glass", "container"]`). Each ingredient has a quantity. The first ingredient is the "PRIMARY" one (ruined on a critical fail).
+- **Ingredients** — searchable specific-item picker OR tag-based wildcards (e.g. `any "meat"` or `any ["glass", "container"]`). Each ingredient has a quantity. The first ingredient is the "PRIMARY" one (ruined on a critical fail). An ingredient is exactly one of an owned item (`item_id`), a library item (`library_item_id`) or a tag list; the `ingredient_item_or_tags` check holds that, and `supabase/tests/recipe_ingredient_references.test.sql` holds the check (it refused library items until `20261002112421`).
 - **Conditional modifiers** — DM-defined bonus conditions (e.g. "Full forge available" → +4). Workshop bonus and poor-ingredient penalty are provided automatically by the dialog and not listed here.
 
 **Read mode** (`RecipeSheet`) — clean layout showing DC, time, ingredient list, and output list.
