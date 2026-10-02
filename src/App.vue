@@ -65,6 +65,7 @@ import { useCampaignById } from "@/composables/campaign/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
 import { createRealtimeHeal } from "@/lib/realtimeHeal";
 import { supabase } from "@/lib/supabase";
+import { isStaticContent } from "@/lib/queryPersistence/policy";
 import { knownRoleInCampaign, lensContradicts } from "@/router/lens";
 
 const auth = useAuthStore();
@@ -232,7 +233,9 @@ const queryHeal = createRealtimeHeal(
     void (async () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session?.access_token) return;
-      await queryClient.invalidateQueries();
+      // Shared library content is spared: it is the same before and after the app
+      // was away, and refetching it on every return after 60 seconds was 1.5 MB per wake.
+      await queryClient.invalidateQueries({ predicate: (query) => !isStaticContent(query.queryKey) });
     })();
   },
   { hiddenReconcileMs: 60_000 },

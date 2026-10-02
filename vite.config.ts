@@ -542,6 +542,11 @@ export default defineConfig(({ mode }) => {
   return {
     envDir,
     define: {
+      // Read by main.ts to tag the persisted query cache with the build that
+      // wrote it: restored entries from another build are shown but refetched.
+      // Off CI it is the constant "dev", so locally restored library content is
+      // trusted for its 24 hours instead of being invalidated on every rebuild.
+      __BUILD_ID__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? "dev"),
       __SENTRY_RELEASE__: JSON.stringify(release),
       __SENTRY_ENVIRONMENT__: JSON.stringify(process.env.VERCEL_ENV ?? "development"),
       // Sentry's own tree-shaking flags. We run errors-only (no tracing, and

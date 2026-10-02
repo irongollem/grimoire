@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { supabase } from '@/lib/supabase'
+import { supabase, getCurrentUser } from '@/lib/supabase'
 import { edgeErrorMessage } from '@edge-shared/edgeError.ts'
 import { CREDIT_COST, type CreditBuckets } from '@/types/subscription.types'
 import { useGenerationCreditCosts } from '@/composables/billing/useCreditConfig'
@@ -71,7 +71,7 @@ export function logUsage(params:
 }
 
 async function fetchBalance(): Promise<number> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = getCurrentUser()
   if (!user) return 0
 
   const { data, error } = await supabase
@@ -85,7 +85,7 @@ async function fetchBalance(): Promise<number> {
 }
 
 async function fetchBuckets(): Promise<CreditBuckets> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = getCurrentUser()
   if (!user) return { subscription_balance: 0, purchased_balance: 0 }
 
   const { data, error } = await supabase

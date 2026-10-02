@@ -41,7 +41,7 @@ export function useAdminPlans() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'plans'] })
-      qc.invalidateQueries({ queryKey: ['plan'] })
+      qc.invalidateQueries({ queryKey: ['plans'] })
     },
   })
 
@@ -67,7 +67,7 @@ export function useAdminPlans() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'plans'] })
-      qc.invalidateQueries({ queryKey: ['plan'] })
+      qc.invalidateQueries({ queryKey: ['plans'] })
     },
   })
 

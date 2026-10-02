@@ -62,10 +62,12 @@
 //               is set) → cache-first against ART_CACHE; see the CDN ART CACHE
 //               section. Everything
 //               else is same-origin GETs only:
-//                 • navigations (mode: 'navigate') → network raced against a
-//                   short timeout; on timeout or failure serve the cached
-//                   /index.html, so a slow connection never means staring at
-//                   a white screen while fetch() decides to give up.
+//                 • navigations (mode: 'navigate') → the cached /index.html,
+//                   served without a network request, so a cold start never
+//                   waits on a radio for a document it already has. Freshness
+//                   comes from the update check installing a new worker and
+//                   cache, so the first load after a deploy boots the previous
+//                   build. Only with no cached shell does it hit the network.
 //                 • a precached shell asset → cache-first.
 //                 • any other static asset → runtime-cached on first use:
 //                   cache-first when the filename carries a content hash
@@ -153,11 +155,6 @@ const MUTABLE = new Set(/** @type {string[]} */ (__MUTABLE__));
 
 /** Static assets we are willing to keep in RUNTIME_CACHE. */
 const RUNTIME_CACHEABLE = /\.(js|css|woff2?|ttf|otf|ico|png|svg|webp|jpe?g|avif|webmanifest)$/i;
-
-// How long a navigation waits on the network before falling back to the
-// cached shell. Freshness is guaranteed by the update poll + cache-name bust,
-// so the only cost of losing the race is adopting a deploy one reload later.
-const NAV_TIMEOUT_MS = 2500;
 
 // The app cannot start without these — index.html and every JS/CSS chunk.
 // Anything else (icons, webp art, webmanifest) is nice-to-have: it may
@@ -304,25 +301,23 @@ self.addEventListener("fetch", (event) => {
   // the cached shell, which would boot the app on a route it doesn't have.
   if (req.mode === "navigate" && url.pathname.startsWith("/api/")) return;
 
-  // SPA navigation — network-first, but only for NAV_TIMEOUT_MS: on a slow
-  // connection fetch() can hang for tens of seconds before failing, and the
-  // user would stare at a white screen with a perfectly good shell in the
-  // cache. Lose the race → serve cached /index.html immediately. No cached
-  // copy (first ever visit) → keep waiting on the original network fetch.
+  // SPA navigation — the cached shell, with no network request for the
+  // document. A deploy reaches the user through the update check (the poll in
+  // swAutoUpdate plus the browser's own sw.js check on navigation), which
+  // installs a new worker and a new cache; it does not reach them through this
+  // request. The install is atomic, so the cached /index.html always matches
+  // the cached JS/CSS it references. The cost is that the first load after a
+  // deploy boots the previous build, which the update flow then replaces. With
+  // no cached shell (first ever visit, or the cache was evicted) the request
+  // goes to the network instead.
   if (req.mode === "navigate") {
     event.respondWith(
       (async () => {
-        const network = fetch(req);
-        const fresh = await Promise.race([
-          network.catch(() => undefined),
-          new Promise((resolve) => setTimeout(() => resolve(undefined), NAV_TIMEOUT_MS)),
-        ]);
-        if (fresh) return fresh;
         const cache = await caches.open(CACHE_NAME);
         const cached = await cache.match("/index.html");
         if (cached) return cached;
         try {
-          return await network;
+          return await fetch(req);
         } catch {
           return Response.error();
         }

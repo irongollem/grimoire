@@ -122,7 +122,11 @@ export const useCampaignStore = defineStore("campaign", () => {
 
     loadProviderKeys(campaign);
 
-    useAuthStore().refreshMembership(campaign.id);
+    // On boot initialize() loaded exactly this campaign's membership a moment
+    // ago, so asking again is a third identical read. Only fetch when the
+    // loaded row is for a different campaign.
+    const auth = useAuthStore();
+    if (auth.membership?.campaign_id !== campaign.id) void auth.refreshMembership(campaign.id);
 
     // Lazy on purpose: the calendar store pulls in the calendar adapters,
     // ~97 kB gzip that the boot budget cannot carry. After a deploy this import
