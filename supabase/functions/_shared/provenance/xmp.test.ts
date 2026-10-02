@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildXmpPacket } from "./xmp";
+import { buildXmpPacket, parseXmpPacket } from "./xmp";
 import type { AiProvenance } from "./types";
 
 const PROV: AiProvenance = {
@@ -68,5 +68,58 @@ describe("buildXmpPacket", () => {
       const opens = (line.match(/"/g) ?? []).length;
       expect(opens % 2).toBe(0);
     }
+  });
+});
+
+describe("parseXmpPacket", () => {
+  it("round-trips a built packet", () => {
+    expect(parseXmpPacket(buildXmpPacket(PROV))).toEqual(PROV);
+  });
+
+  it("round-trips values holding every escaped character", () => {
+    const nasty: AiProvenance = {
+      generatorType: `npc "A" & <B> 'C'`,
+      provider: `a&b`,
+      model: `m<1>"x"'y'`,
+      generatedAt: "2026-08-04T12:00:00.000Z",
+      edited: true,
+    };
+    expect(parseXmpPacket(buildXmpPacket(nasty))).toEqual(nasty);
+  });
+
+  it("does not double-unescape an entity written literally", () => {
+    const literal: AiProvenance = { ...PROV, model: "&lt;" };
+    expect(parseXmpPacket(buildXmpPacket(literal))?.model).toBe("&lt;");
+  });
+
+  it("parses edited to a boolean", () => {
+    expect(parseXmpPacket(buildXmpPacket({ ...PROV, edited: true }))?.edited).toBe(true);
+    expect(parseXmpPacket(buildXmpPacket({ ...PROV, edited: false }))?.edited).toBe(false);
+  });
+
+  it("returns null without the IPTC AI source type", () => {
+    const stripped = buildXmpPacket(PROV).replace(
+      /Iptc4xmpExt:DigitalSourceType="[^"]*"/,
+      'Iptc4xmpExt:DigitalSourceType="http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture"',
+    );
+    expect(parseXmpPacket(stripped)).toBeNull();
+  });
+
+  it("returns null when a grimoire field is missing", () => {
+    expect(parseXmpPacket(buildXmpPacket(PROV).replace(/grimoire:model="[^"]*"/, ""))).toBeNull();
+  });
+
+  it("returns null for a foreign XMP packet", () => {
+    const camera =
+      '<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/">' +
+      '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" ' +
+      'xmlns:tiff="http://ns.adobe.com/tiff/1.0/" tiff:Make="Canon" tiff:Model="EOS R5"/></rdf:RDF></x:xmpmeta><?xpacket end="w"?>';
+    expect(parseXmpPacket(camera)).toBeNull();
+  });
+
+  it("returns null for garbage and never throws", () => {
+    expect(parseXmpPacket("")).toBeNull();
+    expect(parseXmpPacket("not xml at all <<<")).toBeNull();
+    expect(parseXmpPacket("\u0000￿")).toBeNull();
   });
 });
