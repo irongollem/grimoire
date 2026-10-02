@@ -466,3 +466,125 @@ describe("voice_coach", () => {
     await expect(callTool(ctx, "voice_coach", { npc_id: NPC_ID, situation: "Hi" })).rejects.toThrow(/No NPC found/);
   });
 });
+
+describe("party_member — ruleset and class", () => {
+  const MEMBER_ID = "123e4567-e89b-12d3-a456-426614174001";
+  const CAMPAIGN_ID = "123e4567-e89b-12d3-a456-426614174002";
+  const member = ENTITY_REGISTRY.party_member;
+
+  type Call = { table: string; op: string; payload?: unknown };
+
+  /** Table-aware stand-in. `classInsertError` fails the character_classes insert. */
+  function fakeCtx(opts: { classInsertError?: { message: string } } = {}) {
+    const calls: Call[] = [];
+    const system = [
+      { id: "sys-fighter-2024", class_name: "Fighter" },
+      { id: "sys-wizard-2024", class_name: "Wizard" },
+    ];
+    const custom = [
+      { id: "cus-tinker", class_name: "Tinkerer", ruleset: null, user_id: "dm-1", campaign_id: null },
+      { id: "cus-other", class_name: "Hexblade-ish", ruleset: null, user_id: "dm-2", campaign_id: null },
+    ];
+    const ctx = {
+      userId: "dm-1",
+      supabase: {
+        from: (table: string) => ({
+          select: () =>
+            table === "system_classes"
+              ? { eq: () => Promise.resolve({ data: system, error: null }) }
+              : table === "custom_classes"
+              ? Promise.resolve({ data: custom, error: null })
+              : { eq: () => ({ single: () => Promise.resolve({ data: { id: MEMBER_ID, class: "Fighter" }, error: null }) }) },
+          insert: (payload: unknown) => {
+            calls.push({ table, op: "insert", payload });
+            if (table === "character_classes") return Promise.resolve({ error: opts.classInsertError ?? null });
+            return { select: () => ({ single: () => Promise.resolve({ data: { id: MEMBER_ID }, error: null }) }) };
+          },
+          delete: () => ({
+            eq: () => {
+              calls.push({ table, op: "delete" });
+              return Promise.resolve({ error: null });
+            },
+          }),
+        }),
+        functions: { invoke: () => Promise.resolve({ data: null, error: null }) },
+      },
+    };
+    return { ctx: ctx as unknown as Parameters<typeof callTool>[0], calls };
+  }
+
+  it("requires a ruleset and limits it to the two editions", () => {
+    expect(() => validateFields(member, { name: "Ayla" }, { partial: false })).toThrow(/ruleset/);
+    expect(() => validateFields(member, { name: "Ayla", ruleset: "2020" }, { partial: false })).toThrow(/must be one of/i);
+    expect(validateFields(member, { name: "Ayla", ruleset: "2024" }, { partial: false }).ruleset).toBe("2024");
+  });
+
+  it("refuses subclass on create with the reason", () => {
+    expect(() => validateFields(member, { name: "Ayla", ruleset: "2024", subclass: "Champion" }, { partial: false })).toThrow(
+      /chosen in the app/,
+    );
+  });
+
+  it("refuses class, subclass and ruleset on update", () => {
+    expect(() => validateFields(member, { class: "Wizard" }, { partial: true })).toThrow(/levelling up or down in the app/);
+    expect(() => validateFields(member, { subclass: "Evoker" }, { partial: true })).toThrow(/levelling up or down in the app/);
+    expect(() => validateFields(member, { ruleset: "2014" }, { partial: true })).toThrow(/fixed when it is created/);
+    expect(validateFields(member, { notes: "ok" }, { partial: true })).toEqual({ notes: "ok" });
+  });
+
+  it("pins an official class and keeps class out of the member insert", async () => {
+    const { ctx, calls } = fakeCtx();
+    await callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2024", class: "fighter", level: 3 } });
+    expect(calls[0]).toEqual({ table: "party_members", op: "insert", payload: { name: "Ayla", ruleset: "2024", level: 3, user_id: "dm-1" } });
+    expect(calls[1]).toEqual({
+      table: "character_classes",
+      op: "insert",
+      payload: {
+        party_member_id: MEMBER_ID,
+        class_name: "Fighter",
+        class_definition_id: "sys-fighter-2024",
+        class_definition_kind: "system",
+        levels: 3,
+        is_primary: true,
+        sort_order: 0,
+        hit_dice_used: 0,
+      },
+    });
+  });
+
+  it("falls back to the caller's own class, at level 1 when none is given", async () => {
+    const { ctx, calls } = fakeCtx();
+    await callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2014", class: "Tinkerer", campaign_id: CAMPAIGN_ID } });
+    expect(calls[1].payload).toMatchObject({ class_definition_id: "cus-tinker", class_definition_kind: "custom", levels: 1 });
+  });
+
+  it("does not resolve another user's class", async () => {
+    const { ctx, calls } = fakeCtx();
+    await expect(
+      callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2014", class: "Hexblade-ish" } }),
+    ).rejects.toThrow(/No 2014 class named "Hexblade-ish"/);
+    expect(calls).toEqual([]);
+  });
+
+  it("names the class and the official options when it resolves to nothing, writing nothing", async () => {
+    const { ctx, calls } = fakeCtx();
+    await expect(
+      callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2024", class: "Gunslinger" } }),
+    ).rejects.toThrow(/"Gunslinger".*Fighter, Wizard/);
+    expect(calls).toEqual([]);
+  });
+
+  it("removes the character when its class row cannot be written", async () => {
+    const { ctx, calls } = fakeCtx({ classInsertError: { message: "boom" } });
+    await expect(
+      callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2024", class: "Wizard" } }),
+    ).rejects.toThrow("boom");
+    expect(calls.map((c) => `${c.table}:${c.op}`)).toEqual(["party_members:insert", "character_classes:insert", "party_members:delete"]);
+  });
+
+  it("creates a classless character when no class is given", async () => {
+    const { ctx, calls } = fakeCtx();
+    await callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2024" } });
+    expect(calls.map((c) => c.table)).toEqual(["party_members"]);
+  });
+});

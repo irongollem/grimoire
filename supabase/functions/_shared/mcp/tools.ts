@@ -18,7 +18,7 @@ import {
   IMAGEABLE_TYPES,
   listColumns,
 } from "./registry.ts";
-import type { EntityDef, FieldDef } from "./registry.ts";
+import type { CreateStepName, EntityDef, FieldDef } from "./registry.ts";
 import { isSafeStorageUrl } from "../storage-url.ts";
 import { edgeErrorMessage } from "../edgeError.ts";
 
@@ -182,6 +182,8 @@ export function validateFields(def: EntityDef, input: unknown, opts: { partial: 
   const out: Record<string, unknown> = {};
   for (const [key, raw] of Object.entries(input as Record<string, unknown>)) {
     if (raw === undefined || raw === null) continue; // absence = keep default / leave unchanged
+    const refusal = def.refusedFields?.[opts.partial ? "update" : "create"]?.[key];
+    if (refusal) throw new Error(refusal);
     const fdef = create.fields[key];
     if (!fdef) {
       throw new Error(`Unknown field "${key}" for type "${def.type}". Allowed: ${Object.keys(create.fields).join(", ")}.`);
@@ -430,7 +432,7 @@ export function listTools(): ToolDef[] {
     {
       name: "update",
       description:
-        "Update an existing entity by id and return the updated record. Provide `type`, `id`, and a partial `fields` object containing only what you want to change. Same writable fields as `create` (none required here). You can only update your own content.",
+        "Update an existing entity by id and return the updated record. Provide `type`, `id`, and a partial `fields` object containing only what you want to change. Same writable fields as `create` (none required here), except that a character's `class`, `subclass` and `ruleset` cannot be changed. You can only update your own content.",
       inputSchema: {
         type: "object",
         properties: {
@@ -840,13 +842,135 @@ async function queueEmbedding(ctx: ToolContext, def: EntityDef, row: unknown): P
   }
 }
 
+/**
+ * A type-specific step around the generic insert. `prepare` runs BEFORE
+ * anything is written, so a bad input fails with nothing to clean up, and
+ * returns the columns to insert plus an `after` that runs once the row exists.
+ * If `after` throws, the generic path deletes the row it just made, so a failed
+ * create never leaves a half-made record behind.
+ */
+interface CreateStep {
+  prepare(
+    ctx: ToolContext,
+    fields: Record<string, unknown>,
+  ): Promise<{ columns: Record<string, unknown>; after(row: EntityRow): Promise<void> }>;
+}
+
+interface ClassCandidate {
+  id: string;
+  class_name: string;
+}
+
+function sameName(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/**
+ * Resolve a class name to the definition a `character_classes` row must pin:
+ * the official class of the character's edition first, else one of the caller's
+ * table's own classes (theirs, or scoped to the campaign the character is in).
+ * Matching is done here over the (small) lists rather than through a PostgREST
+ * filter, so the name never has to be escaped into a filter string.
+ */
+export async function resolveClassDefinition(
+  ctx: ToolContext,
+  ruleset: string,
+  className: string,
+  campaignId: string | null,
+): Promise<{ id: string; kind: "system" | "custom"; name: string }> {
+  const system = await ctx.supabase
+    .from("system_classes")
+    .select("id, class_name")
+    .eq("ruleset", ruleset);
+  if (system.error) throw new Error(system.error.message);
+  const officials = (system.data ?? []) as ClassCandidate[];
+  const official = officials.find((c) => sameName(c.class_name, className));
+  if (official) return { id: official.id, kind: "system", name: official.class_name };
+
+  const custom = await ctx.supabase
+    .from("custom_classes")
+    .select("id, class_name, ruleset, user_id, campaign_id");
+  if (custom.error) throw new Error(custom.error.message);
+  const own = ((custom.data ?? []) as (ClassCandidate & {
+    ruleset: string | null;
+    user_id: string;
+    campaign_id: string | null;
+  })[]).find((c) =>
+    sameName(c.class_name, className) &&
+    // A null ruleset means the class is not tied to an edition.
+    (c.ruleset === null || c.ruleset === ruleset) &&
+    (c.user_id === ctx.userId || (campaignId !== null && c.campaign_id === campaignId))
+  );
+  if (own) return { id: own.id, kind: "custom", name: own.class_name };
+
+  throw new Error(
+    `No ${ruleset} class named "${className}". Official ${ruleset} classes: ${
+      officials.map((c) => c.class_name).sort().join(", ")
+    }. A class the table made itself must exist in the app first.`,
+  );
+}
+
+const CREATE_STEPS: Record<CreateStepName, CreateStep> = {
+  // `party_members.class`/`subclass` are a database mirror of the primary
+  // `character_classes` row and are not writable, so "class" on create means
+  // "give the character this class": one primary row, pinned to a definition,
+  // at the character's level. Without it the character would come out
+  // classless while the caller believes it has a class.
+  character_class: {
+    async prepare(ctx, fields) {
+      const { class: className, ...columns } = fields;
+      if (className === undefined || className === "") {
+        return { columns, after: () => Promise.resolve() };
+      }
+      const campaignId = typeof columns.campaign_id === "string" ? columns.campaign_id : null;
+      const def = await resolveClassDefinition(ctx, String(columns.ruleset), String(className), campaignId);
+      // The column's own default when level is omitted; the class row must
+      // carry the same number the member row will get.
+      const levels = typeof columns.level === "number" ? columns.level : 1;
+      return {
+        columns,
+        async after(row) {
+          const { error } = await ctx.supabase.from("character_classes").insert({
+            party_member_id: row.id,
+            class_name: def.name,
+            class_definition_id: def.id,
+            class_definition_kind: def.kind,
+            levels,
+            is_primary: true,
+            sort_order: 0,
+            hit_dice_used: 0,
+          });
+          if (error) throw new Error(error.message);
+        },
+      };
+    },
+  },
+};
+
 async function create(ctx: ToolContext, args: Record<string, unknown>) {
   const def = resolveDef(args.type);
   const fields = validateFields(def, args.fields, { partial: false });
+  const step = def.createStep ? CREATE_STEPS[def.createStep] : undefined;
+  const prepared = step ? await step.prepare(ctx, fields) : undefined;
   // Force ownership to the authenticated caller; never trust a client-supplied id/user_id.
-  const row = { ...fields, user_id: ctx.userId };
-  const { data, error } = await ctx.supabase.from(def.table).insert(row).select("*").single();
-  if (error) throw await writeError(ctx, error, def);
+  const row = { ...(prepared?.columns ?? fields), user_id: ctx.userId };
+  const inserted = await ctx.supabase.from(def.table).insert(row).select("*").single();
+  if (inserted.error) throw await writeError(ctx, inserted.error, def);
+  let data = inserted.data as EntityRow;
+  if (prepared) {
+    try {
+      await prepared.after(data);
+    } catch (e) {
+      // Undo the first write so the caller can retry cleanly.
+      await ctx.supabase.from(def.table).delete().eq("id", data.id);
+      throw e;
+    }
+    // The step may have changed columns the database mirrors onto the row
+    // (a character's class), so return what is stored, not what was inserted.
+    const fresh = await ctx.supabase.from(def.table).select("*").eq("id", data.id).single();
+    if (fresh.error) throw await writeError(ctx, fresh.error, def);
+    data = fresh.data as EntityRow;
+  }
   await queueEmbedding(ctx, def, data);
   return data;
 }
