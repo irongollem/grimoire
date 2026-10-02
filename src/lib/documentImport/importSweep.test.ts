@@ -53,7 +53,7 @@ function fakeDeps(overrides: Partial<ImportSweepDeps> = {}): ImportSweepDeps {
     updateBeatLocation: vi.fn(async () => {}),
     insertBeatAttachment: vi.fn(async () => {}),
     insertLootPlacement: vi.fn(async () => {}),
-    insertQuestRef: vi.fn(async () => {}),
+    insertQuestRefs: vi.fn(async () => {}),
     updateQuestParent: vi.fn(async () => {}),
     persistImportedCounts: vi.fn(async () => {}),
     markComplete: vi.fn(async () => {}),
@@ -286,11 +286,14 @@ describe("runImportSweep", () => {
       const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
       await runImportSweep(IMPORT_ROW, questInput(), deps);
 
-      const refs = (deps.insertQuestRef as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+      const refs = (deps.insertQuestRefs as ReturnType<typeof vi.fn>).mock.calls.flatMap((c) => c[0]);
       expect(refs).toContainEqual({ quest_id: "quests-1", ref_type: "npc", ref_id: "npcs-1" });
       expect(refs).toContainEqual({ quest_id: "quests-1", ref_type: "location", ref_id: "locations-1" });
       expect(refs).toContainEqual({ quest_id: "quests-1", ref_type: "faction", ref_id: "factions-1" });
       expect(refs).toContainEqual({ quest_id: "quests-1", ref_type: "encounter", ref_id: "encounters-1" });
+      // One write for the lot. Sent one at a time, every ref the beat-attachment
+      // trigger had already written came back as a 409 in the DM's console.
+      expect(deps.insertQuestRefs).toHaveBeenCalledTimes(1);
     });
 
     it("applies parentQuestId to the created quest", async () => {
@@ -395,7 +398,7 @@ describe("runImportSweep", () => {
       expect(deps.insertBeatAttachment).not.toHaveBeenCalled();
       expect(report.unresolvedLinks).toContainEqual(expect.stringContaining('couldn\'t add "Owlbear" from the library (boom)'));
       expect(report.unresolvedLinks).toContainEqual(expect.stringContaining("shared-library creature"));
-      const refs = (deps.insertQuestRef as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+      const refs = (deps.insertQuestRefs as ReturnType<typeof vi.fn>).mock.calls.flatMap((c) => c[0]);
       expect(refs).toContainEqual({ quest_id: "quests-1", ref_type: "monster", ref_id: "srd_owlbear" });
       expect(report.perKind.monsters?.adopted).toBe(0);
     });
@@ -433,7 +436,7 @@ describe("runImportSweep", () => {
       expect(deps.insertBeatAttachment).toHaveBeenCalledWith(expect.objectContaining({ attachment_type: "monster", ref_id: "owned-owlbear" }));
       expect(report.unresolvedLinks).toEqual([]);
       expect(report.perKind.monsters).toMatchObject({ linked: 0, adopted: 1 });
-      const refs = (deps.insertQuestRef as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+      const refs = (deps.insertQuestRefs as ReturnType<typeof vi.fn>).mock.calls.flatMap((c) => c[0]);
       expect(refs).toContainEqual({ quest_id: "quests-1", ref_type: "monster", ref_id: "owned-owlbear" });
     });
 

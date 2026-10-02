@@ -251,11 +251,15 @@ export interface ImportSweepDeps {
   updateBeatLocation: (beatId: string, locationId: string) => Promise<void>;
   insertBeatAttachment: (attachment: BeatAttachmentWrite) => Promise<void>;
   insertLootPlacement: (placement: LootPlacementWrite) => Promise<void>;
-  /** Best-effort and idempotent from the caller's side: `quest_refs` carries
-   *  a unique `(quest_id, ref_type, ref_id)` constraint, and a beat
-   *  attachment's own sync trigger may already have inserted the same row —
-   *  a duplicate here is expected and must not surface as an error. */
-  insertQuestRef: (ref: QuestRefWrite) => Promise<void>;
+  /** Every quest ref of the sweep, in ONE write that skips a row already
+   *  there. `quest_refs` carries a unique `(quest_id, ref_type, ref_id)`
+   *  constraint, and a beat attachment's own sync trigger has usually written
+   *  some of these rows first — on a real chapter, 17 of 39. Sent one insert
+   *  at a time, each of those came back 409: harmless and swallowed, but 39
+   *  requests and a console full of errors for an import that had worked. So a
+   *  duplicate is the write's own business (`on conflict do nothing`), never
+   *  an error for the caller to absorb. Still best-effort as a whole. */
+  insertQuestRefs: (refs: readonly QuestRefWrite[]) => Promise<void>;
   updateQuestParent: (questId: string, parentQuestId: string) => Promise<void>;
   /** Persists the *complete*, accumulated `imported_counts` so far — called
    *  after every kind, so a crash mid-sweep resumes from the last kind that
@@ -771,19 +775,22 @@ export async function runImportSweep(
 
   // Every entity this sweep created or linked (any kind but quests/spells —
   // QuestRefType has no member for either) becomes a quest_refs row for
-  // every quest this sweep created. `insertQuestRef`'s doc comment covers why
-  // a duplicate here (the beat-attachment sync trigger may have already
-  // written the same row) is expected, not an error.
+  // every quest this sweep created, written together — see `insertQuestRefs`'s
+  // doc comment for why this is one write and not one per ref.
+  const questRefs: QuestRefWrite[] = [];
   for (const questId of createdQuestIds) {
     for (const key of sweepRefs) {
       const separator = key.indexOf(":");
       const refType = key.slice(0, separator) as QuestRefType;
       const refId = key.slice(separator + 1);
-      try {
-        await deps.insertQuestRef({ quest_id: questId, ref_type: refType, ref_id: refId });
-      } catch {
-        // Best-effort — including the expected "already exists" case above.
-      }
+      questRefs.push({ quest_id: questId, ref_type: refType, ref_id: refId });
+    }
+  }
+  if (questRefs.length > 0) {
+    try {
+      await deps.insertQuestRefs(questRefs);
+    } catch {
+      // Best-effort: the quest and everything it names already landed.
     }
   }
 
