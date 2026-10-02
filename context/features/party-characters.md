@@ -341,7 +341,7 @@ the `wotc-srd` baseline when no campaign is active (`useSpecies.ts`), since
 `my-characters`, which useParty.ts owns for the campaign-scoped champions
 list).
 
-**A character's ruleset is its own (#943, migration `20261001232001`).**
+**A character's ruleset is its own (#943, migration `20261002113317`).**
 `party_members.ruleset` is NOT NULL with no default. A roster character created
 inside a campaign takes that campaign's; a character with no campaign must state
 one, which is why the creation wizard asks for the edition first. It is written
@@ -452,7 +452,7 @@ items.
 `supabase/tests/character_ruleset.test.sql` holds all of the above, each refusal
 beside a control.
 
-#### What a table approves (#943 wave 4, migration `20261002101726`)
+#### What a table approves (#943 wave 4, migration `20261002113318`)
 
 Content works the way the edition does: a player builds what they like, and the
 table decides what sits down.

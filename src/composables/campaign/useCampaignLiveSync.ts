@@ -112,7 +112,7 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   ["quest_runtime_state", QUEST_RUNTIME_SYNC_KEYS],
   ["quest_threads", QUEST_RUNTIME_SYNC_KEYS],
   ["quest_beat_transitions", QUEST_RUNTIME_SYNC_KEYS],
-  // Since 20261001232001 the table has no campaign_id, so it cannot be a
+  // Since 20261002113317 the table has no campaign_id, so it cannot be a
   // filtered subscription; a conversion (or an acknowledgement) rings instead.
   ["ruleset_reviews", ["ruleset_reviews"]],
   // Players cannot read this table, so its row events reach only the DM; the

@@ -997,7 +997,7 @@ create trigger campaigns_review_content_blocklists
 
 -- A character with a pending flag cannot be made anyone's active character, by
 -- anyone, the DM included: the DM's way to seat it is to approve what is
--- waiting. Everything else in this function is as 20261001232001 left it.
+-- waiting. Everything else in this function is as 20261002113317 left it.
 create or replace function public.guard_campaign_member_self_update()
  returns trigger
  language plpgsql
@@ -1127,7 +1127,7 @@ begin
   perform private.assert_ruleset_admissible(v_pm.ruleset, p_campaign_id);
 
   -- A player bringing a character they made, which nobody owns yet, is its
-  -- owner from here on (the claim rule of 20261001232001: the member made the
+  -- owner from here on (the claim rule of 20261002113317: the member made the
   -- character themselves). It has to be settled before the review below, which
   -- treats a character nobody owns as having no content of its own. A DM
   -- attaching a roster character to their own table does not take it here; if
