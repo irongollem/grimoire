@@ -16,7 +16,7 @@ DM-only. Players see a demo only if the DM invites them to it, like any campaign
 
 | Layer | Path |
 | --- | --- |
-| Migrations | `supabase/migrations/20260925002215_demo_campaign.sql`, `20260925054923_demo_campaign_offered_toggle.sql` |
+| Migrations | `supabase/migrations/20260925002215_demo_campaign.sql`, `20260925054923_demo_campaign_offered_toggle.sql`, `20261002112422_demo_copy_keeps_file_paths.sql` |
 | Tests | `supabase/tests/demo_campaign.test.sql` (structure + behaviour) |
 | Composable | `src/composables/campaign/useDemoCampaign.ts`: `useDemoStatus`, `useLoadDemoCampaign`, `useResetDemoCampaign`, `usePublishDemoVersion`, `isDemoOutdated` |
 | Offer | `src/components/campaign/DemoCampaignOffer.vue` (`layout`: `full` / `compact` / `menu`), mounted in `DmCampaignGate.vue`, `WelcomeView.vue`, `NewCampaignModal.vue` and `CampaignSwitcher.vue` |
@@ -50,7 +50,7 @@ It is catalogue-driven, because production has 82 campaign-scoped tables and a h
 
 1. **Collect.** Tier-1 rows with `campaign_id = template`, then tier-2 rows through their parent.
 2. **Validate.** Refuse if any row names another account (a player's character, for instance), or points at rows outside the template or at the author's other content.
-3. **Rewrite ids.** `private.remap_demo_ids` rewrites every id through an old→new map in each row's JSON text. That also reaches ids inside jsonb, arrays and text references such as `quest_beat_attachments.ref_id` and rich-text links. The author's own id is rewritten only where it stands alone as a value. Inside a string it is a storage path, so the copy keeps pointing at the author's uploaded files.
+3. **Rewrite ids.** `private.remap_demo_ids` rewrites every id through an old→new map in each row's JSON text. That also reaches ids inside jsonb, arrays and text references such as `quest_beat_attachments.ref_id` and rich-text links. The author's own id is rewritten only where it stands alone as a value. Anything from the author's folder to the end of a string is a file path and is copied verbatim, ids and all, so the copy keeps pointing at the author's uploaded files. That holds even when a file is named after its own row: a generated music track lives at `<author>/ai/<sound id>.mp3`, and rewriting that id sent every generated track in every copy to a missing file until `20261002112422`.
 4. **Insert.** None of the 346 foreign keys is deferrable, so rows go in by passes, a table at a time, and row by row for self-referencing tables. The three real cycles are broken by `defer_columns` (`quests.entry_beat_id`, `locations.npc_owner_id`, `notes.linked_calendar_event_id`), which go in null and are restored at the end.
 5. **Side effects.** Two insert triggers that would duplicate template rows stand down while `grimoire.copying_campaign` is on: the quest's auto "Main" thread, and the attachment-to-`quest_refs` mirror.
 6. **What a copy leaves behind.**
@@ -65,6 +65,8 @@ It is catalogue-driven, because production has 82 campaign-scoped tables and a h
 - **Self-contained.** Nothing may reference NPCs, items or monsters from another campaign, or campaign-less "general" rows. Scope everything to the template campaign.
 - **Current rules apply.** Legacy rows that today's guards would reject cannot be re-inserted: a room inside a `wilderness` place fails `guard_location_room_parent`. Publish reports the guard's message; fix the row.
 - **Upload art and audio normally.** It stays in the author's storage folder and every copy points at it: public on the CDN, and undeletable by users, because storage RLS only lets a user remove objects under their own id. **So never delete a template image or sound that copies may still use.** Republishing does not clean old files up either.
+- **A large edit goes in as one transaction.** The template is live data: a new load copies whatever is there at that moment. An edit made by script should be a single transaction with fixed row ids, tried first on the local template (`npm run dev:demo` pulls it with the same ids), so the same file can then run against production and no load ever sees half of it. `enforce_quota` on `notes` and `puzzle_rooms` reads `auth.uid()`, so a script running as `postgres` sets `grimoire.bypass_quota` for its transaction.
+- **A copy does not keep the order of rows that have no order column.** Recipe ingredients are the case that matters: the first one is the PRIMARY ingredient, and which one is first in a copy is not the one that was first in the template. Write recipes where either reading is fine.
 - **Publish after editing.** Once the demo is offered, new loads copy the template as it is *now*, so half-finished edits reach new users immediately. For a large rework, switch the offer off in Admin → Content first. Publish bumps the version and lets existing copies offer a reset.
 
 ## What the gates cannot see here
