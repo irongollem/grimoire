@@ -5,9 +5,11 @@ import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import App from "./App.vue";
 import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
-import { supabase, onSessionLost, consumeRefusedRead } from "./lib/supabase";
+import { supabase, onSessionLost, consumeRefusedRead, getCurrentUser } from "./lib/supabase";
 import { createIdentityChangeGate } from "./lib/authIdentityChange";
 import { createSessionRecovery } from "./lib/sessionRecovery";
+import { createQueryPersistence } from "./lib/queryPersistence/persistence";
+import { isStaticContent } from "./lib/queryPersistence/policy";
 import { track } from "./lib/analytics";
 import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
 import { useAuthStore } from "./stores/auth";
@@ -24,9 +26,21 @@ import { useSpotifyStore } from "./stores/spotify";
 import "./assets/fonts";
 import "./assets/main.css";
 
+// Shared library lists are answered from IndexedDB the first time a page session
+// fetches them and written back after every fetch, one record per query and
+// read only when that query is about to fetch. policy.ts says why campaign and
+// user data are not on the list.
+const persistence = createQueryPersistence({
+  buildId: __BUILD_ID__,
+  getUserId: () => getCurrentUser()?.id ?? null,
+  shouldPersist: isStaticContent,
+  onError: (error) => reportHandledError(error, "queryPersistence"),
+});
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      persister: persistence.persister,
       networkMode: "always",
       refetchOnWindowFocus: false,
       staleTime: 60_000,
@@ -43,6 +57,20 @@ const router = createRouter({
   scrollBehavior(_to, _from, savedPosition) {
     return savedPosition ?? { top: 0 };
   },
+});
+
+// The "next navigation" half of the deferred deploy reload (see swAutoUpdate.ts):
+// when a new build is waiting and nothing is busy, the navigation becomes a full
+// page load onto it. The handle exists only in production, where the service
+// worker is installed. In-component leave guards (`useUnsavedGuard`) run before
+// global `beforeEach`, so an editor with unsaved work has already been asked.
+// Registered before `setupRouterGuard` so a navigation that is about to become a
+// full page load does not do the auth and lens work first.
+let takeNavigationReload: () => Promise<boolean> = () => Promise.resolve(false);
+router.beforeEach(async (to) => {
+  if (!(await takeNavigationReload())) return true;
+  window.location.assign(router.resolve(to).href);
+  return false;
 });
 
 // The query client goes in because the guard's lens fence (#847) resolves the
@@ -123,8 +151,14 @@ supabase.auth.onAuthStateChange((event) => {
 // tick for the same reason as the handler above: this runs inside the auth lock.
 const identityChanged = createIdentityChangeGate();
 supabase.auth.onAuthStateChange((_event, session) => {
-  if (!identityChanged(session?.user?.id ?? null)) return;
+  const userId = session?.user?.id ?? null;
+  // Before the gate, which answers false for a null user: signing out must empty
+  // the disk copy so the next account on this device never sees it.
+  if (userId === null) setTimeout(() => void persistence.clear(), 0);
+  if (!identityChanged(userId) || userId === null) return;
   setTimeout(() => {
+    // Another account's library copy and week-old records leave the device when someone new signs in.
+    void persistence.prune(userId);
     // Cancel before invalidating: a read that left anonymously a moment ago is
     // still in flight, and left alone it resolves AFTER the refetch and writes
     // its empty answer over the real one — the same wrong screen by a shorter
@@ -201,13 +235,14 @@ if (lq) {
 
 // Service worker — register, poll for new deploys, and reload onto them.
 // The table patches mid-session because a feature is wanted at the table NOW,
-// so open PWAs adopt a deploy immediately rather than parking it behind the
-// "Reload to update" menu action. The reload is deferred only while it would
-// visibly interrupt — active text entry, an in-flight save, or live
-// soundboard/Spotify audio — and catches up on backgrounding, once a minute,
-// or via the menu action (updateAvailable), whichever comes first.
+// so a deploy is not parked behind the "Reload to update" menu action. A hidden
+// page reloads onto the new build at once. A visible page is never reloaded
+// under the user: it adopts the build on its next navigation (the beforeEach
+// guard above), when it is next backgrounded, or through the menu action
+// (updateAvailable). A mutation in flight or live soundboard/Spotify audio
+// defers all of those, and a hidden page that was busy retries every minute.
 if (import.meta.env.PROD) {
-  installSwAutoUpdate({
+  ({ takeNavigationReload } = installSwAutoUpdate({
     // Both audio stores are imported statically, and must stay that way (#593).
     // This used to `import()` them, on the theory that it kept the audio stack
     // out of the entry chunk for a check that only runs on deploys. It did not:
@@ -225,7 +260,7 @@ if (import.meta.env.PROD) {
     onDeferred: () => {
       updateAvailable.value = true;
     },
-  });
+  }));
 }
 
 // iOS Safari keyboard scroll fix

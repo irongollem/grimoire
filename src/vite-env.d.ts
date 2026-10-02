@@ -46,5 +46,11 @@ declare const __PREVIEW_BUILD__: boolean;
  */
 declare const __SENTRY_RELEASE__: string;
 
+/**
+ * Identifies the build for the persisted query cache (main.ts). The commit SHA
+ * on CI, the constant "dev" elsewhere — see the `define` block in vite.config.ts.
+ */
+declare const __BUILD_ID__: string;
+
 /** `production` | `preview` | `development` — the Vercel environment. */
 declare const __SENTRY_ENVIRONMENT__: string;

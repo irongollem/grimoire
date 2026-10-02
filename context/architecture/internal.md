@@ -77,11 +77,30 @@ Two deliberate separations that look mergeable but are not:
 | **Server state** | `src/composables/<domain>/use*.ts` (a few UI/platform primitives stay at `src/composables/` root) | `useQuery`/`useMutation` wrapping module-private `fetchX/createX/…` that call `supabase.from(...)`. Query keys are `[QUERY_KEY, activeCampaignId]`, gated on an active campaign. Global defaults in `src/main.ts`: `networkMode: "always"`, `staleTime: 60s`, no refetch-on-focus. |
 | **UI state** | `src/stores/` (Pinia) | Filters/sort/search (**always** `ui.ts` — the Filter State Pattern), run state, playback state. |
 
+**The query cache is memory-only, with one exception.** Shared library
+content (the library lists, rules reference tables and licence lists named in
+`src/lib/queryPersistence/policy.ts`) is also written to IndexedDB. The read
+is lazy: a `persister` installed as a query default in `src/main.ts` wraps
+every queryFn, and the first fetch of a listed key in a page session is
+answered from disk instead of the network, so a cold start does not download
+the 1.5 MB monster library again. Nothing is restored up front, so the mount
+never waits on the disk. The wake-up heal in `App.vue` skips the same keys.
+A stored record belongs to one account: it is only served to the user id that
+wrote it, and the store is emptied on sign-out and on a signed-out boot. A
+record is trusted for 24 hours and for one build; older, or written by another
+build, it is shown and refetched in the background. After a week it is a miss.
+
+Campaign and user data is deliberately **not** on that list, and `gcTime` is
+left at its 5-minute default for the same reason. Most editors copy their
+record into a form once and save the whole record with no concurrency check
+(#946), so a stale cached copy shown at mount survives the background refetch
+and a save reverts newer edits. Do not widen either until #946 is fixed.
+
 The 8 stores and their roles:
 
 | Store | Role |
 | --- | --- |
-| `auth.ts` | Supabase session, campaign membership, `isAppAdmin`/`isDM`/`isPlayer`; feeds the router guard and `setCachedUser()` |
+| `auth.ts` | Supabase session, campaign membership, `isAppAdmin`/`isDM`/`isPlayer`; feeds the router guard and `setCachedUser()`. Boots from a per-user snapshot of membership, username and child link (`src/lib/authSnapshot.ts`) and re-reads them in the background, so the app mounts without waiting on those three reads |
 | `campaign.ts` | `activeCampaignId` (localStorage-persisted) — the key nearly every query is scoped by; BYOK API-key decryption |
 | `ui.ts` | All list filters + per-feature UI modes + `dmPreviewMode` (mandated by CLAUDE.md) |
 | `encounterRun.ts` | Live combat run state. Deliberately UI-only: DB writes are injected via `setPersistHandler`, dice via `InitiativeRoller` |
@@ -156,7 +175,8 @@ sequenceDiagram
     B->>SW: precache manifest + cache name (content hash)
     Note over SW: install = ATOMIC app shell:<br/>every JS/CSS must cache with valid<br/>Content-Type or old worker survives
     A->>SW: registration.update() every 5 min + on foreground
-    A->>A: new build found → reload NOW unless busy<br/>(typing, mutation in flight, audio playing)<br/>else defer, retry 60s / surface "Reload to update"
+    A->>A: new build took control → a HIDDEN page reloads now<br/>(unless a mutation is in flight or audio is playing)
+    A->>A: a VISIBLE page is never reloaded under the user:<br/>it adopts the build on its next route navigation<br/>(a full load of the destination), when it is next<br/>backgrounded, or via "Reload to update"
     Note over R: page running old code, old cache already GC'd,<br/>dynamic import fails
     R->>R: one hard navigation to intended path<br/>(sessionStorage guard — a broken deploy<br/>degrades to visible failure, not a reload loop)
 ```
@@ -188,8 +208,19 @@ any is missing — there is nothing to install when the chunk never arrived, and
 the reload is already in flight. Filtering the report would have been the wrong
 fix; not throwing is the right one.
 
-Fetch policy: same-origin GET only; navigations race network vs 2.5 s timeout
-→ cached `index.html`; assets cache-first. **Supabase and provider calls are
+The visible-page rule exists because reloading a page the user has just
+returned to is what they experience as the app being slow (#945): the
+foreground update check found the new worker and the page reloaded in their
+face, on most returns, since several builds ship a day. `main.ts` owns the
+navigation half: a global `beforeEach` asks `takeNavigationReload()` and turns
+the navigation into `location.assign(destination)`. In-component leave guards
+run before it, so an editor with unsaved work has already been asked.
+
+Fetch policy: same-origin GET only; navigations are answered with the cached
+`index.html` and no network request (the network is used only when no shell is
+cached), so a cold start never waits on a waking radio for a document it
+already has. The first load after a deploy therefore boots the previous build,
+which the update check then replaces; assets cache-first. **Supabase and provider calls are
 never cached** (cross-origin passes through), so the SW can be ruled out of
 any data-staleness bug — it can only serve stale *code*.
 
