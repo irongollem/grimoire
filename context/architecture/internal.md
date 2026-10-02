@@ -212,9 +212,25 @@ The visible-page rule exists because reloading a page the user has just
 returned to is what they experience as the app being slow (#945): the
 foreground update check found the new worker and the page reloaded in their
 face, on most returns, since several builds ship a day. `main.ts` owns the
-navigation half: a global `beforeEach` asks `takeNavigationReload()` and turns
-the navigation into `location.assign(destination)`. In-component leave guards
-run before it, so an editor with unsaved work has already been asked.
+navigation half: `installNavigationReload` registers a global `beforeEach` that
+asks `takeNavigationReload()` and turns the navigation into
+`location.assign(destination)`. In-component leave guards run before it, so an
+editor with unsaved work has already been asked.
+
+That guard can also take the **first** navigation, and the mount has to know.
+A cold start after a deploy boots the previous build (see the fetch policy
+below), the update check swaps the worker while the auth guard is still
+awaiting the session, and if that guard then redirects (a player's `/` goes to
+`/play`) the redirect passes through the reload guard a second time, which now
+takes it. vue-router reports an aborted first navigation by rejecting
+`router.isReady()`, and `main.ts` mounts on that promise, so the rejection used
+to surface as an unhandled `Error` with no message (DUNGEON-GRIMOIRE-G, 2 Oct
+2026). Nothing was broken for the user, the page was already loading the new
+build, but it would have fired for every redirected cold start after every
+deploy. The guard returns a probe saying it has handed the page to the browser;
+the mount swallows the rejection only when that probe is true and rethrows
+anything else, because any other rejected first navigation is a real boot
+failure that must keep reaching Sentry.
 
 Fetch policy: same-origin GET only; navigations are answered with the cached
 `index.html` and no network request (the network is used only when no shell is

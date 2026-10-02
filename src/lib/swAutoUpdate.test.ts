@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createReloadCoordinator } from "@/lib/swAutoUpdate";
+import { createMemoryHistory, createRouter, isNavigationFailure, NavigationFailureType } from "vue-router";
+import { createReloadCoordinator, installNavigationReload } from "@/lib/swAutoUpdate";
 
 // jsdom's document, with controllable visibility.
 function setVisibility(state: "visible" | "hidden"): void {
@@ -161,5 +162,67 @@ describe("createReloadCoordinator", () => {
       expect(await c.takeNavigationReload()).toBe(false);
       expect(reload).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("installNavigationReload", () => {
+  const Stub = { render: () => null };
+  const makeRouter = () =>
+    createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: "/dashboard", component: Stub },
+        { path: "/play", component: Stub },
+      ],
+    });
+
+  it("leaves navigation alone while no build is waiting", async () => {
+    const router = makeRouter();
+    const assign = vi.fn();
+    const leaving = installNavigationReload(router, () => Promise.resolve(false), assign);
+
+    await router.push("/dashboard");
+
+    expect(router.currentRoute.value.path).toBe("/dashboard");
+    expect(assign).not.toHaveBeenCalled();
+    expect(leaving()).toBe(false);
+  });
+
+  it("turns the navigation into a full load of its destination", async () => {
+    const router = makeRouter();
+    const assign = vi.fn();
+    let waiting = false;
+    const leaving = installNavigationReload(router, () => Promise.resolve(waiting), assign);
+    await router.push("/dashboard");
+
+    waiting = true;
+    const failure = await router.push("/play");
+
+    expect(assign).toHaveBeenCalledWith("/play");
+    expect(isNavigationFailure(failure, NavigationFailureType.aborted)).toBe(true);
+    expect(router.currentRoute.value.path).toBe("/dashboard");
+    expect(leaving()).toBe(true);
+  });
+
+  // DUNGEON-GRIMOIRE-G. The build arrives while the first navigation is inside
+  // a later guard, and that guard's redirect is what this one then takes.
+  it("reports it is leaving when it aborts the first navigation, which rejects isReady()", async () => {
+    const router = makeRouter();
+    const assign = vi.fn();
+    let waiting = false;
+    const leaving = installNavigationReload(router, () => Promise.resolve(waiting), assign);
+    router.beforeEach((to) => {
+      if (to.path !== "/dashboard") return true;
+      waiting = true;
+      return "/play";
+    });
+
+    void router.push("/dashboard");
+
+    await expect(router.isReady()).rejects.toSatisfy((failure) =>
+      isNavigationFailure(failure, NavigationFailureType.aborted),
+    );
+    expect(assign).toHaveBeenCalledWith("/play");
+    expect(leaving()).toBe(true);
   });
 });

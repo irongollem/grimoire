@@ -16,7 +16,7 @@ import { useAuthStore } from "./stores/auth";
 import { installStaleChunkRecovery, chunksArrived } from "./lib/staleChunkRecovery";
 import { queryRetryDelay, shouldRetryQuery } from "./lib/queryRetry";
 import { initErrorTracking, reportHandledError } from "./lib/observability/sentry";
-import { installSwAutoUpdate } from "./lib/swAutoUpdate";
+import { installNavigationReload, installSwAutoUpdate } from "./lib/swAutoUpdate";
 import { updateAvailable } from "./composables/useAppUpdate";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
 import { pendingBundleFile } from "@/composables/campaign/usePendingBundle";
@@ -67,11 +67,7 @@ const router = createRouter({
 // Registered before `setupRouterGuard` so a navigation that is about to become a
 // full page load does not do the auth and lens work first.
 let takeNavigationReload: () => Promise<boolean> = () => Promise.resolve(false);
-router.beforeEach(async (to) => {
-  if (!(await takeNavigationReload())) return true;
-  window.location.assign(router.resolve(to).href);
-  return false;
-});
+const leavingForNewBuild = installNavigationReload(router, () => takeNavigationReload());
 
 // The query client goes in because the guard's lens fence (#847) resolves the
 // caller's role in the active campaign from `campaign_members`, sharing
@@ -296,4 +292,16 @@ if (window.visualViewport) {
 // Mount after the router's first navigation (and its async auth guard) resolves,
 // so the correct view renders immediately — no logged-out/guest flash on a cold
 // load of an authed route.
-router.isReady().then(() => app.mount("#app"));
+//
+// isReady() rejects when the first navigation is aborted, and the deploy reload
+// above is the one guard that aborts: it has already sent the browser to the
+// destination on the new build, so there is nothing to mount and nothing to
+// report (see installNavigationReload). Any other rejection is a boot failure
+// and is rethrown, so it still reaches Sentry as an unhandled rejection.
+router.isReady().then(
+  () => app.mount("#app"),
+  (failure: unknown) => {
+    if (leavingForNewBuild()) return;
+    throw failure;
+  },
+);
