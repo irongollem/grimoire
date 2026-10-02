@@ -36,6 +36,13 @@
           @brush-pointer-enter="onBrushPointerEnter"
           @brush-pointer-leave="onBrushPointerLeave"
         />
+        <input
+          ref="fileInput"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          class="sr-only"
+          @change="onFileChange"
+        />
 
         <!-- ── Controls column — scrolls independently on desktop ────────── -->
         <IlluminateControlsPanel
@@ -292,6 +299,11 @@ function loadFile(file: File) {
   img.src = url;
 }
 
+
+function onFileChange(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) loadFile(file);
+}
 
 function onDrop(e: DragEvent) {
   const file = e.dataTransfer?.files[0];
