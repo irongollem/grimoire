@@ -6,6 +6,7 @@ import {
   approvalOptions,
   contentKindLabel,
   isApprovalWait,
+  isRemovalOnly,
   pendingReviews,
   reviewReasonText,
   type CharacterContentReview,
@@ -53,11 +54,17 @@ describe("reviewReasonText", () => {
       .toBe("From another book, which this table has not enabled.");
   });
 
-  it("says a blocked choice is blocked, homebrew is the player's own, and foreign homebrew has to be changed", () => {
+  it("says a blocked choice is blocked, the player's own content is theirs, and another table's has to be changed", () => {
     expect(reviewReasonText(review({ reason: "blocked" }))).toBe("This table has blocked it.");
-    expect(reviewReasonText(review({ reason: "homebrew" }))).toBe("The player's own homebrew.");
+    expect(reviewReasonText(review({ reason: "homebrew" })))
+      .toBe("The player's own content, which this table does not have.");
     expect(reviewReasonText(review({ reason: "foreign" })))
-      .toBe("Homebrew made at another table. It cannot be approved here and has to be changed.");
+      .toBe("Made at another table. It cannot be approved here and has to be changed.");
+  });
+
+  it("says something that is not there has to be removed", () => {
+    expect(reviewReasonText(review({ reason: "missing" })))
+      .toBe("It no longer exists, so it has to be removed from the character.");
   });
 });
 
@@ -83,8 +90,15 @@ describe("approvalOptions", () => {
     expect(only.effect).toContain("copy");
   });
 
-  it("offers nothing for another table's homebrew: it can only be changed", () => {
+  it("offers nothing for another table's content: it can only be changed", () => {
     expect(approvalOptions(review({ reason: "foreign" }))).toEqual([]);
+  });
+
+  it("offers nothing to approve for something that no longer exists: it can only be removed", () => {
+    const missing = review({ reason: "missing" });
+    expect(approvalOptions(missing)).toEqual([]);
+    expect(isRemovalOnly(missing)).toBe(true);
+    expect(isRemovalOnly(review())).toBe(false);
   });
 });
 

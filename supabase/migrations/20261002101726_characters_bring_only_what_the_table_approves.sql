@@ -19,19 +19,25 @@
 --     character while a flag is pending (SQLSTATE CR001). It still joins: it
 --     sits at the table benched, where the DM can see it and the player can
 --     change a choice from the table's own lists.
---   * Four reasons. 'source': from a book the table has not enabled; the DM
---     allows it for this character or enables the book. 'blocked': the table
---     blocked it; the DM allows it for this character or unblocks it.
---     'homebrew': the player's own work; the DM approves it. 'foreign': someone
---     else's homebrew (another table's DM made it); it cannot be approved here,
---     because approving would copy that DM's work without them, so it has to be
---     changed.
---   * Approving a row somebody owns ADOPTS it: private.adopt_content() copies
---     it into the table's content, with what it points at (a class's features,
---     a subclass's granted spells), and the character is re-pointed at the
---     copy. The original is untouched. A player's own row from a book the table
---     HAS enabled is adopted without anyone being asked, or every campaign-less
---     character would be flagged for its SRD background.
+--   * Five reasons. 'source': a library entry from a book the table has not
+--     enabled; the DM allows it for this character or enables the book.
+--     'blocked': the table blocked it; the DM allows it for this character or
+--     unblocks it. 'homebrew': the player's own content, whatever it says it
+--     is; the DM approves it. 'foreign': somebody else's content (another
+--     table's DM made it); it cannot be approved here, because approving would
+--     copy that person's work without them, so it has to be changed.
+--     'missing': it points at nothing; it has to be removed.
+--   * Who owns a row decides everything; what a row says about itself decides
+--     nothing. Provenance keys are client-writable, so a player's own row is
+--     always the DM's to approve, even one labelled as the SRD.
+--   * Approving the player's own content ADOPTS it: private.adopt_content()
+--     copies it into the table's content, with what it points at (a class's
+--     features, a subclass's granted spells) on the same terms, and the
+--     character is re-pointed at the copy. The original is untouched. Nothing
+--     belonging to a third person is ever copied or shown, at any depth.
+--   * The one thing that needs no asking: when the table already has its own
+--     copy of the same book entry (one its DM made), the character is pointed
+--     at that. The result is the DM's row, so nothing is trusted.
 --   * A DM turning a book off later, or a seated player picking something
 --     unapproved, flags the character and changes nothing else. Characters
 --     already seated when this ships are recorded as approved: sitting at a
@@ -82,7 +88,7 @@ create table public.character_content_reviews (
   -- Its name when flagged, so the DM's queue reads without a second lookup the
   -- DM may not be allowed to make.
   label text not null,
-  reason text not null check (reason in ('source', 'blocked', 'homebrew', 'foreign')),
+  reason text not null check (reason in ('source', 'blocked', 'homebrew', 'foreign', 'missing')),
   source_slug text,
   source_title text,
   status text not null default 'pending' check (status in ('pending', 'approved')),
@@ -221,20 +227,68 @@ as $$
    where pm.id = p_party_member_id and level.entry -> 'asi' ->> 'feat_id' is not null;
 $$;
 
+-- The table's own copy of a book entry: a row a DM of the table made
+-- themselves (never one adopted from a player) with the same provenance keys.
+-- This is the only thing that lets a character through without anyone being
+-- asked, and it is safe whatever the character pointed at before, because the
+-- result is the DM's row, not the player's.
+create function private.table_book_entry(
+  p_kind text, p_campaign_id uuid, p_document_key text, p_record_key text, p_ruleset text)
+returns uuid
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+  v_table text := case p_kind
+    when 'species' then 'species' when 'background' then 'backgrounds'
+    when 'class' then 'custom_classes' when 'subclass' then 'custom_subclasses'
+    when 'spell' then 'spells' when 'feat' then 'class_features' end;
+  v_id uuid;
+begin
+  if v_table is null or p_document_key is null or p_record_key is null then
+    return null;
+  end if;
+  execute format($q$
+    select t.id from public.%I t
+     where private.is_table_dm($1, t.user_id)
+       and (%s)
+       and t.source_document_key = $2 and t.source_record_key = $3
+       and t.ruleset is not distinct from $4
+       and t.provenance ->> 'adopted_from' is null
+     order by t.created_at
+     limit 1
+  $q$, v_table, case when p_kind = 'background' then 'true' else 't.campaign_id is null or t.campaign_id = $1' end)
+    into v_id using p_campaign_id, p_document_key, p_record_key, p_ruleset;
+  return v_id;
+end;
+$$;
+
 -- The predicate. One function, so the review, the approval and the tests cannot
 -- disagree about what a table approves.
 --
---   approved   the table takes it as it is
---   reason     why not: 'source', 'blocked', 'homebrew' or 'foreign'
---   adoptable  it is a row somebody owns that approval may copy into the table
---   auto       adoptable, and from a book the table has enabled: no question to ask
+--   approved    the table takes it as it is
+--   reason      why not: 'source', 'blocked', 'homebrew', 'foreign' or 'missing'
+--   adoptable   it is the character owner's own row, which approval may copy
+--   repoint_to  the table's own copy of the same book entry, when it has one:
+--               the character is pointed at that instead and nobody is asked
 --
--- A reference that points at nothing is approved: there is nothing for the
--- table to take or refuse, and the sheet already shows it as missing.
+-- Who owns a row decides everything, and what a row SAYS about itself decides
+-- nothing. A row's provenance keys are client-writable, so "this is the SRD
+-- Acolyte" is a claim, not a fact: a player could write anything into their own
+-- row under those keys. So a player's own row is always the DM's to approve,
+-- and the keys are used only to find a row the DM made, never to trust the
+-- player's.
+--
+-- A row that belongs to neither the character's owner nor the table is
+-- 'foreign' and is named in the flag only as that: its real name is not the
+-- flag's reader's to learn. A uuid that points at nothing is 'missing', not
+-- approved: otherwise a character could be seated on an empty reference and
+-- the content created afterwards under that id.
 create function private.assess_content(
   p_kind text, p_ref text, p_campaign_id uuid, p_character_owner uuid,
   out approved boolean, out reason text, out label text,
-  out source_slug text, out source_title text, out adoptable boolean, out auto boolean)
+  out source_slug text, out source_title text, out adoptable boolean, out repoint_to uuid)
 language plpgsql
 stable
 set search_path = ''
@@ -242,13 +296,15 @@ as $$
 declare
   v_owner uuid;
   v_row_campaign uuid;
+  v_document_key text;
+  v_record_key text;
+  v_ruleset text;
   v_found boolean := false;
   v_system boolean := false;
   v_blocked boolean := false;
 begin
   approved := true;
   adoptable := false;
-  auto := false;
 
   if p_kind = 'class' and p_ref like 'system:%' then
     label := substr(p_ref, 8);
@@ -268,7 +324,9 @@ begin
        where c.id = p_campaign_id and p_ref = any(coalesce(c.disabled_species_ids, '{}')));
   end if;
 
-  -- Library rows: public, shared, tagged with their book.
+  -- Library rows: public, shared, admin-written, tagged with their book. A slug
+  -- the library does not know is nothing a client could have created, so it is
+  -- left alone.
   if not private.is_uuid(p_ref) then
     if p_kind = 'species' then
       select ls.name, ls.source, ls.source_title into label, source_slug, source_title
@@ -295,40 +353,47 @@ begin
   -- Rows somebody owns.
   case p_kind
     when 'species' then
-      select s.name, s.user_id, s.campaign_id, s.source_document_key, s.source
-        into label, v_owner, v_row_campaign, source_slug, source_title
+      select s.name, s.user_id, s.campaign_id, s.source_document_key, s.source_record_key, s.ruleset
+        into label, v_owner, v_row_campaign, v_document_key, v_record_key, v_ruleset
         from public.species s where s.id = p_ref::uuid;
       v_found := found;
     when 'background' then
-      select b.name, b.user_id, null::uuid, b.source_document_key, coalesce(b.source_title, b.source)
-        into label, v_owner, v_row_campaign, source_slug, source_title
+      select b.name, b.user_id, null::uuid, b.source_document_key, b.source_record_key, b.ruleset
+        into label, v_owner, v_row_campaign, v_document_key, v_record_key, v_ruleset
         from public.backgrounds b where b.id = p_ref::uuid;
       v_found := found;
     when 'class' then
-      select c.class_name, c.user_id, c.campaign_id, c.source_document_key, c.source
-        into label, v_owner, v_row_campaign, source_slug, source_title
+      select c.class_name, c.user_id, c.campaign_id, c.source_document_key, c.source_record_key, c.ruleset
+        into label, v_owner, v_row_campaign, v_document_key, v_record_key, v_ruleset
         from public.custom_classes c where c.id = p_ref::uuid;
       v_found := found;
     when 'subclass' then
-      select c.subclass_name, c.user_id, c.campaign_id, c.source_document_key, c.source
-        into label, v_owner, v_row_campaign, source_slug, source_title
+      select c.subclass_name, c.user_id, c.campaign_id, c.source_document_key, c.source_record_key, c.ruleset
+        into label, v_owner, v_row_campaign, v_document_key, v_record_key, v_ruleset
         from public.custom_subclasses c where c.id = p_ref::uuid;
       v_found := found;
     when 'spell' then
-      select s.name, s.user_id, s.campaign_id, s.source_document_key, coalesce(s.source_title, s.source)
-        into label, v_owner, v_row_campaign, source_slug, source_title
+      select s.name, s.user_id, s.campaign_id, s.source_document_key, s.source_record_key, s.ruleset
+        into label, v_owner, v_row_campaign, v_document_key, v_record_key, v_ruleset
         from public.spells s where s.id = p_ref::uuid;
       v_found := found;
     when 'feat' then
-      select f.name, f.user_id, f.campaign_id, f.source_document_key, f.source, f.user_id is null
-        into label, v_owner, v_row_campaign, source_slug, source_title, v_system
+      select f.name, f.user_id, f.campaign_id, f.source_document_key, f.source_record_key, f.ruleset, f.user_id is null
+        into label, v_owner, v_row_campaign, v_document_key, v_record_key, v_ruleset, v_system
         from public.class_features f where f.id = p_ref::uuid;
       v_found := found;
     else
       raise exception 'Unknown content kind %', p_kind;
   end case;
 
-  if not v_found or v_system then
+  if not v_found then
+    approved := false;
+    reason := 'missing';
+    label := 'Something that no longer exists';
+    return;
+  end if;
+
+  if v_system then
     return;
   end if;
 
@@ -344,43 +409,36 @@ begin
   end if;
 
   approved := false;
-  if source_slug is not null then
-    -- A book entry in somebody's own copy. Whoever holds the copy, it is the
-    -- book's content, so it may be adopted; whether anyone needs asking depends
-    -- on whether the table has the book.
-    reason := 'source';
-    adoptable := true;
-    auto := private.source_enabled(p_campaign_id, source_slug) and not v_blocked;
-  elsif v_owner = p_character_owner then
+  repoint_to := private.table_book_entry(p_kind, p_campaign_id, v_document_key, v_record_key, v_ruleset);
+
+  if v_owner = p_character_owner then
     reason := 'homebrew';
     adoptable := true;
   else
-    -- Somebody else's homebrew: another table's DM wrote it. Approving here
-    -- would copy that work to this table without its author, so it cannot be.
     reason := 'foreign';
-  end if;
-  if v_blocked then
-    reason := 'blocked';
-    auto := false;
+    label := 'Content from another table';
   end if;
 end;
 $$;
 
 -- ── 4. Adoption: a copy the table owns ───────────────────────────────────────
 
--- Copies one content row into a table's content and returns the copy's id.
--- Returns the row's own id when it is already the table's (or is a system row),
--- and an existing copy when the table already has one: the same book entry
--- (provenance keys), or an earlier adoption of this very row. So approving the
--- same homebrew for a second character does not make a second copy.
+-- Copies one of a character owner's own content rows into a table's content and
+-- returns the copy's id. Returns the row's own id when it is already the
+-- table's or is a system row, an earlier copy of this very row when the table
+-- has one, and NULL when the row is not `p_owner`'s to give (or does not
+-- exist): nothing that belongs to a third person is ever copied, at any depth.
 --
 -- Deep: a class takes its features with it, a subclass its features and the
--- spells it grants, a species the spells it grants. Without that the copy would
--- point at rows the table still cannot read.
+-- spells it grants, a species the spells it grants. A nested reference that
+-- comes back NULL is dropped from the copy, so the copy never points at a row
+-- the table cannot read. (A dropped grant is removed, not blanked: a species
+-- grant with no spell is a free pick, which would make the copy more generous
+-- than the original.)
 --
 -- Through jsonb, so a column added later comes along. Not a definer and not
--- client-callable: the approval and the review authorize, then call it.
-create function private.adopt_content(p_kind text, p_ref uuid, p_campaign_id uuid)
+-- client-callable: only an approval calls it, after authorizing.
+create function private.adopt_content(p_kind text, p_ref uuid, p_campaign_id uuid, p_owner uuid)
 returns uuid
 language plpgsql
 set search_path = ''
@@ -392,11 +450,12 @@ declare
     when 'spell' then 'spells' when 'feat' then 'class_features' end;
   v_scoped boolean := p_kind <> 'background';
   v_row jsonb;
-  v_owner uuid;
+  v_table_owner uuid;
   v_new_id uuid;
   v_existing uuid;
   v_grants jsonb;
   v_grant jsonb;
+  v_spell uuid;
 begin
   if v_table is null then
     raise exception 'Unknown content kind %', p_kind;
@@ -404,7 +463,7 @@ begin
 
   execute format('select to_jsonb(t) from public.%I t where t.id = $1', v_table) into v_row using p_ref;
   if v_row is null then
-    return p_ref;
+    return null;
   end if;
 
   -- Already the table's, or nobody's (a system feature): nothing to copy.
@@ -415,58 +474,70 @@ begin
     return p_ref;
   end if;
 
-  -- An existing copy the table already holds.
+  if p_owner is null or (v_row ->> 'user_id')::uuid is distinct from p_owner then
+    return null;
+  end if;
+
+  -- An earlier copy of this very row.
   execute format($q$
     select t.id from public.%I t
      where private.is_table_dm($1, t.user_id)
        and (%s)
-       and (
-         t.provenance ->> 'adopted_from' = $2
-         or ($3 is not null and $4 is not null
-             and t.source_document_key = $3 and t.source_record_key = $4
-             and t.ruleset is not distinct from $5)
-       )
+       and t.provenance ->> 'adopted_from' = $2
      order by t.created_at
      limit 1
   $q$, v_table, case when v_scoped then 't.campaign_id is null or t.campaign_id = $1' else 'true' end)
-    into v_existing
-    using p_campaign_id, p_ref::text, v_row ->> 'source_document_key', v_row ->> 'source_record_key', v_row ->> 'ruleset';
+    into v_existing using p_campaign_id, p_ref::text;
   if v_existing is not null then
     return v_existing;
   end if;
 
-  select c.user_id into v_owner from public.campaigns c where c.id = p_campaign_id;
-  if v_owner is null then
+  select c.user_id into v_table_owner from public.campaigns c where c.id = p_campaign_id;
+  if v_table_owner is null then
     raise exception 'Campaign not found';
   end if;
 
+  -- The copy does not keep the book keys the player's row carried. Those keys
+  -- say "this IS that book's entry", which is a claim only a row the DM made
+  -- can stand behind; and an account holds at most one row per pair of keys, so
+  -- a second player's copy of the same entry could not be approved at all. What
+  -- the row claimed is kept in provenance, where it identifies nothing.
   v_new_id := gen_random_uuid();
   v_row := v_row || jsonb_build_object(
     'id', v_new_id,
-    'user_id', v_owner,
+    'user_id', v_table_owner,
     'created_at', now(),
     'updated_at', now(),
+    'source_document_key', null,
+    'source_record_key', null,
     'provenance', coalesce(nullif(v_row -> 'provenance', 'null'::jsonb), '{}'::jsonb)
-                  || jsonb_build_object('adopted_from', p_ref::text));
+                  || jsonb_build_object(
+                       'adopted_from', p_ref::text,
+                       'adopted_keys', jsonb_build_object(
+                         'document', v_row -> 'source_document_key',
+                         'record', v_row -> 'source_record_key')));
   if v_scoped then
     v_row := v_row || jsonb_build_object('campaign_id', p_campaign_id);
   end if;
 
-  -- What it points at comes too.
+  -- What it points at comes too, on the same terms.
   if p_kind in ('class', 'subclass') then
     v_row := v_row || jsonb_build_object(
-      'features', private.adopt_id_map(v_row -> 'features', 'feat', p_campaign_id));
+      'features', private.adopt_id_map(v_row -> 'features', 'feat', p_campaign_id, p_owner));
   end if;
   if p_kind = 'subclass' then
     v_row := v_row || jsonb_build_object(
-      'granted_spells', private.adopt_id_map(v_row -> 'granted_spells', 'spell', p_campaign_id));
+      'granted_spells', private.adopt_id_map(v_row -> 'granted_spells', 'spell', p_campaign_id, p_owner));
   end if;
   if p_kind = 'species' and jsonb_typeof(v_row -> 'granted_spells') = 'array' then
     v_grants := '[]'::jsonb;
     for v_grant in select * from jsonb_array_elements(v_row -> 'granted_spells') loop
       if private.is_uuid(v_grant ->> 'spell_id') then
-        v_grant := v_grant || jsonb_build_object('spell_id',
-          private.adopt_content('spell', (v_grant ->> 'spell_id')::uuid, p_campaign_id)::text);
+        v_spell := private.adopt_content('spell', (v_grant ->> 'spell_id')::uuid, p_campaign_id, p_owner);
+        if v_spell is null then
+          continue;
+        end if;
+        v_grant := v_grant || jsonb_build_object('spell_id', v_spell::text);
       end if;
       v_grants := v_grants || jsonb_build_array(v_grant);
     end loop;
@@ -480,8 +551,9 @@ end;
 $$;
 
 -- Re-points every uuid in a {"<level>": [ids]} map at the table's copy of what
--- it names. Slugs (library content) pass through untouched.
-create function private.adopt_id_map(p_map jsonb, p_kind text, p_campaign_id uuid)
+-- it names, dropping any that is not the owner's to give. Slugs (library
+-- content) pass through untouched.
+create function private.adopt_id_map(p_map jsonb, p_kind text, p_campaign_id uuid, p_owner uuid)
 returns jsonb
 language plpgsql
 set search_path = ''
@@ -492,6 +564,7 @@ declare
   v_ids jsonb;
   v_id text;
   v_new jsonb;
+  v_adopted uuid;
 begin
   if p_map is null or jsonb_typeof(p_map) <> 'object' then
     return p_map;
@@ -504,7 +577,10 @@ begin
     v_new := '[]'::jsonb;
     for v_id in select * from jsonb_array_elements_text(v_ids) loop
       if private.is_uuid(v_id) then
-        v_new := v_new || to_jsonb(private.adopt_content(p_kind, v_id::uuid, p_campaign_id)::text);
+        v_adopted := private.adopt_content(p_kind, v_id::uuid, p_campaign_id, p_owner);
+        if v_adopted is not null then
+          v_new := v_new || to_jsonb(v_adopted::text);
+        end if;
       else
         v_new := v_new || to_jsonb(v_id);
       end if;
@@ -574,21 +650,28 @@ $$;
 
 -- Brings a character's flags in line with what it points at and what its table
 -- approves, and returns how many are pending. Idempotent, and the only writer
--- of pending rows. Adopts what needs no asking; never adopts when
--- p_grandfather is set, which records every unapproved choice as approved
--- instead (the data migration at the end of this file).
+-- of pending rows. Copies nothing: the one thing it does without asking is
+-- point a character at the table's own copy of a book entry it already has.
+-- With p_grandfather set it changes nothing about the character and records
+-- every unapproved choice as approved (the data migration at the end of this
+-- file).
 --
--- Re-entrant by flag: adopting re-points the character, which fires the very
--- triggers that call this function.
+-- Re-entrant by flag: re-pointing fires the very triggers that call this
+-- function.
 create function private.review_party_member_content(p_party_member_id uuid, p_grandfather boolean default false)
 returns integer
 language plpgsql
 set search_path = ''
 as $$
 declare
+  -- A character with more unapproved choices than this is benched either way;
+  -- the cap only stops one request from writing an unbounded number of rows
+  -- into a queue the DM has to read.
+  c_max_flags constant integer := 100;
   v_pm public.party_members%rowtype;
   v_owner uuid;
   v_ref record;
+  v_target text;
   v_a record;
   v_kept text[] := '{}';
   v_held text[] := '{}';
@@ -619,30 +702,44 @@ begin
   for v_ref in
     select r.kind, r.ref from private.party_member_content_refs(p_party_member_id) r
   loop
-    v_held := v_held || (v_ref.kind || '|' || v_ref.ref);
-    v_a := private.assess_content(v_ref.kind, v_ref.ref, v_pm.campaign_id, v_owner);
+    v_target := v_ref.ref;
+    v_a := private.assess_content(v_ref.kind, v_target, v_pm.campaign_id, v_owner);
+
+    -- The table has its own copy of this book entry: point at that, and judge
+    -- the copy (it may itself be blocked).
+    if not v_a.approved and v_a.repoint_to is not null and not p_grandfather then
+      perform private.repoint_party_member_content(
+        p_party_member_id, v_ref.kind, v_target, v_a.repoint_to::text);
+      v_target := v_a.repoint_to::text;
+      v_a := private.assess_content(v_ref.kind, v_target, v_pm.campaign_id, v_owner);
+    end if;
+
+    v_held := v_held || (v_ref.kind || '|' || v_target);
     if v_a.approved then
       continue;
     end if;
-
-    if v_a.auto and not p_grandfather then
-      perform private.repoint_party_member_content(
-        p_party_member_id, v_ref.kind, v_ref.ref,
-        private.adopt_content(v_ref.kind, v_ref.ref::uuid, v_pm.campaign_id)::text);
+    if cardinality(v_kept) >= c_max_flags then
       continue;
     end if;
 
-    insert into public.character_content_reviews
+    insert into public.character_content_reviews as r
       (campaign_id, party_member_id, kind, ref, label, reason, source_slug, source_title, status, decided_at)
     values
-      (v_pm.campaign_id, p_party_member_id, v_ref.kind, v_ref.ref, coalesce(v_a.label, v_ref.ref),
+      (v_pm.campaign_id, p_party_member_id, v_ref.kind, v_target, coalesce(v_a.label, v_target),
        v_a.reason, v_a.source_slug, v_a.source_title,
        case when p_grandfather then 'approved' else 'pending' end,
        case when p_grandfather then now() end)
     on conflict (party_member_id, kind, ref) do update
       set label = excluded.label, reason = excluded.reason,
-          source_slug = excluded.source_slug, source_title = excluded.source_title;
-    v_kept := v_kept || (v_ref.kind || '|' || v_ref.ref);
+          source_slug = excluded.source_slug, source_title = excluded.source_title,
+          -- An approval was given for a reason. If the reason is no longer the
+          -- same (a reference that pointed at nothing now points at somebody's
+          -- homebrew; an allowed species has since been blocked), it is a new
+          -- question and waits again.
+          status = case when r.reason is distinct from excluded.reason then 'pending' else r.status end,
+          decided_by = case when r.reason is distinct from excluded.reason then null else r.decided_by end,
+          decided_at = case when r.reason is distinct from excluded.reason then null else r.decided_at end;
+    v_kept := v_kept || (v_ref.kind || '|' || v_target);
   end loop;
 
   -- A flag for a choice the character no longer has has nothing left to say,
@@ -668,9 +765,10 @@ revoke execute on function private.is_uuid(text) from public, anon, authenticate
 revoke execute on function private.is_table_dm(uuid, uuid) from public, anon, authenticated;
 revoke execute on function private.source_enabled(uuid, text) from public, anon, authenticated;
 revoke execute on function private.party_member_content_refs(uuid) from public, anon, authenticated;
+revoke execute on function private.table_book_entry(text, uuid, text, text, text) from public, anon, authenticated;
 revoke execute on function private.assess_content(text, text, uuid, uuid) from public, anon, authenticated;
-revoke execute on function private.adopt_id_map(jsonb, text, uuid) from public, anon, authenticated;
-revoke execute on function private.adopt_content(text, uuid, uuid) from public, anon, authenticated;
+revoke execute on function private.adopt_id_map(jsonb, text, uuid, uuid) from public, anon, authenticated;
+revoke execute on function private.adopt_content(text, uuid, uuid, uuid) from public, anon, authenticated;
 revoke execute on function private.repoint_party_member_content(uuid, text, text, text) from public, anon, authenticated;
 revoke execute on function private.review_party_member_content(uuid, boolean) from public, anon, authenticated;
 
@@ -1031,19 +1129,56 @@ begin
 end;
 $function$;
 
--- ── 8. Approving ─────────────────────────────────────────────────────────────
+-- ── 8. Approving, and removing what is not there ─────────────────────────────
+
+-- A character with nothing waiting takes the seat it was kept from, if its
+-- owner has none filled at that table.
+create function private.seat_cleared_party_member(p_party_member_id uuid)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_pm public.party_members%rowtype;
+  v_prev text := current_setting('grimoire.pm_campaign_transition', true);
+begin
+  select * into v_pm from public.party_members where id = p_party_member_id;
+  if not found or v_pm.campaign_id is null or v_pm.owner_user_id is null then
+    return;
+  end if;
+  if exists (
+    select 1 from public.character_content_reviews r
+     where r.party_member_id = p_party_member_id and r.status = 'pending'
+  ) then
+    return;
+  end if;
+  perform set_config('grimoire.pm_campaign_transition', 'on', true);
+  update public.campaign_members m
+     set party_member_id = p_party_member_id
+   where m.campaign_id = v_pm.campaign_id
+     and m.user_id = v_pm.owner_user_id
+     and m.party_member_id is null;
+  perform set_config('grimoire.pm_campaign_transition', coalesce(v_prev, ''), true);
+end;
+$$;
+
+revoke execute on function private.seat_cleared_party_member(uuid) from public, anon, authenticated;
 
 -- The DM clears one flag. `p_scope` says how far the approval reaches:
 --
---   'character'  this character only. A library choice gets an approved row; a
---                row somebody owns is adopted into the table and the character
---                re-pointed at the copy.
+--   'character'  this character only. A library or blocked choice gets an
+--                approved row; the player's own content is adopted into the
+--                table and the character re-pointed at the copy.
 --   'table'      everyone. The book is enabled, or the block is lifted, and
---                every seated character is reviewed again.
+--                every seated character is reviewed again. Only for a choice
+--                the library or the table itself vouches for: the book to
+--                enable is read from the library row, never from anything a
+--                player wrote.
 --
--- Returns how many flags the character still has pending. When that reaches
--- zero and its owner has no active character at the table, it takes the seat it
--- was kept from.
+-- The flag is assessed again here rather than trusted as stored: what it points
+-- at may have changed since it was raised.
+--
+-- Returns how many flags the character still has pending.
 create function public.approve_character_content(p_review_id uuid, p_scope text default 'character')
 returns integer
 language plpgsql
@@ -1054,9 +1189,10 @@ declare
   v_uid uuid := (select auth.uid());
   v_review public.character_content_reviews%rowtype;
   v_pm public.party_members%rowtype;
+  v_owner uuid;
   v_a record;
+  v_copy uuid;
   v_pending integer;
-  v_prev text := current_setting('grimoire.pm_campaign_transition', true);
 begin
   if v_uid is null then
     raise exception 'Not authenticated';
@@ -1074,35 +1210,38 @@ begin
   end if;
 
   select * into v_pm from public.party_members where id = v_review.party_member_id;
+  v_owner := coalesce(v_pm.owner_user_id, v_pm.user_id);
+  v_a := private.assess_content(v_review.kind, v_review.ref, v_review.campaign_id, v_owner);
 
-  if v_review.reason = 'foreign' then
-    raise exception 'This was made at another table and cannot be approved here; it has to be changed';
-  end if;
-
-  if p_scope = 'table' then
-    if v_review.reason = 'source' and v_review.source_slug is not null then
-      insert into public.campaign_enabled_sources (campaign_id, source_slug, source_title)
-      values (v_review.campaign_id, v_review.source_slug, v_review.source_title)
-      on conflict (campaign_id, source_slug) do nothing;
-    elsif v_review.reason = 'blocked' and v_review.kind = 'species' then
-      update public.campaigns
-         set disabled_species_ids = array_remove(disabled_species_ids, v_review.ref)
-       where id = v_review.campaign_id;
-    elsif v_review.reason = 'blocked' and v_review.kind = 'class' and v_review.ref like 'system:%' then
-      update public.campaigns
-         set disabled_class_names = array_remove(disabled_class_names, substr(v_review.ref, 8))
-       where id = v_review.campaign_id;
-    else
-      raise exception 'Only a book or a blocked choice can be approved for the whole table';
-    end if;
-    -- The enable and the unblock each re-review every seated character.
-  else
-    v_a := private.assess_content(v_review.kind, v_review.ref, v_review.campaign_id,
-                                  coalesce(v_pm.owner_user_id, v_pm.user_id));
-    if not v_a.approved and v_a.adoptable then
+  if not v_a.approved then
+    if v_a.reason = 'foreign' then
+      raise exception 'This was made at another table and cannot be approved here; it has to be changed';
+    elsif v_a.reason = 'missing' then
+      raise exception 'This no longer exists and cannot be approved; it has to be removed';
+    elsif p_scope = 'table' then
+      if v_a.reason = 'source' and v_a.source_slug is not null then
+        insert into public.campaign_enabled_sources (campaign_id, source_slug, source_title)
+        values (v_review.campaign_id, v_a.source_slug, v_a.source_title)
+        on conflict (campaign_id, source_slug) do nothing;
+      elsif v_a.reason = 'blocked' and v_review.kind = 'species' then
+        update public.campaigns
+           set disabled_species_ids = array_remove(disabled_species_ids, v_review.ref)
+         where id = v_review.campaign_id;
+      elsif v_a.reason = 'blocked' and v_review.kind = 'class' and v_review.ref like 'system:%' then
+        update public.campaigns
+           set disabled_class_names = array_remove(disabled_class_names, substr(v_review.ref, 8))
+         where id = v_review.campaign_id;
+      else
+        raise exception 'Only a book or a blocked choice can be approved for the whole table';
+      end if;
+      -- The enable and the unblock each re-review every seated character.
+    elsif v_a.reason = 'homebrew' then
+      v_copy := private.adopt_content(v_review.kind, v_review.ref::uuid, v_review.campaign_id, v_owner);
+      if v_copy is null then
+        raise exception 'This cannot be copied into the table''s content';
+      end if;
       perform private.repoint_party_member_content(
-        v_review.party_member_id, v_review.kind, v_review.ref,
-        private.adopt_content(v_review.kind, v_review.ref::uuid, v_review.campaign_id)::text);
+        v_review.party_member_id, v_review.kind, v_review.ref, v_copy::text);
     else
       update public.character_content_reviews
          set status = 'approved', decided_by = v_uid, decided_at = now()
@@ -1111,17 +1250,7 @@ begin
   end if;
 
   v_pending := private.review_party_member_content(v_review.party_member_id);
-
-  if v_pending = 0 and v_pm.owner_user_id is not null then
-    perform set_config('grimoire.pm_campaign_transition', 'on', true);
-    update public.campaign_members m
-       set party_member_id = v_review.party_member_id
-     where m.campaign_id = v_review.campaign_id
-       and m.user_id = v_pm.owner_user_id
-       and m.party_member_id is null;
-    perform set_config('grimoire.pm_campaign_transition', coalesce(v_prev, ''), true);
-  end if;
-
+  perform private.seat_cleared_party_member(v_review.party_member_id);
   return v_pending;
 end;
 $$;
@@ -1129,10 +1258,104 @@ $$;
 revoke execute on function public.approve_character_content(uuid, text) from public, anon;
 grant execute on function public.approve_character_content(uuid, text) to authenticated, service_role;
 
+-- A reference to something that no longer exists cannot be approved or changed
+-- into anything: it can only be taken off the character. Its owner may do that,
+-- and so may the DM of the table it sits at. Returns how many flags are left.
+create function public.remove_missing_character_content(p_review_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_uid uuid := (select auth.uid());
+  v_review public.character_content_reviews%rowtype;
+  v_pm public.party_members%rowtype;
+  v_a record;
+  v_pending integer;
+begin
+  if v_uid is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  select * into v_review from public.character_content_reviews where id = p_review_id for update;
+  if not found then
+    raise exception 'Nothing is waiting under that id';
+  end if;
+
+  select * into v_pm from public.party_members where id = v_review.party_member_id;
+  if not coalesce(
+    private.is_campaign_dm(v_review.campaign_id)
+    or v_pm.owner_user_id = v_uid
+    or (v_pm.owner_user_id is null and v_pm.user_id = v_uid),
+    false
+  ) then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  v_a := private.assess_content(v_review.kind, v_review.ref, v_review.campaign_id,
+                                coalesce(v_pm.owner_user_id, v_pm.user_id));
+  if v_a.approved or v_a.reason <> 'missing' then
+    raise exception 'Only a choice that no longer exists can be removed this way';
+  end if;
+
+  case v_review.kind
+    when 'species' then
+      update public.party_members set species_id = null
+       where id = v_review.party_member_id and species_id = v_review.ref;
+    when 'spell' then
+      delete from public.character_spells
+       where party_member_id = v_review.party_member_id and spell_id = v_review.ref;
+    when 'class' then
+      update public.character_classes
+         set class_definition_id = null, class_definition_kind = null
+       where party_member_id = v_review.party_member_id and class_definition_id = v_review.ref::uuid;
+    when 'subclass' then
+      update public.character_classes set subclass_definition_id = null
+       where party_member_id = v_review.party_member_id and subclass_definition_id = v_review.ref::uuid;
+    when 'feat' then
+      update public.party_members pm set
+        class_choices = case
+          when jsonb_typeof(pm.class_choices -> 'feats') = 'array' then
+            jsonb_set(pm.class_choices, '{feats}', (
+              select coalesce(jsonb_agg(f.id order by f.ord), '[]'::jsonb)
+                from jsonb_array_elements_text(pm.class_choices -> 'feats') with ordinality as f(id, ord)
+               where f.id <> v_review.ref))
+          else pm.class_choices end,
+        level_choices = case
+          when jsonb_typeof(pm.level_choices) = 'object' then (
+            select coalesce(jsonb_object_agg(l.lvl,
+                     case when l.entry -> 'asi' ->> 'feat_id' = v_review.ref
+                          then l.entry #- '{asi,feat_id}' else l.entry end), '{}'::jsonb)
+              from jsonb_each(pm.level_choices) as l(lvl, entry))
+          else pm.level_choices end
+       where pm.id = v_review.party_member_id;
+    else
+      -- A background is a foreign key and is cleared by the database when its
+      -- row goes, so it is never missing.
+      raise exception 'Nothing to remove for this kind';
+  end case;
+
+  v_pending := private.review_party_member_content(v_review.party_member_id);
+  perform private.seat_cleared_party_member(v_review.party_member_id);
+  return v_pending;
+end;
+$$;
+
+revoke execute on function public.remove_missing_character_content(uuid) from public, anon;
+grant execute on function public.remove_missing_character_content(uuid) to authenticated, service_role;
+
 -- What a flag is about, for the DM who has to decide and cannot otherwise read
--- a player's own content. Reachable only through a flag on a character at the
--- caller's own table (or the caller's own character), so it is not a way to
--- read arbitrary rows.
+-- a player's own content. A definer handing a row to someone RLS would refuse,
+-- so it is narrow on purpose:
+--
+--   * only through a flag at the caller's own table, or on the caller's own
+--     character;
+--   * only while the character still points at it;
+--   * only what the flag's reader is entitled to: a library row, the table's
+--     own content, or the CHARACTER OWNER'S own row. Never a third person's.
+--     Without that last rule, pointing a character at a stranger's row was a
+--     way to read it.
 create function public.get_character_content_item(p_review_id uuid)
 returns jsonb
 language plpgsql
@@ -1143,6 +1366,8 @@ as $$
 declare
   v_uid uuid := (select auth.uid());
   v_review public.character_content_reviews%rowtype;
+  v_pm public.party_members%rowtype;
+  v_a record;
   v_table text;
   v_item jsonb;
 begin
@@ -1155,15 +1380,27 @@ begin
     raise exception 'Nothing is waiting under that id';
   end if;
 
+  select * into v_pm from public.party_members where id = v_review.party_member_id;
   if not coalesce(
     private.is_campaign_dm(v_review.campaign_id)
-    or exists (
-      select 1 from public.party_members pm
-       where pm.id = v_review.party_member_id
-         and (pm.owner_user_id = v_uid or (pm.owner_user_id is null and pm.user_id = v_uid))),
+    or v_pm.owner_user_id = v_uid
+    or (v_pm.owner_user_id is null and v_pm.user_id = v_uid),
     false
   ) then
     raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  if not exists (
+    select 1 from private.party_member_content_refs(v_review.party_member_id) r
+     where r.kind = v_review.kind and r.ref = v_review.ref
+  ) then
+    return null;
+  end if;
+
+  v_a := private.assess_content(v_review.kind, v_review.ref, v_review.campaign_id,
+                                coalesce(v_pm.owner_user_id, v_pm.user_id));
+  if not v_a.approved and v_a.reason in ('foreign', 'missing') then
+    return null;
   end if;
 
   if v_review.kind = 'class' and v_review.ref like 'system:%' then
@@ -1186,7 +1423,7 @@ begin
     execute format('select to_jsonb(t) from public.%I t where t.id = $1', v_table)
       into v_item using v_review.ref;
   end if;
-  -- The owner's id is not the DM's to learn from a content row.
+  -- The owner's id is not the reader's to learn from a content row.
   return v_item - 'user_id';
 end;
 $$;

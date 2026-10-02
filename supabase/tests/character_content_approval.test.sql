@@ -2,31 +2,30 @@
 --
 -- What is held here, each refusal beside a control:
 --
---   the predicate  what a table takes as it is, and the four reasons it does not
---   the bench      a flagged character joins but cannot be made anyone's active
---                  character (CR001), for the DM as well
---   approval       only the table's DM; for this character or for the table;
---                  a row somebody owns is copied into the table, deeply, and
---                  the original is untouched
---   no asking      a player's own copy of a book the table has is adopted
---                  without a flag
---   stay, flagged  a table that changes its mind flags a seated character and
---                  moves nothing
+--   the predicate    what a table takes as it is, and the five reasons it does not
+--   the bench        a flagged character joins but cannot be made anyone's active
+--                    character (CR001), for the DM as well
+--   approval         only the table's DM; for this character or for the table;
+--                    the player's own content is copied into the table, deeply,
+--                    and the original is untouched
+--   ownership, not   who owns a row decides everything; what a row says it is
+--   claims           decides nothing. A row labelled as a book entry is still the
+--                    player's own. A third person's row is never named, shown or
+--                    copied, at any depth. A reference to nothing is not approved.
+--   stay, flagged    a table that changes its mind flags a seated character and
+--                    moves nothing
 --
---   1 Dana  DM of c1 (2014)                 3 Sam  DM of c2, author of a homebrew spell
+-- The attacks in the second half are the ones a security audit of the first
+-- version of this migration reproduced (2 Oct 2026). Each is here as the
+-- refusal it must now meet.
+--
+--   1 Dana  DM of c1 (2014)                 3 Sam  DM of c2, author of private homebrew
 --   2 Pia   plays at c1                     4 Oz   plays at c1
---
---   p1 Pia's: a species and a spell from a book c1 has not enabled, and Pia's
---      own copy of an SRD background
---   p2 Pia's: her own homebrew species (granting her own spell), her own
---      homebrew class (with her own feature), and that feature taken as a feat
---   p3 Pia's: a spell Sam wrote
---   p4 Oz's:  nothing the table has not approved
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(60);
+select plan(95);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94400000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -52,22 +51,36 @@ insert into public.library_species (id, name, ruleset, source, source_title, sou
 insert into public.library_spells (id, name, level, school, casting_time, range, duration, conceptual_key, ruleset, source, source_title, source_document_key, source_record_key) values
   ('test_toh_spell', 'Test Tome Spell', 1, 'evocation', 'Action', '60 ft.', 'Instantaneous', 'test-tome-spell', '2014', 'test-toh', 'Test Tome', 'test-toh', 'test_toh_spell');
 
--- Content people own.
-insert into public.backgrounds (id, user_id, name, ruleset, open5e_import, source, source_title, source_document_key, source_record_key) values
-  ('94400000-0000-4000-8000-0000000000b1', '94400000-0000-4000-8000-000000000002', 'Acolyte', '2014', true,
-   'srd-2014', 'System Reference Document 5.1', 'srd-2014', 'srd_acolyte');
+-- Backgrounds. b9 is the table's own Acolyte, made by its DM. b1 is Pia's honest
+-- copy of the same entry; b2 is Oz's row under the same keys with something
+-- else written in it (one account cannot hold two rows with the same keys); b3 is Pia's copy of an entry the table does not have; b4
+-- is Oz's copy of that same entry; b5 is Sam's private homebrew.
+insert into public.backgrounds (id, user_id, name, description, ruleset, open5e_import, source_document_key, source_record_key) values
+  ('94400000-0000-4000-8000-0000000000b9', '94400000-0000-4000-8000-000000000001', 'Acolyte', 'The table''s own', '2014', true, 'srd-2014', 'srd_acolyte'),
+  ('94400000-0000-4000-8000-0000000000b1', '94400000-0000-4000-8000-000000000002', 'Acolyte', 'Pia''s honest copy', '2014', true, 'srd-2014', 'srd_acolyte'),
+  ('94400000-0000-4000-8000-0000000000b2', '94400000-0000-4000-8000-000000000004', 'Acolyte', 'FORGED: grants 20 in everything', '2014', true, 'srd-2014', 'srd_acolyte'),
+  ('94400000-0000-4000-8000-0000000000b3', '94400000-0000-4000-8000-000000000002', 'Sage', 'Pia''s Sage', '2014', true, 'srd-2014', 'srd_sage'),
+  ('94400000-0000-4000-8000-0000000000b4', '94400000-0000-4000-8000-000000000004', 'Sage', 'Oz''s Sage', '2014', true, 'srd-2014', 'srd_sage'),
+  ('94400000-0000-4000-8000-0000000000b5', '94400000-0000-4000-8000-000000000003', 'SAM SECRET BACKGROUND', 'Sam''s private notes', '2014', false, null, null);
 insert into public.spells (id, user_id, name) values
   ('94400000-0000-4000-8000-000000000051', '94400000-0000-4000-8000-000000000002', 'Pia''s Spark'),
-  ('94400000-0000-4000-8000-000000000053', '94400000-0000-4000-8000-000000000003', 'Sam''s Hex');
+  ('94400000-0000-4000-8000-000000000053', '94400000-0000-4000-8000-000000000003', 'SAM SECRET SPELL');
 insert into public.species (id, user_id, name, granted_spells) values
   ('94400000-0000-4000-8000-000000000061', '94400000-0000-4000-8000-000000000002', 'Pia''s Mothfolk',
-   '[{"spell_id": "94400000-0000-4000-8000-000000000051", "spell_name": "Pia''s Spark", "min_level": 1, "uses_per_day": null, "resets_on": null, "source_label": "Mothfolk", "subrace": null}]'::jsonb);
+   '[{"spell_id": "94400000-0000-4000-8000-000000000051", "spell_name": "Pia''s Spark", "min_level": 1, "source_label": "Mothfolk", "subrace": null},
+     {"spell_id": "94400000-0000-4000-8000-000000000053", "spell_name": "Borrowed", "min_level": 1, "source_label": "Mothfolk", "subrace": null}]'::jsonb);
 insert into public.class_features (id, user_id, name) values
   ('94400000-0000-4000-8000-000000000071', '94400000-0000-4000-8000-000000000002', 'Pia''s Knack');
 insert into public.custom_classes (id, user_id, class_name, features) values
   ('94400000-0000-4000-8000-000000000081', '94400000-0000-4000-8000-000000000002', 'Hexer',
    '{"1": ["94400000-0000-4000-8000-000000000071"]}'::jsonb);
 
+-- e1 library content from a book the table lacks, and an honest copy of an
+--    entry the table has          e2 Pia's own homebrew, three kinds deep
+-- e3 a spell Sam wrote            e4 Oz's, nothing unapproved
+-- e6 a species that is not there  e7 the forged Acolyte
+-- e8 Pia's Sage                   e9 Oz's Sage
+-- ea Sam's private background
 insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, class, level, ruleset, species_id, background_id, class_choices, level_choices) values
   ('94400000-0000-4000-8000-0000000000e1', '94400000-0000-4000-8000-000000000002', '94400000-0000-4000-8000-000000000002',
    null, 'p1 tome', 'Wizard', 1, '2014', 'test_toh_alseid', '94400000-0000-4000-8000-0000000000b1', '{}'::jsonb, '{}'::jsonb),
@@ -76,14 +89,24 @@ insert into public.party_members (id, user_id, owner_user_id, campaign_id, name,
    '{"feats": ["94400000-0000-4000-8000-000000000071"]}'::jsonb,
    '{"4": {"asi": {"feat_id": "94400000-0000-4000-8000-000000000071"}}}'::jsonb),
   ('94400000-0000-4000-8000-0000000000e3', '94400000-0000-4000-8000-000000000002', '94400000-0000-4000-8000-000000000002',
-   null, 'p3 foreign', 'Wizard', 1, '2014', 'test_srd_elf', null, '{}'::jsonb, '{}'::jsonb),
+   null, 'p3 foreign spell', 'Wizard', 1, '2014', 'test_srd_elf', null, '{}'::jsonb, '{}'::jsonb),
   ('94400000-0000-4000-8000-0000000000e4', '94400000-0000-4000-8000-000000000004', '94400000-0000-4000-8000-000000000004',
-   null, 'p4 clean', 'Wizard', 1, '2014', 'test_srd_elf', null, '{}'::jsonb, '{}'::jsonb);
+   null, 'p4 clean', 'Wizard', 1, '2014', 'test_srd_elf', null, '{}'::jsonb, '{}'::jsonb),
+  ('94400000-0000-4000-8000-0000000000e6', '94400000-0000-4000-8000-000000000002', '94400000-0000-4000-8000-000000000002',
+   null, 'p6 ghost', 'Wizard', 1, '2014', '94400000-0000-4000-8000-0000000000aa', null, '{}'::jsonb, '{}'::jsonb),
+  ('94400000-0000-4000-8000-0000000000e7', '94400000-0000-4000-8000-000000000004', '94400000-0000-4000-8000-000000000004',
+   null, 'p7 forged', 'Wizard', 1, '2014', 'test_srd_elf', '94400000-0000-4000-8000-0000000000b2', '{}'::jsonb, '{}'::jsonb),
+  ('94400000-0000-4000-8000-0000000000e8', '94400000-0000-4000-8000-000000000002', '94400000-0000-4000-8000-000000000002',
+   null, 'p8 sage', 'Wizard', 1, '2014', 'test_srd_elf', '94400000-0000-4000-8000-0000000000b3', '{}'::jsonb, '{}'::jsonb),
+  ('94400000-0000-4000-8000-0000000000e9', '94400000-0000-4000-8000-000000000004', '94400000-0000-4000-8000-000000000004',
+   null, 'p9 sage', 'Wizard', 1, '2014', 'test_srd_elf', '94400000-0000-4000-8000-0000000000b4', '{}'::jsonb, '{}'::jsonb),
+  ('94400000-0000-4000-8000-0000000000ea', '94400000-0000-4000-8000-000000000002', '94400000-0000-4000-8000-000000000002',
+   null, 'pa foreign background', 'Wizard', 1, '2014', 'test_srd_elf', '94400000-0000-4000-8000-0000000000b5', '{}'::jsonb, '{}'::jsonb);
 
 insert into public.character_classes (party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
 select m.id, 'Wizard', 1, true, (select id from public.system_classes where ruleset = '2014' and class_name = 'Wizard'), 'system'
   from public.party_members m
- where m.id in ('94400000-0000-4000-8000-0000000000e1', '94400000-0000-4000-8000-0000000000e3', '94400000-0000-4000-8000-0000000000e4');
+ where m.name like 'p%' and m.id <> '94400000-0000-4000-8000-0000000000e2' and m.id::text like '94400000-%';
 insert into public.character_classes (party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
 values ('94400000-0000-4000-8000-0000000000e2', 'Hexer', 4, true, '94400000-0000-4000-8000-000000000081', 'custom');
 
@@ -110,10 +133,32 @@ create function pg_temp.flag_id(p_suffix text, p_kind text) returns uuid languag
    where r.party_member_id = ('94400000-0000-4000-8000-0000000000' || p_suffix)::uuid and r.kind = p_kind
    order by r.label limit 1;
 $$;
+create function pg_temp.flag_label(p_suffix text, p_kind text) returns text language sql security definer as $$
+  select r.label from public.character_content_reviews r
+   where r.party_member_id = ('94400000-0000-4000-8000-0000000000' || p_suffix)::uuid and r.kind = p_kind
+   order by r.label limit 1;
+$$;
 create function pg_temp.seat(p_user int) returns uuid language sql security definer as $$
   select m.party_member_id from public.campaign_members m
    where m.campaign_id = '94400000-0000-4000-8000-0000000000c1'
      and m.user_id = ('94400000-0000-4000-8000-00000000000' || p_user)::uuid;
+$$;
+create function pg_temp.background_of(p_suffix text) returns public.backgrounds language sql security definer as $$
+  select b.* from public.backgrounds b where b.id = (pg_temp.pm(p_suffix)).background_id;
+$$;
+-- How many rows of each kind the table's DM owns: adoption must never grow this
+-- without the DM's own approval.
+create function pg_temp.dana_owns() returns text language sql security definer as $$
+  select format('backgrounds %s, species %s, spells %s, classes %s, features %s',
+    (select count(*) from public.backgrounds where user_id = '94400000-0000-4000-8000-000000000001'),
+    (select count(*) from public.species where user_id = '94400000-0000-4000-8000-000000000001'),
+    (select count(*) from public.spells where user_id = '94400000-0000-4000-8000-000000000001'),
+    (select count(*) from public.custom_classes where user_id = '94400000-0000-4000-8000-000000000001'),
+    (select count(*) from public.class_features where user_id = '94400000-0000-4000-8000-000000000001'));
+$$;
+create function pg_temp.attach(p_suffix text, p_active boolean default true) returns void language sql as $$
+  select public.attach_party_member_to_campaign(
+    ('94400000-0000-4000-8000-0000000000' || p_suffix)::uuid, '94400000-0000-4000-8000-0000000000c1', p_active);
 $$;
 
 -- ── Nothing waits on a character with no table ───────────────────────────────
@@ -138,30 +183,23 @@ select is((select count(*)::int from public.user_enabled_sources), 0, 'and nobod
 
 -- ── The control: an approved character joins and takes its seat ──────────────
 
-select lives_ok($$
-  select public.attach_party_member_to_campaign('94400000-0000-4000-8000-0000000000e4', '94400000-0000-4000-8000-0000000000c1', true)
-$$, 'a character built only from what the table has joins');
+select lives_ok($$ select pg_temp.attach('e4') $$, 'a character built only from what the table has joins');
 select is(pg_temp.flags('e4'), 'none', 'with nothing waiting');
 select is(pg_temp.seat(4), '94400000-0000-4000-8000-0000000000e4'::uuid, 'and takes its player''s seat');
 
 -- ── The bench ────────────────────────────────────────────────────────────────
 
 select pg_temp.as_user(2);
-select lives_ok($$
-  select public.attach_party_member_to_campaign('94400000-0000-4000-8000-0000000000e1', '94400000-0000-4000-8000-0000000000c1', true)
-$$, 'a character with unapproved choices still joins');
+select lives_ok($$ select pg_temp.attach('e1') $$, 'a character with unapproved choices still joins');
 select is((pg_temp.pm('e1')).campaign_id, '94400000-0000-4000-8000-0000000000c1'::uuid, 'it is at the table');
 select is(pg_temp.flags('e1'), 'species:source:pending, spell:source:pending',
   'flagged for the species and the spell from a book the table has not enabled');
 select is(pg_temp.seat(2), null, 'and benched: the seat it would have taken stays empty');
 
--- Her own copy of an SRD background needed no asking: the table has that book.
-select isnt((pg_temp.pm('e1')).background_id, '94400000-0000-4000-8000-0000000000b1'::uuid,
-  'the background is re-pointed away from the player''s own row');
-select is((select b.user_id from public.backgrounds b where b.id = (pg_temp.pm('e1')).background_id),
-  '94400000-0000-4000-8000-000000000001'::uuid, 'at a copy the table''s DM owns, which the whole table can read');
-select is((select count(*)::int from public.backgrounds where id = '94400000-0000-4000-8000-0000000000b1'), 1,
-  'and the player''s original is still hers');
+-- The table has its own Acolyte, so the character is pointed at that one and
+-- nobody is asked.
+select is((pg_temp.pm('e1')).background_id, '94400000-0000-4000-8000-0000000000b9'::uuid,
+  'a background the table has its own copy of is re-pointed at the table''s copy, with no flag');
 
 select throws_ok($$
   update public.campaign_members set party_member_id = '94400000-0000-4000-8000-0000000000e1'
@@ -185,17 +223,25 @@ select throws_ok(format($$ select public.get_character_content_item(%L) $$, pg_t
 select pg_temp.as_user(4);
 select throws_ok(format($$ select public.approve_character_content(%L) $$, pg_temp.flag_id('e1', 'species')),
   '42501', 'Only the DM of the table can approve a character''s choices', 'another player at the table cannot approve');
+select throws_ok(format($$ select public.get_character_content_item(%L) $$, pg_temp.flag_id('e1', 'species')),
+  '42501', 'Not authorized', 'or look at another player''s flag');
+select is_empty($$ select id from public.character_content_reviews
+  where party_member_id = '94400000-0000-4000-8000-0000000000e1' $$,
+  'or even see that another player''s character has one');
 select pg_temp.as_user(2);
 select throws_ok(format($$ select public.approve_character_content(%L) $$, pg_temp.flag_id('e1', 'species')),
   '42501', 'Only the DM of the table can approve a character''s choices', 'the character''s own player cannot approve it');
+select is((select count(*)::int from public.character_content_reviews
+  where party_member_id = '94400000-0000-4000-8000-0000000000e1'), 2, 'but does see their own flags');
 select is(public.get_character_content_item(pg_temp.flag_id('e1', 'species')) ->> 'name', 'Test Alseid',
-  'but may look at their own flag');
+  'and may look at what they are about');
+select is_empty($$ delete from public.character_content_reviews
+  where party_member_id = '94400000-0000-4000-8000-0000000000e1' returning id $$,
+  'and cannot clear them by hand');
 
 -- ── Approving: for this character, then for the table ────────────────────────
 
 select pg_temp.as_user(1);
-select is(public.get_character_content_item(pg_temp.flag_id('e1', 'species')) ->> 'name', 'Test Alseid',
-  'the DM opens what is waiting');
 select is(public.approve_character_content(pg_temp.flag_id('e1', 'species'), 'character'), 1,
   'the DM allows the species for this character; one flag is left');
 select is(pg_temp.flags('e1'), 'species:source:approved, spell:source:pending', 'the species is allowed, the spell still waits');
@@ -208,20 +254,23 @@ select is((select count(*)::int from public.campaign_enabled_sources
 select is(pg_temp.seat(2), '94400000-0000-4000-8000-0000000000e1'::uuid,
   'and the character takes the seat it was kept from');
 
--- ── Homebrew: approving copies it into the table, deeply ─────────────────────
+-- ── The player's own content: approving copies it into the table, deeply ─────
 
 select pg_temp.as_user(2);
-select lives_ok($$
-  select public.attach_party_member_to_campaign('94400000-0000-4000-8000-0000000000e2', '94400000-0000-4000-8000-0000000000c1', true)
-$$, 'a character built from its player''s own homebrew joins');
+select lives_ok($$ select pg_temp.attach('e2') $$, 'a character built from its player''s own homebrew joins');
 select is(pg_temp.flags('e2'), 'class:homebrew:pending, feat:homebrew:pending, species:homebrew:pending',
   'flagged for the species, the class and the feat');
+select is(pg_temp.dana_owns(), 'backgrounds 1, species 0, spells 0, classes 0, features 0',
+  'and nothing has been copied into the DM''s content by the joining alone');
 
 select pg_temp.as_user(1);
 select is(public.get_character_content_item(pg_temp.flag_id('e2', 'species')) ->> 'name', 'Pia''s Mothfolk',
-  'the DM can read a player''s homebrew through its flag, which RLS alone would not allow');
+  'the DM can read a player''s own content through its flag, which RLS alone would not allow');
 select ok(not (public.get_character_content_item(pg_temp.flag_id('e2', 'species')) ? 'user_id'),
   'without learning whose account it is from the row');
+select throws_ok(format($$ select public.approve_character_content(%L, 'table') $$, pg_temp.flag_id('e2', 'species')),
+  'P0001', 'Only a book or a blocked choice can be approved for the whole table',
+  'a player''s own content cannot be approved for the whole table: there is no book to enable');
 
 select is(public.approve_character_content(pg_temp.flag_id('e2', 'species')), 2, 'the DM approves the species');
 reset role;
@@ -229,27 +278,27 @@ select ok((pg_temp.pm('e2')).species_id <> '94400000-0000-4000-8000-000000000061
 select is((select s.user_id::text || ' / ' || s.campaign_id::text from public.species s where s.id::text = (pg_temp.pm('e2')).species_id),
   '94400000-0000-4000-8000-000000000001 / 94400000-0000-4000-8000-0000000000c1',
   'which the table''s DM owns, in this campaign');
-select is((select sp.user_id from public.species s, public.spells sp
+select is((select jsonb_array_length(s.granted_spells) from public.species s where s.id::text = (pg_temp.pm('e2')).species_id), 1,
+  'the copy grants one spell: the grant that named another DM''s private spell did not come along');
+select is((select sp.user_id::text || ' / ' || sp.name from public.species s, public.spells sp
    where s.id::text = (pg_temp.pm('e2')).species_id and sp.id::text = s.granted_spells -> 0 ->> 'spell_id'),
-  '94400000-0000-4000-8000-000000000001'::uuid,
-  'and the spell the species grants came with it, as the table''s own copy');
-select is((select s.user_id::text || ' / ' || (s.granted_spells -> 0 ->> 'spell_id') from public.species s where s.id = '94400000-0000-4000-8000-000000000061'),
-  '94400000-0000-4000-8000-000000000002 / 94400000-0000-4000-8000-000000000051',
-  'the player''s original species is untouched');
+  '94400000-0000-4000-8000-000000000001 / Pia''s Spark',
+  'and it is the player''s own spell, copied with the species as the table''s own');
+select is((select count(*)::int from public.spells where name = 'SAM SECRET SPELL' and user_id <> '94400000-0000-4000-8000-000000000003'), 0,
+  'nobody has a copy of the other DM''s spell');
+select is((select s.user_id::text || ' / ' || jsonb_array_length(s.granted_spells)::text from public.species s where s.id = '94400000-0000-4000-8000-000000000061'),
+  '94400000-0000-4000-8000-000000000002 / 2', 'the player''s original species is untouched');
 
 set local role authenticated;
 select pg_temp.as_user(1);
 select is(public.approve_character_content(pg_temp.flag_id('e2', 'class')), 1, 'the DM approves the class');
 reset role;
-select is((select c.user_id from public.custom_classes c
-    join public.character_classes cc on cc.class_definition_id = c.id
-   where cc.party_member_id = '94400000-0000-4000-8000-0000000000e2'),
-  '94400000-0000-4000-8000-000000000001'::uuid, 'the character''s class row points at the table''s copy');
 select is((select f.user_id from public.custom_classes c
     join public.character_classes cc on cc.class_definition_id = c.id
     join public.class_features f on f.id::text = c.features -> '1' ->> 0
-   where cc.party_member_id = '94400000-0000-4000-8000-0000000000e2'),
-  '94400000-0000-4000-8000-000000000001'::uuid, 'whose feature came with it');
+   where cc.party_member_id = '94400000-0000-4000-8000-0000000000e2' and c.user_id = '94400000-0000-4000-8000-000000000001'),
+  '94400000-0000-4000-8000-000000000001'::uuid,
+  'the character''s class row points at the table''s copy, whose feature came with it');
 
 set local role authenticated;
 select pg_temp.as_user(1);
@@ -262,22 +311,117 @@ select is((select ((pg_temp.pm('e2')).class_choices -> 'feats' ->> 0) = ((pg_tem
   true, 'and both places the character records the feat point at the copy');
 select is(pg_temp.flags('e2'), 'none', 'the character has nothing waiting');
 
--- ── Foreign homebrew cannot be approved, only changed ────────────────────────
+-- ── What a row says about itself decides nothing ─────────────────────────────
+
+set local role authenticated;
+select pg_temp.as_user(4);
+select lives_ok($$ select pg_temp.attach('e7', false) $$, 'a character with a row forged under an SRD entry''s keys joins');
+select is((pg_temp.background_of('e7')).description, 'The table''s own',
+  'and gets the table''s own entry, not what the player wrote under its keys');
+select is(pg_temp.flags('e7'), 'none', 'so there is nothing to approve and nothing forged in play');
+
+select pg_temp.as_user(2);
+select lives_ok($$ select pg_temp.attach('e8', false) $$, 'a character with the player''s copy of an entry the table lacks joins');
+select is(pg_temp.flags('e8'), 'background:homebrew:pending',
+  'it is the player''s own content, whatever book it names: the DM is asked');
+reset role;
+select is((select count(*)::int from public.backgrounds where user_id = '94400000-0000-4000-8000-000000000001'), 1,
+  'nothing was copied into the DM''s content without the DM');
+
+set local role authenticated;
+select pg_temp.as_user(1);
+select is(public.approve_character_content(pg_temp.flag_id('e8', 'background')), 0, 'the DM approves it');
+select pg_temp.as_user(4);
+select lives_ok($$ select pg_temp.attach('e9', false) $$, 'a second player arrives with their own copy of the same entry');
+reset role;
+select is((pg_temp.pm('e9')).background_id, '94400000-0000-4000-8000-0000000000b4'::uuid,
+  'and is NOT silently pointed at the copy made from the first player''s row');
+select is(pg_temp.flags('e9'), 'background:homebrew:pending', 'their own copy is the DM''s to approve as well');
+select is((select count(*)::int from public.backgrounds
+  where user_id = '94400000-0000-4000-8000-000000000001' and source_record_key = 'srd_sage'), 0,
+  'the copy made from the first player''s row does not claim to be the book''s entry');
+
+-- ── A third person's content is never named, shown or copied ─────────────────
 
 set local role authenticated;
 select pg_temp.as_user(2);
-select lives_ok($$
-  select public.attach_party_member_to_campaign('94400000-0000-4000-8000-0000000000e3', '94400000-0000-4000-8000-0000000000c1', false)
-$$, 'a character carrying another DM''s homebrew joins');
-select is(pg_temp.flags('e3'), 'spell:foreign:pending', 'flagged as made at another table');
+select lives_ok($$ select pg_temp.attach('ea', false) $$, 'a character pointed at another DM''s private background joins');
+select is(pg_temp.flags('ea'), 'background:foreign:pending', 'flagged as made at another table');
+select is(pg_temp.flag_label('ea', 'background'), 'Content from another table', 'the flag does not carry its name');
+select is(public.get_character_content_item(pg_temp.flag_id('ea', 'background')), null,
+  'the player who pointed at it cannot read it through the flag');
 select pg_temp.as_user(1);
-select throws_ok(format($$ select public.approve_character_content(%L) $$, pg_temp.flag_id('e3', 'spell')),
+select is(public.get_character_content_item(pg_temp.flag_id('ea', 'background')), null, 'and neither can the DM');
+select throws_ok(format($$ select public.approve_character_content(%L) $$, pg_temp.flag_id('ea', 'background')),
   'P0001', 'This was made at another table and cannot be approved here; it has to be changed',
-  'the DM cannot approve it: that would copy another DM''s work without them');
+  'it cannot be approved: that would copy another person''s work without them');
+reset role;
+select is((select count(*)::int from public.backgrounds where name = 'SAM SECRET BACKGROUND' and user_id <> '94400000-0000-4000-8000-000000000003'), 0,
+  'and no copy of it exists anywhere');
+
+set local role authenticated;
+select pg_temp.as_user(2);
+select lives_ok($$ select pg_temp.attach('e3', false) $$, 'a character carrying another DM''s spell joins');
+select is(pg_temp.flags('e3') || ' / ' || pg_temp.flag_label('e3', 'spell'), 'spell:foreign:pending / Content from another table',
+  'flagged the same way, by text reference as by foreign key');
 reset role;
 delete from public.character_spells
  where party_member_id = '94400000-0000-4000-8000-0000000000e3' and spell_id = '94400000-0000-4000-8000-000000000053';
 select is(pg_temp.flags('e3'), 'none', 'changing the choice clears the flag');
+
+-- ── A reference to nothing is not approved ───────────────────────────────────
+
+set local role authenticated;
+select pg_temp.as_user(2);
+select lives_ok($$ select pg_temp.attach('e6', false) $$, 'a character whose species points at nothing joins');
+select is(pg_temp.flags('e6'), 'species:missing:pending',
+  'flagged, not waved through: otherwise it could be seated and the content created afterwards under that id');
+select pg_temp.as_user(1);
+select throws_ok(format($$ select public.approve_character_content(%L) $$, pg_temp.flag_id('e6', 'species')),
+  'P0001', 'This no longer exists and cannot be approved; it has to be removed', 'the DM cannot approve nothing');
+
+-- The player now creates content under that very id.
+reset role;
+insert into public.species (id, user_id, name) values
+  ('94400000-0000-4000-8000-0000000000aa', '94400000-0000-4000-8000-000000000002', 'Appeared later');
+select is(private.review_party_member_content('94400000-0000-4000-8000-0000000000e6'), 1, 'it is still waiting');
+select is(pg_temp.flags('e6'), 'species:homebrew:pending', 'now as the player''s own content, for the DM to approve like any other');
+delete from public.species where id = '94400000-0000-4000-8000-0000000000aa';
+
+insert into public.character_spells (party_member_id, spell_id, source_type, is_known, is_prepared, source_label)
+values ('94400000-0000-4000-8000-0000000000e6', '94400000-0000-4000-8000-0000000000ab', 'feat', true, true, 'Fixture feat');
+select is(pg_temp.flag_label('e6', 'spell'), 'Something that no longer exists', 'a spell that is not there is flagged too');
+set local role authenticated;
+select pg_temp.as_user(4);
+select throws_ok(format($$ select public.remove_missing_character_content(%L) $$, pg_temp.flag_id('e6', 'spell')),
+  '42501', 'Not authorized', 'another player cannot remove it from someone''s character');
+select pg_temp.as_user(2);
+select throws_ok(format($$ select public.remove_missing_character_content(%L) $$, pg_temp.flag_id('e9', 'background')),
+  '42501', 'Not authorized', 'and the removal is only for the caller''s own flags or table');
+select lives_ok(format($$ select public.remove_missing_character_content(%L) $$, pg_temp.flag_id('e6', 'spell')),
+  'its owner removes the reference to nothing');
+reset role;
+select is((select count(*)::int from public.character_spells
+  where party_member_id = '94400000-0000-4000-8000-0000000000e6'), 0, 'the empty reference is gone from the character');
+
+-- The second player's copy of the same entry can be approved as well: an
+-- account holds one row per pair of book keys, and a copy keeps none.
+set local role authenticated;
+select pg_temp.as_user(1);
+select is(public.approve_character_content(pg_temp.flag_id('e9', 'background')), 0,
+  'the DM approves the second player''s copy of the same entry');
+reset role;
+select is((select b.user_id::text || ' / ' || b.description from public.backgrounds b where b.id = (pg_temp.pm('e9')).background_id),
+  '94400000-0000-4000-8000-000000000001 / Oz''s Sage', 'and that character gets its own content, as the table''s copy');
+
+-- A queue the DM has to read cannot be flooded by one request.
+insert into public.character_spells (party_member_id, spell_id, source_type, is_known, is_prepared, source_label)
+select '94400000-0000-4000-8000-0000000000e6', gen_random_uuid()::text, 'feat', true, true, 'Fixture feat'
+  from generate_series(1, 130);
+select cmp_ok((select count(*)::int from public.character_content_reviews
+  where party_member_id = '94400000-0000-4000-8000-0000000000e6'), '<=', 100,
+  'a character with a hundred and thirty unapproved choices raises at most a hundred flags');
+delete from public.character_spells where party_member_id = '94400000-0000-4000-8000-0000000000e6';
 
 -- ── Stay, flagged: a table that changes its mind moves nobody ────────────────
 
@@ -325,12 +469,15 @@ select ok(not has_function_privilege('anon', 'public.approve_character_content(u
   'anon cannot approve');
 select ok(not has_function_privilege('anon', 'public.get_character_content_item(uuid)', 'EXECUTE'),
   'anon cannot read what is waiting');
+select ok(not has_function_privilege('anon', 'public.remove_missing_character_content(uuid)', 'EXECUTE'),
+  'anon cannot remove anything');
 select is_empty($q$
   select p.proname::text
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'private'
     and p.proname in ('adopt_content', 'adopt_id_map', 'assess_content', 'repoint_party_member_content',
-                      'review_party_member_content', 'party_member_content_refs', 'is_table_dm', 'source_enabled')
+                      'review_party_member_content', 'party_member_content_refs', 'is_table_dm', 'source_enabled',
+                      'table_book_entry', 'seat_cleared_party_member')
     and (has_function_privilege('authenticated', p.oid, 'EXECUTE') or has_function_privilege('anon', p.oid, 'EXECUTE'))
 $q$, 'none of the functions that copy content or decide approval is callable by a client');
 

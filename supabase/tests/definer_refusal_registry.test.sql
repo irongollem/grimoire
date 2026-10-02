@@ -101,6 +101,7 @@ insert into definer_registry (name, kind, reason) values
   ('perform_quest_consequence', 'refuses', null),
   ('publish_demo_version', 'refuses', null),
   ('remove_from_family_campaign', 'refuses', null),
+  ('remove_missing_character_content', 'refuses', null),
   ('restore_sorcery_points', 'refuses', null),
   ('search_quest_runtime_jump_targets', 'refuses', null),
   ('set_character_spell_prepared', 'refuses', null),

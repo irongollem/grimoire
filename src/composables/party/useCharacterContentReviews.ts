@@ -22,13 +22,18 @@ export type ContentKind = "species" | "background" | "class" | "subclass" | "spe
 
 /**
  * Why the table has not approved it:
- * - `source`: from a book the table has not enabled.
+ * - `source`: a library entry from a book the table has not enabled.
  * - `blocked`: the table blocked this species or class.
- * - `homebrew`: the player's own work.
- * - `foreign`: homebrew made at another table. It cannot be approved here
- *   (approving would copy another DM's work without them); it has to be changed.
+ * - `homebrew`: the player's own content, whatever book it says it is from. A
+ *   row's claims about itself are not trusted (anyone can write anything into
+ *   their own row), so it is the DM's to approve.
+ * - `foreign`: somebody else's content, made at another table. It cannot be
+ *   approved here (approving would copy that person's work without them), is
+ *   never named or shown, and has to be changed.
+ * - `missing`: it points at something that no longer exists. It cannot be
+ *   approved, only removed from the character.
  */
-export type ContentReviewReason = "source" | "blocked" | "homebrew" | "foreign";
+export type ContentReviewReason = "source" | "blocked" | "homebrew" | "foreign" | "missing";
 
 export interface CharacterContentReview {
   id: string;
@@ -89,10 +94,20 @@ export function reviewReasonText(review: CharacterContentReview): string {
     case "blocked":
       return "This table has blocked it.";
     case "homebrew":
-      return "The player's own homebrew.";
+      return "The player's own content, which this table does not have.";
     case "foreign":
-      return "Homebrew made at another table. It cannot be approved here and has to be changed.";
+      return "Made at another table. It cannot be approved here and has to be changed.";
+    case "missing":
+      return "It no longer exists, so it has to be removed from the character.";
   }
+}
+
+/**
+ * Whether a flag can only be cleared by taking the choice off the character.
+ * Its owner and the table's DM may both do that (`useRemoveMissingContent`).
+ */
+export function isRemovalOnly(review: CharacterContentReview): boolean {
+  return review.reason === "missing";
 }
 
 export interface ApprovalOption {
@@ -103,8 +118,8 @@ export interface ApprovalOption {
 }
 
 /**
- * What the DM may do about a flag. Empty for `foreign`: the only way to clear
- * that one is for the player to change the choice.
+ * What the DM may approve. Empty for `foreign` (the player has to change the
+ * choice) and for `missing` (there is nothing to approve; see `isRemovalOnly`).
  */
 export function approvalOptions(review: CharacterContentReview): ApprovalOption[] {
   switch (review.reason) {
@@ -131,6 +146,7 @@ export function approvalOptions(review: CharacterContentReview): ApprovalOption[
         },
       ];
     case "foreign":
+    case "missing":
       return [];
   }
 }
@@ -224,9 +240,30 @@ export function useApproveCharacterContent() {
 }
 
 /**
+ * Takes a reference to something that no longer exists off the character.
+ * Resolves to how many flags the character still has pending.
+ */
+export function useRemoveMissingContent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (reviewId: string): Promise<number> => {
+      const { data, error } = await supabase.rpc("remove_missing_character_content", { p_review_id: reviewId });
+      if (error) throw error;
+      if (typeof data !== "number") throw new Error("The removal came back without a count.");
+      return data;
+    },
+    onSuccess: () => {
+      for (const key of STALE_AFTER_APPROVAL) void queryClient.invalidateQueries({ queryKey: [key] });
+    },
+  });
+}
+
+/**
  * What a flag is about. The DM cannot read a player's own content through RLS,
  * so this goes through an RPC that is reachable only by way of a flag at the
  * caller's own table. The shape depends on the kind, so it is a plain record.
+ * Null for a `foreign` or `missing` flag: another person's content is never
+ * shown, and there is nothing to show for something that is not there.
  */
 export function useCharacterContentItem(reviewId: MaybeRefOrGetter<string | null | undefined>) {
   return useQuery({
