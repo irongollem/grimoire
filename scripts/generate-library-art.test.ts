@@ -17,6 +17,8 @@ import {
   entrySlug,
   escapeLikePattern,
   itemContext,
+  monsterContext,
+  selectMonsterRowsToUpdate,
   newOriginalPath,
   parseCli,
   readManifest,
@@ -74,6 +76,15 @@ describe("context builders", () => {
     expect(ITEM_RARITY_LABELS.very_rare).toBe("Very Rare");
   });
 
+  it("builds a monster context like MonsterDetail's aiContext", () => {
+    expect(monsterContext({ name: "Sprite", size: "tiny", monster_type: "fey", alignment: "neutral good", habitat: null })).toBe(
+      "Sprite. tiny fey. neutral good",
+    );
+    expect(monsterContext({ name: "Owlbear", size: "large", monster_type: "monstrosity", alignment: "unaligned", habitat: "forest" })).toBe(
+      "Owlbear. large monstrosity. unaligned. forest",
+    );
+  });
+
   it("clamps to 2000 characters", () => {
     expect(spellContext({ name: "X", level: 1, school: "illusion", description: "a".repeat(5000) })).toHaveLength(2000);
   });
@@ -82,6 +93,7 @@ describe("context builders", () => {
 describe("slugs and paths", () => {
   it("derives slugs", () => {
     expect(entrySlug({ kind: "spell", id: "srd_2024_fireball" })).toBe("spell-srd_2024_fireball");
+    expect(entrySlug({ kind: "monster", id: "srd_srd_sprite" })).toBe("monster-srd_srd_sprite");
     expect(entrySlug({ kind: "item", name: "Ale, mug" })).toBe("item-ale-mug");
     expect(entrySlug({ kind: "item", name: "Bag of Holding" })).toBe("item-bag-of-holding");
     expect(() => entrySlug({ kind: "item", name: "!!!" })).toThrow();
@@ -97,6 +109,8 @@ describe("slugs and paths", () => {
   it("serves both buckets through the CDN", () => {
     expect(isCdnBucket(BUCKET_FOR_KIND.spell)).toBe(true);
     expect(isCdnBucket(BUCKET_FOR_KIND.item)).toBe(true);
+    expect(BUCKET_FOR_KIND.monster).toBe("monster-images");
+    expect(isCdnBucket(BUCKET_FOR_KIND.monster)).toBe(true);
   });
 
   it("never upscales a variant", () => {
@@ -122,6 +136,10 @@ describe("row selection", () => {
 
   it("always includes the target, even when it already has a canonical row", () => {
     expect(selectSpellRowsToUpdate({ id: "srd_shield", name: "Shield" }, spells, new Set(["srd_shield"]))).toEqual(["srd_shield"]);
+  });
+
+  it("lands a monster image on that id only, whatever shares its name", () => {
+    expect(selectMonsterRowsToUpdate({ id: "srd_srd_sprite" })).toEqual(["srd_srd_sprite"]);
   });
 
   it("selects every item of that name", () => {
@@ -164,7 +182,7 @@ describe("manifest", () => {
 describe("arguments and refusals", () => {
   it("parses generate", () => {
     expect(parseCli(["generate", "--spell", "a", "--spell", "b", "--item", "Ale, mug", "--out", "d"])).toEqual({
-      command: "generate", spells: ["a", "b"], items: ["Ale, mug"], out: "d", only: null, yesSpend: false, subject: null,
+      command: "generate", spells: ["a", "b"], monsters: [], items: ["Ale, mug"], out: "d", only: null, yesSpend: false, subject: null,
     });
   });
 
@@ -175,6 +193,15 @@ describe("arguments and refusals", () => {
     expect(() => parseCli(["generate", "--spell", "a", "--spell", "b", "--out", "d", "--subject", "x"])).toThrow(/exactly one/);
     expect(() => parseCli(["generate", "--spell", "a", "--out", "d", "--subject", "   "])).toThrow(/must not be empty/);
     expect(() => parseCli(["publish", "--out", "d", "--subject", "x"])).toThrow(/belongs to generate/);
+  });
+
+  it("parses --monster", () => {
+    expect(parseCli(["generate", "--monster", "srd_srd_sprite", "--monster", "x", "--out", "d"])).toMatchObject({
+      command: "generate", monsters: ["srd_srd_sprite", "x"], spells: [], items: [],
+    });
+    expect(parseCli(["generate", "--monster", "a", "--out", "d", "--subject", "A tiny winged archer."])).toMatchObject({ subject: "A tiny winged archer." });
+    expect(() => parseCli(["generate", "--monster", "a", "--spell", "b", "--out", "d", "--subject", "x"])).toThrow(/exactly one/);
+    expect(() => parseCli(["publish", "--out", "d", "--monster", "a"])).toThrow(/belong to generate/);
   });
 
   it("parses publish", () => {

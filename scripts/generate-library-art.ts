@@ -5,7 +5,7 @@
  *
  * ## Why
  *
- * Canonical spell and item art went missing when files under a user folder were
+ * Canonical spell, item and monster art went missing when files under a user folder were
  * bulk-deleted, and a few images have no surviving copy. This regenerates them
  * through the same pipeline `generate-entity-image` runs for a DM clicking
  * "Generate": a text model writes a subject from the entity's facts, the
@@ -43,6 +43,7 @@
  *   npm run library:art -- generate --spell srd_2024_fireball --item "Bag of Holding" --out art-947
  *   npm run library:art -- generate --spell srd_2024_fireball --out art-947 --yes-spend
  *   npm run library:art -- generate --spell srd_2024_fireball --out art-947 --only spell-srd_2024_fireball --yes-spend
+ *   npm run library:art -- generate --monster srd_srd_sprite --out art-947 --yes-spend
  *   npm run library:art -- generate --item "Quarterstaff" --out art-947 --subject "<what the picture shows>" --yes-spend
  *   npm run library:art -- publish --out art-947 --approve-all
  *   npm run library:art -- publish --out art-947 --approve-all --write --yes-production
@@ -51,7 +52,10 @@
  * and the namesake rule (a same-named spell without canonical art of its own
  * shows this image); item art goes to `item-images/srd/` with a
  * `library_art_defaults` row (content_type 'item') and every `library_items`
- * row of that name. `--library-owner <uuid>` names the owner recorded for the
+ * row of that name; monster art goes to `monster-images/srd/` with a
+ * `library_monster_art_canonical` row (only its `image_url` is written, never
+ * its cutout or focal point) and that one `library_monsters` row, with no
+ * namesake rule. `--library-owner <uuid>` names the owner recorded for the
  * provenance rows; by default the one admin account. `--cdn-base <url>` is
  * needed when `VITE_ASSET_CDN_URL` is not in the env.
  *
@@ -93,10 +97,17 @@ const VARIANT_QUALITY = 80;
 const CONTEXT_LIMIT = 2000;
 const MANIFEST_FILE = "manifest.json";
 
-export type ArtKind = "spell" | "item";
+export type ArtKind = "spell" | "item" | "monster";
 
-/** Storage bucket per kind. Canonical art lives under `srd/` in both (see CLAUDE.md, Storage Path Convention). */
-export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images" };
+/** Storage bucket per kind. Canonical art lives under `srd/` in all three (see CLAUDE.md, Storage Path Convention). */
+export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images" };
+
+/** The tables a publish writes, per kind, for the dry-run report. */
+const TABLES_FOR_KIND: Record<ArtKind, string> = {
+  spell: "library_spell_art_canonical + library_spells",
+  monster: "library_monster_art_canonical + library_monsters",
+  item: "library_art_defaults + library_items",
+};
 
 // ---------------------------------------------------------------------------
 // Pure parts: context
@@ -179,6 +190,30 @@ export interface ItemFacts {
   description: string;
 }
 
+export interface MonsterFacts {
+  id: string;
+  name: string;
+  size: string | null;
+  monster_type: string;
+  alignment: string | null;
+  habitat: string | null;
+}
+
+/**
+ * Mirrors `aiContext` in MonsterDetail.vue (name, "<size> <type>", alignment,
+ * habitat, description), clamped like `useEntityImageGeneration`. A
+ * `library_monsters` row has no description column, so the app's form holds an
+ * empty one for it and the last part is always empty here.
+ */
+export function monsterContext(monster: Omit<MonsterFacts, "id">): string {
+  return buildEntityContext([
+    monster.name,
+    [monster.size, monster.monster_type].filter(Boolean).join(" "),
+    monster.alignment,
+    monster.habitat,
+  ]).slice(0, CONTEXT_LIMIT);
+}
+
 /** Mirrors `aiContext` in SpellDetail.vue, clamped like `useEntityImageGeneration`. */
 export function spellContext(spell: Pick<SpellFacts, "name" | "level" | "school" | "description">): string {
   return buildEntityContext([
@@ -211,10 +246,10 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export type EntryRef = { kind: "spell"; id: string } | { kind: "item"; name: string };
+export type EntryRef = { kind: "spell"; id: string } | { kind: "monster"; id: string } | { kind: "item"; name: string };
 
 export function entrySlug(ref: EntryRef): string {
-  const slug = ref.kind === "spell" ? slugify(ref.id) : slugify(ref.name);
+  const slug = ref.kind === "item" ? slugify(ref.name) : slugify(ref.id);
   if (slug === "") throw new Error(`Cannot derive a slug from ${JSON.stringify(ref)}.`);
   return `${ref.kind}-${slug}`;
 }
@@ -263,6 +298,11 @@ export function selectItemRowsToUpdate(name: string, items: readonly { id: strin
   return items.filter((item) => item.name.toLowerCase() === lowered).map((item) => item.id).sort();
 }
 
+/** The `library_monsters` rows a published monster image lands on: that id only. `sync_library_monster_art()` matches `entry_id = id` and nothing else, so there is no namesake rule. */
+export function selectMonsterRowsToUpdate(target: { id: string }): string[] {
+  return [target.id];
+}
+
 /** Escapes `%`, `_` and `\` so a name can be used as an exact-match `ilike` pattern. */
 export function escapeLikePattern(text: string): string {
   return text.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -285,9 +325,9 @@ export interface PublishRecord {
 export interface ManifestEntry {
   slug: string;
   kind: ArtKind;
-  /** Library spell id (spells). */
+  /** Library spell or monster id; null for items. */
   id: string | null;
-  /** Item name (items) or the spell's name. */
+  /** The entry's name. */
   name: string;
   context: string;
   subject: string;
@@ -374,6 +414,7 @@ export function selectForPublish(manifest: Manifest, opts: { approveAll: boolean
 export interface GenerateOptions {
   command: "generate";
   spells: string[];
+  monsters: string[];
   items: string[];
   out: string;
   only: string | null;
@@ -406,6 +447,7 @@ export function parseCli(argv: readonly string[]): CliOptions {
     allowPositionals: true,
     options: {
       spell: { type: "string", multiple: true },
+      monster: { type: "string", multiple: true },
       item: { type: "string", multiple: true },
       out: { type: "string" },
       only: { type: "string" },
@@ -427,21 +469,23 @@ export function parseCli(argv: readonly string[]): CliOptions {
 
   if (command === "generate") {
     const spells = values.spell ?? [];
+    const monsters = values.monster ?? [];
     const items = values.item ?? [];
-    if (spells.length + items.length === 0) throw new Error("Name at least one entry with --spell <library id> or --item \"<name>\".");
+    const count = spells.length + monsters.length + items.length;
+    if (count === 0) throw new Error("Name at least one entry with --spell <library id>, --monster <library id> or --item \"<name>\".");
     if (values.write || values["approve-all"]) throw new Error("--write and --approve-all belong to publish.");
     const subject = values.subject === undefined ? null : values.subject.trim();
     if (subject !== null) {
       if (subject === "") throw new Error("--subject must not be empty.");
       // One description cannot be right for two pictures.
-      if (spells.length + items.length !== 1) throw new Error("--subject describes one image: name exactly one --spell or --item with it.");
+      if (count !== 1) throw new Error("--subject describes one image: name exactly one --spell, --monster or --item with it.");
     }
-    return { command, spells, items, out: values.out, only, yesSpend: values["yes-spend"], subject };
+    return { command, spells, monsters, items, out: values.out, only, yesSpend: values["yes-spend"], subject };
   }
 
   if (values.subject !== undefined) throw new Error("--subject belongs to generate.");
 
-  if (values.spell || values.item) throw new Error("--spell and --item belong to generate.");
+  if (values.spell || values.monster || values.item) throw new Error("--spell, --monster and --item belong to generate.");
   if (values["yes-spend"]) throw new Error("--yes-spend belongs to generate.");
   const owner = values["library-owner"] ?? null;
   if (owner !== null && !UUID.test(owner)) throw new Error("--library-owner must be a uuid.");
@@ -574,6 +618,17 @@ async function loadItem(client: SupabaseClient, name: string): Promise<ItemFacts
   return rows[0];
 }
 
+async function loadMonster(client: SupabaseClient, id: string): Promise<MonsterFacts> {
+  const { data, error } = await client
+    .from("library_monsters")
+    .select("id, name, size, monster_type, alignment, habitat")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`Could not read library_monsters ${id}: ${error.message}`);
+  if (!data) throw new Error(`No library monster with id "${id}".`);
+  return data as MonsterFacts;
+}
+
 interface GenerationSettings {
   imageBase: string;
   textModel: string;
@@ -610,6 +665,7 @@ interface PlannedEntry {
 async function planEntries(client: SupabaseClient, opts: GenerateOptions): Promise<PlannedEntry[]> {
   const refs: EntryRef[] = [
     ...opts.spells.map((id): EntryRef => ({ kind: "spell", id })),
+    ...opts.monsters.map((id): EntryRef => ({ kind: "monster", id })),
     ...opts.items.map((name): EntryRef => ({ kind: "item", name })),
   ];
   const seen = new Set<string>();
@@ -624,6 +680,9 @@ async function planEntries(client: SupabaseClient, opts: GenerateOptions): Promi
     if (ref.kind === "spell") {
       const spell = await loadSpell(client, ref.id);
       planned.push({ ref, name: spell.name, context: spellContext(spell) });
+    } else if (ref.kind === "monster") {
+      const monster = await loadMonster(client, ref.id);
+      planned.push({ ref, name: monster.name, context: monsterContext(monster) });
     } else {
       const item = await loadItem(client, ref.name);
       planned.push({ ref, name: item.name, context: itemContext(item) });
@@ -766,7 +825,7 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
     manifest = upsertEntry(manifest, {
       slug,
       kind,
-      id: p.ref.kind === "spell" ? p.ref.id : null,
+      id: p.ref.kind === "item" ? null : p.ref.id,
       name: p.name,
       context: p.context,
       subject,
@@ -843,6 +902,13 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
     const withCanonical = new Set((canon.data as { entry_id: string }[]).map((r) => r.entry_id));
     return selectSpellRowsToUpdate({ id: entry.id, name: spellName }, spells, withCanonical);
   }
+  if (entry.kind === "monster") {
+    if (entry.id === null) throw new Error(`${entry.slug}: a monster entry needs an id.`);
+    const found = await client.from("library_monsters").select("id").eq("id", entry.id).maybeSingle();
+    if (found.error) throw new Error(`Could not read library_monsters ${entry.id}: ${found.error.message}`);
+    if (!found.data) throw new Error(`${entry.slug}: library monster "${entry.id}" no longer exists.`);
+    return selectMonsterRowsToUpdate({ id: entry.id });
+  }
   const { data, error } = await client.from("library_items").select("id, name").ilike("name", escapeLikePattern(entry.name));
   if (error) throw new Error(`Could not read library_items: ${error.message}`);
   const ids = selectItemRowsToUpdate(entry.name, data as { id: string; name: string }[]);
@@ -857,6 +923,21 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
     if (art.error) throw new Error(`Could not upsert library_spell_art_canonical: ${art.error.message}`);
     const rows = await client.from("library_spells").update({ image_url: url }).in("id", ids);
     if (rows.error) throw new Error(`Could not update library_spells: ${rows.error.message}`);
+    return;
+  }
+  if (entry.kind === "monster") {
+    if (entry.id === null) throw new Error(`${entry.slug}: a monster entry needs an id.`);
+    // The canonical row also carries cutout_url and portrait_focal_point, which an
+    // upsert of {entry_id, image_url} would not null but which are not ours to
+    // touch either: update only image_url when the row exists, insert when not.
+    const existing = await client.from("library_monster_art_canonical").select("entry_id").eq("entry_id", entry.id).maybeSingle();
+    if (existing.error) throw new Error(`Could not read library_monster_art_canonical: ${existing.error.message}`);
+    const art = existing.data
+      ? await client.from("library_monster_art_canonical").update({ image_url: url }).eq("entry_id", entry.id)
+      : await client.from("library_monster_art_canonical").insert({ entry_id: entry.id, image_url: url });
+    if (art.error) throw new Error(`Could not write library_monster_art_canonical: ${art.error.message}`);
+    const rows = await client.from("library_monsters").update({ image_url: url }).in("id", ids);
+    if (rows.error) throw new Error(`Could not update library_monsters: ${rows.error.message}`);
     return;
   }
   const art = await client
@@ -909,7 +990,7 @@ async function runPublish(opts: PublishOptions): Promise<void> {
     console.log(`${entry.slug} (${entry.name})`);
     for (const u of uploads) console.log(`  R2 ${u.key} ${u.bytes.byteLength} bytes`);
     console.log(`  provenance ${bucket} ${path} owner ${owner ?? "(resolved at --write)"}`);
-    console.log(`  ${entry.kind === "spell" ? "library_spell_art_canonical + library_spells" : "library_art_defaults + library_items"} -> ${storedUrl}`);
+    console.log(`  ${TABLES_FOR_KIND[entry.kind]} -> ${storedUrl}`);
     console.log(`  rows: ${rowIds.join(", ")}`);
     if (!opts.write || r2 === null || owner === null) continue;
 
