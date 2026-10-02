@@ -7,7 +7,7 @@
       </p>
 
       <div v-if="isLoading" class="flex justify-center py-8">
-        <div class="h-7 w-7 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <BannerLoader class="h-10" />
       </div>
 
       <p v-else-if="error" class="text-body text-destructive">
@@ -47,6 +47,7 @@
 <script setup lang="ts">
 /** The Family page (#919) — a parent's list of the young players' accounts
  *  they manage. Reachable from `/account` in both the DM and player lens. */
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import FamilyRequests from "@/components/account/FamilyRequests.vue";

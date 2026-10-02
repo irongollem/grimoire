@@ -3,7 +3,7 @@
        until Vue mounts; keep the two in step. -->
   <div class="loading-screen">
     <BrandLogo class="loading-logo" />
-    <BannerLoader :width="44" />
+    <BannerLoader class="h-26" />
   </div>
 </template>
 

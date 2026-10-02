@@ -131,11 +131,11 @@ describe("AppButton", () => {
     expect(w.emitted("click")).toBeUndefined();
   });
 
-  it("shows a spinner instead of the icon while loading, and blocks clicks", async () => {
+  it("shows the loader instead of the icon while loading, and blocks clicks", async () => {
     const Icon = { render: () => h("svg", { "data-icon": "true" }) };
     const w = mount(AppButton, { props: { label: "Saving", icon: Icon, loading: true }, global });
     expect(w.find("[data-icon]").exists()).toBe(false);
-    expect(w.find(".animate-spin").exists()).toBe(true);
+    expect(w.find(".dg-flag").exists()).toBe(true);
     await w.trigger("click");
     expect(w.emitted("click")).toBeUndefined();
   });
@@ -531,7 +531,7 @@ describe("iconSize (#648)", () => {
     }
   });
 
-  it("applies to the trailing icon and the loading spinner too", () => {
+  it("applies to the trailing icon and the loader's box too", () => {
     const trailing = mount(AppButton, {
       props: { iconRight: IconStub, iconSize: "lg", label: "x" }, global,
     }).html();
@@ -541,7 +541,7 @@ describe("iconSize (#648)", () => {
       props: { icon: IconStub, iconSize: "lg", loading: true, label: "x" }, global,
     }).html();
     expect(loading).toContain("h-5 w-5");
-    expect(loading).toContain("animate-spin");
+    expect(loading).toContain("dg-flag");
   });
 });
 

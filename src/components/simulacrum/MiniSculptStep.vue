@@ -44,7 +44,7 @@
     <!-- In progress -->
     <template v-else-if="phase === 'progress'">
       <div class="flex flex-col items-center gap-3 py-8">
-        <IconLoading class="h-8 w-8 animate-spin text-primary" />
+        <BannerLoader class="h-10" />
         <p class="text-body text-muted-foreground italic text-center">
           The simulacrum takes shape…
         </p>
@@ -93,7 +93,7 @@
               @click="applyBase(mini.base_id ?? DEFAULT_BASE_ID, scale)"
             />
           </div>
-          <IconLoading v-if="isRebasing" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          <BannerLoader v-if="isRebasing" class="h-3.5" />
         </div>
       </div>
 
@@ -131,9 +131,10 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { IconLoading, IconWarning } from "@/lib/icons";
+import { IconWarning } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";

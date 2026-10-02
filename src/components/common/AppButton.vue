@@ -22,11 +22,9 @@
     @click="onClick"
   >
     <slot name="icon">
-      <span
-        v-if="loading"
-        :class="[iconClass, 'animate-spin rounded-full border-2 border-current border-t-transparent']"
-        aria-hidden="true"
-      />
+      <span v-if="loading" :class="[iconClass, 'grid place-items-center']" aria-hidden="true">
+        <BannerLoader class="h-full" />
+      </span>
       <component v-else-if="icon" :is="icon" :class="iconClass" aria-hidden="true" />
     </slot>
 
@@ -70,6 +68,7 @@ import { RouterLink, type RouteLocationRaw } from "vue-router";
 import { Primitive, useForwardExpose } from "reka-ui";
 import { cn } from "@/lib/utils";
 import { useIsTouch } from "@/composables/useBreakpoint";
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import {
   buttonVariants,
   ICON_SIZE_CLASS,
@@ -123,7 +122,7 @@ const {
   /**
    * Glyph size: `xs` 0.75rem, `sm` 0.875rem (default, the historic hard-coded
    * value), `md` 1rem, `lg` 1.25rem. Applies to `icon`, `iconRight` and the
-   * loading spinner. Reach for the `#icon` slot only when the glyph needs more
+   * loader's box. Reach for the `#icon` slot only when the glyph needs more
    * than a size — a colour, an opacity, a conditional class.
    */
   iconSize?: ButtonIconSize;
@@ -141,7 +140,7 @@ const {
   asChild?: boolean;
   type?: "button" | "submit" | "reset";
   disabled?: boolean;
-  /** Swaps the icon for a spinner and blocks clicks. */
+  /** Swaps the icon for the loader and blocks clicks. */
   loading?: boolean;
   /** Selected state for toggles and segmented pickers. */
   active?: boolean;

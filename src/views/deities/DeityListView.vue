@@ -3,7 +3,8 @@
     <template #actions>
       <ListActionButton
         v-if="hasSetting"
-        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
+        :icon="IconPopulate"
+        :loading="populateMutation.isPending.value"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
@@ -150,7 +151,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { IconAdd, IconFire, IconLoading, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
+import { IconAdd, IconFire, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities, useUpdateDeity } from "@/composables/deities/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
 import { useUiStore } from "@/stores/ui";

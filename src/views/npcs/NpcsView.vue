@@ -14,7 +14,8 @@
       <ListActionButton :icon="IconNetwork" label="Web" to="/npcs/web" />
       <ListActionButton
         v-if="hasSetting"
-        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
+        :icon="IconPopulate"
+        :loading="populateMutation.isPending.value"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
@@ -304,7 +305,8 @@
           @click="overflowOpen = false; handlePopulate()"
         >
           <template #icon>
-            <component :is="populateMutation.isPending.value ? IconLoading : IconPopulate" class="size-5 shrink-0 text-muted-foreground" />
+            <span v-if="populateMutation.isPending.value" class="grid size-5 shrink-0 place-items-center"><BannerLoader class="h-full" /></span>
+            <IconPopulate v-else class="size-5 shrink-0 text-muted-foreground" />
           </template>
         </AppButton>
         <AppButton
@@ -332,11 +334,12 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed } from "vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import {
-  IconAdd, IconCheck, IconClose, IconGenerate, IconLayers, IconLoading,
+  IconAdd, IconCheck, IconClose, IconGenerate, IconLayers,
   IconNetwork, IconPopulate, IconSearch, IconSettings,
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";

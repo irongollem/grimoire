@@ -27,7 +27,7 @@
         v-if="isLoading"
         class="flex items-center gap-2 text-muted-foreground"
       >
-        <IconLoading class="h-4 w-4 animate-spin" />
+        <BannerLoader class="h-4" />
         <span class="text-body italic">Loading…</span>
       </div>
 
@@ -284,7 +284,7 @@
           </h2>
         </div>
         <div v-if="creditsLoading" class="flex items-center gap-1.5 text-muted-foreground">
-          <IconLoading class="h-3.5 w-3.5 animate-spin" />
+          <BannerLoader class="h-3.5" />
           <span class="font-cinzel text-xs">Loading…</span>
         </div>
         <span v-else class="text-heading font-bold text-primary">
@@ -338,9 +338,10 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
-import { IconBilling, IconDM, IconGenerate, IconLoading, IconQuest } from '@/lib/icons';
+import { IconBilling, IconDM, IconGenerate, IconQuest } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import WithdrawalConsent from "@/components/billing/WithdrawalConsent.vue";

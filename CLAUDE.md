@@ -270,6 +270,8 @@ Do **not** add an `import.meta.env.DEV` auto-login to `src/` instead. The repo i
 
 **`npm run dev:import-fixture` gives the DM fixture a document import already sitting in review**, so the paste-a-page and settings-wizard review screens have something to look at without spending a real AI extraction call. It seeds one `document_imports` row (a wholly invented flooded-mine adventure) exercising every review state at once — library and campaign name matches, a full-stat-block monster, a stats-free one, a plural that resolves to a singular library entry, and a branching quest spine — plus three campaign-owned "Goblin" monsters so the candidate picker is a real A/B/C choice. Costs nothing; run it again to replace its own row, or `-- --clear` to remove just what it made.
 
+**`npm run dev:demo` puts the published demo campaign in the local stack**, which otherwise has none: the template is authored in production and never enters this repo, so locally `get_demo_status()` reports nothing published and the offer never renders. The script reads the template from production (filtered GETs only, with the service-role key from `.env.local`), replaces the local copy of it under the same author, and then signs in as `dm-fixture` and calls the real `load_demo_campaign()`, so the fixture holds what a new user gets. It then seats `player-fixture` at that copy with a pre-made character claimed, which is the only public campaign the player portal can be looked at in. It also reads the shared library rows the template points at (spells, items, sounds) where the local library lacks them. Run it again to refresh; `-- --check` reports state and changes nothing. It is also the campaign to have on screen for a screenshot: everything in it is public by design.
+
 ## Sanctioned Exceptions
 
 Deliberate departures from the rules above and in the feature docs. They look like oversights, get "fixed", and regress — so they are written down.
@@ -475,6 +477,9 @@ A new `<button class="px-2 py-0.5 border rounded …">` or `<input class="bg-mut
 | `<input type="checkbox">` — any, labelled or not      | `AppCheckbox` — size + labelRole + accent (#751) |
 | A coloured pill whose colour means something          | `AppButton variant="tinted"` + `tone` + `emphasis` |
 | A toggle/segmented picker                             | `AppButton :active` or `SegmentedControl`   |
+| A spinner: `animate-spin`, a ring, a lucide loader    | `BannerLoader` (sized by height); in a button, `AppButton :loading`; for a whole block, `LoadingSpinner` |
+
+The waving bookmark flag is the app's only loading indicator, at every size from a 12px button glyph to the loading screen; `loadingIndicator.test.ts` fails the suite if anything spins again, and holds the static boot splash in `index.html` equal to the component.
 
 Every variant is rendered at `/dev/components` — open it rather than guessing which one matches. If none does, add a variant to `appButtonVariants.ts` / `fieldVariants.ts` / `checkboxVariants.ts` (the compile-time assertion forces it into the catalogue); do **not** fall back to a class string. A raw `<button>`/`<input>` is fine only when it carries *no* chrome — a bare word of clickable text, or a radio/file input. Checkboxes are **not** in that exception: the original carve-out assumed a checkbox carries no chrome, and measurement (#751, 21 Aug 2026) found 100 of them in twelve visual states — they route through `AppCheckbox`, whose one deliberate raw survivor (the `sr-only` travel chip in `EventModalTravelFields`) is named in its docstring.
 

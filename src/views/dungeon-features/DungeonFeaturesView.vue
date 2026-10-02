@@ -2,7 +2,8 @@
   <PageHeader title="Dungeon Craft" description="Secret doors, hidden passages & concealed treasures">
     <template #actions>
       <ListActionButton
-        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
+        :icon="IconPopulate"
+        :loading="populateMutation.isPending.value"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
@@ -104,7 +105,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { IconAdd, IconLoading, IconPopulate } from '@/lib/icons';
+import { IconAdd, IconPopulate } from '@/lib/icons';
 import { useDungeonFeatures, usePopulateDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_BG } from "@/types/dungeonFeature.types";
 import PageHeader from "@/components/common/PageHeader.vue";

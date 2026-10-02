@@ -147,7 +147,7 @@
       <div class="text-center py-4">
         <div v-if="joining || isDecidingAutoJoin" class="space-y-3">
           <div class="flex justify-center">
-            <div class="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            <BannerLoader class="h-10" />
           </div>
           <p class="text-body text-muted-foreground italic">
             {{ joining ? "Joining the campaign…" : "Loading your characters…" }}
@@ -247,6 +247,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";

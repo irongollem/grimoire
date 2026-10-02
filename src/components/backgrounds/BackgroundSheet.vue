@@ -234,12 +234,9 @@
               size="sm"
               :disabled="granting || lootboxItems.length === 0"
               label="Add to inventory"
+              :loading="granting"
               @click="grantEquipment"
-            >
-              <template #icon>
-                <LoadingSpinner v-if="granting" class="h-3.5 w-3.5" />
-              </template>
-            </AppButton>
+            />
           </div>
         </div>
       </div>
@@ -281,7 +278,6 @@ import type { Background } from "@/types/background.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";

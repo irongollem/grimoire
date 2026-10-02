@@ -110,13 +110,10 @@
         size="md"
         :disabled="!hasImage || isExporting"
         :label="isSavingBack ? 'Saving…' : 'Save to Scriptorium'"
+        :icon="IconSave"
+        :loading="isSavingBack"
         @click="emit('save-scriptorium')"
-      >
-        <template #icon>
-          <IconLoadingAlt v-if="isSavingBack" class="h-3.5 w-3.5 shrink-0 animate-spin" />
-          <IconSave v-else class="h-3.5 w-3.5 shrink-0" />
-        </template>
-      </AppButton>
+      />
 
       <AppButton
         variant="primary"
@@ -141,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconCheck, IconClipboard, IconDownload, IconLoadingAlt, IconSave } from "@/lib/icons";
+import { IconCheck, IconClipboard, IconDownload, IconSave } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import IlluminateBrushPanel from "@/components/illuminate/IlluminateBrushPanel.vue";
 import IlluminateColorGradingPanel from "@/components/illuminate/IlluminateColorGradingPanel.vue";

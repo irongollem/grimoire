@@ -29,6 +29,10 @@ export function useQuota(resourceType: QuotaResource) {
   const { data, isLoading } = useQuery({
     queryKey:  [QUERY_KEY, resourceType],
     queryFn:   () => fetchQuota(resourceType),
+    // A quota belongs to an account. Asked signed out, the RPC answers 401,
+    // which authAwareFetch reads as a session that died and redirects to
+    // /login: that made every no-auth route under the app shell unreachable.
+    enabled:   computed(() => auth.isAuthenticated),
     staleTime: 30_000,
   })
 
@@ -63,6 +67,7 @@ export function useAllQuotas() {
       if (error) throw error
       return data as Partial<Record<QuotaResource, QuotaResult>>
     },
+    enabled:   computed(() => auth.isAuthenticated),
     staleTime: 30_000,
   })
 

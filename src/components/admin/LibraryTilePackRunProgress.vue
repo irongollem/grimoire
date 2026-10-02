@@ -75,7 +75,8 @@
             :class="chipClasses(chipStatus(job))"
             :title="chipTitle(job)"
           >
-            <component :is="chipIcon(chipStatus(job))" :class="chipIconClass(chipStatus(job))" />
+            <BannerLoader v-if="isChipRunning(chipStatus(job))" class="h-3.5" />
+            <component :is="chipIcon(chipStatus(job))" v-else class="h-3.5 w-3.5" />
           </div>
         </div>
       </div>
@@ -89,7 +90,8 @@
             :class="chipClasses(chipStatus(job))"
             :title="chipTitle(job)"
           >
-            <component :is="chipIcon(chipStatus(job))" :class="chipIconClass(chipStatus(job))" />
+            <BannerLoader v-if="isChipRunning(chipStatus(job))" class="h-3.5" />
+            <component :is="chipIcon(chipStatus(job))" v-else class="h-3.5 w-3.5" />
           </div>
         </div>
       </div>
@@ -129,9 +131,10 @@
  * rather than assuming that, since it costs nothing and the DB type admits
  * the value.
  */
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed, ref, type Component } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { IconCheck, IconLoading, IconWarning, IconClose, IconRefresh, IconCircle } from "@/lib/icons";
+import { IconCheck, IconWarning, IconClose, IconRefresh, IconCircle } from "@/lib/icons";
 import { useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { libraryPackObjectPath } from "@/composables/cartographer/useLibraryTilePacks";
 import { getPublicUrl } from "@/lib/storage";
@@ -242,8 +245,6 @@ function chipStatus(job: TilePackGenerationJob): TilePackGenerationJob["status"]
 function chipIcon(status: TilePackGenerationJob["status"]): Component {
   switch (status) {
     case "normalized": return IconCheck;
-    case "generating":
-    case "generated": return IconLoading;
     case "failed": return IconWarning;
     case "cancelled": return IconClose;
     case "rejected": return IconRefresh;
@@ -251,9 +252,9 @@ function chipIcon(status: TilePackGenerationJob["status"]): Component {
   }
 }
 
-function chipIconClass(status: TilePackGenerationJob["status"]): string {
-  const spinning = status === "generating" || status === "generated";
-  return spinning ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5";
+/** Still being worked on: the chip shows the loader in place of a glyph. */
+function isChipRunning(status: TilePackGenerationJob["status"]): boolean {
+  return status === "generating" || status === "generated";
 }
 
 function chipClasses(status: TilePackGenerationJob["status"]): string {

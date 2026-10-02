@@ -74,7 +74,7 @@
             Type at least 2 characters to search
           </div>
           <div v-else-if="isFetching" class="px-4 py-4 flex items-center gap-2 text-body text-muted-foreground">
-            <IconLoading class="h-4 w-4 animate-spin" />
+            <BannerLoader class="h-4" />
             Searching…
           </div>
           <div v-else-if="mobileGroups.length === 0" class="px-4 py-8 text-center text-body text-muted-foreground">
@@ -105,9 +105,10 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
-import { IconClose, IconLoading, IconSearch } from '@/lib/icons';
+import { IconClose, IconSearch } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";

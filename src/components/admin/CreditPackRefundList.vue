@@ -8,7 +8,7 @@
     </div>
 
     <div v-if="query.isPending.value" class="text-center py-3">
-      <div class="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
+      <BannerLoader class="h-8" />
     </div>
 
     <p v-else-if="!lots.length" class="text-caption text-muted-foreground italic">
@@ -104,6 +104,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from '@/components/brand/BannerLoader.vue';
 import { computed, ref, toRef } from 'vue'
 import { useAdminRefunds, type PackLot } from '@/composables/admin/useAdminRefunds'
 import AppButton from '@/components/common/AppButton.vue'

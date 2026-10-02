@@ -2,7 +2,7 @@
   <PageHeader title="Add a Young Player" description="A parent-managed account for a player under 16">
     <div class="max-w-lg space-y-6">
       <div v-if="inspecting" class="flex justify-center py-8">
-        <div class="h-7 w-7 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <BannerLoader class="h-10" />
       </div>
 
       <!-- A request token that didn't resolve is a dead end: nothing here can be
@@ -135,6 +135,7 @@
  * "Add a young player" (#919) — creates a parent-managed account for a player
  * under 16, or (with `?request=`) approves an incoming request from one.
  */
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/PageHeader.vue";

@@ -30,7 +30,7 @@
         <!-- Import progress / result -->
         <div v-if="importing || result" class="rounded-lg border border-border px-4 py-3">
           <div v-if="importing" class="flex items-center gap-3">
-            <div class="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
+            <BannerLoader class="h-4" />
             <span class="text-body text-foreground">
               Importing {{ imported }} / {{ bundle.events.length }} events…
             </span>
@@ -95,6 +95,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed } from "vue";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCreateCalendarEvent } from "@/composables/calendar/useCalendarEvents";

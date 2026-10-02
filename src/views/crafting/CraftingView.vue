@@ -10,13 +10,15 @@
     <template #actions>
       <ListActionButton
         v-if="auth.isDM && playerIds.length"
-        :icon="revealAllPending ? IconLoading : IconReveal"
+        :icon="IconReveal"
+        :loading="revealAllPending"
         label="Reveal All"
         :disabled="revealAllPending"
         @click="revealAllRecipes"
       />
       <ListActionButton
-        :icon="importMutation.isPending.value ? IconLoading : IconDownload"
+        :icon="IconDownload"
+        :loading="importMutation.isPending.value"
         :label="importStatusLabel"
         :disabled="importMutation.isPending.value"
         @click="handleImport"
@@ -151,7 +153,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconListView, IconLoading, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
+import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconListView, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import AppButton from "@/components/common/AppButton.vue";

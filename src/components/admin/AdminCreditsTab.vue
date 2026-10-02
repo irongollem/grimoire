@@ -103,7 +103,7 @@
 
         <!-- Ledger rows -->
         <div v-if="ledger.isPending.value" class="text-center py-3">
-          <div class="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
+          <BannerLoader class="h-8" />
         </div>
         <div v-else-if="ledger.rows.value.length" class="space-y-1">
           <div class="flex items-center gap-2 px-2.5 pb-0.5">
@@ -145,6 +145,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed } from "vue";
 import { useAdminUsers } from "@/composables/admin/useAdminUsers";
 import { useUserLedger } from "@/composables/admin/useUserLedger";

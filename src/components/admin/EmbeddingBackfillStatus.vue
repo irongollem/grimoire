@@ -1,7 +1,7 @@
 <template>
   <template v-if="isRunning && currentTarget">
     <p class="flex items-center gap-2 text-caption text-muted-foreground">
-      <Loader2Icon class="h-4 w-4 text-primary animate-spin shrink-0" />
+      <BannerLoader class="h-4" />
       <span>
         Re-embedding {{ EMBED_TARGET_LABELS[currentTarget] }} — {{ processedThisTarget }} processed this pass,
         {{ remainingThisTarget ?? '…' }} remaining.
@@ -23,7 +23,7 @@
 // EmbeddingVendorControl.vue (the post-apply auto-backfill), so the run's
 // progress renders identically -- and is literally the SAME run -- no matter
 // which component started it.
-import { Loader2Icon } from "@lucide/vue";
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { useEmbeddingBackfill, EMBED_TARGET_LABELS } from "@/composables/admin/useEmbeddingBackfill";
 
 const { isRunning, currentTarget, processedThisTarget, remainingThisTarget, totalProcessed, errorMsg, resultMessage } =

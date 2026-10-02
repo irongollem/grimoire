@@ -56,14 +56,12 @@
           variant="subtle"
           size="xs"
           class="uppercase"
-          :disabled="isGeneratingPdf"
+          :icon="IconExport"
+          icon-size="xs"
+          :loading="isGeneratingPdf"
           tooltip="Export as PDF"
           @click="onExportPdf"
         >
-          <template #icon>
-            <IconLoading v-if="isGeneratingPdf" class="h-3 w-3 animate-spin" />
-            <IconExport v-else class="h-3 w-3" />
-          </template>
           {{ isGeneratingPdf ? "Building…" : "PDF" }}
         </AppButton>
       </div>
@@ -125,7 +123,7 @@
 import { computed, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
-import { IconClose, IconExport, IconInfo, IconLoading, IconZoomIn, IconZoomOut } from "@/lib/icons";
+import { IconClose, IconExport, IconInfo, IconZoomIn, IconZoomOut } from "@/lib/icons";
 import { docTypeLabel, docTypeColor } from "@/lib/scriptorium/editorConstants";
 import { useScriptoriumZoom } from "@/composables/scriptorium/useScriptoriumZoom";
 import { usePagedPreview } from "@/composables/scriptorium/usePagedPreview";

@@ -3,7 +3,7 @@
     <!-- Validating token -->
     <template v-if="tokenState === 'validating'">
       <div class="flex justify-center py-8">
-        <div class="h-7 w-7 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <BannerLoader class="h-10" />
       </div>
     </template>
 
@@ -113,6 +113,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, onMounted } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
