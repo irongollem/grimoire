@@ -15,7 +15,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(66);
+select plan(67);
 
 -- ── Structure ───────────────────────────────────────────────────────────────
 
@@ -244,9 +244,9 @@ insert into public.soundboard_playlists (id, user_id, campaign_id, name, playlis
 insert into public.soundboard_playlist_tracks (playlist_id, sound_id) values
   ('91200000-0000-4000-8000-000000000072', '91200000-0000-4000-8000-000000000071');
 
-insert into public.party_members (id, user_id, campaign_id, name) values
+insert into public.party_members (id, user_id, campaign_id, name, ruleset) values
   ('91200000-0000-4000-8000-000000000080', '91200000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000010', 'Pregen Pip');
+   '91200000-0000-4000-8000-000000000010', 'Pregen Pip', '2014');
 
 -- A spell learned through a class. character_spells.source_class_id is ON
 -- DELETE SET NULL and the spell's triggers validate every update, so purging
@@ -254,8 +254,17 @@ insert into public.party_members (id, user_id, campaign_id, name) values
 insert into public.spells (id, user_id, campaign_id, name, level, classes) values
   ('91200000-0000-4000-8000-000000000081', '91200000-0000-4000-8000-000000000001',
    '91200000-0000-4000-8000-000000000010', 'Sugar Ditty', 1, '{Bard}');
-insert into public.character_classes (id, party_member_id, class_name, levels, is_primary) values
-  ('91200000-0000-4000-8000-000000000082', '91200000-0000-4000-8000-000000000080', 'Bard', 1, true);
+-- Its subclass is a definition of the template's own (campaign-scoped), which is
+-- what lets the copy carry it: a class row is pinned (#943), and a pin to one of
+-- the author's general definitions would name a row the loader cannot use.
+insert into public.custom_subclasses (id, user_id, campaign_id, class_name, subclass_name) values
+  ('91200000-0000-4000-8000-000000000083', '91200000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000010', 'Bard', 'College of Sugar');
+insert into public.character_classes (id, party_member_id, class_name, subclass_name, levels, is_primary,
+                                      class_definition_id, class_definition_kind, subclass_definition_id) values
+  ('91200000-0000-4000-8000-000000000082', '91200000-0000-4000-8000-000000000080', 'Bard', 'College of Sugar', 3, true,
+   (select id from public.system_classes where ruleset = '2014' and class_name = 'Bard'), 'system',
+   '91200000-0000-4000-8000-000000000083');
 insert into public.character_spells (party_member_id, spell_id, source_type, source_class_id) values
   ('91200000-0000-4000-8000-000000000080', '91200000-0000-4000-8000-000000000081', 'class',
    '91200000-0000-4000-8000-000000000082');
@@ -605,6 +614,20 @@ select is(
     where pm.user_id = '91200000-0000-4000-8000-000000000002'),
   1,
   'the copy''s pre-made caster kept a class spell, tied to the copy''s own class: the shape a purge must survive'
+);
+
+select is(
+  (select jsonb_build_object(
+            'class', pm.class, 'subclass', pm.subclass,
+            'pinned_to_the_official_class', cc.class_definition_id = (select id from public.system_classes where ruleset = '2014' and class_name = 'Bard'),
+            'subclass_is_the_copys_own', d.campaign_id = pm.campaign_id and d.user_id = pm.user_id,
+            'not_the_templates', d.id <> '91200000-0000-4000-8000-000000000083')
+     from public.party_members pm
+     join public.character_classes cc on cc.party_member_id = pm.id
+     join public.custom_subclasses d on d.id = cc.subclass_definition_id
+    where pm.user_id = '91200000-0000-4000-8000-000000000002'),
+  '{"class": "Bard", "subclass": "College of Sugar", "pinned_to_the_official_class": true, "subclass_is_the_copys_own": true, "not_the_templates": true}'::jsonb,
+  'the copy''s character keeps its class and subclass, pinned to the official class and to the copy''s own subclass'
 );
 
 set local role authenticated;

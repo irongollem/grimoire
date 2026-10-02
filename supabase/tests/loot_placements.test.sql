@@ -17,8 +17,8 @@ values
 
 insert into public.campaigns (id, user_id, name)
 values ('66100000-0000-4000-8000-000000000010', '66100000-0000-4000-8000-000000000001', 'Beat loot campaign');
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
-values ('66100000-0000-4000-8000-000000000020', '66100000-0000-4000-8000-000000000001', '66100000-0000-4000-8000-000000000002', '66100000-0000-4000-8000-000000000010', 'Claiming hero');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
+values ('66100000-0000-4000-8000-000000000020', '66100000-0000-4000-8000-000000000001', '66100000-0000-4000-8000-000000000002', '66100000-0000-4000-8000-000000000010', 'Claiming hero', '2014');
 insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id) values
   ('66100000-0000-4000-8000-000000000010', '66100000-0000-4000-8000-000000000001', 'dm', 'Loot DM', null),
   ('66100000-0000-4000-8000-000000000010', '66100000-0000-4000-8000-000000000002', 'player', 'Loot player', '66100000-0000-4000-8000-000000000020')

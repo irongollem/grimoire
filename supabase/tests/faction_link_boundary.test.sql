@@ -27,8 +27,8 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, r
 insert into public.campaigns (id, user_id, name) values
   ('77740000-0000-4000-8000-000000000010', '77740000-0000-4000-8000-000000000002', 'Where the player plays'),
   ('77740000-0000-4000-8000-000000000011', '77740000-0000-4000-8000-000000000002', 'Where the secret is');
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name) values
-  ('77740000-0000-4000-8000-000000000020', '77740000-0000-4000-8000-000000000002', '77740000-0000-4000-8000-000000000001', '77740000-0000-4000-8000-000000000010', 'Their character');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset) values
+  ('77740000-0000-4000-8000-000000000020', '77740000-0000-4000-8000-000000000002', '77740000-0000-4000-8000-000000000001', '77740000-0000-4000-8000-000000000010', 'Their character', '2014');
 insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id) values
   ('77740000-0000-4000-8000-000000000010', '77740000-0000-4000-8000-000000000001', 'player', 'Player', '77740000-0000-4000-8000-000000000020')
 on conflict (campaign_id, user_id) do update set role = excluded.role;

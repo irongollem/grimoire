@@ -13,13 +13,14 @@ values ('00000000-0000-4000-8000-000000000543', '00000000-0000-4000-8000-0000000
 
 insert into public.party_members (
   id, user_id, campaign_id, name, class, level, cha, proficiency_bonus,
-  spell_slots, class_resources, class_choices
+  spell_slots, class_resources, class_choices, ruleset
 ) values (
   '00000000-0000-4000-8000-000000000544', '00000000-0000-4000-8000-000000000549',
   '00000000-0000-4000-8000-000000000543', 'Test Sorcerer', 'Sorcerer', 7, 18, 3,
   '[{"level":1,"max":1,"used":0,"pool":"spellcasting","recovery":"long"}]'::jsonb,
   '{"sorcery_points":{"current":7,"max":7,"rest":"long"},"innate_sorcery":{"current":2,"max":2,"rest":"long"}}'::jsonb,
-  '{"metamagic_options":["Quickened Spell","Transmuted Spell","Empowered Spell"]}'::jsonb
+  '{"metamagic_options":["Quickened Spell","Transmuted Spell","Empowered Spell"]}'::jsonb,
+  '2024'
 );
 
 insert into public.character_classes
@@ -84,9 +85,9 @@ values
 update public.custom_classes
 set spell_slots = '[[2],[3]]'::jsonb
 where id = '00000000-0000-4000-8000-000000000570';
-insert into public.party_members (id, user_id, campaign_id, name, class, level)
+insert into public.party_members (id, user_id, campaign_id, name, class, level, ruleset)
 values ('00000000-0000-4000-8000-000000000563', '00000000-0000-4000-8000-000000000549',
-  '00000000-0000-4000-8000-000000000543', 'Custom Sorcerer', 'Sorcerer', 1);
+  '00000000-0000-4000-8000-000000000543', 'Custom Sorcerer', 'Sorcerer', 1, '2024');
 insert into public.character_classes
   (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
 values ('00000000-0000-4000-8000-000000000564', '00000000-0000-4000-8000-000000000563',
@@ -280,10 +281,11 @@ $$, '.*No level-1 spell slots remaining.*', 'an exhausted pool cannot be enlarge
 -- populated) cannot spend a slot without a template, but a trusted template
 -- can fill in the missing pool for a one-time reconciliation.
 insert into public.party_members (
-  id, user_id, campaign_id, name, class, level, cha, proficiency_bonus, spell_slots
+  id, user_id, campaign_id, name, class, level, cha, proficiency_bonus, spell_slots, ruleset
 ) values (
   '00000000-0000-4000-8000-000000000575', '00000000-0000-4000-8000-000000000549',
-  '00000000-0000-4000-8000-000000000543', 'Legacy Sorcerer', 'Sorcerer', 5, 16, 3, '[]'::jsonb
+  '00000000-0000-4000-8000-000000000543', 'Legacy Sorcerer', 'Sorcerer', 5, 16, 3, '[]'::jsonb,
+  '2024'
 );
 insert into public.character_classes
   (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
@@ -329,10 +331,10 @@ insert into public.spells (
   'Test Wizard Bolt', 1, 'Action', '60 ft.', 'Instantaneous', 'A leveled spell.', array['Wizard'], 'automatic',
   '[{"dice":"2d6","type":"force"}]'::jsonb, '1 creature', null
 );
-insert into public.party_members (id, user_id, campaign_id, name, class, level, "int", proficiency_bonus, spell_slots)
+insert into public.party_members (id, user_id, campaign_id, name, class, level, "int", proficiency_bonus, spell_slots, ruleset)
 values ('00000000-0000-4000-8000-000000000579', '00000000-0000-4000-8000-000000000549',
   '00000000-0000-4000-8000-000000000543', 'Test Wizard', 'Wizard', 3, 16, 2,
-  '[{"level":1,"max":1,"used":0,"pool":"spellcasting","recovery":"long"}]'::jsonb);
+  '[{"level":1,"max":1,"used":0,"pool":"spellcasting","recovery":"long"}]'::jsonb, '2024');
 insert into public.character_classes
   (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
 values ('00000000-0000-4000-8000-000000000580', '00000000-0000-4000-8000-000000000579',

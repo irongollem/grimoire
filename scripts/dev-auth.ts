@@ -448,13 +448,29 @@ function ensureFixtureParty(dbUrl: string, ownerId: string): number {
   );
 
   if (already === 0) {
+    // Each character states the campaign's edition and gets its class as a
+    // `character_classes` row pinned to the official definition;
+    // `party_members.class` is a mirror the database keeps, never written here.
     sql(
       dbUrl,
-      `insert into public.party_members (user_id, campaign_id, name, player_name, class, level, sort_order)
-       values
-         (${quote(ownerId)}, ${quote(campaignId)}, 'Brakka Ironvow', 'Sam',  'Fighter', 4, 0),
-         (${quote(ownerId)}, ${quote(campaignId)}, 'Nessa Quill',    'Alex', 'Rogue',   4, 1),
-         (${quote(ownerId)}, ${quote(campaignId)}, 'Orin Vale',      'Jo',   'Cleric',  4, 2);`,
+      `with camp as (
+         select ruleset from public.campaigns where id = ${quote(campaignId)}
+       ), members as (
+         insert into public.party_members (user_id, campaign_id, name, player_name, ruleset, level, sort_order)
+         select ${quote(ownerId)}, ${quote(campaignId)}, v.name, v.player_name, camp.ruleset, 4, v.sort_order
+           from camp,
+                (values ('Brakka Ironvow', 'Sam',  0),
+                        ('Nessa Quill',    'Alex', 1),
+                        ('Orin Vale',      'Jo',   2)) as v(name, player_name, sort_order)
+         returning id, name, ruleset
+       )
+       insert into public.character_classes (party_member_id, class_name, class_definition_id, class_definition_kind, levels, is_primary)
+       select m.id, c.class_name, sc.id, 'system', 4, true
+         from members m
+         join (values ('Brakka Ironvow', 'Fighter'),
+                      ('Nessa Quill',    'Rogue'),
+                      ('Orin Vale',      'Cleric')) as c(member_name, class_name) on c.member_name = m.name
+         join public.system_classes sc on sc.class_name = c.class_name and sc.ruleset = m.ruleset;`,
     );
   }
 

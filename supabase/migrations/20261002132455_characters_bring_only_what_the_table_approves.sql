@@ -83,7 +83,7 @@ create table public.character_content_reviews (
   party_member_id uuid not null references public.party_members(id) on delete cascade,
   kind text not null check (kind in ('species', 'background', 'class', 'subclass', 'spell', 'feat')),
   -- What the character points at: a library slug, a content row's uuid, or
-  -- 'system:<class name>' for a class known by name.
+  -- 'system:<class name>' for an official class.
   ref text not null,
   -- Its name when flagged, so the DM's queue reads without a second lookup the
   -- DM may not be allowed to make.
@@ -190,58 +190,8 @@ $$;
 -- Everything a character points at, as (kind, ref). An official class is named
 -- rather than pointed at, because a table blocks official classes by name.
 --
--- A class or subclass row may be only a name, with no definition pinned. That
--- is an honest state: a character the DM built with a typed class gets such a
--- row the first time it levels up, and the name is a label with nothing behind
--- it. But the app resolves a name against whatever its viewer can read, the
--- viewer's own homebrew included, so on its OWNER'S screen a bare name becomes
--- the owner's own class of that name, at a table that was never asked. So a
--- name is read the way the owner's app reads it (private.named_content_of_owner):
--- where it lands on the owner's own content and the table has nothing by that
--- name, the reference IS that content, flagged and approved like a pinned one,
--- and approving pins the row to the table's copy. Any other bare name stays a
--- label: an official class is checked by name, anything else is not content.
--- What a class or subclass known only by name stands for on its owner's
--- screen: the owner's own row of that name, when it is not an official class
--- and the table has nothing by it. NULL otherwise.
-create function private.named_content_of_owner(
-  p_kind text, p_owner uuid, p_campaign_id uuid, p_class_name text, p_subclass_name text)
-returns uuid
-language sql
-stable
-set search_path = ''
-as $$
-  select case
-    when p_owner is null or p_campaign_id is null or p_class_name is null then null
-    when p_kind = 'class' then (
-      select own.id from public.custom_classes own
-       where own.user_id = p_owner
-         and lower(own.class_name) = lower(p_class_name)
-         and not exists (
-           select 1 from public.system_classes sc where lower(sc.class_name) = lower(p_class_name))
-         and not exists (
-           select 1 from public.custom_classes t
-            where lower(t.class_name) = lower(p_class_name)
-              and private.is_table_dm(p_campaign_id, t.user_id)
-              and (t.campaign_id is null or t.campaign_id = p_campaign_id))
-       order by own.created_at, own.id
-       limit 1)
-    when p_kind = 'subclass' and p_subclass_name is not null then (
-      select own.id from public.custom_subclasses own
-       where own.user_id = p_owner
-         and lower(own.class_name) = lower(p_class_name)
-         and lower(own.subclass_name) = lower(p_subclass_name)
-         and not exists (
-           select 1 from public.custom_subclasses t
-            where lower(t.class_name) = lower(p_class_name)
-              and lower(t.subclass_name) = lower(p_subclass_name)
-              and private.is_table_dm(p_campaign_id, t.user_id)
-              and (t.campaign_id is null or t.campaign_id = p_campaign_id))
-       order by own.created_at, own.id
-       limit 1)
-  end;
-$$;
-
+-- Every class row is pinned to a definition (20261002145135), so a class is
+-- either an official one, named, or a row somebody owns, pointed at.
 create function private.party_member_content_refs(p_party_member_id uuid)
 returns table (kind text, ref text)
 language sql
@@ -257,32 +207,15 @@ as $$
    where pm.id = p_party_member_id and pm.background_id is not null
   union
   select 'class',
-         case
-           when cc.class_definition_kind = 'custom' and cc.class_definition_id is not null
-             then cc.class_definition_id::text
-           when cc.class_definition_id is null
-             then coalesce(
-               private.named_content_of_owner('class', pm.owner_user_id, pm.campaign_id, cc.class_name, null)::text,
-               'system:' || cc.class_name)
-           else 'system:' || cc.class_name
-         end
+         case when cc.class_definition_kind = 'system'
+              then 'system:' || cc.class_name
+              else cc.class_definition_id::text end
     from public.character_classes cc
-    join public.party_members pm on pm.id = cc.party_member_id
    where cc.party_member_id = p_party_member_id
   union
   select 'subclass', cc.subclass_definition_id::text
     from public.character_classes cc
    where cc.party_member_id = p_party_member_id and cc.subclass_definition_id is not null
-  union
-  select 'subclass', named.id::text
-    from public.character_classes cc
-    join public.party_members pm on pm.id = cc.party_member_id
-    cross join lateral (
-      select private.named_content_of_owner(
-        'subclass', pm.owner_user_id, pm.campaign_id, cc.class_name, cc.subclass_name) as id) named
-   where cc.party_member_id = p_party_member_id
-     and cc.subclass_definition_id is null and cc.subclass_name is not null
-     and named.id is not null
   union
   select 'spell', cs.spell_id
     from public.character_spells cs
@@ -350,7 +283,6 @@ $$;
 --
 --   approved    the table takes it as it is
 --   reason      why not: 'source', 'blocked', 'homebrew', 'foreign' or 'missing'
---   adoptable   it is the character owner's own row, which approval may copy
 --   repoint_to  the table's own copy of the same book entry, when it has one:
 --               the character is pointed at that instead and nobody is asked
 --
@@ -369,7 +301,7 @@ $$;
 create function private.assess_content(
   p_kind text, p_ref text, p_campaign_id uuid, p_character_owner uuid,
   out approved boolean, out reason text, out label text,
-  out source_slug text, out source_title text, out adoptable boolean, out repoint_to uuid)
+  out source_slug text, out source_title text, out repoint_to uuid)
 language plpgsql
 stable
 set search_path = ''
@@ -386,13 +318,10 @@ declare
   v_blocked boolean := false;
 begin
   approved := true;
-  adoptable := false;
 
   if p_kind = 'class' and p_ref like 'system:%' then
     label := substr(p_ref, 8);
-    -- By name, and a name is not a different class for being typed in another
-    -- case. A name that is no official class is a label with nothing behind
-    -- it (see party_member_content_refs): there is nothing to approve.
+    -- By name, and a name is not a different class for being typed in another case.
     if exists (
       select 1 from public.campaigns c, unnest(coalesce(c.disabled_class_names, '{}')) as blocked(name)
        where c.id = p_campaign_id and lower(blocked.name) = lower(label)
@@ -504,7 +433,6 @@ begin
   -- content through a flag.
   if p_character_owner is not null and v_owner = p_character_owner then
     reason := 'homebrew';
-    adoptable := true;
   else
     reason := 'foreign';
     label := 'Content from another table';
@@ -717,34 +645,13 @@ begin
       update public.party_members set background_id = p_new::uuid
        where id = p_party_member_id and background_id = p_old::uuid;
       get diagnostics v_moved = row_count;
-    -- A class or subclass row may reach here known only by name (it stood for
-    -- its owner's content of that name). Re-pointing pins it, and takes the
-    -- definition's own spelling of the name, which the class triggers compare
-    -- exactly.
     when 'class' then
-      update public.character_classes cc
-         set class_definition_id = p_new::uuid,
-             class_definition_kind = 'custom',
-             class_name = coalesce(
-               (select d.class_name from public.custom_classes d where d.id = p_new::uuid), cc.class_name)
-       where cc.party_member_id = p_party_member_id
-         and (cc.class_definition_id = p_old::uuid
-              or (cc.class_definition_id is null and exists (
-                    select 1 from public.custom_classes d
-                     where d.id = p_old::uuid and lower(d.class_name) = lower(cc.class_name))));
+      update public.character_classes set class_definition_id = p_new::uuid, class_definition_kind = 'custom'
+       where party_member_id = p_party_member_id and class_definition_id = p_old::uuid;
       get diagnostics v_moved = row_count;
     when 'subclass' then
-      update public.character_classes cc
-         set subclass_definition_id = p_new::uuid,
-             subclass_name = coalesce(
-               (select d.subclass_name from public.custom_subclasses d where d.id = p_new::uuid), cc.subclass_name)
-       where cc.party_member_id = p_party_member_id
-         and (cc.subclass_definition_id = p_old::uuid
-              or (cc.subclass_definition_id is null and exists (
-                    select 1 from public.custom_subclasses d
-                     where d.id = p_old::uuid
-                       and lower(d.class_name) = lower(cc.class_name)
-                       and lower(d.subclass_name) = lower(cc.subclass_name))));
+      update public.character_classes set subclass_definition_id = p_new::uuid
+       where party_member_id = p_party_member_id and subclass_definition_id = p_old::uuid;
       get diagnostics v_moved = row_count;
     when 'spell' then
       perform set_config('grimoire.spell_limits', 'suspended', true);
@@ -788,13 +695,9 @@ $$;
 -- approves, and returns how many are pending. Idempotent, and the only writer
 -- of pending rows. Copies nothing: the one thing it does without asking is
 -- point a character at the table's own copy of a book entry it already has.
--- With p_grandfather set it changes nothing about the character and records
--- every unapproved choice as approved (the data migration at the end of this
--- file).
---
 -- Re-entrant by flag: re-pointing fires the very triggers that call this
 -- function.
-create function private.review_party_member_content(p_party_member_id uuid, p_grandfather boolean default false)
+create function private.review_party_member_content(p_party_member_id uuid)
 returns integer
 language plpgsql
 set search_path = ''
@@ -859,7 +762,7 @@ begin
     -- a refusal here must leave the flag standing, not abort their action: a
     -- player could otherwise arrange a character that blocks every table-wide
     -- change.
-    if not v_a.approved and v_a.repoint_to is not null and not p_grandfather then
+    if not v_a.approved and v_a.repoint_to is not null then
       begin
         perform private.repoint_party_member_content(
           p_party_member_id, v_ref.kind, v_target, v_a.repoint_to::text);
@@ -881,20 +784,17 @@ begin
       v_kept := v_kept || (v_ref.kind || '|' || v_target);
       continue;
     end if;
-    if not p_grandfather then
-      if v_raised >= c_max_flags then
-        continue;
-      end if;
-      v_raised := v_raised + 1;
+    if v_raised >= c_max_flags then
+      continue;
     end if;
+    v_raised := v_raised + 1;
 
     insert into public.character_content_reviews as r
       (campaign_id, party_member_id, kind, ref, label, reason, source_slug, source_title, status, decided_at)
     values
       (v_pm.campaign_id, p_party_member_id, v_ref.kind, v_target, coalesce(v_a.label, v_target),
        v_a.reason, v_a.source_slug, v_a.source_title,
-       case when p_grandfather then 'approved' else 'pending' end,
-       case when p_grandfather then now() end)
+       'pending', null)
     on conflict (party_member_id, kind, ref) do update
       set label = excluded.label, reason = excluded.reason,
           source_slug = excluded.source_slug, source_title = excluded.source_title,
@@ -931,13 +831,12 @@ revoke execute on function private.try_uuid(text) from public, anon, authenticat
 revoke execute on function private.is_table_dm(uuid, uuid) from public, anon, authenticated;
 revoke execute on function private.source_enabled(uuid, text) from public, anon, authenticated;
 revoke execute on function private.party_member_content_refs(uuid) from public, anon, authenticated;
-revoke execute on function private.named_content_of_owner(text, uuid, uuid, text, text) from public, anon, authenticated;
 revoke execute on function private.table_book_entry(text, uuid, text, text, text) from public, anon, authenticated;
 revoke execute on function private.assess_content(text, text, uuid, uuid) from public, anon, authenticated;
 revoke execute on function private.adopt_id_map(jsonb, text, uuid, uuid) from public, anon, authenticated;
 revoke execute on function private.adopt_content(text, uuid, uuid, uuid) from public, anon, authenticated;
 revoke execute on function private.repoint_party_member_content(uuid, text, text, text) from public, anon, authenticated;
-revoke execute on function private.review_party_member_content(uuid, boolean) from public, anon, authenticated;
+revoke execute on function private.review_party_member_content(uuid) from public, anon, authenticated;
 
 -- ── 6. When a character is reviewed ──────────────────────────────────────────
 -- Whenever what it points at changes, and whenever what its table approves
@@ -1094,7 +993,13 @@ create trigger campaigns_review_content_blocklists
 
 -- A character with a pending flag cannot be made anyone's active character, by
 -- anyone, the DM included: the DM's way to seat it is to approve what is
--- waiting. Everything else in this function is as 20261002132454 left it.
+-- waiting.
+--
+-- It also holds the rule of 20261002132454: a seat points only at a character
+-- in its own campaign, for the DM too. A DM's seat write used to skip every
+-- check on the character it named, which cost nothing while a link granted
+-- nothing; with a link able to hand a character over, it let any DM name an
+-- unowned character at someone else's table and become its owner.
 create or replace function public.guard_campaign_member_self_update()
  returns trigger
  language plpgsql
@@ -1254,6 +1159,9 @@ begin
 end;
 $function$;
 
+-- Admission can run days after the join was requested (a parent's yes), and the
+-- table may have changed edition meanwhile. The joiner is still admitted; a
+-- character the table no longer takes simply stays in their pool.
 create or replace function private.admit_campaign_member(p_campaign_id uuid, p_user_id uuid, p_role text, p_display_name text, p_party_member_id uuid)
  returns boolean
  language plpgsql
@@ -1619,15 +1527,15 @@ begin
       delete from public.character_spells
        where party_member_id = v_review.party_member_id and spell_id = v_review.ref;
     when 'class' then
-      -- The definition is gone; the row keeps its name as a label. That is safe
-      -- because a bare name is read the way its owner's app reads it: if it now
-      -- lands on other content of the owner's, the next review flags that.
-      update public.character_classes
-         set class_definition_id = null, class_definition_kind = null
+      -- The class row goes: a class is its definition, and this one has none
+      -- left. The character keeps its level and is without a class until it
+      -- takes one.
+      delete from public.character_classes
        where party_member_id = v_review.party_member_id
          and class_definition_id = private.try_uuid(v_review.ref);
     when 'subclass' then
-      update public.character_classes set subclass_definition_id = null
+      update public.character_classes
+         set subclass_definition_id = null, subclass_name = null
        where party_member_id = v_review.party_member_id
          and subclass_definition_id = private.try_uuid(v_review.ref);
     when 'feat' then
@@ -1790,17 +1698,5 @@ $$;
 revoke execute on function public.get_character_content_item(uuid) from public, anon;
 grant execute on function public.get_character_content_item(uuid) to authenticated, service_role;
 
--- ── 9. Characters already seated ─────────────────────────────────────────────
-
--- Sitting at a table before approval existed was the approval. Every choice a
--- seated character has that this predicate would not take is recorded as
--- approved for that character, and nothing is copied or re-pointed.
-do $$
-declare
-  v_id uuid;
-begin
-  for v_id in select id from public.party_members where campaign_id is not null loop
-    perform private.review_party_member_content(v_id, true);
-  end loop;
-end;
-$$;
+-- Characters already seated when this ships are recorded as approved by
+-- 20261002145135, once every class is a pinned row.

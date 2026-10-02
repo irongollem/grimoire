@@ -43,13 +43,14 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name)
 values ('65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000001', 'dm', 'DM')
 on conflict (campaign_id, user_id) do update set role = excluded.role;
 
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
 values (
   '65800000-0000-4000-8000-000000000020',
   '65800000-0000-4000-8000-000000000001',
   '65800000-0000-4000-8000-000000000002',
   '65800000-0000-4000-8000-000000000010',
-  'Player hero'
+  'Player hero',
+  '2014'
 );
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id)

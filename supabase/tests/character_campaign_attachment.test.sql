@@ -109,8 +109,8 @@ select lives_ok(
   'an unattached character can be created with no membership anywhere');
 
 select throws_ok(
-  $$insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
-    values ('73000000-0000-4000-8000-000000000029', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000010', 'Gatecrasher')$$,
+  $$insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
+    values ('73000000-0000-4000-8000-000000000029', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000010', 'Gatecrasher', '2014')$$,
   '42501',
   'new row violates row-level security policy for table "party_members"',
   'a character cannot be inserted into a campaign the writer is not a member of');
@@ -241,8 +241,9 @@ select throws_like(
 
 reset role;
 
-insert into public.character_classes (id, party_member_id, class_name, levels, is_primary)
-values ('73000000-0000-4000-8000-000000000030', '73000000-0000-4000-8000-000000000020', 'Druid', 3, true);
+insert into public.character_classes (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
+values ('73000000-0000-4000-8000-000000000030', '73000000-0000-4000-8000-000000000020', 'Druid', 3, true,
+  (select id from public.system_classes where ruleset = '2014' and class_name = 'Druid'), 'system');
 
 insert into public.spells (id, user_id, name, classes)
 values ('73000000-0000-4000-8000-000000000040', '73000000-0000-4000-8000-000000000002', 'Entangle', array['Druid']);

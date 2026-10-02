@@ -132,7 +132,7 @@ begin
   end if;
   if p_ruleset is distinct from v_ruleset and not v_mixed then
     raise exception 'This table plays the % rules and does not take % characters',
-      v_ruleset, coalesce(p_ruleset, 'unknown')
+      v_ruleset, p_ruleset
       using errcode = 'RS001',
             detail = jsonb_build_object(
               'character_ruleset', p_ruleset, 'campaign_ruleset', v_ruleset)::text;
@@ -151,18 +151,14 @@ security definer
 set search_path = ''
 as $$
 begin
-  if new.campaign_id is null then
-    if new.ruleset is null then
-      raise exception 'A character with no campaign must state its ruleset'
-        using errcode = '23502';
-    end if;
-    return new;
-  end if;
-
-  -- A roster character made inside a campaign is built under its rules unless
-  -- the insert says otherwise.
+  -- Every insert states the edition. There is no "take the campaign's": that
+  -- was the old model (a character's edition is its table's) surviving as a
+  -- default, and nothing in the app relies on it, since the wizard asks first.
   if new.ruleset is null then
-    select c.ruleset into new.ruleset from public.campaigns c where c.id = new.campaign_id;
+    raise exception 'A character must state its ruleset'
+      using errcode = '23502';
+  end if;
+  if new.campaign_id is null then
     return new;
   end if;
 
@@ -173,11 +169,8 @@ begin
   -- from ARRIVING; a seated one of the other edition is already a state a table
   -- can be in (a campaign that switched edition keeps its characters, flagged),
   -- and a DM restoring a backup or importing a world has to be able to put that
-  -- state back. Refusing the insert left the importers one way through, which
-  -- was to drop the character's edition, so the database stamped the table's on
-  -- a character whose classes and spells were still the other's: a label that
-  -- lies, and one the mismatch list could no longer see. The DM's character
-  -- lands as it is, shows in that list, and is converted from there.
+  -- state back. The DM's character lands as it is, shows in the mismatch list,
+  -- and is converted from there.
   if not (
     private.is_campaign_dm(new.campaign_id)
     or exists (
@@ -299,87 +292,16 @@ create policy party_members_creator_update on public.party_members
   with check ((select auth.uid()) = user_id
               and (campaign_id is null or private.is_campaign_member(campaign_id)));
 
--- A DM's seat write used to skip every check on the character it names. That
--- cost nothing while a link granted nothing outside the DM's own campaign; with
--- a link able to hand a character over, it let any DM name an unowned character
--- at someone else's table and become its owner. A seat points only at a
--- character in its own campaign, for the DM too. Everything else in this
--- function is unchanged.
-create or replace function public.guard_campaign_member_self_update()
- returns trigger
- language plpgsql
- security definer
- set search_path to 'public'
-as $function$
-begin
-  -- A membership row belongs to one person at one table, for everyone, the DM
-  -- included: moving it is how a seat would be granted without an invite or a
-  -- parent's yes (#927).
-  if new.user_id is distinct from old.user_id
-     or new.campaign_id is distinct from old.campaign_id then
-    raise exception 'A membership cannot be moved to another person or campaign';
-  end if;
-
-  -- DMs of this campaign may change the rest (role, name, character).
-  if private.is_campaign_dm(old.campaign_id) then
-    if new.party_member_id is distinct from old.party_member_id
-       and new.party_member_id is not null
-       and not exists (
-         select 1 from public.party_members pm
-         where pm.id = new.party_member_id
-           and pm.campaign_id = new.campaign_id
-       ) then
-      raise exception 'Cannot link a character from another campaign';
-    end if;
-    return new;
-  end if;
-
-  -- Admission (private.admit_campaign_member) links the character the joiner
-  -- chose, and has checked it is theirs. It runs as whoever gave the last yes,
-  -- usually a parent, who owns no character here, so the per-caller check
-  -- below would refuse every approval that brings one.
-  if current_setting('grimoire.pm_campaign_transition', true) = 'on' then
-    return new;
-  end if;
-
-  -- Non-DM self-update: role stays pinned to its prior value.
-  if new.role is distinct from old.role then
-    raise exception 'Not allowed to change role or campaign assignment';
-  end if;
-
-  -- party_member_id may change (claim / self-create / assume), but only to a
-  -- character the player is allowed to take: same campaign, not owned by someone
-  -- else, and not already claimed by another member. Clearing it is always allowed.
-  if new.party_member_id is distinct from old.party_member_id
-     and new.party_member_id is not null then
-
-    if not exists (
-      select 1 from public.party_members pm
-      where pm.id = new.party_member_id
-        and pm.campaign_id = new.campaign_id
-        and (pm.owner_user_id is null or pm.owner_user_id = (select auth.uid()))
-    ) then
-      raise exception 'Cannot link a character from another campaign or owned by another player';
-    end if;
-
-    if exists (
-      select 1 from public.campaign_members cm
-      where cm.party_member_id = new.party_member_id
-        and cm.id is distinct from new.id
-    ) then
-      raise exception 'That character is already claimed by another player';
-    end if;
-  end if;
-
-  return new;
-end;
-$function$;
+-- A seat points only at a character in its own campaign, for the DM too. The
+-- guard that holds that line (guard_campaign_member_self_update), the attach
+-- RPC and admission each carry both this migration's rule and the approval
+-- gate, so each is defined once, in 20261002132455.
 
 -- Claiming transfers ownership. A seat pointing at a character nobody owns
 -- hands it to that member when the DM assigned it, or when the member made the
 -- character themselves. Three things it deliberately is not:
 --
---   * not for a character in another campaign (see the guard above);
+--   * not for a character in another campaign (the seat guard refuses it);
 --   * not for an offered character (is_dm_managed): that one stays the DM's and
 --     a player takes a copy of it through assume_character();
 --   * not a player linking themselves to a roster character the DM made. That
@@ -414,67 +336,6 @@ create trigger campaign_members_claim_character
   execute procedure public.claim_party_member_on_link();
 
 -- ── 5. The door on attach and join ───────────────────────────────────────────
-
-create or replace function public.attach_party_member_to_campaign(p_party_member_id uuid, p_campaign_id uuid, p_set_active boolean default true)
- returns void
- language plpgsql
- security definer
- set search_path to 'public'
-as $function$
-declare
-  v_uid uuid := auth.uid();
-  v_pm public.party_members%rowtype;
-  v_prev text := current_setting('grimoire.pm_campaign_transition', true);
-begin
-  if v_uid is null then
-    raise exception 'Not authenticated';
-  end if;
-
-  select * into v_pm from public.party_members where id = p_party_member_id;
-  if not found then
-    raise exception 'Character not found';
-  end if;
-
-  -- The owner attaches their character; a DM may attach an unclaimed
-  -- character they created (DM-managed roster work). coalesce makes the
-  -- predicate total (CLAUDE.md SECURITY DEFINER item 3): for an unclaimed row
-  -- owner_user_id is NULL, `NULL = v_uid` is NULL, `NULL or false` is NULL,
-  -- and `if not NULL` never raises — the exact case an attacker is in.
-  if not coalesce(
-    v_pm.owner_user_id = v_uid
-      or (v_pm.owner_user_id is null and v_pm.user_id = v_uid),
-    false
-  ) then
-    raise exception 'Only the character''s owner can attach it';
-  end if;
-
-  if v_pm.campaign_id is not null then
-    raise exception 'Character is already in a campaign. Detach it first.';
-  end if;
-
-  if not private.is_campaign_member(p_campaign_id) then
-    raise exception 'You are not a member of that campaign';
-  end if;
-
-  -- After the membership check, so a stranger learns nothing about a table's
-  -- edition from the refusal.
-  perform private.assert_ruleset_admissible(v_pm.ruleset, p_campaign_id);
-
-  perform set_config('grimoire.pm_campaign_transition', 'on', true);
-  update public.party_members
-     set campaign_id = p_campaign_id
-   where id = p_party_member_id;
-
-  if p_set_active then
-    update public.campaign_members
-       set party_member_id = p_party_member_id
-     where campaign_id = p_campaign_id
-       and user_id = v_uid
-       and party_member_id is null;
-  end if;
-  perform set_config('grimoire.pm_campaign_transition', coalesce(v_prev, ''), true);
-end;
-$function$;
 
 create or replace function public.join_campaign_via_invite(p_token uuid, p_party_member_id uuid default null::uuid)
  returns jsonb
@@ -517,59 +378,6 @@ begin
   end if;
 
   return private.consume_campaign_invite(p_token, v_caller, p_party_member_id, null);
-end;
-$function$;
-
--- Admission can run days after the join was requested (a parent's yes), and the
--- table may have changed edition meanwhile. The joiner is still admitted; a
--- character the table no longer takes simply stays in their pool.
-create or replace function private.admit_campaign_member(p_campaign_id uuid, p_user_id uuid, p_role text, p_display_name text, p_party_member_id uuid)
- returns boolean
- language plpgsql
- security definer
- set search_path to ''
-as $function$
-declare
-  v_inserted integer;
-  v_prev text := current_setting('grimoire.pm_campaign_transition', true);
-begin
-  insert into public.campaign_members (campaign_id, user_id, role, display_name)
-  values (p_campaign_id, p_user_id, p_role, p_display_name)
-  on conflict (campaign_id, user_id) do nothing;
-  get diagnostics v_inserted = row_count;
-
-  if p_party_member_id is not null then
-    perform set_config('grimoire.pm_campaign_transition', 'on', true);
-    update public.party_members pm
-       set campaign_id = p_campaign_id
-     where pm.id = p_party_member_id
-       and pm.owner_user_id = p_user_id
-       and pm.campaign_id is null
-       and exists (
-         select 1 from public.campaigns c
-          where c.id = p_campaign_id
-            and (c.ruleset = pm.ruleset or c.allows_mixed_rulesets)
-       );
-    update public.campaign_members m
-       set party_member_id = p_party_member_id
-     where m.campaign_id = p_campaign_id
-       and m.user_id = p_user_id
-       and m.party_member_id is null
-       and exists (
-         select 1 from public.party_members pm
-          where pm.id = p_party_member_id
-            and pm.campaign_id = p_campaign_id
-            and pm.owner_user_id = p_user_id
-       );
-    perform set_config('grimoire.pm_campaign_transition', coalesce(v_prev, ''), true);
-  end if;
-
-  -- Whatever route admitted them, nothing is pending for them here any more
-  -- (a request left from before a child came of age, say).
-  delete from public.campaign_join_requests
-   where campaign_id = p_campaign_id and user_id = p_user_id;
-
-  return v_inserted > 0;
 end;
 $function$;
 
@@ -660,22 +468,11 @@ begin
     class_definition_kind = 'system'
   from public.system_classes current_definition, public.system_classes target
   where cc.party_member_id = p_party_member_id
-    and coalesce(cc.class_definition_kind, 'system') = 'system'
+    and cc.class_definition_kind = 'system'
     and current_definition.id = cc.class_definition_id
     and target.ruleset = p_ruleset
     and target.conceptual_key = current_definition.conceptual_key
     and target.id <> cc.class_definition_id;
-
-  -- An official class that was never pinned takes its pin now, by name.
-  update public.character_classes cc set
-    class_definition_id = target.id,
-    class_definition_kind = 'system'
-  from public.system_classes target
-  where cc.party_member_id = p_party_member_id
-    and cc.class_definition_id is null
-    and coalesce(cc.class_definition_kind, 'system') = 'system'
-    and target.ruleset = p_ruleset
-    and target.class_name = cc.class_name;
 
   -- Spells: keep the chosen concept when a unique, still-eligible counterpart
   -- exists in the new edition; never silently substitute otherwise.
@@ -731,8 +528,8 @@ begin
   from public.character_classes cc
   where cc.party_member_id = p_party_member_id
     and case
-      when coalesce(cc.class_definition_kind, 'system') = 'system' then
-        cc.class_definition_id is null or not exists (
+      when cc.class_definition_kind = 'system' then
+        not exists (
           select 1 from public.system_classes definition
           where definition.id = cc.class_definition_id
             and definition.ruleset = p_ruleset
@@ -1107,7 +904,7 @@ begin
   select * into strict v_member from public.party_members where id = new.party_member_id;
   v_spell_level := public.character_spell_level(new.spell_id);
 
-  if coalesce(v_class.class_definition_kind, 'system') = 'system' then
+  if v_class.class_definition_kind = 'system' then
     select policy.* into v_policy from public.class_spellcasting_policies policy
     where policy.ruleset = private.party_member_ruleset(v_member.id) and policy.class_name = v_class.class_name;
   end if;
@@ -1134,11 +931,11 @@ begin
     return new;
   end if;
 
-  if coalesce(v_class.class_definition_kind, 'system') = 'system' then
+  if v_class.class_definition_kind = 'system' then
     select caster_type, spells_known, cantrips_known, prepared_ability, prepared_divisor
       into v_caster_type, v_spells_known, v_cantrips_known, v_prepared_ability, v_prepared_divisor
     from public.system_classes where class_name = v_class.class_name
-      and (v_class.class_definition_id is null or id = v_class.class_definition_id) limit 1;
+      and id = v_class.class_definition_id limit 1;
   else
     select caster_type, spells_known, cantrips_known, prepared_ability, prepared_divisor
       into v_caster_type, v_spells_known, v_cantrips_known, v_prepared_ability, v_prepared_divisor

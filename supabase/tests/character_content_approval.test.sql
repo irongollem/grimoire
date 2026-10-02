@@ -25,7 +25,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(133);
+select plan(136);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94400000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -501,14 +501,14 @@ delete from public.character_spells where party_member_id = '94400000-0000-4000-
 set local role authenticated;
 select pg_temp.as_user(1);
 select throws_ok($$
-  insert into public.party_members (user_id, owner_user_id, campaign_id, name, level)
-  values ('94400000-0000-4000-8000-000000000003', null, '94400000-0000-4000-8000-0000000000c1', 'In Sam''s name', 1)
+  insert into public.party_members (user_id, owner_user_id, campaign_id, name, level, ruleset)
+  values ('94400000-0000-4000-8000-000000000003', null, '94400000-0000-4000-8000-0000000000c1', 'In Sam''s name', 1, '2014')
 $$, '42501', 'A character is created in its creator''s own name',
   'a DM cannot create a roster character with another account as its creator');
 select lives_ok($$
-  insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, background_id)
+  insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, ruleset, background_id)
   values ('94400000-0000-4000-8000-0000000000eb', '94400000-0000-4000-8000-000000000001', null,
-          '94400000-0000-4000-8000-0000000000c1', 'Roster probe', 1, '94400000-0000-4000-8000-0000000000b5')
+          '94400000-0000-4000-8000-0000000000c1', 'Roster probe', 1, '2014', '94400000-0000-4000-8000-0000000000b5')
 $$, 'control: a DM adds a roster character in their own name');
 select is(pg_temp.flags('eb') || ' / ' || pg_temp.flag_label('eb', 'background'),
   'background:foreign:pending / Content from another table',
@@ -554,52 +554,45 @@ select is(pg_temp.flags('ec'), 'species:foreign:pending',
   'a species id written without hyphens is still the row it names (another player''s here), not waved through');
 update public.party_members set species_id = 'test_srd_elf' where id = '94400000-0000-4000-8000-0000000000ec';
 
--- A blocked class is blocked in any case.
-insert into public.character_classes (party_member_id, class_name, levels, is_primary)
-values ('94400000-0000-4000-8000-0000000000ec', 'wizard', 1, true);
-update public.campaigns set disabled_class_names = array['Wizard'] where id = '94400000-0000-4000-8000-0000000000c1';
-select is(pg_temp.flags('ec'), 'class:blocked:pending', 'a blocked class typed in another case is still blocked');
+-- A blocked class is blocked however the block is spelled.
+insert into public.character_classes (party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
+values ('94400000-0000-4000-8000-0000000000ec', 'Wizard', 1, true,
+        (select id from public.system_classes where ruleset = '2014' and class_name = 'Wizard'), 'system');
+update public.campaigns set disabled_class_names = array['wizard'] where id = '94400000-0000-4000-8000-0000000000c1';
+select is(pg_temp.flags('ec'), 'class:blocked:pending', 'a class blocked under another spelling of its name is still blocked');
 set local role authenticated;
 select pg_temp.as_user(1);
 select is(public.approve_character_content(pg_temp.flag_id('ec', 'class'), 'table'), 0,
-  'and lifting the block for the table clears it, though the character spells the class in another case');
+  'and lifting the block for the table clears it, though the block spells the class in another case');
 reset role;
 select is((select disabled_class_names from public.campaigns where id = '94400000-0000-4000-8000-0000000000c1'),
   '{}'::text[], 'the block is gone from the table');
 
--- ── A class or subclass that is only a name ──────────────────────────────────
--- A row with a name and no definition is an honest state (a character the DM
--- built with a typed class gets one when it first levels up), and the name is a
--- label. But the app resolves a name against whatever its viewer can read, so
--- on its owner's screen it becomes the owner's own class of that name. The
--- review reads it the same way. ec is Oz's; Moonblade and its Oz School are
--- Oz's own; Hexer is by now the table's (the copy Dana approved above).
+delete from public.character_classes where party_member_id = '94400000-0000-4000-8000-0000000000ec';
+
+-- ── A class is its definition (20261002145135) ───────────────────────────────
+-- Every class row is pinned, so the review never has to guess what a name
+-- stands for. ec is Oz's; Moonblade and its Oz School are Oz's own.
 insert into public.custom_classes (id, user_id, class_name, ruleset) values
   ('94400000-0000-4000-8000-000000000082', '94400000-0000-4000-8000-000000000004', 'Moonblade', '2014');
-insert into public.custom_subclasses (id, user_id, campaign_id, class_name, subclass_name) values
-  ('94400000-0000-4000-8000-000000000091', '94400000-0000-4000-8000-000000000001', '94400000-0000-4000-8000-0000000000c1', 'Hexer', 'Dana School'),
-  ('94400000-0000-4000-8000-000000000092', '94400000-0000-4000-8000-000000000004', null, 'Moonblade', 'Oz School');
+insert into public.custom_subclasses (id, user_id, class_name, subclass_name) values
+  ('94400000-0000-4000-8000-000000000092', '94400000-0000-4000-8000-000000000004', 'Moonblade', 'Oz School');
 
-select is(pg_temp.flags('ec'), 'none', 'control: an official class known only by name is taken');
-update public.character_classes set class_name = 'Blood Hunter' where party_member_id = '94400000-0000-4000-8000-0000000000ec';
-select is(pg_temp.flags('ec'), 'none', 'control: a typed name nobody has a class by is a label, not content');
-update public.character_classes set class_name = 'hexer', subclass_name = 'dana school'
- where party_member_id = '94400000-0000-4000-8000-0000000000ec';
-select is(pg_temp.flags('ec'), 'none',
-  'control: a class and a subclass the table has by those names are the table''s own, in any case');
-
-update public.character_classes set class_name = 'moonblade', subclass_name = null
- where party_member_id = '94400000-0000-4000-8000-0000000000ec';
-select is(pg_temp.flags('ec') || ' / ' || pg_temp.flag_label('ec', 'class'), 'class:homebrew:pending / Moonblade',
-  'a bare name that is its owner''s own class on the owner''s screen is that class, and waits like one');
 select throws_ok($$
-  update public.character_classes set class_definition_kind = 'custom'
-   where party_member_id = '94400000-0000-4000-8000-0000000000ec'
-$$, '23514', null, 'and the row cannot be called custom with no definition to hide from that');
+  insert into public.character_classes (party_member_id, class_name, levels, is_primary)
+  values ('94400000-0000-4000-8000-0000000000ec', 'Moonblade', 1, true)
+$$, '23502', null, 'a class row that is only a name cannot be written: it would stand for whatever its reader has by that name');
+select throws_ok($$
+  insert into public.character_classes (party_member_id, class_name, subclass_name, levels, is_primary, class_definition_id, class_definition_kind)
+  values ('94400000-0000-4000-8000-0000000000ec', 'Moonblade', 'Oz School', 3, true, '94400000-0000-4000-8000-000000000082', 'custom')
+$$, '23514', null, 'nor a subclass that is only a name');
 
-update public.character_classes set subclass_name = 'oz school' where party_member_id = '94400000-0000-4000-8000-0000000000ec';
+insert into public.character_classes
+  (party_member_id, class_name, subclass_name, levels, is_primary, class_definition_id, class_definition_kind, subclass_definition_id)
+values ('94400000-0000-4000-8000-0000000000ec', 'Moonblade', 'Oz School', 3, true,
+        '94400000-0000-4000-8000-000000000082', 'custom', '94400000-0000-4000-8000-000000000092');
 select is(pg_temp.flags('ec'), 'class:homebrew:pending, subclass:homebrew:pending',
-  'a subclass known only by name is read the same way');
+  'a character on its player''s own class and subclass waits for both');
 
 set local role authenticated;
 select pg_temp.as_user(1);
@@ -612,31 +605,42 @@ select is((select jsonb_build_object(
       'subclass_is_the_tables', (select d.user_id from public.custom_subclasses d where d.id = cc.subclass_definition_id) = '94400000-0000-4000-8000-000000000001')
     from public.character_classes cc where cc.party_member_id = '94400000-0000-4000-8000-0000000000ec'),
   '{"class": "Moonblade", "kind": "custom", "subclass": "Oz School", "class_is_the_tables": true, "subclass_is_the_tables": true}'::jsonb,
-  'approving pins the row to the table''s copies, under the names the definitions carry');
-select is((select count(*)::int from public.custom_classes
-  where class_name = 'Moonblade' and user_id = '94400000-0000-4000-8000-000000000004'), 1,
-  'and the player''s own class is untouched');
-delete from public.character_classes where party_member_id = '94400000-0000-4000-8000-0000000000ec';
+  'approving pins the row to the table''s copies');
+select is((pg_temp.pm('ec')).class || ' / ' || (pg_temp.pm('ec')).subclass, 'Moonblade / Oz School',
+  'and the character''s typed class is whatever its class row says');
 
--- The same bare name on a character nobody owns is only a label: there is no
--- owner on whose screen it could become anything.
-insert into public.custom_classes (id, user_id, class_name) values
-  ('94400000-0000-4000-8000-000000000083', '94400000-0000-4000-8000-000000000004', 'Starcaller');
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, class)
-values ('94400000-0000-4000-8000-0000000000ee', '94400000-0000-4000-8000-000000000001', null,
-        '94400000-0000-4000-8000-0000000000c1', 'Typed class roster', 3, 'Starcaller');
-insert into public.character_classes (party_member_id, class_name, subclass_name, levels, is_primary)
-values ('94400000-0000-4000-8000-0000000000ee', 'Starcaller', 'Champion', 3, true);
-select is(pg_temp.flags('ee'), 'none',
-  'a DM-built character whose class and subclass are typed names is not flagged at its own table');
-delete from public.party_members where id = '94400000-0000-4000-8000-0000000000ee';
+-- A definition that is deleted leaves a pin pointing at nothing. The subclass
+-- comes off the row; a class row goes altogether, since a class is its
+-- definition, and the character is without a class until it takes one.
+delete from public.custom_subclasses
+ where id = (select subclass_definition_id from public.character_classes where party_member_id = '94400000-0000-4000-8000-0000000000ec');
+select private.review_party_member_content('94400000-0000-4000-8000-0000000000ec');
+select is(pg_temp.flags('ec'), 'subclass:missing:pending', 'a subclass whose definition is gone is flagged as missing');
+set local role authenticated;
+select pg_temp.as_user(4);
+select is(public.remove_missing_character_content(pg_temp.flag_id('ec', 'subclass')), 0, 'its player removes it');
+reset role;
+select is((select subclass_name from public.character_classes where party_member_id = '94400000-0000-4000-8000-0000000000ec'), null,
+  'and the name goes with the pin: a subclass is never only a name');
+
+delete from public.custom_classes
+ where id = (select class_definition_id from public.character_classes where party_member_id = '94400000-0000-4000-8000-0000000000ec');
+select private.review_party_member_content('94400000-0000-4000-8000-0000000000ec');
+select is(pg_temp.flags('ec'), 'class:missing:pending', 'a class whose definition is gone is flagged as missing');
+set local role authenticated;
+select pg_temp.as_user(4);
+select is(public.remove_missing_character_content(pg_temp.flag_id('ec', 'class')), 0, 'its player removes it');
+reset role;
+select is((select count(*)::int from public.character_classes where party_member_id = '94400000-0000-4000-8000-0000000000ec'), 0,
+  'the class row is gone, not left as a name');
+select is((pg_temp.pm('ec')).class, null, 'and the character has no class until it takes one');
 
 -- ── A hand-over changes whose content is the character's own ─────────────────
 insert into public.species (id, user_id, name) values
   ('94400000-0000-4000-8000-000000000062', '94400000-0000-4000-8000-000000000002', 'Pia''s Reedfolk');
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, species_id)
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, ruleset, species_id)
 values ('94400000-0000-4000-8000-0000000000ed', '94400000-0000-4000-8000-000000000001', null,
-        '94400000-0000-4000-8000-0000000000c1', 'Roster for Pia', 1, '94400000-0000-4000-8000-000000000062');
+        '94400000-0000-4000-8000-0000000000c1', 'Roster for Pia', 1, '2014', '94400000-0000-4000-8000-000000000062');
 select is(pg_temp.flags('ed'), 'species:foreign:pending', 'on a character nobody owns, a player''s row is somebody else''s');
 update public.party_members set owner_user_id = '94400000-0000-4000-8000-000000000002'
  where id = '94400000-0000-4000-8000-0000000000ed';
@@ -675,11 +679,19 @@ select is(pg_temp.flags('e1'), 'none', 'an approval belongs to the table that ga
 
 -- ── Characters seated before approval existed ────────────────────────────────
 
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, species_id)
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, ruleset, species_id)
 values ('94400000-0000-4000-8000-0000000000e5', '94400000-0000-4000-8000-000000000001', null,
-        '94400000-0000-4000-8000-0000000000c1', 'p5 seated before', 1, 'test_toh_alseid');
+        '94400000-0000-4000-8000-0000000000c1', 'p5 seated before', 1, '2014', 'test_toh_alseid');
 delete from public.character_content_reviews where party_member_id = '94400000-0000-4000-8000-0000000000e5';
-select private.review_party_member_content('94400000-0000-4000-8000-0000000000e5', true);
+-- The one-time statement of 20261002145135, for this character.
+insert into public.character_content_reviews
+  (campaign_id, party_member_id, kind, ref, label, reason, source_slug, source_title, status, decided_at)
+select pm.campaign_id, pm.id, r.kind, r.ref, coalesce(a.label, r.ref), a.reason, a.source_slug, a.source_title, 'approved', now()
+  from public.party_members pm
+  cross join lateral private.party_member_content_refs(pm.id) r
+  cross join lateral private.assess_content(r.kind, r.ref, pm.campaign_id, pm.owner_user_id) a
+ where pm.id = '94400000-0000-4000-8000-0000000000e5' and r.ref is not null and not a.approved
+on conflict (party_member_id, kind, ref) do nothing;
 select is(pg_temp.flags('e5'), 'species:source:approved', 'the data migration records an existing seated character''s choices as approved');
 select is(private.review_party_member_content('94400000-0000-4000-8000-0000000000e5'), 0,
   'and a later review does not re-open them');
@@ -707,7 +719,7 @@ select is_empty($q$
     and p.proname in ('adopt_content', 'adopt_id_map', 'assess_content', 'repoint_party_member_content',
                       'review_party_member_content', 'party_member_content_refs', 'is_table_dm', 'source_enabled',
                       'table_book_entry', 'seat_cleared_party_member', 'content_seen_at', 'content_nested_refs',
-                      'lock_content', 'try_uuid', 'named_content_of_owner')
+                      'lock_content', 'try_uuid')
     and (has_function_privilege('authenticated', p.oid, 'EXECUTE') or has_function_privilege('anon', p.oid, 'EXECUTE'))
 $q$, 'none of the functions that copy content or decide approval is callable by a client');
 

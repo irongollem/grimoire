@@ -78,7 +78,7 @@ select throws_ok($$
   insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
   values ('94300000-0000-4000-8000-0000000000e9', '94300000-0000-4000-8000-000000000002',
           '94300000-0000-4000-8000-000000000002', null, 'No edition')
-$$, '23502', 'A character with no campaign must state its ruleset',
+$$, '23502', 'A character must state its ruleset',
   'a character with no campaign cannot be created without a ruleset');
 
 insert into public.party_members (
@@ -95,12 +95,17 @@ insert into public.party_members (
   ('94300000-0000-4000-8000-0000000000e7', '94300000-0000-4000-8000-000000000003', '94300000-0000-4000-8000-000000000003',
    null, 'Sam 2014', 'Fighter', 1, 10, 2, '{}'::jsonb, '{}'::jsonb, '2014');
 
--- A roster character made inside a campaign says nothing and takes the table's.
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, class, level)
-values ('94300000-0000-4000-8000-0000000000e3', '94300000-0000-4000-8000-000000000001', null,
-        '94300000-0000-4000-8000-0000000000c1', 'Roster knight', 'Fighter', 1);
+-- Nor one made inside a campaign: "take the table's" was the old model living
+-- on as a default.
+select throws_ok($$
+  insert into public.party_members (user_id, owner_user_id, campaign_id, name)
+  values ('94300000-0000-4000-8000-000000000001', null, '94300000-0000-4000-8000-0000000000c1', 'Says nothing')
+$$, '23502', 'A character must state its ruleset',
+  'a roster character made inside a campaign states its edition too: nothing is taken from the table');
 
-select is((pg_temp.pm('e3')).ruleset, '2014', 'a roster character takes its campaign''s ruleset');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, ruleset)
+values ('94300000-0000-4000-8000-0000000000e3', '94300000-0000-4000-8000-000000000001', null,
+        '94300000-0000-4000-8000-0000000000c1', 'Roster knight', 1, '2014');
 
 select throws_ok($$
   insert into public.party_members (user_id, owner_user_id, campaign_id, name, ruleset)
@@ -233,9 +238,9 @@ $$, 'joining with a 2014 character is welcome');
 
 reset role;
 
-insert into public.party_members (id, user_id, owner_user_id, is_dm_managed, campaign_id, name, class, level, cha, proficiency_bonus, custom_attacks)
+insert into public.party_members (id, user_id, owner_user_id, is_dm_managed, campaign_id, name, level, cha, proficiency_bonus, custom_attacks, ruleset)
 values ('94300000-0000-4000-8000-0000000000e8', '94300000-0000-4000-8000-000000000001', null, true,
-        '94300000-0000-4000-8000-0000000000c1', 'Offered sorcerer', 'Sorcerer', 1, 16, 2, '[{"name":"Probe strike"}]'::jsonb);
+        '94300000-0000-4000-8000-0000000000c1', 'Offered sorcerer', 1, 16, 2, '[{"name":"Probe strike"}]'::jsonb, '2014');
 insert into public.character_classes (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
 values ('94300000-0000-4000-8000-0000000000f8', '94300000-0000-4000-8000-0000000000e8', 'Sorcerer', 1, true,
   (select id from public.system_classes where ruleset = '2014' and class_name = 'Sorcerer'), 'system');

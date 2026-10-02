@@ -18,8 +18,8 @@ values
 insert into public.campaigns (id, user_id, name)
 values ('91500000-0000-4000-8000-000000000010', '91500000-0000-4000-8000-000000000001', 'Tracker campaign');
 
-insert into public.party_members (id, user_id, campaign_id, name)
-values ('91500000-0000-4000-8000-000000000020', '91500000-0000-4000-8000-000000000001', '91500000-0000-4000-8000-000000000010', 'Toddy');
+insert into public.party_members (id, user_id, campaign_id, name, ruleset)
+values ('91500000-0000-4000-8000-000000000020', '91500000-0000-4000-8000-000000000001', '91500000-0000-4000-8000-000000000010', 'Toddy', '2014');
 
 -- The campaign's own insert trigger already made its owner the DM member.
 insert into public.campaign_members (campaign_id, user_id, role, party_member_id)

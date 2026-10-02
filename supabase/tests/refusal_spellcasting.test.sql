@@ -32,15 +32,16 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name) v
 on conflict (campaign_id, user_id) do update set role = excluded.role;
 
 insert into public.party_members (
-  id, user_id, owner_user_id, campaign_id, name, class, level, cha, proficiency_bonus,
-  spell_slots, class_resources, class_choices
+  id, user_id, owner_user_id, campaign_id, name, level, cha, proficiency_bonus,
+  spell_slots, class_resources, class_choices, ruleset
 ) values (
   '93610000-0000-4000-8000-0000000000e1', '93610000-0000-4000-8000-000000000002',
   '93610000-0000-4000-8000-000000000002', '93610000-0000-4000-8000-0000000000c1',
-  'Pia''s sorcerer', 'Sorcerer', 7, 18, 3,
+  'Pia''s sorcerer', 7, 18, 3,
   '[{"level":1,"max":2,"used":1,"pool":"spellcasting","recovery":"long"}]'::jsonb,
   '{"sorcery_points":{"current":3,"max":7,"rest":"long"},"innate_sorcery":{"current":2,"max":2,"rest":"long"}}'::jsonb,
-  '{"metamagic_options":["Quickened Spell"]}'::jsonb
+  '{"metamagic_options":["Quickened Spell"]}'::jsonb,
+  '2024'
 );
 
 -- Linking goes through the admission path, as a join does.
