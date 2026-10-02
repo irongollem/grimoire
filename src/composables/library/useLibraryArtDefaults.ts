@@ -4,14 +4,13 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 const QUERY_KEY = "library-art-defaults";
 const STALE_TIME = 1000 * 60 * 30; // 30 minutes — art changes rarely
 
-type LibraryContentType = "spell" | "item";
-
 export interface ArtDefaultEntry {
   image_url: string | null;
   image_focal_point: { x: number; y: number } | null;
 }
 
-// Keyed by "spell:fireball" or "item:ring of protection" (content_type:lower(name))
+// Keyed by "item:ring of protection" (content_type:lower(name)). Items are the only
+// content type here: spell art has one source, library_spell_art_canonical (#947).
 export type ArtDefaultsMap = Record<string, ArtDefaultEntry>;
 
 async function fetchLibraryArtDefaults(): Promise<ArtDefaultsMap> {
@@ -46,51 +45,24 @@ async function fetchLibraryArtDefaultStats(): Promise<LibraryArtDefaultStats> {
   const user = getCurrentUser();
   if (!user) return { monsters: 0, spells: 0, items: 0 };
 
-  const [monstersRes, spellsDefaultsRes, spellsArtRes, itemsRes] = await Promise.all([
+  const [monstersRes, spellsRes, itemsRes] = await Promise.all([
     supabase.from("library_monster_art_canonical").select("*", { count: "exact", head: true }),
-    supabase
-      .from("library_art_defaults")
-      .select("*", { count: "exact", head: true })
-      .eq("content_type", "spell"),
     supabase.from("library_spell_art_canonical").select("*", { count: "exact", head: true }),
-    supabase
-      .from("library_art_defaults")
-      .select("*", { count: "exact", head: true })
-      .eq("content_type", "item"),
+    supabase.from("library_art_defaults").select("*", { count: "exact", head: true }),
   ]);
 
   if (monstersRes.error) throw monstersRes.error;
-  if (spellsDefaultsRes.error) throw spellsDefaultsRes.error;
-  if (spellsArtRes.error) throw spellsArtRes.error;
+  if (spellsRes.error) throw spellsRes.error;
   if (itemsRes.error) throw itemsRes.error;
 
   return {
     monsters: monstersRes.count ?? 0,
-    spells: (spellsDefaultsRes.count ?? 0) + (spellsArtRes.count ?? 0),
+    spells: spellsRes.count ?? 0,
     items: itemsRes.count ?? 0,
   };
 }
 
 type ArtRow = { name: string; image_url: string; image_focal_point: { x: number; y: number } | null };
-
-async function fetchSpellsWithArt(): Promise<ArtRow[]> {
-  const all: ArtRow[] = [];
-  const PAGE = 500;
-  let offset = 0;
-  while (true) {
-    const { data, error } = await supabase
-      .from("spells")
-      .select("name, image_url, image_focal_point")
-      .eq("open5e_import", true)
-      .not("image_url", "is", null)
-      .range(offset, offset + PAGE - 1);
-    if (error) throw error;
-    all.push(...(data as ArtRow[]));
-    if ((data ?? []).length < PAGE) break;
-    offset += PAGE;
-  }
-  return all;
-}
 
 async function fetchItemsWithArt(): Promise<ArtRow[]> {
   const all: ArtRow[] = [];
@@ -111,11 +83,11 @@ async function fetchItemsWithArt(): Promise<ArtRow[]> {
   return all;
 }
 
-async function upsertArtDefaults(contentType: LibraryContentType, rows: ArtRow[]): Promise<void> {
+async function upsertItemArtDefaults(rows: ArtRow[]): Promise<void> {
   const BATCH = 200;
   for (let i = 0; i < rows.length; i += BATCH) {
     const batch = rows.slice(i, i + BATCH).map((r) => ({
-      content_type: contentType,
+      content_type: "item",
       content_name: r.name.toLowerCase(),
       image_url: r.image_url,
       image_focal_point: r.image_focal_point ?? null,
@@ -127,18 +99,14 @@ async function upsertArtDefaults(contentType: LibraryContentType, rows: ArtRow[]
   }
 }
 
-async function bulkPublishLibraryArtDefaults(): Promise<LibraryArtDefaultStats> {
+async function bulkPublishLibraryArtDefaults(): Promise<{ items: number }> {
   const user = getCurrentUser();
   if (!user) throw new Error("Not authenticated");
 
-  const [allSpells, allItems] = await Promise.all([fetchSpellsWithArt(), fetchItemsWithArt()]);
+  const allItems = await fetchItemsWithArt();
+  await upsertItemArtDefaults(allItems);
 
-  await Promise.all([
-    upsertArtDefaults("spell", allSpells),
-    upsertArtDefaults("item", allItems),
-  ]);
-
-  return { monsters: 0, spells: allSpells.length, items: allItems.length };
+  return { items: allItems.length };
 }
 
 export function useLibraryArtDefaults() {

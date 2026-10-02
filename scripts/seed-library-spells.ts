@@ -2,7 +2,7 @@
 /**
  * Seeds the shared library_spells table from Open5e v2 — dual-edition by default
  * (SRD 5.1 "srd-2014" + SRD 5.2 "srd-2024") — then backfills image_url +
- * image_focal_point from canonical library_art_defaults rows.
+ * image_focal_point from library_spell_art_canonical (the one source of spell art).
  *
  * Reuses src/lib/library/open5eSpellImport.ts's fetchOpen5eSpells(), the single source
  * of truth for the Open5e v2 → row mapping (shared with the in-app admin
@@ -65,66 +65,79 @@ interface LibrarySpellRow {
   image_url: string | null;
 }
 
-// ── art backfill from library_art_defaults ───────────────────────────────────────
+// ── art backfill from library_spell_art_canonical ────────────────────────────────
 
-interface ArtDefaultRow {
-  content_name: string;
+interface CanonicalArtRow {
+  entry_id: string;
+  image_url: string;
+  portrait_focal_point: { x: number; y: number } | null;
+}
+
+export interface ResolvedSpellArt {
+  id: string;
   image_url: string;
   image_focal_point: { x: number; y: number } | null;
 }
 
 /**
- * Groups library_spells row ids by lowercased name. library_art_defaults keys art by
- * lower(name), but under dual-edition seeding a name can now match MULTIPLE
- * library_spells rows (one per ruleset) — every matching row must get the art,
- * not just the first one found.
+ * The same rule as sync_library_spell_art(): a spell takes its own canonical row,
+ * and without one the canonical art of a same-named spell (the other ruleset's
+ * copy), the lowest entry_id deciding when several share a name. A spell with
+ * neither is not in the result.
  */
-export function groupIdsByLowerName(rows: ReadonlyArray<{ id: string; name: string }>): Map<string, string[]> {
-  const map = new Map<string, string[]>();
-  for (const { id, name } of rows) {
-    const key = name.toLowerCase();
-    const list = map.get(key);
-    if (list) list.push(id);
-    else map.set(key, [id]);
+export function resolveSpellArt(
+  spells: ReadonlyArray<{ id: string; name: string }>,
+  canonical: ReadonlyArray<CanonicalArtRow>,
+): ResolvedSpellArt[] {
+  const artById = new Map(canonical.map((row) => [row.entry_id, row]));
+  const nameById = new Map(spells.map((s) => [s.id, s.name.toLowerCase()]));
+
+  const byName = new Map<string, CanonicalArtRow>();
+  for (const row of canonical) {
+    const name = nameById.get(row.entry_id);
+    if (name === undefined) continue;
+    const held = byName.get(name);
+    if (!held || row.entry_id < held.entry_id) byName.set(name, row);
   }
-  return map;
+
+  const resolved: ResolvedSpellArt[] = [];
+  for (const { id, name } of spells) {
+    const art = artById.get(id) ?? byName.get(name.toLowerCase());
+    if (!art) continue;
+    resolved.push({ id, image_url: art.image_url, image_focal_point: art.portrait_focal_point });
+  }
+  return resolved;
 }
 
 async function backfillArt(supabase: SupabaseClient, spells: ReadonlyArray<{ id: string; name: string }>): Promise<void> {
-  const art = await fetchAllRows<ArtDefaultRow>((from, to) =>
+  const canonical = await fetchAllRows<CanonicalArtRow>((from, to) =>
     supabase
-      .from("library_art_defaults")
-      .select("content_name,image_url,image_focal_point")
-      .eq("content_type", "spell")
+      .from("library_spell_art_canonical")
+      .select("entry_id,image_url,portrait_focal_point")
       .not("image_url", "is", null)
+      .order("entry_id")
       .range(from, to)
-      .returns<ArtDefaultRow[]>(),
+      .returns<CanonicalArtRow[]>(),
   );
-  if (!art.length) {
+  if (!canonical.length) {
     console.log("  No canonical spell art found — skipping art backfill.");
     return;
   }
-  console.log(`  Found ${art.length} spell art rows — backfilling library_spells…`);
-
-  const idsByName = groupIdsByLowerName(spells);
+  const resolved = resolveSpellArt(spells, canonical);
+  console.log(`  Found ${canonical.length} canonical spell art rows — backfilling ${resolved.length} library_spells…`);
 
   const PATCH_BATCH = 25;
-  let patched = 0;
-  for (let i = 0; i < art.length; i += PATCH_BATCH) {
+  for (let i = 0; i < resolved.length; i += PATCH_BATCH) {
     await Promise.all(
-      art.slice(i, i + PATCH_BATCH).flatMap(({ content_name, image_url, image_focal_point }) => {
-        const ids = idsByName.get(content_name) ?? [];
-        return ids.map(async (id) => {
-          const { error } = await supabase
-            .from("library_spells")
-            .update({ image_url, image_focal_point })
-            .eq("id", id);
-          if (error) throw error;
-        });
+      resolved.slice(i, i + PATCH_BATCH).map(async ({ id, image_url, image_focal_point }) => {
+        const { error } = await supabase
+          .from("library_spells")
+          .update({ image_url, image_focal_point })
+          .eq("id", id);
+        if (error) throw error;
       }),
     );
-    patched = Math.min(i + PATCH_BATCH, art.length);
-    process.stdout.write(`\r  Art patched ${patched} / ${art.length}`);
+    process.stdout.write(`\r  Art patched ${Math.min(i + PATCH_BATCH, resolved.length)} / ${resolved.length}`);
   }
   console.log();
 }
@@ -209,7 +222,7 @@ async function main(): Promise<void> {
   await upsertBatch(supabase, "library_spells", plan.rows, "source_document_key,source_record_key");
   console.log(`  Done — ${plan.rows.length} rows upserted.\n`);
 
-  console.log("Step 3: Backfilling art from library_art_defaults…");
+  console.log("Step 3: Backfilling art from library_spell_art_canonical…");
   // Names for the art name-map: `existing` (pre-upsert) covers every row
   // already in the table; `plan.rows` covers anything just upserted,
   // including brand-new spells `existing` couldn't have seen yet. A Map

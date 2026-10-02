@@ -231,7 +231,7 @@ describe("r2-list parsing and authorization", () => {
       expect(authorizeList(srd.value, CALLER).allowed).toBe(false);
     }
     // Undeclared prefixes stay closed even to admins.
-    const foreign = parseListRequest({ bucket: "item-images", prefix: "srd" });
+    const foreign = parseListRequest({ bucket: "npc-portraits", prefix: "srd" });
     expect(foreign.ok).toBe(true);
     if (foreign.ok) expect(authorizeList(foreign.value, ADMIN).allowed).toBe(false);
   });

@@ -1,12 +1,13 @@
 <template>
   <div :class="variant === 'card' ? 'rounded-lg border border-border bg-card p-4 space-y-3' : 'space-y-2'">
     <component :is="variant === 'card' ? 'h2' : 'h3'" :class="headingClass">
-      SRD Art Defaults
+      Library Art
     </component>
     <p class="text-caption text-muted-foreground italic">
-      Publish your uploaded SRD art as community defaults. Other DMs will see your images
-      for any SRD content they haven't personalised. Re-running is safe — it updates
-      existing defaults with your latest images.
+      Publish your uploaded library art for everyone. Monster and spell art becomes canonical
+      art (a spell without art of its own takes a same-named spell's); item art becomes a
+      default by name. Other DMs will see your images for any library content they haven't
+      personalised. Re-running is safe: it updates existing art with your latest images.
     </p>
     <div v-if="statsQuery.data.value" class="text-caption text-foreground">
       Currently published:
@@ -24,7 +25,7 @@
       @click="handlePublishArt"
     >
       <IconUpload class="h-3.5 w-3.5" />
-      {{ bulkPublish.isPending.value ? 'Publishing…' : 'Publish all my SRD art' }}
+      {{ bulkPublish.isPending.value ? 'Publishing…' : 'Publish all my library art' }}
     </button>
   </div>
 </template>
@@ -70,18 +71,18 @@ const publishResult = ref<LibraryArtDefaultStats | null>(null);
 
 async function handlePublishArt() {
   publishResult.value = null;
-  const [monsterCount, spellArtCount, contentResult] = await Promise.all([
+  const [monsterCount, spellArtCount, itemResult] = await Promise.all([
     bulkMarkMonsters.mutateAsync(),
     bulkMarkSpells.mutateAsync(),
     bulkPublish.mutateAsync(),
   ]);
-  // Sync canonical art into shared SRD tables
+  // Sync canonical art into the shared library tables
   await Promise.all([
     syncArtToShared.mutateAsync(),
     syncSpellArt.mutateAsync(),
     syncItemArt.mutateAsync(),
   ]);
-  publishResult.value = { monsters: monsterCount, spells: contentResult.spells + spellArtCount, items: contentResult.items };
+  publishResult.value = { monsters: monsterCount, spells: spellArtCount, items: itemResult.items };
   statsQuery.refetch();
 }
 </script>

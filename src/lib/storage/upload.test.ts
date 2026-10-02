@@ -168,7 +168,7 @@ describe("canBackfill", () => {
   });
 
   it("never opens a prefix the bucket does not declare", () => {
-    expect(canBackfill("itemImages", "srd/x.webp", USER, true)).toBe(false);
+    expect(canBackfill("npcPortraits", "srd/x.webp", USER, true)).toBe(false);
     // mini-models is service-managed: clientWrites false blocks even bases/.
     expect(canBackfill("miniModels", "bases/round25.stl", USER, true)).toBe(false);
   });
