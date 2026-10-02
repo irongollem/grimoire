@@ -39,6 +39,11 @@ vitest: `_shared/credit-math.ts`; the vitest include glob already covers
   puzzles, roll_tables, encounters, notes, downtime outcomes — exact names
   verified against schema at migration time). Null = no known AI involvement.
   No backfill (unknowable; recorded in register).
+- `image_provenance` (#935): one row per stored AI image, keyed by
+  `(bucket, stem)`, holding the same `AiProvenance` shape. The stem is the
+  object path without its extension or `_w<width>` variant suffix, so an
+  original and its size variants are one image. See §6a for why images are
+  recorded apart from rows.
 - `ai_acknowledgements` — versioned consent records:
   `(user_id, kind 'ai_use' | 'likeness', version, created_at)`. Standard RLS
   four-policy set + `updated_at` trigger per CLAUDE.md.
@@ -80,21 +85,68 @@ container metadata where the format allows.
 
 ### 6. Text provenance
 
+The row's `ai_provenance` means one thing: the row's prose was drafted with
+AI. It says nothing about the row's pictures (§6a).
+
 Generators return an `ai_provenance` block in draft JSON; save composables
 persist it to the entity row. Rich-text bodies (chronicle recaps) additionally
 carry `data-ai-generated` on the root element; `sanitizeHtml` preserves it.
 Material human edit flips `edited: true` (never removes the record).
 `useTextEnhancement` = assistive-editing exemption (register), no marking.
 
+### 6a. Image provenance (#935)
+
+An image's provenance belongs to the stored image, not to whichever row points
+at it. Until #935 the image badge read the row's `ai_provenance`, which is the
+text record, so a hand-written NPC with a generated portrait showed no badge and
+a generated NPC with an uploaded drawing showed one. A field beside each image
+column would not have fixed it either: copy-to-campaign, the demo template,
+duplicate and clone all reuse the same storage object, so a per-row record is
+copied and then drifts the first time one copy's image is replaced.
+
+So there is one registry, `image_provenance`, and three rules:
+
+- **Written at the upload choke points, from the bytes.** Every generated image
+  carries the XMP packet before it is stored (§4, §5). The browser's
+  `uploadToBucket` / `uploadWithVariants` and the server's uploaders
+  (`generate-chronicle-image`, `forge-mini`) parse that packet with
+  `parseXmpPacket` and register the image. No generator and no editor has
+  wiring of its own: an AI image is recorded however it arrives, and a user's
+  photo never is. Overwriting a path with unmarked bytes clears the row;
+  deleting the object deletes it.
+- **Read by the URL being shown.** `AiImageBadge` takes the displayed image's
+  URL, resolves it to `(bucket, stem)` and looks it up
+  (`useImageProvenance`, batched per tick and cached for the session, since a
+  record never changes for a key). A disguise portrait is therefore badged by
+  its own record, because it is its own image.
+- **The packet is the authority.** A failed registration never fails an upload:
+  the mark in the file is the disclosure of record and the registry is how the
+  UI finds it. `npm run backfill:image-provenance` re-reads the packet out of
+  every image the database references and inserts or corrects rows; it covered
+  the images that predate the registry and repairs any missed since.
+
+Reads are open to every signed-in user (a player must see it for their DM's
+images; it holds no prompt and no content). Writes are limited to the caller's
+own folder, or to an admin for canonical `srd/` art.
+
+Not in the registry, on purpose: tile packs (a pack is generated as a whole and
+carries `ai_provenance` on its own row; tiles are never badged one by one) and
+minis (the 3D model is the AI output and `minis.provider` is its record).
+
 ### 7. Read point — disclosure UI
 
-`AiGeneratedBadge` (common component) renders from `ai_provenance` /
-image-job provenance wherever the viewer isn't the generator: player portal
-recap + scene art, shared minis, group portraits, and the player NPC, location,
-monster (bestiary) and puzzle images (`PlayerNpcCard`, `EntityLightbox`,
-`PlayerLocationDetailPanel`, `MonsterFormCard`, the puzzle views). The chip's
-corner is a prop (`corner="left"`) for hosts whose right corner is taken. Promo reuse of Chronicler
-images is labelled at the marketing surface.
+Two components, wherever the viewer isn't the person authoring the content:
+
+- `AiImageBadge` for a picture, fed the URL on display: player portal NPC,
+  location, monster (bestiary) and puzzle images, the group portrait, party and
+  companion portraits and the Hall of Heroes (`PlayerNpcCard`, `EntityLightbox`,
+  `PlayerLocationDetailPanel`, `MonsterFormCard`, the puzzle views).
+- `AiGeneratedBadge` for a record the caller holds: the `line` variant on
+  AI-drafted prose (the row's `ai_provenance`) and the chip on minis.
+
+The chip's corner is a prop (`corner="left"`) for hosts whose right corner is
+taken, and it never prints. Promo reuse of Chronicler images is labelled at the
+marketing surface.
 
 ### 8. Log hardening (#609)
 

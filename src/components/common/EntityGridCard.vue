@@ -77,6 +77,9 @@
         so the entity decides what earns the space; items spend it on a type
         icon plus the name.
       -->
+      <!-- Overlays that sit on the artwork itself (the AI chip), unlike the footer strip they add no gradient. -->
+      <slot name="image-overlay" />
+
       <div
         v-if="$slots['image-footer']"
         class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/75 to-transparent px-2.5 py-2"

@@ -4,7 +4,6 @@
     :portrait-src="npc?.player_visible_fields.includes('portrait') ? displayPortrait : null"
     :portrait-alt="npc?.player_visible_fields.includes('name') ? displayName : '???'"
     :focal-point="displayFocalPoint"
-    :ai-provenance="npc?.ai_provenance"
     @close="$emit('close')"
   >
     <div>

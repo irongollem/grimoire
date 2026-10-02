@@ -57,7 +57,6 @@
               :monster="entry.monster"
               :name="entry.monster?.name ?? 'Unknown creature'"
               :image-url="entry.monster?.image_url ?? null"
-              :ai-provenance="entry.monster?.ai_provenance"
               :reveal-stats="entry.discovery.reveal_stats"
             />
           </div>
@@ -113,7 +112,7 @@
               class="group relative rounded-lg border border-primary/30 bg-card overflow-hidden cursor-pointer hover:border-primary/60 transition-colors"
               @click="openLightbox(entry.monster, null)"
             >
-              <MonsterFormCard :monster="entry.monster" :name="entry.name" :image-url="entry.imageUrl" :ai-provenance="entry.monster.ai_provenance" :reveal-stats="true" />
+              <MonsterFormCard :monster="entry.monster" :name="entry.name" :image-url="entry.imageUrl" :reveal-stats="true" />
               <!-- DM pin button (preview mode only) -->
               <button
                 v-if="ui.dmPreviewMode"
@@ -138,7 +137,7 @@
               class="group relative rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
               @click="openLightbox(entry.monster, null)"
             >
-              <MonsterFormCard :monster="entry.monster" :name="entry.name" :image-url="entry.imageUrl" :ai-provenance="entry.monster.ai_provenance" :reveal-stats="true" />
+              <MonsterFormCard :monster="entry.monster" :name="entry.name" :image-url="entry.imageUrl" :reveal-stats="true" />
               <!-- DM pin button (preview mode only) -->
               <AppButton
                 v-if="ui.dmPreviewMode"
@@ -202,7 +201,7 @@
               :class="crBg(lightbox.monster.stat_block?.challenge_rating)"
             >CR {{ crText(lightbox.monster.stat_block?.challenge_rating) }}</span>
             <!-- Both bottom corners are taken (CR left, mini badge right), so the chip stacks above the CR one. -->
-            <AiGeneratedBadge variant="chip" corner="left" class="bottom-9!" :provenance="lightbox?.monster?.ai_provenance" />
+            <AiImageBadge corner="left" class="bottom-9!" :src="lightbox?.imageUrl" />
           </MiniPortraitOverlay>
         </div>
 
@@ -320,7 +319,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import MonsterFormCard from "@/components/monsters/MonsterFormCard.vue";
-import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

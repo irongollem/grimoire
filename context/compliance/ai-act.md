@@ -376,6 +376,18 @@ sanitization; both proven by colocated tests. Human edits flip
 editors with real content-diff dirty checks (`downtime_outcomes` is
 insert-only; nothing to wire). No backfill for pre-existing rows (§5).
 
+**Images, disclosure to viewers: recorded per image since #935 (2 Oct 2026).**
+The mark in the file (above) is unchanged. What changed is how the UI knows
+which picture to label: a registry row per stored image (`image_provenance`),
+written when the image is uploaded from the packet in its own bytes, and read
+by the URL on display. Before that the badge followed the row's text record,
+which mislabelled in both directions (an uploaded drawing on an AI-drafted NPC
+was badged; a generated portrait on a hand-written one was not), and party and
+Hall of Heroes portraits could not be labelled at all. Images that predate the
+registry were recovered from their embedded packet by a one-off scan, so unlike
+text (§5) the image side does have a backfill, limited to images generated
+since marking began. Architecture: `provenance-architecture.md` §6a.
+
 **3D — out of Art 50(2)'s literal scope (position, 4 Aug 2026).** Art 50(2)
 names image, audio, video and text as the marked media types. A Meshy
 GLB/STL mesh is arguably none of those in the literal sense — it's geometry,

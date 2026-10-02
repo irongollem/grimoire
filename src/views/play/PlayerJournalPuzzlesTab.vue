@@ -23,7 +23,7 @@
           class="group-hover:scale-105 transition-transform duration-300"
         />
         <!-- Left corner: the difficulty tag owns the bottom-right. -->
-        <AiGeneratedBadge v-if="puzzle.image_url" variant="chip" corner="left" :provenance="puzzle.ai_provenance" />
+        <AiImageBadge v-if="puzzle.image_url" corner="left" :src="puzzle.image_url" />
         <span
           class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
           :class="PUZZLE_TYPE_BG[puzzle.puzzle_type]"
@@ -50,7 +50,7 @@
 import { RouterLink } from 'vue-router';
 import { IconPuzzle } from '@/lib/icons';
 import FocalImage from '@/components/common/FocalImage.vue';
-import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue';
+import AiImageBadge from '@/components/common/AiImageBadge.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import EntityNewDot from '@/components/common/EntityNewDot.vue';
 import { useReadItems } from '@/composables/play/useReadItems';

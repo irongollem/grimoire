@@ -72,6 +72,10 @@
         :badge-text="settingLabel(hero.setting)"
         :badge-class="campaignSetting && hero.setting === campaignSetting ? 'bg-primary' : undefined"
       >
+        <template #image-overlay>
+          <AiImageBadge :src="hero.portrait_url" />
+        </template>
+
         <template #body>
           <div class="flex items-start justify-between gap-1">
             <h3 class="line-clamp-1 flex-1 font-cinzel text-sm leading-tight font-bold text-foreground">
@@ -147,6 +151,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

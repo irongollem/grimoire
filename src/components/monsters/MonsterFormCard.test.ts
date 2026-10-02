@@ -1,5 +1,21 @@
-import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { mount, flushPromises } from "@vue/test-utils";
+import { describe, expect, it, vi } from "vitest";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+
+// The registry answers by image URL; only URLs listed here have a record.
+const registered = vi.hoisted(() => new Set<string>());
+
+vi.mock("@/lib/storage", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/storage")>()),
+  imageProvenanceKey: (url: string) => (url.startsWith("https://cdn.test/") ? { bucket: "b", stem: url } : null),
+  loadImageProvenance: vi.fn(async (key: { stem: string }) =>
+    registered.has(key.stem) ? { model: "gpt-image", generatedAt: "2026-09-01T10:00:00Z" } : null,
+  ),
+}));
+
+function queryPlugin(): [typeof VueQueryPlugin, { queryClient: QueryClient }] {
+  return [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }];
+}
 import MonsterFormCard from "./MonsterFormCard.vue";
 import { buildAiProvenance } from "@/ai/provenance";
 import type { Monster } from "@/types/monster.types";
@@ -69,28 +85,35 @@ describe("MonsterFormCard", () => {
     expect(wrapper.text()).not.toContain(CR_UNKNOWN);
   });
 
-  it("badges the art for a viewer who did not generate it", () => {
-    const withProv = mount(MonsterFormCard, {
-      props: {
-        monster: monster(null),
-        name: "Grell",
-        imageUrl: "https://cdn.test/grell.webp",
-        aiProvenance: buildAiProvenance("monster_generation", "openai", "gpt-image"),
-      },
-      global: { stubs: { FocalImage: true } },
-    });
-    expect(withProv.text()).toContain("AI");
-    const without = mount(MonsterFormCard, {
+  it("badges a registered image even when the creature row has no ai_provenance", async () => {
+    registered.clear();
+    registered.add("https://cdn.test/grell.webp");
+    const w = mount(MonsterFormCard, {
       props: { monster: monster(null), name: "Grell", imageUrl: "https://cdn.test/grell.webp" },
-      global: { stubs: { FocalImage: true } },
+      global: { plugins: [queryPlugin()], stubs: { FocalImage: true } },
     });
-    expect(without.text()).not.toContain("AI");
+    await flushPromises();
+    expect(w.text()).toContain("AI");
   });
 
-  it("does not badge the initial placeholder when there is no image", () => {
+  it("shows no badge for an unregistered image even when the creature row has ai_provenance", async () => {
+    registered.clear();
+    const row = { ...monster(null), ai_provenance: buildAiProvenance("monster_generation", "openai", "gpt-image") };
     const w = mount(MonsterFormCard, {
-      props: { monster: monster(null), name: "Grell", imageUrl: null, aiProvenance: buildAiProvenance("monster_generation", "openai", "gpt-image") },
+      props: { monster: row, name: "Grell", imageUrl: "https://cdn.test/grell.webp" },
+      global: { plugins: [queryPlugin()], stubs: { FocalImage: true } },
     });
+    await flushPromises();
+    expect(w.text()).not.toContain("AI");
+  });
+
+  it("does not badge the initial placeholder when there is no image", async () => {
+    registered.clear();
+    const w = mount(MonsterFormCard, {
+      props: { monster: monster(null), name: "Grell", imageUrl: null },
+      global: { plugins: [queryPlugin()] },
+    });
+    await flushPromises();
     expect(w.text()).not.toContain("AI");
   });
 });
