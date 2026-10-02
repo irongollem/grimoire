@@ -12,6 +12,10 @@
         Becomes their own account on <span class="text-foreground">{{ becomesOwnOn }}</span>.
       </p>
 
+      <p v-if="beyondCover" class="text-caption text-muted-foreground italic">
+        On the standard limits: {{ INHERITING_CHILD_LIMIT }} young players' accounts are already covered.
+      </p>
+
       <FamilyChildTables v-if="campaigns" :child-user-id="child.child_user_id" :campaigns="campaigns" />
       <p v-else-if="tablesFailed" class="text-caption text-destructive">Couldn't load their tables.</p>
 
@@ -57,6 +61,7 @@ import { useDataExport } from "@/composables/account/useDataExport";
 import type { FamilyCampaign } from "@/composables/account/useFamilyCampaigns";
 import { formatAdultOn, type FamilyChild } from "@/composables/account/useFamily";
 import { IconDelete, IconDownload, IconKey } from "@/lib/icons";
+import { INHERITING_CHILD_LIMIT } from "@/lib/childAccount";
 
 /** `campaigns` is undefined until the tables read has answered (or failed, in
  *  which case `tablesFailed` says so), so "not at any table yet" only ever
@@ -65,6 +70,8 @@ const { child } = defineProps<{
   child: FamilyChild;
   campaigns?: FamilyCampaign[];
   tablesFailed?: boolean;
+  /** A Pro parent's sixth or later active child, who gets no Pro limits (#928). */
+  beyondCover?: boolean;
 }>();
 
 const becomesOwnOn = formatAdultOn(child.adult_on);

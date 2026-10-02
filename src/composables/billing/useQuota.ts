@@ -12,6 +12,16 @@ async function fetchQuota(resourceType: QuotaResource): Promise<QuotaResult> {
   return data as QuotaResult
 }
 
+/**
+ * Whether an account holds more of a resource than its limit allows, which is
+ * what sends it to the archive picker. Unloaded or unlimited is never over.
+ * The count and limit are the database's (`check_quota`), so a young player's
+ * inherited limits and a lapsed parent's plan both land here correctly.
+ */
+export function isOverQuota(quota: QuotaResult | undefined): boolean {
+  return !!quota && !quota.unlimited && quota.current > quota.limit
+}
+
 export function useQuota(resourceType: QuotaResource) {
   const auth = useAuthStore()
 
@@ -78,6 +88,9 @@ export function useAllQuotas() {
 // to keep quota counts in sync without a full page reload.
 export function useInvalidateQuota() {
   const queryClient = useQueryClient()
-  return (resourceType: QuotaResource) =>
-    queryClient.invalidateQueries({ queryKey: [QUERY_KEY, resourceType] })
+  return (resourceType: QuotaResource) => {
+    // The batched read (useAllQuotas) holds the same count under its own key.
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEY, '__all__'] })
+    return queryClient.invalidateQueries({ queryKey: [QUERY_KEY, resourceType] })
+  }
 }

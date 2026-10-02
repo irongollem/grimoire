@@ -293,6 +293,29 @@ Nothing "happens" to a child account at 16 beyond two things, both driven by
    themselves, together with the gate's age question, which they now answer as
    16 or older.
 
+## Limits (#928)
+
+A young player can never pay, so on its own it would sit on free-plan quotas
+even when the parent pays for Pro. Only the **quotas** are inherited: never AI,
+never credits, never bring-your-own-key, never any other Pro feature, and
+`is_user_pro` stays false for a child.
+
+A child inherits while all three hold: its link is active (`adult_on >
+current_date`, exactly `private.is_child_account`), `public.is_user_pro(parent)`
+is true, and it is among the parent's **first five** active children, ordered by
+`child_accounts.created_at` then `child_user_id`. An inheriting child's quotas
+are the better of its own plan's and `pro`'s, key by key (a missing key means
+unlimited). Everyone else gets what they got before.
+
+The rule is decided in the database, in `private.effective_quotas` (migration
+`20261002114947`), behind `check_quota` / `check_all_quotas`. The client never
+computes it, with one exception: `inheritingChildIds` in `src/lib/childAccount.ts`
+mirrors it so the Family page can say which cards are covered. The archive
+picker (`DowngradeCampaignPickerModal`) follows `check_quota('campaigns')`, so
+it appears for a child whose parent's plan ends, with copy that never mentions
+plans, Pro or upgrading (UCPD Annex I, point 28: no direct exhortation to
+children to buy).
+
 ## Game content vs. real likenesses in AI
 
 A DM's AI generation may draw on a child party member's character and notes.

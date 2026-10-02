@@ -263,6 +263,7 @@ function humanize(key: string): string {
 
 function matchKindHint(kind: EntityMatchKind): string {
   if (kind === "exact") return "same name";
+  if (kind === "near") return "nearly the same name";
   if (kind === "contains") return "name contains";
   return "looks similar";
 }

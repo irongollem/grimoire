@@ -5,6 +5,7 @@ import { track } from "@/lib/analytics";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import type { Campaign, CampaignInsert, CampaignRole, CampaignUpdate } from "@/types/campaign.types";
 import { useToast } from "@/composables/useToast";
+import { useInvalidateQuota } from "@/composables/billing/useQuota";
 import { useCampaignStore } from "@/stores/campaign";
 import type {
   HomebrewCounts,
@@ -295,11 +296,24 @@ export function useCampaignScopedHomebrewCounts(id: () => string | null) {
   });
 }
 
-export function useCreateCampaign() {
+/** After anything that changes how many campaigns count against the caller's
+ *  limit: the list, and the quota that the archive picker and the "new
+ *  campaign" gate both read. Left stale, the picker stays open (or stays away)
+ *  until the quota's own 30s cache runs out. */
+function useCampaignCountChanged() {
   const queryClient = useQueryClient();
+  const invalidateQuota = useInvalidateQuota();
+  return () => {
+    invalidateQuota("campaigns");
+    return queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+  };
+}
+
+export function useCreateCampaign() {
+  const campaignCountChanged = useCampaignCountChanged();
   return useMutation({
     mutationFn: createCampaign,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: campaignCountChanged,
   });
 }
 
@@ -317,11 +331,12 @@ export function useUpdateCampaign() {
 export function useDeleteCampaign() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const campaignCountChanged = useCampaignCountChanged();
   return useMutation({
     mutationFn: ({ id, disposition }: { id: string; disposition: HomebrewDisposition }) =>
       disposeHomebrewAndDeleteCampaign(id, disposition),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      campaignCountChanged();
       // The disposition may have promoted or deleted homebrew rows — refresh
       // every list that could contain them. Each of these tables happens to be
       // cached under its own name, so the table list doubles as the key list;
@@ -369,18 +384,18 @@ export function useTransferCampaignOwnership() {
 }
 
 export function useArchiveCampaign() {
-  const queryClient = useQueryClient();
+  const campaignCountChanged = useCampaignCountChanged();
   return useMutation({
     mutationFn: (id: string) => updateCampaign(id, { is_archived: true } as CampaignUpdate),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: campaignCountChanged,
   });
 }
 
 export function useRestoreCampaign() {
-  const queryClient = useQueryClient();
+  const campaignCountChanged = useCampaignCountChanged();
   return useMutation({
     mutationFn: (id: string) => updateCampaign(id, { is_archived: false } as CampaignUpdate),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: campaignCountChanged,
   });
 }
 

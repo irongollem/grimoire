@@ -32,10 +32,15 @@
     </div>
 
     <!-- Tabs bar -->
-    <TabBar :tabs="TABS" v-model="activeTab" wrapper-class="px-4 md:px-6 shrink-0 overflow-x-auto" />
+    <TabBar :tabs="TABS" v-model="activeTab" panel-id-prefix="rules" wrapper-class="px-4 md:px-6 shrink-0 overflow-x-auto" />
 
     <!-- Tab body — fills the rest, no outer scroll. Padding lives inside each tab so scrollbars sit at the viewport edge. -->
-    <div class="flex-1 min-h-0 overflow-hidden">
+    <div
+      :id="`rules-panel-${activeTab}`"
+      class="flex-1 min-h-0 overflow-hidden"
+      role="tabpanel"
+      :aria-labelledby="`rules-tab-${activeTab}`"
+    >
       <ScreenTab v-if="activeTab === 'screen'" />
       <CompendiumTab v-else-if="activeTab === 'compendium'" />
       <CustomRulesTab v-else-if="activeTab === 'custom'" />

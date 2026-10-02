@@ -7,4 +7,5 @@ export interface ChildAccountLink {
   adult_on: string;
   consent_version: string;
   consented_at: string;
+  created_at: string;
 }

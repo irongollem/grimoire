@@ -51,7 +51,7 @@ export function useSubscription() {
   const auth = useAuthStore();
   const { isChild } = useChildAccount();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["subscription"],
     queryFn: () => {
       const userId = auth.user?.id;
@@ -84,5 +84,5 @@ export function useSubscription() {
   const isSuspended = computed(() => !!data.value?.suspended_at);
   const suspensionReason = computed(() => data.value?.suspension_reason ?? null);
 
-  return { subscription: data, isPro, canUpgrade, isPendingCancellation, isSuspended, suspensionReason, isLoading };
+  return { subscription: data, isPro, canUpgrade, isPendingCancellation, isSuspended, suspensionReason, isLoading, error };
 }

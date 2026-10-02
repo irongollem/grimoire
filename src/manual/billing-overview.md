@@ -26,6 +26,10 @@ The plan card shows **Free DM** or **Pro DM**, plus a status pill (**active**, *
 - If a cancellation is pending **and** you're currently over what the Free plan allows on something (campaigns, etc.), a warning box lists exactly what will be locked (not deleted) once Pro access ends, with your current count and the free-plan limit for each.
 - Once you've ever become a paying customer, a **Manage billing** button opens the Stripe customer portal, where you update your payment method or cancel.
 
+## When you are over a limit
+
+If an account holds more active campaigns than its limit allows, for example after Pro ends, a **Choose your active campaign** window opens. Pick the campaign to keep; the others are archived, not deleted. This applies to every account, including a young player's account after the managing adult's plan ends. On a young player's account the window only offers the choice, with no upgrade button.
+
 ## Free plan limits
 
 Free DM gives you every feature in Grimoire, capped per resource. Pro removes every one of these limits: nothing is deleted if you're ever over a limit, it's just locked from growing further until you're back under it or you upgrade.

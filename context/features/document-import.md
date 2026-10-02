@@ -212,20 +212,50 @@ for a renamed variant or a creature described but never named — `entityMatchin
 
 **Own rows before the library, exact before fuzzy.** `match_import_entity_names`
 ranks a caller's own campaign/global rows ahead of shared-library rows, and an
-exact normalized match ahead of a whole-word "contains" one — the same
-own-vault-first reasoning #837 already established for monsters. `EntityCandidate.source`
-is `"campaign"` or `"library"`; `matchKind` is `"exact"` | `"contains"` (name
-tier) | `"similar"` (embedding tier, carrying a cosine `distance`).
+exact normalized match ahead of a near one, ahead of a whole-word "contains"
+one — the same own-vault-first reasoning #837 already established for monsters.
+`EntityCandidate.source` is `"campaign"` or `"library"`; `matchKind` is
+`"exact"` | `"near"` | `"contains"` (name tier) | `"similar"` (embedding tier,
+carrying a cosine `distance`).
+
+**The name tier carries every difference in how a name is written; the
+embedding tier does not rescue one.** Migration `20261002131333` exists because
+a real chapter (2 Oct 2026) came back with every NPC and every location marked
+new, in a campaign that already held two of the towns and three of the people.
+The embedding tier ran and added nothing: it compares whole descriptions, and a
+row holding "Finn · Human · Child" is nowhere near a page's paragraph about the
+same boy. Three rules came out of it, each the narrowest that closed its miss:
+
+| Page | DM's row | Rule |
+| --- | --- | --- |
+| `Dougan’s Hole`, `Ten-Towns` | `Dougan's Hole`, `Ten Towns` | **Punctuation is not part of the key.** Apostrophes are dropped, other marks become spaces, in the normalizer both runtimes share. An exact match. |
+| `Finn Dejarr`, `Hilda` | `Finn`, `Hilda Snowmantle` | **A proper name matches on any whole-word run, in either direction** — npcs, factions and locations only. A `contains` match. |
+| `Edgra Durmoot` | `Edgra Durnoot` | **One edit away is `near`** (`private.names_one_edit_apart`: an insertion, deletion, substitution or adjacent swap). The DM's own rows only. |
+
+The limits are as deliberate as the rules. Monsters, items, spells, encounters
+and quests keep the whole-word **suffix** rule and nothing wider: a thing is
+named head-noun-last ("Icewind kobold" is a kobold), and against a library of
+thousands, "Potion of Healing" offering every greater and superior variant
+beside its own exact match would turn a settled row into a question. `near`
+never reaches the library, where distinct canonical names sit one letter apart
+("Ghast" and "Ghost", "Giant Rat" and "Giant Bat"); it needs both names to be
+at least five characters, because short ones collide by chance; and a name with
+an exact match gets no near ones, because then it was not misspelled. Any
+non-exact candidate opens its review row (`needsDmChoice`), so a wider rule
+costs the DM a visible choice, never a silent link.
 
 **The normalizer is now shared between two runtimes, not duplicated by feel.**
 `private.normalize_entity_name` (SQL) and `entityName.ts`'s `normalizeEntityName`
-(TypeScript) are the same algorithm, ported term-for-term: lowercase, trim, drop
-a leading article, de-pluralise the trailing word **and** the head noun of an
-"X of Y" name (`"Potions of Healing"` → `"Potion of Healing"`). Both `importPlan.ts`'s
-`findByName` and `normalize.ts`'s `findEncounterCandidateByName` route through
-it now, which is what makes "Blue Clam" (a page's raw heading) find "The Blue
-Clam" (a hand-created row) — the old plain-lowercase match never could, since
-it never stripped the article.
+(TypeScript) are the same algorithm, ported term-for-term: lowercase, drop
+apostrophes, turn other punctuation into spaces, trim, drop a leading article,
+de-pluralise the trailing word **and** the head noun of an "X of Y" name
+(`"Potions of Healing"` → `"Potion of Healing"`). The punctuation list is
+explicit and identical in both, rather than "anything that is not a letter",
+because what counts as a letter is a locale question Postgres and JavaScript
+answer differently. Both `importPlan.ts`'s `findByName` and `normalize.ts`'s
+`findEncounterCandidateByName` route through it now, which is what makes "Blue
+Clam" (a page's raw heading) find "The Blue Clam" (a hand-created row) — the
+old plain-lowercase match never could, since it never stripped the article.
 
 **`canCreateFromPage`/`defaultDecision` are what decide a monster's default.**
 A monster may only default to `create` when its `stat_block` actually carries a
@@ -270,8 +300,10 @@ chapter-specific and genuinely new — "Rock dog figurine" did **not** match
 
 **No `pg_trgm`.** Fuzzy matching would want it and the advisor baseline already
 carries one `extension_in_public` finding not worth growing for a match this
-narrow — the name tier's whole-word "contains" anchor covers what occurs in
-practice, and the embedding tier covers the rest.
+narrow. The original reasoning ended "the embedding tier covers the rest",
+which the 2 Oct 2026 chapter disproved for names (above); the one-edit check
+that replaced that assumption is twenty lines of plain SQL, so the decision
+against an extension stands.
 
 **A linked entity still produces no insert at all** — `buildImportPlan` drops
 it before planning, exactly as the old `linkedRefs` model did — so it cannot
@@ -865,7 +897,7 @@ collected by then and a retry would fail on a missing object.
 | The worker died mid-extraction | `extracting` for >15 min, from `updated_at` | `sweep-stranded-document-imports` cron |
 | Nobody is coming back | past `expires_at` (24h) | `collectExpiredImports` in `import-extract` |
 
-#769 proposed one sweep over `expires_at`. Built that way it would not fix the
+Issue #769 proposed one sweep over `expires_at`. Built that way it would not fix the
 complaint it opens with — a DM whose extraction crashed after four seconds would
 still watch a spinner for the rest of the day. Liveness is a foreground concern
 and wants minutes; retention is a background one and wants a day.

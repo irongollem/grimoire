@@ -72,7 +72,19 @@ whether it looks like an email.
   notification emails, and nobody can email it by mistake.
 
 Everything else, playing a character, chatting, taking notes, running a
-campaign on the free plan, works the same as any other account.
+campaign within the account's limits, works the same as any other account.
+
+## Limits
+
+A young player's account has the standard limits on how much it can hold
+(campaigns, NPCs, notes and so on). If you are on Pro, your young players get
+the same limits as your plan, for up to five accounts: the five you created
+first. Only the limits are shared. AI features and purchases stay off for a
+young player's account whatever your plan is.
+
+If your Pro plan ends, those accounts go back to the standard limits. Nothing
+is deleted. A young player with more campaigns than the limit is asked which
+one to keep active, and the rest are archived.
 
 ## Resetting the password, downloading data, deleting the account
 

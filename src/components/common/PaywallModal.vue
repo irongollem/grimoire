@@ -1,7 +1,7 @@
 <template>
   <AppModal :open="open" size="md" @close="close">
     <ModalHeader
-      :title="props.message ? 'Pro feature' : 'You\'ve reached your free limit'"
+      :title="title"
       :icon="IconDM"
       tone="caution"
       closeable
@@ -15,7 +15,13 @@
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
       <div class="px-5 pt-4">
         <p class="text-body text-muted-foreground leading-snug">
-          <template v-if="isChild">AI features aren't available on young players' accounts.</template>
+          <!-- A young player's account is never sold to (see `title` below): it is
+               told what its account allows, and nothing about plans. -->
+          <template v-if="isChild && props.message">This isn't available on a young player's account.</template>
+          <template v-else-if="isChild">
+            A young player's account can have up to
+            <span class="text-foreground font-semibold">{{ limitText }}</span>.
+          </template>
           <template v-else-if="props.message">{{ props.message }}</template>
           <template v-else>
             Free DMs can create up to
@@ -75,7 +81,7 @@
         label="Upgrade to Pro"
         @click="upgrade"
       />
-      <AppButton variant="subtle" size="md" :class="isChild ? 'flex-1' : ''" label="Maybe later" @click="close" />
+      <AppButton variant="subtle" size="md" :class="isChild ? 'flex-1' : ''" :label="isChild ? 'OK' : 'Maybe later'" @click="close" />
     </div>
   </AppModal>
 </template>
@@ -103,6 +109,16 @@ const { quota } = useQuota(props.resource ?? 'npcs')
 const { monthlyLabel, yearlyLabel, savedMonths, monthlyCredits: proMonthlyCredits } = useProPricing()
 const { isChild } = useChildAccount()
 const router = useRouter()
+
+// The EU Unfair Commercial Practices Directive (Annex I, point 28) bans urging
+// a child to buy or to get a parent to buy, so a young player's account never
+// sees "Pro", "free" or "upgrade" here, only what the account allows. A child
+// can meet this dialog at a content limit as well as at an AI feature (#928:
+// its limits follow the managing adult's plan and can change).
+const title = computed(() => {
+  if (isChild.value) return props.message ? "Not available" : "You've reached your limit"
+  return props.message ? "Pro feature" : "You've reached your free limit"
+})
 
 const limitText = computed(() => {
   if (!props.resource) return ''

@@ -3,16 +3,18 @@
     <!-- Section tabs -->
     <div class="section-tabs flex flex-wrap gap-2" role="tablist" aria-label="DM screen sections">
       <button
-        v-for="section in sections"
+        v-for="(section, i) in sections"
         :key="section.id"
         type="button"
         role="tab"
         :aria-selected="activeSection === section.id"
+        :tabindex="activeSection === section.id ? 0 : -1"
         class="px-3 py-1.5 rounded-md text-label-lg font-semibold transition-colors"
         :class="activeSection === section.id
           ? 'bg-primary text-primary-foreground'
           : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/50'"
         @click="activeSection = section.id"
+        @keydown="onSectionKeydown($event, i)"
       >
         {{ section.title }}
       </button>
@@ -41,10 +43,19 @@
 </template>
 
 <script setup lang="ts">
+import { focusTab, nextTabIndex } from "@/lib/tabKeys";
 import { ref } from "vue";
 import { DM_SCREEN_SECTIONS } from "@/data/dmScreen";
 import ScreenReferenceTable from "./ScreenReferenceTable.vue";
 
 const sections = DM_SCREEN_SECTIONS;
 const activeSection = ref(sections[0]?.id ?? "");
+
+function onSectionKeydown(event: KeyboardEvent, current: number) {
+  const next = nextTabIndex(event.key, current, sections.length);
+  if (next === null) return;
+  event.preventDefault();
+  activeSection.value = sections[next].id;
+  focusTab(event.currentTarget, next);
+}
 </script>

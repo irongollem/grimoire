@@ -93,6 +93,7 @@ describe("needsDmChoice", () => {
   it("is true for a single partial-name or similar match — a guess, not a fact", () => {
     expect(needsDmChoice([candidate({ name: "Wraith", matchKind: "contains" })])).toBe(true);
     expect(needsDmChoice([candidate({ matchKind: "similar", distance: 0.1 })])).toBe(true);
+    expect(needsDmChoice([candidate({ name: "Edgra Durnoot", matchKind: "near" })])).toBe(true);
   });
 });
 
