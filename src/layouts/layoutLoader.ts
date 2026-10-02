@@ -15,8 +15,10 @@ import type { RouteLocationNormalized } from "vue-router";
  * layout request in flight alongside the route component request rather than
  * behind it, and guarantees the shell is resolved before navigation confirms.
  *
- * Repeat visits do not pay even that: the service worker precaches every built
- * asset on install, so these chunks are cache hits from the second load on.
+ * Repeat visits do not pay even that: the service worker keeps a lazy chunk in
+ * its runtime cache from the first time it is asked for, so these are cache
+ * hits from the second load on, until a deploy changes the chunk's hash. (The
+ * precache is the boot shell only; see `swPlugin` in vite.config.ts.)
  */
 const loaders = {
   auth: () => import("@/layouts/AuthLayout.vue"),
