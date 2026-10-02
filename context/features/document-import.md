@@ -231,6 +231,10 @@ same boy. Three rules came out of it, each the narrowest that closed its miss:
 | `Dougan’s Hole`, `Ten-Towns` | `Dougan's Hole`, `Ten Towns` | **Punctuation is not part of the key.** Apostrophes are dropped, other marks become spaces, in the normalizer both runtimes share. An exact match. |
 | `Finn Dejarr`, `Hilda` | `Finn`, `Hilda Snowmantle` | **A proper name matches on any whole-word run, in either direction** — npcs, factions and locations only. A `contains` match. |
 | `Edgra Durmoot` | `Edgra Durnoot` | **One edit away is `near`** (`private.names_one_edit_apart`: an insertion, deletion, substitution or adjacent swap). The DM's own rows only. |
+| `Speaker Edgra Durmoot` | `Edgra Durnoot` | **For a proper name, the one edit may sit inside a longer name** (`private.name_run_one_edit_apart`, migration `20261002133428`): a run of as many words as the shorter name has, compared whole, never word against word. Also `near`. |
+
+The rules live in one function, `private.import_name_verdict`, so changing one
+no longer means restating the 150-line body of `match_import_entity_names`.
 
 The limits are as deliberate as the rules. Monsters, items, spells, encounters
 and quests keep the whole-word **suffix** rule and nothing wider: a thing is
@@ -239,8 +243,12 @@ thousands, "Potion of Healing" offering every greater and superior variant
 beside its own exact match would turn a settled row into a question. `near`
 never reaches the library, where distinct canonical names sit one letter apart
 ("Ghast" and "Ghost", "Giant Rat" and "Giant Bat"); it needs both names to be
-at least five characters, because short ones collide by chance; and a name with
-an exact match gets no near ones, because then it was not misspelled. Any
+at least eight characters; and a name with an exact match gets no near ones,
+because then it was not misspelled. The eight is measured, not guessed: the
+first cut said five, and the campaign that found all this holds Holga and
+Holgi, Korax, Korux and Koran, Scorp and Snorp, every one a different person.
+Invented names are short and dense, so one edit in five letters is no evidence
+at all. Any
 non-exact candidate opens its review row (`needsDmChoice`), so a wider rule
 costs the DM a visible choice, never a silent link.
 
