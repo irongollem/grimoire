@@ -295,6 +295,39 @@ describe("service-worker runtime cache", () => {
   });
 });
 
+describe("service-worker navigation", () => {
+  it("serves the cached shell without a network request for the document", async () => {
+    const { runFetch, fetchMock } = loadWorker({
+      seed: { "grimoire-test": { "/index.html": "shell" } },
+    });
+
+    const { result } = await runFetch("/campaigns/abc", "navigate");
+
+    expect(await result!.text()).toBe("shell");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the network response when no shell is cached", async () => {
+    const { runFetch, fetchMock } = loadWorker({});
+
+    const { result } = await runFetch("/campaigns/abc", "navigate");
+
+    expect(await result!.text()).toBe("fresh");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns an error response when no shell is cached and the network throws", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError("offline");
+    });
+    const { runFetch } = loadWorker({ fetchMock });
+
+    const { result } = await runFetch("/campaigns/abc", "navigate");
+
+    expect(result!.type).toBe("error");
+  });
+});
+
 describe("service-worker copy-forward", () => {
   it("copies a content-hashed asset forward from the previous deploy's cache", async () => {
     const fetchMock = vi.fn(async () => response("network", "application/javascript"));
