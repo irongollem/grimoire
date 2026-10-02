@@ -259,9 +259,7 @@
           />
 
           <!-- ── PC panel ────────────────────────────────── -->
-          <CharacterSpeciesName v-else-if="panelPc" v-slot="{ speciesName }" :member="panelPc">
-            <NpcWebPcPanel :pc="panelPc" :species-name="speciesName" @close="clearSelection" />
-          </CharacterSpeciesName>
+          <NpcWebPcPanel v-else-if="panelPc" :pc="panelPc" :species-name="speciesNameOf(panelPc)" @close="clearSelection" />
         </div>
       </transition>
     </div>
@@ -283,7 +281,7 @@ import NpcWebNpcPanel from "@/components/npcs/NpcWebNpcPanel.vue";
 import NpcWebPcPanel from "@/components/npcs/NpcWebPcPanel.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
-import CharacterSpeciesName from "@/components/party/CharacterSpeciesName.vue";
+import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDeleteNpcRelation } from "@/composables/factions/useNpcRelations";
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
@@ -820,6 +818,7 @@ const panelPc = computed(() => {
   return (partyMembers.value ?? []).find((m) => m.id === pcIdFromKey(key)) ?? null;
 });
 
+const speciesNameOf = useSpeciesNames(() => (panelPc.value ? [panelPc.value] : []));
 const panelVisible = computed(() => linkFormVisible.value || !!panelNpc.value || !!panelPc.value);
 
 const panelNpcConnections = computed(() => {

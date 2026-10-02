@@ -207,7 +207,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { Spell } from "@/types/spell.types";
 import type { CharacterClass } from "@/types/multiclass.types";
-import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared } from "@/types/spell.types";
+import { SPELL_SCHOOLS, computeMaxPrepared } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
@@ -292,7 +292,8 @@ const classData = computed(() => definitionFor(memberClassEntry.value));
 const memberPolicy = computed(() => memberClassEntry.value?.class_definition_kind === "custom"
   ? null
   : getSpellPreparationPolicy(memberClass.value, ruleset.value));
-const casterType  = computed(() => memberPolicy.value?.casterType ?? classData.value?.caster_type ?? getCasterType(memberClass.value));
+// The character's class row is pinned to its definition, which always carries a caster type; no row means no class, so no casting.
+const casterType  = computed(() => memberPolicy.value?.casterType ?? classData.value?.caster_type ?? "none");
 const maxPrepared = computed(() => {
   const policy = memberPolicy.value;
   if (policy) return policyValueAtLevel(policy.prepared, memberClassEntry.value?.levels ?? member.value?.level ?? 1);
@@ -318,8 +319,9 @@ const browseClassData = computed(() => definitionFor(browseClassEntry.value));
 const browsePolicy = computed(() => browseClassEntry.value?.class_definition_kind === "custom"
   ? null
   : getSpellPreparationPolicy(browseClassName.value, ruleset.value));
+// The browsed class is one of the character's own rows, so it comes with its definition.
 const browseCasterType = computed(() =>
-  browsePolicy.value?.casterType ?? browseClassData.value?.caster_type ?? getCasterType(browseClassName.value),
+  browsePolicy.value?.casterType ?? browseClassData.value?.caster_type ?? "none",
 );
 
 // Total character level — sum of all class levels (multiclass), falls back to member.level

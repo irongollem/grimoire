@@ -38,15 +38,14 @@
           <AiImageBadge :src="groupPortraitUrl" />
         </div>
         <template v-for="entry in sortedParty" :key="entry.data.id">
-          <CharacterSpeciesName v-if="entry.kind === 'member'" v-slot="{ speciesName }" :member="entry.data">
-            <PlayerPartyMemberCard
-              :member="entry.data"
-              :is-own="entry.data.id === auth.linkedPartyMemberId"
-              :show-numeric-hp="showNumericHp(entry.data)"
-              :subtitle="memberSubtitle(entry.data, speciesName)"
-              @click="openMember(entry.data)"
-            />
-          </CharacterSpeciesName>
+          <PlayerPartyMemberCard
+            v-if="entry.kind === 'member'"
+            :member="entry.data"
+            :is-own="entry.data.id === auth.linkedPartyMemberId"
+            :show-numeric-hp="showNumericHp(entry.data)"
+            :subtitle="memberSubtitle(entry.data, speciesNameOf(entry.data))"
+            @click="openMember(entry.data)"
+          />
           <PlayerPartyCompanionCard
             v-else
             :companion="entry.data"
@@ -186,7 +185,7 @@ import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { getDisplayRace } from "@/lib/partyMemberDisplay";
-import CharacterSpeciesName from "@/components/party/CharacterSpeciesName.vue";
+import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import type { PlayerNpc } from "@/types/npc.types";
 import { NPC_RELATIONSHIP_LABELS } from "@/types/npc.types";
 import type { HealthVisibility } from "@/types/encounter.types";
@@ -204,6 +203,7 @@ const viewerMemberId = computed(() =>
 // DM not in preview mode sees true forms; players (even without a linked party member) see disguises.
 const viewerIsDm = computed(() => !ui.dmPreviewMode && auth.isDM);
 const { data: members, isLoading: partyLoading } = useParty();
+const speciesNameOf = useSpeciesNames(() => members.value ?? []);
 const { data: allSharedNpcs, isLoading: npcsLoading } = useSharedNpcs();
 const { isNew: isNpcNew } = useReadItems("npc");
 const { mutate: markNpcRead } = useMarkRead();

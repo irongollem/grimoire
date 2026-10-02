@@ -130,16 +130,6 @@ export function useCampaignSpecies() {
   return { data, all, isLoading };
 }
 
-/** Returns a Map<species_id, species_name> for fast inline lookups. */
-export function useSpeciesNameMap() {
-  const { data } = useAllSpecies();
-  return computed(() => {
-    const m = new Map<string, string>();
-    for (const s of data.value ?? []) m.set(s.id, s.name);
-    return m;
-  });
-}
-
 /** Species rows by id from both stores, whatever edition they belong to. */
 async function fetchSpeciesByIds(libraryIds: string[], customIds: string[]): Promise<Species[]> {
   const [library, custom] = await Promise.all([
@@ -184,6 +174,18 @@ export function useSpeciesByIds(ids: MaybeRefOrGetter<readonly (string | null | 
   });
   const data = computed(() => indexById(query.data.value ?? []));
   return { data, isLoading: query.isLoading };
+}
+
+/**
+ * Species names for a list of characters, looked up once for the whole list.
+ * Returns a function from a member to the name of the species it has (or null
+ * while loading / when it has none). Resolved by id, so a character of either
+ * edition finds its own species whatever edition the campaign is in.
+ */
+export function useSpeciesNames(members: MaybeRefOrGetter<readonly { species_id: string | null }[]>) {
+  const { data: speciesById } = useSpeciesByIds(() => toValue(members).map((m) => m.species_id));
+  return (member: { species_id: string | null }): string | null =>
+    member.species_id ? (speciesById.value.get(member.species_id)?.name ?? null) : null;
 }
 
 async function fetchResolvedSpecies(id: string): Promise<Species> {

@@ -9,7 +9,7 @@
       class="detail-portrait"
     />
     <p class="detail-meta">
-      {{ [speciesNameMap.get(member.species_id ?? '') ?? null, member.class].filter(Boolean).join(' · ') }}
+      {{ [speciesName, member.class].filter(Boolean).join(' · ') }}
       <span v-if="member.level"> · Level {{ member.level }}</span>
     </p>
     <div class="detail-divider" />
@@ -115,7 +115,7 @@ import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Spell } from "@/types/spell.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
@@ -144,7 +144,8 @@ const emit = defineEmits<{
 provideCharacterRuleset(() => member);
 
 const store = useEncounterRunStore();
-const speciesNameMap = useSpeciesNameMap();
+const { data: speciesById } = useSpeciesByIds(() => [member.species_id]);
+const speciesName = computed(() => (member.species_id ? (speciesById.value.get(member.species_id)?.name ?? null) : null));
 const { acFor } = useShieldAcBonus();
 const { ruleset } = useRuleset();
 

@@ -14,7 +14,7 @@ describe("LevelUpSubclassPicker", () => {
 
   it("lists the table's subclass definitions and emits the id with its name", async () => {
     const wrapper = mount(LevelUpSubclassPicker, {
-      props: { ...base, subclassOptions: [{ id: "def-1", name: "Champion", label: "Champion — Custom" }] },
+      props: { ...base, subclassOptions: [{ id: "def-1", name: "Champion", label: "Champion (custom)" }] },
     });
     expect(wrapper.text()).not.toContain("no subclasses");
     await wrapper.find("select").setValue("def-1");

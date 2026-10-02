@@ -98,7 +98,7 @@ export function totalLevel(classes: CharacterClass[]): number {
   return classes.reduce((s, c) => s + c.levels, 0);
 }
 
-import { getCasterType, getCastingAbility } from "@/types/spell.types";
+import type { CasterType } from "@/types/spell.types";
 
 /**
  * Per-class spellcasting stats (DC and attack bonus). A multiclass character
@@ -111,7 +111,7 @@ export interface SpellcastingClassStats {
   classId: string;
   className: string;
   definitionKind: "system" | "custom";
-  casterType: "prepared" | "known" | "spellbook" | "none";
+  casterType: CasterType;
   castingAbility: "int" | "wis" | "cha";
   dc: number;
   attack: number;
@@ -121,16 +121,19 @@ export interface SpellcastingClassStats {
  * Compute per-class spell DC and attack bonus from a character's ability
  * scores + classes. Non-casters are omitted. Proficiency bonus comes from
  * the character (single value, shared across classes per 5e RAW).
+ *
+ * `resolve` supplies each class's casting ability and caster type from its
+ * pinned definition; a class is never judged by its name here, since a custom
+ * class may share one with an official class.
  */
 export function computeSpellcastingPerClass(
   member: AbilityScores & { proficiency_bonus: number },
   classes: CharacterClass[],
-  resolveAbility?: (entry: CharacterClass) => "int" | "wis" | "cha" | null | undefined,
+  resolve: (entry: CharacterClass) => { ability: "int" | "wis" | "cha" | null; casterType: CasterType },
 ): SpellcastingClassStats[] {
   const out: SpellcastingClassStats[] = [];
   for (const c of classes) {
-    const resolvedAbility = resolveAbility?.(c);
-    const ability = resolvedAbility === undefined ? getCastingAbility(c.class_name) : resolvedAbility;
+    const { ability, casterType } = resolve(c);
     if (!ability) continue;
     const mod = Math.floor((member[ability] - 10) / 2);
     const attack = member.proficiency_bonus + mod;
@@ -138,7 +141,7 @@ export function computeSpellcastingPerClass(
       classId: c.id,
       className: c.class_name,
       definitionKind: c.class_definition_kind,
-      casterType: getCasterType(c.class_name),
+      casterType,
       castingAbility: ability,
       attack,
       dc: 8 + attack,

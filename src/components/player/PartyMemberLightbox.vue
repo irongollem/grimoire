@@ -44,7 +44,7 @@
                     >You</span>
                     <h2 class="text-heading-sm font-bold text-foreground leading-tight">{{ member.name }}</h2>
                     <p class="text-body text-muted-foreground italic">
-                      {{ [getDisplayRace(member, speciesNameMap.get(member.species_id ?? '') ?? null, viewerMemberId, viewerIsDm), member.class].filter(Boolean).join(' ') }}
+                      {{ [getDisplayRace(member, speciesName, viewerMemberId, viewerIsDm), member.class].filter(Boolean).join(' ') }}
                       <span v-if="member.level" class="font-cinzel not-italic text-primary ml-1">Lv{{ member.level }}</span>
                     </p>
                   </div>
@@ -208,7 +208,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
-import { useSpecies, useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpecies, useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { getDisplayRace, getDisplaySpeciesId } from "@/lib/partyMemberDisplay";
 import type { PartyMember } from "@/types/party.types";
@@ -218,12 +218,15 @@ import type { Species } from "@/types/species.types";
 const props = defineProps<{ member: PartyMember | null }>();
 defineEmits<{ close: [] }>();
 
-// One character shown: its species name resolves in its own edition, not the campaign's.
+// One character shown: everything below reads its build rules in the character's own edition.
 provideCharacterRuleset(() => props.member);
 const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();
-const speciesNameMap = useSpeciesNameMap();
+const { data: speciesById } = useSpeciesByIds(() => [props.member?.species_id]);
+const speciesName = computed(() =>
+  props.member?.species_id ? (speciesById.value.get(props.member.species_id)?.name ?? null) : null,
+);
 
 const speciesModalOpen = ref(false);
 

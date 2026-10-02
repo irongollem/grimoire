@@ -70,11 +70,9 @@
                     class="shrink-0 text-label px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
                   >Active</span>
                 </div>
-                <CharacterSpeciesName v-slot="{ speciesName }" :member="char">
-                  <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
-                    {{ charSummary(char, speciesName) }}
-                  </p>
-                </CharacterSpeciesName>
+                <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
+                  {{ charSummary(char, speciesNameOf(char)) }}
+                </p>
                 <CharacterEditionNotice
                   v-if="activeCampaign"
                   :member="char"
@@ -166,11 +164,9 @@
             <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
               <div>
                 <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
-                <CharacterSpeciesName v-slot="{ speciesName }" :member="char">
-                  <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
-                    {{ charSummary(char, speciesName) }}
-                  </p>
-                </CharacterSpeciesName>
+                <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
+                  {{ charSummary(char, speciesNameOf(char)) }}
+                </p>
               </div>
               <div class="flex items-center gap-2 mt-2">
                 <AppButton
@@ -204,7 +200,7 @@ import { IconAdd, IconDM } from '@/lib/icons';
 import { useMyCharacters, useSetActiveCharacter, useParty, useOfferedCharacters, useAssumeCharacter } from '@/composables/party/useParty';
 import { useDetachCharacter, useCloneCharacter } from '@/composables/party/useCharacterPool';
 import { useConfirm } from '@/composables/useConfirm';
-import CharacterSpeciesName from '@/components/party/CharacterSpeciesName.vue';
+import { useSpeciesNames } from '@/composables/rules/useSpecies';
 import { useAuthStore } from '@/stores/auth';
 import { useCampaignStore } from '@/stores/campaign';
 import CharacterEditionNotice from '@/components/play/CharacterEditionNotice.vue';
@@ -224,6 +220,7 @@ const { data: myChars,        isPending: myPending }  = useMyCharacters();
 const { data: allChars,       isPending: allPending }  = useParty();
 const { data: offeredCharacters } = useOfferedCharacters();
 const characters = computed(() => ui.dmPreviewMode ? allChars.value  : myChars.value);
+const speciesNameOf = useSpeciesNames(() => [...(characters.value ?? []), ...(offeredCharacters.value ?? [])]);
 const isPending  = computed(() => ui.dmPreviewMode ? allPending.value : myPending.value);
 const { mutateAsync: setActiveChar } = useSetActiveCharacter();
 const { mutateAsync: assumeChar }    = useAssumeCharacter();

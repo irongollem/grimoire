@@ -16,7 +16,7 @@
       <option v-for="sc in subclassOptions" :key="sc.id" :value="sc.id">{{ sc.label }}</option>
     </AppSelect>
     <p v-else class="text-body text-muted-foreground">
-      This table has no subclasses for {{ className }} yet. Your DM can add one in the Codex, and you can choose it the next time you level up.
+      This table has no subclasses for {{ className }} yet. One can be added in the Codex and chosen the next time this character levels up.
     </p>
   </WizardStepCard>
 </template>

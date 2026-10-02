@@ -131,11 +131,9 @@
                 >
                   <div class="flex-1 min-w-0">
                     <span class="font-cinzel text-xs font-semibold text-foreground">{{ entry.party_member.name }}</span>
-                    <CharacterSpeciesName v-slot="{ speciesName }" :member="entry.party_member">
-                      <span v-if="speciesName || entry.party_member.class" class="text-caption text-muted-foreground italic ml-2">
-                        {{ [speciesName, entry.party_member.class].filter(Boolean).join(' · ') }}
-                      </span>
-                    </CharacterSpeciesName>
+                    <span v-if="speciesNameOf(entry.party_member) || entry.party_member.class" class="text-caption text-muted-foreground italic ml-2">
+                      {{ [speciesNameOf(entry.party_member), entry.party_member.class].filter(Boolean).join(' · ') }}
+                    </span>
                     <span v-if="entry.party_member.id === myMemberId" class="text-label text-ink-success ml-2">(You)</span>
                   </div>
                   <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ entry.role ?? 'Member' }}</span>
@@ -170,7 +168,7 @@
 import { ref, computed } from "vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { IconClose, IconShield } from '@/lib/icons';
-import CharacterSpeciesName from "@/components/party/CharacterSpeciesName.vue";
+import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs, usePlayerFactionPartyMembers } from "@/composables/factions/useFactions";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useAuthStore } from "@/stores/auth";
@@ -235,6 +233,7 @@ const selectedFactionId = computed(() => selected.value?.id ?? "");
 const isInFaction = computed(() => !!playerMembership.value);
 const { data: factionNpcs } = usePlayerFactionNpcs(selectedFactionId, isInFaction);
 const { data: factionPcMembers } = usePlayerFactionPartyMembers(selectedFactionId, isInFaction);
+const speciesNameOf = useSpeciesNames(() => (factionPcMembers.value ?? []).map((e) => e.party_member));
 
 // Resolve each faction NPC link to its player-visible projection (gated name /
 // race / occupation). NPCs not shared with the player are omitted entirely, so a

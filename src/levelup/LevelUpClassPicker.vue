@@ -1,16 +1,21 @@
 <template>
-  <WizardStepCard title="Leveling in">
-    <AppSelect v-model="modelValueProxy" tone="muted" size="body" weight="normal" block>
+  <!--
+    A character with no class yet has nothing to level "in": it is choosing its
+    first class, so the which-class-to-level select (whose only option would be
+    "a new class") is not shown and the card says what is being asked.
+  -->
+  <WizardStepCard :title="hasClass ? 'Leveling in' : 'Choose a class'">
+    <AppSelect v-if="hasClass" v-model="modelValueProxy" tone="muted" size="body" weight="normal" block>
       <option v-for="entry in existingClassOptions" :key="entry.id" :value="entry.id">
-        {{ entry.class_name }}{{ entry.subclass_name ? ` (${entry.subclass_name})` : '' }}
-        — Level {{ entry.levels }} → {{ entry.levels + 1 }}
+        {{ entry.class_name }}{{ entry.subclass_name ? ` (${entry.subclass_name})` : '' }},
+        level {{ entry.levels }} → {{ entry.levels + 1 }}
       </option>
       <option value="__new__">Take a level in a new class…</option>
     </AppSelect>
 
     <template v-if="isAddingNewClass">
       <div class="space-y-2">
-        <label class="text-label text-muted-foreground">New Class</label>
+        <label class="text-label text-muted-foreground">{{ hasClass ? 'New Class' : 'Class' }}</label>
         <AppSelect v-model="newClassNameProxy" tone="muted" size="body" weight="normal" block>
           <option value="" disabled>Select…</option>
           <option v-for="candidate in newClassCandidates" :key="candidate.key" :value="candidate.key">
@@ -72,6 +77,8 @@ const {
   proficiencyGrants: string[];
   isAddingNewClass: boolean;
 }>();
+
+const hasClass = computed(() => existingClassOptions.length > 0);
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];

@@ -274,7 +274,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { useReadItems } from "@/composables/play/useReadItems";
 import PlayerJournalDmModal from "./PlayerJournalDmModal.vue";
@@ -315,9 +315,8 @@ const {
 
 // One row per member: conditions and anything else below resolve per character.
 provideCharacterRuleset(() => member);
-// Resolved here, in the member's scope: a map built by the list would be filtered to the campaign's edition.
-const speciesNameMap = useSpeciesNameMap();
-const speciesName = computed(() => (member.species_id ? (speciesNameMap.value.get(member.species_id) ?? null) : null));
+const { data: speciesById } = useSpeciesByIds(() => [member.species_id]);
+const speciesName = computed(() => (member.species_id ? (speciesById.value.get(member.species_id)?.name ?? null) : null));
 
 const emit = defineEmits<{
   'open-companion-form': [payload: { companion: Companion | null; ownerId?: string }];

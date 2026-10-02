@@ -129,7 +129,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
@@ -189,9 +189,9 @@ const member = computed<PartyMember | null>(
   () =>
     partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null,
 );
-// Species (Powerful Build) resolves in the character's own edition, not the campaign's.
+// Inventory slots and mutations read item rules in the character's own edition, not the campaign's.
 provideCharacterRuleset(() => member.value);
-const speciesNameMap = useSpeciesNameMap();
+const { data: speciesById } = useSpeciesByIds(() => [member.value?.species_id]);
 
 // ── Inventory slices ───────────────────────────────────────────────────────────
 const myItems = computed(() =>
@@ -308,7 +308,9 @@ const totalCarriedWeight = computed(
 );
 
 // ── Carry capacity ─────────────────────────────────────────────────────────────
-const memberSpeciesName = computed(() => speciesNameMap.value.get(member.value?.species_id ?? '') ?? null);
+const memberSpeciesName = computed(() =>
+  member.value?.species_id ? (speciesById.value.get(member.value.species_id)?.name ?? null) : null,
+);
 const powerfulBuild = computed(() => hasPowerfulBuild(memberSpeciesName.value));
 
 const effectiveCapacity = computed(() =>

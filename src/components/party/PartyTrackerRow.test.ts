@@ -3,21 +3,23 @@ import { createPinia, setActivePinia } from "pinia";
 import { computed } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PartyTrackerRow from "./PartyTrackerRow.vue";
-import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Campaign } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
-// The species list depends on the edition in scope, as the real one does: a 2024 list
-// holds only the 2024 species. Reading it at campaign scope would miss a 2024 hero.
+// Species resolve by id with no edition in play, as the real lookup does: a character
+// of either edition finds its own species whatever the campaign's edition is.
 vi.mock("@/composables/rules/useSpecies", () => ({
-  useSpeciesNameMap: () => {
-    const { ruleset } = useRuleset();
-    return computed(
-      () => new Map([[ruleset.value === "2024" ? "sp-2024" : "sp-2014", `Species of ${ruleset.value}`]]),
-    );
-  },
+  useSpeciesByIds: () => ({
+    data: computed(
+      () =>
+        new Map([
+          ["sp-2024", { id: "sp-2024", name: "Species of 2024" }],
+          ["sp-2014", { id: "sp-2014", name: "Species of 2014" }],
+        ]),
+    ),
+  }),
 }));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/composables/party/useParty", () => ({ useUpdatePartyMember: () => ({ mutateAsync: vi.fn() }) }));

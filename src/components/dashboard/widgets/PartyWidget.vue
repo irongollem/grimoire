@@ -35,9 +35,7 @@
           </div>
           <div class="min-w-0 flex-1">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate leading-tight">{{ member.name }}</p>
-            <CharacterSpeciesName v-slot="{ speciesName }" :member="member">
-              <p class="text-caption text-muted-foreground italic truncate leading-tight">{{ memberSubtitle(member, speciesName) }}</p>
-            </CharacterSpeciesName>
+            <p class="text-caption text-muted-foreground italic truncate leading-tight">{{ memberSubtitle(member, speciesNameOf(member)) }}</p>
           </div>
           <div class="text-right shrink-0">
             <span class="font-cinzel text-sm font-bold" :class="hpColor(member.current_hp, member.max_hp)">{{ member.current_hp }}</span>
@@ -83,7 +81,7 @@
 import { computed } from "vue";
 import { IconMind, IconNavParty, IconReveal } from "@/lib/icons";
 import { useParty } from "@/composables/party/useParty";
-import CharacterSpeciesName from "@/components/party/CharacterSpeciesName.vue";
+import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
@@ -109,6 +107,7 @@ const { data: party, isError: partyIsError, refetch: refetchParty } = useParty()
 // "no answer yet" check; it is true for both the disabled and in-flight cases.
 const partyLoading = computed(() => !partyIsError.value && !party.value);
 const partyEmpty = computed(() => partyIsError.value || party.value?.length === 0);
+const speciesNameOf = useSpeciesNames(() => party.value ?? []);
 const { data: campaignMembers } = useCampaignMembers();
 const { isOnline } = useCampaignPresence();
 const { data: allCharacterClasses } = useAllCampaignCharacterClasses();

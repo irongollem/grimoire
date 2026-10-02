@@ -23,11 +23,10 @@
       >
         <div class="flex-1 min-w-0">
           <span class="font-cinzel text-sm font-semibold text-foreground">{{ member.name }}</span>
-          <CharacterSpeciesName v-slot="{ speciesName }" :member="member">
           <span class="ml-2 text-caption text-muted-foreground italic">
             {{
               [
-                speciesName,
+                speciesNameOf(member),
                 memberClassLabel(member.id, member.class),
                 memberLevelDisplay(member.id, member.level) ? `Lv${memberLevelDisplay(member.id, member.level)}` : '',
               ]
@@ -35,7 +34,6 @@
                 .join(' · ')
             }}
           </span>
-          </CharacterSpeciesName>
         </div>
         <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
           Lv {{ memberLevelDisplay(member.id, member.level) }}
@@ -109,7 +107,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import CharacterSpeciesName from '@/components/party/CharacterSpeciesName.vue';
+import { useSpeciesNames } from '@/composables/rules/useSpecies';
 import { useAllCampaignCharacterClasses } from '@/composables/party/useCharacterClasses';
 import { formatMulticlassLabel, totalLevel } from '@/types/multiclass.types';
 import type { CharacterClass } from '@/types/multiclass.types';
@@ -144,6 +142,7 @@ defineEmits<{
   'set-member-faction': [memberId: string, factionId: string];
 }>();
 
+const speciesNameOf = useSpeciesNames(() => party ?? []);
 const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
 const classesByMember = computed(() => {
   const m = new Map<string, CharacterClass[]>();

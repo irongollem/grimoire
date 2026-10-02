@@ -4,7 +4,7 @@
     <!-- No history warning (subtle) -->
     <div v-if="!lastChoice" class="flex items-center gap-2 pt-2">
       <span class="text-eyebrow text-ink-caution/70">No level history</span>
-      <span class="text-caption text-muted-foreground">— ask your DM to seed <code class="font-mono">level_choices</code> before de-leveling</span>
+      <span class="text-caption text-muted-foreground">The choices made at earlier levels were not recorded, so this character cannot be levelled down.</span>
     </div>
 
     <template v-else>

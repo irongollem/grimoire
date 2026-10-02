@@ -75,7 +75,7 @@ import { useParty } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { useItems } from "@/composables/items/useItems";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useBackgroundNameMap } from "@/composables/rules/useBackgrounds";
 import { useAuthStore } from "@/stores/auth";
 
@@ -103,11 +103,11 @@ const member = computed(() =>
 );
 
 // The picker can switch character without a route change, so the scope follows
-// `member`. The name maps below list that character's edition (useRuleset.ts).
+// `member`. The background map below lists that character's edition (useRuleset.ts).
 provideCharacterRuleset(() => member.value);
 const { data: inventoryItems, isLoading: inventoryLoading } = usePartyInventory();
 const { data: items } = useItems();
-const speciesMap = useSpeciesNameMap();
+const { data: speciesById } = useSpeciesByIds(() => [member.value?.species_id]);
 const backgroundMap = useBackgroundNameMap();
 
 const isLoading = computed(() => partyLoading.value || inventoryLoading.value);
@@ -118,7 +118,7 @@ const inventory = computed(() =>
 
 /** Resolved names — fall back to null if the lookup maps aren't loaded yet */
 const speciesName = computed(() =>
-  member.value?.species_id ? (speciesMap.value.get(member.value.species_id) ?? null) : null,
+  member.value?.species_id ? (speciesById.value.get(member.value.species_id)?.name ?? null) : null,
 );
 const backgroundName = computed(() =>
   member.value?.background_id ? (backgroundMap.value.get(member.value.background_id) ?? null) : null,

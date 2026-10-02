@@ -39,13 +39,23 @@
         :is-adding-new-class="isAddingNewClass"
       />
 
+      <!--
+        Nothing below can be said until a class is chosen: a character taking
+        its first class has none yet, and "no feature data for this class" or
+        "loading the hit die" would describe a class nobody picked.
+      -->
+      <p v-if="!memberClass" class="text-body text-muted-foreground italic" data-testid="pick-class-first">
+        Pick a class to see what this level gives.
+      </p>
+
       <!-- Features gained -->
       <LevelUpFeaturesGained
+        v-if="memberClass"
         :features="customFeaturesForLevel"
         :expanded-features="wizardExpandedFeatures"
         :has-class-data="!!(systemClass || customClass)"
         :next-level="nextLevel"
-        :class-name="memberClass || 'this class'"
+        :class-name="memberClass"
         :cantrips-known-gain="cantripsKnownGain"
         :cantrips-known-total="cantripsKnownTotal"
         :spells-known-gain="spellsKnownGain"
@@ -72,7 +82,7 @@
         @set-mode="setHpMode"
         @roll="rollHp"
       />
-      <p v-else class="text-caption text-muted-foreground italic">Loading the class's hit die…</p>
+      <p v-else-if="memberClass" class="text-caption text-muted-foreground italic">Loading the class's hit die…</p>
 
       <!-- ASI / Feat picker -->
       <LevelUpAsiSection
@@ -312,9 +322,9 @@ const customSubclass = computed(() => {
 const newClassCandidates = computed(() => {
   const existing = new Set(existingClassOptions.value.map(c => `${c.class_definition_kind}:${c.class_definition_id}`));
   return [
-    ...campaignSystemClasses.value.map(c => ({ key: `system:${c.id}`, label: `${c.class_name} — Official` })),
+    ...campaignSystemClasses.value.map(c => ({ key: `system:${c.id}`, label: `${c.class_name} (official)` })),
     ...campaignCustomClasses.value.map(c => ({ key: `custom:${c.id}`,
-      label: `${c.class_name} — ${c.source_document_key ? "Imported" : "Custom"}${c.source_revision ? ` (${c.source_revision})` : ""}` })),
+      label: `${c.class_name} (${c.source_document_key ? "imported" : "custom"}${c.source_revision ? `, ${c.source_revision}` : ""})` })),
   ].filter(candidate => !existing.has(candidate.key))
     .sort((a, b) => a.label.localeCompare(b.label));
 });
@@ -421,7 +431,7 @@ const subclassOptions = computed(() => campaignCustomSubclasses.value
   .map(subclass => ({
     id: subclass.id,
     name: subclass.subclass_name,
-    label: `${subclass.subclass_name} — ${subclass.source_document_key ? "Imported" : "Custom"}${subclass.source_revision ? ` (${subclass.source_revision})` : ""}`,
+    label: `${subclass.subclass_name} (${subclass.source_document_key ? "imported" : "custom"}${subclass.source_revision ? `, ${subclass.source_revision}` : ""})`,
   })));
 
 // ── Spell slot computation (multiclass-aware) ──────────────────────────────────

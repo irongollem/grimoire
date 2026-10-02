@@ -45,7 +45,7 @@ vi.mock("@/composables/party/useParty", () => ({
     refetch: mocks.refetch,
   }),
 }));
-vi.mock("@/composables/rules/useSpecies", () => ({ useSpeciesNameMap: () => ({ value: new Map() }) }));
+vi.mock("@/composables/rules/useSpecies", () => ({ useSpeciesNames: () => () => null }));
 vi.mock("@/composables/party/useCharacterClasses", () => ({
   useAllCampaignCharacterClasses: () => ({ data: { value: [] } }),
 }));

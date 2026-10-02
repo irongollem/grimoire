@@ -27,7 +27,7 @@
     </template>
     <template v-else-if="hasClassData">
       <p class="text-body text-muted-foreground italic">
-        Class feature details coming soon — check the class description for level {{ nextLevel }} features.
+        Class feature details are coming soon. Check the class description for level {{ nextLevel }} features.
       </p>
     </template>
     <template v-else>

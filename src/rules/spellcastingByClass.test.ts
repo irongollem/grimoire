@@ -27,8 +27,8 @@ const member = {
 };
 
 describe("computeSpellcastingByClass", () => {
-  it("falls back to the class-name default caster type when the definition sets none", () => {
-    const result = computeSpellcastingByClass(member, [classEntry()], { system: [{ id: "def-1", primary_ability: "Intelligence" }], custom: [] }, "2014");
+  it("takes the caster type from the pinned definition", () => {
+    const result = computeSpellcastingByClass(member, [classEntry()], { system: [{ id: "def-1", primary_ability: "Intelligence", caster_type: "spellbook" }], custom: [] }, "2014");
     expect(result).toEqual([{
       classId: "class-1",
       className: "Wizard",
@@ -62,10 +62,10 @@ describe("computeSpellcastingByClass", () => {
     expect(result[0]?.castingAbility).toBe("wis");
   });
 
-  it("applies the 2024 ruleset policy's caster type for a system class, overriding the class-name default", () => {
+  it("applies the 2024 ruleset policy's caster type for a system class, overriding the definition's caster_type", () => {
     const entry = classEntry({ class_name: "Ranger", class_definition_kind: "system" });
     const result = computeSpellcastingByClass(member, [entry], { system: [{ id: "def-1", primary_ability: "Wisdom" }], custom: [] }, "2024");
-    // getCasterType("Ranger") defaults to "known", but the 2024 policy table makes Ranger a prepared caster.
+    // the definition says Ranger is a known caster; the 2024 policy table makes Ranger a prepared caster.
     expect(result[0]?.casterType).toBe("prepared");
   });
 

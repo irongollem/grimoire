@@ -307,18 +307,6 @@ export function cantripDiceMultiplier(totalLevel: number): 1 | 2 | 3 | 4 {
   return 1;
 }
 
-const PREPARED_CLASSES = ["Cleric", "Druid", "Paladin", "Artificer"] as const;
-const KNOWN_CLASSES    = ["Sorcerer", "Warlock", "Bard", "Ranger"] as const;
-const SPELLBOOK_CLASSES = ["Wizard"] as const;
-
-export function getCasterType(cls: string | null | undefined): CasterType {
-  if (!cls) return "none";
-  if ((PREPARED_CLASSES as readonly string[]).includes(cls)) return "prepared";
-  if ((KNOWN_CLASSES as readonly string[]).includes(cls))    return "known";
-  if ((SPELLBOOK_CLASSES as readonly string[]).includes(cls)) return "spellbook";
-  return "none";
-}
-
 export type InnateSourceType = 'class' | 'racial' | 'feat' | 'item' | 'other';
 export type InnateResetsOn = 'long_rest' | 'short_rest';
 
@@ -542,28 +530,6 @@ export function getCasterCategory(cls: string | null | undefined): CasterCategor
       return "pact";
     default:
       return "none";
-  }
-}
-
-/** The ability score a class uses for spell attack / save DC, or null if non-caster. */
-export function getCastingAbility(cls: string | null | undefined): "int" | "wis" | "cha" | null {
-  switch (cls) {
-    case "Cleric":
-    case "Druid":
-    case "Ranger":
-      return "wis";
-    case "Wizard":
-    case "Artificer":
-    case "Fighter (Eldritch Knight)":
-    case "Rogue (Arcane Trickster)":
-      return "int";
-    case "Bard":
-    case "Paladin":
-    case "Sorcerer":
-    case "Warlock":
-      return "cha";
-    default:
-      return null;
   }
 }
 
