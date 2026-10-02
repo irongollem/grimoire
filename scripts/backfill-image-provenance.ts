@@ -35,6 +35,12 @@
  *   npm run backfill:image-provenance -- --out report.json
  *   npm run backfill:image-provenance -- --write --yes-production
  *
+ * `--fail-on-dead` (#952) makes the scan a check: after it, exit with status 1 when
+ * any referenced image is unreadable, naming each one's bucket, stem and the
+ * table.column that references it. An original that is gone while its `_w600.webp`
+ * variant survives is reported apart (it can be restored from the variant), and
+ * counts as dead all the same. `npm run check:images` is this, as a dry run.
+ *
  * `--library-owner <uuid>` names the owner of canonical `srd/` art; by default
  * it is the app admin when exactly one exists. `--limit <n>` scans only the
  * first n images (a quick trial).
@@ -238,6 +244,50 @@ export function candidateUrls(target: Target): string[] {
   return unique.map((path) => `${target.urlPrefix}${path.split("/").map(encodeURIComponent).join("/")}`);
 }
 
+/** The variant used to tell "restorable" from "gone": the largest one the app writes. */
+const SURVIVOR_VARIANT = "_w600.webp";
+
+/** The URL of a target's `_w600.webp` variant, next to where its original lives. */
+export function survivorVariantUrl(target: Pick<Target, "stem" | "urlPrefix">): string {
+  return `${target.urlPrefix}${`${target.stem}${SURVIVOR_VARIANT}`.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+/** One image that could not be read, and what references it. */
+export interface Unreadable {
+  bucket: string;
+  stem: string;
+  reason: string;
+  /** `table.column` of every column that references this image. */
+  sources: string[];
+  /** True when the original is unreadable but its `_w600.webp` variant exists. */
+  variantSurvives: boolean;
+}
+
+/** Splits unreadable images into the fully dead and the restorable-from-a-variant. */
+export function categorizeUnreadable(unreadable: readonly Unreadable[]): { fullyDead: Unreadable[]; originalMissingVariantSurvives: Unreadable[] } {
+  return {
+    fullyDead: unreadable.filter((u) => !u.variantSurvives),
+    originalMissingVariantSurvives: unreadable.filter((u) => u.variantSurvives),
+  };
+}
+
+/** The lines `--fail-on-dead` prints: one per unreadable image, naming bucket, stem and referencing columns. */
+export function deadReportLines(unreadable: readonly Unreadable[]): string[] {
+  const { fullyDead, originalMissingVariantSurvives } = categorizeUnreadable(unreadable);
+  const line = (u: Unreadable) => `  ${u.bucket}/${u.stem}  (${u.reason})  referenced by ${u.sources.join(", ")}`;
+  const lines: string[] = [];
+  if (fullyDead.length > 0) lines.push(`Dead (no original, no variant): ${fullyDead.length}`, ...fullyDead.map(line));
+  if (originalMissingVariantSurvives.length > 0) {
+    lines.push(`Original missing, _w600 variant survives (restorable): ${originalMissingVariantSurvives.length}`, ...originalMissingVariantSurvives.map(line));
+  }
+  return lines;
+}
+
+/** Exit status of the scan: 1 only when `--fail-on-dead` is set and any referenced image is unreadable. */
+export function deadExitCode(failOnDead: boolean, unreadable: readonly Unreadable[]): 0 | 1 {
+  return failOnDead && unreadable.length > 0 ? 1 : 0;
+}
+
 export type Verdict = "insert" | "correct" | "skip" | "no-owner";
 
 export interface PlanEntry {
@@ -314,7 +364,7 @@ export function isLoopbackUrl(url: string): boolean {
 // ---------------------------------------------------------------------------
 // I/O shell
 
-type FetchOutcome =
+export type FetchOutcome =
   | { kind: "bytes"; bytes: Uint8Array; url: string }
   | { kind: "missing" }
   | { kind: "error"; message: string };
@@ -322,7 +372,7 @@ type FetchOutcome =
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** One URL, retrying network errors, 429 and 5xx. A 404 is final. */
-async function fetchBytes(url: string): Promise<FetchOutcome> {
+export async function fetchBytes(url: string): Promise<FetchOutcome> {
   let message = "";
   for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt++) {
     try {
@@ -385,7 +435,7 @@ async function readImageUrls(client: SupabaseClient): Promise<{ rows: UrlRow[]; 
 }
 
 /** Admin accounts, by the `app_metadata.role` claim `private.is_app_admin()` reads. */
-async function findAdmins(client: SupabaseClient): Promise<string[]> {
+export async function findAdmins(client: SupabaseClient): Promise<string[]> {
   const admins: string[] = [];
   for (let page = 1; ; page++) {
     const { data, error } = await client.auth.admin.listUsers({ page, perPage: 200 });
@@ -419,7 +469,7 @@ interface Report {
   missingColumns: string[];
   entries: PlanEntry[];
   unmarked: number;
-  unreadable: { bucket: string; stem: string; reason: string }[];
+  unreadable: Unreadable[];
   noOwner: { bucket: string; stem: string; sources: string[] }[];
 }
 
@@ -431,6 +481,7 @@ async function main(): Promise<void> {
       out: { type: "string" },
       "library-owner": { type: "string" },
       limit: { type: "string" },
+      "fail-on-dead": { type: "boolean", default: false },
     },
   });
   const url = process.env.VITE_SUPABASE_URL;
@@ -477,7 +528,14 @@ async function main(): Promise<void> {
     done++;
     if (done % 100 === 0) console.log(`  ${done}/${targets.length}`);
     if (outcome.kind !== "bytes") {
-      unreadable.push({ bucket: target.bucket, stem: target.stem, reason: outcome.kind === "missing" ? "404" : outcome.message });
+      const variant = await fetchBytes(survivorVariantUrl(target));
+      unreadable.push({
+        bucket: target.bucket,
+        stem: target.stem,
+        reason: outcome.kind === "missing" ? "404" : outcome.message,
+        sources: target.sources,
+        variantSurvives: variant.kind === "bytes",
+      });
       return;
     }
     const found = readProvenanceFromBytes(outcome.bytes);
@@ -498,6 +556,8 @@ async function main(): Promise<void> {
     toInsert: count("insert"),
     toCorrect: count("correct"),
     unreadableOr404: unreadable.length,
+    fullyDead: categorizeUnreadable(unreadable).fullyDead.length,
+    originalMissingVariantSurvives: categorizeUnreadable(unreadable).originalMissingVariantSurvives.length,
     noOwner: count("no-owner"),
     unmarked,
   };
@@ -521,6 +581,12 @@ async function main(): Promise<void> {
     writeFileSync(values.out, JSON.stringify(report, null, 2));
     console.log(`Detail written to ${values.out}`);
   }
+
+  if (unreadable.length > 0 && values["fail-on-dead"]) {
+    console.error(`${unreadable.length} referenced image(s) no longer resolve:`);
+    for (const line of deadReportLines(unreadable)) console.error(line);
+  }
+  process.exitCode = deadExitCode(values["fail-on-dead"], unreadable);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

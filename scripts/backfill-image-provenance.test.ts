@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   candidateUrls,
+  categorizeUnreadable,
+  deadExitCode,
+  deadReportLines,
+  survivorVariantUrl,
+  type Unreadable,
   collectTargets,
   IMAGE_COLUMNS,
   isLoopbackUrl,
@@ -218,5 +223,49 @@ describe("IMAGE_COLUMNS", () => {
   it("lists each column once", () => {
     const keys = IMAGE_COLUMNS.map((c) => `${c.table}.${c.column}`);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe("dead image reporting (#952)", () => {
+  const target: Target = {
+    bucket: "item-images",
+    stem: `${USER}/abc`,
+    originalPaths: [`${USER}/abc.webp`],
+    urlPrefix: `${ORIGIN}/item-images/`,
+    owner: USER,
+    sources: ["library_art_defaults.image_url"],
+  };
+  const dead: Unreadable = { bucket: "item-images", stem: `${USER}/abc`, reason: "404", sources: ["library_art_defaults.image_url"], variantSurvives: false };
+  const restorable: Unreadable = { bucket: "item-images", stem: `${USER}/def`, reason: "404", sources: ["library_items.image_url", "items.image_url"], variantSurvives: true };
+
+  it("builds the _w600 variant URL next to the original", () => {
+    expect(survivorVariantUrl(target)).toBe(`${ORIGIN}/item-images/${USER}/abc_w600.webp`);
+  });
+
+  it("keeps the referencing columns on a collected target", () => {
+    const { targets } = collectTargets([{ url: `${ORIGIN}/item-images/${USER}/abc.webp`, userId: null, source: "library_art_defaults.image_url" }]);
+    expect(targets[0].sources).toEqual(["library_art_defaults.image_url"]);
+  });
+
+  it("separates the fully dead from the restorable", () => {
+    const split = categorizeUnreadable([dead, restorable]);
+    expect(split.fullyDead).toEqual([dead]);
+    expect(split.originalMissingVariantSurvives).toEqual([restorable]);
+  });
+
+  it("names bucket, stem and columns for every unreadable image", () => {
+    const text = deadReportLines([dead, restorable]).join("\n");
+    expect(text).toContain(`item-images/${USER}/abc`);
+    expect(text).toContain("library_art_defaults.image_url");
+    expect(text).toContain(`item-images/${USER}/def`);
+    expect(text).toContain("library_items.image_url, items.image_url");
+    expect(text).toContain("restorable");
+  });
+
+  it("exits 1 only with the flag and something unreadable, and counts both categories", () => {
+    expect(deadExitCode(true, [dead])).toBe(1);
+    expect(deadExitCode(true, [restorable])).toBe(1);
+    expect(deadExitCode(true, [])).toBe(0);
+    expect(deadExitCode(false, [dead, restorable])).toBe(0);
   });
 });
