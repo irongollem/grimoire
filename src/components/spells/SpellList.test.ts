@@ -92,7 +92,9 @@ function makeSpell(overrides: Partial<Spell> = {}): Spell {
 
 const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
 
-function mountList(props: Partial<{ selecting: boolean; selectedIds: ReadonlySet<string> }> = {}) {
+function mountList(
+  props: Partial<{ selecting: boolean; selectedIds: ReadonlySet<string>; sourceFilter: string }> = {},
+) {
   return mount(SpellList, {
     props: {
       search: "",
@@ -175,5 +177,32 @@ describe("SpellList — bulk selection (#875)", () => {
     mocks.spells = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
     const wrapper = mountList({ selecting: true });
     expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
+  });
+});
+
+describe("SpellList source filter", () => {
+  beforeEach(() => {
+    mocks.spells = [
+      makeSpell({ id: "11111111-1111-4111-8111-111111111111", name: "Unlabelled Homebrew" }),
+      makeSpell({ id: "22222222-2222-4222-8222-222222222222", name: "Labelled Homebrew", source: "Homebrew" }),
+      makeSpell({ id: "33333333-3333-4333-8333-333333333333", name: "Fireball", source: "srd-2014", source_record_key: "srd-2014-fireball" }),
+    ];
+  });
+
+  // "Custom" used to compare against the literal source "custom", which no
+  // spell the editor saves ever has: a blank source is stored as null.
+  it("Custom lists the DM's own spells, whatever their source says", () => {
+    const wrapper = mountList({ sourceFilter: "custom" });
+    expect(wrapper.vm.selectableIds).toEqual([
+      "11111111-1111-4111-8111-111111111111",
+      "22222222-2222-4222-8222-222222222222",
+    ]);
+    expect(wrapper.findAllComponents(BulkSelectableCard)).toHaveLength(2);
+  });
+
+  it("a library source lists only that source", () => {
+    const wrapper = mountList({ sourceFilter: "srd-2014" });
+    expect(wrapper.findAllComponents(BulkSelectableCard)).toHaveLength(1);
+    expect(wrapper.vm.selectableIds).toEqual([]);
   });
 });
