@@ -6,6 +6,7 @@ import { TERMS_VERSION } from "@/lib/legal";
 import { signInEmail } from "@edge-shared/childAccount.ts";
 import { CHILD_ACCOUNT_COLUMNS, isActiveChildLink } from "@/lib/childAccount";
 import { accountLabel } from "@/lib/accountLabel";
+import type { CaptchaSource } from "@/lib/auth/captcha";
 import type { User, Session } from "@supabase/supabase-js";
 import type { CampaignMember, CampaignRole } from "@/types/campaign.types";
 import type { ChildAccountLink } from "@/types/childAccount.types";
@@ -264,13 +265,18 @@ export const useAuthStore = defineStore("auth", () => {
    * rather than at each call site so every caller (LoginView, the
    * JoinCampaignView login tab) gets it for free, and none of them needs to
    * know the child-account scheme exists.
+   *
+   * `captcha` is awaited inside `loading`, here and in the two actions below,
+   * so the submit button stays disabled while the bot check finishes and a
+   * second press cannot spend the same token twice.
    */
-  async function signIn(identifier: string, password: string) {
+  async function signIn(identifier: string, password: string, captcha: CaptchaSource) {
     loading.value = true;
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: signInEmail(identifier),
         password,
+        options: { captchaToken: await captcha() },
       });
       if (error) throw error;
       // Eagerly set user/session and load membership so the router guard sees
@@ -294,13 +300,21 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function signUp(
-    email: string,
-    password: string,
-    displayName?: string,
-    redirectTo?: string,
-    inviteToken?: string,
-  ) {
+  async function signUp({
+    email,
+    password,
+    captcha,
+    displayName,
+    redirectTo,
+    inviteToken,
+  }: {
+    email: string;
+    password: string;
+    captcha: CaptchaSource;
+    displayName?: string;
+    redirectTo?: string;
+    inviteToken?: string;
+  }) {
     loading.value = true;
     try {
       // invite_token + terms consent ride in user metadata so the on-insert
@@ -321,6 +335,7 @@ export const useAuthStore = defineStore("auth", () => {
         password,
         options: {
           data,
+          captchaToken: await captcha(),
           ...(redirectTo ? { emailRedirectTo: redirectTo } : {}),
         },
       });
@@ -340,11 +355,12 @@ export const useAuthStore = defineStore("auth", () => {
    * → Authentication → URL Configuration); an unlisted one silently falls
    * back to the Site URL and the user lands on the dashboard, not the form.
    */
-  async function requestPasswordReset(email: string) {
+  async function requestPasswordReset(email: string, captcha: CaptchaSource) {
     loading.value = true;
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
+        captchaToken: await captcha(),
       });
       if (error) throw error;
     } finally {
