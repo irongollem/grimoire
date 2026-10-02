@@ -136,3 +136,46 @@ describe("isAiEnabled — the campaign toggle and the child-account fence (#919)
     expect(store.isAiEnabled).toBe(false);
   });
 });
+
+describe("switchToCampaign — membership refresh", () => {
+  const campaign = { id: "c1", theme: null } as unknown as Campaign;
+
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  // On boot initialize() has just loaded exactly this campaign's membership.
+  it("does not refresh membership already loaded for that campaign", () => {
+    const refreshMembership = vi.fn();
+    mockUseAuthStore.mockReturnValue({
+      isChildAccount: false,
+      membership: { campaign_id: "c1" },
+      refreshMembership,
+    } as never);
+
+    useCampaignStore().switchToCampaign(campaign);
+
+    expect(refreshMembership).not.toHaveBeenCalled();
+  });
+
+  it("refreshes membership when it is for another campaign or absent", () => {
+    const refreshMembership = vi.fn();
+    mockUseAuthStore.mockReturnValue({
+      isChildAccount: false,
+      membership: { campaign_id: "other" },
+      refreshMembership,
+    } as never);
+    useCampaignStore().switchToCampaign(campaign);
+    expect(refreshMembership).toHaveBeenCalledWith("c1");
+
+    refreshMembership.mockClear();
+    mockUseAuthStore.mockReturnValue({
+      isChildAccount: false,
+      membership: null,
+      refreshMembership,
+    } as never);
+    useCampaignStore().switchToCampaign(campaign);
+    expect(refreshMembership).toHaveBeenCalledWith("c1");
+  });
+});

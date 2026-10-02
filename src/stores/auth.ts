@@ -6,6 +6,7 @@ import { TERMS_VERSION } from "@/lib/legal";
 import { signInEmail } from "@edge-shared/childAccount.ts";
 import { CHILD_ACCOUNT_COLUMNS, isActiveChildLink } from "@/lib/childAccount";
 import { accountLabel } from "@/lib/accountLabel";
+import { clearAuthSnapshot, readAuthSnapshot, writeAuthSnapshot } from "@/lib/authSnapshot";
 import type { User, Session } from "@supabase/supabase-js";
 import type { CampaignMember, CampaignRole } from "@/types/campaign.types";
 import type { ChildAccountLink } from "@/types/childAccount.types";
@@ -103,11 +104,17 @@ export const useAuthStore = defineStore("auth", () => {
   );
 
   async function loadUsername(userId: string) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("username")
       .eq("user_id", userId)
       .single();
+    // A failed read must not read as "no username": the boot now revalidates a
+    // snapshot in the background, and an offline failure would blank a good value.
+    if (error) {
+      console.error("Failed to load username:", error);
+      return;
+    }
     username.value = data?.username ?? null;
   }
 
@@ -148,7 +155,13 @@ export const useAuthStore = defineStore("auth", () => {
       query = query.order("joined_at", { ascending: true }).limit(1);
     }
 
-    const { data } = await query.maybeSingle();
+    const { data, error } = await query.maybeSingle();
+    // Same as loadUsername: an error leaves the current value alone, and skips
+    // the display-name backfill below (there is no row to backfill).
+    if (error) {
+      console.error("Failed to load campaign membership:", error);
+      return;
+    }
     membership.value = data ?? null;
 
     // Backfill display_name on first login, from the display name supplied at
@@ -178,6 +191,35 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
+  // Persist the identity facts for the next boot (see authSnapshot.ts). Watched
+  // rather than written after each load: the refs are only ever assigned from
+  // successful reads (the load functions return early on error and leave them
+  // untouched), so a failed load cannot cause a write of nulls never read.
+  // Written only once the child link is known: `childLinkLoaded` is the proxy
+  // for "the trio has answered", so a half-loaded sign-in never persists. A
+  // membership belonging to another account (a user switch without sign-out) is
+  // not persisted under this one's id.
+  watch(
+    [user, membership, username, childLink, childLinkLoaded],
+    () => {
+      const current = user.value;
+      if (!current) {
+        clearAuthSnapshot();
+        return;
+      }
+      if (!childLinkLoaded.value) return;
+      if (membership.value && membership.value.user_id !== current.id) return;
+      writeAuthSnapshot({
+        v: 1,
+        userId: current.id,
+        membership: membership.value,
+        username: username.value,
+        childLink: childLink.value,
+        childLinkLoaded: childLinkLoaded.value,
+      });
+    },
+  );
+
   let initPromise: Promise<void> | null = null;
   let authListener: { unsubscribe: () => void } | null = null;
 
@@ -195,11 +237,35 @@ export const useAuthStore = defineStore("auth", () => {
         if (user.value) {
           const storedCampaignId =
             localStorage.getItem("grimoire_active_campaign") ?? undefined;
-          await Promise.all([
-            loadMembership(user.value.id, storedCampaignId),
-            loadUsername(user.value.id),
-            loadChildLink(user.value.id),
-          ]);
+          const userId = user.value.id;
+          const loadIdentity = () =>
+            Promise.all([
+              loadMembership(userId, storedCampaignId),
+              loadUsername(userId),
+              loadChildLink(userId),
+            ]);
+          const snapshot = readAuthSnapshot(userId, storedCampaignId);
+          if (snapshot) {
+            // The network used to be the first thing the app waited on for
+            // facts it already had last time. Show the snapshot now and
+            // revalidate behind it; the server is still the boundary for all
+            // of these, so a stale one shows a control that then refuses.
+            membership.value = snapshot.membership;
+            username.value = snapshot.username;
+            childLink.value = snapshot.childLink;
+            childLinkLoaded.value = snapshot.childLinkLoaded;
+            void loadIdentity().catch((err: unknown) => {
+              console.error("Failed to revalidate identity:", err);
+            });
+          } else {
+            await loadIdentity();
+          }
+        } else {
+          // A session that ended without a SIGNED_OUT event (expired while the
+          // app was closed) never reaches signOut() or the listener below, so
+          // this is the only place that removes the last account's facts from
+          // a device somebody else may be about to sign in on.
+          clearAuthSnapshot();
         }
 
         initialized.value = true;
@@ -221,6 +287,12 @@ export const useAuthStore = defineStore("auth", () => {
           session.value = newSession;
           user.value = newSession?.user ?? null;
           setCachedUser(user.value);
+          // INITIAL_SESSION is auth-js replaying the session initialize() just
+          // loaded (or is still revalidating), so reloading here doubles the
+          // boot's identity reads for nothing. SIGNED_IN (re-emitted on tab
+          // focus) and TOKEN_REFRESHED still reload: the app leans on them to
+          // notice a membership that changed while it was away.
+          if (user.value && event === "INITIAL_SESSION") return;
           if (user.value) {
             const userId = user.value.id;
             setTimeout(() => {
@@ -235,6 +307,7 @@ export const useAuthStore = defineStore("auth", () => {
             username.value = null;
             childLink.value = null;
             childLinkLoaded.value = false;
+            clearAuthSnapshot();
             // TOKEN_REFRESHED failure, reuse detection, or explicit sign-out — all
             // arrive here as SIGNED_OUT. The router guard will redirect to /login on
             // the next navigation; if we're mid-session we do it immediately.
@@ -382,6 +455,7 @@ export const useAuthStore = defineStore("auth", () => {
     username.value = null;
     childLink.value = null;
     childLinkLoaded.value = false;
+    clearAuthSnapshot();
     setCachedUser(null);
   }
 
