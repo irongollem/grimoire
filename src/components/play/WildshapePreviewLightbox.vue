@@ -83,7 +83,7 @@
           emphasis="soft"
           size="sm"
           label="🐺 Wild Shape"
-          :disabled="!canWildshape && !activeWildshape"
+          :disabled="!canWildshape || !beast?.stat_block"
           @click="emit('confirm')"
         />
       </div>
@@ -95,12 +95,12 @@
 import AppButton from "@/components/common/AppButton.vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
-import type { Monster } from "@/types/monster.types";
+import type { PlayerVisibleMonster } from "@/types/monster.types";
 
-const { beast, canWildshape, activeWildshape } = defineProps<{
-  beast: Monster | null;
+const { beast, canWildshape } = defineProps<{
+  beast: PlayerVisibleMonster | null;
+  /** A use is left to spend. Changing out of a form spends one like any other. */
   canWildshape: boolean;
-  activeWildshape: boolean;
 }>();
 
 const emit = defineEmits<{

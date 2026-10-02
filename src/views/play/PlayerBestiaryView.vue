@@ -73,7 +73,7 @@
           </p>
           <p v-if="isDruid" class="text-caption text-muted-foreground italic mt-0.5">
             Max CR {{ maxWildshapeCrDisplay }}
-            <template v-if="(member?.level ?? 0) < 8"> · no fly/swim speed</template>
+            <template v-if="druidLevel < 8"> · no fly/swim speed</template>
           </p>
         </div>
         <span v-if="isDruid && isCircleOfMoon" class="text-eyebrow px-1.5 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
@@ -295,7 +295,8 @@ import { IconClose, IconPin, IconSearch } from '@/lib/icons';
 import { usePlayerDiscoveries, useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
 import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
 import { usePinnedForms, useTogglePinnedForm } from "@/composables/play/usePinnedForms";
-import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/rules/wildshape";
+import { isEligibleWildshapeForm } from "@/rules/wildshape";
+import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import { useParty } from "@/composables/party/useParty";
 import { useUiStore } from "@/stores/ui";
@@ -344,15 +345,18 @@ const { data: playerPinnedForms } = usePinnedForms();
 const { mutate: togglePinnedForm } = useTogglePinnedForm();
 
 // Resolve current party member
-const member = computed(() => {
-  const memberId = ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId;
-  return partyMembers.value?.find((m) => m.id === memberId) ?? null;
-});
+const memberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
+const member = computed(() => partyMembers.value?.find((m) => m.id === memberId.value) ?? null);
 
 // ── Class detection ───────────────────────────────────────────────────────────
-const isDruid    = computed(() => (member.value?.['class'] as string | null)?.toLowerCase().includes("druid") ?? false);
+const {
+  isDruid,
+  druidLevel,
+  isCircleOfMoon,
+  maxCr: maxWildshapeCr,
+  maxCrDisplay: maxWildshapeCrDisplay,
+} = useWildshapeDruid(memberId, () => member.value);
 const isRanger   = computed(() => (member.value?.['class'] as string | null)?.toLowerCase().includes("ranger") ?? false);
-const isCircleOfMoon = computed(() => member.value?.subclass?.toLowerCase().includes("moon") ?? false);
 
 const showFormTab = computed(() => isDruid.value || isRanger.value);
 
@@ -396,13 +400,9 @@ const filtered = computed(() => {
 
 // ── Wild Forms tab ───────────────────────────────────────────────────────────
 
-const maxWildshapeCr = computed(() => calcWildshapeMaxCr(member.value?.level ?? 1, isCircleOfMoon.value));
-
-const maxWildshapeCrDisplay = computed(() => calcWildshapeCrDisplay(maxWildshapeCr.value));
-
 function isEligibleBeast(m: PlayerVisibleMonster): boolean {
   if (!isDruid.value) return false;
-  return isEligibleWildshapeForm(m, member.value?.level ?? 1, maxWildshapeCr.value);
+  return isEligibleWildshapeForm(m, druidLevel.value, maxWildshapeCr.value);
 }
 
 // Pinned forms for the current party member (player view or DM preview)

@@ -8,6 +8,7 @@ import { useLibraryMonsterArt, withLibraryArt } from "@/composables/library/useL
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 import type { Monster, MonsterInsert, MonsterUpdate, PlayerVisibleMonster } from "@/types/monster.types";
 import { useToast } from "@/composables/useToast";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
@@ -185,11 +186,14 @@ async function fetchPlayerVisibleMonsters(campaignId: string): Promise<Monster[]
 }
 
 /** Player-facing sibling of {@link useAllMonsters}: SRD reference monsters (public)
- *  plus this player's visible CUSTOM monsters from the projection. In DM preview
- *  mode the DM owns the rows and needs the full list (including undiscovered
- *  beasts for the "share all eligible" affordance), so it reads the base table
- *  directly instead — mirroring the visibility handling the player views already
- *  do client-side.
+ *  plus this player's visible CUSTOM monsters from the projection. A DM owns the
+ *  rows and needs the full list (including undiscovered beasts for the "share
+ *  all eligible" affordance), so for a DM it reads the base table directly
+ *  instead — mirroring the visibility handling the player views already do
+ *  client-side. "A DM" is DM preview mode *or* the DM's own role: the character
+ *  sheet is also mounted on the DM's party page, outside preview, and there the
+ *  projection would answer as if the DM were a player with no character, and
+ *  drop every pinned form.
  *
  *  No campaign-scope filter on either branch, deliberately. The projection is
  *  already gated on this campaign's `discovered_monsters`, so a row reaching a
@@ -198,6 +202,8 @@ async function fetchPlayerVisibleMonsters(campaignId: string): Promise<Monster[]
  *  disappearance {@link UseMonstersOptions.includeAllScopes} exists to prevent. */
 export function usePlayerVisibleMonsters() {
   const ui = useUiStore();
+  const auth = useAuthStore();
+  const viewerIsDm = () => ui.dmPreviewMode || auth.isDM;
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
@@ -220,15 +226,15 @@ export function usePlayerVisibleMonsters() {
       if (cid === null) throw new Error("usePlayerVisibleMonsters fetched without a campaign");
       return fetchPlayerVisibleMonsters(cid);
     },
-    enabled: () => !!campaignId.value && !ui.dmPreviewMode,
+    enabled: () => !!campaignId.value && !viewerIsDm(),
     staleTime: Infinity,
   });
 
-  // DM preview → full owned list (shares the `[QUERY_KEY]` cache with useMonsters).
+  // DM → full owned list (shares the `[QUERY_KEY]` cache with useMonsters).
   const baseQuery = useQuery({
     queryKey: [QUERY_KEY],
     queryFn: fetchMonsters,
-    enabled: () => ui.dmPreviewMode,
+    enabled: viewerIsDm,
     staleTime: Infinity,
   });
 
@@ -236,7 +242,7 @@ export function usePlayerVisibleMonsters() {
     // Open5e imports are legacy in the monsters table — those surface via
     // library_monsters instead, so drop them from the custom side (same rule as
     // useAllMonsters).
-    const custom = ((ui.dmPreviewMode ? baseQuery.data.value : projectionQuery.data.value) ?? [])
+    const custom = ((viewerIsDm() ? baseQuery.data.value : projectionQuery.data.value) ?? [])
       .filter((m) => !m.open5e_import && (!m.ruleset || m.ruleset === ruleset.value));
     const srd = libraryQuery.data.value ?? [];
     return [...srd, ...custom]
@@ -247,7 +253,7 @@ export function usePlayerVisibleMonsters() {
     () =>
       sourcesLoading.value ||
       libraryQuery.isLoading.value ||
-      (ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value),
+      (viewerIsDm() ? baseQuery.isLoading.value : projectionQuery.isLoading.value),
   );
   return { data, isLoading };
 }

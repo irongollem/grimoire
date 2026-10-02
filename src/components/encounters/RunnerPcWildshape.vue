@@ -129,7 +129,8 @@ import type { Monster } from "@/types/monster.types";
 import { useDiscoveredKeys } from "@/composables/encounters/useDiscoveredMonsters";
 import { useDmPinnedForms, useTogglePinnedForm } from "@/composables/play/usePinnedForms";
 import { parseCr } from "@/lib/utils";
-import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/rules/wildshape";
+import { isEligibleWildshapeForm } from "@/rules/wildshape";
+import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 
 const { combatant, member, monsters } = defineProps<{
@@ -155,19 +156,15 @@ const { mutate: togglePinnedForm } = useTogglePinnedForm();
 
 // ── Class helpers ─────────────────────────────────────────────────────────────
 
-const isDruid = computed(() =>
-  (member.class as string | null)?.toLowerCase().includes("druid") ?? false,
-);
-
-const isCircleOfMoon = computed(() =>
-  member.subclass?.toLowerCase().includes("moon") ?? false,
-);
+const {
+  isDruid,
+  druidLevel,
+  isCircleOfMoon,
+  maxCr: wildshapeMaxCr,
+  maxCrDisplay: wildshapeCrDisplay,
+} = useWildshapeDruid(memberId, () => member);
 
 // ── Wildshape eligibility ─────────────────────────────────────────────────────
-
-const wildshapeMaxCr = computed(() => calcWildshapeMaxCr(member.level ?? 1, isCircleOfMoon.value));
-
-const wildshapeCrDisplay = computed(() => calcWildshapeCrDisplay(wildshapeMaxCr.value));
 
 const pinnedKeys = computed<Set<string>>(() =>
   new Set((pinnedForms.value ?? []).map((p) => p.monster_id ?? p.library_monster_id ?? "").filter(Boolean)),
@@ -176,7 +173,7 @@ const pinnedKeys = computed<Set<string>>(() =>
 /** Beasts that are legal wild shape forms for this druid, sorted by CR. */
 const eligibleBeasts = computed<Monster[]>(() => {
   if (!isDruid.value) return [];
-  const level = member.level ?? 1;
+  const level = druidLevel.value;
   const maxCr = wildshapeMaxCr.value;
   return monsters
     .filter((m) => isEligibleWildshapeForm(m, level, maxCr))

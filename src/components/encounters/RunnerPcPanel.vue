@@ -123,6 +123,7 @@ import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
+import { druidProfile } from "@/rules/wildshape";
 import { pickSpellcastingStats } from "@/types/multiclass.types";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
 
@@ -255,9 +256,7 @@ const spellAttackBonus = computed(() => spellSaveDc.value - 8);
 
 // ── Wildshape handler (store mutation lives here) ─────────────────────────────
 
-const isDruid = computed(() =>
-  (member.class as string | null)?.toLowerCase().includes("druid") ?? false,
-);
+const isDruid = computed(() => druidProfile(member, characterClasses.value ?? []).isDruid);
 
 function handleWildshape(monster: Monster) {
   const sb = monster.stat_block;

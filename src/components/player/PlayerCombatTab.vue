@@ -272,7 +272,7 @@ import PlayerCustomAttacks from "@/components/player/PlayerCustomAttacks.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
-import type { Monster } from "@/types/monster.types";
+import type { PlayerVisibleMonster } from "@/types/monster.types";
 import {
   signedNum,
   weaponAbilityMod as libWeaponAbilityMod,
@@ -294,7 +294,7 @@ const props = defineProps<{
   checkDisadvantage: boolean;
   /** 2024-only flat Exhaustion penalty to every ability check (0 under 2014). */
   checkPenalty: number;
-  wildshapeMonster?: Monster;
+  wildshapeMonster?: PlayerVisibleMonster;
 }>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
 
