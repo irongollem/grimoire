@@ -6,6 +6,7 @@ import {
   approvalOptions,
   contentKindLabel,
   isApprovalWait,
+  isChangedSinceSeen,
   isRemovalOnly,
   pendingReviews,
   reviewReasonText,
@@ -111,6 +112,14 @@ describe("isApprovalWait", () => {
     expect(isApprovalWait({ code: "RS001" })).toBe(false);
     expect(isApprovalWait(new Error("network down"))).toBe(false);
     expect(isApprovalWait(null)).toBe(false);
+  });
+});
+
+describe("isChangedSinceSeen", () => {
+  it("recognises an approval refused because the player edited the row after the DM opened it", () => {
+    expect(isChangedSinceSeen({ code: "CR002" })).toBe(true);
+    expect(isChangedSinceSeen({ code: "CR001" })).toBe(false);
+    expect(isChangedSinceSeen(undefined)).toBe(false);
   });
 });
 

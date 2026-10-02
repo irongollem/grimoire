@@ -161,6 +161,17 @@ export function isApprovalWait(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: unknown }).code === APPROVAL_WAIT_CODE;
 }
 
+/**
+ * SQLSTATE raised when the DM approves a player's own content after looking at
+ * it, and the player has changed the row since. A player's row stays theirs to
+ * edit, so without this they could show one thing and have another copied.
+ */
+export const CHANGED_SINCE_SEEN_CODE = "CR002";
+
+export function isChangedSinceSeen(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === CHANGED_SINCE_SEEN_CODE;
+}
+
 async function fetchReviewsForCharacter(partyMemberId: string): Promise<CharacterContentReview[]> {
   const { data, error } = await supabase
     .from("character_content_reviews")
@@ -220,14 +231,27 @@ const STALE_AFTER_APPROVAL = [
   "library-species", "library-spells",
 ] as const;
 
-/** The DM clears one flag. Resolves to how many the character still has pending. */
+/**
+ * The DM clears one flag. Resolves to how many the character still has pending.
+ *
+ * `seenUpdatedAt` is the `updated_at` of the item as the DM saw it in the view
+ * dialog. Pass it when approving after looking: the approval is then refused
+ * (`isChangedSinceSeen`) if the player has edited the row since. Leave it out
+ * when the DM approves without opening it, which is their call to make.
+ */
 export function useApproveCharacterContent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { reviewId: string; scope: ApprovalScope }): Promise<number> => {
+    mutationFn: async (input: {
+      reviewId: string;
+      scope: ApprovalScope;
+      seenUpdatedAt?: string;
+    }): Promise<number> => {
       const { data, error } = await supabase.rpc("approve_character_content", {
         p_review_id: input.reviewId,
         p_scope: input.scope,
+        // The RPC reads null as "approved without looking".
+        p_seen_updated_at: input.seenUpdatedAt === undefined ? null : input.seenUpdatedAt,
       });
       if (error) throw error;
       if (typeof data !== "number") throw new Error("The approval came back without a count.");

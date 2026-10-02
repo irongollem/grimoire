@@ -93,12 +93,15 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useQueryClient } from "@tanstack/vue-query";
 import AppButton from "@/components/common/AppButton.vue";
 import CautionNotice from "@/components/common/CautionNotice.vue";
 import CharacterContentItemDialog from "@/components/campaign/CharacterContentItemDialog.vue";
 import {
+  CONTENT_REVIEWS_KEY,
   approvalOptions,
   contentKindLabel,
+  isChangedSinceSeen,
   isRemovalOnly,
   reviewReasonText,
   useApproveCharacterContent,
@@ -116,6 +119,7 @@ const pendingQuery = useCampaignPendingContentReviews();
 const partyQuery = useParty();
 const approve = useApproveCharacterContent();
 const removeMissing = useRemoveMissingContent();
+const queryClient = useQueryClient();
 const { confirm } = useConfirm();
 const toast = useToast();
 
@@ -169,7 +173,7 @@ function tableConfirmation(review: CharacterContentReview): { message: string; t
   };
 }
 
-async function decide(review: CharacterContentReview, option: ApprovalOption) {
+async function decide(review: CharacterContentReview, option: ApprovalOption, seenUpdatedAt?: string) {
   if (busyId.value !== null) return;
   if (option.scope === "table") {
     const { message, ...options } = tableConfirmation(review);
@@ -177,14 +181,21 @@ async function decide(review: CharacterContentReview, option: ApprovalOption) {
   }
   busyId.value = review.id;
   try {
-    const remaining = await approve.mutateAsync({ reviewId: review.id, scope: option.scope });
+    const remaining = await approve.mutateAsync({ reviewId: review.id, scope: option.scope, seenUpdatedAt });
     const done =
       option.scope === "table"
         ? `${review.label} is now approved for the whole table.`
         : `${review.label} is approved for ${characterName(review)}.`;
     succeed(review, done, remaining);
   } catch (error) {
-    toast.error(toast.fromError(error));
+    if (isChangedSinceSeen(error)) {
+      // The player edited it after the DM opened it. Show the DM the new one;
+      // the dialog stays open on purpose.
+      void queryClient.invalidateQueries({ queryKey: [CONTENT_REVIEWS_KEY, "item"] });
+      toast.error(`${review.label} was changed after you opened it. Look again before approving.`);
+    } else {
+      toast.error(toast.fromError(error));
+    }
   } finally {
     busyId.value = null;
   }
@@ -210,10 +221,10 @@ async function remove(review: CharacterContentReview) {
   }
 }
 
-function approveFromDialog(scope: ApprovalScope) {
+function approveFromDialog(scope: ApprovalScope, seenUpdatedAt: string | undefined) {
   const review = viewing.value;
   if (!review) return;
   const option = approvalOptions(review).find((candidate) => candidate.scope === scope);
-  if (option) void decide(review, option);
+  if (option) void decide(review, option, seenUpdatedAt);
 }
 </script>

@@ -108,11 +108,19 @@ describe("CharacterContentItemDialog", () => {
     expect(wrapper.find("[data-testid=item-error]").exists()).toBe(false);
   });
 
-  it("emits approve with the option's scope", async () => {
+  it("emits approve with the option's scope and when the DM saw the item", async () => {
+    setQuery({ name: "Wisp", updated_at: "2026-10-02T09:00:00Z" });
+    const wrapper = mountDialog(review({}));
+    const approve = wrapper.findAll("button").find((b) => b.text() === "Approve");
+    await approve?.trigger("click");
+    expect(wrapper.emitted("approve")).toEqual([["character", "2026-10-02T09:00:00Z"]]);
+  });
+
+  it("emits no timestamp when the item carries none, rather than inventing one", async () => {
     setQuery({ name: "Wisp" });
     const wrapper = mountDialog(review({}));
     const approve = wrapper.findAll("button").find((b) => b.text() === "Approve");
     await approve?.trigger("click");
-    expect(wrapper.emitted("approve")).toEqual([["character"]]);
+    expect(wrapper.emitted("approve")).toEqual([["character", undefined]]);
   });
 });

@@ -5,7 +5,8 @@ import CharacterApprovalQueue from "./CharacterApprovalQueue.vue";
 import type { CharacterContentReview } from "@/composables/party/useCharacterContentReviews";
 
 const mocks = vi.hoisted(() => ({
-  mutateAsync: vi.fn<(input: { reviewId: string; scope: string }) => Promise<number>>(),
+  mutateAsync: vi.fn<(input: { reviewId: string; scope: string; seenUpdatedAt?: string }) => Promise<number>>(),
+  invalidate: vi.fn(),
   removeAsync: vi.fn<(reviewId: string) => Promise<number>>(),
   confirm: vi.fn<(message: string, options?: object) => Promise<boolean>>(),
   success: vi.fn(),
@@ -25,6 +26,10 @@ vi.mock("@/composables/party/useCharacterContentReviews", async (importOriginal)
     isError: ref(false),
     refetch: vi.fn(),
   }),
+}));
+vi.mock("@tanstack/vue-query", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useQueryClient: () => ({ invalidateQueries: mocks.invalidate }),
 }));
 vi.mock("@/composables/party/useParty", () => ({
   useParty: () => ({ data: { value: state.party } }),
@@ -162,5 +167,17 @@ describe("CharacterApprovalQueue", () => {
     await flushPromises();
     expect(mocks.error).toHaveBeenCalledWith("failed");
     expect(buttonLabels(wrapper)).toContain("Allow for this character");
+  });
+
+  it("tells the DM to look again when the player edited the content after it was opened", async () => {
+    state.reviews = [review({ id: "h1", reason: "homebrew", label: "Mothfolk", source_slug: null, source_title: null })];
+    mocks.mutateAsync.mockRejectedValueOnce({ code: "CR002", message: "changed" });
+    const wrapper = mountQueue();
+    const approve = wrapper.findAll("button").find((b) => b.text() === "Approve");
+    await approve?.trigger("click");
+    await flushPromises();
+    expect(mocks.error).toHaveBeenCalledWith("Mothfolk was changed after you opened it. Look again before approving.");
+    expect(mocks.invalidate).toHaveBeenCalledWith({ queryKey: ["character-content-reviews", "item"] });
+    expect(mocks.success).not.toHaveBeenCalled();
   });
 });

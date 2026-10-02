@@ -230,7 +230,16 @@ begin
     if new.owner_user_id is not null and new.owner_user_id is distinct from (select auth.uid()) then
       raise exception 'A character can only be created for its own player' using errcode = '42501';
     end if;
+    -- The creator is the caller. The insert policy pins that for a player but
+    -- not for a DM adding to their roster, who could otherwise put any account
+    -- down as a character's creator.
+    if new.user_id is distinct from (select auth.uid()) then
+      raise exception 'A character is created in its creator''s own name' using errcode = '42501';
+    end if;
     return new;
+  end if;
+  if new.user_id is distinct from old.user_id then
+    raise exception 'A character''s creator does not change' using errcode = '42501';
   end if;
   raise exception 'A character changes owner only by being claimed' using errcode = '42501';
 end;
@@ -243,8 +252,9 @@ create trigger party_members_guard_owner_insert
   for each row execute procedure public.guard_party_member_owner();
 
 create trigger party_members_guard_owner_update
-  before update of owner_user_id on public.party_members
-  for each row when (new.owner_user_id is distinct from old.owner_user_id)
+  before update of owner_user_id, user_id on public.party_members
+  for each row when (new.owner_user_id is distinct from old.owner_user_id
+                     or new.user_id is distinct from old.user_id)
   execute procedure public.guard_party_member_owner();
 
 -- A DM's seat write used to skip every check on the character it names. That

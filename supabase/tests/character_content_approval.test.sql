@@ -25,7 +25,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(95);
+select plan(112);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94400000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -408,9 +408,18 @@ select is((select count(*)::int from public.character_spells
 -- account holds one row per pair of book keys, and a copy keeps none.
 set local role authenticated;
 select pg_temp.as_user(1);
+select throws_ok(format($$ select public.approve_character_content(%L, 'character', now() - interval '1 day') $$,
+    pg_temp.flag_id('e9', 'background')),
+  'CR002', 'This was changed after you looked at it; look again before approving',
+  'an approval given after looking is refused when the row has changed since');
 select is(public.approve_character_content(pg_temp.flag_id('e9', 'background')), 0,
   'the DM approves the second player''s copy of the same entry');
 reset role;
+select is((select jsonb_build_object('document', b.source_document_key, 'source', b.source, 'import', b.open5e_import,
+                                     'was', b.provenance -> 'adopted_claims' ->> 'document')
+    from public.backgrounds b where b.id = (pg_temp.pm('e9')).background_id),
+  '{"document": null, "source": null, "import": false, "was": "srd-2014"}'::jsonb,
+  'the copy does not repeat what the player''s row said about its book; that is kept only as a record');
 select is((select b.user_id::text || ' / ' || b.description from public.backgrounds b where b.id = (pg_temp.pm('e9')).background_id),
   '94400000-0000-4000-8000-000000000001 / Oz''s Sage', 'and that character gets its own content, as the table''s copy');
 
@@ -422,6 +431,117 @@ select cmp_ok((select count(*)::int from public.character_content_reviews
   where party_member_id = '94400000-0000-4000-8000-0000000000e6'), '<=', 100,
   'a character with a hundred and thirty unapproved choices raises at most a hundred flags');
 delete from public.character_spells where party_member_id = '94400000-0000-4000-8000-0000000000e6';
+
+-- ── What the second audit found ──────────────────────────────────────────────
+
+-- The cap bounds what is newly raised, not what the character is held to. A
+-- character padded with more than a hundred approvable choices and one the DM
+-- would refuse must not be seated once the first hundred are approved.
+insert into public.library_spells (id, name, level, school, casting_time, range, duration, conceptual_key, ruleset, source, source_title, source_document_key, source_record_key)
+select 'test_pad_' || n, 'Pad ' || n, 1, 'evocation', 'Action', '60 ft.', 'Instantaneous', 'pad-' || n, '2014', 'test-pad', 'Padding Book', 'test-pad', 'test_pad_' || n
+  from generate_series(1, 105) as n;
+insert into public.spells (id, user_id, name) values
+  ('94400000-0000-4000-8000-000000000055', '94400000-0000-4000-8000-000000000002', 'Pia''s Hidden Homebrew');
+insert into public.character_spells (party_member_id, spell_id, source_type, is_known, is_prepared, source_label)
+select '94400000-0000-4000-8000-0000000000e6'::uuid, 'test_pad_' || n, 'feat', true, true, 'Fixture feat' from generate_series(1, 105) as n
+union all
+select '94400000-0000-4000-8000-0000000000e6'::uuid, '94400000-0000-4000-8000-000000000055', 'feat', true, true, 'Fixture feat';
+select is((select count(*)::int from public.character_content_reviews
+  where party_member_id = '94400000-0000-4000-8000-0000000000e6' and status = 'pending' and kind = 'spell'), 100,
+  'a hundred of a hundred and six unapproved spells are raised');
+
+set local role authenticated;
+select pg_temp.as_user(1);
+do $$
+declare v_id uuid;
+begin
+  -- The DM approves, for this character, every flag they are shown, twice
+  -- over: everything visible, then everything that came up after.
+  for i in 1..2 loop
+    for v_id in
+      select r.id from public.character_content_reviews r
+       where r.party_member_id = '94400000-0000-4000-8000-0000000000e6'
+         and r.status = 'pending' and r.reason = 'source'
+    loop
+      perform public.approve_character_content(v_id, 'character');
+    end loop;
+  end loop;
+end $$;
+reset role;
+select is((select string_agg(r.label, ', ') from public.character_content_reviews r
+  where r.party_member_id = '94400000-0000-4000-8000-0000000000e6' and r.status = 'pending' and r.kind = 'spell'),
+  'Pia''s Hidden Homebrew',
+  'approving everything shown brings the rest up: the homebrew behind the padding is still waiting');
+select is((select count(*)::int from private.party_member_content_refs('94400000-0000-4000-8000-0000000000e6') refs
+  where refs.kind = 'spell' and not exists (select 1 from public.character_content_reviews r
+    where r.party_member_id = '94400000-0000-4000-8000-0000000000e6' and r.kind = refs.kind and r.ref = refs.ref)), 0,
+  'and no unapproved choice is left without a flag');
+delete from public.character_spells where party_member_id = '94400000-0000-4000-8000-0000000000e6';
+
+-- A DM cannot make somebody else the "owner" of a character in order to read
+-- or copy that person's content through it.
+set local role authenticated;
+select pg_temp.as_user(1);
+select throws_ok($$
+  insert into public.party_members (user_id, owner_user_id, campaign_id, name, level)
+  values ('94400000-0000-4000-8000-000000000003', null, '94400000-0000-4000-8000-0000000000c1', 'In Sam''s name', 1)
+$$, '42501', 'A character is created in its creator''s own name',
+  'a DM cannot create a roster character with another account as its creator');
+select lives_ok($$
+  insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, background_id)
+  values ('94400000-0000-4000-8000-0000000000eb', '94400000-0000-4000-8000-000000000001', null,
+          '94400000-0000-4000-8000-0000000000c1', 'Roster probe', 1, '94400000-0000-4000-8000-0000000000b5')
+$$, 'control: a DM adds a roster character in their own name');
+select is(pg_temp.flags('eb') || ' / ' || pg_temp.flag_label('eb', 'background'),
+  'background:foreign:pending / Content from another table',
+  'and a character nobody owns has no content of its own: a stranger''s row on it is foreign');
+select is(public.get_character_content_item(pg_temp.flag_id('eb', 'background')), null,
+  'so the DM still cannot read it');
+select throws_ok($$
+  update public.party_members set user_id = '94400000-0000-4000-8000-000000000003'
+   where id = '94400000-0000-4000-8000-0000000000eb'
+$$, '42501', 'A character''s creator does not change', 'nor rewrite who made a character afterwards');
+reset role;
+
+-- A player bringing a character they made, which nobody owns yet, becomes its owner.
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, ruleset, species_id)
+values ('94400000-0000-4000-8000-0000000000ec', '94400000-0000-4000-8000-000000000004', null, null, 'Oz unowned', 1, '2014', 'test_srd_elf');
+set local role authenticated;
+select pg_temp.as_user(4);
+select lives_ok($$ select pg_temp.attach('ec', false) $$, 'a player attaches a character they made that nobody owns');
+reset role;
+select is((pg_temp.pm('ec')).owner_user_id, '94400000-0000-4000-8000-000000000004'::uuid, 'and owns it from then on');
+
+-- A re-point that another rule refuses leaves the flag standing and aborts nothing.
+insert into public.spells (id, user_id, name, ruleset, source_document_key, source_record_key) values
+  ('94400000-0000-4000-8000-000000000057', '94400000-0000-4000-8000-000000000001', 'Keyed Spell', '2014', 'test-keys', 'keyed_spell'),
+  ('94400000-0000-4000-8000-000000000058', '94400000-0000-4000-8000-000000000004', 'Keyed Spell', '2014', 'test-keys', 'keyed_spell');
+insert into public.character_spells (party_member_id, spell_id, source_type, is_known, is_prepared, source_label) values
+  ('94400000-0000-4000-8000-0000000000ec', '94400000-0000-4000-8000-000000000057', 'feat', true, true, 'Fixture feat');
+select lives_ok($$
+  insert into public.character_spells (party_member_id, spell_id, source_type, is_known, is_prepared, source_label)
+  values ('94400000-0000-4000-8000-0000000000ec', '94400000-0000-4000-8000-000000000058', 'feat', true, true, 'Fixture feat')
+$$, 'a choice whose re-point would collide with one the character already has is still accepted');
+select is(pg_temp.flags('ec'), 'spell:homebrew:pending', 'and is flagged as the player''s own instead');
+select lives_ok($$
+  insert into public.campaign_enabled_sources (campaign_id, source_slug, source_title)
+  values ('94400000-0000-4000-8000-0000000000c1', 'test-pad', 'Padding Book')
+$$, 'and the DM can still change the table''s books with that character seated');
+delete from public.character_spells where party_member_id = '94400000-0000-4000-8000-0000000000ec';
+
+-- An id is the row it names, however it is spelled.
+update public.party_members set species_id = replace('94400000-0000-4000-8000-000000000061', '-', '')
+ where id = '94400000-0000-4000-8000-0000000000ec';
+select is(pg_temp.flags('ec'), 'species:foreign:pending',
+  'a species id written without hyphens is still the row it names (another player''s here), not waved through');
+update public.party_members set species_id = 'test_srd_elf' where id = '94400000-0000-4000-8000-0000000000ec';
+
+-- A blocked class is blocked in any case.
+insert into public.character_classes (party_member_id, class_name, levels, is_primary)
+values ('94400000-0000-4000-8000-0000000000ec', 'wizard', 1, true);
+update public.campaigns set disabled_class_names = array['Wizard'] where id = '94400000-0000-4000-8000-0000000000c1';
+select is(pg_temp.flags('ec'), 'class:blocked:pending', 'a blocked class typed in another case is still blocked');
+update public.campaigns set disabled_class_names = '{}' where id = '94400000-0000-4000-8000-0000000000c1';
 
 -- ── Stay, flagged: a table that changes its mind moves nobody ────────────────
 
@@ -465,7 +585,7 @@ select is(private.review_party_member_content('94400000-0000-4000-8000-000000000
 
 -- ── What a client can reach ──────────────────────────────────────────────────
 
-select ok(not has_function_privilege('anon', 'public.approve_character_content(uuid,text)', 'EXECUTE'),
+select ok(not has_function_privilege('anon', 'public.approve_character_content(uuid,text,timestamptz)', 'EXECUTE'),
   'anon cannot approve');
 select ok(not has_function_privilege('anon', 'public.get_character_content_item(uuid)', 'EXECUTE'),
   'anon cannot read what is waiting');
@@ -477,7 +597,7 @@ select is_empty($q$
   where n.nspname = 'private'
     and p.proname in ('adopt_content', 'adopt_id_map', 'assess_content', 'repoint_party_member_content',
                       'review_party_member_content', 'party_member_content_refs', 'is_table_dm', 'source_enabled',
-                      'table_book_entry', 'seat_cleared_party_member')
+                      'table_book_entry', 'seat_cleared_party_member', 'content_updated_at', 'try_uuid')
     and (has_function_privilege('authenticated', p.oid, 'EXECUTE') or has_function_privilege('anon', p.oid, 'EXECUTE'))
 $q$, 'none of the functions that copy content or decide approval is callable by a client');
 

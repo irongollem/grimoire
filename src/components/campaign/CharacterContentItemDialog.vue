@@ -60,7 +60,7 @@
         :variant="option.scope === 'table' ? 'subtle' : 'primary'"
         size="md"
         :label="option.label"
-        @click="emit('approve', option.scope)"
+        @click="emit('approve', option.scope, seenUpdatedAt)"
       />
     </div>
   </AppModal>
@@ -88,9 +88,17 @@ const { open, review } = defineProps<{
   review: CharacterContentReview | null;
 }>();
 
-const emit = defineEmits<{ close: []; approve: [scope: ApprovalScope] }>();
+// `seenUpdatedAt` travels with an approval made from here: it is what the DM
+// was actually shown, and the database refuses the approval if the player has
+// edited the row since.
+const emit = defineEmits<{ close: []; approve: [scope: ApprovalScope, seenUpdatedAt: string | undefined] }>();
 
 const itemQuery = useCharacterContentItem(() => (open ? review?.id : null));
+
+const seenUpdatedAt = computed(() => {
+  const at = itemQuery.data.value?.updated_at;
+  return typeof at === "string" ? at : undefined;
+});
 
 /**
  * How each field is shown. The stored shape differs by kind (and a library
