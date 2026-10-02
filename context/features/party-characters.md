@@ -407,12 +407,18 @@ not take the character's edition. A DM placing a roster character at their own
 table is not: a table that switched edition already holds characters of the
 other one, and a backup restore or a world import has to be able to put that
 state back. Both importers (`useCampaignBackup`, `useWorldBundle`) therefore
-carry each character's own edition and keep its class pins. They used to drop
-the edition when the destination would not admit it, so the database stamped
-the table's on a character whose classes and spells were still the other's: a
+carry each character's own edition and its class pins. They used to drop the
+edition when the destination would not admit it, so the database stamped the
+table's on a character whose classes and spells were still the other's: a
 label that lied, and one the Rules tab's mismatch list could not see. A
 character imported that way shows in that list and is converted from there.
-`PartyMemberForm` only edits; a new hero is made in the wizard (`/party/new`).
+
+**Every insert states the edition.** There is no "take the campaign's" default
+in the database: that was the old model surviving as a convenience. The wizard
+asks first, the MCP tool requires `ruleset`, and a file that does not carry a
+character's edition is refused when it is read. There is no compatibility code
+for older export files (the maintainer's ruling, 2 Oct 2026: nobody holds one):
+both importers accept only what the app writes today.
 
 **Claiming transfers ownership, and only one thing is a claim.** A seat
 (`campaign_members.party_member_id`) pointing at a character nobody owns hands
@@ -465,6 +471,66 @@ items.
 `supabase/tests/character_ruleset.test.sql` holds all of the above, each refusal
 beside a control.
 
+#### One class model (#943 wave 5, migration `20261002145135`)
+
+A character's class had three shapes, all still being written: typed text on
+the character (`party_members.class` / `.subclass`), a `character_classes` row
+carrying only a name, and a row pinned to a definition. A review of the pull
+request for legacy found them, and the maintainer ruled the consolidation into
+the same change (he also wants art and more on custom classes, which need a
+definition to live on). There is now one:
+
+- **A character's classes are its `character_classes` rows, each pinned to a
+  definition.** `class_definition_id` and `class_definition_kind` are NOT NULL;
+  `subclass_name` and `subclass_definition_id` are set together or not at all.
+  An official class is a `system_classes` row; a table's or a player's own is a
+  `custom_classes` / `custom_subclasses` row. Nothing resolves a class by name
+  against "whatever the viewer can read" any more.
+- **`party_members.class` / `.subclass` are a mirror the database keeps**: the
+  primary class row's names, null for a character with no class. About fifty
+  screens read them, so they stay; nothing writes them. A client's write is
+  overwritten (`mirror_party_member_class`), and a change to the class rows
+  refreshes them (`character_classes_refresh_mirror`). The types say so:
+  `PartyMemberInsert` / `PartyMemberUpdate` do not accept them.
+- **Classless is a valid state.** A character with no class rows has no class.
+  It takes its first class by levelling up, and that first row carries the
+  character's whole new level (`apply_level_up`'s rule for a first row).
+- **A class is made and changed in three places only**: the creation wizard
+  (a pinned row for the class picked), level-up (add a class, or a subclass
+  from the table's definitions, asked again at every level until one is
+  chosen) and de-level. `PartyMemberForm` shows the classes read-only; the MCP
+  tool's `class` on create resolves the name to a definition and inserts the
+  row, and refuses a name that resolves to nothing.
+- **A definition that is deleted** leaves a pin pointing at nothing, flagged
+  `missing`. Removing it deletes the class row (a class is its definition) or
+  clears the subclass.
+
+The migration moved the old shapes rather than tolerating them. A typed class
+became a row pinned to the official class of that name in the character's own
+edition, else to a class of that name its table or its makers have, else to a
+new, empty class of that name in the table's content. Subclasses the same way.
+Nothing anyone typed was lost. Read-only against production on 2 Oct 2026: 28
+characters, 4 typed classes (all official), 8 subclasses known only by name (5
+matched, 3 got an empty definition), no disagreement between text and rows.
+
+**The demo template is the trap.** `copy_demo_template` copies, live, only what
+belongs to the template campaign. A template character pinned to one of its
+author's general (unscoped) definitions makes the copy fail for every new user
+("Subclass definition is unavailable"). The first version of the migration did
+exactly that and a real `load_demo_campaign()` on the local stack failed; the
+migration now brings a matched general definition into the template campaign
+first, and `demo_campaign.test.sql` holds a template character with a pinned
+class and subclass. `publish_demo_version()` dry-runs the copy, so a template
+that drifts that way later is refused at publish time.
+
+Left on purpose: nine older database functions still say
+`coalesce(class_definition_kind, 'system')` or `class_definition_id is null or`.
+With the columns NOT NULL those are no-ops, and re-declaring some 700 lines of
+function body to delete a no-op was judged the worse trade.
+
+`supabase/tests/one_class_model.test.sql` holds the constraints, the mirror and
+the classless state.
+
 #### What a table approves (#943 wave 4, migration `20261002132455`)
 
 Content works the way the edition does: a player builds what they like, and the
@@ -516,18 +582,6 @@ Ids are read the way Postgres reads them (`private.try_uuid`, null for anything
 that is not one), so an id written without hyphens or in capitals is the row it
 names, and blocked class names compare without case (blocking and unblocking
 both).
-
-**A class or subclass that is only a name.** A class row with no definition
-pinned is an honest state: a character the DM built with a typed class gets one
-the first time it levels up, and the name is a label. But the app resolves a
-name against whatever its viewer can read, so on its owner's screen a bare name
-becomes the owner's own class of that name. The review reads it the same way
-(`private.named_content_of_owner`): where the name lands on the owner's own
-content and the table has nothing by it, the reference is that content, flagged
-`homebrew` like a pinned one, and approving pins the row to the table's copy.
-Any other bare name is a label and is not content. Every class row in
-production was pinned when this was written, and 4 seated characters had a
-subclass known only by name.
 
 The one thing that needs no asking: when the table already has **its own** copy
 of the same book entry (a row a DM of the table made, never one adopted from a
