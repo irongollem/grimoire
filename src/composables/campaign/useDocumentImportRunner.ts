@@ -284,12 +284,13 @@ function buildDeps(
       if (error) throw error;
     },
 
-    insertQuestRef: async (ref: QuestRefWrite) => {
-      // A duplicate here (the beat-attachment sync trigger may have already
-      // written the same row) is expected — `quest_refs`'s own unique
-      // constraint is what makes this safe to just attempt and let the
-      // caller's best-effort try/catch absorb.
-      const { error } = await supabase.from("quest_refs").insert(ref);
+    insertQuestRefs: async (refs: readonly QuestRefWrite[]) => {
+      // One request, and a row the beat-attachment sync trigger already wrote
+      // is skipped by the database (`on conflict do nothing`) rather than
+      // refused with a 409 the caller then has to swallow.
+      const { error } = await supabase
+        .from("quest_refs")
+        .upsert([...refs], { onConflict: "quest_id,ref_type,ref_id", ignoreDuplicates: true });
       if (error) throw error;
     },
 

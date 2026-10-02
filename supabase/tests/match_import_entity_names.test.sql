@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(32);
 
 -- Regression + behavior cover for the name tier of the import dedupe
 -- (migration 20260918141022, called only by the import-match edge function).
@@ -54,7 +54,9 @@ insert into public.npcs (id, user_id, campaign_id, name) values
   -- Two of the DM's own rows one letter apart: asking for one by its exact
   -- name must not also offer the other.
   ('19410000-0000-4000-8000-000000000111', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Zzmatch Marta'),
-  ('19410000-0000-4000-8000-000000000112', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Zzmatch Marte');
+  ('19410000-0000-4000-8000-000000000112', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Zzmatch Marte'),
+  -- A short invented name with a one-letter neighbour the page will print.
+  ('19410000-0000-4000-8000-000000000113', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Korax');
 
 -- Typed the way a DM types them: a straight apostrophe, a space for a hyphen.
 insert into public.locations (id, user_id, campaign_id, name) values
@@ -310,6 +312,16 @@ select is(
   0::bigint,
   'a short name gets no near match: "Fenn" does not find "Finn"'
 );
+-- The real collision that set the bar at eight characters: two different
+-- people in one campaign, one letter apart.
+select is(
+  (select count(*) from public.match_import_entity_names(
+     '19410000-0000-4000-8000-000000000001'::uuid,
+     '19410000-0000-4000-8000-000000000010'::uuid,
+     'npcs', array['Koran'])),
+  0::bigint,
+  'one letter in five is not a slip: "Koran" does not find "Korax"'
+);
 select is(
   (select count(*) from public.match_import_entity_names(
      '19410000-0000-4000-8000-000000000001'::uuid,
@@ -317,6 +329,39 @@ select is(
      'monsters', array['Zzmatch Ghost'])),
   0::bigint,
   'the library is never a near match: "Zzmatch Ghost" does not find the library''s "Zzmatch Ghast"'
+);
+-- A title in front and a slip inside, both at once (migration 20261002133428):
+-- the run rule wants identical words and the whole-name rule wants equal
+-- lengths, so neither finds this on its own.
+select results_eq(
+  $$ select target_id, source, match_kind
+     from public.match_import_entity_names(
+       '19410000-0000-4000-8000-000000000001'::uuid,
+       '19410000-0000-4000-8000-000000000010'::uuid,
+       'npcs', array['Speaker Edgra Durmoot']) $$,
+  $$ values ('19410000-0000-4000-8000-000000000109', 'campaign', 'near') $$,
+  '"Speaker Edgra Durmoot" finds the existing "Edgra Durnoot": one edit from a run inside the longer name'
+);
+select results_eq(
+  $$ select target_id, source, match_kind
+     from public.match_import_entity_names(
+       '19410000-0000-4000-8000-000000000001'::uuid,
+       '19410000-0000-4000-8000-000000000010'::uuid,
+       'npcs', array['Imdra Arlagath']) $$,
+  $$ values ('19410000-0000-4000-8000-000000000110', 'campaign', 'near') $$,
+  'and the other way round: "Imdra Arlagath" finds the existing "Captain Imdra Arlaggath"'
+);
+select is(
+  (select count(*) from public.match_import_entity_names(
+     '19410000-0000-4000-8000-000000000001'::uuid,
+     '19410000-0000-4000-8000-000000000010'::uuid,
+     'npcs', array['Speaker Hilde Frostbeard'])),
+  0::bigint,
+  'a different person sharing a near first name is not offered: "Speaker Hilde Frostbeard" does not find "Hilda Snowmantle"'
+);
+select ok(
+  not private.name_run_one_edit_apart('old marty brightwood', 'marta'),
+  'a one-word name under eight characters never matches a run of a longer one'
 );
 select ok(
   private.names_one_edit_apart('edgra durmoot', 'edgra durmoto'),

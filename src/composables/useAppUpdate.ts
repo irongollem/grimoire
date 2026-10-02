@@ -1,12 +1,15 @@
 import { ref } from "vue";
 
 /**
- * Signals that a new build has taken control but the automatic reload onto
- * it was deferred (active text entry, an in-flight save, or live audio —
- * see swAutoUpdate). Consumed by the "More" menus (PlayerNavGrid /
- * DmNavMoreSheet) to surface a "Reload to update" action so the user can
- * adopt the update at their own moment instead of waiting for the
- * coordinator's next retry.
+ * Signals that a new build has taken control while the page is still visible,
+ * so it has not been reloaded onto it (see swAutoUpdate). A visible page is
+ * never reloaded by a timer or by the worker taking control, because
+ * reloading a page the user has just returned to is what people experience as
+ * the app being slow. It adopts the build when it is backgrounded, at the
+ * user's next route navigation (a full page load of the destination, which
+ * also avoids the stale-chunk window staleChunkRecovery has to repair), or
+ * when the user picks "Reload to update" in the "More" menus (PlayerNavGrid /
+ * DmNavMoreSheet), which this flag surfaces.
  */
 export const updateAvailable = ref(false);
 

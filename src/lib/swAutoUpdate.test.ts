@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { isTextEntryActive, createReloadCoordinator } from "@/lib/swAutoUpdate";
+import { createReloadCoordinator } from "@/lib/swAutoUpdate";
 
 // jsdom's document, with controllable visibility.
 function setVisibility(state: "visible" | "hidden"): void {
@@ -14,34 +14,6 @@ function setVisibility(state: "visible" | "hidden"): void {
 // Timer-based (not a bare Promise chain) so it works under fake timers.
 const flush = () => vi.advanceTimersByTimeAsync(0);
 
-describe("isTextEntryActive", () => {
-  afterEach(() => {
-    document.body.innerHTML = "";
-  });
-
-  it("is true for a focused text input and textarea", () => {
-    const input = document.createElement("input");
-    document.body.appendChild(input);
-    input.focus();
-    expect(isTextEntryActive(document)).toBe(true);
-
-    const area = document.createElement("textarea");
-    document.body.appendChild(area);
-    area.focus();
-    expect(isTextEntryActive(document)).toBe(true);
-  });
-
-  it("is false for focus that cannot lose typed text", () => {
-    expect(isTextEntryActive(document)).toBe(false); // body focus
-
-    const button = document.createElement("input");
-    button.type = "checkbox";
-    document.body.appendChild(button);
-    button.focus();
-    expect(isTextEntryActive(document)).toBe(false);
-  });
-});
-
 describe("createReloadCoordinator", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -53,7 +25,19 @@ describe("createReloadCoordinator", () => {
     document.body.innerHTML = "";
   });
 
-  it("reloads immediately when nothing is interrupted", async () => {
+  it("never reloads a visible page and surfaces the manual fallback", async () => {
+    const reload = vi.fn();
+    const onDeferred = vi.fn();
+    const c = createReloadCoordinator({ isBusy: () => false, onDeferred, reload });
+
+    await c.requestReload();
+
+    expect(reload).not.toHaveBeenCalled();
+    expect(onDeferred).toHaveBeenCalledTimes(1);
+  });
+
+  it("reloads a hidden page at once", async () => {
+    setVisibility("hidden");
     const reload = vi.fn();
     const onDeferred = vi.fn();
     const c = createReloadCoordinator({ isBusy: () => false, onDeferred, reload });
@@ -64,31 +48,7 @@ describe("createReloadCoordinator", () => {
     expect(onDeferred).not.toHaveBeenCalled();
   });
 
-  it("defers while busy, surfaces the manual fallback, and retries on a timer", async () => {
-    let busy = true;
-    const reload = vi.fn();
-    const onDeferred = vi.fn();
-    const c = createReloadCoordinator({ isBusy: () => busy, onDeferred, reload });
-
-    await c.requestReload();
-    expect(reload).not.toHaveBeenCalled();
-    expect(onDeferred).toHaveBeenCalledTimes(1);
-
-    // Still busy on the first retry tick.
-    await vi.advanceTimersByTimeAsync(60_000);
-    expect(reload).not.toHaveBeenCalled();
-
-    // Audio stopped — the next tick catches up.
-    busy = false;
-    await vi.advanceTimersByTimeAsync(60_000);
-    expect(reload).toHaveBeenCalledTimes(1);
-  });
-
-  it("defers while typing, then reloads on backgrounding (focus left behind is not typing)", async () => {
-    const input = document.createElement("input");
-    document.body.appendChild(input);
-    input.focus();
-
+  it("reloads when a visible page is later backgrounded", async () => {
     const reload = vi.fn();
     const c = createReloadCoordinator({ isBusy: () => false, onDeferred: vi.fn(), reload });
 
@@ -100,6 +60,16 @@ describe("createReloadCoordinator", () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
+  it("does not reload a visible page when the retry timer fires", async () => {
+    const reload = vi.fn();
+    const c = createReloadCoordinator({ isBusy: () => false, onDeferred: vi.fn(), reload });
+
+    await c.requestReload();
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+
+    expect(reload).not.toHaveBeenCalled();
+  });
+
   it("never reloads a backgrounded page while audio keeps it busy", async () => {
     const reload = vi.fn();
     const c = createReloadCoordinator({ isBusy: () => true, onDeferred: vi.fn(), reload });
@@ -109,5 +79,87 @@ describe("createReloadCoordinator", () => {
     await flush();
 
     expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("does not reload when the page becomes visible while isBusy is being answered", async () => {
+    setVisibility("hidden");
+    const reload = vi.fn();
+    let answer!: (busy: boolean) => void;
+    const isBusy = () => new Promise<boolean>((resolve) => (answer = resolve));
+    const c = createReloadCoordinator({ isBusy, onDeferred: vi.fn(), reload });
+
+    const requested = c.requestReload();
+    await flush();
+    setVisibility("visible"); // the user came back before isBusy answered
+    answer(false);
+    await requested;
+
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("reloads a hidden page once it stops being busy, on the retry timer", async () => {
+    setVisibility("hidden");
+    let busy = true;
+    const reload = vi.fn();
+    const onDeferred = vi.fn();
+    const c = createReloadCoordinator({ isBusy: () => busy, onDeferred, reload });
+
+    await c.requestReload();
+    expect(reload).not.toHaveBeenCalled();
+    expect(onDeferred).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(reload).not.toHaveBeenCalled();
+
+    busy = false;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  describe("takeNavigationReload", () => {
+    it("is true when a reload is pending and idle, and stands the coordinator down", async () => {
+      const reload = vi.fn();
+      const c = createReloadCoordinator({ isBusy: () => false, onDeferred: vi.fn(), reload });
+
+      await c.requestReload();
+      expect(await c.takeNavigationReload()).toBe(true);
+      // It never reloads itself: the caller turns the navigation into a load.
+      expect(reload).not.toHaveBeenCalled();
+
+      // Neither the timer nor backgrounding reloads afterwards.
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      setVisibility("hidden");
+      await flush();
+      expect(reload).not.toHaveBeenCalled();
+    });
+
+    it("is false when nothing is pending", async () => {
+      const c = createReloadCoordinator({ isBusy: () => false, onDeferred: vi.fn(), reload: vi.fn() });
+
+      expect(await c.takeNavigationReload()).toBe(false);
+    });
+
+    it("is false while busy and leaves the reload pending", async () => {
+      let busy = true;
+      const reload = vi.fn();
+      const c = createReloadCoordinator({ isBusy: () => busy, onDeferred: vi.fn(), reload });
+
+      await c.requestReload();
+      expect(await c.takeNavigationReload()).toBe(false);
+
+      // Still pending: once idle it can be taken, and backgrounding still reloads.
+      busy = false;
+      expect(await c.takeNavigationReload()).toBe(true);
+    });
+
+    it("keeps the background reload armed after a busy refusal", async () => {
+      const reload = vi.fn();
+      const c = createReloadCoordinator({ isBusy: () => true, onDeferred: vi.fn(), reload });
+
+      await c.requestReload();
+      expect(await c.takeNavigationReload()).toBe(false);
+      expect(await c.takeNavigationReload()).toBe(false);
+      expect(reload).not.toHaveBeenCalled();
+    });
   });
 });

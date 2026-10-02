@@ -34,7 +34,7 @@
             size="body"
             autocomplete="username"
             required
-            placeholder="wizard@faerûn.com or your login name"
+            placeholder="wizard@faerûn.com"
           />
         </div>
 
@@ -161,7 +161,7 @@
           </p>
           <RouterLink
             to="/dashboard"
-            class="inline-block mt-2 text-body text-gold-400 hover:text-gold-300 underline"
+            class="inline-block mt-2 text-body text-primary underline hover:text-primary/80"
           >
             Go to your dashboard
           </RouterLink>
@@ -172,7 +172,7 @@
           <p class="text-body text-muted-foreground italic">{{ joinError }}</p>
           <RouterLink
             to="/dashboard"
-            class="inline-block mt-2 text-body text-gold-400 hover:text-gold-300 underline"
+            class="inline-block mt-2 text-body text-primary underline hover:text-primary/80"
           >
             Go to your dashboard
           </RouterLink>

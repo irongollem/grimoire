@@ -9,12 +9,12 @@
     ></div>
 
     <div class="relative z-10 w-full max-w-md">
-      <!-- Grimoire logo / title -->
+      <!-- The lockup is the page's heading; its alt text names it. -->
       <div class="text-center mb-8">
-        <h1 class="font-cinzel text-4xl font-bold text-gold-500 tracking-widest drop-shadow-lg">
-          Grimoire
+        <h1>
+          <BrandLogo class="mx-auto w-72" />
         </h1>
-        <p class="font-fell text-muted-foreground mt-1 italic">Your campaign companion</p>
+        <p class="font-fell text-muted-foreground mt-3 italic">Your campaign companion</p>
       </div>
 
       <!-- Auth card -->
@@ -47,5 +47,6 @@
 </template>
 
 <script setup lang="ts">
+import BrandLogo from "@/components/brand/BrandLogo.vue";
 import { legalUrl } from "@/lib/marketing";
 </script>

@@ -6,6 +6,7 @@ import { TERMS_VERSION } from "@/lib/legal";
 import { signInEmail } from "@edge-shared/childAccount.ts";
 import { CHILD_ACCOUNT_COLUMNS, isActiveChildLink } from "@/lib/childAccount";
 import { accountLabel } from "@/lib/accountLabel";
+import { clearAuthSnapshot, readAuthSnapshot, writeAuthSnapshot } from "@/lib/authSnapshot";
 import type { User, Session } from "@supabase/supabase-js";
 import type { CampaignMember, CampaignRole } from "@/types/campaign.types";
 import type { ChildAccountLink } from "@/types/childAccount.types";
@@ -102,12 +103,48 @@ export const useAuthStore = defineStore("auth", () => {
     () => membership.value?.party_member_id ?? null,
   );
 
+  /**
+   * True when a read that was sent for `userId` comes back after a different
+   * account has signed in. Its answer is then somebody else's and must not
+   * land in the refs, from where the snapshot watcher would save it under the
+   * new account's id.
+   */
+  function answersAnotherAccount(userId: string): boolean {
+    return user.value !== null && user.value.id !== userId;
+  }
+
+  /**
+   * Call before assigning a different user. Membership, username and the child
+   * link describe one account; left in place across a switch that skipped
+   * sign-out (a recovery or invite link opened while someone else is signed
+   * in), they are read as the new account's until its own reads land, and the
+   * watcher below would persist them under its id. The dangerous one is the
+   * child link: a previous adult's "confirmed not a child" would show AI and
+   * billing UI to a child, on this boot and on the next one from the snapshot.
+   * A repeat of the same user (tab focus, a token refresh) keeps everything.
+   */
+  function resetIdentityFor(nextUserId: string) {
+    if (user.value?.id === nextUserId) return;
+    membership.value = null;
+    username.value = null;
+    childLink.value = null;
+    childLinkLoaded.value = false;
+    clearAuthSnapshot();
+  }
+
   async function loadUsername(userId: string) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("username")
       .eq("user_id", userId)
       .single();
+    if (answersAnotherAccount(userId)) return;
+    // A failed read must not read as "no username": the boot now revalidates a
+    // snapshot in the background, and an offline failure would blank a good value.
+    if (error) {
+      console.error("Failed to load username:", error);
+      return;
+    }
     username.value = data?.username ?? null;
   }
 
@@ -128,6 +165,7 @@ export const useAuthStore = defineStore("auth", () => {
       .select(CHILD_ACCOUNT_COLUMNS)
       .eq("child_user_id", userId)
       .maybeSingle();
+    if (answersAnotherAccount(userId)) return;
     if (error) {
       console.error("Failed to load child-account link:", error);
       return;
@@ -148,7 +186,22 @@ export const useAuthStore = defineStore("auth", () => {
       query = query.order("joined_at", { ascending: true }).limit(1);
     }
 
-    const { data } = await query.maybeSingle();
+    const { data, error } = await query.maybeSingle();
+    if (answersAnotherAccount(userId)) return;
+    // Same as loadUsername: an error leaves the current value alone, and skips
+    // the display-name backfill below (there is no row to backfill). But only a
+    // value that answers THIS question may stay. After a campaign switch the
+    // loaded row is the previous campaign's, and keeping it would leave
+    // `isDM` / `currentRole` / `linkedPartyMemberId` reporting that campaign's
+    // role while another one is active, so a failed read for a named campaign
+    // drops a row that belongs to a different one.
+    if (error) {
+      console.error("Failed to load campaign membership:", error);
+      if (campaignId && membership.value && membership.value.campaign_id !== campaignId) {
+        membership.value = null;
+      }
+      return;
+    }
     membership.value = data ?? null;
 
     // Backfill display_name on first login, from the display name supplied at
@@ -178,6 +231,39 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
+  // Persist the identity facts for the next boot (see authSnapshot.ts). Watched
+  // rather than written after each load: the refs are only ever assigned from
+  // successful reads, so a failed load cannot cause a write of nulls never
+  // read. The one thing an error changes is a membership that belongs to
+  // another campaign, which becomes null, and a null membership is a miss for
+  // any boot that names a campaign.
+  // Written only once the child link is known: `childLinkLoaded` is the proxy
+  // for "the trio has answered", so a half-loaded sign-in never persists. A
+  // membership or child link belonging to another account is not persisted
+  // under this one's id; resetIdentityFor is what keeps them from being there
+  // in the first place, and this is the check on the way out.
+  watch(
+    [user, membership, username, childLink, childLinkLoaded],
+    () => {
+      const current = user.value;
+      if (!current) {
+        clearAuthSnapshot();
+        return;
+      }
+      if (!childLinkLoaded.value) return;
+      if (membership.value && membership.value.user_id !== current.id) return;
+      if (childLink.value && childLink.value.child_user_id !== current.id) return;
+      writeAuthSnapshot({
+        v: 1,
+        userId: current.id,
+        membership: membership.value,
+        username: username.value,
+        childLink: childLink.value,
+        childLinkLoaded: childLinkLoaded.value,
+      });
+    },
+  );
+
   let initPromise: Promise<void> | null = null;
   let authListener: { unsubscribe: () => void } | null = null;
 
@@ -195,11 +281,35 @@ export const useAuthStore = defineStore("auth", () => {
         if (user.value) {
           const storedCampaignId =
             localStorage.getItem("grimoire_active_campaign") ?? undefined;
-          await Promise.all([
-            loadMembership(user.value.id, storedCampaignId),
-            loadUsername(user.value.id),
-            loadChildLink(user.value.id),
-          ]);
+          const userId = user.value.id;
+          const loadIdentity = () =>
+            Promise.all([
+              loadMembership(userId, storedCampaignId),
+              loadUsername(userId),
+              loadChildLink(userId),
+            ]);
+          const snapshot = readAuthSnapshot(userId, storedCampaignId);
+          if (snapshot) {
+            // The network used to be the first thing the app waited on for
+            // facts it already had last time. Show the snapshot now and
+            // revalidate behind it; the server is still the boundary for all
+            // of these, so a stale one shows a control that then refuses.
+            membership.value = snapshot.membership;
+            username.value = snapshot.username;
+            childLink.value = snapshot.childLink;
+            childLinkLoaded.value = snapshot.childLinkLoaded;
+            void loadIdentity().catch((err: unknown) => {
+              console.error("Failed to revalidate identity:", err);
+            });
+          } else {
+            await loadIdentity();
+          }
+        } else {
+          // A session that ended without a SIGNED_OUT event (expired while the
+          // app was closed) never reaches signOut() or the listener below, so
+          // this is the only place that removes the last account's facts from
+          // a device somebody else may be about to sign in on.
+          clearAuthSnapshot();
         }
 
         initialized.value = true;
@@ -218,9 +328,16 @@ export const useAuthStore = defineStore("auth", () => {
           //
           // Fix: update synchronous state immediately, then schedule the DB call with
           // setTimeout so it runs after the lock is released.
+          if (newSession?.user) resetIdentityFor(newSession.user.id);
           session.value = newSession;
           user.value = newSession?.user ?? null;
           setCachedUser(user.value);
+          // INITIAL_SESSION is auth-js replaying the session initialize() just
+          // loaded (or is still revalidating), so reloading here doubles the
+          // boot's identity reads for nothing. SIGNED_IN (re-emitted on tab
+          // focus) and TOKEN_REFRESHED still reload: the app leans on them to
+          // notice a membership that changed while it was away.
+          if (user.value && event === "INITIAL_SESSION") return;
           if (user.value) {
             const userId = user.value.id;
             setTimeout(() => {
@@ -235,6 +352,7 @@ export const useAuthStore = defineStore("auth", () => {
             username.value = null;
             childLink.value = null;
             childLinkLoaded.value = false;
+            clearAuthSnapshot();
             // TOKEN_REFRESHED failure, reuse detection, or explicit sign-out — all
             // arrive here as SIGNED_OUT. The router guard will redirect to /login on
             // the next navigation; if we're mid-session we do it immediately.
@@ -278,6 +396,7 @@ export const useAuthStore = defineStore("auth", () => {
       // the onAuthStateChange callback fires asynchronously (via setTimeout) and
       // the player lands on the DM dashboard before membership is loaded.
       if (data.user) {
+        resetIdentityFor(data.user.id);
         user.value = data.user;
         session.value = data.session;
         setCachedUser(data.user);
@@ -382,6 +501,7 @@ export const useAuthStore = defineStore("auth", () => {
     username.value = null;
     childLink.value = null;
     childLinkLoaded.value = false;
+    clearAuthSnapshot();
     setCachedUser(null);
   }
 

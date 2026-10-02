@@ -15,14 +15,14 @@
           autocomplete="username"
           required
           size="body"
-          placeholder="wizard@faerûn.com or your login name"
+          placeholder="wizard@faerûn.com"
         />
       </div>
 
       <div class="space-y-1.5">
         <div class="flex items-baseline justify-between">
           <label class="text-body text-foreground" for="password">Password</label>
-          <RouterLink to="/forgot-password" class="text-caption text-gold-400 hover:text-gold-300 underline">
+          <RouterLink to="/forgot-password" class="text-caption text-primary underline hover:text-primary/80">
             Forgot password?
           </RouterLink>
         </div>
@@ -53,7 +53,7 @@
 
     <p class="mt-6 text-center text-body text-muted-foreground">
       New to Grimoire?
-      <RouterLink :to="signupLink" class="text-gold-400 hover:text-gold-300 underline">
+      <RouterLink :to="signupLink" class="text-primary underline hover:text-primary/80">
         Create an account
       </RouterLink>
     </p>
