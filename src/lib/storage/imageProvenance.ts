@@ -78,7 +78,13 @@ interface PendingEntry {
   waiters: Waiter[];
 }
 
-/** Records already seen. Misses are not cached: a fresh upload registers after its first render. */
+/**
+ * Hits only. This module caches nothing it did not find; the query layer
+ * (`useImageProvenance`) keeps both hits and misses for the session. That is
+ * safe because an image is always registered before its URL is saved or
+ * returned, so a miss observed for a URL does not later become a hit within a
+ * session. A row repaired by the backfill scan shows from the next session.
+ */
 const found = new Map<string, AiProvenance>();
 let pending = new Map<string, PendingEntry>();
 let flushScheduled = false;
@@ -90,15 +96,15 @@ interface ProvenanceRow {
 }
 
 async function fetchChunk(entries: PendingEntry[]): Promise<void> {
-  const stems = [...new Set(entries.map((e) => e.key.stem))];
-  const { data, error } = await supabase
-    .from("image_provenance")
-    .select("bucket, stem, provenance")
-    .in("stem", stems);
+  // The pair is the key, so the arrays are paired one entry per key.
+  const { data, error } = await supabase.rpc("get_image_provenance", {
+    p_buckets: entries.map((e) => e.key.bucket),
+    p_stems: entries.map((e) => e.key.stem),
+  });
   if (error) throw error;
   // No error and no rows array is not an answer PostgREST gives for a select;
   // treating it as "no provenance" would unbadge every image in the batch.
-  if (!data) throw new Error("image_provenance: the query returned neither rows nor an error");
+  if (!data) throw new Error("get_image_provenance: the call returned neither rows nor an error");
   const rows = data as ProvenanceRow[];
   const byKey = new Map<string, AiProvenance>();
   for (const row of rows) byKey.set(cacheKey(row), row.provenance);

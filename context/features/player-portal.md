@@ -120,6 +120,8 @@ Route: `/play/party` (`PlayerPartyView.vue`)
 
 Displays a card grid of all party members plus companions. The player's own character always sorts first with a "You" badge.
 
+**AI badge.** Party member and companion portraits, the group portrait, and every NPC, location, monster and puzzle image in the portal carry the `AI` chip when the image on display was AI-generated. The chip is `AiImageBadge` and asks about the image's URL, not the row: a hand-written NPC with a generated portrait is badged, a generated NPC with an uploaded drawing is not, and a concealed NPC is badged by its disguise portrait's own record. See `context/compliance/provenance-architecture.md` §6a.
+
 **Party member cards show:**
 
 - Portrait with hover zoom

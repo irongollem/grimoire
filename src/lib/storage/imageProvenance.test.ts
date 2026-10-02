@@ -6,15 +6,14 @@ interface Result {
   error: unknown;
 }
 
-const inFn = vi.fn<(column: string, values: string[]) => Promise<Result>>();
-const select = vi.fn((_columns: string) => ({ in: inFn }));
+const rpc = vi.fn<(name: string, args: { p_buckets: string[]; p_stems: string[] }) => Promise<Result>>();
 const upsert = vi.fn<(row: unknown, options: unknown) => Promise<Result>>();
 const eqStem = vi.fn<(column: string, value: string) => Promise<Result>>();
 const eqBucket = vi.fn((_column: string, _value: string) => ({ eq: eqStem }));
 const deleteFn = vi.fn(() => ({ eq: eqBucket }));
-const from = vi.fn((_table: string) => ({ select, upsert, delete: deleteFn }));
+const from = vi.fn((_table: string) => ({ upsert, delete: deleteFn }));
 
-vi.mock("@/lib/supabase", () => ({ supabase: { from: (table: string) => from(table) } }));
+vi.mock("@/lib/supabase", () => ({ supabase: { from: (table: string) => from(table), rpc: (...args: Parameters<typeof rpc>) => rpc(...args) } }));
 
 const PROV: AiProvenance = {
   generatorType: "npc",
@@ -34,7 +33,7 @@ async function load() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  inFn.mockResolvedValue({ data: [], error: null });
+  rpc.mockResolvedValue({ data: [], error: null });
   upsert.mockResolvedValue({ data: null, error: null });
   eqStem.mockResolvedValue({ data: null, error: null });
 });
@@ -93,7 +92,7 @@ describe("registerImageProvenance", () => {
     const { registerImageProvenance, loadImageProvenance } = await load();
     await registerImageProvenance("npcPortraits", "u1/abc.webp", PROV, "u1");
     await expect(loadImageProvenance({ bucket: "npc-portraits", stem: "u1/abc" })).resolves.toEqual(PROV);
-    expect(inFn).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });
 
@@ -115,7 +114,7 @@ describe("clearImageProvenance", () => {
 describe("loadImageProvenance", () => {
   it("coalesces calls made in one tick into a single query", async () => {
     const { loadImageProvenance } = await load();
-    inFn.mockResolvedValue({
+    rpc.mockResolvedValue({
       data: [{ bucket: "npc-portraits", stem: "u1/a", provenance: PROV }],
       error: null,
     });
@@ -124,8 +123,11 @@ describe("loadImageProvenance", () => {
       loadImageProvenance({ bucket: "npc-portraits", stem: "u1/b" }),
       loadImageProvenance({ bucket: "npc-portraits", stem: "u1/a" }),
     ]);
-    expect(inFn).toHaveBeenCalledTimes(1);
-    expect(inFn).toHaveBeenCalledWith("stem", ["u1/a", "u1/b"]);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("get_image_provenance", {
+      p_buckets: ["npc-portraits", "npc-portraits"],
+      p_stems: ["u1/a", "u1/b"],
+    });
     expect(results).toEqual([PROV, null, PROV]);
   });
 
@@ -135,13 +137,13 @@ describe("loadImageProvenance", () => {
       loadImageProvenance({ bucket: "npc-portraits", stem: `u1/${i}` }),
     );
     await Promise.all(calls);
-    expect(inFn).toHaveBeenCalledTimes(3);
-    expect(inFn.mock.calls.map(([, values]) => values.length)).toEqual([100, 100, 50]);
+    expect(rpc).toHaveBeenCalledTimes(3);
+    expect(rpc.mock.calls.map(([, args]) => args.p_stems.length)).toEqual([100, 100, 50]);
   });
 
   it("matches on bucket as well as stem", async () => {
     const { loadImageProvenance } = await load();
-    inFn.mockResolvedValue({
+    rpc.mockResolvedValue({
       data: [{ bucket: "monster-images", stem: "u1/a", provenance: PROV }],
       error: null,
     });
@@ -152,23 +154,23 @@ describe("loadImageProvenance", () => {
     const { loadImageProvenance } = await load();
     await expect(loadImageProvenance({ bucket: "npc-portraits", stem: "u1/x" })).resolves.toBeNull();
     await expect(loadImageProvenance({ bucket: "npc-portraits", stem: "u1/x" })).resolves.toBeNull();
-    expect(inFn).toHaveBeenCalledTimes(2);
+    expect(rpc).toHaveBeenCalledTimes(2);
   });
 
   it("serves a found record from the cache", async () => {
     const { loadImageProvenance } = await load();
-    inFn.mockResolvedValue({
+    rpc.mockResolvedValue({
       data: [{ bucket: "npc-portraits", stem: "u1/a", provenance: PROV }],
       error: null,
     });
     await loadImageProvenance({ bucket: "npc-portraits", stem: "u1/a" });
     await loadImageProvenance({ bucket: "npc-portraits", stem: "u1/a" });
-    expect(inFn).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 
   it("rejects every caller in the batch on a database error", async () => {
     const { loadImageProvenance } = await load();
-    inFn.mockResolvedValue({ data: null, error: new Error("down") });
+    rpc.mockResolvedValue({ data: null, error: new Error("down") });
     const settled = await Promise.allSettled([
       loadImageProvenance({ bucket: "npc-portraits", stem: "u1/a" }),
       loadImageProvenance({ bucket: "npc-portraits", stem: "u1/b" }),

@@ -15,31 +15,29 @@
 
 <script setup lang="ts">
 /*
-  EU AI Act Art 50(4) disclosure — the single read point for `ai_provenance`
+  EU AI Act Art 50(4) disclosure: the display of an AI provenance record
   (see context/compliance/provenance-architecture.md §7). Two variants:
 
-  - `chip`   — small muted overlay for images, on screen only: it never
-               prints (the maintainer's call, 29 Sep 2026; printed cards
-               carry no badge, and the XMP mark stays in the file). Positions itself
-               `absolute bottom-*-right-*` — the host element must be
-               `relative`-positioned (same contract as MiniPortraitOverlay's
-               badge button).
-  - `line`   — quiet inline text for AI-drafted prose, meant to sit next to
-               existing meta text (e.g. JournalCard's `#meta` slot).
+  - `chip`   small muted overlay for images, on screen only: it never prints
+             (the maintainer's call, 29 Sep 2026; printed cards carry no
+             badge, and the XMP mark stays in the file). It positions itself
+             `absolute` in a bottom corner, so the host element must be
+             `relative` (same contract as MiniPortraitOverlay's badge button).
+  - `line`   quiet inline text for AI-drafted prose, meant to sit next to
+             existing meta text (e.g. JournalCard's `#meta` slot).
 
   This component only renders a record it is given. Image badges go through
-`AiImageBadge`, which finds the record by the image's URL.
+  `AiImageBadge`, which finds the record by the image's URL.
 
-Both render nothing when `provenance` is null/undefined — callers decide
-  visibility by whether they pass a provenance object at all (same pattern
-  as `EntityNewDot`'s `isNew` prop), so a generator's own authoring surface
-  simply never mounts this component instead of hiding it conditionally.
+  Both variants render nothing when `provenance` is null or undefined. Callers
+  decide visibility by whether they pass a record at all (same pattern as
+  `EntityNewDot`'s `isNew` prop), so a generator's own authoring surface simply
+  never mounts this component instead of hiding it conditionally.
 
-  `provenance` intentionally accepts a display-only shape rather than the
-  full `AiProvenance` core type — callers with a real `AiProvenance` record
-  (notes, generated entities) pass it straight through; callers with only a
-  provider column (minis) build a minimal literal. Every field is optional:
-  render what's known, omit what isn't.
+  `provenance` intentionally accepts a display-only shape rather than the full
+  `AiProvenance` core type. Callers with a real record (notes) pass it straight
+  through; callers with only a provider column (minis) build a minimal literal.
+  Every field is optional: render what is known, omit what is not.
 */
 import { computed } from "vue";
 import { IconGenerate } from "@/lib/icons";

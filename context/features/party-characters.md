@@ -275,6 +275,8 @@ Accessible only to app admins. Fields:
 
 Also stores: `card_art_url`, `disguise_name`, `disguise_portrait_url`, `disguise_portrait_focal_point`, `is_revealed`, `relationship`, `stat_block` — the full NPC type shape so the hero becomes a proper NPC on import.
 
+**AI badge.** The hall grid and the hero detail page show the small `AI` chip on a portrait that was AI-generated (`AiImageBadge`, fed the portrait URL). Neither `hall_of_heroes` nor `party_members` has a provenance column: provenance is recorded per stored image in `image_provenance`, written at upload from the mark in the file, so a hero imported into a campaign as an NPC keeps its badge because it keeps its image. See `context/compliance/provenance-architecture.md` §6a.
+
 ---
 
 ## Player Portal — Character Management

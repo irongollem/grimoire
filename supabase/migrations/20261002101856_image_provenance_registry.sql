@@ -18,11 +18,18 @@
 -- The row's own ai_provenance keeps exactly one meaning: the prose was drafted
 -- with AI.
 --
--- Reads are open to every signed-in user on purpose. This is disclosure
--- metadata (which model made this picture, and when), and a player has to see
--- it for the images in their DM's campaign. It carries no prompt and no row
--- content. Writes are scoped to the caller's own folder, or to an admin for the
--- canonical srd/ folder.
+-- Reads are own-rows-only, and nothing can list the registry. Every AI image
+-- path in it would otherwise be enumerable by any signed-in account, and the
+-- buckets are public with the unguessable file name as the only thing guarding
+-- a DM's unrevealed art. Everyone else, a player seeing their DM's images
+-- included, looks an image up by its exact key through get_image_provenance(),
+-- which only answers for keys the caller already holds. Writes are scoped to
+-- the caller's own folder, or to an admin for the canonical srd/ folder and for
+-- cleaning up a stranded row.
+--
+-- An owner can remove or rewrite the registry row for their own image. That is
+-- accepted: the registry is the UI's index, the mark in the file is the
+-- disclosure of record, and the backfill scan restores a row from it.
 --
 -- Backfill: image_generation_jobs logs the generated images whose flow wrote to
 -- it, and campaigns.group_portrait_ai_provenance holds the group portrait's
@@ -57,47 +64,69 @@ alter table public.image_provenance enable row level security;
 
 create policy "image_provenance_select" on public.image_provenance
   for select to authenticated
-  using ((select auth.uid()) is not null);
+  using ((select auth.uid()) = user_id or private.is_app_admin());
 
 create policy "image_provenance_insert" on public.image_provenance
   for insert to authenticated
   with check (
-    (select auth.uid()) = user_id
-    and (
-      split_part(stem, '/', 1) = (select auth.uid())::text
-      or private.is_app_admin()
-    )
+    ((select auth.uid()) = user_id and split_part(stem, '/', 1) = (select auth.uid())::text)
+    or private.is_app_admin()
   );
 
 create policy "image_provenance_update" on public.image_provenance
   for update to authenticated
   using (
-    (select auth.uid()) = user_id
-    and (
-      split_part(stem, '/', 1) = (select auth.uid())::text
-      or private.is_app_admin()
-    )
+    ((select auth.uid()) = user_id and split_part(stem, '/', 1) = (select auth.uid())::text)
+    or private.is_app_admin()
   )
   with check (
-    (select auth.uid()) = user_id
-    and (
-      split_part(stem, '/', 1) = (select auth.uid())::text
-      or private.is_app_admin()
-    )
+    ((select auth.uid()) = user_id and split_part(stem, '/', 1) = (select auth.uid())::text)
+    or private.is_app_admin()
   );
 
 create policy "image_provenance_delete" on public.image_provenance
   for delete to authenticated
   using (
-    (select auth.uid()) = user_id
-    and (
-      split_part(stem, '/', 1) = (select auth.uid())::text
-      or private.is_app_admin()
-    )
+    ((select auth.uid()) = user_id and split_part(stem, '/', 1) = (select auth.uid())::text)
+    or private.is_app_admin()
   );
 
-revoke all on public.image_provenance from anon;
+revoke all on public.image_provenance from anon, authenticated;
 grant select, insert, update, delete on public.image_provenance to authenticated;
+
+-- Lookup by exact key. A SECURITY DEFINER function because RLS cannot express
+-- "rows whose key the caller already knows": the select policy admits only the
+-- caller's own rows. This is not an enumeration. The stem ends in an
+-- unguessable file name that the caller must already hold (from an image URL it
+-- was shown), the arrays are matched as exact (bucket, stem) pairs, the batch
+-- is capped, and user_id is never returned.
+create function public.get_image_provenance(p_buckets text[], p_stems text[])
+returns table (bucket text, stem text, provenance jsonb)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if (select auth.uid()) is null then
+    raise exception 'Not signed in' using errcode = '42501';
+  end if;
+  if coalesce(cardinality(p_buckets), 0) <> coalesce(cardinality(p_stems), 0) then
+    raise exception 'p_buckets and p_stems must be the same length' using errcode = '22023';
+  end if;
+  if coalesce(cardinality(p_stems), 0) > 200 then
+    raise exception 'at most 200 keys per call' using errcode = '22023';
+  end if;
+
+  return query
+    select ip.bucket, ip.stem, ip.provenance
+    from unnest(p_buckets, p_stems) as k(bucket, stem)
+    join public.image_provenance ip on ip.bucket = k.bucket and ip.stem = k.stem;
+end;
+$$;
+
+revoke execute on function public.get_image_provenance(text[], text[]) from public, anon;
+grant execute on function public.get_image_provenance(text[], text[]) to authenticated, service_role;
 
 -- ── Backfill ────────────────────────────────────────────────────────────────
 
@@ -177,6 +206,7 @@ from public.image_generation_jobs j
 cross join lateral pg_temp.backfill_location(j.image_url) as loc
 where j.status = 'ready'
   and j.image_url is not null
+  and split_part(pg_temp.backfill_stem(loc.path), '/', 1) = j.user_id::text
 order by loc.bucket, pg_temp.backfill_stem(loc.path), coalesce(j.completed_at, j.created_at)
 on conflict (bucket, stem) do nothing;
 
@@ -189,6 +219,7 @@ select
 from public.campaigns c
 cross join lateral pg_temp.backfill_location(c.group_portrait_url) as loc
 where c.group_portrait_url is not null
+  and split_part(pg_temp.backfill_stem(loc.path), '/', 1) = c.user_id::text
   and c.group_portrait_ai_provenance is not null
   and jsonb_typeof(c.group_portrait_ai_provenance) = 'object'
   and c.group_portrait_ai_provenance ? 'provider'
