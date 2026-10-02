@@ -1,7 +1,7 @@
 <template>
   <div class="mt-2 pt-2 border-t border-border/40">
     <div v-if="isPending" class="flex justify-center py-2">
-      <LoadingSpinner class="h-4 w-4" />
+      <BannerLoader class="h-5" />
     </div>
     <template v-else-if="item">
       <!-- Stat block -->
@@ -83,9 +83,9 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed } from "vue";
 import { useItem, usePlayerVisibleItems } from "@/composables/items/useItems";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {
   ITEM_TYPE_LABELS,

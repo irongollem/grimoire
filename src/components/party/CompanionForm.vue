@@ -55,7 +55,7 @@
             <span class="text-caption text-white italic">{{ portraitUrl ? 'Change' : 'Upload' }}</span>
           </div>
           <div v-if="isUploading" class="absolute inset-0 bg-black/60 flex items-center justify-center rounded-full">
-            <LoadingSpinner class="h-5 w-5" />
+            <BannerLoader class="h-8" />
           </div>
         </div>
 
@@ -244,6 +244,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, reactive, computed } from "vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { IconAddImage, IconClose } from '@/lib/icons';
@@ -265,7 +266,6 @@ import type { StatBlock } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import TraitSection from "@/components/npcs/TraitSection.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import EntityNotesPanel from "@/components/common/EntityNotesPanel.vue";

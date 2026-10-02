@@ -466,6 +466,27 @@
         </div>
       </AppModal>
     </CatalogueSection>
+
+    <CatalogueSection
+      title="BannerLoader"
+      note="The one loading indicator, at every size it is used. Sized by height; the strip count and sway follow the size, so the smallest must still visibly move and the largest must show no seams. LoadingSpinner is the block form: the flag centred with a line under it."
+    >
+      <div class="flex flex-wrap items-end gap-6">
+        <div v-for="h in LOADER_HEIGHTS" :key="h" class="flex flex-col items-center gap-2">
+          <BannerLoader :class="h" />
+          <span class="text-caption-sm text-muted-foreground">{{ h }}</span>
+        </div>
+      </div>
+      <div class="mt-4 flex flex-wrap items-center gap-4 border-t border-border pt-4">
+        <span class="inline-flex items-center gap-2 text-caption text-muted-foreground">
+          <BannerLoader class="h-4" /> Importing 12 monsters…
+        </span>
+        <AppButton variant="primary" size="sm" label="Saving" loading />
+        <AppButton variant="subtle" size="md" label="Saving" loading />
+        <AppButton variant="ghost" size="sm" aria-label="Loading" loading />
+      </div>
+      <LoadingSpinner message="Gathering your minis…" />
+    </CatalogueSection>
   </div>
 </template>
 
@@ -487,6 +508,8 @@ import type { LocationQueryValue } from "vue-router";
 import { IconWand, IconChevronRight, IconDelete, IconClose, IconStar, IconWarning, IconInfo, IconGenerate, IconDM, IconSettings } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
 import AppButton from "@/components/common/AppButton.vue";
+import BannerLoader from "@/components/brand/BannerLoader.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { CHECKBOX_SIZES, CHECKBOX_LABEL_ROLES, CHECKBOX_ACCENTS } from "@/components/common/checkboxVariants";
 import AppInput from "@/components/common/AppInput.vue";
@@ -513,6 +536,9 @@ import {
   type ButtonSize,
 } from "@/components/common/appButtonVariants";
 import { FIELD_SIZES, FIELD_TONES } from "@/components/common/fieldVariants";
+
+// Every height a call site uses, smallest to the loading screen's.
+const LOADER_HEIGHTS = ["h-3", "h-3.5", "h-4", "h-5", "h-6", "h-8", "h-10", "h-14", "h-26"] as const;
 
 const SWITCH_ROWS = [
   { size: "md", label: "GENERATE PORTRAIT ART", labelClass: "font-cinzel text-xs font-bold tracking-widest uppercase text-foreground", note: "IlluminateDofPanel — a panel option row" },

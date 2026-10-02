@@ -135,7 +135,7 @@
                 class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-xs font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                 @click="onEnhance"
               >
-                <IconLoadingAlt v-if="isEnhancing" class="h-3 w-3 animate-spin" />
+                <BannerLoader v-if="isEnhancing" class="h-3" />
                 <IconWand v-else class="h-3 w-3" />
                 Enhance
               </button>
@@ -185,6 +185,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, nextTick, onUnmounted, provide } from "vue";
@@ -196,7 +197,7 @@ import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
 import { useScriptoriumIlluminator } from "@/composables/scriptorium/useScriptoriumIlluminator";
-import { IconLoadingAlt, IconWand } from "@/lib/icons";
+import { IconWand } from "@/lib/icons";
 import {
   useCreateScriptoriumDocument,
   useUpdateScriptoriumDocument,

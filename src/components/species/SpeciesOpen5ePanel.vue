@@ -83,7 +83,7 @@
         v-if="importing"
         class="px-5 py-3 border-t border-border flex items-center gap-2 shrink-0"
       >
-        <LoadingSpinner class="h-4 w-4" />
+        <BannerLoader class="h-4" />
         <span class="text-body text-muted-foreground italic">Importing…</span>
       </div>
     </aside>
@@ -91,6 +91,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { IconClose, IconDownload, IconSearch } from '@/lib/icons';

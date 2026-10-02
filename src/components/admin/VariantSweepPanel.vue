@@ -41,10 +41,7 @@
           class="flex items-center gap-2 rounded-md bg-muted/20 px-2.5 py-1.5"
         >
           <span class="flex-1 min-w-0 text-body text-foreground truncate">{{ row.label }}</span>
-          <IconLoading
-            v-if="row.pending"
-            class="h-3.5 w-3.5 text-muted-foreground animate-spin shrink-0 ml-auto"
-          />
+          <BannerLoader v-if="row.pending" class="h-3.5 ml-auto" />
           <template v-else>
             <span class="text-caption text-muted-foreground shrink-0 w-20 text-right">{{ row.originals }}</span>
             <span class="text-caption text-muted-foreground shrink-0 w-20 text-right">{{ row.complete }}</span>
@@ -57,7 +54,7 @@
       </div>
 
       <p v-if="scanning" class="flex items-center gap-2 text-caption text-muted-foreground">
-        <IconLoading class="h-4 w-4 text-primary animate-spin shrink-0" />
+        <BannerLoader class="h-4" />
         <span>Scanning {{ currentTargetLabel }}…</span>
       </p>
 
@@ -72,7 +69,7 @@
       </template>
 
       <p v-if="backfilling" class="flex items-center gap-2 text-caption text-muted-foreground">
-        <IconLoading class="h-4 w-4 text-primary animate-spin shrink-0" />
+        <BannerLoader class="h-4" />
         <span>healed {{ backfillProgress.healed }} / {{ backfillProgress.total }} ({{ backfillProgress.failed }} failed)</span>
       </p>
       <p
@@ -98,13 +95,13 @@
  * missing one or more variants (`planVariantSweep`), and heal them on demand
  * via the same `healVariants` the organic path uses.
  */
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import {
   sweepTargets, targetLabel, listPathsUnder, planVariantSweep, healVariants,
   type SweepTarget, type MissingVariants,
 } from "@/lib/storage";
-import { IconLoading } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 
 interface SweepRow {

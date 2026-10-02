@@ -55,7 +55,7 @@
         Config update failed: {{ configError }}
       </p>
       <p v-else-if="configPhase === 'applying'" class="flex items-center gap-2 text-caption text-muted-foreground">
-        <Loader2Icon class="h-4 w-4 text-primary animate-spin shrink-0" />
+        <BannerLoader class="h-4" />
         <span>Updating embedding provider configuration…</span>
       </p>
       <!-- Phase 2: the backfill this triggers immediately on success. Same
@@ -73,8 +73,8 @@
 // (see the multi-vendor warning banner in AdminProvidersTab.vue); presenting
 // the choice as one control makes the invalid state unrepresentable in the UI
 // instead of merely caught after the fact.
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed, watch } from "vue";
-import { Loader2Icon } from "@lucide/vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useAdminProviders, PROVIDER_LABELS } from "@/composables/admin/useAdminProviders";

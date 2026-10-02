@@ -6,7 +6,7 @@
     </div>
 
     <div v-if="stats.isPending.value" class="text-center py-4">
-      <div class="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
+      <BannerLoader class="h-8" />
     </div>
 
     <template v-else>
@@ -60,6 +60,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed } from "vue";
 import { useAiUsageStats } from "@/composables/ai/useAiUsageStats";
 

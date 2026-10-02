@@ -36,9 +36,7 @@
             class="text-label shrink-0"
             :class="currentPackId === p.pack_id ? 'text-muted-foreground' : 'text-muted-foreground/50'"
           >v{{ p.pack_version }}</span>
-          <svg v-else class="h-3 w-3 shrink-0 animate-spin text-muted-foreground/50" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 20" />
-          </svg>
+          <BannerLoader v-else class="h-3" />
         </AppButton>
       </div>
       <p
@@ -268,6 +266,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";

@@ -45,7 +45,7 @@
     >
       <!-- Loading -->
       <div v-if="isFetching" class="px-3 py-2 text-caption text-muted-foreground flex items-center gap-2">
-        <IconLoading class="h-3.5 w-3.5 animate-spin" />
+        <BannerLoader class="h-3.5" />
         Searching…
       </div>
 
@@ -83,9 +83,10 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
-import { IconClose, IconLoading, IconSearch } from '@/lib/icons';
+import { IconClose, IconSearch } from '@/lib/icons';
 import { useGlobalSearch } from "@/composables/useGlobalSearch";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { formatCombo, isMacPlatform } from "@/lib/hotkeys";

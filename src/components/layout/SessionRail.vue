@@ -25,7 +25,8 @@
           class="flex min-w-0 flex-1 items-center gap-1.5 text-caption text-muted-foreground"
           :class="row.to ? 'hover:text-foreground transition-colors' : ''"
         >
-          <component :is="row.icon" class="h-3 w-3 shrink-0" :class="row.spin ? 'animate-spin' : ''" aria-hidden="true" />
+          <component :is="row.icon" v-if="row.icon" class="h-3 w-3 shrink-0" aria-hidden="true" />
+          <BannerLoader v-else class="h-3" aria-hidden="true" />
           <span class="truncate">{{ row.label }}</span>
         </component>
       </li>
@@ -34,9 +35,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import BannerLoader from "@/components/brand/BannerLoader.vue";
+import { computed, type Component } from "vue";
 import { RouterLink } from "vue-router";
-import { IconEncounter, IconLoading, IconNavQuests, IconNavSoundboard } from "@/lib/icons";
+import { IconEncounter, IconNavQuests, IconNavSoundboard } from "@/lib/icons";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useRunningEncounters } from "@/composables/encounters/useEncounterLive";
 import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
@@ -67,9 +69,9 @@ const runningChains = computed(
 interface Row {
   key: string;
   label: string;
-  icon: unknown;
+  /** Absent for work in progress, which shows the loader instead. */
+  icon?: Component;
   to?: string;
-  spin?: boolean;
 }
 
 /**
@@ -107,7 +109,7 @@ const rows = computed<Row[]>(() => {
     });
   }
   if (isAnyAiGenerating.value) {
-    out.push({ key: "ai", label: "Writing a draft", icon: IconLoading, spin: true });
+    out.push({ key: "ai", label: "Writing a draft" });
   }
   return out;
 });

@@ -332,7 +332,7 @@
           class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-xs font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
           @click="onEnhance"
         >
-          <IconLoadingAlt v-if="isEnhancing" class="h-3 w-3 animate-spin" />
+          <BannerLoader v-if="isEnhancing" class="h-3" />
           <IconWand v-else class="h-3 w-3" />
           Enhance
         </button>
@@ -377,6 +377,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, reactive, computed, watch, onUnmounted } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { EDITOR_MIN_HEIGHTS, type EditorSize } from "./richTextEditorSizes";
@@ -420,7 +421,7 @@ const ResizableImage = Image.extend({
 import { parseMarkdown, looksLikeMarkdown, sanitizePasteText } from "@/lib/tiptap/markdownToTiptap";
 import { insertionPos } from "@/lib/tiptap/insertionPos";
 import { useTextEnhancement } from "@/ai/useTextEnhancement";
-import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconCalendarDays, IconColumns, IconDelete, IconHighlight, IconImage, IconInsertColumn, IconInsertRow, IconLink, IconList, IconListOrdered, IconListTodo, IconLoadingAlt, IconMinus, IconQuote, IconRedo, IconTable, IconUnderline, IconUndo, IconWand } from '@/lib/icons';
+import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconCalendarDays, IconColumns, IconDelete, IconHighlight, IconImage, IconInsertColumn, IconInsertRow, IconLink, IconList, IconListOrdered, IconListTodo, IconMinus, IconQuote, IconRedo, IconTable, IconUnderline, IconUndo, IconWand } from '@/lib/icons';
 import TextAlign from "@tiptap/extension-text-align";
 import { Columns } from "@/lib/tiptap/Columns";
 import { CalendarEventRef } from "@/lib/tiptap/CalendarEventRef";

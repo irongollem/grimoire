@@ -1,8 +1,7 @@
 <template>
   <div class="flex items-center justify-center" :class="fullPage ? 'min-h-screen' : 'py-12'">
-    <div class="flex flex-col items-center gap-3">
-      <!-- Rotating d20 / arcane circle -->
-      <div class="h-10 w-10 rounded-full border-2 border-gold-700 border-t-gold-400 animate-spin" />
+    <div class="flex flex-col items-center gap-4">
+      <BannerLoader class="h-14" />
       <p v-if="message" class="text-body text-muted-foreground italic">
         {{ message }}
       </p>
@@ -11,6 +10,13 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * A block that is still loading: the bookmark loader, centred, with room around
+ * it and an optional line underneath. For a wait that sits inside a row, a
+ * button or a line of text, use `BannerLoader` itself.
+ */
+import BannerLoader from "@/components/brand/BannerLoader.vue";
+
 defineProps<{
   message?: string;
   fullPage?: boolean;

@@ -63,7 +63,7 @@
             v-if="uploadingSlotId === entry.id || generatingSlotId === entry.id"
             class="absolute inset-0 flex items-center justify-center bg-background/80"
           >
-            <IconLoading class="h-4 w-4 animate-spin text-primary" />
+            <BannerLoader class="h-5" />
           </span>
         </div>
       </div>
@@ -100,9 +100,10 @@
  * `clientWrites: false` in `_shared/storage-policy.ts`, so no browser holds a
  * write path to this bucket at all.
  */
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed, ref, useTemplateRef } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { IconGenerate, IconLoading, IconUpload } from "@/lib/icons";
+import { IconGenerate, IconUpload } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import {

@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref } from "vue";
 import {
   CheckIcon,
   UploadIcon,
   AlertCircleIcon,
-  Loader2Icon,
   Trash2Icon,
   CrosshairIcon,
 } from "@lucide/vue";
@@ -157,10 +157,7 @@ function resolvedFocalPoint() {
       </span>
 
       <div class="shrink-0 flex items-center gap-1">
-        <Loader2Icon
-          v-if="status === 'uploading'"
-          class="h-4 w-4 animate-spin text-muted-foreground"
-        />
+        <BannerLoader v-if="status === 'uploading'" class="h-4" />
         <template v-else>
           <AppButton
             :variant="status === 'error' ? 'destructive' : 'outline'"

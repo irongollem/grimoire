@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref } from "vue";
-import { ImagePlusIcon, Loader2Icon } from "@lucide/vue";
+import { ImagePlusIcon } from "@lucide/vue";
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ function onDrop(event: DragEvent) {
     />
 
     <template v-if="uploading">
-      <Loader2Icon class="h-8 w-8 text-primary animate-spin" />
+      <BannerLoader class="h-10" />
       <p class="font-cinzel text-sm text-primary tracking-wide">
         Converting {{ progressDone }}&thinsp;/&thinsp;{{ progressTotal }}…
       </p>

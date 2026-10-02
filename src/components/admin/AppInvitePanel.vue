@@ -79,7 +79,7 @@
         </h3>
 
         <div v-if="invitesQuery.isPending.value" class="text-center py-4">
-          <div class="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
+          <BannerLoader class="h-8" />
         </div>
 
         <div
@@ -154,7 +154,7 @@
         </h3>
 
         <div v-if="usageStats.isPending.value" class="text-center py-4">
-          <div class="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
+          <BannerLoader class="h-8" />
         </div>
 
         <template v-else>
@@ -200,6 +200,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed } from "vue";
 import { IconAdd, IconCheck, IconCopy, IconDelete, IconShieldCheck } from '@/lib/icons';
 import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/admin/useAppInvites";

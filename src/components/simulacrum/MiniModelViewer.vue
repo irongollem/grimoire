@@ -13,14 +13,14 @@
     />
     <div v-else class="flex h-full w-full items-center justify-center">
       <img v-if="poster" :src="poster" :alt="alt ?? ''" class="h-full w-full object-cover opacity-60" />
-      <IconLoading v-else class="h-6 w-6 animate-spin text-muted-foreground" />
+      <BannerLoader v-else class="h-8" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { onMounted, ref } from "vue";
-import { IconLoading } from "@/lib/icons";
 
 const { src, poster, alt } = defineProps<{
   src: string;

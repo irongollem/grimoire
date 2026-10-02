@@ -21,7 +21,7 @@
       <IconImage v-else class="h-3.5 w-3.5 text-muted-foreground/40 group-hover/thumb:text-muted-foreground transition-colors" />
       <!-- Uploading spinner -->
       <div v-if="isUploadingThumb" class="absolute inset-0 flex items-center justify-center bg-background/70">
-        <div class="w-3 h-3 rounded-full border border-gold-500/60 border-t-transparent animate-spin" />
+        <BannerLoader class="h-4" />
       </div>
     </button>
     <input
@@ -163,6 +163,7 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed, nextTick, ref } from "vue";
 import { IconDelete, IconEdit, IconImage, IconRepeat, IconWarning } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";

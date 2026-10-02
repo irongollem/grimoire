@@ -7,7 +7,8 @@
     <template #actions>
       <ListActionButton
         v-if="hasSetting"
-        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
+        :icon="IconPopulate"
+        :loading="populateMutation.isPending.value"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
@@ -130,7 +131,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { IconAdd, IconCheck, IconGenerate, IconLoading, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
+import { IconAdd, IconCheck, IconGenerate, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
 import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/factions/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
 import { useUiStore } from "@/stores/ui";

@@ -20,7 +20,7 @@ import {
   Keyboard, KeyRound, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
   Shrink,
   Leaf, Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
-  Loader2, LoaderCircle, Lock, LogOut,
+  Lock, LogOut,
   Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
   Moon, MousePointer2, MoveHorizontal, MoveVertical, Music, Music2,
   Navigation, Network,
@@ -66,8 +66,6 @@ export { Settings as IconSettingsAlt }
 export { Sparkles as IconGenerate }    // AI generation — standardized across all generators
 export { BookOpen as IconPopulate }    // populate-from-settings action — standardized
 export { Wand2 as IconWand }           // magic wand (spells, decorative)
-export { Loader2 as IconLoading }
-export { LoaderCircle as IconLoadingAlt }
 export { RefreshCw as IconRefresh }
 export { RotateCcw as IconReset }
 export { Eye as IconReveal }

@@ -9,14 +9,16 @@
 
     <template #actions>
       <ListActionButton
-        :icon="planarMutation.isPending.value ? IconLoading : IconFaction"
+        :icon="IconFaction"
+        :loading="planarMutation.isPending.value"
         :label="planarMutation.isPending.value ? 'Populating…' : 'Populate Planes'"
         tooltip="Add the planes of existence as places"
         :disabled="planarMutation.isPending.value"
         @click="handlePopulatePlanes"
       />
       <ListActionButton
-        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
+        :icon="IconPopulate"
+        :loading="populateMutation.isPending.value"
         :label="populateMutation.isPending.value ? 'Populating…' : 'Populate Setting'"
         tooltip="Add the well-known places of your campaign's setting"
         :disabled="populateMutation.isPending.value"
@@ -59,7 +61,7 @@
 import { computed } from "vue";
 import { useToast } from "@/composables/useToast";
 import { pluralizeCount } from "@/lib/utils";
-import { IconAdd, IconFaction, IconGenerate, IconLoading, IconPopulate } from '@/lib/icons';
+import { IconAdd, IconFaction, IconGenerate, IconPopulate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";

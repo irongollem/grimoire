@@ -14,7 +14,7 @@
         </p>
       </div>
       <div v-if="isLoading" class="p-4 flex items-center justify-center">
-        <IconLoading class="size-4 animate-spin text-muted-foreground" />
+        <BannerLoader class="h-6" />
       </div>
       <div v-else-if="availableSources === undefined || availableSources.length === 0" class="p-4">
         <p class="text-caption text-muted-foreground italic">{{ emptyMessage }}</p>
@@ -52,7 +52,7 @@
       {{ description }}
     </p>
     <div v-if="isLoading" class="flex items-center justify-center py-6">
-      <IconLoading class="size-5 animate-spin text-muted-foreground" />
+      <BannerLoader class="h-8" />
     </div>
     <p v-else-if="availableSources === undefined || availableSources.length === 0" class="py-4 text-body italic text-muted-foreground">
       {{ emptyMessage }}
@@ -83,10 +83,10 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { onClickOutside } from "@vueuse/core";
-import { IconLoading } from "@/lib/icons";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import {
   useEnabledSources,

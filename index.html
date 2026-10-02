@@ -65,37 +65,39 @@
     <div id="app">
       <div id="boot-splash" aria-label="Loading…">
         <img id="boot-logo" src="/brand/logo-light.webp" alt="Dungeon Grimoire" width="960" height="222" />
-        <div class="dg-flag" role="status" aria-label="Loading">
+        <span class="dg-flag" role="status" aria-label="Loading">
           <span class="dg-flag__rod"></span>
-          <span class="dg-flag__strip" style="--i:0"></span>
-          <span class="dg-flag__strip" style="--i:1"></span>
-          <span class="dg-flag__strip" style="--i:2"></span>
-          <span class="dg-flag__strip" style="--i:3"></span>
-          <span class="dg-flag__strip" style="--i:4"></span>
-          <span class="dg-flag__strip" style="--i:5"></span>
-          <span class="dg-flag__strip" style="--i:6"></span>
-          <span class="dg-flag__strip" style="--i:7"></span>
-          <span class="dg-flag__strip" style="--i:8"></span>
-          <span class="dg-flag__strip" style="--i:9"></span>
-          <span class="dg-flag__strip" style="--i:10"></span>
-          <span class="dg-flag__strip" style="--i:11"></span>
-          <span class="dg-flag__strip" style="--i:12"></span>
-          <span class="dg-flag__strip" style="--i:13"></span>
-          <span class="dg-flag__strip" style="--i:14"></span>
-          <span class="dg-flag__strip" style="--i:15"></span>
-          <span class="dg-flag__strip" style="--i:16"></span>
-          <span class="dg-flag__strip" style="--i:17"></span>
-          <span class="dg-flag__strip" style="--i:18"></span>
-          <span class="dg-flag__strip" style="--i:19"></span>
-          <span class="dg-flag__strip" style="--i:20"></span>
-          <span class="dg-flag__strip" style="--i:21"></span>
-          <span class="dg-flag__strip" style="--i:22"></span>
-          <span class="dg-flag__strip" style="--i:23"></span>
-          <span class="dg-flag__strip" style="--i:24"></span>
-          <span class="dg-flag__strip" style="--i:25"></span>
-          <span class="dg-flag__strip" style="--i:26"></span>
-          <span class="dg-flag__strip" style="--i:27"></span>
-        </div>
+          <span class="dg-flag__cloth">
+            <span class="dg-flag__strip" style="--i:0"></span>
+            <span class="dg-flag__strip" style="--i:1"></span>
+            <span class="dg-flag__strip" style="--i:2"></span>
+            <span class="dg-flag__strip" style="--i:3"></span>
+            <span class="dg-flag__strip" style="--i:4"></span>
+            <span class="dg-flag__strip" style="--i:5"></span>
+            <span class="dg-flag__strip" style="--i:6"></span>
+            <span class="dg-flag__strip" style="--i:7"></span>
+            <span class="dg-flag__strip" style="--i:8"></span>
+            <span class="dg-flag__strip" style="--i:9"></span>
+            <span class="dg-flag__strip" style="--i:10"></span>
+            <span class="dg-flag__strip" style="--i:11"></span>
+            <span class="dg-flag__strip" style="--i:12"></span>
+            <span class="dg-flag__strip" style="--i:13"></span>
+            <span class="dg-flag__strip" style="--i:14"></span>
+            <span class="dg-flag__strip" style="--i:15"></span>
+            <span class="dg-flag__strip" style="--i:16"></span>
+            <span class="dg-flag__strip" style="--i:17"></span>
+            <span class="dg-flag__strip" style="--i:18"></span>
+            <span class="dg-flag__strip" style="--i:19"></span>
+            <span class="dg-flag__strip" style="--i:20"></span>
+            <span class="dg-flag__strip" style="--i:21"></span>
+            <span class="dg-flag__strip" style="--i:22"></span>
+            <span class="dg-flag__strip" style="--i:23"></span>
+            <span class="dg-flag__strip" style="--i:24"></span>
+            <span class="dg-flag__strip" style="--i:25"></span>
+            <span class="dg-flag__strip" style="--i:26"></span>
+            <span class="dg-flag__strip" style="--i:27"></span>
+          </span>
+        </span>
       </div>
     </div>
     <style>
@@ -115,34 +117,36 @@
         height: auto;
       }
       #boot-splash .dg-flag {
-        --w: 44px;
-        --h: calc(var(--w) * 2.17);
         --n: 28;
+        --sway: 10%;
         --period: 1.8s;
-        --sway: calc(var(--w) * 0.1);
         position: relative;
-        width: var(--w);
-        height: var(--h);
-        margin-top: calc(var(--w) * 0.167);
+        display: inline-block;
+        flex: none;
+        height: 6.5rem;
+        aspect-ratio: 1 / 2.337;
       }
       #boot-splash .dg-flag__rod {
         position: absolute;
         z-index: 2;
-        left: calc(var(--w) * -0.1235);
-        top: calc(var(--w) * -0.167);
-        width: calc(var(--w) * 1.247);
-        height: calc(var(--w) * 0.167);
+        left: -12.35%;
+        top: 0;
+        width: 124.7%;
+        height: 7.146%;
         background: url("/brand/bookmark-rod.webp") 0 0 / 100% 100% no-repeat;
+      }
+      #boot-splash .dg-flag__cloth {
+        position: absolute;
+        inset: 7.146% 0 0;
       }
       #boot-splash .dg-flag__strip {
         --t: calc(var(--i) / var(--n));
-        --o: 2px;
         position: absolute;
         left: 0;
         width: 100%;
-        top: calc(var(--h) * var(--i) / var(--n) - var(--o));
-        height: calc(var(--h) / var(--n) + 2 * var(--o));
-        background: url("/brand/bookmark-cloth.webp") 0 calc(var(--h) * var(--i) / var(--n) * -1 + var(--o)) / var(--w) var(--h) no-repeat;
+        top: calc((var(--i) - 0.6) * 100% / var(--n));
+        height: calc(220% / var(--n));
+        background: url("/brand/bookmark-cloth.webp") 0 calc((var(--i) - 0.6) / (var(--n) - 2.2) * 100%) / 100% calc(var(--n) / 2.2 * 100%) no-repeat;
         animation: boot-flag-sway var(--period) ease-in-out infinite;
         animation-delay: calc(var(--period) * var(--t) * -0.9);
       }

@@ -59,7 +59,7 @@
                 <p class="text-caption text-muted-foreground mt-0.5">Leave all unchecked to import everything.</p>
               </div>
               <div v-if="docsLoading" class="p-3 flex items-center justify-center">
-                <IconLoading class="size-4 animate-spin text-muted-foreground" />
+                <BannerLoader class="h-6" />
               </div>
               <div v-else class="p-2 flex flex-col gap-0.5">
                 <AppCheckbox
@@ -80,7 +80,8 @@
             </div>
           </div>
           <ListActionButton
-            :icon="bgImportMutation.isPending.value ? IconLoading : IconDownload"
+            :icon="IconDownload"
+            :loading="bgImportMutation.isPending.value"
             :label="bgImportStatusLabel"
             :disabled="bgImportMutation.isPending.value"
             @click="handleBgImport"
@@ -97,7 +98,8 @@
         <!-- Classes tab -->
         <template v-if="activeTab === 'classes'">
           <ListActionButton
-            :icon="classImportMutation.isPending.value ? IconLoading : IconDownload"
+            :icon="IconDownload"
+            :loading="classImportMutation.isPending.value"
             :label="classImportLabel"
             :disabled="classImportMutation.isPending.value"
             @click="handleClassImport"
@@ -114,7 +116,8 @@
         <!-- Archetypes tab -->
         <template v-if="activeTab === 'archetypes'">
           <ListActionButton
-            :icon="archetypeImportMutation.isPending.value ? IconLoading : IconDownload"
+            :icon="IconDownload"
+            :loading="archetypeImportMutation.isPending.value"
             :label="archetypeImportLabel"
             :disabled="archetypeImportMutation.isPending.value"
             @click="handleArchetypeImport"
@@ -131,7 +134,8 @@
         <!-- Abilities tab -->
         <template v-if="activeTab === 'abilities'">
           <ListActionButton
-            :icon="abilityImporting ? IconLoading : IconDownload"
+            :icon="IconDownload"
+            :loading="abilityImporting"
             :label="abilityImportLabel"
             :disabled="abilityImporting"
             @click="handleAbilityImport"
@@ -220,11 +224,12 @@
 </template>
 
 <script setup lang="ts">
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { onClickOutside } from "@vueuse/core";
-import { IconAdd, IconBookUser, IconCheck, IconDownload, IconLevel, IconLightning, IconLoading, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
+import { IconAdd, IconBookUser, IconCheck, IconDownload, IconLevel, IconLightning, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
 import TabBar from "@/components/common/TabBar.vue";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";

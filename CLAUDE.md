@@ -475,6 +475,9 @@ A new `<button class="px-2 py-0.5 border rounded …">` or `<input class="bg-mut
 | `<input type="checkbox">` — any, labelled or not      | `AppCheckbox` — size + labelRole + accent (#751) |
 | A coloured pill whose colour means something          | `AppButton variant="tinted"` + `tone` + `emphasis` |
 | A toggle/segmented picker                             | `AppButton :active` or `SegmentedControl`   |
+| A spinner: `animate-spin`, a ring, a lucide loader    | `BannerLoader` (sized by height); in a button, `AppButton :loading`; for a whole block, `LoadingSpinner` |
+
+The waving bookmark flag is the app's only loading indicator, at every size from a 12px button glyph to the loading screen; `loadingIndicator.test.ts` fails the suite if anything spins again, and holds the static boot splash in `index.html` equal to the component.
 
 Every variant is rendered at `/dev/components` — open it rather than guessing which one matches. If none does, add a variant to `appButtonVariants.ts` / `fieldVariants.ts` / `checkboxVariants.ts` (the compile-time assertion forces it into the catalogue); do **not** fall back to a class string. A raw `<button>`/`<input>` is fine only when it carries *no* chrome — a bare word of clickable text, or a radio/file input. Checkboxes are **not** in that exception: the original carve-out assumed a checkbox carries no chrome, and measurement (#751, 21 Aug 2026) found 100 of them in twelve visual states — they route through `AppCheckbox`, whose one deliberate raw survivor (the `sr-only` travel chip in `EventModalTravelFields`) is named in its docstring.
 

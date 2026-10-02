@@ -8,7 +8,8 @@
       <!-- Features tab actions -->
       <template v-if="activeTab === 'features'">
         <ListActionButton
-          :icon="featuresPopulate.isPending.value ? IconLoading : IconPopulate"
+          :icon="IconPopulate"
+          :loading="featuresPopulate.isPending.value"
           :label="featuresPopulateLabel"
           :disabled="featuresPopulate.isPending.value"
           @click="handleFeaturesPopulate"
@@ -25,7 +26,8 @@
       <!-- Traps tab actions -->
       <template v-else-if="activeTab === 'traps'">
         <ListActionButton
-          :icon="trapsPopulate.isPending.value ? IconLoading : IconPopulate"
+          :icon="IconPopulate"
+          :loading="trapsPopulate.isPending.value"
           :label="trapsPopulateLabel"
           :disabled="trapsPopulate.isPending.value"
           @click="handleTrapsPopulate"
@@ -49,7 +51,8 @@
       <template v-else-if="activeTab === 'roll-tables'">
         <template v-if="!rollTablesTabRef?.selectedRollTableId && !rollTablesTabRef?.inlineNewRollTable">
           <ListActionButton
-            :icon="rollTablesPopulate.isPending.value ? IconLoading : IconPopulate"
+            :icon="IconPopulate"
+            :loading="rollTablesPopulate.isPending.value"
             :label="rollTablesPopulateLabel"
             :disabled="rollTablesPopulate.isPending.value"
             @click="handleRollTablesPopulate"
@@ -108,7 +111,8 @@
       <!-- Puzzles tab actions -->
       <template v-else>
         <ListActionButton
-          :icon="puzzlesPopulate.isPending.value ? IconLoading : IconPopulate"
+          :icon="IconPopulate"
+          :loading="puzzlesPopulate.isPending.value"
           :label="puzzlesPopulateLabel"
           :disabled="puzzlesPopulate.isPending.value"
           @click="handlePuzzlesPopulate"
@@ -145,7 +149,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconGenerate, IconLoading, IconPopulate } from '@/lib/icons';
+import { IconAdd, IconGenerate, IconPopulate } from '@/lib/icons';
 
 import { usePopulateDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
 import { usePopulateTraps } from "@/composables/dungeon-features/useTraps";
