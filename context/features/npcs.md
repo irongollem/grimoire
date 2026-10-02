@@ -253,6 +253,7 @@ An NPC can have a parallel identity:
 
 - `disguise_name` — the name shown to players while concealed
 - `disguise_portrait_url` / `disguise_portrait_focal_point` — separate portrait for the false identity
+- The disguise portrait has its own AI provenance, because provenance is recorded per stored image (`image_provenance`, #935) and not on the NPC row. `npcs.ai_provenance` only says the NPC's prose was drafted with AI.
 - `is_revealed` — DM-controlled flag; when `false` the disguise name/portrait is shown to players instead of the true form
 
 The DM always sees both identities. The page title and list card show the disguise name when `is_revealed` is `false`. The `getNpcDisplayName`, `getNpcDisplayPortrait`, and `getNpcDisplayFocalPoint` helpers in `src/lib/npcDisplay.ts` centralise this logic.

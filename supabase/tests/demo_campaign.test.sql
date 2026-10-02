@@ -15,7 +15,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(65);
+select plan(66);
 
 -- ── Structure ───────────────────────────────────────────────────────────────
 
@@ -229,6 +229,14 @@ insert into public.soundboard_pages (id, user_id, campaign_id, name) values
 insert into public.sounds (id, user_id, campaign_id, name, file_url, page_id) values
   ('91200000-0000-4000-8000-000000000071', '91200000-0000-4000-8000-000000000001',
    '91200000-0000-4000-8000-000000000010', 'The Crew Round', 'https://cdn.example.invalid/sound-files/demo/crew-round.mp3',
+   '91200000-0000-4000-8000-000000000070');
+-- A generated track: the music generator names the file after the sound's own
+-- row id, under the author's folder.
+insert into public.sounds (id, user_id, campaign_id, name, file_url, storage_path, page_id) values
+  ('91200000-0000-4000-8000-000000000073', '91200000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000010', 'Floss''s Inn',
+   'https://cdn.example.invalid/sounds/91200000-0000-4000-8000-000000000001/ai/91200000-0000-4000-8000-000000000073.mp3',
+   '91200000-0000-4000-8000-000000000001/ai/91200000-0000-4000-8000-000000000073.mp3',
    '91200000-0000-4000-8000-000000000070');
 insert into public.soundboard_playlists (id, user_id, campaign_id, name, playlist_type, page_id) values
   ('91200000-0000-4000-8000-000000000072', '91200000-0000-4000-8000-000000000001',
@@ -514,6 +522,19 @@ select is(
     where p.campaign_id = (select campaign from demo_ids) and s.campaign_id = p.campaign_id),
   'https://cdn.example.invalid/sound-files/demo/crew-round.mp3',
   'the playlist track joins the copied playlist to the copied sound, which still plays the shared file'
+);
+
+-- A file named after its own row is still the author's file. The copy's sound
+-- has a new id, and rewriting that id inside the path sent every generated
+-- track in every copy to a file that does not exist (20261002112422).
+select is(
+  (select row(s.id <> '91200000-0000-4000-8000-000000000073', s.file_url, s.storage_path)::text
+     from public.sounds s
+    where s.campaign_id = (select campaign from demo_ids) and s.name = 'Floss''s Inn'),
+  row(true,
+      'https://cdn.example.invalid/sounds/91200000-0000-4000-8000-000000000001/ai/91200000-0000-4000-8000-000000000073.mp3',
+      '91200000-0000-4000-8000-000000000001/ai/91200000-0000-4000-8000-000000000073.mp3')::text,
+  'a generated track keeps its file path, although the file is named after the row the copy renumbered'
 );
 
 select is(

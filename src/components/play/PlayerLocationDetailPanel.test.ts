@@ -1,5 +1,21 @@
-import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { mount, flushPromises } from "@vue/test-utils";
+import { describe, expect, it, vi } from "vitest";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+
+// The registry answers by image URL; only URLs listed here have a record.
+const registered = vi.hoisted(() => new Set<string>());
+
+vi.mock("@/lib/storage", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/storage")>()),
+  imageProvenanceKey: (url: string) => (url.startsWith("https://cdn.test/") ? { bucket: "b", stem: url } : null),
+  loadImageProvenance: vi.fn(async (key: { stem: string }) =>
+    registered.has(key.stem) ? { model: "gpt-image", generatedAt: "2026-09-01T10:00:00Z" } : null,
+  ),
+}));
+
+function queryPlugin(): [typeof VueQueryPlugin, { queryClient: QueryClient }] {
+  return [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }];
+}
 import PlayerLocationDetailPanel from "./PlayerLocationDetailPanel.vue";
 import type { Location } from "@/types/location.types";
 
@@ -16,6 +32,7 @@ function panel(over: Record<string, unknown>) {
   return mount(PlayerLocationDetailPanel, {
     props: { loc, sharedChildIds: new Set<string>() },
     global: {
+      plugins: [queryPlugin()],
       stubs: {
         FocalImage: true,
         PlayerSiteMap: true,
@@ -29,15 +46,26 @@ function panel(over: Record<string, unknown>) {
 }
 
 describe("PlayerLocationDetailPanel AI badge", () => {
-  it("badges the sigil image when the location has provenance", () => {
-    expect(panel({ ai_provenance: { model: "gpt-image" } }).text()).toContain("AI");
+  it("badges a registered image even when the row has no ai_provenance", async () => {
+    registered.clear();
+    registered.add("https://cdn.test/sugarwell.webp");
+    const w = panel({ ai_provenance: null });
+    await flushPromises();
+    expect(w.text()).toContain("AI");
   });
 
-  it("shows no badge without provenance", () => {
-    expect(panel({ ai_provenance: null }).text()).not.toContain("AI");
+  it("shows no badge for an unregistered image even when the row has ai_provenance", async () => {
+    registered.clear();
+    const w = panel({ ai_provenance: { model: "gpt-image" } });
+    await flushPromises();
+    expect(w.text()).not.toContain("AI");
   });
 
-  it("shows no badge when there is no image", () => {
-    expect(panel({ image_url: null, ai_provenance: { model: "gpt-image" } }).text()).not.toContain("AI");
+  it("shows no badge when there is no image", async () => {
+    registered.clear();
+    registered.add("https://cdn.test/sugarwell.webp");
+    const w = panel({ image_url: null });
+    await flushPromises();
+    expect(w.text()).not.toContain("AI");
   });
 });

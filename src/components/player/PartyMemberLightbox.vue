@@ -25,7 +25,7 @@
 
               <!-- Left column: portrait + identity + stats -->
               <div class="sm:w-56 shrink-0 sm:border-r border-border">
-                <div v-if="member.portrait_url" class="w-full h-52 sm:h-auto sm:aspect-3/4 overflow-hidden">
+                <div v-if="member.portrait_url" class="relative w-full h-52 sm:h-auto sm:aspect-3/4 overflow-hidden">
                   <FocalImage
                     :src="member.portrait_url"
                     :alt="member.name"
@@ -33,6 +33,7 @@
                     :focal-point="member.portrait_focal_point ?? null"
                     class="w-full h-full"
                   />
+                  <AiImageBadge :src="member.portrait_url" />
                 </div>
                 <div class="p-3 space-y-2">
                   <!-- You badge + name + class/level -->
@@ -199,6 +200,7 @@ import { ref, computed } from "vue";
 import { IconClose, IconShield } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";

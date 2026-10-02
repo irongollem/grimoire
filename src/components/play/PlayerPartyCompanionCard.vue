@@ -21,6 +21,7 @@
         class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded bg-black/60 text-white italic"
         title="Not with the party right now"
       >Elsewhere</span>
+      <AiImageBadge :src="companion.portrait_url" />
     </div>
     <div class="p-2.5 flex flex-col gap-1.5">
       <div>
@@ -63,6 +64,7 @@
 
 <script setup lang="ts">
 import { IconShield } from "@/lib/icons";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useHpDisplay } from "@/composables/play/useHpDisplay";
 import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";

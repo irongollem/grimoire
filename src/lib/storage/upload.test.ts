@@ -1,6 +1,28 @@
-import { describe, it, expect } from "vitest";
-import { readEmbeddedXmp, inheritXmpIntoVariant, canBackfill } from "./upload";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { buildXmpPacket } from "@edge-shared/provenance/xmp.ts";
+import type { AiProvenance } from "@edge-shared/provenance/types.ts";
+import { readEmbeddedXmp, inheritXmpIntoVariant, canBackfill, uploadToBucket, uploadWithVariants } from "./upload";
 import { embedXmpInWebp, embedXmpInPng, readXmpFromWebp } from "@edge-shared/provenance/embed.ts";
+
+const storageUpload = vi.fn(async () => ({ data: null, error: null as { message: string } | null }));
+const registerImageProvenance = vi.fn<(...args: unknown[]) => Promise<void>>(async () => undefined);
+const clearImageProvenance = vi.fn<(...args: unknown[]) => Promise<void>>(async () => undefined);
+
+vi.mock("@/lib/supabase", () => ({
+  supabase: { storage: { from: vi.fn((id: string) => ({
+        upload: storageUpload,
+        getPublicUrl: (path: string) => ({ data: { publicUrl: `https://ref.supabase.co/storage/v1/object/public/${id}/${path}` } }),
+      })) } },
+  getCurrentUser: () => ({ id: "session-user" }),
+}));
+vi.mock("./imageProvenance", () => ({
+  registerImageProvenance: (...args: unknown[]) => registerImageProvenance(...args),
+  clearImageProvenance: (...args: unknown[]) => clearImageProvenance(...args),
+}));
+vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: vi.fn() }));
+vi.mock("@/lib/mediaConvert", () => ({
+  resizeToWebP: async (blob: Blob) => blob,
+}));
 
 // Minimal fixture builders — independently transcribed (not imported from
 // embed.ts's own test file), mirroring the pattern already used across
@@ -149,5 +171,93 @@ describe("canBackfill", () => {
     expect(canBackfill("itemImages", "srd/x.webp", USER, true)).toBe(false);
     // mini-models is service-managed: clientWrites false blocks even bases/.
     expect(canBackfill("miniModels", "bases/round25.stl", USER, true)).toBe(false);
+  });
+});
+
+describe("image provenance registration (#935)", () => {
+  const PROV: AiProvenance = {
+    generatorType: "npc-portrait",
+    provider: "openai",
+    model: "gpt-image-1",
+    generatedAt: "2026-10-02T10:00:00.000Z",
+    edited: false,
+  };
+
+  function markedWebp(): Blob {
+    const bytes = embedXmpInWebp(buildMinimalWebp(), buildXmpPacket(PROV));
+    return new Blob([toBlobPart(bytes)], { type: "image/webp" });
+  }
+  function plainWebp(): Blob {
+    return new Blob([buildMinimalWebp()], { type: "image/webp" });
+  }
+
+  beforeEach(() => {
+    storageUpload.mockClear();
+    storageUpload.mockResolvedValue({ data: null, error: null });
+    registerImageProvenance.mockClear();
+    registerImageProvenance.mockResolvedValue(undefined);
+    clearImageProvenance.mockClear();
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+
+  it("uploadToBucket registers a marked image once, with the parsed provenance and path", async () => {
+    const url = await uploadToBucket({ bucket: "npcPortraits", blob: markedWebp(), userId: "u1" });
+    expect(url).not.toBeNull();
+    expect(registerImageProvenance).toHaveBeenCalledTimes(1);
+    const [bucket, path, prov, owner] = registerImageProvenance.mock.calls[0];
+    expect(bucket).toBe("npcPortraits");
+    expect(path).toMatch(/^u1\/[0-9a-f-]+\.webp$/);
+    expect(prov).toMatchObject({ model: PROV.model, provider: PROV.provider });
+    expect(owner).toBe("u1");
+    expect(clearImageProvenance).not.toHaveBeenCalled();
+  });
+
+  it("uploadToBucket registers nothing for an unmarked image at a fresh path", async () => {
+    await uploadToBucket({ bucket: "npcPortraits", blob: plainWebp(), userId: "u1" });
+    expect(registerImageProvenance).not.toHaveBeenCalled();
+    expect(clearImageProvenance).not.toHaveBeenCalled();
+  });
+
+  it("uploadToBucket clears the row when an unmarked image overwrites a path", async () => {
+    await uploadToBucket({ bucket: "npcPortraits", blob: plainWebp(), path: "u1/fixed.webp", upsert: true });
+    expect(clearImageProvenance).toHaveBeenCalledWith("npcPortraits", "u1/fixed.webp");
+    expect(registerImageProvenance).not.toHaveBeenCalled();
+  });
+
+  it("uploadToBucket never reads a non-image blob for XMP", async () => {
+    const audio = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" });
+    const spy = vi.spyOn(audio, "arrayBuffer");
+    await uploadToBucket({ bucket: "sounds", blob: audio, path: "u1/a.mp3", upsert: true });
+    expect(spy).not.toHaveBeenCalled();
+    expect(registerImageProvenance).not.toHaveBeenCalled();
+    expect(clearImageProvenance).not.toHaveBeenCalled();
+  });
+
+  it("uploadToBucket still returns the URL when registration fails", async () => {
+    registerImageProvenance.mockRejectedValue(new Error("db down"));
+    const url = await uploadToBucket({ bucket: "npcPortraits", blob: markedWebp(), userId: "u1" });
+    expect(url).not.toBeNull();
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it("uploadWithVariants registers the original's path only, once", async () => {
+    const url = await uploadWithVariants({ bucket: "npcPortraits", blob: markedWebp(), userId: "u1" });
+    expect(url).not.toBeNull();
+    expect(registerImageProvenance).toHaveBeenCalledTimes(1);
+    const [, path] = registerImageProvenance.mock.calls[0];
+    expect(path).not.toMatch(/_w\d+/);
+    // original plus four variants were stored
+    expect(storageUpload).toHaveBeenCalledTimes(5);
+  });
+
+  it("uploadWithVariants registers nothing for an unmarked image", async () => {
+    await uploadWithVariants({ bucket: "npcPortraits", blob: plainWebp(), userId: "u1" });
+    expect(registerImageProvenance).not.toHaveBeenCalled();
+  });
+
+  it("uploadWithVariants still returns the URL when registration fails", async () => {
+    registerImageProvenance.mockRejectedValue(new Error("db down"));
+    const url = await uploadWithVariants({ bucket: "npcPortraits", blob: markedWebp(), userId: "u1" });
+    expect(url).not.toBeNull();
   });
 });

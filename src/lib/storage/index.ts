@@ -13,6 +13,7 @@
  *   remove.ts   deletes, by path and by public URL
  *   deleteUnreferenced.ts  delete-by-URL, but only when nothing else refers to it
  *   list.ts     merged both-stores enumeration of a user's own objects
+ *   imageProvenance.ts  per-image AI provenance registry (#935)
  *   r2.ts       the R2 transport: presigned PUTs, deletes and listing
  */
 
@@ -58,3 +59,11 @@ export {
 
 export { listOwnedPaths, listPathsUnder } from "./list";
 export { planVariantSweep, sweepTargets, targetLabel, type SweepPlan, type SweepTarget, type MissingVariants } from "./sweep";
+
+export {
+  imageProvenanceKey,
+  registerImageProvenance,
+  clearImageProvenance,
+  loadImageProvenance,
+  type ImageProvenanceKey,
+} from "./imageProvenance";

@@ -11,7 +11,7 @@
             :focal-point="monster?.portrait_focal_point"
             class="group-hover:scale-105 transition-transform duration-300"
           />
-          <AiGeneratedBadge variant="chip" :provenance="aiProvenance" />
+          <AiImageBadge :src="imageUrl" />
         </template>
         <div
           v-else
@@ -53,8 +53,7 @@
 
 <script setup lang="ts">
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
-import type { AiProvenance } from "@/ai/provenance";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 // `PlayerVisibleMonster` rather than `Monster` (#842): this card renders on
 // player surfaces, where the projection nulls `stat_block` for an unrevealed
 // creature. A full `Monster` still satisfies it, so DM callers are unaffected —
@@ -67,8 +66,6 @@ defineProps<{
   monster: PlayerVisibleMonster | null;
   name: string;
   imageUrl: string | null;
-  /** Provenance of the creature's art; set by player surfaces, where the viewer did not generate it. */
-  aiProvenance?: AiProvenance | null;
   revealStats?: boolean;
 }>();
 </script>

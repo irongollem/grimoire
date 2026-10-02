@@ -59,3 +59,50 @@ export function buildXmpPacket(prov: AiProvenance): string {
     `<?xpacket end="w"?>`
   );
 }
+
+function unescapeXml(value: string): string {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+/** Value of `name="..."` inside the packet, unescaped, or null when absent. */
+function attributeOf(packet: string, name: string): string | null {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = new RegExp(`(?:^|\\s)${escapedName}="([^"]*)"`).exec(packet);
+  return match ? unescapeXml(match[1]) : null;
+}
+
+const CREATOR_TOOL_PATTERN = /^Grimoire AI \(([\s\S]*)\)$/;
+
+/**
+ * Inverse of `buildXmpPacket`. Returns the provenance only when the packet
+ * carries the IPTC trainedAlgorithmicMedia source type AND every `grimoire:`
+ * field, so a camera's XMP or any other tool's packet reads as "not ours"
+ * (null) rather than as a half-filled record. Never throws.
+ */
+export function parseXmpPacket(packet: string): AiProvenance | null {
+  try {
+    if (typeof packet !== "string") return null;
+    if (attributeOf(packet, "Iptc4xmpExt:DigitalSourceType") !== DIGITAL_SOURCE_TYPE_TRAINED_ALGORITHMIC_MEDIA) {
+      return null;
+    }
+    const creatorTool = attributeOf(packet, "xmp:CreatorTool");
+    const provider = attributeOf(packet, "grimoire:provider");
+    const model = attributeOf(packet, "grimoire:model");
+    const generatedAt = attributeOf(packet, "grimoire:generatedAt");
+    const edited = attributeOf(packet, "grimoire:edited");
+    if (creatorTool === null || provider === null || model === null || generatedAt === null || edited === null) {
+      return null;
+    }
+    const generator = CREATOR_TOOL_PATTERN.exec(creatorTool);
+    if (!generator) return null;
+    if (edited !== "true" && edited !== "false") return null;
+    return { generatorType: generator[1], provider, model, generatedAt, edited: edited === "true" };
+  } catch {
+    return null;
+  }
+}

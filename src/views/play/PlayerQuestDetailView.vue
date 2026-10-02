@@ -232,7 +232,7 @@
           :focal-point="getNpcDisplayFocalPoint(selectedNpc)"
           :lightbox="true"
         />
-        <AiGeneratedBadge variant="chip" :provenance="selectedNpc.ai_provenance" />
+        <AiImageBadge :src="getNpcDisplayPortrait(selectedNpc)" />
       </div>
       <AppButton
         variant="ghost"
@@ -285,7 +285,7 @@ import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import PlayerQuestStoryThread from "@/components/player/PlayerQuestStoryThread.vue";
 import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
 

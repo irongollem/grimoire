@@ -298,7 +298,7 @@ export const NAV_GROUPS: NavGroup[] = [
         desktopOnly: true,
         to: "/forge",
         icon: IconNavCardForge,
-        description: "Print NPC & monster cards",
+        description: "Print NPC, monster, item and spell cards, and loot decks",
       },
       {
         label: "The Mint",

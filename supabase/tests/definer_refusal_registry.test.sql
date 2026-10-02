@@ -77,6 +77,7 @@ insert into definer_registry (name, kind, reason) values
   ('get_credit_calibration_hints', 'refuses', null),
   ('get_demo_status', 'self', 'whether the caller has a demo copy'),
   ('get_family_campaigns', 'self', 'the caller''s own children''s tables and the requests waiting on the caller'),
+  ('get_image_provenance', 'refuses', null),
   ('get_loot_placements', 'refuses', null),
   ('get_player_encounter_state', 'refuses', null),
   ('get_player_session_state', 'refuses', null),

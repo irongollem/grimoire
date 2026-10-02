@@ -34,7 +34,7 @@
               :lightbox="true"
               class="h-full"
             />
-            <AiGeneratedBadge variant="chip" :provenance="puzzle.ai_provenance" />
+            <AiImageBadge :src="puzzle.image_url" />
           </div>
           <div class="flex-1 p-4 flex flex-col gap-2 min-w-0">
             <h2 class="text-heading font-bold text-foreground leading-tight">{{ puzzle.name }}</h2>
@@ -113,7 +113,7 @@ import { useMarkRead } from "@/composables/play/useReadItems";
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
 const route = useRoute();

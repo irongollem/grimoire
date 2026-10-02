@@ -18,6 +18,7 @@
           v-if="isOwn"
           class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
         >You</span>
+        <AiImageBadge :src="member.portrait_url" />
       </MiniPortraitOverlay>
     </div>
     <div class="p-2.5 flex flex-col gap-1.5">
@@ -68,6 +69,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconShield } from "@/lib/icons";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import { useHpDisplay } from "@/composables/play/useHpDisplay";

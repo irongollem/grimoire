@@ -30,7 +30,7 @@
         <!-- Left column: portrait + identity -->
         <div class="space-y-4">
           <!-- Portrait -->
-          <div class="overflow-hidden rounded-lg border border-border">
+          <div class="relative overflow-hidden rounded-lg border border-border">
             <FocalImage
               v-if="hero.portrait_url"
               :src="hero.portrait_url"
@@ -39,6 +39,7 @@
               :alt="hero.name"
               class="w-full"
             />
+            <AiImageBadge v-if="hero.portrait_url" :src="hero.portrait_url" />
             <div
               v-else
               class="flex aspect-2/3 w-full items-center justify-center bg-muted text-4xl font-cinzel font-bold text-muted-foreground/30"
@@ -174,6 +175,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { DND_SETTINGS } from "@/data/dndSettings";

@@ -48,6 +48,7 @@ import { uploadWithRetry, fetchBytes, publicUrlFor } from "../_shared/storage-up
 import { deleteByPrefix } from "../_shared/storage-delete.ts";
 import { markGeneratedImage } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { registerImageProvenance } from "../_shared/provenance/register.ts";
 import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
 import { canStylize, canSculpt, canResculpt, meshyParamsForFormat, type MiniStatusB } from "../_shared/simulacrum.ts";
 import { createImageTo3dTask, resolveMeshyKey } from "../_shared/mesh3d.ts";
@@ -134,6 +135,15 @@ async function uploadStyleImage(
   const prov: AiProvenance = { generatorType: "mini_style", provider, model, generatedAt: new Date().toISOString(), edited: false };
   const marked = markGeneratedImage(bin, contentType, prov);
   await uploadWithRetry(admin, "mini-models", path, marked, "image/webp");
+  // The registry is how the UI finds this image's provenance. A failure here
+  // must not waste a paid generation whose bytes are already stored: the mark
+  // inside the file is the disclosure of record, and the backfill scan repairs
+  // a missed row. A re-style overwrites this fixed path, so the row is upserted.
+  try {
+    await registerImageProvenance(admin, "mini-models", path, userId, prov);
+  } catch (err) {
+    console.error(`image_provenance registration failed for mini-models/${path}`, err);
+  }
   return publicUrlFor(admin, "mini-models", path);
 }
 

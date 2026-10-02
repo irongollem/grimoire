@@ -14,7 +14,7 @@
           format="portrait"
           :focal-point="null"
         />
-        <AiGeneratedBadge variant="chip" :provenance="loc.ai_provenance" />
+        <AiImageBadge :src="loc.image_url" />
       </button>
       <p v-if="loc.player_summary" class="text-body text-foreground italic flex-1">
         {{ loc.player_summary }}
@@ -104,7 +104,7 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerStoreWares from "@/components/locations/PlayerStoreWares.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";

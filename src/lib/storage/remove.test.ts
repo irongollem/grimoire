@@ -14,6 +14,12 @@ const invoke = vi.fn<(...args: InvokeArgs) => Promise<{ data: { deleted: number 
   async () => ({ data: { deleted: 0 }, error: null }),
 );
 
+const clearImageProvenance = vi.fn<(bucket: string, path: string) => Promise<void>>(async () => undefined);
+vi.mock("./imageProvenance", () => ({
+  clearImageProvenance: (bucket: string, path: string) => clearImageProvenance(bucket, path),
+}));
+vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: vi.fn() }));
+
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     storage: { from: vi.fn(() => ({ remove: storageRemove })) },
@@ -25,6 +31,8 @@ vi.mock("@/lib/supabase", () => ({
 beforeEach(() => {
   storageRemove.mockClear();
   invoke.mockClear();
+  clearImageProvenance.mockReset();
+  clearImageProvenance.mockResolvedValue(undefined);
 });
 
 /** Import fresh with the CDN configured so usesR2 is true for every bucket. */
@@ -109,5 +117,40 @@ describe("deleteByPublicUrl", () => {
     expect(invoke).toHaveBeenCalledTimes(2);
     const buckets = invoke.mock.calls.map((c) => c[1].body.bucket).sort();
     expect(buckets).toEqual(["item-images", "npc-portraits"]);
+  });
+});
+
+describe("provenance registry cleanup (#935)", () => {
+  it("clears the registry row once per original even when variants are listed", async () => {
+    const { removeByPublicUrl } = await loadRemove();
+    await removeByPublicUrl(
+      "npcPortraits",
+      "https://cdn.example.com/npc-portraits/u1/a.webp",
+      "https://cdn.example.com/npc-portraits/u1/b.webp",
+    );
+    expect(clearImageProvenance).toHaveBeenCalledTimes(2);
+    expect(clearImageProvenance).toHaveBeenCalledWith("npcPortraits", "u1/a.webp");
+    expect(clearImageProvenance).toHaveBeenCalledWith("npcPortraits", "u1/b.webp");
+  });
+
+  it("does not clear anything when no object was deleted", async () => {
+    const { deleteFromBucket } = await loadRemove();
+    await deleteFromBucket("npcPortraits", []);
+    expect(clearImageProvenance).not.toHaveBeenCalled();
+  });
+
+  it("does not touch the registry for a bucket that holds no images", async () => {
+    const { deleteFromBucket } = await loadRemove();
+    await deleteFromBucket("sounds", ["library/rain.ogg"]);
+    expect(clearImageProvenance).not.toHaveBeenCalled();
+  });
+
+  it("keeps the delete successful when clearing the row fails", async () => {
+    clearImageProvenance.mockRejectedValue(new Error("db down"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { deleteFromBucket } = await loadRemove();
+    await expect(deleteFromBucket("npcPortraits", ["u1/a.webp"])).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 });

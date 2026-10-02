@@ -383,7 +383,8 @@ const filtered = computed<Spell[]>(() => {
   if (levelFilter !== "") list = list.filter((s) => s.level === parseInt(levelFilter));
   if (schoolFilter) list = list.filter((s) => s.school === schoolFilter);
   if (classFilter) list = list.filter((s) => s.classes.includes(classFilter));
-  if (sourceFilter && sourceFilter !== "all") list = list.filter((s) => s.source === sourceFilter);
+  if (sourceFilter === "custom") list = list.filter((s) => !isSharedContent(s));
+  else if (sourceFilter && sourceFilter !== "all") list = list.filter((s) => s.source === sourceFilter);
   return list;
 });
 

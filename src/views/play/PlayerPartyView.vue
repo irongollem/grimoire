@@ -35,7 +35,7 @@
             alt="Party group portrait"
             class="w-full h-full object-cover"
           />
-          <AiGeneratedBadge variant="chip" :provenance="groupPortraitAiProvenance" />
+          <AiImageBadge :src="groupPortraitUrl" />
         </div>
         <template v-for="entry in sortedParty" :key="entry.data.id">
           <CharacterSpeciesName v-if="entry.kind === 'member'" v-slot="{ speciesName }" :member="entry.data">
@@ -165,7 +165,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -197,7 +197,6 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();
 const groupPortraitUrl = computed(() => campaign.activeCampaign?.group_portrait_url ?? null);
-const groupPortraitAiProvenance = computed(() => campaign.activeCampaign?.group_portrait_ai_provenance ?? null);
 const lightboxSrc      = ref<string | null>(null);
 const viewerMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId

@@ -137,7 +137,7 @@
           format="landscape"
           class="w-full h-full"
         />
-        <AiGeneratedBadge variant="chip" :provenance="watchingLocation.ai_provenance" />
+        <AiImageBadge :src="watchingLocation.image_url" />
       </div>
       <div class="px-4 py-4 flex flex-col gap-4">
         <p v-if="watchingLocation?.player_summary" class="text-body text-foreground italic">
@@ -181,8 +181,7 @@ import ModalHeader from "@/components/common/ModalHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
-import type { AiProvenance } from "@/ai/provenance";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import PlayerLocationFiltersBar from "@/components/play/PlayerLocationFiltersBar.vue";
@@ -197,8 +196,6 @@ interface WatchTarget {
   location_type: LocationType;
   image_url: string | null;
   player_summary: string | null;
-  /** Absent for a pin-only target: a map pin carries the child's image but not its provenance. */
-  ai_provenance?: AiProvenance | null;
 }
 
 const { data: locations, isLoading } = useSharedLocations();
@@ -420,7 +417,6 @@ function onPinWatch(childId: string) {
       location_type: fullLoc.location_type,
       image_url: fullLoc.image_url,
       player_summary: fullLoc.player_summary,
-      ai_provenance: fullLoc.ai_provenance,
     };
     return;
   }
