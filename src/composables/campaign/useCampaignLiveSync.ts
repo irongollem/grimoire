@@ -64,6 +64,11 @@ export const SYNC_TABLES = [
   // which realtime DELETE only carries under full replica identity — tracked
   // separately.)
   ["campaign_members",        "campaign-members"],
+  // What a seated character has that its table has not approved (#943). The DM's
+  // queue and the player's "waiting" notice both read it, and each changes it
+  // for the other: an approval clears the player's flag, a changed choice
+  // clears the DM's.
+  ["character_content_reviews", "character-content-reviews"],
   // Optional rule toggles (turn-timer, random-initiative, ...) — so a DM flipping
   // a rule shows up for already-mounted players without waiting out staleTime.
   ["campaign_rules",          "campaign_rules"],

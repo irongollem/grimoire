@@ -403,8 +403,9 @@ select is_empty($q$
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and p.prokind = 'f'
     and p.prosrc ~ 'set_config\(\s*''grimoire\.(spell_limits|pm_ruleset_transition)'''
-    and (n.nspname, p.proname) not in (('private', 'convert_party_member_ruleset'), ('private', 'copy_party_member'))
-$q$, 'only the conversion and the copy may suspend the spell limit or admit a ruleset write');
+    and (n.nspname, p.proname) not in (('private', 'convert_party_member_ruleset'), ('private', 'copy_party_member'),
+                                       ('private', 'repoint_party_member_content'))
+$q$, 'only the conversion, the copy and a re-point may suspend the spell limit or admit a ruleset write');
 
 -- ── One reader, structurally ─────────────────────────────────────────────────
 -- Body-based on purpose: an outcome test covers only the functions someone

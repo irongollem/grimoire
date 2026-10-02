@@ -38,7 +38,7 @@ insert into live_sync_subscribed (name) values
   ('campaign_messages'), ('npc_inventory'), ('campaign_members'),
   ('campaign_rules'), ('downtime_grants'), ('downtime_draws'),
   ('downtime_outcomes'), ('downtime_deck_backs'), ('minis'), ('class_option_texts'),
-  ('item_entries'), ('party_inventory');
+  ('item_entries'), ('party_inventory'), ('character_content_reviews');
 
 create temporary table live_sync_doorbell (name text primary key) on commit drop;
 insert into live_sync_doorbell (name) values
