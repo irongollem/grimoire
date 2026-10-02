@@ -108,6 +108,14 @@ export const IMAGE_COLUMNS: readonly ImageColumn[] = [
   col("library_monster_art_canonical", "cutout_url", false, false),
   col("library_spell_art", "image_url"),
   col("library_spell_art_canonical", "image_url", false, false),
+  // The shared content tables hold their own copy of the art URL (seeded from
+  // the defaults and canonical tables above, and edited since), so they are
+  // read too rather than assumed equal to their sources.
+  col("library_monsters", "image_url", false),
+  col("library_spells", "image_url", false),
+  col("library_items", "image_url", false),
+  col("library_items", "mundane_image_url", false),
+  col("library_species", "image_url", false),
   col("image_generation_jobs", "image_url"),
 ];
 
