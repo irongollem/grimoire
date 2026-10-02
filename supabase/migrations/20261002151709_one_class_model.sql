@@ -33,8 +33,8 @@
 -- subclass their table has and 3 get an empty one made. Typed text and rows
 -- disagreed nowhere.
 --
--- Runs after 20261002132454 (it needs a character's own edition to choose the
--- right official class) and after 20261002132455 (whose review it stands down
+-- Runs after 20261002151707 (it needs a character's own edition to choose the
+-- right official class) and after 20261002151708 (whose review it stands down
 -- while it works, and whose grandfathering it performs at the end).
 
 -- ── 1. Every typed class becomes a pinned row ────────────────────────────────
@@ -78,7 +78,7 @@ declare
   v_kind text;
   v_class_name text;
 begin
-  -- The content review (20261002132455) stands down: these writes change no
+  -- The content review (20261002151708) stands down: these writes change no
   -- choice anyone made. Every seated character is reviewed once at the end.
   perform set_config('grimoire.content_review', 'running', true);
 
@@ -298,7 +298,7 @@ $function$;
 -- ── 6. Characters already seated ─────────────────────────────────────────────
 
 -- Sitting at a table before approval existed was the approval. Every choice a
--- seated character has that the predicate of 20261002132455 would not take is
+-- seated character has that the predicate of 20261002151708 would not take is
 -- recorded as approved for that character; nothing is copied or re-pointed.
 -- Here rather than in that migration, because the class rows above are among
 -- the choices. A one-time statement, not a mode of the review.

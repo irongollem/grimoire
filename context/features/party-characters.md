@@ -341,7 +341,7 @@ the `wotc-srd` baseline when no campaign is active (`useSpecies.ts`), since
 `my-characters`, which useParty.ts owns for the campaign-scoped champions
 list).
 
-**A character's ruleset is its own (#943, migration `20261002132454`).**
+**A character's ruleset is its own (#943, migration `20261002151707`).**
 `party_members.ruleset` is NOT NULL with no default. A roster character created
 inside a campaign takes that campaign's; a character with no campaign must state
 one, which is why the creation wizard asks for the edition first. It is written
@@ -471,7 +471,7 @@ items.
 `supabase/tests/character_ruleset.test.sql` holds all of the above, each refusal
 beside a control.
 
-#### One class model (#943 wave 5, migration `20261002145135`)
+#### One class model (#943 wave 5, migration `20261002151709`)
 
 A character's class had three shapes, all still being written: typed text on
 the character (`party_members.class` / `.subclass`), a `character_classes` row
@@ -531,7 +531,7 @@ function body to delete a no-op was judged the worse trade.
 `supabase/tests/one_class_model.test.sql` holds the constraints, the mirror and
 the classless state.
 
-#### What a table approves (#943 wave 4, migration `20261002132455`)
+#### What a table approves (#943 wave 4, migration `20261002151708`)
 
 Content works the way the edition does: a player builds what they like, and the
 table decides what sits down.

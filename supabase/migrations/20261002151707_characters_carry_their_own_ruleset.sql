@@ -295,7 +295,7 @@ create policy party_members_creator_update on public.party_members
 -- A seat points only at a character in its own campaign, for the DM too. The
 -- guard that holds that line (guard_campaign_member_self_update), the attach
 -- RPC and admission each carry both this migration's rule and the approval
--- gate, so each is defined once, in 20261002132455.
+-- gate, so each is defined once, in 20261002151708.
 
 -- Claiming transfers ownership. A seat pointing at a character nobody owns
 -- hands it to that member when the DM assigned it, or when the member made the
