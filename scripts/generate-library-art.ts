@@ -43,6 +43,7 @@
  *   npm run library:art -- generate --spell srd_2024_fireball --item "Bag of Holding" --out art-947
  *   npm run library:art -- generate --spell srd_2024_fireball --out art-947 --yes-spend
  *   npm run library:art -- generate --spell srd_2024_fireball --out art-947 --only spell-srd_2024_fireball --yes-spend
+ *   npm run library:art -- generate --item "Quarterstaff" --out art-947 --subject "<what the picture shows>" --yes-spend
  *   npm run library:art -- publish --out art-947 --approve-all
  *   npm run library:art -- publish --out art-947 --approve-all --write --yes-production
  *
@@ -290,6 +291,8 @@ export interface ManifestEntry {
   name: string;
   context: string;
   subject: string;
+  /** Who wrote the subject: the text model, as in the app, or a person through `--subject`. */
+  subjectSource: "model" | "written";
   imagePrompt: string;
   provider: string;
   model: string;
@@ -375,6 +378,13 @@ export interface GenerateOptions {
   out: string;
   only: string | null;
   yesSpend: boolean;
+  /**
+   * A visual description written by a person, used in place of the text
+   * model's for the one entry named. For when the model's subject keeps
+   * producing the wrong picture: the style prompt and the image model are
+   * unchanged, only the description is art-directed.
+   */
+  subject: string | null;
 }
 
 export interface PublishOptions {
@@ -400,6 +410,7 @@ export function parseCli(argv: readonly string[]): CliOptions {
       out: { type: "string" },
       only: { type: "string" },
       "yes-spend": { type: "boolean", default: false },
+      subject: { type: "string" },
       "approve-all": { type: "boolean", default: false },
       write: { type: "boolean", default: false },
       "yes-production": { type: "boolean", default: false },
@@ -419,8 +430,16 @@ export function parseCli(argv: readonly string[]): CliOptions {
     const items = values.item ?? [];
     if (spells.length + items.length === 0) throw new Error("Name at least one entry with --spell <library id> or --item \"<name>\".");
     if (values.write || values["approve-all"]) throw new Error("--write and --approve-all belong to publish.");
-    return { command, spells, items, out: values.out, only, yesSpend: values["yes-spend"] };
+    const subject = values.subject === undefined ? null : values.subject.trim();
+    if (subject !== null) {
+      if (subject === "") throw new Error("--subject must not be empty.");
+      // One description cannot be right for two pictures.
+      if (spells.length + items.length !== 1) throw new Error("--subject describes one image: name exactly one --spell or --item with it.");
+    }
+    return { command, spells, items, out: values.out, only, yesSpend: values["yes-spend"], subject };
   }
+
+  if (values.subject !== undefined) throw new Error("--subject belongs to generate.");
 
   if (values.spell || values.item) throw new Error("--spell and --item belong to generate.");
   if (values["yes-spend"]) throw new Error("--yes-spend belongs to generate.");
@@ -715,12 +734,14 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
     const slug = entrySlug(p.ref);
     const kind = p.ref.kind;
     console.log(`Generating ${slug} ...`);
-    const text = await openaiText(
-      openaiKey,
-      settings.textModel,
-      buildImagePromptAuthorSystem(kind) + INJECTION_GUARD_SUFFIX,
-      wrapUserInput(p.context),
-    );
+    const text =
+      opts.subject ??
+      (await openaiText(
+        openaiKey,
+        settings.textModel,
+        buildImagePromptAuthorSystem(kind) + INJECTION_GUARD_SUFFIX,
+        wrapUserInput(p.context),
+      ));
     const subject = text.trim().slice(0, MAX_IMAGE_SUBJECT_CHARS);
     if (!subject) throw new Error(`${slug}: the text model returned no image description.`);
     const imagePrompt = buildSimpleImagePrompt({ base: settings.imageBase, setting: "", subject });
@@ -749,6 +770,7 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
       name: p.name,
       context: p.context,
       subject,
+      subjectSource: opts.subject === null ? "model" : "written",
       imagePrompt,
       provider: "openai",
       model: settings.imageModel,

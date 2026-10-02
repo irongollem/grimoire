@@ -46,7 +46,7 @@ const prov: AiProvenance = {
 
 function entry(slug: string, status: ManifestEntry["status"] = "candidate"): ManifestEntry {
   return {
-    slug, kind: "spell", id: "srd_fireball", name: "Fireball", context: "c", subject: "s", imagePrompt: "p",
+    slug, kind: "spell", id: "srd_fireball", name: "Fireball", context: "c", subject: "s", subjectSource: "model", imagePrompt: "p",
     provider: "openai", model: "m", textModel: "t", quality: "high", size: "1024x1536",
     generatedAt: prov.generatedAt, providerFile: `${slug}.provider.webp`, finalFile: `${slug}.webp`,
     providerBytes: 10, finalBytes: 5, imageUsage: null, status, publish: null,
@@ -164,8 +164,17 @@ describe("manifest", () => {
 describe("arguments and refusals", () => {
   it("parses generate", () => {
     expect(parseCli(["generate", "--spell", "a", "--spell", "b", "--item", "Ale, mug", "--out", "d"])).toEqual({
-      command: "generate", spells: ["a", "b"], items: ["Ale, mug"], out: "d", only: null, yesSpend: false,
+      command: "generate", spells: ["a", "b"], items: ["Ale, mug"], out: "d", only: null, yesSpend: false, subject: null,
     });
+  });
+
+  it("takes a written subject for exactly one entry", () => {
+    expect(parseCli(["generate", "--item", "Quarterstaff", "--out", "d", "--subject", "  A staff on a table.  "])).toMatchObject({
+      items: ["Quarterstaff"], subject: "A staff on a table.",
+    });
+    expect(() => parseCli(["generate", "--spell", "a", "--spell", "b", "--out", "d", "--subject", "x"])).toThrow(/exactly one/);
+    expect(() => parseCli(["generate", "--spell", "a", "--out", "d", "--subject", "   "])).toThrow(/must not be empty/);
+    expect(() => parseCli(["publish", "--out", "d", "--subject", "x"])).toThrow(/belongs to generate/);
   });
 
   it("parses publish", () => {
