@@ -168,7 +168,24 @@ begin
 
   -- The insert policy lets a member write campaign_id directly, so the door has
   -- to be here as well as on attach.
-  perform private.assert_ruleset_admissible(new.ruleset, new.campaign_id);
+  --
+  -- Not for the table's own DM. The door keeps a character of the other edition
+  -- from ARRIVING; a seated one of the other edition is already a state a table
+  -- can be in (a campaign that switched edition keeps its characters, flagged),
+  -- and a DM restoring a backup or importing a world has to be able to put that
+  -- state back. Refusing the insert left the importers one way through, which
+  -- was to drop the character's edition, so the database stamped the table's on
+  -- a character whose classes and spells were still the other's: a label that
+  -- lies, and one the mismatch list could no longer see. The DM's character
+  -- lands as it is, shows in that list, and is converted from there.
+  if not (
+    private.is_campaign_dm(new.campaign_id)
+    or exists (
+      select 1 from public.campaigns c
+       where c.id = new.campaign_id and c.user_id = (select auth.uid()))
+  ) then
+    perform private.assert_ruleset_admissible(new.ruleset, new.campaign_id);
+  end if;
   return new;
 end;
 $$;

@@ -60,6 +60,7 @@
         :variant="option.scope === 'table' ? 'subtle' : 'primary'"
         size="md"
         :label="option.label"
+        :disabled="!canApprove"
         @click="emit('approve', option.scope, seenUpdatedAt)"
       />
     </div>
@@ -103,6 +104,13 @@ const seenUpdatedAt = computed(() => {
 });
 
 const item = computed(() => itemQuery.data.value ?? null);
+
+// An approval from here says "I looked". While the item is loading, or failed
+// to load, nothing was looked at and there is no `seen_at` to send, and the
+// database reads a missing one as "approved without looking", which skips the
+// very check this dialog exists for. Approving unseen is still possible, from the queue, where
+// that is what the button says.
+const canApprove = computed(() => item.value !== null);
 
 const rows = computed<ContentRow[]>(() => (review && item.value ? contentRows(review.kind, item.value) : []));
 

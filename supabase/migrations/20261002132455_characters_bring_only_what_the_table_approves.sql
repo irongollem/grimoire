@@ -83,7 +83,7 @@ create table public.character_content_reviews (
   party_member_id uuid not null references public.party_members(id) on delete cascade,
   kind text not null check (kind in ('species', 'background', 'class', 'subclass', 'spell', 'feat')),
   -- What the character points at: a library slug, a content row's uuid, or
-  -- 'system:<class name>' for an official class.
+  -- 'system:<class name>' for a class known by name.
   ref text not null,
   -- Its name when flagged, so the DM's queue reads without a second lookup the
   -- DM may not be allowed to make.
@@ -189,6 +189,59 @@ $$;
 
 -- Everything a character points at, as (kind, ref). An official class is named
 -- rather than pointed at, because a table blocks official classes by name.
+--
+-- A class or subclass row may be only a name, with no definition pinned. That
+-- is an honest state: a character the DM built with a typed class gets such a
+-- row the first time it levels up, and the name is a label with nothing behind
+-- it. But the app resolves a name against whatever its viewer can read, the
+-- viewer's own homebrew included, so on its OWNER'S screen a bare name becomes
+-- the owner's own class of that name, at a table that was never asked. So a
+-- name is read the way the owner's app reads it (private.named_content_of_owner):
+-- where it lands on the owner's own content and the table has nothing by that
+-- name, the reference IS that content, flagged and approved like a pinned one,
+-- and approving pins the row to the table's copy. Any other bare name stays a
+-- label: an official class is checked by name, anything else is not content.
+-- What a class or subclass known only by name stands for on its owner's
+-- screen: the owner's own row of that name, when it is not an official class
+-- and the table has nothing by it. NULL otherwise.
+create function private.named_content_of_owner(
+  p_kind text, p_owner uuid, p_campaign_id uuid, p_class_name text, p_subclass_name text)
+returns uuid
+language sql
+stable
+set search_path = ''
+as $$
+  select case
+    when p_owner is null or p_campaign_id is null or p_class_name is null then null
+    when p_kind = 'class' then (
+      select own.id from public.custom_classes own
+       where own.user_id = p_owner
+         and lower(own.class_name) = lower(p_class_name)
+         and not exists (
+           select 1 from public.system_classes sc where lower(sc.class_name) = lower(p_class_name))
+         and not exists (
+           select 1 from public.custom_classes t
+            where lower(t.class_name) = lower(p_class_name)
+              and private.is_table_dm(p_campaign_id, t.user_id)
+              and (t.campaign_id is null or t.campaign_id = p_campaign_id))
+       order by own.created_at, own.id
+       limit 1)
+    when p_kind = 'subclass' and p_subclass_name is not null then (
+      select own.id from public.custom_subclasses own
+       where own.user_id = p_owner
+         and lower(own.class_name) = lower(p_class_name)
+         and lower(own.subclass_name) = lower(p_subclass_name)
+         and not exists (
+           select 1 from public.custom_subclasses t
+            where lower(t.class_name) = lower(p_class_name)
+              and lower(t.subclass_name) = lower(p_subclass_name)
+              and private.is_table_dm(p_campaign_id, t.user_id)
+              and (t.campaign_id is null or t.campaign_id = p_campaign_id))
+       order by own.created_at, own.id
+       limit 1)
+  end;
+$$;
+
 create function private.party_member_content_refs(p_party_member_id uuid)
 returns table (kind text, ref text)
 language sql
@@ -204,15 +257,32 @@ as $$
    where pm.id = p_party_member_id and pm.background_id is not null
   union
   select 'class',
-         case when coalesce(cc.class_definition_kind, 'system') = 'system'
-              then 'system:' || cc.class_name
-              else cc.class_definition_id::text end
+         case
+           when cc.class_definition_kind = 'custom' and cc.class_definition_id is not null
+             then cc.class_definition_id::text
+           when cc.class_definition_id is null
+             then coalesce(
+               private.named_content_of_owner('class', pm.owner_user_id, pm.campaign_id, cc.class_name, null)::text,
+               'system:' || cc.class_name)
+           else 'system:' || cc.class_name
+         end
     from public.character_classes cc
+    join public.party_members pm on pm.id = cc.party_member_id
    where cc.party_member_id = p_party_member_id
   union
   select 'subclass', cc.subclass_definition_id::text
     from public.character_classes cc
    where cc.party_member_id = p_party_member_id and cc.subclass_definition_id is not null
+  union
+  select 'subclass', named.id::text
+    from public.character_classes cc
+    join public.party_members pm on pm.id = cc.party_member_id
+    cross join lateral (
+      select private.named_content_of_owner(
+        'subclass', pm.owner_user_id, pm.campaign_id, cc.class_name, cc.subclass_name) as id) named
+   where cc.party_member_id = p_party_member_id
+     and cc.subclass_definition_id is null and cc.subclass_name is not null
+     and named.id is not null
   union
   select 'spell', cs.spell_id
     from public.character_spells cs
@@ -320,7 +390,9 @@ begin
 
   if p_kind = 'class' and p_ref like 'system:%' then
     label := substr(p_ref, 8);
-    -- By name, and a name is not a different class for being typed in another case.
+    -- By name, and a name is not a different class for being typed in another
+    -- case. A name that is no official class is a label with nothing behind
+    -- it (see party_member_content_refs): there is nothing to approve.
     if exists (
       select 1 from public.campaigns c, unnest(coalesce(c.disabled_class_names, '{}')) as blocked(name)
        where c.id = p_campaign_id and lower(blocked.name) = lower(label)
@@ -645,13 +717,34 @@ begin
       update public.party_members set background_id = p_new::uuid
        where id = p_party_member_id and background_id = p_old::uuid;
       get diagnostics v_moved = row_count;
+    -- A class or subclass row may reach here known only by name (it stood for
+    -- its owner's content of that name). Re-pointing pins it, and takes the
+    -- definition's own spelling of the name, which the class triggers compare
+    -- exactly.
     when 'class' then
-      update public.character_classes set class_definition_id = p_new::uuid
-       where party_member_id = p_party_member_id and class_definition_id = p_old::uuid;
+      update public.character_classes cc
+         set class_definition_id = p_new::uuid,
+             class_definition_kind = 'custom',
+             class_name = coalesce(
+               (select d.class_name from public.custom_classes d where d.id = p_new::uuid), cc.class_name)
+       where cc.party_member_id = p_party_member_id
+         and (cc.class_definition_id = p_old::uuid
+              or (cc.class_definition_id is null and exists (
+                    select 1 from public.custom_classes d
+                     where d.id = p_old::uuid and lower(d.class_name) = lower(cc.class_name))));
       get diagnostics v_moved = row_count;
     when 'subclass' then
-      update public.character_classes set subclass_definition_id = p_new::uuid
-       where party_member_id = p_party_member_id and subclass_definition_id = p_old::uuid;
+      update public.character_classes cc
+         set subclass_definition_id = p_new::uuid,
+             subclass_name = coalesce(
+               (select d.subclass_name from public.custom_subclasses d where d.id = p_new::uuid), cc.subclass_name)
+       where cc.party_member_id = p_party_member_id
+         and (cc.subclass_definition_id = p_old::uuid
+              or (cc.subclass_definition_id is null and exists (
+                    select 1 from public.custom_subclasses d
+                     where d.id = p_old::uuid
+                       and lower(d.class_name) = lower(cc.class_name)
+                       and lower(d.subclass_name) = lower(cc.subclass_name))));
       get diagnostics v_moved = row_count;
     when 'spell' then
       perform set_config('grimoire.spell_limits', 'suspended', true);
@@ -838,6 +931,7 @@ revoke execute on function private.try_uuid(text) from public, anon, authenticat
 revoke execute on function private.is_table_dm(uuid, uuid) from public, anon, authenticated;
 revoke execute on function private.source_enabled(uuid, text) from public, anon, authenticated;
 revoke execute on function private.party_member_content_refs(uuid) from public, anon, authenticated;
+revoke execute on function private.named_content_of_owner(text, uuid, uuid, text, text) from public, anon, authenticated;
 revoke execute on function private.table_book_entry(text, uuid, text, text, text) from public, anon, authenticated;
 revoke execute on function private.assess_content(text, text, uuid, uuid) from public, anon, authenticated;
 revoke execute on function private.adopt_id_map(jsonb, text, uuid, uuid) from public, anon, authenticated;
@@ -942,6 +1036,9 @@ create trigger party_members_review_content_update
   after update on public.party_members
   for each row when (
     new.campaign_id is distinct from old.campaign_id
+    -- Whose content is the character's own turns on its owner, so a hand-over
+    -- changes what its flags should say.
+    or new.owner_user_id is distinct from old.owner_user_id
     or new.species_id is distinct from old.species_id
     or new.background_id is distinct from old.background_id
     or (new.class_choices -> 'feats') is distinct from (old.class_choices -> 'feats')
@@ -961,7 +1058,7 @@ create trigger character_classes_review_content_delete
 -- Row-level, because a transition table cannot be combined with a column list,
 -- and a class row is updated on every rest (hit dice) without its choice changing.
 create trigger character_classes_review_content_update
-  after update of class_name, class_definition_id, class_definition_kind, subclass_definition_id
+  after update of class_name, class_definition_id, class_definition_kind, subclass_name, subclass_definition_id
   on public.character_classes
   for each row execute procedure public.review_content_of_row_member();
 
@@ -1428,8 +1525,13 @@ begin
            set disabled_species_ids = array_remove(disabled_species_ids, v_review.ref)
          where id = v_review.campaign_id;
       elsif v_a.reason = 'blocked' and v_review.kind = 'class' and v_review.ref like 'system:%' then
+        -- Without case, as the predicate compares: array_remove matches exactly,
+        -- so 'wizard' against a blocked 'Wizard' removed nothing and reported
+        -- success with the character still benched.
         update public.campaigns
-           set disabled_class_names = array_remove(disabled_class_names, substr(v_review.ref, 8))
+           set disabled_class_names = array(
+             select n from unnest(coalesce(disabled_class_names, '{}')) as n
+              where lower(n) <> lower(substr(v_review.ref, 8)))
          where id = v_review.campaign_id;
       else
         raise exception 'Only a book or a blocked choice can be approved for the whole table';
@@ -1517,12 +1619,17 @@ begin
       delete from public.character_spells
        where party_member_id = v_review.party_member_id and spell_id = v_review.ref;
     when 'class' then
+      -- The definition is gone; the row keeps its name as a label. That is safe
+      -- because a bare name is read the way its owner's app reads it: if it now
+      -- lands on other content of the owner's, the next review flags that.
       update public.character_classes
          set class_definition_id = null, class_definition_kind = null
-       where party_member_id = v_review.party_member_id and class_definition_id = v_review.ref::uuid;
+       where party_member_id = v_review.party_member_id
+         and class_definition_id = private.try_uuid(v_review.ref);
     when 'subclass' then
       update public.character_classes set subclass_definition_id = null
-       where party_member_id = v_review.party_member_id and subclass_definition_id = v_review.ref::uuid;
+       where party_member_id = v_review.party_member_id
+         and subclass_definition_id = private.try_uuid(v_review.ref);
     when 'feat' then
       update public.party_members pm set
         class_choices = case

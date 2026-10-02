@@ -401,6 +401,19 @@ per-character component (the token forge's party list, the group portrait).
   character sheet, informational at a table that takes both editions, otherwise
   offering "Convert" to whoever the database will let convert.
 
+**The door is for a character arriving, not for the table's own DM.** Attach,
+join and a player's direct insert are refused with `RS001` at a table that does
+not take the character's edition. A DM placing a roster character at their own
+table is not: a table that switched edition already holds characters of the
+other one, and a backup restore or a world import has to be able to put that
+state back. Both importers (`useCampaignBackup`, `useWorldBundle`) therefore
+carry each character's own edition and keep its class pins. They used to drop
+the edition when the destination would not admit it, so the database stamped
+the table's on a character whose classes and spells were still the other's: a
+label that lied, and one the Rules tab's mismatch list could not see. A
+character imported that way shows in that list and is converted from there.
+`PartyMemberForm` only edits; a new hero is made in the wizard (`/party/new`).
+
 **Claiming transfers ownership, and only one thing is a claim.** A seat
 (`campaign_members.party_member_id`) pointing at a character nobody owns hands
 that character to the seat's member when **the DM assigned it** (Members tab,
@@ -501,7 +514,20 @@ content is still theirs to have approved.
 
 Ids are read the way Postgres reads them (`private.try_uuid`, null for anything
 that is not one), so an id written without hyphens or in capitals is the row it
-names, and blocked class names compare without case.
+names, and blocked class names compare without case (blocking and unblocking
+both).
+
+**A class or subclass that is only a name.** A class row with no definition
+pinned is an honest state: a character the DM built with a typed class gets one
+the first time it levels up, and the name is a label. But the app resolves a
+name against whatever its viewer can read, so on its owner's screen a bare name
+becomes the owner's own class of that name. The review reads it the same way
+(`private.named_content_of_owner`): where the name lands on the owner's own
+content and the table has nothing by it, the reference is that content, flagged
+`homebrew` like a pinned one, and approving pins the row to the table's copy.
+Any other bare name is a label and is not content. Every class row in
+production was pinned when this was written, and 4 seated characters had a
+subclass known only by name.
 
 The one thing that needs no asking: when the table already has **its own** copy
 of the same book entry (a row a DM of the table made, never one adopted from a
@@ -556,11 +582,14 @@ it) as `p_seen_updated_at`, and anything edited since is refused with SQLSTATE
 item. The approval locks those rows before it compares, so nothing changes
 between the comparison and the copy.
 Approving from the queue without opening it passes null, which is the DM's call
-to make.
+to make. Inside the dialog, Approve stays off until the item is on screen: an
+approval from there says the DM looked, and with nothing loaded there is
+nothing that was looked at.
 
 **Stay, flagged.** A DM turning a book off or blocking a species later, or a
 seated player picking something unapproved, flags the character and moves
-nobody. An approval the DM gave for one character survives the table changing
+nobody. A hand-over reviews the character again too, because whose content is "its
+own" turns on its owner. An approval the DM gave for one character survives the table changing
 its mind and back; an approval whose reason has changed waits again. Characters
 seated when this shipped were recorded as approved (a dry run against
 production on 2 Oct 2026 found none with anything to record).
@@ -584,7 +613,9 @@ the migration records why the fix was weighed and not taken.
 `supabase/tests/character_content_approval.test.sql` holds the predicate, the
 bench, the approvals and each of the audits' attacks as a refusal. Three audits
 ran against this migration on 2 Oct 2026; the third found the first two rounds
-closed and nothing above low severity.
+closed and nothing above low severity. The pull request's review (CodeRabbit,
+PR #948) then found seven more, among them the bare-name rule above and the
+importers' relabelling.
 
 ### Champions List (`/play/champions` — `PlayerChampionsView.vue`)
 

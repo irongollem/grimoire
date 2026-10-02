@@ -529,12 +529,12 @@ export interface ImportRemapCtx {
    */
   stripClassDefinitionPins?: boolean;
   /**
-   * The destination campaign's ruleset. A character keeps its own `ruleset`
-   * only when it equals this; otherwise the field is omitted from the insert
-   * and the database seats the character at the destination's edition (the
-   * same rule, for the same reason, as `stripClassDefinitionPins`).
+   * The bundle ids of the characters that carry their own edition. Their class
+   * pins are of that edition and travel with it, whatever the destination
+   * plays, so `stripClassDefinitionPins` does not reach them: it is for the
+   * characters of a bundle made before a character recorded one.
    */
-  destinationRuleset?: RulesetKey;
+  membersWithOwnEdition?: ReadonlySet<string>;
 }
 
 /**
@@ -559,12 +559,22 @@ export function remapLibraryRowForImport(row: Row, ctx: ImportRemapCtx): Row {
 export const remapSpeciesForImport = remapLibraryRowForImport;
 export const remapSpellForImport = remapLibraryRowForImport;
 
-/** Imported characters land unassigned (DM characters): owner_user_id null. */
+/**
+ * Imported characters land unassigned (DM characters): owner_user_id null.
+ *
+ * A character's own `ruleset` travels with it (it rides in the spread),
+ * whatever the destination plays. It used to be dropped when the destination
+ * would not admit it, and the database then stamped the destination's edition
+ * on a character whose classes and spells were still the other's: a label that
+ * lies, and one the Rules tab's mismatch list could not see. The importer is
+ * the destination's DM, whom the database lets place a roster character as it
+ * is (#943); it shows in that list and is converted from there. A row from a
+ * bundle made before characters recorded an edition has none, and takes the
+ * destination's.
+ */
 export function remapPartyMemberForImport(pm: Row, ctx: ImportRemapCtx): Row {
-  const { ruleset, ...rest } = pm;
   return {
-    ...rest,
-    ...(ruleset !== undefined && ruleset === ctx.destinationRuleset ? { ruleset } : {}),
+    ...pm,
     id: freshId(pm.id, ctx.idMap),
     campaign_id: ctx.campaignId,
     user_id: ctx.userId,
@@ -576,16 +586,19 @@ export function remapPartyMemberForImport(pm: Row, ctx: ImportRemapCtx): Row {
 }
 
 export function remapCharacterClassForImport(cc: Row, ctx: ImportRemapCtx): Row {
+  const strip =
+    ctx.stripClassDefinitionPins === true
+    && !(typeof cc.party_member_id === "string" && ctx.membersWithOwnEdition?.has(cc.party_member_id) === true);
   return {
     ...cc,
     id: freshId(cc.id, ctx.idMap),
     party_member_id: rCamp(cc.party_member_id, ctx.idMap),
-    class_definition_id: ctx.stripClassDefinitionPins
+    class_definition_id: strip
       ? null
       : cc.class_definition_kind === "custom"
         ? rCamp(cc.class_definition_id, ctx.idMap)
         : cc.class_definition_id,
-    class_definition_kind: ctx.stripClassDefinitionPins ? null : cc.class_definition_kind,
+    class_definition_kind: strip ? null : cc.class_definition_kind,
     subclass_definition_id: rCamp(cc.subclass_definition_id, ctx.idMap),
   };
 }
@@ -702,7 +715,10 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
   // pin may reference a definition from the other ruleset's edition and trip
   // the content-identity trigger. Fall back to name-based class resolution.
   const stripClassDefinitionPins = bundle.ruleset === undefined || bundle.ruleset !== destinationRuleset;
-  const ctx: ImportRemapCtx = { idMap, campaignId, userId, stripClassDefinitionPins, destinationRuleset };
+  const membersWithOwnEdition = new Set(
+    (bundle.party_members ?? []).flatMap((pm) => (typeof pm.id === "string" && pm.ruleset !== undefined ? [pm.id] : [])),
+  );
+  const ctx: ImportRemapCtx = { idMap, campaignId, userId, stripClassDefinitionPins, membersWithOwnEdition };
 
   // ── Campaign-scoped entities ──────────────────────────────────────────────
 

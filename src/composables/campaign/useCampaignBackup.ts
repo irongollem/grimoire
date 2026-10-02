@@ -491,16 +491,17 @@ async function executeImport(
     // 2. Party members
     await batchInsert(
       "party_members",
-      backup.party_members.map(({ ruleset, ...pm }) => ({
+      backup.party_members.map((pm) => ({
+        // A character's own edition rides along in this spread, including one
+        // the restored campaign would not admit at its door: a table that
+        // switched edition keeps its characters, flagged, and a restore puts
+        // that state back. Dropping the edition (as this did) had the database
+        // stamp the campaign's on a character whose classes and spells were
+        // still the other's. The restorer owns the new campaign, and the
+        // database lets a table's own DM place a roster character as it is.
+        // Backups from before characters carried an edition have none, and
+        // take the campaign's.
         ...pm,
-        // The restored campaign keeps the backed-up campaign's edition, so a
-        // character's own edition is carried only when the campaign still
-        // accepts it; otherwise the database seats it at the campaign's.
-        // Backups from before characters carried an edition have none.
-        ...(ruleset !== undefined
-          && (ruleset === backup.campaign.ruleset || backup.campaign.allows_mixed_rulesets === true)
-          ? { ruleset }
-          : {}),
         id: r(pm.id, idMap),
         campaign_id: newCampaignId,
         user_id: userId,

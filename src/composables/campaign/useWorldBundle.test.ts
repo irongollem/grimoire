@@ -142,21 +142,16 @@ describe("remapCustomSubclassForImport", () => {
 
 describe("remapPartyMemberForImport ruleset", () => {
   const ctx: ImportRemapCtx = { idMap: new Map([["pm-1", "pm-fresh"]]), campaignId: "camp-new", userId: "dm-importer" };
-  const row = { id: "pm-1", name: "Brannor", ruleset: "2014" };
 
-  it("carries the character's ruleset when it equals the destination campaign's", () => {
-    const result = remapPartyMemberForImport(row, { ...ctx, destinationRuleset: "2014" });
-    expect(result.ruleset).toBe("2014");
+  it("carries the character's own edition, whatever the destination plays", () => {
+    // Dropping it had the database stamp the destination's edition on a
+    // character whose classes were still the other's.
+    expect(remapPartyMemberForImport({ id: "pm-1", name: "Brannor", ruleset: "2014" }, ctx).ruleset).toBe("2014");
+    expect(remapPartyMemberForImport({ id: "pm-1", name: "Brannor", ruleset: "2024" }, ctx).ruleset).toBe("2024");
   });
 
-  it("omits it when the editions differ so the database assigns the destination's", () => {
-    const result = remapPartyMemberForImport(row, { ...ctx, destinationRuleset: "2024" });
-    expect("ruleset" in result).toBe(false);
-  });
-
-  it("omits it when the bundle row has none", () => {
-    const result = remapPartyMemberForImport({ id: "pm-1", name: "Old" }, { ...ctx, destinationRuleset: "2024" });
-    expect("ruleset" in result).toBe(false);
+  it("sends none for a row from a bundle made before characters recorded one, so it takes the destination's", () => {
+    expect("ruleset" in remapPartyMemberForImport({ id: "pm-1", name: "Old" }, ctx)).toBe(false);
   });
 });
 
@@ -198,6 +193,25 @@ describe("remapCharacterClassForImport", () => {
     // Non-pin data (name-based resolution fallback) survives.
     expect(result.class_name).toBe("Wizard");
     expect(result.levels).toBe(5);
+  });
+
+  it("keeps the pin of a character that carries its own edition, even into a table of the other", () => {
+    // Its pins are of the edition it keeps, so they stay valid; stripping is for
+    // characters whose edition the bundle never recorded.
+    const result = remapCharacterClassForImport(systemPinnedRow, {
+      ...baseCtx,
+      stripClassDefinitionPins: true,
+      membersWithOwnEdition: new Set(["pm-1"]),
+    });
+    expect(result.class_definition_id).toBe("sys-def-1");
+    expect(result.class_definition_kind).toBe("system");
+
+    const other = remapCharacterClassForImport(systemPinnedRow, {
+      ...baseCtx,
+      stripClassDefinitionPins: true,
+      membersWithOwnEdition: new Set(["pm-other"]),
+    });
+    expect(other.class_definition_id).toBeNull();
   });
 });
 

@@ -163,6 +163,19 @@ describe("CharacterContentItemDialog", () => {
     expect(wrapper.find("[data-testid=item-error]").exists()).toBe(false);
   });
 
+  it("keeps Approve off until the item is on screen: an approval from here says the DM looked", async () => {
+    setQuery(null, { pending: true });
+    const loading = mountDialog(review({}));
+    const whileLoading = loading.findAll("button").find((b) => b.text() === "Approve");
+    expect(whileLoading?.attributes("disabled")).toBeDefined();
+    await whileLoading?.trigger("click");
+    expect(loading.emitted("approve")).toBeUndefined();
+
+    setQuery(null, { error: true });
+    const failed = mountDialog(review({}));
+    expect(failed.findAll("button").find((b) => b.text() === "Approve")?.attributes("disabled")).toBeDefined();
+  });
+
   it("emits approve with the option's scope and when the DM saw the item", async () => {
     // `seen_at`, not the row's own `updated_at`: a feature edited later than
     // its class counts as a change to what the DM was shown.

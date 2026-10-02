@@ -25,7 +25,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(118);
+select plan(133);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94400000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -559,7 +559,90 @@ insert into public.character_classes (party_member_id, class_name, levels, is_pr
 values ('94400000-0000-4000-8000-0000000000ec', 'wizard', 1, true);
 update public.campaigns set disabled_class_names = array['Wizard'] where id = '94400000-0000-4000-8000-0000000000c1';
 select is(pg_temp.flags('ec'), 'class:blocked:pending', 'a blocked class typed in another case is still blocked');
-update public.campaigns set disabled_class_names = '{}' where id = '94400000-0000-4000-8000-0000000000c1';
+set local role authenticated;
+select pg_temp.as_user(1);
+select is(public.approve_character_content(pg_temp.flag_id('ec', 'class'), 'table'), 0,
+  'and lifting the block for the table clears it, though the character spells the class in another case');
+reset role;
+select is((select disabled_class_names from public.campaigns where id = '94400000-0000-4000-8000-0000000000c1'),
+  '{}'::text[], 'the block is gone from the table');
+
+-- ── A class or subclass that is only a name ──────────────────────────────────
+-- A row with a name and no definition is an honest state (a character the DM
+-- built with a typed class gets one when it first levels up), and the name is a
+-- label. But the app resolves a name against whatever its viewer can read, so
+-- on its owner's screen it becomes the owner's own class of that name. The
+-- review reads it the same way. ec is Oz's; Moonblade and its Oz School are
+-- Oz's own; Hexer is by now the table's (the copy Dana approved above).
+insert into public.custom_classes (id, user_id, class_name, ruleset) values
+  ('94400000-0000-4000-8000-000000000082', '94400000-0000-4000-8000-000000000004', 'Moonblade', '2014');
+insert into public.custom_subclasses (id, user_id, campaign_id, class_name, subclass_name) values
+  ('94400000-0000-4000-8000-000000000091', '94400000-0000-4000-8000-000000000001', '94400000-0000-4000-8000-0000000000c1', 'Hexer', 'Dana School'),
+  ('94400000-0000-4000-8000-000000000092', '94400000-0000-4000-8000-000000000004', null, 'Moonblade', 'Oz School');
+
+select is(pg_temp.flags('ec'), 'none', 'control: an official class known only by name is taken');
+update public.character_classes set class_name = 'Blood Hunter' where party_member_id = '94400000-0000-4000-8000-0000000000ec';
+select is(pg_temp.flags('ec'), 'none', 'control: a typed name nobody has a class by is a label, not content');
+update public.character_classes set class_name = 'hexer', subclass_name = 'dana school'
+ where party_member_id = '94400000-0000-4000-8000-0000000000ec';
+select is(pg_temp.flags('ec'), 'none',
+  'control: a class and a subclass the table has by those names are the table''s own, in any case');
+
+update public.character_classes set class_name = 'moonblade', subclass_name = null
+ where party_member_id = '94400000-0000-4000-8000-0000000000ec';
+select is(pg_temp.flags('ec') || ' / ' || pg_temp.flag_label('ec', 'class'), 'class:homebrew:pending / Moonblade',
+  'a bare name that is its owner''s own class on the owner''s screen is that class, and waits like one');
+select throws_ok($$
+  update public.character_classes set class_definition_kind = 'custom'
+   where party_member_id = '94400000-0000-4000-8000-0000000000ec'
+$$, '23514', null, 'and the row cannot be called custom with no definition to hide from that');
+
+update public.character_classes set subclass_name = 'oz school' where party_member_id = '94400000-0000-4000-8000-0000000000ec';
+select is(pg_temp.flags('ec'), 'class:homebrew:pending, subclass:homebrew:pending',
+  'a subclass known only by name is read the same way');
+
+set local role authenticated;
+select pg_temp.as_user(1);
+select is(public.approve_character_content(pg_temp.flag_id('ec', 'class')), 1, 'the DM approves the class');
+select is(public.approve_character_content(pg_temp.flag_id('ec', 'subclass')), 0, 'and the subclass');
+reset role;
+select is((select jsonb_build_object(
+      'class', cc.class_name, 'kind', cc.class_definition_kind, 'subclass', cc.subclass_name,
+      'class_is_the_tables', (select d.user_id from public.custom_classes d where d.id = cc.class_definition_id) = '94400000-0000-4000-8000-000000000001',
+      'subclass_is_the_tables', (select d.user_id from public.custom_subclasses d where d.id = cc.subclass_definition_id) = '94400000-0000-4000-8000-000000000001')
+    from public.character_classes cc where cc.party_member_id = '94400000-0000-4000-8000-0000000000ec'),
+  '{"class": "Moonblade", "kind": "custom", "subclass": "Oz School", "class_is_the_tables": true, "subclass_is_the_tables": true}'::jsonb,
+  'approving pins the row to the table''s copies, under the names the definitions carry');
+select is((select count(*)::int from public.custom_classes
+  where class_name = 'Moonblade' and user_id = '94400000-0000-4000-8000-000000000004'), 1,
+  'and the player''s own class is untouched');
+delete from public.character_classes where party_member_id = '94400000-0000-4000-8000-0000000000ec';
+
+-- The same bare name on a character nobody owns is only a label: there is no
+-- owner on whose screen it could become anything.
+insert into public.custom_classes (id, user_id, class_name) values
+  ('94400000-0000-4000-8000-000000000083', '94400000-0000-4000-8000-000000000004', 'Starcaller');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, class)
+values ('94400000-0000-4000-8000-0000000000ee', '94400000-0000-4000-8000-000000000001', null,
+        '94400000-0000-4000-8000-0000000000c1', 'Typed class roster', 3, 'Starcaller');
+insert into public.character_classes (party_member_id, class_name, subclass_name, levels, is_primary)
+values ('94400000-0000-4000-8000-0000000000ee', 'Starcaller', 'Champion', 3, true);
+select is(pg_temp.flags('ee'), 'none',
+  'a DM-built character whose class and subclass are typed names is not flagged at its own table');
+delete from public.party_members where id = '94400000-0000-4000-8000-0000000000ee';
+
+-- ── A hand-over changes whose content is the character's own ─────────────────
+insert into public.species (id, user_id, name) values
+  ('94400000-0000-4000-8000-000000000062', '94400000-0000-4000-8000-000000000002', 'Pia''s Reedfolk');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, species_id)
+values ('94400000-0000-4000-8000-0000000000ed', '94400000-0000-4000-8000-000000000001', null,
+        '94400000-0000-4000-8000-0000000000c1', 'Roster for Pia', 1, '94400000-0000-4000-8000-000000000062');
+select is(pg_temp.flags('ed'), 'species:foreign:pending', 'on a character nobody owns, a player''s row is somebody else''s');
+update public.party_members set owner_user_id = '94400000-0000-4000-8000-000000000002'
+ where id = '94400000-0000-4000-8000-0000000000ed';
+select is(pg_temp.flags('ed') || ' / ' || pg_temp.flag_label('ed', 'species'), 'species:homebrew:pending / Pia''s Reedfolk',
+  'once that player owns the character its flag says so, without waiting for some other change');
+delete from public.party_members where id = '94400000-0000-4000-8000-0000000000ed';
 
 -- ── Stay, flagged: a table that changes its mind moves nobody ────────────────
 
@@ -624,7 +707,7 @@ select is_empty($q$
     and p.proname in ('adopt_content', 'adopt_id_map', 'assess_content', 'repoint_party_member_content',
                       'review_party_member_content', 'party_member_content_refs', 'is_table_dm', 'source_enabled',
                       'table_book_entry', 'seat_cleared_party_member', 'content_seen_at', 'content_nested_refs',
-                      'lock_content', 'try_uuid')
+                      'lock_content', 'try_uuid', 'named_content_of_owner')
     and (has_function_privilege('authenticated', p.oid, 'EXECUTE') or has_function_privilege('anon', p.oid, 'EXECUTE'))
 $q$, 'none of the functions that copy content or decide approval is callable by a client');
 

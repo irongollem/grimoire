@@ -8,7 +8,7 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="text-heading-sm font-bold text-foreground">
-          {{ props.member ? `Edit ${props.member.name}` : "Add Hero" }}
+          {{ `Edit ${props.member.name}` }}
         </h2>
         <AppButton variant="ghost" size="icon-xs" icon-size="md" :icon="IconClose" aria-label="Close" @click="emit('close')" />
       </div>
@@ -78,7 +78,6 @@
       <!-- Footer -->
       <div class="flex items-center justify-between gap-2 px-5 py-4 border-t border-border shrink-0">
         <AppButton
-          v-if="props.member"
           variant="link"
           tone="danger"
           size="inline-xs"
@@ -92,7 +91,7 @@
             variant="primary"
             size="md"
             :disabled="!form.name.trim() || saving"
-            :label="props.member ? 'Save Changes' : 'Add to Party'"
+            label="Save Changes"
             @click="save"
           />
         </div>
@@ -115,7 +114,6 @@ import PartyMemberPersonaTab from "./PartyMemberPersonaTab.vue";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import {
-  useCreatePartyMember,
   useUpdatePartyMember,
   useDeletePartyMember,
 } from "@/composables/party/useParty";
@@ -146,22 +144,26 @@ const TABS = [
 
 type TabId = typeof TABS[number]["id"];
 
-const props = defineProps<{ member: PartyMember | null }>();
+// Edits a hero that exists. A new hero is made in the character wizard
+// (`/party/new`), which asks the edition first and knows which campaign it is
+// for. This form used to carry a create branch as well; nothing mounted it
+// without a member, and it inserted a character with neither a campaign nor an
+// edition, which the database refuses since #943.
+const props = defineProps<{ member: PartyMember }>();
 const emit = defineEmits<{ close: [] }>();
 
-// Editing resolves the species/class pickers against the hero's own edition; adding a
-// hero (null member) falls through to the campaign's (useRuleset.ts).
+// The species and class pickers resolve against the hero's own edition (useRuleset.ts).
 provideCharacterRuleset(() => props.member);
 
 // Multiclass / builder data
-const memberId = computed(() => props.member?.id ?? null);
+const memberId = computed(() => props.member.id);
 const { data: characterClassRows } = useCharacterClasses(memberId);
 const hasMulticlassData = computed(() => (characterClassRows.value?.length ?? 0) > 0);
 const multiclassLabel = computed(() => formatMulticlassLabel(characterClassRows.value ?? []));
 const multiclassTotal = computed(() => totalLevel(characterClassRows.value ?? []));
 const hasBuilderData = computed(() =>
   hasMulticlassData.value ||
-  (props.member !== null && Object.keys(props.member.level_choices ?? {}).length > 0),
+  Object.keys(props.member.level_choices ?? {}).length > 0,
 );
 
 const { data: systemClasses } = useCampaignSystemClasses();
@@ -200,81 +202,81 @@ const subclassOptions = computed(() =>
 const activeTab = ref<TabId>("identity");
 
 // Portrait
-const portraitUrl = ref(props.member?.portrait_url ?? "");
-const focalPoint  = ref<{ x: number; y: number } | null>(props.member?.portrait_focal_point ?? null);
+const portraitUrl = ref(props.member.portrait_url ?? "");
+const focalPoint  = ref<{ x: number; y: number } | null>(props.member.portrait_focal_point ?? null);
 
 const form = reactive<
   Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "spell_slots"> & {
     sort_order: number;
   }
 >({
-  campaign_id: props.member?.campaign_id ?? null,
-  name: props.member?.name ?? "",
-  player_name: props.member?.player_name ?? "",
-  class: props.member?.class ?? "",
-  subclass: props.member?.subclass ?? "",
-  level: props.member?.level ?? 1,
-  subrace: props.member?.subrace ?? "",
-  max_hp: props.member?.max_hp ?? 10,
-  current_hp: props.member?.current_hp ?? 10,
-  temp_hp: props.member?.temp_hp ?? 0,
-  ac: props.member?.ac ?? 10,
-  speed: props.member?.speed ?? 30,
-  initiative_bonus: props.member?.initiative_bonus ?? 0,
-  current_initiative: props.member?.current_initiative ?? null,
-  str: props.member?.str ?? 10,
-  dex: props.member?.dex ?? 10,
-  con: props.member?.con ?? 10,
-  int: props.member?.int ?? 10,
-  wis: props.member?.wis ?? 10,
-  cha: props.member?.cha ?? 10,
-  proficiency_bonus: props.member?.proficiency_bonus ?? 2,
-  skill_proficiencies: { ...props.member?.skill_proficiencies },
-  saving_throw_proficiencies: [...(props.member?.saving_throw_proficiencies ?? [])],
-  conditions: [...(props.member?.conditions ?? [])],
-  inspiration: props.member?.inspiration ?? false,
-  death_save_successes: props.member?.death_save_successes ?? 0,
-  death_save_failures: props.member?.death_save_failures ?? 0,
-  notes: props.member?.notes ?? "",
-  sort_order: props.member?.sort_order ?? 0,
-  curses: [...(props.member?.curses ?? [])],
-  pp: props.member?.pp ?? 0,
-  gp: props.member?.gp ?? 0,
-  ep: props.member?.ep ?? 0,
-  sp: props.member?.sp ?? 0,
-  cp: props.member?.cp ?? 0,
-  tool_proficiencies: [...(props.member?.tool_proficiencies ?? [])],
-  languages: [...(props.member?.languages ?? [])],
-  weapon_masteries: [...(props.member?.weapon_masteries ?? [])],
+  campaign_id: props.member.campaign_id ?? null,
+  name: props.member.name ?? "",
+  player_name: props.member.player_name ?? "",
+  class: props.member.class ?? "",
+  subclass: props.member.subclass ?? "",
+  level: props.member.level ?? 1,
+  subrace: props.member.subrace ?? "",
+  max_hp: props.member.max_hp ?? 10,
+  current_hp: props.member.current_hp ?? 10,
+  temp_hp: props.member.temp_hp ?? 0,
+  ac: props.member.ac ?? 10,
+  speed: props.member.speed ?? 30,
+  initiative_bonus: props.member.initiative_bonus ?? 0,
+  current_initiative: props.member.current_initiative ?? null,
+  str: props.member.str ?? 10,
+  dex: props.member.dex ?? 10,
+  con: props.member.con ?? 10,
+  int: props.member.int ?? 10,
+  wis: props.member.wis ?? 10,
+  cha: props.member.cha ?? 10,
+  proficiency_bonus: props.member.proficiency_bonus ?? 2,
+  skill_proficiencies: { ...props.member.skill_proficiencies },
+  saving_throw_proficiencies: [...(props.member.saving_throw_proficiencies ?? [])],
+  conditions: [...(props.member.conditions ?? [])],
+  inspiration: props.member.inspiration ?? false,
+  death_save_successes: props.member.death_save_successes ?? 0,
+  death_save_failures: props.member.death_save_failures ?? 0,
+  notes: props.member.notes ?? "",
+  sort_order: props.member.sort_order ?? 0,
+  curses: [...(props.member.curses ?? [])],
+  pp: props.member.pp ?? 0,
+  gp: props.member.gp ?? 0,
+  ep: props.member.ep ?? 0,
+  sp: props.member.sp ?? 0,
+  cp: props.member.cp ?? 0,
+  tool_proficiencies: [...(props.member.tool_proficiencies ?? [])],
+  languages: [...(props.member.languages ?? [])],
+  weapon_masteries: [...(props.member.weapon_masteries ?? [])],
   // #786: an override, not the member's location — null means "with the
   // party". No control here edits it; it's set via LocationResidents' "Move
   // here", a calendar travel event, or cleared via "Rejoin the party".
   // Carried through unmodified on save.
-  current_location_id: props.member?.current_location_id ?? null,
-  carry_capacity_override: props.member?.carry_capacity_override ?? null,
-  class_resources: props.member?.class_resources ?? {},
-  class_choices: props.member?.class_choices ?? {},
-  active_infusions: props.member?.active_infusions ?? [],
-  custom_attacks: props.member?.custom_attacks ?? [],
-  rage_active: props.member?.rage_active ?? false,
-  species_id: props.member?.species_id ?? null,
-  disguise_species_id: props.member?.disguise_species_id ?? null,
-  disguise_race: props.member?.disguise_race ?? null,
-  disguise_subrace: props.member?.disguise_subrace ?? null,
-  background_id: props.member?.background_id ?? null,
-  height: props.member?.height ?? null,
+  current_location_id: props.member.current_location_id ?? null,
+  carry_capacity_override: props.member.carry_capacity_override ?? null,
+  class_resources: props.member.class_resources ?? {},
+  class_choices: props.member.class_choices ?? {},
+  active_infusions: props.member.active_infusions ?? [],
+  custom_attacks: props.member.custom_attacks ?? [],
+  rage_active: props.member.rage_active ?? false,
+  species_id: props.member.species_id ?? null,
+  disguise_species_id: props.member.disguise_species_id ?? null,
+  disguise_race: props.member.disguise_race ?? null,
+  disguise_subrace: props.member.disguise_subrace ?? null,
+  background_id: props.member.background_id ?? null,
+  height: props.member.height ?? null,
   // Persona
-  alignment:            props.member?.alignment            ?? "",
-  deity:                props.member?.deity                ?? "",
-  deity_id:             props.member?.deity_id             ?? null as string | null,
-  age:                  props.member?.age                  ?? "",
-  gender:               props.member?.gender               ?? "",
-  pronouns:             props.member?.pronouns             ?? "",
-  physical_description: props.member?.physical_description ?? "",
-  personality_traits:   props.member?.personality_traits   ?? "",
-  ideals:               props.member?.ideals               ?? "",
-  bonds:                props.member?.bonds                ?? "",
-  flaws:                props.member?.flaws                ?? "",
+  alignment:            props.member.alignment            ?? "",
+  deity:                props.member.deity                ?? "",
+  deity_id:             props.member.deity_id             ?? null as string | null,
+  age:                  props.member.age                  ?? "",
+  gender:               props.member.gender               ?? "",
+  pronouns:             props.member.pronouns             ?? "",
+  physical_description: props.member.physical_description ?? "",
+  personality_traits:   props.member.personality_traits   ?? "",
+  ideals:               props.member.ideals               ?? "",
+  bonds:                props.member.bonds                ?? "",
+  flaws:                props.member.flaws                ?? "",
 });
 
 // Keep form.level in sync with authoritative total when multiclass data exists.
@@ -383,7 +385,7 @@ function buildSlotMaxes(
 }
 
 const spellSlotMaxes = reactive<number[]>(
-  buildSlotMaxes(props.member?.spell_slots, props.member?.class ?? "", props.member?.level ?? 1),
+  buildSlotMaxes(props.member.spell_slots, props.member.class ?? "", props.member.level ?? 1),
 );
 
 function resetSlotsToDefault() {
@@ -415,12 +417,11 @@ const players = computed(() =>
 
 const selectedCampaignMemberId = ref<string>(
   (campaignMembers.value ?? []).find(
-    (m) => props.member && m.party_member_id === props.member.id,
+    (m) => m.party_member_id === props.member.id,
   )?.id ?? "",
 );
 
 // --- CRUD ---
-const { mutateAsync: create } = useCreatePartyMember();
 const { mutateAsync: update } = useUpdatePartyMember();
 const { mutateAsync: del } = useDeletePartyMember();
 const { mutateAsync: detach } = useDetachCharacter();
@@ -455,34 +456,27 @@ async function save() {
     flaws:                form.flaws                || null,
     spell_slots: spellSlotMaxes
       .map((max, i) => {
-        const existing = props.member?.spell_slots?.find((s: SpellSlotEntry) => s.level === i + 1);
+        const existing = props.member.spell_slots?.find((s: SpellSlotEntry) => s.level === i + 1);
         return { level: i + 1, max, used: max > 0 ? (existing?.used ?? 0) : 0 };
       })
       .filter((s) => s.max > 0),
   };
 
   try {
-    let partyMemberId = props.member?.id;
-    if (props.member) {
-      const { campaign_id: _cid, ...updatePayload } = payload;
-      await update({ id: props.member.id, update: updatePayload });
-    } else {
-      const created = await create(payload);
-      partyMemberId = created.id;
-    }
+    const partyMemberId = props.member.id;
+    const { campaign_id: _cid, ...updatePayload } = payload;
+    await update({ id: partyMemberId, update: updatePayload });
 
-    if (partyMemberId) {
-      for (const m of players.value) {
-        if (m.party_member_id === partyMemberId && m.id !== selectedCampaignMemberId.value) {
-          await updateCampaignMember({ id: m.id, update: { party_member_id: null } });
-        }
+    for (const m of players.value) {
+      if (m.party_member_id === partyMemberId && m.id !== selectedCampaignMemberId.value) {
+        await updateCampaignMember({ id: m.id, update: { party_member_id: null } });
       }
-      if (selectedCampaignMemberId.value) {
-        await updateCampaignMember({
-          id: selectedCampaignMemberId.value,
-          update: { party_member_id: partyMemberId },
-        });
-      }
+    }
+    if (selectedCampaignMemberId.value) {
+      await updateCampaignMember({
+        id: selectedCampaignMemberId.value,
+        update: { party_member_id: partyMemberId },
+      });
     }
 
     emit("close");
@@ -492,7 +486,6 @@ async function save() {
 }
 
 async function remove() {
-  if (!props.member) return;
   if (saving.value) return;
   const claimed = !!props.member.owner_user_id;
   const action = claimed ? "Detach" : "Remove";

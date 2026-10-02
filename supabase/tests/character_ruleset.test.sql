@@ -31,7 +31,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(70);
+select plan(73);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94300000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -107,6 +107,28 @@ select throws_ok($$
   values ('94300000-0000-4000-8000-000000000001', null, '94300000-0000-4000-8000-0000000000c1', 'Wrong edition', '2024')
 $$, 'RS001', 'This table plays the 2014 rules and does not take 2024 characters',
   'a direct insert cannot walk a 2024 character into a 2014 table');
+
+-- The door is for a character arriving. The table's own DM places a roster
+-- character as it is (a restore or an import has to be able to put a table
+-- back the way it was); it shows as the other edition and is converted from
+-- the Rules tab, not relabelled on the way in.
+set local role authenticated;
+select pg_temp.as_user(2);
+select throws_ok($$
+  insert into public.party_members (user_id, owner_user_id, campaign_id, name, ruleset)
+  values ('94300000-0000-4000-8000-000000000002', '94300000-0000-4000-8000-000000000002',
+          '94300000-0000-4000-8000-0000000000c1', 'Pia walks in', '2024')
+$$, 'RS001', 'This table plays the 2014 rules and does not take 2024 characters',
+  'a player cannot insert a 2024 character into a 2014 table');
+select pg_temp.as_user(1);
+select lives_ok($$
+  insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
+  values ('94300000-0000-4000-8000-0000000000ef', '94300000-0000-4000-8000-000000000001', null,
+          '94300000-0000-4000-8000-0000000000c1', 'Restored 2024 roster character', '2024')
+$$, 'the table''s own DM places a roster character of the other edition');
+reset role;
+select is((pg_temp.pm('ef')).ruleset, '2024', 'and it keeps the edition it was built under, not the table''s');
+delete from public.party_members where id = '94300000-0000-4000-8000-0000000000ef';
 
 -- ── One reader ───────────────────────────────────────────────────────────────
 
