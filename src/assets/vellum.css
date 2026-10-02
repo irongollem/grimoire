@@ -199,6 +199,18 @@
    panels, sheets: ~480 call sites). Positioned ones (absolute/fixed/sticky:
    menus, popovers, toolbars) are left alone. `.torn-wash` gives the
    borderless secondary wash used for callouts. */
+/* WebKit (Safari, and every browser on iOS) seeds #vl-rough's turbulence from
+   where the fill is painted in the viewport, not from the fill's own box, so a
+   card's tear is redrawn into a different shape at every scroll position and
+   the edges crawl while a page scrolls. A fill on its own layer is painted in
+   its own coordinates, once, and the layer is then moved. Blink and Gecko
+   already anchor the noise to the box, so they keep `none` and are spared a
+   layer per card. `font: -apple-system-body` is the feature query only WebKit
+   answers yes to. Every roughened ::before below reads this variable. */
+:root[data-theme^="vellum"] { --vl-torn-layer: none; }
+@supports (font: -apple-system-body) {
+  :root[data-theme^="vellum"] { --vl-torn-layer: translateZ(0); }
+}
 :root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)) {
   position: relative;
   isolation: isolate;
@@ -216,6 +228,7 @@
   background: var(--torn-fill, var(--card));
   border: 1px solid var(--torn-edge, var(--border));
   filter: url(#vl-rough) drop-shadow(0 1px 1.5px rgb(43 32 25 / 0.16));
+  transform: var(--vl-torn-layer);
   pointer-events: none;
 }
 :root[data-theme="vellum-dark"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky))::before {
@@ -487,6 +500,7 @@
   background: var(--card);
   border: 1px solid var(--border);
   filter: url(#vl-rough) drop-shadow(0 1px 1.5px rgb(43 32 25 / 0.16));
+  transform: var(--vl-torn-layer);
   pointer-events: none;
 }
 /* Modal panels keep overflow-hidden, so the rough edge reads as small notches
@@ -569,6 +583,7 @@
   background: var(--card);
   border: 1px solid var(--border);
   filter: url(#vl-rough) drop-shadow(0 1px 1.5px rgb(43 32 25 / 0.16));
+  transform: var(--vl-torn-layer);
   pointer-events: none;
 }
 :root[data-theme^="vellum"] .cal-day {
@@ -611,6 +626,7 @@
   z-index: -1;
   background: var(--secondary);
   filter: url(#vl-rough);
+  transform: var(--vl-torn-layer);
   pointer-events: none;
 }
 :root[data-theme^="vellum"] .cal-festival > div:first-child { justify-content: center; }
