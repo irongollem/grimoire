@@ -53,7 +53,8 @@ export interface ValidatedPayload {
   byKind: Partial<Record<SupportedKind, RawEntity[]>>;
 }
 
-export type MatchKind = "exact" | "contains" | "similar";
+/** `exact`, `near` and `contains` are the name tier's own verdicts, passed through as `match_import_entity_names` returns them; `similar` is the embedding tier's. */
+export type MatchKind = "exact" | "near" | "contains" | "similar";
 export type MatchSource = "campaign" | "library";
 
 export interface Candidate {

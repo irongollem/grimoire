@@ -7,10 +7,13 @@
  * lets them choose Link / Create / Ignore, and this function is what produces
  * those candidates — two tiers, in order of confidence:
  *
- *   1. NAME (SQL, `match_import_entity_names` — migration 20260918141022):
- *      exact and whole-word-suffix matches against the DM's own campaign +
- *      global rows, plus the library where one exists. Cheap, exact, and
- *      never trims the DM's own rows — five goblins stay five candidates.
+ *   1. NAME (SQL, `match_import_entity_names` — migration 20260918141022,
+ *      widened by 20261002131333): exact, one-keystroke-away and whole-word
+ *      partial matches against the DM's own campaign + global rows, plus the
+ *      library where one exists. Cheap, and never trims the DM's own rows —
+ *      five goblins stay five candidates. This tier carries every NAME
+ *      difference on its own; the tier below compares descriptions and does
+ *      not rescue a misspelling or a missing surname.
  *   2. MEANING (embeddings): a batched embed of every semantic-eligible
  *      entity's extracted text, matched against the same vector corpora the
  *      quest-hook generator (#600) and the loot generator (#602) already

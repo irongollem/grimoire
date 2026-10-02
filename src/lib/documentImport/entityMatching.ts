@@ -26,12 +26,14 @@ import type { ImportEntityKind } from "@/types/documentImport.types";
 export type EntityMatchSource = "campaign" | "library";
 
 /**
- * How a candidate was found. `exact`/`contains` are the name tier
- * (`match_import_entity_names`, whole-word substring in either direction);
- * `similar` is the embedding fallback the edge function adds on top, for a
- * renamed variant or a creature described but never named on the page.
+ * How a candidate was found. `exact`/`near`/`contains` are the name tier
+ * (`match_import_entity_names`): the same name, one of the DM's own rows a
+ * single keystroke away from it ("Edgra Durmoot" on the page, "Edgra Durnoot"
+ * in the vault), or a whole-word part of it in either direction. `similar` is
+ * the embedding fallback the edge function adds on top, for a renamed variant
+ * or a creature described but never named on the page.
  */
-export type EntityMatchKind = "exact" | "contains" | "similar";
+export type EntityMatchKind = "exact" | "near" | "contains" | "similar";
 
 /** One existing row the DM might mean to reuse instead of creating a
  *  duplicate. */
@@ -48,8 +50,8 @@ export interface EntityCandidate {
    *  ("Black Flag SRD"), or a free-text hint for a campaign hit ("blacksmith").
    *  `null` when the source has nothing to show. */
   detail: string | null;
-  /** Cosine distance for a `similar` candidate; `null` for `exact`/`contains`,
-   *  which have no embedding involved. */
+  /** Cosine distance for a `similar` candidate; `null` for the name tier's
+   *  `exact`/`near`/`contains`, which have no embedding involved. */
   distance: number | null;
 }
 
@@ -75,7 +77,7 @@ function asMatchSource(value: unknown): EntityMatchSource | null {
 }
 
 function asMatchKind(value: unknown): EntityMatchKind | null {
-  return value === "exact" || value === "contains" || value === "similar" ? value : null;
+  return value === "exact" || value === "near" || value === "contains" || value === "similar" ? value : null;
 }
 
 function asImportEntityKind(value: string): value is ImportEntityKind {

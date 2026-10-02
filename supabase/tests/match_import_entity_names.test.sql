@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(27);
 
 -- Regression + behavior cover for the name tier of the import dedupe
 -- (migration 20260918141022, called only by the import-match edge function).
@@ -13,6 +13,12 @@ select plan(15);
 -- rows are NEVER trimmed (a DM with five goblins must see all five), while
 -- the library is capped at five per name because it can hold the same
 -- creature from many sourcebooks.
+--
+-- Migration 20261002131333 added a fourth: a page and a DM write the same
+-- name differently. The second half of this file is the six misses one real
+-- chapter produced (typeset punctuation, a given name without its surname, a
+-- one-letter slip), each with the guard that keeps the wider rule from
+-- reaching the kinds and sources it was deliberately kept away from.
 
 -- ── Fixture ──────────────────────────────────────────────────────────────────
 
@@ -39,7 +45,21 @@ insert into public.npcs (id, user_id, campaign_id, name) values
   ('19410000-0000-4000-8000-000000000105', '19410000-0000-4000-8000-000000000002', '19410000-0000-4000-8000-000000000010', 'Co-DM Contact'),
   -- a stranger's GLOBAL npc, same name as one above, in no campaign at all --
   -- must never appear when a different user queries a campaign they own.
-  ('19410000-0000-4000-8000-000000000106', '19410000-0000-4000-8000-000000000003', null, 'Giant Rat');
+  ('19410000-0000-4000-8000-000000000106', '19410000-0000-4000-8000-000000000003', null, 'Giant Rat'),
+  -- The proper-name cases (migration 20261002131333).
+  ('19410000-0000-4000-8000-000000000107', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Finn'),
+  ('19410000-0000-4000-8000-000000000108', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Hilda Snowmantle'),
+  ('19410000-0000-4000-8000-000000000109', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Edgra Durnoot'),
+  ('19410000-0000-4000-8000-000000000110', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Captain Imdra Arlaggath'),
+  -- Two of the DM's own rows one letter apart: asking for one by its exact
+  -- name must not also offer the other.
+  ('19410000-0000-4000-8000-000000000111', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Zzmatch Marta'),
+  ('19410000-0000-4000-8000-000000000112', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Zzmatch Marte');
+
+-- Typed the way a DM types them: a straight apostrophe, a space for a hyphen.
+insert into public.locations (id, user_id, campaign_id, name) values
+  ('19410000-0000-4000-8000-000000000301', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Dougan''s Hole'),
+  ('19410000-0000-4000-8000-000000000302', '19410000-0000-4000-8000-000000000001', '19410000-0000-4000-8000-000000000010', 'Ten Towns');
 
 -- Six same-named NPCs the owner made themselves -- the "five goblins" case.
 -- None of these may be trimmed: match_import_entity_names caps the library at
@@ -64,7 +84,9 @@ insert into public.library_monsters (id, name, monster_type, ruleset, conceptual
   ('zzmatch-goblin-scout-4', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-4'),
   ('zzmatch-goblin-scout-5', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-5'),
   ('zzmatch-goblin-scout-6', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-6'),
-  ('zzmatch-disabled-ogre', 'Ogre Zzmatch', 'giant', '2014', 'zzmatch_ogre', 'zzmatch-disabled-book', 'zzmatch-disabled-book', 'zzmatch-disabled-ogre');
+  ('zzmatch-disabled-ogre', 'Ogre Zzmatch', 'giant', '2014', 'zzmatch_ogre', 'zzmatch-disabled-book', 'zzmatch-disabled-book', 'zzmatch-disabled-ogre'),
+  -- In the enabled book, and one letter from a name the page will ask for.
+  ('zzmatch-ghast', 'Zzmatch Ghast', 'undead', '2014', 'zzmatch_ghast', 'zzmatch-book', 'zzmatch-book', 'zzmatch-ghast');
 
 -- ── Exact match through article + plural ─────────────────────────────────────
 select results_eq(
@@ -199,6 +221,110 @@ select is(
      'encounters', array['Zzmatch Ambush'])),
   null::text,
   'an encounter pointing at another account''s location does not leak that location''s name'
+);
+
+-- ── Punctuation: the page typesets what the DM typed ─────────────────────────
+select results_eq(
+  $$ select target_id, source, match_kind
+     from public.match_import_entity_names(
+       '19410000-0000-4000-8000-000000000001'::uuid,
+       '19410000-0000-4000-8000-000000000010'::uuid,
+       'locations', array['Dougan’s Hole']) $$,
+  $$ values ('19410000-0000-4000-8000-000000000301', 'campaign', 'exact') $$,
+  'a typeset apostrophe matches the typed one exactly: "Dougan’s Hole" is the existing "Dougan''s Hole"'
+);
+select results_eq(
+  $$ select target_id, source, match_kind
+     from public.match_import_entity_names(
+       '19410000-0000-4000-8000-000000000001'::uuid,
+       '19410000-0000-4000-8000-000000000010'::uuid,
+       'locations', array['Ten-Towns']) $$,
+  $$ values ('19410000-0000-4000-8000-000000000302', 'campaign', 'exact') $$,
+  'a hyphen matches a space exactly: "Ten-Towns" is the existing "Ten Towns"'
+);
+
+-- ── Proper names match on any whole-word run, in either direction ────────────
+select results_eq(
+  $$ select target_id, source, match_kind
+     from public.match_import_entity_names(
+       '19410000-0000-4000-8000-000000000001'::uuid,
+       '19410000-0000-4000-8000-000000000010'::uuid,
+       'npcs', array['Finn Dejarr']) $$,
+  $$ values ('19410000-0000-4000-8000-000000000107', 'campaign', 'contains') $$,
+  '"Finn Dejarr" finds the existing "Finn": a given name leads, so a suffix rule alone misses it'
+);
+select results_eq(
+  $$ select target_id, source, match_kind
+     from public.match_import_entity_names(
+       '19410000-0000-4000-8000-000000000001'::uuid,
+       '19410000-0000-4000-8000-000000000010'::uuid,
+       'npcs', array['Hilda']) $$,
+  $$ values ('19410000-0000-4000-8000-000000000108', 'campaign', 'contains') $$,
+  '"Hilda" finds the existing "Hilda Snowmantle"'
+);
+select results_eq(
+  $$ select target_id, source, match_kind
+     from public.match_import_entity_names(
+       '19410000-0000-4000-8000-000000000001'::uuid,
+       '19410000-0000-4000-8000-000000000010'::uuid,
+       'npcs', array['Imdra']) $$,
+  $$ values ('19410000-0000-4000-8000-000000000110', 'campaign', 'contains') $$,
+  '"Imdra" finds the existing "Captain Imdra Arlaggath" from the middle of the name'
+);
+-- The guard: a thing is named head-noun-last, so every other kind keeps the
+-- suffix rule and nothing wider. "Zzmatch Ambush" leads this name; it must not
+-- be offered.
+select is(
+  (select count(*) from public.match_import_entity_names(
+     '19410000-0000-4000-8000-000000000001'::uuid,
+     '19410000-0000-4000-8000-000000000010'::uuid,
+     'encounters', array['Zzmatch Ambush at Dawn'])),
+  0::bigint,
+  'outside npcs, factions and locations a leading whole-word match is not a candidate'
+);
+
+-- ── Near: the DM's own row, one keystroke away ───────────────────────────────
+select results_eq(
+  $$ select target_id, source, match_kind
+     from public.match_import_entity_names(
+       '19410000-0000-4000-8000-000000000001'::uuid,
+       '19410000-0000-4000-8000-000000000010'::uuid,
+       'npcs', array['Edgra Durmoot']) $$,
+  $$ values ('19410000-0000-4000-8000-000000000109', 'campaign', 'near') $$,
+  '"Edgra Durmoot" finds the existing "Edgra Durnoot", one letter away'
+);
+select results_eq(
+  $$ select target_id, source, match_kind
+     from public.match_import_entity_names(
+       '19410000-0000-4000-8000-000000000001'::uuid,
+       '19410000-0000-4000-8000-000000000010'::uuid,
+       'npcs', array['Zzmatch Marta']) $$,
+  $$ values ('19410000-0000-4000-8000-000000000111', 'campaign', 'exact') $$,
+  'a name with an exact match is not misspelled: its one-letter neighbour "Zzmatch Marte" is not offered'
+);
+select is(
+  (select count(*) from public.match_import_entity_names(
+     '19410000-0000-4000-8000-000000000001'::uuid,
+     '19410000-0000-4000-8000-000000000010'::uuid,
+     'npcs', array['Fenn'])),
+  0::bigint,
+  'a short name gets no near match: "Fenn" does not find "Finn"'
+);
+select is(
+  (select count(*) from public.match_import_entity_names(
+     '19410000-0000-4000-8000-000000000001'::uuid,
+     '19410000-0000-4000-8000-000000000010'::uuid,
+     'monsters', array['Zzmatch Ghost'])),
+  0::bigint,
+  'the library is never a near match: "Zzmatch Ghost" does not find the library''s "Zzmatch Ghast"'
+);
+select ok(
+  private.names_one_edit_apart('edgra durmoot', 'edgra durmoto'),
+  'two neighbouring letters swapped are one edit apart'
+);
+select ok(
+  not private.names_one_edit_apart('koran', 'kanan'),
+  'two letters changed are not one edit apart'
 );
 
 -- ── Grants: service_role only ─────────────────────────────────────────────────

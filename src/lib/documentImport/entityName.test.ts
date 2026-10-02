@@ -51,4 +51,31 @@ describe("normalizeEntityName", () => {
   it("leaves a name with no article and no trailing plural unchanged but lowercased", () => {
     expect(normalizeEntityName("Waterdeep")).toBe("waterdeep");
   });
+
+  // The cases below are the ones a real chapter missed on 2 Oct 2026: a book
+  // typesets punctuation a DM types differently, or not at all. Each expected
+  // key is what `private.normalize_entity_name` returns for the same input.
+  it("makes a typeset apostrophe and a typed one meet at the same key", () => {
+    expect(normalizeEntityName("Dougan’s Hole")).toBe("dougans hole");
+    expect(normalizeEntityName("Dougan's Hole")).toBe("dougans hole");
+  });
+
+  it("makes a hyphenated name and its spaced form meet at the same key", () => {
+    expect(normalizeEntityName("Ten-Towns")).toBe("ten town");
+    expect(normalizeEntityName("Ten Towns")).toBe("ten town");
+    expect(normalizeEntityName("Old Nerrik Two-Boot")).toBe("old nerrik two boot");
+  });
+
+  it("keys a keyed room or a parenthesised variant on its words alone", () => {
+    expect(normalizeEntityName("L5. Garagai’s Icy Tomb")).toBe("l5 garagais icy tomb");
+    expect(normalizeEntityName("Potion of Healing (Greater)")).toBe("potion of healing greater");
+  });
+
+  it("keeps a plus sign, which tells one magic item from another", () => {
+    expect(normalizeEntityName("+1 Longsword")).toBe("+1 longsword");
+  });
+
+  it("returns null for a name that is nothing but punctuation", () => {
+    expect(normalizeEntityName("???")).toBeNull();
+  });
 });

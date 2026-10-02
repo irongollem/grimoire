@@ -69,6 +69,26 @@ describe("parseImportMatches", () => {
     });
   });
 
+  it("keeps a near match, the name tier's one-keystroke-away verdict", () => {
+    // `match_import_entity_names` returns 'near' for one of the DM's own rows a
+    // single edit from the page's name. An unknown kind is dropped as malformed
+    // (below), so this one has to be known here or the candidate vanishes.
+    const raw = {
+      matches: {
+        npcs: {
+          n1: [
+            { targetId: "npc-1", source: "campaign", name: "Edgra Durnoot", matchKind: "near", detail: "Human", distance: null },
+          ],
+        },
+      },
+      semantic: true,
+    };
+    const { matches } = parseImportMatches(raw);
+    expect(matches.get("npcs")?.get("n1")).toEqual([
+      { targetId: "npc-1", source: "campaign", name: "Edgra Durnoot", matchKind: "near", detail: "Human", distance: null },
+    ]);
+  });
+
   it("drops a malformed candidate rather than throwing or guessing", () => {
     const raw = {
       matches: {
