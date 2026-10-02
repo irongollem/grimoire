@@ -45,7 +45,7 @@
         :expanded-features="wizardExpandedFeatures"
         :has-class-data="!!(systemClass || customClass)"
         :next-level="nextLevel"
-        :class-name="memberClass || (member.class ?? 'this class')"
+        :class-name="memberClass || 'this class'"
         :cantrips-known-gain="cantripsKnownGain"
         :cantrips-known-total="cantripsKnownTotal"
         :spells-known-gain="spellsKnownGain"
@@ -59,6 +59,7 @@
 
       <!-- Hit Points -->
       <LevelUpHitPoints
+        v-if="hitDie !== null && hpAverageValue !== null"
         :hit-die="hitDie"
         :con-mod="conMod"
         :hp-mode="hpMode"
@@ -71,6 +72,7 @@
         @set-mode="setHpMode"
         @roll="rollHp"
       />
+      <p v-else class="text-caption text-muted-foreground italic">Loading the class's hit die…</p>
 
       <!-- ASI / Feat picker -->
       <LevelUpAsiSection
@@ -88,11 +90,11 @@
       <!-- Subclass choice -->
       <LevelUpSubclassPicker
         v-if="needsSubclassChoice"
-        v-model="subclassInput"
         v-model:selected-id="subclassDefinitionId"
         :next-level="nextLevel"
         :class-name="memberClass"
         :subclass-options="subclassOptions"
+        @update:model-value="subclassInput = $event"
       />
 
       <!-- Class-specific steps -->
@@ -173,6 +175,7 @@ import LevelUpFeaturesGained from "./LevelUpFeaturesGained.vue";
 import LevelUpHitPoints from "./LevelUpHitPoints.vue";
 import LevelUpAsiSection from "./LevelUpAsiSection.vue";
 import LevelUpSubclassPicker from "./LevelUpSubclassPicker.vue";
+import { subclassChoiceDue } from "./subclassChoice";
 import LevelUpSpellPicker from "./LevelUpSpellPicker.vue";
 import LevelUpSpellsUnavailable from "./LevelUpSpellsUnavailable.vue";
 import LevelUpClassSteps from "./LevelUpClassSteps.vue";
@@ -186,7 +189,6 @@ import {
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { meetsMulticlassPrereq } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
-import { getHitDie } from "@/types/spell.types";
 import { useLevelUpSpellSlots } from "./useLevelUpSpellSlots";
 import { useClassScopedReset } from "./useClassScopedReset";
 import type { DieSize } from "@/lib/dice/dice";
@@ -232,13 +234,15 @@ const newClassChoiceKey = ref<string>("");
 // Seed the picker on mount / when member classes load. Must be a watch — a
 // lazy computed that is never read in the template would never run, leaving
 // chosenClassSelector "" and silently skipping the character_classes update
-// on confirm.
+// on confirm. A character with no class rows is classless: it levels up by
+// adding its first class, so the picker starts on "a new class". That has to
+// wait for the load (`undefined`), or every character would start there.
 watch(
-  existingClassOptions,
-  (options) => {
-    if (chosenClassSelector.value) return;
-    const primary = options.find(c => c.is_primary) ?? options[0];
-    if (primary) chosenClassSelector.value = primary.id;
+  characterClasses,
+  (rows) => {
+    if (chosenClassSelector.value || rows === undefined) return;
+    const primary = rows.find(c => c.is_primary) ?? rows[0];
+    chosenClassSelector.value = primary ? primary.id : "__new__";
   },
   { immediate: true },
 );
@@ -265,61 +269,53 @@ const chosenExistingEntry = computed<CharacterClass | null>(() => {
 /** The class name for this level-up — existing-class name or newly-picked class. */
 const memberClass = computed(() => {
   if (isAddingNewClass.value) return newClassName.value;
-  return chosenExistingEntry.value?.class_name ?? props.member.class ?? "";
+  return chosenExistingEntry.value?.class_name ?? "";
 });
-
-const memberSubclass = computed(() =>
-  chosenExistingEntry.value?.subclass_name ?? "",
-);
 
 /** Per-chosen-class level: the level *inside the chosen class* after this bump. */
 const levelInChosenClass = computed(() => {
-  if (isAddingNewClass.value) return 1;
+  if (isAddingNewClass.value) {
+    // A classless character's first class carries every level it has banked
+    // (apply_level_up wants the member's new total); a further class starts at 1.
+    return existingClassOptions.value.length === 0 ? props.member.level + 1 : 1;
+  }
   if (chosenExistingEntry.value) return chosenExistingEntry.value.levels + 1;
-  // DM-built character with no character_classes rows yet (existingClassOptions
-  // is empty, so chosenExistingEntry never resolves) — derive the level being
-  // gained from the legacy party_members.level field instead of defaulting to 1.
-  if (existingClassOptions.value.length === 0 && props.member.class) return props.member.level + 1;
   return 1;
 });
 
+// Every class row is pinned to its definition, so the class resolves by id and
+// kind alone, never by name (a custom class may share an official one's name).
 const exactClassDefinition = computed(() => {
   if (isAddingNewClass.value) return newClassDefinition.value;
   const entry = chosenExistingEntry.value;
-  if (entry?.class_definition_kind === "system" && entry.class_definition_id) {
+  if (!entry) return null;
+  if (entry.class_definition_kind === "system") {
     const value = (allSystemClasses.value ?? []).find(c => c.id === entry.class_definition_id);
-    if (value) return { kind: "system" as const, value };
+    return value ? { kind: "system" as const, value } : null;
   }
-  if (entry?.class_definition_kind === "custom" && entry.class_definition_id) {
-    const value = (allCustomClasses.value ?? []).find(c => c.id === entry.class_definition_id);
-    if (value) return { kind: "custom" as const, value };
-  }
-  return null;
+  const value = (allCustomClasses.value ?? []).find(c => c.id === entry.class_definition_id);
+  return value ? { kind: "custom" as const, value } : null;
 });
-const customClass = computed(() => exactClassDefinition.value
-  ? (exactClassDefinition.value.kind === "custom" ? exactClassDefinition.value.value : null)
-  : (allCustomClasses.value ?? []).find(c => c.class_name === memberClass.value));
-const systemClass = computed(() => exactClassDefinition.value
-  ? (exactClassDefinition.value.kind === "system" ? exactClassDefinition.value.value : undefined)
-  : (allSystemClasses.value ?? []).find(c => c.class_name === memberClass.value));
+const customClass = computed(() =>
+  exactClassDefinition.value?.kind === "custom" ? exactClassDefinition.value.value : null);
+const systemClass = computed(() =>
+  exactClassDefinition.value?.kind === "system" ? exactClassDefinition.value.value : undefined);
 const { data: allFeatures }   = useAllFeatures();
 const { data: campaignCustomSubclasses, all: allCustomSubclasses } = useCampaignCustomSubclasses();
 const subclassDefinitionId = ref("");
 const customSubclass = computed(() => {
   const id = subclassDefinitionId.value || chosenExistingEntry.value?.subclass_definition_id;
-  if (id) return (allCustomSubclasses.value ?? []).find(subclass => subclass.id === id) ?? null;
-  return (allCustomSubclasses.value ?? []).find(subclass =>
-    subclass.class_name === memberClass.value && subclass.subclass_name === memberSubclass.value) ?? null;
+  return id ? (allCustomSubclasses.value ?? []).find(subclass => subclass.id === id) ?? null : null;
 });
 
 // Classes the character doesn't already have — candidates for a new level.
 const newClassCandidates = computed(() => {
-  const existing = new Set(existingClassOptions.value.map(c => c.class_name));
+  const existing = new Set(existingClassOptions.value.map(c => `${c.class_definition_kind}:${c.class_definition_id}`));
   return [
-    ...campaignSystemClasses.value.map(c => ({ key: `system:${c.id}`, className: c.class_name, label: `${c.class_name} — Official` })),
-    ...campaignCustomClasses.value.map(c => ({ key: `custom:${c.id}`, className: c.class_name,
+    ...campaignSystemClasses.value.map(c => ({ key: `system:${c.id}`, label: `${c.class_name} — Official` })),
+    ...campaignCustomClasses.value.map(c => ({ key: `custom:${c.id}`,
       label: `${c.class_name} — ${c.source_document_key ? "Imported" : "Custom"}${c.source_revision ? ` (${c.source_revision})` : ""}` })),
-  ].filter(candidate => !existing.has(candidate.className))
+  ].filter(candidate => !existing.has(candidate.key))
     .sort((a, b) => a.label.localeCompare(b.label));
 });
 
@@ -330,7 +326,8 @@ const ignoreMulticlassPrereqs = computed<boolean>(() =>
 
 /** Prereq check for the currently-selected new class. */
 const newClassPrereq = computed(() => {
-  if (!isAddingNewClass.value || !newClassName.value) return { ok: true as const };
+  // A character's first class is not a multiclass, so no prerequisite applies.
+  if (!isAddingNewClass.value || !newClassName.value || existingClassOptions.value.length === 0) return { ok: true as const };
   const prereq = (multiclassPrereqs.value ?? []).find(p => p.class_name === newClassName.value);
   if (!prereq) return { ok: true as const };
   return meetsMulticlassPrereq(prereq, {
@@ -340,7 +337,7 @@ const newClassPrereq = computed(() => {
 });
 
 const newClassProficiencyGrants = computed<string[]>(() => {
-  if (!isAddingNewClass.value || !newClassName.value) return [];
+  if (!isAddingNewClass.value || !newClassName.value || existingClassOptions.value.length === 0) return [];
   const prereq = (multiclassPrereqs.value ?? []).find(p => p.class_name === newClassName.value);
   return prereq?.gained_proficiencies ?? [];
 });
@@ -354,12 +351,12 @@ const nextLevel    = computed(() => props.member.level + 1);
 const newProfBonus = computed(() => 2 + Math.floor((nextLevel.value - 1) / 4));
 
 // ── Hit points + hit dice ──────────────────────────────────────────────────────
-const hitDie = computed<number>(() => {
-  const cls = customClass.value ?? systemClass.value;
-  return cls?.hit_die ?? getHitDie(memberClass.value);
-});
+// The die comes from the definition the class is pinned to and nowhere else.
+// Null while that definition is still loading: the step waits (and Confirm stays
+// disabled) rather than compute hit points with a guessed die.
+const hitDie = computed<number | null>(() => (customClass.value ?? systemClass.value)?.hit_die ?? null);
 const conMod = computed(() => Math.floor((props.member.con - 10) / 2));
-const hpAverageValue = computed(() => Math.ceil(hitDie.value / 2) + 1);
+const hpAverageValue = computed(() => (hitDie.value === null ? null : Math.ceil(hitDie.value / 2) + 1));
 
 type HpMode = "average" | "roll" | "max";
 const hpMode = ref<HpMode>("average");
@@ -375,7 +372,7 @@ function setHpMode(mode: HpMode) {
 const { promptRoll } = usePromptedRoll();
 
 async function rollHp() {
-  if (rolledHp.value !== null) return;
+  if (rolledHp.value !== null || hitDie.value === null) return;
   const r = await promptRoll({
     counts: { [hitDie.value as DieSize]: 1 },
     modifier: 0,
@@ -389,6 +386,8 @@ const subclassHpBonus = computed(() => customSubclass.value?.hp_per_level ?? 0);
 
 /** HP gained at this level-up. Minimum 1 per 5e guidance (no negative levels). */
 const hpGain = computed(() => {
+  // No die yet: nothing to gain. canConfirm refuses to apply until it resolves.
+  if (hitDie.value === null || hpAverageValue.value === null) return 0;
   const bonus = subclassHpBonus.value;
   if (hpMode.value === "roll") {
     if (rolledHp.value === null) return 0;
@@ -409,12 +408,13 @@ const grantsAsi = computed(() =>
   false,
 );
 
-const needsSubclassChoice = computed(() => {
-  if (chosenExistingEntry.value?.subclass_name) return false;
-  if (systemClass.value?.subclass_level === levelInChosenClass.value) return true;
-  if (customClass.value?.subclass_level === levelInChosenClass.value) return true;
-  return false;
-});
+const needsSubclassChoice = computed(() =>
+  subclassChoiceDue(
+    chosenExistingEntry.value,
+    levelInChosenClass.value,
+    systemClass.value?.subclass_level ?? customClass.value?.subclass_level,
+  ),
+);
 
 const subclassOptions = computed(() => campaignCustomSubclasses.value
   .filter(subclass => subclass.class_name === memberClass.value)
@@ -624,13 +624,16 @@ const canConfirm = computed(() => {
   if (!memberClass.value) return false;
   if (isAddingNewClass.value && !newClassName.value) return false;
   if (isAddingNewClass.value && !ignoreMulticlassPrereqs.value && !newClassPrereq.value.ok) return false;
+  if (hitDie.value === null) return false;
   if (hpMode.value === "roll" && rolledHp.value === null) return false;
   if (grantsAsi.value) {
     if (asiMode.value === "plus2" && !asiPrimary.value) return false;
     if (asiMode.value === "plus1plus1" && (!asiPrimary.value || !asiSecondary.value || asiSecondary.value === asiPrimary.value)) return false;
     if (asiMode.value === "feat" && !featId.value) return false;
   }
-  if (needsSubclassChoice.value && !subclassInput.value.trim()) return false;
+  // With no subclass defined for this class there is nothing to pick; the
+  // level-up goes on and the character is asked again next time.
+  if (needsSubclassChoice.value && subclassOptions.value.length > 0 && !subclassDefinitionId.value) return false;
   for (const step of classSteps.value) {
     const count = step.count ?? 1;
     if (count > 1) {
@@ -646,21 +649,11 @@ const canConfirm = computed(() => {
 
 // ── Confirm ────────────────────────────────────────────────────────────────────
 // Spells the leveled subclass grants (always prepared) at the new in-class
-// level. Resolve the effective subclass: a just-chosen one (subclassInput) at
-// the subclass-choice level, otherwise the existing subclass on the leveled class.
-const grantedSpellsForThisLevel = computed<string[]>(() => {
-  const effectiveSubclass =
-    needsSubclassChoice.value && subclassInput.value.trim()
-      ? subclassInput.value.trim()
-      : memberSubclass.value;
-  if (!effectiveSubclass) return [];
-  const sub = customSubclass.value?.subclass_name === effectiveSubclass
-    ? customSubclass.value
-    : (allCustomSubclasses.value ?? []).find(
-      (cs) => cs.class_name === memberClass.value && cs.subclass_name === effectiveSubclass,
-    );
-  return sub?.granted_spells?.[String(levelInChosenClass.value)] ?? [];
-});
+// level. `customSubclass` already resolves the effective subclass by id: the
+// one just chosen at the subclass-choice level, otherwise the leveled row's own.
+const grantedSpellsForThisLevel = computed<string[]>(() =>
+  customSubclass.value?.granted_spells?.[String(levelInChosenClass.value)] ?? [],
+);
 
 const { confirm, error, isPending } = useLevelUpConfirm({
   member: props.member,

@@ -118,7 +118,6 @@ function view(pick: (scope: RulesetScope) => ComputedRef<RulesetKey>) {
   const ruleset = pick(enclosingScope());
   return {
     ruleset,
-    is2014: computed(() => ruleset.value === "2014"),
     is2024: computed(() => ruleset.value === "2024"),
   };
 }

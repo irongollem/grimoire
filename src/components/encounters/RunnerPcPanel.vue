@@ -114,15 +114,13 @@ import { SKILLS } from "@/types/party.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Spell } from "@/types/spell.types";
-import { getCasterType } from "@/types/spell.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
 import { useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
-import { useAllCustomClasses, useAllSystemClasses, useClassByName } from "@/composables/rules/useCustomClasses";
+import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
-import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
 import { pickSpellcastingStats } from "@/types/multiclass.types";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
 
@@ -152,14 +150,6 @@ const { ruleset } = useRuleset();
 
 const memberId = computed(() => member.id);
 
-const classRef = computed(() => member.class ?? "");
-const classData = useClassByName(classRef);
-const casterType = computed(() =>
-  getSpellPreparationPolicy(member.class ?? "", ruleset.value)?.casterType
-    ?? classData.value?.caster_type
-    ?? getCasterType(member.class ?? null),
-);
-
 const { data: playerSpells } = useCharacterSpellsWithDetails(memberId);
 const { data: characterClasses } = useCharacterClasses(memberId);
 const { data: allSystemClasses } = useAllSystemClasses();
@@ -171,6 +161,11 @@ const spellcastingByClass = computed(() => computeSpellcastingByClass(
   { system: allSystemClasses.value ?? [], custom: allCustomClasses.value ?? [] },
   ruleset.value,
 ));
+
+// The primary class row decides how the sheet reads (rows are the only source of
+// class data; `member.class` is a mirror). A classless character casts nothing.
+const primaryCasting = computed(() => pickSpellcastingStats(spellcastingByClass.value, null));
+const casterType = computed(() => primaryCasting.value ? primaryCasting.value.casterType : "none");
 
 // ── Proficiency bonus ─────────────────────────────────────────────────────────
 
@@ -245,12 +240,8 @@ const preparedOrKnownSpells = computed(() => {
 });
 
 const spellSaveDc = computed(() => {
-  const cls = member.class ?? "";
-  let spellMod: number;
-  if (["Cleric", "Druid", "Ranger"].includes(cls))                                              spellMod = abilityMod(member.wis);
-  else if (["Wizard", "Fighter (Eldritch Knight)", "Rogue (Arcane Trickster)"].includes(cls))   spellMod = abilityMod(member.int);
-  else                                                                                           spellMod = abilityMod(member.cha);
-  return 8 + profBonus.value + spellMod;
+  const ability = primaryCasting.value?.castingAbility;
+  return 8 + profBonus.value + (ability ? abilityMod(member[ability]) : 0);
 });
 
 // Spell attack bonus = proficiency + spellcasting modifier = save DC − 8.
@@ -259,7 +250,7 @@ const spellAttackBonus = computed(() => spellSaveDc.value - 8);
 // ── Wildshape handler (store mutation lives here) ─────────────────────────────
 
 const isDruid = computed(() =>
-  (member.class as string | null)?.toLowerCase().includes("druid") ?? false,
+  (characterClasses.value ?? []).some((row) => row.class_name.toLowerCase().includes("druid")),
 );
 
 function handleWildshape(monster: Monster) {

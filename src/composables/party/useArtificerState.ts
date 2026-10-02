@@ -23,13 +23,11 @@ export function useArtificerState(
   const { mutate: saveOptionText } = useSaveClassOptionText("Artificer", "infusions_known");
 
   const isArtificer = computed(() =>
-    member.value.class === "Artificer" ||
     (characterClasses.value ?? []).some(cc => cc.class_name === "Artificer"),
   );
 
   const artificerLevel = computed(() =>
-    (characterClasses.value ?? []).find(cc => cc.class_name === "Artificer")?.levels ??
-    (member.value.class === "Artificer" ? member.value.level : 0),
+    (characterClasses.value ?? []).find(cc => cc.class_name === "Artificer")?.levels ?? 0,
   );
 
   const memberInventoryItems = computed(() =>

@@ -206,6 +206,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { Spell } from "@/types/spell.types";
+import type { CharacterClass } from "@/types/multiclass.types";
 import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
@@ -239,7 +240,10 @@ const { resolvedMemberId, member, notFound } = usePickerCharacter();
 provideCharacterRuleset(() => member.value);
 const { ruleset } = useRuleset();
 
-const memberClass = computed(() => member.value?.class ?? "");
+// The class the spell tabs are built around is the primary class row. A
+// classless character has no rows, so no class and no spell tabs.
+const memberClassEntry = computed(() => (characterClasses.value ?? []).find((entry) => entry.is_primary));
+const memberClass = computed(() => memberClassEntry.value?.class_name ?? "");
 
 const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
 const { data: rulesetReviews } = useRulesetReviews(resolvedMemberId);
@@ -275,22 +279,16 @@ async function acknowledgeRulesetReview() {
 }
 const { data: allSystemClasses } = useAllSystemClasses();
 const { data: allCustomClasses } = useAllCustomClasses();
-const memberClassEntry = computed(() =>
-  (characterClasses.value ?? []).find((entry) => entry.class_name === memberClass.value),
-);
-function definitionFor(entry: typeof memberClassEntry.value, fallbackName = "") {
+function definitionFor(entry: CharacterClass | null | undefined) {
   if (entry?.class_definition_kind === "system" && entry.class_definition_id) {
     return (allSystemClasses.value ?? []).find(definition => definition.id === entry.class_definition_id) ?? null;
   }
   if (entry?.class_definition_kind === "custom" && entry.class_definition_id) {
     return (allCustomClasses.value ?? []).find(definition => definition.id === entry.class_definition_id) ?? null;
   }
-  const className = entry?.class_name ?? fallbackName;
-  return (allSystemClasses.value ?? []).find(definition => definition.class_name === className)
-    ?? (allCustomClasses.value ?? []).find(definition => definition.class_name === className && !definition.source_document_key)
-    ?? null;
+  return null;
 }
-const classData = computed(() => definitionFor(memberClassEntry.value, memberClass.value));
+const classData = computed(() => definitionFor(memberClassEntry.value));
 const memberPolicy = computed(() => memberClassEntry.value?.class_definition_kind === "custom"
   ? null
   : getSpellPreparationPolicy(memberClass.value, ruleset.value));
@@ -304,9 +302,7 @@ const memberName  = computed(() => member.value?.name ?? "");
 
 /** Only classes this character actually has may be browsed as class spells. */
 const availableSpellClasses = computed(() => {
-  const names = (characterClasses.value ?? []).map((entry) => entry.class_name);
-  if (names.length > 0) return [...new Set(names)].sort();
-  return memberClass.value ? [memberClass.value] : [];
+  return [...new Set((characterClasses.value ?? []).map((entry) => entry.class_name))].sort();
 });
 
 const browseSourceClassId = computed(() =>
@@ -318,7 +314,7 @@ const browseClassName = computed(() => ui.playerSpellsClassFilter);
 const browseClassEntry = computed(() => (characterClasses.value ?? []).find(
   entry => entry.id === browseSourceClassId.value,
 ));
-const browseClassData = computed(() => definitionFor(browseClassEntry.value, browseClassName.value));
+const browseClassData = computed(() => definitionFor(browseClassEntry.value));
 const browsePolicy = computed(() => browseClassEntry.value?.class_definition_kind === "custom"
   ? null
   : getSpellPreparationPolicy(browseClassName.value, ruleset.value));
@@ -334,19 +330,16 @@ const memberLevel = computed(() => {
 });
 
 // Effective spell slots — multiclass-aware: combines class levels per PHB.
-// Falls back to per-class progression for single-class characters and to the
-// legacy default when no character_classes rows exist yet.
+// Falls back to per-class progression for single-class characters.
 const effectiveSpellSlots = computed(() => {
   const m = member.value;
-  // casterType 'none' means no spellcasting class at all — a stale legacy
-  // class field with real persisted slots is handled by RestButtons, which
-  // reads member.spell_slots directly rather than through this computed.
+  // casterType 'none' means no spellcasting class at all.
   if (!m || casterType.value === "none") return [];
   return deriveEffectiveSpellSlots(
     m,
     characterClasses.value ?? [],
     ruleset.value,
-    (entry) => definitionFor(entry, entry.class_name),
+    (entry) => definitionFor(entry),
   );
 });
 
@@ -356,7 +349,7 @@ function abilityMod(score: number) { return Math.floor((score - 10) / 2); }
 const spellAttackBonus = computed(() => {
   const m = member.value;
   if (!m || casterType.value === "none") return null;
-  const cls = m.class ?? "";
+  const cls = memberClass.value;
   let mod: number;
   if (["Cleric", "Druid", "Ranger"].includes(cls))                                            mod = abilityMod(m.wis);
   else if (["Wizard", "Fighter (Eldritch Knight)", "Rogue (Arcane Trickster)"].includes(cls)) mod = abilityMod(m.int);
@@ -389,9 +382,7 @@ const sorcererLevel = computed(() =>
   (characterClasses.value ?? []).find((entry) =>
     entry.class_name === "Sorcerer" && entry.class_definition_kind !== "custom",
   )?.levels
-    ?? ((characterClasses.value ?? []).length === 0 && member.value?.class === "Sorcerer"
-      ? member.value.level
-      : 0),
+    ?? 0,
 );
 
 // Character spells — IDs used for button state in browse tab
@@ -530,7 +521,7 @@ const activeTab = ref<TabId>(
   (route.query.tab as TabId | undefined) ?? defaultTab.value,
 );
 
-// activeTab is seeded above before useParty()/useClassByName() resolve, so on a cold
+// activeTab is seeded above before useParty()/useCharacterClasses() resolve, so on a cold
 // load casterType is still "none" and defaultTab picks the wrong tab (e.g. Innate
 // instead of Prepared). Once caster type settles, correct the tab — but only if the
 // user hasn't already picked one themselves and the URL didn't request one explicitly.

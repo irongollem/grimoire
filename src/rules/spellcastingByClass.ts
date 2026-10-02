@@ -20,7 +20,6 @@ function definitionFor(
   entry: CharacterClass,
   definitions: SpellcastingClassDefinitions,
 ): SpellcastingClassDefinitionLike | undefined {
-  if (!entry.class_definition_id) return undefined;
   const pool = entry.class_definition_kind === "custom" ? definitions.custom : definitions.system;
   return pool.find((candidate) => candidate.id === entry.class_definition_id);
 }
@@ -48,7 +47,6 @@ export function computeSpellcastingByClass(
 ): SpellcastingClassStats[] {
   const stats = computeSpellcastingPerClass(member, classEntries, (entry) => {
     const definition = definitionFor(entry, definitions);
-    if (!entry.class_definition_id) return undefined;
     const explicit = definition?.prepared_ability;
     if (explicit) return explicit;
     const primary = definition?.primary_ability?.toLowerCase() ?? null;

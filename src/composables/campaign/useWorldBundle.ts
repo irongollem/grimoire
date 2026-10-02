@@ -46,22 +46,21 @@ export interface PickerItem {
   label: string;
 }
 
+/** The one format this app writes and reads. */
+export const BUNDLE_FORMAT_VERSION = "2";
+
 export interface GrimoireBundle {
-  version: "1" | "2";
+  version: typeof BUNDLE_FORMAT_VERSION;
   file_type: "world_bundle";
   name: string;
   description: string;
   author?: string;
   exported_at: string;
   /**
-   * Source campaign's ruleset. Added in format version "2" — absent on
-   * version "1" bundles. When absent, import can't tell whether the bundle
-   * originated from a 2014 or 2024 campaign, so it defaults the destination
-   * to "2014" AND strips character_classes' class_definition_id/kind pins
-   * (falls back to name-based class resolution) rather than risk a pin from
-   * the wrong ruleset tripping the content-identity trigger.
+   * Source campaign's edition. A new campaign made from the bundle plays it.
+   * Required: `parseBundleFile` refuses a file without one.
    */
-  ruleset?: RulesetKey;
+  ruleset: RulesetKey;
   /** Source campaign's mixed-edition setting; carried with `ruleset` when a new campaign is created from the bundle. */
   allows_mixed_rulesets?: boolean;
   // Campaign-scoped
@@ -461,7 +460,7 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
   }
 
   return {
-    version: "2",
+    version: BUNDLE_FORMAT_VERSION,
     file_type: "world_bundle",
     name,
     description,
@@ -519,22 +518,6 @@ export interface ImportRemapCtx {
   idMap: IdMap;
   campaignId: string;
   userId: string;
-  /**
-   * True when the bundle's source ruleset is unknown (version "1" bundle) or
-   * doesn't match the destination campaign's ruleset. A pinned
-   * class_definition_id/kind from one ruleset can violate the other
-   * ruleset's content-identity trigger (`validate_character_class_definition`),
-   * so imported character_classes rows fall back to name-based resolution
-   * instead of carrying a possibly-invalid pin.
-   */
-  stripClassDefinitionPins?: boolean;
-  /**
-   * The bundle ids of the characters that carry their own edition. Their class
-   * pins are of that edition and travel with it, whatever the destination
-   * plays, so `stripClassDefinitionPins` does not reach them: it is for the
-   * characters of a bundle made before a character recorded one.
-   */
-  membersWithOwnEdition?: ReadonlySet<string>;
 }
 
 /**
@@ -547,7 +530,7 @@ export interface ImportRemapCtx {
  * (#597), and an item's — no FK there — would import fine and then never show
  * up anywhere, because its scope matches none of this DM's campaigns.
  */
-export function remapLibraryRowForImport(row: Row, ctx: ImportRemapCtx): Row {
+function remapLibraryRowForImport(row: Row, ctx: ImportRemapCtx): Row {
   return {
     ...row,
     id: freshId(row.id, ctx.idMap),
@@ -568,13 +551,15 @@ export const remapSpellForImport = remapLibraryRowForImport;
  * on a character whose classes and spells were still the other's: a label that
  * lies, and one the Rules tab's mismatch list could not see. The importer is
  * the destination's DM, whom the database lets place a roster character as it
- * is (#943); it shows in that list and is converted from there. A row from a
- * bundle made before characters recorded an edition has none, and takes the
- * destination's.
+ * is (#943); it shows in that list and is converted from there.
+ *
+ * `class` and `subclass` are dropped: they are a mirror the database keeps
+ * from the character's `character_classes` rows, never written by a client.
  */
 export function remapPartyMemberForImport(pm: Row, ctx: ImportRemapCtx): Row {
+  const { class: _class, subclass: _subclass, ...own } = pm;
   return {
-    ...pm,
+    ...own,
     id: freshId(pm.id, ctx.idMap),
     campaign_id: ctx.campaignId,
     user_id: ctx.userId,
@@ -586,19 +571,15 @@ export function remapPartyMemberForImport(pm: Row, ctx: ImportRemapCtx): Row {
 }
 
 export function remapCharacterClassForImport(cc: Row, ctx: ImportRemapCtx): Row {
-  const strip =
-    ctx.stripClassDefinitionPins === true
-    && !(typeof cc.party_member_id === "string" && ctx.membersWithOwnEdition?.has(cc.party_member_id) === true);
   return {
     ...cc,
     id: freshId(cc.id, ctx.idMap),
     party_member_id: rCamp(cc.party_member_id, ctx.idMap),
-    class_definition_id: strip
-      ? null
-      : cc.class_definition_kind === "custom"
-        ? rCamp(cc.class_definition_id, ctx.idMap)
-        : cc.class_definition_id,
-    class_definition_kind: strip ? null : cc.class_definition_kind,
+    // A custom pin is remapped to the imported definition; a system pin is a
+    // shared row and travels unchanged.
+    class_definition_id: cc.class_definition_kind === "custom"
+      ? rCamp(cc.class_definition_id, ctx.idMap)
+      : cc.class_definition_id,
     subclass_definition_id: rCamp(cc.subclass_definition_id, ctx.idMap),
   };
 }
@@ -680,19 +661,15 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
 
   let campaignId = opts.campaignId;
   let newCampaign: Campaign | null = null;
-  let destinationRuleset: RulesetKey;
 
   if (campaignId === null) {
     if (!opts.newCampaignName?.trim()) throw new Error("Campaign name is required");
-    // Old (version "1") bundles carry no ruleset — default the destination to
-    // "2014" (the historical baseline) since we can't know the true origin.
-    destinationRuleset = bundle.ruleset ?? "2014";
     const { data, error } = await supabase
       .from("campaigns")
       .insert({
         name: opts.newCampaignName.trim(),
         user_id: userId,
-        ruleset: destinationRuleset,
+        ruleset: bundle.ruleset,
         ...(bundle.allows_mixed_rulesets !== undefined ? { allows_mixed_rulesets: bundle.allows_mixed_rulesets } : {}),
       })
       .select()
@@ -700,25 +677,9 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
     if (error) throw new Error(`Campaign creation failed: ${error.message}`);
     newCampaign = data as Campaign;
     campaignId = newCampaign.id;
-  } else {
-    const { data, error } = await supabase
-      .from("campaigns")
-      .select("ruleset")
-      .eq("id", campaignId)
-      .single();
-    if (error) throw new Error(`Failed to read destination campaign: ${error.message}`);
-    destinationRuleset = (data as { ruleset: RulesetKey }).ruleset;
   }
 
-  // A pinned class_definition_id/kind is only trustworthy when we know the
-  // bundle's source ruleset AND it matches the destination — otherwise the
-  // pin may reference a definition from the other ruleset's edition and trip
-  // the content-identity trigger. Fall back to name-based class resolution.
-  const stripClassDefinitionPins = bundle.ruleset === undefined || bundle.ruleset !== destinationRuleset;
-  const membersWithOwnEdition = new Set(
-    (bundle.party_members ?? []).flatMap((pm) => (typeof pm.id === "string" && pm.ruleset !== undefined ? [pm.id] : [])),
-  );
-  const ctx: ImportRemapCtx = { idMap, campaignId, userId, stripClassDefinitionPins, membersWithOwnEdition };
+  const ctx: ImportRemapCtx = { idMap, campaignId, userId };
 
   // ── Campaign-scoped entities ──────────────────────────────────────────────
 
@@ -986,6 +947,30 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
 
 // ── Parse + preview ──────────────────────────────────────────────────────────
 
+/**
+ * A bundle is only read if it carries what the app writes today: the source
+ * edition, each character's own edition, and a pinned definition on every class
+ * row. There is no upgrade path for a file that lacks them. Guessing an edition
+ * or a class would put a character in the wrong rules, and the database would
+ * otherwise refuse the row mid-import with no hint which file was at fault.
+ */
+export function assertBundleCarriesCharacterEditions(bundle: GrimoireBundle): void {
+  const outdated = "This file was exported by an older version of Grimoire and cannot be imported. Export it again from the campaign it came from.";
+  if (bundle.ruleset !== "2014" && bundle.ruleset !== "2024") {
+    throw new Error(`${outdated} (It does not record which edition the campaign plays.)`);
+  }
+  const unedited = (bundle.party_members ?? []).filter((pm) => pm.ruleset !== "2014" && pm.ruleset !== "2024");
+  if (unedited.length > 0) {
+    throw new Error(`${outdated} (${unedited.length} character(s) do not record their edition.)`);
+  }
+  const unpinned = (bundle.character_classes ?? []).filter(
+    (cc) => typeof cc.class_definition_id !== "string" || (cc.class_definition_kind !== "system" && cc.class_definition_kind !== "custom"),
+  );
+  if (unpinned.length > 0) {
+    throw new Error(`${outdated} (${unpinned.length} character class(es) are not linked to a class definition.)`);
+  }
+}
+
 export async function parseBundleFile(file: File): Promise<GrimoireBundle> {
   let text: string;
   try {
@@ -1007,9 +992,10 @@ export async function parseBundleFile(file: File): Promise<GrimoireBundle> {
   if (json.file_type !== "world_bundle") {
     throw new Error("Unrecognised file type. Make sure you selected a .grimoire bundle file.");
   }
-  if (json.version !== "1" && json.version !== "2") {
-    throw new Error(`Unsupported bundle version: ${json.version}`);
+  if (json.version !== BUNDLE_FORMAT_VERSION) {
+    throw new Error(`Unsupported bundle version: ${json.version}. Export it again from the campaign it came from.`);
   }
+  assertBundleCarriesCharacterEditions(json);
   const hasContent = [
     json.npcs, json.locations, json.factions, json.quests,
     json.notes, json.encounters, json.calendar_events, json.party_members,

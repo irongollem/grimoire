@@ -89,7 +89,6 @@
 
     <RulesetBounceDialog
       v-if="bounce"
-      :open="true"
       :character="character"
       :campaign-ruleset="bounce.campaignRuleset"
       :campaign-name="bounce.campaignName"
@@ -106,7 +105,7 @@
 // resting). Self-contained: owns its own mutations, confirm dialogs and the
 // attach picker, so PlayerHomeView only has to hand it the character plus the
 // two campaign lookups it can't resolve on its own.
-import { computed, nextTick, ref, useTemplateRef } from "vue";
+import { computed, ref, useTemplateRef } from "vue";
 import { useRouter } from "vue-router";
 import { onClickOutside } from "@vueuse/core";
 import { useConfirm } from "@/composables/useConfirm";
@@ -118,6 +117,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
 import { pendingReviews, useCharacterContentReviews } from "@/composables/party/useCharacterContentReviews";
+import { benchedMessage, useBenchedAfterAttach } from "@/composables/party/useBenchedAfterAttach";
 import { isRulesetAdmissible, parseRulesetBounce, rulesetRules, rulesetYear } from "@/composables/party/useCharacterRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { PartyMember } from "@/types/party.types";
@@ -147,17 +147,8 @@ const { data: ownReviews } = useCharacterContentReviews(() => (attachedCampaign 
 const waitingCount = computed(() => pendingReviews(ownReviews.value).length);
 
 // A character just attached (this one, or the converted copy the bounce dialog
-// made) may have been benched by the database. The review runs inside the attach,
-// so one read straight afterwards says how many choices are waiting.
-const justAttachedId = ref<string | null>(null);
-const { refetch: refetchJustAttached } = useCharacterContentReviews(justAttachedId);
-
-async function waitingAfterAttach(partyMemberId: string): Promise<number> {
-  justAttachedId.value = partyMemberId;
-  await nextTick();
-  const { data } = await refetchJustAttached({ throwOnError: true });
-  return pendingReviews(data).length;
-}
+// made) may have been benched by the database; see `useBenchedAfterAttach`.
+const { waitingAfterAttach } = useBenchedAfterAttach();
 
 async function announceAttach(name: string, partyMemberId: string, table: string, plain?: string) {
   try {
@@ -166,8 +157,7 @@ async function announceAttach(name: string, partyMemberId: string, table: string
       if (plain) toast.success(plain);
       return;
     }
-    const choices = waiting === 1 ? "1 choice is" : `${waiting} choices are`;
-    toast.info(`${name} joined ${table}, but ${choices} waiting for the DM's approval. They cannot be made active yet.`);
+    toast.info(benchedMessage(name, table, waiting));
   } catch (e) {
     if (plain) toast.success(plain);
     toast.error(toast.fromError(e));

@@ -1,4 +1,4 @@
-import { isRulesetAdmissible } from "@/composables/party/useCharacterRuleset";
+import { isRulesetAdmissible, otherRuleset } from "@/composables/party/useCharacterRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 /**
@@ -69,7 +69,7 @@ export function editionStepNotes(opts: {
 }): Partial<Record<RulesetKey, string>> {
   const { landing, isDmCreate } = opts;
   if (!landing) return {};
-  const other: RulesetKey = landing.ruleset === "2014" ? "2024" : "2014";
+  const other = otherRuleset(landing.ruleset);
   const otherNote = landing.allows_mixed_rulesets
     ? "Your table takes both editions."
     : isDmCreate

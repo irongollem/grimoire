@@ -50,13 +50,13 @@
           >
           <span class="font-cinzel text-xs text-foreground">
             {{ remainingAfterSpend }} / {{ member.level }}
-            <span class="text-muted-foreground">(d{{ hitDie }})</span>
+            <span v-if="hitDie" class="text-muted-foreground">(d{{ hitDie }})</span>
           </span>
         </div>
 
         <!-- Short rest: spend dice -->
         <template v-if="mode === 'short'">
-          <div class="flex items-center gap-2">
+          <div v-if="hitDie" class="flex items-center gap-2">
             <AppButton
               variant="tinted"
               tone="primary"
@@ -151,8 +151,8 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
-import { getHitDie } from "@/types/spell.types";
-import { useClassByName } from "@/composables/rules/useCustomClasses";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
+import { useClassHitDice } from "@/composables/party/useClassHitDice";
 import { abilityModifier } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { getExhaustionLevel, setExhaustionLevel } from "@/rules/conditions";
@@ -169,12 +169,18 @@ const emit = defineEmits<{
   confirm: [update: PartyMemberUpdate];
 }>();
 
-const memberClassRef = computed(() => props.member.class ?? "");
-const classData = useClassByName(memberClassRef);
+const { data: characterClasses } = useCharacterClasses(computed(() => props.member.id));
+const { hitDieOf } = useClassHitDice();
 
 // ── Hit dice ──────────────────────────────────────────────────────────────────
 
-const hitDie = computed(() => classData.value?.hit_die ?? getHitDie(props.member.class));
+// The primary class row's pinned definition decides the die. A classless
+// character (no rows) has none, so there is nothing to roll.
+const hitDie = computed(() => {
+  const rows = characterClasses.value ?? [];
+  const row = rows.find((candidate) => candidate.is_primary) ?? rows[0];
+  return row ? hitDieOf(row) : null;
+});
 const conMod = computed(() => Math.floor((props.member.con - 10) / 2));
 const hitDiceRemaining = computed(
   () => props.member.hit_dice_remaining ?? props.member.level,
@@ -201,6 +207,7 @@ const remainingAfterSpend = computed(
 const { promptRoll } = usePromptedRoll();
 
 async function rollHitDie() {
+  if (!hitDie.value) return;
   const r = await promptRoll({
     counts: { [hitDie.value as DieSize]: 1 },
     modifier: conMod.value,

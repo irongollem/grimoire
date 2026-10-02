@@ -320,26 +320,19 @@ const activeWildshape = computed<WildshapeState | null>(() =>
 );
 
 // Derive druid-ness, druid CLASS level, and subclass from the character_classes
-// rows (the source of truth for multiclass), falling back to the legacy
-// party_members.class/subclass/level fields — mirroring PlayerFeaturesTab's
-// classLevel() pattern. Reading member.class/level directly broke multiclass:
+// rows, the only source of class data (party_members.class/subclass are a
+// mirror of the primary row, never read for logic). Reading member.class/level
+// directly broke multiclass:
 // taking Druid as a second class never rewrites member.class (so the tab hid),
 // and wildshapeMaxCr used TOTAL level (a Fighter 6/Druid 2 got CR 1½, not ¼).
 const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
 const druidRow = computed(() =>
   (characterClasses.value ?? []).find(cc => cc.class_name.toLowerCase().includes("druid")) ?? null,
 );
-const isDruid = computed(() =>
-  !!druidRow.value || ((member.value?.["class"] as string | null)?.toLowerCase().includes("druid") ?? false),
-);
-const druidLevel = computed(() =>
-  druidRow.value?.levels
-    ?? (((member.value?.["class"] as string | null)?.toLowerCase().includes("druid"))
-      ? (member.value?.level ?? 1)
-      : 0),
-);
+const isDruid = computed(() => !!druidRow.value);
+const druidLevel = computed(() => druidRow.value?.levels ?? 0);
 const isCircleOfMoon = computed(() =>
-  (druidRow.value?.subclass_name ?? member.value?.subclass ?? "").toLowerCase().includes("moon"),
+  (druidRow.value?.subclass_name ?? "").toLowerCase().includes("moon"),
 );
 
 const wildshapeMaxCr = computed(() => calcWildshapeMaxCr(druidLevel.value, isCircleOfMoon.value));

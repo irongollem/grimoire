@@ -39,7 +39,7 @@
         :key="member.id"
         :member="member"
         :location-name-map="locationNameMap"
-        :class-label="memberClassLabel(member.id, member.class)"
+        :class-label="memberClassLabel(member.id)"
         :level-display="memberLevelDisplay(member.id, member.level)"
         :companions="companionsFor(member.id)"
         :dm-shared-journal="dmSharedEntriesFor(member.id)"
@@ -131,16 +131,16 @@ const classesByMember = computed(() => {
   return m;
 });
 
-function memberClassLabel(memberId: string, legacyClass: string | null): string {
+// A character with no class rows is classless: no label, and its own level.
+function memberClassLabel(memberId: string): string {
   const list = classesByMember.value.get(memberId) ?? [];
   if (list.length > 1) return formatMulticlassLabel(list);
-  if (list.length === 1) return list[0].class_name;
-  return legacyClass ?? "";
+  return list.length === 1 ? list[0].class_name : "";
 }
 
-function memberLevelDisplay(memberId: string, legacyLevel: number): number {
+function memberLevelDisplay(memberId: string, ownLevel: number): number {
   const list = classesByMember.value.get(memberId) ?? [];
-  return list.length > 0 ? totalLevel(list) : legacyLevel;
+  return list.length > 0 ? totalLevel(list) : ownLevel;
 }
 
 const sortedMembers = computed(() => {

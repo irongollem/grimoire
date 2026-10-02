@@ -10,8 +10,15 @@ import type { PartyMemberInsert, SaveKey, SkillProfLevel } from "@/types/party.t
  * sub-composables (equipment seeding, background selection) can type the form
  * state they're handed without importing the orchestrator itself.
  */
-export type CharacterFormState = Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "spell_slots"> & {
+export type CharacterFormState = Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "spell_slots" | "ruleset"> & {
   sort_order: number;
+  /**
+   * The wizard's local class selection, never written to `party_members`: the
+   * database mirrors the primary class row into `class` / `subclass`. The edition
+   * is chosen on the wizard's first step and added at create, so it is not here.
+   */
+  class: string;
+  subclass: string;
 };
 
 export const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;

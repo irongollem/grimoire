@@ -17,7 +17,7 @@ import { disposeHomebrewAndDeleteCampaign } from "@/composables/campaign/useCamp
 type Row = Record<string, any>;
 
 export interface GrimoireBackup {
-  version: "1" | "2";
+  version: "2";
   file_type: "backup";
   exported_at: string;
   campaign: Row;
@@ -43,21 +43,14 @@ export interface GrimoireBackup {
   quest_objectives: Row[];
   quest_refs: Row[];
   /**
-   * v2+ (#794): the merged consequence rule table, replacing `quest_triggers`
-   * / `quest_trigger_scheduled` below. Present exactly when `version ===
-   * "2"`. Excludes any rule conditioned on a beat or edge (`on_beat_id` /
-   * `on_edge_id` non-null) — this backup format has never carried the
-   * beats/flow system (`quest_beats`, `quest_beat_edges`, ...), so a beat- or
-   * edge-scoped rule has no beat to import against and would either dangle or
-   * violate the FK. Only objective-became and quest-settled rules travel;
-   * see the fetch in `buildExport`.
+   * The merged consequence rule table (#794). Excludes any rule conditioned on
+   * a beat or edge (`on_beat_id` / `on_edge_id` non-null) — this backup format
+   * has never carried the beats/flow system (`quest_beats`, `quest_beat_edges`,
+   * ...), so a beat- or edge-scoped rule has no beat to import against and
+   * would either dangle or violate the FK. Only objective-became and
+   * quest-settled rules travel; see the fetch in `buildExport`.
    */
-  quest_consequences?: Row[];
-  /** v1 only — the two tables #794 dropped from the schema. Present exactly
-   *  when `version === "1"`; see `resolveQuestConsequences` for how they map
-   *  onto `quest_consequences` shape on import. */
-  quest_triggers?: Row[];
-  quest_trigger_scheduled?: Row[];
+  quest_consequences: Row[];
   encounters: Row[];
   discovered_monsters: Row[];
   party_inventory: Row[];
@@ -347,49 +340,6 @@ function remapMapPins(pins: unknown, map: IdMap): unknown {
   }));
 }
 
-/**
- * Every consequence row this backup will insert, in `quest_consequences`
- * shape regardless of which version wrote the file (#794).
- *
- * A v1 backup predates the merge and carries its rules as `quest_triggers`
- * instead: `objective_done` becomes an `on_objective_id` +
- * `on_objective_status: 'complete'` condition (the only status an old
- * `objective_done` trigger could ever have meant), `quest_complete` becomes
- * `on_quest_settled`, and `offset_days` becomes `after_days` unchanged. An
- * `objective_done` trigger with no `objective_id` had no condition and could
- * never fire — dropped here, the same as the migration's own backfill drops
- * it, rather than imported as a rule with nothing to watch.
- *
- * Throws rather than defaulting to `[]` when the field its own `version`
- * promises is missing: that is a malformed file, not an empty campaign, and
- * importing it as the latter would silently drop every consequence with no
- * record that anything was lost.
- */
-function resolveQuestConsequences(backup: GrimoireBackup): Row[] {
-  if (backup.version === "2") {
-    if (!backup.quest_consequences) throw new Error("Malformed backup: a v2 file must carry quest_consequences.");
-    return backup.quest_consequences;
-  }
-  if (!backup.quest_triggers) throw new Error("Malformed backup: a v1 file must carry quest_triggers.");
-  return backup.quest_triggers
-    .filter((t) => t.trigger_type === "quest_complete" || t.objective_id != null)
-    .map((t) => ({
-      id: t.id,
-      quest_id: t.quest_id,
-      on_beat_id: null,
-      on_edge_id: null,
-      on_objective_id: t.trigger_type === "objective_done" ? t.objective_id : null,
-      on_objective_status: t.trigger_type === "objective_done" ? "complete" : null,
-      on_quest_settled: t.trigger_type === "quest_complete",
-      after_days: t.offset_days,
-      action: t.action_type,
-      target_objective_id: null,
-      action_payload: t.action_payload,
-      created_at: t.created_at,
-      updated_at: t.updated_at,
-    }));
-}
-
 /** Build a Map<oldId → newId> for all entities that have their own UUID id column. */
 function buildIdMap(backup: GrimoireBackup): IdMap {
   const entityArrays: Row[][] = [
@@ -414,7 +364,7 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.quests,
     backup.quest_objectives,
     backup.quest_refs,
-    resolveQuestConsequences(backup),
+    backup.quest_consequences,
     backup.encounters,
     backup.discovered_monsters,
     backup.party_inventory,
@@ -491,7 +441,7 @@ async function executeImport(
     // 2. Party members
     await batchInsert(
       "party_members",
-      backup.party_members.map((pm) => ({
+      backup.party_members.map(({ class: _class, subclass: _subclass, ...own }) => ({
         // A character's own edition rides along in this spread, including one
         // the restored campaign would not admit at its door: a table that
         // switched edition keeps its characters, flagged, and a restore puts
@@ -499,21 +449,21 @@ async function executeImport(
         // stamp the campaign's on a character whose classes and spells were
         // still the other's. The restorer owns the new campaign, and the
         // database lets a table's own DM place a roster character as it is.
-        // Backups from before characters carried an edition have none, and
-        // take the campaign's.
-        ...pm,
-        id: r(pm.id, idMap),
+        // `class` and `subclass` are left out: the database keeps them as a
+        // mirror of the `character_classes` rows restored below.
+        ...own,
+        id: r(own.id, idMap),
         campaign_id: newCampaignId,
         user_id: userId,
-        current_location_id: r(pm.current_location_id, idMap),
+        current_location_id: r(own.current_location_id, idMap),
         owner_user_id: null,  // players re-link after import
-        notes: rMention(pm.notes, idMap),
-        physical_description: rMention(pm.physical_description, idMap),
-        personality_traits: rMention(pm.personality_traits, idMap),
-        ideals: rMention(pm.ideals, idMap),
-        bonds: rMention(pm.bonds, idMap),
-        flaws: rMention(pm.flaws, idMap),
-        player_description: rMention(pm.player_description, idMap),
+        notes: rMention(own.notes, idMap),
+        physical_description: rMention(own.physical_description, idMap),
+        personality_traits: rMention(own.personality_traits, idMap),
+        ideals: rMention(own.ideals, idMap),
+        bonds: rMention(own.bonds, idMap),
+        flaws: rMention(own.flaws, idMap),
+        player_description: rMention(own.player_description, idMap),
       })),
     );
 
@@ -903,11 +853,11 @@ async function executeImport(
       })),
     );
     // `quest_consequences` carries no `user_id` of its own — RLS gates through
-    // the quest it belongs to. See `resolveQuestConsequences` for the v1→v2
-    // translation and why beat/edge-scoped rules never reach this array.
+    // the quest it belongs to. Beat/edge-scoped rules never reach this array
+    // (see the field comment on `GrimoireBackup.quest_consequences`).
     await batchInsert(
       "quest_consequences",
-      resolveQuestConsequences(backup).map((qc) => ({
+      backup.quest_consequences.map((qc) => ({
         ...qc,
         id: r(qc.id, idMap),
         quest_id: r(qc.quest_id, idMap),
@@ -920,7 +870,7 @@ async function executeImport(
         // at the *original* campaign's NPC or quest.
         //
         // `on_beat_id` and `on_edge_id` are the only uuid columns left off this
-        // list, and deliberately: `resolveQuestConsequences` filters beat- and
+        // list, and deliberately: the export filters beat- and
         // edge-scoped rules out entirely, because this backup format has never
         // carried the beat graph and there would be nothing to point them at.
         target_npc_id: r(qc.target_npc_id, idMap),
@@ -1063,6 +1013,29 @@ async function executeImport(
 
 // ── Parse + preview ──────────────────────────────────────────────────────────
 
+class RefusedBackupError extends Error {}
+
+/**
+ * A backup is only restored if it carries what the app writes today: each
+ * character's own edition and a pinned definition on every class row. There is
+ * no upgrade path for a file without them. Guessing an edition or a class would
+ * put a character in the wrong rules, and the database would otherwise refuse
+ * a row mid-restore, after the campaign row was already made.
+ */
+export function assertBackupCarriesCharacterEditions(backup: GrimoireBackup): void {
+  const outdated = "This backup was made by an older version of Grimoire and cannot be restored. Restore it with the version that made it, or make a new backup.";
+  const unedited = backup.party_members.filter((pm) => pm.ruleset !== "2014" && pm.ruleset !== "2024");
+  if (unedited.length > 0) {
+    throw new RefusedBackupError(`${outdated} (${unedited.length} character(s) do not record their edition.)`);
+  }
+  const unpinned = backup.character_classes.filter(
+    (cc) => typeof cc.class_definition_id !== "string" || (cc.class_definition_kind !== "system" && cc.class_definition_kind !== "custom"),
+  );
+  if (unpinned.length > 0) {
+    throw new RefusedBackupError(`${outdated} (${unpinned.length} character class(es) are not linked to a class definition.)`);
+  }
+}
+
 export function parseBackupFile(file: File): Promise<GrimoireBackup> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1073,12 +1046,21 @@ export function parseBackupFile(file: File): Promise<GrimoireBackup> {
           reject(new Error("Invalid file type. This appears to be a world bundle (.grimoire), not a campaign backup."));
           return;
         }
-        if (json.version !== "1" && json.version !== "2") {
-          reject(new Error(`Unsupported backup version: ${json.version}`));
+        if (json.version !== "2") {
+          reject(new Error(`This backup is format version ${json.version}, and Grimoire only restores version 2. Restore it with the version of Grimoire that made it, or make a new backup.`));
           return;
         }
+        if (!Array.isArray(json.quest_consequences)) {
+          reject(new Error("Malformed backup: a version 2 file must carry quest_consequences."));
+          return;
+        }
+        assertBackupCarriesCharacterEditions(json);
         resolve(json);
-      } catch {
+      } catch (err) {
+        if (err instanceof RefusedBackupError) {
+          reject(err);
+          return;
+        }
         reject(new Error("Could not parse backup file. Make sure you selected a valid .grimoire-backup file."));
       }
     };

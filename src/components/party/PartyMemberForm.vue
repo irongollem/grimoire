@@ -34,13 +34,9 @@
           :subrace-options="subraceOptions"
           :disguise-subrace-options="disguiseSubraceOptions"
           :is-shapeshifter="!!selectedSpecies?.is_shapeshifter"
-          :has-builder-data="hasBuilderData"
-          :has-multiclass-data="hasMulticlassData"
           :multiclass-label="multiclassLabel"
-          :multiclass-total="multiclassTotal"
+          :level="level"
           :member-id="memberId"
-          :all-class-names="allClassNames"
-          :subclass-options="subclassOptions"
           :prof-bonus="profBonus"
           :all-species-map="allSpeciesMap"
           @update:form="applyIdentityPatch"
@@ -103,7 +99,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, reactive, computed, watch } from "vue";
+import { ref, reactive, computed } from "vue";
 import { IconClose } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import TabBar from "@/components/common/TabBar.vue";
@@ -111,7 +107,7 @@ import PartyMemberIdentityTab from "./PartyMemberIdentityTab.vue";
 import PartyMemberAbilitiesTab from "./PartyMemberAbilitiesTab.vue";
 import PartyMemberProficienciesTab from "./PartyMemberProficienciesTab.vue";
 import PartyMemberPersonaTab from "./PartyMemberPersonaTab.vue";
-import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
+import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import {
   useUpdatePartyMember,
@@ -123,16 +119,10 @@ import {
   useUpdateCampaignMember,
 } from "@/composables/campaign/useCampaignMembers";
 import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/rules/useCustomClasses";
-import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
-import type {
-  PartyMember,
-  PartyMemberInsert,
-  SkillProficiencies,
-  SpellSlotEntry,
-} from "@/types/party.types";
-import { getDefaultSpellSlots } from "@/types/spell.types";
+import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
+import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import type { IdentityFormSlice, AbilitiesFormSlice, ProficienciesFormSlice, PersonaFormSlice } from "./partyMemberForm.types";
 
 const TABS = [
@@ -154,27 +144,16 @@ const emit = defineEmits<{ close: [] }>();
 
 // The species and class pickers resolve against the hero's own edition (useRuleset.ts).
 provideCharacterRuleset(() => props.member);
+const { ruleset } = useRuleset();
 
 // Multiclass / builder data
 const memberId = computed(() => props.member.id);
 const { data: characterClassRows } = useCharacterClasses(memberId);
-const hasMulticlassData = computed(() => (characterClassRows.value?.length ?? 0) > 0);
+const hasClasses = computed(() => (characterClassRows.value?.length ?? 0) > 0);
 const multiclassLabel = computed(() => formatMulticlassLabel(characterClassRows.value ?? []));
 const multiclassTotal = computed(() => totalLevel(characterClassRows.value ?? []));
-const hasBuilderData = computed(() =>
-  hasMulticlassData.value ||
-  Object.keys(props.member.level_choices ?? {}).length > 0,
-);
-
 const { data: systemClasses } = useCampaignSystemClasses();
 const { data: customClasses } = useCampaignCustomClasses();
-
-const allClassNames = computed<string[]>(() =>
-  [...new Set([
-    ...systemClasses.value.map(c => c.class_name),
-    ...customClasses.value.map(c => c.class_name),
-  ])].sort(),
-);
 
 // Pickers offer only what the campaign permits; `allSpecies` (ungated) still
 // backs name resolution below, so a member keeps their species after the DM
@@ -192,113 +171,77 @@ const subraceOptions  = computed(() => selectedSpecies.value?.subraces?.map(sr =
 const selectedDisguiseSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === form.disguise_species_id) ?? null);
 const disguiseSubraceOptions  = computed(() => selectedDisguiseSpecies.value?.subraces?.map(sr => sr.name) ?? []);
 
-const { data: campaignSubclasses } = useCampaignCustomSubclasses();
-const subclassOptions = computed(() =>
-  campaignSubclasses.value
-    .filter(sc => sc.class_name === form.class)
-    .map(sc => sc.subclass_name),
-);
-
 const activeTab = ref<TabId>("identity");
 
 // Portrait
 const portraitUrl = ref(props.member.portrait_url ?? "");
 const focalPoint  = ref<{ x: number; y: number } | null>(props.member.portrait_focal_point ?? null);
 
-const form = reactive<
-  Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "spell_slots"> & {
-    sort_order: number;
-  }
->({
-  campaign_id: props.member.campaign_id ?? null,
-  name: props.member.name ?? "",
-  player_name: props.member.player_name ?? "",
-  class: props.member.class ?? "",
-  subclass: props.member.subclass ?? "",
-  level: props.member.level ?? 1,
-  subrace: props.member.subrace ?? "",
-  max_hp: props.member.max_hp ?? 10,
-  current_hp: props.member.current_hp ?? 10,
-  temp_hp: props.member.temp_hp ?? 0,
-  ac: props.member.ac ?? 10,
-  speed: props.member.speed ?? 30,
-  initiative_bonus: props.member.initiative_bonus ?? 0,
-  current_initiative: props.member.current_initiative ?? null,
-  str: props.member.str ?? 10,
-  dex: props.member.dex ?? 10,
-  con: props.member.con ?? 10,
-  int: props.member.int ?? 10,
-  wis: props.member.wis ?? 10,
-  cha: props.member.cha ?? 10,
-  proficiency_bonus: props.member.proficiency_bonus ?? 2,
+// Only the fields these four tabs edit. Everything else on the row (hp in a
+// fight, conditions, class resources...) is left out of the save on purpose, so
+// saving here cannot overwrite what the table changed while the form was open.
+// Class, subclass and level are not here either: they are read from the class
+// rows and change only through level-up or de-level.
+const form = reactive({
+  name: props.member.name,
+  player_name: props.member.player_name,
+  max_hp: props.member.max_hp,
+  current_hp: props.member.current_hp,
+  temp_hp: props.member.temp_hp,
+  ac: props.member.ac,
+  speed: props.member.speed,
+  initiative_bonus: props.member.initiative_bonus,
+  str: props.member.str,
+  dex: props.member.dex,
+  con: props.member.con,
+  int: props.member.int,
+  wis: props.member.wis,
+  cha: props.member.cha,
   skill_proficiencies: { ...props.member.skill_proficiencies },
-  saving_throw_proficiencies: [...(props.member.saving_throw_proficiencies ?? [])],
-  conditions: [...(props.member.conditions ?? [])],
-  inspiration: props.member.inspiration ?? false,
-  death_save_successes: props.member.death_save_successes ?? 0,
-  death_save_failures: props.member.death_save_failures ?? 0,
+  saving_throw_proficiencies: [...props.member.saving_throw_proficiencies],
+  tool_proficiencies: [...props.member.tool_proficiencies],
+  languages: [...props.member.languages],
+  carry_capacity_override: props.member.carry_capacity_override,
+  species_id: props.member.species_id,
+  disguise_species_id: props.member.disguise_species_id,
+  disguise_race: props.member.disguise_race,
+  disguise_subrace: props.member.disguise_subrace,
+  background_id: props.member.background_id,
+  // The text controls below bind to a string, while the columns are nullable
+  // (or absent on older rows). The empty string stands for "none" while editing
+  // and is turned back into null at save.
+  subrace: props.member.subrace ?? "",
   notes: props.member.notes ?? "",
-  sort_order: props.member.sort_order ?? 0,
-  curses: [...(props.member.curses ?? [])],
-  pp: props.member.pp ?? 0,
-  gp: props.member.gp ?? 0,
-  ep: props.member.ep ?? 0,
-  sp: props.member.sp ?? 0,
-  cp: props.member.cp ?? 0,
-  tool_proficiencies: [...(props.member.tool_proficiencies ?? [])],
-  languages: [...(props.member.languages ?? [])],
-  weapon_masteries: [...(props.member.weapon_masteries ?? [])],
-  // #786: an override, not the member's location — null means "with the
-  // party". No control here edits it; it's set via LocationResidents' "Move
-  // here", a calendar travel event, or cleared via "Rejoin the party".
-  // Carried through unmodified on save.
-  current_location_id: props.member.current_location_id ?? null,
-  carry_capacity_override: props.member.carry_capacity_override ?? null,
-  class_resources: props.member.class_resources ?? {},
-  class_choices: props.member.class_choices ?? {},
-  active_infusions: props.member.active_infusions ?? [],
-  custom_attacks: props.member.custom_attacks ?? [],
-  rage_active: props.member.rage_active ?? false,
-  species_id: props.member.species_id ?? null,
-  disguise_species_id: props.member.disguise_species_id ?? null,
-  disguise_race: props.member.disguise_race ?? null,
-  disguise_subrace: props.member.disguise_subrace ?? null,
-  background_id: props.member.background_id ?? null,
   height: props.member.height ?? null,
-  // Persona
-  alignment:            props.member.alignment            ?? "",
-  deity:                props.member.deity                ?? "",
-  deity_id:             props.member.deity_id             ?? null as string | null,
-  age:                  props.member.age                  ?? "",
-  gender:               props.member.gender               ?? "",
-  pronouns:             props.member.pronouns             ?? "",
+  alignment: props.member.alignment ?? "",
+  deity: props.member.deity ?? "",
+  deity_id: props.member.deity_id ?? null,
+  age: props.member.age ?? "",
+  gender: props.member.gender ?? "",
+  pronouns: props.member.pronouns ?? "",
   physical_description: props.member.physical_description ?? "",
-  personality_traits:   props.member.personality_traits   ?? "",
-  ideals:               props.member.ideals               ?? "",
-  bonds:                props.member.bonds                ?? "",
-  flaws:                props.member.flaws                ?? "",
+  personality_traits: props.member.personality_traits ?? "",
+  ideals: props.member.ideals ?? "",
+  bonds: props.member.bonds ?? "",
+  flaws: props.member.flaws ?? "",
 });
 
-// Keep form.level in sync with authoritative total when multiclass data exists.
-watch(multiclassTotal, (total) => {
-  if (hasMulticlassData.value) form.level = total;
-}, { immediate: true });
+// Total level: the sum of the class rows, or the row's own level for a
+// classless character (which has no rows to sum).
+const level = computed(() => (hasClasses.value ? multiclassTotal.value : props.member.level));
 
 // --- Computed slices for each tab ---
 const identitySlice = computed<IdentityFormSlice>(() => ({
   name: form.name,
-  player_name: form.player_name ?? null,
-  class: form.class ?? "",
-  subclass: form.subclass ?? "",
-  level: form.level,
-  subrace: form.subrace ?? "",
+  player_name: form.player_name,
+  subrace: form.subrace,
   species_id: form.species_id,
   disguise_species_id: form.disguise_species_id,
   disguise_race: form.disguise_race,
   disguise_subrace: form.disguise_subrace,
   background_id: form.background_id,
-  height: form.height ?? null,
-  notes: form.notes ?? "",
+  height: form.height,
+  notes: form.notes,
 }));
 
 const abilitiesSlice = computed<AbilitiesFormSlice>(() => ({
@@ -315,12 +258,10 @@ const abilitiesSlice = computed<AbilitiesFormSlice>(() => ({
   speed: form.speed,
   initiative_bonus: form.initiative_bonus,
   carry_capacity_override: form.carry_capacity_override,
-  class: form.class ?? "",
-  level: form.level,
 }));
 
 const proficienciesSlice = computed<ProficienciesFormSlice>(() => ({
-  skill_proficiencies: form.skill_proficiencies as SkillProficiencies,
+  skill_proficiencies: form.skill_proficiencies,
   saving_throw_proficiencies: form.saving_throw_proficiencies,
   tool_proficiencies: form.tool_proficiencies,
   languages: form.languages,
@@ -333,17 +274,17 @@ const proficienciesSlice = computed<ProficienciesFormSlice>(() => ({
 }));
 
 const personaSlice = computed<PersonaFormSlice>(() => ({
-  alignment:            form.alignment            ?? "",
-  deity:                form.deity                ?? "",
-  deity_id:             form.deity_id             ?? null,
-  age:                  form.age                  ?? "",
-  gender:               form.gender               ?? "",
-  pronouns:             form.pronouns             ?? "",
-  physical_description: form.physical_description ?? "",
-  personality_traits:   form.personality_traits   ?? "",
-  ideals:               form.ideals               ?? "",
-  bonds:                form.bonds                ?? "",
-  flaws:                form.flaws                ?? "",
+  alignment:            form.alignment,
+  deity:                form.deity,
+  deity_id:             form.deity_id,
+  age:                  form.age,
+  gender:               form.gender,
+  pronouns:             form.pronouns,
+  physical_description: form.physical_description,
+  personality_traits:   form.personality_traits,
+  ideals:               form.ideals,
+  bonds:                form.bonds,
+  flaws:                form.flaws,
 }));
 
 // --- Patch appliers ---
@@ -364,42 +305,32 @@ function applyPersonaPatch(patch: Partial<PersonaFormSlice>) {
 }
 
 // --- Spell slots ---
-function buildSlotMaxes(
-  existing: SpellSlotEntry[] | undefined,
-  cls: string,
-  level: number,
-): number[] {
-  if (existing && existing.length > 0) {
-    return Array.from({ length: 9 }, (_, i) => existing.find((s) => s.level === i + 1)?.max ?? 0);
-  }
-  const lvlIdx = Math.max(0, Math.min(19, Math.round(level) - 1));
-  const dbClass =
-    (customClasses.value ?? []).find(c => c.class_name === cls) ??
-    (systemClasses.value ?? []).find(c => c.class_name === cls);
-  if (dbClass?.spell_slots) {
-    const row = dbClass.spell_slots[lvlIdx] ?? [];
-    return Array.from({ length: 9 }, (_, i) => row[i] ?? 0);
-  }
-  const defaults = getDefaultSpellSlots(cls || null, level);
-  return Array.from({ length: 9 }, (_, i) => defaults.find((s) => s.level === i + 1)?.max ?? 0);
+// Defaults are derived from the character's class rows and its own edition,
+// multiclass included, the same way the sheet derives them.
+function buildSlotMaxes(existing: SpellSlotEntry[] | undefined): number[] {
+  const slots = existing && existing.length > 0
+    ? existing
+    : deriveEffectiveSpellSlots(
+        { ...props.member, spell_slots: null },
+        characterClassRows.value ?? [],
+        ruleset.value,
+        (row) => {
+          const definitions = row.class_definition_kind === "custom" ? customClasses.value : systemClasses.value;
+          return definitions.find((c) => c.id === row.class_definition_id);
+        },
+      );
+  return Array.from({ length: 9 }, (_, i) => slots.find((s) => s.level === i + 1)?.max ?? 0);
 }
 
-const spellSlotMaxes = reactive<number[]>(
-  buildSlotMaxes(props.member.spell_slots, props.member.class ?? "", props.member.level ?? 1),
-);
+const spellSlotMaxes = reactive<number[]>(buildSlotMaxes(props.member.spell_slots));
 
 function resetSlotsToDefault() {
-  const defaults = buildSlotMaxes(undefined, form.class ?? "", form.level);
-  defaults.forEach((v, i) => { spellSlotMaxes[i] = v; });
+  buildSlotMaxes(undefined).forEach((v, i) => { spellSlotMaxes[i] = v; });
 }
-
-watch(() => form.class, () => {
-  if (spellSlotMaxes.every((v) => v === 0)) resetSlotsToDefault();
-});
 
 // --- Proficiency bonus ---
 const profBonus = computed(() => {
-  const l = form.level;
+  const l = level.value;
   if (l >= 17) return 6;
   if (l >= 13) return 5;
   if (l >= 9) return 4;
@@ -432,20 +363,40 @@ async function save() {
   if (saving.value) return;
   saving.value = true;
   const selectedPlayer = players.value.find((m) => m.id === selectedCampaignMemberId.value);
-  const payload = {
-    ...form,
+  const payload: PartyMemberUpdate = {
     name: form.name.trim(),
     player_name: selectedPlayer?.display_name ?? (form.player_name || null),
-    class: form.class || null,
-    subclass: form.subclass || null,
+    subrace: form.subrace || null,
     notes: form.notes || null,
     portrait_url: portraitUrl.value || null,
     portrait_focal_point: focalPoint.value,
     proficiency_bonus: profBonus.value,
-    // Persona fields
+    max_hp: form.max_hp,
+    current_hp: form.current_hp,
+    temp_hp: form.temp_hp,
+    ac: form.ac,
+    speed: form.speed,
+    initiative_bonus: form.initiative_bonus,
+    str: form.str,
+    dex: form.dex,
+    con: form.con,
+    int: form.int,
+    wis: form.wis,
+    cha: form.cha,
+    skill_proficiencies: form.skill_proficiencies,
+    saving_throw_proficiencies: form.saving_throw_proficiencies,
+    tool_proficiencies: form.tool_proficiencies,
+    languages: form.languages,
+    carry_capacity_override: form.carry_capacity_override,
+    species_id: form.species_id,
+    disguise_species_id: form.disguise_species_id,
+    disguise_race: form.disguise_race,
+    disguise_subrace: form.disguise_subrace,
+    background_id: form.background_id,
+    height: form.height,
     alignment:            form.alignment            || null,
     deity:                form.deity                || null,
-    deity_id:             form.deity_id             || null,
+    deity_id:             form.deity_id,
     age:                  form.age                  || null,
     gender:               form.gender               || null,
     pronouns:             form.pronouns             || null,
@@ -464,8 +415,7 @@ async function save() {
 
   try {
     const partyMemberId = props.member.id;
-    const { campaign_id: _cid, ...updatePayload } = payload;
-    await update({ id: partyMemberId, update: updatePayload });
+    await update({ id: partyMemberId, update: payload });
 
     for (const m of players.value) {
       if (m.party_member_id === partyMemberId && m.id !== selectedCampaignMemberId.value) {

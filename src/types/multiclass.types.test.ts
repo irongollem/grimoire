@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { computeSpellcastingPerClass, pickSpellcastingStats, type CharacterClass } from "./multiclass.types";
 
 const classRow = (id: string, class_name: string, levels: number): CharacterClass => ({
-  id, class_name, levels, party_member_id: "member", subclass_name: null,
+  id, class_name, levels, party_member_id: "member", class_definition_id: `${id}-def`, class_definition_kind: "system",
+  subclass_name: null, subclass_definition_id: null,
   is_primary: id === "paladin", hit_dice_used: 0, sort_order: 0, created_at: "", updated_at: "",
 });
 

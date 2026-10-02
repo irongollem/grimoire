@@ -205,11 +205,10 @@ import { ref, computed, nextTick } from "vue";
 import { IconStar } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
-import { useClassByName } from "@/composables/rules/useCustomClasses";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
-import { getHitDie } from "@/types/spell.types";
+import { useClassHitDice } from "@/composables/party/useClassHitDice";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { applyDamage as damagePools, applyHealing as healPools, betterTempHp } from "@/rules/hitPoints";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
@@ -289,12 +288,9 @@ async function addCondition(cond: string) {
   await updateMember({ id: props.member.id, update: { conditions: updated } });
 }
 
-const classNameRef = computed(() => props.member.class ?? "");
-const classData = useClassByName(classNameRef);
-const hitDie = computed<number>(() => classData.value?.hit_die ?? getHitDie(classNameRef.value));
-
 const memberIdRef = computed(() => props.member.id);
 const { data: characterClasses } = useCharacterClasses(memberIdRef);
+const { hitDieOf } = useClassHitDice();
 
 /**
  * Hit dice composition by die size. For a single-class character this is
@@ -302,13 +298,13 @@ const { data: characterClasses } = useCharacterClasses(memberIdRef);
  * `[{ die: 10, count: 5 }, { die: 6, count: 3 }]`.
  */
 const hitDicePool = computed<{ die: number; count: number }[]>(() => {
+  // A classless character has no hit dice to roll.
   const list = characterClasses.value ?? [];
-  if (list.length === 0) {
-    return [{ die: hitDie.value, count: props.member.level }];
-  }
   const byDie = new Map<number, number>();
   for (const c of list) {
-    const d = getHitDie(c.class_name);
+    // Read from the row's pinned definition; unresolved (still loading) adds nothing.
+    const d = hitDieOf(c);
+    if (d === null) continue;
     byDie.set(d, (byDie.get(d) ?? 0) + c.levels);
   }
   return Array.from(byDie.entries())
@@ -325,13 +321,14 @@ const hitDicePool = computed<{ die: number; count: number }[]>(() => {
  */
 const hitDicePoolLabel = computed(() => {
   const pool = hitDicePool.value;
-  if (pool.length <= 1) return `d${pool[0]?.die ?? hitDie.value}`;
+  if (pool.length === 0) return "";
+  if (pool.length === 1) return `d${pool[0].die}`;
   return pool.map((p) => `${p.count}d${p.die}`).join("+");
 });
 
 /**
- * Total character level. Sum of `character_classes` rows if populated;
- * otherwise falls back to the legacy single `party_members.level`.
+ * Total character level. Sum of the `character_classes` rows; a classless
+ * character has none, so its own `party_members.level` stands.
  */
 const memberTotalLevel = computed(() => {
   const list = characterClasses.value ?? [];
@@ -340,7 +337,7 @@ const memberTotalLevel = computed(() => {
 
 /**
  * Label rendered next to the name: "Fighter 5 / Wizard 3" when multiclass,
- * otherwise the single class from the legacy column.
+ * the single class and subclass otherwise, nothing for a classless character.
  */
 const classLabel = computed(() => {
   const list = characterClasses.value ?? [];
@@ -350,7 +347,7 @@ const classLabel = computed(() => {
     const parts = [only.class_name, only.subclass_name].filter(Boolean);
     return parts.join(" · ");
   }
-  return [props.member.class, props.member.subclass].filter(Boolean).join(" · ");
+  return "";
 });
 
 const hitDiceRemaining = computed(() =>

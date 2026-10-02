@@ -43,8 +43,9 @@ import { IconMoon, IconSun } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import RestDialog from "@/components/player/RestDialog.vue";
 import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/party/useParty";
-import { getCasterType, getDefaultSpellSlots } from "@/types/spell.types";
-import { useClassByName } from "@/composables/rules/useCustomClasses";
+import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
+import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
 import type { SpellSlotEntry, PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { useRuleset } from "@/composables/rules/useRuleset";
 
@@ -55,17 +56,19 @@ const { mutateAsync: takeSpellcastingRest } = useTakeSpellcastingRest();
 const resting = ref(false);
 const restDialog = ref<"short" | "long" | null>(null);
 
-const memberClassRef = computed(() => props.member.class ?? "");
-const classData = useClassByName(memberClassRef);
 const { ruleset } = useRuleset();
-const casterType = computed(() => classData.value?.caster_type ?? getCasterType(props.member.class));
+const { data: characterClasses } = useCharacterClasses(computed(() => props.member.id));
+const { data: systemClasses } = useAllSystemClasses();
+const { data: customClasses } = useAllCustomClasses();
+
+// Stored slots first, since they carry what is spent. Without any, derive the
+// maximums from the class rows (none for a classless or non-casting character).
 const effectiveSpellSlots = computed<SpellSlotEntry[]>(() => {
-  // Honor stored slots FIRST: a multiclass caster with a non-caster legacy class
-  // (e.g. Rogue 3/Wizard 2, class "Rogue") has casterType "none" from the legacy
-  // field but real persisted slots — checking casterType first wiped them on rest.
   if (props.member.spell_slots?.length) return props.member.spell_slots;
-  if (casterType.value === "none") return [];
-  return getDefaultSpellSlots(props.member.class, props.member.level, ruleset.value);
+  return deriveEffectiveSpellSlots(props.member, characterClasses.value ?? [], ruleset.value, (row) => {
+    const definitions = row.class_definition_kind === "custom" ? customClasses.value : systemClasses.value;
+    return definitions?.find((c) => c.id === row.class_definition_id);
+  });
 });
 
 async function onRestConfirm(update: PartyMemberUpdate) {

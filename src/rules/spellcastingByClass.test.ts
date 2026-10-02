@@ -7,8 +7,8 @@ function classEntry(overrides: Partial<CharacterClass> = {}): CharacterClass {
     id: "class-1",
     party_member_id: "member-1",
     class_name: "Wizard",
-    class_definition_id: null,
-    class_definition_kind: null,
+    class_definition_id: "def-1",
+    class_definition_kind: "system",
     subclass_name: null,
     subclass_definition_id: null,
     levels: 3,
@@ -27,12 +27,12 @@ const member = {
 };
 
 describe("computeSpellcastingByClass", () => {
-  it("falls back to the class-name default ability and caster type with no definition", () => {
-    const result = computeSpellcastingByClass(member, [classEntry()], { system: [], custom: [] }, "2014");
+  it("falls back to the class-name default caster type when the definition sets none", () => {
+    const result = computeSpellcastingByClass(member, [classEntry()], { system: [{ id: "def-1", primary_ability: "Intelligence" }], custom: [] }, "2014");
     expect(result).toEqual([{
       classId: "class-1",
       className: "Wizard",
-      definitionKind: null,
+      definitionKind: "system",
       casterType: "spellbook",
       castingAbility: "int",
       attack: 5,
@@ -64,7 +64,7 @@ describe("computeSpellcastingByClass", () => {
 
   it("applies the 2024 ruleset policy's caster type for a system class, overriding the class-name default", () => {
     const entry = classEntry({ class_name: "Ranger", class_definition_kind: "system" });
-    const result = computeSpellcastingByClass(member, [entry], { system: [], custom: [] }, "2024");
+    const result = computeSpellcastingByClass(member, [entry], { system: [{ id: "def-1", primary_ability: "Wisdom" }], custom: [] }, "2024");
     // getCasterType("Ranger") defaults to "known", but the 2024 policy table makes Ranger a prepared caster.
     expect(result[0]?.casterType).toBe("prepared");
   });

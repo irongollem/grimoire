@@ -69,7 +69,7 @@
           <div class="big"><i class="wl" />/ {{ front.hp.max }}</div>
         </template>
 
-        <template v-else-if="f.section === 'hitdice'">
+        <template v-else-if="f.section === 'hitdice' && front.hitdice">
           <div class="row"><span class="k">Remaining</span><span class="v"><i class="wl" />{{ front.hitdice.die }}</span></div>
           <div class="row"><span class="k">Total</span><span class="v">{{ front.hitdice.total }}</span></div>
         </template>
@@ -193,10 +193,12 @@ import {
 import { A4 } from "./sheetConfig.a4";
 import { LETTER } from "./sheetConfig.letter";
 import { toFront, toBack } from "./sheetData";
+import type { SheetClassInput } from "@/rules/sheetClassData";
 
 const {
   member,
   inventory,
+  classInput,
   side,
   theme,
   pageSize,
@@ -209,6 +211,8 @@ const {
 } = defineProps<{
   member: PartyMember;
   inventory: PartyInventoryItem[];
+  /** The character's class rows + pinned definitions (hit dice, casting ability). */
+  classInput: SheetClassInput;
   side: SheetSide;
   theme: IllustratedTheme;
   pageSize: SheetPageSize;
@@ -243,7 +247,7 @@ const sheet = computed(() => {
 // isn't a plain artUrl() call.
 const plateUrl = computed(() => resolvePlateUrl(pageSize, sheet.value.plate, plateModules));
 
-const front = computed(() => toFront(member, inventory, speciesName, backgroundName, acBonus, items));
+const front = computed(() => toFront(member, inventory, classInput, speciesName, backgroundName, acBonus, items));
 const back = computed(() => toBack(member));
 const pibfBlocks = computed(() => [
   { k: "Personality", v: back.value.personality.traits },

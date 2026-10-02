@@ -9,6 +9,8 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import {
+  assertBundleCarriesCharacterEditions,
+  BUNDLE_FORMAT_VERSION,
   buildIdMap,
   remapCharacterClassForImport,
   remapCharacterSpellForImport,
@@ -27,7 +29,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 function emptyBundle(over: Partial<GrimoireBundle> = {}): GrimoireBundle {
   return {
-    version: "1",
+    version: BUNDLE_FORMAT_VERSION,
+    ruleset: "2014",
     file_type: "world_bundle",
     name: "Test Bundle",
     description: "",
@@ -150,8 +153,10 @@ describe("remapPartyMemberForImport ruleset", () => {
     expect(remapPartyMemberForImport({ id: "pm-1", name: "Brannor", ruleset: "2024" }, ctx).ruleset).toBe("2024");
   });
 
-  it("sends none for a row from a bundle made before characters recorded one, so it takes the destination's", () => {
-    expect("ruleset" in remapPartyMemberForImport({ id: "pm-1", name: "Old" }, ctx)).toBe(false);
+  it("never sends class or subclass: they are the database's mirror of the class rows", () => {
+    const out = remapPartyMemberForImport({ id: "pm-1", name: "Brannor", ruleset: "2014", class: "Wizard", subclass: "Evocation" }, ctx);
+    expect("class" in out).toBe(false);
+    expect("subclass" in out).toBe(false);
   });
 });
 
@@ -168,13 +173,13 @@ describe("remapCharacterClassForImport", () => {
     levels: 5,
   };
 
-  it("preserves a system class_definition_id pin when the ruleset matches (no stripping requested)", () => {
+  it("travels a system class_definition_id pin unchanged", () => {
     const result = remapCharacterClassForImport(systemPinnedRow, baseCtx);
     expect(result.class_definition_id).toBe("sys-def-1");
     expect(result.class_definition_kind).toBe("system");
   });
 
-  it("remaps a custom class_definition_id through the idMap when not stripping", () => {
+  it("remaps a custom class_definition_id through the idMap", () => {
     const customIdMap = new Map([...idMap, ["custom-def-1", "custom-def-fresh"]]);
     const result = remapCharacterClassForImport(
       { ...systemPinnedRow, class_definition_id: "custom-def-1", class_definition_kind: "custom" },
@@ -182,36 +187,6 @@ describe("remapCharacterClassForImport", () => {
     );
     expect(result.class_definition_id).toBe("custom-def-fresh");
     expect(result.class_definition_kind).toBe("custom");
-  });
-
-  it("strips both class_definition_id and class_definition_kind to null when the ruleset is unknown or mismatched", () => {
-    // Old (version 1) bundles or a cross-ruleset import set stripClassDefinitionPins —
-    // a pin from the wrong edition would otherwise trip the content-identity trigger.
-    const result = remapCharacterClassForImport(systemPinnedRow, { ...baseCtx, stripClassDefinitionPins: true });
-    expect(result.class_definition_id).toBeNull();
-    expect(result.class_definition_kind).toBeNull();
-    // Non-pin data (name-based resolution fallback) survives.
-    expect(result.class_name).toBe("Wizard");
-    expect(result.levels).toBe(5);
-  });
-
-  it("keeps the pin of a character that carries its own edition, even into a table of the other", () => {
-    // Its pins are of the edition it keeps, so they stay valid; stripping is for
-    // characters whose edition the bundle never recorded.
-    const result = remapCharacterClassForImport(systemPinnedRow, {
-      ...baseCtx,
-      stripClassDefinitionPins: true,
-      membersWithOwnEdition: new Set(["pm-1"]),
-    });
-    expect(result.class_definition_id).toBe("sys-def-1");
-    expect(result.class_definition_kind).toBe("system");
-
-    const other = remapCharacterClassForImport(systemPinnedRow, {
-      ...baseCtx,
-      stripClassDefinitionPins: true,
-      membersWithOwnEdition: new Set(["pm-other"]),
-    });
-    expect(other.class_definition_id).toBeNull();
   });
 });
 
@@ -268,12 +243,13 @@ describe("character round-trip (export → import)", () => {
       disguise_species_id: "sp-2",
       current_location_id: "loc-not-bundled",
       max_hp: 58,
+      ruleset: "2014",
     };
     const dbSpeciesTrue = { id: "sp-1", user_id: "dm-source", campaign_id: "camp-source", name: "Tiefling" };
     const dbSpeciesDisg = { id: "sp-2", user_id: "dm-source", campaign_id: null, name: "Human" };
     const dbClasses = [
-      { id: "cc-1", party_member_id: "pm-1", class_name: "Wizard", subclass_name: "Evocation", levels: 5, is_primary: true },
-      { id: "cc-2", party_member_id: "pm-1", class_name: "Fighter", subclass_name: null, levels: 2, is_primary: false },
+      { id: "cc-1", party_member_id: "pm-1", class_name: "Wizard", subclass_name: "Evocation", class_definition_id: "sys-wiz", class_definition_kind: "system", levels: 5, is_primary: true },
+      { id: "cc-2", party_member_id: "pm-1", class_name: "Fighter", subclass_name: null, class_definition_id: "sys-fig", class_definition_kind: "system", levels: 2, is_primary: false },
     ];
     const dbCustomClass = { id: "cclass-1", class_name: "Wizard", hit_die: 6, features: {} };
     const dbCustomSubclass = { id: "csub-1", class_name: "Wizard", subclass_name: "Evocation", features: {} };
@@ -368,5 +344,38 @@ describe("character round-trip (export → import)", () => {
     expect(charSpells[1].spell_id).toBe("srd_fireball");
     expect(charSpells[0].is_prepared).toBe(true);
     expect(charSpells[1].is_prepared).toBe(false);
+  });
+});
+
+describe("assertBundleCarriesCharacterEditions", () => {
+  const member = { id: "pm-1", name: "Brannor", ruleset: "2024" };
+  const pinned = { id: "cc-1", party_member_id: "pm-1", class_definition_id: "sys-1", class_definition_kind: "system" };
+
+  it("accepts a bundle shaped the way buildBundle writes one", () => {
+    const bundle = emptyBundle({
+      ruleset: "2024",
+      party_members: [stripPartyMemberRow({ ...member, user_id: "u", campaign_id: "c" })],
+      character_classes: [pinned],
+    });
+    expect(() => assertBundleCarriesCharacterEditions(bundle)).not.toThrow();
+  });
+
+  it("refuses a bundle that does not record the campaign's edition", () => {
+    const bundle = emptyBundle();
+    delete (bundle as { ruleset?: unknown }).ruleset;
+    expect(() => assertBundleCarriesCharacterEditions(bundle)).toThrow(/older version of Grimoire/);
+  });
+
+  it("refuses a party member without its own edition", () => {
+    const bundle = emptyBundle({ party_members: [{ id: "pm-1", name: "Old" }] });
+    expect(() => assertBundleCarriesCharacterEditions(bundle)).toThrow(/do not record their edition/);
+  });
+
+  it("refuses a class row without a pin", () => {
+    const bundle = emptyBundle({
+      party_members: [member],
+      character_classes: [{ id: "cc-1", party_member_id: "pm-1", class_name: "Wizard", class_definition_id: null, class_definition_kind: null }],
+    });
+    expect(() => assertBundleCarriesCharacterEditions(bundle)).toThrow(/not linked to a class definition/);
   });
 });

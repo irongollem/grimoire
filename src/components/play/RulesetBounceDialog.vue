@@ -1,5 +1,5 @@
 <template>
-  <AppModal :open="open" size="md" role="alertdialog" @close="dismiss">
+  <AppModal open size="md" role="alertdialog" @close="dismiss">
     <ModalHeader
       :title="`This table plays the ${rulesetRules(campaignRuleset)}`"
       :subtitle="`${character.name} is built with the ${rulesetRules(character.ruleset)}.`"
@@ -55,7 +55,7 @@
  * Two actions, not three: the close control already cancels, and a third button
  * wrapped the footer onto a second row.
  */
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import AppModal from "@/components/common/AppModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
@@ -64,8 +64,7 @@ import { useToast } from "@/composables/useToast";
 import { rulesetRules, useConvertCharacterCopy } from "@/composables/party/useCharacterRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
-const { open, character, campaignRuleset, campaignName, bring } = defineProps<{
-  open: boolean;
+const { character, campaignRuleset, campaignName, bring } = defineProps<{
   character: { id: string; name: string; ruleset: RulesetKey };
   campaignRuleset: RulesetKey;
   /** Null when the caller cannot know it, as on the join page. */
@@ -89,13 +88,8 @@ const error = ref("");
 
 const tableName = computed(() => campaignName ?? "This table");
 
-// A reopened dialog never shows the last attempt's failure.
-watch(
-  () => open,
-  (isOpen) => {
-    if (isOpen) error.value = "";
-  },
-);
+// Callers render the dialog behind a `v-if`, so each opening is a fresh mount
+// and never shows the last attempt's failure.
 
 function dismiss() {
   if (working.value) return;

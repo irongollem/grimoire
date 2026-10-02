@@ -141,7 +141,7 @@ describe("JoinCampaignView", () => {
       await joinWithMira();
       expect(mocks.replace).toHaveBeenCalled();
       expect(mocks.toastInfo).toHaveBeenCalledWith(
-        "You joined, but 2 choices are waiting for the DM's approval, so your character cannot be made active yet. Open Champions to see what to change.",
+        expect.stringContaining("2 choices are waiting for the DM's approval. They cannot be made active yet."),
       );
     });
 

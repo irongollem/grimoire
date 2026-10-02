@@ -7,10 +7,12 @@ export interface CharacterClass {
   id: string;
   party_member_id: string;
   class_name: string;
-  class_definition_id?: string | null;
-  class_definition_kind?: "system" | "custom" | null;
+  /** Every row is pinned to the definition it plays (the database refuses a row without one). */
+  class_definition_id: string;
+  class_definition_kind: "system" | "custom";
+  /** Set together or both null: a subclass is its definition. */
   subclass_name: string | null;
-  subclass_definition_id?: string | null;
+  subclass_definition_id: string | null;
   levels: number;
   is_primary: boolean;
   hit_dice_used: number;
@@ -19,10 +21,7 @@ export interface CharacterClass {
   updated_at: string;
 }
 
-export type CharacterClassInsert = Omit<
-  CharacterClass,
-  "id" | "created_at" | "updated_at" | "class_definition_id" | "class_definition_kind"
-> & Partial<Pick<CharacterClass, "class_definition_id" | "class_definition_kind">>;
+export type CharacterClassInsert = Omit<CharacterClass, "id" | "created_at" | "updated_at">;
 export type CharacterClassUpdate = Partial<Omit<CharacterClass, "id" | "party_member_id" | "created_at" | "updated_at">>;
 
 /**
@@ -99,11 +98,6 @@ export function totalLevel(classes: CharacterClass[]): number {
   return classes.reduce((s, c) => s + c.levels, 0);
 }
 
-/** Returns the primary class entry, or null if none marked. */
-export function primaryClass(classes: CharacterClass[]): CharacterClass | null {
-  return classes.find((c) => c.is_primary) ?? classes[0] ?? null;
-}
-
 import { getCasterType, getCastingAbility } from "@/types/spell.types";
 
 /**
@@ -116,7 +110,7 @@ export interface SpellcastingClassStats {
   /** character_classes row id — matches character_spells.source_class_id */
   classId: string;
   className: string;
-  definitionKind: "system" | "custom" | null;
+  definitionKind: "system" | "custom";
   casterType: "prepared" | "known" | "spellbook" | "none";
   castingAbility: "int" | "wis" | "cha";
   dc: number;
@@ -143,7 +137,7 @@ export function computeSpellcastingPerClass(
     out.push({
       classId: c.id,
       className: c.class_name,
-      definitionKind: c.class_definition_kind ?? null,
+      definitionKind: c.class_definition_kind,
       casterType: getCasterType(c.class_name),
       castingAbility: ability,
       attack,

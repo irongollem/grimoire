@@ -234,7 +234,6 @@
 
     <RulesetBounceDialog
       v-if="bounce"
-      :open="true"
       :character="bounce.character"
       :campaign-ruleset="bounce.campaignRuleset"
       :campaign-name="null"
@@ -248,7 +247,7 @@
 
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import { ref, computed, nextTick, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -261,7 +260,7 @@ import { reportHandledError } from "@/lib/observability/sentry";
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
 import { useModeSwitch } from "@/composables/useModeSwitch";
 import { useToast } from "@/composables/useToast";
-import { pendingReviews, useCharacterContentReviews } from "@/composables/party/useCharacterContentReviews";
+import { benchedMessage, useBenchedAfterAttach } from "@/composables/party/useBenchedAfterAttach";
 import { usePlayerCampaigns } from "@/composables/campaign/useCampaigns";
 import { wasAnsweredUnder16 } from "@/lib/ageGateSession";
 import AppButton from "@/components/common/AppButton.vue";
@@ -379,20 +378,13 @@ function chooseAnotherCharacter() {
 // A character brought along may have been benched by the table's approval
 // review, which runs inside the join. Say so on the way in, since the player
 // would otherwise arrive at a table where "Set Active" quietly does nothing.
-const broughtCharacterId = ref<string | null>(null);
-const { refetch: refetchBrought } = useCharacterContentReviews(broughtCharacterId);
+const { waitingAfterAttach } = useBenchedAfterAttach();
 
-async function tellIfBenched(partyMemberId: string) {
+async function tellIfBenched(partyMemberId: string, table: string | null) {
   try {
-    broughtCharacterId.value = partyMemberId;
-    await nextTick();
-    const { data } = await refetchBrought({ throwOnError: true });
-    const waiting = pendingReviews(data).length;
+    const waiting = await waitingAfterAttach(partyMemberId);
     if (waiting === 0) return;
-    const choices = waiting === 1 ? "1 choice is" : `${waiting} choices are`;
-    toast.info(
-      `You joined, but ${choices} waiting for the DM's approval, so your character cannot be made active yet. Open Champions to see what to change.`,
-    );
+    toast.info(benchedMessage(null, table, waiting));
   } catch (err) {
     toast.error(toast.fromError(err));
   }
@@ -424,7 +416,7 @@ async function finishJoin(result: JoinResult, partyMemberId?: string) {
     campaign.activeCampaignId = campaignId;
   }
   await router.replace({ name: "play" });
-  if (partyMemberId) await tellIfBenched(partyMemberId);
+  if (partyMemberId) await tellIfBenched(partyMemberId, joined?.name ?? null);
 }
 
 // Emails the parents. A failure must not break the page: the request already

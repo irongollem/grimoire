@@ -3,7 +3,6 @@ import {
   partitionBundleEntries,
   buildBackgroundEquipmentRows,
   resolveCharacterPlacement,
-  benchedAtCreateMessage,
   createDestination,
 } from "./useCharacterCreationForm";
 import type { VaultEntry } from "./useCharacterEquipmentSeeding";
@@ -145,16 +144,6 @@ describe("resolveCharacterPlacement", () => {
         expect(campaign_id === null && owner_user_id === null).toBe(false);
       }
     }
-  });
-});
-
-describe("benchedAtCreateMessage", () => {
-  it("names the table and counts the waiting choices", () => {
-    expect(benchedAtCreateMessage("Mira", "Strahd", 1)).toBe(
-      "Mira joined Strahd, but 1 choice is waiting for the DM's approval. They cannot be made active yet.",
-    );
-    expect(benchedAtCreateMessage("Mira", "Strahd", 3)).toContain("3 choices are waiting");
-    expect(benchedAtCreateMessage("Mira", null, 2)).toContain("joined the table");
   });
 });
 

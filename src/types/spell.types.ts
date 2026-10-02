@@ -473,7 +473,7 @@ function slotsFromRow(row: number[]): import("@/types/party.types").SpellSlotEnt
 export function getDefaultSpellSlots(
   cls: string | null | undefined,
   level: number,
-  ruleset: RulesetKey = "2014",
+  ruleset: RulesetKey,
 ): import("@/types/party.types").SpellSlotEntry[] {
   const l = Math.max(1, Math.min(20, Math.round(level)));
   const idx = l - 1;
@@ -573,7 +573,7 @@ export function getCastingAbility(cls: string | null | undefined): "int" | "wis"
  */
 export function multiclassCasterLevel(
   classes: { class_name: string; levels: number }[],
-  ruleset: RulesetKey = "2014",
+  ruleset: RulesetKey,
 ): number {
   let sum = 0;
   for (const c of classes) {
@@ -600,7 +600,7 @@ export function multiclassCasterLevel(
  */
 export function getMulticlassSpellSlots(
   classes: { class_name: string; levels: number }[],
-  ruleset: RulesetKey = "2014",
+  ruleset: RulesetKey,
 ): import("@/types/party.types").SpellSlotEntry[] {
   if (classes.length === 0) return [];
   if (classes.length === 1) {
@@ -623,15 +623,6 @@ export function getMulticlassSpellSlots(
   }
 
   return out;
-}
-
-export function getHitDie(cls: string | null | undefined): number {
-  const c = cls?.toLowerCase() ?? "";
-  if (c === "barbarian") return 12;
-  if (c === "fighter" || c === "paladin" || c === "ranger") return 10;
-  if (c === "wizard" || c === "sorcerer") return 6;
-  // bard, cleric, druid, monk, rogue, warlock → d8; artificer → d8
-  return 8;
 }
 
 export const SCHOOL_BG: Record<SpellSchool, string> = {

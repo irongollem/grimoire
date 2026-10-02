@@ -126,6 +126,7 @@ import RunnerTraitSection from "@/components/encounters/RunnerTraitSection.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useDiscoveredKeys } from "@/composables/encounters/useDiscoveredMonsters";
 import { useDmPinnedForms, useTogglePinnedForm } from "@/composables/play/usePinnedForms";
 import { parseCr } from "@/lib/utils";
@@ -155,17 +156,21 @@ const { mutate: togglePinnedForm } = useTogglePinnedForm();
 
 // ── Class helpers ─────────────────────────────────────────────────────────────
 
-const isDruid = computed(() =>
-  (member.class as string | null)?.toLowerCase().includes("druid") ?? false,
+// Druid-ness, druid level and subclass come from the class rows; the member's
+// own class/subclass text only mirrors the primary row.
+const { data: characterClasses } = useCharacterClasses(memberId);
+const druidRow = computed(() =>
+  (characterClasses.value ?? []).find((row) => row.class_name.toLowerCase().includes("druid")) ?? null,
 );
+const isDruid = computed(() => !!druidRow.value);
 
 const isCircleOfMoon = computed(() =>
-  member.subclass?.toLowerCase().includes("moon") ?? false,
+  (druidRow.value?.subclass_name ?? "").toLowerCase().includes("moon"),
 );
 
 // ── Wildshape eligibility ─────────────────────────────────────────────────────
 
-const wildshapeMaxCr = computed(() => calcWildshapeMaxCr(member.level ?? 1, isCircleOfMoon.value));
+const wildshapeMaxCr = computed(() => calcWildshapeMaxCr(druidRow.value?.levels ?? 0, isCircleOfMoon.value));
 
 const wildshapeCrDisplay = computed(() => calcWildshapeCrDisplay(wildshapeMaxCr.value));
 
@@ -176,7 +181,7 @@ const pinnedKeys = computed<Set<string>>(() =>
 /** Beasts that are legal wild shape forms for this druid, sorted by CR. */
 const eligibleBeasts = computed<Monster[]>(() => {
   if (!isDruid.value) return [];
-  const level = member.level ?? 1;
+  const level = druidRow.value?.levels ?? 0;
   const maxCr = wildshapeMaxCr.value;
   return monsters
     .filter((m) => isEligibleWildshapeForm(m, level, maxCr))

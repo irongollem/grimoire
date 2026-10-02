@@ -172,6 +172,7 @@ import { useItems } from "@/composables/items/useItems";
 import { useAmmoConsumption } from "@/composables/encounters/useAmmoConsumption";
 import { useThrownWeapon } from "@/composables/encounters/useThrownWeapon";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { weaponAmmoTag, weaponUsesChargesAsAmmo, type WeaponAmmoTag } from "@/rules/ammunition";
 import { isThrownWeapon } from "@/rules/thrownWeapon";
 import { weaponAttackMod, weaponAbilityMod } from "@/rules/weaponAttack";
@@ -373,13 +374,13 @@ function fireThrownAttack(atk: ThrownAttack) {
 
 // ── Class features ────────────────────────────────────────────────────────────
 
-// Rogue Sneak Attack: ceil(level/2) d6 — covers all Rogue subclasses
-// (Arcane Trickster, Assassin, etc.) since the class string always starts with "Rogue".
+// Rogue Sneak Attack: ceil(rogue level/2) d6, read from the Rogue class row so a
+// multiclass character scales on Rogue levels, not total level.
+const { data: characterClasses } = useCharacterClasses(computed(() => member.id));
 const sneakAttackDice = computed<string | null>(() => {
-  const cls = member.class?.toLowerCase() ?? "";
-  if (!cls.startsWith("rogue")) return null;
-  const dice = Math.ceil(member.level / 2);
-  return `${dice}d6`;
+  const rogue = (characterClasses.value ?? []).find((row) => row.class_name.toLowerCase().startsWith("rogue"));
+  if (!rogue) return null;
+  return `${Math.ceil(rogue.levels / 2)}d6`;
 });
 
 // ── Dice label helper ─────────────────────────────────────────────────────────

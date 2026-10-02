@@ -54,9 +54,10 @@ async function fetchPrereqs(): Promise<MulticlassPrereq[]> {
 }
 
 /**
- * Reactive list of class entries for one party member. Pre-multiclass data
- * (a character with no `character_classes` rows) returns an empty array —
- * consumers should fall back to `party_members.class`/`level` in that case.
+ * Reactive list of class entries for one party member. A character with no
+ * rows is classless, which is a valid state: there is nothing to fall back to,
+ * and `party_members.class` is only a mirror of the primary row, never a source
+ * of class data.
  */
 export function useCharacterClasses(partyMemberId: Ref<string | null | undefined>) {
   return useQuery({

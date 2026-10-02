@@ -298,6 +298,7 @@ import { usePinnedForms, useTogglePinnedForm } from "@/composables/play/usePinne
 import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/rules/wildshape";
 import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import { useParty } from "@/composables/party/useParty";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
@@ -350,9 +351,17 @@ const member = computed(() => {
 });
 
 // ── Class detection ───────────────────────────────────────────────────────────
-const isDruid    = computed(() => (member.value?.['class'] as string | null)?.toLowerCase().includes("druid") ?? false);
-const isRanger   = computed(() => (member.value?.['class'] as string | null)?.toLowerCase().includes("ranger") ?? false);
-const isCircleOfMoon = computed(() => member.value?.subclass?.toLowerCase().includes("moon") ?? false);
+// Read from the class rows: party_members.class/subclass only mirror the primary
+// row, so a Fighter 6 / Druid 2 would otherwise never see the Wild Forms tab.
+const { data: characterClasses } = useCharacterClasses(computed(() => member.value?.id));
+const druidRow = computed(() =>
+  (characterClasses.value ?? []).find((cc) => cc.class_name.toLowerCase().includes("druid")) ?? null,
+);
+const isDruid    = computed(() => !!druidRow.value);
+const isRanger   = computed(() =>
+  (characterClasses.value ?? []).some((cc) => cc.class_name.toLowerCase().includes("ranger")),
+);
+const isCircleOfMoon = computed(() => (druidRow.value?.subclass_name ?? "").toLowerCase().includes("moon"));
 
 const showFormTab = computed(() => isDruid.value || isRanger.value);
 
@@ -396,13 +405,13 @@ const filtered = computed(() => {
 
 // ── Wild Forms tab ───────────────────────────────────────────────────────────
 
-const maxWildshapeCr = computed(() => calcWildshapeMaxCr(member.value?.level ?? 1, isCircleOfMoon.value));
+const maxWildshapeCr = computed(() => calcWildshapeMaxCr(druidRow.value?.levels ?? 0, isCircleOfMoon.value));
 
 const maxWildshapeCrDisplay = computed(() => calcWildshapeCrDisplay(maxWildshapeCr.value));
 
 function isEligibleBeast(m: PlayerVisibleMonster): boolean {
   if (!isDruid.value) return false;
-  return isEligibleWildshapeForm(m, member.value?.level ?? 1, maxWildshapeCr.value);
+  return isEligibleWildshapeForm(m, druidRow.value?.levels ?? 0, maxWildshapeCr.value);
 }
 
 // Pinned forms for the current party member (player view or DM preview)

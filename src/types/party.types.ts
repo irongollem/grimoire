@@ -193,11 +193,15 @@ export interface ConcentrationState {
   appliedEffectIds: string[];
 }
 
-export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "created_at" | "updated_at" | "level_choices" | "ruleset"> & {
+/**
+ * `class` and `subclass` are a database-maintained mirror of the character's
+ * primary `character_classes` row, so a client write is silently overwritten and
+ * neither is accepted here. They stay on `PartyMember` for reading.
+ */
+export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "created_at" | "updated_at" | "level_choices" | "ruleset" | "class" | "subclass"> & {
   owner_user_id?: string | null;
   level_choices?: LevelChoices;
-  /** A roster insert omits it and the database takes the campaign's edition; a campaign-less insert must state it. */
-  ruleset?: RulesetKey;
+  ruleset: RulesetKey;
 };
 /** `ruleset` is not client-writable: it changes only through `convert_party_member_ruleset`. */
 export type PartyMemberUpdate = Partial<Omit<PartyMemberInsert, "ruleset">>;

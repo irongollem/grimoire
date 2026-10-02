@@ -17,25 +17,25 @@ import {
 
 describe("hasSaveDisadvantage", () => {
   it("gives no disadvantage with no relevant conditions", () => {
-    expect(hasSaveDisadvantage([], "dex")).toBe(false);
-    expect(hasSaveDisadvantage(["Poisoned"], "con")).toBe(false);
+    expect(hasSaveDisadvantage([], "dex", "2014")).toBe(false);
+    expect(hasSaveDisadvantage(["Poisoned"], "con", "2014")).toBe(false);
   });
 
   it("Restrained → disadvantage on DEX saves only (both editions)", () => {
-    expect(hasSaveDisadvantage(["Restrained"], "dex")).toBe(true);
-    expect(hasSaveDisadvantage(["Restrained"], "str")).toBe(false);
-    expect(hasSaveDisadvantage(["Restrained"], "con")).toBe(false);
+    expect(hasSaveDisadvantage(["Restrained"], "dex", "2014")).toBe(true);
+    expect(hasSaveDisadvantage(["Restrained"], "str", "2014")).toBe(false);
+    expect(hasSaveDisadvantage(["Restrained"], "con", "2014")).toBe(false);
     expect(hasSaveDisadvantage(["Restrained"], "dex", "2024")).toBe(true);
   });
 
   it("2014 (default): Exhaustion 3+ → disadvantage on ALL saves", () => {
-    expect(hasSaveDisadvantage(["Exhaustion 3"], "wis")).toBe(true);
-    expect(hasSaveDisadvantage(["Exhaustion 5"], "dex")).toBe(true);
+    expect(hasSaveDisadvantage(["Exhaustion 3"], "wis", "2014")).toBe(true);
+    expect(hasSaveDisadvantage(["Exhaustion 5"], "dex", "2014")).toBe(true);
     expect(hasSaveDisadvantage(["Exhaustion 3"], "wis", "2014")).toBe(true);
   });
 
   it("2014: Exhaustion below 3 → no save disadvantage", () => {
-    expect(hasSaveDisadvantage(["Exhaustion 2"], "wis")).toBe(false);
+    expect(hasSaveDisadvantage(["Exhaustion 2"], "wis", "2014")).toBe(false);
   });
 
   it("2024: Exhaustion never causes save disadvantage (numeric penalty instead)", () => {
@@ -44,20 +44,20 @@ describe("hasSaveDisadvantage", () => {
   });
 
   it("is case-insensitive on the ability key", () => {
-    expect(hasSaveDisadvantage(["Restrained"], "DEX")).toBe(true);
+    expect(hasSaveDisadvantage(["Restrained"], "DEX", "2014")).toBe(true);
   });
 });
 
 describe("hasAttackDisadvantage", () => {
   it("base condition set applies under both editions", () => {
-    expect(hasAttackDisadvantage(["Blinded"])).toBe(true);
+    expect(hasAttackDisadvantage(["Blinded"], "2014")).toBe(true);
     expect(hasAttackDisadvantage(["Blinded"], "2024")).toBe(true);
-    expect(hasAttackDisadvantage([])).toBe(false);
+    expect(hasAttackDisadvantage([], "2014")).toBe(false);
   });
 
   it("2014 (default): Exhaustion 3+ also imposes attack disadvantage", () => {
-    expect(hasAttackDisadvantage(["Exhaustion 3"])).toBe(true);
-    expect(hasAttackDisadvantage(["Exhaustion 1"])).toBe(false);
+    expect(hasAttackDisadvantage(["Exhaustion 3"], "2014")).toBe(true);
+    expect(hasAttackDisadvantage(["Exhaustion 1"], "2014")).toBe(false);
   });
 
   it("2024: Exhaustion never causes attack disadvantage", () => {
@@ -68,13 +68,13 @@ describe("hasAttackDisadvantage", () => {
 
 describe("hasCheckDisadvantage", () => {
   it("base condition set applies under both editions", () => {
-    expect(hasCheckDisadvantage(["Frightened"])).toBe(true);
+    expect(hasCheckDisadvantage(["Frightened"], "2014")).toBe(true);
     expect(hasCheckDisadvantage(["Frightened"], "2024")).toBe(true);
   });
 
   it("2014 (default): any Exhaustion level gives check disadvantage", () => {
-    expect(hasCheckDisadvantage(["Exhaustion 1"])).toBe(true);
-    expect(hasCheckDisadvantage([])).toBe(false);
+    expect(hasCheckDisadvantage(["Exhaustion 1"], "2014")).toBe(true);
+    expect(hasCheckDisadvantage([], "2014")).toBe(false);
   });
 
   it("2024: Exhaustion never causes check disadvantage", () => {
@@ -87,7 +87,7 @@ describe("exhaustion models — 2014 (disadvantage tiers) vs 2024 (flat penalty)
   it("2014: getExhaustionD20Penalty and getExhaustionSpeedPenaltyFt are always 0 (that edition uses disadvantage flags instead)", () => {
     for (const level of [1, 3, 6]) {
       const conditions = [`Exhausted ${level}`];
-      expect(getExhaustionD20Penalty(conditions)).toBe(0);
+      expect(getExhaustionD20Penalty(conditions, "2014")).toBe(0);
       expect(getExhaustionD20Penalty(conditions, "2014")).toBe(0);
       expect(getExhaustionSpeedPenaltyFt(conditions, "2014")).toBe(0);
     }
@@ -125,8 +125,8 @@ describe("getConditions / getCondition resolver", () => {
   });
 
   it("defaults to 2014", () => {
-    expect(getConditions()).toEqual(getConditions("2014"));
-    expect(getCondition("Blinded")).toEqual(getCondition("Blinded", "2014"));
+    expect(getConditions("2014")).toEqual(getConditions("2014"));
+    expect(getCondition("Blinded", "2014")).toEqual(getCondition("Blinded", "2014"));
   });
 
   it("2014 text is the SRD 5.1 per-level exhaustion table", () => {
@@ -172,7 +172,7 @@ describe("getConditionDescription", () => {
   });
 
   it("falls back to the raw name for an unknown condition", () => {
-    expect(getConditionDescription("Not A Condition")).toBe("Not A Condition");
+    expect(getConditionDescription("Not A Condition", "2014")).toBe("Not A Condition");
   });
 });
 

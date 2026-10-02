@@ -24,7 +24,6 @@ const Header = defineComponent({
 function mountDialog(bring: (id: string) => Promise<void>) {
   return mount(RulesetBounceDialog, {
     props: {
-      open: true,
       character: { id: "c1", name: "Mira", ruleset: "2024" as const },
       campaignRuleset: "2014" as const,
       campaignName: null,

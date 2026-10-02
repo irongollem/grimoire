@@ -4,7 +4,8 @@ import { attachBundleToPdf, extractBundleFromPdf, isGrimoireBundle } from "./cam
 import type { GrimoireBundle } from "@/composables/campaign/useWorldBundle";
 
 const bundle: GrimoireBundle = {
-  version: "1",
+  version: "2",
+  ruleset: "2014",
   file_type: "world_bundle",
   name: "Rime of the Frostmaiden",
   description: "Test export",
@@ -23,7 +24,7 @@ async function blankPdf(): Promise<Uint8Array> {
 describe("isGrimoireBundle", () => {
   it("accepts a world bundle and rejects anything else", () => {
     expect(isGrimoireBundle(bundle)).toBe(true);
-    expect(isGrimoireBundle({ file_type: "nope", version: "1" })).toBe(false);
+    expect(isGrimoireBundle({ file_type: "nope", version: "2" })).toBe(false);
     expect(isGrimoireBundle(null)).toBe(false);
     expect(isGrimoireBundle("x")).toBe(false);
   });

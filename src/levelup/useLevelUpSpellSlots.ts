@@ -77,7 +77,9 @@ export function useLevelUpSpellSlots(opts: {
     if (isAddingNewClass.value && newClassName.value) {
       return [
         ...entries.map(e => ({ class_name: e.class_name, levels: e.levels })),
-        { class_name: newClassName.value, levels: 1 },
+        // 1 for a further class; a classless character's first class carries the
+        // member's whole new level (see `levelInChosenClass`).
+        { class_name: newClassName.value, levels: levelInChosenClass.value },
       ];
     }
     if (chosenExistingEntry.value) {

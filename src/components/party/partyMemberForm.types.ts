@@ -4,9 +4,6 @@ import type { SkillProficiencies, SaveKey, SpellSlotEntry } from "@/types/party.
 export interface IdentityFormSlice {
   name: string;
   player_name: string | null;
-  class: string;
-  subclass: string;
-  level: number;
   subrace: string;
   species_id: string | null;
   disguise_species_id: string | null;
@@ -32,8 +29,6 @@ export interface AbilitiesFormSlice {
   speed: number;
   initiative_bonus: number;
   carry_capacity_override: string | null;
-  class: string;
-  level: number;
 }
 
 /** Fields owned by the Proficiencies tab */
