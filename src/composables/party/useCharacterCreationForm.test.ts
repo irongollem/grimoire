@@ -3,6 +3,8 @@ import {
   partitionBundleEntries,
   buildBackgroundEquipmentRows,
   resolveCharacterPlacement,
+  benchedAtCreateMessage,
+  createDestination,
 } from "./useCharacterCreationForm";
 import type { VaultEntry } from "./useCharacterEquipmentSeeding";
 
@@ -143,5 +145,37 @@ describe("resolveCharacterPlacement", () => {
         expect(campaign_id === null && owner_user_id === null).toBe(false);
       }
     }
+  });
+});
+
+describe("benchedAtCreateMessage", () => {
+  it("names the table and counts the waiting choices", () => {
+    expect(benchedAtCreateMessage("Mira", "Strahd", 1)).toBe(
+      "Mira joined Strahd, but 1 choice is waiting for the DM's approval. They cannot be made active yet.",
+    );
+    expect(benchedAtCreateMessage("Mira", "Strahd", 3)).toContain("3 choices are waiting");
+    expect(benchedAtCreateMessage("Mira", null, 2)).toContain("joined the table");
+  });
+});
+
+describe("createDestination", () => {
+  const base = { landedCampaignId: "c1", isDmCreate: false, levelUp: false, benched: false, characterId: "m1" };
+
+  it("sends a character that stayed in the pool to the pool", () => {
+    expect(createDestination({ ...base, landedCampaignId: null })).toEqual({ name: "play-home" });
+  });
+
+  it("sends a DM's roster character to the party", () => {
+    expect(createDestination({ ...base, isDmCreate: true })).toEqual({ path: "/party" });
+  });
+
+  it("levels up a seated character on request", () => {
+    expect(createDestination({ ...base, levelUp: true })).toEqual({
+      path: "/play/character/levelup?targetLevel=2&memberId=m1",
+    });
+  });
+
+  it("sends a benched character to Champions, where its notice is, even when a level up was asked for", () => {
+    expect(createDestination({ ...base, levelUp: true, benched: true })).toEqual({ name: "play-champions" });
   });
 });

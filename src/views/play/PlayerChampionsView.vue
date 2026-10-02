@@ -81,6 +81,7 @@
                   :campaign="activeCampaign"
                   class="mt-1.5"
                 />
+                <CharacterApprovalNotice :member="char" class="mt-1.5" />
               </div>
 
               <!-- Actions -->
@@ -89,11 +90,14 @@
                   v-if="!isActive(char)"
                   variant="subtle"
                   size="sm"
-                  :disabled="settingActive === char.id"
+                  :disabled="settingActive === char.id || isWaiting(char)"
                   @click="setActive(char.id)"
                 >
                   {{ settingActive === char.id ? 'Switching…' : 'Set Active' }}
                 </AppButton>
+                <span v-if="!isActive(char) && isWaiting(char)" class="text-caption text-muted-foreground italic">
+                  Waiting for the DM's approval
+                </span>
                 <AppButton
                   variant="subtle"
                   size="sm"
@@ -204,6 +208,8 @@ import CharacterSpeciesName from '@/components/party/CharacterSpeciesName.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useCampaignStore } from '@/stores/campaign';
 import CharacterEditionNotice from '@/components/play/CharacterEditionNotice.vue';
+import CharacterApprovalNotice from '@/components/play/CharacterApprovalNotice.vue';
+import { isApprovalWait, useCampaignPendingContentReviews } from '@/composables/party/useCharacterContentReviews';
 import { useUiStore } from '@/stores/ui';
 import AppButton from '@/components/common/AppButton.vue';
 import FocalImage from '@/components/common/FocalImage.vue';
@@ -227,6 +233,13 @@ const setActiveError = ref('');
 const assuming = ref<string | null>(null);
 const assumeError = ref('');
 
+// One read for the whole table: RLS shows a player only the flags on their own characters.
+const { data: pendingReviews } = useCampaignPendingContentReviews();
+const waitingIds = computed(() => new Set((pendingReviews.value ?? []).map((r) => r.party_member_id)));
+function isWaiting(char: PartyMember): boolean {
+  return waitingIds.value.has(char.id);
+}
+
 function isActive(char: PartyMember): boolean {
   return char.id === auth.linkedPartyMemberId;
 }
@@ -248,7 +261,10 @@ async function setActive(id: string) {
   try {
     await setActiveChar(id);
   } catch (e) {
-    setActiveError.value = e instanceof Error ? e.message : 'Failed to switch character.';
+    // The database refuses a benched character even if the button was reachable.
+    setActiveError.value = isApprovalWait(e)
+      ? "This character is waiting for your DM's approval."
+      : e instanceof Error ? e.message : 'Failed to switch character.';
   } finally {
     settingActive.value = null;
   }

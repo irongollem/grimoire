@@ -439,6 +439,92 @@ items.
 `supabase/tests/character_ruleset.test.sql` holds all of the above, each refusal
 beside a control.
 
+#### What a table approves (#943 wave 4, migration `20261002101726`)
+
+Content works the way the edition does: a player builds what they like, and the
+table decides what sits down.
+
+**A player's own books.** `user_enabled_sources` holds the books a player reads
+from when a character has no table (own-row RLS; the two SRDs are always on and
+are not stored). `useLibrarySourceSlugs()` follows the character in scope
+(`useContentScope().standalone`): a character with no table reads its player's
+books, a seated one its table's. The player chooses on the pool page
+(`PlayerBooksPanel`) and from the wizard's edition step; `SourcesPickerPanel`
+takes `scope="player"`. Backgrounds have no shared library table, so a
+campaign-less player's are still seeded into their own rows from Open5e, now
+from the SRD plus their books.
+
+**The predicate.** `private.assess_content()` is the one function that says what
+a table takes: library content from a book the DM enabled and has not blocked,
+the official classes the DM has not blocked, and content a DM of that table
+owns. Everything a seated character points at is checked: species, background,
+class, subclass, spells and feats (feats are ids inside `class_choices.feats`
+and `level_choices[n].asi.feat_id`). Not checked: a disguise species and items.
+
+**Who owns a row decides everything; what a row says about itself decides
+nothing.** Provenance keys (`source_document_key`, `source_record_key`) are
+client-writable, so "this is the SRD Acolyte" is a claim. The first version of
+this migration trusted it and a security audit turned that into four working
+attacks before it shipped: a forged book entry copied into the DM's content with
+no approval, that copy replacing the genuine entry for the next player, a
+stranger's private row read through a flag, and a stranger's spell copied
+through a species that "granted" it. So:
+
+| Reason | What it is | How the flag clears |
+|---|---|---|
+| `source` | A library entry from a book the table has not enabled | DM allows it for this character, or enables the book; or the player changes it |
+| `blocked` | The table blocked this species or class | DM allows it for this character, or lifts the block; or the player changes it |
+| `homebrew` | The player's own row, whatever book it names | DM approves, which copies it into the table; or the player changes it |
+| `foreign` | Somebody else's row (another table's DM made it) | Only by changing it. Never named in the flag, never shown, never copied |
+| `missing` | A uuid that points at nothing | Only by removing it (`remove_missing_character_content`), by its owner or the DM |
+
+The one thing that needs no asking: when the table already has **its own** copy
+of the same book entry (a row a DM of the table made, never one adopted from a
+player), the character is pointed at that. The result is the DM's row, so
+nothing is trusted.
+
+**The bench.** A character with a pending flag still joins. It is at the table
+(`campaign_id` set) so the DM can see it and the player can change a choice
+from the table's lists, but it cannot be made anyone's active character:
+`guard_campaign_member_self_update` raises SQLSTATE `CR001`, for the DM too,
+whose way to seat it is to approve what is waiting. Attach, join and admission
+fill the seat only when nothing is pending; when the last flag clears, the
+character takes the seat it was kept from. The wizard writes the class row and
+spells before it attaches, so the review sees the whole character.
+
+**Approval copies.** `approve_character_content(review_id, scope)` is the DM's
+only way to clear a flag. For the player's own content it calls
+`private.adopt_content()`: a deep copy into the campaign owner's content (a
+class takes its features, a subclass its features and granted spells, a species
+its granted spells), with the character re-pointed at the copy and the original
+untouched. It copies only rows the character's owner owns, at every depth; a
+nested reference to anyone else's row is dropped from the copy. The copy does
+not keep the book keys: they are a claim only a row the DM made can stand
+behind, and an account holds one row per pair of keys.
+`get_character_content_item(review_id)` is how the DM reads a player's content
+before approving, since RLS would refuse; it returns nothing for `foreign` and
+`missing`.
+
+**Stay, flagged.** A DM turning a book off or blocking a species later, or a
+seated player picking something unapproved, flags the character and moves
+nobody. An approval the DM gave for one character survives the table changing
+its mind and back; an approval whose reason has changed waits again. Characters
+seated when this shipped were recorded as approved (a dry run against
+production on 2 Oct 2026 found none with anything to record).
+
+**Where it shows.** The player: `CharacterApprovalNotice` on the champions list
+and the sheet, with what is waiting, why, and where to change it. A class
+cannot be changed once a character is made, and the notice says so rather than
+offering a link that does nothing. The DM: `CharacterApprovalQueue` on the Party
+page and the Members tab, grouped by character, with what each approval does
+written under its button and a view of homebrew before approving. Both read
+`useCharacterContentReviews.ts`, which also holds the sentences, so the two
+sides cannot describe one flag differently. `character_content_reviews` is a
+subscribed live-sync table.
+
+`supabase/tests/character_content_approval.test.sql` holds the predicate, the
+bench, the approvals and each of the audit's attacks as a refusal.
+
 ### Champions List (`/play/champions` — `PlayerChampionsView.vue`)
 
 A player may have multiple characters in a campaign (e.g. a backup character). The Champions view lists all their owned characters with:

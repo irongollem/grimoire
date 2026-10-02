@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   report: vi.fn(),
   switchMode: vi.fn(),
   replace: vi.fn(),
+  toastInfo: vi.fn(),
+  toastError: vi.fn(),
+  refetchReviews: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -25,11 +28,20 @@ vi.mock("@tanstack/vue-query", () => ({ useQueryClient: () => ({ invalidateQueri
 vi.mock("@/stores/auth", () => ({
   useAuthStore: () => ({ isAuthenticated: true, user: { id: "u1" }, refreshMembership: vi.fn() }),
 }));
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({}) }));
+vi.mock("@/stores/campaign", () => ({
+  useCampaignStore: () => ({ clearActiveCampaign: vi.fn(), switchToCampaign: vi.fn() }),
+}));
 vi.mock("@/composables/useModeSwitch", () => ({ useModeSwitch: () => ({ switchMode: mocks.switchMode }) }));
 vi.mock("@/composables/campaign/useCampaigns", () => ({
-  usePlayerCampaigns: () => ({ refetch: vi.fn() }),
+  usePlayerCampaigns: () => ({ refetch: () => Promise.resolve({ data: [] }) }),
 }));
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({ info: mocks.toastInfo, error: mocks.toastError, fromError: (e: unknown) => String(e) }),
+}));
+vi.mock("@/composables/party/useCharacterContentReviews", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/composables/party/useCharacterContentReviews")>();
+  return { ...actual, useCharacterContentReviews: () => ({ refetch: mocks.refetchReviews }) };
+});
 let pool: Array<{ id: string; name: string; class: string; level: number; ruleset: string; campaign_id: string | null }> = [];
 vi.mock("@/composables/party/useCharacterPool", () => ({
   useCharacterPool: () => ({
@@ -111,5 +123,33 @@ describe("JoinCampaignView", () => {
     await flushPromises();
     expect(wrapper.findComponent({ name: "RulesetBounceDialog" }).exists()).toBe(false);
     expect(wrapper.text()).toContain("Bring a character?");
+  });
+
+  describe("a character brought along", () => {
+    async function joinWithMira() {
+      pool = [{ id: "pm1", name: "Mira", class: "Wizard", level: 3, ruleset: "2024", campaign_id: null }];
+      mocks.join.mockResolvedValue({ status: "joined", campaignId: "c1" });
+      const wrapper = mountView();
+      await flushPromises();
+      await wrapper.get("input[type='radio'][value='pm1']").setValue();
+      await wrapper.findAll("button").find((b) => b.text() === "Join")?.trigger("click");
+      await flushPromises();
+    }
+
+    it("says so on the way in when the table benched it", async () => {
+      mocks.refetchReviews.mockResolvedValue({ data: [{ status: "pending" }, { status: "pending" }, { status: "approved" }] });
+      await joinWithMira();
+      expect(mocks.replace).toHaveBeenCalled();
+      expect(mocks.toastInfo).toHaveBeenCalledWith(
+        "You joined, but 2 choices are waiting for the DM's approval, so your character cannot be made active yet. Open Champions to see what to change.",
+      );
+    });
+
+    it("stays quiet when nothing is waiting", async () => {
+      mocks.refetchReviews.mockResolvedValue({ data: [] });
+      await joinWithMira();
+      expect(mocks.replace).toHaveBeenCalled();
+      expect(mocks.toastInfo).not.toHaveBeenCalled();
+    });
   });
 });

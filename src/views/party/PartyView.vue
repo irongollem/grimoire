@@ -22,6 +22,9 @@
       />
     </template>
 
+    <!-- What is waiting on the DM before a character can play (#943). Renders nothing when empty. -->
+    <CharacterApprovalQueue v-if="auth.isDM" class="mb-6" />
+
     <PartyTracker ref="tracker" />
 
     <!-- What the party has earned (#853, party_milestones) — written by the
@@ -95,14 +98,17 @@ import { IconAdd, IconBeast, IconGenerate, IconUpload } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import CharacterApprovalQueue from "@/components/campaign/CharacterApprovalQueue.vue";
 import PartyTracker from "@/components/party/PartyTracker.vue";
 import PartyMilestonesPanel from "@/components/party/PartyMilestonesPanel.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
 import { useGroupPortrait } from "@/composables/party/useGroupPortrait";
 
 // Hidden, not disabled, while the campaign owner has AI off (the server would 403).
 const campaignStore = useCampaignStore();
+const auth = useAuthStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
 const tracker     = ref<InstanceType<typeof PartyTracker> | null>(null);

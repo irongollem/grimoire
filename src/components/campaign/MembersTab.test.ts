@@ -41,7 +41,7 @@ const EntityComboboxStub = {
 };
 
 function mountTab() {
-  return mount(MembersTab, { global: { stubs: { EntityCombobox: EntityComboboxStub } } });
+  return mount(MembersTab, { global: { stubs: { EntityCombobox: EntityComboboxStub, CharacterApprovalQueue: true } } });
 }
 
 beforeEach(() => {

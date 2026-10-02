@@ -30,6 +30,14 @@ import { normalizeRuleset, type RulesetKey } from "@/types/ruleset.types";
  * active campaign's edition (2014 when unset), which is exactly the behaviour
  * before characters carried their own.
  *
+ * A third answer rides on the same scope: **`standalone`**, whether what is in
+ * scope has no table, so its player's own books apply (`useContentScope()`). A
+ * table's DM decides which books a table reads; a character with no table is
+ * built from the books its player enabled. That is a property of the character
+ * in scope, not of whichever campaign the app happens to have open, so it
+ * follows the scope the same way the edition does: a campaign-less character
+ * viewed from inside a campaign still reads its player's books.
+ *
  * The scope uses `provideLocal`/`injectLocal` rather than `provide`/`inject`
  * because the component that knows the character also calls the composables, and
  * plain `inject` cannot see what its own component provided.
@@ -39,6 +47,8 @@ export interface RulesetScope {
   build: ComputedRef<RulesetKey>;
   /** Table rules: the campaign's edition when the character in scope is seated at the active campaign, otherwise the same as `build`. */
   table: ComputedRef<RulesetKey>;
+  /** True when what is in scope has no table, so its player's own books apply. */
+  standalone: ComputedRef<boolean>;
 }
 
 /** The character in scope. Only these two fields are read. */
@@ -49,7 +59,7 @@ const RULESET_SCOPE_KEY = Symbol("rulesetScope");
 function campaignScope(): RulesetScope {
   const campaign = useCampaignStore();
   const edition = computed(() => normalizeRuleset(campaign.activeCampaign?.ruleset));
-  return { build: edition, table: edition };
+  return { build: edition, table: edition, standalone: computed(() => !campaign.activeCampaignId) };
 }
 
 /** The enclosing scope if one was provided, else the active campaign's edition. */
@@ -72,6 +82,10 @@ export function provideCharacterRuleset(
       const seatedHere = m.campaign_id !== null && m.campaign_id === campaign.activeCampaignId;
       return seatedHere ? normalizeRuleset(campaign.activeCampaign?.ruleset) : m.ruleset;
     }),
+    standalone: computed(() => {
+      const m = toValue(member);
+      return m ? m.campaign_id === null : outer.standalone.value;
+    }),
   };
   provideLocal(RULESET_SCOPE_KEY, scope);
   return scope;
@@ -84,11 +98,17 @@ export function provideCharacterRuleset(
  * scope, as `provideCharacterRuleset` does for a character still loading:
  * coercing "not chosen" to 2014 would be inventing an answer.
  */
-export function provideRuleset(ruleset: MaybeRefOrGetter<RulesetKey | null | undefined>): RulesetScope {
+export function provideRuleset(
+  ruleset: MaybeRefOrGetter<RulesetKey | null | undefined>,
+  options: { standalone?: MaybeRefOrGetter<boolean> } = {},
+): RulesetScope {
   const outer = enclosingScope();
   const scope: RulesetScope = {
     build: computed(() => toValue(ruleset) ?? outer.build.value),
     table: computed(() => toValue(ruleset) ?? outer.table.value),
+    standalone: computed(() =>
+      options.standalone === undefined ? outer.standalone.value : toValue(options.standalone),
+    ),
   };
   provideLocal(RULESET_SCOPE_KEY, scope);
   return scope;
@@ -111,4 +131,9 @@ export function useRuleset() {
 /** Table rules in scope (see the module comment). */
 export function useTableRuleset() {
   return view((scope) => scope.table);
+}
+
+/** Whether what is in scope has no table, so the player's own books apply (see the module comment). */
+export function useContentScope(): { standalone: ComputedRef<boolean> } {
+  return { standalone: enclosingScope().standalone };
 }

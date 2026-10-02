@@ -6,12 +6,25 @@ import type { Campaign } from "@/types/campaign.types";
 
 const attach = vi.fn();
 const toastError = vi.fn();
+const toastInfo = vi.fn();
+const refetchReviews = vi.fn();
+const ownReviews = { value: [] as Array<{ status: string }> };
 
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
 vi.mock("@/composables/useToast", () => ({
-  useToast: () => ({ success: vi.fn(), error: toastError, fromError: (e: unknown) => String(e) }),
+  useToast: () => ({ success: vi.fn(), info: toastInfo, error: toastError, fromError: (e: unknown) => String(e) }),
 }));
+vi.mock("@/composables/party/useCharacterContentReviews", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/composables/party/useCharacterContentReviews")>();
+  return {
+    ...actual,
+    useCharacterContentReviews: (id: unknown) =>
+      typeof id === "function"
+        ? { data: { get value() { return ownReviews.value; } } }
+        : { refetch: refetchReviews },
+  };
+});
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({}) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({}) }));
 vi.mock("@/composables/party/useCharacterPool", () => ({
@@ -46,6 +59,9 @@ describe("CharacterPoolCard editions", () => {
   beforeEach(() => {
     attach.mockReset();
     toastError.mockReset();
+    toastInfo.mockReset();
+    refetchReviews.mockReset();
+    ownReviews.value = [];
   });
 
   it("shows the character's edition and each table's", async () => {
@@ -92,5 +108,36 @@ describe("CharacterPoolCard editions", () => {
     await tableButton(second, "New Keep").trigger("click");
     await flushPromises();
     expect(toastError).toHaveBeenCalledTimes(1);
+  });
+
+  it("says so when the table benched the character it just attached", async () => {
+    attach.mockResolvedValue(undefined);
+    refetchReviews.mockResolvedValue({ data: [{ status: "pending" }, { status: "approved" }] });
+    const wrapper = mountCard();
+    await openPicker(wrapper);
+    await tableButton(wrapper, "New Keep").trigger("click");
+    await flushPromises();
+    expect(toastInfo).toHaveBeenCalledWith(
+      "Mira joined New Keep, but 1 choice is waiting for the DM's approval. They cannot be made active yet.",
+    );
+  });
+
+  it("stays quiet when nothing is waiting after the attach", async () => {
+    attach.mockResolvedValue(undefined);
+    refetchReviews.mockResolvedValue({ data: [] });
+    const wrapper = mountCard();
+    await openPicker(wrapper);
+    await tableButton(wrapper, "New Keep").trigger("click");
+    await flushPromises();
+    expect(toastInfo).not.toHaveBeenCalled();
+  });
+
+  it("marks an attached character that is waiting", () => {
+    ownReviews.value = [{ status: "pending" }];
+    const wrapper = mount(CharacterPoolCard, {
+      props: { character, attachedCampaign: open, availableCampaigns: [] },
+      global: { stubs: { FocalImage: true, RulesetBounceDialog: true } },
+    });
+    expect(wrapper.get("[data-testid='waiting-marker']").text()).toBe("Waiting for approval");
   });
 });

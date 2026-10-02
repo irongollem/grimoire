@@ -5,6 +5,7 @@ import { defineComponent, h, ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Campaign } from "@/types/campaign.types";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { useContentScope } from "@/composables/rules/useRuleset";
 import { useCharacterCreationEdition } from "./useCharacterCreationEdition";
 
 function setCampaign(ruleset: RulesetKey | null) {
@@ -82,5 +83,32 @@ describe("useCharacterCreationEdition", () => {
     expect(reset).not.toHaveBeenCalled(); // same value
     result.chooseRuleset("2024");
     expect(reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("scopes the lists to the player's own books exactly when the character lands nowhere", async () => {
+    setCampaign("2014");
+    const member = ref(false);
+    let standalone!: { value: boolean };
+    const Child = defineComponent({
+      setup() {
+        standalone = useContentScope().standalone;
+        return () => h("i");
+      },
+    });
+    mount(defineComponent({
+      setup() {
+        useCharacterCreationEdition({
+          isEditMode: false,
+          isDmCreate: false,
+          existingMember: null,
+          isMemberOfActiveCampaign: () => member.value,
+        });
+        return () => h(Child);
+      },
+    }));
+    expect(standalone.value).toBe(true);
+    member.value = true;
+    await Promise.resolve();
+    expect(standalone.value).toBe(false);
   });
 });

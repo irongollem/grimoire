@@ -60,6 +60,8 @@
       </div>
     </section>
 
+    <PlayerBooksPanel />
+
     <!-- Your campaigns -->
     <section data-tour="player-campaigns" class="space-y-3">
       <h2 class="font-cinzel text-sm font-semibold text-foreground">Your Campaigns</h2>
@@ -111,6 +113,7 @@ import { IconAdd, IconDM } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import PlayerBooksPanel from "@/components/play/PlayerBooksPanel.vue";
 import CharacterPoolCard from "@/components/play/CharacterPoolCard.vue";
 import CampaignLensNotice from "@/components/campaign/CampaignLensNotice.vue";
 import { useCharacterPool } from "@/composables/party/useCharacterPool";

@@ -1,5 +1,9 @@
 <template>
   <div class="space-y-4 pb-8">
+    <p v-if="notFound" class="py-16 text-center text-body text-muted-foreground italic" data-testid="character-not-found">
+      That character could not be found.
+    </p>
+    <template v-else>
     <RulesetReviewBanner
       v-if="rulesetReviewClasses.length"
       link-to="/codex/classes"
@@ -175,6 +179,7 @@
         @spell-click="selectedSpell = $event"
       />
     </template>
+    </template>
   </div>
 
   <PlayerSpellModal :spell="selectedSpell" @close="selectedSpell = null" />
@@ -186,8 +191,8 @@ import { useRoute } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { refDebounced } from "@vueuse/core";
 import { IconGenerate, IconSearch } from '@/lib/icons';
-import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
 import { useParty } from "@/composables/party/useParty";
 import { useAssignCharacterSpellSource, useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
 import SpellList from "@/components/spells/SpellList.vue";
@@ -224,23 +229,18 @@ const LEVEL_FILTERS = [
   { value: "7", label: "7" }, { value: "8", label: "8" }, { value: "9", label: "9" },
 ];
 
-const auth = useAuthStore();
 const ui = useUiStore();
 const { data: partyMembers } = useParty();
 
-const resolvedMemberId = computed(() =>
-  ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
-);
+// Which character this acts on is decided once, for all three pickers
+// (usePickerCharacter): ?memberId= for a benched or pool character, refused when
+// it names nobody the viewer owns, else the active one.
 // Member first, then the scope, then every composable that reads an edition (useRuleset.ts).
-const member = computed(() => partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
+const { resolvedMemberId, member, notFound } = usePickerCharacter();
 provideCharacterRuleset(() => member.value);
 const { ruleset } = useRuleset();
 
-const memberClass = computed(() => {
-  const id = resolvedMemberId.value;
-  if (!id || !partyMembers.value) return "";
-  return partyMembers.value.find((m) => m.id === id)?.class ?? "";
-});
+const memberClass = computed(() => member.value?.class ?? "");
 
 const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
 const { data: rulesetReviews } = useRulesetReviews(resolvedMemberId);

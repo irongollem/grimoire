@@ -1,5 +1,8 @@
 <template>
   <div class="space-y-4 max-w-3xl">
+    <!-- Where a DM decides who plays what also holds what is waiting on them (#943). -->
+    <CharacterApprovalQueue />
+
     <!-- Loading -->
     <div
       v-if="membersQuery.isPending.value || partyQuery.isPending.value"
@@ -232,6 +235,7 @@ import { useToast } from "@/composables/useToast";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import CharacterApprovalQueue from "@/components/campaign/CharacterApprovalQueue.vue";
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 

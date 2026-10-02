@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it } from "vitest";
-import { defineComponent, h, ref, type Ref } from "vue";
+import { defineComponent, h, nextTick, ref, type Ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Campaign } from "@/types/campaign.types";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -9,6 +9,7 @@ import {
   provideCharacterRuleset,
   provideRuleset,
   type RulesetScopeMember,
+  useContentScope,
   useRuleset,
   useTableRuleset,
 } from "./useRuleset";
@@ -181,5 +182,96 @@ describe("useRuleset scope", () => {
     });
     mount(Provider(outerMember, inner));
     expect(nested[0]).toEqual({ build: "2024", table: "2024" });
+  });
+});
+
+describe("useContentScope standalone", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  function readStandalone() {
+    const seen: boolean[] = [];
+    const reader = defineComponent({
+      setup() {
+        const { standalone } = useContentScope();
+        seen.push(standalone.value);
+        return () => h("i");
+      },
+    });
+    return { seen, reader };
+  }
+
+  it("is true with no scope and no active campaign", () => {
+    setCampaign(null, null);
+    const { seen, reader } = readStandalone();
+    mount(reader);
+    expect(seen[0]).toBe(true);
+  });
+
+  it("is false with no scope and an active campaign", () => {
+    setCampaign("c1", "2024");
+    const { seen, reader } = readStandalone();
+    mount(reader);
+    expect(seen[0]).toBe(false);
+  });
+
+  it("follows a campaign-less member even inside an active campaign", () => {
+    setCampaign("c1", "2024");
+    const { seen, reader } = readStandalone();
+    mount(Provider(ref({ ruleset: "2014", campaign_id: null }), reader));
+    expect(seen[0]).toBe(true);
+  });
+
+  it("is false for a member seated at a table", () => {
+    setCampaign(null, null);
+    const { seen, reader } = readStandalone();
+    mount(Provider(ref({ ruleset: "2014", campaign_id: "c9" }), reader));
+    expect(seen[0]).toBe(false);
+  });
+
+  it("falls back to the enclosing scope while the member is loading", async () => {
+    setCampaign("c1", "2024");
+    const member = ref<RulesetScopeMember | null>(null);
+    const seen: boolean[] = [];
+    const reader = defineComponent({
+      setup() {
+        const { standalone } = useContentScope();
+        seen.push(standalone.value);
+        return () => h("i");
+      },
+    });
+    const host = defineComponent({
+      setup() {
+        const scope = provideCharacterRuleset(member);
+        return () => h("div", [String(scope.standalone.value), h(reader)]);
+      },
+    });
+    const wrapper = mount(host);
+    expect(seen[0]).toBe(false);
+    member.value = { ruleset: "2014", campaign_id: null };
+    await nextTick();
+    expect(wrapper.text()).toBe("true");
+  });
+
+  it("provideRuleset takes an explicit standalone, and otherwise inherits", () => {
+    setCampaign("c1", "2024");
+    const explicit = readStandalone();
+    mount(defineComponent({
+      setup() {
+        provideRuleset("2014", { standalone: () => true });
+        return () => h(explicit.reader);
+      },
+    }));
+    expect(explicit.seen[0]).toBe(true);
+
+    const inherited = readStandalone();
+    mount(defineComponent({
+      setup() {
+        provideRuleset("2014");
+        return () => h(inherited.reader);
+      },
+    }));
+    expect(inherited.seen[0]).toBe(false);
   });
 });

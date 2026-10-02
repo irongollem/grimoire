@@ -61,7 +61,8 @@ export function useCharacterCreationEdition(opts: {
   }, { flush: "sync" });
 
   if (toValue(opts.isEditMode)) provideCharacterRuleset(() => toValue(opts.existingMember));
-  else provideRuleset(() => chosenRuleset.value);
+    // A character landing nowhere is built from its player's own books; one landing at a table, from the table's.
+  else provideRuleset(() => chosenRuleset.value, { standalone: () => landingCampaign.value === null });
 
   return { landingCampaign, chosenRuleset, chooseRuleset, onEditionChange };
 }

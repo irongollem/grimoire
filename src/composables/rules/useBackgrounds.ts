@@ -3,16 +3,35 @@ import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Background, BackgroundInsert, BackgroundUpdate } from "@/types/background.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useContentScope, useRuleset } from "@/composables/rules/useRuleset";
+import { useUserEnabledSources } from "@/composables/library/useEnabledSources";
+import { LEGACY_DOCUMENT_KEY_ALIASES } from "@/lib/library/open5eApi";
+import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "backgrounds";
 const OPEN5E_DOCS_KEY = "open5e-background-documents";
 
+/**
+ * Which Open5e documents a table-less player's backgrounds are seeded from: the
+ * SRD of the character's edition, plus every book the player enabled. Backgrounds
+ * have no shared library table, so they are copied into the player's own table
+ * from Open5e on read, and the books they enabled are the only thing that widens
+ * the set. Slugs are our own keys; Open5e knows a few of them by another name.
+ * `grimoire-bundled` is our own content and is never asked of Open5e.
+ */
+export function backgroundSeedDocuments(ruleset: RulesetKey, userSlugs: readonly string[]): string[] {
+  const baseline = ruleset === "2024" ? "srd-2024" : "srd-2014";
+  const keys = [baseline, ...userSlugs]
+    .filter((slug) => slug !== "grimoire-bundled")
+    .map((slug) => LEGACY_DOCUMENT_KEY_ALIASES[slug] ?? slug);
+  return [...new Set(keys)];
+}
+
 async function fetchBackgrounds(
   ruleset: RulesetKey,
-  seedStandaloneBaseline = false,
+  seedDocuments: string[] | null = null,
 ): Promise<Background[]> {
   let { data, error } = await supabase
     .from("backgrounds")
@@ -21,18 +40,17 @@ async function fetchBackgrounds(
     .order("name", { ascending: true });
   if (error) throw error;
 
-  if (seedStandaloneBaseline) {
+  if (seedDocuments) {
     const user = getCurrentUser();
     if (!user) return (data ?? []) as Background[];
-    const baselineSource = ruleset === "2024" ? "srd-2024" : "srd-2014";
     const { fetchBackgrounds: fetchFromOpen5e } = await import(
       "@/lib/library/open5eBackgroundImport"
     );
-    const baseline = await fetchFromOpen5e([baselineSource]);
+    const seeded = await fetchFromOpen5e(seedDocuments);
     const existingIdentities = new Set(
       (data ?? []).map((row) => `${row.source_document_key}::${row.source_record_key}`),
     );
-    const missing = baseline
+    const missing = seeded
       .filter((row) => !existingIdentities.has(`${row.source_document_key}::${row.source_record_key}`))
       .map((row) => ({ ...row, user_id: user.id }));
     if (missing.length > 0) {
@@ -87,10 +105,24 @@ async function deleteBackground(bg: Background): Promise<void> {
 
 export function useBackgrounds() {
   const { ruleset } = useRuleset();
+  const { standalone } = useContentScope();
   const campaign = useCampaignStore();
+  const auth = useAuthStore();
+  const userSources = useUserEnabledSources();
+  // Standalone reads seed from the player's books, so they wait for those rows
+  // (signed out there are none to wait for, and nothing is seeded anyway).
+  const userSlugs = computed<string[] | null>(() => {
+    if (!standalone.value) return [];
+    if (!auth.user) return [];
+    return userSources.data.value ? userSources.data.value.map((e) => e.source_slug) : null;
+  });
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, ruleset.value, campaign.activeCampaignId] as const),
-    queryFn: ({ queryKey: [, rs, campaignId] }) => fetchBackgrounds(rs, campaignId === null),
+    queryKey: computed(
+      () => [QUERY_KEY, ruleset.value, campaign.activeCampaignId, standalone.value, userSlugs.value] as const,
+    ),
+    queryFn: ({ queryKey: [, rs, , isStandalone, slugs] }) =>
+      fetchBackgrounds(rs, isStandalone && slugs ? backgroundSeedDocuments(rs, slugs) : null),
+    enabled: () => userSlugs.value !== null,
     staleTime: Infinity,
   });
 }

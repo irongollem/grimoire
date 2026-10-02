@@ -21,6 +21,7 @@
         :member="member"
         :campaign="campaign.activeCampaign"
       />
+      <CharacterApprovalNotice v-if="member.campaign_id" :member="member" />
       <!-- ── Always visible ─────────────────────────────────── -->
       <!-- Outer wrapper: unified card on tablet+; stacked cards on mobile -->
       <div class="md:rounded-lg md:border md:border-border md:overflow-hidden">
@@ -262,6 +263,7 @@ import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import RollToast from "@/components/common/RollToast.vue";
 import type { RollResult } from "@/components/common/RollToast.vue";
 import CharacterEditionNotice from "@/components/play/CharacterEditionNotice.vue";
+import CharacterApprovalNotice from "@/components/play/CharacterApprovalNotice.vue";
 import PlayerCharacterHeader from "@/components/player/PlayerCharacterHeader.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
 import PlayerTracksSection from "@/components/player/PlayerTracksSection.vue";

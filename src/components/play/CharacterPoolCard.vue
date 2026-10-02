@@ -22,12 +22,21 @@
         <div>
           <h3 class="font-cinzel text-sm font-bold text-foreground truncate">{{ character.name }}</h3>
           <p class="text-caption text-muted-foreground italic mt-0.5 truncate">{{ summary }}</p>
-          <span
-            class="inline-block mt-1 text-label px-1.5 py-0.5 rounded"
-            :class="attachedCampaign ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
-          >
-            {{ attachedCampaign?.name ?? 'Resting' }}
-          </span>
+          <div class="flex flex-wrap items-center gap-1 mt-1">
+            <span
+              class="inline-block text-label px-1.5 py-0.5 rounded"
+              :class="attachedCampaign ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
+            >
+              {{ attachedCampaign?.name ?? 'Resting' }}
+            </span>
+            <span
+              v-if="attachedCampaign && waitingCount > 0"
+              class="inline-block text-label px-1.5 py-0.5 rounded bg-tone-caution/15 text-ink-caution"
+              data-testid="waiting-marker"
+            >
+              Waiting for approval
+            </span>
+          </div>
         </div>
 
         <!-- Actions -->
@@ -92,7 +101,7 @@
 // resting). Self-contained: owns its own mutations, confirm dialogs and the
 // attach picker, so PlayerHomeView only has to hand it the character plus the
 // two campaign lookups it can't resolve on its own.
-import { computed, ref, useTemplateRef } from "vue";
+import { computed, nextTick, ref, useTemplateRef } from "vue";
 import { useRouter } from "vue-router";
 import { onClickOutside } from "@vueuse/core";
 import { useConfirm } from "@/composables/useConfirm";
@@ -103,6 +112,7 @@ import { useAttachCharacter, useDetachCharacter, useCloneCharacter, useDeletePoo
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
+import { pendingReviews, useCharacterContentReviews } from "@/composables/party/useCharacterContentReviews";
 import { isRulesetAdmissible, parseRulesetBounce, rulesetRules, rulesetYear } from "@/composables/party/useCharacterRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { PartyMember } from "@/types/party.types";
@@ -126,6 +136,38 @@ const { mutateAsync: attachChar, isPending: attaching } = useAttachCharacter();
 const { mutateAsync: detachChar, isPending: detaching } = useDetachCharacter();
 const { mutateAsync: cloneChar, isPending: cloning } = useCloneCharacter();
 const { mutateAsync: deleteChar, isPending: deleting } = useDeletePoolCharacter();
+
+// Flags on this card's own character, read only once it sits at a table.
+const { data: ownReviews } = useCharacterContentReviews(() => (attachedCampaign ? character.id : null));
+const waitingCount = computed(() => pendingReviews(ownReviews.value).length);
+
+// A character just attached (this one, or the converted copy the bounce dialog
+// made) may have been benched by the database. The review runs inside the attach,
+// so one read straight afterwards says how many choices are waiting.
+const justAttachedId = ref<string | null>(null);
+const { refetch: refetchJustAttached } = useCharacterContentReviews(justAttachedId);
+
+async function waitingAfterAttach(partyMemberId: string): Promise<number> {
+  justAttachedId.value = partyMemberId;
+  await nextTick();
+  const { data } = await refetchJustAttached({ throwOnError: true });
+  return pendingReviews(data).length;
+}
+
+async function announceAttach(name: string, partyMemberId: string, table: string, plain?: string) {
+  try {
+    const waiting = await waitingAfterAttach(partyMemberId);
+    if (waiting === 0) {
+      if (plain) toast.success(plain);
+      return;
+    }
+    const choices = waiting === 1 ? "1 choice is" : `${waiting} choices are`;
+    toast.info(`${name} joined ${table}, but ${choices} waiting for the DM's approval. They cannot be made active yet.`);
+  } catch (e) {
+    if (plain) toast.success(plain);
+    toast.error(toast.fromError(e));
+  }
+}
 
 const initial = computed(() => character.name.trim().charAt(0).toUpperCase() || "?");
 
@@ -200,6 +242,7 @@ async function attachTo(c: Campaign) {
   }
   try {
     await attachChar({ partyMemberId: character.id, campaignId: c.id });
+    await announceAttach(character.name, character.id, c.name);
   } catch (e) {
     // The table's setting may have changed since the list loaded.
     const refused = parseRulesetBounce(e);
@@ -218,11 +261,14 @@ function chooseAnotherTable() {
   showAttachPicker.value = true;
 }
 
-function onBounceJoined() {
+async function onBounceJoined(copyId: string) {
   if (!bounce.value) return;
   const table = bounce.value.campaignName;
   bounce.value = null;
-  toast.success(`${character.name} (copy) joined ${table}. The original is still in your pool.`);
+  await announceAttach(
+    `${character.name} (copy)`, copyId, table,
+    `${character.name} (copy) joined ${table}. The original is still in your pool.`,
+  );
 }
 
 function editCharacter() {

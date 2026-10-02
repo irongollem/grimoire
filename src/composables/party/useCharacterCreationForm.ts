@@ -1,10 +1,11 @@
-import { ref, reactive, computed, watch, type InjectionKey } from "vue";
+import { ref, reactive, computed, watch, nextTick, type InjectionKey } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
+import { pendingReviews, useCharacterContentReviews } from "@/composables/party/useCharacterContentReviews";
 import { useAddCharacterClass } from "@/composables/party/useCharacterClasses";
 import { useAddInventoryItem, useAddInventoryItems } from "@/composables/items/usePartyInventory";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
@@ -123,12 +124,47 @@ export function buildBackgroundEquipmentRows(
 
 // ── Composable ────────────────────────────────────────────────────────────────
 
+/**
+ * What the player is told when the table's approval review benched the character
+ * they just made (#943). The database reviews every choice at attach time, which
+ * is why the class and spells are written before the attach: a review that ran
+ * on a half-built character would seat it and then flag it.
+ */
+export function benchedAtCreateMessage(name: string, table: string | null, waiting: number): string {
+  const choices = waiting === 1 ? "1 choice is" : `${waiting} choices are`;
+  return `${name} joined ${table ?? "the table"}, but ${choices} waiting for the DM's approval. They cannot be made active yet.`;
+}
+
+export type CreateDestination =
+  | { name: "play-home" }
+  | { name: "play-champions" }
+  | { path: string };
+
+/** Where a finished create lands. A benched character goes where its notice is. */
+export function createDestination(input: {
+  landedCampaignId: string | null;
+  isDmCreate: boolean;
+  levelUp: boolean;
+  benched: boolean;
+  characterId: string;
+}): CreateDestination {
+  if (!input.landedCampaignId) return { name: "play-home" };
+  if (input.isDmCreate) return { path: "/party" };
+  if (input.benched) return { name: "play-champions" };
+  if (input.levelUp) return { path: `/play/character/levelup?targetLevel=2&memberId=${input.characterId}` };
+  return { name: "play-champions" };
+}
+
 export function useCharacterCreationForm() {
   const router = useRouter();
   const route  = useRoute();
   const auth   = useAuthStore();
   const campaign = useCampaignStore();
   const queryClient = useQueryClient();
+
+  // Read straight after the attach, to learn whether the table benched the character.
+  const attachedCharacterId = ref<string | null>(null);
+  const { refetch: refetchAttachedReviews } = useCharacterContentReviews(attachedCharacterId);
 
   const isEditMode = computed(() => route.name === "play-character-edit");
   const isDmCreate = computed(() => route.name === "party-member-new");
@@ -611,30 +647,11 @@ export function useCharacterCreationForm() {
         // there, a seated player's character is brought there, anything else
         // stays in the pool.
         let landedCampaignId = created.campaign_id;
+        let attachedNow = false;
         try {
-          const joinCampaignId = campaignToAttachAfterCreate(landingCampaign.value, isDmCreate.value);
-          if (joinCampaignId) {
-            // A table that does not take this edition leaves the character in
-            // the pool, and so does a bounce on the attach itself (the DM may
-            // have changed the setting since the step was shown). Anything else
-            // failing is a real error and rolls back below.
-            const table = campaign.activeCampaign;
-            let restsInPool = !!table && !isRulesetAdmissible({ ruleset }, table);
-            if (!restsInPool) {
-              try {
-                await attachCharacter({ partyMemberId: created.id, campaignId: joinCampaignId });
-                landedCampaignId = joinCampaignId;
-              } catch (attachErr) {
-                if (!parseRulesetBounce(attachErr)) throw attachErr;
-                restsInPool = true;
-              }
-            }
-            if (restsInPool) {
-              const tableName = table?.name ?? "That table";
-              const tableRules = table ? `plays the ${rulesetRules(table.ruleset)}` : "does not take this edition";
-              useToast().info(`${f.name.trim()} rests in your pool: ${tableName} ${tableRules}.`);
-            }
-          }
+          // Every choice the character has is written BEFORE it is attached: the
+          // table reviews them at attach time (#943), and a review that only saw
+          // species and background would seat the character and then flag it.
 
           // Seed level 1 character_classes row
           if (f.class) {
@@ -653,6 +670,31 @@ export function useCharacterCreationForm() {
 
           if (selectedSpecies.value) {
             await applySpeciesSpellGrants(created.id, selectedSpecies.value, 1, f.subrace || null);
+          }
+
+          const joinCampaignId = campaignToAttachAfterCreate(landingCampaign.value, isDmCreate.value);
+          if (joinCampaignId) {
+            // A table that does not take this edition leaves the character in
+            // the pool, and so does a bounce on the attach itself (the DM may
+            // have changed the setting since the step was shown). Anything else
+            // failing is a real error and rolls back below.
+            const table = campaign.activeCampaign;
+            let restsInPool = !!table && !isRulesetAdmissible({ ruleset }, table);
+            if (!restsInPool) {
+              try {
+                await attachCharacter({ partyMemberId: created.id, campaignId: joinCampaignId });
+                landedCampaignId = joinCampaignId;
+                attachedNow = true;
+              } catch (attachErr) {
+                if (!parseRulesetBounce(attachErr)) throw attachErr;
+                restsInPool = true;
+              }
+            }
+            if (restsInPool) {
+              const tableName = table?.name ?? "That table";
+              const tableRules = table ? `plays the ${rulesetRules(table.ruleset)}` : "does not take this edition";
+              useToast().info(`${f.name.trim()} rests in your pool: ${tableName} ${tableRules}.`);
+            }
           }
 
           // Seed class + background starting equipment as inventory rows — only
@@ -699,6 +741,22 @@ export function useCharacterCreationForm() {
           throw seedErr;
         }
 
+        // The review ran inside the attach: a character the table did not approve
+        // is seated but benched. Reading how many choices wait happens outside the
+        // rollback above, since a failed read is no reason to delete a made character.
+        let benchedChoices = 0;
+        if (attachedNow) {
+          try {
+            attachedCharacterId.value = created.id;
+            await nextTick();
+            const { data: flags } = await refetchAttachedReviews({ throwOnError: true });
+            benchedChoices = pendingReviews(flags).length;
+          } catch (readErr) {
+            const toast = useToast();
+            toast.error(toast.fromError(readErr));
+          }
+        }
+
         await auth.refreshMembership();
         // Campaign-less first: a DM create with no campaign selected lands in
         // the pool, not on a roster, so /party would be an empty list view
@@ -708,14 +766,13 @@ export function useCharacterCreationForm() {
           // Standalone create (#729/#730): no campaign to land in — the character
           // pool is the list view / success feedback, same as any other create.
           void queryClient.invalidateQueries({ queryKey: ["character-pool"] });
-          router.push({ name: "play-home" });
-        } else if (isDmCreate.value) {
-          router.push("/party");
-        } else if (levelUp) {
-          router.push(`/play/character/levelup?targetLevel=2&memberId=${created.id}`);
-        } else {
-          router.push("/play/champions");
         }
+        if (benchedChoices > 0) {
+          useToast().info(benchedAtCreateMessage(f.name.trim(), campaign.activeCampaign?.name ?? null, benchedChoices));
+        }
+        void router.push(createDestination({
+          landedCampaignId, isDmCreate: isDmCreate.value, levelUp, benched: benchedChoices > 0, characterId: created.id,
+        }));
       }
     } catch (e) {
       // Surface the failure (incl. a rolled-back partial creation) to the user
