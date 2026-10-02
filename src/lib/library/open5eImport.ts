@@ -23,6 +23,14 @@ interface Open5eV2Weapon {
   is_improvised: boolean;
 }
 
+/**
+ * The base weapon `/v2/magicitems/` embeds in a magic weapon. Open5e trims it:
+ * no `range`, no `long_range`, no `document` (verified against the live API).
+ * Reading `range` off it is what left every magic weapon rangeless, so the
+ * type does not offer it; the range comes from the base weapon its `key` names.
+ */
+type Open5eV2EmbeddedWeapon = Omit<Open5eV2Weapon, "range" | "long_range" | "document">;
+
 interface Open5eV2Armor {
   key: string;
   name: string;
@@ -37,7 +45,7 @@ interface Open5eV2MagicItem {
   desc: string;
   category: { name: string; key: string };
   rarity: { name: string; key: string };
-  weapon: Open5eV2Weapon | null;
+  weapon: Open5eV2EmbeddedWeapon | null;
   armor: Open5eV2Armor | null;
   weight: string | null;
   cost: string | null;
@@ -88,7 +96,7 @@ function magicItemType(category: string): ItemType {
   return "wondrous_item";
 }
 
-function weaponProperties(record: Open5eV2Weapon): WeaponProperty[] {
+function weaponProperties(record: Open5eV2EmbeddedWeapon): WeaponProperty[] {
   const allowed = new Set<string>(WEAPON_PROPERTIES);
   return record.properties
     .filter(entry => entry.property.type !== "Mastery")
@@ -97,7 +105,7 @@ function weaponProperties(record: Open5eV2Weapon): WeaponProperty[] {
 }
 
 /** Extracts the single 2024 PHB mastery property (Open5e `property.type === "Mastery"`), if any. */
-function weaponMastery(record: Open5eV2Weapon): WeaponMasteryProperty | null {
+function weaponMastery(record: Open5eV2EmbeddedWeapon): WeaponMasteryProperty | null {
   const allowed = new Set<string>(WEAPON_MASTERY_PROPERTIES);
   const entry = record.properties.find(p => p.property.type === "Mastery");
   if (!entry) return null;
@@ -105,8 +113,24 @@ function weaponMastery(record: Open5eV2Weapon): WeaponMasteryProperty | null {
   return allowed.has(value) ? (value as WeaponMasteryProperty) : null;
 }
 
-function versatileDamage(record: Open5eV2Weapon): string | null {
+function versatileDamage(record: Open5eV2EmbeddedWeapon): string | null {
   return record.properties.find(entry => entry.property.name.toLowerCase() === "versatile")?.detail ?? null;
+}
+
+function weaponRange(record: Open5eV2Weapon): string | null {
+  return record.range > 0 ? `${record.range}/${record.long_range} ft.` : null;
+}
+
+/**
+ * The two thrown weapons the rules file under Ranged rather than Melee. Open5e
+ * v2 gives a weapon no melee/ranged category, and a range alone does not
+ * decide it: a dagger has 20/60 exactly like a dart, and is a melee weapon.
+ */
+const RANGED_THROWN_WEAPONS = new Set(["dart", "net"]);
+
+function isRangedWeapon(record: Open5eV2Weapon): boolean {
+  const names = record.properties.map(entry => entry.property.name.toLowerCase());
+  return names.includes("ammunition") || RANGED_THROWN_WEAPONS.has(slugifyKey(record.name));
 }
 
 function baseItem(
@@ -130,11 +154,10 @@ export function mapOpen5eV2Weapon(
   record: Open5eV2Weapon,
   documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
 ): ItemInsert {
-  const ranged = record.range > 0;
   return {
     ...baseItem(record, documentMetadata),
     item_type: "weapon",
-    subtype: `${record.is_simple ? "Simple" : "Martial"} ${ranged ? "Ranged" : "Melee"} Weapons`,
+    subtype: `${record.is_simple ? "Simple" : "Martial"} ${isRangedWeapon(record) ? "Ranged" : "Melee"} Weapons`,
     rarity: "mundane",
     requires_attunement: false,
     attunement_requirements: null,
@@ -149,7 +172,7 @@ export function mapOpen5eV2Weapon(
     charges: null,
     recharge: null,
     spell_ids: [],
-    weapon_range: ranged ? `${record.range}/${record.long_range} ft.` : null,
+    weapon_range: weaponRange(record),
     versatile_damage: versatileDamage(record),
     description: "",
   };
@@ -181,10 +204,20 @@ export function mapOpen5eV2Armor(
   };
 }
 
+/**
+ * `baseWeapons` is every weapon the same import fetched, keyed by Open5e key.
+ * A magic weapon whose base is not in it throws rather than importing without
+ * a range: that is the silent loss this lookup exists to end.
+ */
 export function mapOpen5eV2MagicItem(
   record: Open5eV2MagicItem,
+  baseWeapons: ReadonlyMap<string, Open5eV2Weapon>,
   documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
 ): ItemInsert {
+  const baseWeapon = record.weapon ? baseWeapons.get(record.weapon.key) : undefined;
+  if (record.weapon && !baseWeapon) {
+    throw new Error(`Open5e magic weapon ${record.key} wraps ${record.weapon.key}, which the weapons fetch did not return`);
+  }
   const itemType = record.weapon ? "weapon" : record.armor ? "armor" : magicItemType(record.category.name);
   return {
     ...baseItem(record, documentMetadata),
@@ -204,7 +237,7 @@ export function mapOpen5eV2MagicItem(
     charges: null,
     recharge: null,
     spell_ids: [],
-    weapon_range: record.weapon?.range ? `${record.weapon.range}/${record.weapon.long_range} ft.` : null,
+    weapon_range: baseWeapon ? weaponRange(baseWeapon) : null,
     versatile_damage: record.weapon ? versatileDamage(record.weapon) : null,
     description: record.desc,
   };
@@ -233,9 +266,10 @@ export async function fetchOpen5eItems(documentKeys?: string[]): Promise<ItemIns
     fetchOpen5eDocumentRefs(),
   ]);
   const documentMetadata = new Map(documents.map((document) => [document.key, document]));
+  const baseWeapons = new Map(weapons.map((weapon) => [weapon.key, weapon]));
   return [
     ...weapons.map((record) => mapOpen5eV2Weapon(record, documentMetadata)),
     ...armor.map((record) => mapOpen5eV2Armor(record, documentMetadata)),
-    ...magicItems.map((record) => mapOpen5eV2MagicItem(record, documentMetadata)),
+    ...magicItems.map((record) => mapOpen5eV2MagicItem(record, baseWeapons, documentMetadata)),
   ];
 }

@@ -42,22 +42,28 @@ describe("weapon mastery extraction", () => {
   });
 
   it("mapOpen5eV2MagicItem extracts mastery from a wrapped weapon", () => {
+    const battleaxe = {
+      key: "srd-2024_battleaxe", name: "Battleaxe", document: srd2024Document,
+      properties: [{ property: { name: "Topple", type: "Mastery" }, detail: null }],
+      damage_type: { name: "Slashing", key: "slashing" }, damage_dice: "1d8",
+      range: 0, long_range: 0, is_simple: false, is_improvised: false,
+    };
     const magicBattleaxe = {
       key: "srd-2024_flame-tongue", name: "Flame Tongue", desc: "A magic battleaxe.",
       category: { name: "Weapon", key: "weapon" },
       rarity: { name: "Rare", key: "rare" },
       weapon: {
-        key: "srd-2024_battleaxe", name: "Battleaxe", document: srd2024Document,
+        key: "srd-2024_battleaxe", name: "Battleaxe",
         properties: [{ property: { name: "Topple", type: "Mastery" }, detail: null }],
         damage_type: { name: "Slashing", key: "slashing" }, damage_dice: "1d8",
-        range: 0, long_range: 0, is_simple: false, is_improvised: false,
+        is_simple: false, is_improvised: false,
       },
       armor: null, weight: null, cost: null,
       requires_attunement: true, attunement_detail: null,
       document: srd2024Document,
     };
 
-    const item = mapOpen5eV2MagicItem(magicBattleaxe);
+    const item = mapOpen5eV2MagicItem(magicBattleaxe, new Map([[battleaxe.key, battleaxe]]));
     expect(item.mastery).toBe("topple");
   });
 
@@ -71,8 +77,64 @@ describe("weapon mastery extraction", () => {
       document: srd2024Document,
     };
 
-    const item = mapOpen5eV2MagicItem(ring);
+    const item = mapOpen5eV2MagicItem(ring, new Map());
     expect(item.mastery).toBeNull();
+  });
+});
+
+describe("weapon range and category", () => {
+  const longbow = {
+    key: "srd-2024_longbow", name: "Longbow", document: srd2024Document,
+    properties: [
+      { property: { name: "Ammunition", type: null }, detail: "Range 150/600; Arrow" },
+      { property: { name: "Two-Handed", type: null }, detail: null },
+    ],
+    damage_type: { name: "Piercing", key: "piercing" }, damage_dice: "1d8",
+    range: 150, long_range: 600, is_simple: false, is_improvised: false,
+  };
+  const thrown = (name: string) => ({
+    key: `srd-2024_${name.toLowerCase()}`, name, document: srd2024Document,
+    properties: [{ property: { name: "Thrown", type: null }, detail: "Range 20/60" }],
+    damage_type: { name: "Piercing", key: "piercing" }, damage_dice: "1d4",
+    range: 20, long_range: 60, is_simple: true, is_improvised: false,
+  });
+  // Exactly what /v2/magicitems/ embeds: the base weapon's key, minus range,
+  // long_range and document.
+  const longbowPlusOne = {
+    key: "srd-2024_longbow-plus-1", name: "Longbow (+1)", desc: "A magic longbow.",
+    category: { name: "Weapon", key: "weapon" },
+    rarity: { name: "Uncommon", key: "uncommon" },
+    weapon: {
+      key: "srd-2024_longbow", name: "Longbow", properties: longbow.properties,
+      damage_type: longbow.damage_type, damage_dice: "1d8", is_simple: false, is_improvised: false,
+    },
+    armor: null, weight: null, cost: null,
+    requires_attunement: false, attunement_detail: null,
+    document: srd2024Document,
+  };
+
+  it("mapOpen5eV2Weapon formats normal/long range for a ranged weapon", () => {
+    expect(mapOpen5eV2Weapon(longbow)).toMatchObject({
+      weapon_range: "150/600 ft.", subtype: "Martial Ranged Weapons",
+    });
+  });
+
+  it("files a thrown weapon under Melee, keeping its range, except the dart", () => {
+    expect(mapOpen5eV2Weapon(thrown("Dagger"))).toMatchObject({
+      weapon_range: "20/60 ft.", subtype: "Simple Melee Weapons",
+    });
+    expect(mapOpen5eV2Weapon(thrown("Dart"))).toMatchObject({
+      weapon_range: "20/60 ft.", subtype: "Simple Ranged Weapons",
+    });
+  });
+
+  it("mapOpen5eV2MagicItem takes a magic weapon's range from the base weapon it wraps", () => {
+    const item = mapOpen5eV2MagicItem(longbowPlusOne, new Map([[longbow.key, longbow]]));
+    expect(item.weapon_range).toBe("150/600 ft.");
+  });
+
+  it("mapOpen5eV2MagicItem throws when the wrapped base weapon was not fetched", () => {
+    expect(() => mapOpen5eV2MagicItem(longbowPlusOne, new Map())).toThrow(/srd-2024_longbow/);
   });
 });
 
@@ -108,7 +170,7 @@ describe("source_license from a document-metadata map", () => {
     const documentMetadata = new Map([
       ["srd-2024", { ...srd2024Document, licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }] }],
     ]);
-    const item = mapOpen5eV2MagicItem(ring, documentMetadata);
+    const item = mapOpen5eV2MagicItem(ring, new Map(), documentMetadata);
     expect(item.source_license).toBe("ogl-10a");
   });
 });
