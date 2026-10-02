@@ -25,6 +25,7 @@ DM-only. Players see a demo only if the DM invites them to it, like any campaign
 | Teaser | `src/components/dashboard/DemoTeaserBanner.vue` + `demoTeaser.ts`. Hidden until `VITE_FULL_CAMPAIGN_URL` is set |
 | Quota picker | `DefaultLayout.vue` and `DowngradeCampaignPickerModal.vue` leave demo campaigns out of the Free-plan campaign count |
 | Manual | `src/manual/getting-started-demo-campaign.md` |
+| Local stack | `scripts/dev-demo-campaign.ts` (`npm run dev:demo`): pulls the template from production and loads it into `dm-fixture`. The SQL it runs is built and tested in `scripts/lib/dev-demo-sql.ts` |
 
 ## Schema
 
