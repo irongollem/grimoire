@@ -14,7 +14,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(19);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94600000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -81,6 +81,17 @@ select is((pg_temp.pm('e1')).class || ' / ' || (pg_temp.pm('e1')).subclass || ' 
   'Sorcerer / Wild Magic / edited',
   'a client''s write to the typed class is overwritten by what the rows say, and the rest of the edit lands');
 
+-- A change to the class rows touches the character only when its class names
+-- change: a level gained in the same class is not an edit of the character.
+create temp table pm_writes (n int);
+grant all on pm_writes to public;
+create function pg_temp.count_pm_write() returns trigger language plpgsql as $$
+begin insert into pm_writes values (1); return null; end $$;
+create trigger count_pm_write after update on public.party_members
+  for each row execute procedure pg_temp.count_pm_write();
+update public.character_classes set levels = 4, sort_order = 0 where id = '94600000-0000-4000-8000-0000000000f1';
+select is((select count(*)::int from pm_writes), 0, 'a level gained in the same class does not write to the character');
+
 -- A second class: the primary row is the one mirrored, whichever was written last.
 insert into public.character_classes
   (id, party_member_id, class_name, levels, is_primary, sort_order, class_definition_id, class_definition_kind)
@@ -90,6 +101,7 @@ select is((pg_temp.pm('e1')).class, 'Sorcerer', 'a second class does not displac
 update public.character_classes set is_primary = false where id = '94600000-0000-4000-8000-0000000000f1';
 update public.character_classes set is_primary = true where id = '94600000-0000-4000-8000-0000000000f2';
 select is((pg_temp.pm('e1')).class, 'Fighter', 'making another class primary changes the name the character shows');
+select cmp_ok((select count(*)::int from pm_writes), '>', 0, 'control: a change of class names does write to it');
 select is((pg_temp.pm('e1')).subclass, null, 'and its subclass, here none');
 
 delete from public.character_classes where id = '94600000-0000-4000-8000-0000000000f2';

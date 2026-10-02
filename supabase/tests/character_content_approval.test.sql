@@ -25,7 +25,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(136);
+select plan(137);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94400000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -623,6 +623,16 @@ reset role;
 select is((select subclass_name from public.character_classes where party_member_id = '94400000-0000-4000-8000-0000000000ec'), null,
   'and the name goes with the pin: a subclass is never only a name');
 
+-- The class has a class spell (written the way a dump is, triggers off: the
+-- point is the shape, not how it was learned). Removing the class used to fail
+-- here: the row's delete nulled the spell's source class, and the spell
+-- triggers raised on a class they could not read, so the flag could be neither
+-- approved nor removed.
+set local session_replication_role = replica;
+insert into public.character_spells (party_member_id, spell_id, source_type, source_class_id, is_known, is_prepared)
+select cc.party_member_id, 'test_toh_spell', 'class', cc.id, true, true
+  from public.character_classes cc where cc.party_member_id = '94400000-0000-4000-8000-0000000000ec';
+set local session_replication_role = origin;
 delete from public.custom_classes
  where id = (select class_definition_id from public.character_classes where party_member_id = '94400000-0000-4000-8000-0000000000ec');
 select private.review_party_member_content('94400000-0000-4000-8000-0000000000ec');
@@ -633,6 +643,8 @@ select is(public.remove_missing_character_content(pg_temp.flag_id('ec', 'class')
 reset role;
 select is((select count(*)::int from public.character_classes where party_member_id = '94400000-0000-4000-8000-0000000000ec'), 0,
   'the class row is gone, not left as a name');
+select is((select count(*)::int from public.character_spells where party_member_id = '94400000-0000-4000-8000-0000000000ec'), 0,
+  'and the spells learned through it went with it');
 select is((pg_temp.pm('ec')).class, null, 'and the character has no class until it takes one');
 
 -- ── A hand-over changes whose content is the character's own ─────────────────

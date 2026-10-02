@@ -1529,7 +1529,16 @@ begin
     when 'class' then
       -- The class row goes: a class is its definition, and this one has none
       -- left. The character keeps its level and is without a class until it
-      -- takes one.
+      -- takes one. Its class spells go first: a spell learned through a class
+      -- that no longer exists has no source, and the foreign key's SET NULL on
+      -- the row's delete would make the spell triggers raise on a class they
+      -- cannot read, leaving a flag that could be neither approved nor removed.
+      delete from public.character_spells
+       where party_member_id = v_review.party_member_id
+         and source_class_id in (
+           select cc.id from public.character_classes cc
+            where cc.party_member_id = v_review.party_member_id
+              and cc.class_definition_id = private.try_uuid(v_review.ref));
       delete from public.character_classes
        where party_member_id = v_review.party_member_id
          and class_definition_id = private.try_uuid(v_review.ref);

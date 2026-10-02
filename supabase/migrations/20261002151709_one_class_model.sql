@@ -208,7 +208,20 @@ alter table public.character_classes
 
 -- party_members.class / .subclass are the primary class row's names, and null
 -- for a character with no class. Computed in one place, here, whoever writes.
---
+create function private.party_member_class_names(p_party_member_id uuid, out class_name text, out subclass_name text)
+language sql
+stable
+set search_path = ''
+as $$
+  select cc.class_name, cc.subclass_name
+    from public.character_classes cc
+   where cc.party_member_id = p_party_member_id
+   order by cc.is_primary desc, cc.sort_order, cc.created_at, cc.id
+   limit 1;
+$$;
+
+revoke execute on function private.party_member_class_names(uuid) from public, anon, authenticated;
+
 -- Definers, because the answer must not depend on what the writer may read: a
 -- caller who may update a character but could not see its class rows would
 -- otherwise blank its class.
@@ -219,15 +232,11 @@ security definer
 set search_path = ''
 as $$
 begin
-  select cc.class_name, cc.subclass_name into new.class, new.subclass
-    from public.character_classes cc
-   where cc.party_member_id = new.id
-   order by cc.is_primary desc, cc.sort_order, cc.created_at, cc.id
-   limit 1;
-  if not found then
-    new.class := null;
-    new.subclass := null;
-  end if;
+  -- No row comes back for a character with no class, which leaves both null.
+  new.class := null;
+  new.subclass := null;
+  select n.class_name, n.subclass_name into new.class, new.subclass
+    from private.party_member_class_names(new.id) n;
   return new;
 end;
 $$;
@@ -245,21 +254,30 @@ create trigger party_members_mirror_class_update
   before update of class, subclass on public.party_members
   for each row execute procedure public.mirror_party_member_class();
 
--- A change to a character's class rows refreshes its mirror by naming the
--- column, which runs the trigger above.
+-- A change to a character's class rows refreshes its mirror, and touches the
+-- character only when the names actually change: a level gained in the same
+-- class is not an edit of the character, and must not move its updated_at or
+-- ring its subscribers.
 create function public.refresh_party_member_class_mirror()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_id uuid;
 begin
-  if tg_op in ('UPDATE', 'DELETE') then
-    update public.party_members set class = class where id = old.party_member_id;
-  end if;
-  if tg_op in ('INSERT', 'UPDATE') then
-    update public.party_members set class = class where id = new.party_member_id;
-  end if;
+  foreach v_id in array (
+    case tg_op when 'INSERT' then array[new.party_member_id]
+               when 'DELETE' then array[old.party_member_id]
+               else array[old.party_member_id, new.party_member_id] end)
+  loop
+    update public.party_members pm
+       set class = pm.class
+      from private.party_member_class_names(v_id) n
+     where pm.id = v_id
+       and (pm.class is distinct from n.class_name or pm.subclass is distinct from n.subclass_name);
+  end loop;
   return null;
 end;
 $$;
@@ -271,8 +289,12 @@ create trigger character_classes_refresh_mirror
   on public.character_classes
   for each row execute procedure public.refresh_party_member_class_mirror();
 
--- Bring every existing character's mirror in line once.
-update public.party_members set class = class;
+-- Bring every existing character's mirror in line once: only those whose names
+-- differ from their rows, so no character looks edited by the migration.
+update public.party_members pm
+   set class = pm.class
+ where pm.class is distinct from (select n.class_name from private.party_member_class_names(pm.id) n)
+    or pm.subclass is distinct from (select n.subclass_name from private.party_member_class_names(pm.id) n);
 
 -- ── 5. A Sorcerer is a Sorcerer by its class row ─────────────────────────────
 
