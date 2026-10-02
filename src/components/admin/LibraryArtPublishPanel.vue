@@ -16,22 +16,23 @@
       <span class="font-semibold">{{ statsQuery.data.value.items }}</span> items
     </div>
     <div v-if="publishResult" class="text-caption" :class="successClass">
-      Done — {{ publishResult.monsters }} monsters · {{ publishResult.spells }} spells ·
+      Done: {{ publishResult.monsters }} monsters · {{ publishResult.spells }} spells ·
       {{ publishResult.items }} items published.
     </div>
-    <button
-      class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
-      :disabled="bulkPublish.isPending.value"
+    <AppButton
+      variant="primary"
+      size="sm"
+      :icon="IconUpload"
+      :loading="bulkPublish.isPending.value"
+      :label="bulkPublish.isPending.value ? 'Publishing…' : 'Publish all my library art'"
       @click="handlePublishArt"
-    >
-      <IconUpload class="h-3.5 w-3.5" />
-      {{ bulkPublish.isPending.value ? 'Publishing…' : 'Publish all my library art' }}
-    </button>
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { IconUpload } from "@/lib/icons";
 import {
   useBulkPublishLibraryArtDefaults,

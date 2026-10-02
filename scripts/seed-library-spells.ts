@@ -120,11 +120,11 @@ async function backfillArt(supabase: SupabaseClient, spells: ReadonlyArray<{ id:
       .returns<CanonicalArtRow[]>(),
   );
   if (!canonical.length) {
-    console.log("  No canonical spell art found — skipping art backfill.");
+    console.log("  No canonical spell art found: skipping the art backfill.");
     return;
   }
   const resolved = resolveSpellArt(spells, canonical);
-  console.log(`  Found ${canonical.length} canonical spell art rows — backfilling ${resolved.length} library_spells…`);
+  console.log(`  Found ${canonical.length} canonical spell art rows, backfilling ${resolved.length} library_spells…`);
 
   const PATCH_BATCH = 25;
   for (let i = 0; i < resolved.length; i += PATCH_BATCH) {

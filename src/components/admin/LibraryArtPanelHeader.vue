@@ -23,7 +23,7 @@ const emit = defineEmits<{ toggle: [] }>();
         {{ title }}
       </h2>
       <p class="text-caption text-muted-foreground italic mt-0.5">
-        Manage canonical SRD art. Dump images from your phone, assign on desktop.
+        Manage canonical library art. Dump images from your phone, assign on desktop.
       </p>
     </div>
     <div class="flex items-center gap-2 shrink-0">

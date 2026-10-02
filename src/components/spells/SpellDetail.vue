@@ -341,7 +341,7 @@ const campaignId = ref<string | null>(
   props.spell ? props.spell.campaign_id : activeCampaignId.value ?? null,
 );
 
-// When SRD art loads asynchronously, sync art fields from the updated prop
+// When library art loads asynchronously, sync art fields from the updated prop
 watch(
   () => props.spell,
   (s) => {

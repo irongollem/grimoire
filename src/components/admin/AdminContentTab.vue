@@ -11,14 +11,14 @@
          useEmbeddingBackfill's module-level state. -->
     <MonsterEmbeddingBackfill />
 
-    <!-- SRD Art Repair -->
+    <!-- Library art repair -->
     <LibraryArtRepairPanel />
     <LibraryArtRepairPanel mode="spell" />
 
     <!-- Variant Sweep (#619) -->
     <VariantSweepPanel />
 
-    <!-- SRD Art Defaults -->
+    <!-- Library art defaults -->
     <LibraryArtPublishPanel />
 
     <!-- Library Sets — tile pack authoring (#889 S4/S5) -->
