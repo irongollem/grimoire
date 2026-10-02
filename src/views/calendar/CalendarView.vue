@@ -1,11 +1,7 @@
 <template>
   <ListPageLayout
     :title="view === 'month' ? monthTitle : 'Chronicle'"
-    :description="
-      view === 'month'
-        ? 'The Calendar of Harptos — track days, tendays, and festival tides'
-        : 'A chronicle of events across the ages of Faerûn'
-    "
+    :description="description"
   >
     <template #title-suffix>
       <ManualHelpLink page="calendar-system" />
@@ -132,6 +128,12 @@ const CALENDAR_VIEW_OPTIONS = [
 const calendar = useCalendarStore();
 const campaignStore = useCampaignStore();
 const view = computed(() => calendar.view);
+
+const description = computed(() =>
+  view.value === "month"
+    ? `${calendar.adapter.name}. Track days, events and festivals.`
+    : "A chronicle of events across the ages.",
+);
 
 const monthTitle = computed(() => {
   const m = calendar.adapter.months.find((mo) => mo.num === calendar.currentMonth);
