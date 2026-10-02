@@ -24,6 +24,8 @@
       </p>
       <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
+      <CaptchaGate ref="captchaGate" />
+
       <AppButton
         type="submit"
         variant="primary"
@@ -50,14 +52,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, useTemplateRef } from "vue";
 import { RouterLink } from "vue-router";
 import { isAuthApiError } from "@supabase/supabase-js";
 import { useAuthStore } from "@/stores/auth";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import CaptchaGate from "@/components/auth/CaptchaGate.vue";
+import { authErrorMessage, captchaSource, isCaptchaFailure } from "@/lib/auth/captcha";
 
 const auth = useAuthStore();
+const captcha = captchaSource(useTemplateRef<InstanceType<typeof CaptchaGate>>("captchaGate"));
 
 const email = ref("");
 const sent = ref(false);
@@ -66,7 +71,7 @@ const errorMessage = ref("");
 async function handleSubmit() {
   errorMessage.value = "";
   try {
-    await auth.requestPasswordReset(email.value.trim());
+    await auth.requestPasswordReset(email.value.trim(), captcha);
     sent.value = true;
   } catch (err) {
     // Any answer from the auth server reads as "sent". Supabase's per-account
@@ -74,8 +79,10 @@ async function handleSubmit() {
     // showing its message would tell a visitor who is signed up — and for a
     // real account inside the cooldown, a link genuinely was just sent. Only a
     // failure to reach the server at all, which cannot depend on the account,
-    // gets its own message.
-    if (isAuthApiError(err)) sent.value = true;
+    // gets its own message. So does a failed bot check: the auth server runs
+    // it before it looks the address up, and nothing was sent.
+    if (isCaptchaFailure(err)) errorMessage.value = authErrorMessage(err, "");
+    else if (isAuthApiError(err)) sent.value = true;
     else errorMessage.value = "Could not reach the server. Check your connection and try again.";
   }
 }

@@ -133,6 +133,22 @@ matching row in `retention.md`.
   person never notices and tight enough to stop a bulk-read loop, on the
   principle that **a denied request costs the subject a wait, never the right**
   — Art. 12(3) allows a month; the limit resets in an hour. **Not overridden.**
+- **Bot check on the auth forms** *(added 2 Oct 2026; in the code, not yet
+  switched on in production, see `docs/auth-captcha.md`)*. Sign-in, sign-up and
+  password reset each carry a Cloudflare Turnstile token that Supabase Auth
+  verifies. The purpose is the same one as above, moved to the only three calls
+  a visitor can make with no account at all, where a per-account counter has
+  nothing to count. It changes the sentence in bold under Necessity in one
+  respect: the app still stores no IP address, user-agent or fingerprint, but
+  the challenge runs in the visitor's browser against
+  `challenges.cloudflare.com`, so **Cloudflare processes the IP address and
+  browser signals of everyone who opens an auth form**, signed in or not.
+  Cloudflare is already a processor here (the asset CDN), and the widget is
+  loaded only on the four auth forms, never inside the app. Still to do before
+  it is switched on: name Turnstile in the privacy policy (marketing repo), and
+  read Cloudflare's Turnstile privacy terms for what it retains and whether the
+  widget stores anything on the device, which decides whether the policy's
+  cookie section needs a line as well.
 - **Current state, so this is not read as more than it is.** The velocity guard
   is configured off (`abuse_guard_config.enabled = false`, `enforce = false`) and
   ships that way deliberately per #467, pending real usage data to tune

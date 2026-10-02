@@ -10,9 +10,14 @@ import { createPinia, setActivePinia } from "pinia";
  * answer here re-enables AI UI for a child DM.
  */
 type Result = { data: unknown; error: unknown };
-const { childAccountsTable, tables, authState } = vi.hoisted(() => ({
+const { childAccountsTable, tables, authState, authCalls } = vi.hoisted(() => ({
   childAccountsTable: {
     resolve: async () => ({ data: null as unknown, error: null as unknown }),
+  },
+  authCalls: {
+    signInWithPassword: vi.fn(),
+    signUp: vi.fn(),
+    resetPasswordForEmail: vi.fn(),
   },
   tables: {
     campaign_members: (async () => ({ data: null, error: null })) as () => Promise<Result>,
@@ -41,6 +46,7 @@ vi.mock("@/lib/supabase", () => ({
         return { data: { subscription: { unsubscribe: () => {} } } };
       },
       signOut: async () => ({ error: null }),
+      ...authCalls,
     },
     from: (table: string) => {
       const run = () =>
@@ -92,6 +98,57 @@ beforeEach(() => {
   childAccountsTable.resolve = async () => ({ data: null, error: null });
   tables.campaign_members = async () => ({ data: null, error: null });
   tables.profiles = async () => ({ data: null, error: null });
+  authCalls.signInWithPassword.mockResolvedValue({ data: { user: null, session: null }, error: null });
+  authCalls.signUp.mockResolvedValue({ error: null });
+  authCalls.resetPasswordForEmail.mockResolvedValue({ error: null });
+});
+
+/**
+ * Supabase Auth's CAPTCHA protection is project-wide: once on, each of these
+ * three calls is refused without a token, so one that forgets to send it is a
+ * form nobody can use.
+ */
+describe("the bot-check token", () => {
+  const captcha = async () => "tok";
+
+  it("rides on sign-in", async () => {
+    await useAuthStore().signIn("someone@example.invalid", "pw", captcha);
+    expect(authCalls.signInWithPassword.mock.calls[0][0].options).toEqual({ captchaToken: "tok" });
+  });
+
+  it("rides on sign-up, beside the consent metadata", async () => {
+    await useAuthStore().signUp({ email: "someone@example.invalid", password: "pw", captcha });
+    const { options } = authCalls.signUp.mock.calls[0][0];
+    expect(options.captchaToken).toBe("tok");
+    expect(options.data.terms_version).toBeTruthy();
+  });
+
+  it("rides on a password-reset request", async () => {
+    await useAuthStore().requestPasswordReset("someone@example.invalid", captcha);
+    expect(authCalls.resetPasswordForEmail.mock.calls[0][1].captchaToken).toBe("tok");
+  });
+
+  it("keeps the store loading while the check is still running, then makes the call", async () => {
+    const auth = useAuthStore();
+    let release: (token: string) => void = () => {};
+    const pending = auth.signIn("someone@example.invalid", "pw", () => new Promise((resolve) => (release = resolve)));
+
+    expect(auth.loading).toBe(true);
+    expect(authCalls.signInWithPassword).not.toHaveBeenCalled();
+
+    release("tok");
+    await pending;
+    expect(auth.loading).toBe(false);
+    expect(authCalls.signInWithPassword).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops loading and makes no call when the check fails", async () => {
+    const auth = useAuthStore();
+    await expect(auth.signIn("someone@example.invalid", "pw", () => Promise.reject(new Error("blocked")))).rejects.toThrow("blocked");
+
+    expect(auth.loading).toBe(false);
+    expect(authCalls.signInWithPassword).not.toHaveBeenCalled();
+  });
 });
 
 describe("loadChildLink / isChildAccount (#919)", () => {
