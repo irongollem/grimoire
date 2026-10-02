@@ -10,9 +10,12 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { resizeToWebP } from "@/lib/mediaConvert";
 import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
 import { readXmpFromWebp, readXmpFromPng, readXmpFromJpeg, embedXmpInWebp } from "@edge-shared/provenance/embed.ts";
+import { parseXmpPacket } from "@edge-shared/provenance/xmp.ts";
 import { bucketWritePolicy } from "@edge-shared/storage-policy.ts";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { BUCKETS, VARIANT_WIDTHS, variantPath, type BucketKey } from "./buckets";
 import { getPublicUrl, parsePublicUrl } from "./urls";
+import { registerImageProvenance, clearImageProvenance } from "./imageProvenance";
 import { usesR2, uploadToR2, uploadAllToR2, R2UnavailableError, type PreparedUpload } from "./r2";
 
 export interface UploadParams {
@@ -74,6 +77,40 @@ async function uploadToSupabase(
 }
 
 /**
+ * Keep the image provenance registry (#935) in step with a freshly stored
+ * original. Bytes that carry our own XMP packet are AI-generated, so the packet
+ * is parsed and registered under the original's path (variants share its stem).
+ * `clearWhenUnmarked` is for overwrites: the path now holds other bytes, so a
+ * row left from the previous occupant would badge a human's drawing.
+ *
+ * Never throws. The upload has already succeeded and the bytes carry the mark,
+ * which is the disclosure of record; the registry is only how the UI finds it,
+ * and the backfill scan repairs a row that was missed. A failure is therefore
+ * warned and reported, not allowed to lose the upload.
+ */
+async function syncImageProvenance(
+  bucket: BucketKey,
+  path: string,
+  xmpPacket: string | null,
+  userId: string | undefined,
+  clearWhenUnmarked: boolean,
+): Promise<void> {
+  try {
+    const provenance = xmpPacket ? parseXmpPacket(xmpPacket) : null;
+    if (provenance) {
+      const owner = userId ?? getCurrentUser()?.id;
+      if (!owner) throw new Error("no signed-in user to own the provenance row");
+      await registerImageProvenance(bucket, path, provenance, owner);
+    } else if (clearWhenUnmarked) {
+      await clearImageProvenance(bucket, path);
+    }
+  } catch (err) {
+    console.warn(`[uploadToBucket] image provenance for ${BUCKETS[bucket].id}/${path}:`, err);
+    reportHandledError(err, "storage:imageProvenance", { bucket: BUCKETS[bucket].id, path });
+  }
+}
+
+/**
  * Upload a blob to a bucket and return the public URL.
  *
  * Throws on validation failure; returns null on storage error.
@@ -113,6 +150,12 @@ export async function uploadToBucket({
     stored = await uploadToSupabase(bucket, storagePath, blob, mime, upsert);
   }
   if (!stored) return null;
+
+  // Image bytes only: audio and .glb uploads are never read into memory to look
+  // for a mark they cannot carry.
+  if (mime.startsWith("image/")) {
+    await syncImageProvenance(bucket, storagePath, await readEmbeddedXmp(blob), userId, upsert);
+  }
 
   if (!cfg.public) return storagePath;
   // Via getPublicUrl, not the raw client call, so uploads and reads share one
@@ -224,6 +267,7 @@ export async function uploadWithVariants({
       // variants; uploadToR2 still writes the original first, so a failed
       // original never leaves orphan variants behind.
       await uploadToR2(bucket, { path: originalPath, blob, contentType: mime }, variants);
+      await syncImageProvenance(bucket, originalPath, xmpPacket, userId, false);
       return getPublicUrl(bucket, originalPath);
     } catch (err) {
       if (!(err instanceof R2UnavailableError)) {
@@ -238,6 +282,8 @@ export async function uploadWithVariants({
 
   const stored = await uploadToSupabase(bucket, originalPath, blob, mime, false);
   if (!stored) return null;
+
+  await syncImageProvenance(bucket, originalPath, xmpPacket, userId, false);
 
   await Promise.allSettled(
     variants.map((variant) => uploadToSupabase(bucket, variant.path, variant.blob, "image/webp", false)),

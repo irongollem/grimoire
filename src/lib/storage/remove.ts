@@ -14,6 +14,9 @@ import { supabase } from "@/lib/supabase";
 import { BUCKETS, pathsWithVariants, type BucketKey } from "./buckets";
 import { parsePublicUrl, type ParsedPublicUrl } from "./urls";
 import { usesR2, deleteFromR2 } from "./r2";
+import { clearImageProvenance } from "./imageProvenance";
+import { reportHandledError } from "@/lib/observability/sentry";
+import { imageProvenanceStem } from "@edge-shared/provenance/key.ts";
 
 /** Remove one or more objects by storage path. */
 export async function deleteFromBucket(bucket: BucketKey, paths: string[]): Promise<void> {
@@ -24,6 +27,35 @@ export async function deleteFromBucket(bucket: BucketKey, paths: string[]): Prom
     usesR2(bucket) ? deleteFromR2(bucket, paths) : Promise.resolve(),
     supabase.storage.from(BUCKETS[bucket].id).remove(paths),
   ]);
+  await clearProvenanceRows(bucket, paths);
+}
+
+/**
+ * Drop the image provenance rows (#935) of objects that were just deleted. The
+ * registry is keyed by stem, so an original and its variants share one row:
+ * de-duplicate on the stem and clear each once. Copies and duplicates share one
+ * storage object, and callers only reach here once the object itself goes, so
+ * the row goes with it. Non-fatal: the bytes are already gone, a stale row
+ * points at nothing, and the backfill scan can prune it.
+ */
+async function clearProvenanceRows(bucket: BucketKey, paths: string[]): Promise<void> {
+  // Audio and model buckets never hold registry rows.
+  if (!(BUCKETS[bucket].mimeTypes as readonly string[]).some((m) => m.startsWith("image/"))) return;
+  const byStem = new Map<string, string>();
+  for (const path of paths) {
+    const stem = imageProvenanceStem(path);
+    if (!byStem.has(stem)) byStem.set(stem, path);
+  }
+  await Promise.all(
+    [...byStem.values()].map(async (path) => {
+      try {
+        await clearImageProvenance(bucket, path);
+      } catch (err) {
+        console.warn(`[deleteFromBucket] image provenance for ${BUCKETS[bucket].id}/${path}:`, err);
+        reportHandledError(err, "storage:clearImageProvenance", { bucket: BUCKETS[bucket].id, path });
+      }
+    }),
+  );
 }
 
 /**

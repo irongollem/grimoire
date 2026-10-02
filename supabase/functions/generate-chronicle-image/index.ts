@@ -16,6 +16,7 @@ import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry, publicUrlFor } from "../_shared/storage-upload.ts";
 import { markGeneratedImage } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { registerImageProvenance } from "../_shared/provenance/register.ts";
 import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
 
 // Keep browser-supplied composition inputs bounded before req.json()/atob hold
@@ -112,6 +113,15 @@ async function uploadResult(
   // is expensive, so uploadWithRetry's backoff protects a transient storage
   // hiccup from wasting the generation. This caller wants the public URL.
   await uploadWithRetry(admin, config.bucket, path, marked, "image/webp");
+  // The registry is how the UI finds this image's provenance. A failure here
+  // must not waste a paid generation whose bytes are already stored: the mark
+  // inside the file is the disclosure of record, and the backfill scan repairs
+  // a missed row.
+  try {
+    await registerImageProvenance(admin, config.bucket, path, userId, prov);
+  } catch (err) {
+    console.error(`image_provenance registration failed for ${config.bucket}/${path}`, err);
+  }
   // Must agree with the browser client's getPublicUrl (#577): every bucket above
   // is CDN-fronted, so persisting an origin URL here would leave every
   // server-generated image permanently off the CDN, even after the one-time
