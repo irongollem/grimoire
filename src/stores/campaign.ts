@@ -142,6 +142,27 @@ export const useCampaignStore = defineStore("campaign", () => {
     });
   }
 
+  // The theme belongs to the campaign on screen, and a signed-out visitor has
+  // none, so the sign-in forms wear the house theme. The active campaign id and
+  // useTheme's stored campaign theme both outlive the session; until this, the
+  // login screen came up in whatever campaign was open last, and
+  // DEFAULT_THEME_ID only ever reached a browser with nothing stored.
+  //
+  // Signing back in has to put the campaign's theme back here: `activeCampaign`
+  // survives a sign-out in the same tab, so App.vue's hydration finds it already
+  // set and does not call `switchToCampaign` again.
+  watch(
+    () => {
+      const auth = useAuthStore();
+      return auth.initialized && !auth.isAuthenticated;
+    },
+    (signedOut) => {
+      if (signedOut) useTheme().setTheme(DEFAULT_THEME_ID);
+      else if (activeCampaign.value) useTheme().setTheme(activeCampaign.value.theme ?? DEFAULT_THEME_ID);
+    },
+    { immediate: true },
+  );
+
   function clearActiveCampaign() {
     activeCampaignId.value      = null;
     activeCampaign.value        = null;

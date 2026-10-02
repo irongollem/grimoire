@@ -103,7 +103,7 @@
 
         <p class="mt-6 text-center text-body text-muted-foreground">
           Already have an account?
-          <RouterLink to="/login" class="text-gold-400 hover:text-gold-300 underline">
+          <RouterLink to="/login" class="text-primary underline hover:text-primary/80">
             Enter the realm
           </RouterLink>
         </p>

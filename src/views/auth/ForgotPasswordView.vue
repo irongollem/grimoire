@@ -42,7 +42,7 @@
 
     <p class="mt-6 text-center text-body text-muted-foreground">
       Remembered it?
-      <RouterLink to="/login" class="text-gold-400 hover:text-gold-300 underline">
+      <RouterLink to="/login" class="text-primary underline hover:text-primary/80">
         Back to sign in
       </RouterLink>
     </p>

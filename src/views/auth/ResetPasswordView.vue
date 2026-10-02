@@ -6,7 +6,7 @@
       <p class="text-body text-muted-foreground italic mb-6">
         This reset link has expired or already been used.
       </p>
-      <RouterLink to="/forgot-password" class="text-body text-gold-400 hover:text-gold-300 underline">
+      <RouterLink to="/forgot-password" class="text-body text-primary underline hover:text-primary/80">
         Send a new link
       </RouterLink>
     </template>

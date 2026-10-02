@@ -5,16 +5,24 @@ import { createPinia, setActivePinia } from "pinia";
 // test here and @/lib/supabase throws at module load without env vars.
 vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => null }));
 vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey: async () => "" }));
-vi.mock("@/composables/useTheme", () => ({ useTheme: () => ({ setTheme: () => {} }) }));
+const setTheme = vi.hoisted(() => vi.fn());
+vi.mock("@/composables/useTheme", () => ({ useTheme: () => ({ setTheme }) }));
 
 // isAiEnabled reads useAuthStore().isChildAccount directly (#919) rather than
 // the useQuery-backed useChildAccount() composable, which a Pinia setup
 // store's own computed cannot call (no injection context outside a mounted
 // app). Mocked wholesale so this file never has to build a real auth store.
-const mockUseAuthStore = vi.fn(() => ({ isChildAccount: false }));
+interface MockAuthStore {
+  isChildAccount: boolean;
+  initialized?: boolean;
+  isAuthenticated?: boolean;
+}
+const mockUseAuthStore = vi.fn((): MockAuthStore => ({ isChildAccount: false }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => mockUseAuthStore() }));
 
+import { nextTick, reactive } from "vue";
 import { useCampaignStore } from "./campaign";
+import { DEFAULT_THEME_ID } from "@/lib/themes";
 import type { Campaign } from "@/types/campaign.types";
 
 const DM_SLOT = "grimoire_active_campaign_dm";
@@ -177,5 +185,56 @@ describe("switchToCampaign — membership refresh", () => {
     } as never);
     useCampaignStore().switchToCampaign(campaign);
     expect(refreshMembership).toHaveBeenCalledWith("c1");
+  });
+});
+
+describe("the theme follows the session, not the last campaign", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    setTheme.mockClear();
+  });
+
+  // The stored campaign theme outlives the session, so a returning visitor's
+  // login screen used to come up in whatever campaign was open last.
+  it("puts a signed-out visitor on the house theme", () => {
+    mockUseAuthStore.mockReturnValue({ isChildAccount: false, initialized: true, isAuthenticated: false });
+    useCampaignStore();
+
+    expect(setTheme).toHaveBeenCalledExactlyOnceWith(DEFAULT_THEME_ID);
+  });
+
+  // Before auth has finished checking, "no user" means "not known yet". Acting
+  // on it would flash the house theme over a signed-in DM's campaign on boot.
+  it("leaves the restored theme alone until auth has finished checking", () => {
+    mockUseAuthStore.mockReturnValue({ isChildAccount: false, initialized: false, isAuthenticated: false });
+    useCampaignStore();
+
+    expect(setTheme).not.toHaveBeenCalled();
+  });
+
+  it("leaves a signed-in account's theme to its campaign", () => {
+    mockUseAuthStore.mockReturnValue({ isChildAccount: false, initialized: true, isAuthenticated: true });
+    useCampaignStore();
+
+    expect(setTheme).not.toHaveBeenCalled();
+  });
+
+  // The store keeps `activeCampaign` across a sign-out in the same tab, so
+  // hydration never calls `switchToCampaign` again and nothing else would
+  // take the house theme back off.
+  it("restores the campaign's theme when the same tab signs back in", async () => {
+    const auth = reactive<MockAuthStore>({ isChildAccount: false, initialized: true, isAuthenticated: true });
+    mockUseAuthStore.mockReturnValue(auth);
+    const store = useCampaignStore();
+    store.activeCampaign = { theme: "grimoire" } as unknown as Campaign;
+
+    auth.isAuthenticated = false;
+    await nextTick();
+    expect(setTheme).toHaveBeenLastCalledWith(DEFAULT_THEME_ID);
+
+    auth.isAuthenticated = true;
+    await nextTick();
+    expect(setTheme).toHaveBeenLastCalledWith("grimoire");
   });
 });
