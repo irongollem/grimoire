@@ -81,6 +81,22 @@ describe("createReloadCoordinator", () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
+  it("does not reload when the page becomes visible while isBusy is being answered", async () => {
+    setVisibility("hidden");
+    const reload = vi.fn();
+    let answer!: (busy: boolean) => void;
+    const isBusy = () => new Promise<boolean>((resolve) => (answer = resolve));
+    const c = createReloadCoordinator({ isBusy, onDeferred: vi.fn(), reload });
+
+    const requested = c.requestReload();
+    await flush();
+    setVisibility("visible"); // the user came back before isBusy answered
+    answer(false);
+    await requested;
+
+    expect(reload).not.toHaveBeenCalled();
+  });
+
   it("reloads a hidden page once it stops being busy, on the retry timer", async () => {
     setVisibility("hidden");
     let busy = true;

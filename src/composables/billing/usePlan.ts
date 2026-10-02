@@ -19,6 +19,10 @@ export function usePlan(id: PlanId) {
       if (!plan) throw new Error(`Plan "${id}" not found`)
       return plan
     },
-    staleTime: Infinity,
+    // The plans do not change during a session, so the list is fresh for good
+    // once it holds the plan asked for. If it does not, the list counts as stale
+    // for this observer, so the next mount asks again instead of serving the
+    // same incomplete answer for the rest of the session.
+    staleTime: (query) => (query.state.data?.some((p) => p.id === id) ? Infinity : 0),
   })
 }

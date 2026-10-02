@@ -326,3 +326,117 @@ describe("snapshot lifecycle", () => {
     expect(localStorage.getItem("grimoire:auth-snapshot")).toBeNull();
   });
 });
+
+describe("a different account arriving without a sign-out", () => {
+  // An adult with no campaign: the case where nothing but the reset stands
+  // between this account's facts and the next account's snapshot.
+  async function bootAsAdultWithNoCampaign() {
+    authState.session = { user: { id: "u1", app_metadata: {} } };
+    tables.profiles = async () => ({ data: { username: "the-parent" }, error: null });
+    const auth = useAuthStore();
+    await auth.initialize();
+    await nextTick();
+    expect(auth.username).toBe("the-parent");
+    expect(auth.childLinkLoaded).toBe(true);
+    return auth;
+  }
+
+  it("clears the previous account's identity before the new one is assigned", async () => {
+    const auth = await bootAsAdultWithNoCampaign();
+    // The new account's reads are held, so what is visible is only what the
+    // switch itself left behind.
+    const gate = deferred<Result>();
+    tables.profiles = () => gate.promise;
+    tables.campaign_members = () => gate.promise;
+    childAccountsTable.resolve = () => gate.promise;
+
+    authState.listener?.("SIGNED_IN", { user: { id: "u2", app_metadata: {} } });
+    await nextTick();
+
+    expect(auth.user?.id).toBe("u2");
+    expect(auth.username).toBeNull();
+    expect(auth.childLink).toBeNull();
+    // Unknown, not "confirmed not a child": the gates must wait for u2's own answer.
+    expect(auth.childLinkLoaded).toBe(false);
+    expect(localStorage.getItem("grimoire:auth-snapshot")).toBeNull();
+  });
+
+  it("never saves the previous account's facts under the new account's id", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await bootAsAdultWithNoCampaign();
+    // Every read for the new account fails, so nothing fresh can overwrite a bad snapshot.
+    tables.profiles = async () => ({ data: null, error: new Error("offline") });
+    tables.campaign_members = async () => ({ data: null, error: new Error("offline") });
+    childAccountsTable.resolve = async () => ({ data: null, error: new Error("offline") });
+
+    authState.listener?.("SIGNED_IN", { user: { id: "u2", app_metadata: {} } });
+    await vi.waitFor(() => expect(errorSpy).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(readAuthSnapshot("u2", undefined)).toBeNull();
+    errorSpy.mockRestore();
+  });
+
+  it("ignores an answer that comes back for the previous account", async () => {
+    authState.session = { user: { id: "u1", app_metadata: {} } };
+    const auth = useAuthStore();
+    await auth.initialize();
+    const late = deferred<Result>();
+    tables.profiles = () => late.promise;
+    authState.listener?.("TOKEN_REFRESHED", authState.session); // u1's reload, held
+    await new Promise((r) => setTimeout(r, 5));
+
+    tables.profiles = async () => ({ data: { username: "second" }, error: null });
+    authState.listener?.("SIGNED_IN", { user: { id: "u2", app_metadata: {} } });
+    await vi.waitFor(() => expect(auth.username).toBe("second"));
+
+    late.resolve({ data: { username: "first" }, error: null });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(auth.username).toBe("second");
+  });
+
+  it("keeps everything when the same user is announced again", async () => {
+    const auth = await bootAsAdultWithNoCampaign();
+    const gate = deferred<Result>();
+    tables.profiles = () => gate.promise;
+    authState.listener?.("SIGNED_IN", authState.session);
+    await nextTick();
+    expect(auth.username).toBe("the-parent");
+    expect(auth.childLinkLoaded).toBe(true);
+  });
+});
+
+describe("a failed membership read after a campaign switch", () => {
+  async function bootInCampaign() {
+    signedIn();
+    tables.campaign_members = async () => ({ data: MEMBER, error: null });
+    const auth = useAuthStore();
+    await auth.initialize();
+    expect(auth.isDM).toBe(true);
+    return auth;
+  }
+
+  it("drops a membership that belongs to another campaign", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const auth = await bootInCampaign();
+    tables.campaign_members = async () => ({ data: null, error: new Error("offline") });
+
+    await auth.refreshMembership("c2");
+
+    // Not the DM of c1 carried into c2: the role is unknown until a read succeeds.
+    expect(auth.membership).toBeNull();
+    expect(auth.isDM).toBe(false);
+    errorSpy.mockRestore();
+  });
+
+  it("keeps the membership when the failed read was for the same campaign", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const auth = await bootInCampaign();
+    tables.campaign_members = async () => ({ data: null, error: new Error("offline") });
+
+    await auth.refreshMembership("c1");
+
+    expect(auth.membership).toEqual(MEMBER);
+    errorSpy.mockRestore();
+  });
+});

@@ -75,6 +75,9 @@ export function createReloadCoordinator(opts: ReloadCoordinatorOptions): ReloadC
   async function attempt(): Promise<boolean> {
     if (doc.visibilityState !== "hidden") return false;
     if (await opts.isBusy()) return false;
+    // isBusy may be asynchronous, and the user can come back while it is being
+    // answered: a page that is visible again is not reloaded.
+    if (doc.visibilityState !== "hidden") return false;
     standDown();
     reload();
     return true;
