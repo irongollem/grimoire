@@ -67,7 +67,7 @@
       <h2 class="font-cinzel text-sm font-semibold text-foreground">Your Campaigns</h2>
 
       <div v-if="!playerCampaigns.length" class="rounded-lg border border-border bg-card p-6 text-center">
-        <p class="text-body text-muted-foreground italic">No campaigns yet — join one with an invite link.</p>
+        <p class="text-body text-muted-foreground italic">No campaigns yet. Join one with an invite link.</p>
       </div>
 
       <div v-else class="space-y-2">

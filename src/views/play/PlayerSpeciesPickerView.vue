@@ -1,8 +1,6 @@
 <template>
   <div class="space-y-6 pb-8">
-    <p v-if="notFound" class="py-16 text-center text-body text-muted-foreground italic" data-testid="character-not-found">
-      That character could not be found.
-    </p>
+    <PickerCharacterNotFound v-if="notFound" />
     <template v-else>
     <!-- Header row -->
     <div class="flex items-start justify-between gap-4">
@@ -135,6 +133,7 @@
 </template>
 
 <script setup lang="ts">
+import PickerCharacterNotFound from "@/components/play/PickerCharacterNotFound.vue";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
@@ -178,8 +177,8 @@ const currentSpeciesId = computed(() => me.value?.species_id ?? "");
 const headerDescription = computed(() => {
   if (!me.value) return null;
   return me.value.species_id
-    ? `${me.value.name} — click a species card to change`
-    : `${me.value.name} — no species selected`;
+    ? `${me.value.name}: click a species card to change`
+    : `${me.value.name}: no species selected`;
 });
 
 // ── Confirmation panel state ──────────────────────────────────────────────────

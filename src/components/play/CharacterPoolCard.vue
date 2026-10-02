@@ -23,6 +23,11 @@
           <h3 class="font-cinzel text-sm font-bold text-foreground truncate">{{ character.name }}</h3>
           <p class="text-caption text-muted-foreground italic mt-0.5 truncate">{{ summary }}</p>
           <div class="flex flex-wrap items-center gap-1 mt-1">
+            <!--
+              Status text, not controls, and deliberately not the tinted AppButton:
+              tried on 2 Oct 2026, it gave a campaign's name a button's weight and
+              ornament directly above the card's real buttons.
+            -->
             <span
               class="inline-block text-label px-1.5 py-0.5 rounded"
               :class="attachedCampaign ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"

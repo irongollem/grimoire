@@ -1,7 +1,12 @@
 <template>
   <section data-tour="player-books" class="space-y-3">
     <h2 class="font-cinzel text-sm font-semibold text-foreground">Your books</h2>
-    <div class="flex items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3">
+    <!--
+      `relative z-10`: a themed card is its own stacking context, so the picker's
+      popover is painted inside this one. Without the lift, the cards after it on
+      the page (campaigns, join) are drawn over the open list.
+    -->
+    <div class="relative z-10 flex items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3">
       <div class="min-w-0 space-y-0.5">
         <p class="text-body text-muted-foreground">
           The books your characters are built from when they are not at a table. A table decides which books it takes.

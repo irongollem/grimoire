@@ -1,8 +1,6 @@
 <template>
   <div class="space-y-6 pb-8">
-    <p v-if="notFound" class="py-16 text-center text-body text-muted-foreground italic" data-testid="character-not-found">
-      That character could not be found.
-    </p>
+    <PickerCharacterNotFound v-if="notFound" />
     <template v-else>
     <!-- Header row -->
     <div class="flex items-start justify-between gap-4">
@@ -141,6 +139,7 @@
 </template>
 
 <script setup lang="ts">
+import PickerCharacterNotFound from "@/components/play/PickerCharacterNotFound.vue";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
@@ -203,8 +202,8 @@ const headerDescription = computed(() => {
   if (!me.value) return null;
   const bgName = currentBg.value?.name;
   return bgName
-    ? `${me.value.name} — currently: ${bgName}`
-    : `${me.value.name} — no background selected`;
+    ? `${me.value.name}, currently ${bgName}`
+    : `${me.value.name}: no background selected`;
 });
 
 // ── Confirmation panel state ──────────────────────────────────────────────────

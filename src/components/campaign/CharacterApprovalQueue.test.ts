@@ -110,7 +110,8 @@ describe("CharacterApprovalQueue", () => {
     expect(labels(0)).toEqual(["Allow for this character", "Enable Tome of Beasts"]);
     expect(flags[0].text()).toContain("Everyone at the table may use this book from now on.");
     expect(labels(1)).toEqual(["Allow for this character", "Unblock for the table"]);
-    expect(labels(2)).toEqual(["Approve", "View"]);
+    // View first: looking comes before approving.
+    expect(labels(2)).toEqual(["View", "Approve"]);
     expect(labels(3)).toEqual([]);
     expect(flags[3].text()).toContain("cannot be approved here");
     expect(flags[3].text()).toContain("Only its player can change this.");

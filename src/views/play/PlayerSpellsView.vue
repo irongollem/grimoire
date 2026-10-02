@@ -1,8 +1,6 @@
 <template>
   <div class="space-y-4 pb-8">
-    <p v-if="notFound" class="py-16 text-center text-body text-muted-foreground italic" data-testid="character-not-found">
-      That character could not be found.
-    </p>
+    <PickerCharacterNotFound v-if="notFound" />
     <template v-else>
     <RulesetReviewBanner
       v-if="rulesetReviewClasses.length"
@@ -186,6 +184,7 @@
 </template>
 
 <script setup lang="ts">
+import PickerCharacterNotFound from "@/components/play/PickerCharacterNotFound.vue";
 import { ref, computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";

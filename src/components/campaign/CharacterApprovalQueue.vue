@@ -41,6 +41,20 @@
           </div>
 
           <div class="flex flex-wrap items-start gap-x-4 gap-y-2">
+            <!--
+              View only where there is something to read: another table's content
+              is never shown, and a missing choice has none. First in the row, so
+              looking comes before approving: an approval made from the dialog
+              is the one that is refused if the player edits the row meanwhile.
+            -->
+            <AppButton
+              v-if="review.reason === 'homebrew'"
+              variant="subtle"
+              size="sm"
+              label="View"
+              :disabled="busyId !== null"
+              @click="viewing = review"
+            />
             <div v-for="option in approvalOptions(review)" :key="option.scope" class="max-w-xs space-y-1">
               <AppButton
                 :variant="option.scope === 'table' ? 'subtle' : 'primary'"
@@ -68,15 +82,6 @@
             <p v-if="review.reason === 'foreign'" class="text-caption text-muted-foreground">
               Only its player can change this.
             </p>
-            <!-- View only where there is something to read: another table's content is never shown, and a missing choice has none. -->
-            <AppButton
-              v-if="review.reason === 'homebrew'"
-              variant="ghost"
-              size="sm"
-              label="View"
-              :disabled="busyId !== null"
-              @click="viewing = review"
-            />
           </div>
         </li>
       </ul>

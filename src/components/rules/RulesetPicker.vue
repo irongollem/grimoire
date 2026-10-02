@@ -7,7 +7,9 @@
     Each option is an AppButton laid out as a two-line card: only the layout
     tokens are overridden (stack, left-align, wrap), the border, radius, hover
     and selected states are the primitive's. The description and note drop the
-    button's label weight: three bold lines per card read as shouting. It is a
+    button's label weight: three bold lines per card read as shouting. The
+    cards share a row, so the shorter one is top-aligned rather than centred,
+    or the two titles sit at different heights. It is a
     radio group, so it says so: one tab stop, and the arrow keys move the choice.
   -->
   <div
@@ -28,7 +30,7 @@
       :aria-checked="modelValue === option.value"
       :tabindex="tabStop === option.value ? 0 : -1"
       :disabled="disabled"
-      class="flex-col items-start gap-1 whitespace-normal py-3 text-left"
+      class="flex-col items-start justify-start gap-1 whitespace-normal py-3 text-left"
       @click="emit('update:modelValue', option.value)"
     >
       <span class="font-cinzel text-xs font-semibold text-foreground">{{ option.label }}</span>
