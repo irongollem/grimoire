@@ -13,9 +13,12 @@ import {
   decideEncode,
   fileStem,
   parseCli,
+  putDecision,
   qualify,
   selectJobs,
   selectRowsByExactUrl,
+  SOURCE_COLUMNS,
+  updateOrder,
   variantPaths,
   type Qualified,
 } from "./move-library-art-to-srd";
@@ -194,5 +197,28 @@ describe("encode round trip", () => {
     const out = await buildNewOriginal(markedPng, "png");
     expect(sniffImageFormat(out.bytes)).toBe("image/webp");
     expect(readProvenanceFromBytes(out.bytes)).toEqual(PROV);
+  });
+});
+
+describe("updateOrder", () => {
+  it("rewrites the source rows last, so an interrupted job is still a job on the next run", () => {
+    for (const kind of ["item", "monster"] as const) {
+      const order = updateOrder(kind);
+      const sources = SOURCE_COLUMNS.filter((c) => c.kind === kind);
+      expect(order.slice(-sources.length).map((c) => `${c.table}.${c.column}`)).toEqual(sources.map((c) => `${c.table}.${c.column}`));
+      expect(order.length).toBeGreaterThan(sources.length);
+      expect(order.every((c) => c.kind === kind)).toBe(true);
+    }
+  });
+});
+
+describe("putDecision", () => {
+  it("uploads to an empty key and skips an object of the same size", () => {
+    expect(putDecision(null, 1200)).toBe("upload");
+    expect(putDecision(1200, 1200)).toBe("skip");
+  });
+
+  it("refuses to replace an object of another size", () => {
+    expect(() => putDecision(900, 1200)).toThrow(/refusing to overwrite/);
   });
 });

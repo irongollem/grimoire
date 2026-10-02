@@ -24,10 +24,13 @@
  * 4. carries the provenance packet through original and variants when the old
  *    original had one, and registers one `image_provenance` row for it;
  * 5. PUTs everything to R2 under `<bucket>/srd/<stem>[_wN].webp`, HEAD first,
- *    so an interrupted run resumes by running again;
- * 6. only once every object is confirmed present by HEAD, updates the source
- *    row to the new CDN URL and then the shared copies (`library_items`,
- *    `library_monsters`) whose URL equals the old one exactly.
+ *    so an interrupted run resumes by running again. An object already there at
+ *    another size is a failure, never an overwrite: `srd/` holds live art;
+ * 6. only once every object is confirmed present by HEAD, updates the shared
+ *    copies (`library_items`, `library_monsters`) whose URL equals the old one
+ *    exactly, and the source row last. The source row is what makes an image a
+ *    job, so it must be the last thing to change: updated first, a failure
+ *    before the copies would leave them stale with no job left to finish them.
  *
  * The per-user rows (`items`, `monsters`, `npcs`, ...) are never touched: the
  * old files stay where they are, so those rows keep working. **This script has
@@ -407,9 +410,18 @@ async function countRows(client: SupabaseClient, job: ImageJob): Promise<RowCoun
   return counts;
 }
 
-/** Updates the source rows first, then the shared copies, each by exact old URL. */
+/**
+ * The columns a job rewrites, in order: the shared copies, then the source rows.
+ * Source rows come last because they are what `collectJobs` reads: while one
+ * still holds the old URL, a re-run picks the job up again.
+ */
+export function updateOrder(kind: ArtKind): ColumnSpec[] {
+  return [...SHARED_COLUMNS, ...SOURCE_COLUMNS].filter((c) => c.kind === kind);
+}
+
+/** Updates the shared copies, then the source rows, each by exact old URL. */
 async function updateRows(client: SupabaseClient, job: ImageJob, newUrl: string): Promise<void> {
-  const ordered = [...SOURCE_COLUMNS, ...SHARED_COLUMNS].filter((c) => c.kind === job.kind);
+  const ordered = updateOrder(job.kind);
   for (const spec of ordered) {
     for (const oldUrl of job.oldUrls) {
       const { error } = await client.from(spec.table).update({ [spec.column]: newUrl }).eq(spec.column, oldUrl);
@@ -421,10 +433,23 @@ async function updateRows(client: SupabaseClient, job: ImageJob, newUrl: string)
   }
 }
 
-/** PUTs one object unless one of the same size is already there. */
+/** What to do about a target key, from what HEAD found there. Never an overwrite. */
+export function putDecision(existingSize: number | null, newSize: number): "upload" | "skip" {
+  if (existingSize === null) return "upload";
+  if (existingSize === newSize) return "skip";
+  throw new Error(`an object of ${existingSize} bytes is already there, and this one is ${newSize}; refusing to overwrite.`);
+}
+
+/** PUTs one object unless one of the same size is already there. A different one there is an error. */
 async function putIfAbsent(r2: R2Config, key: string, bytes: Uint8Array): Promise<"uploaded" | "skipped"> {
   const existing = await headObject(r2, key);
-  if (existing !== null && existing.size === bytes.byteLength) return "skipped";
+  let decision: "upload" | "skip";
+  try {
+    decision = putDecision(existing === null ? null : existing.size, bytes.byteLength);
+  } catch (error) {
+    throw new Error(`${key}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (decision === "skip") return "skipped";
   await putObject(r2, { key, body: bytes, contentType: "image/webp", cacheControl: IMMUTABLE_CACHE_CONTROL });
   return "uploaded";
 }
@@ -555,7 +580,7 @@ async function main(): Promise<void> {
   const summary = {
     toMove: count("to-move"),
     moved: count("moved"),
-    alreadyMovedRows: collected.alreadyMoved,
+    alreadyUnderSrd: collected.alreadyMoved,
     dead: count("dead"),
     failed: count("failed"),
     marked: results.filter((r) => r.marked).length,

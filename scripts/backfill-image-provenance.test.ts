@@ -4,6 +4,7 @@ import {
   categorizeUnreadable,
   deadExitCode,
   deadReportLines,
+  otherReferencedOriginals,
   survivorVariantUrl,
   type Unreadable,
   collectTargets,
@@ -235,8 +236,9 @@ describe("dead image reporting (#952)", () => {
     owner: USER,
     sources: ["library_art_defaults.image_url"],
   };
-  const dead: Unreadable = { bucket: "item-images", stem: `${USER}/abc`, reason: "404", sources: ["library_art_defaults.image_url"], variantSurvives: false };
-  const restorable: Unreadable = { bucket: "item-images", stem: `${USER}/def`, reason: "404", sources: ["library_items.image_url", "items.image_url"], variantSurvives: true };
+  const dead: Unreadable = { bucket: "item-images", stem: `${USER}/abc`, reason: "404", sources: ["library_art_defaults.image_url"], survivor: "none", deadPaths: [] };
+  const restorable: Unreadable = { bucket: "item-images", stem: `${USER}/def`, reason: "404", sources: ["library_items.image_url", "items.image_url"], survivor: "variant", deadPaths: [] };
+  const renamed: Unreadable = { bucket: "asset-images", stem: `${USER}/ghi`, reason: "404", sources: ["library_art_defaults.image_url"], survivor: "sibling", deadPaths: [`${USER}/ghi.png`] };
 
   it("builds the _w600 variant URL next to the original", () => {
     expect(survivorVariantUrl(target)).toBe(`${ORIGIN}/item-images/${USER}/abc_w600.webp`);
@@ -247,10 +249,33 @@ describe("dead image reporting (#952)", () => {
     expect(targets[0].sources).toEqual(["library_art_defaults.image_url"]);
   });
 
-  it("separates the fully dead from the restorable", () => {
-    const split = categorizeUnreadable([dead, restorable]);
+  it("separates the fully dead from the two repairable kinds", () => {
+    const split = categorizeUnreadable([dead, restorable, renamed]);
     expect(split.fullyDead).toEqual([dead]);
     expect(split.originalMissingVariantSurvives).toEqual([restorable]);
+    expect(split.referenceDeadSiblingSurvives).toEqual([renamed]);
+  });
+
+  it("checks every file a row points at, not only the one that read", () => {
+    const { targets } = collectTargets([
+      { url: `${ORIGIN}/asset-images/${USER}/ghi.png`, userId: null, source: "library_art_defaults.image_url" },
+      { url: `${ORIGIN}/asset-images/${USER}/ghi.webp`, userId: null, source: "library_art_defaults.image_url" },
+      { url: `${ORIGIN}/asset-images/${USER}/ghi_w600.webp`, userId: null, source: "items.image_url" },
+    ]);
+    expect(targets).toHaveLength(1);
+    expect(otherReferencedOriginals(targets[0], `${ORIGIN}/asset-images/${USER}/ghi.webp`)).toEqual([
+      { path: `${USER}/ghi.png`, url: `${ORIGIN}/asset-images/${USER}/ghi.png` },
+    ]);
+  });
+
+  it("has nothing more to check when the one referenced file is the one that read", () => {
+    expect(otherReferencedOriginals(target, `${ORIGIN}/item-images/${USER}/abc.webp`)).toEqual([]);
+  });
+
+  it("names the dead file, not just the stem, when a sibling survives", () => {
+    const text = deadReportLines([renamed]).join("\n");
+    expect(text).toContain(`asset-images/${USER}/ghi.png`);
+    expect(text).toContain("re-point the row");
   });
 
   it("names bucket, stem and columns for every unreadable image", () => {
@@ -265,6 +290,7 @@ describe("dead image reporting (#952)", () => {
   it("exits 1 only with the flag and something unreadable, and counts both categories", () => {
     expect(deadExitCode(true, [dead])).toBe(1);
     expect(deadExitCode(true, [restorable])).toBe(1);
+    expect(deadExitCode(true, [renamed])).toBe(1);
     expect(deadExitCode(true, [])).toBe(0);
     expect(deadExitCode(false, [dead, restorable])).toBe(0);
   });

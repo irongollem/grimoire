@@ -37,9 +37,14 @@
  *
  * `--fail-on-dead` (#952) makes the scan a check: after it, exit with status 1 when
  * any referenced image is unreadable, naming each one's bucket, stem and the
- * table.column that references it. An original that is gone while its `_w600.webp`
- * variant survives is reported apart (it can be restored from the variant), and
- * counts as dead all the same. `npm run check:images` is this, as a dry run.
+ * table.column that references it. Two kinds are reported apart because they can
+ * be repaired, and count as dead all the same: an original that is gone while its
+ * `_w600.webp` variant survives (restore it from the variant), and a referenced
+ * file that is gone while the same image survives under another extension
+ * (re-point the row). The second is checked per referenced file, not per image:
+ * the scan itself is satisfied by any original of a stem, which is right for
+ * reading a mark and would hide a dead `.png` behind a live `.webp`.
+ * `npm run check:images` is this, as a dry run.
  *
  * `--library-owner <uuid>` names the owner of canonical `srd/` art; by default
  * it is the app admin when exactly one exists. `--limit <n>` scans only the
@@ -241,7 +246,21 @@ function urlPrefixOf(url: string, ref: ImageRef): string {
 export function candidateUrls(target: Target): string[] {
   const paths = [...target.originalPaths, ...ORIGINAL_EXTENSIONS.map((ext) => `${target.stem}.${ext}`)];
   const unique = [...new Set(paths)];
-  return unique.map((path) => `${target.urlPrefix}${path.split("/").map(encodeURIComponent).join("/")}`);
+  return unique.map((path) => pathUrl(target, path));
+}
+
+/** The URL of an object path next to where the target's first URL was stored. */
+function pathUrl(target: Pick<Target, "urlPrefix">, path: string): string {
+  return `${target.urlPrefix}${path.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+/**
+ * The originals some row actually points at, other than the one just read.
+ * `candidateUrls` is satisfied by any original of the stem; these are the ones
+ * that must each resolve for no stored link to be dead.
+ */
+export function otherReferencedOriginals(target: Pick<Target, "originalPaths" | "urlPrefix">, readUrl: string): { path: string; url: string }[] {
+  return target.originalPaths.map((path) => ({ path, url: pathUrl(target, path) })).filter((o) => o.url !== readUrl);
 }
 
 /** The variant used to tell "restorable" from "gone": the largest one the app writes. */
@@ -249,7 +268,7 @@ const SURVIVOR_VARIANT = "_w600.webp";
 
 /** The URL of a target's `_w600.webp` variant, next to where its original lives. */
 export function survivorVariantUrl(target: Pick<Target, "stem" | "urlPrefix">): string {
-  return `${target.urlPrefix}${`${target.stem}${SURVIVOR_VARIANT}`.split("/").map(encodeURIComponent).join("/")}`;
+  return pathUrl(target, `${target.stem}${SURVIVOR_VARIANT}`);
 }
 
 /** One image that could not be read, and what references it. */
@@ -259,26 +278,46 @@ export interface Unreadable {
   reason: string;
   /** `table.column` of every column that references this image. */
   sources: string[];
-  /** True when the original is unreadable but its `_w600.webp` variant exists. */
-  variantSurvives: boolean;
+  /**
+   * What is left of the image: `sibling` when another original of the same stem
+   * reads (only the files in `deadPaths` are gone), `variant` when no original
+   * reads but the `_w600.webp` variant does, `none` when nothing does.
+   */
+  survivor: "sibling" | "variant" | "none";
+  /** The referenced object paths that do not resolve. Set for a `sibling` survivor. */
+  deadPaths: string[];
 }
 
-/** Splits unreadable images into the fully dead and the restorable-from-a-variant. */
-export function categorizeUnreadable(unreadable: readonly Unreadable[]): { fullyDead: Unreadable[]; originalMissingVariantSurvives: Unreadable[] } {
+export interface UnreadableByKind {
+  fullyDead: Unreadable[];
+  originalMissingVariantSurvives: Unreadable[];
+  referenceDeadSiblingSurvives: Unreadable[];
+}
+
+/** Splits unreadable images into the fully dead and the two repairable kinds. */
+export function categorizeUnreadable(unreadable: readonly Unreadable[]): UnreadableByKind {
   return {
-    fullyDead: unreadable.filter((u) => !u.variantSurvives),
-    originalMissingVariantSurvives: unreadable.filter((u) => u.variantSurvives),
+    fullyDead: unreadable.filter((u) => u.survivor === "none"),
+    originalMissingVariantSurvives: unreadable.filter((u) => u.survivor === "variant"),
+    referenceDeadSiblingSurvives: unreadable.filter((u) => u.survivor === "sibling"),
   };
 }
 
 /** The lines `--fail-on-dead` prints: one per unreadable image, naming bucket, stem and referencing columns. */
 export function deadReportLines(unreadable: readonly Unreadable[]): string[] {
-  const { fullyDead, originalMissingVariantSurvives } = categorizeUnreadable(unreadable);
+  const { fullyDead, originalMissingVariantSurvives, referenceDeadSiblingSurvives } = categorizeUnreadable(unreadable);
   const line = (u: Unreadable) => `  ${u.bucket}/${u.stem}  (${u.reason})  referenced by ${u.sources.join(", ")}`;
+  const fileLine = (u: Unreadable) => `  ${u.deadPaths.map((path) => `${u.bucket}/${path}`).join(", ")}  (${u.reason})  one of the files referenced by ${u.sources.join(", ")}`;
   const lines: string[] = [];
   if (fullyDead.length > 0) lines.push(`Dead (no original, no variant): ${fullyDead.length}`, ...fullyDead.map(line));
   if (originalMissingVariantSurvives.length > 0) {
     lines.push(`Original missing, _w600 variant survives (restorable): ${originalMissingVariantSurvives.length}`, ...originalMissingVariantSurvives.map(line));
+  }
+  if (referenceDeadSiblingSurvives.length > 0) {
+    lines.push(
+      `Referenced file missing, the same image survives under another extension (re-point the row): ${referenceDeadSiblingSurvives.length}`,
+      ...referenceDeadSiblingSurvives.map(fileLine),
+    );
   }
   return lines;
 }
@@ -534,9 +573,18 @@ async function main(): Promise<void> {
         stem: target.stem,
         reason: outcome.kind === "missing" ? "404" : outcome.message,
         sources: target.sources,
-        variantSurvives: variant.kind === "bytes",
+        survivor: variant.kind === "bytes" ? "variant" : "none",
+        deadPaths: [],
       });
       return;
+    }
+    // The image exists. Each other file a row points at must resolve too.
+    const deadPaths: string[] = [];
+    for (const other of otherReferencedOriginals(target, outcome.url)) {
+      if ((await fetchBytes(other.url)).kind !== "bytes") deadPaths.push(other.path);
+    }
+    if (deadPaths.length > 0) {
+      unreadable.push({ bucket: target.bucket, stem: target.stem, reason: "404", sources: target.sources, survivor: "sibling", deadPaths });
     }
     const found = readProvenanceFromBytes(outcome.bytes);
     if (!found) {
@@ -558,6 +606,7 @@ async function main(): Promise<void> {
     unreadableOr404: unreadable.length,
     fullyDead: categorizeUnreadable(unreadable).fullyDead.length,
     originalMissingVariantSurvives: categorizeUnreadable(unreadable).originalMissingVariantSurvives.length,
+    referenceDeadSiblingSurvives: categorizeUnreadable(unreadable).referenceDeadSiblingSurvives.length,
     noOwner: count("no-owner"),
     unmarked,
   };
