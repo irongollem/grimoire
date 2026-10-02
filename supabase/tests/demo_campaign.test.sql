@@ -8,12 +8,14 @@
 -- <-> calendar_events cycles, a quest whose entry beat points back at it, an
 -- attachment whose reference is a text column no foreign key describes -- and
 -- checks that a Free user's copy is complete, correctly rewired, quota-free,
--- tamper-proof, resettable and removable without leaving anything behind.
+-- tamper-proof, resettable and removable without leaving anything behind. The
+-- pre-made character is a caster on purpose: a class spell is the row whose
+-- triggers object when its class is purged from under it (20261002081834).
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(64);
+select plan(65);
 
 -- ── Structure ───────────────────────────────────────────────────────────────
 
@@ -237,6 +239,18 @@ insert into public.soundboard_playlist_tracks (playlist_id, sound_id) values
 insert into public.party_members (id, user_id, campaign_id, name) values
   ('91200000-0000-4000-8000-000000000080', '91200000-0000-4000-8000-000000000001',
    '91200000-0000-4000-8000-000000000010', 'Pregen Pip');
+
+-- A spell learned through a class. character_spells.source_class_id is ON
+-- DELETE SET NULL and the spell's triggers validate every update, so purging
+-- the class before the spell fires them with no class to read.
+insert into public.spells (id, user_id, campaign_id, name, level, classes) values
+  ('91200000-0000-4000-8000-000000000081', '91200000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000010', 'Sugar Ditty', 1, '{Bard}');
+insert into public.character_classes (id, party_member_id, class_name, levels, is_primary) values
+  ('91200000-0000-4000-8000-000000000082', '91200000-0000-4000-8000-000000000080', 'Bard', 1, true);
+insert into public.character_spells (party_member_id, spell_id, source_type, source_class_id) values
+  ('91200000-0000-4000-8000-000000000080', '91200000-0000-4000-8000-000000000081', 'class',
+   '91200000-0000-4000-8000-000000000082');
 
 update public.campaigns set current_location_id = '91200000-0000-4000-8000-000000000020', ai_enabled = true
  where id = '91200000-0000-4000-8000-000000000010';
@@ -559,6 +573,21 @@ select throws_ok(
 );
 
 -- ── Reset and removal ───────────────────────────────────────────────────────
+
+reset role;
+
+select is(
+  (select count(*)::int
+     from public.character_spells cs
+     join public.party_members pm on pm.id = cs.party_member_id
+     join public.character_classes cc on cc.id = cs.source_class_id and cc.party_member_id = pm.id
+    where pm.user_id = '91200000-0000-4000-8000-000000000002'),
+  1,
+  'the copy''s pre-made caster kept a class spell, tied to the copy''s own class: the shape a purge must survive'
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"91200000-0000-4000-8000-000000000002","role":"authenticated"}';
 
 select lives_ok($$ select public.load_demo_campaign(true) $$, 'reset replaces the demo');
 
