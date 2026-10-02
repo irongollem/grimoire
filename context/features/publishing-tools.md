@@ -130,7 +130,7 @@ Document creation is quota-gated (`scriptorium_documents` in `check_quota`/`chec
 
 Route: `/forge`
 
-A card-layout and print tool that generates physical trading cards for NPCs, monsters, items, and spells. Cards match standard card game proportions and are designed to be cut out and used at the table.
+A card-layout and print tool that generates physical trading cards for NPCs, monsters, items, and spells, plus Interlude activity cards and items-only loot decks. Cards match standard card game proportions and are designed to be cut out and used at the table.
 
 ### Card Sizes
 
