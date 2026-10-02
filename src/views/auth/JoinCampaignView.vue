@@ -54,6 +54,8 @@
         <p v-if="authMessage" class="text-body text-elven-green">{{ authMessage }}</p>
         <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
+        <CaptchaGate ref="captchaGate" />
+
         <AppButton
           type="submit"
           variant="primary"
@@ -129,6 +131,8 @@
         <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
         <SignupConsent v-model="agreedToTerms" />
+
+        <CaptchaGate ref="captchaGate" />
 
         <AppButton
           type="submit"
@@ -236,7 +240,7 @@
 
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import { ref, computed, watch } from "vue";
+import { ref, computed, useTemplateRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -255,6 +259,8 @@ import AppInput from "@/components/common/AppInput.vue";
 import SignupConsent from "@/components/auth/SignupConsent.vue";
 import AgeQuestionStep from "@/components/auth/AgeQuestionStep.vue";
 import ParentRequestForm from "@/components/auth/ParentRequestForm.vue";
+import CaptchaGate from "@/components/auth/CaptchaGate.vue";
+import { authErrorMessage, captchaSource } from "@/lib/auth/captcha";
 
 const auth = useAuthStore();
 const campaign = useCampaignStore();
@@ -263,6 +269,8 @@ const router = useRouter();
 const queryClient = useQueryClient();
 const { switchMode } = useModeSwitch();
 const { refetch: refetchCampaigns } = usePlayerCampaigns();
+// One ref for both forms: only one of the two tabs is mounted at a time.
+const captcha = captchaSource(useTemplateRef<InstanceType<typeof CaptchaGate>>("captchaGate"));
 
 const token = route.params.token as string;
 const AUTH_TABS = [
@@ -385,14 +393,20 @@ async function handleAuth() {
         errorMessage.value = "Please accept the Terms of Service and Privacy Policy to continue.";
         return;
       }
-      await auth.signUp(email.value, password.value, displayName.value.trim() || undefined, window.location.href);
+      await auth.signUp({
+        email: email.value,
+        password: password.value,
+        captcha,
+        displayName: displayName.value.trim() || undefined,
+        redirectTo: window.location.href,
+      });
       authMessage.value = "Check your email to confirm. The link brings you straight back here to join.";
     } else {
-      await auth.signIn(identifier.value, password.value);
+      await auth.signIn(identifier.value, password.value, captcha);
       // onAuthStateChange will fire → watch(isAuthenticated) below decides
     }
   } catch (err) {
-    errorMessage.value = err instanceof Error ? err.message : "Authentication failed. Please try again.";
+    errorMessage.value = authErrorMessage(err, "Authentication failed. Please try again.");
   }
 }
 

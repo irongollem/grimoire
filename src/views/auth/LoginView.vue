@@ -41,6 +41,8 @@
         {{ errorMessage }}
       </p>
 
+      <CaptchaGate ref="captchaGate" />
+
       <AppButton
         type="submit"
         variant="primary"
@@ -61,15 +63,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, useTemplateRef } from "vue";
 import { useRouter, useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import CaptchaGate from "@/components/auth/CaptchaGate.vue";
+import { authErrorMessage, captchaSource } from "@/lib/auth/captcha";
 
 const auth = useAuthStore();
 const router = useRouter();
 const route = useRoute();
+const captcha = captchaSource(useTemplateRef<InstanceType<typeof CaptchaGate>>("captchaGate"));
 
 // Email or a child's login name (#919) — auth.signIn maps it.
 const identifier = ref("");
@@ -88,15 +93,14 @@ const signupLink = computed(() =>
 async function handleSubmit() {
   errorMessage.value = "";
   try {
-    await auth.signIn(identifier.value, password.value);
+    await auth.signIn(identifier.value, password.value, captcha);
     // Only honour same-app relative paths — reject `//host`, `/\host`, or absolute
     // URLs so a crafted ?redirect= can't bounce the user off-site.
     const raw = (route.query.redirect as string) || "/dashboard";
     const redirect = /^\/(?![/\\])/.test(raw) ? raw : "/dashboard";
     router.push(redirect);
   } catch (err) {
-    errorMessage.value =
-      err instanceof Error ? err.message : "Sign in failed. Check your credentials.";
+    errorMessage.value = authErrorMessage(err, "Sign in failed. Check your credentials.");
   }
 }
 </script>
