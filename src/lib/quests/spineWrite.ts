@@ -103,8 +103,11 @@ export async function writeQuestSpine(
           dm_content: toTiptapJson(beat.dmContentPlain),
           read_aloud: beat.readAloudPlain ? toTiptapJson(beat.readAloudPlain) : null,
           how_it_plays: null,
-          rumor_text: null,
-          reveal_text: null,
+          // The copy lands with the beat, but the beat still lands `hidden`:
+          // writing what players would see is not the same as showing it to
+          // them, and that stays the DM's call per beat.
+          rumor_text: beat.rumorText ? beat.rumorText : null,
+          reveal_text: beat.revealText ? beat.revealText : null,
           visibility: "hidden",
           kind: beat.kind,
           converge_mode: "any",

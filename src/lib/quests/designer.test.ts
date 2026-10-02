@@ -146,6 +146,19 @@ describe("diffDesignTrees", () => {
     expect(diff.beats).toEqual({ b1: "changed", b2: "unchanged" });
   });
 
+  it("marks a beat changed when only its player copy differs", () => {
+    const beat = { key: "b1", title: "Open", dm_content: "Same", kind: "neutral", rumor_text: "A rumour.", reveal_text: "A reveal." };
+    const prev = tree({ beats: [beat, { ...beat, key: "b2" }, { ...beat, key: "b3" }] });
+    const next = tree({
+      beats: [
+        { ...beat, rumor_text: "A different rumour." },
+        { ...beat, key: "b2", reveal_text: "A different reveal." },
+        { ...beat, key: "b3" },
+      ],
+    });
+    expect(diffDesignTrees(prev, next).beats).toEqual({ b1: "changed", b2: "changed", b3: "unchanged" });
+  });
+
   it("marks a beat added when it's new, and reports removed beat titles for ones absent from next", () => {
     const prev = tree({
       beats: [

@@ -26,8 +26,36 @@ describe("planSpineBeats", () => {
   it("normalizes an unknown kind to neutral", () => {
     const beats: QuestSpineBeatResult[] = [{ key: "a", title: "A beat", dm_content: "", kind: "mystical" }];
     expect(planSpineBeats(beats)).toEqual([
-      { key: "a", title: "A beat", kind: "neutral", dmContentPlain: "", readAloudPlain: "" },
+      { key: "a", title: "A beat", kind: "neutral", dmContentPlain: "", readAloudPlain: "", rumorText: "", revealText: "" },
     ]);
+  });
+
+  it("carries a beat's rumor and reveal copy, trimmed", () => {
+    const beats: QuestSpineBeatResult[] = [
+      {
+        key: "a",
+        title: "A beat",
+        dm_content: "",
+        kind: "neutral",
+        rumor_text: "  They say the bell rings by itself.  ",
+        reveal_text: "The bell rang, and nobody was in the tower.\n",
+      },
+    ];
+    expect(planSpineBeats(beats)[0]).toMatchObject({
+      rumorText: "They say the bell rings by itself.",
+      revealText: "The bell rang, and nobody was in the tower.",
+    });
+  });
+
+  it("leaves the player copy empty when the response has none, or has something that isn't text", () => {
+    const beats = [
+      { key: "a", title: "No copy", dm_content: "", kind: "neutral" },
+      { key: "b", title: "Blank copy", dm_content: "", kind: "neutral", rumor_text: "   ", reveal_text: null },
+      { key: "c", title: "Wrong type", dm_content: "", kind: "neutral", rumor_text: 7, reveal_text: ["a"] },
+    ] as unknown as QuestSpineBeatResult[];
+    for (const draft of planSpineBeats(beats)) {
+      expect(draft).toMatchObject({ rumorText: "", revealText: "" });
+    }
   });
 
   it("keeps a recognized kind as-is", () => {

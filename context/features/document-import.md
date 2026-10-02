@@ -124,6 +124,18 @@ should not be raised as if it were. Full reasoning on #353.
 **Copy is deliberately neutral.** "Import from a PDF or page photos" — never a
 named book, publisher, or D&D Beyond, anywhere in UI, docs or marketing.
 
+**A beat's `rumor_text` and `reveal_text` are summary, and that is the same
+rule, not an exception to it.** They are the only player-facing prose the
+import writes besides the quest `summary`, so the prompt holds them to both
+halves: the model's own words, never the page's sentences or its boxed text,
+and no DM-only information. Transcribed narrative keeps exactly one home,
+`read_aloud`, which no player-facing read returns. They are also the only prose
+fields the wire schema refuses a `null` for (`QUEST_BEAT` in
+`extractionSchema.ts`): a beat without reveal copy shows the players nothing, so
+an import that left them empty (as it did until `20261002211019`) handed the DM
+a quest that could not be shared without retyping every beat. See "The spine,
+and its two producers" in [quests.md](quests.md).
+
 ### Pasting is a third source kind, and the box is rich text on purpose (#829)
 
 `source_kind` is `pdf | images | text`. A pasted import carries no storage object
