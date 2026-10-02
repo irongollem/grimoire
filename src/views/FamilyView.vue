@@ -6,7 +6,7 @@
         and consent. It can't use AI features, buy anything or receive email.
       </p>
 
-      <p v-if="!isLoading && !error && !subscriptionLoading" class="text-body text-muted-foreground leading-relaxed">
+      <p v-if="!isLoading && !error && !subscriptionLoading && !subscriptionError" class="text-body text-muted-foreground leading-relaxed">
         {{ limitsNote }}
       </p>
 
@@ -27,7 +27,7 @@
             :child="child"
             :campaigns="tablesByChild.get(child.child_user_id)"
             :tables-failed="tablesError !== null"
-            :beyond-cover="isPro && !covered.has(child.child_user_id)"
+            :beyond-cover="isPro && isActiveChildLink(child) && !covered.has(child.child_user_id)"
           />
         </div>
         <AppButton variant="outline" size="md" block :icon="IconAddUser" label="Add a young player" to="/account/family/add" />
@@ -61,11 +61,14 @@ import FamilyChildCard from "@/components/account/FamilyChildCard.vue";
 import { useFamily } from "@/composables/account/useFamily";
 import { useFamilyCampaigns } from "@/composables/account/useFamilyCampaigns";
 import { useSubscription } from "@/composables/billing/useSubscription";
-import { inheritingChildIds, INHERITING_CHILD_LIMIT } from "@/lib/childAccount";
+import { inheritingChildIds, isActiveChildLink, INHERITING_CHILD_LIMIT } from "@/lib/childAccount";
 import { IconAddUser } from "@/lib/icons";
 
 const { children, isLoading, error } = useFamily();
-const { isPro, isLoading: subscriptionLoading } = useSubscription();
+// The note states the parent's plan as fact, so it is withheld when the plan
+// could not be read: a failed read would otherwise say "standard limits" to a
+// parent who pays for Pro.
+const { isPro, isLoading: subscriptionLoading, error: subscriptionError } = useSubscription();
 
 // Display only: the database decides the quota (private.effective_quotas), and
 // this mirrors its "first five active links" rule so each card can say which side it is on.

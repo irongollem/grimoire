@@ -100,6 +100,12 @@ begin
 
   select quotas into v_pro from public.plans where id = 'pro';
 
+  -- No pro plan to inherit from. Without this the merge below would find no
+  -- key on both sides and answer '{}', which reads as unlimited.
+  if v_pro is null then
+    return v_own;
+  end if;
+
   -- Key by key. A key missing from either side is unlimited there, so it stays
   -- missing; otherwise the larger limit wins.
   return coalesce(

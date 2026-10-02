@@ -67,8 +67,9 @@
     <!-- Shown when the account has more active campaigns than its limit allows,
          e.g. after a downgrade, or when a young player's inherited limits lapse -->
     <DowngradeCampaignPickerModal
+      v-if="campaignQuota"
       :show="showDowngradePicker"
-      :campaign-limit="campaignLimit"
+      :campaign-limit="campaignQuota.limit"
       :child-account="auth.isChildAccount"
     />
 
@@ -176,5 +177,4 @@ usePartyAmbience();
 const { quota: campaignQuota } = useQuota("campaigns");
 
 const showDowngradePicker = computed(() => isOverQuota(campaignQuota.value));
-const campaignLimit = computed(() => campaignQuota.value?.limit ?? 0);
 </script>

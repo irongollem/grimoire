@@ -109,8 +109,8 @@ const allCampaigns = computed(() => (campaignData.value ?? []).filter(c => c.dem
 
 /**
  * Which campaign the DM keeps. Seeded from the list rather than at setup: this
- * modal is mounted unconditionally by `DefaultLayout` — only its `:open` is
- * gated — so its setup runs at app boot, long before `useAllDmCampaigns`
+ * modal is mounted by `DefaultLayout` as soon as the campaign quota is known,
+ * whether or not it is shown, so its setup can run before `useAllDmCampaigns`
  * resolves. Reading `allCampaigns.value[0]` there always saw an empty array and
  * left the picker permanently unselected, with the confirm button disabled
  * until the DM clicked a row by hand.
