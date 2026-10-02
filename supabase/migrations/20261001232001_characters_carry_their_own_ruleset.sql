@@ -257,6 +257,31 @@ create trigger party_members_guard_owner_update
                      or new.user_id is distinct from old.user_id)
   execute procedure public.guard_party_member_owner();
 
+-- A creator's hold on a character ends when someone else owns it. The creator
+-- policies asked only "did you make this row", so the DM who made a roster
+-- character kept reading and writing it after its player had claimed it and
+-- taken it to their pool, where it is meant to be the owner's alone. Delete
+-- already had this condition; select and update now match it. While the
+-- character sits at the DM's table the DM reads and writes it as the DM, which
+-- is the access they are meant to have.
+--
+-- Nobody loses anything on the day this lands: of production's 28 characters,
+-- 8 have a creator who is not the owner, and all 8 are seated at a table the
+-- creator is the DM of (2 Oct 2026).
+drop policy party_members_creator_select on public.party_members;
+create policy party_members_creator_select on public.party_members
+  for select
+  using ((select auth.uid()) = user_id
+         and (owner_user_id is null or owner_user_id = (select auth.uid())));
+
+drop policy party_members_creator_update on public.party_members;
+create policy party_members_creator_update on public.party_members
+  for update
+  using ((select auth.uid()) = user_id
+         and (owner_user_id is null or owner_user_id = (select auth.uid())))
+  with check ((select auth.uid()) = user_id
+              and (campaign_id is null or private.is_campaign_member(campaign_id)));
+
 -- A DM's seat write used to skip every check on the character it names. That
 -- cost nothing while a link granted nothing outside the DM's own campaign; with
 -- a link able to hand a character over, it let any DM name an unowned character
@@ -407,7 +432,7 @@ begin
   end if;
 
   if v_pm.campaign_id is not null then
-    raise exception 'Character is already in a campaign — detach it first';
+    raise exception 'Character is already in a campaign. Detach it first.';
   end if;
 
   if not private.is_campaign_member(p_campaign_id) then

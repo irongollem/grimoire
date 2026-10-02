@@ -31,7 +31,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(65);
+select plan(70);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94300000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -378,6 +378,26 @@ reset role;
 
 select is((pg_temp.pm('e3')).owner_user_id, '94300000-0000-4000-8000-000000000004'::uuid,
   'a DM assigning a roster character to a player''s seat hands the character to that player');
+
+-- The creator's hold ends with the claim. At the DM's table the DM reads and
+-- writes it as the DM; once its owner takes it to their pool it is theirs alone.
+set local role authenticated;
+select pg_temp.as_user(1);
+select isnt_empty($$ select id from public.party_members where id = '94300000-0000-4000-8000-0000000000e3' $$,
+  'control: the DM who made it still reads it while it sits at their table');
+select pg_temp.as_user(4);
+select lives_ok($$ select public.detach_party_member_from_campaign('94300000-0000-4000-8000-0000000000e3') $$,
+  'its new owner takes it to their pool');
+select pg_temp.as_user(1);
+select is_empty($$ select id from public.party_members where id = '94300000-0000-4000-8000-0000000000e3' $$,
+  'and the account that created it can no longer read it there');
+select is_empty($$ update public.party_members set name = 'Taken back'
+   where id = '94300000-0000-4000-8000-0000000000e3' returning id $$,
+  'or write it');
+select pg_temp.as_user(4);
+select isnt_empty($$ select id from public.party_members where id = '94300000-0000-4000-8000-0000000000e3' $$,
+  'control: its owner reads it');
+reset role;
 
 -- ── What a client can reach ──────────────────────────────────────────────────
 

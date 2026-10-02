@@ -25,7 +25,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(112);
+select plan(118);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94400000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -289,8 +289,26 @@ select is((select count(*)::int from public.spells where name = 'SAM SECRET SPEL
 select is((select s.user_id::text || ' / ' || jsonb_array_length(s.granted_spells)::text from public.species s where s.id = '94400000-0000-4000-8000-000000000061'),
   '94400000-0000-4000-8000-000000000002 / 2', 'the player''s original species is untouched');
 
+-- A class is its features. The DM is shown them, and "changed since you looked"
+-- covers them: here the class row is three days old and only the feature is new.
+set local session_replication_role = replica;
+update public.custom_classes set updated_at = now() - interval '3 days'
+ where id = '94400000-0000-4000-8000-000000000081';
+set local session_replication_role = origin;
+select is(private.content_seen_at('class', '94400000-0000-4000-8000-000000000081', '94400000-0000-4000-8000-000000000002'),
+  (select updated_at from public.class_features where id = '94400000-0000-4000-8000-000000000071'),
+  'what the DM is shown is as new as the newest row an approval would copy');
+
 set local role authenticated;
 select pg_temp.as_user(1);
+select is(public.get_character_content_item(pg_temp.flag_id('e2', 'class')) -> 'nested_features' -> 0 ->> 'name',
+  'Pia''s Knack', 'the DM reading a player''s class is shown its features');
+select is((public.get_character_content_item(pg_temp.flag_id('e2', 'class')) ->> 'seen_at')::timestamptz,
+  (select now()), 'and is told when any of it last changed');
+select throws_ok(format($$ select public.approve_character_content(%L, 'character', now() - interval '1 day') $$,
+    pg_temp.flag_id('e2', 'class')),
+  'CR002', 'This was changed after you looked at it; look again before approving',
+  'a feature edited after the DM looked refuses the approval, though the class row itself is older');
 select is(public.approve_character_content(pg_temp.flag_id('e2', 'class')), 1, 'the DM approves the class');
 reset role;
 select is((select f.user_id from public.custom_classes c
@@ -583,6 +601,14 @@ select is(pg_temp.flags('e5'), 'species:source:approved', 'the data migration re
 select is(private.review_party_member_content('94400000-0000-4000-8000-0000000000e5'), 0,
   'and a later review does not re-open them');
 
+-- A JSON null in the feats list is not a choice. It used to come out as a NULL
+-- ref, which kept every approval alive after the choice it was for had gone.
+update public.party_members set species_id = null, class_choices = '{"feats": [null]}'::jsonb
+ where id = '94400000-0000-4000-8000-0000000000e5';
+select is((select count(*)::int from private.party_member_content_refs('94400000-0000-4000-8000-0000000000e5') r
+  where r.ref is null), 0, 'a null entry in the feats list is not read as a choice');
+select is(pg_temp.flags('e5'), 'none', 'so an approval does not outlive the choice it was given for');
+
 -- ── What a client can reach ──────────────────────────────────────────────────
 
 select ok(not has_function_privilege('anon', 'public.approve_character_content(uuid,text,timestamptz)', 'EXECUTE'),
@@ -597,7 +623,8 @@ select is_empty($q$
   where n.nspname = 'private'
     and p.proname in ('adopt_content', 'adopt_id_map', 'assess_content', 'repoint_party_member_content',
                       'review_party_member_content', 'party_member_content_refs', 'is_table_dm', 'source_enabled',
-                      'table_book_entry', 'seat_cleared_party_member', 'content_updated_at', 'try_uuid')
+                      'table_book_entry', 'seat_cleared_party_member', 'content_seen_at', 'content_nested_refs',
+                      'lock_content', 'try_uuid')
     and (has_function_privilege('authenticated', p.oid, 'EXECUTE') or has_function_privilege('anon', p.oid, 'EXECUTE'))
 $q$, 'none of the functions that copy content or decide approval is callable by a client');
 

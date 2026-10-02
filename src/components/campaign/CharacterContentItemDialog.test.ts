@@ -85,6 +85,61 @@ describe("CharacterContentItemDialog", () => {
     expect(wrapper.text()).toContain("A small light.");
   });
 
+  it("shows what a species changes on the sheet: bonuses, natural armor, innate spells and variants", () => {
+    setQuery({
+      name: "Mossling",
+      ability_score_increases: { description: "+2 WIS, +1 CON" },
+      natural_armor_ac: 13,
+      granted_spells: [
+        { spell_id: "x", spell_name: "Druidcraft", uses_per_day: null, min_level: 1, subrace: null },
+        { spell_id: "y", spell_name: "Entangle", uses_per_day: 1, min_level: 3, subrace: "Fenborn" },
+        { spell_id: "z", spell_name: "", uses_per_day: 1, min_level: 1, subrace: null },
+      ],
+      subraces: [
+        {
+          name: "Fenborn",
+          description: "Raised in standing water.",
+          ability_score_increases: { str: 1, dex: 0 },
+          traits: [{ name: "Hold Breath", description: "Fifteen minutes." }],
+        },
+      ],
+    });
+    const text = mountDialog(review({ label: "Mossling" })).text();
+    expect(text).toContain("+2 WIS, +1 CON");
+    expect(text).toContain("13");
+    expect(text).toContain("Druidcraft (at will)");
+    expect(text).toContain("Entangle (1/day, from level 3), Fenborn only");
+    expect(text).toContain("Fenborn (STR +1)");
+    expect(text).not.toContain("DEX");
+    expect(text).toContain("Fenborn: Hold Breath");
+    expect(text).toContain("Fifteen minutes.");
+  });
+
+  it("shows a class with the features an approval would copy, by level", () => {
+    setQuery({
+      class_name: "Hexer",
+      hit_die: 8,
+      nested_features: [
+        { level: "1", name: "Knack", description: "Once a day." },
+        { level: "3", name: "Hex", description: null },
+        { level: "5", name: "", description: "Nameless rows are skipped." },
+      ],
+    });
+    const text = mountDialog(review({ kind: "class", label: "Hexer" })).text();
+    expect(text).toContain("d8");
+    expect(text).toContain("Level 1: Knack");
+    expect(text).toContain("Once a day.");
+    expect(text).toContain("Level 3: Hex");
+    expect(text).not.toContain("Nameless rows are skipped.");
+  });
+
+  it("shows a subclass with the spells it grants", () => {
+    setQuery({ subclass_name: "Bog Witch", class_name: "Hexer", nested_spells: [{ level: "3", name: "Mire", description: "Mud." }] });
+    const text = mountDialog(review({ kind: "subclass", label: "Bog Witch" })).text();
+    expect(text).toContain("Level 3: Mire");
+    expect(text).toContain("Mud.");
+  });
+
   it("shows a spell", () => {
     setQuery({ name: "Zap", level: 0, school: "evocation", components: ["V", "S"], description: "Bzzt." });
     const wrapper = mountDialog(review({ kind: "spell", label: "Zap" }));
@@ -109,7 +164,9 @@ describe("CharacterContentItemDialog", () => {
   });
 
   it("emits approve with the option's scope and when the DM saw the item", async () => {
-    setQuery({ name: "Wisp", updated_at: "2026-10-02T09:00:00Z" });
+    // `seen_at`, not the row's own `updated_at`: a feature edited later than
+    // its class counts as a change to what the DM was shown.
+    setQuery({ name: "Wisp", updated_at: "2026-10-01T09:00:00Z", seen_at: "2026-10-02T09:00:00Z" });
     const wrapper = mountDialog(review({}));
     const approve = wrapper.findAll("button").find((b) => b.text() === "Approve");
     await approve?.trigger("click");

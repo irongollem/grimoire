@@ -419,12 +419,23 @@ deleting their account. Three things are deliberately not a claim:
 An owned character is never re-owned; the seat link moves freely between a
 player's own characters. And `owner_user_id` is not client-writable at all:
 `guard_party_member_owner` refuses a direct update, and an insert for anyone but
-the caller. It is `SECURITY INVOKER` on purpose, so a direct client write runs as
+the caller. The same trigger pins `user_id`: a character is created in its
+creator's own name and its creator never changes. A DM's insert policy would
+otherwise let them make a roster character "created by" any account, which was
+harmless until "whose content is this" started to be answered from the
+character. It is `SECURITY INVOKER` on purpose, so a direct client write runs as
 `authenticated` and is refused, while the definer paths (claim, clone, assume,
 admission) and the owner foreign key's `ON DELETE SET NULL` run as the owner and
 pass without a flag. This closed a hole that predated #943 (a creator could
 write themselves back in as owner) and mattered once ownership decided who may
 convert, clone and delete a character.
+
+**A creator's hold ends with the claim.** `party_members_creator_select` and
+`_update` asked only "did you make this row", so the DM who made a roster
+character kept reading and writing it after its player had claimed it and taken
+it to their pool. Both now carry the condition delete already had (nobody owns
+it, or the creator does). At the DM's own table nothing changes: the DM reads
+and writes a seated character as the DM.
 
 **A copy is a whole copy.** `clone_party_member()` and `assume_character()` both
 go through `private.copy_party_member()`, which copies the sheet through jsonb
@@ -478,6 +489,18 @@ through a species that "granted" it. So:
 | `foreign` | Somebody else's row (another table's DM made it) | Only by changing it. Never named in the flag, never shown, never copied |
 | `missing` | A uuid that points at nothing | Only by removing it (`remove_missing_character_content`), by its owner or the DM |
 
+"The character's owner" in that table is `owner_user_id` and nothing else. A
+character nobody owns has no homebrew: every row it points at that is not the
+table's is `foreign`. Falling back to the row's creator was the second audit's
+finding (a DM naming a stranger as creator, then reading and copying their
+content through a flag). A player bringing a character they made that nobody
+owns becomes its owner in `attach_party_member_to_campaign`, so their own
+content is still theirs to have approved.
+
+Ids are read the way Postgres reads them (`private.try_uuid`, null for anything
+that is not one), so an id written without hyphens or in capitals is the row it
+names, and blocked class names compare without case.
+
 The one thing that needs no asking: when the table already has **its own** copy
 of the same book entry (a row a DM of the table made, never one adopted from a
 player), the character is pointed at that. The result is the DM's row, so
@@ -492,6 +515,17 @@ fill the seat only when nothing is pending; when the last flag clears, the
 character takes the seat it was kept from. The wizard writes the class row and
 spells before it attaches, so the review sees the whole character.
 
+One review raises at most 100 new flags (`c_max_flags`), so a character built to
+flood the DM's queue cannot. The cap counts only what is newly raised: a flag
+the DM already approved is kept without counting, because counting those let a
+character padded with a hundred approvable choices sit down with the next one
+never shown to anyone. While anything is unapproved, something is pending.
+
+Pointing a character at the table's own copy is best effort. If another rule
+refuses the change (a spell limit, a class-source trigger), or the change moves
+nothing, the flag stays and the statement the review ran in carries on. It runs inside the DM enabling a
+book, among other things, and one character must not be able to fail that.
+
 **Approval copies.** `approve_character_content(review_id, scope)` is the DM's
 only way to clear a flag. For the player's own content it calls
 `private.adopt_content()`: a deep copy into the campaign owner's content (a
@@ -499,11 +533,28 @@ class takes its features, a subclass its features and granted spells, a species
 its granted spells), with the character re-pointed at the copy and the original
 untouched. It copies only rows the character's owner owns, at every depth; a
 nested reference to anyone else's row is dropped from the copy. The copy does
-not keep the book keys: they are a claim only a row the DM made can stand
-behind, and an account holds one row per pair of keys.
+not keep anything the player's row said about where it came from (book keys,
+source and licence fields): they are a claim only a row the DM made can stand
+behind, and an account holds one row per pair of keys. What was said is kept
+for the record under `provenance.adopted_claims`.
 `get_character_content_item(review_id)` is how the DM reads a player's content
 before approving, since RLS would refuse; it returns nothing for `foreign` and
-`missing`.
+`missing`. A class is its features and a subclass its features and spells, so
+those come with the row (`nested_features`, `nested_spells`) and
+`CharacterContentItemDialog` lists them by level; a species shows its ability
+bonuses, natural armor, innate spells and variants ahead of its prose. Turning
+the stored row into labelled rows is `characterContentRows.ts`, pure and tested
+on its own, so the dialog only renders.
+
+A player's row stays theirs to edit while it waits, so an approval made after
+looking carries what the DM saw: the dialog passes the item's `seen_at` (the
+newest change to the row or to any feature or spell an approval would copy with
+it) as `p_seen_updated_at`, and anything edited since is refused with SQLSTATE
+`CR002` ("changed after you opened it"), after which the queue reloads the
+item. The approval locks those rows before it compares, so nothing changes
+between the comparison and the copy.
+Approving from the queue without opening it passes null, which is the DM's call
+to make.
 
 **Stay, flagged.** A DM turning a book off or blocking a species later, or a
 seated player picking something unapproved, flags the character and moves
@@ -522,8 +573,16 @@ written under its button and a view of homebrew before approving. Both read
 sides cannot describe one flag differently. `character_content_reviews` is a
 subscribed live-sync table.
 
+One thing is known and left: a DM may write a seated character's choices, so a
+DM who knows the id of one of that player's private rows can point the
+character at it and read it through the flag. Nothing in the app discloses such
+an id (a player's content is theirs alone until they bring it to a table), and
+the migration records why the fix was weighed and not taken.
+
 `supabase/tests/character_content_approval.test.sql` holds the predicate, the
-bench, the approvals and each of the audit's attacks as a refusal.
+bench, the approvals and each of the audits' attacks as a refusal. Three audits
+ran against this migration on 2 Oct 2026; the third found the first two rounds
+closed and nothing above low severity.
 
 ### Champions List (`/play/champions` — `PlayerChampionsView.vue`)
 

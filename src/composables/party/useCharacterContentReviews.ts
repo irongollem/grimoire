@@ -234,10 +234,11 @@ const STALE_AFTER_APPROVAL = [
 /**
  * The DM clears one flag. Resolves to how many the character still has pending.
  *
- * `seenUpdatedAt` is the `updated_at` of the item as the DM saw it in the view
- * dialog. Pass it when approving after looking: the approval is then refused
- * (`isChangedSinceSeen`) if the player has edited the row since. Leave it out
- * when the DM approves without opening it, which is their call to make.
+ * `seenUpdatedAt` is the item's `seen_at` as the DM saw it in the view dialog:
+ * the newest change to the row or to anything an approval copies with it. Pass
+ * it when approving after looking: the approval is then refused
+ * (`isChangedSinceSeen`) if the player has edited any of that since. Leave it
+ * out when the DM approves without opening it, which is their call to make.
  */
 export function useApproveCharacterContent() {
   const queryClient = useQueryClient();
@@ -285,7 +286,9 @@ export function useRemoveMissingContent() {
 /**
  * What a flag is about. The DM cannot read a player's own content through RLS,
  * so this goes through an RPC that is reachable only by way of a flag at the
- * caller's own table. The shape depends on the kind, so it is a plain record.
+ * caller's own table. The shape depends on the kind, so it is a plain record;
+ * a class or subclass also carries `nested_features` / `nested_spells`, the
+ * rows an approval copies with it, and every row carries `seen_at`.
  * Null for a `foreign` or `missing` flag: another person's content is never
  * shown, and there is nothing to show for something that is not there.
  */

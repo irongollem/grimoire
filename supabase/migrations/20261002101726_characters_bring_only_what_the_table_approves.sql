@@ -225,7 +225,10 @@ as $$
          jsonb_array_elements_text(
            case when jsonb_typeof(pm.class_choices -> 'feats') = 'array'
                 then pm.class_choices -> 'feats' else '[]'::jsonb end) as feat(id)
-   where pm.id = p_party_member_id
+   -- A JSON null in the list is not a choice. Left in, it came out as a NULL
+   -- ref, which made every comparison in the review's final delete NULL and so
+   -- kept approvals for choices the character no longer had.
+   where pm.id = p_party_member_id and feat.id is not null
   union
   select 'feat', level.entry -> 'asi' ->> 'feat_id'
     from public.party_members pm,
@@ -628,6 +631,7 @@ set search_path = ''
 as $$
 declare
   v_prev_limits text := current_setting('grimoire.spell_limits', true);
+  v_moved integer;
 begin
   if p_old = p_new then
     return;
@@ -636,19 +640,24 @@ begin
     when 'species' then
       update public.party_members set species_id = p_new
        where id = p_party_member_id and species_id = p_old;
+      get diagnostics v_moved = row_count;
     when 'background' then
       update public.party_members set background_id = p_new::uuid
        where id = p_party_member_id and background_id = p_old::uuid;
+      get diagnostics v_moved = row_count;
     when 'class' then
       update public.character_classes set class_definition_id = p_new::uuid
        where party_member_id = p_party_member_id and class_definition_id = p_old::uuid;
+      get diagnostics v_moved = row_count;
     when 'subclass' then
       update public.character_classes set subclass_definition_id = p_new::uuid
        where party_member_id = p_party_member_id and subclass_definition_id = p_old::uuid;
+      get diagnostics v_moved = row_count;
     when 'spell' then
       perform set_config('grimoire.spell_limits', 'suspended', true);
       update public.character_spells set spell_id = p_new
        where party_member_id = p_party_member_id and spell_id = p_old;
+      get diagnostics v_moved = row_count;
       perform set_config('grimoire.spell_limits', coalesce(v_prev_limits, ''), true);
     when 'feat' then
       update public.party_members pm set
@@ -667,9 +676,16 @@ begin
               from jsonb_each(pm.level_choices) as l(lvl, entry))
           else pm.level_choices end
        where pm.id = p_party_member_id;
+      get diagnostics v_moved = row_count;
     else
       raise exception 'Unknown content kind %', p_kind;
   end case;
+  -- Its callers go on to treat the character as pointing at p_new. If nothing
+  -- moved (a trigger that returned NULL would do it) that would leave the
+  -- character on the original with nobody asked about it.
+  if v_moved = 0 then
+    raise exception 'Nothing on this character points at that';
+  end if;
 end;
 $$;
 
@@ -735,6 +751,7 @@ begin
 
   for v_ref in
     select r.kind, r.ref from private.party_member_content_refs(p_party_member_id) r
+     where r.ref is not null
   loop
     v_target := v_ref.ref;
     v_a := private.assess_content(v_ref.kind, v_target, v_pm.campaign_id, v_owner);
@@ -1098,7 +1115,7 @@ begin
   end if;
 
   if v_pm.campaign_id is not null then
-    raise exception 'Character is already in a campaign — detach it first';
+    raise exception 'Character is already in a campaign. Detach it first.';
   end if;
 
   if not private.is_campaign_member(p_campaign_id) then
@@ -1113,7 +1130,9 @@ begin
   -- owner from here on (the claim rule of 20261001232001: the member made the
   -- character themselves). It has to be settled before the review below, which
   -- treats a character nobody owns as having no content of its own. A DM
-  -- attaching a roster character to their own table leaves it unowned.
+  -- attaching a roster character to their own table does not take it here; if
+  -- the attach also fills the DM's own seat, the claim trigger makes them its
+  -- owner, as it does for any member seated on a character they made.
   if v_pm.owner_user_id is null and not private.is_campaign_dm(p_campaign_id) then
     update public.party_members set owner_user_id = v_uid where id = p_party_member_id;
   end if;
@@ -1244,8 +1263,59 @@ revoke execute on function private.seat_cleared_party_member(uuid) from public, 
 -- at may have changed since it was raised.
 --
 -- Returns how many flags the character still has pending.
--- When a row somebody owns was last changed.
-create function private.content_updated_at(p_kind text, p_id uuid)
+
+-- The rows a content row points at that adoption follows, as (kind, id, level):
+-- a class's features, a subclass's features and granted spells, a species'
+-- granted spells. Library slugs are not rows and are left out.
+create function private.content_nested_refs(p_kind text, p_id uuid)
+returns table (kind text, id uuid, lvl text)
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+  v_table text := case p_kind
+    when 'species' then 'species' when 'class' then 'custom_classes'
+    when 'subclass' then 'custom_subclasses' end;
+  v_row jsonb;
+begin
+  if v_table is null or p_id is null then
+    return;
+  end if;
+  execute format('select to_jsonb(t) from public.%I t where t.id = $1', v_table) into v_row using p_id;
+  if v_row is null then
+    return;
+  end if;
+  if p_kind in ('class', 'subclass') and jsonb_typeof(v_row -> 'features') = 'object' then
+    return query
+      select 'feat'::text, private.try_uuid(f.ref), m.lvl
+        from jsonb_each(v_row -> 'features') as m(lvl, ids),
+             jsonb_array_elements_text(
+               case when jsonb_typeof(m.ids) = 'array' then m.ids else '[]'::jsonb end) as f(ref)
+       where private.try_uuid(f.ref) is not null;
+  end if;
+  if p_kind = 'subclass' and jsonb_typeof(v_row -> 'granted_spells') = 'object' then
+    return query
+      select 'spell'::text, private.try_uuid(g.ref), m.lvl
+        from jsonb_each(v_row -> 'granted_spells') as m(lvl, ids),
+             jsonb_array_elements_text(
+               case when jsonb_typeof(m.ids) = 'array' then m.ids else '[]'::jsonb end) as g(ref)
+       where private.try_uuid(g.ref) is not null;
+  end if;
+  if p_kind = 'species' and jsonb_typeof(v_row -> 'granted_spells') = 'array' then
+    return query
+      select 'spell'::text, private.try_uuid(g.entry ->> 'spell_id'), g.entry ->> 'min_level'
+        from jsonb_array_elements(v_row -> 'granted_spells') as g(entry)
+       where private.try_uuid(g.entry ->> 'spell_id') is not null;
+  end if;
+end;
+$$;
+
+-- When what the DM is shown was last changed: the row itself, and every row of
+-- the same owner that an approval would copy with it. A class is its features;
+-- checking only the class row let a player rewrite a feature after the DM had
+-- looked and have the new text copied.
+create function private.content_seen_at(p_kind text, p_id uuid, p_owner uuid)
 returns timestamptz
 language plpgsql
 stable
@@ -1262,11 +1332,49 @@ begin
     return null;
   end if;
   execute format('select t.updated_at from public.%I t where t.id = $1', v_table) into v_at using p_id;
-  return v_at;
+  return greatest(
+    v_at,
+    (select max(f.updated_at) from public.class_features f
+      where f.user_id = p_owner
+        and f.id in (select n.id from private.content_nested_refs(p_kind, p_id) n where n.kind = 'feat')),
+    (select max(sp.updated_at) from public.spells sp
+      where sp.user_id = p_owner
+        and sp.id in (select n.id from private.content_nested_refs(p_kind, p_id) n where n.kind = 'spell')));
 end;
 $$;
 
-revoke execute on function private.content_updated_at(text, uuid) from public, anon, authenticated;
+-- Holds those same rows still until the approval commits, so the copy is of
+-- what was just compared. The top row first: while it is locked its lists of
+-- features and spells cannot change either.
+create function private.lock_content(p_kind text, p_id uuid, p_owner uuid)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_table text := case p_kind
+    when 'species' then 'species' when 'background' then 'backgrounds'
+    when 'class' then 'custom_classes' when 'subclass' then 'custom_subclasses'
+    when 'spell' then 'spells' when 'feat' then 'class_features' end;
+begin
+  if v_table is null or p_id is null then
+    return;
+  end if;
+  execute format('select 1 from public.%I t where t.id = $1 for update', v_table) using p_id;
+  perform 1 from public.class_features f
+    where f.user_id = p_owner
+      and f.id in (select n.id from private.content_nested_refs(p_kind, p_id) n where n.kind = 'feat')
+    for update;
+  perform 1 from public.spells sp
+    where sp.user_id = p_owner
+      and sp.id in (select n.id from private.content_nested_refs(p_kind, p_id) n where n.kind = 'spell')
+    for update;
+end;
+$$;
+
+revoke execute on function private.content_nested_refs(text, uuid) from public, anon, authenticated;
+revoke execute on function private.content_seen_at(text, uuid, uuid) from public, anon, authenticated;
+revoke execute on function private.lock_content(text, uuid, uuid) from public, anon, authenticated;
 
 create function public.approve_character_content(
   p_review_id uuid, p_scope text default 'character', p_seen_updated_at timestamptz default null)
@@ -1330,8 +1438,13 @@ begin
     elsif v_a.reason = 'homebrew' then
       -- The DM approves what they looked at. A player's own row stays theirs to
       -- edit, so without this they could show one thing and have another copied.
+      -- Locked first, and held to the end of the approval, so nothing changes
+      -- between this comparison and the copy. (A timestamp from the future
+      -- passes, exactly as leaving it out does: it is the DM's own check, and
+      -- skipping it is the DM's call.)
+      perform private.lock_content(v_review.kind, private.try_uuid(v_review.ref), v_owner);
       if p_seen_updated_at is not null
-         and private.content_updated_at(v_review.kind, private.try_uuid(v_review.ref)) > p_seen_updated_at then
+         and private.content_seen_at(v_review.kind, private.try_uuid(v_review.ref), v_owner) > p_seen_updated_at then
         raise exception 'This was changed after you looked at it; look again before approving' using errcode = 'CR002';
       end if;
       v_copy := private.adopt_content(v_review.kind, private.try_uuid(v_review.ref), v_review.campaign_id, v_owner);
@@ -1453,6 +1566,25 @@ grant execute on function public.remove_missing_character_content(uuid) to authe
 --     own content, or the CHARACTER OWNER'S own row. Never a third person's.
 --     Without that last rule, pointing a character at a stranger's row was a
 --     way to read it.
+--
+-- Known and accepted (third audit, 2 Oct 2026). A DM may write a seated
+-- character's choices, so a DM who knows the id of one of that player's
+-- private rows can point the character at it and read it here as the
+-- character owner's own. It needs an id nothing in the app discloses: a
+-- player's content is readable by the player alone until they bring it to a
+-- table themselves, at which point showing it to the DM is the design.
+-- Closing it means recording who made each choice and treating a choice the
+-- owner did not make as `foreign`; that was weighed and left, because the
+-- ways a legitimate choice arrives under the DM's session (admission, a
+-- seat the DM fills, a flag the cap had held back) would each have to be told
+-- apart from it, and a player's honest homebrew wrongly refused costs more
+-- than this does.
+--
+-- A class is its features and a subclass its features and spells, and an
+-- approval copies those too, so they are returned with the row
+-- (`nested_features`, `nested_spells`) on the same terms: the character owner's
+-- own, the table's, or nobody's. `seen_at` is what the caller hands back to
+-- approve_character_content: the newest change to anything shown.
 create function public.get_character_content_item(p_review_id uuid)
 returns jsonb
 language plpgsql
@@ -1510,6 +1642,30 @@ begin
       when 'spell' then 'spells' when 'feat' then 'class_features' end;
     execute format('select to_jsonb(t) from public.%I t where t.id = $1', v_table)
       into v_item using private.try_uuid(v_review.ref);
+    if v_item is not null then
+      v_item := v_item || jsonb_build_object(
+        'seen_at', private.content_seen_at(v_review.kind, private.try_uuid(v_review.ref), v_pm.owner_user_id),
+        'nested_features', (
+          select coalesce(jsonb_agg(jsonb_build_object(
+                   'level', n.lvl, 'name', f.name, 'description', f.description)
+                   order by nullif(left(regexp_replace(n.lvl, '\D', '', 'g'), 4), '')::integer nulls last, f.name), '[]'::jsonb)
+            from private.content_nested_refs(v_review.kind, private.try_uuid(v_review.ref)) n
+            join public.class_features f on f.id = n.id
+           where n.kind = 'feat'
+             and (f.user_id is null or f.user_id = v_pm.owner_user_id
+                  or (private.is_table_dm(v_review.campaign_id, f.user_id)
+                      and (f.campaign_id is null or f.campaign_id = v_review.campaign_id)))),
+        'nested_spells', (
+          select coalesce(jsonb_agg(jsonb_build_object(
+                   'level', n.lvl, 'name', sp.name, 'spell_level', sp.level, 'description', sp.description)
+                   order by nullif(left(regexp_replace(n.lvl, '\D', '', 'g'), 4), '')::integer nulls last, sp.name), '[]'::jsonb)
+            from private.content_nested_refs(v_review.kind, private.try_uuid(v_review.ref)) n
+            join public.spells sp on sp.id = n.id
+           where n.kind = 'spell'
+             and (sp.user_id = v_pm.owner_user_id
+                  or (private.is_table_dm(v_review.campaign_id, sp.user_id)
+                      and (sp.campaign_id is null or sp.campaign_id = v_review.campaign_id)))));
+    end if;
   else
     v_table := case v_review.kind
       when 'species' then 'library_species' when 'spell' then 'library_spells' end;

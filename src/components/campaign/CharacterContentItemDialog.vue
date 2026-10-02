@@ -80,8 +80,8 @@ import {
   useCharacterContentItem,
   type ApprovalScope,
   type CharacterContentReview,
-  type ContentKind,
 } from "@/composables/party/useCharacterContentReviews";
+import { contentName, contentRows, type ContentRow } from "@/composables/party/characterContentRows";
 
 const { open, review } = defineProps<{
   open: boolean;
@@ -95,166 +95,18 @@ const emit = defineEmits<{ close: []; approve: [scope: ApprovalScope, seenUpdate
 
 const itemQuery = useCharacterContentItem(() => (open ? review?.id : null));
 
+// `seen_at` is the newest change to anything shown here: the row, and the
+// features and spells an approval would copy with it.
 const seenUpdatedAt = computed(() => {
-  const at = itemQuery.data.value?.updated_at;
+  const at = itemQuery.data.value?.seen_at;
   return typeof at === "string" ? at : undefined;
 });
 
-/**
- * How each field is shown. The stored shape differs by kind (and a library
- * species is not a homebrew one), so only fields worth a DM's attention are
- * listed; anything absent, empty or of an unexpected type is simply skipped.
- * `rich` fields hold Tiptap JSON or prose and go through the shared viewer.
- */
-type FieldFormat = "rich" | "text" | "list" | "traits" | "speed" | "dice" | "level";
-interface FieldSpec {
-  key: string;
-  label: string;
-  format: FieldFormat;
-}
-
-const FIELDS: Record<ContentKind, FieldSpec[]> = {
-  species: [
-    { key: "description", label: "Description", format: "rich" },
-    { key: "size", label: "Size", format: "text" },
-    { key: "speed", label: "Speed", format: "speed" },
-    { key: "traits", label: "Traits", format: "traits" },
-    { key: "languages", label: "Languages", format: "list" },
-  ],
-  background: [
-    { key: "description", label: "Description", format: "rich" },
-    { key: "skill_proficiencies", label: "Skills", format: "list" },
-    { key: "tool_proficiencies", label: "Tools", format: "list" },
-    { key: "languages", label: "Languages", format: "list" },
-    { key: "equipment", label: "Equipment", format: "rich" },
-    { key: "feature_name", label: "Feature", format: "text" },
-    { key: "feature_description", label: "What the feature does", format: "rich" },
-    { key: "feat_grant_name", label: "Feat granted", format: "text" },
-    { key: "feat_grant_description", label: "What the feat does", format: "rich" },
-  ],
-  class: [
-    { key: "description", label: "Description", format: "rich" },
-    { key: "hit_die", label: "Hit die", format: "dice" },
-    { key: "primary_ability", label: "Primary ability", format: "text" },
-    { key: "saving_throws", label: "Saving throws", format: "list" },
-    { key: "armor_proficiencies", label: "Armor", format: "list" },
-    { key: "weapon_proficiencies", label: "Weapons", format: "list" },
-  ],
-  subclass: [
-    { key: "class_name", label: "Subclass of", format: "text" },
-    { key: "description", label: "Description", format: "rich" },
-  ],
-  spell: [
-    { key: "level", label: "Level", format: "level" },
-    { key: "school", label: "School", format: "text" },
-    { key: "casting_time", label: "Casting time", format: "text" },
-    { key: "range", label: "Range", format: "text" },
-    { key: "duration", label: "Duration", format: "text" },
-    { key: "components", label: "Components", format: "list" },
-    { key: "classes", label: "Classes", format: "list" },
-    { key: "description", label: "Description", format: "rich" },
-    { key: "higher_levels", label: "At higher levels", format: "rich" },
-  ],
-  feat: [
-    { key: "prerequisite", label: "Prerequisite", format: "text" },
-    { key: "description", label: "Description", format: "rich" },
-  ],
-};
-
-interface Trait {
-  name: string;
-  description: string | null;
-}
-
-type Row =
-  | { label: string; kind: "rich" | "text"; text: string }
-  | { label: string; kind: "list"; entries: string[] }
-  | { label: string; kind: "traits"; traits: Trait[] };
-
-function nonEmptyString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() !== "" ? value : null;
-}
-
-function stringList(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string" && entry !== "") : [];
-}
-
-function traitList(value: unknown): Trait[] {
-  if (!Array.isArray(value)) return [];
-  const traits: Trait[] = [];
-  for (const entry of value) {
-    if (typeof entry !== "object" || entry === null) continue;
-    const name = nonEmptyString((entry as Record<string, unknown>).name);
-    if (name) traits.push({ name, description: nonEmptyString((entry as Record<string, unknown>).description) });
-  }
-  return traits;
-}
-
-function speedText(value: unknown): string | null {
-  if (typeof value === "number") return `${value} ft.`;
-  if (typeof value !== "object" || value === null) return null;
-  const parts = Object.entries(value as Record<string, unknown>)
-    .filter((entry): entry is [string, number] => typeof entry[1] === "number" && entry[1] > 0)
-    .map(([mode, feet]) => `${mode} ${feet} ft.`);
-  return parts.length > 0 ? parts.join(", ") : null;
-}
-
-function levelText(value: unknown): string | null {
-  if (typeof value !== "number") return null;
-  return value === 0 ? "Cantrip" : `Level ${value}`;
-}
-
-function rowFor(spec: FieldSpec, value: unknown): Row | null {
-  const { label } = spec;
-  switch (spec.format) {
-    case "rich": {
-      const text = nonEmptyString(value);
-      return text ? { label, kind: "rich", text } : null;
-    }
-    case "text": {
-      const text = nonEmptyString(value);
-      return text ? { label, kind: "text", text } : null;
-    }
-    case "list": {
-      const entries = stringList(value);
-      return entries.length > 0 ? { label, kind: "list", entries } : null;
-    }
-    case "traits": {
-      const traits = traitList(value);
-      return traits.length > 0 ? { label, kind: "traits", traits } : null;
-    }
-    case "speed": {
-      const text = speedText(value);
-      return text ? { label, kind: "text", text } : null;
-    }
-    case "dice":
-      return typeof value === "number" ? { label, kind: "text", text: `d${value}` } : null;
-    case "level": {
-      const text = levelText(value);
-      return text ? { label, kind: "text", text } : null;
-    }
-  }
-}
-
 const item = computed(() => itemQuery.data.value ?? null);
 
-const rows = computed<Row[]>(() => {
-  const current = item.value;
-  if (!review || !current) return [];
-  return FIELDS[review.kind].flatMap((spec) => {
-    const row = rowFor(spec, current[spec.key]);
-    return row ? [row] : [];
-  });
-});
+const rows = computed<ContentRow[]>(() => (review && item.value ? contentRows(review.kind, item.value) : []));
 
-/** Its stored name, which is what the player called it; a class or subclass keeps its name under another key. */
-const title = computed(() => {
-  const current = item.value;
-  const stored =
-    current &&
-    (nonEmptyString(current.name) ?? nonEmptyString(current.subclass_name) ?? nonEmptyString(current.class_name));
-  return stored ?? review?.label ?? "";
-});
+const title = computed(() => (item.value && contentName(item.value)) ?? review?.label ?? "");
 
 const subtitle = computed(() =>
   review ? `${contentKindLabel(review.kind)}. ${reviewReasonText(review)}` : undefined,
