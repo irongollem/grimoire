@@ -138,6 +138,29 @@ describe("buildRunCombatants", () => {
     expect(many.map((c) => c.name)).toEqual(["Gorehoot 1", "Gorehoot 2"]);
   });
 
+  it("brings a party member's beast form and portrait focus into the fight", () => {
+    const form = { monster_id: "srd_wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 9, beast_max_hp: 11, beast_ac: "13" };
+    const member = {
+      id: "pm-briar", name: "Briar", current_hp: 20, max_hp: 24, temp_hp: 0, ac: 14, conditions: [], curses: [],
+      death_save_successes: 0, death_save_failures: 0, dex: 12, portrait_url: null,
+      portrait_focal_point: { x: 0.5, y: 0.25 }, wildshape_state: form,
+    };
+    const [shaped] = buildRunCombatants(sources({
+      encounter: { party_member_ids: ["pm-briar"], companion_ids: [], party_member_factions: {}, combatants: [] },
+      party: [member],
+    }));
+    // A copy, so damage in the runner does not reach back into the query cache.
+    expect(shaped?.wildshape).toEqual(form);
+    expect(shaped?.wildshape).not.toBe(form);
+    expect(shaped?.portrait_focal_point).toEqual({ x: 0.5, y: 0.25 });
+
+    const [plain] = buildRunCombatants(sources({
+      encounter: { party_member_ids: ["pm-briar"], companion_ids: [], party_member_factions: {}, combatants: [] },
+      party: [{ ...member, wildshape_state: null }],
+    }));
+    expect(plain?.wildshape).toBeUndefined();
+  });
+
   it("leaves out a party member the encounter lists but the party no longer has", () => {
     const combatants = buildRunCombatants(sources({
       encounter: {

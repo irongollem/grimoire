@@ -1,10 +1,10 @@
 <template>
   <div class="detail-scroll">
     <FocalImage
-      v-if="combatant.wildshape?.beast_image_url ?? combatant.portrait_url"
-      :src="(combatant.wildshape?.beast_image_url ?? combatant.portrait_url)!"
+      v-if="portrait.src"
+      :src="portrait.src"
       :alt="combatant.name"
-      :focal-point="combatant.wildshape?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
+      :focal-point="portrait.focalPoint"
       format="portrait"
       class="detail-portrait"
     />
@@ -102,7 +102,6 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { hitPointsToMax } from "@/lib/dice/dice";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import RunnerPcAttacks from "@/components/encounters/RunnerPcAttacks.vue";
@@ -123,7 +122,9 @@ import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
-import { druidProfile } from "@/rules/wildshape";
+import { druidProfile, wildshapeStateFor } from "@/rules/wildshape";
+import { formPortrait } from "@/lib/wildshapePortrait";
+import { useLibraryMonsterArt, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
 import { pickSpellcastingStats } from "@/types/multiclass.types";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
 
@@ -132,6 +133,8 @@ const { combatant, member, monsters } = defineProps<{
   member: PartyMember;
   monsters: Monster[];
 }>();
+
+const portrait = computed(() => formPortrait(combatant, combatant.wildshape));
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];
@@ -258,18 +261,13 @@ const spellAttackBonus = computed(() => spellSaveDc.value - 8);
 
 const isDruid = computed(() => druidProfile(member, characterClasses.value ?? []).isDruid);
 
+const { data: libraryArt } = useLibraryMonsterArt();
+
 function handleWildshape(monster: Monster) {
-  const sb = monster.stat_block;
-  const maxHp = hitPointsToMax(sb?.hit_points, 1);
-  const ac = String(sb?.armor_class ?? "10");
-  const wildshapesUsed = (member.wildshapes_used ?? 0) + 1;
-  store.enterWildshape(combatant.instance_id, {
-    id: monster.id,
-    name: monster.name,
-    image_url: monster.image_url ?? null,
-    max_hp: maxHp,
-    ac,
-  }, wildshapesUsed);
+  const beast = monster.is_shared ? withLibraryArt(monster, libraryArt.value?.[monster.id]) : monster;
+  const form = wildshapeStateFor(beast);
+  if (!form) return;
+  store.enterWildshape(combatant.instance_id, form, (member.wildshapes_used ?? 0) + 1);
 }
 </script>
 

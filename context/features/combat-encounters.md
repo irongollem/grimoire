@@ -378,6 +378,10 @@ The DM picks the form via `RunnerPcWildshape` ("Choose Form"). The picker is **t
 
 Pins and discoveries are narrowed to the character on the sheet, because a DM reads every member's.
 
+**The runner knows about a form taken outside it (3 Oct 2026).** A PC combatant's `wildshape` is seeded from `party_members.wildshape_state` when the fight is built (`buildRunCombatants`), and `useRunnerPartySync` ingests it from the party row like temp HP and conditions (`ingestWildshape`, no write-back). Before, a druid who shaped on their own sheet, before or during a fight, showed the beast on the runner card (which reads the party row) while the store did not know: the first hit landed on the druid's own HP, and the write after it persisted `wildshape_state: null`, so the form vanished from the sheet too.
+
+**One overlay builder and one face.** `wildshapeStateFor()` (`src/rules/wildshape.ts`) builds the overlay for both the runner and the sheet, from the beast with its library art merged (`withLibraryArt`): the monster lists carry only the `library_monsters` row's own `image_url`, so a beast whose picture lives in the art tables shaped into a form with no picture. `formPortrait()` (`src/lib/wildshapePortrait.ts`) is the face every party and combatant portrait draws: the beast's while shaped, including on the party tracker, the dashboard, the player's People page and the battle-map token, which used to keep the druid's. A beast with no art draws the caller's monster placeholder, never the druid's portrait, which made a working wild shape look as if it had not happened. The sheet header and the tracker take the beast's walking speed (`walkingSpeed()` in `src/lib/movement.ts`).
+
 **Temp HP:**
 
 Temp HP absorbs damage first, in beast form as well as normal form — it is a buffer in front of whichever HP pool is active, and Wild Shape does not remove it. Does not stack: a new source only replaces the pool if it is larger. Shown as a sky-blue "+N tmp" badge.

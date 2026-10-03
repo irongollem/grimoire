@@ -1,10 +1,10 @@
 <template>
   <EntityLightbox
     :open="!!combatant"
-    :portrait-src="portrait"
-    :portrait-alt="combatant?.name"
+    :portrait-src="portrait?.src ?? null"
+    :portrait-alt="portrait?.alt"
     :placeholder="placeholder"
-    :focal-point="focalPoint"
+    :focal-point="portrait?.focalPoint ?? null"
     @close="$emit('close')"
   >
     <h2 class="text-heading font-bold text-foreground">{{ combatant?.name }}</h2>
@@ -27,18 +27,14 @@ import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import type { RunCombatant } from "@/types/encounter.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { formPortrait } from "@/lib/wildshapePortrait";
 
 const { combatant } = defineProps<{ combatant: RunCombatant | null }>();
 defineEmits<{ close: [] }>();
 
 // A wildshaped combatant wears the beast's face — enlarge that, so the picture
 // matches the row the player tapped.
-const portrait = computed(
-  () => combatant?.wildshape?.beast_image_url ?? combatant?.portrait_url ?? null,
-);
-const focalPoint = computed(() =>
-  combatant?.wildshape?.beast_image_url ? null : (combatant?.portrait_focal_point ?? null),
-);
+const portrait = computed(() => (combatant ? formPortrait(combatant, combatant.wildshape) : null));
 
 const placeholder = computed(() =>
   combatant?.npc_id ? placeholderUrl("npc") : placeholderUrl("monster"),

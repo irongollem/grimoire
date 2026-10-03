@@ -17,10 +17,10 @@
           :class="store.started && combatant.instance_id === store.activeCombatant?.instance_id ? 'avatar-active' : ''"
         >
           <FocalImage
-            :src="wildshape?.beast_image_url ?? combatant.portrait_url ?? undefined"
-            :placeholder="combatant.type === 'player' ? placeholderUrl('character') : combatant.npc_id ? placeholderUrl('npc') : placeholderUrl('monster')"
-            :alt="wildshape?.beast_name ?? combatant.name"
-            :focal-point="wildshape?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
+            :src="portrait.src"
+            :placeholder="portrait.shaped ? placeholderUrl('monster') : combatant.type === 'player' ? placeholderUrl('character') : combatant.npc_id ? placeholderUrl('npc') : placeholderUrl('monster')"
+            :alt="portrait.alt"
+            :focal-point="portrait.focalPoint"
             format="square"
           />
           <button
@@ -188,6 +188,8 @@ import { getExhaustionLevel, getConditionDescription } from "@/rules/conditions"
 import { useRunnerCombatant } from "@/composables/encounters/useRunnerCombatant";
 import type { RunCombatant } from "@/types/encounter.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { formPortrait } from "@/lib/wildshapePortrait";
+import { computed } from "vue";
 
 const { combatant, selectedId } = defineProps<{
   combatant: RunCombatant;
@@ -225,6 +227,8 @@ const {
   dropCombatantConcentration,
   handleCycleReveal,
 } = useRunnerCombatant(() => combatant);
+
+const portrait = computed(() => formPortrait(combatant, wildshape.value));
 
 function toggleDetail() {
   emit("select", selectedId === combatant.instance_id ? null : combatant.instance_id);

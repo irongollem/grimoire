@@ -1,5 +1,7 @@
 import type { PlayerVisibleMonster } from "@/types/monster.types";
+import type { WildshapeState } from "@/types/encounter.types";
 import { parseCr } from "@/lib/utils";
+import { hitPointsToMax } from "@/lib/dice/dice";
 
 // Shared wild shape eligibility rules. These live here (not inlined per-view) so the
 // DM encounter runner, the player character sheet and the player bestiary all agree
@@ -44,6 +46,36 @@ export function druidProfile(
     isDruid: !!druidRow || legacyDruid,
     druidLevel: druidRow?.levels ?? (legacyDruid ? (member?.level ?? 1) : 0),
     isCircleOfMoon: (druidRow?.subclass_name ?? member?.subclass)?.toLowerCase().includes("moon") ?? false,
+  };
+}
+
+/**
+ * The overlay a character takes on when assuming `beast`: the beast's full hit
+ * points, its AC, and its picture. Null when the beast's stats are withheld
+ * from this viewer (a player-visible row with no stat block), because then
+ * there is no hit point pool to take on.
+ *
+ * Pass the beast with its library art already merged (`withLibraryArt`). The
+ * monster lists carry only the `library_monsters` row's own `image_url`, so a
+ * beast whose picture lives in the art tables (a DM's override, typically)
+ * shaped into a form with no picture.
+ *
+ * The one builder for the encounter runner and the player sheet, which each
+ * had a copy.
+ */
+export function wildshapeStateFor(
+  beast: Pick<PlayerVisibleMonster, "id" | "name" | "image_url" | "stat_block">,
+): WildshapeState | null {
+  const sb = beast.stat_block;
+  if (!sb) return null;
+  const maxHp = hitPointsToMax(sb.hit_points, 1);
+  return {
+    monster_id: beast.id,
+    beast_name: beast.name,
+    beast_image_url: beast.image_url,
+    beast_hp: maxHp,
+    beast_max_hp: maxHp,
+    beast_ac: String(sb.armor_class ?? "10"),
   };
 }
 

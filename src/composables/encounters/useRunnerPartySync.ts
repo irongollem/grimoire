@@ -4,6 +4,7 @@ import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtim
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCampaignStore } from "@/stores/campaign";
+import type { WildshapeState } from "@/types/encounter.types";
 
 /**
  * Bidirectional sync between the encounter-run store and `party_members` rows,
@@ -77,6 +78,7 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     temp_hp: number;
     current_initiative: number | null;
     conditions: string[];
+    wildshape_state: WildshapeState | null;
   }
 
   /**
@@ -102,6 +104,17 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     // "conditions cleared" and wipe them from the runner.
     if (combatant && "conditions" in row && !sameConditions(combatant.conditions, row.conditions ?? [])) {
       store.ingestConditions(combatant.instance_id, row.conditions ?? []);
+    }
+
+    // A form the player took or dropped on their own sheet. Guarded by `in` for
+    // the same TOAST reason as conditions; compared by value so the echo of the
+    // runner's own write (which set the combatant first) changes nothing.
+    if (
+      combatant &&
+      "wildshape_state" in row &&
+      JSON.stringify(combatant.wildshape ?? null) !== JSON.stringify(row.wildshape_state ?? null)
+    ) {
+      store.ingestWildshape(combatant.instance_id, row.wildshape_state ?? null);
     }
 
     // Ingest player-rolled initiative (#504). The runner never writes
@@ -138,10 +151,11 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
    * a page reload as the only way out.
    */
   async function resyncPartyFromDb(campaignId: string): Promise<void> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("party_members")
-      .select("id, current_hp, temp_hp, current_initiative, conditions")
+      .select("id, current_hp, temp_hp, current_initiative, conditions, wildshape_state")
       .eq("campaign_id", campaignId);
+    if (error) throw error;
     if (campaignId !== subscribedCampaignId) return;
     for (const row of (data ?? []) as PartyMemberSyncRow[]) applyPartyRow(row);
   }

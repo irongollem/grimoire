@@ -148,13 +148,16 @@ function getFactionColor(factionId: string): string {
   return factionColorById.value.get(factionId) ?? "#3b82f6";
 }
 
-/** Mini override → baked cutout (`token_url`) → portrait → nothing. A mini
- *  renders its own composition and a cutout is drawn whole, so only the
- *  plain-portrait case carries a focal point or crops ("cover"). */
+/** Beast form → mini override → baked cutout (`token_url`) → portrait →
+ *  nothing. A mini renders its own composition and a cutout is drawn whole, so
+ *  only the plain-portrait case carries a focal point or crops ("cover"). The
+ *  mini, cutout and portrait are all the character's own, so a wild-shaped
+ *  druid shows the beast or, for a beast without art, no picture at all. */
 function resolveTokenImage(
   c: RunCombatant,
   portraitOverride: string | undefined,
 ): { imageUrl: string | null; imageFit: "cover" | "contain" } {
+  if (c.wildshape) return { imageUrl: c.wildshape.beast_image_url, imageFit: "cover" };
   if (portraitOverride) return { imageUrl: portraitOverride, imageFit: "cover" };
   if (c.token_url) return { imageUrl: c.token_url, imageFit: "contain" };
   if (c.portrait_url) return { imageUrl: c.portrait_url, imageFit: "cover" };

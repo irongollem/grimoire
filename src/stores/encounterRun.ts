@@ -227,19 +227,12 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     activeIndex.value = step.sortedIndex;
   }
 
-  function enterWildshape(instanceId: string, beast: { id: string; name: string; image_url: string | null; max_hp: number; ac: string }, wildshapesUsed: number) {
+  function enterWildshape(instanceId: string, form: WildshapeState, wildshapesUsed: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
     // Player's real hp/max_hp/ac are NEVER modified — beast form is a self-contained overlay.
     // Reverting is simply clearing this field; nothing needs restoring.
-    c.wildshape = {
-      monster_id: beast.id,
-      beast_name: beast.name,
-      beast_image_url: beast.image_url,
-      beast_hp: beast.max_hp,
-      beast_max_hp: beast.max_hp,
-      beast_ac: beast.ac,
-    } satisfies WildshapeState;
+    c.wildshape = { ...form };
     persistPlayer(c, { wildshape_state: c.wildshape, wildshapes_used: wildshapesUsed });
   }
 
@@ -293,6 +286,16 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
     c.temp_hp = value > 0 ? value : undefined;
+  }
+
+  /** Adopt a beast form taken or dropped outside the runner (the player's own
+   *  sheet), without writing it back. Same reasoning as ingestTempHp: the row is
+   *  the authority, and a runner that does not know about the form damages the
+   *  druid instead of the beast and then persists the form away. */
+  function ingestWildshape(instanceId: string, form: WildshapeState | null) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    c.wildshape = form ? { ...form } : undefined;
   }
 
   /** Adopt HP from party_members without writing it back. Realtime rows are
@@ -669,6 +672,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     toggleCondition,
     setConditions,
     ingestConditions,
+    ingestWildshape,
     addCurse,
     removeCurse,
     setRevealState,

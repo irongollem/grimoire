@@ -15,11 +15,11 @@
           class="block h-31.25 bg-muted overflow-hidden"
         >
           <FocalImage
-            :src="member.portrait_url"
-            :alt="member.name"
+            :src="portrait.src"
+            :alt="portrait.alt"
             format="landscape"
-            :focal-point="member.portrait_focal_point ?? null"
-            :placeholder="placeholderUrl('character')"
+            :focal-point="portrait.focalPoint"
+            :placeholder="placeholderUrl(portrait.shaped ? 'monster' : 'character')"
           />
         </RouterLink>
 
@@ -177,7 +177,7 @@
           </span>
           <span class="flex items-baseline justify-between gap-1 min-w-0">
             <span class="text-muted-foreground truncate">Speed</span>
-            <span class="font-bold text-foreground shrink-0">{{ member.speed }} ft</span>
+            <span class="font-bold text-foreground shrink-0">{{ displaySpeed }} ft</span>
           </span>
           <span class="flex items-baseline justify-between gap-1 min-w-0">
             <span class="text-muted-foreground truncate">Perception</span>
@@ -285,6 +285,8 @@ import { isInDisguise } from "@/lib/partyMemberDisplay";
 import { effectiveLocationId as deriveEffectiveLocationId } from "@/lib/partyPosition";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import FocalImage from "@/components/common/FocalImage.vue";
+import { formPortrait } from "@/lib/wildshapePortrait";
+import { walkingSpeed } from "@/lib/movement";
 import CompanionCard from "./CompanionCard.vue";
 import PartyConditionsPanel from "./PartyConditionsPanel.vue";
 import PartyDeathSaves from "./PartyDeathSaves.vue";
@@ -355,6 +357,13 @@ function getHpAmount(): number {
 
 // While wildshaped the tracker reads (and damages) the beast's pool — otherwise
 // the DM would hit Damage and watch nothing move.
+const portrait = computed(() => formPortrait(member, member.wildshape_state));
+// A wild-shaped member moves at the beast's walking speed.
+const displaySpeed = computed(() => {
+  const form = member.wildshape_state;
+  const beast = form ? allMonsters.value?.find((m) => m.id === form.monster_id) : undefined;
+  return walkingSpeed(beast?.stat_block.speed) ?? member.speed;
+});
 const displayHp = computed(() => member.wildshape_state?.beast_hp ?? member.current_hp);
 const displayMaxHp = computed(() => member.wildshape_state?.beast_max_hp ?? member.max_hp);
 

@@ -5,11 +5,11 @@
       <div class="shrink-0 w-24 relative overflow-hidden bg-muted/50">
         <MiniPortraitOverlay :source="{ table: 'party_members', id: member.id }">
           <FocalImage
-            v-if="wildshape?.beast_image_url ?? member.portrait_url"
-            :src="(wildshape?.beast_image_url ?? member.portrait_url)!"
-            :alt="wildshape?.beast_name ?? member.name"
+            v-if="portrait.src"
+            :src="portrait.src"
+            :alt="portrait.alt"
             format="portrait"
-            :focal-point="wildshape?.beast_image_url ? null : (member.portrait_focal_point ?? null)"
+            :focal-point="portrait.focalPoint"
             :lightbox="true"
           />
           <span
@@ -225,6 +225,8 @@ import {
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
+import { formPortrait } from "@/lib/wildshapePortrait";
+import { walkingSpeed } from "@/lib/movement";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -234,7 +236,14 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 
-const props = defineProps<{ member: PartyMember; wildshape?: WildshapeState; hidePlayerActions?: boolean }>();
+const props = defineProps<{
+  member: PartyMember;
+  wildshape?: WildshapeState;
+  /** The beast's speed string while wild-shaped; its walking speed replaces the character's. */
+  beastSpeed?: string | null;
+  hidePlayerActions?: boolean;
+}>();
+const portrait = computed(() => formPortrait(props.member, props.wildshape));
 const emit = defineEmits<{ (e: "level-up"): void }>();
 
 const { data: allSpecies } = useAllSpecies();
@@ -382,7 +391,7 @@ const initiativeDisplay = computed(() => {
 
 const combatStats = computed(() => [
   { label: "AC",   value: displayAc.value, suffix: "" },
-  { label: "SPD",  value: props.member.speed, suffix: "ft" },
+  { label: "SPD",  value: (props.wildshape ? walkingSpeed(props.beastSpeed) : null) ?? props.member.speed, suffix: "ft" },
   { label: "INIT", value: initiativeDisplay.value, suffix: "" },
   { label: "PROF", value: `+${props.member.proficiency_bonus}`, suffix: "" },
   { label: "HD",   value: `${hitDiceRemaining.value}/${memberTotalLevel.value}`, suffix: hitDicePoolLabel.value },

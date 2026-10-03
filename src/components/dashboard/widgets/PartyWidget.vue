@@ -26,7 +26,7 @@
         <div class="flex items-center gap-2">
           <div class="relative h-8 w-8 shrink-0">
             <div class="h-8 w-8 rounded-full overflow-hidden bg-secondary">
-              <FocalImage :src="member.portrait_url" :focal-point="member.portrait_focal_point ?? null" format="token" :alt="member.name" :placeholder="placeholderUrl('character')" />
+              <FocalImage v-bind="portraitProps(member)" format="token" />
             </div>
             <span
               class="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card"
@@ -95,6 +95,13 @@ import DmTrackerButtons from "@/components/rules/DmTrackerButtons.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 import type { PartyMember } from "@/types/party.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { formPortrait } from "@/lib/wildshapePortrait";
+
+/** A wild-shaped member wears the beast's face, as everywhere else. */
+function portraitProps(member: PartyMember) {
+  const { src, focalPoint, alt, shaped } = formPortrait(member, member.wildshape_state);
+  return { src, focalPoint, alt, placeholder: placeholderUrl(shaped ? "monster" : "character") };
+}
 
 /** The numbers that change during play — HP, conditions, inspiration — plus
  *  who is actually at the table, from campaign presence. */

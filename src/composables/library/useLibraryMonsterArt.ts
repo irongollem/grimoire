@@ -85,7 +85,10 @@ export async function fetchLibraryMonsterArt(): Promise<LibraryArtMap> {
  * fetcher (`useEntityEmbedData.ts`), which needs the exact same merge without
  * paying for a second copy of it.
  */
-export function withLibraryArt(row: Monster, art: LibraryArtEntry | undefined): Monster {
+export function withLibraryArt<T extends Pick<Monster, "image_url" | "cutout_url" | "portrait_focal_point">>(
+  row: T,
+  art: LibraryArtEntry | undefined,
+): T {
   if (!art) return row;
   return {
     ...row,

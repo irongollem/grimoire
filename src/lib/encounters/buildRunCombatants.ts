@@ -31,7 +31,8 @@ import type { Companion } from "@/types/companion.types";
 type RunPartyMember = Pick<
   PartyMember,
   | "id" | "name" | "current_hp" | "max_hp" | "temp_hp" | "ac" | "conditions" | "curses"
-  | "death_save_successes" | "death_save_failures" | "dex" | "portrait_url"
+  | "death_save_successes" | "death_save_failures" | "dex" | "portrait_url" | "portrait_focal_point"
+  | "wildshape_state"
 >;
 
 type RunCompanionSource = Pick<
@@ -100,7 +101,12 @@ export function buildRunCombatants({
       party_member_id: member.id,
       dex_mod: Math.floor(((member.dex ?? 10) - 10) / 2),
       portrait_url: member.portrait_url ?? null,
-      portrait_focal_point: null, // party members don't store focal_point yet
+      portrait_focal_point: member.portrait_focal_point ?? null,
+      // A druid who took a form before the fight walks in wearing it. Left out,
+      // the runner treated them as unshaped: the first hit landed on their own
+      // HP, and the write after it persisted wildshape_state: null, so the form
+      // vanished from their sheet as well.
+      wildshape: member.wildshape_state ? { ...member.wildshape_state } : undefined,
     });
   }
 

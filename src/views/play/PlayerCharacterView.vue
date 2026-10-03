@@ -22,6 +22,7 @@
           <PlayerCharacterHeader
             :member="member"
             :wildshape="activeWildshape ?? undefined"
+            :beast-speed="beastMonster?.stat_block?.speed"
             :hide-player-actions="hidePlayerActions"
             class="md:flex-1"
             @level-up="emit('level-up')"
@@ -261,8 +262,8 @@ import {
   getExhaustionD20Penalty,
 } from "@/rules/conditions";
 import { parseCr } from "@/lib/utils";
-import { isEligibleWildshapeForm } from "@/rules/wildshape";
-import { hitPointsToMax } from "@/lib/dice/dice";
+import { isEligibleWildshapeForm, wildshapeStateFor } from "@/rules/wildshape";
+import { useLibraryMonsterArt, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
 import { drawerTransition } from "@/lib/motion";
 import type { PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/rules/useRules";
@@ -315,6 +316,7 @@ const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { data: allMonsters } = usePlayerVisibleMonsters();
 const { data: discoveries } = usePlayerDiscoveries();
 const { data: pinnedForms } = usePinnedForms();
+const { data: libraryArt } = useLibraryMonsterArt();
 
 const activeWildshape = computed<WildshapeState | null>(() =>
   (member.value?.wildshape_state as WildshapeState | null) ?? null,
@@ -363,22 +365,12 @@ const wildshapeForms = computed<PlayerVisibleMonster[]>(() => {
 
 async function handleWildshape(monster: PlayerVisibleMonster) {
   if (!member.value || !resolvedMemberId.value || !canWildshape.value) return;
-  const sb = monster.stat_block;
-  // No stat block means the DM has not revealed this beast's stats: there is
-  // no hit point pool or AC to assume. The picker disables such a row.
-  if (!sb) return;
-  const maxHp = hitPointsToMax(sb.hit_points, 1);
-  const ac = String(sb.armor_class ?? "10");
-  const ws: WildshapeState = {
-    monster_id: monster.id,
-    beast_name: monster.name,
-    beast_image_url: monster.image_url ?? null,
-    beast_hp: maxHp,
-    beast_max_hp: maxHp,
-    beast_ac: ac,
-  };
+  // Null when the DM has not revealed this beast's stats: there is no hit
+  // point pool or AC to assume. The picker disables such a row.
+  const form = wildshapeStateFor(monster.is_shared ? withLibraryArt(monster, libraryArt.value?.[monster.id]) : monster);
+  if (!form) return;
   await updateMember({ id: member.value.id, update: {
-    wildshape_state: ws,
+    wildshape_state: form,
     wildshapes_used: wildshapesUsed.value + 1,
   }});
   showWildshapePicker.value = false;
