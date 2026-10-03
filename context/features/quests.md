@@ -556,6 +556,17 @@ Renamed from `quest_beat_loot` when a site room gained the same verb. Keyed by
 one, enforced by `num_nonnulls(beat_id, location_id) = 1`. A room-homed row
 carries no quest at all.
 
+**What** an item row holds is exactly one of `item_id` (a vault uuid) or
+`library_item_id` (a shared library id, FK `on delete restrict`), enforced by
+`quest_beat_loot_item_shape` (#954). A picked library item is referenced, never
+cloned into the vault. `get_loot_placements` returns both columns and labels
+the row with whichever item it names; `dispatch_loot` puts the same reference
+in the `item_drop` metadata, which `claim_item_drop` / `grab_item_drop` already
+write into the claimant's inventory. Beat attachments of type `monster` /
+`item` likewise hold a library id in `ref_id` when that is what the DM picked;
+`fetchAttachmentTargets` splits ids by shape so a library id never reaches the
+uuid `monsters` / `items` query.
+
 **Do not merge this table into `quest_consequences`.** They are the same shape
 at a glance and three measurable things apart:
 

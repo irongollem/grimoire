@@ -178,6 +178,7 @@ function loot(over: Partial<LootPlacement> = {}): LootPlacement {
     campaign_id: "campaign-1",
     kind: "loot_chest",
     item_id: null,
+    library_item_id: null,
     quantity: 1,
     label: "Undercroft chest",
     payload: {},

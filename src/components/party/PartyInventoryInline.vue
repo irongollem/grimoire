@@ -190,7 +190,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/items/usePartyInventory";
-import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
+import { useItems } from "@/composables/items/useItems";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, RARITY_SURFACE_BG } from "@/types/item.types";
 import { useCampaignStore } from "@/stores/campaign";
@@ -213,7 +213,6 @@ const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
 
 const { data: catalogItems } = useItems();
-const { ensureOwnedItem } = useEnsureOwnedItem();
 const catalogItemMap = computed(() => {
   const map = new Map<string, Item>();
   for (const item of catalogItems.value ?? []) map.set(item.id, item);
@@ -242,15 +241,11 @@ function onItemSearchInput() {
   showItemDropdown.value = true;
 }
 
-async function selectCatalogItem(item: Item) {
+function selectCatalogItem(item: Item) {
   newItem.name = item.name;
   newItem.selectedItemId = item.id;
   newItem.isAttuned = item.requires_attunement;
   showItemDropdown.value = false;
-  // Srd rows carry a slug id — clone into the user's own items on pick, before
-  // anything downstream (submit, "Drop in Chat") can persist it as a FK.
-  const owned = await ensureOwnedItem(item);
-  if (newItem.selectedItemId === item.id) newItem.selectedItemId = owned.id;
 }
 
 function focusDropdownItem(idx: number) {

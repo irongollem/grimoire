@@ -496,7 +496,7 @@ const quotaAdds = computed(() => {
   for (const group of otherGroups.value) {
     const decisions = decisionsByKind[group.kind];
     if (!decisions) continue;
-    adds[group.kind] = rowsAddedToQuota(group.kind, tallyDecisions(group.entities.map((e) => e.ref), decisions));
+    adds[group.kind] = rowsAddedToQuota(tallyDecisions(group.entities.map((e) => e.ref), decisions));
   }
   return adds;
 });
@@ -519,21 +519,20 @@ const canConfirm = computed(() => {
   });
 });
 
-/** Link/adopt/create/generate counts across every "also found" group — the
+/** Link/create/generate counts across every "also found" group — the
  *  headline quest is excluded (it's always exactly one `create`, not
  *  something these tallies need to explain). */
 const totalTally = computed(() => {
-  let link = 0, adopt = 0, create = 0, generate = 0;
+  let link = 0, create = 0, generate = 0;
   for (const group of otherGroups.value) {
     const decisions = decisionsByKind[group.kind];
     if (!decisions) continue;
     const t = tallyDecisions(group.entities.map((e) => e.ref), decisions);
     link += t.link;
-    adopt += t.adopt;
     create += t.create;
     generate += t.generate;
   }
-  return { link, adopt, create, generate };
+  return { link, create, generate };
 });
 const totalGenerateCount = computed(() => totalTally.value.generate);
 
@@ -568,12 +567,10 @@ const confirmLabel = computed(() => {
   const base = hasQuest.value ? "Create quest" : "Import selected";
   const newCount = totalTally.value.create + totalTally.value.generate;
   const linkedCount = totalTally.value.link;
-  const adoptCount = totalTally.value.adopt;
-  if (newCount === 0 && linkedCount === 0 && adoptCount === 0) return base;
+  if (newCount === 0 && linkedCount === 0) return base;
   const parts = [
     newCount > 0 ? `${newCount} new` : null,
     linkedCount > 0 ? `${linkedCount} linked` : null,
-    adoptCount > 0 ? `${adoptCount} from library` : null,
   ].filter((p): p is string => p !== null);
   return `${base} · ${parts.join(", ")}`;
 });
@@ -641,7 +638,7 @@ async function confirmImport(): Promise<void> {
       const outcome = report.perKind[kind];
       if (!outcome) continue;
       const label = getEntityKindEntry(kind).labelPlural.toLowerCase();
-      const landed = outcome.imported + outcome.linked + outcome.adopted;
+      const landed = outcome.imported + outcome.linked;
       if (landed > 0) noteParts.push(`${landed} ${label}`);
       if (outcome.imported < outcome.planned) {
         shortfallParts.push(

@@ -25,12 +25,14 @@ const ui = useUiStore();
 // Hidden from the sidebar when off, but a bookmarked URL still lands here.
 const isEnabled = useIsRuleEnabled("downtime");
 const { data: party, isPending: partyPending } = useParty();
+const { data: draws } = useDowntimeDraws();
+const { data: outcomes } = useDowntimeOutcomes();
 // Item and note rewards are as real as npc ones — Phase 2 made every seed's
 // reward polymorphic — and this board used to resolve `npc` alone, so the other
 // two rendered as the absence marker over rows that exist.
-const { rewardName } = useDowntimeRewardName();
-const { data: draws } = useDowntimeDraws();
-const { data: outcomes } = useDowntimeOutcomes();
+const { rewardName } = useDowntimeRewardName(() =>
+  (outcomes.value ?? []).flatMap((o) => (o.reward_type === "item" && o.reward_id !== null ? [o.reward_id] : [])),
+);
 const { data: backs } = useDeckBacks();
 
 const filterStatus = computed({

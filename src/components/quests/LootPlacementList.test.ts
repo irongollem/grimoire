@@ -17,7 +17,7 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
 
 const loot = (overrides: Partial<LootPlacement> = {}): LootPlacement => ({
   id: "loot-1", beat_id: "beat-1", quest_id: "quest-1", location_id: null, campaign_id: "campaign-1",
-  kind: "item", item_id: "item-1", quantity: 2, label: "Moon keys", payload: {},
+  kind: "item", item_id: "item-1", library_item_id: null, quantity: 2, label: "Moon keys", payload: {},
   source_type: "prepared", source_id: null, sort_order: 0, dispatch_message_id: null,
   dispatched_at: null, delivery_state: "held",
   quantity_remaining: 2, claimed_by_names: [], handed_out_this_session: false,

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runImportSweep, type AdoptLibraryOutcome, type ImportSweepDeps, type ImportSweepInput } from "./importSweep";
+import { runImportSweep, type ImportSweepDeps, type ImportSweepInput } from "./importSweep";
 import type { ImportDecision } from "./entityMatching";
 import type { UsableEntity } from "./sanitizeEntities";
 import type { InsertRowOutcome } from "./runImportKind";
@@ -40,11 +40,6 @@ function fakeDeps(overrides: Partial<ImportSweepDeps> = {}): ImportSweepDeps {
   return {
     insertRow: vi.fn(async (kind: ImportEntityKind): Promise<InsertRowOutcome> => ({ status: "inserted", id: nextId(kind) })),
     generateMonster: vi.fn(async (): Promise<InsertRowOutcome> => ({ status: "inserted", id: nextId("generated") })),
-    // Defaults to a successful adoption — most tests never decide a `link` to
-    // a library candidate at all, so this never fires for them; the tests
-    // that specifically exercise adoption override it.
-    adoptLibraryMonster: vi.fn(async (): Promise<AdoptLibraryOutcome> => ({ status: "adopted", id: nextId("adopted-monster") })),
-    adoptLibraryItem: vi.fn(async (): Promise<AdoptLibraryOutcome> => ({ status: "adopted", id: nextId("adopted-item") })),
     fetchNameLookup: vi.fn(async (): Promise<readonly NameLookupRow[]> => []),
     applyLinkResolution: vi.fn(async () => {}),
     writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map<string, string>() })),
@@ -333,7 +328,7 @@ describe("runImportSweep", () => {
 
       expect(deps.insertBeatAttachment).toHaveBeenCalledWith(expect.objectContaining({ attachment_type: "monster", ref_id: "monsters-1" }));
       expect(deps.insertLootPlacement).toHaveBeenCalledWith(
-        expect.objectContaining({ home: { beat_id: "beat-1", quest_id: "quests-1" }, kind: "item", item_id: "items-1", label: "Silver bell" }),
+        expect.objectContaining({ home: { beat_id: "beat-1", quest_id: "quests-1" }, kind: "item", item_ref: "items-1", label: "Silver bell" }),
       );
       expect(report.unresolvedLinks).toEqual([]);
     });
@@ -367,14 +362,8 @@ describe("runImportSweep", () => {
       expect(report.unresolvedLinks).toContain('Beat "Fight" → item "Bag of Holding"');
     });
 
-    it("falls back to quest-level linking when a library adoption fails, and reports why", async () => {
-      // A failed (or never-attempted) adoption leaves the decision pointing
-      // at the library candidate exactly as before this feature existed —
-      // this pins that fallback still works.
-      const deps = fakeDeps({
-        writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })),
-        adoptLibraryMonster: vi.fn(async (): Promise<AdoptLibraryOutcome> => ({ status: "failed", message: "boom" })),
-      });
+    it("attaches a link-decided library monster to the beat by its library id, cloning nothing", async () => {
+      const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
       const report = await runImportSweep(
         IMPORT_ROW,
         input({
@@ -384,65 +373,45 @@ describe("runImportSweep", () => {
           },
           decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
             ["quests", new Map([["q1", CREATE]])],
-            [
-              "monsters",
-              new Map([
-                ["m1", { action: "link", candidate: { targetId: "srd_owlbear", source: "library", name: "Owlbear", matchKind: "exact", detail: null, distance: null } }],
-              ]),
-            ],
+            ["monsters", new Map([["m1", { action: "link", candidate: { targetId: "srd_owlbear", source: "library", name: "Owlbear", matchKind: "exact", detail: null, distance: null } }]])],
           ]),
         }),
         deps,
       );
 
-      expect(deps.insertBeatAttachment).not.toHaveBeenCalled();
-      expect(report.unresolvedLinks).toContainEqual(expect.stringContaining('couldn\'t add "Owlbear" from the library (boom)'));
-      expect(report.unresolvedLinks).toContainEqual(expect.stringContaining("shared-library creature"));
+      expect(deps.insertRow).not.toHaveBeenCalledWith("monsters", expect.anything());
+      expect(deps.insertBeatAttachment).toHaveBeenCalledWith(expect.objectContaining({ attachment_type: "monster", ref_id: "srd_owlbear" }));
+      expect(report.unresolvedLinks).toEqual([]);
+      expect(report.perKind.monsters).toMatchObject({ imported: 0, linked: 1 });
       const refs = (deps.insertQuestRefs as ReturnType<typeof vi.fn>).mock.calls.flatMap((c) => c[0]);
       expect(refs).toContainEqual({ quest_id: "quests-1", ref_type: "monster", ref_id: "srd_owlbear" });
-      expect(report.perKind.monsters?.adopted).toBe(0);
     });
 
-    it("adopts a link-decided library monster before the registry is built, so a beat can attach the copy", async () => {
-      const adoptLibraryMonster = vi.fn(async (libraryId: string): Promise<AdoptLibraryOutcome> => {
-        expect(libraryId).toBe("srd_owlbear");
-        return { status: "adopted", id: "owned-owlbear" };
-      });
-      const deps = fakeDeps({
-        writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })),
-        adoptLibraryMonster,
-      });
+    it("places a link-decided library item as beat loot by its library id", async () => {
+      const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
       const report = await runImportSweep(
         IMPORT_ROW,
         input({
           entitiesByKind: {
-            quests: [usable("q1", { title: "X", beats: [{ key: "b1", title: "Fight", kind: "combat", dm_content: "", monster_names: ["Owlbear"] }] })],
-            monsters: [usable("m1", { name: "Owlbear" })],
+            quests: [usable("q1", { title: "X", beats: [{ key: "b1", title: "Hoard", kind: "combat", dm_content: "", item_names: ["Bag of Holding"] }] })],
+            items: [usable("i1", { name: "Bag of Holding" })],
           },
           decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
             ["quests", new Map([["q1", CREATE]])],
-            [
-              "monsters",
-              new Map([
-                ["m1", { action: "link", candidate: { targetId: "srd_owlbear", source: "library", name: "Owlbear", matchKind: "exact", detail: null, distance: null } }],
-              ]),
-            ],
+            ["items", new Map([["i1", { action: "link", candidate: { targetId: "srd_bag_of_holding", source: "library", name: "Bag of Holding", matchKind: "exact", detail: null, distance: null } }]])],
           ]),
         }),
         deps,
       );
 
-      expect(adoptLibraryMonster).toHaveBeenCalledTimes(1);
-      expect(deps.insertBeatAttachment).toHaveBeenCalledWith(expect.objectContaining({ attachment_type: "monster", ref_id: "owned-owlbear" }));
+      expect(deps.insertLootPlacement).toHaveBeenCalledWith(
+        expect.objectContaining({ home: { beat_id: "beat-1", quest_id: "quests-1" }, item_ref: "srd_bag_of_holding" }),
+      );
       expect(report.unresolvedLinks).toEqual([]);
-      expect(report.perKind.monsters).toMatchObject({ linked: 0, adopted: 1 });
-      const refs = (deps.insertQuestRefs as ReturnType<typeof vi.fn>).mock.calls.flatMap((c) => c[0]);
-      expect(refs).toContainEqual({ quest_id: "quests-1", ref_type: "monster", ref_id: "owned-owlbear" });
     });
 
-    it("stops further adoptions of a kind once one hits the monster quota, without retrying the rest", async () => {
-      const adoptLibraryMonster = vi.fn(async (): Promise<AdoptLibraryOutcome> => ({ status: "quota_exceeded" }));
-      const deps = fakeDeps({ adoptLibraryMonster });
+    it("never consumes quota for a library link: a monsters kind of pure links inserts nothing and stops at nothing", async () => {
+      const deps = fakeDeps();
       const report = await runImportSweep(
         IMPORT_ROW,
         input({
@@ -460,12 +429,9 @@ describe("runImportSweep", () => {
         deps,
       );
 
-      // Only the first attempt actually calls the dep — the second is stopped
-      // before it ever tries, same as `runImportKind.ts`'s own create/generate
-      // quota-stop reasoning.
-      expect(adoptLibraryMonster).toHaveBeenCalledTimes(1);
-      expect(report.perKind.monsters?.adopted).toBe(0);
-      expect(report.unresolvedLinks.filter((m) => m.includes("monster limit"))).toHaveLength(2);
+      expect(deps.insertRow).not.toHaveBeenCalledWith("monsters", expect.anything());
+      expect(report.perKind.monsters).toMatchObject({ imported: 0, linked: 2, stoppedAtQuota: false });
+      expect(report.unresolvedLinks).toEqual([]);
     });
   });
 
@@ -488,7 +454,7 @@ describe("runImportSweep", () => {
       );
 
       expect(deps.insertLootPlacement).toHaveBeenCalledWith(
-        expect.objectContaining({ home: { location_id: "locations-1" }, kind: "item", item_id: "items-1", label: "Rusty Pick" }),
+        expect.objectContaining({ home: { location_id: "locations-1" }, kind: "item", item_ref: "items-1", label: "Rusty Pick" }),
       );
       // The room has no parent on this page, so it's downgraded to `other`
       // (unrelated to this test — see the "locations: parent_name" describe
@@ -519,25 +485,30 @@ describe("runImportSweep", () => {
       );
 
       expect(deps.insertLootPlacement).toHaveBeenCalledWith(
-        expect.objectContaining({ home: { location_id: "existing-room" }, kind: "item", item_id: "items-1", label: "Rusty Pick" }),
+        expect.objectContaining({ home: { location_id: "existing-room" }, kind: "item", item_ref: "items-1", label: "Rusty Pick" }),
       );
     });
 
-    it("reports (never attaches) an item that only resolves to a shared-library row — a location has no quest to fall back to", async () => {
-      const deps = fakeDeps({ fetchNameLookup: vi.fn(async () => []) });
-      const report = await runImportSweep(
+    it("places a room's loot by library reference when the item resolves to a shared-library row", async () => {
+      const deps = fakeDeps();
+      await runImportSweep(
         IMPORT_ROW,
         input({
           entitiesByKind: {
             locations: [usable("r1", { name: "M1. Tool Room", location_type: "room", item_names: ["Bag of Holding"] })],
+            items: [usable("i1", { name: "Bag of Holding" })],
           },
-          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["locations", new Map([["r1", CREATE]])]]),
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+            ["locations", new Map([["r1", CREATE]])],
+            ["items", new Map([["i1", { action: "link", candidate: { targetId: "srd_bag_of_holding", source: "library", name: "Bag of Holding", matchKind: "exact", detail: null, distance: null } }]])],
+          ]),
         }),
         deps,
       );
 
-      expect(deps.insertLootPlacement).not.toHaveBeenCalled();
-      expect(report.unresolvedLinks).toContain('Location "M1. Tool Room" → item "Bag of Holding"');
+      expect(deps.insertLootPlacement).toHaveBeenCalledWith(
+        expect.objectContaining({ home: { location_id: "locations-1" }, kind: "item", item_ref: "srd_bag_of_holding", label: "Bag of Holding" }),
+      );
     });
 
     it("contributes no loot for an ignored or undecided room — absence is not consent", async () => {
@@ -607,19 +578,19 @@ describe("runImportSweep", () => {
 
       // The room keeps its own loot, homed on the room itself.
       const lootCalls = (deps.insertLootPlacement as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
-      expect(lootCalls).toContainEqual(expect.objectContaining({ home: { location_id: "locations-2" }, item_id: "items-1", label: "Rusty Pick" }));
+      expect(lootCalls).toContainEqual(expect.objectContaining({ home: { location_id: "locations-2" }, item_ref: "items-1", label: "Rusty Pick" }));
 
       // The beat staged at the site does NOT re-list the room's own fight...
       const attachmentCalls = (deps.insertBeatAttachment as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
       expect(attachmentCalls.find((a) => a.ref_id === "encounters-1")).toBeUndefined(); // Guardroom Fight
       // ...or the room's own loot, as a second, beat-homed placement.
-      expect(lootCalls.find((l) => l.item_id === "items-1" && "beat_id" in l.home)).toBeUndefined();
+      expect(lootCalls.find((l) => l.item_ref === "items-1" && "beat_id" in l.home)).toBeUndefined();
 
       // But an encounter staged elsewhere (not the site, not one of its
       // rooms) still attaches to the beat exactly as it always has...
       expect(attachmentCalls).toContainEqual(expect.objectContaining({ attachment_type: "encounter", ref_id: "encounters-2" }));
       // ...and so does an item that was never the site's own room loot.
-      expect(lootCalls).toContainEqual(expect.objectContaining({ home: { beat_id: "beat-1", quest_id: "quests-1" }, item_id: "items-2", label: "Torch" }));
+      expect(lootCalls).toContainEqual(expect.objectContaining({ home: { beat_id: "beat-1", quest_id: "quests-1" }, item_ref: "items-2", label: "Torch" }));
 
       // The skip is silent — it is not a failure the DM needs reported.
       expect(report.unresolvedLinks.some((m) => m.includes("Rusty Pick") || m.includes("Guardroom Fight"))).toBe(false);

@@ -131,7 +131,6 @@ const tallyLine = computed(() => {
   const t = tally.value;
   const parts: string[] = [];
   if (t.link > 0) parts.push(`${t.link} link${t.link === 1 ? "" : "s"}`);
-  if (t.adopt > 0) parts.push(`${t.adopt} added from library`);
   if (t.create > 0) parts.push(`${t.create} new`);
   if (t.generate > 0) parts.push(`${t.generate} generate${t.generate === 1 ? "" : "s"}`);
   if (t.ignore > 0) parts.push(`${t.ignore} ignored`);

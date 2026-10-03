@@ -15,9 +15,9 @@ import { parseExpression, maxExpression } from "@/lib/dice/dice";
  *
  * The vault pool passed in is the MERGED catalogue from `useItems` — the DM's
  * own items plus the library items their enabled sources make visible — so a
- * name can resolve to a shared row whose id is a text slug. Those are turned
- * into owned uuid rows by `useEnsureOwnedItem` at create time, not here: this
- * module is pure, and cloning is a write.
+ * name can resolve to a shared row whose id is a text slug. Such an id is kept
+ * as a reference to the library row (the writer splits it with
+ * `itemRefColumns`); nothing is cloned into an owned row.
  */
 
 /** Minimal item shape this module needs — `useItems` rows satisfy it. */

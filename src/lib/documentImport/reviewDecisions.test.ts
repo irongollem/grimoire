@@ -61,22 +61,22 @@ describe("tallyDecisions", () => {
       ["e", { action: "ignore" }],
     ]);
     expect(tallyDecisions(["a", "b", "c", "d", "e"], decisions)).toEqual({
-      link: 1, adopt: 0, create: 2, generate: 1, ignore: 1,
+      link: 1, create: 2, generate: 1, ignore: 1,
     });
   });
 
-  it("counts a link to a library candidate as `adopt`, not `link`", () => {
+  it("counts a link to a library candidate as a plain `link`", () => {
     const decisions = new Map<string, ImportDecision>([
       ["a", { action: "link", candidate: candidate({ source: "campaign" }) }],
       ["b", { action: "link", candidate: candidate({ source: "library" }) }],
     ]);
     expect(tallyDecisions(["a", "b"], decisions)).toEqual({
-      link: 1, adopt: 1, create: 0, generate: 0, ignore: 0,
+      link: 2, create: 0, generate: 0, ignore: 0,
     });
   });
 
   it("does not count a ref with no decision yet", () => {
-    expect(tallyDecisions(["a"], new Map())).toEqual({ link: 0, adopt: 0, create: 0, generate: 0, ignore: 0 });
+    expect(tallyDecisions(["a"], new Map())).toEqual({ link: 0, create: 0, generate: 0, ignore: 0 });
   });
 });
 
@@ -125,12 +125,10 @@ describe("resetToSuggestedDecisions", () => {
 });
 
 describe("plan limits", () => {
-  const tally = { link: 1, adopt: 2, create: 3, generate: 1, ignore: 4 };
+  const tally = { link: 3, create: 3, generate: 1, ignore: 4 };
 
-  it("counts creates and generations, and adopted copies only for monsters", () => {
-    expect(rowsAddedToQuota("monsters", tally)).toBe(6);
-    expect(rowsAddedToQuota("items", tally)).toBe(4);
-    expect(rowsAddedToQuota("npcs", { ...tally, adopt: 0 })).toBe(4);
+  it("counts creates and generations only: a link, library or not, adds no row", () => {
+    expect(rowsAddedToQuota(tally)).toBe(4);
   });
 
   it("reports only kinds that would outrun their room, and never an unlimited one", () => {

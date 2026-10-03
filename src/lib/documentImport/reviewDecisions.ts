@@ -47,13 +47,6 @@ export function seedImportDecisions(
 
 export interface DecisionTally {
   link: number;
-  /** `link` decisions whose candidate is `source: "library"` — the sweep
-   *  will copy that row into the DM's own content before it lands anywhere
-   *  ("add it from the library," `importSweep.ts`'s `adoptLibraryLinks`).
-   *  Counted apart from `link`, which stays "reuses a row the DM already
-   *  owns" — the review-time mirror of `ImportKindOutcome.adopted`, computed
-   *  from the decision alone since nothing has run yet at review time. */
-  adopt: number;
   create: number;
   generate: number;
   ignore: number;
@@ -62,16 +55,11 @@ export interface DecisionTally {
 /** Tallies whatever decisions exist for `refs` — a ref with no decision yet
  *  (matches still loading) counts toward none of the five buckets. */
 export function tallyDecisions(refs: readonly string[], decisions: ReadonlyMap<string, ImportDecision>): DecisionTally {
-  const tally: DecisionTally = { link: 0, adopt: 0, create: 0, generate: 0, ignore: 0 };
+  const tally: DecisionTally = { link: 0, create: 0, generate: 0, ignore: 0 };
   for (const ref of refs) {
     const decision = decisions.get(ref);
     if (!decision) continue;
-    if (decision.action === "link") {
-      if (decision.candidate.source === "library") tally.adopt++;
-      else tally.link++;
-    } else {
-      tally[decision.action]++;
-    }
+    tally[decision.action]++;
   }
   return tally;
 }
@@ -129,13 +117,11 @@ export interface QuotaShortfall {
 
 /**
  * Rows a kind's decisions insert into its quota-limited table. Creates and
- * generations always insert; a library adoption inserts a monster copy (items
- * have no quota trigger — `entityKinds.ts`), unless the DM already owns that
- * copy, so this is an upper bound. Upper is the right side to err on: the
- * failure being prevented is a sweep that stops half-way.
+ * generations always insert. A link, including one to a shared library entry,
+ * is a reference and adds no row.
  */
-export function rowsAddedToQuota(kind: ImportEntityKind, tally: DecisionTally): number {
-  return tally.create + tally.generate + (kind === "monsters" ? tally.adopt : 0);
+export function rowsAddedToQuota(tally: DecisionTally): number {
+  return tally.create + tally.generate;
 }
 
 /**

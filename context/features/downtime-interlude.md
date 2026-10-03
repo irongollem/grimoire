@@ -95,7 +95,7 @@ Nav entries reuse `IconNavCalendar` — no downtime-specific glyph exists yet.
 
 All four: RLS on, 4 policies, `updated_at` trigger, in the realtime publication.
 
-**Polymorphic reward** is a `(reward_type, reward_id)` pair rather than six nullable FKs — mirrors `player_read_items(entity_type, entity_id)` and `quest_refs`. Cost: no referential integrity. A deleted target renders as the `"???"` absence marker, never coerced away.
+**Polymorphic reward** is a `(reward_type, reward_id)` pair rather than six nullable FKs — mirrors `player_read_items(entity_type, entity_id)` and `quest_refs`. Cost: no referential integrity. A deleted target renders as the `"???"` absence marker, never coerced away. `reward_id` is `text`, not `uuid` (#954): an item or spell reward may be a shared library id, stored as picked rather than cloned into the vault, and `useStoredItemRefs` resolves it even after the campaign disables that book.
 
 ### RLS helper
 
@@ -104,7 +104,7 @@ All four: RLS on, 4 policies, `updated_at` trigger, in the realtime publication.
 ### RPCs
 
 - **`spend_downtime_draw(p_campaign_id, p_activity_key)`** — the only path a player spends a credit. `SECURITY DEFINER`; authorizes internally by deriving the character from `auth.uid()` (never a caller-supplied id), then re-checks the balance under `pg_advisory_xact_lock` before inserting. This closes the double-spend race a client-side check cannot.
-- **`resolve_downtime_draw(p_draw_id, p_title, p_vignette, p_reward_type, p_reward_id, p_effects, p_back_id)`** — DM-gated on `private.is_campaign_dm` against the *draw's own* campaign. Inserts the outcome, closes the draw, and consumes a one-shot back atomically.
+- **`resolve_downtime_draw(p_draw_id, p_title, p_vignette, p_reward_type, p_reward_id text, p_effects, p_back_id)`** — DM-gated on `private.is_campaign_dm` against the *draw's own* campaign. Inserts the outcome, closes the draw, and consumes a one-shot back atomically.
 
 > Granting needs **no RPC** — a plain insert guarded by an RLS policy is sufficient and keeps the `SECURITY DEFINER` surface minimal.
 >

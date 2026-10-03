@@ -124,6 +124,8 @@ import { useCreateLootPlacement, useCreateQuestConsequence, useDeleteLootPlaceme
 import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
 import { useUnlockEntryPicker } from "@/composables/quests/useUnlockEntryPicker";
 import { useItems } from "@/composables/items/useItems";
+import { itemRefColumns } from "@/lib/itemRef";
+import { isUuid } from "@/lib/library/contentIdentity";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { drawerTransition } from "@/lib/motion";
 import { derivePayoffRows, type PayoffIcon, type PayoffRow, type PayoffTone } from "@/lib/quests/payoff";
@@ -227,7 +229,8 @@ const quantity = ref(1);
 const COINS = ["pp", "gp", "ep", "sp", "cp"] as const;
 const currency = reactive<Record<(typeof COINS)[number], number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
 const itemOptions = computed(() => (items.value ?? [])
-  .filter((item) => item.user_id === auth.user?.id || item.campaign_id === beat.campaign_id)
+  // Library rows (text ids) are offered as references; own rows stay scoped to this account or campaign.
+  .filter((item) => !isUuid(item.id) || item.user_id === auth.user?.id || item.campaign_id === beat.campaign_id)
   .map((item) => ({ id: item.id, name: item.name })));
 
 // Consequence fields
@@ -310,7 +313,7 @@ async function submit() {
         quest_id: beat.quest_id,
         campaign_id: beat.campaign_id,
         kind: activeQuickAdd.value === "item" ? "item" : "currency",
-        item_id: activeQuickAdd.value === "item" ? itemId.value : null,
+        ...itemRefColumns(activeQuickAdd.value === "item" ? itemId.value : null),
         quantity: activeQuickAdd.value === "item" ? Math.max(1, Math.floor(quantity.value)) : 1,
         label: label.value.trim(),
         payload: activeQuickAdd.value === "riches" ? { ...currency } : {},

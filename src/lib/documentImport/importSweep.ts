@@ -23,38 +23,20 @@
  * the campaign's own existing rows (`fetchNameLookup`) second — mirroring the
  * "linked rows first" precedence the old per-kind resolution already used.
  *
- * ── Where a resolved name can and cannot land — and why a library link now
- *    ADOPTS instead of just reporting ─────────────────────────────────────
+ * ── A library pick is a reference, never a copy ─────────────────────────
  *
  * Only `monsters` and `items` have a shared library (`match_import_entity_names`,
  * migration `20260918141022` — every other kind's candidates are always
- * `source: "campaign"`), and only those two kinds' library rows carry a
- * stable **text** id that isn't a uuid. That matters here because two of the
- * write targets this module uses are schema-validated against a real
- * campaign row: `quest_beat_attachments`'s `validate_quest_beat_attachment`
- * trigger casts `ref_id::uuid` and checks the campaign's own `monsters`/`items`
- * table (never `library_monsters`/`library_items`), and
- * `loot_placements.item_id` is a genuine `uuid` FK into `items`.
- *
- * Before this, a beat referencing a *library* monster or item was linked at
- * the quest level only (`quest_refs`, whose `ref_id` is plain, unvalidated
- * text) and reported rather than attached — correct as far as it went, but
- * it meant most monsters and most loot of a normal adventure landed nowhere
- * a beat, an encounter, or a loot list could actually show them. The fix:
- * **choosing a library candidate now means "add it from the library."**
- * `adoptLibraryLinks` (below) walks every `link` decision for `monsters`/
- * `items` whose candidate is `source: "library"`, copies that row into the
- * DM's own content via `deps.adoptLibraryMonster`/`adoptLibraryItem` — the
- * exact "own a copy" idiom the app already uses everywhere else a DM reuses
- * shared content — and rewrites the decision to point at the new owned row
- * (`source: "campaign"`) before the sweep-wide registry is ever built. Every
- * downstream consumer (the registry, beat attachments, loot placements,
- * `quest_refs`, encounter combatants) then sees an ordinary campaign row and
- * needs no special case at all. A link left unrewritten (adoption failed, or
- * a quota refusal stopped further copies of that kind) falls back to
- * exactly the old behaviour — reported in `unresolvedLinks`, linked at the
- * quest level only — so nothing is silently dropped either way. See
- * `context/features/document-import.md` for the full accounting.
+ * `source: "campaign"`), and their library rows carry a stable **text** id
+ * that isn't a uuid. A `link` decision whose candidate is `source: "library"`
+ * flows through the sweep as that id, untouched: the registry holds it, a
+ * beat's monster attachment writes it into `quest_beat_attachments.ref_id`,
+ * `quest_refs.ref_id` is text, an encounter combatant's `monster_id` takes it,
+ * and loot lands in `loot_placements.library_item_id` (migration
+ * `20261003083553`). The importer used to clone the library row into the DM's
+ * own `monsters`/`items` first ("adopt" it), which is what filled production
+ * with "(customized)" copies; a copy now only ever exists when the DM presses
+ * Customize. See `context/features/document-import.md`.
  *
  * Pure by the same rule as `runImportKind.ts`: every side effect is injected
  * via `ImportSweepDeps`. `useDocumentImportRunner.ts` is the Supabase-backed
@@ -145,13 +127,6 @@ export interface ImportSweepProgress {
 export interface ImportKindOutcome extends ImportRunReport {
   linked: number;
   ignored: number;
-  /** Link decisions this sweep resolved by copying a shared library row into
-   *  the DM's own content first ("add it from the library" — see the file
-   *  header). Counted separately from `linked`, which keeps meaning "linked
-   *  to a row the DM already owned" before this sweep ever ran. Only
-   *  `monsters`/`items` can ever be nonzero here — no other kind's
-   *  candidates are ever `source: "library"`. */
-  adopted: number;
 }
 
 export interface ImportSweepReport {
@@ -162,10 +137,7 @@ export interface ImportSweepReport {
   /**
    * Names a link pointed at that matched nothing, e.g. "Beat 'The Flooded
    * Shaft' → encounter 'Rat swarm'". Reported, never dropped — a page can
-   * genuinely reference something outside what this sweep imported. Also
-   * carries the (rarer) case of a name that *did* resolve but to a shared
-   * library row a beat attachment or loot placement can't structurally point
-   * at — see the file header.
+   * genuinely reference something outside what this sweep imported.
    */
   unresolvedLinks: string[];
 }
@@ -192,7 +164,9 @@ export interface LootPlacementWrite {
   home: LootPlacementHome;
   campaign_id: string;
   kind: "item";
-  item_id: string;
+  /** The picked item's id: a campaign uuid or a library text id. The runner
+   *  splits it into `item_id` / `library_item_id` (`itemRefColumns`). */
+  item_ref: string;
   quantity: number;
   label: string;
 }
@@ -207,26 +181,10 @@ export interface WriteQuestSpineOutcome {
   beatIdByKey: Map<string, string>;
 }
 
-/** The outcome of copying one shared library row into the DM's own content —
- *  see `adoptLibraryLinks`'s own doc comment for when this runs. */
-export type AdoptLibraryOutcome =
-  | { status: "adopted"; id: string }
-  | { status: "quota_exceeded" }
-  | { status: "failed"; message: string };
-
 /** Everything the sweep needs from the outside world. */
 export interface ImportSweepDeps {
   insertRow: (kind: ImportEntityKind, row: Record<string, unknown>) => Promise<InsertRowOutcome>;
   generateMonster: (data: Record<string, unknown>) => Promise<InsertRowOutcome>;
-  /** Get-or-create the DM's own copy of a shared `library_monsters` row
-   *  (`libraryId` is that row's stable text id) — "add it from the library."
-   *  Idempotent: a second sweep, or a beat's own reference, naming the same
-   *  library monster reuses the DM's existing copy rather than adopting it
-   *  twice. Only ever invoked for a `link` decision on the `monsters` kind
-   *  whose candidate is `source: "library"`. */
-  adoptLibraryMonster: (libraryId: string) => Promise<AdoptLibraryOutcome>;
-  /** The `items` counterpart of `adoptLibraryMonster`, over `library_items`. */
-  adoptLibraryItem: (libraryId: string) => Promise<AdoptLibraryOutcome>;
   /** Existing rows of `targetKind` in this campaign (plus the caller's own
    *  global rows) — the fallback lookup once the sweep's own registry has
    *  been consulted. */
@@ -311,94 +269,18 @@ function buildKindRegistry<K extends ImportEntityKind>(
   return registry;
 }
 
-/**
- * Counts `linked`/`ignored` off the decisions as the DM actually made them —
- * called with the PRE-adoption map, before `adoptLibraryLinks` has rewritten
- * anything, so a `link` to a library candidate is excluded from `linked`
- * here regardless of whether its adoption goes on to succeed or fail:
- * success is `adoptLibraryLinks`'s own `adopted` count, and a failure is
- * reported through `unresolvedLinks` rather than counted in either bucket —
- * "attempted but didn't land" has no `ImportKindOutcome` field of its own,
- * the same way a `create` that fails outright is only visible in `rows`.
- */
+/** Counts `linked`/`ignored` off the decisions as the DM made them. A link to
+ *  a library candidate is a link like any other: it adds no row, and the
+ *  sweep stores the library id as the reference. */
 function countDecisions(entities: readonly { ref: string }[], decisions: ReadonlyMap<string, ImportDecision>): { linked: number; ignored: number } {
   let linked = 0;
   let ignored = 0;
   for (const entity of entities) {
     const decision = decisions.get(entity.ref);
-    if (decision?.action === "link") {
-      if (decision.candidate.source !== "library") linked++;
-    } else if (decision?.action === "ignore") {
-      ignored++;
-    }
+    if (decision?.action === "link") linked++;
+    else if (decision?.action === "ignore") ignored++;
   }
   return { linked, ignored };
-}
-
-/** The two kinds whose candidates can ever be `source: "library"`
- *  (`match_import_entity_names` never returns a library row for any other
- *  kind — verified against the migration, `entityMatching.ts`'s own doc
- *  comment). */
-const ADOPTABLE_LIBRARY_KINDS: ReadonlySet<ImportEntityKind> = new Set(["monsters", "items"]);
-
-/**
- * Rewrites this kind's `link`-to-library decisions into `link`-to-owned-copy
- * decisions — "choosing a library candidate means add it from the library"
- * (see the file header). Returns the (possibly unchanged) decision map and
- * how many adoptions actually landed; every other kind's decisions pass
- * through untouched and free (`decisions` itself, not a copy).
- *
- * Order matches `runImportKind.ts`'s own reasoning for `create`/`generate`
- * attempts: row by row, stopping further *adoption* attempts the moment one
- * hits the `monsters` quota (an adopted monster is a real `monsters` insert
- * and counts against the same resource a `create` does), since retrying the
- * rest would fail identically. A link that never got its turn, or whose
- * adoption failed outright, is left pointing at the library candidate
- * exactly as before this feature existed — the registry still resolves it
- * at the `quest_refs` level, and `unresolvedLinks` says why a beat/loot
- * reference couldn't go further, so nothing here is ever silently dropped.
- */
-async function adoptLibraryLinks<K extends ImportEntityKind>(
-  kind: K,
-  entities: readonly ExtractedEntity<K>[],
-  decisions: ReadonlyMap<string, ImportDecision>,
-  deps: Pick<ImportSweepDeps, "adoptLibraryMonster" | "adoptLibraryItem">,
-  unresolvedLinks: string[],
-): Promise<{ decisions: ReadonlyMap<string, ImportDecision>; adopted: number }> {
-  if (!ADOPTABLE_LIBRARY_KINDS.has(kind)) return { decisions, adopted: 0 };
-
-  const entry = getEntityKindEntry(kind);
-  let next: Map<string, ImportDecision> | null = null;
-  let adopted = 0;
-  let quotaHit = false;
-
-  for (const entity of entities) {
-    const decision = decisions.get(entity.ref);
-    if (!decision || decision.action !== "link" || decision.candidate.source !== "library") continue;
-
-    const rawName = (entity.data as unknown as Record<string, unknown>)[entry.displayField];
-    const name = typeof rawName === "string" && rawName.trim() !== "" ? rawName : decision.candidate.name;
-
-    if (quotaHit) {
-      unresolvedLinks.push(`${entry.labelSingular} "${name}": your ${entry.labelSingular.toLowerCase()} limit stopped this from being added from the library.`);
-      continue;
-    }
-
-    const outcome = kind === "monsters" ? await deps.adoptLibraryMonster(decision.candidate.targetId) : await deps.adoptLibraryItem(decision.candidate.targetId);
-
-    if (outcome.status === "adopted") {
-      next ??= new Map(decisions);
-      next.set(entity.ref, { action: "link", candidate: { ...decision.candidate, source: "campaign", targetId: outcome.id } });
-      adopted++;
-    } else if (outcome.status === "quota_exceeded") {
-      quotaHit = true;
-      unresolvedLinks.push(`${entry.labelSingular} "${name}": your ${entry.labelSingular.toLowerCase()} limit stopped this from being added from the library.`);
-    } else {
-      unresolvedLinks.push(`${entry.labelSingular} "${name}": couldn't add "${decision.candidate.name}" from the library (${outcome.message}).`);
-    }
-  }
-
-  return { decisions: next ?? decisions, adopted };
 }
 
 /** A registry entry, widened with a plain display name — the key every
@@ -524,17 +406,8 @@ export async function runImportSweep(
     onProgress?.({ phase: "importing", kind, done: step, total: totalSteps });
 
     const entities = (entitiesByKind[kind] ?? []) as unknown as readonly ExtractedEntity<typeof kind>[];
-    const rawKindDecisions = decisions.get(kind) ?? new Map<string, ImportDecision>();
-    // Rewrites any `link`-to-library decision into `link`-to-owned-copy
-    // BEFORE anything else reads `decisions` — the registry, `runImportKind`
-    // (which ignores `link` decisions entirely, so this is free for every
-    // other kind), and the quota-accounting `countDecisions` below all see
-    // an ordinary campaign link from here on. Re-run even for a resumed kind
-    // (below): `adoptLibraryMonster`/`adoptLibraryItem` are idempotent
-    // get-or-create, so re-adopting an already-owned copy is a fast no-op,
-    // not a duplicate.
-    const { decisions: kindDecisions, adopted } = await adoptLibraryLinks(kind, entities, rawKindDecisions, deps, unresolvedLinks);
-    const { linked, ignored } = countDecisions(entities, rawKindDecisions);
+    const kindDecisions = decisions.get(kind) ?? new Map<string, ImportDecision>();
+    const { linked, ignored } = countDecisions(entities, kindDecisions);
 
     if (importedCounts[kind] !== undefined) {
       // Resumed after a crash — this kind's rows already landed in an
@@ -542,7 +415,7 @@ export async function runImportSweep(
       // `buildLookups` below) finds them exactly like any pre-existing
       // campaign row would; a `link` decision's target id is still knowable
       // straight from `decisions`, so it's still worth registering here.
-      perKind[kind] = { kind, planned: 0, imported: importedCounts[kind]!, stoppedAtQuota: false, rows: [], linked, ignored, adopted };
+      perKind[kind] = { kind, planned: 0, imported: importedCounts[kind]!, stoppedAtQuota: false, rows: [], linked, ignored };
       registry[kind] = buildKindRegistry(kind, entities, kindDecisions, new Map());
       step++;
       continue;
@@ -578,7 +451,7 @@ export async function runImportSweep(
       );
     }
 
-    perKind[kind] = { ...result.report, linked, ignored, adopted };
+    perKind[kind] = { ...result.report, linked, ignored };
     importedCounts[kind] = result.report.imported;
     try {
       await deps.persistImportedCounts({ ...importedCounts });

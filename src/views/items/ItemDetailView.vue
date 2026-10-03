@@ -101,7 +101,7 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCopy, IconDelete, IconDocument, IconEdit, IconSave } from '@/lib/icons';
-import { useResolvedItem, useEnsureOwnedItem } from "@/composables/items/useItems";
+import { useResolvedItem, useCustomizeLibraryItem } from "@/composables/items/useItems";
 import { useToast } from "@/composables/useToast";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -140,13 +140,13 @@ function stopEditing() {
 
 const isLoading = computed(() => !isNewItem.value && itemLoading.value);
 
-const { ensureOwnedItem } = useEnsureOwnedItem();
+const { customizeLibraryItem } = useCustomizeLibraryItem();
 const isCloning = ref(false);
 async function cloneToCustomize() {
   if (!item.value) return;
   isCloning.value = true;
   try {
-    const clone = await ensureOwnedItem(item.value);
+    const clone = await customizeLibraryItem(item.value);
     router.replace(`/vault/${clone.id}?edit=true`);
   } catch (e) {
     toast.error(toast.fromError(e, "Failed to clone item. Please try again."));

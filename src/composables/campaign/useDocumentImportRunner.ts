@@ -25,12 +25,9 @@ import { isQuotaExceeded } from "@/lib/quotaError";
 import { normalizeMonsterReferenceRows } from "@/lib/documentImport/entityMatching";
 import { monsterGenerationConcept, monsterGenerationOptionsFromPage } from "@/lib/documentImport/monsterGenerationConcept";
 import { useGenerateMonster } from "@/composables/monsters/useGenerateMonster";
-import { useEnsureOwnedMonster } from "@/composables/monsters/useMonsters";
-import { useEnsureOwnedItem, normalizeLibraryItem } from "@/composables/items/useItems";
 import { writeQuestSpine } from "@/lib/quests/spineWrite";
 import {
   runImportSweep as runImportSweepCore,
-  type AdoptLibraryOutcome,
   type BeatAttachmentWrite,
   type ImportSweepDeps,
   type ImportSweepInput,
@@ -44,7 +41,7 @@ import { activeImportKey } from "./useDocumentImport";
 import type { NameLookupRow } from "@/lib/documentImport/importPlan";
 import type { DocumentImport, ImportEntityKind } from "@/types/documentImport.types";
 import type { CombatantDef } from "@/types/encounter.types";
-import { libraryMonsterRow } from "@/lib/library/libraryMonsterRow";
+import { itemRefColumns } from "@/lib/itemRef";
 
 export type { ImportSweepInput, ImportSweepPhase, ImportSweepProgress, ImportSweepReport, ImportKindOutcome } from "@/lib/documentImport/importSweep";
 
@@ -85,21 +82,10 @@ const KINDS_WITH_GLOBAL_ROWS: ReadonlySet<ImportEntityKind> = new Set([
   "encounters",
 ]);
 
-/** Turns a caught adoption error into the dep's own outcome shape — the same
- *  `isQuotaExceeded`/message split `insertRow` above already uses, since an
- *  adoption is a `monsters`/`items` insert underneath and can fail the exact
- *  same two ways. */
-function adoptFailureOutcome(err: unknown): AdoptLibraryOutcome {
-  if (isQuotaExceeded(err)) return { status: "quota_exceeded" };
-  return { status: "failed", message: err instanceof Error ? err.message : "Couldn't add this from the library." };
-}
-
 function buildDeps(
   importRow: DocumentImport,
   userId: string,
   generateAndCreateMonster: ReturnType<typeof useGenerateMonster>["generateAndCreateMonster"],
-  ensureOwnedMonster: ReturnType<typeof useEnsureOwnedMonster>["ensureOwnedMonster"],
-  ensureOwnedItem: ReturnType<typeof useEnsureOwnedItem>["ensureOwnedItem"],
   invalidateActiveImport: () => Promise<void>,
 ): ImportSweepDeps {
   const campaignId = importRow.campaign_id;
@@ -133,34 +119,6 @@ function buildDeps(
       } catch (err) {
         if (isQuotaExceeded(err)) return { status: "quota_exceeded" };
         return { status: "failed", message: err instanceof Error ? err.message : "Monster generation failed." };
-      }
-    },
-
-    // "Choosing a library candidate means add it from the library" —
-    // importSweep.ts's `adoptLibraryLinks` is the only caller, once per
-    // `link` decision whose candidate is `source: "library"`. Both fetch the
-    // shared row directly (untyped `supabase` client, same as every other
-    // read in this file) rather than through a Vue Query hook, since this
-    // runs inside a plain async sweep step, not a component's render.
-    adoptLibraryMonster: async (libraryId): Promise<AdoptLibraryOutcome> => {
-      try {
-        const { data, error } = await supabase.from("library_monsters").select("*").eq("id", libraryId).single();
-        if (error) return { status: "failed", message: error.message };
-        const owned = await ensureOwnedMonster(libraryMonsterRow(data));
-        return { status: "adopted", id: owned.id };
-      } catch (err) {
-        return adoptFailureOutcome(err);
-      }
-    },
-
-    adoptLibraryItem: async (libraryId): Promise<AdoptLibraryOutcome> => {
-      try {
-        const { data, error } = await supabase.from("library_items").select("*").eq("id", libraryId).single();
-        if (error) return { status: "failed", message: error.message };
-        const owned = await ensureOwnedItem(normalizeLibraryItem(data as Record<string, unknown>));
-        return { status: "adopted", id: owned.id };
-      } catch (err) {
-        return adoptFailureOutcome(err);
       }
     },
 
@@ -273,7 +231,9 @@ function buildDeps(
       const row = {
         campaign_id: placement.campaign_id,
         kind: placement.kind,
-        item_id: placement.item_id,
+        // A library pick is stored as a reference, never cloned: the picked
+        // id's shape decides which of the two columns carries it.
+        ...itemRefColumns(placement.item_ref),
         quantity: placement.quantity,
         label: placement.label,
         beat_id: "beat_id" in placement.home ? placement.home.beat_id : null,
@@ -318,8 +278,6 @@ export function useDocumentImportRunner() {
   const qc = useQueryClient();
   const campaign = useCampaignStore();
   const { generateAndCreateMonster } = useGenerateMonster();
-  const { ensureOwnedMonster } = useEnsureOwnedMonster();
-  const { ensureOwnedItem } = useEnsureOwnedItem();
 
   /**
    * Runs the whole sweep for `importRow`: every kind in `input.entitiesByKind`
@@ -341,7 +299,7 @@ export function useDocumentImportRunner() {
     if (!user) throw new Error("You must be signed in to import.");
 
     const invalidateActiveImport = () => qc.invalidateQueries({ queryKey: activeImportKey(campaign.activeCampaignId) });
-    const deps = buildDeps(importRow, user.id, generateAndCreateMonster, ensureOwnedMonster, ensureOwnedItem, invalidateActiveImport);
+    const deps = buildDeps(importRow, user.id, generateAndCreateMonster, invalidateActiveImport);
     return runImportSweepCore(importRow, input, deps, onProgress);
   }
 

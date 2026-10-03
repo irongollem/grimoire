@@ -211,31 +211,18 @@ import AppButton from '@/components/common/AppButton.vue';
 import AppInput from '@/components/common/AppInput.vue';
 import AppSelect from '@/components/common/AppSelect.vue';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
-import { useEnsureOwnedItem } from '@/composables/items/useItems';
-import type { Item } from '@/types/item.types';
 
-const { entries, itemOptions, entriesError, randomPoolSizes, resolveItem } = defineProps<{
+const { entries, itemOptions, entriesError, randomPoolSizes } = defineProps<{
   entries: LootEntry[];
   itemOptions: { id: string; name: string }[];
   entriesError: string | null;
   randomPoolSizes: Map<string, number>;
-  /** Full item lookup — needed (beyond the display-only `itemOptions`) so a
-   *  picked srd row can be cloned into an owned row before it enters `entries`. */
-  resolveItem: (id: string) => Item | undefined;
 }>();
 
-const { ensureOwnedItem } = useEnsureOwnedItem();
-
-/** Resolves the picked item to its owned (uuid) id BEFORE writing it into
- *  `entry.item_id`, so a table Save during the clone can never persist an srd
- *  slug into the `items` uuid FK column. Already-owned items resolve instantly
- *  (no round-trip), so only a freshly-cloned srd row shows a brief delay. */
-async function onPickItem(entry: LootEntry, itemId: string) {
-  if (!itemId) { entry.item_id = itemId; return; }
-  const picked = resolveItem(itemId);
-  if (!picked) { entry.item_id = itemId; return; }
-  const owned = await ensureOwnedItem(picked);
-  entry.item_id = owned.id;
+/** The picked id goes into `entry.item_id` as-is: a vault uuid or a library
+ *  text id, both of which the loot readers resolve. Nothing is cloned. */
+function onPickItem(entry: LootEntry, itemId: string) {
+  entry.item_id = itemId;
 }
 
 const emit = defineEmits<{

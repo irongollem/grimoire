@@ -964,6 +964,9 @@ export interface LootPlacement {
   campaign_id: string;
   kind: LootPlacementKind;
   item_id: string | null;
+  /** Shared-library item (text id), exclusive with `item_id`; a library pick is
+   *  referenced, never cloned into the DM's own vault. */
+  library_item_id: string | null;
   quantity: number;
   label: string;
   payload: Record<string, unknown>;

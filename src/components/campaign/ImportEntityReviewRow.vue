@@ -320,13 +320,11 @@ const statusLabel = computed(() => {
   const d = decision.value;
   if (d.action === "link") {
     const detail = d.candidate.detail ? ` · ${d.candidate.detail}` : "";
-    // A library candidate isn't linked as-is — it's copied into the DM's own
-    // content first (`importSweep.ts`'s `adoptLibraryLinks`), so the status
-    // says what actually happens rather than "links to" a row that won't
-    // exist under this id once the sweep runs.
+    // A library candidate is referenced in place, not copied; the status
+    // says which shelf the entry comes from.
     return d.candidate.source === "campaign"
       ? `Links to ${d.candidate.name}${detail}`
-      : `Add from library: ${d.candidate.name}${detail}`;
+      : `Uses library entry: ${d.candidate.name}${detail}`;
   }
   if (d.action === "create") return "New";
   if (d.action === "generate") return generateCreditsLabel.value ? `Generate · ${generateCreditsLabel.value}` : "Generate";

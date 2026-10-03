@@ -1,3 +1,4 @@
+import { isUuid } from "@/lib/library/contentIdentity";
 import type {
   QuestBeatAttachment,
   QuestBeatAttachmentSummary,
@@ -66,3 +67,22 @@ export function summarizeQuestBeatAttachment(
     full_editor_to: targetExists ? adapter.fullEditorTo(attachment.ref_id, attachment.quest_id) : null,
   };
 }
+
+/**
+ * A monster or item attachment may point at an own row (uuid) or at shared
+ * library content (text id like `srd_srd_wolf`). Feeding a library id to a
+ * uuid-typed `.in("id", ...)` makes Postgres throw, which would take down every
+ * summary query on the quest board, so the two are looked up in different tables.
+ */
+export function splitAttachmentRefIds(ids: string[]): { ownIds: string[]; libraryIds: string[] } {
+  return {
+    ownIds: ids.filter((id) => isUuid(id)),
+    libraryIds: ids.filter((id) => !isUuid(id)),
+  };
+}
+
+/** Library table that resolves a non-uuid ref for an attachment type, or null when the type has none. */
+export const LIBRARY_TABLE_FOR_ATTACHMENT = {
+  item: "library_items",
+  monster: "library_monsters",
+} as const;
