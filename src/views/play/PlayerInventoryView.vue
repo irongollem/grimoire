@@ -189,7 +189,10 @@ const member = computed<PartyMember | null>(
   () =>
     partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null,
 );
-// Inventory slots and mutations read item rules in the character's own edition, not the campaign's.
+// Items are table rules: usePlayerVisibleItems and the weapon block read the campaign's
+// edition when this character is seated here, and fall back to the character's own when
+// it is not. Weapon mastery is a build rule and always reads the character's edition.
+// The scope is provided for those two reads; slots and mutations read no edition.
 provideCharacterRuleset(() => member.value);
 const { data: speciesById } = useSpeciesByIds(() => [member.value?.species_id]);
 

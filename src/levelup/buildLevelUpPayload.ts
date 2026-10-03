@@ -266,8 +266,9 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
       class_name: newClassName,
       class_definition_id: newClassDefinitionId,
       class_definition_kind: newClassDefinitionKind,
-      subclass_name: null,
-      subclass_definition_id: null,
+      // A subclass chosen with the class is its definition: both or neither.
+      subclass_name: needsSubclassChoice && subclass && subclassDefinitionId ? subclass : null,
+      subclass_definition_id: needsSubclassChoice && subclass && subclassDefinitionId ? subclassDefinitionId : null,
       levels: existingClassOptions.length === 0 ? nextLevel : 1,
       is_primary: existingClassOptions.length === 0,
       hit_dice_used: 0,

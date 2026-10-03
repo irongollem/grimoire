@@ -23,6 +23,10 @@ export interface GrimoireBackup {
   campaign: Row;
   party_members: Row[];
   character_classes: Row[];
+  /** The class and subclass definitions the characters are pinned to: the
+   *  campaign's own, plus any campaign-less one a character plays. */
+  custom_classes: Row[];
+  custom_subclasses: Row[];
   character_spells: Row[];
   companions: Row[];
   notes: Row[];
@@ -102,6 +106,28 @@ async function qByIds(table: string, field: string, ids: string[]): Promise<Row[
     .in(field, ids);
   if (error) throw error;
   return (data ?? []) as Row[];
+}
+
+/**
+ * Every custom class (or subclass) the campaign owns, plus any a character is
+ * pinned to that sits outside it (a campaign-less one). A pinned definition the
+ * exporter cannot read would restore as a pin to nothing, so it refuses.
+ */
+async function qDefinitions(
+  table: "custom_classes" | "custom_subclasses",
+  campaignId: string,
+  pinnedIds: string[],
+): Promise<Row[]> {
+  const own = await qByCampaign(table, campaignId);
+  const have = new Set(own.map((d) => d.id as string));
+  const missing = [...new Set(pinnedIds)].filter((id) => !have.has(id));
+  const extra = await qByIds(table, "id", missing);
+  if (extra.length < missing.length) {
+    throw new Error(
+      "A character in this campaign plays a homebrew class or subclass you cannot see, so the campaign cannot be backed up. Approve it for your table first (that copies it into your table's content).",
+    );
+  }
+  return [...own, ...extra];
 }
 
 /**
@@ -241,6 +267,23 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByIds("store_items", "location_id", locationIds),
   ]);
 
+  const [customClasses, customSubclasses] = await Promise.all([
+    qDefinitions(
+      "custom_classes",
+      campaignId,
+      characterClasses
+        .filter((cc) => cc.class_definition_kind === "custom")
+        .map((cc) => cc.class_definition_id as string),
+    ),
+    qDefinitions(
+      "custom_subclasses",
+      campaignId,
+      characterClasses
+        .map((cc) => cc.subclass_definition_id)
+        .filter((id): id is string => typeof id === "string"),
+    ),
+  ]);
+
   // Strip sensitive fields from campaign row
   const campaignExport = { ...campaignRow };
   for (const field of CAMPAIGN_STRIP_FIELDS) delete campaignExport[field];
@@ -264,6 +307,8 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     session_proposals: sessionProposals.length,
     discovered_monsters: discoveredMonsters.length,
     party_inventory: partyInventory.length,
+    custom_classes: customClasses.length,
+    custom_subclasses: customSubclasses.length,
   };
 
   return {
@@ -273,6 +318,8 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     campaign: campaignExport,
     party_members: partyMembers,
     character_classes: characterClasses,
+    custom_classes: customClasses,
+    custom_subclasses: customSubclasses,
     character_spells: characterSpells,
     companions,
     notes,
@@ -345,6 +392,8 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
   const entityArrays: Row[][] = [
     backup.party_members,
     backup.character_classes,
+    backup.custom_classes,
+    backup.custom_subclasses,
     backup.character_spells,
     backup.companions,
     backup.notes,
@@ -402,7 +451,7 @@ async function batchInsert(table: string, rows: Row[], omit: string[] = []): Pro
   }
 }
 
-async function executeImport(
+export async function executeImport(
   backup: GrimoireBackup,
   newName: string,
 ): Promise<Campaign> {
@@ -883,7 +932,21 @@ async function executeImport(
       })),
     );
 
-    // 23. Character classes + spells
+    // 23. Class definitions, then character classes + spells. The definitions
+    // come first so each character's pin can be remapped onto the restored copy;
+    // a pin left on the old campaign's definition is refused by the database.
+    // Timestamps are left to the database, as the world bundle does.
+    const definitionScope = { campaign_id: newCampaignId, user_id: userId };
+    await batchInsert(
+      "custom_classes",
+      backup.custom_classes.map((cc) => ({ ...cc, id: r(cc.id, idMap), ...definitionScope })),
+      ["created_at", "updated_at"],
+    );
+    await batchInsert(
+      "custom_subclasses",
+      backup.custom_subclasses.map((cs) => ({ ...cs, id: r(cs.id, idMap), ...definitionScope })),
+      ["created_at", "updated_at"],
+    );
     await batchInsert(
       "character_classes",
       backup.character_classes.map((cc) => ({
@@ -1033,6 +1096,21 @@ export function assertBackupCarriesCharacterEditions(backup: GrimoireBackup): vo
   );
   if (unpinned.length > 0) {
     throw new RefusedBackupError(`${outdated} (${unpinned.length} character class(es) are not linked to a class definition.)`);
+  }
+  if (!Array.isArray(backup.custom_classes) || !Array.isArray(backup.custom_subclasses)) {
+    throw new RefusedBackupError(`${outdated} (It does not carry the class definitions its characters play.)`);
+  }
+  const classIds = new Set(backup.custom_classes.map((c) => c.id));
+  const subclassIds = new Set(backup.custom_subclasses.map((c) => c.id));
+  const dangling = backup.character_classes.filter(
+    (cc) =>
+      (cc.class_definition_kind === "custom" && !classIds.has(cc.class_definition_id)) ||
+      (cc.subclass_definition_id != null && !subclassIds.has(cc.subclass_definition_id)),
+  );
+  if (dangling.length > 0) {
+    throw new RefusedBackupError(
+      `This backup is incomplete: ${dangling.length} character class(es) point at a class or subclass the file does not carry. Make a new backup from the campaign it came from.`,
+    );
   }
 }
 

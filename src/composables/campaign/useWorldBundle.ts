@@ -401,57 +401,32 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
     }
 
     // ── Custom class definitions ───────────────────────────────────────────
-    // Include pinned custom class definitions (legacy rows still fall back to
-    // names) so imported characters keep the exact rules record they used.
-    const charClassNames = new Set<string>();
-    const charSubclassNames = new Set<string>();
+    // Carry exactly the definitions the exported characters are pinned to, by
+    // id: a pin may name a campaign-less (general) homebrew class that no
+    // campaign-scoped query would find, and an import cannot remap a pin whose
+    // definition is not in the file.
+    const wantedClassIds = new Set<string>();
+    const wantedSubclassIds = new Set<string>();
     for (const cc of bundle.character_classes ?? []) {
-      if (cc.class_name) charClassNames.add(cc.class_name as string);
-      if (cc.subclass_name) charSubclassNames.add(cc.subclass_name as string);
-    }
-
-    if (charClassNames.size) {
-      const haveClassNames = new Set(
-        (bundle.custom_classes ?? []).map((c) => c.class_name as string),
-      );
-      const missingClassNames = [...charClassNames].filter((n) => !haveClassNames.has(n));
-      if (missingClassNames.length) {
-        const { data } = await (supabase.from("custom_classes") as ReturnType<typeof supabase.from>)
-          .select("*")
-          .eq("campaign_id", campaignId)
-          .in("class_name", missingClassNames);
-        bundle.custom_classes = [
-          ...(bundle.custom_classes ?? []),
-          ...((data ?? []) as Row[]).map(stripCampaignRow),
-        ];
+      if (cc.class_definition_kind === "custom" && typeof cc.class_definition_id === "string") {
+        wantedClassIds.add(cc.class_definition_id);
       }
+      if (typeof cc.subclass_definition_id === "string") wantedSubclassIds.add(cc.subclass_definition_id);
     }
-
-    if (charSubclassNames.size) {
-      const haveSubclassKeys = new Set(
-        (bundle.custom_subclasses ?? []).map(
-          (s) => `${s.class_name as string}::${s.subclass_name as string}`,
-        ),
-      );
-      const missingSubclassNames = [...charSubclassNames].filter((sn) => {
-        for (const cn of charClassNames) {
-          if (haveSubclassKeys.has(`${cn}::${sn}`)) return false;
-        }
-        return true;
-      });
-      if (missingSubclassNames.length) {
-        const { data } = await (
-          supabase.from("custom_subclasses") as ReturnType<typeof supabase.from>
-        )
-          .select("*")
-          .eq("campaign_id", campaignId)
-          .in("subclass_name", missingSubclassNames);
-        bundle.custom_subclasses = [
-          ...(bundle.custom_subclasses ?? []),
-          ...((data ?? []) as Row[]).map(stripCampaignRow),
-        ];
+    const carried = async (key: "custom_classes" | "custom_subclasses", wanted: Set<string>) => {
+      const have = new Set((bundle[key] ?? []).map((r) => r.id as string));
+      const missing = [...wanted].filter((id) => !have.has(id));
+      if (missing.length === 0) return;
+      const fetched = await fetchByIds(key, missing);
+      if (fetched.length < missing.length) {
+        throw new Error(
+          "A character in this export plays a homebrew class or subclass you cannot see, so it cannot be exported. Approve it for your table first (that copies it into your table's content), or leave that character out.",
+        );
       }
-    }
+      bundle[key] = [...(bundle[key] ?? []), ...fetched.map(stripCampaignRow)];
+    };
+    await carried("custom_classes", wantedClassIds);
+    await carried("custom_subclasses", wantedSubclassIds);
 
     entityCounts.species = bundle.species?.length ?? 0;
     entityCounts.spells = bundle.spells?.length ?? 0;
@@ -968,6 +943,20 @@ export function assertBundleCarriesCharacterEditions(bundle: GrimoireBundle): vo
   );
   if (unpinned.length > 0) {
     throw new Error(`${outdated} (${unpinned.length} character class(es) are not linked to a class definition.)`);
+  }
+  // Every custom pin must point at a definition the file carries; otherwise the
+  // import would fail half way once the pin is remapped to nothing.
+  const classIds = new Set((bundle.custom_classes ?? []).map((c) => c.id));
+  const subclassIds = new Set((bundle.custom_subclasses ?? []).map((c) => c.id));
+  const dangling = (bundle.character_classes ?? []).filter(
+    (cc) =>
+      (cc.class_definition_kind === "custom" && !classIds.has(cc.class_definition_id)) ||
+      (cc.subclass_definition_id != null && !subclassIds.has(cc.subclass_definition_id)),
+  );
+  if (dangling.length > 0) {
+    throw new Error(
+      `This file is incomplete: ${dangling.length} character class(es) point at a class or subclass the file does not carry. Export it again from the campaign it came from.`,
+    );
   }
 }
 

@@ -378,4 +378,37 @@ describe("assertBundleCarriesCharacterEditions", () => {
     });
     expect(() => assertBundleCarriesCharacterEditions(bundle)).toThrow(/not linked to a class definition/);
   });
+
+  const custom = { id: "cc-2", party_member_id: "pm-1", class_definition_id: "cust-1", class_definition_kind: "custom", subclass_definition_id: "sub-1", subclass_name: "Ash" };
+
+  it("accepts a custom pin whose class and subclass the file carries", () => {
+    const bundle = emptyBundle({
+      ruleset: "2024",
+      party_members: [member],
+      character_classes: [custom],
+      custom_classes: [{ id: "cust-1" }],
+      custom_subclasses: [{ id: "sub-1" }],
+    });
+    expect(() => assertBundleCarriesCharacterEditions(bundle)).not.toThrow();
+  });
+
+  it("refuses a custom class pin the file does not carry", () => {
+    const bundle = emptyBundle({
+      ruleset: "2024",
+      party_members: [member],
+      character_classes: [{ ...custom, subclass_definition_id: null, subclass_name: null }],
+      custom_classes: [{ id: "other" }],
+    });
+    expect(() => assertBundleCarriesCharacterEditions(bundle)).toThrow(/file is incomplete: 1 character class/);
+  });
+
+  it("refuses a subclass pin the file does not carry", () => {
+    const bundle = emptyBundle({
+      ruleset: "2024",
+      party_members: [member],
+      character_classes: [custom],
+      custom_classes: [{ id: "cust-1" }],
+    });
+    expect(() => assertBundleCarriesCharacterEditions(bundle)).toThrow(/file is incomplete/);
+  });
 });

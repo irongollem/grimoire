@@ -867,8 +867,11 @@ function sameName(a: string, b: string): boolean {
 
 /**
  * Resolve a class name to the definition a `character_classes` row must pin:
- * the official class of the character's edition first, else one of the caller's
- * table's own classes (theirs, or scoped to the campaign the character is in).
+ * the official class of the character's edition first, else a custom class the
+ * database will admit for this character: one scoped to the character's own
+ * campaign, or a campaign-less one of the caller's. A class scoped to ANOTHER
+ * campaign is never admissible, even when the caller made it. The campaign's
+ * own class wins over a general one of the same name.
  * Matching is done here over the (small) lists rather than through a PostgREST
  * filter, so the name never has to be escaped into a filter string.
  */
@@ -891,16 +894,18 @@ export async function resolveClassDefinition(
     .from("custom_classes")
     .select("id, class_name, ruleset, user_id, campaign_id");
   if (custom.error) throw new Error(custom.error.message);
-  const own = ((custom.data ?? []) as (ClassCandidate & {
+  const matches = ((custom.data ?? []) as (ClassCandidate & {
     ruleset: string | null;
     user_id: string;
     campaign_id: string | null;
-  })[]).find((c) =>
+  })[]).filter((c) =>
     sameName(c.class_name, className) &&
     // A null ruleset means the class is not tied to an edition.
-    (c.ruleset === null || c.ruleset === ruleset) &&
-    (c.user_id === ctx.userId || (campaignId !== null && c.campaign_id === campaignId))
+    (c.ruleset === null || c.ruleset === ruleset)
   );
+  const own =
+    matches.find((c) => campaignId !== null && c.campaign_id === campaignId) ??
+    matches.find((c) => c.campaign_id === null && c.user_id === ctx.userId);
   if (own) return { id: own.id, kind: "custom", name: own.class_name };
 
   throw new Error(

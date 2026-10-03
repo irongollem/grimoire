@@ -192,7 +192,6 @@ import { refDebounced } from "@vueuse/core";
 import { IconGenerate, IconSearch } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
-import { useParty } from "@/composables/party/useParty";
 import { useAssignCharacterSpellSource, useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
 import SpellList from "@/components/spells/SpellList.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
@@ -230,7 +229,6 @@ const LEVEL_FILTERS = [
 ];
 
 const ui = useUiStore();
-const { data: partyMembers } = useParty();
 
 // Which character this acts on is decided once, for all three pickers
 // (usePickerCharacter): ?memberId= for a benched or pool character, refused when
@@ -542,26 +540,21 @@ watch(casterType, () => {
 // Filter state lives in useUiStore so it survives navigation within a session.
 const search = refDebounced(computed(() => ui.playerSpellsSearch), 400);
 
-// Seed the class filter to the player's own class on first load.
-if (!ui.playerSpellsClassFilter) ui.playerSpellsClassFilter = memberClass.value;
-
-// When the previewed character changes, reset everything
+// When the previewed character changes, reset everything. The class filter goes
+// to "" so the watcher below picks the new character's primary class once its
+// rows are in; seeding it here would read a class that has not loaded yet.
 watch(resolvedMemberId, () => {
-  ui.playerSpellsClassFilter = memberClass.value;
+  ui.playerSpellsClassFilter = "";
   userSelectedTab.value = false;
   activeTab.value = defaultTab.value;
 });
 
-// Once party data first loads, apply the character's class if not yet set
-watch(partyMembers, () => {
-  if (!ui.playerSpellsClassFilter) ui.playerSpellsClassFilter = memberClass.value;
-}, { once: true });
-
-// Do not retain a class filter from a previously viewed character.
-watch(availableSpellClasses, (classes) => {
-  if (!classes.includes(ui.playerSpellsClassFilter)) {
-    ui.playerSpellsClassFilter = classes[0] ?? "";
-  }
+// Keep a class the user already picked; otherwise open on the primary class
+// (class rows can arrive after the party, so this reruns as they land), and
+// never retain a filter from a previously viewed character.
+watch([availableSpellClasses, memberClass, resolvedMemberId], ([classes]) => {
+  if (classes.includes(ui.playerSpellsClassFilter)) return;
+  ui.playerSpellsClassFilter = classes.includes(memberClass.value) ? memberClass.value : (classes[0] ?? "");
 }, { immediate: true });
 
 function setLevelFilter(value: string) {

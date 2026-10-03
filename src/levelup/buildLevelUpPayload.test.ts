@@ -99,6 +99,43 @@ describe("buildLevelUpPayload", () => {
     });
   });
 
+  it("keeps the subclass taken together with a new class, name and id both", () => {
+    const { classOp } = buildLevelUpPayload(
+      baseInput({
+        isAddingNewClass: true,
+        needsSubclassChoice: true,
+        subclassInput: "Life Domain",
+        subclassDefinitionId: "life-def",
+        newClassName: "Cleric",
+        newClassDefinitionId: "cleric-def",
+        newClassDefinitionKind: "system",
+        chosenExistingEntry: null,
+        existingClassOptions: [],
+      }),
+    );
+    expect(classOp).toMatchObject({
+      op: "add",
+      subclass_name: "Life Domain",
+      subclass_definition_id: "life-def",
+    });
+  });
+
+  it("sends no subclass on a new class when none is due", () => {
+    const { classOp } = buildLevelUpPayload(
+      baseInput({
+        isAddingNewClass: true,
+        subclassInput: "Life Domain",
+        subclassDefinitionId: "life-def",
+        newClassName: "Cleric",
+        newClassDefinitionId: "cleric-def",
+        newClassDefinitionKind: "system",
+        chosenExistingEntry: null,
+        existingClassOptions: [],
+      }),
+    );
+    expect(classOp).toMatchObject({ subclass_name: null, subclass_definition_id: null });
+  });
+
   it("applies a +2 ASI to the chosen ability", () => {
     const { memberUpdate } = buildLevelUpPayload(
       baseInput({ grantsAsi: true, asiMode: "plus2", asiPrimary: "dex" }),

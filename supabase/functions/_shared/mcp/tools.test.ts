@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyCampaignFilter, audioRefusal, callTool, listTools, resolveImageColumn, validateFields } from "./tools.ts";
+import { applyCampaignFilter, audioRefusal, callTool, listTools, resolveClassDefinition, resolveImageColumn, validateFields } from "./tools.ts";
 import { CREATABLE_TYPES, ENTITY_REGISTRY, ENTITY_TYPES } from "./registry.ts";
 
 const quest = ENTITY_REGISTRY.quest;
@@ -550,6 +550,24 @@ describe("party_member — ruleset and class", () => {
         hit_dice_used: 0,
       },
     });
+  });
+
+  it("refuses a class the caller scoped to another campaign, and prefers the campaign's own", async () => {
+    const { ctx } = fakeCtx();
+    const rows = [
+      { id: "cus-elsewhere", class_name: "Rune Smith", ruleset: null, user_id: "dm-1", campaign_id: "other-campaign" },
+      { id: "cus-general", class_name: "Glassblower", ruleset: null, user_id: "dm-1", campaign_id: null },
+      { id: "cus-here", class_name: "Glassblower", ruleset: null, user_id: "dm-2", campaign_id: CAMPAIGN_ID },
+    ];
+    const supabase = ctx.supabase as unknown as { from: (t: string) => { select: () => unknown } };
+    const from = supabase.from;
+    supabase.from = (table: string) =>
+      table === "custom_classes"
+        ? { select: () => Promise.resolve({ data: rows, error: null }) }
+        : from(table);
+    await expect(resolveClassDefinition(ctx, "2024", "Rune Smith", CAMPAIGN_ID)).rejects.toThrow(/No 2024 class named/);
+    await expect(resolveClassDefinition(ctx, "2024", "Glassblower", CAMPAIGN_ID)).resolves.toMatchObject({ id: "cus-here" });
+    await expect(resolveClassDefinition(ctx, "2024", "Glassblower", null)).resolves.toMatchObject({ id: "cus-general" });
   });
 
   it("falls back to the caller's own class, at level 1 when none is given", async () => {
