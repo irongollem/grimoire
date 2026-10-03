@@ -18,7 +18,7 @@
     <!-- Scrolls because the shell caps the panel at the viewport, where the
          old hand-rolled panel overflowed it. -->
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-5">
-      <!-- SRD Art Defaults -->
+      <!-- Library art defaults -->
       <LibraryArtPublishPanel variant="inline" />
 
       <div class="border-t border-border" />

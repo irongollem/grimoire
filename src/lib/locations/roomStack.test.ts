@@ -147,6 +147,7 @@ function loot(over: Partial<LootPlacement> = {}): LootPlacement {
     campaign_id: "campaign-1",
     kind: "item",
     item_id: null,
+    library_item_id: null,
     quantity: 1,
     label: "Tithe-box remnants",
     payload: {},

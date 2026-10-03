@@ -42,6 +42,7 @@ function loot(overrides: Partial<LootPlacement> & { id: string }): LootPlacement
     campaign_id: "campaign-1",
     kind: "item",
     item_id: null,
+    library_item_id: null,
     quantity: 1,
     label: "Tally-stick of the widow",
     payload: {},

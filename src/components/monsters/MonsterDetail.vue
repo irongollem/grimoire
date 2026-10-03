@@ -28,7 +28,7 @@
 
   <!-- Desktop (≥md): unchanged two-column grid form -->
   <div v-else class="flex flex-col gap-5 min-w-0 max-w-full">
-    <!-- Read-only SRD banner -->
+    <!-- Read-only library banner -->
     <div
       v-if="isShared"
       class="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/50 px-4 py-2.5"
@@ -99,7 +99,7 @@
     </EntityEditorActionBar>
 
     <!-- Two-column body: portrait sidebar + stat block content -->
-    <!-- Left col is NOT in fieldset — ImageUploads must remain interactive for SRD art -->
+    <!-- Left col is NOT in fieldset — ImageUploads must remain interactive for library art -->
     <div class="grid grid-cols-1 lg:grid-cols-[13.75rem_1fr] gap-6">
       <!-- Left: Portrait + Tags -->
       <div class="space-y-4">
@@ -137,7 +137,7 @@
         </div>
       </div>
 
-      <!-- Right: Identity + stat block — fieldset[disabled] makes inputs read-only for SRD -->
+      <!-- Right: Identity + stat block — fieldset[disabled] makes inputs read-only for library monsters -->
       <fieldset :disabled="isShared" class="contents">
         <div class="flex flex-col gap-5">
           <!-- Identity grid -->
@@ -413,7 +413,7 @@ const form = reactive({
   ai_provenance: props.monster?.ai_provenance ?? null,
 });
 
-// When SRD art loads asynchronously, sync art fields from the updated prop
+// When library art loads asynchronously, sync art fields from the updated prop
 watch(
   () => props.monster,
   (m) => {
@@ -608,7 +608,7 @@ async function save() {
         !deepEqual(form.description, props.monster.description) ||
         !deepEqual(form.notes, props.monster.notes) ||
         // `sb` is always fully key-filled (defaultSb() merged in on load and
-        // on every template/link apply); imported/cloned SRD data often isn't,
+        // on every template/link apply); imported/cloned library data often isn't,
         // so compare against the same fill-in rather than the raw stored
         // value — otherwise a merely-sparser DB shape reads as an edit.
         !deepEqual(sb, { ...defaultSb(), ...props.monster.stat_block });

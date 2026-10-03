@@ -213,7 +213,7 @@ import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/par
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
 import type { PartyMember, SaveKey, SpellSlotEntry } from "@/types/party.types";
-import type { Monster } from "@/types/monster.types";
+import type { PlayerVisibleMonster } from "@/types/monster.types";
 import type { ResourceRow } from "./PlayerResourcePools.vue";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
@@ -221,7 +221,7 @@ import { useBackground } from "@/composables/rules/useBackgrounds";
 import { abilityBonusesForChoice, parseBackgroundAsiChoice } from "@/rules/backgroundAsi";
 import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/play/useRulesetReviews";
 
-const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: Monster; isOwner?: boolean }>();
+const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: PlayerVisibleMonster; isOwner?: boolean }>();
 
 const router = useRouter();
 const { ruleset } = useRuleset();

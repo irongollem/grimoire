@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { wildshapeMaxCr, wildshapeCrDisplay, isEligibleWildshapeForm } from "@/rules/wildshape";
+import { wildshapeMaxCr, wildshapeCrDisplay, isEligibleWildshapeForm, druidProfile } from "@/rules/wildshape";
 import type { Monster } from "@/types/monster.types";
 
 function beast(overrides: Partial<Monster["stat_block"]> & { monster_type?: Monster["monster_type"] } = {}): Monster {
@@ -75,5 +75,31 @@ describe("isEligibleWildshapeForm", () => {
 
   it("allows fly/swim speeds at level 8 and above", () => {
     expect(isEligibleWildshapeForm(beast({ speed: "10 ft., fly 60 ft." }), 8, 2)).toBe(true);
+  });
+});
+
+describe("druidProfile", () => {
+  it("reads a single-class druid from its class row", () => {
+    expect(
+      druidProfile([{ class_name: "Druid", subclass_name: "Circle of the Moon", levels: 4 }]),
+    ).toEqual({ isDruid: true, druidLevel: 4, isCircleOfMoon: true });
+  });
+
+  it("finds Druid taken as a second class, and uses its class level rather than the total", () => {
+    expect(
+      druidProfile([
+        { class_name: "Fighter", subclass_name: "Champion", levels: 6 },
+        { class_name: "Druid", subclass_name: "Circle of the Land", levels: 2 },
+      ]),
+    ).toEqual({ isDruid: true, druidLevel: 2, isCircleOfMoon: false });
+  });
+
+  it("is not a druid for any other class, or with no class at all", () => {
+    expect(druidProfile([{ class_name: "Rogue", subclass_name: null, levels: 4 }])).toEqual({
+      isDruid: false,
+      druidLevel: 0,
+      isCircleOfMoon: false,
+    });
+    expect(druidProfile([])).toEqual({ isDruid: false, druidLevel: 0, isCircleOfMoon: false });
   });
 });

@@ -209,17 +209,30 @@ const isGesturing = ref(false);
 // ensuing synthetic click so we don't toggle a pin or drop a placement pin.
 let didMultiPointerGesture = false;
 
+/**
+ * The container's position in the CSS layout flow, measured from the frame's
+ * border box. With `mx-auto` this is the centering margin and is NOT zero.
+ *
+ * Read from layout (`offsetLeft`), never from `getBoundingClientRect()`. The
+ * rect reports the transform as it is *drawn*, and while the 0.2s transform
+ * transition is running that lags `tx`/`ty`, so subtracting `tx` from it leaves
+ * the lag in the answer. A trackpad pinch sends a wheel event every frame, each
+ * one landing mid-transition, and every anchor computed from that offset was
+ * wrong by a different amount: the map shook as it zoomed.
+ */
+function layoutOffset(frame: HTMLElement, container: HTMLElement): { x: number; y: number } {
+  return {
+    x: container.offsetLeft + frame.clientLeft,
+    y: container.offsetTop + frame.clientTop,
+  };
+}
+
 function clampTranslate(scaleV: number, txV: number, tyV: number) {
   const frame = mapFrame.value;
   const container = mapContainer.value;
   if (!frame || !container || scaleV <= 1) return { tx: 0, ty: 0 };
   const frameRect = frame.getBoundingClientRect();
-  const containerRect = container.getBoundingClientRect();
-  // Layout offset: the container's position in the CSS layout flow relative
-  // to the frame. With mx-auto this is the centering margin and is NOT zero.
-  // containerRect.left = frameRect.left + layoutX + tx (transformOrigin 0 0)
-  const layoutX = containerRect.left - frameRect.left - tx.value;
-  const layoutY = containerRect.top  - frameRect.top  - ty.value;
+  const { x: layoutX, y: layoutY } = layoutOffset(frame, container);
   const contentW = container.offsetWidth  * scaleV;
   const contentH = container.offsetHeight * scaleV;
   // Content left + tx must be ≤ 0 (frame left), right must be ≥ frameWidth.
@@ -280,14 +293,13 @@ function onFramePointerDown(e: PointerEvent) {
     // Start of a pinch — capture baseline including the container's layout
     // offset within the frame (mx-auto centering margin).
     const mid = pointerMidpointInFrame();
-    const frameRect = mapFrame.value!.getBoundingClientRect();
-    const containerRect = mapContainer.value!.getBoundingClientRect();
+    const layout = layoutOffset(mapFrame.value!, mapContainer.value!);
     pinchStart = {
       dist: pointerDistance(),
       midX: mid.x,
       midY: mid.y,
-      layoutOffsetX: containerRect.left - frameRect.left - tx.value,
-      layoutOffsetY: containerRect.top  - frameRect.top  - ty.value,
+      layoutOffsetX: layout.x,
+      layoutOffsetY: layout.y,
       scale: scale.value,
       tx: tx.value,
       ty: ty.value,
@@ -392,10 +404,7 @@ function zoomAt(factor: number, anchorX: number, anchorY: number) {
   const frame = mapFrame.value;
   const container = mapContainer.value;
   if (!frame || !container) return;
-  const frameRect = frame.getBoundingClientRect();
-  const containerRect = container.getBoundingClientRect();
-  const lo = containerRect.left - frameRect.left - tx.value; // layout offset X
-  const lt = containerRect.top  - frameRect.top  - ty.value; // layout offset Y
+  const { x: lo, y: lt } = layoutOffset(frame, container);
   const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value * factor));
   // Same anchor math as pinch: keep the map-space point under (anchorX,anchorY) fixed.
   const newTx = anchorX - lo - (anchorX - lo - tx.value) * (newScale / scale.value);

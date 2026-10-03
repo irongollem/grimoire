@@ -238,6 +238,14 @@ const QUEST_BEAT = obj({
   // adventure hands the extractor a real typographic signal instead of asking
   // it to judge — see the prompt's read-aloud guidance in index.ts.
   read_aloud: NULLABLE_STRING,
+  // What a player is shown of this beat: while it is rumoured, and once it is
+  // revealed. Plain strings rather than NULLABLE_STRING on purpose, the only
+  // two prose fields here that are: a beat with no reveal copy shows players
+  // nothing at all, so "the page doesn't say" is not an answer the model may
+  // give. Both are its own summary of the scene, never the source's sentences
+  // (see the prompt's "What the players are shown of a beat").
+  rumor_text: { type: "string" },
+  reveal_text: { type: "string" },
   // Cross-entity references this scene involves, resolved by name in the
   // sweep's single linking phase (never here — see ExtractedQuestBeat's own
   // doc comment in documentImport.types.ts).

@@ -46,6 +46,7 @@
     "seed-content-sources": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-content-sources.ts",
     "dev:auth": "tsx --tsconfig tsconfig.node.json scripts/dev-auth.ts",
     "dev:buckets": "tsx --tsconfig tsconfig.node.json scripts/dev-buckets.ts",
+    "library:art": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/generate-library-art.ts",
     "backfill:image-provenance": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/backfill-image-provenance.ts",
     "dev:demo": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/dev-demo-campaign.ts",
     "dev:import-fixture": "tsx --tsconfig tsconfig.node.json scripts/dev-import-fixture.ts",

@@ -36,7 +36,7 @@ vi.mock("@/composables/dungeon-features/useLootTables", () => ({ useLootTables: 
 
 const loot = (overrides: Partial<LootPlacement> = {}): LootPlacement => ({
   id: "loot-1", beat_id: null, quest_id: null, location_id: "room-1", campaign_id: "campaign-1",
-  kind: "currency", item_id: null, quantity: 1, label: "Chest by the door", payload: { gp: 12 },
+  kind: "currency", item_id: null, library_item_id: null, quantity: 1, label: "Chest by the door", payload: { gp: 12 },
   source_type: "loot_table", source_id: "table-1", sort_order: 0, dispatch_message_id: null,
   dispatched_at: null, delivery_state: "held", quantity_remaining: 1, claimed_by_names: [],
   handed_out_this_session: false,

@@ -256,7 +256,7 @@ import { useParty } from "@/composables/party/useParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useAllMonsters } from "@/composables/monsters/useMonsters";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
@@ -290,7 +290,7 @@ const { data: companions }   = useCompanions();
 // trap_ids, so neither list may be scoped away from what was saved.
 const { data: monsters }     = useAllMonsters(() => ({ includeAllScopes: true }));
 const { data: npcs }         = useNpcs();
-const { data: allItems }     = useItems();
+const { find: findStoredItem } = useStoredItemRefs(() => props.encounter.item_ids ?? []);
 const { data: traps }        = useTraps(() => ({ includeAllScopes: true }));
 const { data: allLocs }      = useAllLocations();
 
@@ -378,7 +378,7 @@ const totalMonsters = computed(() =>
 // ── Loot ────────────────────────────────────────────────────────────────────
 const lootItems = computed(() =>
   (props.encounter.item_ids ?? [])
-    .map((id) => (allItems.value ?? []).find((it) => it.id === id))
+    .map((id) => findStoredItem(id))
     .filter((it): it is NonNullable<typeof it> => !!it),
 );
 

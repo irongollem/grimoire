@@ -80,6 +80,10 @@ interface QuestSpineBeatAiResult {
   key: string;
   title: string;
   dm_content: string;
+  /** What a player is shown of this beat, while rumoured and once revealed.
+   *  See `QuestSpineBeatResult.rumor_text` (src/ai/types.ts). */
+  rumor_text?: string;
+  reveal_text?: string;
   /** Unvalidated model output — anything other than one of the five real
    *  beat kinds is normalized to "neutral" client-side, never trusted as-is. */
   kind: string;
@@ -357,8 +361,11 @@ serve(withCors(async (req: Request) => {
       // the payload of generate-encounter's single object, hence the larger
       // budget than its 1200. Raised from 3000 when the spine was folded
       // into the base prompt: up to 5 beats x 5 hooks of narration is the
-      // single largest contributor to this budget.
-      maxTokens: 6000,
+      // single largest contributor to this budget. Raised again from 6000
+      // when each beat gained its rumor and reveal copy: two short lines on
+      // up to 25 beats, and a response cut off mid-object is a 502 for the
+      // whole batch rather than one short hook.
+      maxTokens: 8000,
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);

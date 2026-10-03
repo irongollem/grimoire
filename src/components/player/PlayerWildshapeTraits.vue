@@ -8,7 +8,7 @@
     </div>
     <div class="divide-y divide-border">
       <div
-        v-for="trait in monster.stat_block.special_abilities"
+        v-for="trait in monster.stat_block?.special_abilities"
         :key="trait.name"
         class="px-4 py-2.5"
       >
@@ -30,9 +30,9 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconChevronDown } from "@/lib/icons";
-import type { Monster } from "@/types/monster.types";
+import type { PlayerVisibleMonster } from "@/types/monster.types";
 
-const { monster } = defineProps<{ monster: Monster }>();
+const { monster } = defineProps<{ monster: PlayerVisibleMonster }>();
 
 const expanded = ref(new Set<string>());
 function toggleExpanded(name: string) {

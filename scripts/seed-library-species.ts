@@ -12,7 +12,7 @@
  * campaign_enabled_sources gating, unlike the panel's per-user import which
  * keeps the display name), and the Supabase upsert. There is no art backfill
  * step — species have no canonical art source yet (unlike library_monsters/
- * library_spells, which backfill from library_monster_art_canonical/library_art_defaults).
+ * library_spells, which backfill from library_monster_art_canonical/library_spell_art_canonical).
  *
  * Run (seeds both 2014 + 2024 by default):
  *   npx tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-species.ts

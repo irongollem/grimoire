@@ -39,6 +39,7 @@
           @pointerdown="startPan"
           @pointermove="continuePan"
           @pointerup="endPan"
+          @pointercancel="endPan"
           @pointerleave="endPan"
         >
           <svg

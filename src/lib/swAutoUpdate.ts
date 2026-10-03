@@ -30,6 +30,8 @@
  * catches up once the audio stops.
  */
 
+import type { Router } from "vue-router";
+
 const UPDATE_POLL_MS = 5 * 60_000;
 const RETRY_MS = 60_000;
 
@@ -110,6 +112,38 @@ export function createReloadCoordinator(opts: ReloadCoordinatorOptions): ReloadC
       return true;
     },
   };
+}
+
+/**
+ * The navigation half of adoption: a guard that turns a route navigation into a
+ * full page load of its destination when `take` says a new build is waiting.
+ * Register it before the app's own guards, so a navigation that is about to
+ * become a page load does not do the auth and lens work first.
+ *
+ * Returns a probe that is true once the guard has handed the page to the
+ * browser. The caller needs it for exactly one case: the FIRST navigation. A
+ * cold start after a deploy boots the previous build from the worker's cache,
+ * the update check replaces the worker while the auth guard is still awaiting
+ * the session, and when that guard then redirects (a player's `/` goes to
+ * `/play`), the redirect is a second pass through this guard, which now takes
+ * the reload. vue-router reports an aborted first navigation by REJECTING
+ * `router.isReady()`, so whoever mounts on it must not treat that as a boot
+ * failure: the page is already on its way to the new build
+ * (DUNGEON-GRIMOIRE-G, 2 Oct 2026, an unhandled rejection with no message).
+ */
+export function installNavigationReload(
+  router: Router,
+  take: () => Promise<boolean>,
+  assign: (href: string) => void = (href) => window.location.assign(href),
+): () => boolean {
+  let leaving = false;
+  router.beforeEach(async (to) => {
+    if (!(await take())) return true;
+    leaving = true;
+    assign(router.resolve(to).href);
+    return false;
+  });
+  return () => leaving;
 }
 
 export interface SwAutoUpdateOptions extends Pick<ReloadCoordinatorOptions, "isBusy" | "onDeferred"> {

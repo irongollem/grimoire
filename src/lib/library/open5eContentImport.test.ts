@@ -66,7 +66,7 @@ describe("Open5e V2 rules content", () => {
       category: { name: "Armor", key: "armor" }, rarity: { name: "Uncommon", key: "uncommon" },
       weapon: null, armor: null, weight: "20", cost: null, requires_attunement: false,
       attunement_detail: null, document: revisedDocument,
-    });
+    }, new Map());
     expect(weapon).toMatchObject({ ruleset: "2024", source_record_key: "srd-2024_battleaxe", versatile_damage: "1d10" });
     expect(armor).toMatchObject({ source_record_key: "srd-2024_breastplate", armor_class: "14 + Dex modifier (max 2)" });
     expect(magic).toMatchObject({ source_record_key: "srd-2024_adamantine", rarity: "uncommon" });

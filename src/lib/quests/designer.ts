@@ -169,6 +169,8 @@ export function diffDesignTrees(prev: QuestDesignTree | null, next: QuestDesignT
     } else if (
       prevBeat.title !== beat.title ||
       prevBeat.dm_content !== beat.dm_content ||
+      prevBeat.rumor_text !== beat.rumor_text ||
+      prevBeat.reveal_text !== beat.reveal_text ||
       prevBeat.kind !== beat.kind
     ) {
       beats[beat.key] = "changed";

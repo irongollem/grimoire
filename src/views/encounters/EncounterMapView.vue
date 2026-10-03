@@ -28,6 +28,7 @@
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
       @pointerleave="onPointerUp"
     >
       <!-- Empty / error states -->
@@ -444,9 +445,9 @@ function onPointerMove(e: PointerEvent) {
   continuePan(e);
 }
 
-function onPointerUp() {
+function onPointerUp(e: PointerEvent) {
   brushing.value = false;
-  endPan();
+  endPan(e);
 }
 
 const cellPx = computed(() =>

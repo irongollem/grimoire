@@ -156,14 +156,17 @@ import AppInput from "@/components/common/AppInput.vue";
 import { IconAdd, IconClose, IconCoins, IconLoot, IconMinus, IconPackage } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import { useEnsureOwnedItem } from "@/composables/items/useItems";
 import type { Item } from "@/types/item.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 
 const itemIds = defineModel<string[]>("itemIds", { required: true });
 const currencyPools = defineModel<RewardCurrencyPool[]>("currencyPools", { required: true });
 const props = defineProps<{
+  /** What the picker offers: respects the campaign's enabled sources. */
   allItems: Item[];
+  /** What the stored ids resolve against: includes library items from a source
+   *  the campaign has since disabled, so a stored reference never vanishes. */
+  storedItems: Item[];
 }>();
 
 const emit = defineEmits<{
@@ -193,7 +196,7 @@ const linkedItemGroups = computed(() => {
   for (const id of itemIds.value) {
     if (seen.has(id)) continue;
     seen.add(id);
-    const item = props.allItems.find((i) => i.id === id);
+    const item = props.storedItems.find((i) => i.id === id);
     if (item) groups.push({ item, qty: itemCounts.value.get(id) ?? 1 });
   }
   return groups;
@@ -202,17 +205,15 @@ const linkedItemGroups = computed(() => {
 const totalCount = computed(() => linkedItemGroups.value.length + currencyPools.value.length);
 
 const selectedItemId = ref("");
-const { ensureOwnedItem } = useEnsureOwnedItem();
 
-async function addItem() {
+function addItem() {
   if (!selectedItemId.value) return;
   const picked = props.allItems.find((i) => i.id === selectedItemId.value);
   if (!picked) return;
   selectedItemId.value = "";
-  // reward_item_ids / encounter.item_ids are hard uuid[] columns — an srd slug
-  // must become an owned row before it enters the array, not at save time.
-  const owned = await ensureOwnedItem(picked);
-  itemIds.value = [...itemIds.value, owned.id];
+  // encounter.item_ids is text[]: an own item's uuid or a library item's text
+  // id, stored as picked. The library row is referenced, never cloned.
+  itemIds.value = [...itemIds.value, picked.id];
 }
 
 function incrementItem(id: string) {

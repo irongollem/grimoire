@@ -45,6 +45,11 @@ export interface SpineBeatDraft {
    *  see `QuestSpineBeatResult.read_aloud`. The caller converts to Tiptap
    *  JSON and writes it to `quest_beats.read_aloud`. */
   readAloudPlain: string;
+  /** Player-facing copy, trimmed, empty when the response left it out — see
+   *  `QuestSpineBeatResult.rumor_text`. Both columns are plain text, so these
+   *  are written as they stand rather than converted. */
+  rumorText: string;
+  revealText: string;
 }
 
 export interface SpineRoutePlanEntry {
@@ -95,6 +100,8 @@ export function planSpineBeats(beats: QuestSpineBeatResult[] | undefined): Spine
       kind: normalizeSpineBeatKind(beat.kind),
       dmContentPlain: typeof beat.dm_content === "string" ? beat.dm_content : "",
       readAloudPlain: typeof beat.read_aloud === "string" ? beat.read_aloud : "",
+      rumorText: asTrimmedString(beat.rumor_text),
+      revealText: asTrimmedString(beat.reveal_text),
     });
   }
   return drafts;

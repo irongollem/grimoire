@@ -250,7 +250,7 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import { IconAdd, IconCheckCircle, IconClose, IconCoins, IconGenerate, IconWarning } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
+import { useItems } from "@/composables/items/useItems";
 import { useCreateLootTable } from "@/composables/dungeon-features/useLootTables";
 import { useLootGeneration } from "@/ai/useLootGeneration";
 import { resolveGeneratedLoot, type ResolvedLootEntry } from "@/ai/resolveGeneratedLoot";
@@ -282,7 +282,6 @@ const campaign = useCampaignStore();
 // Mounted on every DM page — the vault catalogue is multiple MB, so only fetch
 // it once the panel is actually open (same guard the other panels use).
 const { data: vaultItems } = useItems(() => ({ enabled: ui.lootTableGeneratorOpen }));
-const { ensureOwnedItem } = useEnsureOwnedItem();
 
 const {
   isGenerating,
@@ -369,11 +368,9 @@ async function runGenerate() {
 }
 
 /**
- * Persist the resolved entries. Item entries go through `ensureOwnedItem`
- * first: a name may have resolved to a shared `library_items` row whose id is
- * a text slug, and `LootEntry.item_id` is a uuid FK into the DM's own `items`.
- * That clone is the same one the manual item picker performs, so a generated
- * table and a hand-built one reference identical rows.
+ * Persist the resolved entries. An item entry stores the resolved id as-is: a
+ * vault uuid or a shared `library_items` text id (`LootEntry.item_id` is jsonb,
+ * so either is safe). Nothing is cloned, same as the manual item picker.
  *
  * Unresolved entries are not written — no stub items, no dangling ids (#337).
  * The panel has already told the DM which ones and why.
@@ -387,13 +384,10 @@ async function createTable() {
     for (const resolved of resolvedEntries.value) {
       if (resolved.kind === "unresolved") continue;
       if (resolved.kind === "item") {
-        const source = (vaultItems.value ?? []).find((i) => i.id === resolved.item.id);
-        if (!source) continue;
-        const owned = await ensureOwnedItem(source);
         entries.push({
           id: crypto.randomUUID(),
           type: "item",
-          item_id: owned.id,
+          item_id: resolved.item.id,
           drop_chance: resolved.dropChance,
           dice: resolved.dice,
           fixed_qty: resolved.fixedQty,

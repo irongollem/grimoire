@@ -556,6 +556,17 @@ Renamed from `quest_beat_loot` when a site room gained the same verb. Keyed by
 one, enforced by `num_nonnulls(beat_id, location_id) = 1`. A room-homed row
 carries no quest at all.
 
+**What** an item row holds is exactly one of `item_id` (a vault uuid) or
+`library_item_id` (a shared library id, FK `on delete restrict`), enforced by
+`quest_beat_loot_item_shape` (#954). A picked library item is referenced, never
+cloned into the vault. `get_loot_placements` returns both columns and labels
+the row with whichever item it names; `dispatch_loot` puts the same reference
+in the `item_drop` metadata, which `claim_item_drop` / `grab_item_drop` already
+write into the claimant's inventory. Beat attachments of type `monster` /
+`item` likewise hold a library id in `ref_id` when that is what the DM picked;
+`fetchAttachmentTargets` splits ids by shape so a library id never reaches the
+uuid `monsters` / `items` query.
+
 **Do not merge this table into `quest_consequences`.** They are the same shape
 at a glance and three measurable things apart:
 
@@ -1673,6 +1684,26 @@ mutations as injected deps because there are now **two producers**:
 | ---------------------------------------------------- | ----------------------- | ------------------------------------------- |
 | `useCreateQuestFromHook` (this generator)            | TanStack mutations      | No — invented prose has no boxed text       |
 | `DocumentImportWizard` (#829, pasted adventure page) | plain Supabase inserts  | Yes — a published page marks its boxed text |
+
+The quest designer (#873) is a third prompt but not a third row: its tree is the
+generator's `QuestHookResult`, written through `useCreateQuestFromHook`.
+
+**Every producer writes `rumor_text` and `reveal_text`, on every beat.** Those
+two columns are all a player is shown of a beat, and `playerThreads.ts` drops a
+revealed beat that has no reveal copy, so a spine without them is a quest the DM
+cannot share until both lines have been typed into every beat by hand. That is
+what a pasted page produced until 2 Oct 2026: no prompt asked for either field
+and `writeQuestSpine` set both to null. `20261002211019` teaches all three
+prompts (`document_import`, `quest`, `quest_designer`) in one migration, the
+importer's wire schema makes both plain strings rather than nullable, and
+`spinePromptCoverage.test.ts` fails if a later prompt rewrite drops them.
+
+Two things about that copy are deliberate. It carries **no DM-only
+information**, the same rule the quest `summary` follows. And the beats still
+land **`hidden`**: writing what the players would see is not showing it to them,
+which stays the DM's call per beat. A response that leaves the copy out lands
+`null` and the beat's prep gaps name it; nothing is invented client-side to fill
+it.
 
 Three behaviours in there look arbitrary and are not: beats are created
 **sequentially rather than `Promise.all`** (`canvas_x` reads left-to-right in story

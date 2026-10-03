@@ -194,11 +194,8 @@ export interface ExtractedLocation {
    * dungeon's loot lives in the room that holds it, not on a beat staged at
    * the site — "a dungeon needs no beats inside it… rooms are places, not
    * events." Mirrors `ExtractedQuestBeat.item_names`, which uses the same
-   * loot-placement model for a beat's own (non-room) loot; same library
-   * caveat — a name resolving only to a shared-library item can't become a
-   * loot placement (`loot_placements.item_id` is a uuid FK into `items`), so
-   * it's simply reported as unresolved rather than attached anywhere (a
-   * location has no quest to fall back to linking at, unlike a beat's item).
+   * loot-placement model for a beat's own (non-room) loot; a
+   * shared-library item is placed by reference (`library_item_id`).
    */
   item_names?: string[];
 }
@@ -290,12 +287,9 @@ export interface ExtractedQuestBeat extends QuestSpineBeatResult {
   npc_names?: string[];
   /**
    * Creatures involved in this beat → a `quest_beat_attachments` row per name
-   * (`attachment_type: "monster"`) when the match is a campaign row. A name
-   * that only resolves to a *shared library* creature cannot become a beat
-   * attachment — `quest_beat_attachments`'s validation trigger requires
-   * `ref_id` to cast to a uuid naming a real `monsters` row, which a library
-   * row's stable text id is not — so it is linked at the quest level
-   * (`quest_refs`) only, and reported rather than silently attached nowhere.
+   * (`attachment_type: "monster"`). A match on a *shared library* creature
+   * is attached by its library text id: the attachment references the
+   * library row, it never clones it into the DM's own `monsters`.
    */
   monster_names?: string[];
   /** Encounters that happen at this beat → a `quest_beat_attachments` row per
@@ -306,9 +300,8 @@ export interface ExtractedQuestBeat extends QuestSpineBeatResult {
    * (`beat_id`+`quest_id` home, `kind: "item"`) rather than a
    * `quest_beat_attachments` row — see `context/features/document-import.md`
    * for why a beat's loot uses the loot-placement model instead of the
-   * generic attachment table. Same library caveat as `monster_names`:
-   * `loot_placements.item_id` is a uuid FK into `items`, so a library item
-   * name is linked at the quest level only.
+   * generic attachment table. A library item is placed by reference
+   * (`loot_placements.library_item_id`), never cloned.
    */
   item_names?: string[];
   /** Factions with a stake in this beat → a `quest_beat_attachments` row per

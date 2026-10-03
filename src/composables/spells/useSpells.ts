@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
-import { useLibraryArtDefaults } from "@/composables/library/useLibraryArtDefaults";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
@@ -120,22 +119,7 @@ export function useOpen5eDocuments(enabled: Ref<boolean>) {
 }
 
 export function useSpells() {
-  const spellsQuery = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchSpells, staleTime: Infinity });
-  const artDefaults = useLibraryArtDefaults();
-
-  const data = computed(() => {
-    const spells = spellsQuery.data.value;
-    const defaults = artDefaults.data.value;
-    if (!spells || !defaults) return spells;
-    return spells.map((spell) => {
-      if (spell.image_url || !spell.open5e_import) return spell;
-      const d = defaults[`spell:${spell.name.toLowerCase()}`];
-      if (!d?.image_url) return spell;
-      return { ...spell, image_url: d.image_url, image_focal_point: d.image_focal_point };
-    });
-  });
-
-  return { ...spellsQuery, data };
+  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchSpells, staleTime: Infinity });
 }
 
 async function fetchLibrarySpells(enabledSlugs: string[], ruleset: RulesetKey): Promise<Spell[]> {

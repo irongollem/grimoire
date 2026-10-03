@@ -121,6 +121,7 @@ import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/us
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
+import { druidProfile } from "@/rules/wildshape";
 import { pickSpellcastingStats } from "@/types/multiclass.types";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
 
@@ -250,9 +251,7 @@ const spellAttackBonus = computed(() => spellSaveDc.value - 8);
 
 // ── Wildshape handler (store mutation lives here) ─────────────────────────────
 
-const isDruid = computed(() =>
-  (characterClasses.value ?? []).some((row) => row.class_name.toLowerCase().includes("druid")),
-);
+const isDruid = computed(() => druidProfile(characterClasses.value ?? []).isDruid);
 
 function handleWildshape(monster: Monster) {
   const sb = monster.stat_block;

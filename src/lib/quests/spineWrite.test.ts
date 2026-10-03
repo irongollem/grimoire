@@ -147,6 +147,45 @@ describe("writeQuestSpine", () => {
     expect(deps.createObjective).toHaveBeenCalledTimes(1);
   });
 
+  // The two columns a player is actually shown. They were hard-coded to null
+  // here until 2 Oct 2026, so every imported or generated beat arrived with
+  // nothing a player could ever see.
+  it("writes each beat's rumor and reveal copy as plain text, and null when the spine has none", async () => {
+    const deps = makeDeps();
+    const beats: QuestSpineBeatResult[] = [
+      {
+        key: "opening",
+        title: "The bell rings",
+        dm_content: "",
+        kind: "neutral",
+        rumor_text: "They say the bell rings by itself.",
+        reveal_text: "The bell rang, and nobody was in the tower.",
+      },
+      { key: "confront", title: "Face the ringer", dm_content: "", kind: "combat", rumor_text: "  ", reveal_text: "" },
+    ];
+
+    await writeQuestSpine(baseInput({ beats }), deps);
+
+    const calls = vi.mocked(deps.createBeat).mock.calls;
+    expect(calls[0]![0]).toMatchObject({
+      rumor_text: "They say the bell rings by itself.",
+      reveal_text: "The bell rang, and nobody was in the tower.",
+    });
+    expect(calls[1]![0].rumor_text).toBeNull();
+    expect(calls[1]![0].reveal_text).toBeNull();
+  });
+
+  it("still lands a beat hidden when it arrives with player copy", async () => {
+    const deps = makeDeps();
+    const beats: QuestSpineBeatResult[] = [
+      { key: "opening", title: "The bell rings", dm_content: "", kind: "neutral", rumor_text: "A rumour.", reveal_text: "A reveal." },
+    ];
+
+    await writeQuestSpine(baseInput({ beats }), deps);
+
+    expect(vi.mocked(deps.createBeat).mock.calls[0]![0].visibility).toBe("hidden");
+  });
+
   it("writes read_aloud as Tiptap JSON when the draft has boxed text, and null when it doesn't", async () => {
     const deps = makeDeps();
     const beats: QuestSpineBeatResult[] = [

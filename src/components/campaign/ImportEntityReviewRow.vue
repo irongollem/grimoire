@@ -49,7 +49,7 @@
           <span class="min-w-0 flex-1 space-y-0.5">
             <span class="flex flex-wrap items-baseline gap-1.5">
               <span class="text-body font-semibold text-foreground">{{ letterFor(idx) }}. {{ candidate.name }}</span>
-              <span class="text-caption text-muted-foreground">{{ candidate.source === "campaign" ? "yours" : "add from library" }}</span>
+              <span class="text-caption text-muted-foreground">{{ candidate.source === "campaign" ? "yours" : "use library entry" }}</span>
               <span class="text-caption text-muted-foreground">· {{ matchKindHint(candidate.matchKind) }}</span>
             </span>
             <span v-if="candidate.detail" class="block text-caption text-muted-foreground">{{ candidate.detail }}</span>
@@ -320,13 +320,11 @@ const statusLabel = computed(() => {
   const d = decision.value;
   if (d.action === "link") {
     const detail = d.candidate.detail ? ` · ${d.candidate.detail}` : "";
-    // A library candidate isn't linked as-is — it's copied into the DM's own
-    // content first (`importSweep.ts`'s `adoptLibraryLinks`), so the status
-    // says what actually happens rather than "links to" a row that won't
-    // exist under this id once the sweep runs.
+    // A library candidate is referenced in place, not copied; the status
+    // says which shelf the entry comes from.
     return d.candidate.source === "campaign"
       ? `Links to ${d.candidate.name}${detail}`
-      : `Add from library: ${d.candidate.name}${detail}`;
+      : `Uses library entry: ${d.candidate.name}${detail}`;
   }
   if (d.action === "create") return "New";
   if (d.action === "generate") return generateCreditsLabel.value ? `Generate · ${generateCreditsLabel.value}` : "Generate";

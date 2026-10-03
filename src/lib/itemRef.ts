@@ -12,8 +12,8 @@ import { isUuid } from "@/lib/library/contentIdentity";
  *
  * `library_item_id` is the second reference, added by migration
  * 20260905092259. Referencing shared content beats copying it — the copy is
- * what `useEnsureOwnedItem` does, and 673 such rows on a single long-standing
- * account are exactly the per-account duplication the shared library exists to
+ * what picking used to do (only the Customize action still clones), and 673
+ * such rows on a single long-standing account are exactly the per-account duplication the shared library exists to
  * remove.
  *
  * A database check constraint allows at most one of the two. Both null is

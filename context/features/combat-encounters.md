@@ -368,6 +368,16 @@ When a player enters wildshape (from `RunnerEntityDetail`), the combatant gets a
 
 The DM picks the form via `RunnerPcWildshape` ("Choose Form"). The picker is **teleported to `<body>`** as a `position: fixed` floating popover anchored to the toggle button (`useAnchoredPopover` + `computeAnchoredPosition` in `src/lib/floatingPosition.ts`). This is deliberate: the detail panel's `.detail-panel`/`.panel-shell` ancestors are `overflow: hidden`, so an inline (or `position:absolute`) picker gets clipped and appears to render nothing — the original #503 bug. Teleporting sidesteps all ancestor clipping. The available list is the same discovered/pinned-gated set as the player sheet; when it's empty the popover shows a "📌 Pin a form" affordance listing every _eligible_ beast (CR/speed rules only), and pinning one via `useTogglePinnedForm` unlocks it immediately without leaving the runner. The eligibility rules (max CR, beast-only, no fly/swim below level 8) live in `src/rules/wildshape.ts` (`wildshapeMaxCr` / `isEligibleWildshapeForm`) and are shared by the runner, the player character sheet and the player bestiary.
 
+**Who is a druid, and at what level, has one answer too.** `druidProfile()` (same file) reads the `character_classes` rows and falls back to the legacy `party_members` fields; `useWildshapeDruid(memberId, member)` wraps it with the CR cap. All three surfaces go through it. Before 2 Oct 2026 only the sheet did, and the runner and the bestiary read `member.class` / `member.level` directly: a character who took Druid as a second class was not recognised there at all, and the CR cap came from total level.
+
+**Out of combat the player shapes from their own sheet** (`PlayerCharacterView`, Wild Shape tab; the same view is the DM's party page). Three things about it that were wrong until 2 Oct 2026 and must stay right:
+
+- **"Choose Form" opens the list.** The list used to render whenever the druid was not in a form, so the button only flipped its own label. It is a drawer now (`drawerTransition`), closed until asked for, exactly as in the runner.
+- **The beasts come from `usePlayerVisibleMonsters()`, never `useAllMonsters()`.** A player cannot read the `monsters` table, so a beast the DM made and pinned or revealed was missing from the picker, and a druid put into one from the runner showed no beast stats or actions on their sheet. The projection carries those rows. For a DM the composable reads the base table, in preview mode _and_ on the party page (`auth.isDM`), where the projection would answer as a player with no character.
+- **A form costs a use, including a change of form.** The confirm button used to stay enabled while already shaped, so "Change" at 2/2 wrote 3/2. A discovered beast whose stats the DM has not revealed (`stat_block` null in the projection) is listed but disabled: there is no hit point pool to assume.
+
+Pins and discoveries are narrowed to the character on the sheet, because a DM reads every member's.
+
 **Temp HP:**
 
 Temp HP absorbs damage first, in beast form as well as normal form — it is a buffer in front of whichever HP pool is active, and Wild Shape does not remove it. Does not stack: a new source only replaces the pool if it is larger. Shown as a sky-blue "+N tmp" badge.

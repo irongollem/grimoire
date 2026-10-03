@@ -47,7 +47,7 @@ vi.mock("@/composables/items/useItems", () => ({
     data: ref({ item: mocks.item, isShared: mocks.isShared }),
     isLoading: ref(false),
   }),
-  useEnsureOwnedItem: () => ({ ensureOwnedItem: vi.fn() }),
+  useCustomizeLibraryItem: () => ({ customizeLibraryItem: vi.fn() }),
 }));
 
 vi.mock("@/composables/useToast", () => ({

@@ -112,7 +112,7 @@ import { useParty } from "@/composables/party/useParty";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
-import { useEnsureOwnedItem } from "@/composables/items/useItems";
+import { itemRefColumns } from "@/lib/itemRef";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -123,7 +123,6 @@ const { data: party } = useParty();
 const { mutateAsync: addInventoryItem } = useAddInventoryItem();
 const { sendItemDrop } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
-const { ensureOwnedItem } = useEnsureOwnedItem();
 
 const open = ref(false);
 const showPlayerPicker = ref(false);
@@ -157,10 +156,8 @@ function tiptapToPlainText(content: string): string {
 async function addToStash() {
   isAddingToStash.value = true;
   try {
-    const owned = await ensureOwnedItem(props.item);
     await addInventoryItem({
-      item_id: owned.id,
-      library_item_id: null,
+      ...itemRefColumns(props.item.id),
       name: props.item.name,
       quantity: 1,
       carried_by: null,
@@ -184,10 +181,8 @@ async function addToStash() {
 async function assignToPlayer(member: PartyMember) {
   assigningTo.value = member.id;
   try {
-    const owned = await ensureOwnedItem(props.item);
     await addInventoryItem({
-      item_id: owned.id,
-      library_item_id: null,
+      ...itemRefColumns(props.item.id),
       name: props.item.name,
       quantity: 1,
       carried_by: member.id,
@@ -220,12 +215,9 @@ async function dropInChat() {
     const description = descSource
       ? tiptapToPlainText(descSource).slice(0, 200) || null
       : null;
-    // A claimed drop lands in party_inventory.item_id (hard FK) via
-    // claim_item_drop — the id embedded in the chat card must already be owned.
-    const owned = await ensureOwnedItem(props.item);
     await sendItemDrop(
       props.item.name,
-      owned.id,
+      props.item.id,
       1,
       props.item.rarity,
       undefined,

@@ -5,7 +5,7 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
+import { useItems } from "@/composables/items/useItems";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useDeckBacks, useCreateDeckBack, useDeleteDeckBack } from "@/composables/downtime/useDowntime";
 import { useDowntimeRewardName } from "@/composables/downtime/useDowntimeRewardName";
@@ -17,8 +17,9 @@ const { data: backs } = useDeckBacks();
 const { data: npcs } = useNpcs();
 const { data: items } = useItems();
 const { data: notes } = useNotes();
-const { rewardName: resolveRewardName } = useDowntimeRewardName();
-const { ensureOwnedItem } = useEnsureOwnedItem();
+const { rewardName: resolveRewardName } = useDowntimeRewardName(() =>
+  (backs.value ?? []).filter((b) => b.reward_type === "item").map((b) => b.reward_id),
+);
 const createBack = useCreateDeckBack();
 const deleteBack = useDeleteDeckBack();
 
@@ -99,23 +100,16 @@ async function addBack() {
   const nextPosition =
     pile.value.filter((b) => b.activity_key === activityKey.value).length;
   try {
-    // reward_id is a plain `uuid not null` column (the polymorphic pair can't
-    // carry a real FK) — an srd item's slug id would fail the insert outright,
-    // so it must become an owned row before it's handed to the mutation.
-    let ownedRewardId = rewardId.value;
-    if (rewardType.value === "item") {
-      const picked = items.value?.find((i) => i.id === rewardId.value);
-      if (!picked) {
-        errorMessage.value = "That item is no longer available — pick another.";
-        return;
-      }
-      const owned = await ensureOwnedItem(picked);
-      ownedRewardId = owned.id;
+    // reward_id is text: an own item's uuid or a library item's text id, stored
+    // as picked. The picked library row is referenced, never cloned.
+    if (rewardType.value === "item" && !items.value?.some((i) => i.id === rewardId.value)) {
+      errorMessage.value = "That item is no longer available. Pick another.";
+      return;
     }
     await createBack.mutateAsync({
       activity_key: activityKey.value,
       reward_type: rewardType.value,
-      reward_id: ownedRewardId,
+      reward_id: rewardId.value,
       is_recurring: isRecurring.value,
       position: nextPosition,
     });

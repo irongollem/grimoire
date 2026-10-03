@@ -245,7 +245,10 @@ serve(withCors(async (req: Request) => {
       model: textModel,
       system: systemContent,
       user: userContent,
-      maxTokens: 5000,
+      // The whole tree comes back every turn: up to 12 beats, each with a
+      // paragraph of guidance and its rumor and reveal copy, plus questions.
+      // Raised from 5000 when the player copy joined the beat.
+      maxTokens: 6000,
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);

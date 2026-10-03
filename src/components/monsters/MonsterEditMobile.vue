@@ -16,8 +16,8 @@
          description / DM notes)
       3. fixed bottom save bar (Cancel · Save/Create)
 
-    SRD monsters are read-only: the Customize banner clones to an editable copy,
-    portrait + focal point stay interactive (SRD art override via the parent's
+    Library monsters are read-only: the Customize banner clones to an editable copy,
+    portrait + focal point stay interactive (library art override via the parent's
     onPortraitUrlUpdate / upsertLibraryArt), and the rest is disabled via
     fieldset[disabled], mirroring the desktop behaviour.
   -->
@@ -59,7 +59,7 @@
 
     <!-- ── 2. Scroll body ─────────────────────────────────────────────────── -->
     <main class="flex-1 space-y-3 overflow-y-auto p-3 pb-28">
-      <!-- Read-only SRD banner (Customize clones to an editable copy) -->
+      <!-- Read-only library banner (Customize clones to an editable copy) -->
       <section
         v-if="isShared"
         class="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 px-4 py-3"
@@ -78,7 +78,7 @@
         />
       </section>
 
-      <!-- Portrait card (interactive even for SRD — art override): Picture / Cutout (#917 story 2) -->
+      <!-- Portrait card (interactive even for library monsters: art override): Picture / Cutout (#917 story 2) -->
       <section class="overflow-hidden rounded-xl border border-border bg-card">
         <EntityImageBlock
           :model-value="isCutoutTab ? form.cutout_url : form.image_url"
@@ -99,7 +99,7 @@
         />
       </section>
 
-      <!-- Identity + Tags + stat block + lore — fieldset[disabled] for SRD -->
+      <!-- Identity + Tags + stat block + lore — fieldset[disabled] for library monsters -->
       <fieldset :disabled="isShared" class="contents">
         <!-- Identity card (fixed enums → native selects per existing pattern) -->
         <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
@@ -152,7 +152,7 @@
           </label>
         </section>
 
-        <!-- Tags card (TagInput when editable, read-only chips for SRD) -->
+        <!-- Tags card (TagInput when editable, read-only chips for library monsters) -->
         <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
           <h3 class="text-heading-sm font-bold text-foreground">Tags</h3>
           <TagInput v-if="!isShared" v-model="form.tags" />

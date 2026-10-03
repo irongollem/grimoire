@@ -272,6 +272,25 @@ export interface QuestSpineBeatResult {
    * shape for the second producer is exactly the fork epic #780 exists to undo.
    */
   read_aloud?: string;
+  /**
+   * The two lines a player is shown for this beat, plain text: `rumor_text`
+   * while it is rumoured (what the party hears before the scene happens),
+   * `reveal_text` once it is revealed (what they know after it has). Written
+   * to the `quest_beats` columns of the same names.
+   *
+   * Unlike `read_aloud`, **every** producer writes both. They are the only
+   * thing a player ever sees of a beat: `playerThreads.ts` drops a revealed
+   * beat with no reveal copy outright, so a spine that arrives without them is
+   * a quest the DM cannot show anyone until every beat has been retyped by
+   * hand. They are always the model's own words, never a passage lifted from
+   * a source: transcribed prose has exactly one home, `read_aloud`, which no
+   * player-facing read returns.
+   *
+   * Optional only because a response is untrusted. An omitted or blank value
+   * lands as `null`, which the beat's prep gaps then name.
+   */
+  rumor_text?: string;
+  reveal_text?: string;
   kind: string;
 }
 

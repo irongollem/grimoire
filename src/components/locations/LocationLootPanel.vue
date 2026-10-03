@@ -81,6 +81,8 @@ import { computed, reactive, ref, watch } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useCreateLootPlacement } from "@/composables/quests/useQuestFlow";
 import { useItems } from "@/composables/items/useItems";
+import { itemRefColumns } from "@/lib/itemRef";
+import { isUuid } from "@/lib/library/contentIdentity";
 import { useLootTables } from "@/composables/dungeon-features/useLootTables";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { useAuthStore } from "@/stores/auth";
@@ -135,7 +137,8 @@ const adding = ref(false);
 const error = ref("");
 
 const itemOptions = computed(() => (items.value ?? [])
-  .filter((item) => item.user_id === auth.user?.id || item.campaign_id === campaignId)
+  // Library rows (text ids) are offered as references; own rows stay scoped to this account or campaign.
+  .filter((item) => !isUuid(item.id) || item.user_id === auth.user?.id || item.campaign_id === campaignId)
   .map((item) => ({ id: item.id, name: item.name })));
 
 const lootTableOptions = computed(() => (lootTables.value ?? []).map((table) => ({ id: table.id, name: table.name })));
@@ -236,6 +239,7 @@ async function add() {
         campaign_id: campaignId,
         kind: "loot_chest",
         item_id: null,
+        library_item_id: null,
         quantity: 1,
         label: "",
         payload: {
@@ -256,7 +260,7 @@ async function add() {
         location_id: locationId,
         campaign_id: campaignId,
         kind: kind.value,
-        item_id: kind.value === "item" ? itemId.value : null,
+        ...itemRefColumns(kind.value === "item" ? itemId.value : null),
         quantity: kind.value === "item" ? Math.max(1, Math.floor(quantity.value)) : 1,
         label: label.value.trim(),
         payload: kind.value === "currency" ? { ...currency } : {},

@@ -66,7 +66,7 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
 function loot(overrides: Partial<LootPlacement> & { id: string }): LootPlacement {
   return {
     beat_id: "beat-fork", quest_id: "quest-1", location_id: null, campaign_id: "campaign-1", kind: "item",
-    item_id: null, quantity: 1, label: "Tally-stick of the widow", payload: {}, source_type: "prepared",
+    item_id: null, library_item_id: null, quantity: 1, label: "Tally-stick of the widow", payload: {}, source_type: "prepared",
     source_id: null, sort_order: 0, dispatch_message_id: null, dispatched_at: null, delivery_state: "held",
     quantity_remaining: 1, claimed_by_names: [], handed_out_this_session: false,
     ...overrides,
@@ -170,10 +170,13 @@ describe("QuestPayoffPanel", () => {
     }));
   });
 
-  it("opens the item quick-add and prepares loot through the same mutation the old loot panel used", async () => {
+  it.each([
+    ["an own vault item", "3f2b8c1e-5a4d-4c9a-8b7e-1d2e3f4a5b6c", { item_id: "3f2b8c1e-5a4d-4c9a-8b7e-1d2e3f4a5b6c", library_item_id: null }],
+    ["a shared library item", "srd_grimoire_bundled_torch", { item_id: null, library_item_id: "srd_grimoire_bundled_torch" }],
+  ])("opens the item quick-add and prepares loot for %s in the matching column", async (_name, pickedId, columns) => {
     const wrapper = mountPanel();
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Item")!.trigger("click");
-    wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "item-1");
+    wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", pickedId);
     await flushPromises();
     await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
     await flushPromises();
@@ -183,8 +186,8 @@ describe("QuestPayoffPanel", () => {
       quest_id: "quest-1",
       campaign_id: "campaign-1",
       kind: "item",
-      item_id: "item-1",
       source_type: "prepared",
+      ...columns,
     }));
   });
 

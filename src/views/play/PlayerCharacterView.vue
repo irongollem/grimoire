@@ -149,10 +149,12 @@
           <div class="flex items-center justify-between px-4 py-2.5 bg-primary/10 border-b border-border">
             <span class="font-cinzel text-sm font-bold text-primary">🐺 {{ activeWildshape.beast_name }}</span>
             <div class="flex items-center gap-1.5">
+              <!-- Taking another form spends a use, the same as the first. -->
               <AppButton
                 variant="outline"
                 size="xs"
                 :label="showWildshapePicker ? 'Cancel' : 'Change'"
+                :disabled="!canWildshape && !showWildshapePicker"
                 @click="showWildshapePicker = !showWildshapePicker"
               />
               <AppButton
@@ -179,38 +181,53 @@
           </div>
         </div>
 
-        <!-- Picker / Choose Form -->
+        <!-- Picker / Choose Form. The list opens from the button, as it does in
+             the encounter runner; "Change" on the active form opens the same one. -->
         <div v-if="!activeWildshape || showWildshapePicker" class="rounded-lg border border-border bg-card overflow-hidden">
-          <div class="flex items-center justify-between px-4 py-2.5 border-b border-border">
-            <span class="font-cinzel text-xs font-semibold">Choose Beast Form</span>
+          <div class="flex items-center justify-between gap-3 px-4 py-2.5">
+            <div class="min-w-0">
+              <p class="font-cinzel text-xs font-semibold">Choose Beast Form</p>
+              <p v-if="!activeWildshape && !canWildshape" class="text-caption-sm text-muted-foreground italic">
+                {{ wildshapeMaxUses > 0 ? "No uses left. Rest to regain them." : "Wild Shape unlocks at druid level 2." }}
+              </p>
+            </div>
             <AppButton
               v-if="!activeWildshape"
               variant="outline"
               size="xs"
+              class="shrink-0"
               :label="showWildshapePicker ? 'Cancel' : '🐺 Choose Form'"
               :disabled="!canWildshape"
               @click="showWildshapePicker = !showWildshapePicker"
             />
           </div>
-          <template v-if="showWildshapePicker || !activeWildshape">
-            <p v-if="!wildshapeForms.length" class="text-caption text-muted-foreground italic px-4 py-3">
-              No eligible forms yet — discover beasts in the Bestiary or ask your DM to pin forms.
-            </p>
-            <div v-else class="divide-y divide-border">
-              <AppButton
-                v-for="m in wildshapeForms"
-                :key="m.id"
-                variant="menu"
-                size="body"
-                block
-                @click="previewBeast = m"
-              >
-                <span class="font-cinzel text-xs font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
-                <span class="text-caption-sm text-muted-foreground shrink-0">CR {{ m.stat_block?.challenge_rating }}</span>
-                <span class="text-caption-sm text-muted-foreground shrink-0">AC {{ m.stat_block?.armor_class }}</span>
-              </AppButton>
+          <Transition v-bind="drawerTransition()">
+            <div v-show="showWildshapePicker" class="border-t border-border">
+              <p v-if="!wildshapeForms.length" class="text-caption text-muted-foreground italic px-4 py-3">
+                No eligible forms yet — discover beasts in the Bestiary or ask your DM to pin forms.
+              </p>
+              <div v-else class="divide-y divide-border pb-1">
+                <!-- A beast the party has met but whose stats the DM has not
+                     revealed has no hit points or AC to take on yet. -->
+                <AppButton
+                  v-for="m in wildshapeForms"
+                  :key="m.id"
+                  variant="menu"
+                  size="body"
+                  block
+                  :disabled="!m.stat_block"
+                  @click="previewBeast = m"
+                >
+                  <span class="font-cinzel text-xs font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
+                  <template v-if="m.stat_block">
+                    <span class="text-caption-sm text-muted-foreground shrink-0">CR {{ m.stat_block.challenge_rating }}</span>
+                    <span class="text-caption-sm text-muted-foreground shrink-0">AC {{ m.stat_block.armor_class }}</span>
+                  </template>
+                  <span v-else class="text-caption-sm text-muted-foreground italic shrink-0">Stats not revealed</span>
+                </AppButton>
+              </div>
             </div>
-          </template>
+          </Transition>
         </div>
       </div>
     </template>
@@ -222,7 +239,6 @@
   <WildshapePreviewLightbox
     :beast="previewBeast"
     :can-wildshape="canWildshape"
-    :active-wildshape="!!activeWildshape"
     @close="previewBeast = null"
     @confirm="confirmWildshape"
   />
@@ -232,12 +248,12 @@
 import { ref, computed } from "vue";
 import WildshapePreviewLightbox from "@/components/play/WildshapePreviewLightbox.vue";
 import type { WildshapeState } from "@/types/encounter.types";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { usePinnedForms } from "@/composables/play/usePinnedForms";
-import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
-import type { Monster } from "@/types/monster.types";
+import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
+import type { PlayerVisibleMonster } from "@/types/monster.types";
 import type { RollMode } from "@/lib/dice/roller";
 import { combineModes } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
@@ -253,8 +269,9 @@ import {
   getExhaustionD20Penalty,
 } from "@/rules/conditions";
 import { parseCr } from "@/lib/utils";
-import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/rules/wildshape";
+import { isEligibleWildshapeForm } from "@/rules/wildshape";
 import { hitPointsToMax } from "@/lib/dice/dice";
+import { drawerTransition } from "@/lib/motion";
 import type { PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/rules/useRules";
 import AppButton from "@/components/common/AppButton.vue";
@@ -310,8 +327,12 @@ const { ruleset } = useTableRuleset();
 // ── Wild Shape ─────────────────────────────────────────────────────────────────
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 // Wildshape resolves stored discovery/pinned-form/wildshape_state monster ids
-// against this list, so it must not filter by campaign scope.
-const { data: allMonsters } = useAllMonsters(() => ({ includeAllScopes: true }));
+// against this list. It is the player-visible list, not `useAllMonsters`: a
+// player cannot read the `monsters` table at all, so a beast the DM made (and
+// pinned or revealed for this druid) was missing from the picker and could not
+// be resolved once assumed. The projection carries exactly those rows, and
+// hands a DM their own full list. Neither branch filters by campaign scope.
+const { data: allMonsters } = usePlayerVisibleMonsters();
 const { data: discoveries } = usePlayerDiscoveries();
 const { data: pinnedForms } = usePinnedForms();
 
@@ -319,40 +340,38 @@ const activeWildshape = computed<WildshapeState | null>(() =>
   (member.value?.wildshape_state as WildshapeState | null) ?? null,
 );
 
-// Derive druid-ness, druid CLASS level, and subclass from the character_classes
-// rows, the only source of class data (party_members.class/subclass are a
-// mirror of the primary row, never read for logic). Reading member.class/level
-// directly broke multiclass:
-// taking Druid as a second class never rewrites member.class (so the tab hid),
-// and wildshapeMaxCr used TOTAL level (a Fighter 6/Druid 2 got CR 1½, not ¼).
-const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
-const druidRow = computed(() =>
-  (characterClasses.value ?? []).find(cc => cc.class_name.toLowerCase().includes("druid")) ?? null,
-);
-const isDruid = computed(() => !!druidRow.value);
-const druidLevel = computed(() => druidRow.value?.levels ?? 0);
-const isCircleOfMoon = computed(() =>
-  (druidRow.value?.subclass_name ?? "").toLowerCase().includes("moon"),
-);
-
-const wildshapeMaxCr = computed(() => calcWildshapeMaxCr(druidLevel.value, isCircleOfMoon.value));
-const wildshapeCrDisplay = computed(() => calcWildshapeCrDisplay(wildshapeMaxCr.value));
+const {
+  isDruid,
+  druidLevel,
+  isCircleOfMoon,
+  maxCr: wildshapeMaxCr,
+  maxCrDisplay: wildshapeCrDisplay,
+} = useWildshapeDruid(resolvedMemberId);
 // Max uses per day: 2 at druid level 2+, 0 before level 2
 const wildshapeMaxUses = computed(() => (druidLevel.value >= 2 ? 2 : 0));
 const wildshapesUsed = computed(() => member.value?.wildshapes_used ?? 0);
 const canWildshape = computed(() => isDruid.value && druidLevel.value >= 2 && wildshapesUsed.value < wildshapeMaxUses.value);
 
 const showWildshapePicker = ref(false);
-const previewBeast = ref<Monster | null>(null);
-const wildshapeForms = computed<Monster[]>(() => {
+const previewBeast = ref<PlayerVisibleMonster | null>(null);
+const wildshapeForms = computed<PlayerVisibleMonster[]>(() => {
   if (!isDruid.value) return [];
   const level = druidLevel.value;
   const maxCr = wildshapeMaxCr.value;
+  // Both lists are narrowed to THIS character. A player's own reads already
+  // are, by RLS; a DM looking at one sheet reads every member's pins and every
+  // discovery, and would otherwise offer this druid another character's forms.
+  const memberId = resolvedMemberId.value;
   const discoveredKeys = new Set<string>(
-    (discoveries.value ?? []).flatMap((d) => [d.monster_id, d.library_monster_id].filter(Boolean) as string[]),
+    (discoveries.value ?? [])
+      .filter((d) => d.visible_to === null || (!!memberId && d.visible_to.includes(memberId)))
+      .flatMap((d) => [d.monster_id, d.library_monster_id].filter(Boolean) as string[]),
   );
   const pinnedKeys = new Set<string>(
-    (pinnedForms.value ?? []).map((p) => p.monster_id ?? p.library_monster_id ?? "").filter(Boolean),
+    (pinnedForms.value ?? [])
+      .filter((p) => p.party_member_id === memberId)
+      .map((p) => p.monster_id ?? p.library_monster_id ?? "")
+      .filter(Boolean),
   );
   return (allMonsters.value ?? [])
     .filter((m) =>
@@ -362,11 +381,14 @@ const wildshapeForms = computed<Monster[]>(() => {
     .sort((a, b) => parseCr(a.stat_block?.challenge_rating) - parseCr(b.stat_block?.challenge_rating));
 });
 
-async function handleWildshape(monster: Monster) {
-  if (!member.value || !resolvedMemberId.value) return;
+async function handleWildshape(monster: PlayerVisibleMonster) {
+  if (!member.value || !resolvedMemberId.value || !canWildshape.value) return;
   const sb = monster.stat_block;
-  const maxHp = hitPointsToMax(sb?.hit_points, 1);
-  const ac = String(sb?.armor_class ?? "10");
+  // No stat block means the DM has not revealed this beast's stats: there is
+  // no hit point pool or AC to assume. The picker disables such a row.
+  if (!sb) return;
+  const maxHp = hitPointsToMax(sb.hit_points, 1);
+  const ac = String(sb.armor_class ?? "10");
   const ws: WildshapeState = {
     monster_id: monster.id,
     beast_name: monster.name,
