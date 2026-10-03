@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { shallowMount } from "@vue/test-utils";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { flushPromises, shallowMount } from "@vue/test-utils";
 import { reactive, ref } from "vue";
 import LocationEditor from "./LocationEditor.vue";
 import type { Location } from "@/types/location.types";
@@ -28,8 +28,8 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => reactive({ activeCampaignId }),
 }));
 vi.mock("vue-router", () => ({
-  useRoute: () => ({ query: {} }),
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRoute: () => ({ query: { edit: "true", tab: "details" } }),
+  useRouter: () => ({ push: mocks.push, replace: vi.fn() }),
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]) }) }));
@@ -48,6 +48,7 @@ const canCreate = ref(true);
 vi.mock("@/composables/billing/useQuota", () => ({ useQuota: () => ({ canCreate }) }));
 
 const mocks = vi.hoisted(() => ({
+  push: vi.fn(),
   create: vi.fn().mockResolvedValue({ id: "new-location" }),
   update: vi.fn().mockResolvedValue({ id: "existing-location" }),
 }));
@@ -56,9 +57,7 @@ vi.mock("@/composables/locations/useLocations", () => ({
   useAllLocations: () => ({ data: ref([]) }),
   useCreateLocation: () => ({ mutateAsync: mocks.create }),
   useUpdateLocation: () => ({ mutateAsync: mocks.update }),
-  useUpdateLocationGridCalibration: () => ({ mutateAsync: vi.fn() }),
   useDeleteLocation: () => ({ mutateAsync: vi.fn() }),
-  getPinnableDescendants: () => [],
 }));
 
 const stubs = {
@@ -69,12 +68,8 @@ const stubs = {
   EntityCombobox: true,
   ThemeInput: true,
   CampaignScopeField: true,
-  GridCalibrationDialog: true,
-  StoreInventory: true,
   LocationHierarchyPanel: true,
-  LocationSharingPanel: true,
   LocationResidents: true,
-  LocationMapEditor: true,
   AppSelect: true,
   AppInput: true,
   EntityCalendarSection: true,
@@ -87,11 +82,13 @@ function mountEditor(location: Location | null = null) {
 
 describe("LocationEditor scope default", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     activeCampaignId.value = "campaign-1";
     canCreate.value = true;
     mocks.create.mockClear();
     mocks.update.mockClear();
   });
+  afterEach(() => vi.useRealTimers());
 
   it("creates a new location against the active campaign", async () => {
     const wrapper = mountEditor(null);
@@ -115,7 +112,8 @@ describe("LocationEditor scope default", () => {
   it("leaves an existing global location's scope alone even with a campaign active", async () => {
     const existing = { id: "loc1", campaign_id: null, name: "The Wandering Inn" } as Location;
     const wrapper = mountEditor(existing);
-    await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
+    (wrapper.vm as unknown as { name: string }).name = "The Wandering Inn II";
+    await vi.advanceTimersByTimeAsync(2100);
     expect(mocks.update).toHaveBeenCalledWith(
       expect.objectContaining({ update: expect.objectContaining({ campaign_id: null }) }),
     );
@@ -156,5 +154,82 @@ describe("LocationEditor at the free-tier cap", () => {
 
     expect(paywallOpen(wrapper)).toBe(true);
     expect((wrapper.vm as unknown as { saveError: string }).saveError).toBe("");
+  });
+});
+
+// #958: an existing place saves itself and writes only the record. The map,
+// who sees the place and what is shared have their own live writers (Build,
+// Reveal), so a stale prop here must never be written back over them.
+describe("LocationEditor autosave", () => {
+  const existing = {
+    id: "loc1",
+    campaign_id: "campaign-1",
+    name: "Keep",
+    location_type: "other",
+    description: "Old walls",
+    player_summary: null,
+    tags: [],
+    ai_provenance: { source: "ai", edited: false },
+    player_visible_to: ["p1"],
+    is_map_shared: true,
+    map_url: "m.png",
+    map_pins: [{ child_location_id: "x" }],
+  } as unknown as Location;
+
+  type Vm = { name: string; description: string; tags: string[] };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    canCreate.value = true;
+    mocks.update.mockClear();
+    mocks.push.mockClear();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  async function edit(wrapper: ReturnType<typeof mountEditor>, change: (vm: Vm) => void) {
+    change(wrapper.vm as unknown as Vm);
+    await vi.advanceTimersByTimeAsync(2100);
+    await flushPromises();
+  }
+
+  function barProp(wrapper: ReturnType<typeof mountEditor>, key: string) {
+    return wrapper.findComponent({ name: "EntityEditorActionBar" }).props(key as never);
+  }
+
+  it("saves after the debounce with only record fields and does not navigate", async () => {
+    const wrapper = mountEditor(existing);
+    await edit(wrapper, (vm) => { vm.tags = ["ruin"]; });
+    expect(mocks.update).toHaveBeenCalledOnce();
+    const sent = mocks.update.mock.calls[0]![0].update as Record<string, unknown>;
+    expect(sent.tags).toEqual(["ruin"]);
+    for (const key of [
+      "player_visible_to", "is_map_shared", "map_url", "map_pins", "is_battle_map",
+      "is_description_shared", "is_npcs_shared", "is_inventory_shared",
+      "source_map_id", "grid_calibration", "notes",
+    ]) expect(sent, key).not.toHaveProperty(key);
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("pauses on a blank name and saves nothing", async () => {
+    const wrapper = mountEditor(existing);
+    await edit(wrapper, (vm) => { vm.name = "  "; });
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(barProp(wrapper, "autosave")).toMatchObject({ status: "paused" });
+  });
+
+  it("marks provenance edited only when the content changed", async () => {
+    const wrapper = mountEditor(existing);
+    await edit(wrapper, (vm) => { vm.tags = ["ruin"]; });
+    expect(mocks.update.mock.calls[0]![0].update.ai_provenance).toEqual({ source: "ai", edited: false });
+
+    await edit(wrapper, (vm) => { vm.description = "New walls"; });
+    expect(mocks.update.mock.calls[1]![0].update.ai_provenance).toMatchObject({ edited: true });
+  });
+
+  it("Done leaves edit mode and stays on the place", async () => {
+    const wrapper = mountEditor(existing);
+    wrapper.findComponent({ name: "EntityEditorActionBar" }).vm.$emit("cancel");
+    await flushPromises();
+    expect(mocks.push).toHaveBeenCalledWith({ query: { tab: "details" } });
   });
 });

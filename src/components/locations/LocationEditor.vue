@@ -25,7 +25,8 @@
       }}</span>
     </div>
 
-    <!-- Action row: type + visibility + save + delete -->
+    <!-- Action row: type + save (create) or autosave status (existing) + delete.
+         Who sees the place is Reveal's alone now (#958): no picker here. -->
     <EntityEditorActionBar
       :title="name"
       title-placeholder="Location name…"
@@ -34,9 +35,8 @@
       :saving="saving"
       :deleting="deleting"
       :error="saveError"
-      :visible-to="!isNew ? playerVisibleTo : undefined"
+      :autosave="autosaveBar"
       @update:title="name = $event"
-      @update:visible-to="playerVisibleTo = $event"
       @save="save"
       @cancel="onCancel"
       @delete="remove"
@@ -178,22 +178,24 @@
       />
     </div>
 
-    <!-- Player sharing options -->
-    <LocationSharingPanel
-      v-if="!isNew"
-      :player-summary="playerSummary"
-      :is-description-shared="isDescriptionShared"
-      :is-npcs-shared="isNpcsShared"
-      :is-inventory-shared="isInventoryShared"
-      :show-inventory-toggle="STORE_LOCATION_TYPES.has(locationType)"
-      @update:player-summary="playerSummary = $event"
-      @update:is-description-shared="isDescriptionShared = $event"
-      @update:is-npcs-shared="isNpcsShared = $event"
-      @update:is-inventory-shared="isInventoryShared = $event"
-    />
+    <!-- The words players read. Reveal decides whether they see the place; this
+         is what they see once it is revealed, so it sits with the writing. -->
+    <div class="flex flex-col gap-1">
+      <span class="text-label-lg font-semibold text-muted-foreground">Player summary</span>
+      <AppInput
+        v-model="playerSummary"
+        tone="card"
+        size="body"
+        placeholder="A short description players see when they discover this place…"
+      />
+      <p class="text-caption text-muted-foreground">
+        Players always see this once the place is revealed.
+      </p>
+    </div>
 
-    <!-- Store inventory (store / tavern / inn only) -->
-    <template v-if="!isNew && STORE_LOCATION_TYPES.has(locationType)">
+    <!-- Proprietor (store / tavern / inn only). The wares themselves show in
+         Overview; the owner is part of the record. -->
+    <template v-if="STORE_LOCATION_TYPES.has(locationType)">
       <!-- Owner NPC — used as the sender name on vendor offer messages -->
       <div class="flex items-center gap-3">
         <span class="font-cinzel text-xs text-foreground shrink-0"
@@ -207,10 +209,6 @@
           @update:model-value="npcOwnerId = $event"
         />
       </div>
-      <StoreInventory
-        :location-id="props.location!.id"
-        :owner-npc-name="ownerNpcName"
-      />
     </template>
 
     <!-- NPCs, encounters, and party members at this location -->
@@ -221,55 +219,6 @@
       :all-locations="allLocations ?? []"
     />
 
-    <!-- Map section. A site's map, rooms and region tracing live in Build
-         mode now (#884) — duplicating that workbench inside the Details form
-         is exactly the confusion this story removes, so a site gets a
-         one-line pointer instead. The Layers panel that replaces this
-         pointer (`SiteMapLayersPanel`, story S5) lives in Build mode itself,
-         not here. Every other location type is untouched. -->
-    <div
-      v-if="isSiteTypeLocal"
-      class="rounded-md border border-dashed border-border bg-background px-3 py-2 text-caption text-muted-foreground"
-    >
-      This site's map, rooms and ways out live in Build mode.
-      <RouterLink
-        v-if="!isNew"
-        :to="placeRoute(props.location!.id, 'build')"
-        class="text-primary hover:underline"
-      >Open Build</RouterLink>
-      <template v-else>Save this location, then open Build from the Atlas.</template>
-    </div>
-    <template v-else>
-      <LocationMapEditor
-        :location-id="props.location?.id ?? null"
-        :map-url="mapUrl"
-        :map-pins="mapPins"
-        :is-map-shared="isMapShared"
-        :is-battle-map="isBattleMap"
-        :is-new="isNew"
-        :children="children ?? []"
-        :map-pinnable-children="mapPinnableChildren"
-        :source-map-id="props.location?.source_map_id ?? null"
-        :map-layer-url="props.location?.map_layer_url ?? null"
-        :map-layer-calibration="props.location?.map_layer_calibration ?? null"
-        :plan-size="props.location?.plan_size ?? null"
-        :grid-calibration="props.location?.grid_calibration ?? null"
-        @update:map-url="onMapUrlUpdate"
-        @update:map-pins="mapPins = $event"
-        @update:is-map-shared="isMapShared = $event"
-        @update:is-battle-map="isBattleMap = $event"
-        @open-calibration="calibrationOpen = true"
-      />
-
-      <GridCalibrationDialog
-        :open="calibrationOpen"
-        :map-url="mapUrl"
-        :existing="props.location?.grid_calibration ?? null"
-        @cancel="calibrationOpen = false"
-        @save="onCalibrationSave"
-      />
-    </template>
-
     <PaywallModal v-model="showPaywall" resource="locations" />
   </div>
 </template>
@@ -277,7 +226,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, watch } from "vue";
+import { ref, reactive, toRefs, computed, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRoute, useRouter } from "vue-router";
@@ -290,44 +239,32 @@ import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import ThemeInput from "@/components/common/ThemeInput.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
-import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
-import StoreInventory from "@/components/locations/StoreInventory.vue";
 import LocationHierarchyPanel from "@/components/locations/LocationHierarchyPanel.vue";
-import LocationSharingPanel from "@/components/locations/LocationSharingPanel.vue";
 import LocationResidents from "@/components/locations/LocationResidents.vue";
-import LocationMapEditor from "@/components/locations/LocationMapEditor.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useQuota } from "@/composables/billing/useQuota";
+import { useAutosave } from "@/composables/useAutosave";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { collectThemes } from "@/lib/audio/audioThemes";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
-  useLocations,
   useAllLocations,
   useCreateLocation,
   useUpdateLocation,
-  useUpdateLocationGridCalibration,
   useDeleteLocation,
-  getPinnableDescendants,
 } from "@/composables/locations/useLocations";
-import type { GridCalibration } from "@/types/location.types";
 import {
   LOCATION_TYPE_LABELS,
   STORE_LOCATION_TYPES,
 } from "@/types/location.types";
-import type {
-  Location,
-  LocationType,
-  MapPin as MapPinType,
-} from "@/types/location.types";
+import type { Location, LocationType } from "@/types/location.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
-import { isSiteType } from "@/lib/locations/tiers";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 
@@ -341,19 +278,21 @@ const router = useRouter();
 
 const route = useRoute();
 /**
- * A place has one DM screen now, the Atlas, so Cancel never has a second
- * page to fall back to. Editing an existing place drops `edit` from the
- * query and stays exactly where the Atlas already had it selected. Creating
- * one (this component's `isNew` mount, always at `/locations/new`) has no
- * place yet to select, so it goes to the parent it was opened from, or the
- * bare Atlas when there wasn't one.
+ * Done (existing place) and Cancel (new place). A place has one DM screen now,
+ * the Atlas, so there is never a second page to fall back to. Editing an
+ * existing place drops `edit` from the query and stays exactly where the Atlas
+ * already had it selected; edits are already saved by then (pending ones are
+ * flushed first). Creating one (this component's `isNew` mount, always at
+ * `/locations/new`) has no place yet to select, so it goes to the parent it was
+ * opened from, or the bare Atlas when there wasn't one.
  */
-function onCancel() {
+async function onCancel() {
   if (isNew.value) {
     const parent = route.query.parent;
     router.push(typeof parent === "string" ? placeRoute(parent) : "/locations");
     return;
   }
+  await autosave?.saveNow();
   const { edit: _edit, ...rest } = route.query;
   router.push({ query: rest });
 }
@@ -363,10 +302,90 @@ const isNew = computed(() => !props.location);
 // ── All locations (for parent picker + hierarchy panel) ───────────────────────
 const { data: allLocations } = useAllLocations();
 
-// ── Parent picker state ────────────────────────────────────────────────────────
-const selectedParentId = ref<string | null>(
-  props.location?.parent_id ?? props.parentId ?? null,
-);
+// ── Draft: every field this form owns (#958) ──────────────────────────────────
+// What Details owns is the record: name, type, art, hierarchy, tags, era,
+// ambient theme, scope, words and proprietor. The map, who sees the place and
+// the wares belong to Build, Reveal and Overview, which save themselves; this
+// form never reads or writes those columns, so a change made there while the
+// form is open cannot be overwritten from stale props.
+interface PlaceDraft {
+  name: string;
+  locationType: LocationType;
+  description: string;
+  playerSummary: string;
+  tags: string[];
+  eraStart: number | null;
+  eraEnd: number | null;
+  audioTheme: string | null;
+  selectedParentId: string | null;
+  imageUrl: string | null;
+  npcOwnerId: string;
+  relatedLocationIds: string[];
+  campaignId: string | null;
+}
+
+// ── Scope ──────────────────────────────────────────────────────────────────────
+// Editing an existing location keeps its stored scope, including a stored
+// null — which `props.location ? props.location.campaign_id : …` preserves.
+// `props.location?.campaign_id ?? activeCampaignId.value` would be wrong: an
+// existing global location's campaign_id is legitimately null, and `??`
+// can't tell that apart from "no location yet", so it would silently
+// re-scope the location into whichever campaign happens to be active next
+// time someone opens and saves it. A new location (no props.location)
+// defaults to the active campaign (#596) rather than "every campaign" — the
+// null-means-global read path now actually surfaces the location again once
+// the DM opts into it via CampaignScopeField, instead of silently hiding it
+// (see fetchLocations/fetchAllLocations). No active campaign is a genuine
+// "nothing to scope to yet" case.
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+function seedDraft(): PlaceDraft {
+  const loc = props.location;
+  return {
+    name: loc?.name ?? props.initialName ?? "",
+    locationType: loc?.location_type ?? "other",
+    description: loc?.description ?? "",
+    playerSummary: loc?.player_summary ?? "",
+    tags: loc?.tags ? [...loc.tags] : [],
+    eraStart: loc?.era_start ?? null,
+    eraEnd: loc?.era_end ?? null,
+    audioTheme: loc?.audio_theme ?? null,
+    selectedParentId: loc?.parent_id ?? props.parentId ?? null,
+    imageUrl: loc?.image_url ?? null,
+    npcOwnerId: loc?.npc_owner_id ?? "",
+    relatedLocationIds: loc?.related_location_ids ? [...loc.related_location_ids] : [],
+    campaignId: loc ? loc.campaign_id : activeCampaignId.value ?? null,
+  };
+}
+
+const draft = reactive<PlaceDraft>(seedDraft());
+const {
+  name,
+  locationType,
+  description,
+  playerSummary,
+  tags,
+  eraStart,
+  eraEnd,
+  audioTheme,
+  selectedParentId,
+  imageUrl,
+  npcOwnerId,
+  relatedLocationIds,
+  campaignId,
+} = toRefs(draft);
+
+function sameList<T>(a: T[], b: T[]) {
+  return a.length === b.length && a.every((item, i) => item === b[i]);
+}
+function draftsEqual(a: PlaceDraft, b: PlaceDraft) {
+  return a.name === b.name && a.locationType === b.locationType
+    && a.description === b.description && a.playerSummary === b.playerSummary
+    && sameList(a.tags, b.tags) && a.eraStart === b.eraStart && a.eraEnd === b.eraEnd
+    && a.audioTheme === b.audioTheme && a.selectedParentId === b.selectedParentId
+    && a.imageUrl === b.imageUrl && a.npcOwnerId === b.npcOwnerId
+    && sameList(a.relatedLocationIds, b.relatedLocationIds) && a.campaignId === b.campaignId;
+}
 
 // Full ancestor chain for breadcrumb (root → … → direct parent).
 // Loop extracted into a helper to keep `computed` single-return — oxlint's
@@ -389,22 +408,6 @@ const ancestors = computed(() =>
 
 const parentOptions = computed(() =>
   (allLocations.value ?? []).filter((l) => l.id !== props.location?.id),
-);
-
-// ── Fetch children (only when editing existing) ────────────────────────────────
-const { data: children } = props.location
-  ? useLocations(props.location.id)
-  : { data: ref<Location[]>([]) };
-
-// ── Pinnable descendants for the map's "Unplaced" picker ──────────────────────
-const mapPinnableChildren = computed(() => {
-  if (!props.location || !allLocations.value?.length) return [];
-  return getPinnableDescendants(props.location.id, allLocations.value);
-});
-
-// ── Related locations ──────────────────────────────────────────────────────────
-const relatedLocationIds = ref<string[]>(
-  props.location?.related_location_ids ? [...props.location.related_location_ids] : [],
 );
 
 // ── Create child helper (invoked from LocationHierarchyPanel) ─────────────────
@@ -435,41 +438,6 @@ const npcLocationIds = computed(() => {
   return collectDescendantIds(props.location.id, allLocations.value);
 });
 
-// ── Form state ─────────────────────────────────────────────────────────────────
-const name = ref(props.location?.name ?? props.initialName ?? "");
-const locationType = ref<LocationType>(
-  props.location?.location_type ?? "other",
-);
-// Reactive to the type picker, not the saved record — switching a new or
-// existing location into a site type swaps the map section immediately,
-// same as `STORE_LOCATION_TYPES.has(locationType)` already does for the
-// Store section below.
-const isSiteTypeLocal = computed(() => isSiteType(locationType.value));
-const tags = ref<string[]>(
-  props.location?.tags ? [...props.location.tags] : [],
-);
-const eraStart = ref<number | null>(props.location?.era_start ?? null);
-const eraEnd = ref<number | null>(props.location?.era_end ?? null);
-const audioTheme = ref<string | null>(props.location?.audio_theme ?? null);
-
-// ── Scope ──────────────────────────────────────────────────────────────────────
-// Editing an existing location keeps its stored scope, including a stored
-// null — which `props.location ? props.location.campaign_id : …` preserves.
-// `props.location?.campaign_id ?? activeCampaignId.value` would be wrong: an
-// existing global location's campaign_id is legitimately null, and `??`
-// can't tell that apart from "no location yet", so it would silently
-// re-scope the location into whichever campaign happens to be active next
-// time someone opens and saves it. A new location (no props.location)
-// defaults to the active campaign (#596) rather than "every campaign" — the
-// null-means-global read path now actually surfaces the location again once
-// the DM opts into it via CampaignScopeField, instead of silently hiding it
-// (see fetchLocations/fetchAllLocations). No active campaign is a genuine
-// "nothing to scope to yet" case.
-const { activeCampaignId } = storeToRefs(useCampaignStore());
-const campaignId = ref<string | null>(
-  props.location ? props.location.campaign_id : activeCampaignId.value ?? null,
-);
-
 // ── Ambient theme suggestions — every label already in use, so a DM re-uses
 // existing playlist tags instead of guessing at spelling. ──────────────────
 const { data: playlists } = usePlaylists();
@@ -483,10 +451,10 @@ const themeOptions = computed(() =>
     sounds.value === undefined ? [] : sounds.value,
   ),
 );
-const imageUrl = ref<string | null>(props.location?.image_url ?? null);
 const aiProvenance = ref<AiProvenance | null>(props.location?.ai_provenance ?? null);
 const saving = ref(false);
 const deleting = ref(false);
+// The create path's error. An existing place reports through the autosave status.
 const saveError = ref("");
 // Every entry into a new location lands here — the Atlas button, the bottom
 // nav, the dashboard's quick-create, "add a place inside" — and only the first
@@ -502,10 +470,8 @@ watch(
   { immediate: true },
 );
 
-// ── Description ────────────────────────────────────────────────────────────────
-const description = ref<string>(props.location?.description ?? "");
-// The Atlas place pane is DM-only (never mounted from /play), so the full
-// mention list is always the DM's — see NoteEditor.vue for the same call.
+// The mention list is always the DM's: the Atlas place pane is DM-only (never
+// mounted from /play) — see NoteEditor.vue for the same call.
 const { mentionItems: entityMentionItems } = useEntityMentionItems();
 
 const aiContext = computed(() =>
@@ -516,135 +482,113 @@ const aiContext = computed(() =>
   ]),
 );
 
-// ── Player sharing ─────────────────────────────────────────────────────────────
-//
-// The action bar's reveal covers "who". A location's "what" — description,
-// people, wares, map — is already on this page as form fields, in the sharing
-// panel and the map editor, so the control does not repeat it here. Everywhere
-// else the four switches live in the control's `#what`, which is the whole
-// point of LocationRevealControl: seeing a place should not mean opening a form.
-const playerVisibleTo = ref<string[]>([...(props.location?.player_visible_to ?? [])]);
-const playerSummary = ref<string>(props.location?.player_summary ?? "");
-const isDescriptionShared = ref<boolean>(
-  props.location?.is_description_shared ?? false,
-);
-const isNpcsShared = ref<boolean>(props.location?.is_npcs_shared ?? false);
-const isInventoryShared = ref<boolean>(
-  props.location?.is_inventory_shared ?? false,
-);
-const npcOwnerId = ref<string>(props.location?.npc_owner_id ?? "");
 const { data: allNpcs } = useNpcs();
 const npcOptions = computed(() =>
   (allNpcs.value ?? []).map((n) => ({ id: n.id, name: n.name })),
 );
-const ownerNpcName = computed(
-  () => allNpcs.value?.find((n) => n.id === npcOwnerId.value)?.name ?? null,
-);
-
-// ── Map ────────────────────────────────────────────────────────────────────────
-const mapUrl = ref<string | null>(props.location?.map_url ?? null);
-const mapPins = ref<MapPinType[]>(
-  props.location?.map_pins ? [...props.location.map_pins] : [],
-);
-const isMapShared = ref<boolean>(props.location?.is_map_shared ?? false);
-const isBattleMap = ref<boolean>(props.location?.is_battle_map ?? false);
-
-// Keep denormalized pin metadata (type/name/image) in sync with live children data
-watch(
-  children,
-  (currentChildren) => {
-    if (!currentChildren?.length || !mapPins.value.length) return;
-    mapPins.value = mapPins.value.map((pin) => {
-      const child = (currentChildren as Location[]).find(
-        (c) => c.id === pin.child_location_id,
-      );
-      return child
-        ? {
-            ...pin,
-            child_type: child.location_type,
-            child_name: child.name,
-            child_image_url: child.image_url ?? null,
-          }
-        : pin;
-    });
-  },
-  { immediate: true },
-);
-
-function onMapUrlUpdate(url: string | null) {
-  mapUrl.value = url;
-  if (!url) mapPins.value = [];
-}
-
-// VTT grid calibration dialog state
-const calibrationOpen = ref(false);
-const updateGridCalibration = useUpdateLocationGridCalibration();
-async function onCalibrationSave(calibration: GridCalibration) {
-  if (!props.location?.id) return;
-  await updateGridCalibration.mutateAsync({ id: props.location.id, calibration });
-  calibrationOpen.value = false;
-}
 
 // ── CRUD ───────────────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateLocation();
 const { mutateAsync: update } = useUpdateLocation();
 const { mutateAsync: del } = useDeleteLocation();
 
-function buildPayload() {
+/** The columns this form owns, and no others. */
+function recordFields(d: PlaceDraft, provenance: AiProvenance | null) {
   return {
-    name: name.value.trim() || "Unnamed Location",
-    location_type: locationType.value,
-    description: description.value,
-    notes: null,
-    tags: tags.value,
-    era_start: eraStart.value,
-    era_end: eraEnd.value,
-    // Empty input means "leave audio alone", not an empty-string theme label.
+    name: d.name.trim() || "Unnamed Location",
+    location_type: d.locationType,
+    description: d.description,
+    tags: d.tags,
+    era_start: d.eraStart,
+    era_end: d.eraEnd,
     // Blank means "ask for nothing", which the column should say as null.
     audio_theme:
-      audioTheme.value === null || audioTheme.value.trim() === "" ? null : audioTheme.value.trim(),
-    parent_id: selectedParentId.value,
-    image_url: imageUrl.value,
-    map_url: mapUrl.value,
-    map_pins: mapPins.value,
-    is_map_shared: isMapShared.value,
-    is_battle_map: isBattleMap.value,
-    player_visible_to: playerVisibleTo.value,
-    player_summary: playerSummary.value || null,
-    is_description_shared: isDescriptionShared.value,
-    is_npcs_shared: isNpcsShared.value,
-    is_inventory_shared: isInventoryShared.value,
-    npc_owner_id: npcOwnerId.value || null,
-    related_location_ids: relatedLocationIds.value,
-    source_map_id: props.location?.source_map_id ?? null,
-    grid_calibration: props.location?.grid_calibration ?? null,
-    ai_provenance: aiProvenance.value,
-    campaign_id: campaignId.value,
+      d.audioTheme === null || d.audioTheme.trim() === "" ? null : d.audioTheme.trim(),
+    parent_id: d.selectedParentId,
+    image_url: d.imageUrl,
+    player_summary: d.playerSummary || null,
+    npc_owner_id: d.npcOwnerId || null,
+    related_location_ids: d.relatedLocationIds,
+    ai_provenance: provenance,
+    campaign_id: d.campaignId,
   };
 }
 
+// Material edit detection (#606): tags, sigil art, era bounds, ambient theme and
+// hierarchy fields are excluded per the "moves/tags/image/visibility" carve-outs.
+// Compared with the last *saved* values rather than the prop, because the prop
+// only catches up after the refetch and an autosave can fire again before it.
+let savedContent = {
+  name: props.location?.name ?? "",
+  locationType: props.location?.location_type,
+  description: props.location?.description ?? null,
+  playerSummary: props.location?.player_summary ?? null,
+};
+
+async function saveExisting(snapshot: PlaceDraft) {
+  const loc = props.location!;
+  const content = {
+    name: snapshot.name.trim(),
+    locationType: snapshot.locationType,
+    description: snapshot.description,
+    playerSummary: snapshot.playerSummary || null,
+  };
+  const contentChanged =
+    content.name !== savedContent.name ||
+    content.locationType !== savedContent.locationType ||
+    !deepEqual(content.description, savedContent.description) ||
+    !deepEqual(content.playerSummary, savedContent.playerSummary);
+  const provenance = contentChanged ? markEdited(aiProvenance.value) : aiProvenance.value;
+  await update({ id: loc.id, update: recordFields(snapshot, provenance) });
+  aiProvenance.value = provenance;
+  savedContent = content;
+}
+
+const autosave = props.location
+  ? useAutosave({
+      draft,
+      initial: seedDraft,
+      equal: draftsEqual,
+      save: saveExisting,
+      canSave: () => !!draft.name.trim(),
+      errorMessage: "Failed to save",
+    })
+  : null;
+
+const autosaveBar = computed(() =>
+  autosave
+    ? {
+        status: autosave.status.value,
+        error: autosave.saveError.value,
+        pausedLabel: "Autosave paused until the place has a name",
+      }
+    : undefined,
+);
+
+/** Creating a place: the explicit first save, then straight to the new place. */
 async function save() {
   if (!name.value.trim()) return;
   saving.value = true;
   saveError.value = "";
   try {
-    if (props.location) {
-      // Material edit detection (#606): tags, sigil art, era bounds, ambient
-      // theme and hierarchy/sharing fields are excluded per the
-      // "moves/tags/image/visibility" carve-outs.
-      const contentChanged =
-        name.value.trim() !== props.location.name ||
-        locationType.value !== props.location.location_type ||
-        !deepEqual(description.value, props.location.description) ||
-        !deepEqual(playerSummary.value || null, props.location.player_summary);
-      if (contentChanged) aiProvenance.value = markEdited(aiProvenance.value);
-
-      await update({ id: props.location.id, update: buildPayload() });
-      router.push(placeRoute(props.location.id));
-    } else {
-      const created = await create(buildPayload());
-      router.push(placeRoute(created.id));
-    }
+    // A new place has no map, visibility or wares yet, and the insert type
+    // requires those columns, so they are written once here at their empty
+    // values. Build and Reveal own them from then on.
+    const created = await create({
+      ...recordFields(draft, aiProvenance.value),
+      notes: null,
+      map_url: null,
+      map_pins: [],
+      is_map_shared: false,
+      is_battle_map: false,
+      player_visible_to: [],
+      is_description_shared: false,
+      is_npcs_shared: false,
+      is_inventory_shared: false,
+      source_map_id: null,
+      grid_calibration: null,
+    });
+    router.push(placeRoute(created.id));
   } catch (e: unknown) {
     if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
     saveError.value = e instanceof Error ? e.message : "Failed to save";

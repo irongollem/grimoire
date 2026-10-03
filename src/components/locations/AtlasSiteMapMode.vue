@@ -1,13 +1,15 @@
 <template>
   <div class="flex flex-col gap-3">
-    <!-- The Layers panel (#884, S5) — what this site's map is made of.
+    <!-- The Layers panel (#884, S5) — what this place's map is made of.
          Build-only: every action here edits the stack, and Browse has
-         nothing here to edit. Its Drawing row now says everything
+         nothing here to edit. On a site its Drawing row says everything
          `SiteMapSourceStrip` used to (name, rev, staleness) — that strip is
-         retired app-wide as of this story, so this is the only surface
-         reporting it. -->
-    <SiteMapLayersPanel
-      v-if="isSite && building"
+         retired app-wide, so this is the only surface reporting it. Any other
+         place (#958) gets the Picture row alone: that is where its first map
+         comes from. -->
+    <MapLayersPanel
+      v-if="building"
+      :site="isSite"
       :location="location"
       :map="siteSourceMap"
       :staleness="siteStaleness"
@@ -26,7 +28,7 @@
          levels column so the workbench gets the pane's full width (the
          levels ride on the canvas as `SiteLevelPicker` instead),
          same as Map mode already folds the Atlas tree. -->
-    <div v-if="building" class="relative min-w-0 flex-1">
+    <div v-if="building && isSite" class="relative min-w-0 flex-1">
       <!-- Keyed by place: the workbench reads its map once, so moving to
            another site while in Build (a level switch, a pin, the tree) kept
            the previous site's drawing on the canvas, and the first stroke
@@ -57,6 +59,19 @@
       </MapWorkbench>
     </div>
 
+    <!-- Build on a place that is not a site (#958): no workbench, since it has
+         no plan to trace. Its pins are edited in place, live, once there is a
+         map to put them on; until then the Layers panel above is the whole
+         story, same as a mapless site. -->
+    <template v-else-if="building">
+      <PlaceMapPinsEditor
+        v-if="mapStack.hasAnyLayer"
+        :location="location"
+        :locations="allLocations"
+        @select="emit('select', $event)"
+      />
+    </template>
+
     <template v-else>
       <!-- "<site> › Level N · <name> [chip]" (#868, frame 06) — the stairs
            chip travels with the level it counts, in the same trail row, rather
@@ -84,11 +99,10 @@
           @select="onLevelSelect"
         />
 
-        <!-- Nothing to render below a site with zero layers (#884, S5) — the
-             Layers panel above is the whole story in that case (Build only);
-             `LocationMap` needs a real stack to draw. Never gates a non-site
-             place: the parent only ever mounts this component once `hasMap`
-             already holds, so `mapStack.hasAnyLayer` is guaranteed true there. -->
+        <!-- Browse only (Build took the branches above). The parent mounts
+             this component in Browse once `hasMap` holds, so a layer exists
+             here; the guard stays because `LocationMap` needs a real stack
+             to draw. -->
         <div v-if="mapStack.hasAnyLayer" class="relative min-w-0 flex-1">
           <LocationMap
             ref="mapRef"
@@ -227,7 +241,8 @@ import AppButton from "@/components/common/AppButton.vue";
 import AtlasMapZoom from "@/components/locations/AtlasMapZoom.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import SiteLevelsColumn from "@/components/locations/SiteLevelsColumn.vue";
-import SiteMapLayersPanel from "@/components/locations/SiteMapLayersPanel.vue";
+import MapLayersPanel from "@/components/locations/MapLayersPanel.vue";
+import PlaceMapPinsEditor from "@/components/locations/PlaceMapPinsEditor.vue";
 import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
 import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
 import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
@@ -263,7 +278,7 @@ const campaignStore = useCampaignStore();
 const campaignAiEnabled = computed(() => campaignStore.isAiEnabled);
 
 const { location, index, children, building = false } = defineProps<{
-  /** Only ever mounted once the caller has confirmed `hasMap` — never null. */
+  /** Only ever mounted once the caller has confirmed `hasMap` or Build — never null. */
   location: Location;
   index: AtlasIndex;
   children: Location[];
@@ -279,6 +294,10 @@ const emit = defineEmits<{ select: [id: string]; descend: [id: string] }>();
 const mapRef = useTemplateRef<InstanceType<typeof LocationMap>>("mapRef");
 
 const isSite = computed(() => isSiteType(location.location_type));
+
+/** Every place, for the pins editor's candidate walk (`getPinnableDescendants`
+ *  reaches below direct children through vague containers). */
+const allLocations = computed(() => [...index.byId.values()]);
 
 // ── Site regions (#807) — gated to site-tier places the same way the parent
 //    gates `useSiteStructure` below, so a plain map (a region/world drawing)

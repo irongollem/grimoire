@@ -9,6 +9,7 @@
            data: the player's own composed view (fog opaque, structure as
            `get_player_visible_site_state` would actually return it). -->
       <AppButton
+        v-if="site"
         variant="ghost"
         size="inline-xs"
         :icon="IconReveal"
@@ -18,7 +19,7 @@
       />
     </div>
 
-    <div v-if="previewOpen" class="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-2.5">
+    <div v-if="site && previewOpen" class="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-2.5">
       <template v-if="!location.is_map_shared">
         <p class="text-caption italic text-muted-foreground">This site isn't shared with players yet, so there is nothing for a preview to show.</p>
       </template>
@@ -59,7 +60,9 @@
             <template v-if="stack.picture.calibration">
               Calibrated {{ Math.round(stack.picture.calibration.cells_per_image_width) }} cells wide
             </template>
-            <template v-else>Not calibrated — rooms cannot be traced until it is</template>
+            <!-- Calibration matters for different things: on a site it is what
+                 tracing rooms needs, elsewhere what a battle map's grid needs. -->
+            <template v-else>{{ site ? "Not calibrated, so rooms cannot be traced yet" : "Grid not calibrated" }}</template>
           </span>
           <div class="flex shrink-0 items-center gap-1.5">
             <AppButton
@@ -101,10 +104,31 @@
           class="sr-only"
           @change="onPictureFileChange"
         />
+
+        <!--
+          The flag lives on the Picture row because it is a fact about the map
+          as an image, and it must stay reachable with no picture at all: a
+          place can be flagged with nothing under it (a Drawing only, or a
+          flag set before the scan was removed), and unflagging it is the only
+          way back into the Atlas. Every place carries it, sites included
+          (#958): it used to exist only in the Edit form's map section, which a
+          site never mounted.
+        -->
+        <AppCheckbox
+          :model-value="battleMap"
+          size="sm"
+          label-role="label"
+          label="Battle map"
+          class="group inline-flex w-full gap-1"
+          label-class="group-hover:text-foreground transition-colors"
+          :title="battleMap ? 'This map is a tactical battle map: hidden from the player atlas, available in the VTT.' : 'Mark this map as a tactical battle map (hidden from the player atlas; enables VTT + fog).'"
+          @update:model-value="onBattleMapChange"
+        />
       </div>
 
-      <!-- Drawing — a transparent bake of the Cartographer drawing at source_map_id. -->
-      <div class="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5">
+      <!-- Drawing — a transparent bake of the Cartographer drawing at source_map_id.
+           Site-only: only a site has a floor plan to draw (#958). -->
+      <div v-if="site" class="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5">
         <span class="flex w-20 shrink-0 items-center gap-1.5 text-label-lg font-semibold text-foreground">
           <IconPencilLine class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />Drawing
         </span>
@@ -156,7 +180,7 @@
            grid) tracing happens directly on the map rendered below this
            panel, so a populated row has nothing further to "open" — a
            deliberate omission, not an oversight. -->
-      <div class="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 last:pb-0">
+      <div v-if="site" class="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 last:pb-0">
         <span class="flex w-20 shrink-0 items-center gap-1.5 text-label-lg font-semibold text-foreground">
           <IconGrid class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />Plan
         </span>
@@ -221,11 +245,12 @@
 
 <script setup lang="ts">
 /**
- * The Layers panel (#884, decision 4) — where a DM chooses what a site's map
- * is made of. Replaces the one-line "map lives in Build mode" pointer
- * `LocationEditor` shows a site: this is the surface that pointer sends the
- * DM to. Mounted in the map area, Build-only, by `AtlasSiteMapMode`, never in Browse, since every action
- * here is an edit to the stack itself.
+ * The Layers panel (#884, decision 4; #958) — where a DM chooses what a
+ * place's map is made of. Mounted in the map area, Build-only, by
+ * `AtlasSiteMapMode`, never in Browse, since every action here is an edit to
+ * the stack itself. It serves every place (#958): a site gets all three rows
+ * below, any other place only the Picture row (plus the battle-map flag),
+ * because a world or a city has no floor plan to draw or trace.
  *
  * Three rows, bottom-up: Picture (`map_url`), Drawing (`map_layer_url`, a
  * Cartographer bake), Plan (the traced spaces/ways/zones, `plan_size` only
@@ -245,9 +270,10 @@
  * save target fixed to this site — see `useMapExport`'s `site` option and
  * `useSaveStyledSitePicture` for what saving there actually flattens.
  */
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -255,6 +281,7 @@ import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.
 import PlayerSitePlan from "@/components/player/PlayerSitePlan.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
+import { useToast } from "@/composables/useToast";
 import { useParty } from "@/composables/party/useParty";
 import {
   useUpdateLocation,
@@ -268,7 +295,14 @@ import type { PublishStaleness } from "@/lib/locations/siteReadiness";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 import type { GridCalibration, Location } from "@/types/location.types";
 
-const { location, map, staleness, counts, styling = false } = defineProps<{
+const {
+  location,
+  site = false,
+  map = null,
+  staleness = null,
+  counts = { spaces: 0, ways: 0, zones: 0 },
+  styling = false,
+} = defineProps<{
   location: Pick<
     Location,
     | "id"
@@ -282,18 +316,22 @@ const { location, map, staleness, counts, styling = false } = defineProps<{
     | "map_published_rev"
     | "is_map_shared"
     | "player_visible_to"
+    | "is_battle_map"
   >;
+  /** A site-tier place: adds the Drawing and Plan rows and the player
+   *  preview. Off, the panel is the Picture row alone (#958). */
+  site?: boolean;
   /** The Cartographer drawing named by `location.source_map_id`. `null` while
    *  it loads or when there is none; `undefined` is not a state this panel
    *  distinguishes from `null` — both render "Loading…" until it settles,
    *  since a genuinely absent map is instead reflected by `source_map_id`
    *  being null, which never reaches this branch at all. */
-  map: Pick<DungeonMap, "name" | "rev"> | null | undefined;
+  map?: Pick<DungeonMap, "name" | "rev"> | null;
   /** Null when the last publish is current, or there is no drawing at all. */
-  staleness: PublishStaleness | null;
+  staleness?: PublishStaleness | null;
   /** The same tally `useSiteStructure().layerCounts` gives the layer bar —
    *  shared rather than re-derived, so the two never disagree. */
-  counts: { spaces: number; ways: number; zones: number };
+  counts?: { spaces: number; ways: number; zones: number };
   /** An AI style render is in flight for this site (`useMapExport`'s
    *  `styleGenerating`) — disables Style with AI so a second click can't
    *  queue a second paid render behind the first. */
@@ -301,6 +339,8 @@ const { location, map, staleness, counts, styling = false } = defineProps<{
 }>();
 
 const emit = defineEmits<{ "open-drawing": []; "review-changes": []; "style-with-ai": [] }>();
+
+const toast = useToast();
 
 // Style with AI is hidden, not disabled, while the campaign owner has AI off.
 const campaignStore = useCampaignStore();
@@ -320,6 +360,28 @@ const previewAudienceOptions = computed(() => (party.value ?? []).filter((member
 const previewMemberIdRef = computed(() => previewAudienceId.value || null);
 const previewEnabled = computed(() => previewOpen.value && !!previewAudienceId.value);
 const previewQuery = usePlayerVisibleSiteState(computed(() => location.id), previewMemberIdRef, previewEnabled);
+
+// ── Battle map ─────────────────────────────────────────────────────────────
+// A local ref synced from the row: the tick must answer the click at once, but
+// the row only comes back after the write and the refetch. A failed write puts
+// it back and says so, rather than leaving a tick the database never took.
+const battleMap = ref(location.is_battle_map);
+watch(
+  () => location.is_battle_map,
+  (value) => {
+    battleMap.value = value;
+  },
+);
+
+async function onBattleMapChange(value: boolean) {
+  battleMap.value = value;
+  try {
+    await updateLocation.mutateAsync({ id: location.id, update: { is_battle_map: value } });
+  } catch (e) {
+    battleMap.value = location.is_battle_map;
+    toast.error(toast.fromError(e));
+  }
+}
 
 // ── Picture ───────────────────────────────────────────────────────────────
 const pictureFileInput = ref<HTMLInputElement | null>(null);
@@ -351,7 +413,7 @@ async function onPictureFileChange(e: Event) {
  * orphaned calibration this story was asked not to create.
  */
 async function onRemovePicture() {
-  if (!(await confirm(`Remove this site's picture? Its calibration goes with it.`, { confirmLabel: "Remove" }))) {
+  if (!(await confirm(`Remove this picture? Its calibration goes with it.`, { confirmLabel: "Remove" }))) {
     return;
   }
   const oldUrl = location.map_url;

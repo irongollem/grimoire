@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   play: vi.fn(),
   stop: vi.fn(),
   answered: { value: true },
+  query: { value: {} as Record<string, string> },
 }));
 
 const playingOwner = ref<string | null>(null);
@@ -49,7 +50,7 @@ vi.mock("@/composables/quests/useBeatsStagedAt", () => ({
 }));
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
-  useRoute: () => ({ query: {} }),
+  useRoute: () => ({ query: mocks.query.value }),
   useRouter: () => ({ push: vi.fn() }),
 }));
 
@@ -102,6 +103,7 @@ beforeEach(() => {
   mocks.play.mockClear();
   mocks.stop.mockClear();
   mocks.answered.value = true;
+  mocks.query.value = {};
 });
 
 afterEach(() => {
@@ -162,5 +164,53 @@ describe("AtlasPlacePane ambient audio", () => {
     await flushPromises();
 
     expect(ambienceButton(w)).toBeUndefined();
+  });
+});
+
+describe("AtlasPlacePane header buttons (#958)", () => {
+  function labels(w: VueWrapper): string[] {
+    return w.findAllComponents(AppButton).map((b) => String(b.props("ariaLabel")));
+  }
+
+  it("gives a site Build, Run and Details", async () => {
+    const w = mountPane(place({ id: "s", location_type: "dungeon" }));
+    await flushPromises();
+    expect(labels(w)).toEqual(expect.arrayContaining(["Build", "Run", "Details"]));
+    expect(labels(w)).not.toContain("Edit");
+  });
+
+  it("gives every other place Build and Details, no Run and no Edit", async () => {
+    const w = mountPane(place({ id: "w", location_type: "region" }));
+    await flushPromises();
+    expect(labels(w)).toEqual(expect.arrayContaining(["Build", "Details"]));
+    expect(labels(w)).not.toContain("Run");
+    expect(labels(w)).not.toContain("Edit");
+  });
+
+  it("reads Done while a non-site place is in Build, and forces the Map tab", async () => {
+    mocks.query.value = { build: "true" };
+    const w = mountPane(place({ id: "w", location_type: "region" }));
+    await flushPromises();
+    expect(labels(w)).toContain("Done");
+    expect(w.emitted("update:paneMode")?.[0]).toEqual(["map"]);
+  });
+
+  it("offers the Map tab in Build on a place with no map, and not when browsing", async () => {
+    const browsing = mountPane(place({ id: "w", location_type: "region" }));
+    await flushPromises();
+    expect(browsing.findComponent({ name: "TabBar" }).exists()).toBe(false);
+    browsing.unmount();
+
+    mocks.query.value = { build: "true" };
+    const building = mountPane(place({ id: "w", location_type: "region" }));
+    await flushPromises();
+    expect(building.findComponent({ name: "TabBar" }).exists()).toBe(true);
+  });
+
+  it("offers the Map tab in Build on a battle map, which Browse hides", async () => {
+    mocks.query.value = { build: "true" };
+    const w = mountPane(place({ id: "w", location_type: "region", map_url: "https://x/m.webp", is_battle_map: true }));
+    await flushPromises();
+    expect(w.findComponent({ name: "TabBar" }).exists()).toBe(true);
   });
 });

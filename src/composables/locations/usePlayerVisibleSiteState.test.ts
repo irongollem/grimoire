@@ -95,7 +95,7 @@ describe("usePlayerVisibleSiteState", () => {
     });
   });
 
-  // #884, wave 4, S12: `SiteMapLayersPanel`'s "preview as players" toggle
+  // #884, wave 4, S12: `MapLayersPanel`'s "preview as players" toggle
   // gates the query on an `enabled` ref until a DM has actually chosen an
   // audience — every other caller omits it and is unaffected (default true).
   it("does not query at all while an explicit enabled ref is false", async () => {

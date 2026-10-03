@@ -1,5 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import QuestOverviewMetadata from "./QuestOverviewMetadata.vue";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import type { Quest } from "@/types/quest.types";
@@ -55,6 +55,7 @@ function mountMetadata(overrides: Partial<Quest> = {}) {
 
 describe("QuestOverviewMetadata", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     mocks.updateQuest.mockReset();
     mocks.updateQuest.mockResolvedValue(undefined);
     mocks.announce.mockReset();
@@ -64,6 +65,13 @@ describe("QuestOverviewMetadata", () => {
     mocks.beats = [];
     mocks.activeCampaignId = "campaign-1";
   });
+  afterEach(() => vi.useRealTimers());
+
+  // Fields autosave through useAutosave now: an edit waits out the 2s debounce.
+  async function settle() {
+    await vi.advanceTimersByTimeAsync(2100);
+    await flushPromises();
+  }
 
   // The v3 design keeps exactly quest-level identity here: title, premise,
   // status, sharing, giver, location, parent and tags — the story itself
@@ -94,12 +102,12 @@ describe("QuestOverviewMetadata", () => {
     expect(inputs[1]!.element.value).toBe("Something rings under the tide.");
   });
 
-  it("saves the title on blur, falling back to a placeholder when cleared", async () => {
+  it("autosaves the title, falling back to a placeholder when cleared", async () => {
     const wrapper = mountMetadata();
     const titleInput = wrapper.find("input");
     await titleInput.setValue("   ");
-    await titleInput.trigger("blur");
-    await flushPromises();
+    expect(mocks.updateQuest).not.toHaveBeenCalled();
+    await settle();
     expect(mocks.updateQuest).toHaveBeenCalledWith(expect.objectContaining({
       id: "quest-1",
       update: expect.objectContaining({ title: "Untitled Quest" }),
@@ -122,8 +130,7 @@ describe("QuestOverviewMetadata", () => {
     const wrapper = mountMetadata({ summary: "Something." });
     const summaryInput = wrapper.findAll("input")[1]!;
     await summaryInput.setValue("   ");
-    await summaryInput.trigger("blur");
-    await flushPromises();
+    await settle();
     expect(mocks.updateQuest).toHaveBeenCalledWith(expect.objectContaining({
       update: expect.objectContaining({ summary: null }),
     }));
@@ -132,7 +139,7 @@ describe("QuestOverviewMetadata", () => {
   it("announces a campaign broadcast only the first time the quest becomes player-visible", async () => {
     const wrapper = mountMetadata({ player_visible_to: [] });
     wrapper.findComponent({ name: "AudienceRevealControl" }).vm.$emit("change", ["player-1"]);
-    await flushPromises();
+    await settle();
     expect(mocks.announce).toHaveBeenCalledTimes(1);
     expect(mocks.announce).toHaveBeenCalledWith(
       "campaign-1",
@@ -144,7 +151,7 @@ describe("QuestOverviewMetadata", () => {
   it("does not re-announce a quest that is already shared", async () => {
     const wrapper = mountMetadata({ player_visible_to: ["player-1"] });
     wrapper.findComponent({ name: "AudienceRevealControl" }).vm.$emit("change", ["player-1", "player-2"]);
-    await flushPromises();
+    await settle();
     expect(mocks.announce).not.toHaveBeenCalled();
   });
 
@@ -184,7 +191,7 @@ describe("QuestOverviewMetadata", () => {
     mocks.beats = [{ id: "beat-1", title: "The rumor" }, { id: "beat-2", title: "The docks" }];
     const wrapper = mountMetadata({ entry_beat_id: "beat-1" });
     opensAtCombobox(wrapper)!.vm.$emit("update:modelValue", "beat-2");
-    await flushPromises();
+    await settle();
     expect(mocks.updateQuest).toHaveBeenCalledWith(expect.objectContaining({
       update: expect.objectContaining({ entry_beat_id: "beat-2" }),
     }));
@@ -194,7 +201,7 @@ describe("QuestOverviewMetadata", () => {
     mocks.beats = [{ id: "beat-1", title: "The rumor" }];
     const wrapper = mountMetadata({ entry_beat_id: "beat-1" });
     opensAtCombobox(wrapper)!.vm.$emit("update:modelValue", "");
-    await flushPromises();
+    await settle();
     expect(mocks.updateQuest).not.toHaveBeenCalled();
     expect(opensAtCombobox(wrapper)!.props("modelValue")).toBe("beat-1");
   });

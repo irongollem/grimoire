@@ -30,16 +30,25 @@ The Atlas is a two-pane explorer: a **location tree** on the left, and a **place
 
 The place pane shows: a breadcrumb of clickable ancestors, the sigil, name and type badge, a "N quests staged here" note when a quest beat is waiting at this place or one of its rooms, the **scale rail**, then two tabs: **Overview** (the full detail body first, then its children grouped by tier) and **Map** (its map, if it has one, see Sites for site-tier places).
 
+Beside the name, each button does one job:
+
+| Button | What it is for |
+| --- | --- |
+| **Reveal** (the eye) | Who among the players sees this place, and which parts of it (see Sharing a location with players, below). |
+| **Build** | The map and everything on it: upload or replace the picture, calibrate its grid, mark it as a battle map, place pins. On a site, also the floor plan, rooms and ways out. Everything saves as you go; press **Done** when you're finished. |
+| **Run** | Sites only: run the place at the table, room by room. |
+| **Details** | What the place is: name, type, sigil, parent, tags, era, ambience, description, player summary. It saves as you type; **Done** closes it. |
+
 ## Creating a location
 
 1. Click **New Location** (Atlas list page) or the inline "add a child" box in a place's own Parent/Child panel.
 2. Set **Type**: one of 19 options (World, Plane, Continent, Region, Country, City, Town, Village, District, Building, Store, Tavern, Inn, Wilds, Room, Grounds, Dungeon, Wilderness, Other).
 3. Pick a **Parent Location**, or leave it top-level.
-4. Add a **Description** (rich text) and, once the location exists, a **Player Summary**: a short plain-text line always shown to players who can see this place, even before you share the full description.
+4. Add a **Description** (rich text) and a **Player Summary**: a short plain-text line always shown to players who can see this place, even before you share the full description.
 5. Upload a **Sigil / Emblem** image if you like: it can be cropped with the focal-point control.
 6. Set **Tags**, an optional **Era** (from/to year, the place greys out or hides outside that in-world range), and an **Ambient** theme label (opening this location during a session asks the soundboard for a playlist tagged with that label; leave it blank to inherit from the nearest themed ancestor, or type "silence" to mute this place on purpose).
 7. **Scope** the location to the active campaign or make it general (available in every campaign): the same toggle every homebrew entity uses.
-8. Click **Create**.
+8. Click **Create**. From then on, **Details** saves itself as you type.
 
 ## Generating a location with AI
 
@@ -47,7 +56,7 @@ Click **Generate** on the Atlas list page to open the Location Generator panel. 
 
 ## Interactive maps and pins
 
-Upload an image as this location's **Map** (in the editor, or in Build mode for a site, see the Sites page) and you can drag to drop **pins**, each linked to a direct child. Clicking a vague-container child's pin position instead offers the concrete places nested inside it, so a regional map can still pin individual towns. Each pin has its own **visible to players** flag, and the whole map has a **Share Map** toggle. A site-tier place additionally shows traced room regions on the same map: see the Sites page.
+Press **Build**, open the **Map** tab and upload an image as this location's **Picture**; then drag to drop **pins**, each linked to a direct child. Clicking a vague-container child's pin position instead offers the concrete places nested inside it, so a regional map can still pin individual towns. Each pin has its own **visible to players** flag; whether players see the map at all is the **Map** switch in Reveal. Tick **Battle map** on the Picture row for tactical encounter art: it is kept out of the player Atlas and offered to the battle map instead. A site-tier place additionally shows traced room regions on the same map: see the Sites page.
 
 Descending into a child that also has its own map plays a zoom transition rather than a flat page change, and an **Up to `<parent>`** control on the map lets you rise the same way.
 
@@ -58,7 +67,7 @@ Click the reveal control (the eye icon) beside any place, in the tree row or the
 - **Who**: pick specific party members, or share with everyone.
 - **What**: four independent toggles: **Full description**, **People here** (linked NPCs), **Map** (only offered when this place has a shareable map that isn't a battle map), and **Wares** (store/tavern/inn only).
 
-The **Player Summary** field is always shown to anyone who can see the place at all, regardless of the toggles above.
+The **Player Summary** (written in Details) is always shown to anyone who can see the place at all, regardless of the toggles above. Reveal is the only place these switches live.
 
 ## Stores, taverns and inns
 

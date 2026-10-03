@@ -91,7 +91,7 @@
 /**
  * The "Show" bar above a site's map (#868, frame 03 "Map mode, for a site")
  * — which of the plan's overlays are currently PAINTED, a viewing
- * preference. Distinct from `SiteMapLayersPanel` (#884, S5), which is about
+ * preference. Distinct from `MapLayersPanel` (#884, S5), which is about
  * what the map is MADE of — Picture, Drawing, Plan — and is why this bar's
  * own header no longer says "Layers" too: the two sat one row apart with the
  * same word over both, which is exactly the ambiguity a DM reading either
