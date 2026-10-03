@@ -95,7 +95,9 @@ $$, '23514', null, 'nor at a location in another of the same DM''s campaigns');
 select pg_temp.as_writer('89200000-0000-4000-8000-000000000003');
 
 -- Loot a player claims is the DM's vault item (grab_item_drop and friends).
--- That a fellow member's global row is reachable at all is #964.
+-- Written as the table owner, this is the trigger's own allowance; a client
+-- write naming it also has to pass #964's "the campaign has been shown it"
+-- check (item_reference_disclosure.test.sql).
 select lives_ok($$
   insert into public.party_inventory (campaign_id, user_id, name, item_id)
   values ('89200000-0000-4000-8000-000000000010', '89200000-0000-4000-8000-000000000003', 'DM vault item', '89200000-0000-4000-8000-000000000030')
