@@ -41,17 +41,17 @@ describe("buildStarterRecipeChildRows", () => {
   });
 
   it("falls back to a shared library reference when the vault map has no match (#819)", () => {
-    // The motivating case: "Stitch Leather Armour" outputs "Leather Armour",
-    // which only ever existed as library_items — the vault map is empty for it.
-    const defs = [recipe({ name: "Stitch Leather Armour", outputs: [{ name: "Leather Armour", quantity: 1 }] })];
+    // "Craft Leather Barding" outputs "Leather Barding", which only exists
+    // as library_items — the vault map is empty for it.
+    const defs = [recipe({ name: "Craft Leather Barding", outputs: [{ name: "Leather Barding", quantity: 1 }] })];
     const { outputRows } = buildStarterRecipeChildRows(
       defs,
       ["recipe-a"],
       new Map(), // nothing in the vault
-      new Map([["Leather Armour", "srd_grimoire_bundled_leather_armour"]]),
+      new Map([["Leather Barding", "srd_grimoire_bundled_leather_barding"]]),
     );
     expect(outputRows).toEqual([
-      { recipe_id: "recipe-a", item_id: null, library_item_id: "srd_grimoire_bundled_leather_armour", quantity: 1 },
+      { recipe_id: "recipe-a", item_id: null, library_item_id: "srd_grimoire_bundled_leather_barding", quantity: 1 },
     ]);
   });
 

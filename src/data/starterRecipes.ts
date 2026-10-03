@@ -1252,7 +1252,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: true,
     requires_tools: true,
     ingredients: [{ tags: ["leather", "material"], quantity: 4 }],
-    outputs: [{ name: "Leather Armour", quantity: 1 }],
+    outputs: [{ name: "Leather Armor", quantity: 1 }],
     modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
