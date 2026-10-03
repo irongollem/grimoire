@@ -15,7 +15,7 @@ import type {
 } from "@/lib/campaign/campaignHomebrewDisposition";
 import { LOCATION_STATE_QUERY_KEY } from "@/composables/locations/useLocationState";
 import { HOMEBREW_TABLES, EMPTY_HOMEBREW_COUNTS } from "@/lib/campaign/campaignHomebrewDisposition";
-import { campaignFileUrls } from "@/lib/campaign/campaignFiles";
+import { campaignFileUrls, campaignImportSourcePaths, deleteCampaignMinis, deleteImportSourcePaths } from "@/lib/campaign/campaignFiles";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { reportHandledError } from "@/lib/observability/sentry";
 
@@ -169,6 +169,9 @@ export async function disposeHomebrewAndDeleteCampaign(
   if (!user) throw new Error("Not authenticated");
   // Read before the delete, which removes the rows that name the files (#918).
   const fileUrls = await campaignFileUrls(campaignId, user.id, disposition);
+  const importPaths = await campaignImportSourcePaths(campaignId, user.id);
+  // Minis go first: their rows are the only record of their files (#963).
+  await deleteCampaignMinis(campaignId);
   const { error } = await supabase.rpc("delete_campaign_with_homebrew", {
     p_campaign_id: campaignId,
     p_disposition: disposition,
@@ -180,6 +183,12 @@ export async function disposeHomebrewAndDeleteCampaign(
     await deleteUnreferencedByPublicUrl({ urls: fileUrls });
   } catch (cleanupError) {
     reportHandledError(cleanupError, "campaign:deleteFiles", { campaignId, files: fileUrls.length });
+  }
+  // Separate attempt: the import pages are private-bucket paths, not URLs (#963).
+  try {
+    await deleteImportSourcePaths(importPaths);
+  } catch (cleanupError) {
+    reportHandledError(cleanupError, "campaign:deleteImportFiles", { campaignId, files: importPaths.length });
   }
 }
 

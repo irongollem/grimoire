@@ -823,6 +823,10 @@ bucket is CDN-fronted **and** R2-backed; a private, transient bucket is neither.
 `supabase.storage.from("import-documents")` directly — registering it turns three
 green tests red.
 
+### Deleting a campaign removes an in-review import's pages (#963)
+
+`disposeHomebrewAndDeleteCampaign` reads the caller's `document_imports.source_paths` for the campaign before the delete RPC (`campaignImportSourcePaths`, `src/lib/campaign/campaignFiles.ts`) and removes them from `import-documents` once it succeeds, reporting a storage failure rather than failing the delete. Extraction and discard already remove pages; this covers an import still in review when the campaign goes.
+
 ### `document_model` is separate from `text_model`
 
 Reading a document is a distinct capability, exactly as `image_model` is. The

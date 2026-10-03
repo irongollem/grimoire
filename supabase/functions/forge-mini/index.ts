@@ -586,16 +586,18 @@ async function handleCancel(userId: string, body: Record<string, unknown>, json:
   return json({ mini_id: miniId, status: "image_ready" });
 }
 
-async function handleDelete(userId: string, body: Record<string, unknown>, json: JsonFn): Promise<Response> {
-  const miniId = typeof body.mini_id === "string" ? body.mini_id : null;
-  if (!miniId) return json({ error: "invalid_body" }, 400);
+interface DeletableMini {
+  id: string;
+  user_id: string;
+  reservation_ids: string[] | null;
+  credits_spent: number;
+}
 
-  const { data: existing } = await admin
-    .from("minis").select("id, user_id, reservation_ids, credits_spent").eq("id", miniId).maybeSingle();
-  if (!existing) return json({ error: "not_found" }, 404);
-  const mini = existing as { id: string; user_id: string; reservation_ids: string[] | null; credits_spent: number };
-  if (mini.user_id !== userId) return json({ error: "forbidden" }, 403);
-
+/**
+ * The one way a mini goes: its files, then its credit hold, then its row.
+ * Returns an error code, or null once all three are done.
+ */
+async function removeMini(mini: DeletableMini): Promise<"storage_cleanup_failed" | "delete_failed" | null> {
   // Service-role-only cleanup: clients have no storage write/delete policy on
   // mini-models (SIMULACRUM_PLAN.md §3), so this is the only deletion path.
   //
@@ -613,10 +615,10 @@ async function handleDelete(userId: string, body: Record<string, unknown>, json:
   //      and deleting the row would orphan up to 50 MB per format in R2 with
   //      nothing left pointing at it.
   try {
-    await deleteByPrefix(admin, "mini-models", `${userId}/${miniId}`);
+    await deleteByPrefix(admin, "mini-models", `${mini.user_id}/${mini.id}`);
   } catch (err) {
     console.error("forge-mini delete: storage cleanup failed", err);
-    return json({ error: "storage_cleanup_failed" }, 502);
+    return "storage_cleanup_failed";
   }
 
   // Deleting mid-sculpt must not strand the credit hold — but it SETTLES, not
@@ -624,16 +626,67 @@ async function handleDelete(userId: string, body: Record<string, unknown>, json:
   // credits only come back when the failure is ours (refund policy).
   if (mini.reservation_ids?.length) {
     await releaseCredits(admin, mini.reservation_ids);
-    await recordGeneration(admin, userId, "mini_sculpt", false, mini.credits_spent).catch(console.error);
+    await recordGeneration(admin, mini.user_id, "mini_sculpt", false, mini.credits_spent).catch(console.error);
   }
 
-  const { error: deleteErr } = await admin.from("minis").delete().eq("id", miniId);
+  const { error: deleteErr } = await admin.from("minis").delete().eq("id", mini.id);
   if (deleteErr) {
     console.error("forge-mini delete: row delete failed", deleteErr);
+    return "delete_failed";
+  }
+  return null;
+}
+
+const REMOVE_FAILURE_STATUS = { storage_cleanup_failed: 502, delete_failed: 500 } as const;
+
+async function handleDelete(userId: string, body: Record<string, unknown>, json: JsonFn): Promise<Response> {
+  const miniId = typeof body.mini_id === "string" ? body.mini_id : null;
+  if (!miniId) return json({ error: "invalid_body" }, 400);
+
+  const { data: existing } = await admin
+    .from("minis").select("id, user_id, reservation_ids, credits_spent").eq("id", miniId).maybeSingle();
+  if (!existing) return json({ error: "not_found" }, 404);
+  const mini = existing as DeletableMini;
+  if (mini.user_id !== userId) return json({ error: "forbidden" }, 403);
+
+  const failure = await removeMini(mini);
+  if (failure) return json({ error: failure }, REMOVE_FAILURE_STATUS[failure]);
+  return json({ ok: true });
+}
+
+/**
+ * Every mini in a campaign about to be deleted, whoever made it (#963). The
+ * campaign delete cascades the rows, and a row is the only thing that names
+ * its `{userId}/{miniId}/` folder, so the files have to go first or never.
+ * The campaign owner may do this to every member's minis because the delete
+ * they are about to run removes those rows anyway; nobody else may.
+ */
+async function handleDeleteCampaign(userId: string, body: Record<string, unknown>, json: JsonFn): Promise<Response> {
+  const campaignId = typeof body.campaign_id === "string" ? body.campaign_id : null;
+  if (!campaignId) return json({ error: "invalid_body" }, 400);
+
+  const { data: campaign, error: campaignErr } = await admin
+    .from("campaigns").select("user_id").eq("id", campaignId).maybeSingle();
+  if (campaignErr) {
+    console.error("forge-mini delete_campaign: campaign read failed", campaignErr);
     return json({ error: "delete_failed" }, 500);
   }
+  if (!campaign) return json({ error: "not_found" }, 404);
+  if (campaign.user_id !== userId) return json({ error: "forbidden" }, 403);
 
-  return json({ ok: true });
+  const { data: minis, error: minisErr } = await admin
+    .from("minis").select("id, user_id, reservation_ids, credits_spent").eq("campaign_id", campaignId);
+  if (minisErr || !minis) {
+    console.error("forge-mini delete_campaign: minis read failed", minisErr);
+    return json({ error: "delete_failed" }, 500);
+  }
+  // One at a time: each settles a credit hold, and a failure stops here with
+  // the rest of the rows intact for the retry.
+  for (const mini of minis as DeletableMini[]) {
+    const failure = await removeMini(mini);
+    if (failure) return json({ error: failure }, REMOVE_FAILURE_STATUS[failure]);
+  }
+  return json({ ok: true, deleted: minis.length });
 }
 
 // ── set_base ──────────────────────────────────────────────────────────────────
@@ -748,14 +801,19 @@ serve(withCors(async (req: Request) => {
   // Frozen or child accounts cannot generate (#919) — Simulacrum has no BYOK
   // path to worry about skipping the credit gate, but both must still block
   // sculpt/resculpt/stylize alike.
-  const accountRefusal = await generationRefusal(admin, user.id);
-  if (accountRefusal) return accountRefusal;
-
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
     return json({ error: "invalid_body" }, 400);
+  }
+
+  // Deleting generates nothing, so a frozen or child account may still remove
+  // its minis, and its campaigns with them.
+  const deletes = body.action === "delete" || body.action === "delete_campaign";
+  if (!deletes) {
+    const accountRefusal = await generationRefusal(admin, user.id);
+    if (accountRefusal) return accountRefusal;
   }
 
   // Spending actions are dark unless the feature is "live" — the endpoint, not
@@ -780,6 +838,7 @@ serve(withCors(async (req: Request) => {
     case "resculpt": return handleSculptAction(user.id, body, json, false);
     case "cancel":   return handleCancel(user.id, body, json);
     case "delete":   return handleDelete(user.id, body, json);
+    case "delete_campaign": return handleDeleteCampaign(user.id, body, json);
     case "set_base": return handleSetBase(user.id, body, json);
     default:         return json({ error: "invalid_action" }, 400);
   }

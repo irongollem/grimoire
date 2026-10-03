@@ -30,6 +30,9 @@
  * books either.
  */
 
+/** The private, transient bucket the importer's pages live in. Deliberately not in `BUCKETS`: see `context/features/document-import.md`. */
+export const IMPORT_DOCUMENTS_BUCKET = "import-documents";
+
 /** Page cap for a free-plan upload. */
 export const FREE_PAGE_LIMIT = 10;
 

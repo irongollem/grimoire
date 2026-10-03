@@ -43,7 +43,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { MAX_UPLOAD_BYTES, validateTotalUploadBytes } from "@/lib/documentImport/limits";
+import { IMPORT_DOCUMENTS_BUCKET, MAX_UPLOAD_BYTES, validateTotalUploadBytes } from "@/lib/documentImport/limits";
 import { downscalePagePhoto } from "@/lib/documentImport/downscale";
 import { useGenerationCreditCosts } from "@/composables/billing/useCreditConfig";
 import type {
@@ -52,8 +52,6 @@ import type {
   DocumentImportSourceKind,
   DocumentImportStatus,
 } from "@/types/documentImport.types";
-
-const IMPORT_DOCUMENTS_BUCKET = "import-documents";
 
 // ── Client-side mirror of migration 20260824204224's bucket config ──────────
 // Mirrored rather than looked up: this bucket is intentionally not in
