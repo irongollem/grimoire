@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   fitView: vi.fn(),
   setCenter: vi.fn(),
   project: vi.fn(),
+  onNodesInitialized: vi.fn(),
 }));
 
 vi.mock("@vue-flow/core", () => ({
@@ -83,6 +84,62 @@ describe("QuestFlowCanvas viewport persistence", () => {
     wrapper.unmount();
 
     expect(wrapper.emitted("viewport-change")).toBeUndefined();
+  });
+});
+
+describe("QuestFlowCanvas opening view (#944)", () => {
+  const chain = Array.from({ length: 15 }, (_, i) => ({
+    id: `beat-${i}`, quest_id: "q", title: `B${i}`, kind: "social", visibility: "hidden", canvas_x: i * 240, canvas_y: 0,
+  })) as QuestBeat[];
+
+  beforeEach(() => {
+    mocks.fitView.mockReset();
+    mocks.setCenter.mockReset();
+    mocks.onNodesInitialized.mockReset();
+  });
+
+  function openWith(fittedZoom: number, props: Record<string, unknown> = {}) {
+    mocks.fitView.mockImplementation(() => { mocks.viewport.value = { x: 0, y: 0, zoom: fittedZoom }; return Promise.resolve(true); });
+    const wrapper = mountCanvas({ beats: chain, ...props });
+    const [onInitialized] = mocks.onNodesInitialized.mock.calls[0] as [() => void];
+    onInitialized();
+    return wrapper;
+  }
+
+  it("opens fitted when the whole quest stays readable", async () => {
+    openWith(0.9);
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(mocks.fitView).toHaveBeenCalled();
+    expect(mocks.setCenter).not.toHaveBeenCalled();
+  });
+
+  it("opens a long quest on the party's beat at full size instead of a fitted strip", async () => {
+    openWith(0.168, { currentBeatId: "beat-9" });
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(mocks.setCenter).toHaveBeenCalledWith(9 * 240 + 120, 60, { zoom: 1, duration: 0 });
+  });
+
+  it("moves to the party's beat when the runtime answers after the open", async () => {
+    const wrapper = openWith(0.168, { entryBeatId: "beat-0" });
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(mocks.setCenter).toHaveBeenLastCalledWith(120, 60, { zoom: 1, duration: 0 });
+    await wrapper.setProps({ currentBeatId: "beat-6" });
+    expect(mocks.setCenter).toHaveBeenLastCalledWith(6 * 240 + 120, 60, { zoom: 1, duration: 0 });
+  });
+
+  it("leaves the view alone once the DM has moved it", async () => {
+    const wrapper = openWith(0.168, { entryBeatId: "beat-0" });
+    await new Promise((resolve) => setTimeout(resolve));
+    wrapper.findComponent({ name: "VueFlow" }).vm.$emit("viewport-change-end", { x: 1, y: 2, zoom: 1 });
+    await wrapper.setProps({ currentBeatId: "beat-6" });
+    expect(mocks.setCenter).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reframe a canvas restoring a stored view", () => {
+    mountCanvas({ beats: chain, frameOnOpen: false });
+    const [onInitialized] = mocks.onNodesInitialized.mock.calls[0] as [() => void];
+    onInitialized();
+    expect(mocks.fitView).not.toHaveBeenCalled();
   });
 });
 

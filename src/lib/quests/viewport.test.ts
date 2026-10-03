@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readQuestViewport, viewportShowsAnyNode, writeQuestViewport } from "./viewport";
+import { openingBeatId, readQuestViewport, viewportShowsAnyNode, writeQuestViewport } from "./viewport";
 
 describe("quest viewport preferences", () => {
   it("round-trips a viewport per quest and rejects malformed state", () => {
@@ -36,5 +36,26 @@ describe("quest viewport preferences", () => {
     expect(viewportShowsAnyNode({ x: 0, y: 0, zoom: 1 }, [{ position: { x: 0, y: 0 } }], { width: 0, height: 0 })).toBe(false);
     // An empty flow has nothing to miss.
     expect(viewportShowsAnyNode({ x: -9999, y: 0, zoom: 1 }, [], { width: 800, height: 600 })).toBe(true);
+  });
+});
+
+describe("openingBeatId (#944)", () => {
+  const nodes = [
+    { id: "middle", position: { x: 400, y: 0 } },
+    { id: "start", position: { x: 0, y: 200 } },
+    { id: "start-top", position: { x: 0, y: 0 } },
+  ];
+
+  it("opens where the party is", () => {
+    expect(openingBeatId(nodes, "middle", "start")).toBe("middle");
+  });
+
+  it("falls back to the entry beat, then the leftmost beat", () => {
+    expect(openingBeatId(nodes, null, "start")).toBe("start");
+    expect(openingBeatId(nodes, "gone", null)).toBe("start-top");
+  });
+
+  it("returns null for an empty graph", () => {
+    expect(openingBeatId([], null, null)).toBeNull();
   });
 });

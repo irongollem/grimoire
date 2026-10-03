@@ -48,3 +48,40 @@ export function viewportShowsAnyNode(
       && top < size.height;
   });
 }
+
+/**
+ * The smallest zoom the Story flow allows. Low enough that Fit fits a long
+ * quest for real (#944): a 15-beat chain in a 754px pane needs 0.168, and at
+ * the old floor of 0.25 the clamp won, so Fit drew the graph both unreadable
+ * and overflowing both edges.
+ */
+export const QUEST_FLOW_MIN_ZOOM = 0.05;
+
+/**
+ * Below this a beat card's text is no longer readable (a 12px caption at 0.75
+ * is 9px). The Story flow opens fitted only when the fit stays above it;
+ * otherwise it opens on one beat at full size. Frame `02 Story flow` draws Fit
+ * and Current beat side by side, with the beats legible: Fit is the overview,
+ * not the first view.
+ */
+export const QUEST_FLOW_READABLE_ZOOM = 0.75;
+
+/**
+ * The beat a long quest opens on when a fitted view would be unreadable: where
+ * the party is, else where the quest starts, else the leftmost beat (the flow
+ * reads left to right).
+ */
+export function openingBeatId(
+  nodes: ReadonlyArray<{ id: string; position: { x: number; y: number } }>,
+  currentBeatId: string | null,
+  entryBeatId: string | null,
+): string | null {
+  for (const id of [currentBeatId, entryBeatId]) {
+    if (id && nodes.some((node) => node.id === id)) return id;
+  }
+  let leftmost: (typeof nodes)[number] | null = null;
+  for (const node of nodes) {
+    if (!leftmost || node.position.x < leftmost.position.x || (node.position.x === leftmost.position.x && node.position.y < leftmost.position.y)) leftmost = node;
+  }
+  return leftmost?.id ?? null;
+}

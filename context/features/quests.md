@@ -987,6 +987,16 @@ contract and made its body an unscrollable `overflow:hidden` box at `lg` and wid
 (`min-w-64`/`24rem` column) reads whatever is selected without leaving the
 canvas.
 
+- **The first view is readable; Fit is the overview** (#944). The frame draws
+  Fit and Current beat side by side with the beats legible. With no stored
+  viewport the canvas fits, and if that fit falls below
+  `QUEST_FLOW_READABLE_ZOOM` (0.75) it opens instead on the party's beat at
+  full size (else the entry, else the leftmost; `openingBeatId` in
+  `lib/quests/viewport.ts`), moving there when the runtime answers late unless
+  the DM has already moved the canvas. `min-zoom` is `QUEST_FLOW_MIN_ZOOM`
+  (0.05) so Fit really fits: at the old 0.25 a 15-beat chain was clamped into a
+  strip both unreadable and overflowing the pane.
+
 - **Swimlanes** (`QuestFlowSwimlanes.vue`, geometry in `lib/quests/swimlanes.ts`)
   are dashed rectangles drawn behind the nodes, one per live or waiting thread,
   transformed with the canvas viewport — framing every beat that thread has

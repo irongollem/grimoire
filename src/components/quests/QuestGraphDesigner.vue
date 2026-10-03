@@ -77,7 +77,7 @@
           :current-beat-id="currentBeatId"
           :entry-beat-id="entryBeatId"
           :initial-viewport="initialViewport"
-          :fit-on-open="!initialViewport"
+          :frame-on-open="!initialViewport"
           :editable="true"
           @command="onCommand"
           @viewport-change="writeQuestViewport(questId, $event)"

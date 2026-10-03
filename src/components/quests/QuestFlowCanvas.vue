@@ -6,11 +6,10 @@
         :id="graphId"
         v-model:nodes="nodes"
         v-model:edges="flowEdges"
-        :min-zoom="0.25"
+        :min-zoom="QUEST_FLOW_MIN_ZOOM"
         :max-zoom="2.5"
         :nodes-draggable="true"
         :nodes-connectable="editable"
-        :fit-view-on-init="fitOnOpen"
         :default-viewport="initialViewport ?? undefined"
         @node-click="onNodeClick"
         @edge-click="emit('command', { type: 'select-edge', edgeId: $event.edge.id })"
@@ -18,7 +17,7 @@
         @connect-start="onConnectStart"
         @connect="onConnect"
         @connect-end="onConnectEnd"
-        @viewport-change-end="emit('viewport-change', $event)"
+        @viewport-change-end="onViewportGesture"
       >
         <template #node-questBeat="slotProps">
           <QuestFlowNode
@@ -66,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useVueFlow, VueFlow, type ViewportTransform } from "@vue-flow/core";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
@@ -76,7 +75,7 @@ import QuestFlowSwimlanes from "./QuestFlowSwimlanes.vue";
 import QuestGraphOutline from "./QuestGraphOutline.vue";
 import { moveBeatCommand, toQuestFlowGraph, type QuestGraphCommand } from "@/lib/quests/flow";
 import { prefersReducedMotion } from "@/lib/motion";
-import { viewportShowsAnyNode } from "@/lib/quests/viewport";
+import { openingBeatId, QUEST_FLOW_MIN_ZOOM, QUEST_FLOW_READABLE_ZOOM, viewportShowsAnyNode } from "@/lib/quests/viewport";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import { deriveSwimlanes, type SwimlaneRuntimeCursor, type SwimlaneTransition } from "@/lib/quests/swimlanes";
 import type { ThreadLike } from "@/lib/quests/threads";
@@ -88,7 +87,7 @@ import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.typ
 // needs to fully enclose the node, not hug it exactly.
 const SWIMLANE_NODE_SIZE = { width: 240, height: 150 };
 
-const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), edgeGates = {}, threads = [], runtime = [], transitions = [], selectedBeatId = null, currentBeatId = null, entryBeatId = null, fitOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; edgeGates?: Record<string, QuestRouteGate>; threads?: ThreadLike[]; runtime?: SwimlaneRuntimeCursor[]; transitions?: SwimlaneTransition[]; selectedBeatId?: string | null; currentBeatId?: string | null; entryBeatId?: string | null; fitOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
+const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), edgeGates = {}, threads = [], runtime = [], transitions = [], selectedBeatId = null, currentBeatId = null, entryBeatId = null, frameOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; edgeGates?: Record<string, QuestRouteGate>; threads?: ThreadLike[]; runtime?: SwimlaneRuntimeCursor[]; transitions?: SwimlaneTransition[]; selectedBeatId?: string | null; currentBeatId?: string | null; entryBeatId?: string | null; frameOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
 const emit = defineEmits<{ command: [command: QuestGraphCommand]; "viewport-change": [viewport: ViewportTransform] }>();
 const flow = useVueFlow(graphId);
 const canvasEl = ref<HTMLElement | null>(null);
@@ -153,10 +152,57 @@ function transitionMs() {
 }
 
 async function fitGraph() {
+  awaitingCurrent = false;
   await nextTick();
   const duration = transitionMs();
   return settleViewport(flow.fitView({ padding: 0.2, duration }), duration);
 }
+
+/**
+ * The first view of a canvas with no usable stored viewport (#944).
+ *
+ * Fitted, when the fit leaves the beats readable. A long quest fits only as an
+ * illegible strip, so it opens on one beat at full size instead (the party's,
+ * else the entry, else the leftmost) and Fit stays one press away as the
+ * overview. Both moves are instant: there is nothing on screen yet to animate.
+ */
+async function openView() {
+  await nextTick();
+  void flow.fitView({ padding: 0.2, duration: 0 });
+  awaitingCurrent = false;
+  if (flow.viewport.value.zoom < QUEST_FLOW_READABLE_ZOOM) {
+    const id = openingBeatId(nodes.value, currentBeatId, entryBeatId);
+    const node = nodes.value.find((candidate) => candidate.id === id);
+    if (node) void flow.setCenter(node.position.x + 120, node.position.y + 60, { zoom: 1, duration: 0 });
+    awaitingCurrent = currentBeatId === null;
+  }
+  publishViewport();
+}
+
+// The party's beat comes from the runtime query, which often answers after the
+// nodes have measured, so a long quest first opens on its entry. Move to the
+// party's beat when it arrives, unless the DM has already moved the canvas.
+let awaitingCurrent = false;
+watch(() => currentBeatId, (current) => {
+  if (!awaitingCurrent || !current) return;
+  awaitingCurrent = false;
+  const node = nodes.value.find((candidate) => candidate.id === current);
+  if (node) void settleViewport(flow.setCenter(node.position.x + 120, node.position.y + 60, { zoom: 1, duration: 0 }), 0);
+});
+
+function onViewportGesture(viewport: ViewportTransform) {
+  awaitingCurrent = false;
+  emit("viewport-change", viewport);
+}
+
+// VueFlow's own fit-view-on-init could only fit, so it is replaced by this:
+// once every node has measured, open the canvas the way `openView` decides.
+let opened = false;
+flow.onNodesInitialized(() => {
+  if (opened || !frameOnOpen) return;
+  opened = true;
+  void openView();
+});
 
 // A viewport stored in one window is restored into whatever window comes next,
 // and a canvas that was hidden when the transform was captured stores a
@@ -169,11 +215,12 @@ onMounted(async () => {
   const box = canvasEl.value?.getBoundingClientRect();
   if (!box) return;
   if (viewportShowsAnyNode(initialViewport, nodes.value, { width: box.width, height: box.height })) return;
-  await fitGraph();
+  await openView();
 });
 
 async function focusCurrent() {
   if (!currentBeatId) return false;
+  awaitingCurrent = false;
   await nextTick();
   const node = nodes.value.find((candidate) => candidate.id === currentBeatId);
   if (!node) return false;
