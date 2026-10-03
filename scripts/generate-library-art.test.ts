@@ -54,7 +54,7 @@ const prov: AiProvenance = {
 
 function entry(slug: string, status: ManifestEntry["status"] = "candidate"): ManifestEntry {
   return {
-    slug, kind: "spell", id: "srd_fireball", name: "Fireball", alsoNames: [], context: "c", subject: "s", subjectSource: "model", imagePrompt: "p",
+    slug, kind: "spell", id: "srd_fireball", name: "Fireball", alsoNames: [], alsoIds: [], context: "c", subject: "s", subjectSource: "model", imagePrompt: "p",
     provider: "openai", model: "m", textModel: "t", quality: "high", size: "1024x1536",
     generatedAt: prov.generatedAt, providerFile: `${slug}.provider.webp`, finalFile: `${slug}.webp`,
     providerBytes: 10, finalBytes: 5, imageUsage: null, status, publish: null,
@@ -184,7 +184,14 @@ describe("row selection", () => {
   });
 
   it("lands a monster image on that id only, whatever shares its name", () => {
-    expect(selectMonsterRowsToUpdate({ id: "srd_srd_sprite" })).toEqual(["srd_srd_sprite"]);
+    expect(selectMonsterRowsToUpdate({ id: "srd_srd_sprite", alsoIds: [] })).toEqual(["srd_srd_sprite"]);
+  });
+
+  it("lands a shared monster image on each id named with --also", () => {
+    expect(selectMonsterRowsToUpdate({ id: "srd_srd_2024_aboleth", alsoIds: ["srd_srd_aboleth", "srd_srd_2024_aboleth"] })).toEqual([
+      "srd_srd_2024_aboleth",
+      "srd_srd_aboleth",
+    ]);
   });
 
   it("selects every item of that name", () => {
@@ -248,8 +255,11 @@ describe("arguments and refusals", () => {
     expect(parseCli(["generate", "--item", "Longsword (+1)", "--also", " Longsword (+2) ", "--also", "Longsword (+3)", "--out", "d"])).toMatchObject({
       items: ["Longsword (+1)"], also: ["Longsword (+2)", "Longsword (+3)"],
     });
-    expect(() => parseCli(["generate", "--item", "a", "--item", "b", "--also", "c", "--out", "d"])).toThrow(/exactly one --item/);
-    expect(() => parseCli(["generate", "--spell", "a", "--also", "c", "--out", "d"])).toThrow(/exactly one --item/);
+    expect(() => parseCli(["generate", "--item", "a", "--item", "b", "--also", "c", "--out", "d"])).toThrow(/exactly one --item or --monster/);
+    expect(() => parseCli(["generate", "--spell", "a", "--also", "c", "--out", "d"])).toThrow(/exactly one --item or --monster/);
+    expect(parseCli(["generate", "--monster", "srd_srd_2024_aboleth", "--also", "srd_srd_aboleth", "--out", "d"])).toMatchObject({
+      monsters: ["srd_srd_2024_aboleth"], also: ["srd_srd_aboleth"],
+    });
     expect(() => parseCli(["generate", "--item", "a", "--also", " ", "--out", "d"])).toThrow(/must not be empty/);
     expect(() => parseCli(["generate", "--item", "Ale", "--also", "ale", "--out", "d"])).toThrow(/twice/);
     expect(() => parseCli(["publish", "--out", "d", "--also", "x"])).toThrow(/belongs to generate/);

@@ -59,7 +59,7 @@
  * than each costing a render); monster art goes to `monster-images/srd/` with a
  * `library_monster_art_canonical` row (only its `image_url` is written, never
  * its cutout or focal point) and that one `library_monsters` row, with no
- * namesake rule. `--library-owner <uuid>` names the owner recorded for the
+ * namesake rule unless `--also <id>` names further rows to share it. `--library-owner <uuid>` names the owner recorded for the
  * provenance rows; by default the one admin account. `--cdn-base <url>` is
  * needed when `VITE_ASSET_CDN_URL` is not in the env.
  *
@@ -195,6 +195,16 @@ export function itemSetting(item: Pick<ItemFacts, "name" | "item_type">): string
   const size = itemStaging(item) === "short" ? " The wand, about the length of a forearm, stands upright in a small wooden wand stand on that surface, shown whole from tip to handle." : "";
   return `${ITEM_SCENES[itemScene(item)]}${size} ${ITEM_SCENE_COMMON}`;
 }
+
+/**
+ * Spells keep the look the existing canonical spell art has: the spell at the
+ * moment of casting, caster and target allowed, palette and place free to suit
+ * the spell (#955 matched it rather than giving spells the items' scene). Only
+ * the rules every library picture keeps are added: the model otherwise painted
+ * compass letters into a starry sky.
+ */
+export const SPELL_SETTING =
+  "One clear moment of the spell taking effect, painted as a single scene. No lettering, letters, numbers, labels or writing anywhere in the picture, and no multiple views, panels or insets.";
 
 /**
  * Appended to the subject author's instructions when the kind has a fixed
@@ -404,9 +414,14 @@ export function selectItemRowsToUpdate(names: readonly string[], items: readonly
   return items.filter((item) => lowered.has(item.name.toLowerCase())).map((item) => item.id).sort();
 }
 
-/** The `library_monsters` rows a published monster image lands on: that id only. `sync_library_monster_art()` matches `entry_id = id` and nothing else, so there is no namesake rule. */
-export function selectMonsterRowsToUpdate(target: { id: string }): string[] {
-  return [target.id];
+/**
+ * The `library_monsters` rows a published monster image lands on: that id and
+ * its `--also` ids. `sync_library_monster_art()` matches `entry_id = id` and
+ * nothing else, so there is no namesake rule; one creature's editions and
+ * publishers share a picture only when they are named (#955).
+ */
+export function selectMonsterRowsToUpdate(target: Pick<ManifestEntry, "alsoIds"> & { id: string }): string[] {
+  return [...new Set([target.id, ...target.alsoIds])].sort();
 }
 
 /** Escapes `%`, `_` and `\` so a name can be used as an exact-match `ilike` pattern. */
@@ -437,6 +452,8 @@ export interface ManifestEntry {
   name: string;
   /** Item entries only: further library item names the same picture is published to (`--also`). */
   alsoNames: string[];
+  /** Monster entries only: further library monster ids the same picture is published to (`--also`). */
+  alsoIds: string[];
   context: string;
   subject: string;
   /** Who wrote the subject: the text model, as in the app, or a person through `--subject`. */
@@ -596,11 +613,12 @@ export function parseCli(argv: readonly string[]): CliOptions {
     }
     const also = (values.also ?? []).map((name) => name.trim());
     if (also.length > 0) {
-      // A shared picture is drawn from one item's facts, so it needs exactly one.
-      if (items.length !== 1 || spells.length + monsters.length > 0) throw new Error("--also shares one item's picture: name exactly one --item with it.");
+      // A shared picture is drawn from one entry's facts, so it needs exactly one
+      // item (the others are item names) or one monster (the others are monster ids).
+      if (count !== 1 || spells.length > 0) throw new Error("--also shares one picture: name exactly one --item or --monster with it.");
       if (also.some((name) => name === "")) throw new Error("--also must not be empty.");
-      const lowered = [items[0], ...also].map((name) => name.toLowerCase());
-      if (new Set(lowered).size !== lowered.length) throw new Error("--also names an item twice.");
+      const lowered = [...items, ...monsters, ...also].map((name) => name.toLowerCase());
+      if (new Set(lowered).size !== lowered.length) throw new Error("--also names an entry twice.");
     }
     const imageModel = values["image-model"]?.trim() || null;
     if (imageModel !== null && !imageModel.startsWith("gpt-image-")) throw new Error("--image-model must name an OpenAI gpt-image model.");
@@ -787,7 +805,8 @@ interface PlannedEntry {
   name: string;
   context: string;
   alsoNames: string[];
-  /** The scene the picture is set in: an item's staging, empty for spells and monsters (their art is the effect or the creature). */
+  alsoIds: string[];
+  /** The setting passed to the image prompt: an item's staging, the spell guard rails, empty for monsters. */
   setting: string;
   scene: ItemScene | null;
 }
@@ -809,16 +828,19 @@ async function planEntries(client: SupabaseClient, opts: GenerateOptions): Promi
   for (const ref of chosen) {
     if (ref.kind === "spell") {
       const spell = await loadSpell(client, ref.id);
-      planned.push({ ref, name: spell.name, context: spellContext(spell), alsoNames: [], setting: "", scene: null });
+      planned.push({ ref, name: spell.name, context: spellContext(spell), alsoNames: [], alsoIds: [], setting: SPELL_SETTING, scene: null });
     } else if (ref.kind === "monster") {
       const monster = await loadMonster(client, ref.id);
-      planned.push({ ref, name: monster.name, context: monsterContext(monster), alsoNames: [], setting: "", scene: null });
+      // Fail before spending when a shared id is wrong.
+      const alsoIds: string[] = [];
+      for (const id of opts.also) alsoIds.push((await loadMonster(client, id)).id);
+      planned.push({ ref, name: monster.name, context: monsterContext(monster), alsoNames: [], alsoIds, setting: "", scene: null });
     } else {
       const item = await loadItem(client, ref.name);
       // Fail before spending when a shared name is misspelt, and record each as the library spells it.
       const alsoNames: string[] = [];
       for (const name of opts.also) alsoNames.push((await loadItem(client, name)).name);
-      planned.push({ ref, name: item.name, context: itemContext(item), alsoNames, setting: itemSetting(item), scene: itemScene(item) });
+      planned.push({ ref, name: item.name, context: itemContext(item), alsoNames, alsoIds: [], setting: itemSetting(item), scene: itemScene(item) });
     }
   }
   return planned;
@@ -953,7 +975,7 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
   console.log(`Size:         ${ENTITY_IMAGE_SIZE}`);
   console.log(`Quality:      ${settings.quality ?? "(provider default)"}`);
   console.log(`Images:       ${planned.length} (one text call and one paid image call each)`);
-  for (const p of planned) console.log(`  ${entrySlug(p.ref)}: ${p.name}${p.scene ? ` [${p.scene}]` : ""}${p.alsoNames.length > 0 ? ` (also ${p.alsoNames.join("; ")})` : ""}`);
+  for (const p of planned) console.log(`  ${entrySlug(p.ref)}: ${p.name}${p.scene ? ` [${p.scene}]` : ""}${[...p.alsoNames, ...p.alsoIds].length > 0 ? ` (also ${[...p.alsoNames, ...p.alsoIds].join("; ")})` : ""}`);
   assertMaySpend(opts);
 
   const openaiKey = requireEnv("OPENAI_API_KEY");
@@ -969,7 +991,7 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
       (await openaiText(
         openaiKey,
         settings.textModel,
-        buildImagePromptAuthorSystem(kind) + (p.setting ? SCENE_IS_FIXED : "") + INJECTION_GUARD_SUFFIX,
+        buildImagePromptAuthorSystem(kind) + (p.scene !== null ? SCENE_IS_FIXED : "") + INJECTION_GUARD_SUFFIX,
         wrapUserInput(p.context),
       ));
     const subject = text.trim().slice(0, MAX_IMAGE_SUBJECT_CHARS);
@@ -999,6 +1021,7 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
       id: p.ref.kind === "item" ? null : p.ref.id,
       name: p.name,
       alsoNames: p.alsoNames,
+      alsoIds: p.alsoIds,
       context: p.context,
       subject,
       subjectSource: opts.subject === null ? "model" : "written",
@@ -1076,10 +1099,13 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
   }
   if (entry.kind === "monster") {
     if (entry.id === null) throw new Error(`${entry.slug}: a monster entry needs an id.`);
-    const found = await client.from("library_monsters").select("id").eq("id", entry.id).maybeSingle();
-    if (found.error) throw new Error(`Could not read library_monsters ${entry.id}: ${found.error.message}`);
-    if (!found.data) throw new Error(`${entry.slug}: library monster "${entry.id}" no longer exists.`);
-    return selectMonsterRowsToUpdate({ id: entry.id });
+    const ids = selectMonsterRowsToUpdate({ id: entry.id, alsoIds: entry.alsoIds });
+    const found = await client.from("library_monsters").select("id").in("id", ids);
+    if (found.error) throw new Error(`Could not read library_monsters: ${found.error.message}`);
+    const present = new Set((found.data as { id: string }[]).map((r) => r.id));
+    const missing = ids.filter((id) => !present.has(id));
+    if (missing.length > 0) throw new Error(`${entry.slug}: library monster ${missing.join(", ")} no longer exists.`);
+    return ids;
   }
   const ids: string[] = [];
   for (const name of itemNames(entry)) {
@@ -1106,12 +1132,14 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
     // The canonical row also carries cutout_url and portrait_focal_point, which an
     // upsert of {entry_id, image_url} would not null but which are not ours to
     // touch either: update only image_url when the row exists, insert when not.
-    const existing = await client.from("library_monster_art_canonical").select("entry_id").eq("entry_id", entry.id).maybeSingle();
-    if (existing.error) throw new Error(`Could not read library_monster_art_canonical: ${existing.error.message}`);
-    const art = existing.data
-      ? await client.from("library_monster_art_canonical").update({ image_url: url }).eq("entry_id", entry.id)
-      : await client.from("library_monster_art_canonical").insert({ entry_id: entry.id, image_url: url });
-    if (art.error) throw new Error(`Could not write library_monster_art_canonical: ${art.error.message}`);
+    for (const id of ids) {
+      const existing = await client.from("library_monster_art_canonical").select("entry_id").eq("entry_id", id).maybeSingle();
+      if (existing.error) throw new Error(`Could not read library_monster_art_canonical: ${existing.error.message}`);
+      const art = existing.data
+        ? await client.from("library_monster_art_canonical").update({ image_url: url }).eq("entry_id", id)
+        : await client.from("library_monster_art_canonical").insert({ entry_id: id, image_url: url });
+      if (art.error) throw new Error(`Could not write library_monster_art_canonical: ${art.error.message}`);
+    }
     const rows = await client.from("library_monsters").update({ image_url: url }).in("id", ids);
     if (rows.error) throw new Error(`Could not update library_monsters: ${rows.error.message}`);
     return;
