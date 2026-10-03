@@ -45,6 +45,8 @@
  *   npm run library:art -- generate --spell srd_2024_fireball --out art-947 --only spell-srd_2024_fireball --yes-spend
  *   npm run library:art -- generate --monster srd_srd_sprite --out art-947 --yes-spend
  *   npm run library:art -- generate --item "Quarterstaff" --out art-947 --subject "<what the picture shows>" --yes-spend
+ *   npm run library:art -- generate --item "Sack" --image-model gpt-image-2.5-sunburst --out art-955 --yes-spend
+ *   npm run library:art -- generate --item "Longsword (+1)" --also "Longsword (+2)" --also "Longsword (+3)" --out art-955 --yes-spend
  *   npm run library:art -- publish --out art-947 --approve-all
  *   npm run library:art -- publish --out art-947 --approve-all --write --yes-production
  *
@@ -52,7 +54,9 @@
  * and the namesake rule (a same-named spell without canonical art of its own
  * shows this image); item art goes to `item-images/srd/` with a
  * `library_art_defaults` row (content_type 'item') and every `library_items`
- * row of that name; monster art goes to `monster-images/srd/` with a
+ * row of that name, and to every name given with `--also` (#955: variants of one item,
+ * such as "Holy Avenger (Dagger)" beside "Holy Avenger", share one picture rather
+ * than each costing a render); monster art goes to `monster-images/srd/` with a
  * `library_monster_art_canonical` row (only its `image_url` is written, never
  * its cutout or focal point) and that one `library_monsters` row, with no
  * namesake rule. `--library-owner <uuid>` names the owner recorded for the
@@ -101,6 +105,103 @@ export type ArtKind = "spell" | "item" | "monster";
 
 /** Storage bucket per kind. Canonical art lives under `srd/` in all three (see CLAUDE.md, Storage Path Convention). */
 export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images" };
+
+/**
+ * How canonical item art is staged, passed where the app passes a campaign's
+ * `ai_setting_prompt` (#955). Library art belongs to no campaign, so without a
+ * setting the image model chose its own backdrop: sunlit castles, concept
+ * sheets with lettering, bare studio shots, none of it matching the set that
+ * already existed, which was made inside a wintry campaign. Every scene keeps
+ * that set's thread (frost, a cold palette, one warm light), but a single
+ * backdrop for a thousand items reads as wallpaper, so the scene varies with the
+ * kind of item. Long things stand in something that fits their length: lying
+ * diagonally in a tall frame, a staff or a sword was cropped or tiny.
+ */
+const ITEM_SCENE_COMMON = [
+  "A painted still life set in a cold northern world: frost and a little snow, cold blues, greys and muted browns, with one restrained source of warm light.",
+  "The object is the single clear focus, shown whole; the few background props stay small, dim and out of focus.",
+  "No people, no hands, nothing worn by anyone, no lettering, labels or writing, no multiple views, panels or insets, no plain or studio background.",
+].join(" ");
+
+export const ITEM_SCENES = {
+  hall: "The object rests on a weathered, frost-dusted dark wooden table in a cold stone hall, a lit iron lantern glowing behind it.",
+  forge: "The object rests on a scarred smith's workbench in a cold forge, tongs and a whetstone nearby, the forge's embers glowing low behind it.",
+  alchemist: "The object rests on an alchemist's bench by a frost-rimed window, stoppered glass vessels and bundles of dried herbs blurred behind it, a single candle burning.",
+  study: "The object rests on a scholar's desk among candle stubs, an inkwell and stacked leather-bound books, frost creeping across the window behind it.",
+  hearth: "The object rests on a fur-draped wooden chest in a timber lodge, a low hearth fire glowing behind it.",
+  trader: "The object rests on a worn merchant's counter in a snowbound trading post, brass scales and a coin tray behind it, an oil lamp burning.",
+  shrine: "The object rests on a stone ledge in a cold mountain shrine, votive candles flickering behind it.",
+  camp: "The object rests on a snow-capped tree stump at a night camp, a small campfire's embers glowing behind it among dark pines.",
+  rack: "The object stands upright, full length from top to bottom, in a timber weapon rack against the frost-rimed stone wall of a cold armory, a lantern hanging nearby.",
+  lodgeWall: "The object leans upright, full length from top to bottom, against a rough log wall beside a low hearth fire in a timber lodge.",
+  pillar: "The object leans upright, full length from top to bottom, against a carved stone pillar in a candlelit mountain shrine.",
+  pine: "The object leans upright, full length from top to bottom, against a snow-laden pine at a night camp, a small campfire glowing nearby.",
+  armorStand: "The object is displayed upright on a plain wooden armor stand in a cold armory, a lantern hanging on the frost-rimed stone wall behind it.",
+  lodgeStand: "The object is displayed upright on a plain wooden stand beside a low hearth fire in a timber lodge.",
+} as const;
+
+export type ItemScene = keyof typeof ITEM_SCENES;
+
+const UPRIGHT_SCENES: ItemScene[] = ["rack", "lodgeWall", "pillar", "pine"];
+const STAND_SCENES: ItemScene[] = ["armorStand", "lodgeStand"];
+const FLAT_SCENES: ItemScene[] = ["hall", "forge", "alchemist", "study", "hearth", "trader", "shrine", "camp"];
+
+/** Flat scenes that suit each item type; anything unlisted may use any flat scene. */
+const SCENES_FOR_TYPE: Readonly<Record<string, ItemScene[]>> = {
+  weapon: ["forge", "hall", "hearth", "camp"],
+  ammunition: ["forge", "hall", "camp"],
+  shield: ["forge", "hall", "hearth"],
+  potion: ["alchemist", "hall", "trader"],
+  scroll: ["study", "shrine", "hall"],
+  ring: ["trader", "shrine", "study", "hearth"],
+  wand: ["study", "shrine", "alchemist", "hall"],
+  gear: ["hall", "trader", "hearth", "camp"],
+  provision: ["hearth", "camp", "trader"],
+  crafting_material: ["alchemist", "forge", "trader"],
+  trade_good: ["trader", "hall"],
+  art_object: ["hall", "hearth", "study"],
+};
+
+/** Names of things too long to lie in a tall frame: staffs, poles, polearms, bows, firearms and swords. */
+const LONG_NAME = /\b(pole|staff|quarterstaff|pike|lance|glaive|halberd|spear|trident|javelin|bow|longbow|shortbow|oathbow|musket|sword|longsword|greatsword|shortsword|rapier|scimitar|blade|avenger|defender|slayer|vorpal|stealer|greataxe|maul)\b/i;
+
+export type ItemStaging = "upright" | "stand" | "short" | "flat";
+
+export function itemStaging(item: Pick<ItemFacts, "name" | "item_type">): ItemStaging {
+  if (item.item_type === "staff" || item.item_type === "rod") return "upright";
+  if (item.item_type === "wand") return "short";
+  if (item.item_type === "armor") return /shield/i.test(item.name) ? "flat" : "stand";
+  if ((item.item_type === "weapon" || item.item_type === "gear") && LONG_NAME.test(item.name)) return "upright";
+  return "flat";
+}
+
+/** FNV-1a, so an item keeps its scene from one run to the next. */
+function stableIndex(key: string, size: number): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) hash = Math.imul(hash ^ key.charCodeAt(i), 0x01000193);
+  return (hash >>> 0) % size;
+}
+
+export function itemScene(item: Pick<ItemFacts, "name" | "item_type">): ItemScene {
+  const staging = itemStaging(item);
+  const choices =
+    staging === "upright" ? UPRIGHT_SCENES : staging === "stand" ? STAND_SCENES : (SCENES_FOR_TYPE[item.item_type] ?? FLAT_SCENES);
+  return choices[stableIndex(item.name.toLowerCase(), choices.length)];
+}
+
+/** The setting for one library item: its scene, a size cue for wands, and the thread every scene shares. */
+export function itemSetting(item: Pick<ItemFacts, "name" | "item_type">): string {
+  // Lying down, a wand still came out as a long diagonal however short it was told to be.
+  const size = itemStaging(item) === "short" ? " The wand, about the length of a forearm, stands upright in a small wooden wand stand on that surface, shown whole from tip to handle." : "";
+  return `${ITEM_SCENES[itemScene(item)]}${size} ${ITEM_SCENE_COMMON}`;
+}
+
+/**
+ * Appended to the subject author's instructions when the kind has a fixed
+ * scene. The image prompt lets the subject override the setting, so a subject
+ * that adds "against a plain grey background" or "in a red void" wins over it.
+ */
+export const SCENE_IS_FIXED = " The scene is fixed elsewhere: describe the object alone, never its background, surroundings or setting.";
 
 /** The tables a publish writes, per kind, for the dry-run report. */
 const TABLES_FOR_KIND: Record<ArtKind, string> = {
@@ -292,10 +393,15 @@ export function selectSpellRowsToUpdate(
   return [...ids].sort();
 }
 
-/** The `library_items` rows a published item image lands on: every row of that name. */
-export function selectItemRowsToUpdate(name: string, items: readonly { id: string; name: string }[]): string[] {
-  const lowered = name.toLowerCase();
-  return items.filter((item) => item.name.toLowerCase() === lowered).map((item) => item.id).sort();
+/** Every name a published item image lands on: the entry's own, then its `--also` names. */
+export function itemNames(entry: Pick<ManifestEntry, "name" | "alsoNames">): string[] {
+  return [entry.name, ...entry.alsoNames];
+}
+
+/** The `library_items` rows a published item image lands on: every row of any of those names. */
+export function selectItemRowsToUpdate(names: readonly string[], items: readonly { id: string; name: string }[]): string[] {
+  const lowered = new Set(names.map((name) => name.toLowerCase()));
+  return items.filter((item) => lowered.has(item.name.toLowerCase())).map((item) => item.id).sort();
 }
 
 /** The `library_monsters` rows a published monster image lands on: that id only. `sync_library_monster_art()` matches `entry_id = id` and nothing else, so there is no namesake rule. */
@@ -329,6 +435,8 @@ export interface ManifestEntry {
   id: string | null;
   /** The entry's name. */
   name: string;
+  /** Item entries only: further library item names the same picture is published to (`--also`). */
+  alsoNames: string[];
   context: string;
   subject: string;
   /** Who wrote the subject: the text model, as in the app, or a person through `--subject`. */
@@ -426,6 +534,10 @@ export interface GenerateOptions {
    * unchanged, only the description is art-directed.
    */
   subject: string | null;
+  /** Further item names that share the one `--item`'s picture. */
+  also: string[];
+  /** An OpenAI image model to render with instead of `provider_config`'s, e.g. `gpt-image-2.5-sunburst`. */
+  imageModel: string | null;
 }
 
 export interface PublishOptions {
@@ -453,6 +565,8 @@ export function parseCli(argv: readonly string[]): CliOptions {
       only: { type: "string" },
       "yes-spend": { type: "boolean", default: false },
       subject: { type: "string" },
+      also: { type: "string", multiple: true },
+      "image-model": { type: "string" },
       "approve-all": { type: "boolean", default: false },
       write: { type: "boolean", default: false },
       "yes-production": { type: "boolean", default: false },
@@ -480,10 +594,22 @@ export function parseCli(argv: readonly string[]): CliOptions {
       // One description cannot be right for two pictures.
       if (count !== 1) throw new Error("--subject describes one image: name exactly one --spell, --monster or --item with it.");
     }
-    return { command, spells, monsters, items, out: values.out, only, yesSpend: values["yes-spend"], subject };
+    const also = (values.also ?? []).map((name) => name.trim());
+    if (also.length > 0) {
+      // A shared picture is drawn from one item's facts, so it needs exactly one.
+      if (items.length !== 1 || spells.length + monsters.length > 0) throw new Error("--also shares one item's picture: name exactly one --item with it.");
+      if (also.some((name) => name === "")) throw new Error("--also must not be empty.");
+      const lowered = [items[0], ...also].map((name) => name.toLowerCase());
+      if (new Set(lowered).size !== lowered.length) throw new Error("--also names an item twice.");
+    }
+    const imageModel = values["image-model"]?.trim() || null;
+    if (imageModel !== null && !imageModel.startsWith("gpt-image-")) throw new Error("--image-model must name an OpenAI gpt-image model.");
+    return { command, spells, monsters, items, out: values.out, only, yesSpend: values["yes-spend"], subject, also, imageModel };
   }
 
   if (values.subject !== undefined) throw new Error("--subject belongs to generate.");
+  if (values.also !== undefined) throw new Error("--also belongs to generate.");
+  if (values["image-model"] !== undefined) throw new Error("--image-model belongs to generate.");
 
   if (values.spell || values.monster || values.item) throw new Error("--spell, --monster and --item belong to generate.");
   if (values["yes-spend"]) throw new Error("--yes-spend belongs to generate.");
@@ -660,6 +786,10 @@ interface PlannedEntry {
   ref: EntryRef;
   name: string;
   context: string;
+  alsoNames: string[];
+  /** The scene the picture is set in: an item's staging, empty for spells and monsters (their art is the effect or the creature). */
+  setting: string;
+  scene: ItemScene | null;
 }
 
 async function planEntries(client: SupabaseClient, opts: GenerateOptions): Promise<PlannedEntry[]> {
@@ -679,13 +809,16 @@ async function planEntries(client: SupabaseClient, opts: GenerateOptions): Promi
   for (const ref of chosen) {
     if (ref.kind === "spell") {
       const spell = await loadSpell(client, ref.id);
-      planned.push({ ref, name: spell.name, context: spellContext(spell) });
+      planned.push({ ref, name: spell.name, context: spellContext(spell), alsoNames: [], setting: "", scene: null });
     } else if (ref.kind === "monster") {
       const monster = await loadMonster(client, ref.id);
-      planned.push({ ref, name: monster.name, context: monsterContext(monster) });
+      planned.push({ ref, name: monster.name, context: monsterContext(monster), alsoNames: [], setting: "", scene: null });
     } else {
       const item = await loadItem(client, ref.name);
-      planned.push({ ref, name: item.name, context: itemContext(item) });
+      // Fail before spending when a shared name is misspelt, and record each as the library spells it.
+      const alsoNames: string[] = [];
+      for (const name of opts.also) alsoNames.push((await loadItem(client, name)).name);
+      planned.push({ ref, name: item.name, context: itemContext(item), alsoNames, setting: itemSetting(item), scene: itemScene(item) });
     }
   }
   return planned;
@@ -738,6 +871,41 @@ async function openaiImage(
   size: string,
   quality: string | null,
 ): Promise<{ b64: string; usage: ImageUsage | null }> {
+  // The organization's image limit is a few renders a minute (#962), and a 429 is
+  // not billed: wait as long as the error says, then try again.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await openaiImageOnce(apiKey, model, prompt, size, quality);
+    } catch (error) {
+      const wait = error instanceof RateLimitError && attempt < 6 ? error.retryAfterMs : null;
+      if (wait === null) throw error;
+      console.log(`  rate limited; retrying in ${Math.ceil(wait / 1000)}s`);
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+}
+
+class RateLimitError extends Error {
+  constructor(message: string, readonly retryAfterMs: number) {
+    super(message);
+  }
+}
+
+/** Reads "try again in 12s" (or "1.5s", "500ms") out of an OpenAI rate-limit message; 20s when it names none. */
+export function retryAfterMs(message: string): number {
+  const match = message.match(/try again in (\d+(?:\.\d+)?)(ms|s)\b/i);
+  if (!match) return 20000;
+  const value = Number(match[1]);
+  return Math.ceil(match[2].toLowerCase() === "ms" ? value : value * 1000) + 1000;
+}
+
+async function openaiImageOnce(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  size: string,
+  quality: string | null,
+): Promise<{ b64: string; usage: ImageUsage | null }> {
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -752,7 +920,9 @@ async function openaiImage(
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as OpenAiErrorBody;
-    throw new Error(body.error?.message ?? `OpenAI image generation error ${res.status}`);
+    const message = body.error?.message ?? `OpenAI image generation error ${res.status}`;
+    if (res.status === 429) throw new RateLimitError(message, retryAfterMs(message));
+    throw new Error(message);
   }
   const data = (await res.json()) as {
     data: { b64_json: string }[];
@@ -774,7 +944,8 @@ function base64ToBytes(b64: string): Uint8Array {
 async function runGenerate(opts: GenerateOptions): Promise<void> {
   const { client, url } = connect();
   console.log(`Project: ${url} (${isLoopbackUrl(url) ? "loopback" : "NOT loopback"})`);
-  const settings = await loadSettings(client);
+  const configured = await loadSettings(client);
+  const settings = opts.imageModel === null ? configured : { ...configured, imageModel: opts.imageModel };
   const planned = await planEntries(client, opts);
 
   console.log(`Image model:  ${settings.imageModel}`);
@@ -782,7 +953,7 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
   console.log(`Size:         ${ENTITY_IMAGE_SIZE}`);
   console.log(`Quality:      ${settings.quality ?? "(provider default)"}`);
   console.log(`Images:       ${planned.length} (one text call and one paid image call each)`);
-  for (const p of planned) console.log(`  ${entrySlug(p.ref)}: ${p.name}`);
+  for (const p of planned) console.log(`  ${entrySlug(p.ref)}: ${p.name}${p.scene ? ` [${p.scene}]` : ""}${p.alsoNames.length > 0 ? ` (also ${p.alsoNames.join("; ")})` : ""}`);
   assertMaySpend(opts);
 
   const openaiKey = requireEnv("OPENAI_API_KEY");
@@ -798,12 +969,12 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
       (await openaiText(
         openaiKey,
         settings.textModel,
-        buildImagePromptAuthorSystem(kind) + INJECTION_GUARD_SUFFIX,
+        buildImagePromptAuthorSystem(kind) + (p.setting ? SCENE_IS_FIXED : "") + INJECTION_GUARD_SUFFIX,
         wrapUserInput(p.context),
       ));
     const subject = text.trim().slice(0, MAX_IMAGE_SUBJECT_CHARS);
     if (!subject) throw new Error(`${slug}: the text model returned no image description.`);
-    const imagePrompt = buildSimpleImagePrompt({ base: settings.imageBase, setting: "", subject });
+    const imagePrompt = buildSimpleImagePrompt({ base: settings.imageBase, setting: p.setting, subject });
 
     const image = await openaiImage(openaiKey, settings.imageModel, imagePrompt, ENTITY_IMAGE_SIZE, settings.quality);
     const providerBytes = base64ToBytes(image.b64);
@@ -827,6 +998,7 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
       kind,
       id: p.ref.kind === "item" ? null : p.ref.id,
       name: p.name,
+      alsoNames: p.alsoNames,
       context: p.context,
       subject,
       subjectSource: opts.subject === null ? "model" : "written",
@@ -909,11 +1081,15 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
     if (!found.data) throw new Error(`${entry.slug}: library monster "${entry.id}" no longer exists.`);
     return selectMonsterRowsToUpdate({ id: entry.id });
   }
-  const { data, error } = await client.from("library_items").select("id, name").ilike("name", escapeLikePattern(entry.name));
-  if (error) throw new Error(`Could not read library_items: ${error.message}`);
-  const ids = selectItemRowsToUpdate(entry.name, data as { id: string; name: string }[]);
-  if (ids.length === 0) throw new Error(`${entry.slug}: no library item named "${entry.name}".`);
-  return ids;
+  const ids: string[] = [];
+  for (const name of itemNames(entry)) {
+    const { data, error } = await client.from("library_items").select("id, name").ilike("name", escapeLikePattern(name));
+    if (error) throw new Error(`Could not read library_items: ${error.message}`);
+    const found = selectItemRowsToUpdate([name], data as { id: string; name: string }[]);
+    if (found.length === 0) throw new Error(`${entry.slug}: no library item named "${name}".`);
+    ids.push(...found);
+  }
+  return [...new Set(ids)].sort();
 }
 
 async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: string[], url: string): Promise<void> {
@@ -942,7 +1118,10 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
   }
   const art = await client
     .from("library_art_defaults")
-    .upsert({ content_type: "item", content_name: entry.name.toLowerCase(), image_url: url }, { onConflict: "content_type,content_name" });
+    .upsert(
+      itemNames(entry).map((name) => ({ content_type: "item", content_name: name.toLowerCase(), image_url: url })),
+      { onConflict: "content_type,content_name" },
+    );
   if (art.error) throw new Error(`Could not upsert library_art_defaults: ${art.error.message}`);
   const rows = await client.from("library_items").update({ image_url: url }).in("id", ids);
   if (rows.error) throw new Error(`Could not update library_items: ${rows.error.message}`);
@@ -987,7 +1166,7 @@ async function runPublish(opts: PublishOptions): Promise<void> {
     if (storedUrl === null) throw new Error(`Bucket ${bucket} is not served through the asset CDN (or no CDN base is set).`);
     const rowIds = await selectRows(client, entry);
 
-    console.log(`${entry.slug} (${entry.name})`);
+    console.log(`${entry.slug} (${itemNames(entry).join("; ")})`);
     for (const u of uploads) console.log(`  R2 ${u.key} ${u.bytes.byteLength} bytes`);
     console.log(`  provenance ${bucket} ${path} owner ${owner ?? "(resolved at --write)"}`);
     console.log(`  ${TABLES_FOR_KIND[entry.kind]} -> ${storedUrl}`);

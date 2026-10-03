@@ -23,8 +23,14 @@ import {
   parseCli,
   readManifest,
   readWebpProvenance,
+  retryAfterMs,
   selectEntries,
   selectForPublish,
+  itemNames,
+  itemScene,
+  itemSetting,
+  itemStaging,
+  ITEM_SCENES,
   selectItemRowsToUpdate,
   selectSpellRowsToUpdate,
   sniffIsWebp,
@@ -48,7 +54,7 @@ const prov: AiProvenance = {
 
 function entry(slug: string, status: ManifestEntry["status"] = "candidate"): ManifestEntry {
   return {
-    slug, kind: "spell", id: "srd_fireball", name: "Fireball", context: "c", subject: "s", subjectSource: "model", imagePrompt: "p",
+    slug, kind: "spell", id: "srd_fireball", name: "Fireball", alsoNames: [], context: "c", subject: "s", subjectSource: "model", imagePrompt: "p",
     provider: "openai", model: "m", textModel: "t", quality: "high", size: "1024x1536",
     generatedAt: prov.generatedAt, providerFile: `${slug}.provider.webp`, finalFile: `${slug}.webp`,
     providerBytes: 10, finalBytes: 5, imageUsage: null, status, publish: null,
@@ -87,6 +93,45 @@ describe("context builders", () => {
 
   it("clamps to 2000 characters", () => {
     expect(spellContext({ name: "X", level: 1, school: "illusion", description: "a".repeat(5000) })).toHaveLength(2000);
+  });
+});
+
+describe("item staging", () => {
+  it("stands long things upright, armor on a stand, and lays the rest down", () => {
+    expect(itemStaging({ name: "Staff of Frost", item_type: "staff" })).toBe("upright");
+    expect(itemStaging({ name: "Rod of Lordly Might", item_type: "rod" })).toBe("upright");
+    expect(itemStaging({ name: "Pike", item_type: "weapon" })).toBe("upright");
+    expect(itemStaging({ name: "Holy Avenger", item_type: "weapon" })).toBe("upright");
+    expect(itemStaging({ name: "Longsword (+1)", item_type: "weapon" })).toBe("upright");
+    expect(itemStaging({ name: "Dagger of Venom", item_type: "weapon" })).toBe("flat");
+    expect(itemStaging({ name: "Ammunition of Fiend Slaying", item_type: "weapon" })).toBe("flat");
+    expect(itemStaging({ name: "Plate Armor", item_type: "armor" })).toBe("stand");
+    expect(itemStaging({ name: "Animated Shield", item_type: "armor" })).toBe("flat");
+    expect(itemStaging({ name: "Wand of Fear", item_type: "wand" })).toBe("short");
+    expect(itemStaging({ name: "Sack", item_type: "gear" })).toBe("flat");
+    expect(itemStaging({ name: "Pole (10-foot)", item_type: "gear" })).toBe("upright");
+  });
+
+  it("picks a scene that fits the staging, the same one every run", () => {
+    const upright = itemScene({ name: "Staff of Frost", item_type: "staff" });
+    expect(["rack", "lodgeWall", "pillar", "pine"]).toContain(upright);
+    expect(itemScene({ name: "Staff of Frost", item_type: "staff" })).toBe(upright);
+    expect(["armorStand", "lodgeStand"]).toContain(itemScene({ name: "Plate Armor", item_type: "armor" }));
+    expect(["alchemist", "hall", "trader"]).toContain(itemScene({ name: "Potion of Heroism", item_type: "potion" }));
+  });
+
+  it("varies the scene across a type rather than using one backdrop", () => {
+    const potions = ["Healing", "Heroism", "Flying", "Speed", "Growth", "Climbing", "Resistance", "Diminution"];
+    const scenes = new Set(potions.map((p) => itemScene({ name: `Potion of ${p}`, item_type: "potion" })));
+    expect(scenes.size).toBeGreaterThan(1);
+  });
+
+  it("builds a setting from the scene, a wand's size, and the shared thread", () => {
+    const wand = itemSetting({ name: "Wand of Fear", item_type: "wand" });
+    expect(wand).toContain(ITEM_SCENES[itemScene({ name: "Wand of Fear", item_type: "wand" })]);
+    expect(wand).toContain("about the length of a forearm");
+    expect(wand).toContain("no plain or studio background");
+    expect(itemSetting({ name: "Sack", item_type: "gear" })).not.toContain("forearm");
   });
 });
 
@@ -143,7 +188,14 @@ describe("row selection", () => {
   });
 
   it("selects every item of that name", () => {
-    expect(selectItemRowsToUpdate("ale, mug", [{ id: "a", name: "Ale, Mug" }, { id: "b", name: "Ale, mug" }, { id: "c", name: "Ale" }])).toEqual(["a", "b"]);
+    expect(selectItemRowsToUpdate(["ale, mug"], [{ id: "a", name: "Ale, Mug" }, { id: "b", name: "Ale, mug" }, { id: "c", name: "Ale" }])).toEqual(["a", "b"]);
+  });
+
+  it("lands a shared item image on every row of each name it is shared with", () => {
+    const items = [{ id: "c", name: "Holy Avenger (Dagger)" }, { id: "a", name: "Holy Avenger" }, { id: "b", name: "holy avenger" }, { id: "d", name: "Defender" }];
+    const names = itemNames({ name: "Holy Avenger", alsoNames: ["Holy Avenger (Dagger)"] });
+    expect(names).toEqual(["Holy Avenger", "Holy Avenger (Dagger)"]);
+    expect(selectItemRowsToUpdate(names, items)).toEqual(["a", "b", "c"]);
   });
 
   it("escapes like patterns", () => {
@@ -182,8 +234,25 @@ describe("manifest", () => {
 describe("arguments and refusals", () => {
   it("parses generate", () => {
     expect(parseCli(["generate", "--spell", "a", "--spell", "b", "--item", "Ale, mug", "--out", "d"])).toEqual({
-      command: "generate", spells: ["a", "b"], monsters: [], items: ["Ale, mug"], out: "d", only: null, yesSpend: false, subject: null,
+      command: "generate", spells: ["a", "b"], monsters: [], items: ["Ale, mug"], out: "d", only: null, yesSpend: false, subject: null, also: [], imageModel: null,
     });
+  });
+
+  it("renders on another image model with --image-model", () => {
+    expect(parseCli(["generate", "--item", "Sack", "--image-model", "gpt-image-2.5-sunburst", "--out", "d"])).toMatchObject({ imageModel: "gpt-image-2.5-sunburst" });
+    expect(() => parseCli(["generate", "--item", "Sack", "--image-model", "dall-e-3", "--out", "d"])).toThrow(/gpt-image/);
+    expect(() => parseCli(["publish", "--out", "d", "--image-model", "gpt-image-2"])).toThrow(/belongs to generate/);
+  });
+
+  it("shares one item's picture with --also names", () => {
+    expect(parseCli(["generate", "--item", "Longsword (+1)", "--also", " Longsword (+2) ", "--also", "Longsword (+3)", "--out", "d"])).toMatchObject({
+      items: ["Longsword (+1)"], also: ["Longsword (+2)", "Longsword (+3)"],
+    });
+    expect(() => parseCli(["generate", "--item", "a", "--item", "b", "--also", "c", "--out", "d"])).toThrow(/exactly one --item/);
+    expect(() => parseCli(["generate", "--spell", "a", "--also", "c", "--out", "d"])).toThrow(/exactly one --item/);
+    expect(() => parseCli(["generate", "--item", "a", "--also", " ", "--out", "d"])).toThrow(/must not be empty/);
+    expect(() => parseCli(["generate", "--item", "Ale", "--also", "ale", "--out", "d"])).toThrow(/twice/);
+    expect(() => parseCli(["publish", "--out", "d", "--also", "x"])).toThrow(/belongs to generate/);
   });
 
   it("takes a written subject for exactly one entry", () => {
@@ -217,6 +286,13 @@ describe("arguments and refusals", () => {
     expect(() => parseCli(["publish", "--out", "d", "--spell", "a"])).toThrow(/belong to generate/);
     expect(() => parseCli(["generate", "--spell", "a", "--out", "d", "--write"])).toThrow(/belong to publish/);
     expect(() => parseCli(["publish", "--out", "d", "--library-owner", "nope"])).toThrow(/uuid/);
+  });
+
+  it("waits as long as a rate-limit message asks, plus a second", () => {
+    expect(retryAfterMs("Limit 5, Used 5, Requested 1. Please try again in 12s. Visit https://platform.openai.com")).toBe(13000);
+    expect(retryAfterMs("Please try again in 1.5s.")).toBe(2500);
+    expect(retryAfterMs("Please try again in 500ms.")).toBe(1500);
+    expect(retryAfterMs("Rate limit reached.")).toBe(20000);
   });
 
   it("refuses to spend without --yes-spend", () => {
