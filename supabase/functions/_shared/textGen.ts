@@ -129,12 +129,13 @@ export async function geminiText(
 
 export class MissingTextKeyError extends Error {}
 
-// Defaults mirror provider_config.text_model in the DB. The anthropic id
-// (claude-haiku-3-20240307) looks malformed but is what production actually
-// holds and what the pre-extraction code fell back to — copied verbatim.
+// Defaults mirror provider_config.text_model in the DB. Each must have an
+// ai_model_pricing row, or the calls it makes are costed as NULL:
+// model_pricing_coverage.test.sql checks, and pricedModels.test.ts holds that
+// test's list equal to the model ids named in this directory.
 export const DEFAULT_TEXT_MODELS = {
   openai: "gpt-5.6-luna",
-  anthropic: "claude-haiku-3-20240307",
+  anthropic: "claude-haiku-4-5",
   gemini: "gemini-2.5-flash",
 } as const;
 

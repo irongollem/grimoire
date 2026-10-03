@@ -12,8 +12,8 @@ export interface ProviderRow {
   image_quality: string | null;
   /**
    * Model for document/image extraction (#353). Separate from `text_model`
-   * because reading a document is a distinct capability: the configured
-   * Anthropic text model (`claude-haiku-3-20240307`) cannot read PDFs at all.
+   * because reading a document is a distinct capability: on Anthropic the
+   * text model is Haiku 4.5 and the document model is Opus 5.
    * NULL means this provider is not available for document extraction — treat
    * it as unsupported rather than falling back to `text_model`, which is the
    * exact mistake the column exists to prevent.

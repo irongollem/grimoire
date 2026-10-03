@@ -831,8 +831,8 @@ green tests red.
 
 Reading a document is a distinct capability, exactly as `image_model` is. The
 values may coincide; the column exists so they need not. On Anthropic they
-diverge sharply — `text_model` is `claude-haiku-3-20240307`, which cannot read a
-PDF at all.
+diverge: `text_model` is `claude-haiku-4-5`, and reading a whole module is left
+to `document_model`, `claude-opus-5`.
 
 ### `IMPORT_ENTITY_KINDS` order used to be a dependency order — #893 lifted that
 
