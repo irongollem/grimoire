@@ -38,9 +38,6 @@ vi.mock("@/composables/locations/useAmbiencePlayback", () => ({
     },
   }),
 }));
-vi.mock("@/stores/ui", () => ({
-  useUiStore: () => ({ locationsTreeCollapsed: false }),
-}));
 vi.mock("@/composables/locations/useSiteStructure", () => ({
   useSiteStructure: () => ({
     readiness: { value: { mapped: false, calibrated: false, traced: false, bound: false, waysOut: false } },

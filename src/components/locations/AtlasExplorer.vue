@@ -49,12 +49,14 @@
     <div
       class="min-h-0 min-w-0 flex-1 flex-col lg:shrink-0 lg:overflow-hidden lg:transition-[max-width,padding-right,border-width] lg:duration-200 lg:ease-out motion-reduce:lg:transition-none"
       :class="[
-        selectedId ? 'hidden lg:flex' : 'flex',
+        // A search's matches are listed in this column, so while they are open
+        // it shows even over an open place (below lg) or a fold (from lg).
+        selectedId && !resultsOpen ? 'hidden lg:flex' : 'flex',
         // A set width (not flex-1 capped by max-w): with both columns flex-1
         // the tree could never grow past half the row, so dragging further did
         // nothing. max-w is what the fold animates.
         'lg:w-(--atlas-tree-w) lg:flex-none',
-        ui.locationsTreeCollapsed
+        treeFolded
           ? 'lg:max-w-0 lg:border-r-0 lg:pr-0'
           : 'lg:max-w-(--atlas-tree-w) lg:border-r lg:border-border lg:pr-4',
         dragging && 'lg:transition-none',
@@ -72,7 +74,7 @@
         @select="select"
         @toggle="ui.toggleLocationExpanded"
         @collapse-all="ui.collapseAllLocations()"
-        @collapse-tree="ui.locationsTreeCollapsed = true"
+        @collapse-tree="foldTree"
       />
     </div>
 
@@ -82,7 +84,7 @@
       remembered per browser. Desktop only, like the fold.
     -->
     <div
-      v-if="!ui.locationsTreeCollapsed"
+      v-if="!treeFolded"
       class="relative hidden w-0 shrink-0 lg:block"
     >
       <div
@@ -113,7 +115,7 @@
       state has no business rendering below `lg`.
     -->
     <div
-      v-if="ui.locationsTreeCollapsed"
+      v-if="treeFolded"
       class="hidden min-h-0 lg:flex lg:w-8 lg:shrink-0 lg:flex-col lg:items-center lg:border-r lg:border-border lg:pt-1"
     >
       <AppButton
@@ -122,13 +124,13 @@
         :icon="IconChevronRight"
         tooltip="Expand location tree"
         aria-label="Expand location tree"
-        @click="ui.locationsTreeCollapsed = false"
+        @click="unfoldTree"
       />
     </div>
 
     <div
       class="min-h-0 min-w-0 flex-1 flex-col lg:pl-4"
-      :class="selectedId ? 'flex' : 'hidden lg:flex'"
+      :class="selectedId && !resultsOpen ? 'flex' : 'hidden lg:flex'"
     >
       <AppButton
         v-if="selectedId"
@@ -182,6 +184,7 @@ import AtlasPlacePane from "@/components/locations/AtlasPlacePane.vue";
 import AtlasTree from "@/components/locations/AtlasTree.vue";
 import LocationEditor from "@/components/locations/LocationEditor.vue";
 import SiteRunSurface from "@/components/locations/SiteRunSurface.vue";
+import { useAtlasTreeFold } from "@/composables/locations/useAtlasTreeFold";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { IconChevronLeft, IconChevronRight, IconNavAtlas } from "@/lib/icons";
 import { isSiteType } from "@/lib/locations/tiers";
@@ -248,27 +251,18 @@ const running = computed(
   () => route.query.run === "true" && !!selected.value && isSiteType(selected.value.location_type),
 );
 
-// The site runner wants the pane's full width, same reasoning as
-// `AtlasPlacePane`'s own fold for Map mode — only fold what was found
-// unfolded, and only restore what this fold itself collapsed, so a DM who
-// folded the tree on purpose before running a site finds it still folded
-// after stopping.
-let foldedTreeForRun = false;
-watch(
-  running,
-  (isRunning) => {
-    if (isRunning) {
-      if (!ui.locationsTreeCollapsed) {
-        ui.locationsTreeCollapsed = true;
-        foldedTreeForRun = true;
-      }
-    } else if (foldedTreeForRun) {
-      ui.locationsTreeCollapsed = false;
-      foldedTreeForRun = false;
-    }
-  },
-  { immediate: true },
-);
+// The site runner and a site's Map tab both want the pane's full width, so the
+// tree folds for as long as either is on screen. Derived, never stored: see
+// `useAtlasTreeFold` for why this must not touch the DM's own fold.
+const paneWantsWidth = computed(() => {
+  if (!selected.value || editing.value) return false;
+  return (
+    running.value ||
+    (ui.locationsPaneMode === "map" && isSiteType(selected.value.location_type))
+  );
+});
+const { treeFolded, resultsOpen, foldTree, unfoldTree, closeResults } =
+  useAtlasTreeFold(paneWantsWidth);
 
 /**
  * Flat match list, only consulted while a filter is active.
@@ -304,6 +298,9 @@ const matches = computed(() => {
  * Back, which changes the route without going through here.
  */
 function select(id: string) {
+  // Picking a match is the end of looking at the matches. Before the early
+  // return, because the match picked may be the place already open.
+  closeResults();
   if (route.query.at === id) return; // re-clicking the open place is not a new entry
   router.push({ query: { ...route.query, at: id } });
 }

@@ -25,7 +25,7 @@ The Atlas is a two-pane explorer: a **location tree** on the left, and a **place
 
 - Click a row to select it; click its expander arrow to open or close its children without changing the selection.
 - The **collapse arrow** at the top of the tree column folds it out of the way (a thin rail with an arrow to bring it back): useful when you're working a site's map and want the width.
-- Search and the **Type** filter (top of the page) flatten the tree to a flat list of matches.
+- Search and the **Type** filter (top of the page) flatten the tree to a flat list of matches. If the tree is folded away, or you are reading a place on a phone, searching brings the list back; picking a match puts it away again.
 - Selecting a place is remembered in your browser's address bar, so the Back button walks the trail of places you've visited instead of leaving the Atlas.
 
 The place pane shows: a breadcrumb of clickable ancestors, the sigil, name and type badge, a "N quests staged here" note when a quest beat is waiting at this place or one of its rooms, the **scale rail**, then two tabs: **Overview** (the full detail body first, then its children grouped by tier) and **Map** (its map, if it has one, see Sites for site-tier places).
@@ -85,7 +85,7 @@ Players reach a read-only, tree-shaped Atlas at **Atlas** in the Player Portal, 
 > Set the **Type** correctly before you build anything else on a place: it decides whether the place gets a Rooms panel, a Store panel, or neither, and changing it later can strand content that no longer has a home for it.
 
 - Related Locations and Ways out are two different mechanisms for two different questions: non-hierarchical links between named places versus a room's own doors. Don't try to make one do the other's job.
-- The Atlas pane's Map mode folds the tree column automatically to make room, and restores it when you leave: it won't touch a fold you set yourself.
+- A site's Map tab, and running a site, fold the tree column automatically to make room, and bring it back when you leave. That never changes a fold you set yourself, and you can reopen the tree beside the map with the rail's arrow.
 
 ## Related
 

@@ -343,7 +343,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, useTemplateRef, watch } from "vue";
+import { computed, useTemplateRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -359,7 +359,6 @@ import SiteReadinessMeter from "@/components/locations/SiteReadinessMeter.vue";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
 import { useAmbiencePlayback } from "@/composables/locations/useAmbiencePlayback";
-import { useUiStore } from "@/stores/ui";
 import {
   IconChevronRight,
   IconClock,
@@ -405,15 +404,9 @@ const MODE_TABS = [
 // re-deriving six queries' worth of emptiness here.
 const sections = useTemplateRef("sectionsRef");
 
-const uiStore = useUiStore();
-
 // A `tavern` tag beside a Tavern badge says nothing twice. Legacy rows typed
 // `building` and tagged "tavern" keep theirs — there the tag is the meaning.
 const shownTags = computed(() => (location ? visibleTags(location) : []));
-
-onBeforeUnmount(() => {
-  if (foldedTreeForMapMode) uiStore.locationsTreeCollapsed = false;
-});
 
 const trail = computed(() => (location ? ancestorPath(index, location.id) : []));
 
@@ -553,28 +546,6 @@ const interiorIds = computed(() =>
 const questStageSpaceIds = computed(() => (location ? [location.id, ...interiorIds.value] : []));
 const { data: stagedQuestBeats } = useBeatsStagedAt(questStageSpaceIds);
 const stagedQuestCount = computed(() => new Set((stagedQuestBeats.value ?? []).map((b) => b.quest_id)).size);
-
-// The tree fold already exists for exactly this — a two-pane explorer where
-// the map is the pane that earns the extra width. Only fold what we found
-// unfolded, and only restore what we ourselves folded: a DM who folded the
-// tree on purpose before opening a site's map should find it still folded
-// after leaving, not sprung back open by a pane that merely visited.
-let foldedTreeForMapMode = false;
-watch(
-  () => paneMode === "map" && isSite.value,
-  (onSiteMap) => {
-    if (onSiteMap) {
-      if (!uiStore.locationsTreeCollapsed) {
-        uiStore.locationsTreeCollapsed = true;
-        foldedTreeForMapMode = true;
-      }
-    } else if (foldedTreeForMapMode) {
-      uiStore.locationsTreeCollapsed = false;
-      foldedTreeForMapMode = false;
-    }
-  },
-  { immediate: true },
-);
 
 /**
  * On a site-tier place, `LocationDetailSections` mounts `SiteRoomsPanel`
