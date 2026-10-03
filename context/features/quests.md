@@ -230,7 +230,7 @@ place an objective's meaning could disagree with itself.
 
 ### The ledger was written by hand, not extracted (#834, 9 Sep 2026)
 
-#821 and #832 asked for an AI pass that proposes objectives, rules and gates
+Issues #821 and #832 asked for an AI pass that proposes objectives, rules and gates
 from a quest's prose — split in two, since 14 of 19 production quests had no
 routes at all. Re-measuring one day after epic #850 deployed gave the same
 shape: 44 routes in five quests, one rule in the whole database, no gates.
@@ -773,8 +773,8 @@ trigger, and that is very hard to undo once data exists.
 and `transition_quest_runtime`, in the same transaction as the write that made
 the condition true — which is what lets `previous` undo a rule's effect by
 replaying the event's `previous_status`/`previous_is_player_visible`, and by
-handle for a world action: `calendar_event_id`, `message_id`, and — since
-#850 — `journal_entry_id`, `favor_id`, `milestone_id` for the three new verbs.
+handle for a world action: `calendar_event_id`, `message_id`, and, since #850,
+`journal_entry_id`, `favor_id`, `milestone_id` for the three new verbs.
 Every handle follows the same pattern `calendar_event_id`/`message_id` set:
 the row a verb wrote, so undo deletes by handle rather than re-deriving what
 to remove.
@@ -1324,8 +1324,8 @@ decisions, and `QuestRulesPanel.vue` for where a DM authors "when a place…".
 
 **A second authoring surface, from the room itself (#878 S3).** #869 shipped
 the mechanism but left it reachable only from `QuestRulesPanel.vue`, where the
-DM re-finds the room in a campaign-wide combobox — the complaint that opened
-#878: "I can't hang quest outcomes/beats etc. to these zones where needed."
+DM re-finds the room in a campaign-wide combobox — the complaint that
+opened #878: "I can't hang quest outcomes/beats etc. to these zones where needed."
 `SiteMapRegionList.vue` (the Spaces panel on a site's floor plan, Build mode
 only) now carries a "Rules" toggle on every **bound space** row, opening
 `SiteMapRoomRules.vue` — list the room's existing rules, add a new one: pick a
