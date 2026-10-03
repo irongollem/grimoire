@@ -18,7 +18,7 @@
 --      other: Shield to 2014 (2014 Open5e has no plain Shield), Net and the
 --      two healing potions to 2024 (the 2024 SRD has none of them as items).
 --
--- Order matters. Every library_items reference is a foreign key, and five of
+-- Order matters. Most library_items references are foreign keys, and five of
 -- them are ON DELETE CASCADE: deleting a bundled row that a store, recipe or
 -- faction still pointed at would delete that store listing or recipe output
 -- with it. Step 2 therefore refuses to run while any reference remains.
@@ -113,6 +113,81 @@ join workshop_srd m on m.ruleset = coalesce(c.ruleset, '2014')
 where l.id = t.location_id
   and m.bundled_id = t.library_item_id;
 
+-- The references #954 (20261003083553) added: places that held only a vault
+-- uuid before it, and may now hold a library id. None held a bundled copy when
+-- this was written; they are moved anyway, because a DM can pick one in the
+-- minutes between that release and this one.
+
+-- Immutable once dispatched (`validate_loot_placement`): a handed-out
+-- placement cannot be moved, so it stays, and step 2 stops on it rather than
+-- let ON DELETE RESTRICT fail the delete with a less useful error.
+update public.loot_placements t
+set library_item_id = m.target_id
+from public.campaigns c, workshop_srd m
+where c.id = t.campaign_id
+  and m.bundled_id = t.library_item_id
+  and m.ruleset = c.ruleset
+  and t.dispatched_at is null;
+
+update public.quest_beat_attachments t
+set ref_id = m.target_id
+from public.campaigns c, workshop_srd m
+where c.id = t.campaign_id
+  and t.attachment_type = 'item'
+  and m.bundled_id = t.ref_id
+  and m.ruleset = c.ruleset;
+
+-- `sync_quest_ref_from_beat_attachment` added a quest_refs row for each new id
+-- above but leaves the old one, so a quest can now hold both: drop the old
+-- where the new exists, then move what is left.
+delete from public.quest_refs t
+using public.quests q, public.campaigns c, workshop_srd m
+where q.id = t.quest_id
+  and c.id = q.campaign_id
+  and t.ref_type = 'item'
+  and m.bundled_id = t.ref_id
+  and m.ruleset = c.ruleset
+  and exists (
+    select 1 from public.quest_refs n
+    where n.quest_id = t.quest_id and n.ref_type = 'item' and n.ref_id = m.target_id
+  );
+
+update public.quest_refs t
+set ref_id = m.target_id
+from public.quests q, public.campaigns c, workshop_srd m
+where q.id = t.quest_id
+  and c.id = q.campaign_id
+  and t.ref_type = 'item'
+  and m.bundled_id = t.ref_id
+  and m.ruleset = c.ruleset;
+
+update public.encounters e
+set item_ids = array(
+  select coalesce(m.target_id, x.id)
+  from unnest(e.item_ids) with ordinality as x(id, n)
+  left join workshop_srd m on m.bundled_id = x.id and m.ruleset = c.ruleset
+  order by x.n
+)
+from public.campaigns c
+where c.id = e.campaign_id
+  and e.item_ids && array(select bundled_id from workshop_srd);
+
+update public.downtime_deck_backs t
+set reward_id = m.target_id
+from public.campaigns c, workshop_srd m
+where c.id = t.campaign_id
+  and t.reward_type = 'item'
+  and m.bundled_id = t.reward_id
+  and m.ruleset = c.ruleset;
+
+update public.downtime_outcomes t
+set reward_id = m.target_id
+from public.campaigns c, workshop_srd m
+where c.id = t.campaign_id
+  and t.reward_type = 'item'
+  and m.bundled_id = t.reward_id
+  and m.ruleset = c.ruleset;
+
 -- 2. Delete the copies the SRD covers in both editions.
 
 do $$
@@ -140,8 +215,20 @@ begin
     union all select library_item_id from public.crafting_recipe_ingredients
     union all select library_item_id from public.faction_items
     union all select library_item_id from public.store_items
-  ) refs
+    union all select library_item_id from public.loot_placements
+    union all select ref_id from public.quest_beat_attachments where attachment_type = 'item'
+    union all select ref_id from public.quest_refs where ref_type = 'item'
+    union all select unnest(item_ids) from public.encounters
+    union all select reward_id from public.downtime_deck_backs where reward_type = 'item'
+    union all select reward_id from public.downtime_outcomes where reward_type = 'item'
+  ) refs(library_item_id)
   where refs.library_item_id = any (superseded);
+
+  -- Loot table entries are jsonb with no foreign key; a text match is enough to
+  -- refuse, since rewriting them by hand is not this migration's job.
+  select remaining + count(*) into remaining
+  from public.loot_tables lt
+  where exists (select 1 from unnest(superseded) as s(id) where lt.entries::text like '%"' || s.id || '"%');
 
   if remaining > 0 then
     raise exception 'workshop_outputs_resolve_to_srd_items: % reference(s) to a superseded bundled item were not moved; deleting would cascade them away', remaining;
