@@ -570,7 +570,7 @@ select is((select disabled_class_names from public.campaigns where id = '9440000
 
 delete from public.character_classes where party_member_id = '94400000-0000-4000-8000-0000000000ec';
 
--- ── A class is its definition (20261002151709) ───────────────────────────────
+-- ── A class is its definition (20261003105148) ───────────────────────────────
 -- Every class row is pinned, so the review never has to guess what a name
 -- stands for. ec is Oz's; Moonblade and its Oz School are Oz's own.
 insert into public.custom_classes (id, user_id, class_name, ruleset) values
@@ -695,7 +695,7 @@ insert into public.party_members (id, user_id, owner_user_id, campaign_id, name,
 values ('94400000-0000-4000-8000-0000000000e5', '94400000-0000-4000-8000-000000000001', null,
         '94400000-0000-4000-8000-0000000000c1', 'p5 seated before', 1, '2014', 'test_toh_alseid');
 delete from public.character_content_reviews where party_member_id = '94400000-0000-4000-8000-0000000000e5';
--- The one-time statement of 20261002151709, for this character.
+-- The one-time statement of 20261003105148, for this character.
 insert into public.character_content_reviews
   (campaign_id, party_member_id, kind, ref, label, reason, source_slug, source_title, status, decided_at)
 select pm.campaign_id, pm.id, r.kind, r.ref, coalesce(a.label, r.ref), a.reason, a.source_slug, a.source_title, 'approved', now()

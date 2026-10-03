@@ -2,7 +2,7 @@
 --
 -- A character has two accounts on it: user_id, who created the row, and
 -- owner_user_id, whose character it is. They differ once a DM-made roster
--- character is handed to a player (20261002151707). Eighteen functions and
+-- character is handed to a player (20261003105146). Eighteen functions and
 -- eight policies were written before that distinction mattered, and admit
 -- "creator or owner":
 --
@@ -25,13 +25,13 @@
 -- The functions below are their production bodies (pg_get_functiondef, checked
 -- by hash against production on 2 Oct 2026) with that one clause replaced.
 -- Because they are being re-declared anyway, they also lose what only served a
--- class row with no pinned definition, which cannot exist since 20261002151709:
+-- class row with no pinned definition, which cannot exist since 20261003105148:
 -- coalesce(class_definition_kind, 'system'), "class_definition_id is null or",
 -- one name-based fallback in validate_character_spell_source, and the writes of
 -- party_members.class / .subclass in the two level functions (those columns
 -- are the database's mirror). One more change, in apply_de_level: clearing a
 -- subclass now clears its definition id with its name. It cleared the name
--- alone, which character_classes_subclass_pair_check (20261002151709) refuses,
+-- alone, which character_classes_subclass_pair_check (20261003105148) refuses,
 -- so a de-level below the subclass level failed outright. Nothing else in any
 -- body changes.
 -- admin_authorization_guards-style structural assertions in
@@ -1458,7 +1458,7 @@ $function$;
 -- ── exchange_wild_shape (20261003103928, epic #959) ─────────────────────────
 -- Written while this epic was in review, with the same "creator or owner"
 -- clause, and with a fallback to the typed class for a druid that has no class
--- row, which cannot exist since 20261002151709. Its migration's own note
+-- row, which cannot exist since 20261003105148. Its migration's own note
 -- expected both to go here. The body is that migration's, with those two
 -- changes.
 

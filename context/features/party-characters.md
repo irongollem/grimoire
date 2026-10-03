@@ -341,7 +341,7 @@ the `wotc-srd` baseline when no campaign is active (`useSpecies.ts`), since
 `my-characters`, which useParty.ts owns for the campaign-scoped champions
 list).
 
-**A character's ruleset is its own (#943, migration `20261002151707`).**
+**A character's ruleset is its own (#943, migration `20261003105146`).**
 `party_members.ruleset` is NOT NULL with no default, and every insert states
 it, inside a campaign or not; one that omits it is refused. That is why the
 creation wizard asks for the edition first. It is written
@@ -471,7 +471,7 @@ items.
 `supabase/tests/character_ruleset.test.sql` holds all of the above, each refusal
 beside a control.
 
-#### One class model (#943 wave 5, migration `20261002151709`)
+#### One class model (#943 wave 5, migration `20261003105148`)
 
 A character's class had three shapes, all still being written: typed text on
 the character (`party_members.class` / `.subclass`), a `character_classes` row
@@ -531,7 +531,7 @@ when they were re-declared for the owner rule below.
 `supabase/tests/one_class_model.test.sql` holds the constraints, the mirror and
 the classless state.
 
-#### The owner acts for a character (migration `20261002153212`)
+#### The owner acts for a character (migration `20261003105149`)
 
 A character has a creator (`user_id`) and an owner (`owner_user_id`). They
 differ once a DM-made character is handed to a player. Eighteen functions (the
@@ -564,7 +564,7 @@ owner_user_id = auth.uid() or (owner_user_id is null and user_id = auth.uid())
 - `crafting_recipe_grants_select` asked for the creator alone, so the owner of
   a DM-made character could not read the recipes granted to their own character.
 
-#### What a table approves (#943 wave 4, migration `20261002151708`)
+#### What a table approves (#943 wave 4, migration `20261003105147`)
 
 Content works the way the edition does: a player builds what they like, and the
 table decides what sits down.

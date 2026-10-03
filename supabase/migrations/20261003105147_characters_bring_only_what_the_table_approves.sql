@@ -190,7 +190,7 @@ $$;
 -- Everything a character points at, as (kind, ref). An official class is named
 -- rather than pointed at, because a table blocks official classes by name.
 --
--- Every class row is pinned to a definition (20261002151709), so a class is
+-- Every class row is pinned to a definition (20261003105148), so a class is
 -- either an official one, named, or a row somebody owns, pointed at.
 create function private.party_member_content_refs(p_party_member_id uuid)
 returns table (kind text, ref text)
@@ -995,7 +995,7 @@ create trigger campaigns_review_content_blocklists
 -- anyone, the DM included: the DM's way to seat it is to approve what is
 -- waiting.
 --
--- It also holds the rule of 20261002151707: a seat points only at a character
+-- It also holds the rule of 20261003105146: a seat points only at a character
 -- in its own campaign, for the DM too. A DM's seat write used to skip every
 -- check on the character it named, which cost nothing while a link granted
 -- nothing; with a link able to hand a character over, it let any DM name an
@@ -1129,7 +1129,7 @@ begin
   perform private.assert_ruleset_admissible(v_pm.ruleset, p_campaign_id);
 
   -- A player bringing a character they made, which nobody owns yet, is its
-  -- owner from here on (the claim rule of 20261002151707: the member made the
+  -- owner from here on (the claim rule of 20261003105146: the member made the
   -- character themselves). It has to be settled before the review below, which
   -- treats a character nobody owns as having no content of its own. A DM
   -- attaching a roster character to their own table does not take it here; if
@@ -1720,4 +1720,4 @@ revoke execute on function public.get_character_content_item(uuid) from public, 
 grant execute on function public.get_character_content_item(uuid) to authenticated, service_role;
 
 -- Characters already seated when this ships are recorded as approved by
--- 20261002151709, once every class is a pinned row.
+-- 20261003105148, once every class is a pinned row.

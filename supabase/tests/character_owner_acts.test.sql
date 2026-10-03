@@ -1,5 +1,5 @@
 -- Epic #943: the owner acts for a character, not whoever made it
--- (20261002153212).
+-- (20261003105149).
 --
 -- A character has a creator (user_id) and an owner (owner_user_id). They
 -- differ once a DM-made character is handed to a player. Eighteen functions

@@ -1,4 +1,4 @@
--- Epic #943 wave 5: a character's class has one shape (20261002151709).
+-- Epic #943 wave 5: a character's class has one shape (20261003105148).
 --
 -- What is held here:
 --
