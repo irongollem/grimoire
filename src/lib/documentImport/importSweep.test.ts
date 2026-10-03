@@ -333,7 +333,7 @@ describe("runImportSweep", () => {
       expect(report.unresolvedLinks).toEqual([]);
     });
 
-    it("links a library-sourced monster/item to the quest only, and reports why it isn't a beat attachment", async () => {
+    it("reports a beat's monster and item that match nothing at all", async () => {
       const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
       const report = await runImportSweep(
         IMPORT_ROW,
@@ -408,6 +408,61 @@ describe("runImportSweep", () => {
         expect.objectContaining({ home: { beat_id: "beat-1", quest_id: "quests-1" }, item_ref: "srd_bag_of_holding" }),
       );
       expect(report.unresolvedLinks).toEqual([]);
+    });
+
+    // A library entry matched at review time can be gone by confirm; the
+    // database then refuses the reference. The sweep carries on, but the DM is
+    // told, rather than the link being reported as made.
+    it("reports a loot reference the database refuses instead of swallowing it", async () => {
+      const deps = fakeDeps({
+        writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })),
+        insertLootPlacement: vi.fn(async () => {
+          throw { message: 'insert or update on table "loot_placements" violates foreign key constraint' };
+        }),
+      });
+      const report = await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            quests: [usable("q1", { title: "X", beats: [{ key: "b1", title: "Hoard", kind: "combat", dm_content: "", item_names: ["Bag of Holding"] }] })],
+            items: [usable("i1", { name: "Bag of Holding" })],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+            ["quests", new Map([["q1", CREATE]])],
+            ["items", new Map([["i1", { action: "link", candidate: { targetId: "srd_bag_of_holding", source: "library", name: "Bag of Holding", matchKind: "exact", detail: null, distance: null } }]])],
+          ]),
+        }),
+        deps,
+      );
+
+      expect(report.unresolvedLinks).toEqual([
+        'Beat "Hoard" → item "Bag of Holding" (not saved: insert or update on table "loot_placements" violates foreign key constraint)',
+      ]);
+    });
+
+    it("reports a beat attachment the database refuses instead of swallowing it", async () => {
+      const deps = fakeDeps({
+        writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })),
+        insertBeatAttachment: vi.fn(async () => {
+          throw new Error("Invalid monster attachment srd_owlbear");
+        }),
+      });
+      const report = await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            quests: [usable("q1", { title: "X", beats: [{ key: "b1", title: "Fight", kind: "combat", dm_content: "", monster_names: ["Owlbear"] }] })],
+            monsters: [usable("m1", { name: "Owlbear" })],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+            ["quests", new Map([["q1", CREATE]])],
+            ["monsters", new Map([["m1", { action: "link", candidate: { targetId: "srd_owlbear", source: "library", name: "Owlbear", matchKind: "exact", detail: null, distance: null } }]])],
+          ]),
+        }),
+        deps,
+      );
+
+      expect(report.unresolvedLinks).toEqual(['Beat "Fight" → monster "Owlbear" (not saved: Invalid monster attachment srd_owlbear)']);
     });
 
     it("never consumes quota for a library link: a monsters kind of pure links inserts nothing and stops at nothing", async () => {

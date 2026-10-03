@@ -49,7 +49,7 @@
           <span class="min-w-0 flex-1 space-y-0.5">
             <span class="flex flex-wrap items-baseline gap-1.5">
               <span class="text-body font-semibold text-foreground">{{ letterFor(idx) }}. {{ candidate.name }}</span>
-              <span class="text-caption text-muted-foreground">{{ candidate.source === "campaign" ? "yours" : "add from library" }}</span>
+              <span class="text-caption text-muted-foreground">{{ candidate.source === "campaign" ? "yours" : "use library entry" }}</span>
               <span class="text-caption text-muted-foreground">· {{ matchKindHint(candidate.matchKind) }}</span>
             </span>
             <span v-if="candidate.detail" class="block text-caption text-muted-foreground">{{ candidate.detail }}</span>

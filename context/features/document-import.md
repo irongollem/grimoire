@@ -654,11 +654,13 @@ site as a whole. Resolved in the sweep's linking phase into a `location_id`-
 homed `loot_placements` row per name (`kind: "item"`), through the same
 `attachItemLoot` helper (`importSweepLinking.ts`) a beat's own `item_names`
 already used — parameterised by `LootPlacementHome` (`{ beat_id, quest_id }`
-or `{ location_id }`) rather than duplicated into two write paths. Same
-library caveat as a beat's items: a name resolving only to a shared-library
-row can't become a placement (`loot_placements.item_id` is a uuid FK into
-`items`), and is simply reported as unresolved — a location has no quest to
-fall back to linking at the way a beat does.
+or `{ location_id }`) rather than duplicated into two write paths. A name
+resolving to a shared-library row is placed by reference, in
+`library_item_id` (#954), exactly as a beat's item is; the runner splits the
+picked id into the right column. A placement the database refuses (a library
+entry removed since review, for one) is reported in `unresolvedLinks` with the
+reason rather than dropped, like every other reference write in the linking
+phase.
 
 **Resolved against the sweep-wide `locations` registry, not a phase-1
 context list.** `importSweep.ts` walks every `locations` entity after the
