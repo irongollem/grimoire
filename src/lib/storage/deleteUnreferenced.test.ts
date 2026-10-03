@@ -10,22 +10,23 @@ vi.mock("./remove", () => ({
   deleteByPublicUrl: (...urls: (string | null | undefined)[]) => deleteByPublicUrl(...urls),
 }));
 
-type CountRow = { count: number | null; error: null };
-const counts = new Map<string, CountRow>();
+const refs = new Set<string>();
+const failing = new Set<string>();
 function rowKey(table: string, column: string, value: string): string {
   return `${table}.${column}=${value}`;
 }
-/** Every combination defaults to count 0 (unreferenced) unless set here. */
-function setCount(table: string, column: string, value: string, count: number | null): void {
-  counts.set(rowKey(table, column, value), { count, error: null });
+/** Every URL is unreferenced unless a row is set here. */
+function setCount(table: string, column: string, value: string, count: number): void {
+  if (count > 0) refs.add(rowKey(table, column, value));
 }
 
-const eq = vi.fn();
+const inCall = vi.fn();
 const from = vi.fn((table: string) => ({
-  select: vi.fn(() => ({
-    eq: vi.fn(async (column: string, value: string) => {
-      eq(table, column, value);
-      return counts.get(rowKey(table, column, value)) ?? { count: 0, error: null };
+  select: vi.fn((column: string) => ({
+    in: vi.fn(async (_column: string, values: string[]) => {
+      inCall(table, column, values);
+      if (failing.has(`${table}.${column}`)) return { data: null, error: new Error("read failed") };
+      return { data: values.filter((v) => refs.has(rowKey(table, column, v))).map((v) => ({ [column]: v })), error: null };
     }),
   })),
 }));
@@ -37,8 +38,9 @@ vi.mock("@/lib/supabase", () => ({
 beforeEach(() => {
   deleteByPublicUrl.mockClear();
   from.mockClear();
-  eq.mockClear();
-  counts.clear();
+  inCall.mockClear();
+  refs.clear();
+  failing.clear();
 });
 
 describe("deleteUnreferencedByPublicUrl", () => {
@@ -98,7 +100,7 @@ describe("deleteUnreferencedByPublicUrl", () => {
     // One pass over every referencing column, not one per copy of the URL.
     const { IMAGE_REFERENCES } = await import("./deleteUnreferenced");
     const columnCount = IMAGE_REFERENCES.reduce((n, [, columns]) => n + columns.length, 0);
-    expect(eq).toHaveBeenCalledTimes(columnCount);
+    expect(inCall).toHaveBeenCalledTimes(columnCount);
     expect(deleteByPublicUrl).toHaveBeenCalledTimes(1);
     expect(deleteByPublicUrl).toHaveBeenCalledWith(url);
   });
@@ -146,12 +148,37 @@ describe("deleteUnreferencedByPublicUrl", () => {
     expect(deleteByPublicUrl).not.toHaveBeenCalled();
   });
 
-  it("keeps a file when a reference count comes back unknown", async () => {
+  it("keeps every file, and throws, when a reference read fails", async () => {
     const { deleteUnreferencedByPublicUrl } = await import("./deleteUnreferenced");
-    const url = "https://cdn.example.com/monster-images/u1/a.webp";
-    setCount("monsters", "image_url", url, null);
+    failing.add("monsters.image_url");
 
-    await deleteUnreferencedByPublicUrl({ urls: [url] });
+    await expect(deleteUnreferencedByPublicUrl({ urls: ["https://cdn.example.com/monster-images/u1/a.webp"] })).rejects.toThrow();
+    expect(deleteByPublicUrl).not.toHaveBeenCalled();
+  });
+
+  it("reads a campaign's worth of files in chunks, one read per column per chunk (#918)", async () => {
+    const { deleteUnreferencedByPublicUrl, IMAGE_REFERENCES } = await import("./deleteUnreferenced");
+    const urls = Array.from({ length: 120 }, (_, i) => `https://cdn.example.com/location-images/u1/${i}.webp`);
+    setCount("deities", "symbol_image_url", urls[7], 1);
+
+    await deleteUnreferencedByPublicUrl({ urls });
+
+    const columnCount = IMAGE_REFERENCES.reduce((n, [, columns]) => n + columns.length, 0);
+    expect(inCall.mock.calls.length).toBeLessThanOrEqual(columnCount * 3);
+    expect(inCall.mock.calls.every(([, , values]) => (values as string[]).length <= 50)).toBe(true);
+    const deleted = deleteByPublicUrl.mock.calls[0];
+    expect(deleted).toHaveLength(119);
+    expect(deleted).not.toContain(urls[7]);
+  });
+
+  it("keeps a Hall of Heroes card's portrait and a campaign's group portrait (#918)", async () => {
+    const { deleteUnreferencedByPublicUrl } = await import("./deleteUnreferenced");
+    const card = "https://cdn.example.com/npc-portraits/u1/hero.webp";
+    const group = "https://cdn.example.com/location-images/u1/group.webp";
+    setCount("hall_of_heroes", "portrait_url", card, 1);
+    setCount("campaigns", "group_portrait_url", group, 1);
+
+    await deleteUnreferencedByPublicUrl({ urls: [card, group] });
 
     expect(deleteByPublicUrl).not.toHaveBeenCalled();
   });

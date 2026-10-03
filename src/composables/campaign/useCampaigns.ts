@@ -15,6 +15,9 @@ import type {
 } from "@/lib/campaign/campaignHomebrewDisposition";
 import { LOCATION_STATE_QUERY_KEY } from "@/composables/locations/useLocationState";
 import { HOMEBREW_TABLES, EMPTY_HOMEBREW_COUNTS } from "@/lib/campaign/campaignHomebrewDisposition";
+import { campaignFileUrls } from "@/lib/campaign/campaignFiles";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
+import { reportHandledError } from "@/lib/observability/sentry";
 
 // All campaign-scoped tables whose orphaned rows (campaign_id IS NULL) can be claimed
 const CAMPAIGN_SCOPED_TABLES = [
@@ -162,11 +165,22 @@ export async function disposeHomebrewAndDeleteCampaign(
   campaignId: string,
   disposition: HomebrewDisposition,
 ): Promise<void> {
+  const user = getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+  // Read before the delete, which removes the rows that name the files (#918).
+  const fileUrls = await campaignFileUrls(campaignId, user.id, disposition);
   const { error } = await supabase.rpc("delete_campaign_with_homebrew", {
     p_campaign_id: campaignId,
     p_disposition: disposition,
   });
   if (error) throw error;
+  // The campaign is gone either way; a storage failure leaves files behind,
+  // which is today's outcome, not a reason to report the delete as failed.
+  try {
+    await deleteUnreferencedByPublicUrl({ urls: fileUrls });
+  } catch (cleanupError) {
+    reportHandledError(cleanupError, "campaign:deleteFiles", { campaignId, files: fileUrls.length });
+  }
 }
 
 /**
