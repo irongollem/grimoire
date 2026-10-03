@@ -29,7 +29,11 @@
 -- coalesce(class_definition_kind, 'system'), "class_definition_id is null or",
 -- one name-based fallback in validate_character_spell_source, and the writes of
 -- party_members.class / .subclass in the two level functions (those columns
--- are the database's mirror). Nothing else in any body changes.
+-- are the database's mirror). One more change, in apply_de_level: clearing a
+-- subclass now clears its definition id with its name. It cleared the name
+-- alone, which character_classes_subclass_pair_check (20261002151709) refuses,
+-- so a de-level below the subclass level failed outright. Nothing else in any
+-- body changes.
 -- admin_authorization_guards-style structural assertions in
 -- character_owner_acts.test.sql fail if the old clause is written again.
 
@@ -334,10 +338,14 @@ begin
         where id = (p_class_op->>'promote_id')::uuid and party_member_id = p_member_id;
       end if;
     elsif p_class_op->>'op' = 'update' then
+      -- A subclass is its definition: the name and the id clear together, or
+      -- character_classes_subclass_pair_check refuses the whole de-level.
       update character_classes set
         levels        = (p_class_op->>'levels')::int,
         subclass_name = case when coalesce((p_class_op->>'clear_subclass')::boolean, false)
-                             then null else subclass_name end
+                             then null else subclass_name end,
+        subclass_definition_id = case when coalesce((p_class_op->>'clear_subclass')::boolean, false)
+                             then null else subclass_definition_id end
       where id = (p_class_op->>'id')::uuid and party_member_id = p_member_id;
     end if;
   end if;

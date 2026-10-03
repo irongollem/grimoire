@@ -16,8 +16,8 @@
 --
 -- What this migration decides (the epic body holds the reasoning):
 --
---   * party_members.ruleset is NOT NULL with no default. Inside a campaign an
---     insert that omits it takes the campaign's; outside one it is refused.
+--   * party_members.ruleset is NOT NULL with no default. Every insert states
+--     it; an insert that omits it is refused, inside a campaign or not.
 --   * It changes only through convert_party_member_ruleset(), which is the old
 --     campaign trigger's logic keyed on one character.
 --   * campaigns.allows_mixed_rulesets (default false) gates attach, join and a

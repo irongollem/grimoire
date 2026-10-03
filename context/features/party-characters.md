@@ -342,9 +342,9 @@ the `wotc-srd` baseline when no campaign is active (`useSpecies.ts`), since
 list).
 
 **A character's ruleset is its own (#943, migration `20261002151707`).**
-`party_members.ruleset` is NOT NULL with no default. A roster character created
-inside a campaign takes that campaign's; a character with no campaign must state
-one, which is why the creation wizard asks for the edition first. It is written
+`party_members.ruleset` is NOT NULL with no default, and every insert states
+it, inside a campaign or not; one that omits it is refused. That is why the
+creation wizard asks for the edition first. It is written
 by nothing but `convert_party_member_ruleset()`: a guard trigger refuses a bare
 column write, because changing the edition without re-pinning classes and spells
 leaves the sheet on two editions at once. `private.party_member_ruleset(id)` is

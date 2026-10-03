@@ -14,7 +14,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(21);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94600000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -103,6 +103,19 @@ update public.character_classes set is_primary = true where id = '94600000-0000-
 select is((pg_temp.pm('e1')).class, 'Fighter', 'making another class primary changes the name the character shows');
 select cmp_ok((select count(*)::int from pm_writes), '>', 0, 'control: a change of class names does write to it');
 select is((pg_temp.pm('e1')).subclass, null, 'and its subclass, here none');
+
+-- Levelling down below the subclass level takes the subclass off: its name and
+-- its definition together, or the pair check refuses the whole de-level.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"94600000-0000-4000-8000-000000000002","role":"authenticated"}', true);
+select lives_ok($$
+  select public.apply_de_level('94600000-0000-4000-8000-0000000000e1', '{}'::jsonb,
+    '{"op": "update", "id": "94600000-0000-4000-8000-0000000000f1", "levels": 2, "clear_subclass": true}'::jsonb, '{}')
+$$, 'a de-level that clears a pinned subclass goes through');
+reset role;
+select is((select coalesce(subclass_name, '-') || ' / ' || coalesce(subclass_definition_id::text, '-') || ' / ' || levels
+             from public.character_classes where id = '94600000-0000-4000-8000-0000000000f1'),
+  '- / - / 2', 'and takes the subclass name and its definition off together');
 
 delete from public.character_classes where id = '94600000-0000-4000-8000-0000000000f2';
 select is((pg_temp.pm('e1')).class, 'Sorcerer', 'losing a class falls back to the one that remains');

@@ -1392,6 +1392,7 @@ declare
   v_uid uuid := (select auth.uid());
   v_review public.character_content_reviews%rowtype;
   v_pm public.party_members%rowtype;
+  v_pm_id uuid;
   v_owner uuid;
   v_a record;
   v_copy uuid;
@@ -1411,8 +1412,19 @@ begin
   if not private.is_campaign_dm(v_review.campaign_id) then
     raise exception 'Only the DM of the table can approve a character''s choices' using errcode = '42501';
   end if;
-  -- Locked only once the caller is known to be the DM.
-  perform 1 from public.character_content_reviews where id = p_review_id for update;
+  v_pm_id := v_review.party_member_id;
+  -- Locked only once the caller is known to be the DM, and read again under the
+  -- lock: a second approval of the same flag (a double click) waits here while
+  -- the first copies, re-points and so settles the flag. Going on with the
+  -- first read would re-point a character that no longer points there, and
+  -- show the DM an error for an approval that worked.
+  select * into v_review from public.character_content_reviews where id = p_review_id for update;
+  if not found then
+    select count(*)::integer into v_pending
+      from public.character_content_reviews r
+     where r.party_member_id = v_pm_id and r.status = 'pending';
+    return v_pending;
+  end if;
 
   select * into v_pm from public.party_members where id = v_review.party_member_id;
   v_owner := v_pm.owner_user_id;
