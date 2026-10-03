@@ -138,6 +138,15 @@ select throws_ok(
   'back cannot step out of the chain it is in and land in another quest');
 
 select is((select count(*)::integer from public.get_campaign_live_quests('66800000-0000-4000-8000-000000000010')), 2, 'both open chains are visible at once');
+-- One transaction gives every write the same now(), so both chains tie on
+-- updated_at and the order between them was whatever Postgres returned first
+-- (it failed intermittently). Backdate the side chain so the premise holds.
+reset role;
+alter table public.quest_runtime_state disable trigger set_quest_runtime_state_updated_at;
+update public.quest_runtime_state set updated_at = now() - interval '1 minute'
+where quest_id = '66800000-0000-4000-8000-000000000021';
+alter table public.quest_runtime_state enable trigger set_quest_runtime_state_updated_at;
+set local role authenticated;
 select is(
   (select quest_title from public.get_campaign_live_quests('66800000-0000-4000-8000-000000000010') limit 1),
   'Main road', 'the most recently touched running chain leads');

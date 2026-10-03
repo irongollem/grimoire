@@ -88,7 +88,7 @@ insert into public.library_monsters (id, name, monster_type, ruleset, conceptual
   ('zzmatch-goblin-scout-6', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-6'),
   ('zzmatch-disabled-ogre', 'Ogre Zzmatch', 'giant', '2014', 'zzmatch_ogre', 'zzmatch-disabled-book', 'zzmatch-disabled-book', 'zzmatch-disabled-ogre'),
   -- In the enabled book, and one letter from a name the page will ask for.
-  ('zzmatch-ghast', 'Zzmatch Ghast', 'undead', '2014', 'zzmatch_ghast', 'zzmatch-book', 'zzmatch-book', 'zzmatch-ghast');
+  ('zzmatch-ghast', 'Zzmatch Qhast', 'undead', '2014', 'zzmatch_ghast', 'zzmatch-book', 'zzmatch-book', 'zzmatch-ghast');
 
 -- ── Exact match through article + plural ─────────────────────────────────────
 select results_eq(
@@ -327,13 +327,16 @@ select is(
   0::bigint,
   'one letter in five is not a slip: "Koran" does not find "Korax"'
 );
+-- "Qhost", not "Ghost": a real library "Ghost" is a legitimate *contains*
+-- match for "Zzmatch Ghost", so that spelling failed on any local stack whose
+-- library holds the monster, and passed only on CI's empty one.
 select is(
   (select count(*) from public.match_import_entity_names(
      '19410000-0000-4000-8000-000000000001'::uuid,
      '19410000-0000-4000-8000-000000000010'::uuid,
-     'monsters', array['Zzmatch Ghost'])),
+     'monsters', array['Zzmatch Qhost'])),
   0::bigint,
-  'the library is never a near match: "Zzmatch Ghost" does not find the library''s "Zzmatch Ghast"'
+  'the library is never a near match: "Zzmatch Qhost" does not find the library''s "Zzmatch Qhast"'
 );
 -- A title in front and a slip inside, both at once (migration 20261002133428):
 -- the run rule wants identical words and the whole-name rule wants equal
