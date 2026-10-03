@@ -46,10 +46,12 @@ match — and, as a fallback for rows imported before the versioning migration
 `20260720000018` (which have `source` set but NULL identity keys), when their
 lowercase names match. Existing vaults therefore look unchanged: previously
 imported rows (with any hand-added art/edits) win over the shared rows, and
-nothing is deleted or remapped. Item references (`store_items`,
-`party_inventory`, recipes, loot tables, quest rewards, …) remain uuid FKs
-into `items`; UI pickers convert a picked shared row into a per-user clone
-via `useEnsureOwnedItem()` before persisting. Species references
+nothing is deleted or remapped. Item references store the shared row
+itself (#954): `store_items`, `party_inventory`, `npc_inventory`, recipes and
+`loot_placements` carry `item_id` or `library_item_id` (`itemRefColumns(pickedId)`
+splits a picked id by shape), and loot tables, encounter loot, beat attachments
+and downtime rewards hold the id as text. Only the explicit Customize action
+copies a shared row into the vault (`useCustomizeLibraryItem`). Species references
 (`party_members.species_id` / `disguise_species_id`,
 `campaigns.disabled_species_ids`) are text since `20260724000003` and may
 hold either a custom uuid or a `library_species` slug directly.

@@ -178,7 +178,6 @@
           :item-options="itemOptions"
           :entries-error="entriesError"
           :random-pool-sizes="randomPoolSizes"
-          :resolve-item="(id) => itemsById.get(id)"
           @add="addEntry"
           @remove="removeEntry"
         />
@@ -271,6 +270,7 @@ import {
   useDeleteLootTable,
 } from "@/composables/dungeon-features/useLootTables";
 import { useItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useMonsters } from "@/composables/monsters/useMonsters";
 import {
   LOOT_CR_TIERS,
@@ -345,9 +345,16 @@ watch(table, (t) => {
 
 // ── Items (Vault) ──────────────────────────────────────────────────────────
 const itemsQuery = useItems();
+// The picker offers what the campaign's enabled sources allow (`itemOptions`
+// below); the entries this table already stores resolve even if their book has
+// since been disabled, so a roll never silently drops a library item (#954).
+const { items: storedItems } = useStoredItemRefs(
+  () => form.value.entries.flatMap((e) => (e.item_id ? [e.item_id] : [])),
+  itemsQuery.data,
+);
 const itemsById = computed(() => {
   const m = new Map<string, NonNullable<typeof itemsQuery.data.value>[number]>();
-  for (const it of itemsQuery.data.value ?? []) m.set(it.id, it);
+  for (const it of storedItems.value) m.set(it.id, it);
   return m;
 });
 const itemOptions = computed(() =>

@@ -1,5 +1,5 @@
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useNotes } from "@/composables/notes/useNotes";
 import type { DowntimeRewardType } from "@/types/downtime.types";
 
@@ -22,9 +22,14 @@ import type { DowntimeRewardType } from "@/types/downtime.types";
  * it cannot see as pending rather than absent — a player cannot distinguish
  * "withheld" from "deleted", so only one of those answers is safe to give.
  */
-export function useDowntimeRewardName() {
+export function useDowntimeRewardName(
+  /** Item ids on screen. A reward may be a library item id from a book the
+   *  campaign has since disabled, which the enablement-filtered item list no
+   *  longer holds, so those are fetched by id rather than read as "deleted". */
+  itemIds: () => readonly string[] = () => [],
+) {
   const { data: npcs } = useNpcs();
-  const { data: items } = useItems();
+  const { find: findItem } = useStoredItemRefs(itemIds);
   const { data: notes } = useNotes();
 
   /**
@@ -41,7 +46,7 @@ export function useDowntimeRewardName() {
       case "npc":
         return npcs.value?.find((n) => n.id === id)?.name ?? null;
       case "item":
-        return items.value?.find((i) => i.id === id)?.name ?? null;
+        return findItem(id)?.name ?? null;
       case "note":
         return notes.value?.find((n) => n.id === id)?.title ?? null;
       default:

@@ -14,7 +14,7 @@ vi.mock("@/composables/quests/useQuestThreads", () => ({
 
 const currencyLoot: LootPlacement = {
   id: "loot-1", beat_id: "beat-1", quest_id: "quest-1", location_id: null, campaign_id: "c1",
-  kind: "currency", item_id: null, quantity: 1, label: "80 gp, skimmed", payload: {},
+  kind: "currency", item_id: null, library_item_id: null, quantity: 1, label: "80 gp, skimmed", payload: {},
   source_type: "prepared", source_id: null, sort_order: 0, dispatch_message_id: null, dispatched_at: null,
   delivery_state: "held", quantity_remaining: 1, claimed_by_names: [], handed_out_this_session: false,
 };

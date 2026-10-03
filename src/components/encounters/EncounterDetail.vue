@@ -196,6 +196,7 @@
         <EncounterLoot
           :item-ids="form.item_ids"
           :all-items="allItems ?? []"
+          :stored-items="storedItems"
           :currency-pools="form.reward_currency_pools"
           @update:item-ids="form.item_ids = $event"
           @update:currency-pools="form.reward_currency_pools = $event"
@@ -240,6 +241,7 @@ import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useSounds } from "@/composables/soundboard/useSounds";
@@ -420,6 +422,10 @@ const form = reactive({
   audio_theme: props.encounter?.audio_theme ?? (null as string | null),
   ai_provenance: props.encounter?.ai_provenance ?? (null as AiProvenance | null),
 });
+
+// Loot ids may be library ids from a book the campaign has since disabled; the
+// picker (allItems) respects enablement, the stored references must not.
+const { items: storedItems } = useStoredItemRefs(() => form.item_ids);
 
 // Theme suggestions come from what the DM has already labelled, but the field
 // stays free text: labelling the encounter before building the playlist is a

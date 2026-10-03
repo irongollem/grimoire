@@ -23,15 +23,15 @@
       />
       <div class="flex items-baseline gap-2 mb-1">
         <component
-          :is="meta.item_id ? 'button' : 'span'"
-          :type="meta.item_id ? 'button' : undefined"
+          :is="itemRef ? 'button' : 'span'"
+          :type="itemRef ? 'button' : undefined"
           class="text-body font-semibold text-foreground text-left"
           :class="
-            meta.item_id
+            itemRef
               ? 'hover:text-ink-caution transition-colors cursor-pointer'
               : ''
           "
-          @click="meta.item_id && emit('toggle-details', messageId)"
+          @click="itemRef && emit('toggle-details', messageId)"
         >
           {{ meta.quantity > 1 ? `${meta.quantity}× ` : "" }}{{ meta.item_name }}
           <span
@@ -57,7 +57,7 @@
       >{{ meta.description }}</p>
       <!-- Expand details toggle (vault items only) -->
       <AppButton
-        v-if="meta.item_id"
+        v-if="itemRef"
         variant="ghost"
         size="inline-xs"
         class="mb-1"
@@ -71,7 +71,7 @@
           />
         </template>
       </AppButton>
-      <ChatItemDropDetails v-if="expanded" :item-id="meta.item_id!" />
+      <ChatItemDropDetails v-if="expanded && itemRef" :item-id="itemRef" />
 
       <!-- ── Stacked drop: remaining count + grab buttons ───────── -->
       <template v-if="meta.claims !== undefined">
@@ -185,6 +185,7 @@ import { IconChevronDown, IconLoot } from '@/lib/icons';
 import ChatItemDropDetails from '@/components/chat/ChatItemDropDetails.vue';
 import AppButton from '@/components/common/AppButton.vue';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
+import { inventoryItemRef } from '@/lib/itemRef';
 import type { ItemDropMetadata } from '@/types/chat.types';
 
 const {
@@ -208,6 +209,9 @@ const {
   npcSelectValue?: string;
   timeLabel: string;
 }>();
+
+/** The catalogue entry behind the drop: a vault uuid or a shared library id. */
+const itemRef = computed(() => inventoryItemRef({ item_id: meta.item_id, library_item_id: meta.library_item_id ?? null }));
 
 /** Names of grabbers (with per-person totals) while a stack is partially claimed. */
 const grabbedSummary = computed(() => {

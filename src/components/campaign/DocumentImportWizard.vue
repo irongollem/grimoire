@@ -269,10 +269,9 @@ function summaryLineFor(kind: ImportEntityKind): string {
   const entities = usableByKind.value[kind];
   if (entities.length === 0) return "None found";
   const decisions = decisionsByKind[kind];
-  const t = decisions ? tallyDecisions(entities.map((e) => e.ref), decisions) : { link: 0, adopt: 0, create: 0, generate: 0, ignore: 0 };
+  const t = decisions ? tallyDecisions(entities.map((e) => e.ref), decisions) : { link: 0, create: 0, generate: 0, ignore: 0 };
   const parts = [
     t.link > 0 ? `${t.link} link${t.link === 1 ? "" : "s"}` : null,
-    t.adopt > 0 ? `${t.adopt} added from library` : null,
     t.create > 0 ? `${t.create} new` : null,
     t.generate > 0 ? `${t.generate} generate${t.generate === 1 ? "" : "s"}` : null,
     t.ignore > 0 ? `${t.ignore} ignored` : null,
@@ -287,7 +286,7 @@ const quotaAdds = computed(() => {
   for (const kind of IMPORT_ENTITY_KINDS) {
     const decisions = decisionsByKind[kind];
     if (!decisions) continue;
-    adds[kind] = rowsAddedToQuota(kind, tallyDecisions(usableByKind.value[kind].map((e) => e.ref), decisions));
+    adds[kind] = rowsAddedToQuota(tallyDecisions(usableByKind.value[kind].map((e) => e.ref), decisions));
   }
   return adds;
 });
@@ -359,7 +358,6 @@ function resultLineFor(kind: ImportEntityKind): string {
   const parts = [
     `${outcome.imported} created`,
     outcome.linked > 0 ? `${outcome.linked} linked` : null,
-    outcome.adopted > 0 ? `${outcome.adopted} added from library` : null,
     outcome.ignored > 0 ? `${outcome.ignored} ignored` : null,
     failed > 0 ? `${failed} failed` : null,
     outcome.stoppedAtQuota ? "plan limit reached" : null,

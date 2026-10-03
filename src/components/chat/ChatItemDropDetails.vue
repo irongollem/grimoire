@@ -85,7 +85,8 @@
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed } from "vue";
-import { useItem, usePlayerVisibleItems } from "@/composables/items/useItems";
+import { useItem, useResolvedItem, usePlayerVisibleItems } from "@/composables/items/useItems";
+import { isUuid } from "@/lib/library/contentIdentity";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {
   ITEM_TYPE_LABELS,
@@ -102,10 +103,22 @@ const props = defineProps<{ itemId: string }>();
 // get_player_visible_items, migration 20260711000014). No role branch is
 // needed: exactly one side ever has data for a given viewer, and DM-preview
 // is already handled inside usePlayerVisibleItems.
-const { data: baseItem, isPending: baseItemPending } = useItem(props.itemId);
+// A shared library id is a text slug and cannot be asked of the uuid `items`
+// table, so each lookup is switched off ("" disables the query) for the other
+// id shape. library_items is public read, so a player resolves it directly.
+const ownedId = computed(() => (isUuid(props.itemId) ? props.itemId : ""));
+const libraryId = computed(() => (isUuid(props.itemId) ? "" : props.itemId));
+const { data: baseItem, isPending: baseItemPending } = useItem(ownedId);
 const { data: visibleItems, isLoading: visibleItemsLoading } = usePlayerVisibleItems();
-const item = computed(() => baseItem.value ?? visibleItems.value?.find((i) => i.id === props.itemId) ?? null);
-const isPending = computed(() => baseItemPending.value || visibleItemsLoading.value);
+const { data: libraryResolved, isPending: libraryPending } = useResolvedItem(libraryId);
+const item = computed(
+  () => libraryResolved.value?.item ?? baseItem.value ?? visibleItems.value?.find((i) => i.id === props.itemId) ?? null,
+);
+const isPending = computed(() =>
+  isUuid(props.itemId)
+    ? baseItemPending.value || visibleItemsLoading.value
+    : libraryPending.value,
+);
 
 /** Border tint from the ramp token. `color-mix` rather than an appended hex
  *  alpha, which only worked while these were hex literals (#744). */

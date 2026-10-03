@@ -1,7 +1,7 @@
 import { computed, isRef, ref, type Ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
+import { LIBRARY_TABLE_FOR_ATTACHMENT, splitAttachmentRefIds, summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
 import { deriveQuestBoardSummaries, type QuestBoardSummary } from "@/lib/quests/board";
 import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
 import { useCampaignStore } from "@/stores/campaign";
@@ -177,12 +177,23 @@ async function fetchAttachmentTargets(
   await Promise.all(definitions.map(async ([type, table, select, labelKey]) => {
     const ids = attachments.filter((a) => a.attachment_type === type).map((a) => a.ref_id);
     if (ids.length === 0) return;
-    const { data, error } = await supabase.from(table).select(select).in("id", ids);
-    if (error) throw error;
-    for (const raw of data ?? []) {
-      const row = raw as unknown as Record<string, unknown>;
-      const id = String(row.id);
-      targets.set(`${type}:${id}`, { label: String(row[labelKey] ?? "Untitled"), detail: null });
+    // Only items and monsters can reference library content; every other type
+    // is uuid-only, so its ids all land in `ownIds`.
+    const { ownIds, libraryIds } = type === "item" || type === "monster"
+      ? splitAttachmentRefIds(ids)
+      : { ownIds: ids, libraryIds: [] as string[] };
+    const queries = [];
+    if (ownIds.length > 0) queries.push(supabase.from(table).select(select).in("id", ownIds));
+    if (libraryIds.length > 0 && (type === "item" || type === "monster")) {
+      queries.push(supabase.from(LIBRARY_TABLE_FOR_ATTACHMENT[type]).select("id, name").in("id", libraryIds));
+    }
+    for (const { data, error } of await Promise.all(queries)) {
+      if (error) throw error;
+      for (const raw of data ?? []) {
+        const row = raw as unknown as Record<string, unknown>;
+        const id = String(row.id);
+        targets.set(`${type}:${id}`, { label: String(row[labelKey] ?? "Untitled"), detail: null });
+      }
     }
   }));
   return targets;
@@ -235,6 +246,8 @@ export function useCreateLootPlacement() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (entry: LootPlacementInsert) => {
+      // `LootPlacementInsert` already carries the item_id / library_item_id pair
+      // (built with `itemRefColumns`), so the row goes in as given.
       const { data, error } = await supabase.from("loot_placements").insert(entry).select().single();
       if (error) throw error;
       return data;

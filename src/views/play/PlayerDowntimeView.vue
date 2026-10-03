@@ -10,6 +10,7 @@ import { useToast } from "@/composables/useToast";
 import { useAuthStore } from "@/stores/auth";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
 import {
   useDowntimeBalance,
@@ -39,6 +40,10 @@ const { data: outcomes } = useDowntimeOutcomes();
 // Player-visible projections only (gated names) — never the raw tables.
 const { data: npcs } = useSharedNpcs();
 const { data: items } = usePlayerVisibleItems();
+const { find: findRewardItem } = useStoredItemRefs(
+  () => (outcomes.value ?? []).flatMap((o) => (o.reward_type === "item" && o.reward_id !== null ? [o.reward_id] : [])),
+  items,
+);
 const { isNew } = useReadItems("downtime_outcome");
 const markRead = useMarkRead();
 const spend = useSpendDraw();
@@ -110,7 +115,7 @@ function rewardName(rewardType: DowntimeRewardType | null, rewardId: string | nu
     case "npc":
       return npcs.value?.find((n) => n.id === rewardId)?.name ?? null;
     case "item":
-      return items.value?.find((i) => i.id === rewardId)?.name ?? null;
+      return findRewardItem(rewardId)?.name ?? null;
     default:
       // Notes have no player-facing surface to resolve against, and nothing can
       // mint the other three. All of them fall to `rewardPending` below, which

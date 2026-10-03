@@ -175,21 +175,34 @@ export async function resolveEncounters(
   }
 }
 
+/**
+ * A rejected reference write is still best-effort (the sweep carries on and the
+ * row it points from already landed), but never silent: the DM sees it in the
+ * same unresolved-links report as a name that matched nothing. The case that
+ * made this matter (#954): a library entry matched at review time and removed
+ * before confirm fails the write's foreign key or validator, and without this
+ * the sweep would report the link as made.
+ */
+function writeFailure(label: string, err: unknown): string {
+  // A Supabase error is a plain object with a `message`, not an `Error`.
+  const reason = typeof err === "object" && err !== null && "message" in err
+    ? String((err as { message: unknown }).message)
+    : "the write was refused";
+  return `${label} (not saved: ${reason})`;
+}
+
 // ── Item loot (shared by a beat's own loot and a room's own loot) ───────────
 
 /**
- * Resolves one item name against `itemsLookup` and, when it lands on a
- * campaign row, writes the `loot_placements` row for it — parameterised by
+ * Resolves one item name against `itemsLookup` and, when it matches, writes
+ * the `loot_placements` row for it (a library match is stored as a
+ * `library_item_id` reference, never cloned — the runner splits the id) — parameterised by
  * `home` rather than duplicated per caller, since a beat's loot
  * (`beat_id`+`quest_id`) and a room's loot (`location_id`) differ only in
  * which column carries the placement (`loot_placements_one_home`,
  * `loot_placements_beat_pair` in the database — see `LootPlacementHome`,
- * importSweep.ts). An unresolved name, or one that only resolves to a
- * shared-library item (`loot_placements.item_id` is a uuid FK into `items`,
- * so a library id can never satisfy it), is reported rather than silently
- * dropped — a beat's failure still names the quest fallback it has
- * (`quest_refs`, via the registry), a room's does not, since a location has
- * no quest to fall back to linking at.
+ * importSweep.ts). An unresolved name is reported rather than silently
+ * dropped.
  */
 async function attachItemLoot(
   name: string,
@@ -213,19 +226,11 @@ async function attachItemLoot(
     return;
   }
   addSweepRef("item", match.id);
-  if (match.source !== "campaign") {
-    const targetPhrase =
-      "location_id" in home
-        ? "a loot placement can't target a library row."
-        : "linked to the quest, but a loot placement can't target a library row.";
-    unresolvedLinks.push(`${contextLabel} → item "${name}" is a shared-library item; ${targetPhrase}`);
-    return;
-  }
   try {
-    await deps.insertLootPlacement({ home, campaign_id: campaignId, kind: "item", item_id: match.id, quantity: 1, label: name });
+    await deps.insertLootPlacement({ home, campaign_id: campaignId, kind: "item", item_ref: match.id, quantity: 1, label: name });
     onPlaced?.(match.id);
-  } catch {
-    // Best-effort.
+  } catch (err) {
+    unresolvedLinks.push(writeFailure(`${contextLabel} → item "${name}"`, err));
   }
 }
 
@@ -324,7 +329,7 @@ export async function resolveBeatCrossReferences(
       const siteExcludeIds = stagedLocationId ? siteAndRoomIds(stagedLocationId, siteRoomIndex) : null;
 
       let sortOrder = 0;
-      const attach = async (attachmentType: QuestBeatAttachmentType, refId: string) => {
+      const attach = async (attachmentType: QuestBeatAttachmentType, refId: string, name: string) => {
         try {
           await deps.insertBeatAttachment({
             beat_id: beatId,
@@ -334,8 +339,8 @@ export async function resolveBeatCrossReferences(
             ref_id: refId,
             sort_order: sortOrder++,
           });
-        } catch {
-          // Best-effort.
+        } catch (err) {
+          unresolvedLinks.push(writeFailure(`Beat "${beat.title}" → ${attachmentType} "${name}"`, err));
         }
       };
 
@@ -343,13 +348,13 @@ export async function resolveBeatCrossReferences(
         const match = findByNameSourced(lookups.npcs ?? [], name);
         if (!match) { unresolvedLinks.push(`Beat "${beat.title}" → npc "${name}"`); continue; }
         addSweepRef("npc", match.id);
-        await attach("npc", match.id);
+        await attach("npc", match.id, name);
       }
       for (const name of beat.faction_names ?? []) {
         const match = findByNameSourced(lookups.factions ?? [], name);
         if (!match) { unresolvedLinks.push(`Beat "${beat.title}" → faction "${name}"`); continue; }
         addSweepRef("faction", match.id);
-        await attach("faction", match.id);
+        await attach("faction", match.id, name);
       }
       for (const name of beat.encounter_names ?? []) {
         const match = findByNameSourced(lookups.encounters ?? [], name);
@@ -362,19 +367,14 @@ export async function resolveBeatCrossReferences(
         const encounterLocationId = encounterLocationById.get(match.id);
         if (siteExcludeIds && encounterLocationId && siteExcludeIds.has(encounterLocationId)) continue;
         addSweepRef("encounter", match.id);
-        await attach("encounter", match.id);
+        await attach("encounter", match.id, name);
       }
       for (const name of beat.monster_names ?? []) {
         const match = findByNameSourced(lookups.monsters ?? [], name);
         if (!match) { unresolvedLinks.push(`Beat "${beat.title}" → monster "${name}"`); continue; }
         addSweepRef("monster", match.id);
-        if (match.source === "campaign") {
-          await attach("monster", match.id);
-        } else {
-          unresolvedLinks.push(
-            `Beat "${beat.title}" → monster "${name}" is a shared-library creature; linked to the quest, but a beat attachment can't target a library row.`,
-          );
-        }
+        // A library monster's text id is a valid attachment ref as it stands.
+        await attach("monster", match.id, name);
       }
       for (const name of beat.item_names ?? []) {
         // Loot this same sweep already placed in one of the site's own rooms

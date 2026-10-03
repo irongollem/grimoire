@@ -97,7 +97,7 @@ import { useAllFactions } from "@/composables/factions/useFactions";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useItems } from "@/composables/items/useItems";
-import { useMonsters } from "@/composables/monsters/useMonsters";
+import { useAllMonsters } from "@/composables/monsters/useMonsters";
 import { useScriptoriumDocuments } from "@/composables/scriptorium/useScriptorium";
 import { isDocumentUsableIn } from "@/lib/scriptorium/documentScope";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
@@ -139,7 +139,7 @@ const { data: encounters } = useEncounters();
 const { data: npcs } = useNpcs();
 const { data: factions } = useAllFactions();
 const { data: items } = useItems();
-const { data: monsters } = useMonsters();
+const { data: monsters } = useAllMonsters();
 const { data: sounds } = useSounds();
 const { data: playlists } = usePlaylists();
 const { data: notes } = useNotes();
@@ -150,7 +150,7 @@ const options = computed<Array<{ id: string; name: string }>>(() => ({
   check: [],
   npc: (npcs.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   faction: (factions.value ?? []).map((row) => ({ id: row.id, name: row.name })),
-  item: (items.value ?? []).filter((row) => !!row.user_id).map((row) => ({ id: row.id, name: row.name })),
+  item: (items.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   monster: (monsters.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   sound: (sounds.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   audio_scene: (playlists.value ?? []).filter((row) => row.playlist_type === "ambient").map((row) => ({ id: row.id, name: row.name })),

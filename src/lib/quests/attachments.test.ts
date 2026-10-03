@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { QUEST_BEAT_ATTACHMENT_ADAPTERS, summarizeQuestBeatAttachment } from "./attachments";
+import { QUEST_BEAT_ATTACHMENT_ADAPTERS, splitAttachmentRefIds, summarizeQuestBeatAttachment } from "./attachments";
 import type { QuestBeatAttachment } from "@/types/quest.types";
 
 const attachment = (overrides: Partial<QuestBeatAttachment> = {}): QuestBeatAttachment => ({
@@ -79,5 +79,19 @@ describe("quest beat attachment adapters", () => {
       label: "Athletics DC 12",
       detail: "Climbing the outer wall",
     });
+  });
+});
+
+describe("splitAttachmentRefIds", () => {
+  it("separates own uuids from library text ids", () => {
+    const own = "3f2b8c1e-5a4d-4c9a-8b7e-1d2e3f4a5b6c";
+    expect(splitAttachmentRefIds([own, "srd_srd_wolf", "srd_grimoire_bundled_torch"])).toEqual({
+      ownIds: [own],
+      libraryIds: ["srd_srd_wolf", "srd_grimoire_bundled_torch"],
+    });
+  });
+
+  it("returns empty lists for no ids", () => {
+    expect(splitAttachmentRefIds([])).toEqual({ ownIds: [], libraryIds: [] });
   });
 });

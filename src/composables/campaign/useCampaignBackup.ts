@@ -619,7 +619,8 @@ async function executeImport(
         location_id: r(enc.location_id, idMap),
         party_member_ids: rArr(enc.party_member_ids, idMap),
         companion_ids: rArr(enc.companion_ids, idMap),
-        // item_ids, trap_ids, combatants JSONB kept as-is (user-library refs)
+        // item_ids (text[]: own uuid or library text id), trap_ids and combatants
+        // are kept as-is: a library id is global and must not be remapped.
         description: rMention(enc.description, idMap),
       })),
     );

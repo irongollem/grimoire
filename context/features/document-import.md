@@ -73,10 +73,8 @@ keyed on the row id alone, never re-run on a DM's field edit — returning
 `candidatesByKind`/`candidatesFor(kind)` both review surfaces read.
 `useGenerateMonster.ts` is the generate→create pipeline a `generate`-decided
 monster runs through, shared with (extracted from) `MonsterGeneratorPanel.vue`'s
-own AI-generation panel. `useMonsters.ts`'s `useEnsureOwnedMonster` and
-`useItems.ts`'s `useEnsureOwnedItem` are the idempotent get-or-create
-adoptions `useDocumentImportRunner.ts`'s `adoptLibraryMonster`/`adoptLibraryItem`
-deps call — see "Choosing a library candidate ADOPTS it" below.
+own AI-generation panel. A library pick is stored as a reference, never cloned: see "Choosing a
+library candidate references it" below.
 `useImportSourceOptions.ts` is the "Source book" field's Supabase-backed
 half: three plain reads of the DM's own `monsters`/`items`/`spells` rows
 (excluding anything Open5e/library-sourced), reduced through `sourceTitle.ts`'s
@@ -498,83 +496,33 @@ different creature, and defaulting to it behind a closed row would be the silent
 wrong-link this review exists to prevent. A single same-name match stays
 collapsed. Its status chip already says what will happen.
 
-### Choosing a library candidate ADOPTS it — it doesn't just link to it
+### Choosing a library candidate references it
 
-Before this, a beat naming a library-sourced monster or item was linked at
-the quest level only (`quest_refs`) and reported in `unresolvedLinks` as
-unattachable — correct as far as it went, but it meant most monsters and most
-loot of a normal adventure landed nowhere a beat, an encounter, or a loot
-list could actually show them, because the DM's `monsters`/`items` review
-step defaults to `link`-ing an extracted creature or item straight to the
-matching library row. The maintainer's framing: every resource this importer
-touches should be "good, and properly linked to the other resources made
-here" — a `quest_refs` pointer to a row the beat can't display isn't that.
+A beat naming a library-sourced monster or item attaches that library row
+directly: the attachment's `ref_id`, the `quest_refs` row, an encounter
+combatant's `monster_id` and a loot placement's `library_item_id` all hold the
+library id (#954). Nothing is copied into the DM's own `monsters`/`items`.
 
-**The fix: choosing a library candidate for a `monsters`/`items` entity now
-means "add it from the library."** `importSweep.ts`'s `adoptLibraryLinks`
-runs once per kind, before the sweep-wide registry is built, and for every
-`link` decision whose candidate is `source: "library"` it copies that row
-into the DM's own content — via `useMonsters.ts`'s `useEnsureOwnedMonster` /
-`useItems.ts`'s `useEnsureOwnedItem`, the exact "own a copy" idiom the app
-already uses everywhere else a DM reuses shared content — and rewrites the
-decision to point at the new owned row (`source: "campaign"`) before anything
-else ever reads it. Every downstream consumer — the registry, beat
-attachments, loot placements, `quest_refs`, encounter combatants — then sees
-an ordinary campaign row and needs no library special case at all.
+**History, so it does not come back.** The first version of this feature
+"adopted" a library pick: `adoptLibraryLinks` cloned the row into the DM's
+vault through `useEnsureOwnedMonster`/`useEnsureOwnedItem` and rewrote the
+decision to point at the copy, because `validate_quest_beat_attachment` and
+`loot_placements.item_id` could only point at an own row. That is where the
+production duplicates came from (#876 retired 591 of them on one account, and
+eight `srd-2014 (customized)` monsters were minted by this importer in a
+single week). Migration `20261003083553` taught those tables to hold a library
+id, and the adoption step, its deps, its `adopted` counts and the "added from
+library" copy were deleted rather than kept as a fallback.
 
-**Both adoption paths are idempotent get-or-create, keyed on source
-identity** (`(user_id, source_document_key, source_record_key)` — a real
-unique index on both `monsters` and `items`), so a second sweep, or a beat's
-own reference to a monster/item the top-level review already adopted, reuses
-the same owned row rather than adopting twice. Next time the same document
-(or a different one naming the same library entity) is imported, the name
-matcher ranks the DM's own copy above the library row, so there is no repeat
-adoption to make.
+**Accounting:** a library `link` tallies as `link` in `reviewDecisions.ts`'s
+`tallyDecisions` and as `linked` in the sweep report. `rowsAddedToQuota` counts
+only `create` and `generate`: a reference inserts no row, so it never consumes
+plan room. `ImportEntityReviewRow.vue` labels a library candidate "Uses library
+entry: <name>".
 
-**Adopted monsters are always global (`campaign_id: null`), never scoped to
-the importing campaign — unlike `useCloneLibraryMonster`'s manual "Customize"
-clone, which stays scoped to the DM's active campaign.** This is a deliberate
-difference, not an inconsistency: `monsters_source_identity_unique` is
-`(user_id, source_document_key, source_record_key)` with **no** `campaign_id`
-column, so a DM can only ever own one copy of a given library monster, full
-stop, across every campaign. Scoping the copy to "the importing campaign"
-would make a second import — a different campaign, or a re-run of this one —
-collide with that constraint the moment it named the same monster again, and
-would fail `validate_quest_beat_attachment`'s null-campaign branch the moment
-a *later* campaign's import tried to attach the very same copy to one of its
-own beats. `campaign_id: null` is already this app's own meaning for "the
-DM's, available in every campaign" (`Monster.campaign_id`'s own doc comment),
-exactly the shape `fetchNameLookup`'s `KINDS_WITH_GLOBAL_ROWS` already
-understands as "a personal monster used everywhere," and exactly what
-`useEnsureOwnedItem` already does for the identical items case — items have
-no such tension since `campaign_id: null` was already their only behaviour.
-
-**A link that fails to adopt — a real error, or a quota refusal — falls back
-to exactly the pre-adoption behaviour**, unchanged: the decision keeps
-pointing at the library candidate, the registry still resolves it at the
-`quest_refs` level, and a beat/loot reference to it is still reported in
-`unresolvedLinks` as unattachable. Nothing here is ever silently dropped —
-`adoptLibraryLinks` itself reports *why* the adoption didn't happen (the
-underlying error message, or "your monster limit stopped this from being
-added from the library") as a **separate** `unresolvedLinks` line from the
-beat's own "can't attach a library row" line, since they explain two
-different facts. A quota refusal (monsters only — `items`/`spells` have no
-`enforce_quota` trigger at all, so `adoptLibraryItem` can in practice never
-return `quota_exceeded`) stops further *adoption* attempts for that kind for
-the rest of the sweep, the same way a mid-batch quota refusal already stops
-further `create`/`generate` attempts in `runImportKind.ts`.
-
-**Accounting:** `ImportKindOutcome.adopted` counts successful adoptions,
-separately from `linked` (which keeps meaning "linked to a row the DM
-already owned before this sweep ran"). The review-time mirror is
-`reviewDecisions.ts`'s `tallyDecisions`, whose `adopt` bucket is a `link`
-decision whose candidate is `source: "library"` — computed straight off the
-decision, since nothing has run yet at review time. Both wizards' summary/tally
-lines, and `ImportEntityReviewRow.vue`'s per-entity status and candidate
-option text, say "add(ed) from library" rather than "link(s) to library"
-wherever a library candidate is involved, and give it a distinct status tone
-— it is a different action from reusing a row the DM already owns, not a
-wording nuance.
+**A reference resolves even if the book is later disabled** for the campaign.
+Enabled sources govern what the review offers as candidates, not whether a
+stored reference still exists.
 
 **`quest_refs` for the whole sweep, not just what a beat named.** After the
 linking phase, every entity across every kind that ended up created or linked
@@ -706,11 +654,13 @@ site as a whole. Resolved in the sweep's linking phase into a `location_id`-
 homed `loot_placements` row per name (`kind: "item"`), through the same
 `attachItemLoot` helper (`importSweepLinking.ts`) a beat's own `item_names`
 already used — parameterised by `LootPlacementHome` (`{ beat_id, quest_id }`
-or `{ location_id }`) rather than duplicated into two write paths. Same
-library caveat as a beat's items: a name resolving only to a shared-library
-row can't become a placement (`loot_placements.item_id` is a uuid FK into
-`items`), and is simply reported as unresolved — a location has no quest to
-fall back to linking at the way a beat does.
+or `{ location_id }`) rather than duplicated into two write paths. A name
+resolving to a shared-library row is placed by reference, in
+`library_item_id` (#954), exactly as a beat's item is; the runner splits the
+picked id into the right column. A placement the database refuses (a library
+entry removed since review, for one) is reported in `unresolvedLinks` with the
+reason rather than dropped, like every other reference write in the linking
+phase.
 
 **Resolved against the sweep-wide `locations` registry, not a phase-1
 context list.** `importSweep.ts` walks every `locations` entity after the
@@ -986,10 +936,9 @@ land is left dangling. So both review surfaces check *before* confirm:
 `useImportQuotaRoom` (one `check_all_quotas` call) against
 `reviewDecisions.ts`'s `rowsAddedToQuota` / `quotaShortfalls`, and
 `ImportQuotaWarning` names each kind that would run over. Confirm stays disabled
-until the choices fit. `rowsAddedToQuota` counts creates and generations, plus
-library adoptions for monsters (a copy is a monster row). That is an upper
-bound, because an adoption the DM already owns inserts nothing, and erring high
-is the safe side here. Found by running the fixture on the free plan: 0 of 2
+until the choices fit. `rowsAddedToQuota` counts creates and generations only:
+a link, to the DM's own row or to a library entry, is a reference and inserts
+nothing (#954). Found by running the fixture on the free plan: 0 of 2
 monsters, 2 of 6 NPCs and 0 of 6 locations landed, and seventeen links were
 reported unresolved.
 

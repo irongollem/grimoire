@@ -57,7 +57,7 @@ export interface LootEntry {
   notes?: string | null;
 
   // ── Item fields (type === "item") ──────────────────────────────────────────
-  /** FK into `items`. Required when type = "item". Art objects are vault items
+  /** Vault item uuid or shared library item text id (jsonb, no FK). Required when type = "item". Art objects are vault items
    *  of type "art_object" — no separate inline struct needed. */
   item_id?: string;
   /** Quantity dice expression (e.g. "3d6", "1d4+1"). Also used by "random". */

@@ -409,19 +409,20 @@ function isUniqueViolation(e: unknown): boolean {
 }
 
 /**
- * Bridges text-slug library_items ids and the uuid FK columns that reference the
- * user's `items` table (store_items, party_inventory, recipes, npc_inventory,
- * loot tables, …): every FK-bearing write path must own a real `items` row, so
- * a picker calls this before persisting a reference. A uuid `Item` (already
- * user-owned, custom or previously cloned) passes through unchanged; an srd
- * slug row is cloned into the user's own `items` table on first reference —
- * the clone then shadows the shared row in every merged {@link useItems} list
- * (same source identity), so no duplicate appears afterwards.
+ * The explicit "Customize" action, and nothing else: copies a shared library
+ * item into the DM's own `items` table so it can be edited. A uuid `Item`
+ * (already owned) passes through unchanged; a library row is cloned once, and
+ * the vault's unique index on (user_id, source_document_key, source_record_key)
+ * means a second Customize opens the existing copy instead of making another.
+ *
+ * Every picker (inventory, chat, stores, loot tables, encounters) stores a
+ * reference to the library row instead (`itemRefColumns`); do not call this to
+ * make a pick "ownable".
  */
-export function useEnsureOwnedItem() {
+export function useCustomizeLibraryItem() {
   const queryClient = useQueryClient();
 
-  async function ensureOwnedItem(item: Item): Promise<Item> {
+  async function customizeLibraryItem(item: Item): Promise<Item> {
     if (isUuid(item.id)) return item;
 
     const user = getCurrentUser();
@@ -512,5 +513,5 @@ export function useEnsureOwnedItem() {
     }
   }
 
-  return { ensureOwnedItem };
+  return { customizeLibraryItem };
 }

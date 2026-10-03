@@ -8,7 +8,6 @@ vi.mock("@/composables/campaign/useWhisperRecipients", () => ({
 }));
 vi.mock("@/composables/items/useItems", () => ({
   useItems: () => ({ data: ref([]) }),
-  useEnsureOwnedItem: () => ({ ensureOwnedItem: vi.fn() }),
 }));
 vi.mock("@/composables/dice/usePromptedRoll", () => ({
   usePromptedRoll: () => ({ promptRoll: vi.fn() }),
