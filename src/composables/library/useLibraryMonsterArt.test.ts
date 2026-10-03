@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase", () => ({
   getCurrentUser: () => null,
 }));
 
-import { mergeLibraryMonsterArtLayers, withLibraryArt } from "./useLibraryMonsterArt";
+import { mergeLibraryMonsterArtLayers, withLibraryArt, withLibraryArtAll } from "./useLibraryMonsterArt";
 
 describe("mergeLibraryMonsterArtLayers", () => {
   it("returns canonical art for an entry_id with no private override", () => {
@@ -97,5 +97,25 @@ describe("withLibraryArt", () => {
     expect(result.image_url).toBe("row-picture.webp");
     expect(result.cutout_url).toBe("art-cutout.webp");
     expect(result.portrait_focal_point).toEqual({ x: 0.1, y: 0.1 });
+  });
+});
+
+describe("withLibraryArtAll", () => {
+  const rows = [
+    { id: "srd_srd_adult_brass_dragon", image_url: "brass.webp", cutout_url: null, portrait_focal_point: null },
+    { id: "srd_srd_goblin", image_url: "goblin.webp", cutout_url: null, portrait_focal_point: { x: 50, y: 30 } },
+  ] as unknown as Parameters<typeof withLibraryArtAll>[0];
+
+  it("gives a list row the focal point a DM set on its library art, keeping the canonical picture", () => {
+    const result = withLibraryArtAll(rows, {
+      srd_srd_adult_brass_dragon: { image_url: null, cutout_url: null, portrait_focal_point: { x: 23, y: 17 } },
+    });
+    expect(result[0].image_url).toBe("brass.webp");
+    expect(result[0].portrait_focal_point).toEqual({ x: 23, y: 17 });
+    expect(result[1]).toBe(rows[1]);
+  });
+
+  it("returns the rows unchanged while the art map has not loaded", () => {
+    expect(withLibraryArtAll(rows, undefined)).toEqual(rows);
   });
 });

@@ -98,6 +98,21 @@ export function withLibraryArt<T extends Pick<Monster, "image_url" | "cutout_url
   };
 }
 
+/**
+ * `withLibraryArt` over a list of library rows, keyed by row id. The monster
+ * grids render portraits too, so they merge the same layers the detail view
+ * does: without this a DM's focal point or private picture showed in the
+ * modal and not on the card (#955). Rows without an entry, or a map that has
+ * not loaded yet, come back unchanged.
+ */
+export function withLibraryArtAll<T extends Pick<Monster, "id" | "image_url" | "cutout_url" | "portrait_focal_point">>(
+  rows: readonly T[],
+  artMap: LibraryArtMap | undefined,
+): T[] {
+  if (!artMap) return [...rows];
+  return rows.map((row) => withLibraryArt(row, artMap[row.id]));
+}
+
 async function upsertLibraryMonsterArt(entry: {
   entry_id: string;
   image_url?: string | null;

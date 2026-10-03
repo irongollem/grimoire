@@ -4,7 +4,7 @@ import { computed, type Ref } from "vue";
 import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
-import { useLibraryMonsterArt, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
+import { useLibraryMonsterArt, withLibraryArt, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -134,6 +134,7 @@ export function useAllMonsters(getOptions?: () => UseMonstersOptions) {
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
   const { ruleset } = useTableRuleset();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const { data: artMap } = useLibraryMonsterArt();
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
@@ -154,7 +155,7 @@ export function useAllMonsters(getOptions?: () => UseMonstersOptions) {
     const scoped  = getOptions?.().includeAllScopes
       ? custom
       : allowedCampaignScoped(custom, activeCampaignId.value);
-    const srd     = libraryQuery.data.value ?? [];
+    const srd     = withLibraryArtAll(libraryQuery.data.value ?? [], artMap.value);
     return [...srd, ...scoped]
       .sort((a, b) => a.name.localeCompare(b.name));
   });
@@ -202,6 +203,7 @@ export function usePlayerVisibleMonsters() {
   const campaignId = computed(() => campaign.activeCampaignId);
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
   const { ruleset } = useTableRuleset();
+  const { data: artMap } = useLibraryMonsterArt();
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
@@ -238,7 +240,7 @@ export function usePlayerVisibleMonsters() {
     // useAllMonsters).
     const custom = ((viewerIsDm() ? baseQuery.data.value : projectionQuery.data.value) ?? [])
       .filter((m) => !m.open5e_import && (!m.ruleset || m.ruleset === ruleset.value));
-    const srd = libraryQuery.data.value ?? [];
+    const srd = withLibraryArtAll(libraryQuery.data.value ?? [], artMap.value);
     return [...srd, ...custom]
       .sort((a, b) => a.name.localeCompare(b.name));
   });
