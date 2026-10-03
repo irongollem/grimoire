@@ -22,12 +22,26 @@
         <div>
           <h3 class="font-cinzel text-sm font-bold text-foreground truncate">{{ character.name }}</h3>
           <p class="text-caption text-muted-foreground italic mt-0.5 truncate">{{ summary }}</p>
-          <span
-            class="inline-block mt-1 text-label px-1.5 py-0.5 rounded"
-            :class="attachedCampaign ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
-          >
-            {{ attachedCampaign?.name ?? 'Resting' }}
-          </span>
+          <div class="flex flex-wrap items-center gap-1 mt-1">
+            <!--
+              Status text, not controls, and deliberately not the tinted AppButton:
+              tried on 2 Oct 2026, it gave a campaign's name a button's weight and
+              ornament directly above the card's real buttons.
+            -->
+            <span
+              class="inline-block text-label px-1.5 py-0.5 rounded"
+              :class="attachedCampaign ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
+            >
+              {{ attachedCampaign?.name ?? 'Resting' }}
+            </span>
+            <span
+              v-if="attachedCampaign && waitingCount > 0"
+              class="inline-block text-label px-1.5 py-0.5 rounded bg-tone-caution/15 text-ink-caution"
+              data-testid="waiting-marker"
+            >
+              Waiting for approval
+            </span>
+          </div>
         </div>
 
         <!-- Actions -->
@@ -47,7 +61,7 @@
               />
               <div
                 v-if="showAttachPicker"
-                class="absolute z-20 mt-1 w-48 rounded-md border border-border bg-card shadow-lg p-1.5 space-y-1"
+                class="absolute z-20 mt-1 w-60 rounded-md border border-border bg-card shadow-lg p-1.5 space-y-1"
               >
                 <p v-if="!availableCampaigns.length" class="text-caption text-muted-foreground italic px-1.5 py-1">
                   No campaigns to join yet.
@@ -58,10 +72,10 @@
                   variant="ghost"
                   size="xs"
                   block
-                  :label="c.name"
+                  :label="tableLabel(c)"
                   :disabled="attaching"
-                  class="justify-start"
-                  @click="attachTo(c.id)"
+                  class="justify-start text-left whitespace-normal"
+                  @click="attachTo(c)"
                 />
               </div>
             </div>
@@ -72,6 +86,17 @@
         </div>
       </div>
     </div>
+
+    <RulesetBounceDialog
+      v-if="bounce"
+      :character="character"
+      :campaign-ruleset="bounce.campaignRuleset"
+      :campaign-name="bounce.campaignName"
+      :bring="bringToBounceTable"
+      @close="bounce = null"
+      @choose-another="chooseAnotherTable"
+      @joined="onBounceJoined"
+    />
   </div>
 </template>
 
@@ -90,6 +115,11 @@ import { useAuthStore } from "@/stores/auth";
 import { useAttachCharacter, useDetachCharacter, useCloneCharacter, useDeletePoolCharacter } from "@/composables/party/useCharacterPool";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
+import { pendingReviews, useCharacterContentReviews } from "@/composables/party/useCharacterContentReviews";
+import { benchedMessage, useBenchedAfterAttach } from "@/composables/party/useBenchedAfterAttach";
+import { isRulesetAdmissible, parseRulesetBounce, rulesetRules, rulesetYear } from "@/composables/party/useCharacterRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Campaign } from "@/types/campaign.types";
 
@@ -112,6 +142,28 @@ const { mutateAsync: detachChar, isPending: detaching } = useDetachCharacter();
 const { mutateAsync: cloneChar, isPending: cloning } = useCloneCharacter();
 const { mutateAsync: deleteChar, isPending: deleting } = useDeletePoolCharacter();
 
+// Flags on this card's own character, read only once it sits at a table.
+const { data: ownReviews } = useCharacterContentReviews(() => (attachedCampaign ? character.id : null));
+const waitingCount = computed(() => pendingReviews(ownReviews.value).length);
+
+// A character just attached (this one, or the converted copy the bounce dialog
+// made) may have been benched by the database; see `useBenchedAfterAttach`.
+const { waitingAfterAttach } = useBenchedAfterAttach();
+
+async function announceAttach(name: string, partyMemberId: string, table: string, plain?: string) {
+  try {
+    const waiting = await waitingAfterAttach(partyMemberId);
+    if (waiting === 0) {
+      if (plain) toast.success(plain);
+      return;
+    }
+    toast.info(benchedMessage(name, table, waiting));
+  } catch (e) {
+    if (plain) toast.success(plain);
+    toast.error(toast.fromError(e));
+  }
+}
+
 const initial = computed(() => character.name.trim().charAt(0).toUpperCase() || "?");
 
 const summary = computed(() => {
@@ -121,8 +173,16 @@ const summary = computed(() => {
   }
   if (character.subrace) parts.push(character.subrace);
   const levelStr = character.level ? `Level ${character.level}` : "Not yet levelled";
-  return parts.length ? `${parts.join(" · ")} · ${levelStr}` : levelStr;
+  const base = parts.length ? `${parts.join(" · ")} · ${levelStr}` : levelStr;
+  return `${base} · ${rulesetYear(character.ruleset)}`;
 });
+
+// Tables list their edition, and say so when they will not take this character.
+function tableLabel(c: Campaign): string {
+  return isRulesetAdmissible(character, c)
+    ? `${c.name} · ${rulesetYear(c.ruleset)}`
+    : `${c.name} · plays the ${rulesetRules(c.ruleset)}`;
+}
 
 const showAttachPicker = ref(false);
 const attachRoot = useTemplateRef<HTMLDivElement>("attachRoot");
@@ -157,13 +217,53 @@ async function cloneCharacter() {
   }
 }
 
-async function attachTo(campaignId: string) {
+// A refused attach offers a converted copy instead of an error (#943).
+interface BounceTarget {
+  campaignId: string;
+  campaignName: string;
+  campaignRuleset: RulesetKey;
+}
+const bounce = ref<BounceTarget | null>(null);
+
+function openBounce(c: Campaign, campaignRuleset: RulesetKey) {
+  bounce.value = { campaignId: c.id, campaignName: c.name, campaignRuleset };
+}
+
+async function attachTo(c: Campaign) {
   showAttachPicker.value = false;
-  try {
-    await attachChar({ partyMemberId: character.id, campaignId });
-  } catch (e) {
-    toast.error(toast.fromError(e));
+  if (!isRulesetAdmissible(character, c)) {
+    openBounce(c, c.ruleset);
+    return;
   }
+  try {
+    await attachChar({ partyMemberId: character.id, campaignId: c.id });
+    await announceAttach(character.name, character.id, c.name);
+  } catch (e) {
+    // The table's setting may have changed since the list loaded.
+    const refused = parseRulesetBounce(e);
+    if (refused) openBounce(c, refused.campaignRuleset);
+    else toast.error(toast.fromError(e));
+  }
+}
+
+async function bringToBounceTable(partyMemberId: string) {
+  if (!bounce.value) throw new Error("No table to join.");
+  await attachChar({ partyMemberId, campaignId: bounce.value.campaignId });
+}
+
+function chooseAnotherTable() {
+  bounce.value = null;
+  showAttachPicker.value = true;
+}
+
+async function onBounceJoined(copyId: string) {
+  if (!bounce.value) return;
+  const table = bounce.value.campaignName;
+  bounce.value = null;
+  await announceAttach(
+    `${character.name} (copy)`, copyId, table,
+    `${character.name} (copy) joined ${table}. The original is still in your pool.`,
+  );
 }
 
 function editCharacter() {

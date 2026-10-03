@@ -14,8 +14,8 @@ values
 insert into public.campaigns (id, user_id, name)
 values ('65900000-0000-4000-8000-000000000010', '65900000-0000-4000-8000-000000000001', 'Story order');
 
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
-values ('65900000-0000-4000-8000-000000000020', '65900000-0000-4000-8000-000000000001', '65900000-0000-4000-8000-000000000002', '65900000-0000-4000-8000-000000000010', 'Sable');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
+values ('65900000-0000-4000-8000-000000000020', '65900000-0000-4000-8000-000000000001', '65900000-0000-4000-8000-000000000002', '65900000-0000-4000-8000-000000000010', 'Sable', '2014');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id)
 values ('65900000-0000-4000-8000-000000000010', '65900000-0000-4000-8000-000000000002', 'player', 'Sable', '65900000-0000-4000-8000-000000000020');

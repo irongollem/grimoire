@@ -36,14 +36,14 @@ insert into live_sync_subscribed (name) values
   ('calendar_events'), ('player_journal_entries'), ('session_proposals'),
   ('session_availability'), ('items'), ('loot_placements'), ('party_milestones'),
   ('campaign_messages'), ('npc_inventory'), ('campaign_members'),
-  ('ruleset_reviews'), ('campaign_rules'), ('downtime_grants'), ('downtime_draws'),
+  ('campaign_rules'), ('downtime_grants'), ('downtime_draws'),
   ('downtime_outcomes'), ('downtime_deck_backs'), ('minis'), ('class_option_texts'),
-  ('item_entries'), ('party_inventory');
+  ('item_entries'), ('party_inventory'), ('character_content_reviews');
 
 create temporary table live_sync_doorbell (name text primary key) on commit drop;
 insert into live_sync_doorbell (name) values
   ('store_items'), ('quest_runtime_state'), ('quest_threads'),
-  ('quest_beat_transitions'), ('campaign_session_state');
+  ('quest_beat_transitions'), ('campaign_session_state'), ('ruleset_reviews');
 
 create temporary table live_sync_named_signal (name text primary key, source text not null) on commit drop;
 insert into live_sync_named_signal (name, source) values
@@ -60,7 +60,8 @@ language sql stable as $$
      where g.tgrelid = format('public.%I', p_table)::regclass
        and not g.tgisinternal
        and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
-                        'public.signal_store_item_change()'::regprocedure)
+                        'public.signal_store_item_change()'::regprocedure,
+                        'public.signal_ruleset_review_change()'::regprocedure)
        and (g.tgtype & p_event_bit) <> 0)
 $$;
 

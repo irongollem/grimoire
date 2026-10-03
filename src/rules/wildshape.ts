@@ -88,11 +88,11 @@ export function wildShapeRules(input: {
  * `useWildshapeDruid` and the runner's Evergreen check alike.
  */
 export function wildShapeRulesFor(
-  member: { class?: string | null; subclass?: string | null; level?: number | null; wis?: number | null } | null | undefined,
+  member: { wis?: number | null } | null | undefined,
   classRows: readonly { class_name: string; subclass_name: string | null; levels: number }[],
   edition: RulesetKey,
 ): WildShapeRules {
-  const profile = druidProfile(member, classRows);
+  const profile = druidProfile(classRows);
   const wis = member?.wis;
   return wildShapeRules({
     edition,
@@ -112,26 +112,23 @@ export interface DruidProfile {
 
 /**
  * Derive druid-ness, druid class level and circle from the `character_classes`
- * rows (the source of truth for a multiclass character), falling back to the
- * legacy `party_members` class/subclass/level fields for a character that has
- * no rows.
+ * rows, the only record of a character's classes (#943). A character with no
+ * rows has no class, so it is not a druid.
  *
- * Reading `member.class` and `member.level` directly is the bug this replaces:
- * taking Druid as a second class never rewrites `member.class`, so the druid
- * was not recognised at all, and the CR cap was computed from TOTAL level, so a
+ * Reading `member.class` and `member.level` is the bug this replaces: that text
+ * mirrors the primary class only, so Druid taken as a second class was not
+ * recognised at all, and the CR cap was computed from TOTAL level, so a
  * Fighter 6 / Druid 2 was offered CR 1½ forms instead of ¼. One function, so
  * the sheet, the bestiary and the encounter runner cannot disagree about it.
  */
 export function druidProfile(
-  member: { class?: string | null; subclass?: string | null; level?: number | null } | null | undefined,
   classRows: readonly { class_name: string; subclass_name: string | null; levels: number }[],
 ): DruidProfile {
   const druidRow = classRows.find((row) => row.class_name.toLowerCase().includes("druid"));
-  const legacyDruid = member?.class?.toLowerCase().includes("druid") ?? false;
   return {
-    isDruid: !!druidRow || legacyDruid,
-    druidLevel: druidRow?.levels ?? (legacyDruid ? (member?.level ?? 1) : 0),
-    isCircleOfMoon: (druidRow?.subclass_name ?? member?.subclass)?.toLowerCase().includes("moon") ?? false,
+    isDruid: !!druidRow,
+    druidLevel: druidRow?.levels ?? 0,
+    isCircleOfMoon: (druidRow?.subclass_name ?? "").toLowerCase().includes("moon"),
   };
 }
 

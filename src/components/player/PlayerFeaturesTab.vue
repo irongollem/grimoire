@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
 
-    <!-- ── Background ruleset review (campaign edition changed) ─────────────── -->
+    <!-- ── Background ruleset review (character converted to the other edition) ─────────────── -->
     <RulesetReviewBanner
       v-if="hasBackgroundRulesetReview"
       link-to="/play/background"
@@ -10,7 +10,7 @@
       :acknowledging="acknowledgingBackgroundReview"
       @acknowledge="acknowledgeBackgroundReview"
     >
-      The campaign rules changed. Review {{ member.name }}'s background ability scores and Origin feat.
+      {{ member.name }} was converted to the {{ rulesetRules(member.ruleset) }}. Review the background ability scores and Origin feat.
     </RulesetReviewBanner>
 
     <!-- ── Beast traits (only when wildshaped) ──────────────────────────────── -->
@@ -183,6 +183,7 @@ import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "@/composables/useToast";
 import AppButton from "@/components/common/AppButton.vue";
+import { rulesetRules } from "@/composables/party/useCharacterRuleset";
 import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
 import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
 import PlayerResourcePools from "./PlayerResourcePools.vue";
@@ -208,8 +209,6 @@ import { BATTLE_MASTER_MANEUVERS, BATTLE_MASTER_MANEUVERS_MAP } from "@/data/bat
 import { useArtificerState } from "@/composables/party/useArtificerState";
 import { useClassFeatureGroups } from "@/composables/party/useClassFeatureGroups";
 import type { CustomStep } from "@/levelup/customTypes";
-import { useClassByName } from "@/composables/rules/useCustomClasses";
-import { useCustomSubclassByClassAndSubclass } from "@/composables/rules/useCustomSubclasses";
 import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
@@ -231,10 +230,6 @@ const toast = useToast();
 const memberRef = computed(() => props.member);
 const memberIdRef = computed(() => props.member.id);
 
-const memberClassRef    = computed(() => props.member.class ?? "");
-const memberSubclassRef = computed(() => props.member.subclass ?? "");
-const classData = useClassByName(memberClassRef);
-const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClassRef, memberSubclassRef);
 const { data: linkedBackground } = useBackground(computed(() => props.member.background_id ?? ""));
 
 const { mutate: updateMember } = useUpdatePartyMember();
@@ -257,6 +252,7 @@ const {
   classFeatureGroups,
   featureDataPending,
   classDefinitionFor,
+  subclassDefinitionFor,
 } = useClassFeatureGroups(memberRef);
 
 // ── Local optimistic state ────────────────────────────────────────────────────
@@ -341,10 +337,12 @@ async function longRest() {
 // ── Spell pick steps ──────────────────────────────────────────────────────────
 
 /** Every custom class + subclass level-up step defined for this character. */
-const allCustomSteps = computed((): CustomStep[] => [
-  ...(classData.value?.steps ?? []),
-  ...(customSubclass.value?.steps ?? []),
-] as CustomStep[]);
+const allCustomSteps = computed((): CustomStep[] =>
+  (characterClasses.value ?? []).flatMap(row => [
+    ...(classDefinitionFor(row)?.steps ?? []),
+    ...(subclassDefinitionFor(row)?.steps ?? []),
+  ]) as CustomStep[],
+);
 
 /** All spell_pick steps at levels the character has reached (drives the picker). */
 const spellPickSteps = computed((): CustomStep[] =>
@@ -461,41 +459,33 @@ const invocationItems = computed<ExpandableItem[]>(() =>
 // ── Paladin ───────────────────────────────────────────────────────────────────
 
 const isPaladin = computed(() =>
-  props.member.class === "Paladin" ||
   (characterClasses.value ?? []).some(cc => cc.class_name === "Paladin"),
 );
 
 // ── Class detection ─────────────────────────────────────────────────────────────
 
 const isBarbarian = computed(() =>
-  props.member.class === "Barbarian" ||
   (characterClasses.value ?? []).some(cc => cc.class_name === "Barbarian"),
 );
 
 const isMonk = computed(() =>
-  props.member.class === "Monk" ||
   (characterClasses.value ?? []).some(cc => cc.class_name === "Monk"),
 );
 
 const isFighter = computed(() =>
-  props.member.class === "Fighter" ||
   (characterClasses.value ?? []).some(cc => cc.class_name === "Fighter"),
 );
 
 const isBattleMaster = computed(() => {
   if (!isFighter.value) return false;
-  const subclass = (characterClasses.value ?? []).find(cc => cc.class_name === "Fighter")?.subclass_name
-    ?? (props.member.class === "Fighter" ? props.member.subclass : null);
+  const subclass = (characterClasses.value ?? []).find(cc => cc.class_name === "Fighter")?.subclass_name;
   return !!subclass && subclass.toLowerCase().includes("battle master");
 });
 
 function classLevel(className: string, officialOnly = false): number {
   return (characterClasses.value ?? []).find(cc =>
     cc.class_name === className && (!officialOnly || cc.class_definition_kind !== "custom"),
-  )?.levels
-    ?? ((characterClasses.value ?? []).length === 0 && props.member.class === className
-      ? props.member.level
-      : 0);
+  )?.levels ?? 0;
 }
 
 // ── Barbarian rage ────────────────────────────────────────────────────────────

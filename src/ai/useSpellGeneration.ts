@@ -1,5 +1,5 @@
 import { generateEntityText } from "./entityTextGeneration";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { SpellAiResult, SpellAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -35,7 +35,7 @@ registerAiGenerator({
 // ────────────────────────────────────────────────────────────────────────────
 
 export function useSpellGeneration() {
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,

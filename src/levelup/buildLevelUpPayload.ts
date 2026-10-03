@@ -32,16 +32,22 @@ export type ClassOp =
   | {
       op: "add";
       class_name: string;
-      class_definition_id?: string | null;
-      class_definition_kind?: "system" | "custom" | null;
+      class_definition_id: string;
+      class_definition_kind: "system" | "custom";
+      /** Set together or both null, like the column pair they land in. */
       subclass_name: string | null;
-      subclass_definition_id?: string | null;
+      subclass_definition_id: string | null;
+      /**
+       * The member's NEW total level when the character has no class rows yet
+       * (its first class carries every level it has banked), 1 for a further
+       * class: `apply_level_up` requires exactly that.
+       */
       levels: number;
       is_primary: boolean;
       hit_dice_used: number;
       sort_order: number;
     }
-  | { op: "update"; id: string; levels: number; subclass_name?: string | null; subclass_definition_id?: string | null };
+  | { op: "update"; id: string; levels: number; subclass_name?: string; subclass_definition_id?: string };
 
 export interface LevelUpPayload {
   /** party_members column updates (only present keys are applied by the RPC). */
@@ -76,14 +82,14 @@ export interface BuildLevelUpPayloadInput {
   asiSecondary: AbilityKey | "";
   featId: string;
   subclassInput: string;
-  subclassDefinitionId?: string | null;
+  subclassDefinitionId: string | null;
   stepValues: Record<string, string>;
   stepMultiValues: Record<string, string[]>;
   selectedSpellIds: Set<string>;
   selectedCantripIds: Set<string>;
   newClassName: string;
-  newClassDefinitionId?: string | null;
-  newClassDefinitionKind?: "system" | "custom" | null;
+  newClassDefinitionId: string | null;
+  newClassDefinitionKind: "system" | "custom" | null;
   /** Spell ids the leveled subclass grants (always prepared) at this level. */
   grantedSpellsForThisLevel: string[];
   /** All spell ids the character already has — granted spells skip these. */
@@ -157,12 +163,15 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
 
   // Subclass + class_choices.
   const newChoices: Record<string, unknown> = { ...member.class_choices };
-  const subclass = subclassInput.trim();
+  // A subclass is its definition: a name with no definition id cannot be
+  // stored, so it stays out of class_choices and level_choices as well as the row.
+  const subclass = subclassDefinitionId ? subclassInput.trim() : "";
   const leveledEntryIsPrimary =
     chosenExistingEntry?.is_primary ?? (isAddingNewClass && existingClassOptions.length === 0);
 
+  // `party_members.subclass` is the database's mirror of the primary class row,
+  // so it is never written here; only the choices record keeps the pick.
   if (needsSubclassChoice && subclass && leveledEntryIsPrimary) {
-    update.subclass = subclass;
     newChoices.subclass = subclass;
   }
 
@@ -246,15 +255,21 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
 
   // character_classes op.
   let classOp: ClassOp | null = null;
-  if (isAddingNewClass && newClassName) {
+  if (isAddingNewClass) {
+    // Every class row is pinned to the definition it plays; a name that resolved
+    // to none is an error, not a row without a pin.
+    if (!newClassName || !newClassDefinitionId || !newClassDefinitionKind) {
+      throw new Error("Pick the class to take a level in before confirming.");
+    }
     classOp = {
       op: "add",
       class_name: newClassName,
-      class_definition_id: newClassDefinitionId ?? null,
-      class_definition_kind: newClassDefinitionKind ?? null,
-      subclass_name: null,
-      subclass_definition_id: null,
-      levels: 1,
+      class_definition_id: newClassDefinitionId,
+      class_definition_kind: newClassDefinitionKind,
+      // A subclass chosen with the class is its definition: both or neither.
+      subclass_name: needsSubclassChoice && subclass && subclassDefinitionId ? subclass : null,
+      subclass_definition_id: needsSubclassChoice && subclass && subclassDefinitionId ? subclassDefinitionId : null,
+      levels: existingClassOptions.length === 0 ? nextLevel : 1,
       is_primary: existingClassOptions.length === 0,
       hit_dice_used: 0,
       sort_order: existingClassOptions.length,
@@ -264,26 +279,11 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
       op: "update",
       id: chosenExistingEntry.id,
       levels: chosenExistingEntry.levels + 1,
-      ...(needsSubclassChoice && subclass ? {
+      // A subclass is its definition: the name never travels without the id.
+      ...(needsSubclassChoice && subclass && subclassDefinitionId ? {
         subclass_name: subclass,
-        subclass_definition_id: subclassDefinitionId ?? null,
+        subclass_definition_id: subclassDefinitionId,
       } : {}),
-    };
-  } else if (existingClassOptions.length === 0 && memberClass) {
-    // DM-built character levelling up with no character_classes rows yet —
-    // seed the first row now. `levelInChosenClass` is already member.level + 1
-    // here (see LevelUpWizard.vue's levelInChosenClass fallback), so the seeded
-    // row carries forward levels already banked on party_members.level instead
-    // of starting the class over at level 1.
-    classOp = {
-      op: "add",
-      class_name: memberClass,
-      subclass_name: needsSubclassChoice && subclass ? subclass : member.subclass,
-      subclass_definition_id: needsSubclassChoice ? (subclassDefinitionId ?? null) : null,
-      levels: levelInChosenClass,
-      is_primary: true,
-      hit_dice_used: 0,
-      sort_order: 0,
     };
   }
 

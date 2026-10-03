@@ -9,7 +9,7 @@
 
 import { SKILLS, type PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
-import { getCastingAbility } from "@/types/spell.types";
+import { formatHitDicePool, sheetCastingAbility, sheetHitDice, type SheetClassInput } from "@/rules/sheetClassData";
 import type { Item } from "@/types/item.types";
 import {
   weaponAttackMod,
@@ -27,13 +27,6 @@ const mod = (s: number) => Math.floor((s - 10) / 2);
 // en-dash for negatives reads better in the serif plates.
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`);
 
-// Hit-die per class — kept identical to CharacterSheetRenderer's dieMap.
-const HIT_DIE: Record<string, number> = {
-  Barbarian: 12, Fighter: 10, Paladin: 10, Ranger: 10,
-  Bard: 8, Cleric: 8, Druid: 8, Monk: 8, Rogue: 8, Warlock: 8,
-  Artificer: 8, Sorcerer: 6, Wizard: 6,
-};
-
 // The sheet is print-first: static facts are printed, dynamic state (current
 // HP, temp HP, remaining hit dice, death-save marks) is left blank for pencil.
 export interface FrontData {
@@ -41,7 +34,8 @@ export interface FrontData {
   abilities: { key: string; name: string; mod: string; score: number; save: string; saveProf: boolean }[];
   ac: string; init: string; speed: string;
   hp: { max: number };
-  hitdice: { die: string; total: string };
+  /** Null for a classless character: the box prints empty rather than a placeholder die. */
+  hitdice: { die: string; total: string } | null;
   portraitUrl: string | null;
   attacks: { name: string; bonus: string; damage: string }[];
   spell: { ability: string; dc: string; atk: string } | null;
@@ -64,6 +58,9 @@ export interface BackData {
 export function toFront(
   m: PartyMember,
   inv: PartyInventoryItem[],
+  // The character's class rows and the definitions they are pinned to. Casting
+  // ability and hit dice come from these, never from `m.class` (a mirror label).
+  classInput: SheetClassInput,
   speciesName?: string | null,
   backgroundName?: string | null,
   acBonus = 0,
@@ -82,7 +79,7 @@ export function toFront(
   };
 
   // Casting stats — same derivation as the clean renderer.
-  const castAbil = getCastingAbility(m.class);
+  const castAbil = sheetCastingAbility(m, classInput, m.ruleset);
   const spell = castAbil
     ? {
         ability: castAbil.toUpperCase(),
@@ -91,7 +88,8 @@ export function toFront(
       }
     : null;
 
-  const die = (m.class && HIT_DIE[m.class]) || 8;
+  // One entry per kind of die: a Fighter 3 / Wizard 2 owns "3d10+2d6".
+  const hitDicePool = sheetHitDice(classInput);
 
   const weapons = inv.filter(
     (i) => i.carried_by === m.id && i.location === "equipped" && (i.slot === "main_hand" || i.slot === "off_hand"),
@@ -121,7 +119,12 @@ export function toFront(
     init: signed(m.initiative_bonus + mod(m.dex)),
     speed: String(m.speed),
     hp: { max: m.max_hp },
-    hitdice: { die: `d${die}`, total: `${m.level}d${die}` },
+    hitdice: hitDicePool.length === 0
+      ? null
+      : {
+          die: hitDicePool.map((entry) => `d${entry.die}`).join("/"),
+          total: formatHitDicePool(hitDicePool),
+        },
     portraitUrl: m.portrait_url ?? null,
     // Same weapon math as PlayerCombatTab.vue (src/rules/weaponAttack.ts), so the
     // exported sheet's numbers always agree with the live combat tab.

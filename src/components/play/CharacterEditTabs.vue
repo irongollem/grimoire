@@ -35,13 +35,18 @@
         </div>
       </div>
 
+      <!-- Read-only: an edition changes only through conversion, never by editing the sheet. -->
+      <p v-if="existingMember" class="text-caption text-muted-foreground">
+        Built with {{ rulesetLabel(existingMember.ruleset) }}
+      </p>
+
       <div class="grid grid-cols-2 gap-3">
         <div>
           <span class="field-label">Species</span>
           <p v-if="!!f.species_id" class="text-body text-foreground inline">
-            {{ currentSpeciesName }}&ensp;<AppButton to="/play/species" variant="link" size="inline" label="Change" />
+            {{ currentSpeciesName }}&ensp;<AppButton :to="pickerRoute('play-species')" variant="link" size="inline" label="Change" />
           </p>
-          <AppButton v-else to="/play/species" variant="link" size="inline" label="Browse & Pick a Species" />
+          <AppButton v-else :to="pickerRoute('play-species')" variant="link" size="inline" label="Browse & Pick a Species" />
         </div>
         <div>
           <span class="field-label">Class</span>
@@ -56,9 +61,9 @@
         <div>
           <span class="field-label">Background</span>
           <p v-if="currentBgName" class="text-body text-foreground inline">
-            {{ currentBgName }}&ensp;<AppButton to="/play/background" variant="link" size="inline" label="Change" />
+            {{ currentBgName }}&ensp;<AppButton :to="pickerRoute('play-background')" variant="link" size="inline" label="Change" />
           </p>
-          <AppButton v-else to="/play/background" variant="link" size="inline" label="Browse & Pick a Background" />
+          <AppButton v-else :to="pickerRoute('play-background')" variant="link" size="inline" label="Browse & Pick a Background" />
         </div>
       </div>
 
@@ -183,6 +188,7 @@
 <script setup lang="ts">
 import { inject, computed, watch } from "vue";
 import { CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
+import { rulesetLabel } from "@/composables/party/useCharacterRuleset";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { armorAcFor } from "@/rules/armorAc";
 import type { PartyMember } from "@/types/party.types";
@@ -210,6 +216,12 @@ const {
   resetSlotsToDefault,
   save,
 } = form;
+
+// The pickers edit the ACTIVE character unless told which one, and this page may
+// be open on a character that is not (a benched one, or one the DM is managing).
+function pickerRoute(name: "play-species" | "play-background") {
+  return { name, query: existingMember.value ? { memberId: existingMember.value.id } : {} };
+}
 
 // Resolve off `selectedSpecies` (the ungated list), not `speciesOptions` — a
 // species the DM disabled after this character picked it is gone from the

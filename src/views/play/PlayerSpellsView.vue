@@ -1,5 +1,7 @@
 <template>
   <div class="space-y-4 pb-8">
+    <PickerCharacterNotFound v-if="notFound" />
+    <template v-else>
     <RulesetReviewBanner
       v-if="rulesetReviewClasses.length"
       link-to="/codex/classes"
@@ -8,7 +10,7 @@
       :acknowledging="acknowledgingRulesetReview"
       @acknowledge="acknowledgeRulesetReview"
     >
-      The campaign rules changed. Review {{ rulesetReviewClasses.map(entry => entry.label).join(", ") }} before changing its spells.
+      This character was converted to the {{ rulesetRules(ruleset) }}. Review {{ rulesetReviewClasses.map(entry => entry.label).join(", ") }} before changing its spells.
     </RulesetReviewBanner>
     <RulesetReviewBanner
       v-if="rulesetReviewSpells.length"
@@ -175,37 +177,40 @@
         @spell-click="selectedSpell = $event"
       />
     </template>
+    </template>
   </div>
 
   <PlayerSpellModal :spell="selectedSpell" @close="selectedSpell = null" />
 </template>
 
 <script setup lang="ts">
+import PickerCharacterNotFound from "@/components/play/PickerCharacterNotFound.vue";
 import { ref, computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { refDebounced } from "@vueuse/core";
 import { IconGenerate, IconSearch } from '@/lib/icons';
-import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import { useParty } from "@/composables/party/useParty";
+import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
 import { useAssignCharacterSpellSource, useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
 import SpellList from "@/components/spells/SpellList.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
 import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
 import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
+import { rulesetRules } from "@/composables/party/useCharacterRuleset";
 import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { Spell } from "@/types/spell.types";
-import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared } from "@/types/spell.types";
+import type { CharacterClass } from "@/types/multiclass.types";
+import { SPELL_SCHOOLS, computeMaxPrepared } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy, policyValueAtLevel } from "@/rules/spellPreparationPolicy";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/play/useRulesetReviews";
@@ -223,20 +228,20 @@ const LEVEL_FILTERS = [
   { value: "7", label: "7" }, { value: "8", label: "8" }, { value: "9", label: "9" },
 ];
 
-const auth = useAuthStore();
 const ui = useUiStore();
+
+// Which character this acts on is decided once, for all three pickers
+// (usePickerCharacter): ?memberId= for a benched or pool character, refused when
+// it names nobody the viewer owns, else the active one.
+// Member first, then the scope, then every composable that reads an edition (useRuleset.ts).
+const { resolvedMemberId, member, notFound } = usePickerCharacter();
+provideCharacterRuleset(() => member.value);
 const { ruleset } = useRuleset();
-const { data: partyMembers } = useParty();
 
-const resolvedMemberId = computed(() =>
-  ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
-);
-
-const memberClass = computed(() => {
-  const id = resolvedMemberId.value;
-  if (!id || !partyMembers.value) return "";
-  return partyMembers.value.find((m) => m.id === id)?.class ?? "";
-});
+// The class the spell tabs are built around is the primary class row. A
+// classless character has no rows, so no class and no spell tabs.
+const memberClassEntry = computed(() => (characterClasses.value ?? []).find((entry) => entry.is_primary));
+const memberClass = computed(() => memberClassEntry.value?.class_name ?? "");
 
 const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
 const { data: rulesetReviews } = useRulesetReviews(resolvedMemberId);
@@ -272,27 +277,21 @@ async function acknowledgeRulesetReview() {
 }
 const { data: allSystemClasses } = useAllSystemClasses();
 const { data: allCustomClasses } = useAllCustomClasses();
-const member      = computed(() => partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
-const memberClassEntry = computed(() =>
-  (characterClasses.value ?? []).find((entry) => entry.class_name === memberClass.value),
-);
-function definitionFor(entry: typeof memberClassEntry.value, fallbackName = "") {
+function definitionFor(entry: CharacterClass | null | undefined) {
   if (entry?.class_definition_kind === "system" && entry.class_definition_id) {
     return (allSystemClasses.value ?? []).find(definition => definition.id === entry.class_definition_id) ?? null;
   }
   if (entry?.class_definition_kind === "custom" && entry.class_definition_id) {
     return (allCustomClasses.value ?? []).find(definition => definition.id === entry.class_definition_id) ?? null;
   }
-  const className = entry?.class_name ?? fallbackName;
-  return (allSystemClasses.value ?? []).find(definition => definition.class_name === className)
-    ?? (allCustomClasses.value ?? []).find(definition => definition.class_name === className && !definition.source_document_key)
-    ?? null;
+  return null;
 }
-const classData = computed(() => definitionFor(memberClassEntry.value, memberClass.value));
+const classData = computed(() => definitionFor(memberClassEntry.value));
 const memberPolicy = computed(() => memberClassEntry.value?.class_definition_kind === "custom"
   ? null
   : getSpellPreparationPolicy(memberClass.value, ruleset.value));
-const casterType  = computed(() => memberPolicy.value?.casterType ?? classData.value?.caster_type ?? getCasterType(memberClass.value));
+// The character's class row is pinned to its definition, which always carries a caster type; no row means no class, so no casting.
+const casterType  = computed(() => memberPolicy.value?.casterType ?? classData.value?.caster_type ?? "none");
 const maxPrepared = computed(() => {
   const policy = memberPolicy.value;
   if (policy) return policyValueAtLevel(policy.prepared, memberClassEntry.value?.levels ?? member.value?.level ?? 1);
@@ -302,9 +301,7 @@ const memberName  = computed(() => member.value?.name ?? "");
 
 /** Only classes this character actually has may be browsed as class spells. */
 const availableSpellClasses = computed(() => {
-  const names = (characterClasses.value ?? []).map((entry) => entry.class_name);
-  if (names.length > 0) return [...new Set(names)].sort();
-  return memberClass.value ? [memberClass.value] : [];
+  return [...new Set((characterClasses.value ?? []).map((entry) => entry.class_name))].sort();
 });
 
 const browseSourceClassId = computed(() =>
@@ -316,12 +313,13 @@ const browseClassName = computed(() => ui.playerSpellsClassFilter);
 const browseClassEntry = computed(() => (characterClasses.value ?? []).find(
   entry => entry.id === browseSourceClassId.value,
 ));
-const browseClassData = computed(() => definitionFor(browseClassEntry.value, browseClassName.value));
+const browseClassData = computed(() => definitionFor(browseClassEntry.value));
 const browsePolicy = computed(() => browseClassEntry.value?.class_definition_kind === "custom"
   ? null
   : getSpellPreparationPolicy(browseClassName.value, ruleset.value));
+// The browsed class is one of the character's own rows, so it comes with its definition.
 const browseCasterType = computed(() =>
-  browsePolicy.value?.casterType ?? browseClassData.value?.caster_type ?? getCasterType(browseClassName.value),
+  browsePolicy.value?.casterType ?? browseClassData.value?.caster_type ?? "none",
 );
 
 // Total character level — sum of all class levels (multiclass), falls back to member.level
@@ -332,19 +330,16 @@ const memberLevel = computed(() => {
 });
 
 // Effective spell slots — multiclass-aware: combines class levels per PHB.
-// Falls back to per-class progression for single-class characters and to the
-// legacy default when no character_classes rows exist yet.
+// Falls back to per-class progression for single-class characters.
 const effectiveSpellSlots = computed(() => {
   const m = member.value;
-  // casterType 'none' means no spellcasting class at all — a stale legacy
-  // class field with real persisted slots is handled by RestButtons, which
-  // reads member.spell_slots directly rather than through this computed.
+  // casterType 'none' means no spellcasting class at all.
   if (!m || casterType.value === "none") return [];
   return deriveEffectiveSpellSlots(
     m,
     characterClasses.value ?? [],
     ruleset.value,
-    (entry) => definitionFor(entry, entry.class_name),
+    (entry) => definitionFor(entry),
   );
 });
 
@@ -354,7 +349,7 @@ function abilityMod(score: number) { return Math.floor((score - 10) / 2); }
 const spellAttackBonus = computed(() => {
   const m = member.value;
   if (!m || casterType.value === "none") return null;
-  const cls = m.class ?? "";
+  const cls = memberClass.value;
   let mod: number;
   if (["Cleric", "Druid", "Ranger"].includes(cls))                                            mod = abilityMod(m.wis);
   else if (["Wizard", "Fighter (Eldritch Knight)", "Rogue (Arcane Trickster)"].includes(cls)) mod = abilityMod(m.int);
@@ -387,9 +382,7 @@ const sorcererLevel = computed(() =>
   (characterClasses.value ?? []).find((entry) =>
     entry.class_name === "Sorcerer" && entry.class_definition_kind !== "custom",
   )?.levels
-    ?? ((characterClasses.value ?? []).length === 0 && member.value?.class === "Sorcerer"
-      ? member.value.level
-      : 0),
+    ?? 0,
 );
 
 // Character spells — IDs used for button state in browse tab
@@ -528,7 +521,7 @@ const activeTab = ref<TabId>(
   (route.query.tab as TabId | undefined) ?? defaultTab.value,
 );
 
-// activeTab is seeded above before useParty()/useClassByName() resolve, so on a cold
+// activeTab is seeded above before useParty()/useCharacterClasses() resolve, so on a cold
 // load casterType is still "none" and defaultTab picks the wrong tab (e.g. Innate
 // instead of Prepared). Once caster type settles, correct the tab — but only if the
 // user hasn't already picked one themselves and the URL didn't request one explicitly.
@@ -547,26 +540,21 @@ watch(casterType, () => {
 // Filter state lives in useUiStore so it survives navigation within a session.
 const search = refDebounced(computed(() => ui.playerSpellsSearch), 400);
 
-// Seed the class filter to the player's own class on first load.
-if (!ui.playerSpellsClassFilter) ui.playerSpellsClassFilter = memberClass.value;
-
-// When the previewed character changes, reset everything
+// When the previewed character changes, reset everything. The class filter goes
+// to "" so the watcher below picks the new character's primary class once its
+// rows are in; seeding it here would read a class that has not loaded yet.
 watch(resolvedMemberId, () => {
-  ui.playerSpellsClassFilter = memberClass.value;
+  ui.playerSpellsClassFilter = "";
   userSelectedTab.value = false;
   activeTab.value = defaultTab.value;
 });
 
-// Once party data first loads, apply the character's class if not yet set
-watch(partyMembers, () => {
-  if (!ui.playerSpellsClassFilter) ui.playerSpellsClassFilter = memberClass.value;
-}, { once: true });
-
-// Do not retain a class filter from a previously viewed character.
-watch(availableSpellClasses, (classes) => {
-  if (!classes.includes(ui.playerSpellsClassFilter)) {
-    ui.playerSpellsClassFilter = classes[0] ?? "";
-  }
+// Keep a class the user already picked; otherwise open on the primary class
+// (class rows can arrive after the party, so this reruns as they land), and
+// never retain a filter from a previously viewed character.
+watch([availableSpellClasses, memberClass, resolvedMemberId], ([classes]) => {
+  if (classes.includes(ui.playerSpellsClassFilter)) return;
+  ui.playerSpellsClassFilter = classes.includes(memberClass.value) ? memberClass.value : (classes[0] ?? "");
 }, { immediate: true });
 
 function setLevelFilter(value: string) {

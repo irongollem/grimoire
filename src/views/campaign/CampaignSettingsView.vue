@@ -102,6 +102,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCampaignPendingContentReviews } from "@/composables/party/useCharacterContentReviews";
 import AppButton from "@/components/common/AppButton.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
@@ -164,9 +165,17 @@ const campaignStore = useCampaignStore();
 // Import Document is AI extraction: hidden, not disabled, while the campaign
 // owner has AI off. The AI Assistant / Connections tabs stay, since they are
 // where it is switched back on.
-const tabs = computed(() =>
-  campaignStore.isAiEnabled ? ALL_TABS : ALL_TABS.filter((t) => t.id !== "import"),
-);
+// The Members tab carries a count while characters wait on the DM's approval (#943),
+// the same "(n)" the TabBar shows, so a decision is not only found by opening it.
+const pendingReviews = useCampaignPendingContentReviews();
+const waitingCount = computed(() => pendingReviews.data.value?.length ?? 0);
+
+const tabs = computed(() => {
+  const visible = campaignStore.isAiEnabled ? ALL_TABS : ALL_TABS.filter((t) => t.id !== "import");
+  return visible.map((t) =>
+    t.id === "members" && waitingCount.value > 0 ? { ...t, label: `${t.label} (${waitingCount.value})` } : t,
+  );
+});
 
 // A deep link (or a tab that was open when AI went off) to a hidden tab falls
 // back to the default rather than rendering it.

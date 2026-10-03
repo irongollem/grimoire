@@ -1,5 +1,7 @@
 <template>
   <div class="space-y-6 pb-8">
+    <PickerCharacterNotFound v-if="notFound" />
+    <template v-else>
     <!-- Header row -->
     <div class="flex items-start justify-between gap-4">
       <div>
@@ -126,15 +128,16 @@
         />
       </div>
     </AppModal>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
+import PickerCharacterNotFound from "@/components/play/PickerCharacterNotFound.vue";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
 import SpeciesList from "@/components/species/SpeciesList.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
@@ -145,6 +148,8 @@ import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import type { Species } from "@/types/species.types";
 import { applySpeciesSpellGrants, removeSpeciesSpellGrants } from "@/composables/party/useCharacterSpells";
+import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 
 const SIZE_OPTIONS = [
@@ -156,24 +161,24 @@ const SIZE_OPTIONS = [
 ] as const;
 
 const router = useRouter();
-const auth = useAuthStore();
 const ui = useUiStore();
-const { data: party } = useParty();
-const { data: allSpecies } = useAllSpecies();
 const { mutateAsync: update } = useUpdatePartyMember();
 
-const resolvedMemberId = computed(() =>
-  ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
-);
-const me = computed(() => party.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
+// Member first, then the scope. Which character this acts on is decided once, for all
+// three pickers (usePickerCharacter): ?memberId= for a benched or pool character,
+// refused when it names nobody the viewer owns, else the active one.
+const { member: me, notFound, isOtherCharacter, afterChangeRoute } = usePickerCharacter();
+// Species are build rules: the list shown is the character's edition (useRuleset.ts).
+provideCharacterRuleset(() => me.value);
+const { data: allSpecies } = useAllSpecies();
 
 const currentSpeciesId = computed(() => me.value?.species_id ?? "");
 
 const headerDescription = computed(() => {
   if (!me.value) return null;
   return me.value.species_id
-    ? `${me.value.name} — click a species card to change`
-    : `${me.value.name} — no species selected`;
+    ? `${me.value.name}: click a species card to change`
+    : `${me.value.name}: no species selected`;
 });
 
 // ── Confirmation panel state ──────────────────────────────────────────────────
@@ -243,7 +248,11 @@ async function confirm() {
       me.value.id, pendingSpecies.value, me.value.level ?? 1, selectedSubrace.value || null,
     );
     // Navigate to innate spells tab so player can complete any free-pick selections
-    router.push(freePicks.length > 0 ? "/play/spells?tab=innate" : "/play");
+    if (freePicks.length > 0) {
+      router.push({ name: "play-spells", query: { tab: "innate", ...(isOtherCharacter.value ? { memberId: me.value.id } : {}) } });
+    } else {
+      router.push(afterChangeRoute(me.value));
+    }
   } finally {
     saving.value = false;
   }

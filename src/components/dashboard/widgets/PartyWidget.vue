@@ -35,7 +35,7 @@
           </div>
           <div class="min-w-0 flex-1">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate leading-tight">{{ member.name }}</p>
-            <p class="text-caption text-muted-foreground italic truncate leading-tight">{{ memberSubtitle(member) }}</p>
+            <p class="text-caption text-muted-foreground italic truncate leading-tight">{{ memberSubtitle(member, speciesNameOf(member)) }}</p>
           </div>
           <div class="text-right shrink-0">
             <span class="font-cinzel text-sm font-bold" :class="hpColor(member.current_hp, member.max_hp)">{{ member.current_hp }}</span>
@@ -81,7 +81,7 @@
 import { computed } from "vue";
 import { IconMind, IconNavParty, IconReveal } from "@/lib/icons";
 import { useParty } from "@/composables/party/useParty";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
@@ -114,9 +114,9 @@ const { data: party, isError: partyIsError, refetch: refetchParty } = useParty()
 // "no answer yet" check; it is true for both the disabled and in-flight cases.
 const partyLoading = computed(() => !partyIsError.value && !party.value);
 const partyEmpty = computed(() => partyIsError.value || party.value?.length === 0);
+const speciesNameOf = useSpeciesNames(() => party.value ?? []);
 const { data: campaignMembers } = useCampaignMembers();
 const { isOnline } = useCampaignPresence();
-const speciesNameMap = useSpeciesNameMap();
 const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
 
 const classesByMember = computed(() => {
@@ -141,10 +141,10 @@ function memberLevelDisplay(memberId: string, legacyLevel: number): number {
   return list.length > 0 ? totalLevel(list) : legacyLevel;
 }
 
-function memberSubtitle(member: PartyMember): string {
+function memberSubtitle(member: PartyMember, speciesName: string | null): string {
   const lvl = memberLevelDisplay(member.id, member.level);
   return [
-    speciesNameMap.value.get(member.species_id ?? ""),
+    speciesName,
     memberClassLabel(member.id, member.class),
     lvl ? `Lvl ${lvl}` : null,
   ].filter(Boolean).join(" \u00b7 ") || "\u2014";

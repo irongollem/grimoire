@@ -13,7 +13,7 @@ import type { Monster, MonsterInsert, MonsterUpdate, PlayerVisibleMonster } from
 import { useToast } from "@/composables/useToast";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { isUuid } from "@/lib/library/contentIdentity";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 import { libraryMonsterRow } from "@/lib/library/libraryMonsterRow";
 
@@ -132,7 +132,7 @@ export function useMonsters(getOptions?: () => UseMonstersOptions) {
 export function useAllMonsters(getOptions?: () => UseMonstersOptions) {
   const customQuery  = useMonstersQuery();
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   const libraryQuery = useQuery({
@@ -201,7 +201,7 @@ export function usePlayerVisibleMonsters() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),

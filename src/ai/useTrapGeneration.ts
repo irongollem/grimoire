@@ -15,7 +15,7 @@ import { getTextProvider } from "./providers";
 import { wrapUserInput } from "./utils";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   captureImageGenerationContext,
   generateImage,
@@ -48,7 +48,7 @@ export interface TrapGenerationOptions {
 }
 
 export function useTrapGeneration() {
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
   const { ensureLikenessAck } = useLikenessGate();
 
   async function generate(

@@ -118,7 +118,6 @@
           :companion-ids="form.companion_ids"
           :party-member-factions="form.party_member_factions"
           :factions="form.factions"
-          :species-name-map="speciesNameMap"
           @toggle-party-member="togglePartyMember"
           @toggle-companion="toggleCompanion"
           @set-member-faction="setMemberFaction"
@@ -236,7 +235,6 @@ import { useRoute, useRouter } from "vue-router";
 import { IconCheckDouble, IconChevronLeft, IconClose, IconPlay, IconReset, IconStop } from '@/lib/icons';
 import { useAllMonsters } from "@/composables/monsters/useMonsters";
 import { useParty } from "@/composables/party/useParty";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -331,7 +329,6 @@ const lairOwnerOptions = computed(() => {
 });
 
 const { data: party, isLoading: partyLoading } = useParty();
-const speciesNameMap = useSpeciesNameMap();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItems();

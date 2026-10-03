@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   getCasterCategory,
-  getCastingAbility,
   getDefaultSpellSlots,
   getMulticlassSpellSlots,
   SPELL_CLASSES,
@@ -42,10 +41,9 @@ describe("2024 preparation matrix", () => {
     }
   });
 
-  it("defines casting abilities and categories for every supported caster", () => {
+  it("defines a caster category for every supported caster", () => {
     for (const className of SPELL_CLASSES) {
       expect(getCasterCategory(className)).not.toBe("none");
-      expect(getCastingAbility(className)).not.toBeNull();
     }
   });
 });

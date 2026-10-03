@@ -73,6 +73,7 @@
         <IllustratedSheet
           :member="sampleMember"
           :inventory="sampleInventory"
+          :class-input="sampleClassInput"
           :side="side"
           :theme="theme"
           :page-size="pageSize"
@@ -128,6 +129,8 @@ import { A4 } from "@/components/character-sheet/illustrated/sheetConfig.a4";
 import { LETTER } from "@/components/character-sheet/illustrated/sheetConfig.letter";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { CharacterClass } from "@/types/multiclass.types";
+import type { SheetClassInput } from "@/rules/sheetClassData";
 
 const THEMES = ["classic", "adventure", "gothic", "fairy", "sumie"] as const;
 const SIDES = ["front", "back"] as const;
@@ -293,6 +296,7 @@ const sampleMember: PartyMember = {
   user_id: "calib-user-0000-0000-000000000001",
   owner_user_id: null,
   is_dm_managed: false,
+  ruleset: "2014",
   campaign_id: null,
   name: "Seraphina Emberlyn Duskwhisper-Ashford, Blade of the Sundered Vale",
   player_name: "Calibration Player",
@@ -389,6 +393,27 @@ const sampleMember: PartyMember = {
   wildshape_reset: null,
   created_at: nowIso,
   updated_at: nowIso,
+};
+
+const sampleClassRow: CharacterClass = {
+  id: "calib-class-0000-0000-000000000001",
+  party_member_id: sampleMember.id,
+  class_name: "Wizard",
+  class_definition_id: "calib-wizard",
+  class_definition_kind: "system",
+  subclass_name: null,
+  subclass_definition_id: null,
+  levels: 12,
+  is_primary: true,
+  hit_dice_used: 0,
+  sort_order: 0,
+  created_at: nowIso,
+  updated_at: nowIso,
+};
+
+const sampleClassInput: SheetClassInput = {
+  rows: [sampleClassRow],
+  definitions: { system: [{ id: "calib-wizard", hit_die: 6, prepared_ability: "int" }], custom: [] },
 };
 
 const sampleInventory: PartyInventoryItem[] = [

@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { wrapUserInput, buildCampaignContext } from "./utils";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { QuestHookResult, QuestHooksAiResult } from "./types";
 import {
   createAiGenerationState,
@@ -37,7 +37,7 @@ registerAiGenerator({
 
 export function useQuestGeneration() {
   const campaign = useCampaignStore();
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
 
   async function generate(userPrompt: string): Promise<QuestHookResult[] | null> {
     if (isAnyAiGenerating.value) return null;

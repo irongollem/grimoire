@@ -128,7 +128,8 @@ import {
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
@@ -152,7 +153,6 @@ import PlayerSlotEquipModal from "@/components/play/PlayerSlotEquipModal.vue";
 const auth = useAuthStore();
 const ui = useUiStore();
 const { data: partyMembers } = useParty();
-const speciesNameMap = useSpeciesNameMap();
 const { data: inventory } = usePartyInventory();
 const { data: allItems } = usePlayerVisibleItems();
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
@@ -189,6 +189,12 @@ const member = computed<PartyMember | null>(
   () =>
     partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null,
 );
+// Items are table rules: usePlayerVisibleItems and the weapon block read the campaign's
+// edition when this character is seated here, and fall back to the character's own when
+// it is not. Weapon mastery is a build rule and always reads the character's edition.
+// The scope is provided for those two reads; slots and mutations read no edition.
+provideCharacterRuleset(() => member.value);
+const { data: speciesById } = useSpeciesByIds(() => [member.value?.species_id]);
 
 // ── Inventory slices ───────────────────────────────────────────────────────────
 const myItems = computed(() =>
@@ -305,7 +311,9 @@ const totalCarriedWeight = computed(
 );
 
 // ── Carry capacity ─────────────────────────────────────────────────────────────
-const memberSpeciesName = computed(() => speciesNameMap.value.get(member.value?.species_id ?? '') ?? null);
+const memberSpeciesName = computed(() =>
+  member.value?.species_id ? (speciesById.value.get(member.value.species_id)?.name ?? null) : null,
+);
 const powerfulBuild = computed(() => hasPowerfulBuild(memberSpeciesName.value));
 
 const effectiveCapacity = computed(() =>

@@ -32,13 +32,16 @@ values ('$spell_test_user', '00000000-0000-0000-0000-000000000000', 'authenticat
   'spell-concurrency@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 insert into public.campaigns (id, user_id, name, ruleset)
 values ('$spell_test_campaign', '$spell_test_user', 'Spell concurrency', '2024');
-insert into public.party_members (id, user_id, campaign_id, name, class, level, cha, proficiency_bonus, spell_slots, class_resources, class_choices)
-values ('$spell_test_member', '$spell_test_user', '$spell_test_campaign', 'Concurrent Sorcerer', 'Sorcerer', 7, 18, 3,
+insert into public.party_members (id, user_id, campaign_id, name, ruleset, level, cha, proficiency_bonus, spell_slots, class_resources, class_choices)
+values ('$spell_test_member', '$spell_test_user', '$spell_test_campaign', 'Concurrent Sorcerer', '2024', 7, 18, 3,
   '[{"level":1,"max":1,"used":0,"pool":"spellcasting","recovery":"long"}]'::jsonb,
   '{"sorcery_points":{"current":1,"max":7,"rest":"long"},"innate_sorcery":{"current":2,"max":2,"rest":"long"}}'::jsonb,
   '{"metamagic_options":["Empowered Spell"],"sorcerous_restoration_available":true}'::jsonb);
-insert into public.character_classes (id, party_member_id, class_name, levels, is_primary)
-values ('$spell_test_class', '$spell_test_member', 'Sorcerer', 7, true);
+-- The class is a row pinned to the official definition; party_members.class is
+-- a mirror the database maintains from it, never written here.
+insert into public.character_classes (id, party_member_id, class_name, class_definition_id, class_definition_kind, levels, is_primary)
+values ('$spell_test_class', '$spell_test_member', 'Sorcerer',
+  (select id from public.system_classes where ruleset = '2024' and class_name = 'Sorcerer'), 'system', 7, true);
 insert into public.spells (id, user_id, campaign_id, name, level, casting_time, range, duration, description, classes, attack_type, damage_rolls, target_description)
 values
   ('$spell_test_spell', '$spell_test_user', '$spell_test_campaign', 'Concurrent Flame', 1, 'Action', '60 ft.', 'Instantaneous', 'Damage.', array['Sorcerer'], 'automatic', '[{"dice":"1d6","type":"fire"}]'::jsonb, '1 creature'),

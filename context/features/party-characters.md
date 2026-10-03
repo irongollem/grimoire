@@ -341,18 +341,368 @@ the `wotc-srd` baseline when no campaign is active (`useSpecies.ts`), since
 `my-characters`, which useParty.ts owns for the campaign-scoped champions
 list).
 
-**An unattached character's ruleset.** A ruleset is a property of a campaign,
-so a character with no campaign has none of its own and plays under 2014. The
-client says so in `normalizeRuleset()` and the database in
-`private.party_member_ruleset(party_member_id)`, which is the only function
-allowed to resolve a character's ruleset. Until migration `20261001220509`,
-fifteen functions each joined the member to its campaign instead, and the join
-returns no row for an unattached character: the class trigger raised `P0002`,
-so standalone creation could not finish at all, and five spellcasting RPCs read
-the ruleset as NULL. `supabase/tests/standalone_character_ruleset.test.sql`
-fails if a function reads a campaign's ruleset inline again. Giving a
-standalone character a ruleset of its own means changing that one function
-body and `useRuleset()`, nothing else.
+**A character's ruleset is its own (#943, migration `20261003105146`).**
+`party_members.ruleset` is NOT NULL with no default, and every insert states
+it, inside a campaign or not; one that omits it is refused. That is why the
+creation wizard asks for the edition first. It is written
+by nothing but `convert_party_member_ruleset()`: a guard trigger refuses a bare
+column write, because changing the edition without re-pinning classes and spells
+leaves the sheet on two editions at once. `private.party_member_ruleset(id)` is
+the only function that resolves it, and the fifteen class and spell functions
+all read through it. Until `20261001220509` they each joined the member to its
+campaign instead, a join that returns no row for an unattached character, so
+the class trigger raised `P0002` and standalone creation could not finish.
+
+**The table decides who sits down.** `campaigns.allows_mixed_rulesets` (default
+false) gates `attach_party_member_to_campaign`, `join_campaign_via_invite` and a
+direct insert, all through `private.assert_ruleset_admissible()`. A refusal
+raises SQLSTATE `RS001` with both rulesets in `detail` as JSON; the client's
+bounce dialog keys on that code and offers a converted copy
+(`convert_party_member_copy`, which leaves the original untouched) or another
+character. Admission that runs later (a parent's approval) never raises: the
+joiner is admitted and a character the table no longer takes stays in the pool.
+
+**A campaign switching edition changes no character.** The trigger that rewrote
+every seated character is gone. Characters keep their edition and their seat;
+the mismatch is derivable (`party_members.ruleset <> campaigns.ruleset`) and has
+no table of its own. The owner converts in place when they choose to; the DM can
+convert only a character nobody owns. A seated character converts only to an
+edition its table takes, so conversion cannot be used to walk round the door.
+
+**What follows the character and what follows the table.** Build rules (classes,
+subclasses, features, spells and their preparation, slots, feats, background,
+species, metamagic, weapon mastery) follow the character. Table rules
+(conditions and exhaustion, monsters, items, house rules, AI generators) follow
+the campaign while the character is seated there, and the character when it is
+not. On the client that is `useRuleset()` and `useTableRuleset()` in
+`src/composables/rules/useRuleset.ts`, which resolve the nearest ruleset scope:
+a surface showing one character calls `provideCharacterRuleset(member)`, and
+with no scope both fall back to the active campaign. A list that shows several
+characters resolves each one's own things per character: `CharacterSpeciesName`
+provides the row's scope and hands the name down a slot, and `useSpeciesByIds`
+looks species up by id with no edition filter for the two callers that have no
+per-character component (the token forge's party list, the group portrait).
+
+**Where the edition is asked and shown.**
+
+- *Wizard*: `CharacterCreateEditionStep` is the first step in create mode.
+  Nothing is preselected for a character with no table; a character that will
+  land at a table starts on that table's edition, with a note under each option
+  saying what the table takes. Changing it later clears species, background and
+  class. The rules are pure functions in `characterCreationEdition.ts`.
+- *New Campaign* asks the edition first and starts unchosen; *Rules* in campaign
+  settings holds the edition, "Allow both editions", and a list of seated
+  characters built with the other edition (`RulesEditionMismatchList`).
+  `RulesetPicker` is the one control all three use.
+- *The bounce*: `RulesetBounceDialog` opens from the pool's Attach menu (for a
+  table marked as not taking the character, or on an `RS001` that arrives
+  anyway) and from the join page. It converts a copy and brings the copy.
+- *A seated mismatch*: `CharacterEditionNotice` on the champions list and the
+  character sheet, informational at a table that takes both editions, otherwise
+  offering "Convert" to whoever the database will let convert.
+
+**The door is for a character arriving, not for the table's own DM.** Attach,
+join and a player's direct insert are refused with `RS001` at a table that does
+not take the character's edition. A DM placing a roster character at their own
+table is not: a table that switched edition already holds characters of the
+other one, and a backup restore or a world import has to be able to put that
+state back. Both importers (`useCampaignBackup`, `useWorldBundle`) therefore
+carry each character's own edition and its class pins. They used to drop the
+edition when the destination would not admit it, so the database stamped the
+table's on a character whose classes and spells were still the other's: a
+label that lied, and one the Rules tab's mismatch list could not see. A
+character imported that way shows in that list and is converted from there.
+
+**Every insert states the edition.** There is no "take the campaign's" default
+in the database: that was the old model surviving as a convenience. The wizard
+asks first, the MCP tool requires `ruleset`, and a file that does not carry a
+character's edition is refused when it is read. There is no compatibility code
+for older export files (the maintainer's ruling, 2 Oct 2026: nobody holds one):
+both importers accept only what the app writes today.
+
+**Claiming transfers ownership, and only one thing is a claim.** A seat
+(`campaign_members.party_member_id`) pointing at a character nobody owns hands
+that character to the seat's member when **the DM assigned it** (Members tab,
+which confirms first: "Give X to Y?") or when the member made the character
+themselves. A trigger sets `owner_user_id`; before #943 nothing did, so a player
+could play a DM-made character for months and lose it to a detach or to the DM
+deleting their account. Three things are deliberately not a claim:
+
+- A player linking their own seat to a roster character the DM made. The link
+  still gives them the sheet to edit, as it always has; it does not make the
+  character theirs to keep or delete.
+- An **offered** character (`is_dm_managed`). It stays the DM's, and a player
+  takes their own copy through `assume_character()`.
+- A character in another campaign. A DM's seat write used to skip every check on
+  the character it named, which was harmless only while a link granted nothing.
+  `guard_campaign_member_self_update` now holds the DM to "same campaign" too.
+
+An owned character is never re-owned; the seat link moves freely between a
+player's own characters. And `owner_user_id` is not client-writable at all:
+`guard_party_member_owner` refuses a direct update, and an insert for anyone but
+the caller. The same trigger pins `user_id`: a character is created in its
+creator's own name and its creator never changes. A DM's insert policy would
+otherwise let them make a roster character "created by" any account, which was
+harmless until "whose content is this" started to be answered from the
+character. It is `SECURITY INVOKER` on purpose, so a direct client write runs as
+`authenticated` and is refused, while the definer paths (claim, clone, assume,
+admission) and the owner foreign key's `ON DELETE SET NULL` run as the owner and
+pass without a flag. This closed a hole that predated #943 (a creator could
+write themselves back in as owner) and mattered once ownership decided who may
+convert, clone and delete a character.
+
+**A creator's hold ends with the claim.** `party_members_creator_select` and
+`_update` asked only "did you make this row", so the DM who made a roster
+character kept reading and writing it after its player had claimed it and taken
+it to their pool. Both now carry the condition delete already had (nobody owns
+it, or the creator does). At the DM's own table nothing changes: the DM reads
+and writes a seated character as the DM.
+
+**A copy is a whole copy.** `clone_party_member()` and `assume_character()` both
+go through `private.copy_party_member()`, which copies the sheet through jsonb
+so a new column comes along without anyone remembering. Each used to carry its
+own hand-written column lists, frozen on the day they were written: a clone lost
+its class and subclass definition pins and its always-prepared grants; an
+assumed character lost those too, its class spells still pointed at the
+original's class rows (which the spell-source trigger refuses, so an offered
+spellcaster could not be assumed at all), and its containers at the original's
+items.
+
+`supabase/tests/character_ruleset.test.sql` holds all of the above, each refusal
+beside a control.
+
+#### One class model (#943 wave 5, migration `20261003105148`)
+
+A character's class had three shapes, all still being written: typed text on
+the character (`party_members.class` / `.subclass`), a `character_classes` row
+carrying only a name, and a row pinned to a definition. A review of the pull
+request for legacy found them, and the maintainer ruled the consolidation into
+the same change (he also wants art and more on custom classes, which need a
+definition to live on). There is now one:
+
+- **A character's classes are its `character_classes` rows, each pinned to a
+  definition.** `class_definition_id` and `class_definition_kind` are NOT NULL;
+  `subclass_name` and `subclass_definition_id` are set together or not at all.
+  An official class is a `system_classes` row; a table's or a player's own is a
+  `custom_classes` / `custom_subclasses` row. Nothing resolves a class by name
+  against "whatever the viewer can read" any more.
+- **`party_members.class` / `.subclass` are a mirror the database keeps**: the
+  primary class row's names, null for a character with no class. About fifty
+  screens read them, so they stay; nothing writes them. A client's write is
+  overwritten (`mirror_party_member_class`), and a change to the class rows
+  refreshes them (`character_classes_refresh_mirror`). The types say so:
+  `PartyMemberInsert` / `PartyMemberUpdate` do not accept them.
+- **Classless is a valid state.** A character with no class rows has no class.
+  It takes its first class by levelling up, and that first row carries the
+  character's whole new level (`apply_level_up`'s rule for a first row).
+- **A class is made and changed in three places only**: the creation wizard
+  (a pinned row for the class picked), level-up (add a class, or a subclass
+  from the table's definitions, asked again at every level until one is
+  chosen) and de-level. `PartyMemberForm` shows the classes read-only; the MCP
+  tool's `class` on create resolves the name to a definition and inserts the
+  row, and refuses a name that resolves to nothing.
+- **A definition that is deleted** leaves a pin pointing at nothing, flagged
+  `missing`. Removing it deletes the class row (a class is its definition),
+  with the spells learned through that class, or clears the subclass.
+
+The migration moved the old shapes rather than tolerating them. A typed class
+became a row pinned to the official class of that name in the character's own
+edition, else to a class of that name its table or its makers have, else to a
+new, empty class of that name in the table's content. Subclasses the same way.
+Nothing anyone typed was lost. Read-only against production on 2 Oct 2026: 28
+characters, 4 typed classes (all official), 8 subclasses known only by name (5
+matched, 3 got an empty definition), no disagreement between text and rows.
+
+**The demo template is the trap.** `copy_demo_template` copies, live, only what
+belongs to the template campaign. A template character pinned to one of its
+author's general (unscoped) definitions makes the copy fail for every new user
+("Subclass definition is unavailable"). The first version of the migration did
+exactly that and a real `load_demo_campaign()` on the local stack failed; the
+migration now brings a matched general definition into the template campaign
+first, and `demo_campaign.test.sql` holds a template character with a pinned
+class and subclass. `publish_demo_version()` dry-runs the copy, so a template
+that drifts that way later is refused at publish time.
+
+The older spell and level functions carried their own tolerance for an unpinned
+row (`coalesce(class_definition_kind, 'system')`, `class_definition_id is null
+or`, a name-based fallback in `validate_character_spell_source`). That went
+when they were re-declared for the owner rule below.
+
+`supabase/tests/one_class_model.test.sql` holds the constraints, the mirror and
+the classless state.
+
+#### The owner acts for a character (migration `20261003105149`)
+
+A character has a creator (`user_id`) and an owner (`owner_user_id`). They
+differ once a DM-made character is handed to a player. Eighteen functions (the
+level, spell and Wild Shape RPCs) and eight policies were written before that mattered and
+admitted "creator or owner", so the account that made a character kept its
+rights after handing it over. A security audit of the one class model did it
+for real: as the creator of a character someone else owned, and which the creator
+could no longer even read, `apply_de_level` rewrote its hit points.
+
+The rule, everywhere: **the owner, or the creator while nobody owns it**, plus
+(where it was already so) the DM of the character's table and the member seated
+on it.
+
+```sql
+owner_user_id = auth.uid() or (owner_user_id is null and user_id = auth.uid())
+```
+
+- The functions were re-declared from their production bodies (checked by hash)
+  with that one clause replaced. Copy the clause from a sibling and it is now
+  the right one; `character_owner_acts.test.sql` fails if "creator or owner" is
+  written again in any function or policy.
+- **Class rows are read by whoever may read the character.** The old read
+  policy admitted creator and owner only. A DM is neither for a character its
+  player made, so the DM read no class rows for most characters at the table.
+  Nobody noticed, because every screen fell back to the typed class text; once
+  that fallback was removed (the one class model), the DM would have seen no
+  class at all. Class rows are written directly only by the owner (or the
+  creator of an unowned character); the DM changes a class through the level
+  RPCs.
+- `crafting_recipe_grants_select` asked for the creator alone, so the owner of
+  a DM-made character could not read the recipes granted to their own character.
+
+#### What a table approves (#943 wave 4, migration `20261003105147`)
+
+Content works the way the edition does: a player builds what they like, and the
+table decides what sits down.
+
+**A player's own books.** `user_enabled_sources` holds the books a player reads
+from when a character has no table (own-row RLS; the two SRDs are always on and
+are not stored). `useLibrarySourceSlugs()` follows the character in scope
+(`useContentScope().standalone`): a character with no table reads its player's
+books, a seated one its table's. The player chooses on the pool page
+(`PlayerBooksPanel`) and from the wizard's edition step; `SourcesPickerPanel`
+takes `scope="player"`. Backgrounds have no shared library table, so a
+campaign-less player's are still seeded into their own rows from Open5e, now
+from the SRD plus their books.
+
+**The predicate.** `private.assess_content()` is the one function that says what
+a table takes: library content from a book the DM enabled and has not blocked,
+the official classes the DM has not blocked, and content a DM of that table
+owns. Everything a seated character points at is checked: species, background,
+class, subclass, spells and feats (feats are ids inside `class_choices.feats`
+and `level_choices[n].asi.feat_id`). Not checked: a disguise species and items.
+
+**Who owns a row decides everything; what a row says about itself decides
+nothing.** Provenance keys (`source_document_key`, `source_record_key`) are
+client-writable, so "this is the SRD Acolyte" is a claim. The first version of
+this migration trusted it and a security audit turned that into four working
+attacks before it shipped: a forged book entry copied into the DM's content with
+no approval, that copy replacing the genuine entry for the next player, a
+stranger's private row read through a flag, and a stranger's spell copied
+through a species that "granted" it. So:
+
+| Reason | What it is | How the flag clears |
+|---|---|---|
+| `source` | A library entry from a book the table has not enabled | DM allows it for this character, or enables the book; or the player changes it |
+| `blocked` | The table blocked this species or class | DM allows it for this character, or lifts the block; or the player changes it |
+| `homebrew` | The player's own row, whatever book it names | DM approves, which copies it into the table; or the player changes it |
+| `foreign` | Somebody else's row (another table's DM made it) | Only by changing it. Never named in the flag, never shown, never copied |
+| `missing` | A uuid that points at nothing | Only by removing it (`remove_missing_character_content`), by its owner or the DM |
+
+"The character's owner" in that table is `owner_user_id` and nothing else. A
+character nobody owns has no homebrew: every row it points at that is not the
+table's is `foreign`. Falling back to the row's creator was the second audit's
+finding (a DM naming a stranger as creator, then reading and copying their
+content through a flag). A player bringing a character they made that nobody
+owns becomes its owner in `attach_party_member_to_campaign`, so their own
+content is still theirs to have approved.
+
+Ids are read the way Postgres reads them (`private.try_uuid`, null for anything
+that is not one), so an id written without hyphens or in capitals is the row it
+names, and blocked class names compare without case (blocking and unblocking
+both).
+
+The one thing that needs no asking: when the table already has **its own** copy
+of the same book entry (a row a DM of the table made, never one adopted from a
+player), the character is pointed at that. The result is the DM's row, so
+nothing is trusted.
+
+**The bench.** A character with a pending flag still joins. It is at the table
+(`campaign_id` set) so the DM can see it and the player can change a choice
+from the table's lists, but it cannot be made anyone's active character:
+`guard_campaign_member_self_update` raises SQLSTATE `CR001`, for the DM too,
+whose way to seat it is to approve what is waiting. Attach, join and admission
+fill the seat only when nothing is pending; when the last flag clears, the
+character takes the seat it was kept from. The wizard writes the class row and
+spells before it attaches, so the review sees the whole character.
+
+One review raises at most 100 new flags (`c_max_flags`), so a character built to
+flood the DM's queue cannot. The cap counts only what is newly raised: a flag
+the DM already approved is kept without counting, because counting those let a
+character padded with a hundred approvable choices sit down with the next one
+never shown to anyone. While anything is unapproved, something is pending.
+
+Pointing a character at the table's own copy is best effort. If another rule
+refuses the change (a spell limit, a class-source trigger), or the change moves
+nothing, the flag stays and the statement the review ran in carries on. It runs inside the DM enabling a
+book, among other things, and one character must not be able to fail that.
+
+**Approval copies.** `approve_character_content(review_id, scope)` is the DM's
+only way to clear a flag. For the player's own content it calls
+`private.adopt_content()`: a deep copy into the campaign owner's content (a
+class takes its features, a subclass its features and granted spells, a species
+its granted spells), with the character re-pointed at the copy and the original
+untouched. It copies only rows the character's owner owns, at every depth; a
+nested reference to anyone else's row is dropped from the copy. The copy does
+not keep anything the player's row said about where it came from (book keys,
+source and licence fields): they are a claim only a row the DM made can stand
+behind, and an account holds one row per pair of keys. What was said is kept
+for the record under `provenance.adopted_claims`.
+`get_character_content_item(review_id)` is how the DM reads a player's content
+before approving, since RLS would refuse; it returns nothing for `foreign` and
+`missing`. A class is its features and a subclass its features and spells, so
+those come with the row (`nested_features`, `nested_spells`) and
+`CharacterContentItemDialog` lists them by level; a species shows its ability
+bonuses, natural armor, innate spells and variants ahead of its prose. Turning
+the stored row into labelled rows is `characterContentRows.ts`, pure and tested
+on its own, so the dialog only renders.
+
+A player's row stays theirs to edit while it waits, so an approval made after
+looking carries what the DM saw: the dialog passes the item's `seen_at` (the
+newest change to the row or to any feature or spell an approval would copy with
+it) as `p_seen_updated_at`, and anything edited since is refused with SQLSTATE
+`CR002` ("changed after you opened it"), after which the queue reloads the
+item. The approval locks those rows before it compares, so nothing changes
+between the comparison and the copy.
+Approving from the queue without opening it passes null, which is the DM's call
+to make. Inside the dialog, Approve stays off until the item is on screen: an
+approval from there says the DM looked, and with nothing loaded there is
+nothing that was looked at.
+
+**Stay, flagged.** A DM turning a book off or blocking a species later, or a
+seated player picking something unapproved, flags the character and moves
+nobody. A hand-over reviews the character again too, because whose content is "its
+own" turns on its owner. An approval the DM gave for one character survives the table changing
+its mind and back; an approval whose reason has changed waits again. Characters
+seated when this shipped were recorded as approved (a dry run against
+production on 2 Oct 2026 found none with anything to record).
+
+**Where it shows.** The player: `CharacterApprovalNotice` on the champions list
+and the sheet, with what is waiting, why, and where to change it. A class
+cannot be changed once a character is made, and the notice says so rather than
+offering a link that does nothing. The DM: `CharacterApprovalQueue` on the Party
+page and the Members tab, grouped by character, with what each approval does
+written under its button and a view of homebrew before approving. Both read
+`useCharacterContentReviews.ts`, which also holds the sentences, so the two
+sides cannot describe one flag differently. `character_content_reviews` is a
+subscribed live-sync table.
+
+One thing is known and left: a DM may write a seated character's choices, so a
+DM who knows the id of one of that player's private rows can point the
+character at it and read it through the flag. Nothing in the app discloses such
+an id (a player's content is theirs alone until they bring it to a table), and
+the migration records why the fix was weighed and not taken.
+
+`supabase/tests/character_content_approval.test.sql` holds the predicate, the
+bench, the approvals and each of the audits' attacks as a refusal. Three audits
+ran against this migration on 2 Oct 2026; the third found the first two rounds
+closed and nothing above low severity. The pull request's review (CodeRabbit,
+PR #948) then found seven more, among them the bare-name rule above and the
+importers' relabelling.
 
 ### Champions List (`/play/champions` — `PlayerChampionsView.vue`)
 
@@ -375,7 +725,7 @@ Both are provided the shared `useCharacterCreationForm` composable via `provide(
 
 **2024 background step (#558)** — for a background with `asi_ability_trio` set, `CharacterCreateBackgroundStep.vue` renders `BackgroundAsiPicker.vue`: the player picks either +2/+1 split across two of the trio's abilities or +1/+1/+1 across all three. The choice is stored in `class_choices.background_asi` (via the `backgroundAsiChoice` computed in `useCharacterCreationForm`) and applied to the character's ability scores the same way species ASI is — once, at the point the choice is made. If the background also grants an `origin_feat`, `BackgroundOriginFeatBadge.vue` shows it and resolves it to a full-text `class_features` row by `conceptual_key` when one has been imported; unresolved feats still save their raw name (`class_choices.background_feat`) — a feat grant is never silently dropped just because the matching feature hasn't been imported yet.
 
-**Ruleset-switch safety net** — a campaign ruleset change (2014⇄2024) can invalidate or newly require a player choice: a background ASI/Origin-feat pick, a class/subclass whose progression changed, or a spell with no safe counterpart in the new edition. Rather than a per-domain boolean column, every such case is recorded as a row in the generic `ruleset_reviews` table (`flag_type`: `'class' | 'subclass' | 'spell' | 'background'`, plus `character_class_id`/`character_spell_id` when applicable) by DB triggers — clients only read it via `useRulesetReviews(memberId)`. `PlayerFeaturesTab` (background), `PlayerSpellsView` (class/subclass and spell), all show the shared `RulesetReviewBanner` component when a matching row exists for the member. Acknowledging calls the single `acknowledge_ruleset_reviews(p_party_member_id, p_flag_types)` RPC (SECURITY DEFINER, authorizes the caller against the party member, idempotent) via `useAcknowledgeRulesetReviews()`, which deletes the matching rows.
+**Conversion reviews** — converting a character to the other edition (`convert_party_member_ruleset`, or the converted copy a bounce offers) can invalidate or newly require a choice: a background ASI/Origin-feat pick, a class or subclass with no counterpart, or a spell with no safe counterpart. Each case is a row in `ruleset_reviews` (`flag_type`: `'class' | 'subclass' | 'spell' | 'background'`, plus `character_class_id`/`character_spell_id` when applicable), written by the conversion and keyed on the character alone: the table has no `campaign_id` since #943, so a campaign-less copy can carry reviews. Clients read it via `useRulesetReviews(memberId)`. `PlayerFeaturesTab` (background) and `PlayerSpellsView` (class/subclass and spell) show the shared `RulesetReviewBanner` when a matching row exists. Acknowledging calls `acknowledge_ruleset_reviews(p_party_member_id, p_flag_types)` via `useAcknowledgeRulesetReviews()`, which deletes the matching rows. A conversion suspends the spell count limit for its own statement: it keeps every choice the player made, and the other edition's limit may be lower, so the limit applies again at the next spell change rather than refusing the conversion.
 
 ### Character Sheet (`/play` — `PlayerCharacterView.vue`)
 

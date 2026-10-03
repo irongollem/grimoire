@@ -74,10 +74,11 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
       grantedSpellsForThisLevel, existingSpellIds,
     } = opts;
 
-    // Backstop: a level-up must know which class entry it is bumping. Without
-    // this, party_members would get the new level while character_classes is
-    // silently skipped, leaving the two tables out of sync.
-    if (!isAddingNewClass.value && !chosenExistingEntry.value && existingClassOptions.value.length > 0) {
+    // Backstop: a level-up must know which class entry it is bumping, or which
+    // class it adds (a classless character adds its first). Without this,
+    // party_members would get the new level while character_classes is silently
+    // skipped, leaving the two tables out of sync.
+    if (!isAddingNewClass.value && !chosenExistingEntry.value) {
       error.value = "Select which class you are leveling in before confirming.";
       return;
     }
@@ -85,39 +86,45 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
     // Assemble the entire level-up as one payload. Nothing is written until the
     // RPC runs, and the RPC applies all three tables in a single transaction —
     // so a failure can never leave a half-leveled character.
-    const payload = buildLevelUpPayload({
-      member,
-      nextLevel: nextLevel.value,
-      newProfBonus: newProfBonus.value,
-      hpGain: hpGain.value,
-      newHitDiceCount: newHitDiceCount.value,
-      postLevelupSpellSlots: postLevelupSpellSlots.value,
-      grantsAsi: grantsAsi.value,
-      needsSubclassChoice: needsSubclassChoice.value,
-      classDefs: classDefs.value,
-      levelInChosenClass: levelInChosenClass.value,
-      classSteps: classSteps.value,
-      isAddingNewClass: isAddingNewClass.value,
-      newClassProficiencyGrants: newClassProficiencyGrants.value,
-      memberClass: memberClass.value,
-      chosenExistingEntry: chosenExistingEntry.value,
-      existingClassOptions: existingClassOptions.value,
-      asiMode: asiMode.value,
-      asiPrimary: asiPrimary.value,
-      asiSecondary: asiSecondary.value,
-      featId: featId.value,
-      subclassInput: subclassInput.value,
-      subclassDefinitionId: subclassDefinitionId.value,
-      stepValues: stepValues.value,
-      stepMultiValues: stepMultiValues.value,
-      selectedSpellIds: selectedSpellIds.value,
-      selectedCantripIds: selectedCantripIds.value,
-      newClassName: newClassName.value,
-      newClassDefinitionId: newClassDefinitionId.value,
-      newClassDefinitionKind: newClassDefinitionKind.value,
-      grantedSpellsForThisLevel: grantedSpellsForThisLevel.value,
-      existingSpellIds: existingSpellIds.value,
-    });
+    let payload: ReturnType<typeof buildLevelUpPayload>;
+    try {
+      payload = buildLevelUpPayload({
+        member,
+        nextLevel: nextLevel.value,
+        newProfBonus: newProfBonus.value,
+        hpGain: hpGain.value,
+        newHitDiceCount: newHitDiceCount.value,
+        postLevelupSpellSlots: postLevelupSpellSlots.value,
+        grantsAsi: grantsAsi.value,
+        needsSubclassChoice: needsSubclassChoice.value,
+        classDefs: classDefs.value,
+        levelInChosenClass: levelInChosenClass.value,
+        classSteps: classSteps.value,
+        isAddingNewClass: isAddingNewClass.value,
+        newClassProficiencyGrants: newClassProficiencyGrants.value,
+        memberClass: memberClass.value,
+        chosenExistingEntry: chosenExistingEntry.value,
+        existingClassOptions: existingClassOptions.value,
+        asiMode: asiMode.value,
+        asiPrimary: asiPrimary.value,
+        asiSecondary: asiSecondary.value,
+        featId: featId.value,
+        subclassInput: subclassInput.value,
+        subclassDefinitionId: subclassDefinitionId.value,
+        stepValues: stepValues.value,
+        stepMultiValues: stepMultiValues.value,
+        selectedSpellIds: selectedSpellIds.value,
+        selectedCantripIds: selectedCantripIds.value,
+        newClassName: newClassName.value,
+        newClassDefinitionId: newClassDefinitionId.value,
+        newClassDefinitionKind: newClassDefinitionKind.value,
+        grantedSpellsForThisLevel: grantedSpellsForThisLevel.value,
+        existingSpellIds: existingSpellIds.value,
+      });
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "Could not prepare the level up.";
+      return;
+    }
 
     isPending.value = true;
     try {

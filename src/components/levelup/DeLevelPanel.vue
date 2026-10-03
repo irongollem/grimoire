@@ -4,7 +4,7 @@
     <!-- No history warning (subtle) -->
     <div v-if="!lastChoice" class="flex items-center gap-2 pt-2">
       <span class="text-eyebrow text-ink-caution/70">No level history</span>
-      <span class="text-caption text-muted-foreground">— ask your DM to seed <code class="font-mono">level_choices</code> before de-leveling</span>
+      <span class="text-caption text-muted-foreground">The choices made at earlier levels were not recorded, so this character cannot be levelled down.</span>
     </div>
 
     <template v-else>
@@ -88,7 +88,7 @@ import { getMulticlassSpellSlots } from '@/types/spell.types';
 import type { PartyMember, LevelChoiceEntry, SpellSlotEntry } from '@/types/party.types';
 import type { CharacterClass } from '@/types/multiclass.types';
 import type { CustomResource } from '@/levelup/customTypes';
-import { useRuleset } from '@/composables/rules/useRuleset';
+import { provideCharacterRuleset, useRuleset } from '@/composables/rules/useRuleset';
 
 const props = defineProps<{
   member: PartyMember;
@@ -99,6 +99,7 @@ const showConfirmation = ref(false);
 const isPending = ref(false);
 const error = ref('');
 
+provideCharacterRuleset(() => props.member);
 const queryClient = useQueryClient();
 const { ruleset } = useRuleset();
 
@@ -211,8 +212,9 @@ async function confirmDeLevel() {
     }
 
     // Subclass
+    // `party_members.class` / `.subclass` mirror the primary class row in the
+    // database, so de-levelling only ever changes the row (clear_subclass below).
     const subclassToClear = !!choice.subclass;
-    if (subclassToClear && entry.is_primary) memberUpdate.subclass = null;
 
     // Spell slots — recompute over the POST-de-level class list, not just the
     // de-leveled class. A Cleric 5 / Wizard 1 removing the Wizard dip must keep
@@ -274,21 +276,14 @@ async function confirmDeLevel() {
     );
     const spellIds = learnedHere.filter(id => !earlierSpells.has(id));
 
-    // character_classes op + member class/subclass changes when a class empties.
+    // character_classes op. A class that empties is deleted; if it was primary the
+    // next one is promoted. Removing the last row leaves the character classless.
     let classOp: Record<string, unknown> | null = null;
     if (newClassLevel === 0) {
       const remaining = props.characterClasses.filter(c => c.id !== entry.id);
-      if (remaining.length > 0 && entry.is_primary) {
-        classOp = { op: 'delete', id: entry.id, promote_id: remaining[0].id };
-        memberUpdate.class = remaining[0].class_name;
-        memberUpdate.subclass = remaining[0].subclass_name ?? null;
-      } else {
-        classOp = { op: 'delete', id: entry.id };
-        if (remaining.length === 0) {
-          memberUpdate.class = null;
-          memberUpdate.subclass = null;
-        }
-      }
+      classOp = remaining.length > 0 && entry.is_primary
+        ? { op: 'delete', id: entry.id, promote_id: remaining[0].id }
+        : { op: 'delete', id: entry.id };
     } else {
       classOp = { op: 'update', id: entry.id, levels: newClassLevel, clear_subclass: subclassToClear };
     }

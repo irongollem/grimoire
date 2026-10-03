@@ -198,12 +198,12 @@ select is(
 -- consumer re-importing the document (the point of Art. 20) reads as two
 -- characters, or as a primary-key collision.
 
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
 values ('32000000-0000-4000-8000-0000000000a3',
         '32000000-0000-4000-8000-0000000000a1',
         '32000000-0000-4000-8000-0000000000a1',
         '32000000-0000-4000-8000-0000000000a2',
-        'Solo DM character');
+        'Solo DM character', '2014');
 
 select is(
   (select jsonb_array_length(

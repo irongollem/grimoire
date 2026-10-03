@@ -13,7 +13,7 @@ import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { mergeLibraryWithCustom } from "@/lib/library/libraryShadow";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 interface ItemSource {
@@ -159,7 +159,7 @@ export function useItems(getOptions?: () => UseItemsOptions) {
   });
   const artDefaults = useLibraryArtDefaults();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
 
   const libraryQuery = useQuery({
@@ -216,7 +216,7 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
   const ui = useUiStore();
   const artDefaults = useLibraryArtDefaults();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
   // Players can read campaign_enabled_sources directly (RLS allows any
   // campaign member select), so the same enabled-sources → library_items query
   // used by the DM catalog works unchanged here.

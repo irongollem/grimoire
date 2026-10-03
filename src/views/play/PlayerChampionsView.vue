@@ -71,8 +71,15 @@
                   >Active</span>
                 </div>
                 <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
-                  {{ charSummary(char) }}
+                  {{ charSummary(char, speciesNameOf(char)) }}
                 </p>
+                <CharacterEditionNotice
+                  v-if="activeCampaign"
+                  :member="char"
+                  :campaign="activeCampaign"
+                  class="mt-1.5"
+                />
+                <CharacterApprovalNotice :member="char" class="mt-1.5" />
               </div>
 
               <!-- Actions -->
@@ -81,11 +88,14 @@
                   v-if="!isActive(char)"
                   variant="subtle"
                   size="sm"
-                  :disabled="settingActive === char.id"
+                  :disabled="settingActive === char.id || isWaiting(char)"
                   @click="setActive(char.id)"
                 >
                   {{ settingActive === char.id ? 'Switching…' : 'Set Active' }}
                 </AppButton>
+                <span v-if="!isActive(char) && isWaiting(char)" class="text-caption text-muted-foreground italic">
+                  Waiting for the DM's approval
+                </span>
                 <AppButton
                   variant="subtle"
                   size="sm"
@@ -155,7 +165,7 @@
               <div>
                 <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
                 <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
-                  {{ charSummary(char) }}
+                  {{ charSummary(char, speciesNameOf(char)) }}
                 </p>
               </div>
               <div class="flex items-center gap-2 mt-2">
@@ -185,12 +195,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { storeToRefs } from 'pinia';
 import { IconAdd, IconDM } from '@/lib/icons';
 import { useMyCharacters, useSetActiveCharacter, useParty, useOfferedCharacters, useAssumeCharacter } from '@/composables/party/useParty';
 import { useDetachCharacter, useCloneCharacter } from '@/composables/party/useCharacterPool';
 import { useConfirm } from '@/composables/useConfirm';
-import { useSpeciesNameMap } from '@/composables/rules/useSpecies';
+import { useSpeciesNames } from '@/composables/rules/useSpecies';
 import { useAuthStore } from '@/stores/auth';
+import { useCampaignStore } from '@/stores/campaign';
+import CharacterEditionNotice from '@/components/play/CharacterEditionNotice.vue';
+import CharacterApprovalNotice from '@/components/play/CharacterApprovalNotice.vue';
+import { isApprovalWait, useCampaignPendingContentReviews } from '@/composables/party/useCharacterContentReviews';
 import { useUiStore } from '@/stores/ui';
 import AppButton from '@/components/common/AppButton.vue';
 import FocalImage from '@/components/common/FocalImage.vue';
@@ -200,27 +215,34 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const auth = useAuthStore();
 const ui   = useUiStore();
+const { activeCampaign } = storeToRefs(useCampaignStore());
 const { data: myChars,        isPending: myPending }  = useMyCharacters();
 const { data: allChars,       isPending: allPending }  = useParty();
 const { data: offeredCharacters } = useOfferedCharacters();
 const characters = computed(() => ui.dmPreviewMode ? allChars.value  : myChars.value);
+const speciesNameOf = useSpeciesNames(() => [...(characters.value ?? []), ...(offeredCharacters.value ?? [])]);
 const isPending  = computed(() => ui.dmPreviewMode ? allPending.value : myPending.value);
 const { mutateAsync: setActiveChar } = useSetActiveCharacter();
 const { mutateAsync: assumeChar }    = useAssumeCharacter();
-const speciesNameMap = useSpeciesNameMap();
 
 const settingActive = ref<string | null>(null);
 const setActiveError = ref('');
 const assuming = ref<string | null>(null);
 const assumeError = ref('');
 
+// One read for the whole table: RLS shows a player only the flags on their own characters.
+const { data: pendingReviews } = useCampaignPendingContentReviews();
+const waitingIds = computed(() => new Set((pendingReviews.value ?? []).map((r) => r.party_member_id)));
+function isWaiting(char: PartyMember): boolean {
+  return waitingIds.value.has(char.id);
+}
+
 function isActive(char: PartyMember): boolean {
   return char.id === auth.linkedPartyMemberId;
 }
 
-function charSummary(char: PartyMember): string {
+function charSummary(char: PartyMember, species: string | null): string {
   const parts: string[] = [];
-  const species = speciesNameMap.value.get(char.species_id ?? '');
   if (species) parts.push(species);
   if (char.class) {
     parts.push(char.subclass ? `${char.class} (${char.subclass})` : char.class);
@@ -236,7 +258,10 @@ async function setActive(id: string) {
   try {
     await setActiveChar(id);
   } catch (e) {
-    setActiveError.value = e instanceof Error ? e.message : 'Failed to switch character.';
+    // The database refuses a benched character even if the button was reachable.
+    setActiveError.value = isApprovalWait(e)
+      ? "This character is waiting for your DM's approval."
+      : e instanceof Error ? e.message : 'Failed to switch character.';
   } finally {
     settingActive.value = null;
   }

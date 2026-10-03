@@ -24,9 +24,9 @@ insert into public.campaigns (id, user_id, name) values
   ('93650000-0000-4000-8000-0000000000c1', '93650000-0000-4000-8000-000000000001', 'QRD table'),
   ('93650000-0000-4000-8000-0000000000c2', '93650000-0000-4000-8000-000000000003', 'Stranger table');
 
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
 values ('93650000-0000-4000-8000-0000000000e1', '93650000-0000-4000-8000-000000000002',
-        '93650000-0000-4000-8000-000000000002', null, 'QRD ranger');
+        '93650000-0000-4000-8000-000000000002', null, 'QRD ranger', '2014');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id) values
   ('93650000-0000-4000-8000-0000000000c1', '93650000-0000-4000-8000-000000000001', 'dm', 'DM', null),

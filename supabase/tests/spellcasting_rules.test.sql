@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(64);
+select plan(65);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values ('00000000-0000-4000-8000-000000000549', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
@@ -13,13 +13,14 @@ values ('00000000-0000-4000-8000-000000000543', '00000000-0000-4000-8000-0000000
 
 insert into public.party_members (
   id, user_id, campaign_id, name, class, level, cha, proficiency_bonus,
-  spell_slots, class_resources, class_choices
+  spell_slots, class_resources, class_choices, ruleset
 ) values (
   '00000000-0000-4000-8000-000000000544', '00000000-0000-4000-8000-000000000549',
   '00000000-0000-4000-8000-000000000543', 'Test Sorcerer', 'Sorcerer', 7, 18, 3,
   '[{"level":1,"max":1,"used":0,"pool":"spellcasting","recovery":"long"}]'::jsonb,
   '{"sorcery_points":{"current":7,"max":7,"rest":"long"},"innate_sorcery":{"current":2,"max":2,"rest":"long"}}'::jsonb,
-  '{"metamagic_options":["Quickened Spell","Transmuted Spell","Empowered Spell"]}'::jsonb
+  '{"metamagic_options":["Quickened Spell","Transmuted Spell","Empowered Spell"]}'::jsonb,
+  '2024'
 );
 
 insert into public.character_classes
@@ -84,9 +85,9 @@ values
 update public.custom_classes
 set spell_slots = '[[2],[3]]'::jsonb
 where id = '00000000-0000-4000-8000-000000000570';
-insert into public.party_members (id, user_id, campaign_id, name, class, level)
+insert into public.party_members (id, user_id, campaign_id, name, class, level, ruleset)
 values ('00000000-0000-4000-8000-000000000563', '00000000-0000-4000-8000-000000000549',
-  '00000000-0000-4000-8000-000000000543', 'Custom Sorcerer', 'Sorcerer', 1);
+  '00000000-0000-4000-8000-000000000543', 'Custom Sorcerer', 'Sorcerer', 1, '2024');
 insert into public.character_classes
   (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
 values ('00000000-0000-4000-8000-000000000564', '00000000-0000-4000-8000-000000000563',
@@ -280,10 +281,11 @@ $$, '.*No level-1 spell slots remaining.*', 'an exhausted pool cannot be enlarge
 -- populated) cannot spend a slot without a template, but a trusted template
 -- can fill in the missing pool for a one-time reconciliation.
 insert into public.party_members (
-  id, user_id, campaign_id, name, class, level, cha, proficiency_bonus, spell_slots
+  id, user_id, campaign_id, name, class, level, cha, proficiency_bonus, spell_slots, ruleset
 ) values (
   '00000000-0000-4000-8000-000000000575', '00000000-0000-4000-8000-000000000549',
-  '00000000-0000-4000-8000-000000000543', 'Legacy Sorcerer', 'Sorcerer', 5, 16, 3, '[]'::jsonb
+  '00000000-0000-4000-8000-000000000543', 'Legacy Sorcerer', 'Sorcerer', 5, 16, 3, '[]'::jsonb,
+  '2024'
 );
 insert into public.character_classes
   (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
@@ -329,10 +331,10 @@ insert into public.spells (
   'Test Wizard Bolt', 1, 'Action', '60 ft.', 'Instantaneous', 'A leveled spell.', array['Wizard'], 'automatic',
   '[{"dice":"2d6","type":"force"}]'::jsonb, '1 creature', null
 );
-insert into public.party_members (id, user_id, campaign_id, name, class, level, "int", proficiency_bonus, spell_slots)
+insert into public.party_members (id, user_id, campaign_id, name, class, level, "int", proficiency_bonus, spell_slots, ruleset)
 values ('00000000-0000-4000-8000-000000000579', '00000000-0000-4000-8000-000000000549',
   '00000000-0000-4000-8000-000000000543', 'Test Wizard', 'Wizard', 3, 16, 2,
-  '[{"level":1,"max":1,"used":0,"pool":"spellcasting","recovery":"long"}]'::jsonb);
+  '[{"level":1,"max":1,"used":0,"pool":"spellcasting","recovery":"long"}]'::jsonb, '2024');
 insert into public.character_classes
   (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
 values ('00000000-0000-4000-8000-000000000580', '00000000-0000-4000-8000-000000000579',
@@ -484,24 +486,35 @@ select is((select (class_resources #>> '{sorcery_points,current}')::integer
   from public.party_members where id = '00000000-0000-4000-8000-000000000544'), 1,
   'Arcane Apotheosis grants one free Metamagic option per turn starting at level 18, not only level 20');
 
+-- #943: the table switching edition changes no character; each is converted
+-- on its own, which is what the retired campaign trigger used to do for all.
 update public.campaigns set ruleset = '2014'
 where id = '00000000-0000-4000-8000-000000000543';
+select is((select ruleset from public.party_members where id = '00000000-0000-4000-8000-000000000544'), '2024',
+  'a campaign switching edition leaves its characters on their own');
+do $$
+declare v_id uuid;
+begin
+  for v_id in select id from public.party_members where campaign_id = '00000000-0000-4000-8000-000000000543' loop
+    perform private.convert_party_member_ruleset(v_id, '2014');
+  end loop;
+end $$;
 select ok(exists(
   select 1 from public.character_classes cc
   join public.system_classes definition on definition.id = cc.class_definition_id
   where cc.id = '00000000-0000-4000-8000-000000000546'
     and cc.class_definition_kind = 'system' and definition.ruleset = '2014'
-), 'ruleset switches remap official classes to the matching edition definition');
+), 'a conversion remaps official classes to the matching edition definition');
 select ok(not exists(select 1 from public.ruleset_reviews
   where character_class_id = '00000000-0000-4000-8000-000000000546' and flag_type = 'class'),
   'an automatically remapped official class does not require manual review');
 select is((select class_definition_id from public.character_classes
   where id = '00000000-0000-4000-8000-000000000564'),
   '00000000-0000-4000-8000-000000000570'::uuid,
-  'edition-neutral custom class choices remain pinned across a ruleset switch');
+  'edition-neutral custom class choices remain pinned across a conversion');
 select is((select spell_id from public.character_spells
   where id = '00000000-0000-4000-8000-000000000572'), 'test-edition-flame-2014',
-  'ruleset switches preserve an official spell choice through its exact target-edition record');
+  'a conversion preserves an official spell choice through its exact target-edition record');
 select ok(not exists(
   select 1 from public.class_spellcasting_policies policy
   where policy.ruleset = '2024' and not exists (

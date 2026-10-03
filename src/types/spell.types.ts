@@ -307,18 +307,6 @@ export function cantripDiceMultiplier(totalLevel: number): 1 | 2 | 3 | 4 {
   return 1;
 }
 
-const PREPARED_CLASSES = ["Cleric", "Druid", "Paladin", "Artificer"] as const;
-const KNOWN_CLASSES    = ["Sorcerer", "Warlock", "Bard", "Ranger"] as const;
-const SPELLBOOK_CLASSES = ["Wizard"] as const;
-
-export function getCasterType(cls: string | null | undefined): CasterType {
-  if (!cls) return "none";
-  if ((PREPARED_CLASSES as readonly string[]).includes(cls)) return "prepared";
-  if ((KNOWN_CLASSES as readonly string[]).includes(cls))    return "known";
-  if ((SPELLBOOK_CLASSES as readonly string[]).includes(cls)) return "spellbook";
-  return "none";
-}
-
 export type InnateSourceType = 'class' | 'racial' | 'feat' | 'item' | 'other';
 export type InnateResetsOn = 'long_rest' | 'short_rest';
 
@@ -473,7 +461,7 @@ function slotsFromRow(row: number[]): import("@/types/party.types").SpellSlotEnt
 export function getDefaultSpellSlots(
   cls: string | null | undefined,
   level: number,
-  ruleset: RulesetKey = "2014",
+  ruleset: RulesetKey,
 ): import("@/types/party.types").SpellSlotEntry[] {
   const l = Math.max(1, Math.min(20, Math.round(level)));
   const idx = l - 1;
@@ -545,35 +533,13 @@ export function getCasterCategory(cls: string | null | undefined): CasterCategor
   }
 }
 
-/** The ability score a class uses for spell attack / save DC, or null if non-caster. */
-export function getCastingAbility(cls: string | null | undefined): "int" | "wis" | "cha" | null {
-  switch (cls) {
-    case "Cleric":
-    case "Druid":
-    case "Ranger":
-      return "wis";
-    case "Wizard":
-    case "Artificer":
-    case "Fighter (Eldritch Knight)":
-    case "Rogue (Arcane Trickster)":
-      return "int";
-    case "Bard":
-    case "Paladin":
-    case "Sorcerer":
-    case "Warlock":
-      return "cha";
-    default:
-      return null;
-  }
-}
-
 /**
  * Multiclass caster level per PHB: full = 1x, half_down = floor(L/2),
  * half_up = ceil(L/2), third = floor(L/3). Pact and non-casters don't count.
  */
 export function multiclassCasterLevel(
   classes: { class_name: string; levels: number }[],
-  ruleset: RulesetKey = "2014",
+  ruleset: RulesetKey,
 ): number {
   let sum = 0;
   for (const c of classes) {
@@ -600,7 +566,7 @@ export function multiclassCasterLevel(
  */
 export function getMulticlassSpellSlots(
   classes: { class_name: string; levels: number }[],
-  ruleset: RulesetKey = "2014",
+  ruleset: RulesetKey,
 ): import("@/types/party.types").SpellSlotEntry[] {
   if (classes.length === 0) return [];
   if (classes.length === 1) {
@@ -623,15 +589,6 @@ export function getMulticlassSpellSlots(
   }
 
   return out;
-}
-
-export function getHitDie(cls: string | null | undefined): number {
-  const c = cls?.toLowerCase() ?? "";
-  if (c === "barbarian") return 12;
-  if (c === "fighter" || c === "paladin" || c === "ranger") return 10;
-  if (c === "wizard" || c === "sorcerer") return 6;
-  // bard, cleric, druid, monk, rogue, warlock → d8; artificer → d8
-  return 8;
 }
 
 export const SCHOOL_BG: Record<SpellSchool, string> = {

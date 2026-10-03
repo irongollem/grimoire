@@ -93,7 +93,7 @@ const BASE_CONDITIONS: Record<RulesetKey, Condition[]> = {
 };
 
 /** All 15 condition reference entries for a ruleset, with patches applied. */
-export function getConditions(ruleset: RulesetKey = "2014"): Condition[] {
+export function getConditions(ruleset: RulesetKey): Condition[] {
   const base = BASE_CONDITIONS[ruleset];
   const patches = CONDITION_PATCHES[ruleset];
   const byId = new Map<string, Condition>(base.map((c) => [c.id, c] as const));
@@ -123,7 +123,7 @@ function conditionsByName(ruleset: RulesetKey): Map<string, Condition> {
  * split by falling back to the single "Exhaustion" entry when the name
  * starts with "Exhaust".
  */
-export function getCondition(name: string, ruleset: RulesetKey = "2014"): Condition | undefined {
+export function getCondition(name: string, ruleset: RulesetKey): Condition | undefined {
   const byName = conditionsByName(ruleset);
   const direct = byName.get(name.toLowerCase());
   if (direct) return direct;
@@ -139,7 +139,7 @@ export function getCondition(name: string, ruleset: RulesetKey = "2014"): Condit
  * tooltip reads naturally even though the underlying rules data is for
  * the composite Exhaustion condition.
  */
-export function getConditionDescription(name: string, ruleset: RulesetKey = "2014"): string {
+export function getConditionDescription(name: string, ruleset: RulesetKey): string {
   const cond = getCondition(name, ruleset);
   if (!cond) return name;
 
@@ -157,7 +157,7 @@ export function getConditionDescription(name: string, ruleset: RulesetKey = "201
  * uniform penalty), so this returns a computed penalty summary rather than
  * trying to match a "Level N" bullet the way the 2014 data does.
  */
-export function getConditionShort(name: string, ruleset: RulesetKey = "2014"): string {
+export function getConditionShort(name: string, ruleset: RulesetKey): string {
   const cond = getCondition(name, ruleset);
   if (!cond) return name;
   const levelMatch = name.match(/^Exhausted\s+(\d)$/i);
@@ -201,7 +201,7 @@ export const CHECK_DIS_CONDITIONS = new Set<string>([
  * Under 2024, Exhaustion never causes disadvantage — it's a flat −2×level
  * penalty on every d20 Test instead (see `getExhaustionD20Penalty`).
  */
-export function hasAttackDisadvantage(conditions: string[], ruleset: RulesetKey = "2014"): boolean {
+export function hasAttackDisadvantage(conditions: string[], ruleset: RulesetKey): boolean {
   if (conditions.some((c) => ATTACK_DIS_CONDITIONS.has(c))) return true;
   if (ruleset === "2014" && getExhaustionLevel(conditions) >= 3) return true;
   return false;
@@ -213,7 +213,7 @@ export function hasAttackDisadvantage(conditions: string[], ruleset: RulesetKey 
  * ability checks. Under 2024, Exhaustion contributes a numeric penalty
  * instead (see `getExhaustionD20Penalty`), never disadvantage.
  */
-export function hasCheckDisadvantage(conditions: string[], ruleset: RulesetKey = "2014"): boolean {
+export function hasCheckDisadvantage(conditions: string[], ruleset: RulesetKey): boolean {
   if (conditions.some((c) => CHECK_DIS_CONDITIONS.has(c))) return true;
   if (ruleset === "2014" && getExhaustionLevel(conditions) >= 1) return true;
   return false;
@@ -229,7 +229,7 @@ export function hasCheckDisadvantage(conditions: string[], ruleset: RulesetKey =
 export function hasSaveDisadvantage(
   conditions: string[],
   ability: string,
-  ruleset: RulesetKey = "2014",
+  ruleset: RulesetKey,
 ): boolean {
   if (ruleset === "2014" && getExhaustionLevel(conditions) >= 3) return true;
   if (ability.toLowerCase() === "dex" && conditions.includes("Restrained")) return true;
@@ -244,7 +244,7 @@ export function hasSaveDisadvantage(
  * / `hasSaveDisadvantage` instead) or when there's no active exhaustion.
  * Always ≤ 0 — add it directly to a roll modifier.
  */
-export function getExhaustionD20Penalty(conditions: string[], ruleset: RulesetKey = "2014"): number {
+export function getExhaustionD20Penalty(conditions: string[], ruleset: RulesetKey): number {
   if (ruleset !== "2024") return 0;
   const level = getExhaustionLevel(conditions);
   return level > 0 ? level * -2 : 0;
@@ -257,7 +257,7 @@ export function getExhaustionD20Penalty(conditions: string[], ruleset: RulesetKe
  * app — the SRD text alone documents them for 2014. Returns 0 under 2014 or
  * when there's no active exhaustion.
  */
-export function getExhaustionSpeedPenaltyFt(conditions: string[], ruleset: RulesetKey = "2014"): number {
+export function getExhaustionSpeedPenaltyFt(conditions: string[], ruleset: RulesetKey): number {
   if (ruleset !== "2024") return 0;
   return getExhaustionLevel(conditions) * 5;
 }

@@ -45,9 +45,10 @@ import { RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/party/useParty";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useBackgroundNameMap } from "@/composables/rules/useBackgrounds";
 import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -63,21 +64,22 @@ const linkedMemberId = computed(() =>
 );
 
 const { data: partyMembers, isLoading } = useParty();
-const { data: inventoryItems } = usePartyInventory();
-const { data: items } = usePlayerVisibleItems();
-const speciesMap = useSpeciesNameMap();
-const backgroundMap = useBackgroundNameMap();
-
 const member = computed(() =>
   partyMembers.value?.find((m) => m.id === linkedMemberId.value) ?? null,
 );
+// The background map below lists the character's edition, not the table's (useRuleset.ts).
+provideCharacterRuleset(() => member.value);
+const { data: inventoryItems } = usePartyInventory();
+const { data: items } = usePlayerVisibleItems();
+const { data: speciesById } = useSpeciesByIds(() => [member.value?.species_id]);
+const backgroundMap = useBackgroundNameMap();
 
 const inventory = computed(() =>
   (inventoryItems.value ?? []).filter((i) => i.carried_by === linkedMemberId.value),
 );
 
 const speciesName = computed(() =>
-  member.value?.species_id ? (speciesMap.value.get(member.value.species_id) ?? null) : null,
+  member.value?.species_id ? (speciesById.value.get(member.value.species_id)?.name ?? null) : null,
 );
 const backgroundName = computed(() =>
   member.value?.background_id ? (backgroundMap.value.get(member.value.background_id) ?? null) : null,

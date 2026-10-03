@@ -7,7 +7,7 @@ import { getTextProvider } from "./providers";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { useCampaignStore } from "@/stores/campaign";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { seedFromAiResult } from "@/lib/downtime/downtimeAiSeed";
 import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 import type { DowntimeActivity, DowntimeSeed } from "@/types/downtime.types";
@@ -60,7 +60,7 @@ export interface DowntimeDraftResult {
 
 export function useDowntimeGeneration() {
   const campaign = useCampaignStore();
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
 
   async function generate(args: DowntimeDraftArgs): Promise<DowntimeDraftResult | null> {
     if (isAnyAiGenerating.value) return null;

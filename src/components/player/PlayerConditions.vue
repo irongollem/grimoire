@@ -85,7 +85,7 @@ import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   getConditionDescription,
   getExhaustionLevel,
@@ -103,7 +103,7 @@ const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { sendRoll } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
-const { ruleset } = useRuleset();
+const { ruleset } = useTableRuleset();
 
 // ── Condition helpers ─────────────────────────────────────────────────────────
 

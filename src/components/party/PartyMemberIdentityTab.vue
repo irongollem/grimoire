@@ -107,75 +107,37 @@
       </div>
     </div>
 
-    <!-- Class / Subclass / Level — read-only when character has builder data -->
-    <template v-if="hasBuilderData">
-      <div class="col-span-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2 flex items-center justify-between">
-        <div>
-          <span class="field-label block mb-0.5">Class</span>
-          <span class="text-body text-foreground">
-            {{ hasMulticlassData ? multiclassLabel : (form.class + (form.subclass ? ' — ' + form.subclass : '')) }}
-          </span>
-        </div>
-        <RouterLink
-          :to="{ name: 'play-character-levelup', query: { memberId, targetLevel: (hasMulticlassData ? multiclassTotal : form.level) + 1 } }"
-          class="text-caption text-gold-400 hover:text-gold-300 underline italic transition-colors"
-          @click="emit('close')"
-        >Level Up →</RouterLink>
+    <!-- Class and level are read-only: they change by levelling up or down,
+         never by typing, so the rows stay the one source of truth. -->
+    <div class="col-span-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2 flex items-center justify-between gap-3">
+      <div>
+        <span class="field-label block mb-0.5">Class</span>
+        <span v-if="multiclassLabel" class="text-body text-foreground">{{ multiclassLabel }}</span>
+        <span v-else class="text-body text-muted-foreground italic">No class yet</span>
+        <p class="text-caption text-muted-foreground/70 italic mt-0.5">
+          {{ multiclassLabel
+            ? "Class and subclass change by levelling up or down."
+            : "Choose a class by levelling up." }}
+        </p>
       </div>
-    </template>
-    <template v-else>
-      <label class="block">
-        <span class="field-label">Class</span>
-        <select
-          :value="form.class"
-          class="field-input w-full"
-          @change="patch({ class: ($event.target as HTMLSelectElement).value })"
-        >
-          <option value="">— None —</option>
-          <option v-for="c in allClassNames" :key="c" :value="c">{{ c }}</option>
-        </select>
-      </label>
-      <div class="block">
-        <span class="field-label">Subclass</span>
-        <select
-          v-if="subclassOptions.length > 0"
-          :value="form.subclass"
-          class="field-input w-full"
-          @change="patch({ subclass: ($event.target as HTMLSelectElement).value })"
-        >
-          <option value="">— None —</option>
-          <option v-for="sc in subclassOptions" :key="sc" :value="sc">{{ sc }}</option>
-        </select>
-        <input
-          v-else
-          :value="form.subclass"
-          class="field-input w-full"
-          placeholder="Battle Master"
-          @input="patch({ subclass: ($event.target as HTMLInputElement).value })"
-        />
-      </div>
-    </template>
-    <label class="block">
+      <RouterLink
+        :to="{ name: 'play-character-levelup', query: { memberId, targetLevel: level + 1 } }"
+        class="shrink-0 text-caption text-gold-400 hover:text-gold-300 underline italic transition-colors"
+        @click="emit('close')"
+      >Level Up →</RouterLink>
+    </div>
+    <div>
       <span class="field-label">Level</span>
-      <input
-        v-if="!hasBuilderData"
-        :value="form.level"
-        type="number"
-        min="1"
-        max="20"
-        class="field-input w-full"
-        @change="patch({ level: Number(($event.target as HTMLInputElement).value) })"
-      />
-      <div v-else class="field-input bg-muted/30 text-muted-foreground flex items-center">
-        {{ hasMulticlassData ? multiclassTotal : form.level }}
+      <div class="field-input bg-muted/30 text-muted-foreground flex items-center">
+        {{ level }}
         <span class="ml-2 text-caption italic">total</span>
       </div>
-    </label>
+    </div>
     <div>
       <label class="field-label">Proficiency Bonus</label>
       <div class="field-input bg-muted/30 text-muted-foreground flex items-center">
         +{{ profBonus }}
-        <span class="ml-2 text-xs">(from level {{ form.level }})</span>
+        <span class="ml-2 text-xs">(from level {{ level }})</span>
       </div>
     </div>
   </div>
@@ -229,13 +191,9 @@ const {
   subraceOptions,
   disguiseSubraceOptions,
   isShapeshifter = false,
-  hasBuilderData = false,
-  hasMulticlassData = false,
-  multiclassLabel = "",
-  multiclassTotal = 0,
+  multiclassLabel,
+  level,
   memberId = null,
-  allClassNames,
-  subclassOptions,
   profBonus,
   allSpeciesMap,
 } = defineProps<{
@@ -248,13 +206,11 @@ const {
   subraceOptions: string[];
   disguiseSubraceOptions: string[];
   isShapeshifter?: boolean;
-  hasBuilderData?: boolean;
-  hasMulticlassData?: boolean;
-  multiclassLabel?: string;
-  multiclassTotal?: number;
+  /** "Fighter 5 / Wizard 3"; empty for a classless character. */
+  multiclassLabel: string;
+  /** Total level, from the class rows. */
+  level: number;
   memberId?: string | null;
-  allClassNames: string[];
-  subclassOptions: string[];
   profBonus: number;
   /** map of species id → name for disguise lookup */
   allSpeciesMap: Record<string, string>;
@@ -264,8 +220,8 @@ const aiContext = computed(() =>
   buildEntityContext([
     form.name,
     [allSpeciesMap[form.species_id ?? ""], form.subrace].filter(Boolean).join(" "),
-    [form.class, form.subclass].filter(Boolean).join(" "),
-    form.level ? `level ${form.level}` : "",
+    multiclassLabel,
+    `level ${level}`,
   ]),
 );
 

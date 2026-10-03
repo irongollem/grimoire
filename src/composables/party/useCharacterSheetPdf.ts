@@ -2,6 +2,7 @@ import { ref, createApp, nextTick, type Component } from "vue";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
+import type { SheetClassInput } from "@/rules/sheetClassData";
 import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
 import IllustratedSheetDocument from "@/components/character-sheet/illustrated/IllustratedSheetDocument.vue";
 import { PAGE_PX as ILLUSTRATED_PAGE_PX, type IllustratedTheme } from "@/components/character-sheet/illustrated/sheetTypes";
@@ -72,6 +73,7 @@ export function useCharacterSheetPdf() {
   async function exportPdf(
     member: PartyMember,
     inventory: PartyInventoryItem[],
+    classInput: SheetClassInput,
     {
       pageSize = "A4",
       mode = "clean",
@@ -101,6 +103,7 @@ export function useCharacterSheetPdf() {
     const app = createApp(root, {
       member,
       inventory,
+      classInput,
       pageSize,
       theme: mode === "illustrated" ? illustratedTheme : theme,
       speciesName,

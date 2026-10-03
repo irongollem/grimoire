@@ -1,6 +1,6 @@
 import type { SpellSlotEntry } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { getCasterCategory, getDefaultSpellSlots, getMulticlassSpellSlots } from "@/types/spell.types";
+import { getCasterCategory, getMulticlassSpellSlots } from "@/types/spell.types";
 
 export type SpellSlotPool = NonNullable<SpellSlotEntry["pool"]>;
 
@@ -63,17 +63,17 @@ export interface SpellSlotClassDefinitionLike {
 /**
  * Multiclass-aware effective spell slot maxima for a character: combines
  * class levels per PHB, falls back to per-class progression for single-class
- * characters and to the legacy class/level default when no character_classes
- * rows exist yet.
+ * characters. A character with no character_classes rows is classless and has
+ * no slots.
  *
  * When the character has persisted `member.spell_slots`, the freshly derived
  * maxima are reconciled against them (via `reconcileSpellSlotUsage`) so used
- * counts survive while stale maxima from a prior ruleset are corrected —
- * e.g. after a campaign ruleset switch. Without persisted slots, the derived
+ * counts survive while stale maxima from a prior edition are corrected —
+ * e.g. for a character converted to the other edition. Without persisted slots, the derived
  * maxima are returned as-is (all unused).
  */
 export function deriveEffectiveSpellSlots<T extends SpellSlotClassEntry>(
-  member: { class: string | null; level: number; spell_slots?: SpellSlotEntry[] | null },
+  member: { spell_slots?: SpellSlotEntry[] | null },
   classEntries: T[],
   ruleset: RulesetKey,
   definitionLookup: (entry: T) => SpellSlotClassDefinitionLike | null | undefined,
@@ -96,7 +96,9 @@ export function deriveEffectiveSpellSlots<T extends SpellSlotClassEntry>(
   } else if (list.length > 0 && classEntries.every((entry) => entry.class_definition_kind !== "custom")) {
     derived = getMulticlassSpellSlots(list, ruleset);
   } else {
-    derived = getDefaultSpellSlots(member.class, member.level, ruleset);
+    // No class rows (classless) or a custom multiclass: nothing to derive from.
+    // `party_members.class` mirrors the primary row and never builds slots.
+    derived = [];
   }
 
   const stored = member.spell_slots;

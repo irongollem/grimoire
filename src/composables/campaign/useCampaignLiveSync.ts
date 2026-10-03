@@ -64,9 +64,11 @@ export const SYNC_TABLES = [
   // which realtime DELETE only carries under full replica identity — tracked
   // separately.)
   ["campaign_members",        "campaign-members"],
-  // Ruleset-review flags — a campaign edition switch (or DM/player acknowledging
-  // one) writes/deletes rows here; refresh so the review banners appear/disappear.
-  ["ruleset_reviews",         "ruleset_reviews"],
+  // What a seated character has that its table has not approved (#943). The DM's
+  // queue and the player's "waiting" notice both read it, and each changes it
+  // for the other: an approval clears the player's flag, a changed choice
+  // clears the DM's.
+  ["character_content_reviews", "character-content-reviews"],
   // Optional rule toggles (turn-timer, random-initiative, ...) — so a DM flipping
   // a rule shows up for already-mounted players without waiting out staleTime.
   ["campaign_rules",          "campaign_rules"],
@@ -110,6 +112,9 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   ["quest_runtime_state", QUEST_RUNTIME_SYNC_KEYS],
   ["quest_threads", QUEST_RUNTIME_SYNC_KEYS],
   ["quest_beat_transitions", QUEST_RUNTIME_SYNC_KEYS],
+  // Since 20261003105146 the table has no campaign_id, so it cannot be a
+  // filtered subscription; a conversion (or an acknowledgement) rings instead.
+  ["ruleset_reviews", ["ruleset_reviews"]],
   // Players cannot read this table, so its row events reach only the DM; the
   // doorbell (20260928225909) tells players to re-read their projection. The
   // DM's own copy is a store fed by the handler below, not a query.

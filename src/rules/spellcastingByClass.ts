@@ -20,7 +20,6 @@ function definitionFor(
   entry: CharacterClass,
   definitions: SpellcastingClassDefinitions,
 ): SpellcastingClassDefinitionLike | undefined {
-  if (!entry.class_definition_id) return undefined;
   const pool = entry.class_definition_kind === "custom" ? definitions.custom : definitions.system;
   return pool.find((candidate) => candidate.id === entry.class_definition_id);
 }
@@ -31,11 +30,12 @@ function definitionFor(
  * to determine its casting ability and caster-type override.
  *
  * Casting ability precedence: definition's explicit `prepared_ability` →
- * a text match on `primary_ability` (Intelligence/Wisdom/Charisma) → the
- * class-name default in `computeSpellcastingPerClass`.
+ * a text match on `primary_ability` (Intelligence/Wisdom/Charisma); a class
+ * with neither casts nothing.
  *
  * Caster-type precedence: the ruleset's spell-preparation policy (system
- * classes only) → the definition's `caster_type` → the class-name default.
+ * classes only) → the definition's `caster_type`. Every definition has one;
+ * a row whose definition did not resolve is a non-caster.
  *
  * Shared by RunnerPcPanel (encounter runner) and PlayerSpellsView (player
  * portal) so multiclass casters see the correct per-class DC in both places.
@@ -46,27 +46,24 @@ export function computeSpellcastingByClass(
   definitions: SpellcastingClassDefinitions,
   ruleset: RulesetKey,
 ): SpellcastingClassStats[] {
-  const stats = computeSpellcastingPerClass(member, classEntries, (entry) => {
+  return computeSpellcastingPerClass(member, classEntries, (entry) => {
     const definition = definitionFor(entry, definitions);
-    if (!entry.class_definition_id) return undefined;
-    const explicit = definition?.prepared_ability;
-    if (explicit) return explicit;
-    const primary = definition?.primary_ability?.toLowerCase() ?? null;
-    if (primary?.includes("intelligence")) return "int";
-    if (primary?.includes("wisdom")) return "wis";
-    if (primary?.includes("charisma")) return "cha";
-    return null;
-  });
-
-  return stats.map((stat) => {
-    const entry = classEntries.find((candidate) => candidate.id === stat.classId);
-    const definition = entry ? definitionFor(entry, definitions) : undefined;
-    const policy = entry?.class_definition_kind === "custom"
+    const policy = entry.class_definition_kind === "custom"
       ? null
-      : getSpellPreparationPolicy(stat.className, ruleset);
+      : getSpellPreparationPolicy(entry.class_name, ruleset);
     return {
-      ...stat,
-      casterType: policy?.casterType ?? definition?.caster_type ?? stat.casterType,
+      ability: abilityOf(definition),
+      casterType: policy?.casterType ?? definition?.caster_type ?? "none",
     };
   });
+}
+
+function abilityOf(definition: SpellcastingClassDefinitionLike | undefined): "int" | "wis" | "cha" | null {
+  const explicit = definition?.prepared_ability;
+  if (explicit) return explicit;
+  const primary = definition?.primary_ability?.toLowerCase() ?? null;
+  if (primary?.includes("intelligence")) return "int";
+  if (primary?.includes("wisdom")) return "wis";
+  if (primary?.includes("charisma")) return "cha";
+  return null;
 }

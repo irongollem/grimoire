@@ -28,8 +28,11 @@
       </div>
     </div>
 
+    <!-- Step: Edition (new characters only; every later step is filtered by it) -->
+    <CharacterCreateEditionStep v-if="currentStepId === 'edition'" :form="form" />
+
     <!-- Step: Basics -->
-    <CharacterCreateBasicsStep v-if="currentStepId === 'basics'" :form="form" />
+    <CharacterCreateBasicsStep v-else-if="currentStepId === 'basics'" :form="form" />
 
     <!-- Step: Abilities -->
     <CharacterCreateAbilitiesStep v-else-if="currentStepId === 'abilities'" :form="form" />
@@ -57,12 +60,12 @@
 
       <!-- Next / Skip (hidden on Done step) -->
       <div v-if="wizardStep < activeSteps.length - 1" class="flex items-center gap-2">
-        <AppButton variant="ghost" size="md" label="Skip" :disabled="blockedByAsiChoice" @click="wizardStep++" />
+        <AppButton v-if="currentStepId !== 'edition'" variant="ghost" size="md" label="Skip" :disabled="blockedByAsiChoice" @click="wizardStep++" />
         <AppButton
           variant="primary"
           size="md"
           label="Next →"
-          :disabled="(wizardStep === 0 && !f.name.trim()) || blockedByAsiChoice"
+          :disabled="nextBlocked"
           @click="wizardStep++"
         />
       </div>
@@ -74,8 +77,10 @@
 <script setup lang="ts">
 import { inject, computed } from "vue";
 import { CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
+import { editionStepBlocked } from "@/composables/party/characterCreationEdition";
 import { WIZARD_STEPS, WIZARD_STEPS_EDIT } from "@/rules/characterCreation";
 import AppButton from "@/components/common/AppButton.vue";
+import CharacterCreateEditionStep from "@/components/play/CharacterCreateEditionStep.vue";
 import CharacterCreateBasicsStep from "@/components/play/CharacterCreateBasicsStep.vue";
 import CharacterCreateAbilitiesStep from "@/components/play/CharacterCreateAbilitiesStep.vue";
 import CharacterCreateBackgroundStep from "@/components/play/CharacterCreateBackgroundStep.vue";
@@ -84,7 +89,7 @@ import CharacterCreateEquipmentStep from "@/components/play/CharacterCreateEquip
 import CharacterCreateDoneStep from "@/components/play/CharacterCreateDoneStep.vue";
 
 const form = inject(CHARACTER_FORM_KEY)!;
-const { router, f, wizardStep, isEditMode, backRoute, backgroundAsiIncomplete } = form;
+const { router, f, wizardStep, isEditMode, isDmCreate, backRoute, backgroundAsiIncomplete, chosenRuleset, landingCampaign } = form;
 
 const activeSteps = computed(() => isEditMode.value ? WIZARD_STEPS_EDIT : WIZARD_STEPS);
 const currentStepId = computed(() => activeSteps.value[wizardStep.value]?.id ?? "done");
@@ -92,4 +97,13 @@ const currentStepId = computed(() => activeSteps.value[wizardStep.value]?.id ?? 
 // A half-made 2024 background ASI choice blocks leaving the background step —
 // it must be finished or explicitly cleared (empty is a valid skip).
 const blockedByAsiChoice = computed(() => currentStepId.value === "background" && backgroundAsiIncomplete.value);
+
+// Each step says what it needs before Next: an edition the table can take, a name.
+const nextBlocked = computed(() => {
+  if (blockedByAsiChoice.value) return true;
+  if (currentStepId.value === "edition") {
+    return editionStepBlocked({ chosen: chosenRuleset.value, landing: landingCampaign.value, isDmCreate: isDmCreate.value });
+  }
+  return currentStepId.value === "basics" && !f.name.trim();
+});
 </script>

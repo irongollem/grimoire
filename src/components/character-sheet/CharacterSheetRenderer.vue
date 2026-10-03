@@ -150,7 +150,7 @@
           <div class="cs-section-body">
             <div class="cs-hit-dice">
               <div class="cs-subsection-title">Hit Dice</div>
-              <div class="cs-hit-dice-value">{{ hitDiceStr }}</div>
+              <div class="cs-hit-dice-value">{{ hitDiceStr ?? "—" }}</div>
             </div>
             <div class="cs-death-saves">
               <div class="cs-subsection-title">Death Saves</div>
@@ -300,16 +300,18 @@
 import { computed } from "vue";
 import { SKILLS, type PartyMember, type SkillProficiencies } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
-import { getCastingAbility } from "@/types/spell.types";
+import { formatHitDicePool, sheetCastingAbility, sheetHitDice, type SheetClassInput } from "@/rules/sheetClassData";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { SheetPageSize, SheetTheme } from "@/composables/party/useCharacterSheetPdf";
 
 // acBonus is passed in (not derived here) because this component is also
 // mounted via a bare createApp for PDF export, where query composables
-// have no QueryClient to attach to.
-const { member, inventory, theme = "default", speciesName = null, backgroundName = null, acBonus = 0 } = defineProps<{
+// have no QueryClient to attach to. The same goes for `classInput`: the class
+// rows and their pinned definitions are loaded by the caller and handed in.
+const { member, inventory, classInput, theme = "default", speciesName = null, backgroundName = null, acBonus = 0 } = defineProps<{
   member: PartyMember;
   inventory: PartyInventoryItem[];
+  classInput: SheetClassInput;
   pageSize?: SheetPageSize;
   theme?: SheetTheme;
   speciesName?: string | null;
@@ -381,7 +383,7 @@ const passivePerception = computed(() => {
   return 10 + computedSkillBonus(sk);
 });
 
-const castingAbility = computed(() => getCastingAbility(member.class));
+const castingAbility = computed(() => sheetCastingAbility(member, classInput, member.ruleset));
 const castingMod = computed(() =>
   castingAbility.value ? abilityMod(member[castingAbility.value]) : null,
 );
@@ -392,16 +394,16 @@ const spellSaveDC = computed(() =>
   spellAttack.value !== null ? 8 + spellAttack.value : null,
 );
 
+// A classless character has no hit dice, so the box stays empty. One die: the
+// remaining count (the member's single spend counter). Several kinds of die:
+// the whole pool, because that one counter cannot say which die was spent.
 const hitDiceStr = computed(() => {
-  if (!member.class) return `${member.level}d8`;
-  const dieMap: Record<string, number> = {
-    Barbarian: 12, Fighter: 10, Paladin: 10, Ranger: 10,
-    Bard: 8, Cleric: 8, Druid: 8, Monk: 8, Rogue: 8, Warlock: 8,
-    Artificer: 8, Sorcerer: 6, Wizard: 6,
-  };
-  const die = dieMap[member.class] ?? 8;
-  const rem = member.hit_dice_remaining ?? member.level;
-  return `${rem}d${die}`;
+  const pool = sheetHitDice(classInput);
+  if (pool.length === 0) return null;
+  if (pool.length > 1) return formatHitDicePool(pool);
+  const total = pool[0].count;
+  const rem = Math.min(total, member.hit_dice_remaining ?? total);
+  return `${rem}d${pool[0].die}`;
 });
 
 const equippedWeapons = computed(() =>

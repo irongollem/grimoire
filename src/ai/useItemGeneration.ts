@@ -1,6 +1,6 @@
 import { generateEntityText } from "./entityTextGeneration";
 import { normalizeAiItemMastery } from "./itemMastery";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { ItemAiResult, ItemAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -33,7 +33,7 @@ registerAiGenerator({
 // ────────────────────────────────────────────────────────────────────────────
 
 export function useItemGeneration() {
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,

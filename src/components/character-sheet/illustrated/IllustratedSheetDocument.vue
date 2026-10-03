@@ -10,6 +10,7 @@
     <IllustratedSheet
       :member="member"
       :inventory="inventory"
+      :class-input="classInput"
       side="front"
       :theme="theme"
       :page-size="pageSize"
@@ -22,6 +23,7 @@
     <IllustratedSheet
       :member="member"
       :inventory="inventory"
+      :class-input="classInput"
       side="back"
       :theme="theme"
       :page-size="pageSize"
@@ -37,12 +39,14 @@
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
+import type { SheetClassInput } from "@/rules/sheetClassData";
 import IllustratedSheet from "./IllustratedSheet.vue";
 import type { IllustratedTheme, SheetPageSize } from "./sheetTypes";
 
 defineProps<{
   member: PartyMember;
   inventory: PartyInventoryItem[];
+  classInput: SheetClassInput;
   theme: IllustratedTheme;
   pageSize: SheetPageSize;
   speciesName?: string | null;

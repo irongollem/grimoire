@@ -7,6 +7,11 @@ const mocks = vi.hoisted(() => ({
   aiEnabled: true,
   query: {} as Record<string, string>,
   replace: vi.fn(),
+  waiting: 0,
+}));
+
+vi.mock("@/composables/party/useCharacterContentReviews", () => ({
+  useCampaignPendingContentReviews: () => ({ data: { value: Array.from({ length: mocks.waiting }, (_, i) => i) } }),
 }));
 
 vi.mock("vue-router", () => ({
@@ -47,6 +52,7 @@ function labels(wrapper: ReturnType<typeof mountView>) {
 
 describe("CampaignSettingsView tabs", () => {
   beforeEach(() => {
+    mocks.waiting = 0;
     mocks.aiEnabled = true;
     mocks.query = {};
   });
@@ -71,5 +77,12 @@ describe("CampaignSettingsView tabs", () => {
   it("still opens import when AI is on", () => {
     mocks.query = { tab: "import" };
     expect(mountView().find('[data-stub="DocumentImportTab"]').exists()).toBe(true);
+  });
+
+  it("shows how many characters wait on the DM on the Members tab", () => {
+    mocks.waiting = 2;
+    expect(labels(mountView())).toContain("Members & Invites (2)");
+    mocks.waiting = 0;
+    expect(labels(mountView())).toContain("Members & Invites");
   });
 });

@@ -28,16 +28,17 @@ export function normalizeRuleset(value: string | null | undefined): RulesetKey {
 // ── Ruleset reviews ───────────────────────────────────────────────────────────
 
 /**
- * A campaign ruleset change (2014⇄2024) can invalidate or newly require a
- * player choice. Rather than a per-domain boolean flag column, every such
- * case is recorded as a row here by a DB trigger. Rows are select-only for
- * clients — cleared via the `acknowledge_ruleset_reviews` RPC.
+ * Converting a character between editions (2014⇄2024) can invalidate or newly
+ * require a player choice. Rather than a per-domain boolean flag column, every
+ * such case is recorded as a row here, raised by the per-character conversion
+ * (`convert_party_member_ruleset`). A review belongs to the character, not to a
+ * campaign, so the row carries no campaign id. Rows are select-only for
+ * clients, cleared via the `acknowledge_ruleset_reviews` RPC.
  */
 export type RulesetReviewFlagType = "class" | "subclass" | "spell" | "background";
 
 export interface RulesetReview {
   id: string;
-  campaign_id: string;
   party_member_id: string;
   flag_type: RulesetReviewFlagType;
   /** Set for flag_type 'class'/'subclass'; null for 'spell'/'background'. */

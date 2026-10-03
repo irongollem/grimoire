@@ -17,7 +17,7 @@ export function useWildshapeDruid(
   member: () => PartyMember | null | undefined,
 ) {
   const { data: classRows } = useCharacterClasses(memberId);
-  const profile = computed(() => druidProfile(member(), classRows.value ?? []));
+  const profile = computed(() => druidProfile(classRows.value ?? []));
   const { ruleset } = useRuleset();
   const rules = computed(() => wildShapeRulesFor(member(), classRows.value ?? [], ruleset.value));
   const maxCr = computed(() => rules.value.maxCr);

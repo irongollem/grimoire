@@ -44,8 +44,8 @@ insert into public.campaign_invites (campaign_id, token, role, created_by) value
   ('92800000-0000-4000-8000-0000000000c3', '92800000-0000-4000-8000-0000000000a3', 'player', '92800000-0000-4000-8000-000000000001');
 
 -- Jo's character, and a single-use invite to Ada's table.
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
-values ('92800000-0000-4000-8000-0000000000e1', '92800000-0000-4000-8000-000000000005', '92800000-0000-4000-8000-000000000005', null, 'Jo''s ranger');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
+values ('92800000-0000-4000-8000-0000000000e1', '92800000-0000-4000-8000-000000000005', '92800000-0000-4000-8000-000000000005', null, 'Jo''s ranger', '2014');
 insert into public.campaign_invites (campaign_id, token, role, created_by, max_uses) values
   ('92800000-0000-4000-8000-0000000000c2', '92800000-0000-4000-8000-0000000000a4', 'player', '92800000-0000-4000-8000-000000000006', 1);
 

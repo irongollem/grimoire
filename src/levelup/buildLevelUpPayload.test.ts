@@ -45,6 +45,9 @@ function baseInput(overrides: Partial<BuildLevelUpPayloadInput> = {}): BuildLeve
     selectedSpellIds: new Set(),
     selectedCantripIds: new Set(),
     newClassName: "",
+    newClassDefinitionId: null,
+    newClassDefinitionKind: null,
+    subclassDefinitionId: null,
     grantedSpellsForThisLevel: [],
     existingSpellIds: new Set(),
     ...overrides,
@@ -75,6 +78,8 @@ describe("buildLevelUpPayload", () => {
       baseInput({
         isAddingNewClass: true,
         newClassName: "Wizard",
+        newClassDefinitionId: "wiz-def",
+        newClassDefinitionKind: "system",
         chosenExistingEntry: null,
         // one existing class → new entry is non-primary, sort_order after it
         existingClassOptions: [{ id: "cc1", class_name: "Ranger", levels: 3, is_primary: true }],
@@ -83,8 +88,8 @@ describe("buildLevelUpPayload", () => {
     expect(classOp).toEqual({
       op: "add",
       class_name: "Wizard",
-      class_definition_id: null,
-      class_definition_kind: null,
+      class_definition_id: "wiz-def",
+      class_definition_kind: "system",
       subclass_definition_id: null,
       subclass_name: null,
       levels: 1,
@@ -92,6 +97,43 @@ describe("buildLevelUpPayload", () => {
       hit_dice_used: 0,
       sort_order: 1,
     });
+  });
+
+  it("keeps the subclass taken together with a new class, name and id both", () => {
+    const { classOp } = buildLevelUpPayload(
+      baseInput({
+        isAddingNewClass: true,
+        needsSubclassChoice: true,
+        subclassInput: "Life Domain",
+        subclassDefinitionId: "life-def",
+        newClassName: "Cleric",
+        newClassDefinitionId: "cleric-def",
+        newClassDefinitionKind: "system",
+        chosenExistingEntry: null,
+        existingClassOptions: [],
+      }),
+    );
+    expect(classOp).toMatchObject({
+      op: "add",
+      subclass_name: "Life Domain",
+      subclass_definition_id: "life-def",
+    });
+  });
+
+  it("sends no subclass on a new class when none is due", () => {
+    const { classOp } = buildLevelUpPayload(
+      baseInput({
+        isAddingNewClass: true,
+        subclassInput: "Life Domain",
+        subclassDefinitionId: "life-def",
+        newClassName: "Cleric",
+        newClassDefinitionId: "cleric-def",
+        newClassDefinitionKind: "system",
+        chosenExistingEntry: null,
+        existingClassOptions: [],
+      }),
+    );
+    expect(classOp).toMatchObject({ subclass_name: null, subclass_definition_id: null });
   });
 
   it("applies a +2 ASI to the chosen ability", () => {
@@ -121,27 +163,76 @@ describe("buildLevelUpPayload", () => {
     expect(memberUpdate.max_hp).toBe(26); // 20 + 6, no retro
   });
 
-  it("writes the subclass only when the leveled entry is primary", () => {
-    const primary = buildLevelUpPayload(
+  it("writes a subclass on the class row as a name and definition pair, never on the member", () => {
+    const { classOp, memberUpdate } = buildLevelUpPayload(
+      baseInput({
+        needsSubclassChoice: true,
+        subclassInput: "Beast Master",
+        subclassDefinitionId: "bm-def",
+        chosenExistingEntry: { id: "cc1", levels: 2, subclass_name: null, is_primary: true },
+      }),
+    );
+    expect(classOp).toMatchObject({ subclass_name: "Beast Master", subclass_definition_id: "bm-def" });
+    // `party_members.subclass` is the database's mirror; the client never writes it.
+    expect(memberUpdate.subclass).toBeUndefined();
+  });
+
+  it("does not send a subclass name without its definition", () => {
+    const { classOp, memberUpdate } = buildLevelUpPayload(
       baseInput({
         needsSubclassChoice: true,
         subclassInput: "Beast Master",
         chosenExistingEntry: { id: "cc1", levels: 2, subclass_name: null, is_primary: true },
       }),
     );
-    expect(primary.memberUpdate.subclass).toBe("Beast Master");
-    expect(primary.classOp).toMatchObject({ subclass_name: "Beast Master" });
+    expect(classOp).toEqual({ op: "update", id: "cc1", levels: 3 });
+    // Nor does the name leak into the choice records, where it would outlive no definition.
+    const classChoices = memberUpdate.class_choices as { subclass?: string } | undefined;
+    const levelChoices = memberUpdate.level_choices as Record<number, { subclass?: string }>;
+    expect(classChoices?.subclass).toBeUndefined();
+    expect(levelChoices[4].subclass).toBeUndefined();
+  });
 
-    const secondary = buildLevelUpPayload(
+  it("adds a classless character's first class at its new total level", () => {
+    const { classOp, memberUpdate } = buildLevelUpPayload(
       baseInput({
-        needsSubclassChoice: true,
-        subclassInput: "Beast Master",
-        chosenExistingEntry: { id: "cc2", levels: 2, subclass_name: null, is_primary: false },
+        nextLevel: 4,
+        levelInChosenClass: 4,
+        isAddingNewClass: true,
+        newClassName: "Fighter",
+        newClassDefinitionId: "fighter-def",
+        newClassDefinitionKind: "system",
+        memberClass: "Fighter",
+        chosenExistingEntry: null,
+        existingClassOptions: [],
       }),
     );
-    // A non-primary (multiclass) entry still records subclass on its own class row,
-    // but must not overwrite the character's headline `subclass` field.
-    expect(secondary.memberUpdate.subclass).toBeUndefined();
+    expect(classOp).toEqual({
+      op: "add",
+      class_name: "Fighter",
+      class_definition_id: "fighter-def",
+      class_definition_kind: "system",
+      subclass_name: null,
+      subclass_definition_id: null,
+      levels: 4,
+      is_primary: true,
+      hit_dice_used: 0,
+      sort_order: 0,
+    });
+    expect(memberUpdate.level).toBe(4);
+  });
+
+  it("refuses to add a class that resolved to no definition", () => {
+    expect(() =>
+      buildLevelUpPayload(
+        baseInput({
+          isAddingNewClass: true,
+          newClassName: "Fighter",
+          chosenExistingEntry: null,
+          existingClassOptions: [],
+        }),
+      ),
+    ).toThrow("Pick the class");
   });
 
   it("emits picked spells, deduped subclass grants, and invocation grant rows", () => {

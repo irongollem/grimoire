@@ -21,8 +21,8 @@ values
 insert into public.campaigns (id, user_id, name)
 values ('93300000-0000-4000-8000-000000000010', '93300000-0000-4000-8000-000000000001', 'Withheld names');
 
-insert into public.party_members (id, user_id, campaign_id, name)
-values ('93300000-0000-4000-8000-000000000030', '93300000-0000-4000-8000-000000000002', '93300000-0000-4000-8000-000000000010', 'Nessa');
+insert into public.party_members (id, user_id, campaign_id, name, ruleset)
+values ('93300000-0000-4000-8000-000000000030', '93300000-0000-4000-8000-000000000002', '93300000-0000-4000-8000-000000000010', 'Nessa', '2014');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id) values
   ('93300000-0000-4000-8000-000000000010', '93300000-0000-4000-8000-000000000001', 'dm', 'The DM', null),

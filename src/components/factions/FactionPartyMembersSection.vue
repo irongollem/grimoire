@@ -22,8 +22,8 @@
           </span>
         </template>
         <template #subtitle>
-          <p v-if="speciesNameMap.get(m.party_member.species_id ?? '') || memberClassLabel(m.party_member.id, m.party_member.class)" class="text-caption text-muted-foreground italic truncate">
-            {{ [speciesNameMap.get(m.party_member.species_id ?? ''), memberClassLabel(m.party_member.id, m.party_member.class), memberLevelDisplay(m.party_member.id, m.party_member.level) ? `Lv${memberLevelDisplay(m.party_member.id, m.party_member.level)}` : ''].filter(Boolean).join(' · ') }}
+          <p v-if="speciesNameOf(m.party_member) || memberClassLabel(m.party_member.id, m.party_member.class)" class="text-caption text-muted-foreground italic truncate">
+            {{ [speciesNameOf(m.party_member), memberClassLabel(m.party_member.id, m.party_member.class), memberLevelDisplay(m.party_member.id, m.party_member.level) ? `Lv${memberLevelDisplay(m.party_member.id, m.party_member.level)}` : ''].filter(Boolean).join(' · ') }}
           </p>
         </template>
       </FactionMemberRow>
@@ -61,8 +61,8 @@
             <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ m.party_member.name }}</span>
           </template>
           <template #subtitle>
-            <p v-if="speciesNameMap.get(m.party_member.species_id ?? '') || m.party_member.class" class="text-caption text-muted-foreground italic truncate">
-              {{ [speciesNameMap.get(m.party_member.species_id ?? ''), m.party_member.class].filter(Boolean).join(' · ') }}
+            <p v-if="speciesNameOf(m.party_member) || m.party_member.class" class="text-caption text-muted-foreground italic truncate">
+              {{ [speciesNameOf(m.party_member), m.party_member.class].filter(Boolean).join(' · ') }}
             </p>
           </template>
         </FactionMemberRow>
@@ -104,7 +104,7 @@ import {
   type FactionPartyMemberWithMember,
 } from "@/composables/factions/useFactions";
 import { useParty } from "@/composables/party/useParty";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
@@ -116,7 +116,6 @@ const props = defineProps<{ factionId: string }>();
 
 const { data: members }     = useFactionPartyMembers(props.factionId);
 const { data: allMembers }  = useParty();
-const speciesNameMap = useSpeciesNameMap();
 const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
 const classesByMember = computed(() => {
   const m = new Map<string, CharacterClass[]>();
@@ -144,6 +143,7 @@ const removeMut       = useRemoveFactionPartyMember();
 
 const activeMembers = computed(() => (members.value ?? []).filter((m) => !m.status || m.status === "Active"));
 const formerMembers = computed(() => (members.value ?? []).filter((m) => m.status && m.status !== "Active"));
+const speciesNameOf = useSpeciesNames(() => (members.value ?? []).map((m) => m.party_member));
 
 const memberIds = computed(() => new Set((members.value ?? []).map((m) => m.party_member_id)));
 const availableMembers = computed(() =>

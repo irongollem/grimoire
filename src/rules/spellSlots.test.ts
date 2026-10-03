@@ -71,25 +71,25 @@ describe("spell slot reconciliation", () => {
 });
 
 describe("deriveEffectiveSpellSlots", () => {
-  it("derives fresh legacy-default maxima when no slots are persisted", () => {
+  it("gives a classless character (no class rows) no slots, whatever the mirror text says", () => {
     expect(deriveEffectiveSpellSlots(
-      { class: "Wizard", level: 1, spell_slots: null },
+      { spell_slots: null },
       [],
       "2014",
       () => undefined,
-    )).toEqual([{ level: 1, max: 2, used: 0, pool: "spellcasting", recovery: "long" }]);
+    )).toEqual([]);
   });
 
-  it("reconciles persisted slots against recalculated legacy-default maxima (e.g. after a level or ruleset change)", () => {
+  it("keeps a classless character's temporary and feature slots but derives no spellcasting slots", () => {
     expect(deriveEffectiveSpellSlots(
-      { class: "Wizard", level: 3, spell_slots: [{ level: 1, max: 2, used: 1, pool: "spellcasting" }] },
+      { spell_slots: [
+        { level: 1, max: 2, used: 1, pool: "spellcasting" },
+        { level: 1, max: 1, used: 0, pool: "temporary" },
+      ] },
       [],
       "2014",
       () => undefined,
-    )).toEqual([
-      { level: 1, max: 4, used: 1, pool: "spellcasting", recovery: "long" },
-      { level: 2, max: 2, used: 0, pool: "spellcasting", recovery: "long" },
-    ]);
+    )).toEqual([{ level: 1, max: 1, used: 0, pool: "temporary" }]);
   });
 
   it("reconciles persisted slots against recalculated multiclass maxima", () => {
@@ -98,7 +98,7 @@ describe("deriveEffectiveSpellSlots", () => {
       { class_name: "Cleric", levels: 1, class_definition_kind: "system" as const },
     ];
     expect(deriveEffectiveSpellSlots(
-      { class: "Wizard", level: 3, spell_slots: [{ level: 1, max: 3, used: 2, pool: "spellcasting" }] },
+      { spell_slots: [{ level: 1, max: 3, used: 2, pool: "spellcasting" }] },
       classEntries,
       "2014",
       () => undefined,
@@ -113,7 +113,7 @@ describe("deriveEffectiveSpellSlots", () => {
       { class_name: "Custom Caster", levels: 2, class_definition_kind: "custom" as const },
     ];
     expect(deriveEffectiveSpellSlots(
-      { class: "Custom Caster", level: 2, spell_slots: [{ level: 1, max: 2, used: 1, pool: "spellcasting" }] },
+      { spell_slots: [{ level: 1, max: 2, used: 1, pool: "spellcasting" }] },
       classEntries,
       "2014",
       () => ({ spell_slots: [[2], [3]], slot_recovery: "long" }),

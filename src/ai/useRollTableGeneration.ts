@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { wrapUserInput, buildCampaignContext } from "./utils";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RollTableAiResult } from "./types";
 import {
   createAiGenerationState,
@@ -40,7 +40,7 @@ export interface RollTableGenerationOptions {
 
 export function useRollTableGeneration() {
   const campaign = useCampaignStore();
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,

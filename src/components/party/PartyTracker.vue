@@ -38,9 +38,8 @@
         v-for="member in sortedMembers"
         :key="member.id"
         :member="member"
-        :species-name-map="speciesNameMap"
         :location-name-map="locationNameMap"
-        :class-label="memberClassLabel(member.id, member.class)"
+        :class-label="memberClassLabel(member.id)"
         :level-display="memberLevelDisplay(member.id, member.level)"
         :companions="companionsFor(member.id)"
         :dm-shared-journal="dmSharedEntriesFor(member.id)"
@@ -96,7 +95,6 @@ import { useCompanions, useDeleteCompanion } from "@/composables/encounters/useC
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useDmAllSharedJournalEntries } from "@/composables/notes/usePlayerJournal";
 import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
-import { useAllSpecies } from "@/composables/rules/useSpecies";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
@@ -122,13 +120,6 @@ const locationNameMap = computed(() => {
   return m;
 });
 
-const { data: allSpecies } = useAllSpecies();
-const speciesNameMap = computed(() => {
-  const m = new Map<string, string>();
-  for (const s of allSpecies.value ?? []) m.set(s.id, s.name);
-  return m;
-});
-
 const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
 const classesByMember = computed(() => {
   const m = new Map<string, CharacterClass[]>();
@@ -140,16 +131,16 @@ const classesByMember = computed(() => {
   return m;
 });
 
-function memberClassLabel(memberId: string, legacyClass: string | null): string {
+// A character with no class rows is classless: no label, and its own level.
+function memberClassLabel(memberId: string): string {
   const list = classesByMember.value.get(memberId) ?? [];
   if (list.length > 1) return formatMulticlassLabel(list);
-  if (list.length === 1) return list[0].class_name;
-  return legacyClass ?? "";
+  return list.length === 1 ? list[0].class_name : "";
 }
 
-function memberLevelDisplay(memberId: string, legacyLevel: number): number {
+function memberLevelDisplay(memberId: string, ownLevel: number): number {
   const list = classesByMember.value.get(memberId) ?? [];
-  return list.length > 0 ? totalLevel(list) : legacyLevel;
+  return list.length > 0 ? totalLevel(list) : ownLevel;
 }
 
 const sortedMembers = computed(() => {

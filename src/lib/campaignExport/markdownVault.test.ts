@@ -180,6 +180,7 @@ describe("buildMarkdownVault — @mentions become wikilinks", () => {
       user_id: "u1",
       owner_user_id: null,
       is_dm_managed: false,
+      ruleset: "2014",
       campaign_id: "c1",
       name: "Aria Stormwind",
       player_name: "Sam",

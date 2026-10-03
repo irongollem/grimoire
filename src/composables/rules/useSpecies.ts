@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { computed, type Ref } from "vue";
+import { computed, type MaybeRefOrGetter, toValue, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { removeStorageImages } from "@/composables/useImageUpload";
 import type { Species, SpeciesInsert, SpeciesUpdate } from "@/types/species.types";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { isUuid } from "@/lib/library/contentIdentity";
+import { indexById, splitSpeciesIds } from "@/lib/library/speciesLookup";
 import { mergeLibraryWithCustom } from "@/lib/library/libraryShadow";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
@@ -129,14 +130,62 @@ export function useCampaignSpecies() {
   return { data, all, isLoading };
 }
 
-/** Returns a Map<species_id, species_name> for fast inline lookups. */
-export function useSpeciesNameMap() {
-  const { data } = useAllSpecies();
-  return computed(() => {
-    const m = new Map<string, string>();
-    for (const s of data.value ?? []) m.set(s.id, s.name);
-    return m;
+/** Species rows by id from both stores, whatever edition they belong to. */
+async function fetchSpeciesByIds(libraryIds: string[], customIds: string[]): Promise<Species[]> {
+  const [library, custom] = await Promise.all([
+    libraryIds.length === 0
+      ? Promise.resolve<Species[]>([])
+      : supabase
+          .from("library_species")
+          .select("*")
+          .in("id", libraryIds)
+          .then(({ data, error }) => {
+            if (error) throw error;
+            return (data ?? []).map((row) => ({ ...row, user_id: "", campaign_id: null, notes: null })) as Species[];
+          }),
+    customIds.length === 0
+      ? Promise.resolve<Species[]>([])
+      : supabase
+          .from("species")
+          .select("*")
+          .in("id", customIds)
+          .then(({ data, error }) => {
+            if (error) throw error;
+            return (data ?? []) as Species[];
+          }),
+  ]);
+  return [...library, ...custom];
+}
+
+/**
+ * The species these characters actually have, resolved by id and NOT filtered by
+ * edition. `useAllSpecies` lists what is offered in the scope's edition, so a
+ * lookup of what a character already has must not go through it: a character of
+ * the other edition would find nothing (epic #943). For callers with no
+ * per-character scope to hang a lookup on (a flat list, a prompt builder).
+ */
+export function useSpeciesByIds(ids: MaybeRefOrGetter<readonly (string | null | undefined)[]>) {
+  const split = computed(() => splitSpeciesIds(toValue(ids)));
+  const query = useQuery({
+    queryKey: computed(() => ["species-by-ids", split.value.libraryIds, split.value.customIds] as const),
+    queryFn: ({ queryKey: [, libraryIds, customIds] }) => fetchSpeciesByIds(libraryIds, customIds),
+    enabled: () => split.value.libraryIds.length + split.value.customIds.length > 0,
+    staleTime: Infinity,
   });
+  const data = computed(() => indexById(query.data.value ?? []));
+  return { data, isLoading: query.isLoading };
+}
+
+/**
+ * Species names for a list of characters, looked up once for the whole list.
+ * Returns a function from a member to the name of the species it has (or null
+ * while loading / when it has none). Resolved by id, so a character of either
+ * edition finds its own species whatever edition the campaign is in.
+ */
+export function useSpeciesNames(members: MaybeRefOrGetter<readonly { species_id: string | null }[]>) {
+  const { data: speciesById } = useSpeciesByIds(() => toValue(members).map((m) => m.species_id));
+  return (member: { species_id: string | null }): string | null =>
+    member.species_id ? (speciesById.value.get(member.species_id)?.name ?? null) : null;
 }
 
 async function fetchResolvedSpecies(id: string): Promise<Species> {

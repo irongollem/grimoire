@@ -1,8 +1,7 @@
 <template>
-  <div
+  <CautionNotice
     v-if="total > 0 && !dismissed"
-    class="rounded-md border border-tone-caution/40 bg-tone-caution/10 px-3 py-2 flex items-center gap-3 text-sm text-ink-caution "
-    role="status"
+    class="flex items-center gap-3"
   >
     <!--
       "records", not "items": `total` sums every kind, and `item` is a specific
@@ -33,7 +32,7 @@
       class="shrink-0 text-ink-caution "
       @click="dismiss"
     />
-  </div>
+  </CautionNotice>
 </template>
 
 <script setup lang="ts">
@@ -56,6 +55,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
+import CautionNotice from "@/components/common/CautionNotice.vue";
 import { IconClose } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";

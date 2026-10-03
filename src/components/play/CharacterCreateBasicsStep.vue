@@ -26,7 +26,7 @@
     <div class="space-y-3">
       <p class="text-label-lg font-semibold text-muted-foreground">SPECIES</p>
       <div v-if="!speciesChoices?.length" class="rounded-lg border border-border bg-card p-6 text-center">
-        <p class="text-body text-muted-foreground italic">No species in the campaign yet — skip for now.</p>
+        <p class="text-body text-muted-foreground italic">No species are available for this edition yet. Skip for now.</p>
       </div>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <button v-for="sp in speciesChoices" :key="sp.id" type="button"

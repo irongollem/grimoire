@@ -128,6 +128,20 @@ export interface EntityDef {
    */
   embedOnWrite?: EmbedOnWriteTarget;
   /**
+   * A type-specific step around the generic insert, named here and implemented
+   * in tools.ts (`CREATE_STEPS`) because it needs a Supabase client and this
+   * file is pure data. The registry says WHICH step a type takes; the tool
+   * layer owns HOW, so no type is special-cased by name in the generic path.
+   */
+  createStep?: CreateStepName;
+  /**
+   * Fields a caller may not write, with the sentence to return when they try.
+   * Checked before the generic whitelist so the caller gets the reason instead
+   * of "Unknown field". `create` and `update` are separate because a field can
+   * be a legitimate input on one and not the other (party_member `class`).
+   */
+  refusedFields?: { create?: Record<string, string>; update?: Record<string, string> };
+  /**
    * Image columns exposable as MCP image blocks via `get_image`, keyed by a
    * short `which` selector (e.g. "portrait", "map"). Insertion order matters:
    * the first entry is the default when the caller omits `which`. Omit for
@@ -135,6 +149,9 @@ export interface EntityDef {
    */
   imageFields?: Record<string, string>;
 }
+
+/** The named type-specific create steps tools.ts implements. */
+export type CreateStepName = "character_class";
 
 /** Which embedding edge function owns an entity's corpus — see `EntityDef.embedOnWrite`. */
 export type EmbedOnWriteTarget =
@@ -322,6 +339,10 @@ const SHARED_CAMPAIGN_ID: FieldDef = {
   type: "uuid",
   description: "Omit for the general catalogue (visible in every campaign); set to confine it to one.",
 };
+
+/** Why `class`/`subclass` cannot be written to an existing character. */
+const CLASS_CHANGE_REFUSAL =
+  "A character's class is changed by levelling up or down in the app, not by editing a field.";
 
 export const ENTITY_REGISTRY: Record<string, EntityDef> = {
   npc: {
@@ -907,13 +928,39 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     extraListColumns: ["class", "level"],
     campaignScope: "owned",
     imageFields: { portrait: "portrait_url" },
+    // A class is a `character_classes` row pinned to a definition, not a column.
+    // `party_members.class`/`subclass` are a database-maintained mirror of the
+    // primary class row, so writing them does nothing; the step creates the row.
+    createStep: "character_class",
+    refusedFields: {
+      create: {
+        subclass:
+          "A subclass is a definition the table owns and is chosen in the app when the character reaches the level for it. It cannot be set over MCP.",
+      },
+      update: {
+        class: CLASS_CHANGE_REFUSAL,
+        subclass: CLASS_CHANGE_REFUSAL,
+        ruleset:
+          "A character's rules edition is fixed when it is created, because its class is pinned to that edition's definition. Create a new character to use the other edition.",
+      },
+    },
     create: {
       fields: {
         name: { type: "text", required: true },
+        ruleset: {
+          type: "enum",
+          values: ["2014", "2024"],
+          required: true,
+          description:
+            "The rules edition the character is built under. Decide this first and state it; it is never defaulted from the campaign.",
+        },
         campaign_id: { type: "uuid" },
         player_name: { type: "text", description: "The human at the table." },
-        class: { type: "text" },
-        subclass: { type: "text" },
+        class: {
+          type: "text",
+          description:
+            "Gives the character this class at its level: an official class of that edition (e.g. Fighter) or one of the table's own classes. An unknown name is refused. Creating without it makes a classless character. Subclass is chosen in the app and cannot be set here.",
+        },
         level: { type: "number", min: 1, max: 20, description: "Defaults to 1." },
         subrace: { type: "text" },
         alignment: { type: "text" },

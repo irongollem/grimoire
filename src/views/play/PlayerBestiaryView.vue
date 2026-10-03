@@ -310,6 +310,7 @@ import { useRuleset } from "@/composables/rules/useRuleset";
 import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import { useParty } from "@/composables/party/useParty";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
@@ -360,6 +361,9 @@ const memberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : 
 const member = computed(() => partyMembers.value?.find((m) => m.id === memberId.value) ?? null);
 
 // ── Class detection ───────────────────────────────────────────────────────────
+// Druid and ranger are read from the class rows: party_members.class only
+// mirrors the primary row, so a Fighter 6 / Druid 2 would otherwise never see
+// the Wild Forms tab.
 const {
   isDruid,
   isCircleOfMoon,
@@ -367,7 +371,10 @@ const {
   maxCrDisplay: maxWildshapeCrDisplay,
 } = useWildshapeDruid(memberId, () => member.value);
 const { is2024 } = useRuleset();
-const isRanger   = computed(() => (member.value?.['class'] as string | null)?.toLowerCase().includes("ranger") ?? false);
+const { data: characterClasses } = useCharacterClasses(memberId);
+const isRanger   = computed(() =>
+  (characterClasses.value ?? []).some((cc) => cc.class_name.toLowerCase().includes("ranger")),
+);
 
 const showFormTab = computed(() => isDruid.value || isRanger.value);
 

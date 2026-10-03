@@ -4,27 +4,49 @@
       <div>
         <h2 class="font-cinzel text-sm font-semibold text-foreground">Rules edition</h2>
         <p class="text-caption text-muted-foreground mt-1">
-          This campaign-wide choice governs all rules-aware features. Existing campaigns use 2014 unless changed here.
+          The edition this table plays by. Every character keeps the edition it was built with.
         </p>
       </div>
-      <div class="grid gap-2 sm:grid-cols-2">
-        <button
-          v-for="option in RULESET_OPTIONS"
-          :key="option.value"
-          type="button"
-          :disabled="savingRuleset"
-          class="rounded-md border px-3 py-3 text-left transition-colors disabled:opacity-50"
-          :class="selectedRuleset === option.value ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/40'"
-          @click="setRuleset(option.value)"
-        >
-          <span class="font-cinzel text-xs font-semibold text-foreground">{{ option.label }}</span>
-          <p class="text-caption text-muted-foreground mt-1">{{ option.description }}</p>
-        </button>
-      </div>
+      <RulesetPicker
+        :model-value="selectedRuleset"
+        :disabled="saving"
+        @update:model-value="setRuleset"
+      />
       <p class="text-caption text-ink-caution/90">
-        Changing edition can alter character progression and available content. Existing character choices are preserved for review.
+        Changing the edition does not change anyone's character. Characters built with the other edition keep their seat and are listed below.
       </p>
+      <!-- Inside this section, not beside the optional rules below: it is half of
+           the same decision (which edition, and whether the other one may sit down). -->
+      <div class="flex items-start gap-3 border-t border-border pt-3">
+        <ToggleSwitch
+          size="lg"
+          class="mt-0.5"
+          :model-value="allowsMixed"
+          :aria-label="allowsMixed ? 'Require one edition' : 'Allow both editions'"
+          :disabled="saving"
+          @update:model-value="setAllowsMixed"
+        />
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-cinzel text-xs font-semibold text-foreground">Allow both editions</span>
+            <span
+              v-if="allowsMixed"
+              class="font-cinzel text-2xs tracking-widest text-ink-success/80 uppercase"
+            >active</span>
+          </div>
+          <p class="text-caption text-muted-foreground mt-0.5">
+            On: characters of either edition may join and stay as they are. Off: a character built with the other edition is asked to bring a converted copy.
+          </p>
+        </div>
+      </div>
     </section>
+
+    <RulesEditionMismatchList
+      v-if="mismatched.length"
+      :characters="mismatched"
+      :campaign-ruleset="selectedRuleset"
+      :allows-mixed="allowsMixed"
+    />
 
     <p class="text-body text-muted-foreground">
       Toggle optional D&amp;D rules on or off for this campaign. Enabled rules appear in the
@@ -96,8 +118,13 @@ import {
 } from "@/composables/rules/useOptionalRules";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
-import { DEFAULT_RULESET, RULESET_OPTIONS, type RulesetKey } from "@/types/ruleset.types";
+import { DEFAULT_RULESET, type RulesetKey } from "@/types/ruleset.types";
 import type { RuleConfigField } from "@/types/rule.types";
+import { useParty } from "@/composables/party/useParty";
+import { useToast } from "@/composables/useToast";
+import type { CampaignUpdate } from "@/types/campaign.types";
+import RulesetPicker from "@/components/rules/RulesetPicker.vue";
+import RulesEditionMismatchList from "@/components/campaign/RulesEditionMismatchList.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 
@@ -109,21 +136,36 @@ const toggling = ref<string | null>(null);
 const savingConfig = ref<string | null>(null);
 const campaign = useCampaignStore();
 const { mutateAsync: updateCampaign } = useUpdateCampaign();
-const savingRuleset = ref(false);
+const toast = useToast();
+const { data: party } = useParty();
+const saving = ref(false);
 const selectedRuleset = computed(() => campaign.activeCampaign?.ruleset ?? DEFAULT_RULESET);
+const allowsMixed = computed(() => campaign.activeCampaign?.allows_mixed_rulesets ?? false);
+const mismatched = computed(() =>
+  (party.value ?? []).filter((member) => member.ruleset !== selectedRuleset.value),
+);
+
+async function saveCampaign(update: CampaignUpdate) {
+  const active = campaign.activeCampaign;
+  if (!active) return;
+  saving.value = true;
+  try {
+    const updated = await updateCampaign({ id: active.id, update });
+    campaign.switchToCampaign(updated);
+  } catch (error) {
+    toast.error(toast.fromError(error));
+  } finally {
+    saving.value = false;
+  }
+}
 
 async function setRuleset(ruleset: RulesetKey) {
-  if (!campaign.activeCampaign || ruleset === selectedRuleset.value) return;
-  savingRuleset.value = true;
-  try {
-    const updated = await updateCampaign({
-      id: campaign.activeCampaign.id,
-      update: { ruleset },
-    });
-    campaign.switchToCampaign(updated);
-  } finally {
-    savingRuleset.value = false;
-  }
+  if (ruleset === selectedRuleset.value) return;
+  await saveCampaign({ ruleset });
+}
+
+async function setAllowsMixed(value: boolean) {
+  await saveCampaign({ allows_mixed_rulesets: value });
 }
 
 function isEnabled(ruleKey: string): boolean {

@@ -2,7 +2,7 @@ import {
   buildCampaignContext,
 } from "./utils";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { PuzzleAiResult, PuzzleAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -39,7 +39,7 @@ export interface PuzzleGenerationOptions {
 }
 
 export function usePuzzleGeneration() {
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,

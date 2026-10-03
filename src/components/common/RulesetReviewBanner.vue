@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="rounded-md border border-tone-caution/40 bg-tone-caution/10 px-3 py-2 text-sm text-ink-caution "
-    role="status"
-  >
+  <CautionNotice>
     <slot />
     <RouterLink class="ml-1 underline font-semibold" :to="linkTo">{{ linkLabel }}</RouterLink>
     <button
@@ -11,11 +8,12 @@
       :disabled="acknowledging"
       @click="$emit('acknowledge')"
     >{{ ackLabel }}</button>
-  </div>
+  </CautionNotice>
 </template>
 
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
+import CautionNotice from "@/components/common/CautionNotice.vue";
 
 const { linkTo, linkLabel, ackLabel, acknowledging = false } = defineProps<{
   linkTo: string;

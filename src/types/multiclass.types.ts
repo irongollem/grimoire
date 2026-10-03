@@ -7,10 +7,12 @@ export interface CharacterClass {
   id: string;
   party_member_id: string;
   class_name: string;
-  class_definition_id?: string | null;
-  class_definition_kind?: "system" | "custom" | null;
+  /** Every row is pinned to the definition it plays (the database refuses a row without one). */
+  class_definition_id: string;
+  class_definition_kind: "system" | "custom";
+  /** Set together or both null: a subclass is its definition. */
   subclass_name: string | null;
-  subclass_definition_id?: string | null;
+  subclass_definition_id: string | null;
   levels: number;
   is_primary: boolean;
   hit_dice_used: number;
@@ -19,10 +21,7 @@ export interface CharacterClass {
   updated_at: string;
 }
 
-export type CharacterClassInsert = Omit<
-  CharacterClass,
-  "id" | "created_at" | "updated_at" | "class_definition_id" | "class_definition_kind"
-> & Partial<Pick<CharacterClass, "class_definition_id" | "class_definition_kind">>;
+export type CharacterClassInsert = Omit<CharacterClass, "id" | "created_at" | "updated_at">;
 export type CharacterClassUpdate = Partial<Omit<CharacterClass, "id" | "party_member_id" | "created_at" | "updated_at">>;
 
 /**
@@ -99,12 +98,7 @@ export function totalLevel(classes: CharacterClass[]): number {
   return classes.reduce((s, c) => s + c.levels, 0);
 }
 
-/** Returns the primary class entry, or null if none marked. */
-export function primaryClass(classes: CharacterClass[]): CharacterClass | null {
-  return classes.find((c) => c.is_primary) ?? classes[0] ?? null;
-}
-
-import { getCasterType, getCastingAbility } from "@/types/spell.types";
+import type { CasterType } from "@/types/spell.types";
 
 /**
  * Per-class spellcasting stats (DC and attack bonus). A multiclass character
@@ -116,8 +110,8 @@ export interface SpellcastingClassStats {
   /** character_classes row id — matches character_spells.source_class_id */
   classId: string;
   className: string;
-  definitionKind: "system" | "custom" | null;
-  casterType: "prepared" | "known" | "spellbook" | "none";
+  definitionKind: "system" | "custom";
+  casterType: CasterType;
   castingAbility: "int" | "wis" | "cha";
   dc: number;
   attack: number;
@@ -127,24 +121,27 @@ export interface SpellcastingClassStats {
  * Compute per-class spell DC and attack bonus from a character's ability
  * scores + classes. Non-casters are omitted. Proficiency bonus comes from
  * the character (single value, shared across classes per 5e RAW).
+ *
+ * `resolve` supplies each class's casting ability and caster type from its
+ * pinned definition; a class is never judged by its name here, since a custom
+ * class may share one with an official class.
  */
 export function computeSpellcastingPerClass(
   member: AbilityScores & { proficiency_bonus: number },
   classes: CharacterClass[],
-  resolveAbility?: (entry: CharacterClass) => "int" | "wis" | "cha" | null | undefined,
+  resolve: (entry: CharacterClass) => { ability: "int" | "wis" | "cha" | null; casterType: CasterType },
 ): SpellcastingClassStats[] {
   const out: SpellcastingClassStats[] = [];
   for (const c of classes) {
-    const resolvedAbility = resolveAbility?.(c);
-    const ability = resolvedAbility === undefined ? getCastingAbility(c.class_name) : resolvedAbility;
+    const { ability, casterType } = resolve(c);
     if (!ability) continue;
     const mod = Math.floor((member[ability] - 10) / 2);
     const attack = member.proficiency_bonus + mod;
     out.push({
       classId: c.id,
       className: c.class_name,
-      definitionKind: c.class_definition_kind ?? null,
-      casterType: getCasterType(c.class_name),
+      definitionKind: c.class_definition_kind,
+      casterType,
       castingAbility: ability,
       attack,
       dc: 8 + attack,

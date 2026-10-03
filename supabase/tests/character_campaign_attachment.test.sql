@@ -69,10 +69,10 @@ values ('73000000-0000-4000-8000-000000000010', '73000000-0000-4000-8000-0000000
 
 -- NULL-totality fixtures: these are deliberately unclaimed, so a bare
 -- owner_user_id = auth.uid() expression evaluates to NULL for another user.
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, is_dm_managed)
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, is_dm_managed, ruleset)
 values
-  ('73000000-0000-4000-8000-000000000023', '73000000-0000-4000-8000-000000000001', null, '73000000-0000-4000-8000-000000000010', 'Private Hireling', true),
-  ('73000000-0000-4000-8000-000000000024', '73000000-0000-4000-8000-000000000001', null, null, 'Benched Hireling', true);
+  ('73000000-0000-4000-8000-000000000023', '73000000-0000-4000-8000-000000000001', null, '73000000-0000-4000-8000-000000000010', 'Private Hireling', true, '2014'),
+  ('73000000-0000-4000-8000-000000000024', '73000000-0000-4000-8000-000000000001', null, null, 'Benched Hireling', true, '2014');
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -104,13 +104,13 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claim.sub', '73000000-0000-4000-8000-000000000002', true);
 
 select lives_ok(
-  $$insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
-    values ('73000000-0000-4000-8000-000000000020', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000002', null, 'Vael')$$,
+  $$insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
+    values ('73000000-0000-4000-8000-000000000020', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000002', null, 'Vael', '2014')$$,
   'an unattached character can be created with no membership anywhere');
 
 select throws_ok(
-  $$insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
-    values ('73000000-0000-4000-8000-000000000029', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000010', 'Gatecrasher')$$,
+  $$insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
+    values ('73000000-0000-4000-8000-000000000029', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000010', 'Gatecrasher', '2014')$$,
   '42501',
   'new row violates row-level security policy for table "party_members"',
   'a character cannot be inserted into a campaign the writer is not a member of');
@@ -161,8 +161,8 @@ select lives_ok(
 -- ---------------------------------------------------------------------------
 
 select lives_ok(
-  $$insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
-    values ('73000000-0000-4000-8000-000000000021', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000002', null, 'Backup Bard')$$,
+  $$insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
+    values ('73000000-0000-4000-8000-000000000021', '73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000002', null, 'Backup Bard', '2014')$$,
   'a second unattached character can be created');
 
 select lives_ok(
@@ -241,8 +241,9 @@ select throws_like(
 
 reset role;
 
-insert into public.character_classes (id, party_member_id, class_name, levels, is_primary)
-values ('73000000-0000-4000-8000-000000000030', '73000000-0000-4000-8000-000000000020', 'Druid', 3, true);
+insert into public.character_classes (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
+values ('73000000-0000-4000-8000-000000000030', '73000000-0000-4000-8000-000000000020', 'Druid', 3, true,
+  (select id from public.system_classes where ruleset = '2014' and class_name = 'Druid'), 'system');
 
 insert into public.spells (id, user_id, name, classes)
 values ('73000000-0000-4000-8000-000000000040', '73000000-0000-4000-8000-000000000002', 'Entangle', array['Druid']);
@@ -385,8 +386,8 @@ select ok(
 -- Unclaimed DM-managed characters still die with their campaign's DM.
 -- ---------------------------------------------------------------------------
 
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, is_dm_managed)
-values ('73000000-0000-4000-8000-000000000022', '73000000-0000-4000-8000-000000000001', null, '73000000-0000-4000-8000-000000000010', 'Hireling', true);
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, is_dm_managed, ruleset)
+values ('73000000-0000-4000-8000-000000000022', '73000000-0000-4000-8000-000000000001', null, '73000000-0000-4000-8000-000000000010', 'Hireling', true, '2014');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '73000000-0000-4000-8000-000000000001', true);

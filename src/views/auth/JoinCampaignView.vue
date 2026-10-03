@@ -203,7 +203,7 @@
                   {{ pm.name }}
                 </span>
                 <span class="text-caption text-muted-foreground italic block truncate">
-                  {{ pm.class || "Adventurer" }}{{ pm.level ? ` · Level ${pm.level}` : "" }}
+                  {{ pm.class || "Adventurer" }}{{ pm.level ? ` · Level ${pm.level}` : "" }} · {{ rulesetYear(pm.ruleset) }}
                 </span>
               </div>
             </label>
@@ -231,6 +231,17 @@
         </div>
       </div>
     </template>
+
+    <RulesetBounceDialog
+      v-if="bounce"
+      :character="bounce.character"
+      :campaign-ruleset="bounce.campaignRuleset"
+      :campaign-name="null"
+      :bring="joinWithConvertedCopy"
+      @close="bounce = null"
+      @choose-another="chooseAnotherCharacter"
+      @joined="bounce = null"
+    />
   </div>
 </template>
 
@@ -242,15 +253,21 @@ import SegmentedControl, { type SegmentedOption } from "@/components/common/Segm
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useQueryClient } from "@tanstack/vue-query";
-import { joinCampaignViaInvite } from "@/composables/campaign/useCampaignMembers";
+import { joinCampaignViaInvite, type JoinResult } from "@/composables/campaign/useCampaignMembers";
 import { postgrestMessage } from "@/composables/campaign/chatSendErrors";
 import { supabase } from "@/lib/supabase";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
 import { useModeSwitch } from "@/composables/useModeSwitch";
+import { useToast } from "@/composables/useToast";
+import { benchedMessage, useBenchedAfterAttach } from "@/composables/party/useBenchedAfterAttach";
 import { usePlayerCampaigns } from "@/composables/campaign/useCampaigns";
 import { wasAnsweredUnder16 } from "@/lib/ageGateSession";
 import AppButton from "@/components/common/AppButton.vue";
+import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
+import { parseRulesetBounce, rulesetYear } from "@/composables/party/useCharacterRuleset";
+import type { PartyMember } from "@/types/party.types";
+import type { RulesetKey } from "@/types/ruleset.types";
 import AppInput from "@/components/common/AppInput.vue";
 import SignupConsent from "@/components/auth/SignupConsent.vue";
 import AgeQuestionStep from "@/components/auth/AgeQuestionStep.vue";
@@ -262,6 +279,7 @@ const route = useRoute();
 const router = useRouter();
 const queryClient = useQueryClient();
 const { switchMode } = useModeSwitch();
+const toast = useToast();
 const { refetch: refetchCampaigns } = usePlayerCampaigns();
 
 const token = route.params.token as string;
@@ -312,7 +330,7 @@ const showChooser = computed(
     !joining.value &&
     !joinError.value &&
     !waitingForParent.value &&
-    !hasChosen.value &&
+    (!hasChosen.value || bounce.value !== null) &&
     !myCharactersQuery.isPending.value &&
     unattachedCharacters.value.length > 0,
 );
@@ -321,40 +339,84 @@ const showChooser = computed(
 // keeps the zero-character path looking the same as a plain auto-join.
 const isDecidingAutoJoin = computed(() => !hasChosen.value && decidingJoin.value);
 
+// A table that does not take the chosen character's edition (#943). Not an
+// invalid invite: the player is offered a converted copy, or another character.
+// The edition comes from the refusal itself, since a non-member cannot read the
+// campaign row before joining.
+const bounce = ref<{ character: PartyMember; campaignRuleset: RulesetKey } | null>(null);
+
 async function attemptJoin(partyMemberId?: string) {
   joining.value = true;
   joinError.value = "";
   try {
-    const result = await joinCampaignViaInvite(token, partyMemberId);
-    if (result.status === "pending") {
-      waitingForParent.value = true;
+    await finishJoin(await joinCampaignViaInvite(token, partyMemberId), partyMemberId);
+  } catch (err) {
+    const refused = parseRulesetBounce(err);
+    const refusedCharacter = unattachedCharacters.value.find((pm) => pm.id === partyMemberId);
+    if (refused && refusedCharacter) {
+      bounce.value = { character: refusedCharacter, campaignRuleset: refused.campaignRuleset };
       joining.value = false;
-      await notifyParents(result.requestId);
       return;
     }
-    const campaignId = result.campaignId;
-    // Preserve the current DM campaign in its per-mode slot before activating
-    // the joined campaign. When already in player mode, the explicit cache
-    // invalidation still exposes the newly-created membership immediately.
-    await switchMode("player", { navigate: false });
-    await queryClient.invalidateQueries();
-    await auth.refreshMembership(campaignId);
-
-    // Hydrate the whole campaign row. Assigning only activeCampaignId can
-    // leave the previous mode's theme, calendar and BYOK-bearing object alive.
-    const { data: freshCampaigns } = await refetchCampaigns();
-    const joined = freshCampaigns?.find((c) => c.id === campaignId) ?? null;
-    if (joined) {
-      campaign.switchToCampaign(joined);
-    } else {
-      campaign.clearActiveCampaign();
-      campaign.activeCampaignId = campaignId;
-    }
-    await router.replace({ name: "play" });
-  } catch (err) {
     joinError.value = postgrestMessage(err) ?? "This invite link is invalid or has expired.";
     joining.value = false;
   }
+}
+
+// The dialog's way in once the copy exists. Throws, so the dialog can say so.
+async function joinWithConvertedCopy(partyMemberId: string) {
+  await finishJoin(await joinCampaignViaInvite(token, partyMemberId), partyMemberId);
+}
+
+function chooseAnotherCharacter() {
+  bounce.value = null;
+  joinError.value = "";
+  selectedCharacterId.value = null;
+  hasChosen.value = false;
+}
+
+// A character brought along may have been benched by the table's approval
+// review, which runs inside the join. Say so on the way in, since the player
+// would otherwise arrive at a table where "Set Active" quietly does nothing.
+const { waitingAfterAttach } = useBenchedAfterAttach();
+
+async function tellIfBenched(partyMemberId: string, table: string | null) {
+  try {
+    const waiting = await waitingAfterAttach(partyMemberId);
+    if (waiting === 0) return;
+    toast.info(benchedMessage(null, table, waiting));
+  } catch (err) {
+    toast.error(toast.fromError(err));
+  }
+}
+
+async function finishJoin(result: JoinResult, partyMemberId?: string) {
+  if (result.status === "pending") {
+    waitingForParent.value = true;
+    joining.value = false;
+    await notifyParents(result.requestId);
+    return;
+  }
+  const campaignId = result.campaignId;
+  // Preserve the current DM campaign in its per-mode slot before activating
+  // the joined campaign. When already in player mode, the explicit cache
+  // invalidation still exposes the newly-created membership immediately.
+  await switchMode("player", { navigate: false });
+  await queryClient.invalidateQueries();
+  await auth.refreshMembership(campaignId);
+
+  // Hydrate the whole campaign row. Assigning only activeCampaignId can
+  // leave the previous mode's theme, calendar and BYOK-bearing object alive.
+  const { data: freshCampaigns } = await refetchCampaigns();
+  const joined = freshCampaigns?.find((c) => c.id === campaignId) ?? null;
+  if (joined) {
+    campaign.switchToCampaign(joined);
+  } else {
+    campaign.clearActiveCampaign();
+    campaign.activeCampaignId = campaignId;
+  }
+  await router.replace({ name: "play" });
+  if (partyMemberId) await tellIfBenched(partyMemberId, joined?.name ?? null);
 }
 
 // Emails the parents. A failure must not break the page: the request already

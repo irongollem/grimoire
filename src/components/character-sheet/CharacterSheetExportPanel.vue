@@ -17,11 +17,12 @@
          the sheet is 794px wide; at 0.75 zoom it displays at ~596px. -->
     <div class="order-last flex min-w-0 justify-center lg:order-first">
       <div class="sheet-preview inline-block max-w-full overflow-hidden rounded-lg border border-border shadow-lg">
-        <div class="pointer-events-none zoom-[0.75] xl:zoom-[0.9]">
+        <div v-if="classInput" class="pointer-events-none zoom-[0.75] xl:zoom-[0.9]">
           <IllustratedSheetDocument
             v-if="mode === 'illustrated'"
             :member="member"
             :inventory="inventory"
+            :class-input="classInput"
             :theme="illustratedTheme"
             :page-size="pageSize"
             :species-name="speciesName"
@@ -34,6 +35,7 @@
             v-else
             :member="member"
             :inventory="inventory"
+            :class-input="classInput"
             :page-size="pageSize"
             :theme="theme"
             :species-name="speciesName"
@@ -90,7 +92,7 @@
         size="md"
         class="w-full"
         :label="isGenerating ? 'Generating PDF…' : 'Export PDF'"
-        :disabled="isGenerating"
+        :disabled="isGenerating || !classInput"
         @click="doExport"
       />
 
@@ -108,6 +110,9 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
 import IllustratedSheetDocument from "@/components/character-sheet/illustrated/IllustratedSheetDocument.vue";
 import type { PartyMember } from "@/types/party.types";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
+import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
+import type { SheetClassInput } from "@/rules/sheetClassData";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
@@ -139,6 +144,19 @@ const { member, inventory, storageKey, speciesName = null, backgroundName = null
 const { acFor } = useShieldAcBonus();
 const acBonus = computed(() => (member ? acFor(member) - member.ac : 0));
 
+// The sheet's hit dice and casting ability come from the class rows and the
+// definitions they are pinned to. The sheet waits for all three to load rather
+// than print a guess; a classless character is a loaded, empty row list.
+const memberId = computed(() => member.id);
+const { data: classRows } = useCharacterClasses(memberId);
+const { data: systemClasses } = useAllSystemClasses();
+const { data: customClasses } = useAllCustomClasses();
+const classInput = computed<SheetClassInput | null>(() =>
+  classRows.value && systemClasses.value && customClasses.value
+    ? { rows: classRows.value, definitions: { system: systemClasses.value, custom: customClasses.value } }
+    : null,
+);
+
 function read<T extends string>(prefix: string, fallback: T): T {
   if (!storageKey) return fallback;
   return (localStorage.getItem(`${prefix}-${storageKey}`) as T | null) ?? fallback;
@@ -157,7 +175,8 @@ watch(illustratedTheme, (v) => storageKey && localStorage.setItem(`cs-illus-them
 const { isGenerating, exportPdf } = useCharacterSheetPdf();
 
 async function doExport() {
-  await exportPdf(member, inventory, {
+  if (!classInput.value) return;
+  await exportPdf(member, inventory, classInput.value, {
     pageSize: pageSize.value,
     mode: mode.value,
     theme: theme.value,

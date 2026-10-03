@@ -5,6 +5,20 @@
     <form class="min-h-0 flex-1 flex flex-col overflow-hidden" @submit.prevent="submit">
       <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
         <div>
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1">RULES EDITION</label>
+          <RulesetPicker v-model="form.ruleset" label="Rules edition" />
+          <p class="text-caption text-muted-foreground mt-1">
+            Applies to character options, spells, creatures, items, rests, and encounter rules.
+          </p>
+          <AppCheckbox
+            v-model="form.allows_mixed_rulesets"
+            label="Allow characters built with the other edition"
+            hint="When unticked, a character built with the other edition is asked to bring a converted copy."
+            class="mt-2 gap-2.5"
+          />
+        </div>
+
+        <div>
           <label class="block text-label-lg font-semibold text-muted-foreground mb-1">NAME</label>
           <AppInput
             v-model="form.name"
@@ -36,24 +50,6 @@
             <option value="Mystara" />
             <option value="Homebrew" />
           </datalist>
-        </div>
-
-        <div>
-          <label class="block text-label-lg font-semibold text-muted-foreground mb-1">RULESET</label>
-          <AppSelect
-            v-model="form.ruleset"
-            tone="filled"
-            weight="normal"
-            size="body"
-            block
-          >
-            <option v-for="option in RULESET_OPTIONS" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </AppSelect>
-          <p class="text-caption text-muted-foreground mt-1">
-            Applies to character options, spells, creatures, items, rests, and encounter rules.
-          </p>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -108,7 +104,7 @@
           type="submit"
           variant="primary"
           size="md"
-          :disabled="isSaving"
+          :disabled="isSaving || !form.ruleset"
           :label="isSaving ? 'Saving…' : 'Create Campaign'"
         />
       </div>
@@ -136,7 +132,8 @@ import ModalHeader from "@/components/common/ModalHeader.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
 import DemoCampaignOffer from "@/components/campaign/DemoCampaignOffer.vue";
 import type { Campaign } from "@/types/campaign.types";
-import { DEFAULT_RULESET, RULESET_OPTIONS } from "@/types/ruleset.types";
+import type { RulesetKey } from "@/types/ruleset.types";
+import RulesetPicker from "@/components/rules/RulesetPicker.vue";
 
 const open = defineModel<boolean>({ required: true });
 const { showClaimOption = false } = defineProps<{
@@ -153,12 +150,22 @@ const { mutateAsync: claimOrphans } = useClaimOrphanedData();
 const availableCalendars = listCalendarAdapters();
 const defaultCalendar = availableCalendars[0];
 
-const form = ref({
+// The edition starts unchosen: it is asked first (#943), and a preselected one
+// is an edition nobody picked. The form cannot be submitted without it.
+const form = ref<{
+  name: string;
+  setting: string;
+  calendar_id: string;
+  current_year: number;
+  ruleset: RulesetKey | null;
+  allows_mixed_rulesets: boolean;
+}>({
   name: "",
   setting: "",
   calendar_id: defaultCalendar?.id ?? "faerun",
   current_year: defaultCalendar?.defaultYear ?? 1495,
-  ruleset: DEFAULT_RULESET,
+  ruleset: null,
+  allows_mixed_rulesets: false,
 });
 const customCalendarDef = ref<SettingCalendarDef | null>(null);
 const claimExisting = ref(true);
@@ -171,7 +178,8 @@ watch(open, (isOpen) => {
       setting: "",
       calendar_id: defaultCalendar?.id ?? "faerun",
       current_year: defaultCalendar?.defaultYear ?? 1495,
-      ruleset: DEFAULT_RULESET,
+      ruleset: null,
+      allows_mixed_rulesets: false,
     };
     customCalendarDef.value = null;
     claimExisting.value = true;
@@ -203,13 +211,16 @@ function onCalendarChange() {
 }
 
 async function submit() {
+  const ruleset = form.value.ruleset;
+  if (!ruleset) return;
   try {
     const created = await createCampaign({
       name: form.value.name,
       setting: form.value.setting || "Custom Setting",
       calendar_id: form.value.calendar_id,
       current_year: form.value.current_year,
-      ruleset: form.value.ruleset,
+      ruleset,
+      allows_mixed_rulesets: form.value.allows_mixed_rulesets,
       theme: DEFAULT_THEME_ID,
       health_visibility: "strategic",
       immersive_rolls: false,

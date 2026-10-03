@@ -16,8 +16,8 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, r
 insert into public.campaigns (id, user_id, name)
 values ('91700000-0000-4000-8000-000000000010', '91700000-0000-4000-8000-000000000001', 'Cutout campaign');
 
-insert into public.party_members (id, user_id, campaign_id, name)
-values ('91700000-0000-4000-8000-000000000020', '91700000-0000-4000-8000-000000000001', '91700000-0000-4000-8000-000000000010', 'Rosie');
+insert into public.party_members (id, user_id, campaign_id, name, ruleset)
+values ('91700000-0000-4000-8000-000000000020', '91700000-0000-4000-8000-000000000001', '91700000-0000-4000-8000-000000000010', 'Rosie', '2014');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id)
 values ('91700000-0000-4000-8000-000000000010', '91700000-0000-4000-8000-000000000002', 'player', 'Player', '91700000-0000-4000-8000-000000000020')

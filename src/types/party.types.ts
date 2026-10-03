@@ -1,3 +1,4 @@
+import type { RulesetKey } from "@/types/ruleset.types";
 import type { WildshapeState } from "@/types/encounter.types";
 
 export type SkillProfLevel = "none" | "proficient" | "expertise";
@@ -97,6 +98,8 @@ export interface PartyMember {
   owner_user_id: string | null;
   is_dm_managed: boolean;
   campaign_id: string | null;
+  /** This character's own edition; changes only through `convert_party_member_ruleset`. */
+  ruleset: RulesetKey;
   name: string;
   player_name: string | null;
   class: string | null;
@@ -190,11 +193,18 @@ export interface ConcentrationState {
   appliedEffectIds: string[];
 }
 
-export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "created_at" | "updated_at" | "level_choices"> & {
+/**
+ * `class` and `subclass` are a database-maintained mirror of the character's
+ * primary `character_classes` row, so a client write is silently overwritten and
+ * neither is accepted here. They stay on `PartyMember` for reading.
+ */
+export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "created_at" | "updated_at" | "level_choices" | "ruleset" | "class" | "subclass"> & {
   owner_user_id?: string | null;
   level_choices?: LevelChoices;
+  ruleset: RulesetKey;
 };
-export type PartyMemberUpdate = Partial<PartyMemberInsert>;
+/** `ruleset` is not client-writable: it changes only through `convert_party_member_ruleset`. */
+export type PartyMemberUpdate = Partial<Omit<PartyMemberInsert, "ruleset">>;
 
 // Conditions + helpers now live in `@/rules/conditions`. Re-exported here so
 // existing imports from `@/types/party.types` keep working.

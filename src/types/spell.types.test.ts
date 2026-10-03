@@ -11,8 +11,8 @@ describe("edition-aware spell-slot progression", () => {
       { class_name: "Ranger", levels: 3 },
       { class_name: "Wizard", levels: 1 },
     ];
-    expect(multiclassCasterLevel(classes)).toBe(2);
-    expect(getMulticlassSpellSlots(classes)).toEqual([
+    expect(multiclassCasterLevel(classes, "2014")).toBe(2);
+    expect(getMulticlassSpellSlots(classes, "2014")).toEqual([
       { level: 1, max: 3, used: 0, pool: "spellcasting", recovery: "long" },
     ]);
   });
@@ -30,10 +30,10 @@ describe("edition-aware spell-slot progression", () => {
   });
 
   it("does not grant a single-class Artificer level-2 slots before level 5", () => {
-    expect(getDefaultSpellSlots("Artificer", 3)).toEqual([
+    expect(getDefaultSpellSlots("Artificer", 3, "2014")).toEqual([
       { level: 1, max: 3, used: 0, pool: "spellcasting", recovery: "long" },
     ]);
-    expect(getDefaultSpellSlots("Artificer", 5)).toEqual([
+    expect(getDefaultSpellSlots("Artificer", 5, "2014")).toEqual([
       { level: 1, max: 4, used: 0, pool: "spellcasting", recovery: "long" },
       { level: 2, max: 2, used: 0, pool: "spellcasting", recovery: "long" },
     ]);

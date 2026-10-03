@@ -43,7 +43,7 @@
             :member="entry.data"
             :is-own="entry.data.id === auth.linkedPartyMemberId"
             :show-numeric-hp="showNumericHp(entry.data)"
-            :subtitle="memberSubtitle(entry.data)"
+            :subtitle="memberSubtitle(entry.data, speciesNameOf(entry.data))"
             @click="openMember(entry.data)"
           />
           <PlayerPartyCompanionCard
@@ -185,7 +185,7 @@ import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { getDisplayRace } from "@/lib/partyMemberDisplay";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import type { PlayerNpc } from "@/types/npc.types";
 import { NPC_RELATIONSHIP_LABELS } from "@/types/npc.types";
 import type { HealthVisibility } from "@/types/encounter.types";
@@ -203,7 +203,7 @@ const viewerMemberId = computed(() =>
 // DM not in preview mode sees true forms; players (even without a linked party member) see disguises.
 const viewerIsDm = computed(() => !ui.dmPreviewMode && auth.isDM);
 const { data: members, isLoading: partyLoading } = useParty();
-const speciesNameMap = useSpeciesNameMap();
+const speciesNameOf = useSpeciesNames(() => members.value ?? []);
 const { data: allSharedNpcs, isLoading: npcsLoading } = useSharedNpcs();
 const { isNew: isNpcNew } = useReadItems("npc");
 const { mutate: markNpcRead } = useMarkRead();
@@ -429,9 +429,9 @@ function showNumericHp(m: PartyMember) {
   return healthVis.value === "strategic" || m.id === viewerMemberId.value;
 }
 
-function memberSubtitle(m: PartyMember): string {
+function memberSubtitle(m: PartyMember, speciesName: string | null): string {
   return [
-    getDisplayRace(m, speciesNameMap.value.get(m.species_id ?? "") ?? null, viewerMemberId.value, viewerIsDm.value),
+    getDisplayRace(m, speciesName, viewerMemberId.value, viewerIsDm.value),
     m.class,
   ].filter(Boolean).join(" ");
 }

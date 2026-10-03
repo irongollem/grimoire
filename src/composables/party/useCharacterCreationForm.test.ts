@@ -3,7 +3,7 @@ import {
   partitionBundleEntries,
   buildBackgroundEquipmentRows,
   resolveCharacterPlacement,
-  resolveCampaignToJoin,
+  createDestination,
 } from "./useCharacterCreationForm";
 import type { VaultEntry } from "./useCharacterEquipmentSeeding";
 
@@ -147,26 +147,24 @@ describe("resolveCharacterPlacement", () => {
   });
 });
 
-describe("resolveCampaignToJoin", () => {
-  it("brings a seated player's new character to the table they are playing at", () => {
-    expect(resolveCampaignToJoin({
-      isDmCreate: false, activeCampaignId: "campaign-1", isMemberOfActiveCampaign: true,
-    })).toBe("campaign-1");
+describe("createDestination", () => {
+  const base = { landedCampaignId: "c1", isDmCreate: false, levelUp: false, benched: false, characterId: "m1" };
+
+  it("sends a character that stayed in the pool to the pool", () => {
+    expect(createDestination({ ...base, landedCampaignId: null })).toEqual({ name: "play-home" });
   });
 
-  it("leaves a character in the pool when its creator sits at no table", () => {
-    expect(resolveCampaignToJoin({
-      isDmCreate: false, activeCampaignId: null, isMemberOfActiveCampaign: false,
-    })).toBeNull();
-    // An active campaign the creator is not a member of is not theirs to join.
-    expect(resolveCampaignToJoin({
-      isDmCreate: false, activeCampaignId: "campaign-1", isMemberOfActiveCampaign: false,
-    })).toBeNull();
+  it("sends a DM's roster character to the party", () => {
+    expect(createDestination({ ...base, isDmCreate: true })).toEqual({ path: "/party" });
   });
 
-  it("never attaches a DM roster create: that row is already in its campaign, unowned", () => {
-    expect(resolveCampaignToJoin({
-      isDmCreate: true, activeCampaignId: "campaign-1", isMemberOfActiveCampaign: true,
-    })).toBeNull();
+  it("levels up a seated character on request", () => {
+    expect(createDestination({ ...base, levelUp: true })).toEqual({
+      path: "/play/character/levelup?targetLevel=2&memberId=m1",
+    });
+  });
+
+  it("sends a benched character to Champions, where its notice is, even when a level up was asked for", () => {
+    expect(createDestination({ ...base, levelUp: true, benched: true })).toEqual({ name: "play-champions" });
   });
 });

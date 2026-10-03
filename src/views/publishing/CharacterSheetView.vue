@@ -72,9 +72,10 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useParty } from "@/composables/party/useParty";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { useItems } from "@/composables/items/useItems";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useBackgroundNameMap } from "@/composables/rules/useBackgrounds";
 import { useAuthStore } from "@/stores/auth";
 
@@ -82,12 +83,6 @@ const route = useRoute();
 const auth = useAuthStore();
 
 const { data: partyMembers, isLoading: partyLoading } = useParty();
-const { data: inventoryItems, isLoading: inventoryLoading } = usePartyInventory();
-const { data: items } = useItems();
-const speciesMap = useSpeciesNameMap();
-const backgroundMap = useBackgroundNameMap();
-
-const isLoading = computed(() => partyLoading.value || inventoryLoading.value);
 
 /** Selected character — seeds from the route param (when reached via
  *  /character-sheet/:id) and otherwise defaults to the first party member.
@@ -107,13 +102,23 @@ const member = computed(() =>
   partyMembers.value?.find((m) => m.id === memberId.value) ?? null,
 );
 
+// The picker can switch character without a route change, so the scope follows
+// `member`. The background map below lists that character's edition (useRuleset.ts).
+provideCharacterRuleset(() => member.value);
+const { data: inventoryItems, isLoading: inventoryLoading } = usePartyInventory();
+const { data: items } = useItems();
+const { data: speciesById } = useSpeciesByIds(() => [member.value?.species_id]);
+const backgroundMap = useBackgroundNameMap();
+
+const isLoading = computed(() => partyLoading.value || inventoryLoading.value);
+
 const inventory = computed(() =>
   (inventoryItems.value ?? []).filter((i) => i.carried_by === memberId.value),
 );
 
 /** Resolved names — fall back to null if the lookup maps aren't loaded yet */
 const speciesName = computed(() =>
-  member.value?.species_id ? (speciesMap.value.get(member.value.species_id) ?? null) : null,
+  member.value?.species_id ? (speciesById.value.get(member.value.species_id)?.name ?? null) : null,
 );
 const backgroundName = computed(() =>
   member.value?.background_id ? (backgroundMap.value.get(member.value.background_id) ?? null) : null,

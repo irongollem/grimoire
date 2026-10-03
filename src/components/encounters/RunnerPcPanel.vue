@@ -9,7 +9,7 @@
       class="detail-portrait"
     />
     <p class="detail-meta">
-      {{ [speciesNameMap.get(member.species_id ?? '') ?? null, member.class].filter(Boolean).join(' · ') }}
+      {{ [speciesName, member.class].filter(Boolean).join(' · ') }}
       <span v-if="member.level"> · Level {{ member.level }}</span>
     </p>
     <div class="detail-divider" />
@@ -112,15 +112,13 @@ import { SKILLS } from "@/types/party.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Spell } from "@/types/spell.types";
-import { getCasterType } from "@/types/spell.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
-import { useAllCustomClasses, useAllSystemClasses, useClassByName } from "@/composables/rules/useCustomClasses";
+import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
-import { useRuleset } from "@/composables/rules/useRuleset";
-import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
+import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { wildshapeStateFor } from "@/rules/wildshape";
 import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 import { formPortrait } from "@/lib/wildshapePortrait";
@@ -146,20 +144,16 @@ const emit = defineEmits<{
 
 // ── Stores & composables ──────────────────────────────────────────────────────
 
+// A PC built under the other edition must not read the campaign's (useRuleset.ts).
+provideCharacterRuleset(() => member);
+
 const store = useEncounterRunStore();
-const speciesNameMap = useSpeciesNameMap();
+const { data: speciesById } = useSpeciesByIds(() => [member.species_id]);
+const speciesName = computed(() => (member.species_id ? (speciesById.value.get(member.species_id)?.name ?? null) : null));
 const { acFor } = useShieldAcBonus();
 const { ruleset } = useRuleset();
 
 const memberId = computed(() => member.id);
-
-const classRef = computed(() => member.class ?? "");
-const classData = useClassByName(classRef);
-const casterType = computed(() =>
-  getSpellPreparationPolicy(member.class ?? "", ruleset.value)?.casterType
-    ?? classData.value?.caster_type
-    ?? getCasterType(member.class ?? null),
-);
 
 const { data: playerSpells } = useCharacterSpellsWithDetails(memberId);
 const { data: characterClasses } = useCharacterClasses(memberId);
@@ -172,6 +166,11 @@ const spellcastingByClass = computed(() => computeSpellcastingByClass(
   { system: allSystemClasses.value ?? [], custom: allCustomClasses.value ?? [] },
   ruleset.value,
 ));
+
+// The primary class row decides how the sheet reads (rows are the only source of
+// class data; `member.class` is a mirror). A classless character casts nothing.
+const primaryCasting = computed(() => pickSpellcastingStats(spellcastingByClass.value, null));
+const casterType = computed(() => primaryCasting.value ? primaryCasting.value.casterType : "none");
 
 // ── Proficiency bonus ─────────────────────────────────────────────────────────
 
@@ -246,12 +245,8 @@ const preparedOrKnownSpells = computed(() => {
 });
 
 const spellSaveDc = computed(() => {
-  const cls = member.class ?? "";
-  let spellMod: number;
-  if (["Cleric", "Druid", "Ranger"].includes(cls))                                              spellMod = abilityMod(member.wis);
-  else if (["Wizard", "Fighter (Eldritch Knight)", "Rogue (Arcane Trickster)"].includes(cls))   spellMod = abilityMod(member.int);
-  else                                                                                           spellMod = abilityMod(member.cha);
-  return 8 + profBonus.value + spellMod;
+  const ability = primaryCasting.value?.castingAbility;
+  return 8 + profBonus.value + (ability ? abilityMod(member[ability]) : 0);
 });
 
 // Spell attack bonus = proficiency + spellcasting modifier = save DC − 8.

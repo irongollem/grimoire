@@ -20,8 +20,8 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name)
 values ('81900000-0000-4000-8000-000000000010', '81900000-0000-4000-8000-000000000001', 'dm', 'DM')
 on conflict (campaign_id, user_id) do update set role = excluded.role;
 
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
-values ('81900000-0000-4000-8000-000000000020', '81900000-0000-4000-8000-000000000001', '81900000-0000-4000-8000-000000000001', '81900000-0000-4000-8000-000000000010', 'Nessa');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
+values ('81900000-0000-4000-8000-000000000020', '81900000-0000-4000-8000-000000000001', '81900000-0000-4000-8000-000000000001', '81900000-0000-4000-8000-000000000010', 'Nessa', '2014');
 insert into public.npcs (id, user_id, campaign_id, name)
 values ('81900000-0000-4000-8000-000000000030', '81900000-0000-4000-8000-000000000001', '81900000-0000-4000-8000-000000000010', 'The fence');
 

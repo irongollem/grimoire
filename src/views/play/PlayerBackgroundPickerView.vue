@@ -1,5 +1,7 @@
 <template>
   <div class="space-y-6 pb-8">
+    <PickerCharacterNotFound v-if="notFound" />
+    <template v-else>
     <!-- Header row -->
     <div class="flex items-start justify-between gap-4">
       <div>
@@ -132,18 +134,20 @@
         </div>
       </div>
     </AppModal>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
+import PickerCharacterNotFound from "@/components/play/PickerCharacterNotFound.vue";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
-import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useBackgrounds } from "@/composables/rules/useBackgrounds";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
+import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/play/useRulesetReviews";
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
 import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
@@ -175,18 +179,18 @@ const BG_SOURCE_OPTIONS = [
 ] as const;
 
 const router = useRouter();
-const auth = useAuthStore();
 const ui = useUiStore();
 const queryClient = useQueryClient();
-const { data: party } = useParty();
 const { mutateAsync: update } = useUpdatePartyMember();
-const { is2024 } = useRuleset();
 
 // Resolve the party member: real player uses linkedPartyMemberId; DM preview uses dmPreviewPartyMemberId
-const resolvedMemberId = computed(() =>
-  ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
-);
-const me = computed(() => party.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
+// Member first, then the scope. Which character this acts on is decided once, for all
+// three pickers (usePickerCharacter): ?memberId= for a benched or pool character,
+// refused when it names nobody the viewer owns, else the active one.
+const { resolvedMemberId, member: me, notFound, afterChangeRoute } = usePickerCharacter();
+// Backgrounds are build rules: the list shown is the character's edition (useRuleset.ts).
+provideCharacterRuleset(() => me.value);
+const { is2024 } = useRuleset();
 const { data: rulesetReviews } = useRulesetReviews(resolvedMemberId);
 const { mutateAsync: acknowledgeRulesetReviews } = useAcknowledgeRulesetReviews();
 
@@ -198,8 +202,8 @@ const headerDescription = computed(() => {
   if (!me.value) return null;
   const bgName = currentBg.value?.name;
   return bgName
-    ? `${me.value.name} — currently: ${bgName}`
-    : `${me.value.name} — no background selected`;
+    ? `${me.value.name}, currently ${bgName}`
+    : `${me.value.name}: no background selected`;
 });
 
 // ── Confirmation panel state ──────────────────────────────────────────────────
@@ -334,7 +338,7 @@ async function confirm() {
       await queryClient.invalidateQueries({ queryKey: ["ruleset_reviews"] });
     }
 
-    router.push("/play");
+    router.push(afterChangeRoute(me.value));
   } finally {
     saving.value = false;
   }

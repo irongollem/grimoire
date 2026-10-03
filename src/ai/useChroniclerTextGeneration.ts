@@ -12,7 +12,7 @@ import type { Faction } from "@/types/faction.types";
 import type { Location } from "@/types/location.types";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 
 export type ChroniclerTone = "dramatic" | "humorous" | "mysterious" | "epic";
@@ -66,7 +66,7 @@ export function useChroniclerTextGeneration() {
   const isGenerating = ref(false);
   const error = ref<string | null>(null);
   const campaign = useCampaignStore();
-  const { ruleset } = useRuleset();
+  const { ruleset } = useTableRuleset();
 
   async function generate(params: {
     rawText: string;
