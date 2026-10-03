@@ -49,57 +49,20 @@
  *   npm run dev:auth -- --check   # report state, change nothing
  */
 
-import { execFileSync } from "node:child_process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { parseArgs } from "node:util";
 import { quote, sql } from "./lib/dev-db.ts";
 import { ensureFixtureContent } from "./lib/dev-fixture-content.ts";
 import { ensureFixtureQuest } from "./lib/dev-fixture-quest.ts";
+import { readLocalStack, type StackStatus } from "./lib/dev-stack.ts";
 
 /** Local-only, deliberately boring, never valid anywhere but this machine. */
 const DEV_PASSWORD = "grimoire-local-dev";
 const FIXTURE_EMAIL = "dm-fixture@example.invalid";
 const PLAYER_EMAIL = "player-fixture@example.invalid";
 
-const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
-interface StackStatus {
-  API_URL: string;
-  DB_URL: string;
-  SERVICE_ROLE_KEY: string;
-  ANON_KEY: string;
-}
 
-/**
- * Reads the running stack's own config rather than hardcoding keys, so this
- * file holds no credentials and cannot drift from the stack it targets.
- */
-function readStack(): StackStatus {
-  let raw: string;
-  try {
-    raw = execFileSync("supabase", ["status", "-o", "json"], { encoding: "utf8" });
-  } catch {
-    throw new Error("Local stack is not running. Start it with `npm run db:start`.");
-  }
-  const status = JSON.parse(raw) as StackStatus;
-
-  // The guard. Every remote action needs a real token precisely because this
-  // refuses to be one: if the stack under this command is not on loopback, it is
-  // not the disposable one, and nothing below should run against it.
-  for (const [label, url] of [
-    ["API_URL", status.API_URL],
-    ["DB_URL", status.DB_URL],
-  ] as const) {
-    const host = new URL(url).hostname;
-    if (!LOOPBACK.has(host)) {
-      throw new Error(
-        `Refusing to run: ${label} points at ${host}, not loopback. ` +
-          `This script only ever addresses the local disposable stack.`,
-      );
-    }
-  }
-  return status;
-}
 
 /**
  * Sets the dev password only when it is not already in force.
@@ -139,7 +102,7 @@ async function main() {
   });
   const checkOnly = values.check === true;
 
-  const stack = readStack();
+  const stack = readLocalStack();
   const admin = createClient(stack.API_URL, stack.SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });

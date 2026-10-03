@@ -68,20 +68,19 @@ import { parseArgs } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 import { quote, sql } from "./lib/dev-db.ts";
 import {
-  assertRemoteUrl,
   buildImportSql,
   collectSlugs,
   type DemoTable,
   type PulledTable,
   type ReferenceTable,
 } from "./lib/dev-demo-sql.ts";
+import { readLocalStack, remoteRows, assertRemoteUrl, type StackStatus } from "./lib/dev-stack.ts";
 
 /** The fixture `dev-auth.ts` owns. Restated because that file is a script, not a module. */
 const DEV_PASSWORD = "grimoire-local-dev";
 const FIXTURE_EMAIL = "dm-fixture@example.invalid";
 const PLAYER_EMAIL = "player-fixture@example.invalid";
 
-const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 /**
  * The shared-content tables keyed by text slug, and the column the slug is in.
  * User data refers to them with no foreign key (see
@@ -98,67 +97,8 @@ const SLUG_LIBRARIES = [
   { table: "library_tile_packs", column: "pack_id" },
 ];
 
-/** PostgREST's row cap on the hosted project. A page this size is always a full page or the last one. */
-const PAGE = 1000;
 /** Parent ids per request, so a tier-2 filter never outgrows a URL. */
 const ID_CHUNK = 60;
-
-interface StackStatus {
-  API_URL: string;
-  DB_URL: string;
-  ANON_KEY: string;
-}
-
-function readStack(): StackStatus {
-  let raw: string;
-  try {
-    raw = execFileSync("supabase", ["status", "-o", "json"], { encoding: "utf8" });
-  } catch {
-    throw new Error("Local stack is not running. Start it with `npm run db:start`.");
-  }
-  const status = JSON.parse(raw) as StackStatus;
-
-  // The same guard dev-auth.ts uses: everything this script writes goes to the
-  // stack named here, so it has to be the disposable one.
-  for (const [label, url] of [
-    ["API_URL", status.API_URL],
-    ["DB_URL", status.DB_URL],
-  ] as const) {
-    const host = new URL(url).hostname;
-    if (!LOOPBACK.has(host)) {
-      throw new Error(
-        `Refusing to run: ${label} points at ${host}, not loopback. ` +
-          `This script only ever writes to the local disposable stack.`,
-      );
-    }
-  }
-  return status;
-}
-
-/**
- * The one way this script reaches production: a GET against PostgREST. There is
- * deliberately no general-purpose client here, so there is no method to get
- * wrong.
- */
-async function remoteRows(
-  remote: URL,
-  key: string,
-  table: string,
-  filter: string,
-  orderBy: string,
-): Promise<Record<string, unknown>[]> {
-  const rows: Record<string, unknown>[] = [];
-  for (let offset = 0; ; offset += PAGE) {
-    const url = `${remote.origin}/rest/v1/${table}?${filter}&select=*&order=${orderBy}&limit=${PAGE}&offset=${offset}`;
-    const response = await fetch(url, { method: "GET", headers: { apikey: key, Authorization: `Bearer ${key}` } });
-    if (!response.ok) {
-      throw new Error(`Could not read ${table} from production (${response.status}): ${await response.text()}`);
-    }
-    const page = (await response.json()) as Record<string, unknown>[];
-    rows.push(...page);
-    if (page.length < PAGE) return rows;
-  }
-}
 
 /** The copied tables, from the local catalogue, with a column to page each one by. */
 function readCatalogue(dbUrl: string): (DemoTable & { orderBy: string })[] {
@@ -408,7 +348,7 @@ function localState(dbUrl: string) {
 async function main(): Promise<void> {
   const { values } = parseArgs({ options: { check: { type: "boolean", default: false } } });
 
-  const stack = readStack();
+  const stack = readLocalStack();
   const remote = assertRemoteUrl(process.env.VITE_SUPABASE_URL);
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set. Run through `npm run dev:demo`, which loads .env.local.");

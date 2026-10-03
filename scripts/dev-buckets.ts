@@ -31,49 +31,17 @@
  * Usage:  npm run dev:buckets     (after `npm run db:start`)
  */
 
-import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { LOCAL_BUCKETS } from "./dev-buckets.data";
 import { createClient } from "@supabase/supabase-js";
+import { readLocalStack } from "./lib/dev-stack.ts";
 
 
-const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
-interface StackStatus {
-  API_URL: string;
-  DB_URL: string;
-  SERVICE_ROLE_KEY: string;
-}
 
-function readStack(): StackStatus {
-  let raw: string;
-  try {
-    raw = execFileSync("supabase", ["status", "-o", "json"], { encoding: "utf8" });
-  } catch {
-    throw new Error("Local stack is not running. Start it with `npm run db:start`.");
-  }
-  const status = JSON.parse(raw) as StackStatus;
-
-  // The same guard dev-auth.ts uses, and for the same reason: if the stack under
-  // this command is not on loopback it is not the disposable one, and a script
-  // that creates buckets has no business addressing it.
-  for (const [label, url] of [
-    ["API_URL", status.API_URL],
-    ["DB_URL", status.DB_URL],
-  ] as const) {
-    const host = new URL(url).hostname;
-    if (!LOOPBACK.has(host)) {
-      throw new Error(
-        `Refusing to run: ${label} points at ${host}, not loopback. ` +
-          `This script only ever addresses the local disposable stack.`,
-      );
-    }
-  }
-  return status;
-}
 
 async function main(): Promise<void> {
-  const stack = readStack();
+  const stack = readLocalStack();
   const admin = createClient(stack.API_URL, stack.SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });

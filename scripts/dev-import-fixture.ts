@@ -28,12 +28,8 @@
  * by `source: FIXTURE_MONSTER_SOURCE_MARKER`), so a second run never leaves
  * two of either lying around.
  *
- * Loopback-only, same guard as `dev-auth.ts`'s `readStack` (duplicated here
- * rather than exported from it, so that file's sign-in flow stays the one
- * thing that owns it — see `dev-db.ts`'s own header for the same reasoning
- * about `sql`/`quote`).
+ * Loopback-only, through the shared guard in `lib/dev-stack.ts`.
  */
-import { execFileSync } from "node:child_process";
 import { parseArgs } from "node:util";
 import { quote, sql } from "./lib/dev-db.ts";
 import {
@@ -44,34 +40,11 @@ import {
   FIXTURE_SOURCE_TEXT,
   type OverlapNames,
 } from "./dev-import-fixture.data.ts";
+import { readLocalStack } from "./lib/dev-stack.ts";
 
 const FIXTURE_EMAIL = "dm-fixture@example.invalid";
-const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
-interface StackStatus {
-  DB_URL: string;
-}
 
-/** Same guard as `dev-auth.ts`'s `readStack` — see that file for why this
- *  refuses anything that isn't the disposable local stack. */
-function readStack(): StackStatus {
-  let raw: string;
-  try {
-    raw = execFileSync("supabase", ["status", "-o", "json"], { encoding: "utf8" });
-  } catch {
-    throw new Error("Local stack is not running. Start it with `npm run db:start`.");
-  }
-  const status = JSON.parse(raw) as StackStatus;
-
-  const host = new URL(status.DB_URL).hostname;
-  if (!LOOPBACK.has(host)) {
-    throw new Error(
-      `Refusing to run: DB_URL points at ${host}, not loopback. ` +
-        `This script only ever addresses the local disposable stack.`,
-    );
-  }
-  return status;
-}
 
 /** The DM fixture's id, or null if `npm run dev:auth` has never been run. */
 function findFixtureOwner(dbUrl: string): string | null {
@@ -329,7 +302,7 @@ async function main() {
     allowPositionals: false,
   });
 
-  const stack = readStack();
+  const stack = readLocalStack();
   const ownerId = findFixtureOwner(stack.DB_URL);
   if (!ownerId) {
     console.error(`No ${FIXTURE_EMAIL} account found. Run \`npm run dev:auth\` first.`);

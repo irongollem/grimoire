@@ -6,7 +6,6 @@
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const IDENT = /^[a-z_][a-z0-9_]*$/;
-const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
 /** One row of `private.demo_campaign_tables` where `copy` is true. */
 export interface DemoTable {
@@ -59,23 +58,6 @@ export function collectSlugs(rows: unknown[]): string[] {
   };
   for (const row of rows) visit(row, null);
   return [...found].sort();
-}
-
-/**
- * The remote side is production, and this script may only read it. A local
- * address here means the env file points somewhere unexpected, and reading the
- * "template" from the stack we are about to write to would be a quiet no-op at
- * best.
- */
-export function assertRemoteUrl(raw: string | undefined): URL {
-  if (!raw) {
-    throw new Error("VITE_SUPABASE_URL is not set. Run through `npm run dev:demo`, which loads .env.local.");
-  }
-  const url = new URL(raw);
-  if (url.protocol !== "https:" || LOOPBACK.has(url.hostname)) {
-    throw new Error(`Refusing to read the demo template from ${url.origin}: expected the hosted project over https.`);
-  }
-  return url;
 }
 
 function ident(name: string): string {
