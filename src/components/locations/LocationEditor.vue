@@ -292,7 +292,22 @@ async function onCancel() {
     router.push(typeof parent === "string" ? placeRoute(parent) : "/locations");
     return;
   }
-  await autosave?.saveNow();
+  if (autosave) {
+    await autosave.saveNow();
+    // Still dirty means nothing was written: autosave is paused on a blank name,
+    // or the write failed. Leaving silently would drop those edits.
+    if (autosave.dirty.value) {
+      const reason = autosave.status.value === "paused"
+        ? "A place needs a name before its edits can be saved."
+        : "The last save failed.";
+      const leave = await confirm(`${reason} Leave anyway and lose your unsaved edits?`, {
+        title: "Unsaved edits",
+        confirmLabel: "Leave",
+      });
+      if (!leave) return;
+      autosave.reset();
+    }
+  }
   const { edit: _edit, ...rest } = route.query;
   router.push({ query: rest });
 }
@@ -607,12 +622,16 @@ async function remove() {
   )
     return;
   deleting.value = true;
+  // Nothing pending may land on a row being deleted: the unmount flush that
+  // follows the navigation would otherwise send an update for it.
+  await autosave?.hold();
   try {
     const parentId = props.location.parent_id;
     await del(props.location.id);
     router.push(parentId ? placeRoute(parentId) : "/locations");
   } catch {
     // failure is surfaced to the user by the mutation's onError toast
+    autosave?.release();
   } finally {
     deleting.value = false;
   }

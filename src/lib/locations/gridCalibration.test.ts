@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cellAtImageFraction, cellRectInImageFractions, gridExtent } from "./gridCalibration";
+import { calibrationCellsWide, cellAtImageFraction, cellRectInImageFractions, gridExtent } from "./gridCalibration";
 import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration } from "@/types/location.types";
 
@@ -178,5 +178,13 @@ describe("degenerate inputs", () => {
     expect(cellRectInImageFractions(anyKey, cal, 800, 0)).toEqual(zero);
     expect(cellRectInImageFractions(anyKey, calibration({ cells_per_image_width: 0 }), 800, 800)).toEqual(zero);
     expect(cellRectInImageFractions(anyKey, calibration({ cells_per_image_width: -2 }), 800, 800)).toEqual(zero);
+  });
+});
+
+describe("calibrationCellsWide", () => {
+  it("shows a hand-measured count to one decimal and a whole count bare", () => {
+    expect(calibrationCellsWide({ cells_per_image_width: 41.63829174 })).toBe(41.6);
+    expect(calibrationCellsWide({ cells_per_image_width: 42 })).toBe(42);
+    expect(String(calibrationCellsWide({ cells_per_image_width: 42 }))).toBe("42");
   });
 });

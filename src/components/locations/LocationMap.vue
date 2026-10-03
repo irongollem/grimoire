@@ -89,7 +89,7 @@
               class="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-card/90 px-2.5 py-1 text-caption-sm text-muted-foreground shadow-sm backdrop-blur-sm"
             >
               <IconRuler class="h-3 w-3 shrink-0" aria-hidden="true" />
-              {{ cellsWide(stack.frameCalibration) }} cells · 5 ft · origin {{ originCell(stack.frameCalibration).x }},{{ originCell(stack.frameCalibration).y }}
+              {{ calibrationCellsWide(stack.frameCalibration) }} cells · 5 ft · origin {{ originCell(stack.frameCalibration).x }},{{ originCell(stack.frameCalibration).y }}
             </span>
           </div>
 
@@ -220,6 +220,7 @@ import MapPreparedLayer from "@/components/locations/MapPreparedLayer.vue";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
+import { calibrationCellsWide } from "@/lib/locations/gridCalibration";
 import { isSiteType } from "@/lib/locations/tiers";
 import type { MapStack } from "@/lib/locations/mapStack";
 import type { RoomFacts } from "@/lib/locations/planCanvas";
@@ -474,14 +475,6 @@ watch(
  *  reaching into it, purely for the calibration chip's read-out. */
 function originCell(cal: GridCalibration): { x: number; y: number } {
   return { x: cal.origin_cell_x ?? 0, y: cal.origin_cell_y ?? 0 };
-}
-
-/** A hand-calibrated picture measures a fractional cell count (two clicks on
- *  an image never land on a whole number), and the chip printed all fourteen
- *  digits of it. One decimal, as `GridCalibrationDialog` shows the same value;
- *  a Drawing's own whole count still reads "42", not "42.0". */
-function cellsWide(cal: GridCalibration): number {
-  return Number(cal.cells_per_image_width.toFixed(1));
 }
 
 // A caller descending into a REGION rather than a pin (#868, S6) needs the

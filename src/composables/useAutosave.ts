@@ -26,9 +26,22 @@ export interface UseAutosaveHandle<T extends object> {
   dirty: Ref<boolean>;
   saving: Ref<boolean>;
   saveError: Ref<string>;
+  /**
+   * Write the draft now. A save already in flight is waited for first and the
+   * draft saved again if it moved on meanwhile, so when this resolves every
+   * edit made before the call has been sent (unless autosave is paused or the
+   * write failed; `dirty` says which).
+   */
   saveNow: () => Promise<void>;
   /** Re-hydrate the draft (from `next`, else `initial()`) without triggering a save. */
   reset: (next?: T) => void;
+  /**
+   * Stop writing, for an action about to remove the record (a delete): resolves
+   * once a save already in flight has landed, and nothing is written after,
+   * the unmount flush included. `release()` undoes it when that action fails.
+   */
+  hold: () => Promise<void>;
+  release: () => void;
 }
 
 // Plain objects and arrays only: a snapshot must not share nested arrays with the
@@ -62,6 +75,8 @@ export function useAutosave<T extends object>(options: UseAutosaveOptions<T>): U
   // re-hydrated (a form switching to another record mid-save) belongs to the
   // draft that was replaced, so its result must not become the new baseline.
   let generation = 0;
+  let inFlight: Promise<void> | null = null;
+  let held = false;
   const dirty = ref(false);
   const saving = ref(false);
   const saveError = ref("");
@@ -87,9 +102,22 @@ export function useAutosave<T extends object>(options: UseAutosaveOptions<T>): U
     if (dirty.value) void saveLater();
   }, { deep: true });
 
-  async function saveNow() {
-    if (saving.value || !dirty.value) return;
-    if (paused.value) return;
+  async function saveNow(): Promise<void> {
+    // Returning early while a save was in flight let a caller that flushes before
+    // switching records (`await saveNow(); reset()`) throw away every edit made
+    // during that save.
+    while (inFlight) await inFlight;
+    if (held || !dirty.value || paused.value) return;
+    const run = persist();
+    inFlight = run;
+    try {
+      await run;
+    } finally {
+      if (inFlight === run) inFlight = null;
+    }
+  }
+
+  async function persist(): Promise<void> {
     saving.value = true;
     saveError.value = "";
     const snapshot = cloneDeep(draft);
@@ -105,11 +133,14 @@ export function useAutosave<T extends object>(options: UseAutosaveOptions<T>): U
       baseline = cloneDeep(snapshot);
       if (equal(draft, snapshot)) dirty.value = false;
     } catch (error) {
+      // Same rule as success: a failure belongs to the draft that was replaced,
+      // not to the record now on screen.
+      if (startedIn !== generation) return;
       saveError.value = error instanceof Error ? error.message : errorMessage;
     } finally {
       saving.value = false;
       // Not on error: re-queueing a failing save would loop. The next edit retries.
-      if (dirty.value && !saveError.value) void saveLater();
+      if (dirty.value && !saveError.value && !held) void saveLater();
     }
   }
 
@@ -121,6 +152,16 @@ export function useAutosave<T extends object>(options: UseAutosaveOptions<T>): U
     dirty.value = false;
     saveError.value = "";
     hydrating = false;
+  }
+
+  async function hold() {
+    held = true;
+    while (inFlight) await inFlight;
+  }
+
+  function release() {
+    held = false;
+    if (dirty.value) void saveLater();
   }
 
   // A longer debounce needs a backstop the unmount hook cannot give: closing the tab
@@ -136,5 +177,5 @@ export function useAutosave<T extends object>(options: UseAutosaveOptions<T>): U
     void saveNow();
   });
 
-  return { status, dirty, saving, saveError, saveNow, reset };
+  return { status, dirty, saving, saveError, saveNow, reset, hold, release };
 }

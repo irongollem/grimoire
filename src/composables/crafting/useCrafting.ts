@@ -695,10 +695,24 @@ export function useImportStarterRecipes() {
       // producing.
       const edition = ruleset.value;
       const allOutputNames = [...new Set(STARTER_RECIPES.flatMap((r) => r.outputs.map((o) => o.name)))];
-      const srdByName = new Map(allOutputNames.flatMap((name) => {
+      const srdCandidates = allOutputNames.flatMap((name) => {
         const id = WORKSHOP_LIBRARY_EQUIVALENTS[name]?.[edition];
         return id ? [[name, id] as const] : [];
-      }));
+      });
+      // The table is static; the rows are not. A stack where the SRD was never
+      // imported has none of them, and an output pointing at an absent row fails
+      // the foreign key and takes the whole import down with it. Only an id that
+      // is really there takes the name out of the ordinary lookup below.
+      const presentSrdIds = new Set<string>();
+      if (srdCandidates.length > 0) {
+        const { data: srdRows, error: srdError } = await supabase
+          .from("library_items")
+          .select("id")
+          .in("id", srdCandidates.map(([, id]) => id));
+        if (srdError) throw srdError;
+        for (const row of srdRows ?? []) presentSrdIds.add(row.id);
+      }
+      const srdByName = new Map(srdCandidates.filter(([, id]) => presentSrdIds.has(id)));
       const outputNames = allOutputNames.filter((name) => !srdByName.has(name));
       const [{ data: existingItems, error: vaultError }, { data: libraryItems, error: libraryError }] = await Promise.all([
         supabase

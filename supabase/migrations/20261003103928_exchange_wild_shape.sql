@@ -69,9 +69,15 @@ begin
     )
   ), false) then raise exception 'Access denied'; end if;
 
-  if not exists (
-    select 1 from public.character_classes cc
-    where cc.party_member_id = v_member.id and cc.class_name ilike '%druid%'
+  -- The same test as the client's `druidProfile`: a druid class row, or the
+  -- row's own class for a character made before class rows existed. Checking
+  -- the class rows alone offered such a druid trades this always refused.
+  if not (
+    exists (
+      select 1 from public.character_classes cc
+      where cc.party_member_id = v_member.id and cc.class_name ilike '%druid%'
+    )
+    or coalesce(v_member.class ilike '%druid%', false)
   ) then raise exception 'Wild Shape requires a Druid'; end if;
 
   v_uses := coalesce(v_member.wildshapes_used, 0);
@@ -81,9 +87,11 @@ begin
 
   if p_action = 'slot_for_healing' then
     -- Only a form with its own hit point pool (2014) can be healed this way.
+    -- Coalesced: an absent key makes jsonb_typeof NULL, the IF would not fire,
+    -- and the slot would be spent before jsonb_set nulled the whole form.
     if v_form is null
-       or jsonb_typeof(v_form -> 'beast_hp') <> 'number'
-       or jsonb_typeof(v_form -> 'beast_max_hp') <> 'number' then
+       or coalesce(jsonb_typeof(v_form -> 'beast_hp'), '') <> 'number'
+       or coalesce(jsonb_typeof(v_form -> 'beast_max_hp'), '') <> 'number' then
       raise exception 'Not in a beast form with its own hit points';
     end if;
     if p_healing is null or p_healing < p_slot_level or p_healing > 8 * p_slot_level then

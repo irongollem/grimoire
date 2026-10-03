@@ -185,6 +185,68 @@ describe("useAutosave", () => {
     expect(handle.dirty.value).toBe(false);
   });
 
+  it("saveNow during a save waits for it, then sends what was typed meanwhile", async () => {
+    const sent: string[] = [];
+    let finish!: () => void;
+    const { draft, handle } = setup({
+      save: async (snapshot) => {
+        sent.push(snapshot.title);
+        if (sent.length === 1) await new Promise<void>((resolve) => { finish = resolve; });
+      },
+    });
+    draft.title = "First";
+    await tick(2100);
+    expect(handle.saving.value).toBe(true);
+    draft.tags = ["late"];
+    const flushed = handle.saveNow();
+    finish();
+    await flushed;
+    expect(sent).toEqual(["First", "First"]);
+    expect(handle.dirty.value).toBe(false);
+  });
+
+  it("a save that fails after a reset leaves no error on the re-hydrated draft", async () => {
+    let fail!: (error: Error) => void;
+    const { draft, handle } = setup({ save: () => new Promise<void>((_, reject) => { fail = reject; }) });
+    draft.title = "Old record edit";
+    await tick(2100);
+    handle.reset({ title: "Other record", tags: [] });
+    fail(new Error("version conflict"));
+    await flushPromises();
+    expect(handle.saveError.value).toBe("");
+    expect(handle.status.value).toBe("saved");
+  });
+
+  it("hold stops every write, the unmount flush included, until release", async () => {
+    const { draft, save, wrapper, handle } = setup();
+    draft.title = "Doomed edit";
+    await handle.hold();
+    await tick(30_000);
+    expect(save).not.toHaveBeenCalled();
+    handle.release();
+    await tick(2100);
+    expect(save).toHaveBeenCalledTimes(1);
+    draft.title = "Another doomed edit";
+    await handle.hold();
+    wrapper.unmount();
+    await tick(30_000);
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it("hold waits for a save already in flight to land", async () => {
+    let finish!: () => void;
+    const { draft, handle } = setup({ save: () => new Promise<void>((resolve) => { finish = resolve; }) });
+    draft.title = "In flight";
+    await tick(2100);
+    let held = false;
+    void handle.hold().then(() => { held = true; });
+    await flushPromises();
+    expect(held).toBe(false);
+    finish();
+    await flushPromises();
+    expect(held).toBe(true);
+  });
+
   it("reset with no argument returns to initial()", async () => {
     const { draft, save, handle } = setup();
     draft.title = "typing";

@@ -58,7 +58,7 @@
               that is what the row says.
             -->
             <template v-if="stack.picture.calibration">
-              Calibrated {{ Math.round(stack.picture.calibration.cells_per_image_width) }} cells wide
+              Calibrated {{ calibrationCellsWide(stack.picture.calibration) }} cells wide
             </template>
             <!-- Calibration matters for different things: on a site it is what
                  tracing rooms needs, elsewhere what a battle map's grid needs. -->
@@ -290,6 +290,7 @@ import {
 } from "@/composables/locations/useLocations";
 import { usePlayerVisibleSiteState } from "@/composables/locations/usePlayerVisibleSiteState";
 import { IconGenerate, IconGrid, IconImage, IconLayers, IconPencilLine, IconReveal } from "@/lib/icons";
+import { calibrationCellsWide } from "@/lib/locations/gridCalibration";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import type { PublishStaleness } from "@/lib/locations/siteReadiness";
 import type { DungeonMap } from "@/types/dungeonMap.types";

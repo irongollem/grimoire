@@ -198,11 +198,15 @@ function onPinImageError(url: string | null) {
 }
 
 // ── Pin visibility ─────────────────────────────────────────────────────────────
-const visiblePins = computed(() =>
-  showHiddenPins === false
+const visiblePins = computed(() => {
+  const shown = showHiddenPins === false
     ? pins.value.filter((p) => p.visible_to_players)
-    : pins.value,
-);
+    : pins.value;
+  const drag = dragPosition.value;
+  return drag
+    ? shown.map((p) => (p.child_location_id === drag.id ? { ...p, x: drag.x, y: drag.y } : p))
+    : shown;
+});
 
 // ── Hover state with grace period (fixes gap between dot and popup) ────────────
 const hoveredPinId = ref<string | null>(null);
@@ -383,6 +387,11 @@ function onPlacePin(e: MouseEvent) {
 }
 
 // ── Drag to reposition (edit mode) ────────────────────────────────────────────
+// The pin follows the pointer through this preview and the model changes once,
+// on drop. Writing `pins` on every pointermove made a caller that persists the
+// model (Build's `PlaceMapPinsEditor`, which saves on each change) send dozens
+// of unordered writes per drag, whose refetches yanked the pin back mid-drag.
+const dragPosition = ref<{ id: string; x: number; y: number } | null>(null);
 let draggingId: string | null = null;
 let hasMoved = false;
 let dragStartX = 0;
@@ -407,13 +416,18 @@ function onDragMove(e: PointerEvent) {
     hasMoved = true;
   }
   if (!hasMoved) return;
-  pins.value = pins.value.map((p) =>
-    p.child_location_id === draggingId ? { ...p, x: frac.x, y: frac.y } : p,
-  );
+  dragPosition.value = { id: draggingId, x: frac.x, y: frac.y };
 }
 
 function onDragEnd() {
   window.removeEventListener("pointermove", onDragMove);
+  const dropped = dragPosition.value;
+  dragPosition.value = null;
+  if (dropped) {
+    pins.value = pins.value.map((p) =>
+      p.child_location_id === dropped.id ? { ...p, x: dropped.x, y: dropped.y } : p,
+    );
+  }
   if (!hasMoved && draggingId) {
     // On mouse, the pill was already visible via hover (hoveredPinId is set
     // on pointerenter for pointerType === "mouse" only). A click with the

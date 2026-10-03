@@ -31,6 +31,18 @@
 import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration } from "@/types/location.types";
 
+/**
+ * How many cells wide a calibration says the image is, for display. A
+ * hand-calibrated picture measures a fractional count (two clicks on an image
+ * never land on a whole number), so one decimal, as `GridCalibrationDialog`
+ * shows it; a Drawing's whole count still reads "42", not "42.0". The one
+ * formatter for the Layers panel and the map's calibration chip, which once
+ * printed 42 and 41.6 for the same calibration.
+ */
+export function calibrationCellsWide(cal: Pick<GridCalibration, "cells_per_image_width">): number {
+  return Number(cal.cells_per_image_width.toFixed(1));
+}
+
 export interface ImageFractionRect {
   x: number;
   y: number;
