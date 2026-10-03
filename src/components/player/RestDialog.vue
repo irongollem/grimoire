@@ -85,6 +85,13 @@
               = {{ totalHealing }} hp healed
             </span>
           </div>
+
+          <!-- Inside the short-rest branch: a sibling here would take the
+               long-rest v-else below as its own. -->
+          <p v-if="(member.wildshapes_used ?? 0) > 0" class="flex items-center gap-1.5 text-caption text-muted-foreground">
+            <span class="text-elven-green">✓</span>
+            {{ wildShapeRules.shortRestRegain === 1 ? "One Wild Shape use restored" : "Wild Shape uses restored" }}
+          </p>
         </template>
 
         <!-- Long rest: show dice recovery -->
@@ -157,12 +164,19 @@ import { abilityModifier } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { getExhaustionLevel, setExhaustionLevel } from "@/rules/conditions";
 import type { DieSize } from "@/lib/dice/dice";
+import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 
 const props = defineProps<{
   member: PartyMember;
   mode: "short" | "long" | null;
   effectiveSpellSlots: { level: number; max: number; used: number }[];
 }>();
+
+// The edition decides how much a short rest gives back.
+const { rules: wildShapeRules } = useWildshapeDruid(
+  computed(() => props.member.id),
+  () => props.member,
+);
 
 const emit = defineEmits<{
   close: [];
@@ -274,8 +288,9 @@ function confirm() {
     // Spell slots and class resources are restored server-side by
     // useTakeSpellcastingRest (RestButtons.onRestConfirm) — not emitted here.
 
-    // Wild Shape recharges on short rest (5e RAW)
-    update.wildshapes_used = 0;
+    // Wild Shape on a short rest: every use back under 2014, one under 2024.
+    const used = props.member.wildshapes_used ?? 0;
+    update.wildshapes_used = wildShapeRules.value.shortRestRegain === "all" ? 0 : Math.max(0, used - wildShapeRules.value.shortRestRegain);
   } else {
     // Long rest — restore everything
     update.current_hp = props.member.max_hp;

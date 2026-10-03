@@ -7,7 +7,7 @@ import type { Trap } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
-import { applyDamage, applyHealing, betterTempHp, type HpPools } from "@/rules/hitPoints";
+import { applyDamage, applyHealing, betterTempHp, formHpPools } from "@/rules/hitPoints";
 import {
   rollInitiativeValue,
   rollAllInitiativeValues,
@@ -227,13 +227,22 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     activeIndex.value = step.sortedIndex;
   }
 
-  function enterWildshape(instanceId: string, form: WildshapeState, wildshapesUsed: number) {
+  /**
+   * `tempHp` is what the edition grants on assuming a form (2024: druid level,
+   * Moon 3x); 0 means nothing, and temp HP never stacks, so the better value wins.
+   */
+  function enterWildshape(instanceId: string, form: WildshapeState, wildshapesUsed: number, tempHp = 0) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
     // Player's real hp/max_hp/ac are NEVER modified — beast form is a self-contained overlay.
     // Reverting is simply clearing this field; nothing needs restoring.
     c.wildshape = { ...form };
-    persistPlayer(c, { wildshape_state: c.wildshape, wildshapes_used: wildshapesUsed });
+    const patch: Parameters<typeof persistPlayer>[1] = { wildshape_state: c.wildshape, wildshapes_used: wildshapesUsed };
+    if (tempHp > 0) {
+      c.temp_hp = betterTempHp(c.temp_hp ?? 0, tempHp) || undefined;
+      patch.temp_hp = c.temp_hp ?? 0;
+    }
+    persistPlayer(c, patch);
   }
 
   function revertWildshape(instanceId: string) {
@@ -247,12 +256,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   function adjustHp(instanceId: string, delta: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
-    const pools: HpPools = {
-      current_hp: c.hp,
-      max_hp: c.max_hp,
-      temp_hp: c.temp_hp ?? 0,
-      beast: c.wildshape ? { hp: c.wildshape.beast_hp, max_hp: c.wildshape.beast_max_hp } : null,
-    };
+    const pools = formHpPools({ current_hp: c.hp, max_hp: c.max_hp, temp_hp: c.temp_hp ?? 0 }, c.wildshape);
     if (delta < 0) {
       // Temp HP absorbs first, then the beast form, then real HP (5e RAW).
       const out = applyDamage(pools, -delta);
@@ -303,7 +307,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   function ingestHp(instanceId: string, value: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
-    if (c.wildshape) {
+    if (c.wildshape && c.wildshape.beast_max_hp !== null) {
       c.wildshape.beast_hp = Math.min(c.wildshape.beast_max_hp, Math.max(0, value));
       if (c.wildshape.beast_hp === 0) c.wildshape = undefined;
     } else {
@@ -315,11 +319,13 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   function setHp(instanceId: string, value: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
-    if (c.wildshape) {
+    if (c.wildshape && c.wildshape.beast_max_hp !== null) {
       c.wildshape.beast_hp = Math.min(c.wildshape.beast_max_hp, Math.max(0, value));
       if (c.wildshape.beast_hp === 0) revertWildshape(instanceId);
     } else {
       c.hp = Math.min(c.max_hp, Math.max(0, value));
+      // A 2024 form ends when the character themself reaches 0.
+      if (c.wildshape && c.hp === 0) revertWildshape(instanceId);
     }
     persistPlayer(c, { current_hp: c.hp, wildshape_state: c.wildshape ?? null });
     checkEvents();
@@ -333,7 +339,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
     const max = Math.max(1, Math.floor(value));
-    if (c.wildshape) {
+    if (c.wildshape && c.wildshape.beast_hp !== null && c.wildshape.beast_max_hp !== null) {
       const wasFull = c.wildshape.beast_hp >= c.wildshape.beast_max_hp;
       c.wildshape.beast_max_hp = max;
       c.wildshape.beast_hp = wasFull ? max : Math.min(c.wildshape.beast_hp, max);

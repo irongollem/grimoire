@@ -4,6 +4,7 @@ import {
   applyHealing,
   betterTempHp,
   displayTempHp,
+  formHpPools,
   type HpPools,
   type TempHpCombatant,
   type TempHpPartyMember,
@@ -134,5 +135,53 @@ describe("displayTempHp", () => {
   it("falls back to the combatant's own temp_hp when the player isn't in the party map", () => {
     const c: TempHpCombatant = { type: "player", party_member_id: "missing", temp_hp: 4 };
     expect(displayTempHp(c, new Map())).toBe(4);
+  });
+});
+
+describe("formHpPools", () => {
+  const own = { current_hp: 30, max_hp: 40, temp_hp: 5 };
+
+  it("has no beast pool and no own-HP form when not shaped", () => {
+    expect(formHpPools(own, null)).toEqual({ ...own, beast: null, ownHpForm: false });
+  });
+
+  it("builds a beast pool for a 2014 form", () => {
+    const p = formHpPools(own, { beast_hp: 9, beast_max_hp: 11 });
+    expect(p.beast).toEqual({ hp: 9, max_hp: 11 });
+    expect(p.ownHpForm).toBe(false);
+  });
+
+  it("marks a 2024 form (null beast pool) as an own-HP form", () => {
+    const p = formHpPools(own, { beast_hp: null, beast_max_hp: null });
+    expect(p.beast).toBeNull();
+    expect(p.ownHpForm).toBe(true);
+  });
+});
+
+describe("a 2024 own-HP form", () => {
+  const form = { beast_hp: null, beast_max_hp: null };
+
+  it("keeps the form while the character stands, temp HP first", () => {
+    const r = applyDamage(formHpPools({ current_hp: 20, max_hp: 40, temp_hp: 10 }, form), 15);
+    expect(r.temp_hp).toBe(0);
+    expect(r.current_hp).toBe(15);
+    expect(r.reverted).toBe(false);
+  });
+
+  it("ends when the character drops to 0 HP", () => {
+    const r = applyDamage(formHpPools({ current_hp: 5, max_hp: 40, temp_hp: 0 }, form), 9);
+    expect(r.current_hp).toBe(0);
+    expect(r.reverted).toBe(true);
+  });
+
+  it("heals the character's own HP", () => {
+    const r = applyHealing(formHpPools({ current_hp: 5, max_hp: 40, temp_hp: 0 }, form), 10);
+    expect(r.current_hp).toBe(15);
+    expect(r.beast_hp).toBeNull();
+  });
+
+  it("a character with no form never reports reverted at 0", () => {
+    const r = applyDamage(formHpPools({ current_hp: 5, max_hp: 40, temp_hp: 0 }, null), 9);
+    expect(r.reverted).toBe(false);
   });
 });

@@ -211,7 +211,7 @@ import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
 import { useConcentration } from "@/composables/party/useConcentration";
-import { applyDamage as damagePools, applyHealing as healPools, betterTempHp } from "@/rules/hitPoints";
+import { applyDamage as damagePools, applyHealing as healPools, betterTempHp, formHpPools } from "@/rules/hitPoints";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import {
   CONDITIONS,
@@ -370,14 +370,7 @@ const hitDiceRemaining = computed(() =>
 // An equipped shield adds its bonus on top of the stored (shieldless) AC,
 // but never to a beast form — gear merges into the form while wildshaped.
 const { acFor } = useShieldAcBonus();
-const hpPools = computed(() => ({
-  current_hp: props.member.current_hp,
-  max_hp: props.member.max_hp,
-  temp_hp: props.member.temp_hp,
-  beast: props.wildshape
-    ? { hp: props.wildshape.beast_hp, max_hp: props.wildshape.beast_max_hp }
-    : null,
-}));
+const hpPools = computed(() => formHpPools(props.member, props.wildshape));
 
 const displayHp    = computed(() => props.wildshape?.beast_hp    ?? props.member.current_hp);
 const displayMaxHp = computed(() => props.wildshape?.beast_max_hp ?? props.member.max_hp);
@@ -461,7 +454,9 @@ async function applyDamage() {
   const update: PartyMemberUpdate = { current_hp: out.current_hp };
   if (out.temp_hp !== props.member.temp_hp) update.temp_hp = out.temp_hp;
   if (props.wildshape) {
-    update.wildshape_state = out.beast_hp === null ? null : { ...props.wildshape, beast_hp: out.beast_hp };
+    // A 2024 form has no beast pool: it stays until the character drops to 0.
+    if (out.reverted) update.wildshape_state = null;
+    else if (out.beast_hp !== null) update.wildshape_state = { ...props.wildshape, beast_hp: out.beast_hp };
   }
   await updateMember({ id: props.member.id, update });
 

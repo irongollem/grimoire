@@ -138,8 +138,10 @@ export interface WildshapeState {
   monster_id: string;
   beast_name: string;
   beast_image_url: string | null;
-  beast_hp: number;      // current HP in beast form
-  beast_max_hp: number;  // max HP of the beast
+  /** Current HP in beast form. null = a 2024 form: the character keeps their own HP (plus temp HP). */
+  beast_hp: number | null;
+  /** Max HP of the beast. null in a 2024 form, same as `beast_hp`. */
+  beast_max_hp: number | null;
   beast_ac: string;      // AC of the beast
 }
 

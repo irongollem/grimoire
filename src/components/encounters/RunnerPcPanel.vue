@@ -122,7 +122,8 @@ import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
-import { druidProfile, wildshapeStateFor } from "@/rules/wildshape";
+import { wildshapeStateFor } from "@/rules/wildshape";
+import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { useLibraryMonsterArt, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
 import { pickSpellcastingStats } from "@/types/multiclass.types";
@@ -259,15 +260,17 @@ const spellAttackBonus = computed(() => spellSaveDc.value - 8);
 
 // ── Wildshape handler (store mutation lives here) ─────────────────────────────
 
-const isDruid = computed(() => druidProfile(member, characterClasses.value ?? []).isDruid);
+const { isDruid, rules: wildShapeRules } = useWildshapeDruid(memberId, () => member);
 
 const { data: libraryArt } = useLibraryMonsterArt();
 
 function handleWildshape(monster: Monster) {
   const beast = monster.is_shared ? withLibraryArt(monster, libraryArt.value?.[monster.id]) : monster;
-  const form = wildshapeStateFor(beast);
-  if (!form) return;
-  store.enterWildshape(combatant.instance_id, form, (member.wildshapes_used ?? 0) + 1);
+  const entry = wildshapeStateFor(beast, wildShapeRules.value);
+  if (!entry) return;
+  // The runner is DM-driven, so a spent druid can still be shaped (an override),
+  // but the cost and the HP model are the edition's.
+  store.enterWildshape(combatant.instance_id, entry.form, (member.wildshapes_used ?? 0) + entry.usesCost, entry.tempHp);
 }
 </script>
 

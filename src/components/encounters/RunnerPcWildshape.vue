@@ -24,7 +24,7 @@
       <p class="detail-meta mt-1">{{ wildshapeMonster.size }} {{ wildshapeMonster.monster_type }}</p>
       <div class="detail-stats mt-2">
         <div class="detail-stat"><span>AC</span><strong>{{ combatant.wildshape!.beast_ac }}</strong></div>
-        <div class="detail-stat"><span>HP</span><strong>{{ combatant.wildshape!.beast_hp }}/{{ combatant.wildshape!.beast_max_hp }}</strong></div>
+        <div class="detail-stat"><span>HP</span><strong>{{ formHpLabel }}</strong></div>
         <div class="detail-stat"><span>Speed</span><strong>{{ wildshapeMonster.stat_block?.speed }}</strong></div>
       </div>
       <div class="detail-divider" />
@@ -79,6 +79,7 @@
         >
           <span class="pick-name">{{ m.name }}</span>
           <span class="pick-cr">CR {{ m.stat_block?.challenge_rating }}</span>
+          <span v-if="costOf(m.id) > 1" class="pick-cr">{{ costOf(m.id) }} uses</span>
           <span class="pick-ac">AC {{ m.stat_block?.armor_class }}</span>
           <span class="pick-speed">{{ m.stat_block?.speed }}</span>
         </button>
@@ -128,8 +129,7 @@ import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import { useDiscoveredKeys } from "@/composables/encounters/useDiscoveredMonsters";
 import { useDmPinnedForms, useTogglePinnedForm } from "@/composables/play/usePinnedForms";
-import { parseCr } from "@/lib/utils";
-import { isEligibleWildshapeForm } from "@/rules/wildshape";
+import { availableWildShapeForms, knownFormIds, wildShapeFormCost } from "@/rules/wildshape";
 import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 
@@ -158,9 +158,8 @@ const { mutate: togglePinnedForm } = useTogglePinnedForm();
 
 const {
   isDruid,
-  druidLevel,
   isCircleOfMoon,
-  maxCr: wildshapeMaxCr,
+  rules,
   maxCrDisplay: wildshapeCrDisplay,
 } = useWildshapeDruid(memberId, () => member);
 
@@ -170,25 +169,26 @@ const pinnedKeys = computed<Set<string>>(() =>
   new Set((pinnedForms.value ?? []).map((p) => p.monster_id ?? p.library_monster_id ?? "").filter(Boolean)),
 );
 
-/** Beasts that are legal wild shape forms for this druid, sorted by CR. */
-const eligibleBeasts = computed<Monster[]>(() => {
+/** Forms the druid can take now: discovered (2014) or known (2024), plus DM pins. Sorted by CR. */
+const availableForms = computed(() => {
   if (!isDruid.value) return [];
-  const level = druidLevel.value;
-  const maxCr = wildshapeMaxCr.value;
-  return monsters
-    .filter((m) => isEligibleWildshapeForm(m, level, maxCr))
-    .sort((a, b) => parseCr(a.stat_block?.challenge_rating) - parseCr(b.stat_block?.challenge_rating));
+  return availableWildShapeForms({
+    monsters,
+    rules: rules.value,
+    discoveredIds: discoveredKeys.value,
+    pinnedIds: pinnedKeys.value,
+    knownIds: new Set(knownFormIds(member.class_choices)),
+  });
 });
+const wildshapeForms = computed<Monster[]>(() => availableForms.value.map((f) => f.monster));
+const costOf = (id: string) => availableForms.value.find((f) => f.monster.id === id)?.usesCost ?? 1;
 
-/** Available forms: eligible beasts the party has discovered or the DM has pinned. */
-const wildshapeForms = computed<Monster[]>(() =>
-  eligibleBeasts.value.filter((m) => discoveredKeys.value.has(m.id) || pinnedKeys.value.has(m.id)),
-);
-
-/** Eligible beasts not yet available — the DM can pin these to unlock them here. */
-const pinnableForms = computed<Monster[]>(() =>
-  eligibleBeasts.value.filter((m) => !discoveredKeys.value.has(m.id) && !pinnedKeys.value.has(m.id)),
-);
+/** Legal forms not yet available — the DM can pin these to unlock them here. */
+const pinnableForms = computed<Monster[]>(() => {
+  if (!isDruid.value) return [];
+  const available = new Set(availableForms.value.map((f) => f.monster.id));
+  return monsters.filter((m) => !available.has(m.id) && wildShapeFormCost(m, rules.value) !== null);
+});
 
 const showPinList = ref(false);
 const showWildshapePicker = ref(false);
@@ -217,6 +217,14 @@ const wildshapeMonster = computed<Monster | null>(() => {
   const ws = combatant.wildshape;
   if (!ws) return null;
   return monsters.find((m) => m.id === ws.monster_id) ?? null;
+});
+
+/** 2014 forms have their own pool; a 2024 form is the character's own HP (and temp HP). */
+const formHpLabel = computed(() => {
+  const ws = combatant.wildshape;
+  if (ws && ws.beast_hp !== null && ws.beast_max_hp !== null) return `${ws.beast_hp}/${ws.beast_max_hp}`;
+  const temp = combatant.temp_hp ?? 0;
+  return `${combatant.hp}/${combatant.max_hp}${temp > 0 ? ` +${temp} temp` : ""}`;
 });
 
 const ABILITY_KEYS = [

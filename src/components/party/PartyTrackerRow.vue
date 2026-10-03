@@ -290,7 +290,7 @@ import { walkingSpeed } from "@/lib/movement";
 import CompanionCard from "./CompanionCard.vue";
 import PartyConditionsPanel from "./PartyConditionsPanel.vue";
 import PartyDeathSaves from "./PartyDeathSaves.vue";
-import { applyDamage, applyHealing, betterTempHp } from "@/rules/hitPoints";
+import { applyDamage, applyHealing, betterTempHp, formHpPools } from "@/rules/hitPoints";
 import type { PartyMember, PartyMemberUpdate, SkillProficiencies, SkillProfLevel } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
@@ -369,14 +369,7 @@ const displayMaxHp = computed(() => member.wildshape_state?.beast_max_hp ?? memb
 
 /** HP pools as the shared arithmetic sees them — beast form included, so a
  *  wildshaped druid takes damage on the beast's HP here too, not their own. */
-const hpPools = computed(() => ({
-  current_hp: member.current_hp,
-  max_hp: member.max_hp,
-  temp_hp: member.temp_hp,
-  beast: member.wildshape_state
-    ? { hp: member.wildshape_state.beast_hp, max_hp: member.wildshape_state.beast_max_hp }
-    : null,
-}));
+const hpPools = computed(() => formHpPools(member, member.wildshape_state));
 
 async function dealDamage() {
   const amount = getHpAmount();
@@ -385,9 +378,9 @@ async function dealDamage() {
   const out = applyDamage(hpPools.value, amount, -member.max_hp);
   const update: PartyMemberUpdate = { current_hp: out.current_hp, temp_hp: out.temp_hp };
   if (member.wildshape_state) {
-    update.wildshape_state = out.beast_hp === null
-      ? null
-      : { ...member.wildshape_state, beast_hp: out.beast_hp };
+    // A 2024 form has no beast pool: it stays until the character drops to 0.
+    if (out.reverted) update.wildshape_state = null;
+    else if (out.beast_hp !== null) update.wildshape_state = { ...member.wildshape_state, beast_hp: out.beast_hp };
   }
   await updateMember({ id: member.id, update });
   hpInput.value = 0;

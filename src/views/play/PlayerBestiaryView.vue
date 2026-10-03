@@ -73,14 +73,15 @@
           </p>
           <p v-if="isDruid" class="text-caption text-muted-foreground italic mt-0.5">
             Max CR {{ maxWildshapeCrDisplay }}
-            <template v-if="druidLevel < 8"> · no fly/swim speed</template>
+            <template v-if="is2024 && wildshapeRules.knownForms"> · Knows {{ knownCount }} of {{ wildshapeRules.knownForms }} forms</template>
+            <template v-if="!wildshapeRules.flyAllowed || !wildshapeRules.swimAllowed"> · no {{ wildshapeRules.swimAllowed ? "fly" : wildshapeRules.flyAllowed ? "swim" : "fly/swim" }} speed</template>
           </p>
         </div>
         <span v-if="isDruid && isCircleOfMoon" class="text-eyebrow px-1.5 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
       </div>
 
       <!-- DM: share all eligible beasts with this druid -->
-      <div v-if="ui.dmPreviewMode && isDruid && unsharedEligibleBeasts.length > 0" class="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
+      <div v-if="!is2024 && ui.dmPreviewMode && isDruid && unsharedEligibleBeasts.length > 0" class="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
         <p class="text-caption text-muted-foreground italic">{{ unsharedEligibleBeasts.length }} eligible beast{{ unsharedEligibleBeasts.length === 1 ? '' : 's' }} not yet shared</p>
         <AppButton
           variant="tinted"
@@ -96,7 +97,8 @@
       <div v-if="wildForms.length === 0" class="text-center py-16 space-y-2">
         <p class="text-heading text-muted-foreground">No available forms</p>
         <p class="text-body text-muted-foreground italic">
-          <template v-if="isDruid">Discover beasts to unlock wild shapes, or ask your DM to pin forms for you.</template>
+          <template v-if="isDruid && is2024">Learn forms on the Wild Shape tab of your character sheet, or ask your DM to pin forms for you.</template>
+          <template v-else-if="isDruid">Discover beasts to unlock wild shapes, or ask your DM to pin forms for you.</template>
           <template v-else>Your DM can pin forms for you here.</template>
         </p>
       </div>
@@ -129,7 +131,12 @@
 
         <!-- Eligible section -->
         <template v-if="eligibleForms.length">
-          <p class="text-eyebrow text-muted-foreground mt-2">ELIGIBLE FORMS</p>
+          <p class="text-eyebrow text-muted-foreground mt-2">
+            {{ is2024 ? `KNOWN FORMS · ${knownCount} OF ${wildshapeRules.knownForms ?? 0}` : "ELIGIBLE FORMS" }}
+          </p>
+          <p v-if="is2024" class="text-caption text-muted-foreground italic -mt-2">
+            Learn or replace forms on the Wild Shape tab of your character sheet.
+          </p>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <div
               v-for="entry in eligibleForms"
@@ -138,6 +145,10 @@
               @click="openLightbox(entry.monster, null)"
             >
               <MonsterFormCard :monster="entry.monster" :name="entry.name" :image-url="entry.imageUrl" :reveal-stats="true" />
+              <span
+                v-if="entry.usesCost > 1"
+                class="absolute bottom-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded bg-card/90 border border-border text-eyebrow text-foreground"
+              >{{ entry.usesCost }} uses</span>
               <!-- DM pin button (preview mode only) -->
               <AppButton
                 v-if="ui.dmPreviewMode"
@@ -295,7 +306,8 @@ import { IconClose, IconPin, IconSearch } from '@/lib/icons';
 import { usePlayerDiscoveries, useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
 import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
 import { usePinnedForms, useTogglePinnedForm } from "@/composables/play/usePinnedForms";
-import { isEligibleWildshapeForm } from "@/rules/wildshape";
+import { availableWildShapeForms, knownFormIds, wildShapeFormCost } from "@/rules/wildshape";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import { useParty } from "@/composables/party/useParty";
@@ -305,7 +317,7 @@ import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages"
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { parseExpression } from "@/lib/dice/dice";
 import type { DieSize } from "@/lib/dice/dice";
-import { parseCr, formatHitPoints } from "@/lib/utils";
+import { formatHitPoints } from "@/lib/utils";
 import { crBg, crText } from "@/lib/monsterDisplay";
 import { rollParsed } from "@/lib/dice/roller";
 import type { RollMode } from "@/lib/dice/roller";
@@ -329,7 +341,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 // from `usePlayerVisibleMonsters`, whose projection nulls `stat_block` for a
 // creature the DM has not revealed. The compiler now says so at every site.
 interface BestiaryEntry { discovery: DiscoveredMonster; monster: PlayerVisibleMonster | null }
-interface FormEntry { monster: PlayerVisibleMonster; name: string; imageUrl: string | null }
+interface FormEntry { monster: PlayerVisibleMonster; name: string; imageUrl: string | null; usesCost: number }
 
 const ui = useUiStore();
 const auth = useAuthStore();
@@ -351,11 +363,11 @@ const member = computed(() => partyMembers.value?.find((m) => m.id === memberId.
 // ── Class detection ───────────────────────────────────────────────────────────
 const {
   isDruid,
-  druidLevel,
   isCircleOfMoon,
-  maxCr: maxWildshapeCr,
+  rules: wildshapeRules,
   maxCrDisplay: maxWildshapeCrDisplay,
 } = useWildshapeDruid(memberId, () => member.value);
+const { is2024 } = useRuleset();
 const isRanger   = computed(() => (member.value?.['class'] as string | null)?.toLowerCase().includes("ranger") ?? false);
 
 const showFormTab = computed(() => isDruid.value || isRanger.value);
@@ -402,7 +414,7 @@ const filtered = computed(() => {
 
 function isEligibleBeast(m: PlayerVisibleMonster): boolean {
   if (!isDruid.value) return false;
-  return isEligibleWildshapeForm(m, druidLevel.value, maxWildshapeCr.value);
+  return wildShapeFormCost(m, wildshapeRules.value) !== null;
 }
 
 // Pinned forms for the current party member (player view or DM preview)
@@ -417,7 +429,7 @@ const pinnedFormMonsters = computed<FormEntry[]>(() => {
       pin.library_monster_id ? m.id === pin.library_monster_id : m.id === pin.monster_id,
     ) ?? null;
     if (!monster) return [];
-    return [{ monster, name: monster.name, imageUrl: monster.image_url ?? null }];
+    return [{ monster, name: monster.name, imageUrl: monster.image_url ?? null, usesCost: wildShapeFormCost(monster, wildshapeRules.value) ?? 1 }];
   });
 });
 
@@ -455,18 +467,23 @@ async function shareAllEligibleBeasts() {
   }
 }
 
-// Eligible beast forms: only beasts the player has discovered that pass CR/speed filter
+// The same list the sheet and the runner build (`availableWildShapeForms`), so the
+// three cannot disagree: 2014 discovered or pinned, 2024 known or pinned. The pinned
+// ones already show in their own section above.
+const knownIds = computed(() => new Set(knownFormIds(member.value?.class_choices)));
+const knownCount = computed(() => knownIds.value.size);
+
 const eligibleBeastForms = computed<FormEntry[]>(() => {
   if (!isDruid.value) return [];
-  const monsters = allMonsters.value ?? [];
-  return monsters
-    .filter((m) =>
-      discoveredMonsterKeys.value.has(m.id) &&
-      isEligibleBeast(m) &&
-      !pinnedMonsterIds.value.has(m.id),
-    )
-    .map((m) => ({ monster: m, name: m.name, imageUrl: m.image_url ?? null }))
-    .sort((a, b) => parseCr(a.monster.stat_block?.challenge_rating) - parseCr(b.monster.stat_block?.challenge_rating));
+  return availableWildShapeForms({
+    monsters: allMonsters.value ?? [],
+    rules: wildshapeRules.value,
+    discoveredIds: discoveredMonsterKeys.value,
+    pinnedIds: pinnedMonsterIds.value,
+    knownIds: knownIds.value,
+  })
+    .filter(({ monster }) => !pinnedMonsterIds.value.has(monster.id))
+    .map(({ monster, usesCost }) => ({ monster, name: monster.name, imageUrl: monster.image_url ?? null, usesCost }));
 });
 
 const pinnedForms  = computed(() => pinnedFormMonsters.value);

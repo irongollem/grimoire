@@ -163,6 +163,7 @@ import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/
 import { useTurnTimerConfig } from "@/composables/encounters/useTurnTimerConfig";
 import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers";
 import { useRunnerPartySync } from "@/composables/encounters/useRunnerPartySync";
+import { useEvergreenWildShape } from "@/composables/encounters/useEvergreenWildShape";
 import RunnerCombatantList from "./RunnerCombatantList.vue";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
@@ -365,6 +366,8 @@ watch(
 // Debounced HP writes out, Realtime ingest (HP / temp HP / player-rolled
 // initiative) in, and the store's persist handler — see useRunnerPartySync.
 const { cancelPendingHpFlush } = useRunnerPartySync(isLive);
+// 2024 Evergreen Wild Shape: a level 20 druid regains a use on rolling initiative with none left.
+useEvergreenWildShape();
 
 // ── Live roster-NPC sync ─────────────────────────────────────────────────────
 // Roster NPCs run as combatants of type "monster" carrying an `npc_id`. Their
