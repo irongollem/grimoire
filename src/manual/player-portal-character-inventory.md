@@ -28,7 +28,7 @@ Below that, four tabs:
 - **Combat**: attack actions (to-hit + damage), the weapon list, and action/bonus action/reaction economy. Also has:
   - The **Hide** button: rolls Dexterity (Stealth) and marks the character **Hidden**; a live indicator flips to **Reveal**. Attacking auto-clears Hidden.
   - **Custom Attacks**: player-added attack buttons for anything equipment doesn't cover, added/edited/deleted inline.
-- **Wild Shape** *(Druids only)*: usage pips, CR cap, a form picker limited to beasts the player has discovered (or you've pinned), and active-form HP/AC tracking while shapeshifted.
+- **Wild Shape** *(Druids only)*: follows the campaign's edition. Usage pips (2 uses under 2014 rules; 2, 3 or 4 by level under 2024), the CR cap and movement limits for the druid's level and circle, a form picker, and active-form HP/AC tracking while shapeshifted. Under 2014 rules the picker holds beasts the party has discovered (or you've pinned), and a Circle of the Moon druid can spend a spell slot to heal their beast form. Under 2024 rules the druid keeps their own hit points and gains temporary HP, chooses their **Known Forms** here (replacing one per long rest), and from level 5 can trade spell slots and uses with **Wild Resurgence**.
 
 Two buttons sit above the tabs: **My Characters** (opens Champions, below) and **Export Sheet** (a printable version, see below).
 
@@ -81,7 +81,7 @@ Spell slots, attack bonus, and save DC are computed correctly per class for mult
 
 > If a player reports an empty spell picker anywhere (Spellbook or Level-Up), the near-universal cause is a disabled spell source: check **Reliquary → Sources** for this campaign before assuming it's a data problem with their character.
 
-- **Wild Shape forms are gated by discovery.** A player can't shape into a beast they (or you) haven't unlocked as a known form, even if it's in the Bestiary.
+- **Wild Shape forms are gated by the edition's rule.** Under 2014 rules a druid can only take a beast the party has discovered (or that you pinned), even if it's in the Bestiary. Under 2024 rules they take their Known Forms, which they choose themselves from any beast their level allows. Pinned forms are always available.
 - **A shapeshifter's disguise only fools other players**: see it as your true self any time you're not in [Preview Mode](#previewing-as-a-player).
 
 ## Related

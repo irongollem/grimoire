@@ -89,7 +89,7 @@
               class="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-card/90 px-2.5 py-1 text-caption-sm text-muted-foreground shadow-sm backdrop-blur-sm"
             >
               <IconRuler class="h-3 w-3 shrink-0" aria-hidden="true" />
-              {{ stack.frameCalibration.cells_per_image_width }} cells · 5 ft · origin {{ originCell(stack.frameCalibration).x }},{{ originCell(stack.frameCalibration).y }}
+              {{ calibrationCellsWide(stack.frameCalibration) }} cells · 5 ft · origin {{ originCell(stack.frameCalibration).x }},{{ originCell(stack.frameCalibration).y }}
             </span>
           </div>
 
@@ -220,6 +220,7 @@ import MapPreparedLayer from "@/components/locations/MapPreparedLayer.vue";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
+import { calibrationCellsWide } from "@/lib/locations/gridCalibration";
 import { isSiteType } from "@/lib/locations/tiers";
 import type { MapStack } from "@/lib/locations/mapStack";
 import type { RoomFacts } from "@/lib/locations/planCanvas";

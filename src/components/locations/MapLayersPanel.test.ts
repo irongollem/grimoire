@@ -1,7 +1,7 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import SiteMapLayersPanel from "./SiteMapLayersPanel.vue";
+import MapLayersPanel from "./MapLayersPanel.vue";
 import type { PublishStaleness } from "@/lib/locations/siteReadiness";
 import type { Location } from "@/types/location.types";
 
@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   previewError: null as unknown,
   previewEnabledRef: null as unknown,
   aiEnabled: true,
+  toastError: vi.fn(),
 }));
 
 vi.mock("@/stores/campaign", () => ({
@@ -31,6 +32,9 @@ vi.mock("@/composables/locations/useLocations", () => ({
 }));
 vi.mock("@/composables/useImageUpload", () => ({
   useImageUpload: () => ({ isUploading: ref(false), upload: mocks.upload, remove: mocks.remove }),
+}));
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({ error: mocks.toastError, fromError: (e: unknown) => String(e) }),
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref(mocks.party) }) }));
@@ -58,6 +62,7 @@ type SiteMapLayersLocation = Pick<
   | "map_published_rev"
   | "is_map_shared"
   | "player_visible_to"
+  | "is_battle_map"
 >;
 
 function site(overrides: Partial<SiteMapLayersLocation> = {}): SiteMapLayersLocation {
@@ -73,16 +78,18 @@ function site(overrides: Partial<SiteMapLayersLocation> = {}): SiteMapLayersLoca
     map_published_rev: null,
     is_map_shared: false,
     player_visible_to: [],
+    is_battle_map: false,
     ...overrides,
   };
 }
 
 const stubs = { GridCalibrationDialog: true, RouterLink: true, PlayerSitePlan: true };
 
-function mountPanel(props: Partial<InstanceType<typeof SiteMapLayersPanel>["$props"]> = {}) {
-  return mount(SiteMapLayersPanel, {
+function mountPanel(props: Partial<InstanceType<typeof MapLayersPanel>["$props"]> = {}) {
+  return mount(MapLayersPanel, {
     props: {
       location: site(),
+      site: true,
       map: null,
       staleness: null,
       counts: { spaces: 0, ways: 0, zones: 0 },
@@ -98,7 +105,7 @@ function findButton(wrapper: ReturnType<typeof mountPanel>, label: string) {
   return button;
 }
 
-describe("SiteMapLayersPanel", () => {
+describe("MapLayersPanel", () => {
   beforeEach(() => {
     mocks.updateLocation.mockClear();
     mocks.updatePicture.mockClear();
@@ -316,6 +323,52 @@ describe("SiteMapLayersPanel", () => {
       const select = wrapper.findComponent({ name: "AppSelect" });
       await select.setValue("m1");
       expect(wrapper.findComponent({ name: "PlayerSitePlan" }).exists()).toBe(true);
+    });
+  });
+  describe("Battle map flag", () => {
+    function checkbox(wrapper: ReturnType<typeof mountPanel>) {
+      return wrapper.findComponent({ name: "AppCheckbox" });
+    }
+
+    it("sits on the Picture row even with no picture, reflecting the row", () => {
+      const wrapper = mountPanel({ location: site({ is_battle_map: true }) });
+      expect(checkbox(wrapper).exists()).toBe(true);
+      expect(checkbox(wrapper).props("modelValue")).toBe(true);
+    });
+
+    it("writes is_battle_map live when ticked", async () => {
+      const wrapper = mountPanel();
+      await checkbox(wrapper).vm.$emit("update:modelValue", true);
+      await flushPromises();
+      expect(mocks.updateLocation).toHaveBeenCalledWith({ id: "site-1", update: { is_battle_map: true } });
+      expect(checkbox(wrapper).props("modelValue")).toBe(true);
+    });
+
+    it("puts the tick back and says so when the write fails", async () => {
+      mocks.updateLocation.mockRejectedValueOnce(new Error("nope"));
+      const wrapper = mountPanel();
+      await checkbox(wrapper).vm.$emit("update:modelValue", true);
+      await flushPromises();
+      expect(checkbox(wrapper).props("modelValue")).toBe(false);
+      expect(mocks.toastError).toHaveBeenCalled();
+    });
+  });
+
+  describe("on a place that is not a site", () => {
+    it("is the Picture row alone: no Drawing, Plan or player preview", () => {
+      const wrapper = mountPanel({ site: false, location: site({ map_url: "https://x/m.webp" }) });
+      const text = wrapper.text();
+      expect(text).toContain("Picture");
+      expect(text).not.toContain("Drawing");
+      expect(text).not.toContain("Plan");
+      expect(text).not.toContain("Preview as players");
+      expect(() => findButton(wrapper, "Calibrate")).not.toThrow();
+    });
+
+    it("still offers the first upload and the battle-map flag with no map", () => {
+      const wrapper = mountPanel({ site: false });
+      expect(() => findButton(wrapper, "Upload a picture")).not.toThrow();
+      expect(wrapper.findComponent({ name: "AppCheckbox" }).exists()).toBe(true);
     });
   });
 });

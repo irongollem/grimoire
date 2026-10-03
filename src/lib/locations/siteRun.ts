@@ -89,3 +89,29 @@ export function reachableRoomIds(
   }
   return reached;
 }
+
+/**
+ * What the run surfaces show as reachable: `reachableRoomIds` from the
+ * party's room, or `null` when there is nothing to derive it from.
+ *
+ * `null` means "make no claim": every room renders and moves as normal. That
+ * is the answer in two cases. The party is not in a room of this site yet, so
+ * there is nowhere to be unreachable from. Or the site has no way out with a
+ * room on both sides, so the graph is empty and says nothing about how the
+ * rooms connect. Until 2 Oct 2026 the second case fell through to
+ * `reachableRoomIds`, which returned the party's own room alone: a site with
+ * rooms and no doors drawn locked the party into the first room clicked.
+ *
+ * Reachability is advice in any case. The DM can move the party into a room
+ * this set leaves out (`useMoveParty` asks first); it only decides what the
+ * surfaces dim and caption.
+ */
+export function siteReachability(
+  fromRoomId: string | null,
+  doors: readonly DoorEdge[],
+  unlockedDoorIds: ReadonlySet<string> = new Set(),
+): Set<string> | null {
+  if (fromRoomId === null) return null;
+  if (!doors.some((door) => door.to_location_id !== null)) return null;
+  return reachableRoomIds(fromRoomId, doors, unlockedDoorIds);
+}

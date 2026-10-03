@@ -30,7 +30,7 @@ describe("QuestRunBeatCard", () => {
 
   it("offers an explicit reveal for the current hidden beat", async () => {
     const wrapper = mount(QuestRunBeatCard, {
-      props: { anchorQuestId: "quest-1", beat: beat("hidden"), attachments: [], threadBadge, placeName: null },
+      props: { anchorQuestId: "quest-1", beat: beat("hidden"), attachments: [], threadBadge, placeName: null, siteName: null },
       global: { stubs: { RichTextViewer: true, RouterLink: { template: "<a><slot /></a>" } } },
     });
     await wrapper.findAll("button").find((button) => button.text() === "Reveal to players")!.trigger("click");
@@ -39,7 +39,7 @@ describe("QuestRunBeatCard", () => {
 
   it("shows saved visibility instead of another reveal action", () => {
     const wrapper = mount(QuestRunBeatCard, {
-      props: { anchorQuestId: "quest-1", beat: beat("revealed"), attachments: [], threadBadge, placeName: null },
+      props: { anchorQuestId: "quest-1", beat: beat("revealed"), attachments: [], threadBadge, placeName: null, siteName: null },
       global: { stubs: { RichTextViewer: true, RouterLink: { template: "<a><slot /></a>" } } },
     });
     expect(wrapper.text()).toContain("Visible to players");
@@ -48,7 +48,7 @@ describe("QuestRunBeatCard", () => {
 
   it("names the thread the party is on", () => {
     const wrapper = mount(QuestRunBeatCard, {
-      props: { anchorQuestId: "quest-1", beat: beat("revealed"), attachments: [], threadBadge, placeName: "The Cloister" },
+      props: { anchorQuestId: "quest-1", beat: beat("revealed"), attachments: [], threadBadge, placeName: "The Cloister", siteName: null },
       global: { stubs: { RichTextViewer: true, RouterLink: { template: "<a><slot /></a>" } } },
     });
     expect(wrapper.text()).toContain("Party is here · Thread A");
@@ -70,7 +70,7 @@ describe("QuestRunBeatCard", () => {
       },
     ];
     const wrapper = mount(QuestRunBeatCard, {
-      props: { anchorQuestId: "quest-1", beat: beat("revealed"), attachments, threadBadge, placeName: null },
+      props: { anchorQuestId: "quest-1", beat: beat("revealed"), attachments, threadBadge, placeName: null, siteName: null },
       global: { stubs: { RichTextViewer: true, RouterLink: { template: "<a><slot /></a>" } } },
     });
     const attachmentButtons = wrapper
@@ -87,7 +87,7 @@ describe("QuestRunBeatCard", () => {
     mocks.belowXl.value = true;
     const withCount = beat("revealed", { dm_content: JSON.stringify({ type: "doc", content: [{ type: "paragraph" }, { type: "paragraph" }] }) });
     const wrapper = mount(QuestRunBeatCard, {
-      props: { anchorQuestId: "quest-1", beat: withCount, attachments: [], threadBadge, placeName: null },
+      props: { anchorQuestId: "quest-1", beat: withCount, attachments: [], threadBadge, placeName: null, siteName: null },
       global: { stubs: { RichTextViewer: true, RouterLink: { template: "<a><slot /></a>" } } },
     });
     expect(wrapper.findComponent({ name: "QuestFoldRow" }).exists()).toBe(true);
@@ -100,7 +100,7 @@ describe("QuestRunBeatCard", () => {
     mocks.belowXl.value = true;
     const legacy = beat("revealed", { dm_content: "Plain legacy notes" });
     const wrapper = mount(QuestRunBeatCard, {
-      props: { anchorQuestId: "quest-1", beat: legacy, attachments: [], threadBadge, placeName: null },
+      props: { anchorQuestId: "quest-1", beat: legacy, attachments: [], threadBadge, placeName: null, siteName: null },
       global: { stubs: { RichTextViewer: true, RouterLink: { template: "<a><slot /></a>" } } },
     });
     expect(wrapper.text()).toContain("notes");
@@ -110,10 +110,28 @@ describe("QuestRunBeatCard", () => {
     mocks.belowXl.value = false;
     const withContent = beat("revealed", { dm_content: JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }) });
     const wrapper = mount(QuestRunBeatCard, {
-      props: { anchorQuestId: "quest-1", beat: withContent, attachments: [], threadBadge, placeName: null },
+      props: { anchorQuestId: "quest-1", beat: withContent, attachments: [], threadBadge, placeName: null, siteName: null },
       global: { stubs: { RichTextViewer: true, RouterLink: { template: "<a><slot /></a>" } } },
     });
     expect(wrapper.findComponent({ name: "QuestFoldRow" }).exists()).toBe(false);
     expect(wrapper.find("section.space-y-3").exists()).toBe(true);
+  });
+
+  // "Leave site" keeps the room cursor, so the beat card has to offer the
+  // way back in; it had none, and the handoff stayed gone until the beat moved.
+  it("offers Enter site for a beat whose site the DM stepped out of, and nothing otherwise", async () => {
+    const global = { stubs: { RichTextViewer: true, RouterLink: { template: "<a><slot /></a>" } } };
+    const without = mount(QuestRunBeatCard, {
+      props: { anchorQuestId: "quest-1", beat: beat("revealed"), attachments: [], threadBadge, placeName: null, siteName: null },
+      global,
+    });
+    expect(without.findAll("button").some((button) => button.text() === "Enter site")).toBe(false);
+
+    const wrapper = mount(QuestRunBeatCard, {
+      props: { anchorQuestId: "quest-1", beat: beat("revealed"), attachments: [], threadBadge, placeName: "The Vault", siteName: "Tower top" },
+      global,
+    });
+    await wrapper.findAll("button").find((button) => button.text() === "Enter site")!.trigger("click");
+    expect(wrapper.emitted("enter-site")).toHaveLength(1);
   });
 });

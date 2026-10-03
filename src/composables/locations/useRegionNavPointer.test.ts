@@ -42,7 +42,6 @@ function makeHarness(overrides: Partial<UseRegionNavPointerOptions> = {}) {
     onNavigate: vi.fn(),
     onDescend: vi.fn(),
     onMoveParty: vi.fn(),
-    isReachable: vi.fn(() => true),
     isNestedSite: vi.fn(() => false),
     onHover: vi.fn(),
     ...overrides,
@@ -151,46 +150,30 @@ describe("click routing", () => {
     expect(options.onNavigate).not.toHaveBeenCalled();
   });
 
-  it("navigates instead of moving the party onto an unreachable room in run mode", () => {
-    const { pointer, options, mode, found } = makeHarness({ isReachable: vi.fn(() => false) });
+  // Whether a room is reachable is the host's question (`useMoveParty` asks
+  // before an out-of-reach move). The pointer itself never refuses a room in
+  // run mode and never navigates away from the surface being run.
+  it("moves the party onto any bound room in run mode, and never navigates", () => {
+    const { pointer, options, mode, found } = makeHarness();
     mode.current = "run";
     found.current = makeRegion({ space_location_id: "room-1" });
 
     pointer.onPointerDown(down(1, 1));
     window.dispatchEvent(up(1, 1));
 
-    expect(options.onMoveParty).not.toHaveBeenCalled();
-    expect(options.onNavigate).toHaveBeenCalledWith("room-1");
+    expect(options.onMoveParty).toHaveBeenCalledWith("room-1");
+    expect(options.onNavigate).not.toHaveBeenCalled();
   });
 
-  it("descends instead of moving the party onto an unreachable nested site in run mode", () => {
-    const { pointer, options, mode, found } = makeHarness({
-      isReachable: vi.fn(() => false),
-      isNestedSite: vi.fn(() => true),
-    });
+  it("moves the party onto a nested site in run mode rather than descending", () => {
+    const { pointer, options, mode, found } = makeHarness({ isNestedSite: vi.fn(() => true) });
     mode.current = "run";
     found.current = makeRegion({ space_location_id: "site-2" });
 
     pointer.onPointerDown(down(1, 1));
     window.dispatchEvent(up(1, 1));
 
-    expect(options.onMoveParty).not.toHaveBeenCalled();
-    expect(options.onDescend).toHaveBeenCalledWith("site-2");
-  });
-});
-
-describe("hover", () => {
-  it("emits on change, suppresses a repeat, and emits null on leave", () => {
-    const { pointer, options } = makeHarness();
-    vi.mocked(options.hoverRegionAt).mockReturnValue(makeRegion({ id: "hovered" }));
-
-    pointer.onPointerMove(move(0, 0));
-    expect(options.onHover).toHaveBeenCalledWith("hovered");
-
-    pointer.onPointerMove(move(0, 0)); // unchanged — no repeat emit
-    expect(options.onHover).toHaveBeenCalledTimes(1);
-
-    pointer.onPointerLeave();
-    expect(options.onHover).toHaveBeenLastCalledWith(null);
+    expect(options.onMoveParty).toHaveBeenCalledWith("site-2");
+    expect(options.onDescend).not.toHaveBeenCalled();
   });
 });

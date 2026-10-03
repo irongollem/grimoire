@@ -17,6 +17,25 @@ export interface HpPools {
   temp_hp: number;
   /** Active beast form, or null when not wildshaped. */
   beast: { hp: number; max_hp: number } | null;
+  /** A 2024 form: no beast pool, the character's own HP. The form ends when they drop to 0. */
+  ownHpForm?: boolean;
+}
+
+/**
+ * The one builder of `HpPools` for a character that may be in a form. A beast
+ * pool exists only when both beast numbers are non-null (2014); a form without
+ * one is a 2024 form. Every damage and healing call site goes through it, so
+ * the two kinds cannot drift apart.
+ */
+export function formHpPools(
+  own: { current_hp: number; max_hp: number; temp_hp: number },
+  form: { beast_hp: number | null; beast_max_hp: number | null } | null | undefined,
+): HpPools {
+  const beast =
+    form && form.beast_hp !== null && form.beast_max_hp !== null
+      ? { hp: form.beast_hp, max_hp: form.beast_max_hp }
+      : null;
+  return { current_hp: own.current_hp, max_hp: own.max_hp, temp_hp: own.temp_hp, beast, ownHpForm: !!form && !beast };
 }
 
 export interface DamageOutcome {
@@ -24,7 +43,7 @@ export interface DamageOutcome {
   temp_hp: number;
   /** Beast HP after the hit; null when there is no form, or the form just ended. */
   beast_hp: number | null;
-  /** True when this hit dropped the beast form to 0 and reverted it. */
+  /** True when this hit ended the form: a beast pool at 0 (2014) or the character at 0 HP in a 2024 form. */
   reverted: boolean;
   /** Damage that reached an HP pool — i.e. what temp HP did not absorb. */
   hp_damage: number;
@@ -59,11 +78,13 @@ export function applyDamage(pools: HpPools, amount: number, hpFloor = 0): Damage
     };
   }
 
+  const current_hp = Math.max(hpFloor, pools.current_hp - remaining);
   return {
-    current_hp: Math.max(hpFloor, pools.current_hp - remaining),
+    current_hp,
     temp_hp,
     beast_hp: null,
-    reverted: false,
+    // A 2024 form ends when the character themself reaches 0.
+    reverted: !!pools.ownHpForm && current_hp <= 0,
     hp_damage: remaining,
   };
 }

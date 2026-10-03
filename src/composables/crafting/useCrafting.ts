@@ -18,6 +18,8 @@ import { queueItemEmbedding } from "@/composables/items/useItems";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { inventoryItemRef } from "@/lib/itemRef";
 import type { StarterRecipeDef } from "@/data/starterRecipes";
+import { WORKSHOP_LIBRARY_EQUIVALENTS } from "@/data/workshopLibraryEquivalents";
+import { useRuleset } from "@/composables/rules/useRuleset";
 
 const RECIPES_KEY    = "crafting-recipes";
 const INGREDIENTS_KEY = "crafting-ingredients";
@@ -663,6 +665,7 @@ export async function seedRecipeChildren(
 export function useImportStarterRecipes() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   return useMutation({
     mutationFn: async (): Promise<number> => {
@@ -681,11 +684,37 @@ export function useImportStarterRecipes() {
       // 1. Ensure all output items exist in the vault OR the shared library
       // (insert only the ones resolvable by neither). A name the vault
       // already owns keeps resolving there unchanged; a name that's only
-      // ever existed as grimoire-bundled library content (#819 — "Leather
-      // Armour" for "Stitch Leather Armour" is the case that motivated this)
-      // now references that instead of minting a redundant personal copy.
-      const outputNames = [...new Set(STARTER_RECIPES.flatMap((r) => r.outputs.map((o) => o.name)))];
-      const [{ data: existingItems }, { data: libraryItems, error: libraryError }] = await Promise.all([
+      // ever existed as grimoire-bundled library content (#819, e.g.
+      // "Leather Barding") references that instead of minting a redundant
+      // personal copy.
+      //
+      // An output the SRD defines for this campaign's edition resolves to that
+      // SRD row before anything else (#957). A vault copy by the same name is
+      // almost always an old clone of the Workshop's thinner bundled copy (a
+      // Shortbow with no range), which is exactly what crafting must stop
+      // producing.
+      const edition = ruleset.value;
+      const allOutputNames = [...new Set(STARTER_RECIPES.flatMap((r) => r.outputs.map((o) => o.name)))];
+      const srdCandidates = allOutputNames.flatMap((name) => {
+        const id = WORKSHOP_LIBRARY_EQUIVALENTS[name]?.[edition];
+        return id ? [[name, id] as const] : [];
+      });
+      // The table is static; the rows are not. A stack where the SRD was never
+      // imported has none of them, and an output pointing at an absent row fails
+      // the foreign key and takes the whole import down with it. Only an id that
+      // is really there takes the name out of the ordinary lookup below.
+      const presentSrdIds = new Set<string>();
+      if (srdCandidates.length > 0) {
+        const { data: srdRows, error: srdError } = await supabase
+          .from("library_items")
+          .select("id")
+          .in("id", srdCandidates.map(([, id]) => id));
+        if (srdError) throw srdError;
+        for (const row of srdRows ?? []) presentSrdIds.add(row.id);
+      }
+      const srdByName = new Map(srdCandidates.filter(([, id]) => presentSrdIds.has(id)));
+      const outputNames = allOutputNames.filter((name) => !srdByName.has(name));
+      const [{ data: existingItems, error: vaultError }, { data: libraryItems, error: libraryError }] = await Promise.all([
         supabase
           .from("items")
           .select("id, name")
@@ -694,11 +723,16 @@ export function useImportStarterRecipes() {
         supabase
           .from("library_items")
           .select("id, name")
-          .in("name", outputNames),
+          .in("name", outputNames)
+          .or(`ruleset.is.null,ruleset.eq.${edition}`),
       ]);
+      if (vaultError) throw vaultError;
       if (libraryError) throw libraryError;
       const existingByName = new Map((existingItems ?? []).map((i: { id: string; name: string }) => [i.name, i.id]));
-      const libraryByName = new Map((libraryItems ?? []).map((i: { id: string; name: string }) => [i.name, i.id]));
+      const libraryByName = new Map([
+        ...(libraryItems ?? []).map((i: { id: string; name: string }) => [i.name, i.id] as const),
+        ...srdByName,
+      ]);
 
       const missing = outputNames.filter((n) => !existingByName.has(n) && !libraryByName.has(n));
       if (missing.length > 0) {
@@ -725,10 +759,11 @@ export function useImportStarterRecipes() {
       }
 
       // 2. Skip recipes that already exist (by name + campaign)
-      const { data: existingRecipes } = await supabase
+      const { data: existingRecipes, error: existingRecipesError } = await supabase
         .from("crafting_recipes")
         .select("name")
         .eq("campaign_id", campaignId);
+      if (existingRecipesError) throw existingRecipesError;
       const existingNames = new Set((existingRecipes ?? []).map((r: { name: string }) => r.name));
 
       const toImport = STARTER_RECIPES.filter((r) => !existingNames.has(r.name));

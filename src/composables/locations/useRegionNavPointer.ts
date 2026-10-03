@@ -46,7 +46,6 @@ export interface UseRegionNavPointerOptions {
   onNavigate(spaceId: string): void;
   onDescend(spaceId: string): void;
   onMoveParty(roomId: string): void;
-  isReachable(roomId: string): boolean;
   /** Whether a bound space is itself a nested site (#818) rather than a
    *  room — decides `onDescend` vs. `onNavigate`. */
   isNestedSite(spaceId: string): boolean;
@@ -80,8 +79,9 @@ export function useRegionNavPointer(options: UseRegionNavPointerOptions): UseReg
 
   /**
    * Selecting an unbound shape (browse), navigating to a bound room's
-   * sheet, or — in run mode — moving the party there (falling back to
-   * navigation when the room isn't currently reachable).
+   * sheet, or — in run mode — moving the party there. Run mode never
+   * navigates: whether the room is reachable is the host's question to ask
+   * (`useMoveParty`), not a reason to leave the surface the DM is running.
    */
   function handleClick(e: PointerEvent): void {
     const key = options.cellAt(e.clientX, e.clientY);
@@ -95,11 +95,7 @@ export function useRegionNavPointer(options: UseRegionNavPointerOptions): UseReg
     }
 
     if (options.mode() === "run") {
-      if (options.isReachable(found.space_location_id)) {
-        options.onMoveParty(found.space_location_id);
-      } else {
-        goToSpace(found.space_location_id);
-      }
+      options.onMoveParty(found.space_location_id);
       return;
     }
 

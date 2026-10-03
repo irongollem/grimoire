@@ -14,6 +14,8 @@
  *      useImportOpen5eItems() import this seed replaces, these are stamped
  *      `ruleset: null` (edition-neutral) rather than "2014" — mundane gear
  *      must show up in both 2014 and 2024 campaigns, not just 2014 ones.
+ *      The exception is an entry the SRD covers in one edition only, which
+ *      names the other edition itself (see mapBundledRows).
  *
  * Then backfills image_url + image_focal_point from canonical
  * library_art_defaults rows (content_type = 'item').
@@ -122,9 +124,11 @@ function mapApiRows(items: readonly ItemInsert[]): { rows: SeededItem[]; skipped
  * per-user import — conceptual_key = slugified name, source_document_key =
  * "grimoire-bundled", source_record_key = "grimoire-bundled:<slug>",
  * source_revision = "bundled", provenance = { provider: "grimoire" } — with
- * one deliberate difference: `ruleset: null`. The old per-user import
- * stamped these "2014", which starved 2024 campaigns of mundane gear;
- * mundane gear is edition-neutral and belongs in both.
+ * one deliberate difference: `ruleset` defaults to null. The old per-user
+ * import stamped these "2014", which starved 2024 campaigns of mundane gear;
+ * mundane gear is edition-neutral and belongs in both. An entry the SRD
+ * covers in one edition only carries its own `ruleset`, the edition with no
+ * SRD row (see WORKSHOP_LIBRARY_EQUIVALENTS), so neither edition lists it twice.
  *
  * `source`/`source_title` are left exactly as the data files define them
  * (mostly "srd", some `null` for grimoire-original crafting ingredients) —
@@ -139,7 +143,7 @@ function mapBundledRows(items: readonly StaticItemData[]): SeededItem[] {
       ...rest,
       curse_description: null,
       is_arcane_focus: false,
-      ruleset: null,
+      ruleset: item.ruleset ?? null,
       conceptual_key: slug,
       source_document_key: BUNDLED_SOURCE_DOCUMENT_KEY,
       source_record_key: sourceRecordKey,

@@ -36,10 +36,10 @@
         <div class="portrait-cell">
           <div class="portrait-inner" :class="isActive(combatant) ? 'portrait-active' : ''">
             <FocalImage
-              :src="portraitSrc(combatant) ?? undefined"
-              :placeholder="combatant.type === 'player' ? placeholderUrl('character') : combatant.npc_id ? placeholderUrl('npc') : placeholderUrl('monster')"
-              :alt="portraitAlt(combatant)"
-              :focal-point="portraitHasBeastImage(combatant) ? null : (combatant.portrait_focal_point ?? null)"
+              :src="portraitOf(combatant).src"
+              :placeholder="portraitOf(combatant).shaped ? placeholderUrl('monster') : combatant.type === 'player' ? placeholderUrl('character') : combatant.npc_id ? placeholderUrl('npc') : placeholderUrl('monster')"
+              :alt="portraitOf(combatant).alt"
+              :focal-point="portraitOf(combatant).focalPoint"
               format="square"
             />
           </div>
@@ -105,6 +105,7 @@ import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
 import type { PartyMember } from "@/types/party.types";
 import { displayTempHp as calcDisplayTempHp } from "@/rules/hitPoints";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { formPortrait } from "@/lib/wildshapePortrait";
 
 const {
   visibleCombatants,
@@ -128,26 +129,11 @@ function isActive(combatant: RunCombatant): boolean {
   return combatant.instance_id === activeInstanceId;
 }
 
-// Portrait helpers
-function portraitSrc(c: RunCombatant): string | null {
-  if (c.type === "player") {
-    const ws = partyMap.get(c.party_member_id ?? "")?.wildshape_state;
-    return ws?.beast_image_url ?? c.portrait_url ?? null;
-  }
-  return c.wildshape?.beast_image_url ?? c.portrait_url ?? null;
-}
-function portraitAlt(c: RunCombatant): string {
-  if (c.type === "player") {
-    const ws = partyMap.get(c.party_member_id ?? "")?.wildshape_state;
-    return ws?.beast_name ?? c.name;
-  }
-  return c.wildshape?.beast_name ?? c.name;
-}
-function portraitHasBeastImage(c: RunCombatant): boolean {
-  if (c.type === "player") {
-    return !!(partyMap.get(c.party_member_id ?? "")?.wildshape_state?.beast_image_url);
-  }
-  return !!c.wildshape?.beast_image_url;
+// A player's form is read from their party row, which their own sheet writes
+// directly; everyone else's from the live state.
+function portraitOf(c: RunCombatant) {
+  const form = c.type === "player" ? partyMap.get(c.party_member_id ?? "")?.wildshape_state : c.wildshape;
+  return formPortrait(c, form);
 }
 
 // HP helpers

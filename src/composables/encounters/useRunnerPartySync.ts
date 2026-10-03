@@ -4,6 +4,9 @@ import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtim
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCampaignStore } from "@/stores/campaign";
+import { deepEqual } from "@/lib/utils";
+import { createWriteEchoes } from "@/lib/encounters/writeEchoes";
+import type { WildshapeState } from "@/types/encounter.types";
 
 /**
  * Bidirectional sync between the encounter-run store and `party_members` rows,
@@ -31,6 +34,9 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
 
   const partyHpQueue = new Map<string, number>(); // partyMemberId → pending hp
   const lastWrittenHp = new Map<string, number>(); // partyMemberId → hp we last wrote
+  // Forms change in quick bursts (a hit, then another), so every unechoed write
+  // is kept, not just the last: see `createWriteEchoes`.
+  const wildshapeEchoes = createWriteEchoes<WildshapeState | null>();
   let partyHpTimer: ReturnType<typeof setTimeout> | null = null;
 
   function cancelPendingHpFlush() {
@@ -68,7 +74,14 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
   let subscribedCampaignId: string | null = null;
 
   store.setPersistHandler((id, update) => {
-    void updatePartyMember({ id, update });
+    const form = "wildshape_state" in update ? (update.wildshape_state ?? null) : undefined;
+    if (form !== undefined) wildshapeEchoes.sent(id, form);
+    void updatePartyMember({ id, update }).catch((error: unknown) => {
+      // No echo will come for a failed write. Rethrown so the failure still
+      // surfaces exactly as it did before this bookkeeping existed.
+      if (form !== undefined) wildshapeEchoes.failed(id, form);
+      throw error;
+    });
   });
 
   interface PartyMemberSyncRow {
@@ -77,6 +90,7 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     temp_hp: number;
     current_initiative: number | null;
     conditions: string[];
+    wildshape_state: WildshapeState | null;
   }
 
   /**
@@ -102,6 +116,18 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     // "conditions cleared" and wipe them from the runner.
     if (combatant && "conditions" in row && !sameConditions(combatant.conditions, row.conditions ?? [])) {
       store.ingestConditions(combatant.instance_id, row.conditions ?? []);
+    }
+
+    // A form the player took or dropped on their own sheet. Guarded by `in` for
+    // the same TOAST reason as conditions. The runner's own writes are dropped
+    // through the echo ledger (a stale echo would put a hit beast back to an
+    // earlier HP), and anything else is compared structurally: the row is jsonb,
+    // whose key order is Postgres's own, never the order the client built.
+    if (combatant && "wildshape_state" in row) {
+      const form = row.wildshape_state ?? null;
+      if (!wildshapeEchoes.isOwn(row.id, form) && !deepEqual(combatant.wildshape ?? null, form)) {
+        store.ingestWildshape(combatant.instance_id, form);
+      }
     }
 
     // Ingest player-rolled initiative (#504). The runner never writes
@@ -138,11 +164,14 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
    * a page reload as the only way out.
    */
   async function resyncPartyFromDb(campaignId: string): Promise<void> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("party_members")
-      .select("id, current_hp, temp_hp, current_initiative, conditions")
+      .select("id, current_hp, temp_hp, current_initiative, conditions, wildshape_state")
       .eq("campaign_id", campaignId);
+    if (error) throw error;
     if (campaignId !== subscribedCampaignId) return;
+    // A gap may have swallowed echoes; the rows just read are the truth now.
+    wildshapeEchoes.clear();
     for (const row of (data ?? []) as PartyMemberSyncRow[]) applyPartyRow(row);
   }
 

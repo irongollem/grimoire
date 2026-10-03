@@ -5,6 +5,8 @@ import { PROVISIONS } from "./provisions";
 import { AMMUNITION } from "./ammunition";
 import { CRAFTING_DISCIPLINES } from "@/lib/crafting-disciplines";
 import { buildStarterRecipeChildRows } from "@/composables/crafting/useCrafting";
+import { WORKSHOP_LIBRARY_EQUIVALENTS } from "./workshopLibraryEquivalents";
+import { RULESET_KEYS } from "@/types/ruleset.types";
 
 /**
  * Invariants over the starter-recipe table. Both of these shipped broken and
@@ -25,7 +27,7 @@ describe("STARTER_RECIPES", () => {
     expect(duplicated).toEqual([]);
   });
 
-  it("names an output item that actually exists for every output", () => {
+  it("names an output item that actually exists, in each edition, for every output", () => {
     // `buildStarterRecipeChildRows` resolves outputs by name and *drops* the
     // ones it can't find, so a typo'd or invented output name yields a recipe
     // that imports fine and then produces nothing when crafted. Four were live
@@ -33,12 +35,22 @@ describe("STARTER_RECIPES", () => {
     // (named no real item) and the two ammunition outputs (real items, but in
     // a list the importer wasn't reading).
     //
-    // These three lists must stay in step with the ones `useImportStarterRecipes`
-    // loads — an item the importer can't see is as good as absent.
-    const known = new Set([...GEAR, ...PROVISIONS, ...AMMUNITION].map((item) => item.name));
-    const missing = STARTER_RECIPES.flatMap((recipe) =>
-      recipe.outputs.filter((output) => !known.has(output.name)).map((output) => `${recipe.name} → ${output.name}`),
-    );
+    // Resolution is per edition (#957): the SRD row from
+    // WORKSHOP_LIBRARY_EQUIVALENTS where that edition has one, else a bundled
+    // entry visible in that edition. These lists must stay in step with the
+    // ones `useImportStarterRecipes` loads.
+    const bundled = [...GEAR, ...PROVISIONS, ...AMMUNITION];
+    const missing = RULESET_KEYS.flatMap((edition) => {
+      const known = new Set([
+        ...bundled.filter((item) => !item.ruleset || item.ruleset === edition).map((item) => item.name),
+        ...Object.keys(WORKSHOP_LIBRARY_EQUIVALENTS).filter((name) => WORKSHOP_LIBRARY_EQUIVALENTS[name][edition]),
+      ]);
+      return STARTER_RECIPES.flatMap((recipe) =>
+        recipe.outputs
+          .filter((output) => !known.has(output.name))
+          .map((output) => `${edition}: ${recipe.name} → ${output.name}`),
+      );
+    });
     expect(missing).toEqual([]);
   });
 
@@ -50,26 +62,24 @@ describe("STARTER_RECIPES", () => {
     expect(unknown).toEqual([]);
   });
 
-  it("resolves 'Stitch Leather Armour' → 'Leather Armour' via the shared library even with an empty vault map (#819)", () => {
-    // The concrete damage #819 was filed over: "Leather Armour" is
-    // grimoire-bundled — always present as a library_items row — but before
-    // this fix there was no column for a starter-recipe output to reference
-    // one, so buildStarterRecipeChildRows silently dropped it on any account
-    // that hadn't separately created a vault copy by that exact name. The
-    // "known" check above only proves the name exists *somewhere*; this
+  it("resolves 'Craft Leather Barding' → 'Leather Barding' via the shared library even with an empty vault map (#819)", () => {
+    // #819: a grimoire-bundled output is always present as a library_items row,
+    // but there was once no column for a recipe output to reference one, so it
+    // was silently dropped on any account without a vault copy by that name.
+    // The "exists" check above only proves the name exists *somewhere*; this
     // proves the resolver actually reaches it when the vault has nothing.
-    const recipeDef = STARTER_RECIPES.find((recipe) => recipe.name === "Stitch Leather Armour");
+    const recipeDef = STARTER_RECIPES.find((recipe) => recipe.name === "Craft Leather Barding");
     expect(recipeDef).toBeDefined();
 
     const { outputRows } = buildStarterRecipeChildRows(
       [recipeDef!],
       ["recipe-a"],
       new Map(), // nothing in the vault
-      new Map([["Leather Armour", "srd_grimoire_bundled_leather_armour"]]),
+      new Map([["Leather Barding", "srd_grimoire_bundled_leather_barding"]]),
     );
 
     expect(outputRows).toEqual([
-      { recipe_id: "recipe-a", item_id: null, library_item_id: "srd_grimoire_bundled_leather_armour", quantity: 1 },
+      { recipe_id: "recipe-a", item_id: null, library_item_id: "srd_grimoire_bundled_leather_barding", quantity: 1 },
     ]);
   });
 });

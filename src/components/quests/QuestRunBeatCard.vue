@@ -55,6 +55,18 @@
     </QuestFoldRow>
 
     <div class="flex flex-wrap gap-2">
+      <!-- The way back in after "Leave site". Leaving keeps the room cursor
+           (frame 06), so there has to be a door back to it: without this the
+           handoff stayed gone until the beat itself changed. -->
+      <AppButton
+        v-if="siteName"
+        label="Enter site"
+        :icon="IconDoor"
+        size="sm"
+        variant="primary"
+        :tooltip="`Run ${siteName} room by room`"
+        @click="emit('enter-site')"
+      />
       <AppButton
         v-for="attachment in orderedAttachments"
         :key="attachment.id"
@@ -92,6 +104,7 @@ import QuestFoldRow from "./QuestFoldRow.vue";
 import {
   IconDice,
   IconDocument,
+  IconDoor,
   IconEdit,
   IconEncounter,
   IconFaction,
@@ -109,8 +122,11 @@ const props = defineProps<{
   attachments: QuestBeatAttachmentSummary[];
   threadBadge: ThreadBadge;
   placeName: string | null;
+  /** The site this beat's crawl runs in, when it has rooms and the DM has
+   *  stepped out of the site handoff; null hides "Enter site". */
+  siteName: string | null;
 }>();
-const emit = defineEmits<{ "open-attachment": [attachment: QuestBeatAttachmentSummary]; reveal: [] }>();
+const emit = defineEmits<{ "open-attachment": [attachment: QuestBeatAttachmentSummary]; reveal: []; "enter-site": [] }>();
 
 const runReturn = computed(() => questSurfaceReturnTo(props.anchorQuestId, props.beat.id, "run"));
 const editUrl = computed(() => ({

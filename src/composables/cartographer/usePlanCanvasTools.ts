@@ -111,7 +111,6 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     onNavigate: () => {},
     onDescend: () => {},
     onMoveParty: () => {},
-    isReachable: () => true,
     isNestedSite: () => false,
     onHover: () => {},
   };

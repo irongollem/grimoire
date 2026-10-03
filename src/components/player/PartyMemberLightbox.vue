@@ -25,15 +25,15 @@
 
               <!-- Left column: portrait + identity + stats -->
               <div class="sm:w-56 shrink-0 sm:border-r border-border">
-                <div v-if="member.portrait_url" class="relative w-full h-52 sm:h-auto sm:aspect-3/4 overflow-hidden">
+                <div v-if="portrait?.src" class="relative w-full h-52 sm:h-auto sm:aspect-3/4 overflow-hidden">
                   <FocalImage
-                    :src="member.portrait_url"
-                    :alt="member.name"
+                    :src="portrait.src"
+                    :alt="portrait.alt"
                     format="portrait"
-                    :focal-point="member.portrait_focal_point ?? null"
+                    :focal-point="portrait.focalPoint"
                     class="w-full h-full"
                   />
-                  <AiImageBadge :src="member.portrait_url" />
+                  <AiImageBadge :src="portrait.src" />
                 </div>
                 <div class="p-3 space-y-2">
                   <!-- You badge + name + class/level -->
@@ -197,6 +197,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { formPortrait } from "@/lib/wildshapePortrait";
 import { IconClose, IconShield } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
@@ -216,6 +217,8 @@ import type { HealthVisibility } from "@/types/encounter.types";
 import type { Species } from "@/types/species.types";
 
 const props = defineProps<{ member: PartyMember | null }>();
+// A wild-shaped member wears the beast's face, as on their sheet.
+const portrait = computed(() => (props.member ? formPortrait(props.member, props.member.wildshape_state) : null));
 defineEmits<{ close: [] }>();
 
 // One character shown: everything below reads its build rules in the character's own edition.

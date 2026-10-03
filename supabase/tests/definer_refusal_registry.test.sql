@@ -70,6 +70,7 @@ insert into definer_registry (name, kind, reason) values
   ('dispatch_loot', 'refuses', null),
   ('end_campaign_quest_session', 'refuses', null),
   ('ensure_quest_main_thread', 'refuses', null),
+  ('exchange_wild_shape', 'refuses', null),
   ('get_admin_users', 'refuses', null),
   ('get_character_content_item', 'refuses', null),
   ('get_campaign_live_quests', 'refuses', null),

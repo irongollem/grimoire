@@ -64,7 +64,6 @@ function makeHarness(overrides: Partial<UseRegionPointerOptions> = {}) {
     onNavigate: vi.fn(),
     onDescend: vi.fn(),
     onMoveParty: vi.fn(),
-    isReachable: vi.fn(() => true),
     isNestedSite: vi.fn(() => false),
     onHover: vi.fn(),
     ...overrides,

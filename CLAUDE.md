@@ -174,13 +174,15 @@ Anything else with a `refetchInterval` is a missing subscription. Add the subscr
 
 ## Post-Mutation Navigation
 
-After any create, save, or delete operation, always navigate back to the list view — this confirms the action succeeded.
+After a create or a delete, navigate back to the list view — this confirms the action succeeded.
 
 - **Create** → `router.push('/resource-list')`
-- **Save (edit)** → `router.push('/resource-list')`
 - **Delete** → `router.push('/resource-list')`
+- **Save (edit), in a Save/Cancel form** → `router.push('/resource-list')`
 
-Never stay on the detail/editor page or navigate to the newly created resource's detail page. The list view is the success feedback. In the case of nested resources (e.g. locations), navigate to the parent resource's detail page instead unless its the top of the hierarchy.
+Never stay on the detail/editor page after one of those, or navigate to the newly created resource's detail page. The list view is the success feedback. In the case of nested resources (e.g. locations), navigate to the parent resource's detail page instead unless its the top of the hierarchy.
+
+**Editors are moving to autosave, and an autosaving editor has no save to navigate after** (the maintainer's direction, 3 Oct 2026: "given the chaotic nature of a dnd game perhaps self-saving fields are the better solution for all forms"). A form converts when work touches it, never in a sweep, and through `useAutosave` + `AutosaveStatus` rather than a hand-rolled debounce. In such a form the status line ("Saving…", "Saved") is the success feedback, so editing stays put; the action bar's Cancel becomes **Done**, which leaves the editor without navigating anywhere new. Create keeps one explicit first save (there is no row to autosave into until the record exists) and still navigates as above; delete still navigates as above. In the Atlas the list *is* the tree, so a created place landing on `/locations?at=<id>` is landing on the list with the new place selected, not on a detail page. The place's Details form (#958) is the first conversion; the quest beat and quest overview forms already saved themselves.
 
 ## Git Conventions
 
@@ -442,15 +444,17 @@ to the root — which is precisely the 225-file flat bucket this replaced. `useQ
 belongs in `quests/` because it is *about* quests, however many features read it.
 Popularity is not the test here either; it is just a different non-test.
 
-The 22 modules that stay at the root are the ones with genuinely no domain:
+The 23 modules that stay at the root are the ones with genuinely no domain:
 `useConfirm`, `useToast`, `useBreakpoint`, `useHotkeys`, `useInfiniteScroll`,
 `useScrollRestore`, `useLazyMount`, `useDetailModal`, `useAnchoredPopover`,
 `useModeSwitch`, `useTheme`, `useGlobalSearch`, `useScreenShake`, `useLocalePrefs`,
-`useBulkSelection`, `useUnsavedGuard`, the PWA trio (`useAppUpdate`, `usePwaInstall`,
+`useBulkSelection`, `useUnsavedGuard`, `useAutosave`, the PWA trio (`useAppUpdate`, `usePwaInstall`,
 `usePullToRefresh`) and the image trio (`useImageUpload`, `usePendingImageResolver`,
-`useArtTabs`). Adding a 23rd is a claim that the thing has no domain — check that
+`useArtTabs`). Adding a 24th is a claim that the thing has no domain — check that
 claim before you make it. (This list read 19 until 27 Sep 2026 while the folder held
-21: count the folder when you add one, not the list.)
+21: count the folder when you add one, not the list. On 3 Oct 2026 it held 24 against
+this list's 23, because `useAnnouncements` had been left at the root; it is about
+announcements, so it moved to `announcements/`.)
 
 A small folder is fine. `locations/`, `deities/` and `crafting/` hold one module each,
 because a first-class domain having a home is worth more than the folder count; the

@@ -48,3 +48,11 @@ export function parseSpeed(input: string | null | undefined): Speed[] {
   const hasNonWalk = out.some((s) => s.mode !== "walk");
   return out.filter((s) => !(s.mode === "walk" && (s.value === "0" || s.value === "") && hasNonWalk));
 }
+
+/** The walking distance in feet from a 5e speed string, or null when it names
+ *  none. For a single-number speed slot (a sheet's SPD) showing a creature's
+ *  speed, which a wild-shaped character takes on. */
+export function walkingSpeed(input: string | null | undefined): number | null {
+  const walk = parseSpeed(input).find((speed) => speed.mode === "walk" && speed.value !== "");
+  return walk ? Number(walk.value) : null;
+}

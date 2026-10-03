@@ -80,7 +80,7 @@
          interior space, per the comment above. -->
     <section v-if="isInteriorSpace" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Ways out</h2>
-      <LocationDoors :room-id="location.id" :parent-id="location.parent_id" :building="authoring" />
+      <LocationDoors :room-id="location.id" :parent-id="location.parent_id" :building="building" />
     </section>
 
     <!-- Ways out, lifted to the site (#868, S6) — a site sees its whole door
@@ -117,7 +117,7 @@
          corridor, unlike Store/Rooms above which apply to a subset of types. -->
     <section class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Prepared Here</h2>
-      <LocationPlacements :location-id="location.id" :building="authoring" />
+      <LocationPlacements :location-id="location.id" :building="building" />
     </section>
 
     <!-- Sort Into Rooms (#879) — the re-homing backlog: NPCs and encounters
@@ -125,7 +125,7 @@
          level too coarse. Self-hiding (no children, nothing to sort into) and
          self-titled, unlike the panels above, because its whole visibility
          condition is data its own query already needs to fetch. -->
-    <LocationSortPanel :location-id="location.id" :building="authoring" />
+    <LocationSortPanel :location-id="location.id" :building="building" />
 
     <!-- People in the Area — NPCs whose location is this or any descendant. -->
     <section v-if="locationNpcs?.length" class="flex flex-col gap-2">
@@ -241,7 +241,7 @@ import type { Location } from "@/types/location.types";
 
 const { location, building = false } = defineProps<{
   location: Location;
-  /** Build mode (#884) — the site workbench. Threaded to the four
+  /** Build mode (#884; any place since #958). Threaded to the four
    *  structural sections (Ways out, Rooms, Prepared Here); the play
    *  sections (Progress, Loot, Store) never take it — they stay live in
    *  Browse the same as they always have. */
@@ -298,30 +298,11 @@ const siteSpacesHeading = computed(() => spaceHeading(location.location_type));
 // place's floor plan rather than carrying one of their own.
 const isInteriorSpace = computed(() => isInteriorType(location.location_type));
 
-/**
- * Whether the two structural panels that render *outside* the site tier
- * (Ways out on a room, Prepared Here everywhere) may be edited.
- *
- * #884 put every structural panel behind the site-only `building` prop, but
- * Build only exists on a site-tier place (`AtlasPlacePane`'s Build/Done pair
- * is itself gated on `isSiteType`) — so a room's own Ways out, and Prepared
- * Here on any non-site place, inherited a mode they can never enter and went
- * permanently read-only. That was collateral, not #884's intent, which said
- * non-site places "keep Edit as it is".
- *
- * A structural panel is editable when the place is in Build, or when the
- * place has no Build state to enter at all. `SiteWaysOutPanel` and
- * `SiteRoomsPanel` below stay on the raw `building` prop — both are already
- * gated to site-tier places, where Build genuinely exists and #884's
- * always-editable-in-Build intent holds exactly as written.
- */
-const authoring = computed(() => building || !isSiteType(location.location_type));
-
 // ── Site structure (#868, S6) — spaces for the Ways out panel. `null` when
 //    this isn't a site keeps every query inside `useSiteStructure` disabled
 //    rather than fetching for a room or a continent. The published-drawing
 //    staleness this composable also derives now surfaces through the Layers
-//    panel (#884, S5) instead of a strip here — see `SiteMapLayersPanel`. ───
+//    panel (#884, S5) instead of a strip here — see `MapLayersPanel`. ───
 const siteStructureLocation = computed(() => (isSite.value ? location : null));
 const { spaces: siteSpaces } = useSiteStructure(siteStructureLocation);
 

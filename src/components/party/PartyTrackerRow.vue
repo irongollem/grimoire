@@ -15,11 +15,11 @@
           class="block h-31.25 bg-muted overflow-hidden"
         >
           <FocalImage
-            :src="member.portrait_url"
-            :alt="member.name"
+            :src="portrait.src"
+            :alt="portrait.alt"
             format="landscape"
-            :focal-point="member.portrait_focal_point ?? null"
-            :placeholder="placeholderUrl('character')"
+            :focal-point="portrait.focalPoint"
+            :placeholder="placeholderUrl(portrait.shaped ? 'monster' : 'character')"
           />
         </RouterLink>
 
@@ -177,7 +177,7 @@
           </span>
           <span class="flex items-baseline justify-between gap-1 min-w-0">
             <span class="text-muted-foreground truncate">Speed</span>
-            <span class="font-bold text-foreground shrink-0">{{ member.speed }} ft</span>
+            <span class="font-bold text-foreground shrink-0">{{ displaySpeed }} ft</span>
           </span>
           <span class="flex items-baseline justify-between gap-1 min-w-0">
             <span class="text-muted-foreground truncate">Perception</span>
@@ -287,10 +287,12 @@ import { isInDisguise } from "@/lib/partyMemberDisplay";
 import { effectiveLocationId as deriveEffectiveLocationId } from "@/lib/partyPosition";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import FocalImage from "@/components/common/FocalImage.vue";
+import { formPortrait } from "@/lib/wildshapePortrait";
+import { walkingSpeed } from "@/lib/movement";
 import CompanionCard from "./CompanionCard.vue";
 import PartyConditionsPanel from "./PartyConditionsPanel.vue";
 import PartyDeathSaves from "./PartyDeathSaves.vue";
-import { applyDamage, applyHealing, betterTempHp } from "@/rules/hitPoints";
+import { applyDamage, applyHealing, betterTempHp, formHpPools } from "@/rules/hitPoints";
 import type { PartyMember, PartyMemberUpdate, SkillProficiencies, SkillProfLevel } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
@@ -360,19 +362,19 @@ function getHpAmount(): number {
 
 // While wildshaped the tracker reads (and damages) the beast's pool — otherwise
 // the DM would hit Damage and watch nothing move.
+const portrait = computed(() => formPortrait(member, member.wildshape_state));
+// A wild-shaped member moves at the beast's walking speed.
+const displaySpeed = computed(() => {
+  const form = member.wildshape_state;
+  const beast = form ? allMonsters.value?.find((m) => m.id === form.monster_id) : undefined;
+  return walkingSpeed(beast?.stat_block.speed) ?? member.speed;
+});
 const displayHp = computed(() => member.wildshape_state?.beast_hp ?? member.current_hp);
 const displayMaxHp = computed(() => member.wildshape_state?.beast_max_hp ?? member.max_hp);
 
 /** HP pools as the shared arithmetic sees them — beast form included, so a
  *  wildshaped druid takes damage on the beast's HP here too, not their own. */
-const hpPools = computed(() => ({
-  current_hp: member.current_hp,
-  max_hp: member.max_hp,
-  temp_hp: member.temp_hp,
-  beast: member.wildshape_state
-    ? { hp: member.wildshape_state.beast_hp, max_hp: member.wildshape_state.beast_max_hp }
-    : null,
-}));
+const hpPools = computed(() => formHpPools(member, member.wildshape_state));
 
 async function dealDamage() {
   const amount = getHpAmount();
@@ -381,9 +383,9 @@ async function dealDamage() {
   const out = applyDamage(hpPools.value, amount, -member.max_hp);
   const update: PartyMemberUpdate = { current_hp: out.current_hp, temp_hp: out.temp_hp };
   if (member.wildshape_state) {
-    update.wildshape_state = out.beast_hp === null
-      ? null
-      : { ...member.wildshape_state, beast_hp: out.beast_hp };
+    // A 2024 form has no beast pool: it stays until the character drops to 0.
+    if (out.reverted) update.wildshape_state = null;
+    else if (out.beast_hp !== null) update.wildshape_state = { ...member.wildshape_state, beast_hp: out.beast_hp };
   }
   await updateMember({ id: member.id, update });
   hpInput.value = 0;

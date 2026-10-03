@@ -1,10 +1,10 @@
 <template>
   <div class="detail-scroll">
     <FocalImage
-      v-if="combatant.wildshape?.beast_image_url ?? combatant.portrait_url"
-      :src="(combatant.wildshape?.beast_image_url ?? combatant.portrait_url)!"
-      :alt="combatant.name"
-      :focal-point="combatant.wildshape?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
+      v-if="portrait.src"
+      :src="portrait.src"
+      :alt="portrait.alt"
+      :focal-point="portrait.focalPoint"
       format="portrait"
       class="detail-portrait"
     />
@@ -56,6 +56,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import { formPortrait } from "@/lib/wildshapePortrait";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import RunnerTraitSection from "@/components/encounters/RunnerTraitSection.vue";
@@ -66,6 +67,8 @@ const { combatant, npc } = defineProps<{
   combatant: RunCombatant;
   npc: Npc;
 }>();
+
+const portrait = computed(() => formPortrait(combatant, combatant.wildshape));
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];

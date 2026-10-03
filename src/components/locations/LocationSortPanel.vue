@@ -41,8 +41,8 @@
           >{{ needsLabel }}</span>
         </div>
 
-        <!-- Build only (same `authoring` reasoning as Ways out / Prepared Here
-             — see LocationDetailSections). Browse shows where it already sits,
+        <!-- Build only, like every structural panel (#884; every place has Build
+             since #958). Browse shows where it already sits,
              read-only. -->
         <EntityCombobox
           v-if="building"
@@ -95,8 +95,8 @@ import { childSpaceType, spaceHeading, spaceNoun } from "@/lib/locations/tiers";
 
 const { locationId, building = false } = defineProps<{
   locationId: string;
-  /** Build mode (#884) — same `authoring` predicate LocationDetailSections
-   *  threads to Ways out and Prepared Here. Browse shows every row's current
+  /** Build mode (#884) — the same flag LocationDetailSections threads to
+   *  Ways out and Prepared Here. Browse shows every row's current
    *  room, read-only, rather than the picker. */
   building?: boolean;
 }>();

@@ -163,7 +163,7 @@ export interface PublishStaleness {
 
 /**
  * Null when there is nothing to compare (no source map, or the last publish
- * already carries the map's current rev) — the fresh state `SiteMapLayersPanel`'s
+ * already carries the map's current rev) — the fresh state `MapLayersPanel`'s
  * Drawing row renders instead of the stale variant.
  */
 export function publishStaleness(

@@ -25,7 +25,7 @@
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import NoticeCard from "@/components/common/NoticeCard.vue";
-import { useAnnouncements } from "@/composables/useAnnouncements";
+import { useAnnouncements } from "@/composables/announcements/useAnnouncements";
 
 const { current, dismiss } = useAnnouncements();
 </script>

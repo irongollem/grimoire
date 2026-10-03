@@ -121,14 +121,14 @@
         Build, not Open. The pane now renders the same body as the detail
         page, so a link to that page would lead somewhere the reader already
         is; the only thing left up there that this surface cannot do is
-        change the place. On a site (#884) that means two links — Build (the
-        workbench: every structural affordance below this pane, live) and
-        Details (name/description/type — today's Edit form). A non-site
-        place keeps the single Edit link it always had.
+        change the place. Every place has Build (#958) and Details
+        (name/description/type — the Edit form); Run is a site's alone.
+        Build owns the map: on a site the workbench (#884), on any other
+        place the Picture and its pins.
       -->
       <div class="flex w-full shrink-0 items-center gap-1.5 sm:w-auto">
         <!--
-          Reveal sits beside Build/Edit because revealing is not editing: it
+          Reveal sits beside Build/Details because revealing is not editing: it
           is the thing a DM does mid-session, and it should never cost a trip
           through the full edit form.
         -->
@@ -151,56 +151,44 @@
           :tooltip="previewTooltip"
           @click="previewing ? stopPreview() : startPreview()"
         />
-        <template v-if="isSite">
-          <!--
-            Build is a state of this pane, not a trip to another page: the
-            Atlas IS the site's workbench (#884, decision 2), and sending the
-            DM away to build would reintroduce exactly the round trip this
-            epic removes. `Done` drops the flag and leaves them where they are.
-          -->
-          <AppButton
-            :variant="building ? 'outline' : 'primary'"
-            size="sm"
-            :icon="IconTool"
-            :label="building ? 'Done' : 'Build'"
-            :aria-label="building ? 'Done' : 'Build'"
-            :tooltip="building ? 'Done' : 'Build'"
-            collapse-label-on-mobile
-            @click="toggleBuild"
-          />
-          <!-- The site runner (#791, epic #780) — one surface to run a
-               dungeon at the table, entered in place rather than by leaving
-               the Atlas. -->
-          <AppButton
-            variant="outline"
-            size="sm"
-            :icon="IconPlay"
-            label="Run"
-            aria-label="Run"
-            tooltip="Run"
-            collapse-label-on-mobile
-            @click="openRun"
-          />
-          <AppButton
-            variant="outline"
-            size="sm"
-            :icon="IconEdit"
-            label="Details"
-            aria-label="Details"
-            tooltip="Details"
-            collapse-label-on-mobile
-            @click="openEdit"
-          />
-        </template>
+        <!--
+          Build is a state of this pane, not a trip to another page: the
+          Atlas IS the place's workbench (#884, decision 2), and sending the
+          DM away to build would reintroduce exactly the round trip this
+          epic removes. `Done` drops the flag and leaves them where they are.
+        -->
         <AppButton
-          v-else
+          :variant="building ? 'outline' : 'primary'"
+          size="sm"
+          :icon="IconTool"
+          :label="building ? 'Done' : 'Build'"
+          :aria-label="building ? 'Done' : 'Build'"
+          :tooltip="building ? 'Done' : 'Build'"
+          collapse-label-on-mobile
+          @click="toggleBuild"
+        />
+        <!-- The site runner (#791, epic #780) — one surface to run a
+             dungeon at the table, entered in place rather than by leaving
+             the Atlas. Only a site has anything to run. -->
+        <AppButton
+          v-if="isSite"
+          variant="outline"
+          size="sm"
+          :icon="IconPlay"
+          label="Run"
+          aria-label="Run"
+          tooltip="Run"
+          collapse-label-on-mobile
+          @click="openRun"
+        />
+        <AppButton
           variant="outline"
           size="sm"
           :icon="IconEdit"
-          label="Edit"
-            aria-label="Edit"
-            tooltip="Edit"
-            collapse-label-on-mobile
+          label="Details"
+          aria-label="Details"
+          tooltip="Details"
+          collapse-label-on-mobile
           @click="openEdit"
         />
       </div>
@@ -233,13 +221,13 @@
       "not mapped", even though the toggle it would otherwise share the row
       with has nothing to switch between yet.
     -->
-    <div v-if="hasMap || isSite" class="relative mb-3 flex flex-wrap items-center gap-2">
+    <div v-if="hasMap || isSite || building" class="relative mb-3 flex flex-wrap items-center gap-2">
       <!--
-        Reachable while building even with no layer yet (#884, S5) — Build
-        mode on a mapless site is exactly when the DM needs Map mode, to see
-        the Layers panel that starts the first one. Browsing a mapless site
-        has nothing to switch to, so the toggle stays hidden there, same as
-        before.
+        Reachable while building even with no layer yet (#884, S5; every
+        place since #958) — Build on a mapless place is exactly when the DM
+        needs Map mode, to see the Layers panel that starts the first one, and
+        on a battle map (which Browse hides) to unflag it. Browsing a mapless
+        place has nothing to switch to, so the toggle stays hidden there.
       -->
       <!-- Real tabs, not a small segmented toggle: Overview and Map are two
            views of the place, and the toggle was easy to miss entirely. -->
@@ -270,9 +258,9 @@
         exactly on the map frame the reader is already looking at, instead of
         being measured into place.
 
-        `building` alone (no `hasMap`) reaches this only on a site — see
-        `building`'s own definition below — so a mapless world/region page
-        (Map mode never even offered to it) can't land here by accident.
+        `building` alone (no `hasMap`) reaches this on any place (#958): a
+        mapless world or a battle map is exactly what Build's Layers panel is
+        for. Browsing one still never lands here, since `hasMap` gates it.
       -->
       <AtlasSiteMapMode
         :building="building"
@@ -343,7 +331,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, useTemplateRef, watch } from "vue";
+import { computed, useTemplateRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -359,7 +347,6 @@ import SiteReadinessMeter from "@/components/locations/SiteReadinessMeter.vue";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
 import { useAmbiencePlayback } from "@/composables/locations/useAmbiencePlayback";
-import { useUiStore } from "@/stores/ui";
 import {
   IconChevronRight,
   IconClock,
@@ -405,15 +392,9 @@ const MODE_TABS = [
 // re-deriving six queries' worth of emptiness here.
 const sections = useTemplateRef("sectionsRef");
 
-const uiStore = useUiStore();
-
 // A `tavern` tag beside a Tavern badge says nothing twice. Legacy rows typed
 // `building` and tagged "tavern" keep theirs — there the tag is the meaning.
 const shownTags = computed(() => (location ? visibleTags(location) : []));
-
-onBeforeUnmount(() => {
-  if (foldedTreeForMapMode) uiStore.locationsTreeCollapsed = false;
-});
 
 const trail = computed(() => (location ? ancestorPath(index, location.id) : []));
 
@@ -490,12 +471,12 @@ const siteImageLayers = computed(() => {
 });
 
 // Build is a route flag like `at` is (#884) — so Back leaves Build the way it
-// leaves a place, a deep link opens a site ready to work on, and a reload
-// keeps the DM where they were. Only ever true on a site: nothing else here
-// has a workbench to enter.
+// leaves a place, a deep link opens a place ready to work on, and a reload
+// keeps the DM where they were. True on any place (#958): a site's Build is
+// the workbench, any other place's is its Picture and pins.
 const route = useRoute();
 const router = useRouter();
-const building = computed(() => isSite.value && route.query.build === "true");
+const building = computed(() => route.query.build === "true");
 
 function toggleBuild(): void {
   if (building.value) {
@@ -506,8 +487,8 @@ function toggleBuild(): void {
   void router.push({ query: { ...route.query, build: "true" } });
 }
 
-// Build's structural affordances live on the map (rooms, doors, regions), so
-// Build always shows the map: pressed here, or arrived at by a link or a
+// Build's affordances live on the map (rooms, doors, regions, the picture,
+// pins), so Build always shows the map: pressed here, or arrived at by a link or a
 // refresh with `build=true` already in the address.
 watch(
   building,
@@ -517,7 +498,7 @@ watch(
   { immediate: true },
 );
 
-/** Details/Edit — a route flag on the current Atlas selection, same
+/** Details — a route flag on the current Atlas selection, same
  *  convention as `build` above, rather than a trip to a separate page: the
  *  pane renders the same body a full page would, so leaving it changed
  *  nothing but which page the DM was dropped on. */
@@ -553,28 +534,6 @@ const interiorIds = computed(() =>
 const questStageSpaceIds = computed(() => (location ? [location.id, ...interiorIds.value] : []));
 const { data: stagedQuestBeats } = useBeatsStagedAt(questStageSpaceIds);
 const stagedQuestCount = computed(() => new Set((stagedQuestBeats.value ?? []).map((b) => b.quest_id)).size);
-
-// The tree fold already exists for exactly this — a two-pane explorer where
-// the map is the pane that earns the extra width. Only fold what we found
-// unfolded, and only restore what we ourselves folded: a DM who folded the
-// tree on purpose before opening a site's map should find it still folded
-// after leaving, not sprung back open by a pane that merely visited.
-let foldedTreeForMapMode = false;
-watch(
-  () => paneMode === "map" && isSite.value,
-  (onSiteMap) => {
-    if (onSiteMap) {
-      if (!uiStore.locationsTreeCollapsed) {
-        uiStore.locationsTreeCollapsed = true;
-        foldedTreeForMapMode = true;
-      }
-    } else if (foldedTreeForMapMode) {
-      uiStore.locationsTreeCollapsed = false;
-      foldedTreeForMapMode = false;
-    }
-  },
-  { immediate: true },
-);
 
 /**
  * On a site-tier place, `LocationDetailSections` mounts `SiteRoomsPanel`

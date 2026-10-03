@@ -33,7 +33,7 @@ const mocks = vi.hoisted(() => ({
   // inside one mount, which a plain re-read of `mocks.currentLocationId`
   // at setup time can't give it.
   campaignLocationRef: undefined as Ref<string | null> | undefined,
-  setLocation: vi.fn(),
+  moveParty: vi.fn((_request: unknown) => Promise.resolve(true)),
   updateLocation: vi.fn(),
   route: { query: {} as Record<string, string> },
   // #872 frame 4: the phone composition is a JS branch (`belowXl`), not a CSS
@@ -73,8 +73,10 @@ vi.mock("@/composables/locations/useLocationState", () => ({
 }));
 vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref(mocks.doors) }) }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({ useLootPlacements: () => ({ data: ref(mocks.loot) }) }));
-vi.mock("@/composables/campaign/useCampaigns", () => ({
-  useSetCampaignLocation: () => ({ mutate: mocks.setLocation, isPending: ref(false) }),
+// The one write a move makes lives in `useMoveParty` (shared with the room
+// list), with its own tests; here it only needs to be seen being asked.
+vi.mock("@/composables/locations/useMoveParty", () => ({
+  useMoveParty: () => ({ moveParty: mocks.moveParty, isMoving: ref(false) }),
 }));
 
 function beat(overrides: Partial<QuestBeat> = {}): QuestBeat {
@@ -198,7 +200,7 @@ describe("QuestSiteHandoff", () => {
     mocks.doorStateOf.mockReset();
     mocks.doorStateOf.mockReturnValue(undefined);
     mocks.currentLocationId = null;
-    mocks.setLocation.mockClear();
+    mocks.moveParty.mockClear();
     mocks.updateLocation.mockClear();
     mocks.route.query = {};
     mocks.belowXl = false;
@@ -300,7 +302,7 @@ describe("QuestSiteHandoff", () => {
     await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text().includes("Advance beat"))!.trigger("click");
     expect(wrapper.emitted("leave")).toHaveLength(1);
     expect(wrapper.emitted("advance")).toHaveLength(1);
-    expect(mocks.setLocation).not.toHaveBeenCalled();
+    expect(mocks.moveParty).not.toHaveBeenCalled();
   });
 
   it("lists the other live threads, not the current one, with a Switch link carrying the thread id", () => {
@@ -468,12 +470,12 @@ describe("QuestSiteHandoff", () => {
       expect(list.props("rooms")).toHaveLength(2);
       expect(list.props("runCaptions")).toBe(true);
 
+      // The list has already moved the party by the time it announces it,
+      // so the host only closes the sheet: a second write here would also
+      // ask the out-of-reach question twice.
       list.vm.$emit("move", "room-2");
       await nextTick();
-      expect(mocks.setLocation).toHaveBeenCalledWith(
-        { id: "c1", locationId: "room-2" },
-        expect.objectContaining({ onError: expect.any(Function) }),
-      );
+      expect(mocks.moveParty).not.toHaveBeenCalled();
       expect(bodyWrapper().find("[role=dialog]").exists()).toBe(false);
     });
 

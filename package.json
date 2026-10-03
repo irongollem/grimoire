@@ -47,6 +47,8 @@
     "dev:auth": "tsx --tsconfig tsconfig.node.json scripts/dev-auth.ts",
     "dev:buckets": "tsx --tsconfig tsconfig.node.json scripts/dev-buckets.ts",
     "library:art": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/generate-library-art.ts",
+    "library:move-art": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/move-library-art-to-srd.ts",
+    "check:images": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/backfill-image-provenance.ts --fail-on-dead",
     "backfill:image-provenance": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/backfill-image-provenance.ts",
     "dev:demo": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/dev-demo-campaign.ts",
     "dev:import-fixture": "tsx --tsconfig tsconfig.node.json scripts/dev-import-fixture.ts",

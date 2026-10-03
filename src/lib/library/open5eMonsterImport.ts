@@ -146,9 +146,10 @@ export function mapOpen5eV2Monster(
     // `speed` holds the creature's NATIVE speeds; `speed_all` additionally
     // bakes in Open5e's derived half-speeds (every walker gets swim/crawl at
     // walk/2), which both corrupts the displayed stat block ("Cat — swim
-    // 20 ft.") and broke wild shape: isEligibleWildshapeForm excludes any
-    // form with a swim/fly speed below druid level 8, so with speed_all every
-    // beast was ineligible. Fall back to speed_all only when speed is absent.
+    // 20 ft.") and broke wild shape: wildShapeFormCost excludes a form with a
+    // swim or fly speed the druid's level does not allow yet, so with
+    // speed_all every beast was ineligible to a low-level druid. Fall back to
+    // speed_all only when speed is absent.
     speed: toSpeedString(monster.speed ?? monster.speed_all),
     str: scores.strength ?? 10,
     dex: scores.dexterity ?? 10,

@@ -32,11 +32,21 @@
         v-if="exists && !hideCancel"
         variant="subtle"
         size="md"
-        label="Cancel"
+        :label="autosave ? 'Done' : 'Cancel'"
         @click="emit('cancel')"
       />
 
+      <!-- Autosave mode: there is nothing to press Save on, so the button gives way
+           to the status line and Cancel (which would discard nothing) reads Done. -->
+      <AutosaveStatus
+        v-if="autosave"
+        :status="autosave.status"
+        :error="autosave.error"
+        :paused-label="autosave.pausedLabel"
+      />
+
       <AppButton
+        v-else
         variant="primary"
         size="md"
         :disabled="!canSave || saving"
@@ -65,6 +75,8 @@ import { IconSave, IconDelete } from "@/lib/icons";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
+import type { AutosaveStatus as AutosaveState } from "@/composables/useAutosave";
 
 defineProps<{
   title: string;
@@ -79,6 +91,12 @@ defineProps<{
   createLabel?: string;
   error?: string | null;
   visibleTo?: string[];
+  /**
+   * Opt-in for editors that save themselves (#958). Replaces Save with the shared
+   * status line and relabels Cancel as Done; `canSave`/`saving` are then unused.
+   * Editors not yet converted leave it unset and keep Save/Cancel.
+   */
+  autosave?: { status: AutosaveState; error: string; pausedLabel?: string };
 }>();
 
 const emit = defineEmits<{

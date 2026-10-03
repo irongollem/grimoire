@@ -113,6 +113,13 @@ select check_name, cnt from (
        where pm.wildshape_state is not null and pm.wildshape_state->>'monster_id' is not null
          and not exists (select 1 from library_monsters s where s.id = pm.wildshape_state->>'monster_id')
          and not exists (select 1 from monsters m where m.id::text = pm.wildshape_state->>'monster_id'))
+  union all select 'party_members.class_choices.wild_shape_known_forms[] -> library/monsters',
+    (select count(*) from party_members pm
+       cross join lateral jsonb_array_elements_text(
+         case when jsonb_typeof(pm.class_choices -> 'wild_shape_known_forms') = 'array'
+              then pm.class_choices -> 'wild_shape_known_forms' else '[]'::jsonb end) as el
+       where not exists (select 1 from library_monsters s where s.id = el)
+         and not exists (select 1 from monsters m where m.id::text = el))
   union all select 'encounters.combatants[].monster_id -> library_monsters',
     (select count(*) from encounters e
        cross join lateral jsonb_array_elements(

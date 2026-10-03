@@ -454,7 +454,7 @@ export function useUpdateLocationDrawing() {
  * `styledPictureCalibration`) since the arbitrary location it saves to may
  * have no `source_map_id` relationship to reconcile. Omitting `calibration`
  * leaves the column untouched (a bare `{ map_url }` update) — every other
- * caller, including the plain upload flow in `SiteMapLayersPanel.vue`; never
+ * caller, including the plain upload flow in `MapLayersPanel.vue`; never
  * carries `source_map_id`, which describes the Drawing.
  */
 export function useUpdateLocationPicture() {

@@ -1223,7 +1223,25 @@ moved on another device — reopen to advance," via
 ### Site handoff (frame `06 Site`, reshaped by epic #868 S12)
 
 When the cockpit's current beat is staged at a site with rooms,
-`QuestSiteHandoff.vue` takes over the left column. #850 built this as its own
+`QuestSiteHandoff.vue` takes over the **whole cockpit width**, as frame 06
+draws it: the rail (ledger, story so far, also open, outcome strip) does not
+mount beside it and returns on "Leave site". Until 2 Oct 2026 the handoff sat
+in the left column with the 20rem rail still beside it, and switched to its
+own three columns (20rem, the plan, 20rem) on the _viewport's_ `xl`. With the
+app sidebar and the rail taking their share first, the plan's column came out
+zero pixels wide at any ordinary laptop width: the map was mounted and
+invisible, with its calibration chip hanging over the room list. So two rules:
+the handoff gets the full width, and its column count is a **container query**
+on its own width (`@6xl`, 72rem, for the third column; below that Ways out and
+Progress drop beneath the plan). `SiteRunSurface` follows the same rule inside
+the Atlas pane. Do not put a viewport breakpoint back on either grid. "Advance
+beat" in the handoff's header opens the same Advance dialog the rail's outcome
+strip does, so nothing is unreachable while the rail is away. "Leave site"
+keeps the room cursor, and **Enter site** on `QuestRunBeatCard` is the way
+back in (`siteName` prop, `enter-site` emit); until 2 Oct 2026 there was none,
+and the handoff stayed gone until the beat itself changed. Moving the party is
+`useMoveParty`, shared with the Atlas Run surface: see world-building.md for
+why reachability never refuses a move. #850 built this as its own
 room card and its own `LootPlacementList` mount; #868 replaced both with the
 same room surface the Atlas Run action uses, per the maintainer's framing
 for that epic: **a room is a zoomed-in beat**, so the cockpit's crawl and the

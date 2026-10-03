@@ -128,7 +128,7 @@ async function fetchPlayerSitePlan(
  * one person who needs to check what the plan shows.
  *
  * `enabled` (#884, wave 4, S12) additionally gates the query — for a
- * caller like `SiteMapLayersPanel`'s "preview as players" toggle, where a
+ * caller like `MapLayersPanel`'s "preview as players" toggle, where a
  * chosen audience is required before the RPC's preview branch has anything
  * to authorize against. Omit it (every existing caller) and the query runs
  * whenever `siteLocationId` is set, unchanged.

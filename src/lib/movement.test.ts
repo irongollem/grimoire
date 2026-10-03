@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSpeed } from "@/lib/movement";
+import { walkingSpeed, parseSpeed } from "@/lib/movement";
 
 describe("parseSpeed", () => {
   it("returns [] for nullish/empty", () => {
@@ -35,5 +35,17 @@ describe("parseSpeed", () => {
 
   it("keeps a lone walk even at 0 ft", () => {
     expect(parseSpeed("0 ft.")).toEqual([{ mode: "walk", value: "0" }]);
+  });
+});
+
+describe("walkingSpeed", () => {
+  it("reads the walking distance, ignoring the other modes", () => {
+    expect(walkingSpeed("40 ft.")).toBe(40);
+    expect(walkingSpeed("30 ft., climb 30 ft.")).toBe(30);
+  });
+
+  it("is null when there is no walking speed to read", () => {
+    expect(walkingSpeed("0 ft., swim 40 ft.")).toBeNull();
+    expect(walkingSpeed(null)).toBeNull();
   });
 });

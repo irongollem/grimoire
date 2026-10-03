@@ -762,6 +762,11 @@ export const useUiStore = defineStore("ui", () => {
   // layout preference, the same idiom as `entityListLayout`/`questsIsKanban`,
   // not a list filter, so `useLocalStorage` is the right call rather than a
   // plain ref that resets on reload.
+  //
+  // Only the DM's own chevrons write it. A pane that wants the width (a
+  // site's Map tab, the runner) and an open search are derived on top of it
+  // in `useAtlasTreeFold`; writing them here is what once left the tree
+  // folded for good after a reload.
   const locationsTreeCollapsed = useLocalStorage("grimoire:atlas:treeCollapsed", false);
 
   // The place the Atlas was left on. Selection itself lives in the URL

@@ -11,7 +11,7 @@ import {
   isExhaustion,
 } from "@/rules/conditions";
 import type { ConditionName } from "@/rules/conditions";
-import { applyDamage, displayTempHp as calcDisplayTempHp, type HpPools } from "@/rules/hitPoints";
+import { applyDamage, displayTempHp as calcDisplayTempHp, formHpPools } from "@/rules/hitPoints";
 import { CONCENTRATION_BREAKING_CONDITIONS } from "@/composables/party/useConcentration";
 import type { RunCombatant, RevealState } from "@/types/encounter.types";
 
@@ -189,14 +189,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
       // (then beast HP, if wildshaped) soaks up damage before the character's
       // own HP, so route through the same applyDamage logic store.adjustHp
       // uses to find the character's REAL HP after this hit.
-      const pools: HpPools = {
-        current_hp: memberBefore.current_hp,
-        max_hp: memberBefore.max_hp,
-        temp_hp: memberBefore.temp_hp,
-        beast: memberBefore.wildshape_state
-          ? { hp: memberBefore.wildshape_state.beast_hp, max_hp: memberBefore.wildshape_state.beast_max_hp }
-          : null,
-      };
+      const pools = formHpPools(memberBefore, memberBefore.wildshape_state);
       const realHpAfter = applyDamage(pools, amt).current_hp;
       if (realHpAfter === 0) {
         await endConcentration(memberBefore, { reason: "dropped to 0 HP" });

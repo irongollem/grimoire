@@ -5,11 +5,11 @@
       <div class="shrink-0 w-24 relative overflow-hidden bg-muted/50">
         <MiniPortraitOverlay :source="{ table: 'party_members', id: member.id }">
           <FocalImage
-            v-if="wildshape?.beast_image_url ?? member.portrait_url"
-            :src="(wildshape?.beast_image_url ?? member.portrait_url)!"
-            :alt="wildshape?.beast_name ?? member.name"
+            v-if="portrait.src"
+            :src="portrait.src"
+            :alt="portrait.alt"
             format="portrait"
-            :focal-point="wildshape?.beast_image_url ? null : (member.portrait_focal_point ?? null)"
+            :focal-point="portrait.focalPoint"
             :lightbox="true"
           />
           <span
@@ -210,7 +210,7 @@ import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { useClassHitDice } from "@/composables/party/useClassHitDice";
 import { useConcentration } from "@/composables/party/useConcentration";
-import { applyDamage as damagePools, applyHealing as healPools, betterTempHp } from "@/rules/hitPoints";
+import { applyDamage as damagePools, applyHealing as healPools, betterTempHp, formHpPools } from "@/rules/hitPoints";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   CONDITIONS,
@@ -224,6 +224,8 @@ import {
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
+import { formPortrait } from "@/lib/wildshapePortrait";
+import { walkingSpeed } from "@/lib/movement";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -233,7 +235,14 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 
-const props = defineProps<{ member: PartyMember; wildshape?: WildshapeState; hidePlayerActions?: boolean }>();
+const props = defineProps<{
+  member: PartyMember;
+  wildshape?: WildshapeState;
+  /** The beast's speed string while wild-shaped; its walking speed replaces the character's. */
+  beastSpeed?: string | null;
+  hidePlayerActions?: boolean;
+}>();
+const portrait = computed(() => formPortrait(props.member, props.wildshape));
 const emit = defineEmits<{ (e: "level-up"): void }>();
 
 const { data: allSpecies } = useAllSpecies();
@@ -358,14 +367,7 @@ const hitDiceRemaining = computed(() =>
 // An equipped shield adds its bonus on top of the stored (shieldless) AC,
 // but never to a beast form — gear merges into the form while wildshaped.
 const { acFor } = useShieldAcBonus();
-const hpPools = computed(() => ({
-  current_hp: props.member.current_hp,
-  max_hp: props.member.max_hp,
-  temp_hp: props.member.temp_hp,
-  beast: props.wildshape
-    ? { hp: props.wildshape.beast_hp, max_hp: props.wildshape.beast_max_hp }
-    : null,
-}));
+const hpPools = computed(() => formHpPools(props.member, props.wildshape));
 
 const displayHp    = computed(() => props.wildshape?.beast_hp    ?? props.member.current_hp);
 const displayMaxHp = computed(() => props.wildshape?.beast_max_hp ?? props.member.max_hp);
@@ -379,7 +381,7 @@ const initiativeDisplay = computed(() => {
 
 const combatStats = computed(() => [
   { label: "AC",   value: displayAc.value, suffix: "" },
-  { label: "SPD",  value: props.member.speed, suffix: "ft" },
+  { label: "SPD",  value: (props.wildshape ? walkingSpeed(props.beastSpeed) : null) ?? props.member.speed, suffix: "ft" },
   { label: "INIT", value: initiativeDisplay.value, suffix: "" },
   { label: "PROF", value: `+${props.member.proficiency_bonus}`, suffix: "" },
   { label: "HD",   value: `${hitDiceRemaining.value}/${memberTotalLevel.value}`, suffix: hitDicePoolLabel.value },
@@ -449,7 +451,9 @@ async function applyDamage() {
   const update: PartyMemberUpdate = { current_hp: out.current_hp };
   if (out.temp_hp !== props.member.temp_hp) update.temp_hp = out.temp_hp;
   if (props.wildshape) {
-    update.wildshape_state = out.beast_hp === null ? null : { ...props.wildshape, beast_hp: out.beast_hp };
+    // A 2024 form has no beast pool: it stays until the character drops to 0.
+    if (out.reverted) update.wildshape_state = null;
+    else if (out.beast_hp !== null) update.wildshape_state = { ...props.wildshape, beast_hp: out.beast_hp };
   }
   await updateMember({ id: props.member.id, update });
 

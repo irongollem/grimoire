@@ -7,18 +7,18 @@
     <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
       <MiniPortraitOverlay :source="{ table: 'party_members', id: member.id }">
         <FocalImage
-          :src="member.portrait_url"
-          :alt="member.name"
+          :src="portrait.src"
+          :alt="portrait.alt"
           format="portrait"
-          :focal-point="member.portrait_focal_point ?? null"
-          :placeholder="placeholderUrl('character')"
+          :focal-point="portrait.focalPoint"
+          :placeholder="placeholderUrl(portrait.shaped ? 'monster' : 'character')"
           class="group-hover:scale-105 transition-transform duration-300"
         />
         <span
           v-if="isOwn"
           class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
         >You</span>
-        <AiImageBadge :src="member.portrait_url" />
+        <AiImageBadge :src="portrait.src" />
       </MiniPortraitOverlay>
     </div>
     <div class="p-2.5 flex flex-col gap-1.5">
@@ -76,6 +76,7 @@ import { useHpDisplay } from "@/composables/play/useHpDisplay";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import type { PartyMember } from "@/types/party.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { formPortrait } from "@/lib/wildshapePortrait";
 
 const { member, isOwn, showNumericHp, subtitle } = defineProps<{
   member: PartyMember;
@@ -83,6 +84,9 @@ const { member, isOwn, showNumericHp, subtitle } = defineProps<{
   showNumericHp: boolean;
   subtitle: string;
 }>();
+
+// A wild-shaped member wears the beast's face here too, as on their sheet.
+const portrait = computed(() => formPortrait(member, member.wildshape_state));
 
 defineEmits<{ click: [] }>();
 

@@ -1,4 +1,4 @@
-import { mount, RouterLinkStub } from "@vue/test-utils";
+import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SiteRoomList from "./SiteRoomList.vue";
@@ -22,17 +22,16 @@ function room(overrides: Partial<Location> = {}): Location {
 
 const mocks = vi.hoisted(() => ({
   loot: { value: [] as Array<Record<string, unknown>> },
-  setLocation: vi.fn((_input: unknown, opts?: { onSuccess?: () => void }) => opts?.onSuccess?.()),
+  moveParty: vi.fn((_request: unknown) => Promise.resolve(true)),
   updateLocation: vi.fn((_input: unknown, opts?: { onSuccess?: () => void }) => opts?.onSuccess?.()),
 }));
 
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useUpdateLocation: () => ({ mutate: mocks.updateLocation, isPending: ref(false) }),
 }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({ useLootPlacements: () => ({ data: mocks.loot }) }));
-vi.mock("@/composables/campaign/useCampaigns", () => ({
-  useSetCampaignLocation: () => ({ mutate: mocks.setLocation, isPending: { value: false } }),
+vi.mock("@/composables/locations/useMoveParty", () => ({
+  useMoveParty: () => ({ moveParty: mocks.moveParty, isMoving: { value: false } }),
 }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: vi.fn() }) }));
 
@@ -53,7 +52,7 @@ function baseProps(rooms: Location[], overrides: Partial<InstanceType<typeof Sit
 describe("SiteRoomList", () => {
   beforeEach(() => {
     mocks.loot.value = [];
-    mocks.setLocation.mockClear();
+    mocks.moveParty.mockClear();
     mocks.updateLocation.mockClear();
   });
 
@@ -118,22 +117,33 @@ describe("SiteRoomList", () => {
     const wrapper = mount(SiteRoomList, { props: baseProps(rooms, { currentRoomId: "room-a", reachable: new Set(["room-a", "room-b"]) }), global: { stubs } });
     const target = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.text().includes("Antechamber"));
     await target!.trigger("click");
-    expect(mocks.setLocation).toHaveBeenCalledWith(
-      { id: "c1", locationId: "room-b" },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
+    await flushPromises();
+    expect(mocks.moveParty).toHaveBeenCalledWith(expect.objectContaining({ roomId: "room-b", currentRoomId: "room-a" }));
     expect(wrapper.emitted("move")).toEqual([["room-b"]]);
   });
 
-  it("does not move the party into an unreachable room, linking to its sheet instead", async () => {
+  // A room the door graph leaves out is still a row that moves the party
+  // (`useMoveParty` asks first); it used to be a link to the room's Atlas
+  // page, which stranded a DM who clicked the wrong room first.
+  it("hands an unreachable room to the move as well, and never links away", async () => {
+    const rooms = [room({ id: "room-a" }), room({ id: "room-b", name: "Antechamber" })];
+    const reachable = new Set(["room-a"]);
+    const wrapper = mount(SiteRoomList, { props: baseProps(rooms, { currentRoomId: "room-a", reachable }), global: { stubs } });
+    const buttons = wrapper.findAllComponents({ name: "AppButton" });
+    expect(buttons.every((button) => button.props("to") === undefined)).toBe(true);
+    await buttons.find((button) => button.text().includes("Antechamber"))!.trigger("click");
+    await flushPromises();
+    expect(mocks.moveParty).toHaveBeenCalledWith({ roomId: "room-b", roomName: "Antechamber", currentRoomId: "room-a", reachable });
+    expect(wrapper.emitted("move")).toEqual([["room-b"]]);
+  });
+
+  it("does not announce a move the DM declined", async () => {
+    mocks.moveParty.mockResolvedValueOnce(false);
     const rooms = [room({ id: "room-a" }), room({ id: "room-b", name: "Antechamber" })];
     const wrapper = mount(SiteRoomList, { props: baseProps(rooms, { currentRoomId: "room-a", reachable: new Set(["room-a"]) }), global: { stubs } });
-    // Rendered as a RouterLink once `to` is set — the stub swallows its
-    // default slot, so it has to be found by its `to` prop rather than text.
-    const target = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("to") === "/locations?at=room-b");
-    expect(target).toBeTruthy();
-    await target!.trigger("click");
-    expect(mocks.setLocation).not.toHaveBeenCalled();
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.text().includes("Antechamber"))!.trigger("click");
+    await flushPromises();
+    expect(wrapper.emitted("move")).toBeUndefined();
   });
 
   it("keeps the plain description caption when runCaptions is off, even with reachability data present", () => {
@@ -148,14 +158,9 @@ describe("SiteRoomList", () => {
 
   it("switches to reachability captions once runCaptions is on", () => {
     const rooms = [room({ id: "room-a" }), room({ id: "room-b", name: "Antechamber" })];
-    // An unreachable room renders its title through a real RouterLink
-    // (`linkTo` points at its sheet), and the plain `RouterLink: true` stub
-    // used elsewhere in this file swallows slot content — so this test needs
-    // a stub that keeps it, to actually see the room's caption.
-    const linkStubs = { RouterLink: { template: "<a><slot /></a>" }, RichTextEditor: true };
     const wrapper = mount(SiteRoomList, {
       props: baseProps(rooms, { currentRoomId: "room-a", reachable: new Set(["room-a"]), runCaptions: true }),
-      global: { stubs: linkStubs },
+      global: { stubs },
     });
     expect(wrapper.text()).toContain("Party here");
     expect(wrapper.text()).toContain("Not reachable from here");

@@ -51,10 +51,14 @@ Each row is one combatant; the active combatant gets a highlighted row and gold 
 
 ## Wildshape (Druid/Ranger)
 
-1. On a player's expanded row, click **🐺 Choose Form** and pick a beast.
-2. The avatar switches to the beast's portrait; HP, max HP, and AC track the beast's values independently of the character's own.
-3. Damage lands on beast HP first; once it hits 0, the extra overflows to the character's real HP (5e RAW).
-4. Click **Revert** to return to the character's own form, or **Change** to swap forms mid-fight.
+1. On a player's expanded row, click **🐺 Choose Form** and pick a beast. The list follows the campaign's edition: under 2014 rules it holds the beasts the party has discovered, under 2024 rules the druid's Known Forms. Forms you pin are always on it.
+2. The avatar switches to the beast's portrait, on the battle map and the party tracker too. AC is the beast's.
+3. Hit points follow the edition:
+   - **2014**: the druid takes the beast's hit points. Damage lands on them first; once they hit 0, the extra overflows to the character's own HP.
+   - **2024**: the druid keeps their own hit points and gains temporary HP equal to their druid level (three times that for Circle of the Moon). The form ends if they drop to 0.
+4. Click **Revert** to return to the character's own form, or **Change** to swap forms mid-fight. Each form costs a use; an air, earth, fire or water elemental (2014 Circle of the Moon, level 10) costs two.
+5. A druid who took a form on their own sheet before or during the fight arrives in it.
+6. Under 2024 rules a level 20 druid with no uses left regains one when they roll initiative (Evergreen Wild Shape).
 
 ## Attacking
 

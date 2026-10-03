@@ -44,26 +44,24 @@
       </label>
     </div>
 
-    <div class="flex min-h-6 items-center gap-2 text-caption" aria-live="polite">
-      <span v-if="titleError" class="text-muted-foreground">Autosave paused until the beat has a title</span>
-      <span v-else-if="saveError" role="alert" class="text-destructive">{{ saveError }}</span>
-      <span v-else-if="saving" class="text-muted-foreground">Saving…</span>
-      <span v-else-if="dirty" class="text-muted-foreground">Unsaved changes</span>
-      <span v-else class="text-tone-success">Saved</span>
-      <AppButton v-if="saveError" label="Reload saved beat" size="xs" variant="subtle" class="ml-auto" @click="reloadSavedBeat" />
-    </div>
+    <AutosaveStatus :status="status" :error="saveError" paused-label="Autosave paused until the beat has a title">
+      <template #error-action>
+        <AppButton label="Reload saved beat" size="xs" variant="subtle" @click="reloadSavedBeat" />
+      </template>
+    </AutosaveStatus>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
-import { useDebounceFn } from "@vueuse/core";
+import { computed, reactive, ref, watch } from "vue";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
+import { useAutosave } from "@/composables/useAutosave";
 import { questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
 import type { QuestBeat } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
@@ -76,14 +74,27 @@ const updateBeat = useUpdateQuestBeat();
 // full mention list is always the DM's — see NoteEditor.vue for the same call.
 const { mentionItems: entityMentionItems } = useEntityMentionItems();
 const draft = reactive(questBeatToDraft(beat));
-let baseline = questBeatToDraft(beat);
 const activeBeatId = ref(beat.id);
 const version = ref(beat.updated_at);
-const dirty = ref(false);
-const saving = ref(false);
-const saveError = ref("");
+
+const { status, dirty, saving, saveError, reset } = useAutosave({
+  draft,
+  initial: () => questBeatToDraft(beat),
+  equal: questBeatDraftsEqual,
+  canSave: () => !!draft.title.trim(),
+  errorMessage: "Could not save this beat",
+  async save(snapshot) {
+    const saved = await updateBeat.mutateAsync({
+      id: beat.id,
+      questId: beat.quest_id,
+      update: questBeatDraftToUpdate(snapshot, beat.improv_reviewed_at),
+      expectedUpdatedAt: version.value,
+    });
+    version.value = saved.updated_at;
+    emit("saved", saved);
+  },
+});
 const titleError = computed(() => dirty.value && !draft.title.trim() ? "Give this beat a title before it is saved." : "");
-let hydrating = false;
 
 // Our own autosave echoes straight back through this prop — first the optimistic
 // write, then the refetch `onSettled` triggers — and the row it carries is the
@@ -93,74 +104,13 @@ let hydrating = false;
 watch(() => beat, (nextBeat) => {
   const isEcho = nextBeat.updated_at === version.value;
   if (nextBeat.id === activeBeatId.value && (dirty.value || saving.value || isEcho)) return;
-  hydrating = true;
   activeBeatId.value = nextBeat.id;
-  baseline = questBeatToDraft(nextBeat);
-  Object.assign(draft, baseline);
   version.value = nextBeat.updated_at;
-  hydrating = false;
+  reset(questBeatToDraft(nextBeat));
 }, { deep: true });
-
-// These are prose boxes, not a search field: 800ms fired inside the pauses of an
-// ordinary sentence, and the 2.5s ceiling meant a write plus a full beat-list
-// refetch every 2.5s of continuous typing. Long enough now to sit out a
-// think-pause, with a ceiling that still bounds what an unexpected close costs.
-const saveLater = useDebounceFn(() => void saveNow(), 2000, { maxWait: 10_000 });
-watch(draft, () => {
-  if (hydrating) return;
-  dirty.value = !questBeatDraftsEqual(draft, baseline);
-  if (dirty.value) void saveLater();
-}, { deep: true });
-
-async function saveNow() {
-  if (saving.value || !dirty.value) return;
-  if (titleError.value) return;
-  saving.value = true;
-  saveError.value = "";
-  const snapshot = { ...draft };
-  try {
-    const saved = await updateBeat.mutateAsync({
-      id: beat.id,
-      questId: beat.quest_id,
-      update: questBeatDraftToUpdate(snapshot, beat.improv_reviewed_at),
-      expectedUpdatedAt: version.value,
-    });
-    version.value = saved.updated_at;
-    // Baseline is what we *sent*, never the row that came back. `questBeatDraftToUpdate`
-    // trims and defaults on the way out, so adopting the saved row here would pull
-    // those edits into the live draft — that is what yanked the trailing space off
-    // the word being typed every time an autosave landed mid-sentence.
-    baseline = { ...snapshot };
-    if (questBeatDraftsEqual(draft, snapshot)) dirty.value = false;
-    emit("saved", saved);
-  } catch (error) {
-    saveError.value = error instanceof Error ? error.message : "Could not save this beat";
-  } finally {
-    saving.value = false;
-    if (dirty.value && !saveError.value) void saveLater();
-  }
-}
 
 function reloadSavedBeat() {
-  hydrating = true;
-  baseline = questBeatToDraft(beat);
-  Object.assign(draft, baseline);
   version.value = beat.updated_at;
-  dirty.value = false;
-  saveError.value = "";
-  hydrating = false;
+  reset();
 }
-
-// A longer debounce needs a backstop the unmount hook cannot give: closing the tab
-// or backgrounding the app never unmounts, and `visibilitychange` is the last event
-// that still reliably gets to start a request.
-function flushOnHide() {
-  if (document.visibilityState === "hidden") void saveNow();
-}
-document.addEventListener("visibilitychange", flushOnHide);
-
-onBeforeUnmount(() => {
-  document.removeEventListener("visibilitychange", flushOnHide);
-  void saveNow();
-});
 </script>

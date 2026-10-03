@@ -1,6 +1,6 @@
 // ── "Start drawing" for a site's own Drawing layer (#884, S5; reworked S11) ──
 //
-// `SiteMapLayersPanel`'s Drawing row emits `open-drawing` rather than acting
+// `MapLayersPanel`'s Drawing row emits `open-drawing` rather than acting
 // itself, and its host (`AtlasSiteMapMode`) runs this branch.
 //
 // Before #884 S11 this navigated to `/cartographer/:id` — the Cartographer
