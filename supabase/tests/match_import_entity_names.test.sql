@@ -209,13 +209,18 @@ select is(
 );
 
 -- ── Scope: an encounter's joined location obeys the same scope as the row ────
--- An encounter the owner controls, pointed at a stranger's location (nothing in
--- the schema prevents that): its `detail` must not carry the stranger's name.
+-- An encounter the owner controls, pointed at a stranger's location: its
+-- `detail` must not carry the stranger's name. Since #892 the write itself is
+-- refused (zz_same_campaign_refs, see same_campaign_refs.test.sql), so the row
+-- is planted with that trigger off, the way one written before #892 exists.
+-- The read keeps its own scope as defence in depth.
 insert into public.locations (id, user_id, campaign_id, name)
 values ('19410000-0000-4000-8000-000000000201', '19410000-0000-4000-8000-000000000003', null, 'Strangers Secret Vault');
+alter table public.encounters disable trigger zz_same_campaign_refs;
 insert into public.encounters (id, user_id, campaign_id, name, location_id)
 values ('19410000-0000-4000-8000-000000000202', '19410000-0000-4000-8000-000000000001',
         '19410000-0000-4000-8000-000000000010', 'Zzmatch Ambush', '19410000-0000-4000-8000-000000000201');
+alter table public.encounters enable trigger zz_same_campaign_refs;
 select is(
   (select detail from public.match_import_entity_names(
      '19410000-0000-4000-8000-000000000001'::uuid,
