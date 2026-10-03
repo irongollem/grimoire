@@ -130,7 +130,8 @@ const props = defineProps<{
 // inventory views already query — this row only carries item_id, not the
 // vault item's own fields (content included), and ItemRow has no parent-fed
 // item map to read instead, so it shares the cached query directly.
-const { data: allVisibleItems } = usePlayerVisibleItems();
+// `resolvable`: a carried item resolves whatever the table's edition is now (#961).
+const { resolvable: allVisibleItems } = usePlayerVisibleItems();
 import { inventoryItemRef } from "@/lib/itemRef";
 const hasContent = computed(() => {
   const id = inventoryItemRef(props.item);

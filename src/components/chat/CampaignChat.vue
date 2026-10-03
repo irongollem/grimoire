@@ -207,7 +207,8 @@ const { reportChatFailure, reportMessageFailure } = useChatSendFailure();
 const chatOpen = () => ui.chatOpen;
 const { data: members } = useCampaignMembers(chatOpen);
 const { data: party }    = useParty(chatOpen);
-const { data: allItems } = useItems(() => ({ enabled: ui.chatOpen }));
+// Both lookups below resolve an item a chat message already names, so they read `resolvable` (#961).
+const { resolvable: allItems } = useItems(() => ({ enabled: ui.chatOpen }));
 const { data: npcsData } = useNpcs(chatOpen);
 const { mutateAsync: addInventoryItem }    = useAddInventoryItem();
 const { mutateAsync: updatePartyMember }   = useUpdatePartyMember();

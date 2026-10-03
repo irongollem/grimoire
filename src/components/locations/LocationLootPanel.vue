@@ -80,6 +80,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useCreateLootPlacement } from "@/composables/quests/useQuestFlow";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useItems } from "@/composables/items/useItems";
 import { itemRefColumns } from "@/lib/itemRef";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -110,7 +111,7 @@ const { locationId, campaignId, loot } = defineProps<{ locationId: string; campa
 
 const auth = useAuthStore();
 const queryClient = useQueryClient();
-const { data: items } = useItems();
+const { data: items, resolvable } = useItems();
 const { data: lootTables } = useLootTables();
 const createLoot = useCreateLootPlacement();
 
@@ -143,7 +144,13 @@ const itemOptions = computed(() => (items.value ?? [])
 
 const lootTableOptions = computed(() => (lootTables.value ?? []).map((table) => ({ id: table.id, name: table.name })));
 const selectedLootTable = computed(() => (lootTables.value ?? []).find((table) => table.id === lootTableId.value) ?? null);
-const itemsById = computed(() => new Map((items.value ?? []).map((item) => [item.id, item])));
+// The picker offers what the enabled books and edition allow; a loot table's stored
+// entries resolve whatever they are now, so a roll never drops one (#954, #961).
+const { items: storedItems } = useStoredItemRefs(
+  () => (selectedLootTable.value?.entries ?? []).flatMap((e) => (e.item_id ? [e.item_id] : [])),
+  resolvable,
+);
+const itemsById = computed(() => new Map(storedItems.value.map((item) => [item.id, item])));
 
 const rolledAtoms = computed<LootChestAtom[]>(() => {
   const atoms: LootChestAtom[] = [];

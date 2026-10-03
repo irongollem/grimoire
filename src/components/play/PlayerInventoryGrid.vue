@@ -64,6 +64,7 @@
       :weight="backpackWeight"
       :all-containers="allContainers"
       :all-items="allItems"
+      :catalogue="catalogue"
       :resolved-member-id="resolvedMemberId ?? null"
       @add="(name, itemId) => $emit('add-to-location', 'backpack', null, name, itemId)"
       @move="(item, loc, cid) => $emit('move', item, loc, cid)"
@@ -85,6 +86,7 @@
       :weight="beltWeight"
       :all-containers="allContainers"
       :all-items="allItems"
+      :catalogue="catalogue"
       :resolved-member-id="resolvedMemberId ?? null"
       class="mt-2"
       @add="(name, itemId) => $emit('add-to-location', 'belt', null, name, itemId)"
@@ -111,6 +113,7 @@
       :weight="containerWeight(c.id)"
       :all-containers="allContainers"
       :all-items="allItems"
+      :catalogue="catalogue"
       :resolved-member-id="resolvedMemberId ?? null"
       :removable="true"
       class="mt-2"
@@ -219,6 +222,7 @@ const {
   partyMembers,
   allContainers,
   allItems,
+  catalogue,
   resolvedMemberId,
   showContainerPicker,
   containerPickerSearch,
@@ -237,6 +241,7 @@ const {
   partyMembers: PartyMember[];
   allContainers: PartyInventoryItem[];
   allItems: Item[];
+  catalogue: Item[];
   resolvedMemberId: string | null | undefined;
   showContainerPicker: boolean;
   containerPickerSearch: string;

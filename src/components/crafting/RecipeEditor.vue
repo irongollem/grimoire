@@ -228,7 +228,8 @@ import {
 } from "@/lib/crafting-disciplines";
 import { useUiStore } from "@/stores/ui";
 import { useItems } from "@/composables/items/useItems";
-import { itemRefColumns, sameItemRef } from "@/lib/itemRef";
+import { inventoryItemRef, itemRefColumns, sameItemRef } from "@/lib/itemRef";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import {
   useCreateRecipe,
   useUpdateRecipe,
@@ -255,7 +256,7 @@ const recipeId = computed(() => props.recipe?.id);
 
 const ui = useUiStore();
 
-const { data: allItems } = useItems();
+const { data: allItems, resolvable } = useItems();
 
 // Load existing sub-resources when editing — pass the computed so the query
 // re-enables reactively once the recipe prop resolves after a hard refresh.
@@ -392,8 +393,15 @@ function matchesSearch(name: string, query: string): boolean {
   return tokens.every((t) => lower.includes(t));
 }
 
+// The picker above browses `items`; a recipe's saved references resolve whatever
+// the table's edition or books are now (#961).
+const { find: findStoredItem } = useStoredItemRefs(
+  () => [...outputs.value, ...ingredients.value].map(inventoryItemRef),
+  resolvable,
+);
+
 function itemById(id: string | null) {
-  return id ? items.value.find((i) => i.id === id) : undefined;
+  return id ? findStoredItem(id) : undefined;
 }
 
 function addOutput(itemId: string) {

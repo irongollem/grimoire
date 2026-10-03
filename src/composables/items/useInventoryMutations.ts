@@ -21,7 +21,10 @@ interface UseInventoryMutationsOptions {
   resolvedMemberId: ComputedRef<string | null | undefined>;
   member: ComputedRef<PartyMember | null>;
   myItems: ComputedRef<PartyInventoryItem[]>;
+  /** Resolves a row the character already carries (#961). */
   allItems: ComputedRef<Item[] | undefined>;
+  /** What may be added: the edition and enabled books narrow this, not `allItems`. */
+  catalogue: ComputedRef<Item[] | undefined>;
   partyMembers: ComputedRef<PartyMember[] | undefined>;
   selectedInv: Ref<PartyInventoryItem | null>;
 }
@@ -31,6 +34,7 @@ export function useInventoryMutations({
   member,
   myItems,
   allItems,
+  catalogue,
   partyMembers,
   selectedInv,
 }: UseInventoryMutationsOptions) {
@@ -226,7 +230,7 @@ export function useInventoryMutations({
 
   async function addItem(selectedId: string, name: string, qty: number) {
     const vaultItem =
-      (allItems.value ?? []).find((i) => i.id === selectedId) ?? null;
+      (catalogue.value ?? []).find((i) => i.id === selectedId) ?? null;
     const bundleItems = vaultItem?.bundle_items;
 
     if (bundleItems && bundleItems.length > 0) {
@@ -248,7 +252,7 @@ export function useInventoryMutations({
       await addInventoryItems(
         bundleItems.map((sub) => {
           const subVault =
-            (allItems.value ?? []).find(
+            (catalogue.value ?? []).find(
               (i) => i.name.toLowerCase() === sub.name.toLowerCase(),
             ) ?? null;
           return {

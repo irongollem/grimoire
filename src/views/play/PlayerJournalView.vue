@@ -252,6 +252,7 @@ import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useSharedLocations } from "@/composables/locations/useLocations";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
@@ -279,7 +280,12 @@ const { data: puzzles, isLoading: loadingPuzzles } = usePlayerVisiblePuzzles();
 const { data: sharedNpcs }        = useSharedNpcs();
 const { data: sharedLocations }   = useSharedLocations();
 const { data: inventory }         = usePartyInventory();
-const { data: allVisibleItems }   = usePlayerVisibleItems();
+const { resolvable: resolvableItems } = usePlayerVisibleItems();
+// A carried tome resolves by id whatever the table's edition or books are now (#961).
+const { items: allVisibleItems } = useStoredItemRefs(
+  () => (inventory.value ?? []).map(inventoryItemRef),
+  resolvableItems,
+);
 const { data: allMonsters }       = usePlayerVisibleMonsters();
 const { data: playerDiscoveries } = usePlayerDiscoveries();
 
@@ -377,7 +383,7 @@ const tomeTabs = computed(() => {
       .map((inv) => inventoryItemRef(inv))
       .filter((id): id is string => id !== null),
   );
-  return (allVisibleItems.value ?? [])
+  return allVisibleItems.value
     .filter((it) => carriedItemIds.has(it.id) && it.content !== null)
     .map((it) => ({ id: it.id, label: it.name, item: it }));
 });

@@ -191,6 +191,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/items/usePartyInventory";
 import { useItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, RARITY_SURFACE_BG } from "@/types/item.types";
 import { useCampaignStore } from "@/stores/campaign";
@@ -212,10 +213,15 @@ const { mutateAsync: addInventoryItem, isPending: addingItem } = useAddInventory
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
 
-const { data: catalogItems } = useItems();
+// `catalogItems` is what the add picker offers; carried rows resolve in `resolvedItems` (#961).
+const { data: catalogItems, resolvable } = useItems();
+const { items: resolvedItems } = useStoredItemRefs(
+  () => (inventoryAll.value ?? []).map(inventoryItemRef),
+  resolvable,
+);
 const catalogItemMap = computed(() => {
   const map = new Map<string, Item>();
-  for (const item of catalogItems.value ?? []) map.set(item.id, item);
+  for (const item of resolvedItems.value) map.set(item.id, item);
   return map;
 });
 

@@ -174,7 +174,7 @@
       :required-ingredients="ingredientsFor(attemptRecipe.id)"
       :modifiers="modifiersFor(attemptRecipe.id)"
       :inventory="myInventory"
-      :all-items="allItems ?? []"
+      :all-items="allItems"
       :output-name-map="craftableOutputNames"
       :member="member"
       :has-tools="hasTools(attemptDiscipline.tools)"
@@ -202,6 +202,7 @@ import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { useParty } from "@/composables/party/useParty";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -210,7 +211,7 @@ import type { CraftingRecipe, CraftingDiscipline, CraftingIngredient, CraftingMo
 const auth = useAuthStore();
 const ui = useUiStore();
 const { data: recipes } = usePlayerCraftingRecipes();
-const { data: allItems } = usePlayerVisibleItems();
+const { resolvable } = usePlayerVisibleItems();
 const { map: craftableOutputNames } = useCraftableOutputItems();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
@@ -289,6 +290,17 @@ const { visibleItems: visibleRecipes, sentinelRef } = useInfiniteScroll(discipli
 const allRecipeIds = computed(() => (recipes.value ?? []).map((r) => r.id));
 const ingredientsMap = useAllRecipeIngredients(allRecipeIds);
 const outputsMap = useAllRecipeOutputs(allRecipeIds);
+
+// Carried rows, ingredients and outputs resolve in `resolvable`, not the
+// edition-narrowed browse list (#961).
+const { items: allItems } = useStoredItemRefs(
+  () => [
+    ...myInventory.value.map(inventoryItemRef),
+    ...[...ingredientsMap.value.values()].flat().map(inventoryItemRef),
+    ...[...outputsMap.value.values()].flat().map(inventoryItemRef),
+  ],
+  resolvable,
+);
 const modifiersMap = useAllRecipeModifiers(allRecipeIds);
 
 function ingredientsFor(recipeId: string): CraftingIngredient[] {
@@ -305,7 +317,7 @@ function outputsFor(recipeId: string): CraftingOutput[] {
 
 function itemName(ref: string | null): string {
   if (!ref) return "Unknown item";
-  return allItems.value?.find((i) => i.id === ref)?.name
+  return allItems.value.find((i) => i.id === ref)?.name
     // A recipe output the player has never held isn't in their visible items, so
     // resolve its name from the craftable-output projection before giving up.
     // (That projection only ever covers vault items — see useCraftableOutputItems
@@ -333,7 +345,7 @@ function ownedCount(ing: CraftingIngredient): number {
   return myInventory.value
     .filter((i) => {
       if (i.is_ruined) return false;
-      const def = allItems.value?.find((a) => a.id === inventoryItemRef(i));
+      const def = allItems.value.find((a) => a.id === inventoryItemRef(i));
       return ing.tags!.every((t) => def?.tags?.includes(t) ?? false);
     })
     .reduce((sum, i) => sum + i.quantity, 0);

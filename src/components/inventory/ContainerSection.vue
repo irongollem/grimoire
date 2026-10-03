@@ -109,7 +109,10 @@ const props = defineProps<{
   label: string;
   items: PartyInventoryItem[];
   allContainers: PartyInventoryItem[];
+  /** Resolves the carried rows (weight). */
   allItems: Item[];
+  /** What the add box may suggest. */
+  catalogue: Item[];
   resolvedMemberId: string | null;
   location: InventoryLocation;
   container?: PartyInventoryItem;
@@ -192,8 +195,8 @@ const showSuggestions = ref(false);
 
 const suggestions = computed((): Item[] => {
   const q = addName.value.trim().toLowerCase();
-  if (!q) return props.allItems.slice(0, 6);
-  return props.allItems.filter(it =>
+  if (!q) return props.catalogue.slice(0, 6);
+  return props.catalogue.filter(it =>
     it.name.toLowerCase().includes(q) ||
     (it.subtype ?? "").toLowerCase().includes(q) ||
     it.tags.some(t => t.toLowerCase().includes(q))

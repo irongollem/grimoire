@@ -4,7 +4,7 @@ import ItemRow from "./ItemRow.vue";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 
 vi.mock("@/composables/items/useItems", () => ({
-  usePlayerVisibleItems: () => ({ data: { value: [] } }),
+  usePlayerVisibleItems: () => ({ data: { value: [] }, resolvable: { value: [] } }),
 }));
 
 function makeItem(overrides: Partial<PartyInventoryItem> = {}): PartyInventoryItem {

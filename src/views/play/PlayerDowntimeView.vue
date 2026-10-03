@@ -39,7 +39,7 @@ const { data: draws } = useDowntimeDraws();
 const { data: outcomes } = useDowntimeOutcomes();
 // Player-visible projections only (gated names) — never the raw tables.
 const { data: npcs } = useSharedNpcs();
-const { data: items } = usePlayerVisibleItems();
+const { resolvable: items } = usePlayerVisibleItems();
 const { find: findRewardItem } = useStoredItemRefs(
   () => (outcomes.value ?? []).flatMap((o) => (o.reward_type === "item" && o.reward_id !== null ? [o.reward_id] : [])),
   items,

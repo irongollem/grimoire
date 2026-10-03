@@ -75,6 +75,8 @@ import { useParty } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { useItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { inventoryItemRef } from "@/lib/itemRef";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useBackgroundNameMap } from "@/composables/rules/useBackgrounds";
 import { useAuthStore } from "@/stores/auth";
@@ -106,7 +108,7 @@ const member = computed(() =>
 // `member`. The background map below lists that character's edition (useRuleset.ts).
 provideCharacterRuleset(() => member.value);
 const { data: inventoryItems, isLoading: inventoryLoading } = usePartyInventory();
-const { data: items } = useItems();
+const { resolvable } = useItems();
 const { data: speciesById } = useSpeciesByIds(() => [member.value?.species_id]);
 const backgroundMap = useBackgroundNameMap();
 
@@ -115,6 +117,8 @@ const isLoading = computed(() => partyLoading.value || inventoryLoading.value);
 const inventory = computed(() =>
   (inventoryItems.value ?? []).filter((i) => i.carried_by === memberId.value),
 );
+// Carried rows resolve in `resolvable`, not the edition-narrowed browse list (#961).
+const { items } = useStoredItemRefs(() => inventory.value.map(inventoryItemRef), resolvable);
 
 /** Resolved names — fall back to null if the lookup maps aren't loaded yet */
 const speciesName = computed(() =>

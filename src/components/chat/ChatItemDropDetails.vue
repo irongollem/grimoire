@@ -109,7 +109,8 @@ const props = defineProps<{ itemId: string }>();
 const ownedId = computed(() => (isUuid(props.itemId) ? props.itemId : ""));
 const libraryId = computed(() => (isUuid(props.itemId) ? "" : props.itemId));
 const { data: baseItem, isPending: baseItemPending } = useItem(ownedId);
-const { data: visibleItems, isLoading: visibleItemsLoading } = usePlayerVisibleItems();
+// `resolvable`, not the browse list: a dropped item resolves whatever the table's edition is now (#961).
+const { resolvable: visibleItems, isLoading: visibleItemsLoading } = usePlayerVisibleItems();
 const { data: libraryResolved, isPending: libraryPending } = useResolvedItem(libraryId);
 const item = computed(
   () => libraryResolved.value?.item ?? baseItem.value ?? visibleItems.value?.find((i) => i.id === props.itemId) ?? null,

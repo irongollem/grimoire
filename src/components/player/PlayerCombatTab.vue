@@ -256,6 +256,8 @@ import type { RollMode, DieSize } from "@/lib/dice/roller";
 import type { ParsedExpression } from "@/lib/dice/dice";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { inventoryItemRef } from "@/lib/itemRef";
 import { useAmmoConsumption } from "@/composables/encounters/useAmmoConsumption";
 import { useThrownWeapon } from "@/composables/encounters/useThrownWeapon";
 import { weaponAmmoTag, weaponUsesChargesAsAmmo } from "@/rules/ammunition";
@@ -299,7 +301,7 @@ const props = defineProps<{
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
 
 const { data: inventory } = usePartyInventory();
-const { data: allItems } = usePlayerVisibleItems();
+const { resolvable } = usePlayerVisibleItems();
 const { sendRoll } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
@@ -376,6 +378,8 @@ async function revealSelf() {
 const myInventory = computed(() =>
   (inventory.value ?? []).filter((i) => i.carried_by === props.member.id),
 );
+// Carried rows resolve in `resolvable`, not the edition-narrowed browse list (#961).
+const { items: allItems } = useStoredItemRefs(() => myInventory.value.map(inventoryItemRef), resolvable);
 
 // Weapon-hand slots — an item-less (custom-named) item equipped here is treated
 // as a weapon (rendered with improvised 1d4 stats), so it still gets an attack row.
@@ -385,7 +389,8 @@ const equippedWeapons = computed<{ inv: PartyInventoryItem; item: Item | null }[
   myInventory.value
     .filter((i) => i.is_equipped)
     .flatMap((inv): { inv: PartyInventoryItem; item: Item | null }[] => {
-      const item = inv.item_id ? (allItems.value ?? []).find((it) => it.id === inv.item_id) ?? null : null;
+      const ref = inventoryItemRef(inv);
+      const item = ref ? allItems.value.find((it) => it.id === ref) ?? null : null;
       if (item) return item.item_type === "weapon" ? [{ inv, item }] : [];
       // No vault item: a custom weapon only if equipped in a weapon hand.
       return inv.slot && WEAPON_SLOTS.has(inv.slot) ? [{ inv, item: null }] : [];
@@ -397,7 +402,7 @@ const equippedWeapons = computed<{ inv: PartyInventoryItem; item: Item | null }[
 // matching the DM encounter runner (see RunnerPcAttacks.vue).
 const vaultItemMap = computed<Map<string, Item>>(() => {
   const map = new Map<string, Item>();
-  for (const item of allItems.value ?? []) map.set(item.id, item);
+  for (const item of allItems.value) map.set(item.id, item);
   return map;
 });
 const { availableAmmoFor, ammoRemainingCount, consumeAmmo, weaponSelfChargesRemaining, consumeWeaponCharge } =

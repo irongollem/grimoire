@@ -48,6 +48,8 @@ import { useParty } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { inventoryItemRef } from "@/lib/itemRef";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useBackgroundNameMap } from "@/composables/rules/useBackgrounds";
 import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
@@ -70,13 +72,15 @@ const member = computed(() =>
 // The background map below lists the character's edition, not the table's (useRuleset.ts).
 provideCharacterRuleset(() => member.value);
 const { data: inventoryItems } = usePartyInventory();
-const { data: items } = usePlayerVisibleItems();
 const { data: speciesById } = useSpeciesByIds(() => [member.value?.species_id]);
 const backgroundMap = useBackgroundNameMap();
 
 const inventory = computed(() =>
   (inventoryItems.value ?? []).filter((i) => i.carried_by === linkedMemberId.value),
 );
+// Carried rows resolve in `resolvable`, not the edition-narrowed browse list (#961).
+const { resolvable } = usePlayerVisibleItems();
+const { items } = useStoredItemRefs(() => inventory.value.map(inventoryItemRef), resolvable);
 
 const speciesName = computed(() =>
   member.value?.species_id ? (speciesById.value.get(member.value.species_id)?.name ?? null) : null,

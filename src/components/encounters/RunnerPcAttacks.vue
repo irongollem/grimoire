@@ -169,6 +169,8 @@ import type { PartyMember } from "@/types/party.types";
 import type { Item } from "@/types/item.types";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { useItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { inventoryItemRef } from "@/lib/itemRef";
 import { useAmmoConsumption } from "@/composables/encounters/useAmmoConsumption";
 import { useThrownWeapon } from "@/composables/encounters/useThrownWeapon";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
@@ -192,13 +194,18 @@ const emit = defineEmits<{
 // ── Composables ───────────────────────────────────────────────────────────────
 
 const { data: inventoryItems } = usePartyInventory();
-const { data: vaultItems } = useItems();
+// Carried rows resolve in `resolvable`, not the edition-narrowed browse list (#961).
+const { resolvable } = useItems();
+const { items: vaultItems } = useStoredItemRefs(
+  () => (inventoryItems.value ?? []).map(inventoryItemRef),
+  resolvable,
+);
 
 // ── Inventory views ───────────────────────────────────────────────────────────
 
 const vaultItemMap = computed<Map<string, Item>>(() => {
   const map = new Map<string, Item>();
-  for (const item of vaultItems.value ?? []) map.set(item.id, item);
+  for (const item of vaultItems.value) map.set(item.id, item);
   return map;
 });
 

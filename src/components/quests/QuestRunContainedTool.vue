@@ -162,7 +162,8 @@ const factionRecord = computed(() => faction.value ?? null);
 const monster = computed(() => monsterQuery.data.value?.monster ?? null);
 const noteRecord = computed(() => noteQuery.data.value ?? null);
 const handoutRecord = computed(() => handoutQuery.data.value ?? null);
-const { data: items } = useItems(() => ({ enabled: props.attachment.attachment_type === "item" }));
+// A stored attachment resolves in `resolvable`; the edition and books only narrow what a picker offers (#961).
+const { resolvable: items } = useItems(() => ({ enabled: props.attachment.attachment_type === "item" }));
 const item = computed(() => props.attachment.attachment_type === "item" ? items.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
 const portraitSrc = computed(() => npcRecord.value?.portrait_url ?? factionRecord.value?.emblem_url ?? item.value?.image_url ?? monster.value?.image_url ?? null);
 const { data: sounds } = useSounds(() => props.attachment.attachment_type === "sound");

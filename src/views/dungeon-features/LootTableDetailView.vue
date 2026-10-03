@@ -350,7 +350,7 @@ const itemsQuery = useItems();
 // since been disabled, so a roll never silently drops a library item (#954).
 const { items: storedItems } = useStoredItemRefs(
   () => form.value.entries.flatMap((e) => (e.item_id ? [e.item_id] : [])),
-  itemsQuery.data,
+  itemsQuery.resolvable,
 );
 const itemsById = computed(() => {
   const m = new Map<string, NonNullable<typeof itemsQuery.data.value>[number]>();

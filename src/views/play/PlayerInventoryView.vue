@@ -62,7 +62,8 @@
       :party-stash="partyStash"
       :party-members="partyMembers ?? []"
       :all-containers="allContainers"
-      :all-items="allItems ?? []"
+      :all-items="allItems"
+      :catalogue="catalogue ?? []"
       :resolved-member-id="resolvedMemberId"
       :show-container-picker="showContainerPicker"
       :container-picker-search="containerPickerSearch"
@@ -87,7 +88,7 @@
 
     <!-- ═══ ADD ITEM (floating form) ═══ -->
     <PlayerAddItemPanel
-      :all-items="allItems ?? []"
+      :all-items="catalogue ?? []"
       @submit="addItem"
     />
 
@@ -132,6 +133,7 @@ import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useInventorySlots } from "@/composables/items/useInventorySlots";
@@ -154,7 +156,13 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
-const { data: allItems } = usePlayerVisibleItems();
+// `catalogue` is what the add pickers offer; `allItems` is what a carried row resolves in
+// (#961), so a character keeps its weight and details after an edition or book change.
+const { data: catalogue, resolvable } = usePlayerVisibleItems();
+const { items: allItems } = useStoredItemRefs(
+  () => (inventory.value ?? []).map(inventoryItemRef),
+  resolvable,
+);
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const { sendCurrencyDrop } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
@@ -245,7 +253,7 @@ function itemsInContainer(cid: string) {
 // ── Weight helpers ─────────────────────────────────────────────────────────────
 const itemWeightMap = computed((): Map<string, number> => {
   const m = new Map<string, number>();
-  for (const it of allItems.value ?? []) {
+  for (const it of allItems.value) {
     m.set(it.id, parseWeightLb(it.weight));
   }
   return m;
@@ -271,7 +279,7 @@ const containerWeightMap = computed((): Map<string, number> => {
   const m = new Map<string, number>();
   for (const c of customContainers.value) {
     const ref = inventoryItemRef(c);
-    const vaultItem = ref ? allItems.value?.find((it) => it.id === ref) : null;
+    const vaultItem = ref ? allItems.value.find((it) => it.id === ref) : null;
     const isExtradimensional =
       vaultItem?.tags.includes("extradimensional") ?? false;
     m.set(c.id, isExtradimensional ? 0 : sumWeight(itemsInContainer(c.id)));
@@ -479,7 +487,7 @@ const detailPanel = ref<InstanceType<typeof ItemDetailPanel> | null>(null);
 const selectedVaultItem = computed<Item | null>(() => {
   const ref = selectedInv.value ? inventoryItemRef(selectedInv.value) : null;
   if (!ref) return null;
-  return allItems.value?.find((it) => it.id === ref) ?? null;
+  return allItems.value.find((it) => it.id === ref) ?? null;
 });
 
 function openDetail(inv: PartyInventoryItem) {
@@ -525,6 +533,7 @@ const {
   member,
   myItems,
   allItems,
+  catalogue: computed(() => catalogue.value),
   partyMembers: computed(() => partyMembers.value),
   selectedInv,
 });

@@ -2,6 +2,9 @@ import { computed } from "vue";
 import { createSharedComposable } from "@vueuse/core";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { useItems, usePlayerVisibleItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { inventoryItemRef } from "@/lib/itemRef";
+import type { Item } from "@/types/item.types";
 import { shieldAcBonusByMember } from "@/rules/shieldAc";
 import { equippedArmorByMember, resolveBaseAc, type ParsedArmor } from "@/rules/armorAc";
 
@@ -30,10 +33,13 @@ function useShieldAcBonusImpl() {
   // policy); a player reads only their visible items via the projection (base
   // items RLS is owner-only since 20260711000014). Merge both so shield lookup
   // resolves regardless of who's viewing — one side is empty in each context.
-  const { data: items } = useItems();
-  const { data: playerItems } = usePlayerVisibleItems();
+  const { resolvable: items } = useItems();
+  const { resolvable: playerItems } = usePlayerVisibleItems();
 
-  const mergedItems = computed(() => {
+  // Equipped gear is *held*, so it resolves in `resolvable` (#961): switching the
+  // table's edition or disabling a book must not strip a worn shield's bonus.
+  const known = computed<Item[] | undefined>(() => {
+    if (items.value === undefined && playerItems.value === undefined) return undefined;
     const base = items.value ?? [];
     const proj = playerItems.value ?? [];
     if (!proj.length) return base;
@@ -42,6 +48,11 @@ function useShieldAcBonusImpl() {
     for (const p of proj) if (!byId.has(p.id)) byId.set(p.id, p);
     return [...byId.values()];
   });
+  // Library ids neither list holds (a disabled book) are fetched by id.
+  const { items: mergedItems } = useStoredItemRefs(
+    () => (inventory.value ?? []).map(inventoryItemRef),
+    known,
+  );
 
   const bonusByMember = computed(() =>
     shieldAcBonusByMember(inventory.value ?? [], mergedItems.value),

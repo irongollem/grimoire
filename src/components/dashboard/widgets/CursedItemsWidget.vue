@@ -56,6 +56,8 @@ import { IconHide } from "@/lib/icons";
 import { useParty } from "@/composables/party/useParty";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { useItems } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { inventoryItemRef } from "@/lib/itemRef";
 import { buildCursedItems } from "@/lib/dashboard/cursedItems";
 import AppButton from "@/components/common/AppButton.vue";
 import DashboardWidget from "../DashboardWidget.vue";
@@ -85,7 +87,9 @@ import DashboardWidget from "../DashboardWidget.vue";
  */
 const { data: inventory } = usePartyInventory();
 const { data: party } = useParty();
-const { data: items } = useItems();
+// A carried curse stays one whatever the table's edition is now (#961).
+const { resolvable } = useItems();
+const { items } = useStoredItemRefs(() => (inventory.value ?? []).map(inventoryItemRef), resolvable);
 
 /**
  * `?? []` on all three is the same deliberate fold the template comment
@@ -94,5 +98,5 @@ const { data: items } = useItems();
  * curses, and for a self-hiding widget those two cases are indistinguishable
  * on purpose — there is no separate loading/empty state to lose.
  */
-const rows = computed(() => buildCursedItems(inventory.value ?? [], party.value ?? [], items.value ?? []));
+const rows = computed(() => buildCursedItems(inventory.value ?? [], party.value ?? [], items.value));
 </script>

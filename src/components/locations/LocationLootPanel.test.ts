@@ -20,7 +20,8 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useDeleteLootPlacement: () => ({ mutateAsync: mocks.remove }),
   useDispatchLoot: () => ({ mutateAsync: mocks.dispatch }),
 }));
-vi.mock("@/composables/items/useItems", () => ({ useItems: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/items/useItems", () => ({ useItems: () => ({ data: { value: [] }, resolvable: { value: [] } }) }));
+vi.mock("@/composables/items/useStoredItemRefs", () => ({ useStoredItemRefs: () => ({ items: { value: [] }, find: () => undefined }) }));
 vi.mock("@/composables/useImageUpload", () => ({ useImageUpload: () => ({ upload: vi.fn() }) }));
 
 const lootTable = (overrides: Partial<LootTable> = {}): LootTable => ({

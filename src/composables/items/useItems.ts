@@ -6,7 +6,7 @@ import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
-import { useLibraryArtDefaults } from "@/composables/library/useLibraryArtDefaults";
+import { useLibraryArtDefaults, type ArtDefaultsMap } from "@/composables/library/useLibraryArtDefaults";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -120,6 +120,44 @@ async function fetchLibraryItems(enabledSlugs: string[], ruleset: RulesetKey): P
 }
 
 
+/**
+ * The two lists every item hook returns, built from the same rows.
+ *
+ * `browse` is what may be **added**: custom rows of the table's edition in the
+ * active campaign scope, plus the library rows the enabled books offer.
+ * `resolvable` is what an item already **held** may be looked up in (#961):
+ * `browse` plus every custom row those filters dropped. A character who picked
+ * up a vault item before the campaign switched edition still holds it, and its
+ * weight, charges and description must not vanish with the switch. Library rows
+ * the narrowed fetch lacks are not here (they were never fetched); pass
+ * `resolvable` to {@link useStoredItemRefs}, which fetches those by id.
+ */
+export function buildCatalogue(
+  custom: Item[],
+  library: Item[],
+  defaults: ArtDefaultsMap | undefined,
+  ruleset: RulesetKey,
+  activeCampaignId: string | null,
+  includeAllScopes: boolean | undefined,
+): { browse: Item[]; resolvable: Item[] } {
+  // library_items rows are already server-filtered by ruleset — this edition
+  // filter is only load-bearing for the custom side.
+  const editionFiltered = custom.filter((item) => !item.ruleset || item.ruleset === ruleset);
+  const scopeFiltered = includeAllScopes
+    ? editionFiltered
+    : editionFiltered.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId);
+  const withArt = (item: Item): Item => {
+    if (!defaults || item.image_url || !item.source) return item;
+    const d = defaults[`item:${item.name.toLowerCase()}`];
+    if (!d?.image_url) return item;
+    return { ...item, image_url: d.image_url, image_focal_point: d.image_focal_point };
+  };
+  const browse = mergeLibraryWithCustom(library, scopeFiltered).map(withArt);
+  const offered = new Set(browse.map((i) => i.id));
+  const dropped = custom.filter((i) => !offered.has(i.id)).map(withArt);
+  return { browse, resolvable: dropped.length ? [...browse, ...dropped] : browse };
+}
+
 /** Distinct item sources — derived from the merged {@link useItems} catalog so
  *  campaign-enabled library_items sources surface in the Vault "Source" filter
  *  alongside any custom-item sources. */
@@ -172,33 +210,28 @@ export function useItems(getOptions?: () => UseItemsOptions) {
     staleTime: Infinity,
   });
 
-  const data = computed(() => {
+  const catalogue = computed(() => {
     const items = itemsQuery.data.value;
-    const defaults = artDefaults.data.value;
-    if (!items) return items;
-    const opts = getOptions?.() ?? {};
-    // library_items rows are already server-filtered by ruleset — this edition
-    // filter is only load-bearing for the custom side, but it's harmless to
-    // re-apply once merged below.
-    const editionFiltered = items.filter((item) => !item.ruleset || item.ruleset === ruleset.value);
-    const scopeFiltered = opts.includeAllScopes
-      ? editionFiltered
-      : editionFiltered.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
-    const merged = mergeLibraryWithCustom(libraryQuery.data.value ?? [], scopeFiltered);
-    if (!defaults) return merged;
-    return merged.map((item) => {
-      if (item.image_url || !item.source) return item;
-      const d = defaults[`item:${item.name.toLowerCase()}`];
-      if (!d?.image_url) return item;
-      return { ...item, image_url: d.image_url, image_focal_point: d.image_focal_point };
-    });
+    if (!items) return undefined;
+    return buildCatalogue(
+      items,
+      libraryQuery.data.value ?? [],
+      artDefaults.data.value,
+      ruleset.value,
+      activeCampaignId.value,
+      getOptions?.().includeAllScopes,
+    );
   });
+  /** What a picker may offer. Never resolve a held item in this; see `resolvable`. */
+  const data = computed(() => catalogue.value?.browse);
+  /** What a held item resolves in (#961). See {@link buildCatalogue}. */
+  const resolvable = computed(() => catalogue.value?.resolvable);
 
   const isLoading = computed(
     () => itemsQuery.isLoading.value || sourcesLoading.value || libraryQuery.isLoading.value,
   );
 
-  return { ...itemsQuery, data, isLoading };
+  return { ...itemsQuery, data, resolvable, isLoading };
 }
 
 /** Player-visible items (their vault + shared store items) via the
@@ -273,26 +306,24 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
     await (ui.dmPreviewMode ? baseQuery.refetch() : projectionQuery.refetch());
   }
 
-  const data = computed(() => {
+  const catalogue = computed(() => {
     const items = rawItems.value;
-    const defaults = artDefaults.data.value;
-    if (!items) return items;
-    const opts = getOptions?.() ?? {};
-    const editionFiltered = items.filter((item) => !item.ruleset || item.ruleset === ruleset.value);
-    const scopeFiltered = opts.includeAllScopes
-      ? editionFiltered
-      : editionFiltered.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
-    const merged = mergeLibraryWithCustom(libraryQuery.data.value ?? [], scopeFiltered);
-    if (!defaults) return merged;
-    return merged.map((item) => {
-      if (item.image_url || !item.source) return item;
-      const d = defaults[`item:${item.name.toLowerCase()}`];
-      if (!d?.image_url) return item;
-      return { ...item, image_url: d.image_url, image_focal_point: d.image_focal_point };
-    });
+    if (!items) return undefined;
+    return buildCatalogue(
+      items,
+      libraryQuery.data.value ?? [],
+      artDefaults.data.value,
+      ruleset.value,
+      activeCampaignId.value,
+      getOptions?.().includeAllScopes,
+    );
   });
+  /** What a picker may offer. Never resolve a held item in this; see `resolvable`. */
+  const data = computed(() => catalogue.value?.browse);
+  /** What a held item resolves in (#961). See {@link buildCatalogue}. */
+  const resolvable = computed(() => catalogue.value?.resolvable);
 
-  return { data, isLoading, refetch };
+  return { data, resolvable, isLoading, refetch };
 }
 
 export function useItem(id: Ref<string> | ComputedRef<string> | string) {
