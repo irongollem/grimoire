@@ -232,3 +232,21 @@ describe("NpcDetail — copy to campaign (#885)", () => {
     expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(true);
   });
 });
+
+describe("NpcDetail — save sends only what changed (#946)", () => {
+  beforeEach(() => { updateNpc.mockReset(); updateNpc.mockResolvedValue({}); });
+
+  it("does not write back a field the server changed while the DM edited another", async () => {
+    const base = npc({ name: "Elowen Vance", occupation: "Innkeeper" });
+    const wrapper = mountDetail(base);
+    const vm = wrapper.vm as unknown as { form: { name: string }; save: () => Promise<void> };
+    vm.form.name = "Elowen Vance-Hale";
+    await wrapper.setProps({ npc: { ...base, occupation: "Mayor" } });
+    await vm.save();
+    expect(updateNpc).toHaveBeenCalledTimes(1);
+    const sent = updateNpc.mock.calls[0][0].update;
+    expect(sent.name).toBe("Elowen Vance-Hale");
+    expect(sent).not.toHaveProperty("occupation");
+    expect(sent).not.toHaveProperty("campaign_id");
+  });
+});

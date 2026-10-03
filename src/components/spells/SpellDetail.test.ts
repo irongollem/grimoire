@@ -112,10 +112,18 @@ describe("SpellDetail scope default", () => {
   it("leaves an existing global spell's scope alone even with a campaign active", async () => {
     const existing = { id: "sp1", campaign_id: null, name: "Owl's Insight", classes: [], components: [], tags: [] } as unknown as Spell;
     const wrapper = mountDetail(existing);
+    (wrapper.vm as unknown as { name: string }).name = "Owl's Sight";
     await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
-    expect(mocks.update).toHaveBeenCalledWith(
-      expect.objectContaining({ update: expect.objectContaining({ campaign_id: null }) }),
-    );
+    // Only the touched column goes out (#946): the scope is neither re-sent
+    // nor rewritten to the active campaign.
+    expect(mocks.update).toHaveBeenCalledWith({ id: "sp1", update: { name: "Owl's Sight" } });
+  });
+
+  it("sends nothing for fields the user did not touch", async () => {
+    const existing = { id: "sp1", campaign_id: "campaign-1", name: "Fireball", level: 3, classes: [], components: [], tags: [] } as unknown as Spell;
+    const wrapper = mountDetail(existing);
+    await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 });
 

@@ -57,15 +57,21 @@ export function useUpdateEntityNote() {
       entity_id: _ei,
     }: {
       id: string;
-      content: string;
-      is_private: boolean;
+      // Each column is written only when given, so an editor can send just what
+      // it changed (#946).
+      content?: string;
+      is_private?: boolean;
       shared_with_dm?: boolean;
       entity_type: string;
       entity_id: string;
     }) => {
       const { error } = await supabase
         .from("entity_notes")
-        .update({ content, is_private, ...(shared_with_dm !== undefined && { shared_with_dm }) })
+        .update({
+          ...(content !== undefined && { content }),
+          ...(is_private !== undefined && { is_private }),
+          ...(shared_with_dm !== undefined && { shared_with_dm }),
+        })
         .eq("id", id);
       if (error) throw error;
     },

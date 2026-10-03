@@ -33,10 +33,11 @@
 
         <!-- Edit mode -->
         <div v-if="editingId === note.id" class="p-3 flex flex-col gap-2">
-          <RichTextEditor v-model="editContent" size="md" />
+          <RichTextEditor v-model="editDraft.content" size="md" />
+          <DraftConflictNotice :fields="conflictLabels" :on-discard="resetEdit" />
           <div class="flex items-center gap-2">
             <AppCheckbox
-              v-model="editPrivate"
+              v-model="editDraft.isPrivate"
               label-role="label"
               label="Private"
               class="gap-1.5 select-none"
@@ -88,6 +89,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useRecordDraft } from "@/composables/useRecordDraft";
 import { IconAdd, IconFaction, IconLock } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import {
@@ -98,6 +100,7 @@ import {
 } from "@/composables/notes/useEntityNotes";
 import type { EntityNote } from "@/types/faction.types";
 import AppButton from "@/components/common/AppButton.vue";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
@@ -135,30 +138,50 @@ async function create() {
   }
 }
 
-const editingId   = ref<string | null>(null);
-const editContent = ref<string | null>(null);
-const editPrivate = ref(false);
+const editingId = ref<string | null>(null);
+
+// The note being edited, as the server last reported it, so a refetch (another
+// device, the DM's copy) reaches the open editor instead of being overwritten
+// by it on save (#946).
+const editingNote = computed(() => notes.value?.find((n) => n.id === editingId.value) ?? null);
+
+interface NoteDraft { content: string | null; isPrivate: boolean }
+const buildRow = (d: NoteDraft) => ({ content: d.content ?? "", is_private: d.isPrivate });
+
+const { draft: editDraft, conflicts, changes, commit, reset: resetEdit } = useRecordDraft({
+  source: () => editingNote.value,
+  identity: (note) => note.id,
+  toDraft: (note: EntityNote | null): NoteDraft => ({
+    content: note?.content ?? null,
+    isPrivate: note?.is_private ?? false,
+  }),
+});
+const CONFLICT_LABELS: Record<keyof NoteDraft, string> = { content: "Note text", isPrivate: "Private" };
+const conflictLabels = computed(() => conflicts.value.map((key) => CONFLICT_LABELS[key]));
 
 function startEdit(note: EntityNote) {
-  editingId.value   = note.id;
-  editContent.value = note.content;
-  editPrivate.value = note.is_private;
+  editingId.value = note.id;
 }
 function cancelEdit() {
-  editingId.value   = null;
-  editContent.value = null;
+  // The draft outlives the editor, so a cancelled edit must not come back the
+  // next time this note is opened.
+  resetEdit();
+  editingId.value = null;
 }
 
 async function saveEdit(note: EntityNote) {
   saving.value = true;
   try {
-    await updateMut.mutateAsync({
-      id: note.id,
-      content: editContent.value ?? "",
-      is_private: editPrivate.value,
-      entity_type: props.entityType,
-      entity_id: props.entityId,
-    });
+    const changed = changes(buildRow);
+    if (Object.keys(changed).length > 0) {
+      await updateMut.mutateAsync({
+        id: note.id,
+        ...changed,
+        entity_type: props.entityType,
+        entity_id: props.entityId,
+      });
+    }
+    commit();
     editingId.value = null;
   } finally {
     saving.value = false;

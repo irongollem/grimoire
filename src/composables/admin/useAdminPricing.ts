@@ -79,14 +79,15 @@ export function useAdminPricing() {
   const updateGenerationCost = useMutation({
     mutationFn: async (update: {
       generation_type: string;
-      credit_cost: number;
+      /** Omitted when only the tier changed (#946): an untouched cost is not rewritten. */
+      credit_cost?: number;
       /** Omitted for non-image generation types, which never carry a tier. */
       image_quality_tier?: ImageQualityTier | null;
     }) => {
       const { error } = await supabase
         .from("ai_generation_credit_costs")
         .update({
-          credit_cost: update.credit_cost,
+          ...(update.credit_cost !== undefined ? { credit_cost: update.credit_cost } : {}),
           ...("image_quality_tier" in update ? { image_quality_tier: update.image_quality_tier } : {}),
         })
         .eq("generation_type", update.generation_type);

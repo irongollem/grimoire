@@ -7,6 +7,7 @@
       </div>
       <AutosaveStatus :status="status" :error="saveError" />
     </div>
+    <DraftConflictNotice :fields="conflictLabels" :on-discard="resetDraft" />
 
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <label class="flex flex-col gap-1 sm:col-span-2">
@@ -79,10 +80,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import TagInput from "@/components/common/TagInput.vue";
@@ -92,6 +94,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { useAllQuests, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useAutosave } from "@/composables/useAutosave";
+import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
 import { useCampaignStore } from "@/stores/campaign";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type Quest, type QuestStatus } from "@/types/quest.types";
@@ -130,18 +133,46 @@ function questToDraft(quest: Quest): MetadataDraft {
   };
 }
 
-function sameList(a: string[], b: string[]) {
-  return a.length === b.length && a.every((item, index) => item === b[index]);
+// What the draft is seeded from. It follows `props.quest`, except across a
+// switch to another quest, where it waits for the old quest's pending edits to
+// be flushed first: useRecordDraft re-seeds the moment its source changes id,
+// which would otherwise throw those edits away.
+const shown = ref(props.quest);
+
+const { draft, changes, commit, reset: resetDraft, conflicts } = useRecordDraft({
+  source: () => shown.value,
+  identity: (quest: Quest) => quest.id,
+  toDraft: (quest: Quest | null) => questToDraft(quest ?? shown.value),
+});
+
+const CONFLICT_LABELS: Record<keyof MetadataDraft, string> = {
+  title: "Title",
+  summary: "Premise",
+  status: "Board lane",
+  giverNpcId: "Quest giver",
+  locationId: "Primary location",
+  parentQuestId: "Part of quest",
+  entryBeatId: "Opens at",
+  tags: "Tags",
+  playerVisibleTo: "Player sharing",
+};
+const conflictLabels = computed(() => conflicts.value.map((key) => CONFLICT_LABELS[key]));
+
+/** Pure function of the draft, so a column the DM never touched is left out of the write. */
+function metadataRow(d: MetadataDraft) {
+  return {
+    title: d.title.trim() || "Untitled Quest",
+    summary: d.summary.trim() || null,
+    status: d.status,
+    giver_npc_id: d.giverNpcId || null,
+    location_id: d.locationId || null,
+    parent_quest_id: d.parentQuestId || null,
+    entry_beat_id: d.entryBeatId || null,
+    tags: d.tags,
+    player_visible_to: d.playerVisibleTo,
+  };
 }
 
-function draftsEqual(a: MetadataDraft, b: MetadataDraft) {
-  return a.title === b.title && a.summary === b.summary && a.status === b.status
-    && a.giverNpcId === b.giverNpcId && a.locationId === b.locationId
-    && a.parentQuestId === b.parentQuestId && a.entryBeatId === b.entryBeatId
-    && sameList(a.tags, b.tags) && sameList(a.playerVisibleTo, b.playerVisibleTo);
-}
-
-const draft = reactive(questToDraft(props.quest));
 // The quest the draft was seeded from. A save that fires after the prop has moved
 // on to another quest (the debounce outlives the navigation) must still land on
 // the quest the DM was editing, not the one now on screen.
@@ -150,24 +181,18 @@ let draftWasShared = props.quest.player_visible_to.length > 0;
 
 const { status, saveError, saveNow, reset } = useAutosave({
   draft,
-  initial: () => questToDraft(props.quest),
-  equal: draftsEqual,
+  initial: () => questToDraft(shown.value),
+  equal: draftValueEqual,
   async save(snapshot) {
+    // Only the columns the DM changed here: the run cockpit also writes `status`,
+    // and a metadata save must not put a stale lane back (#946).
+    const update = changes(metadataRow);
     const nextTitle = snapshot.title.trim() || "Untitled Quest";
-    await updateQuest({
-      id: draftQuestId,
-      update: {
-        title: nextTitle,
-        summary: snapshot.summary.trim() || null,
-        status: snapshot.status,
-        giver_npc_id: snapshot.giverNpcId || null,
-        location_id: snapshot.locationId || null,
-        parent_quest_id: snapshot.parentQuestId || null,
-        entry_beat_id: snapshot.entryBeatId || null,
-        tags: snapshot.tags,
-        player_visible_to: snapshot.playerVisibleTo,
-      },
-    });
+    if (Object.keys(update).length === 0) return;
+    await updateQuest({ id: draftQuestId, update });
+    // Edits made while the request was in flight are not part of what was sent;
+    // they stay unsaved against the old baseline until the refetch confirms it.
+    if (draftValueEqual(metadataRow(draft), metadataRow(snapshot))) commit();
     if (!draftWasShared && snapshot.playerVisibleTo.length && campaign.activeCampaignId) {
       void sendCampaignAnnouncement(campaign.activeCampaignId, `📋 Quest shared: "${nextTitle}"`, {
         entity_type: "quest",
@@ -185,13 +210,18 @@ const parentQuestOptions = computed(() => (allQuests.value ?? [])
 const beatOptions = computed(() => (beats.value ?? [])
   .map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
 
-// Re-seed only when the quest itself changes, never on a prop refresh: our own
-// autosave echoes back through `quest`, and re-seeding from it would overwrite
-// what the DM is typing. Pending edits are flushed to the old quest first.
-watch(() => props.quest.id, async (nextId) => {
+// A refresh of the same quest (our own save echoing back, or a change made
+// elsewhere) merges into the draft through useRecordDraft. Another quest flushes
+// pending edits to the old one first, then re-seeds both the draft and autosave.
+watch(() => props.quest, async (next) => {
+  if (next.id === shown.value.id) {
+    shown.value = next;
+    return;
+  }
   await saveNow();
-  draftQuestId = nextId;
-  draftWasShared = props.quest.player_visible_to.length > 0;
+  draftQuestId = next.id;
+  draftWasShared = next.player_visible_to.length > 0;
+  shown.value = next;
   reset();
 });
 

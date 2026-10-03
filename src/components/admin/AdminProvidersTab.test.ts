@@ -6,8 +6,8 @@ import type { ProviderConfig } from "@/composables/admin/useAdminProviders";
 
 // Regression cover for #873's "Fast model" field: fast_text_model must flow
 // through the same draft/save-payload/model-list-refresh path as text_model
-// (see AdminProvidersTab.vue's watch that seeds draftProviders, and
-// saveProvider, which sends the whole draft object).
+// (see AdminProvidersTab.vue's keyed drafts, and saveProvider, which sends only
+// the columns the admin edited, #946).
 
 const mocks = vi.hoisted(() => ({
   update: vi.fn().mockResolvedValue(undefined),
@@ -17,7 +17,7 @@ function providerRow(overrides: Partial<ProviderConfig> = {}): ProviderConfig {
   return {
     provider: "openai",
     text_model: "gpt-5.6-luna",
-    fast_text_model: null,
+    fast_text_model: "gpt-5.6-luna-mini",
     image_model: null,
     image_quality: null,
     audio_model: null,
@@ -78,6 +78,13 @@ describe("AdminProvidersTab — fast model field", () => {
     mocks.update.mockClear();
   });
 
+  it("sends nothing when no field was edited", async () => {
+    const wrapper = mount(AdminProvidersTab);
+    await wrapper.find('button[aria-label="Save config"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
   it("renders a labelled Fast model input next to the text model", () => {
     const wrapper = mount(AdminProvidersTab);
     expect(wrapper.text()).toContain("Fast model");
@@ -88,7 +95,7 @@ describe("AdminProvidersTab — fast model field", () => {
   it("includes the edited fast_text_model in the save payload", async () => {
     const wrapper = mount(AdminProvidersTab);
     const fastInput = wrapper.find('input[placeholder="Falls back to the text model"]');
-    await fastInput.setValue("gpt-5.6-luna-mini");
+    await fastInput.setValue("gpt-5.6-luna-nano");
     await fastInput.trigger("change");
 
     await wrapper.find('button[aria-label="Save config"]').trigger("click");
@@ -96,8 +103,11 @@ describe("AdminProvidersTab — fast model field", () => {
 
     expect(mocks.update).toHaveBeenCalledTimes(1);
     const payload = mocks.update.mock.calls[0]![0] as Partial<ProviderConfig>;
-    expect(payload.fast_text_model).toBe("gpt-5.6-luna-mini");
-    expect(payload.text_model).toBe("gpt-5.6-luna");
+    expect(payload.provider).toBe("openai");
+    expect(payload.fast_text_model).toBe("gpt-5.6-luna-nano");
+    // An untouched field is not sent, so it cannot revert a newer server value.
+    expect(payload).not.toHaveProperty("text_model");
+    expect(Object.keys(payload).sort()).toEqual(["fast_text_model", "provider"]);
   });
 
   it("saves a cleared Fast model as null, so the edge function falls back to the text model", async () => {
@@ -109,6 +119,7 @@ describe("AdminProvidersTab — fast model field", () => {
     await wrapper.find('button[aria-label="Save config"]').trigger("click");
     await wrapper.vm.$nextTick();
 
+    expect(mocks.update).toHaveBeenCalledTimes(1);
     const payload = mocks.update.mock.calls[0]![0] as Partial<ProviderConfig>;
     expect(payload.fast_text_model).toBeNull();
   });

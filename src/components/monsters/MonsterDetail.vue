@@ -98,6 +98,8 @@
       </template>
     </EntityEditorActionBar>
 
+    <DraftConflictNotice v-if="!isShared" :fields="conflictLabels" :on-discard="reset" />
+
     <!-- Two-column body: portrait sidebar + stat block content -->
     <!-- Left col is NOT in fieldset — ImageUploads must remain interactive for library art -->
     <div class="grid grid-cols-1 lg:grid-cols-[13.75rem_1fr] gap-6">
@@ -277,7 +279,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, reactive, computed, watch } from "vue";
+import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { storeToRefs } from "pinia";
@@ -292,6 +294,8 @@ import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
+import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useCampaignStore } from "@/stores/campaign";
 import type { MonsterAiGenerated } from "@/ai/types";
@@ -386,44 +390,38 @@ const { locationOptions } = useLocationTree();
 const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
 
-const form = reactive({
-  name: props.monster?.name ?? "",
-  monster_type: (props.monster?.monster_type ?? "humanoid") as MonsterType,
-  size: (props.monster?.size ?? "medium") as MonsterSize,
-  alignment: props.monster?.alignment ?? "unaligned",
-  habitat: props.monster?.habitat ?? "",
-  lair_location_id: (props.monster?.lair_location_id ?? null) as string | null,
-  source: props.monster?.source ?? "",
-  // New monsters default to the active campaign; existing ones keep whatever
-  // scope they already have (#597) — including null, which means "available in
-  // every campaign" and is NOT an unset value. Folding this into one `??` chain
-  // reads a pre-#597 row's null as "unset" and silently re-scopes it to the
-  // active campaign on the next save, which is exactly the backfill the
-  // migration refuses to do.
-  // A shared library row has no campaign_id at all, so it takes the default too.
-  campaign_id: (props.monster && !props.monster.is_shared
-    ? props.monster.campaign_id ?? null
-    : activeCampaignId.value ?? null) as string | null,
-  tags: props.monster?.tags ? [...props.monster.tags] : [],
-  description: props.monster?.description ?? "",
-  notes: props.monster?.notes ?? "",
-  image_url: props.monster?.image_url ?? "",
-  cutout_url: props.monster?.cutout_url ?? "",
-  portrait_focal_point: props.monster?.portrait_focal_point ?? null,
-  ai_provenance: props.monster?.ai_provenance ?? null,
-});
-
-// When library art loads asynchronously, sync art fields from the updated prop
-watch(
-  () => props.monster,
-  (m) => {
-    if (isShared.value && m) {
-      form.image_url = m.image_url ?? "";
-      form.cutout_url = m.cutout_url ?? "";
-      form.portrait_focal_point = m.portrait_focal_point ?? null;
-    }
-  },
-);
+// The statblock lives inside the draft (as `sb`) so the row builder below is a
+// pure function of it and useRecordDraft can tell which columns the user touched (#946).
+function toDraft(m: Monster | null) {
+  return {
+    name: m?.name ?? "",
+    monster_type: (m?.monster_type ?? "humanoid") as MonsterType,
+    size: (m?.size ?? "medium") as MonsterSize,
+    alignment: m?.alignment ?? "unaligned",
+    habitat: m?.habitat ?? "",
+    lair_location_id: (m?.lair_location_id ?? null) as string | null,
+    source: m?.source ?? "",
+    // New monsters default to the active campaign; existing ones keep whatever
+    // scope they already have (#597) — including null, which means "available in
+    // every campaign" and is NOT an unset value. Folding this into one `??` chain
+    // reads a pre-#597 row's null as "unset" and silently re-scopes it to the
+    // active campaign on the next save, which is exactly the backfill the
+    // migration refuses to do.
+    // A shared library row has no campaign_id at all, so it takes the default too.
+    campaign_id: (m && !m.is_shared
+      ? m.campaign_id ?? null
+      : activeCampaignId.value ?? null) as string | null,
+    tags: m?.tags ? [...m.tags] : [],
+    description: m?.description ?? "",
+    notes: m?.notes ?? "",
+    image_url: m?.image_url ?? "",
+    cutout_url: m?.cutout_url ?? "",
+    portrait_focal_point: m?.portrait_focal_point ?? null,
+    ai_provenance: m?.ai_provenance ?? null,
+    sb: cloneDraftValue(m?.stat_block ? { ...defaultSb(), ...m.stat_block } : defaultSb()),
+  };
+}
+type MonsterDraft = ReturnType<typeof toDraft>;
 
 function defaultSb(): MonsterStatBlock {
   return {
@@ -455,11 +453,42 @@ function defaultSb(): MonsterStatBlock {
   };
 }
 
-const sb = reactive<MonsterStatBlock>(
-  props.monster?.stat_block
-    ? { ...defaultSb(), ...props.monster.stat_block }
-    : defaultSb(),
-);
+// The draft re-seeds from the server copy for every field the user has not
+// touched, which also carries library art that loads after mount (a shared
+// monster's art edits go to the art table, never into the draft).
+const {
+  draft: form,
+  conflicts,
+  changes,
+  commit,
+  reset,
+} = useRecordDraft({
+  source: () => props.monster,
+  identity: (m) => m.id,
+  toDraft,
+});
+// Reseeding replaces `form.sb`, so hand out the live object through a computed.
+const sb = computed(() => form.sb);
+
+const CONFLICT_LABELS: Record<keyof MonsterDraft, string> = {
+  name: "Name",
+  monster_type: "Type",
+  size: "Size",
+  alignment: "Alignment",
+  habitat: "Habitat",
+  lair_location_id: "Lair Location",
+  source: "Source",
+  campaign_id: "Campaign",
+  tags: "Tags",
+  description: "Description",
+  notes: "DM Notes",
+  image_url: "Portrait",
+  cutout_url: "Cutout",
+  portrait_focal_point: "Portrait focus",
+  ai_provenance: "AI provenance",
+  sb: "Stat block",
+};
+const conflictLabels = computed(() => conflicts.value.map((k) => CONFLICT_LABELS[k]));
 
 // Image upload handlers
 function onPortraitUrlUpdate(url: string | null) {
@@ -495,7 +524,7 @@ function onAiGenerated(result: MonsterAiGenerated) {
     form.portrait_focal_point = null;
   }
   form.ai_provenance = result.ai_provenance ?? null;
-  Object.assign(sb, defaultSb(), result.stat_block);
+  Object.assign(form.sb, defaultSb(), result.stat_block);
 }
 
 const { mutateAsync: create } = useCreateMonster();
@@ -517,7 +546,7 @@ async function duplicate() {
   duplicating.value = true;
   try {
     const copy = await create({
-      ...buildPayload(),
+      ...buildPayload(form),
       name: `${props.monster.name} (copy)`,
     });
     router.push(`/monsters/${copy.id}`);
@@ -569,24 +598,24 @@ async function sendToScriptorium() {
   }
 }
 
-function buildPayload() {
+function buildPayload(d: MonsterDraft) {
   return {
-    name: form.name.trim(),
-    monster_type: form.monster_type,
-    size: form.size,
-    alignment: form.alignment,
-    habitat: form.habitat || null,
-    lair_location_id: form.lair_location_id,
-    source: form.source || null,
-    campaign_id: form.campaign_id,
-    tags: form.tags,
-    description: form.description || null,
-    notes: form.notes || null,
-    image_url: form.image_url || null,
-    cutout_url: form.cutout_url || null,
-    portrait_focal_point: form.portrait_focal_point ?? null,
-    stat_block: { ...sb },
-    ai_provenance: form.ai_provenance,
+    name: d.name.trim(),
+    monster_type: d.monster_type,
+    size: d.size,
+    alignment: d.alignment,
+    habitat: d.habitat || null,
+    lair_location_id: d.lair_location_id,
+    source: d.source || null,
+    campaign_id: d.campaign_id,
+    tags: d.tags,
+    description: d.description || null,
+    notes: d.notes || null,
+    image_url: d.image_url || null,
+    cutout_url: d.cutout_url || null,
+    portrait_focal_point: d.portrait_focal_point ?? null,
+    stat_block: { ...d.sb },
+    ai_provenance: d.ai_provenance,
   };
 }
 
@@ -611,9 +640,15 @@ async function save() {
         // on every template/link apply); imported/cloned library data often isn't,
         // so compare against the same fill-in rather than the raw stored
         // value — otherwise a merely-sparser DB shape reads as an edit.
-        !deepEqual(sb, { ...defaultSb(), ...props.monster.stat_block });
+        !deepEqual(form.sb, { ...defaultSb(), ...props.monster.stat_block });
       if (contentChanged) form.ai_provenance = markEdited(form.ai_provenance);
-      await update({ id: props.monster.id, update: buildPayload() });
+      // Send only the columns this edit changed, so a stale cached copy cannot
+      // write untouched fields back at old values (#946).
+      const changed = changes(buildPayload);
+      if (Object.keys(changed).length > 0) {
+        await update({ id: props.monster.id, update: changed });
+        commit();
+      }
       // Back to the list, which is the confirmation that the save landed. On
       // tablet and up the monster's own path *is* the list — the bestiary with
       // this stat block open over it — so it doubles as a look at what was just
@@ -622,7 +657,7 @@ async function save() {
       // gets the plain list. See the Sanctioned Exception in CLAUDE.md.
       router.push(isMobile.value ? "/monsters" : `/monsters/${props.monster.id}`);
     } else {
-      const created = await create(buildPayload());
+      const created = await create(buildPayload(form));
       router.push(`/monsters/${created.id}`);
     }
   } catch (e: unknown) {

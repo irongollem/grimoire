@@ -1,4 +1,6 @@
 <template>
+  <DraftConflictNotice :fields="conflictLabels" :on-discard="reset" />
+
   <!-- Mobile edit layer (<md): own app bar + stacked cards + save bar. Drives
        the same reactive form/statBlock and handlers that live in this file. -->
   <NpcEditMobile
@@ -219,13 +221,15 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useIsMobile } from '@/composables/useBreakpoint'
 import NpcGenerateDialog from '@/ai/NpcGenerateDialog.vue'
 import { toTiptapJson } from '@/ai/useNpcGeneration'
 import { markEdited } from '@/ai/provenance'
 import { deepEqual } from '@/lib/utils'
+import { useRecordDraft, cloneDraftValue } from '@/composables/useRecordDraft'
+import DraftConflictNotice from '@/components/common/DraftConflictNotice.vue'
 import type { NpcAiGenerated } from '@/ai/types'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/npcs/useNpcs'
 import { useCampaignMessages } from '@/composables/campaign/useCampaignMessages'
@@ -431,7 +435,7 @@ function onMonsterLinked(monsterId: string | null) {
 
   const msb = m.stat_block
   hasStatBlock.value = true
-  Object.assign(statBlock, {
+  Object.assign(statBlock.value, {
     armor_class:        msb.armor_class,
     hit_points:         msb.hit_points,
     speed:              msb.speed,
@@ -457,34 +461,106 @@ function onMonsterLinked(monsterId: string | null) {
 
 // ── Form state ────────────────────────────────────────────────────────────────
 
-const form = reactive<NpcInsert>({
-  name: props.npc?.name ?? '',
-  race: props.npc?.race ?? null,
-  alignment: props.npc?.alignment ?? null,
-  age: props.npc?.age ?? null,
-  occupation: props.npc?.occupation ?? null,
-  location_id: props.npc?.location_id ?? null,
-  appearance: props.npc?.appearance ?? null,
-  personality: props.npc?.personality ?? null,
-  backstory: props.npc?.backstory ?? null,
-  notes: props.npc?.notes ?? null,
-  status: props.npc?.status ?? 'alive',
-  relationship: props.npc?.relationship ?? 'unknown',
-  portrait_url: props.npc?.portrait_url ?? null,
-  cutout_url: props.npc?.cutout_url ?? null,
-  disguise_name: props.npc?.disguise_name ?? null,
-  disguise_portrait_url: props.npc?.disguise_portrait_url ?? null,
-  disguise_portrait_focal_point: props.npc?.disguise_portrait_focal_point ?? null,
-  is_revealed: props.npc?.is_revealed ?? false,
-  tags: [...(props.npc?.tags ?? [])],
-  stat_block: props.npc?.stat_block ?? null,
-  linked_monster_id: props.npc?.linked_monster_id ?? null,
-  scriptorium_doc_id: props.npc?.scriptorium_doc_id ?? null,
-  campaign_id: campaign.activeCampaignId,
-  portrait_focal_point: props.npc?.portrait_focal_point ?? null,
-  player_visible_fields: [...(props.npc?.player_visible_fields ?? [])],
-  player_visible_to: props.npc?.player_visible_to ?? [],
-  ai_provenance: props.npc?.ai_provenance ?? null,
+// The stat block and its "include" toggle live in the draft beside the NPC's
+// own columns, so the row builder below is a pure function of the draft and
+// useRecordDraft can tell which columns the DM actually touched (#946).
+type NpcDraft = NpcInsert & { statBlock: StatBlock; hasStatBlock: boolean }
+
+function toStatBlockDraft(sb: StatBlock | null | undefined): StatBlock {
+  return {
+    armor_class: sb?.armor_class ?? 10,
+    hit_points: sb?.hit_points ?? '4 (1d8)',
+    speed: sb?.speed ?? '30 ft.',
+    str: sb?.str ?? 10,
+    dex: sb?.dex ?? 10,
+    con: sb?.con ?? 10,
+    int: sb?.int ?? 10,
+    wis: sb?.wis ?? 10,
+    cha: sb?.cha ?? 10,
+    challenge_rating: sb?.challenge_rating ?? '0',
+    proficiency_bonus: sb?.proficiency_bonus,
+    saving_throws: cloneDraftValue(sb?.saving_throws),
+    skills: sb?.skills ? { ...sb.skills } : undefined,
+    damage_vulnerabilities: sb?.damage_vulnerabilities,
+    damage_resistances: sb?.damage_resistances,
+    damage_immunities: sb?.damage_immunities,
+    condition_immunities: sb?.condition_immunities,
+    senses: sb?.senses,
+    languages: sb?.languages,
+    special_abilities: sb?.special_abilities ? [...sb.special_abilities] : [],
+    actions: sb?.actions ? [...sb.actions] : [],
+    bonus_actions: sb?.bonus_actions ? [...sb.bonus_actions] : [],
+    reactions: sb?.reactions ? [...sb.reactions] : [],
+    legendary_actions: sb?.legendary_actions ? [...sb.legendary_actions] : [],
+    lair_actions: sb?.lair_actions ? [...sb.lair_actions] : [],
+    spellcasting: cloneDraftValue(sb?.spellcasting),
+  }
+}
+
+function toNpcDraft(npc: Npc | null): NpcDraft {
+  return {
+    name: npc?.name ?? '',
+    race: npc?.race ?? null,
+    alignment: npc?.alignment ?? null,
+    age: npc?.age ?? null,
+    occupation: npc?.occupation ?? null,
+    location_id: npc?.location_id ?? null,
+    appearance: cloneDraftValue(npc?.appearance ?? null),
+    personality: cloneDraftValue(npc?.personality ?? null),
+    backstory: cloneDraftValue(npc?.backstory ?? null),
+    notes: cloneDraftValue(npc?.notes ?? null),
+    status: npc?.status ?? 'alive',
+    relationship: npc?.relationship ?? 'unknown',
+    portrait_url: npc?.portrait_url ?? null,
+    cutout_url: npc?.cutout_url ?? null,
+    disguise_name: npc?.disguise_name ?? null,
+    disguise_portrait_url: npc?.disguise_portrait_url ?? null,
+    disguise_portrait_focal_point: cloneDraftValue(npc?.disguise_portrait_focal_point ?? null),
+    is_revealed: npc?.is_revealed ?? false,
+    tags: [...(npc?.tags ?? [])],
+    // Never edited directly: save() builds stat_block from statBlock/hasStatBlock.
+    stat_block: null,
+    linked_monster_id: npc?.linked_monster_id ?? null,
+    scriptorium_doc_id: npc?.scriptorium_doc_id ?? null,
+    campaign_id: campaign.activeCampaignId,
+    portrait_focal_point: cloneDraftValue(npc?.portrait_focal_point ?? null),
+    player_visible_fields: [...(npc?.player_visible_fields ?? [])],
+    player_visible_to: [...(npc?.player_visible_to ?? [])],
+    ai_provenance: cloneDraftValue(npc?.ai_provenance ?? null),
+    statBlock: toStatBlockDraft(npc?.stat_block),
+    hasStatBlock: !!npc?.stat_block,
+  }
+}
+
+// The draft merges fresh server data into fields the DM has not touched, so a
+// stale cached NPC (or a reveal saved from the list popover) cannot be written
+// back over a newer one. Sharing edits made elsewhere arrive here the same way.
+const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
+  source: () => props.npc,
+  identity: (npc: Npc) => npc.id,
+  toDraft: toNpcDraft,
+})
+
+const CONFLICT_LABELS: Partial<Record<keyof NpcDraft, string>> = {
+  name: 'Name', race: 'Race', alignment: 'Alignment', age: 'Age', occupation: 'Occupation',
+  location_id: 'Location', appearance: 'Appearance', personality: 'Personality',
+  backstory: 'Backstory', notes: 'Notes', status: 'Status', relationship: 'Relationship',
+  portrait_url: 'Portrait', cutout_url: 'Cutout', disguise_name: 'Alter ego name',
+  disguise_portrait_url: 'Alter ego portrait', tags: 'Tags', linked_monster_id: 'Linked monster',
+  player_visible_to: 'Revealed to', player_visible_fields: 'Revealed fields',
+  statBlock: 'Stat block', hasStatBlock: 'Stat block',
+}
+const conflictLabels = computed(() => [
+  ...new Set(conflicts.value.map((key) => CONFLICT_LABELS[key]).filter((l): l is string => !!l)),
+])
+
+// Writable views onto the draft for the stat block, which the stat block
+// editor and the mobile layer take as their own props. Computed, not a captured
+// reference: a merge can replace draft.statBlock whole.
+const statBlock = computed(() => form.statBlock)
+const hasStatBlock = computed({
+  get: () => form.hasStatBlock,
+  set: (value: boolean) => { form.hasStatBlock = value },
 })
 
 const aiContext = computed(() =>
@@ -495,44 +571,6 @@ const aiContext = computed(() =>
     toPlainText(form.personality),
   ]),
 )
-
-// Sync sharing fields if the prop updates after mount (e.g. list popover saved first)
-watch(() => props.npc?.player_visible_to, (val) => {
-  form.player_visible_to = val ?? []
-})
-
-// ── Stat block ────────────────────────────────────────────────────────────────
-
-const hasStatBlock = ref(!!props.npc?.stat_block)
-
-const statBlock = reactive<StatBlock>({
-  armor_class: props.npc?.stat_block?.armor_class ?? 10,
-  hit_points: props.npc?.stat_block?.hit_points ?? '4 (1d8)',
-  speed: props.npc?.stat_block?.speed ?? '30 ft.',
-  str: props.npc?.stat_block?.str ?? 10,
-  dex: props.npc?.stat_block?.dex ?? 10,
-  con: props.npc?.stat_block?.con ?? 10,
-  int: props.npc?.stat_block?.int ?? 10,
-  wis: props.npc?.stat_block?.wis ?? 10,
-  cha: props.npc?.stat_block?.cha ?? 10,
-  challenge_rating: props.npc?.stat_block?.challenge_rating ?? '0',
-  proficiency_bonus: props.npc?.stat_block?.proficiency_bonus,
-  saving_throws: props.npc?.stat_block?.saving_throws,
-  skills: props.npc?.stat_block?.skills ? { ...props.npc.stat_block.skills } : undefined,
-  damage_vulnerabilities: props.npc?.stat_block?.damage_vulnerabilities,
-  damage_resistances: props.npc?.stat_block?.damage_resistances,
-  damage_immunities: props.npc?.stat_block?.damage_immunities,
-  condition_immunities: props.npc?.stat_block?.condition_immunities,
-  senses: props.npc?.stat_block?.senses,
-  languages: props.npc?.stat_block?.languages,
-  special_abilities: props.npc?.stat_block?.special_abilities ? [...props.npc.stat_block.special_abilities] : [],
-  actions: props.npc?.stat_block?.actions ? [...props.npc.stat_block.actions] : [],
-  bonus_actions: props.npc?.stat_block?.bonus_actions ? [...props.npc.stat_block.bonus_actions] : [],
-  reactions: props.npc?.stat_block?.reactions ? [...props.npc.stat_block.reactions] : [],
-  legendary_actions: props.npc?.stat_block?.legendary_actions ? [...props.npc.stat_block.legendary_actions] : [],
-  lair_actions: props.npc?.stat_block?.lair_actions ? [...props.npc.stat_block.lair_actions] : [],
-  spellcasting: props.npc?.stat_block?.spellcasting,
-})
 
 // ── Templates ─────────────────────────────────────────────────────────────────
 
@@ -546,7 +584,7 @@ function applyTemplate(id: string) {
   if (!tpl) return
   const sb = tpl.stat_block
   hasStatBlock.value = true
-  Object.assign(statBlock, {
+  Object.assign(statBlock.value, {
     armor_class: sb.armor_class,
     hit_points: sb.hit_points,
     speed: sb.speed,
@@ -570,31 +608,57 @@ function applyTemplate(id: string) {
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
 
-function buildStatBlock(): StatBlock | null {
-  if (!hasStatBlock.value) return null
+function buildStatBlock(d: NpcDraft): StatBlock | null {
+  if (!d.hasStatBlock) return null
+  const sb = d.statBlock
   return {
-    armor_class: statBlock.armor_class,
-    hit_points: statBlock.hit_points,
-    speed: statBlock.speed,
-    str: statBlock.str, dex: statBlock.dex, con: statBlock.con,
-    int: statBlock.int, wis: statBlock.wis, cha: statBlock.cha,
-    challenge_rating: statBlock.challenge_rating,
-    ...(statBlock.proficiency_bonus ? { proficiency_bonus: statBlock.proficiency_bonus } : {}),
-    ...(statBlock.saving_throws ? { saving_throws: statBlock.saving_throws } : {}),
-    ...(statBlock.skills && Object.keys(statBlock.skills).length ? { skills: statBlock.skills } : {}),
-    ...(statBlock.damage_vulnerabilities ? { damage_vulnerabilities: statBlock.damage_vulnerabilities } : {}),
-    ...(statBlock.damage_resistances ? { damage_resistances: statBlock.damage_resistances } : {}),
-    ...(statBlock.damage_immunities ? { damage_immunities: statBlock.damage_immunities } : {}),
-    ...(statBlock.condition_immunities ? { condition_immunities: statBlock.condition_immunities } : {}),
-    ...(statBlock.senses ? { senses: statBlock.senses } : {}),
-    ...(statBlock.languages ? { languages: statBlock.languages } : {}),
-    ...(statBlock.special_abilities?.length ? { special_abilities: statBlock.special_abilities } : {}),
-    ...(statBlock.actions?.length ? { actions: statBlock.actions } : {}),
-    ...(statBlock.bonus_actions?.length ? { bonus_actions: statBlock.bonus_actions } : {}),
-    ...(statBlock.reactions?.length ? { reactions: statBlock.reactions } : {}),
-    ...(statBlock.legendary_actions?.length ? { legendary_actions: statBlock.legendary_actions } : {}),
-    ...(statBlock.lair_actions?.length ? { lair_actions: statBlock.lair_actions } : {}),
-    ...(statBlock.spellcasting?.entries?.length ? { spellcasting: statBlock.spellcasting } : {}),
+    armor_class: sb.armor_class,
+    hit_points: sb.hit_points,
+    speed: sb.speed,
+    str: sb.str, dex: sb.dex, con: sb.con,
+    int: sb.int, wis: sb.wis, cha: sb.cha,
+    challenge_rating: sb.challenge_rating,
+    ...(sb.proficiency_bonus ? { proficiency_bonus: sb.proficiency_bonus } : {}),
+    ...(sb.saving_throws ? { saving_throws: sb.saving_throws } : {}),
+    ...(sb.skills && Object.keys(sb.skills).length ? { skills: sb.skills } : {}),
+    ...(sb.damage_vulnerabilities ? { damage_vulnerabilities: sb.damage_vulnerabilities } : {}),
+    ...(sb.damage_resistances ? { damage_resistances: sb.damage_resistances } : {}),
+    ...(sb.damage_immunities ? { damage_immunities: sb.damage_immunities } : {}),
+    ...(sb.condition_immunities ? { condition_immunities: sb.condition_immunities } : {}),
+    ...(sb.senses ? { senses: sb.senses } : {}),
+    ...(sb.languages ? { languages: sb.languages } : {}),
+    ...(sb.special_abilities?.length ? { special_abilities: sb.special_abilities } : {}),
+    ...(sb.actions?.length ? { actions: sb.actions } : {}),
+    ...(sb.bonus_actions?.length ? { bonus_actions: sb.bonus_actions } : {}),
+    ...(sb.reactions?.length ? { reactions: sb.reactions } : {}),
+    ...(sb.legendary_actions?.length ? { legendary_actions: sb.legendary_actions } : {}),
+    ...(sb.lair_actions?.length ? { lair_actions: sb.lair_actions } : {}),
+    ...(sb.spellcasting?.entries?.length ? { spellcasting: sb.spellcasting } : {}),
+  }
+}
+
+// The NPC row for a draft. Pure: useRecordDraft runs it over the draft and over
+// the server copy to find the columns the DM changed.
+function buildPayload(d: NpcDraft): NpcInsert {
+  const { statBlock: _sb, hasStatBlock: _has, ...columns } = d
+  return {
+    ...columns,
+    race: d.race || null,
+    alignment: d.alignment || null,
+    age: d.age || null,
+    occupation: d.occupation || null,
+    location_id: d.location_id || null,
+    appearance: d.appearance || null,
+    personality: d.personality || null,
+    backstory: d.backstory || null,
+    notes: d.notes || null,
+    // A cleared image comes back from the image block as "", which is not a
+    // picture; store it as none.
+    portrait_url: d.portrait_url || null,
+    cutout_url: d.cutout_url || null,
+    disguise_portrait_url: d.disguise_portrait_url || null,
+    stat_block: buildStatBlock(d),
+    player_visible_to: d.player_visible_to,
   }
 }
 
@@ -615,29 +679,10 @@ async function save() {
     !deepEqual(form.personality, props.npc.personality) ||
     !deepEqual(form.backstory, props.npc.backstory) ||
     !deepEqual(form.notes, props.npc.notes) ||
-    !deepEqual(buildStatBlock(), props.npc.stat_block)
+    !deepEqual(buildStatBlock(form), props.npc.stat_block)
   );
   if (contentChanged) form.ai_provenance = markEdited(form.ai_provenance);
 
-  const payload: NpcInsert = {
-    ...form,
-    race: form.race || null,
-    alignment: form.alignment || null,
-    age: form.age || null,
-    occupation: form.occupation || null,
-    location_id: form.location_id || null,
-    appearance: form.appearance || null,
-    personality: form.personality || null,
-    backstory: form.backstory || null,
-    notes: form.notes || null,
-    // A cleared image comes back from the image block as "", which is not a
-    // picture; store it as none.
-    portrait_url: form.portrait_url || null,
-    cutout_url: form.cutout_url || null,
-    disguise_portrait_url: form.disguise_portrait_url || null,
-    stat_block: buildStatBlock(),
-    player_visible_to: form.player_visible_to,
-  }
   try {
     // DM Prep/Play mode (#133): detect a "reveal" — NPC goes from unseen by
     // any player to visible to at least one. Fire the narrative event AFTER
@@ -651,12 +696,16 @@ async function save() {
 
     let savedNpcId = props.npc?.id ?? null;
     if (props.npc?.id) {
-      // Exclude campaign_id: it must not be overwritten on update (could be null
-      // if activeCampaignId hasn't loaded yet, severing the campaign link).
-      const { campaign_id: _cid, ...updatePayload } = payload;
-      await updateNpc({ id: props.npc.id, update: updatePayload })
+      // Only the columns the DM changed. Exclude campaign_id: it must not be
+      // overwritten on update (could be null if activeCampaignId hasn't loaded
+      // yet, severing the campaign link).
+      const { campaign_id: _cid, ...updatePayload } = changes(buildPayload)
+      if (Object.keys(updatePayload).length > 0) {
+        await updateNpc({ id: props.npc.id, update: updatePayload })
+      }
+      commit()
     } else {
-      const created = await createNpc(payload)
+      const created = await createNpc(buildPayload(form))
       savedNpcId = created.id;
       // Stay on the detail page after create so faction/relation links can be added immediately
       router.push(`/npcs/${created.id}`)

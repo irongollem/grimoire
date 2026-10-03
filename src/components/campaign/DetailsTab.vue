@@ -183,6 +183,7 @@
     </div>
 
     <!-- Save -->
+    <DraftConflictNotice :fields="conflictLabels" :on-discard="reset" />
     <div class="flex justify-end pt-1">
       <AppButton
         type="submit"
@@ -197,11 +198,14 @@
 
 <script setup lang="ts">
 import { DEFAULT_THEME_ID } from "@/lib/themes";
-import { ref, computed, watch } from "vue";
+import { ref, computed } from "vue";
 import { IconCheck, IconGenerate } from '@/lib/icons';
 import { useTheme } from "@/composables/useTheme";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
+import { useCampaignById, useUpdateCampaign } from "@/composables/campaign/useCampaigns";
+import { useRecordDraft } from "@/composables/useRecordDraft";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import type { Campaign } from "@/types/campaign.types";
 import { listCalendarAdapters, createDefaultCustomCalendarDef } from "@/calendars/index";
 import { getSetting, listSettings } from "@/settings/index";
 import type { SettingCalendarDef } from "@/settings/types";
@@ -219,7 +223,11 @@ const { themes, setTheme } = useTheme();
 const campaignStore = useCampaignStore();
 const { mutateAsync: updateCampaign, isPending: isSaving } = useUpdateCampaign();
 
-const campaign = computed(() => campaignStore.activeCampaign);
+// The live campaign row, not the store's copy: the store is set once per boot,
+// so seeding the form from it made a save write every untouched field back at
+// its boot-time value (#946). The store copy only covers the first paint.
+const { data: liveCampaign } = useCampaignById(() => campaignStore.activeCampaignId);
+const campaign = computed(() => liveCampaign.value ?? campaignStore.activeCampaign);
 const availableCalendars = listCalendarAdapters();
 
 const HEALTH_VIS_OPTIONS = [
@@ -228,7 +236,7 @@ const HEALTH_VIS_OPTIONS = [
   { value: "unknown" as const, label: "Unknown", desc: "No health info shown for non-PCs." },
 ] as const;
 
-function buildForm(c: typeof campaign.value) {
+function buildForm(c: Campaign | null) {
   return {
     name: c?.name ?? "",
     setting: c?.setting ?? "",
@@ -242,46 +250,65 @@ function buildForm(c: typeof campaign.value) {
   };
 }
 
-const form = ref(buildForm(campaign.value));
+type CampaignForm = ReturnType<typeof buildForm>;
 
-watch(
-  () => campaign.value?.id,
-  () => { form.value = buildForm(campaign.value); },
-);
+const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
+  source: () => campaign.value,
+  identity: (c: Campaign) => c.id,
+  toDraft: (c: Campaign | null): CampaignForm => buildForm(c),
+});
 
-const populateSetting = computed(() => getSetting(form.value.calendar_id));
+const CONFLICT_LABELS: Record<keyof CampaignForm, string> = {
+  name: "Name",
+  setting: "World",
+  calendar_id: "Calendar",
+  current_year: "Current year",
+  theme: "Theme",
+  health_visibility: "Health visibility",
+  immersive_rolls: "Immersive Rolls",
+  battle_map_show_tokens: "VTT tokens",
+  custom_calendar: "Custom calendar",
+};
+const conflictLabels = computed(() => conflicts.value.map((key) => CONFLICT_LABELS[key]));
+
+/** The columns this form owns, as a pure function of the form so unchanged ones can be left out. */
+function campaignRow(f: CampaignForm) {
+  return {
+    name: f.name,
+    setting: f.setting || "Custom Setting",
+    calendar_id: f.calendar_id,
+    current_year: f.current_year,
+    theme: f.theme,
+    health_visibility: f.health_visibility,
+    immersive_rolls: f.immersive_rolls,
+    battle_map_show_tokens: f.battle_map_show_tokens,
+    custom_calendar: f.calendar_id === "custom" ? f.custom_calendar : null,
+  };
+}
+
+const populateSetting = computed(() => getSetting(form.calendar_id));
 
 function onCalendarChange() {
-  if (form.value.calendar_id === "custom") {
-    if (!form.value.custom_calendar) form.value.custom_calendar = createDefaultCustomCalendarDef();
+  if (form.calendar_id === "custom") {
+    if (!form.custom_calendar) form.custom_calendar = createDefaultCustomCalendarDef();
     return;
   }
-  form.value.custom_calendar = null;
-  const newLabel = getSetting(form.value.calendar_id)?.label ?? "";
+  form.custom_calendar = null;
+  const newLabel = getSetting(form.calendar_id)?.label ?? "";
   const knownLabels = new Set(listSettings().map((s) => s.label));
-  if (newLabel && (!form.value.setting || knownLabels.has(form.value.setting))) {
-    form.value.setting = newLabel;
+  if (newLabel && (!form.setting || knownLabels.has(form.setting))) {
+    form.setting = newLabel;
   }
 }
 
 async function submitForm() {
   if (!campaign.value) return;
-  const updated = await updateCampaign({
-    id: campaign.value.id,
-    update: {
-      name: form.value.name,
-      setting: form.value.setting || "Custom Setting",
-      calendar_id: form.value.calendar_id,
-      current_year: form.value.current_year,
-      theme: form.value.theme,
-      health_visibility: form.value.health_visibility,
-      immersive_rolls: form.value.immersive_rolls,
-      battle_map_show_tokens: form.value.battle_map_show_tokens,
-      custom_calendar: form.value.calendar_id === "custom" ? form.value.custom_calendar : null,
-    },
-  });
+  const update = changes(campaignRow);
+  if (Object.keys(update).length === 0) return;
+  const updated = await updateCampaign({ id: campaign.value.id, update });
+  commit();
   campaignStore.switchToCampaign(updated);
-  setTheme(form.value.theme);
+  setTheme(form.theme);
 }
 
 // ── Populate from setting ─────────────────────────────────────────────────────

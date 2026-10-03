@@ -136,6 +136,16 @@ describe("QuestOverviewMetadata", () => {
     }));
   });
 
+  // The run cockpit also writes `status`; a metadata save must not put a stale lane back.
+  it("sends only what changed here: an untouched status stays out of the write, and follows the server", async () => {
+    const wrapper = mountMetadata({ status: "active" });
+    await wrapper.setProps({ quest: quest({ status: "completed" }) });
+    await wrapper.find("input").setValue("Renamed");
+    await settle();
+    expect(mocks.updateQuest).toHaveBeenCalledOnce();
+    expect(mocks.updateQuest.mock.calls[0]![0].update).toEqual({ title: "Renamed" });
+  });
+
   it("announces a campaign broadcast only the first time the quest becomes player-visible", async () => {
     const wrapper = mountMetadata({ player_visible_to: [] });
     wrapper.findComponent({ name: "AudienceRevealControl" }).vm.$emit("change", ["player-1"]);

@@ -5,7 +5,7 @@
       <label class="flex-1 min-w-48">
         <span class="sr-only">Note title</span>
         <AppInput
-          v-model="title"
+          v-model="draft.title"
           tone="card"
           size="heading"
           placeholder="Note title…"
@@ -13,17 +13,17 @@
       </label>
 
       <!-- Category -->
-      <AppSelect v-model="category" size="md">
+      <AppSelect v-model="draft.category" size="md">
         <option v-for="c in CATEGORIES" :key="c.value" :value="c.value">
           {{ c.label }}
         </option>
       </AppSelect>
 
       <!-- Session # — only relevant for session notes -->
-      <label v-if="category === 'session'" class="flex items-center gap-1.5">
+      <label v-if="draft.category === 'session'" class="flex items-center gap-1.5">
         <span class="text-label-lg font-semibold text-muted-foreground">#</span>
         <AppInput
-          v-model.number="sessionNum"
+          v-model.number="draft.sessionNum"
           type="number"
           min="1"
           placeholder="Session"
@@ -37,22 +37,22 @@
       <AppButton
         variant="subtle"
         size="icon-sm"
-        :active="isPinned"
+        :active="draft.isPinned"
         :icon="IconPin"
-        :class="isPinned ? '' : 'bg-card'"
-        :tooltip="isPinned ? 'Unpin note' : 'Pin note'"
-        @click="isPinned = !isPinned"
+        :class="draft.isPinned ? '' : 'bg-card'"
+        :tooltip="draft.isPinned ? 'Unpin note' : 'Pin note'"
+        @click="draft.isPinned = !draft.isPinned"
       />
 
       <!-- Reveal to players -->
       <AudienceRevealControl
-        :name="title"
-        :visible-to="playerVisibleTo"
-        @change="playerVisibleTo = $event"
+        :name="draft.title"
+        :visible-to="draft.playerVisibleTo"
+        @change="draft.playerVisibleTo = $event"
       />
 
       <AppButton
-        :disabled="saving || !title.trim()"
+        :disabled="saving || !draft.title.trim()"
         variant="primary"
         size="md"
         :icon="IconSave"
@@ -72,15 +72,17 @@
     </div>
 
     <!-- Tags -->
-    <TagInput v-model="tags" />
+    <TagInput v-model="draft.tags" />
 
     <!-- ── Session date fields ──────────────────────────────────────────────── -->
     <NoteSessionDatesPanel
-      v-if="category === 'session'"
-      v-model="sessionDates"
+      v-if="draft.category === 'session'"
+      v-model="draft.sessionDates"
       :is-new-note="!props.note"
       :linked-calendar-event-id="props.note?.linked_calendar_event_id ?? null"
     />
+
+    <DraftConflictNotice :fields="conflictLabels" :on-discard="reset" />
 
     <p v-if="saveError" class="text-destructive text-body">
       {{ saveError }}
@@ -89,13 +91,13 @@
     <!-- Tiptap editor -->
     <RichTextEditor
       ref="rteRef"
-      v-model="body"
+      v-model="draft.body"
       size="lg"
       placeholder="Write your note here…"
       allow-upload
       allow-calendar-events
       :entity-mention-items="entityMentionItems"
-      :ai-context="`${category} note${title ? ` — ${title}` : ''}`"
+      :ai-context="`${draft.category} note${draft.title ? ` — ${draft.title}` : ''}`"
       @insert-calendar-event="showEventModal = true"
       @illustration-click="onIllustrationClick"
     >
@@ -153,8 +155,8 @@
   <ChroniclerWriteDialog
     :visible="showChroniclerWrite"
     :note-id="props.note?.id"
-    :note-title="title"
-    :note-session-num="sessionNum"
+    :note-title="draft.title"
+    :note-session-num="draft.sessionNum"
     @close="showChroniclerWrite = false"
     @insert="onChroniclerWrite"
   />
@@ -172,6 +174,8 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
+import { useRecordDraft } from "@/composables/useRecordDraft";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import { useRouter, type RouteLocationNormalized } from "vue-router";
 import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
 import RichTextEditor from "../common/RichTextEditor.vue";
@@ -206,7 +210,6 @@ import { normalizeTag } from "@/lib/tags";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { notifyNoteShared } from "@/composables/campaign/useEmailNotify";
-import { getCurrentUser } from "@/lib/supabase";
 import { storeToRefs } from "pinia";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
@@ -223,23 +226,75 @@ const CATEGORIES: { value: NoteCategory; label: string }[] = [
 const props = defineProps<{ note: Note | null }>();
 const router = useRouter();
 
-const title = ref(props.note?.title ?? "");
-const body = ref<string | null>(props.note?.content ?? null);
-const category = ref<NoteCategory>(props.note?.category ?? "general");
-const sessionNum = ref<number | null>(props.note?.session_num ?? null);
-const isPinned = ref(props.note?.is_pinned ?? false);
-const playerVisibleTo = ref<string[]>(props.note?.player_visible_to ?? []);
-const tags = ref<string[]>(props.note?.tags ? [...props.note.tags] : []);
-// Set when a Chronicle write is inserted (see onChroniclerWrite below);
-// preserved across unrelated edits so re-saving a note doesn't erase a prior
-// generation's record — never cleared back to null once populated (#606).
-const aiProvenance = ref<AiProvenance | null>(props.note?.ai_provenance ?? null);
-// Body content as of the last known AI-authored state: the loaded content, or
-// (if the DM inserts a fresh Chronicle write this session) the body right
-// after that insert. Accepting an AI draft isn't itself a human edit — only a
-// further change beyond this baseline is, so `save()` diffs against this
-// rather than against `props.note.content` directly (#606).
-const aiContentSnapshot = ref<string | null>(props.note?.content ?? null);
+// The editor's local copy of the note (#946). Untouched fields follow the server
+// when the note refetches; save() sends only the columns the DM changed.
+interface NoteDraft {
+  title: string;
+  body: string | null;
+  category: NoteCategory;
+  sessionNum: number | null;
+  isPinned: boolean;
+  playerVisibleTo: string[];
+  tags: string[];
+  // Set when a Chronicle write is inserted (see onChroniclerWrite below);
+  // preserved across unrelated edits so re-saving a note doesn't erase a prior
+  // generation's record — never cleared back to null once populated (#606).
+  aiProvenance: AiProvenance | null;
+  // Grouped into one NoteSessionDates value — NoteSessionDatesPanel owns the
+  // fields, the prefill-from-last-session logic, and the calendar adapter.
+  sessionDates: NoteSessionDates;
+  // Managed by syncSessionCalendarEvent — never edited here, carried so the
+  // row builder sees it.
+  linkedCalendarEventId: string | null;
+}
+
+function toDraft(note: Note | null): NoteDraft {
+  return {
+    title: note?.title ?? "",
+    body: note?.content ?? null,
+    category: note?.category ?? "general",
+    sessionNum: note?.session_num ?? null,
+    isPinned: note?.is_pinned ?? false,
+    playerVisibleTo: [...(note?.player_visible_to ?? [])],
+    tags: [...(note?.tags ?? [])],
+    aiProvenance: note?.ai_provenance ?? null,
+    sessionDates: {
+      startYear:  note?.session_start_year ?? null,
+      startMonth: note?.session_start_month ?? null,
+      startDay:   note?.session_start_day ?? null,
+      endYear:    note?.session_end_year ?? null,
+      endMonth:   note?.session_end_month ?? null,
+      endDay:     note?.session_end_day ?? null,
+      realDate:   note?.session_real_date ?? null,
+    },
+    linkedCalendarEventId: note?.linked_calendar_event_id ?? null,
+  };
+}
+
+const { draft, dirty, conflicts, changes, commit, reset } = useRecordDraft({
+  source: () => props.note,
+  identity: (note) => note.id,
+  toDraft,
+});
+
+const CONFLICT_LABELS: Record<keyof NoteDraft, string> = {
+  title: "Title",
+  body: "Note text",
+  category: "Category",
+  sessionNum: "Session number",
+  isPinned: "Pinned",
+  playerVisibleTo: "Shared with",
+  tags: "Tags",
+  aiProvenance: "AI provenance",
+  sessionDates: "Session dates",
+  linkedCalendarEventId: "Calendar event",
+};
+const conflictLabels = computed(() => conflicts.value.map((key) => CONFLICT_LABELS[key]));
+
+// The body as of the last Chronicle insert this session. Null until one happens:
+// accepting an AI draft isn't itself a human edit, so save() diffs the body
+// against this when set, and against the server's copy otherwise (#606).
+const aiInsertedContent = ref<{ content: string | null } | null>(null);
 // The title as of the last Chronicle insert that supplied one. Null unless the
 // model actually wrote this note's title — a DM-written title is not AI-authored
 // and must never be diffed as though it were.
@@ -248,21 +303,6 @@ const saving = ref(false);
 const deleting = ref(false);
 const showPaywall = ref(false);
 const saveError = ref("");
-const user = getCurrentUser();
-
-// ── Session dates ─────────────────────────────────────────────────────────────
-// Grouped into one NoteSessionDates value so NoteEditor holds a single ref
-// instead of seven — NoteSessionDatesPanel owns the fields, the prefill-from-
-// last-session logic, and the calendar adapter it renders against.
-const sessionDates = ref<NoteSessionDates>({
-  startYear:  props.note?.session_start_year ?? null,
-  startMonth: props.note?.session_start_month ?? null,
-  startDay:   props.note?.session_start_day ?? null,
-  endYear:    props.note?.session_end_year ?? null,
-  endMonth:   props.note?.session_end_month ?? null,
-  endDay:     props.note?.session_end_day ?? null,
-  realDate:   props.note?.session_real_date ?? null,
-});
 
 const { mentionItems: entityMentionItems } = useEntityMentionItems();
 
@@ -310,31 +350,31 @@ function onChroniclerWrite(chronicle: ChronicleInsert) {
   // The title line the model wrote is a title, not prose — the dialog parsed it
   // out and showed the DM exactly these two values before they pressed Insert.
   if (chronicle.title) {
-    title.value = chronicle.title;
+    draft.title = chronicle.title;
     aiTitleSnapshot.value = chronicle.title;
   }
   if (chronicle.sessionNum !== null) {
     // The Session # field is only rendered for a session note, and
     // buildPayload() nulls the column for every other category — so a number
     // set without switching category would be dropped on save without a trace.
-    category.value = "session";
-    sessionNum.value = chronicle.sessionNum;
+    draft.category = "session";
+    draft.sessionNum = chronicle.sessionNum;
   }
   if (chronicle.tags.length > 0) {
     // Merge, not replace — the DM's own tag bar may already hold tags this
     // note started with. Skip anything already present under a different
     // spelling (stored tags are inconsistent — see reconcileChronicleTags).
-    const already = new Set(tags.value.map(normalizeTag));
+    const already = new Set(draft.tags.map(normalizeTag));
     const toAdd = chronicle.tags.filter((t) => !already.has(normalizeTag(t)));
-    tags.value = [...tags.value, ...toAdd];
+    draft.tags = [...draft.tags, ...toAdd];
   }
   if (chronicle.aiProvenance) {
-    aiProvenance.value = chronicle.aiProvenance;
+    draft.aiProvenance = chronicle.aiProvenance;
     // insertChronicleContent() runs synchronously through Tiptap's onUpdate →
     // emit("update:modelValue") → this component's v-model handler, so `body`
     // already reflects the insert here. Accepting the AI draft as-is isn't a
     // human edit, so move the baseline forward to match.
-    aiContentSnapshot.value = body.value;
+    aiInsertedContent.value = { content: draft.body };
   }
 }
 
@@ -368,27 +408,27 @@ const { mutateAsync: deleteCalEvent } = useDeleteCalendarEvent();
 const { syncSessionCalendarEvent } = useNoteCalendarSync();
 const { activeCampaignId } = storeToRefs(useCampaignStore());
 
-function buildPayload() {
-  const isSession = category.value === "session";
+// A pure function of its draft: useRecordDraft runs it over the server copy too,
+// to find which columns the DM actually changed.
+function buildPayload(d: NoteDraft) {
+  const isSession = d.category === "session";
   return {
-    title: title.value.trim() || "Untitled Note",
-    category: category.value,
-    session_num: isSession ? (sessionNum.value ?? null) : null,
-    is_pinned: isPinned.value,
-    player_visible_to: playerVisibleTo.value,
-    tags: tags.value,
-    content: body.value ?? null,
-    ai_provenance: aiProvenance.value,
-    user_id: user?.id,
-    session_start_year:  isSession ? (sessionDates.value.startYear ?? null) : null,
-    session_start_month: isSession ? (sessionDates.value.startMonth ?? null) : null,
-    session_start_day:   isSession ? (sessionDates.value.startDay ?? null) : null,
-    session_end_year:    isSession ? (sessionDates.value.endYear ?? null) : null,
-    session_end_month:   isSession ? (sessionDates.value.endMonth ?? null) : null,
-    session_end_day:     isSession ? (sessionDates.value.endDay ?? null) : null,
-    session_real_date:   isSession ? (sessionDates.value.realDate ?? null) : null,
-    // Managed by syncSessionCalendarEvent — never set directly here
-    linked_calendar_event_id: props.note?.linked_calendar_event_id ?? null,
+    title: d.title.trim() || "Untitled Note",
+    category: d.category,
+    session_num: isSession ? (d.sessionNum ?? null) : null,
+    is_pinned: d.isPinned,
+    player_visible_to: d.playerVisibleTo,
+    tags: d.tags,
+    content: d.body ?? null,
+    ai_provenance: d.aiProvenance,
+    session_start_year:  isSession ? (d.sessionDates.startYear ?? null) : null,
+    session_start_month: isSession ? (d.sessionDates.startMonth ?? null) : null,
+    session_start_day:   isSession ? (d.sessionDates.startDay ?? null) : null,
+    session_end_year:    isSession ? (d.sessionDates.endYear ?? null) : null,
+    session_end_month:   isSession ? (d.sessionDates.endMonth ?? null) : null,
+    session_end_day:     isSession ? (d.sessionDates.endDay ?? null) : null,
+    session_real_date:   isSession ? (d.sessionDates.realDate ?? null) : null,
+    linked_calendar_event_id: d.linkedCalendarEventId,
   };
 }
 
@@ -397,10 +437,9 @@ function buildPayload() {
 // same is true of anything typed here. Navigating away — the browser's back
 // button out of `?edit=true` most of all — used to discard all of it without a
 // word. The payload is the comparison because it is already the exact set of
-// values that would be written.
+// values that would be written. The draft compares itself against the server copy.
 
-const savedState = ref(JSON.stringify(buildPayload()));
-const isDirty = computed(() => JSON.stringify(buildPayload()) !== savedState.value);
+const isDirty = dirty;
 
 /** Whether NoteDetailView will still be rendering this editor afterwards. */
 function editorSurvives(to: RouteLocationNormalized): boolean {
@@ -427,26 +466,26 @@ const { allowLeave } = useUnsavedGuard({
 function calendarSyncInput(noteId: string) {
   return {
     noteId,
-    title: title.value,
-    sessionNum: sessionNum.value,
-    dates: sessionDates.value,
-    isSession: category.value === "session",
+    title: draft.title,
+    sessionNum: draft.sessionNum,
+    dates: draft.sessionDates,
+    isSession: draft.category === "session",
     existingEventId: props.note?.linked_calendar_event_id ?? null,
     campaignId: activeCampaignId.value,
   };
 }
 
 async function save() {
-  if (!title.value.trim() && !body.value) return;
+  if (!draft.title.trim() && !draft.body) return;
   saving.value = true;
   saveError.value = "";
   const wasShared = (props.note?.player_visible_to?.length ?? 0) > 0;
-  const nowShared = playerVisibleTo.value.length > 0;
+  const nowShared = draft.playerVisibleTo.length > 0;
   const justShared = nowShared && !wasShared;
   // Per-player diff, unlike the boolean above: adding a player to an
   // already-shared note must still email that player.
   const previouslyVisibleTo = new Set(props.note?.player_visible_to ?? []);
-  const newlyVisibleTo = playerVisibleTo.value.filter((id) => !previouslyVisibleTo.has(id));
+  const newlyVisibleTo = draft.playerVisibleTo.filter((id) => !previouslyVisibleTo.has(id));
   try {
     if (props.note) {
       // Material edit detection (#606): only AI-authored values count —
@@ -456,26 +495,31 @@ async function save() {
       // snapshot rather than the loaded row, so accepting a draft as-is isn't
       // itself an edit (see aiContentSnapshot / aiTitleSnapshot above).
       const titleEdited =
-        aiTitleSnapshot.value !== null && title.value.trim() !== aiTitleSnapshot.value;
-      if (body.value !== aiContentSnapshot.value || titleEdited) {
-        aiProvenance.value = markEdited(aiProvenance.value);
+        aiTitleSnapshot.value !== null && draft.title.trim() !== aiTitleSnapshot.value;
+      const aiBaseline = aiInsertedContent.value ? aiInsertedContent.value.content : props.note.content;
+      if (draft.body !== aiBaseline || titleEdited) {
+        draft.aiProvenance = markEdited(draft.aiProvenance);
       }
 
       const oldContent = props.note.content;
-      await update({ id: props.note.id, update: buildPayload() });
-      cleanupRemovedRichTextImages(oldContent, body.value);
+      // Only the columns the DM touched: the rest may have moved on the server
+      // since this note loaded, and a whole-row write would put them back (#946).
+      const changed = changes(buildPayload);
+      if (Object.keys(changed).length > 0) await update({ id: props.note.id, update: changed });
+      commit();
+      cleanupRemovedRichTextImages(oldContent, draft.body);
       await syncSessionCalendarEvent(calendarSyncInput(props.note.id));
       if (justShared && activeCampaignId.value)
         void sendCampaignAnnouncement(
           activeCampaignId.value,
-          `📜 Note shared: "${title.value.trim()}"`,
+          `📜 Note shared: "${draft.title.trim()}"`,
           { entity_type: "note", entity_id: props.note.id },
         );
       notifyNoteShared(props.note.id, newlyVisibleTo);
       allowLeave();
       router.push("/notes");
     } else {
-      const created = await create(buildPayload());
+      const created = await create(buildPayload(draft));
       await syncSessionCalendarEvent(calendarSyncInput(created.id));
       if (nowShared && activeCampaignId.value)
         void sendCampaignAnnouncement(

@@ -43,6 +43,8 @@
       </template>
     </EntityEditorActionBar>
 
+    <DraftConflictNotice :fields="conflictLabels" :on-discard="discardEdits" />
+
     <!-- Core fields -->
     <div class="grid grid-cols-2 gap-4">
       <!-- Discipline -->
@@ -213,8 +215,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed } from "vue";
 import { IconAdd, IconDelete, IconLock, IconTool } from '@/lib/icons';
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -226,6 +229,7 @@ import {
   CRAFTING_DISCIPLINES,
   getDiscipline,
 } from "@/lib/crafting-disciplines";
+import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
 import { useUiStore } from "@/stores/ui";
 import { useItems } from "@/composables/items/useItems";
 import { inventoryItemRef, itemRefColumns, sameItemRef } from "@/lib/itemRef";
@@ -273,95 +277,132 @@ const { mutateAsync: replaceOutputs } = useReplaceOutputs();
 
 const saving = computed(() => isCreating.value || isUpdating.value);
 
-// Form state
-const form = ref({
-  name: props.recipe?.name ?? "",
-  description: props.recipe?.description ?? "",
-  discipline: (props.recipe?.discipline ??
-    (ui.workshopActiveTab !== "all"
-      ? ui.workshopActiveTab
-      : "smithing")) as CraftingDiscipline,
-  dc: props.recipe?.dc ?? 10,
-  crafting_time: props.recipe?.crafting_time ?? 1,
-  crafting_time_unit: (props.recipe?.crafting_time_unit ?? "days") as
-    | "minutes"
-    | "hours"
-    | "days",
-  requires_proficiency: props.recipe?.requires_proficiency ?? false,
-  requires_tools: props.recipe?.requires_tools ?? false,
-  player_visible_to: props.recipe?.player_visible_to ?? [],
+// Form state. One draft for the recipe row and one for each child list (they
+// load as separate queries). Each takes fresh server data into what the user
+// has not touched, and the save writes only what changed (#946).
+interface RecipeDraft {
+  name: string;
+  description: string;
+  discipline: CraftingDiscipline;
+  dc: number;
+  crafting_time: number;
+  crafting_time_unit: "minutes" | "hours" | "days";
+  requires_proficiency: boolean;
+  requires_tools: boolean;
+  player_visible_to: string[];
+}
+
+type IngredientRow = { item_id: string | null; library_item_id: string | null; tags: string[] | null; quantity: number };
+type OutputRow = { item_id: string | null; library_item_id: string | null; quantity: number };
+type ModifierRow = { description: string; bonus: number };
+
+/** A child list as one draft field, so it merges and compares as a unit. */
+interface ListDraft<Row> {
+  rows: Row[];
+}
+interface ChildSource<Row> {
+  id: string;
+  rows: Row[];
+}
+
+const {
+  draft: form,
+  conflicts: recipeConflicts,
+  changes: recipeChanges,
+  commit: commitRecipe,
+  reset: resetRecipe,
+} = useRecordDraft<CraftingRecipe, RecipeDraft>({
+  source: () => props.recipe,
+  identity: (row) => row.id,
+  toDraft: (r) =>
+    r
+      ? {
+          name: r.name,
+          description: r.description,
+          discipline: r.discipline,
+          dc: r.dc,
+          crafting_time: r.crafting_time,
+          crafting_time_unit: r.crafting_time_unit,
+          requires_proficiency: r.requires_proficiency,
+          requires_tools: r.requires_tools,
+          player_visible_to: [...r.player_visible_to],
+        }
+      : {
+          name: "",
+          description: "",
+          discipline: (ui.workshopActiveTab !== "all" ? ui.workshopActiveTab : "smithing") as CraftingDiscipline,
+          dc: 10,
+          crafting_time: 1,
+          crafting_time_unit: "days",
+          requires_proficiency: false,
+          requires_tools: false,
+          player_visible_to: [],
+        },
 });
 
-const ingredients = ref<
-  { item_id: string | null; library_item_id: string | null; tags: string[] | null; quantity: number }[]
->([]);
-const modifiers = ref<{ description: string; bonus: number }[]>([]);
-const outputs = ref<{ item_id: string | null; library_item_id: string | null; quantity: number }[]>([]);
+/** The recipe columns. Pure: also run over the server copy. */
+function buildRecipe(d: RecipeDraft): RecipeDraft {
+  return { ...d, player_visible_to: [...d.player_visible_to] };
+}
 
-watch(
-  () => props.recipe,
-  (r) => {
-    if (r) {
-      form.value = {
-        name: r.name,
-        description: r.description,
-        discipline: r.discipline,
-        dc: r.dc,
-        crafting_time: r.crafting_time,
-        crafting_time_unit: r.crafting_time_unit,
-        requires_proficiency: r.requires_proficiency,
-        requires_tools: r.requires_tools,
-        player_visible_to: r.player_visible_to,
-      };
-    }
-  },
-  { immediate: true },
+function useChildList<Row, Server extends Row>(data: () => Server[] | undefined, pick: (server: Server) => Row) {
+  const handle = useRecordDraft<ChildSource<Server>, ListDraft<Row>>({
+    source: () => {
+      const rows = data();
+      return rows && recipeId.value ? { id: recipeId.value, rows } : null;
+    },
+    identity: (row) => row.id,
+    toDraft: (row) => ({ rows: (row?.rows ?? []).map(pick) }),
+  });
+  const rows = computed(() => handle.draft.rows);
+  return { ...handle, rows };
+}
+
+const ingredientList = useChildList(
+  () => existingIngredients.value,
+  (i): IngredientRow => ({ item_id: i.item_id, library_item_id: i.library_item_id, tags: i.tags ? [...i.tags] : null, quantity: i.quantity }),
 );
-
-// Populate sub-resource refs when fetched data arrives
-watch(
-  existingIngredients,
-  (data) => {
-    if (data && ingredients.value.length === 0) {
-      ingredients.value = data.map((i) => ({
-        item_id: i.item_id,
-        library_item_id: i.library_item_id,
-        tags: i.tags,
-        quantity: i.quantity,
-      }));
-    }
-  },
-  { immediate: true },
+const modifierList = useChildList(
+  () => existingModifiers.value,
+  (m): ModifierRow => ({ description: m.description, bonus: m.bonus }),
 );
-
-watch(
-  existingModifiers,
-  (data) => {
-    if (data && modifiers.value.length === 0) {
-      modifiers.value = data.map((m) => ({
-        description: m.description,
-        bonus: m.bonus,
-      }));
-    }
-  },
-  { immediate: true },
+const outputList = useChildList(
+  () => existingOutputs.value,
+  (o): OutputRow => ({ item_id: o.item_id, library_item_id: o.library_item_id, quantity: o.quantity }),
 );
+const ingredients = ingredientList.rows;
+const modifiers = modifierList.rows;
+const outputs = outputList.rows;
 
-watch(
-  existingOutputs,
-  (data) => {
-    if (data && outputs.value.length === 0) {
-      outputs.value = data.map((o) => ({
-        item_id: o.item_id,
-        library_item_id: o.library_item_id,
-        quantity: o.quantity,
-      }));
-    }
-  },
-  { immediate: true },
-);
+const CONFLICT_LABELS: Record<keyof RecipeDraft, string> = {
+  name: "Name",
+  description: "Description",
+  discipline: "Discipline",
+  dc: "Crafting DC",
+  crafting_time: "Crafting time",
+  crafting_time_unit: "Crafting time",
+  requires_proficiency: "Requires proficiency",
+  requires_tools: "Requires tools",
+  player_visible_to: "Visible to",
+};
 
-const activeDiscipline = computed(() => getDiscipline(form.value.discipline));
+const conflictLabels = computed(() => [
+  ...new Set([
+    ...recipeConflicts.value.map((key) => CONFLICT_LABELS[key]),
+    ...(outputList.conflicts.value.length > 0 ? ["Outputs"] : []),
+    ...(ingredientList.conflicts.value.length > 0 ? ["Ingredients"] : []),
+    ...(modifierList.conflicts.value.length > 0 ? ["Conditional modifiers"] : []),
+  ]),
+]);
+
+function discardEdits() {
+  resetRecipe();
+  ingredientList.reset();
+  modifierList.reset();
+  outputList.reset();
+}
+
+const activeDiscipline = computed(() => getDiscipline(form.discipline));
 
 // Item search
 const outputSearch = ref("");
@@ -458,23 +499,37 @@ function removeIngredient(idx: number) {
 }
 
 async function save() {
-  if (!form.value.name.trim() || outputs.value.length === 0) return;
+  if (!form.name.trim() || outputs.value.length === 0) return;
 
   let id: string;
   if (isNew.value) {
-    const created = await createRecipe(form.value);
+    const created = await createRecipe(buildRecipe(form));
     id = created.id;
+    await replaceIngredients({ recipeId: id, ingredients: cloneDraftValue(ingredients.value) });
+    await replaceModifiers({ recipeId: id, modifiers: cloneDraftValue(modifiers.value) });
+    await replaceOutputs({ recipeId: id, outputs: cloneDraftValue(outputs.value) });
   } else {
-    const updated = await updateRecipe({
-      id: recipeId.value!,
-      update: form.value,
-    });
-    id = updated.id;
+    id = recipeId.value!;
+    // Only what changed is written: a list or column the user never touched is
+    // left alone, so a stale form cannot revert it.
+    const update = recipeChanges(buildRecipe);
+    if (Object.keys(update).length > 0) {
+      await updateRecipe({ id, update });
+      commitRecipe();
+    }
+    if (ingredientList.changes((d) => ({ rows: d.rows })).rows) {
+      await replaceIngredients({ recipeId: id, ingredients: cloneDraftValue(ingredients.value) });
+      ingredientList.commit();
+    }
+    if (modifierList.changes((d) => ({ rows: d.rows })).rows) {
+      await replaceModifiers({ recipeId: id, modifiers: cloneDraftValue(modifiers.value) });
+      modifierList.commit();
+    }
+    if (outputList.changes((d) => ({ rows: d.rows })).rows) {
+      await replaceOutputs({ recipeId: id, outputs: cloneDraftValue(outputs.value) });
+      outputList.commit();
+    }
   }
-
-  await replaceIngredients({ recipeId: id, ingredients: ingredients.value });
-  await replaceModifiers({ recipeId: id, modifiers: modifiers.value });
-  await replaceOutputs({ recipeId: id, outputs: outputs.value });
 
   emit("saved", id);
 }

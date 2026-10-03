@@ -72,14 +72,14 @@
         <!-- Event type picker -->
         <EventModalTypePicker
           :event-type="form.event_type"
-          :color="form.color"
+          :color="typeColor"
           @update:event-type="form.event_type = $event"
           @close="close"
         />
 
         <!-- Date picker -->
         <EventModalDatePicker
-          :date-type="dateType"
+          :date-type="form.date_type"
           :harptos-year="form.harptos_year"
           :harptos-month="form.harptos_month"
           :harptos-day="form.harptos_day"
@@ -90,7 +90,7 @@
           :end-day="form.end_day"
           :months="adapter.months"
           :available-festivals="availableFestivals"
-          @update:date-type="dateType = $event"
+          @update:date-type="setDateType"
           @update:harptos-year="form.harptos_year = $event"
           @update:harptos-month="form.harptos_month = $event"
           @update:harptos-day="form.harptos_day = $event"
@@ -149,6 +149,12 @@
         />
       </div>
 
+      <DraftConflictNotice
+        :fields="conflictLabels"
+        :on-discard="reset"
+        class="mx-5 mb-2"
+      />
+
       <!-- Actions -->
       <div class="shrink-0 flex items-center justify-between gap-2 px-5 py-3">
         <AppButton
@@ -176,17 +182,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, useId } from "vue";
+import { watch, computed, useId } from "vue";
 import { IconClose, IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { useNote } from "@/composables/notes/useNotes";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
+import { useRecordDraft } from "@/composables/useRecordDraft";
 import { useCalendarStore } from "@/stores/calendar";
 import {
   useCreateCalendarEvent,
@@ -224,8 +232,8 @@ const { data: locations } = useAllLocations();
 const { data: party } = useParty();
 
 const linkedLocationId = computed({
-  get: () => form.value.linked_location_id ?? "",
-  set: (v: string) => { form.value.linked_location_id = v || null; },
+  get: () => form.linked_location_id ?? "",
+  set: (v: string) => { form.linked_location_id = v || null; },
 });
 
 const isPending = computed(() => isCreating.value || isUpdating.value || isDeleting.value);
@@ -240,90 +248,135 @@ const { data: linkedNote, isLoading: linkedNoteLoading } = useNote(linkedNoteId)
 const headingId = useId();
 
 type DateType = "regular" | "festival";
-const dateType = ref<DateType>("regular");
 
-function defaultForm(): CalendarEventInsert {
+/**
+ * The form state. The regular/festival toggle lives in the draft (rather than
+ * beside it) so the row builder below can read it from its argument, and the
+ * colour is not here at all: it is derived from the type (`eventColor`).
+ */
+type EventDraft = Omit<CalendarEventInsert, "campaign_id" | "color"> & {
+  date_type: DateType;
+};
+
+function toDraft(row: CalendarEvent | null): EventDraft {
+  if (!row) {
+    return {
+      title: "",
+      description: null,
+      event_type: "campaign",
+      date_type: "regular",
+      harptos_year: calendar.currentYear,
+      harptos_month: calendar.currentMonth,
+      harptos_day: props.initialDay ?? 1,
+      festival_day: null,
+      is_multi_day: false,
+      end_year: null,
+      end_month: null,
+      end_day: null,
+      linked_quest_id: null,
+      linked_encounter_id: null,
+      linked_location_id: null,
+      linked_note_id: null,
+      travel_party_member_ids: [],
+      player_visible: false,
+    };
+  }
   return {
-    campaign_id: campaign.activeCampaignId,
-    title: "",
-    description: null,
-    event_type: "campaign",
-    color: EVENT_TYPE_COLORS["campaign"],
-    harptos_year: calendar.currentYear,
-    harptos_month: calendar.currentMonth,
-    harptos_day: props.initialDay ?? 1,
-    festival_day: null,
-    is_multi_day: false,
-    end_year: null,
-    end_month: null,
-    end_day: null,
-    linked_quest_id: null,
-    linked_encounter_id: null,
-    linked_location_id: null,
-    linked_note_id: null,
-    travel_party_member_ids: [],
-    player_visible: false,
+    title: row.title,
+    description: row.description,
+    event_type: row.event_type,
+    date_type: row.festival_day ? "festival" : "regular",
+    harptos_year: row.harptos_year,
+    harptos_month: row.harptos_month,
+    harptos_day: row.harptos_day,
+    festival_day: row.festival_day,
+    is_multi_day: row.is_multi_day,
+    end_year: row.end_year,
+    end_month: row.end_month,
+    end_day: row.end_day,
+    linked_quest_id: row.linked_quest_id,
+    linked_encounter_id: row.linked_encounter_id,
+    linked_location_id: row.linked_location_id,
+    linked_note_id: row.linked_note_id,
+    travel_party_member_ids: row.travel_party_member_ids ?? [],
+    player_visible: row.player_visible ?? false,
   };
 }
 
-const form = ref<CalendarEventInsert>(defaultForm());
+/** The columns a draft saves. Pure: `changes()` also runs it over the server copy. */
+function buildRow(d: EventDraft): Omit<CalendarEventInsert, "campaign_id"> {
+  const { date_type, ...rest } = d;
+  return {
+    ...rest,
+    color: eventColor(d),
+    harptos_month: date_type === "regular" ? d.harptos_month : null,
+    harptos_day: date_type === "regular" ? d.harptos_day : null,
+    festival_day: date_type === "festival" ? d.festival_day : null,
+    end_year: d.is_multi_day ? d.end_year : null,
+    end_month: d.is_multi_day ? d.end_month : null,
+    end_day: d.is_multi_day ? d.end_day : null,
+  };
+}
+
+const { draft: form, conflicts, changes, commit, reset } = useRecordDraft({
+  source: () => props.editEvent,
+  identity: (row) => row.id,
+  toDraft,
+});
+
+const CONFLICT_LABELS: Partial<Record<keyof EventDraft, string>> = {
+  title: "Title",
+  description: "Description",
+  event_type: "Type",
+  date_type: "Date",
+  harptos_year: "Date",
+  harptos_month: "Date",
+  harptos_day: "Date",
+  festival_day: "Date",
+  is_multi_day: "Date",
+  end_year: "Date",
+  end_month: "Date",
+  end_day: "Date",
+  linked_location_id: "Location",
+  travel_party_member_ids: "Travelling party",
+  player_visible: "Visible to players",
+};
+const conflictLabels = computed(() => [
+  ...new Set(conflicts.value.flatMap((key) => CONFLICT_LABELS[key] ?? [])),
+]);
+
+const typeColor = computed(() => eventColor(form));
 
 const adapter = computed(() => calendar.adapter);
 
 const availableFestivals = computed(() =>
   adapter.value.intercalaryDays.filter(
-    (d) => !d.isLeapOnly || adapter.value.isLeapYear(form.value.harptos_year),
+    (d) => !d.isLeapOnly || adapter.value.isLeapYear(form.harptos_year),
   ),
 );
 
+// The dialog stays mounted while shut. Editing starts from the server copy
+// (dropping edits abandoned last time); creating starts from a blank form.
 watch(open, (isOpen) => {
-  if (isOpen) {
-    if (props.editEvent) {
-      form.value = {
-        campaign_id: campaign.activeCampaignId,
-        title: props.editEvent.title,
-        description: props.editEvent.description,
-        event_type: props.editEvent.event_type,
-        color: eventColor(props.editEvent),
-        harptos_year: props.editEvent.harptos_year,
-        harptos_month: props.editEvent.harptos_month,
-        harptos_day: props.editEvent.harptos_day,
-        festival_day: props.editEvent.festival_day,
-        is_multi_day: props.editEvent.is_multi_day,
-        end_year: props.editEvent.end_year,
-        end_month: props.editEvent.end_month,
-        end_day: props.editEvent.end_day,
-        linked_quest_id: props.editEvent.linked_quest_id,
-        linked_encounter_id: props.editEvent.linked_encounter_id,
-        linked_location_id: props.editEvent.linked_location_id,
-        linked_note_id: props.editEvent.linked_note_id,
-        travel_party_member_ids: props.editEvent.travel_party_member_ids ?? [],
-        player_visible: props.editEvent.player_visible ?? false,
-      };
-      dateType.value = props.editEvent.festival_day ? "festival" : "regular";
-    } else {
-      form.value = defaultForm();
-      dateType.value = "regular";
-    }
-  }
+  if (!isOpen) return;
+  if (props.editEvent) reset();
+  else Object.assign(form, toDraft(null));
 });
 
-watch(dateType, (type) => {
+// An event handler rather than a watcher: a watcher would also fire when the
+// draft is seeded or merged from the server, and overwrite the saved date.
+function setDateType(type: DateType) {
+  form.date_type = type;
   if (type === "festival") {
-    form.value.harptos_month = null;
-    form.value.harptos_day = null;
-    form.value.festival_day = availableFestivals.value[0]?.name ?? null;
+    form.harptos_month = null;
+    form.harptos_day = null;
+    form.festival_day = availableFestivals.value[0]?.name ?? null;
   } else {
-    form.value.festival_day = null;
-    form.value.harptos_month = calendar.currentMonth;
-    form.value.harptos_day = 1;
+    form.festival_day = null;
+    form.harptos_month = calendar.currentMonth;
+    form.harptos_day = 1;
   }
-});
-
-watch(
-  () => form.value.event_type,
-  (newType) => { form.value.color = eventColor({ event_type: newType }); },
-);
+}
 
 const ENTITY_ROUTES: Record<string, string> = {
   quest: "/quests",
@@ -358,27 +411,21 @@ async function deleteAndClose() {
 }
 
 async function submit() {
-  const payload: CalendarEventInsert = {
-    ...form.value,
-    harptos_month:
-      dateType.value === "regular" ? form.value.harptos_month : null,
-    harptos_day: dateType.value === "regular" ? form.value.harptos_day : null,
-    festival_day:
-      dateType.value === "festival" ? form.value.festival_day : null,
-    end_year: form.value.is_multi_day ? form.value.end_year : null,
-    end_month: form.value.is_multi_day ? form.value.end_month : null,
-    end_day: form.value.is_multi_day ? form.value.end_day : null,
-  };
+  const payload = buildRow(form);
 
   const justSharedToPlayers =
     payload.player_visible && !(props.editEvent?.player_visible ?? false);
 
   if (props.editEvent) {
-    // Exclude campaign_id: never overwrite it on update.
-    const { campaign_id: _cid, ...updatePayload } = payload;
-    await updateEvent({ id: props.editEvent.id, update: updatePayload });
+    // Only the columns the user changed: a stale form never rewrites the rest.
+    // campaign_id is never part of an update.
+    const update = changes(buildRow);
+    if (Object.keys(update).length > 0) {
+      await updateEvent({ id: props.editEvent.id, update });
+    }
+    commit();
   } else {
-    await createEvent(payload);
+    await createEvent({ ...payload, campaign_id: campaign.activeCampaignId });
   }
 
   if (justSharedToPlayers && campaign.activeCampaignId) {

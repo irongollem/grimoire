@@ -49,6 +49,11 @@
           </div>
         </div>
 
+        <DraftConflictNotice
+          :fields="planConflictLabels(plan.id)"
+          :on-discard="() => planDrafts.reset(plan.id)"
+        />
+
         <!-- Monthly included AI credits — configurable on every plan -->
         <div class="rounded-md bg-muted/40 border border-border p-3 space-y-1">
           <label
@@ -58,7 +63,7 @@
           </label>
           <div class="flex items-center gap-3">
             <AppInput
-              v-model.number="draftMonthlyCredits[plan.id]"
+              v-model.number="planDrafts.drafts[plan.id]!.monthlyCredits"
               type="number"
               min="0"
               size="body"
@@ -66,7 +71,7 @@
               class="w-32"
             />
             <p class="text-caption text-muted-foreground italic">
-              {{ creditsHelper(draftMonthlyCredits[plan.id]) }}
+              {{ creditsHelper(planDrafts.drafts[plan.id]?.monthlyCredits) }}
             </p>
           </div>
           <p class="text-caption-sm text-muted-foreground/60 italic">
@@ -91,7 +96,7 @@
               {{ LABELS[resource] }}
             </label>
             <AppInput
-              v-model.number="draftQuotas[plan.id][resource]"
+              v-model.number="planDrafts.drafts[plan.id]![quotaKey(resource)]"
               type="number"
               min="0"
               size="body"
@@ -166,6 +171,10 @@
               {{ planPriceSyncing[plan.id] ? "Saving…" : "Save" }}
             </AppButton>
           </div>
+          <DraftConflictNotice
+            :fields="priceConflictLabels(plan.id)"
+            :on-discard="() => priceDrafts.reset(plan.id)"
+          />
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="space-y-1">
               <label
@@ -174,7 +183,7 @@
               >
               <div class="flex items-center gap-2">
                 <AppInput
-                  v-model="draftPlanPrices[plan.id].monthlyPriceId"
+                  v-model="priceDrafts.drafts[plan.id]!.monthlyPriceId"
                   type="text"
                   placeholder="price_…"
                   tone="filled"
@@ -182,7 +191,7 @@
                   :block="false"
                   :class="[
                     'flex-1 font-mono text-xs placeholder:text-muted-foreground/50',
-                    draftPlanPrices[plan.id].monthlyPriceId
+                    priceDrafts.drafts[plan.id]!.monthlyPriceId
                       ? 'text-ink-success'
                       : 'text-ink-caution',
                   ]"
@@ -207,7 +216,7 @@
               >
               <div class="flex items-center gap-2">
                 <AppInput
-                  v-model="draftPlanPrices[plan.id].annualPriceId"
+                  v-model="priceDrafts.drafts[plan.id]!.annualPriceId"
                   type="text"
                   placeholder="price_…"
                   tone="filled"
@@ -215,7 +224,7 @@
                   :block="false"
                   :class="[
                     'flex-1 font-mono text-xs placeholder:text-muted-foreground/50',
-                    draftPlanPrices[plan.id].annualPriceId
+                    priceDrafts.drafts[plan.id]!.annualPriceId
                       ? 'text-ink-success'
                       : 'text-ink-caution',
                   ]"
@@ -244,6 +253,8 @@
 import { reactive, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import { useKeyedRecordDrafts } from "@/composables/admin/useKeyedRecordDrafts";
 import { useAdminPlans } from "@/composables/admin/useAdminPlans";
 import { useGenerationCreditCosts } from "@/composables/billing/useCreditConfig";
 import { sizeMultiplier } from "@/composables/ai/useAiCredits";
@@ -270,29 +281,40 @@ function creditsHelper(credits: number | undefined): string {
   return `≈ ${portraits} portrait image${portraits === 1 ? "" : "s"} / month (or ${credits} text gens)`;
 }
 
-type QuotaDraft = Record<string, Record<QuotaResource, number>>;
-const draftQuotas = reactive<QuotaDraft>({});
-const draftMonthlyCredits = reactive<Record<string, number>>({});
+// Plans save per card, so each card is its own draft with its own server copy:
+// a refetch reaches every field the admin has not touched, and saving one card
+// never rebaselines another card's unsaved edits (#946). Quotas are flattened to
+// one key each so editing one limit cannot hide a server change to another.
+type QuotaKey = `quota_${QuotaResource}`;
+type PlanDraft = { monthlyCredits: number } & Record<QuotaKey, number>;
+
+function quotaKey(resource: QuotaResource): QuotaKey {
+  return `quota_${resource}`;
+}
+
+function planToDraft(plan: Plan): PlanDraft {
+  const quotas: Record<QuotaResource, number> = { ...defaultQuotaRecord(), ...plan.quotas };
+  const flat = Object.fromEntries(QUOTA_RESOURCES.map((r) => [quotaKey(r), quotas[r]])) as Record<QuotaKey, number>;
+  return { monthlyCredits: plan.monthly_credits, ...flat };
+}
+
+const planDrafts = useKeyedRecordDrafts<Plan, PlanDraft>(planToDraft);
 const planSaving = reactive<Record<string, boolean>>({});
 
 watch(
   () => plansQuery.data.value,
   (plans) => {
     if (!plans) return;
-    for (const plan of plans) {
-      if (plan.id === "free") {
-        draftQuotas[plan.id] = {
-          ...defaultQuotaRecord(),
-          ...plan.quotas,
-        } as Record<QuotaResource, number>;
-      }
-      if (!(plan.id in draftMonthlyCredits)) {
-        draftMonthlyCredits[plan.id] = plan.monthly_credits ?? 0;
-      }
-    }
+    for (const plan of plans) planDrafts.sync(plan.id, plan);
   },
   { immediate: true },
 );
+
+function planConflictLabels(planId: string): string[] {
+  return (planDrafts.conflicts[planId] ?? []).map((key) =>
+    key === "monthlyCredits" ? "Monthly Included Credits" : LABELS[key.slice("quota_".length) as QuotaResource],
+  );
+}
 
 function defaultQuotaRecord(): Record<QuotaResource, number> {
   return {
@@ -315,26 +337,35 @@ function defaultQuotaRecord(): Record<QuotaResource, number> {
 }
 
 async function savePlan(plan: Plan) {
+  const changed = planDrafts.changes(plan.id, (d) => d);
+  const base = planDrafts.baseline(plan.id);
+  if (!base || Object.keys(changed).length === 0) return;
   planSaving[plan.id] = true;
   try {
     // Quotas are only editable on Free; monthly credits are configurable on every plan.
-    if (plan.id === "free") {
-      await updateQuotas.mutateAsync({
-        planId: plan.id,
-        quotas: draftQuotas[plan.id],
-      });
+    // The quotas column is one jsonb object, so the untouched limits in it come
+    // from the latest server copy rather than from what the form was seeded with.
+    const quotaChanged = QUOTA_RESOURCES.some((r) => quotaKey(r) in changed);
+    if (plan.id === "free" && quotaChanged) {
+      const quotas = Object.fromEntries(
+        QUOTA_RESOURCES.map((r) => [r, changed[quotaKey(r)] ?? base[quotaKey(r)]]),
+      ) as Record<QuotaResource, number>;
+      await updateQuotas.mutateAsync({ planId: plan.id, quotas });
     }
-    await updateMonthlyCredits.mutateAsync({
-      planId: plan.id,
-      monthlyCredits: draftMonthlyCredits[plan.id] ?? 0,
-    });
+    if (changed.monthlyCredits !== undefined) {
+      await updateMonthlyCredits.mutateAsync({ planId: plan.id, monthlyCredits: changed.monthlyCredits });
+    }
+    planDrafts.commit(plan.id);
   } finally {
     planSaving[plan.id] = false;
   }
 }
 
 type PlanPriceDraft = { monthlyPriceId: string; annualPriceId: string };
-const draftPlanPrices = reactive<Record<string, PlanPriceDraft>>({});
+const priceDrafts = useKeyedRecordDrafts<Plan, PlanPriceDraft>((plan) => ({
+  monthlyPriceId: plan.stripe_price_id ?? "",
+  annualPriceId: plan.stripe_annual_price_id ?? "",
+}));
 const planPriceSyncing = reactive<Record<string, boolean>>({});
 
 watch(
@@ -342,26 +373,29 @@ watch(
   (plans) => {
     if (!plans) return;
     for (const plan of plans) {
-      if (plan.id !== "free" && !(plan.id in draftPlanPrices)) {
-        draftPlanPrices[plan.id] = {
-          monthlyPriceId: plan.stripe_price_id ?? "",
-          annualPriceId: plan.stripe_annual_price_id ?? "",
-        };
-      }
+      if (plan.id !== "free") priceDrafts.sync(plan.id, plan);
     }
   },
   { immediate: true },
 );
 
+function priceConflictLabels(planId: string): string[] {
+  return (priceDrafts.conflicts[planId] ?? []).map((key) =>
+    key === "monthlyPriceId" ? "Monthly Price ID" : "Annual Price ID",
+  );
+}
+
 async function syncPlanPrices(planId: string) {
+  const changed = priceDrafts.changes(planId, (d) => d);
+  if (changed.monthlyPriceId === undefined && changed.annualPriceId === undefined) return;
   planPriceSyncing[planId] = true;
-  const draft = draftPlanPrices[planId];
   try {
     await syncPlanPricesMutation.mutateAsync({
       planId,
-      monthlyPriceId: draft.monthlyPriceId.trim() || undefined,
-      annualPriceId: draft.annualPriceId.trim() || undefined,
+      monthlyPriceId: changed.monthlyPriceId?.trim() || undefined,
+      annualPriceId: changed.annualPriceId?.trim() || undefined,
     });
+    priceDrafts.commit(planId);
   } finally {
     planPriceSyncing[planId] = false;
   }

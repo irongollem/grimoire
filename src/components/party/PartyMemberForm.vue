@@ -53,7 +53,7 @@
           :skill-proficiencies="form.skill_proficiencies"
           :prof-bonus="profBonus"
           @update:form="applyAbilitiesPatch"
-          @update:spell-slot-max="(i, v) => { spellSlotMaxes[i] = v; }"
+          @update:spell-slot-max="setSlotMax"
           @reset-slots="resetSlotsToDefault"
         />
 
@@ -70,6 +70,8 @@
           @update:form="applyPersonaPatch"
         />
       </div>
+
+      <DraftConflictNotice :fields="conflictLabels" :on-discard="reset" class="mx-5 mb-3 shrink-0" />
 
       <!-- Footer -->
       <div class="flex items-center justify-between gap-2 px-5 py-4 border-t border-border shrink-0">
@@ -99,7 +101,9 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, reactive, computed } from "vue";
+import { ref, computed } from "vue";
+import { useRecordDraft } from "@/composables/useRecordDraft";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import { IconClose } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import TabBar from "@/components/common/TabBar.vue";
@@ -173,58 +177,101 @@ const disguiseSubraceOptions  = computed(() => selectedDisguiseSpecies.value?.su
 
 const activeTab = ref<TabId>("identity");
 
-// Portrait
-const portraitUrl = ref(props.member.portrait_url ?? "");
-const focalPoint  = ref<{ x: number; y: number } | null>(props.member.portrait_focal_point ?? null);
+// Only the fields these four tabs edit. Everything else on the row (conditions,
+// class resources...) is left out of the save on purpose, so saving here cannot
+// overwrite what the table changed while the form was open. Class, subclass and
+// level are not here either: they are read from the class rows and change only
+// through level-up or de-level.
+//
+// The draft also carries the portrait and the spell slots, and the slots'
+// "used" counts, which a live session spends and this form never edits: with
+// them in the draft, an untouched count is neither sent nor reverted (#946).
+function toMemberDraft(m: PartyMember) {
+  return {
+    name: m.name,
+    player_name: m.player_name,
+    max_hp: m.max_hp,
+    current_hp: m.current_hp,
+    temp_hp: m.temp_hp,
+    ac: m.ac,
+    speed: m.speed,
+    initiative_bonus: m.initiative_bonus,
+    str: m.str,
+    dex: m.dex,
+    con: m.con,
+    int: m.int,
+    wis: m.wis,
+    cha: m.cha,
+    skill_proficiencies: { ...m.skill_proficiencies },
+    saving_throw_proficiencies: [...m.saving_throw_proficiencies],
+    tool_proficiencies: [...m.tool_proficiencies],
+    languages: [...m.languages],
+    carry_capacity_override: m.carry_capacity_override,
+    species_id: m.species_id,
+    disguise_species_id: m.disguise_species_id,
+    disguise_race: m.disguise_race,
+    disguise_subrace: m.disguise_subrace,
+    background_id: m.background_id,
+    // The text controls below bind to a string, while the columns are nullable
+    // (or absent on older rows). The empty string stands for "none" while editing
+    // and is turned back into null at save.
+    subrace: m.subrace ?? "",
+    notes: m.notes ?? "",
+    height: m.height ?? null,
+    alignment: m.alignment ?? "",
+    deity: m.deity ?? "",
+    deity_id: m.deity_id ?? null,
+    age: m.age ?? "",
+    gender: m.gender ?? "",
+    pronouns: m.pronouns ?? "",
+    physical_description: m.physical_description ?? "",
+    personality_traits: m.personality_traits ?? "",
+    ideals: m.ideals ?? "",
+    bonds: m.bonds ?? "",
+    flaws: m.flaws ?? "",
+    portraitUrl: m.portrait_url ?? "",
+    focalPoint: m.portrait_focal_point ? { ...m.portrait_focal_point } : (null as { x: number; y: number } | null),
+    spellSlotMaxes: buildSlotMaxes(m, m.spell_slots),
+    spellSlotsUsed: Array.from({ length: 9 }, (_, i) => m.spell_slots?.find((s) => s.level === i + 1)?.used ?? 0),
+  };
+}
+type MemberDraft = ReturnType<typeof toMemberDraft>;
 
-// Only the fields these four tabs edit. Everything else on the row (hp in a
-// fight, conditions, class resources...) is left out of the save on purpose, so
-// saving here cannot overwrite what the table changed while the form was open.
-// Class, subclass and level are not here either: they are read from the class
-// rows and change only through level-up or de-level.
-const form = reactive({
-  name: props.member.name,
-  player_name: props.member.player_name,
-  max_hp: props.member.max_hp,
-  current_hp: props.member.current_hp,
-  temp_hp: props.member.temp_hp,
-  ac: props.member.ac,
-  speed: props.member.speed,
-  initiative_bonus: props.member.initiative_bonus,
-  str: props.member.str,
-  dex: props.member.dex,
-  con: props.member.con,
-  int: props.member.int,
-  wis: props.member.wis,
-  cha: props.member.cha,
-  skill_proficiencies: { ...props.member.skill_proficiencies },
-  saving_throw_proficiencies: [...props.member.saving_throw_proficiencies],
-  tool_proficiencies: [...props.member.tool_proficiencies],
-  languages: [...props.member.languages],
-  carry_capacity_override: props.member.carry_capacity_override,
-  species_id: props.member.species_id,
-  disguise_species_id: props.member.disguise_species_id,
-  disguise_race: props.member.disguise_race,
-  disguise_subrace: props.member.disguise_subrace,
-  background_id: props.member.background_id,
-  // The text controls below bind to a string, while the columns are nullable
-  // (or absent on older rows). The empty string stands for "none" while editing
-  // and is turned back into null at save.
-  subrace: props.member.subrace ?? "",
-  notes: props.member.notes ?? "",
-  height: props.member.height ?? null,
-  alignment: props.member.alignment ?? "",
-  deity: props.member.deity ?? "",
-  deity_id: props.member.deity_id ?? null,
-  age: props.member.age ?? "",
-  gender: props.member.gender ?? "",
-  pronouns: props.member.pronouns ?? "",
-  physical_description: props.member.physical_description ?? "",
-  personality_traits: props.member.personality_traits ?? "",
-  ideals: props.member.ideals ?? "",
-  bonds: props.member.bonds ?? "",
-  flaws: props.member.flaws ?? "",
+const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
+  source: () => props.member,
+  identity: (m: PartyMember) => m.id,
+  toDraft: (m): MemberDraft => toMemberDraft(m ?? props.member),
 });
+
+const CONFLICT_LABELS: Partial<Record<keyof MemberDraft, string>> = {
+  name: "Name", player_name: "Player", max_hp: "Max HP", current_hp: "Current HP", temp_hp: "Temp HP",
+  ac: "AC", speed: "Speed", initiative_bonus: "Initiative", str: "Strength", dex: "Dexterity",
+  con: "Constitution", int: "Intelligence", wis: "Wisdom", cha: "Charisma",
+  skill_proficiencies: "Skill proficiencies", saving_throw_proficiencies: "Saving throws",
+  tool_proficiencies: "Tool proficiencies", languages: "Languages",
+  carry_capacity_override: "Carry capacity", species_id: "Species", disguise_species_id: "Disguise species",
+  disguise_race: "Disguise race", disguise_subrace: "Disguise subrace", background_id: "Background",
+  subrace: "Subrace", notes: "Notes", height: "Height", alignment: "Alignment", deity: "Deity",
+  deity_id: "Deity", age: "Age", gender: "Gender", pronouns: "Pronouns",
+  physical_description: "Physical description", personality_traits: "Personality traits",
+  ideals: "Ideals", bonds: "Bonds", flaws: "Flaws", portraitUrl: "Portrait", focalPoint: "Portrait",
+  spellSlotMaxes: "Spell slots", spellSlotsUsed: "Spell slots used",
+};
+const conflictLabels = computed(() => [
+  ...new Set(conflicts.value.map((k) => CONFLICT_LABELS[k]).filter((l): l is string => !!l)),
+]);
+
+// Views onto the draft for the portrait and slots. Computed, not captured
+// references: a merge can replace the array or object whole.
+const portraitUrl = computed({
+  get: () => form.portraitUrl,
+  set: (v: string) => { form.portraitUrl = v; },
+});
+const focalPoint = computed({
+  get: () => form.focalPoint,
+  set: (v: { x: number; y: number } | null) => { form.focalPoint = v; },
+});
+const spellSlotMaxes = computed(() => form.spellSlotMaxes);
 
 // Total level: the sum of the class rows, or the row's own level for a
 // classless character (which has no rows to sum).
@@ -307,11 +354,11 @@ function applyPersonaPatch(patch: Partial<PersonaFormSlice>) {
 // --- Spell slots ---
 // Defaults are derived from the character's class rows and its own edition,
 // multiclass included, the same way the sheet derives them.
-function buildSlotMaxes(existing: SpellSlotEntry[] | undefined): number[] {
+function buildSlotMaxes(member: PartyMember, existing: SpellSlotEntry[] | undefined): number[] {
   const slots = existing && existing.length > 0
     ? existing
     : deriveEffectiveSpellSlots(
-        { ...props.member, spell_slots: null },
+        { ...member, spell_slots: null },
         characterClassRows.value ?? [],
         ruleset.value,
         (row) => {
@@ -322,10 +369,12 @@ function buildSlotMaxes(existing: SpellSlotEntry[] | undefined): number[] {
   return Array.from({ length: 9 }, (_, i) => slots.find((s) => s.level === i + 1)?.max ?? 0);
 }
 
-const spellSlotMaxes = reactive<number[]>(buildSlotMaxes(props.member.spell_slots));
-
 function resetSlotsToDefault() {
-  buildSlotMaxes(undefined).forEach((v, i) => { spellSlotMaxes[i] = v; });
+  buildSlotMaxes(props.member, undefined).forEach((v, i) => { spellSlotMaxes.value[i] = v; });
+}
+
+function setSlotMax(index: number, value: number) {
+  spellSlotMaxes.value[index] = value;
 }
 
 // --- Proficiency bonus ---
@@ -359,63 +408,73 @@ const { mutateAsync: detach } = useDetachCharacter();
 
 const saving = ref(false);
 
+// The member row for a draft. Pure: useRecordDraft runs it over the draft and
+// over the server copy to find the columns the user changed.
+function buildPayload(d: MemberDraft): PartyMemberUpdate {
+  return {
+    name: d.name.trim(),
+    player_name: d.player_name || null,
+    subrace: d.subrace || null,
+    notes: d.notes || null,
+    portrait_url: d.portraitUrl || null,
+    portrait_focal_point: d.focalPoint,
+    max_hp: d.max_hp,
+    current_hp: d.current_hp,
+    temp_hp: d.temp_hp,
+    ac: d.ac,
+    speed: d.speed,
+    initiative_bonus: d.initiative_bonus,
+    str: d.str,
+    dex: d.dex,
+    con: d.con,
+    int: d.int,
+    wis: d.wis,
+    cha: d.cha,
+    skill_proficiencies: d.skill_proficiencies,
+    saving_throw_proficiencies: d.saving_throw_proficiencies,
+    tool_proficiencies: d.tool_proficiencies,
+    languages: d.languages,
+    carry_capacity_override: d.carry_capacity_override,
+    species_id: d.species_id,
+    disguise_species_id: d.disguise_species_id,
+    disguise_race: d.disguise_race,
+    disguise_subrace: d.disguise_subrace,
+    background_id: d.background_id,
+    height: d.height,
+    alignment:            d.alignment            || null,
+    deity:                d.deity                || null,
+    deity_id:             d.deity_id,
+    age:                  d.age                  || null,
+    gender:               d.gender               || null,
+    pronouns:             d.pronouns             || null,
+    physical_description: d.physical_description || null,
+    personality_traits:   d.personality_traits   || null,
+    ideals:               d.ideals               || null,
+    bonds:                d.bonds                || null,
+    flaws:                d.flaws                || null,
+    spell_slots: d.spellSlotMaxes
+      .map((max, i) => ({ level: i + 1, max, used: max > 0 ? d.spellSlotsUsed[i] : 0 }))
+      .filter((s) => s.max > 0),
+  };
+}
+
 async function save() {
   if (saving.value) return;
   saving.value = true;
+  // The chosen player's display name wins over the typed one. It is the player
+  // list's, not the draft's, so it lands in the draft here, before the builder runs.
   const selectedPlayer = players.value.find((m) => m.id === selectedCampaignMemberId.value);
-  const payload: PartyMemberUpdate = {
-    name: form.name.trim(),
-    player_name: selectedPlayer?.display_name ?? (form.player_name || null),
-    subrace: form.subrace || null,
-    notes: form.notes || null,
-    portrait_url: portraitUrl.value || null,
-    portrait_focal_point: focalPoint.value,
-    proficiency_bonus: profBonus.value,
-    max_hp: form.max_hp,
-    current_hp: form.current_hp,
-    temp_hp: form.temp_hp,
-    ac: form.ac,
-    speed: form.speed,
-    initiative_bonus: form.initiative_bonus,
-    str: form.str,
-    dex: form.dex,
-    con: form.con,
-    int: form.int,
-    wis: form.wis,
-    cha: form.cha,
-    skill_proficiencies: form.skill_proficiencies,
-    saving_throw_proficiencies: form.saving_throw_proficiencies,
-    tool_proficiencies: form.tool_proficiencies,
-    languages: form.languages,
-    carry_capacity_override: form.carry_capacity_override,
-    species_id: form.species_id,
-    disguise_species_id: form.disguise_species_id,
-    disguise_race: form.disguise_race,
-    disguise_subrace: form.disguise_subrace,
-    background_id: form.background_id,
-    height: form.height,
-    alignment:            form.alignment            || null,
-    deity:                form.deity                || null,
-    deity_id:             form.deity_id,
-    age:                  form.age                  || null,
-    gender:               form.gender               || null,
-    pronouns:             form.pronouns             || null,
-    physical_description: form.physical_description || null,
-    personality_traits:   form.personality_traits   || null,
-    ideals:               form.ideals               || null,
-    bonds:                form.bonds                || null,
-    flaws:                form.flaws                || null,
-    spell_slots: spellSlotMaxes
-      .map((max, i) => {
-        const existing = props.member.spell_slots?.find((s: SpellSlotEntry) => s.level === i + 1);
-        return { level: i + 1, max, used: max > 0 ? (existing?.used ?? 0) : 0 };
-      })
-      .filter((s) => s.max > 0),
-  };
+  if (selectedPlayer) form.player_name = selectedPlayer.display_name;
 
   try {
     const partyMemberId = props.member.id;
-    await update({ id: partyMemberId, update: payload });
+    const changed = changes(buildPayload);
+    // Derived from the class rows, not edited here, so it is compared to the row directly.
+    if (profBonus.value !== props.member.proficiency_bonus) changed.proficiency_bonus = profBonus.value;
+    if (Object.keys(changed).length > 0) {
+      await update({ id: partyMemberId, update: changed });
+    }
+    commit();
 
     for (const m of players.value) {
       if (m.party_member_id === partyMemberId && m.id !== selectedCampaignMemberId.value) {

@@ -94,6 +94,8 @@
       </div>
     </div>
 
+    <DraftConflictNotice class="mb-4" :fields="conflictLabels" :on-discard="reset" />
+
     <!-- Main grid -->
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
       <!-- Left column (col-span-2) -->
@@ -230,7 +232,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, reactive, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCheckDouble, IconChevronLeft, IconClose, IconPlay, IconReset, IconStop } from '@/lib/icons';
 import { useAllMonsters } from "@/composables/monsters/useMonsters";
@@ -271,6 +273,9 @@ import type {
 } from "@/types/encounter.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
+import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import type { RewardCurrencyPool } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import EncounterMetadata from "@/components/encounters/EncounterMetadata.vue";
@@ -394,31 +399,59 @@ const otherName = computed(() =>
     : "another encounter",
 );
 
-// Form state
-const form = reactive({
-  name: props.encounter?.name ?? "New Encounter",
-  description: props.encounter?.description ?? "",
-  location_id: props.encounter?.location_id ?? (null as string | null),
-  party_member_ids: [...(props.encounter?.party_member_ids ?? [])],
-  companion_ids: [...(props.encounter?.companion_ids ?? [])],
-  party_member_factions: {
-    ...(props.encounter?.party_member_factions),
-  } as Record<string, string>,
-  combatants: [...(props.encounter?.combatants ?? [])] as CombatantDef[],
-  factions: props.encounter?.factions?.length
-    ? [...props.encounter.factions]
-    : [...DEFAULT_FACTIONS],
-  item_ids: [...(props.encounter?.item_ids ?? [])],
-  trap_ids: [...(props.encounter?.trap_ids ?? [])],
-  reward_currency_pools: [
-    ...(props.encounter?.reward_currency_pools ?? []),
-  ] as import("@/types/quest.types").RewardCurrencyPool[],
-  events: [...(props.encounter?.events ?? [])] as EncounterEvent[],
-  lair_enabled: props.encounter?.lair_enabled ?? false,
-  lair_owner_def_id: props.encounter?.lair_owner_def_id ?? (null as string | null),
-  audio_theme: props.encounter?.audio_theme ?? (null as string | null),
-  ai_provenance: props.encounter?.ai_provenance ?? (null as AiProvenance | null),
+// Form state. The draft merges fresh server data into every field the DM has
+// not touched and lets the save send only what changed (#946).
+function toDraft(enc: Encounter | null) {
+  return {
+    name: enc?.name ?? "New Encounter",
+    description: enc?.description ?? "",
+    location_id: (enc?.location_id ?? null) as string | null,
+    party_member_ids: [...(enc?.party_member_ids ?? [])],
+    companion_ids: [...(enc?.companion_ids ?? [])],
+    party_member_factions: { ...enc?.party_member_factions } as Record<string, string>,
+    combatants: cloneDraftValue(enc?.combatants ?? []) as CombatantDef[],
+    factions: enc?.factions?.length
+      ? cloneDraftValue(enc.factions)
+      : cloneDraftValue(DEFAULT_FACTIONS),
+    item_ids: [...(enc?.item_ids ?? [])],
+    trap_ids: [...(enc?.trap_ids ?? [])],
+    reward_currency_pools: cloneDraftValue(
+      enc?.reward_currency_pools ?? [],
+    ) as RewardCurrencyPool[],
+    events: cloneDraftValue(enc?.events ?? []) as EncounterEvent[],
+    lair_enabled: enc?.lair_enabled ?? false,
+    lair_owner_def_id: (enc?.lair_owner_def_id ?? null) as string | null,
+    audio_theme: (enc?.audio_theme ?? null) as string | null,
+    ai_provenance: (enc?.ai_provenance ?? null) as AiProvenance | null,
+  };
+}
+type EncounterDraft = ReturnType<typeof toDraft>;
+
+const { draft: form, conflicts, changes, commit, reset } = useRecordDraft({
+  source: () => props.encounter,
+  identity: (enc) => enc.id,
+  toDraft,
 });
+
+const CONFLICT_LABELS: Record<keyof EncounterDraft, string> = {
+  name: "Name",
+  description: "Description",
+  location_id: "Location",
+  party_member_ids: "Party",
+  companion_ids: "Companions",
+  party_member_factions: "Party factions",
+  combatants: "Combatants",
+  factions: "Factions",
+  item_ids: "Loot",
+  trap_ids: "Traps",
+  reward_currency_pools: "Loot",
+  events: "Events",
+  lair_enabled: "Lair",
+  lair_owner_def_id: "Lair",
+  audio_theme: "Audio theme",
+  ai_provenance: "AI provenance",
+};
+const conflictLabels = computed(() => [...new Set(conflicts.value.map((k) => CONFLICT_LABELS[k]))]);
 
 // Loot ids may be library ids from a book the campaign has since disabled; the
 // picker (allItems) respects enablement, the stored references must not.
@@ -461,30 +494,6 @@ if (!props.encounter) {
   );
 }
 
-// Only reset form when navigating to a different encounter
-watch(
-  () => props.encounter?.id,
-  (id) => {
-    const enc = props.encounter;
-    if (!enc || !id) return;
-    form.name = enc.name;
-    form.description = enc.description ?? "";
-    form.party_member_ids = [...enc.party_member_ids];
-    form.companion_ids = [...(enc.companion_ids ?? [])];
-    form.party_member_factions = { ...enc.party_member_factions };
-    form.combatants = [...enc.combatants];
-    form.factions = enc.factions?.length
-      ? [...enc.factions]
-      : [...DEFAULT_FACTIONS];
-    form.item_ids = [...(enc.item_ids ?? [])];
-    form.trap_ids = [...(enc.trap_ids ?? [])];
-    form.reward_currency_pools = [...(enc.reward_currency_pools ?? [])];
-    form.location_id = enc.location_id ?? null;
-    form.events = [...(enc.events ?? [])];
-    form.ai_provenance = enc.ai_provenance ?? null;
-  },
-);
-
 // Party member selection
 function togglePartyMember(memberId: string) {
   const idx = form.party_member_ids.indexOf(memberId);
@@ -523,28 +532,27 @@ const isSaving = computed(
 );
 
 // Save / Delete / Run
-async function buildPayload() {
+function buildPayload(d: EncounterDraft) {
   return {
-    name: form.name || "New Encounter",
-    description: form.description || null,
-    location_id: form.location_id || null,
-    party_member_ids: form.party_member_ids,
-    companion_ids: form.companion_ids,
-    party_member_factions: form.party_member_factions,
-    combatants: form.combatants,
-    factions: form.factions,
-    item_ids: form.item_ids,
-    trap_ids: form.trap_ids,
-    reward_currency_pools: form.reward_currency_pools,
-    is_finished: props.encounter?.is_finished ?? false,
-    events: form.events,
-    lair_enabled: form.lair_enabled,
-    lair_owner_def_id: form.lair_enabled ? form.lair_owner_def_id : null,
+    name: d.name || "New Encounter",
+    description: d.description || null,
+    location_id: d.location_id || null,
+    party_member_ids: d.party_member_ids,
+    companion_ids: d.companion_ids,
+    party_member_factions: d.party_member_factions,
+    combatants: d.combatants,
+    factions: d.factions,
+    item_ids: d.item_ids,
+    trap_ids: d.trap_ids,
+    reward_currency_pools: d.reward_currency_pools,
+    events: d.events,
+    lair_enabled: d.lair_enabled,
+    lair_owner_def_id: d.lair_enabled ? d.lair_owner_def_id : null,
     // Empty means "ask for nothing", which is null rather than an empty string —
     // the resolver treats a blank theme as no request at all either way, but the
     // column should say what it means.
-    audio_theme: form.audio_theme === null || form.audio_theme.trim() === "" ? null : form.audio_theme.trim(),
-    ai_provenance: form.ai_provenance,
+    audio_theme: d.audio_theme === null || d.audio_theme.trim() === "" ? null : d.audio_theme.trim(),
+    ai_provenance: d.ai_provenance,
   };
 }
 
@@ -559,13 +567,18 @@ async function handleSave(): Promise<string | null> {
       !deepEqual(form.combatants, props.encounter.combatants);
     if (contentChanged) form.ai_provenance = markEdited(form.ai_provenance);
   }
-  const payload = await buildPayload();
   if (props.encounter) {
     try {
-      await updateEncounterMutation.mutateAsync({
-        id: props.encounter.id,
-        update: payload,
-      });
+      // Only the columns this edit changed, so a stale cached copy cannot write
+      // untouched fields back at old values (#946).
+      const changed = changes(buildPayload);
+      if (Object.keys(changed).length > 0) {
+        await updateEncounterMutation.mutateAsync({
+          id: props.encounter.id,
+          update: changed,
+        });
+        commit();
+      }
       return props.encounter.id;
     } catch (e: unknown) {
       if (isQuotaExceeded(e)) { showPaywall.value = true; return null; }
@@ -573,7 +586,7 @@ async function handleSave(): Promise<string | null> {
     }
   } else {
     try {
-      const created = await createEncounter.mutateAsync(payload);
+      const created = await createEncounter.mutateAsync({ ...buildPayload(form), is_finished: false });
       router.replace(`/encounters/${created.id}`);
       return created.id;
     } catch (e: unknown) {

@@ -87,3 +87,26 @@ describe("PartyMemberForm default spell slots", () => {
     expect(slots.every((v) => v === 0)).toBe(true);
   });
 });
+
+describe("PartyMemberForm save (#946)", () => {
+  beforeEach(() => { rows.value = []; update.mockReset(); });
+
+  it("sends only the fields the user touched, not ones the server moved meanwhile", async () => {
+    const base = { ...member("2024"), name: "Mira", current_hp: 20, max_hp: 20, proficiency_bonus: 2 } as PartyMember;
+    const wrapper = mountForm(base);
+    const vm = wrapper.vm as unknown as { form: { name: string }; save: () => Promise<void> };
+    vm.form.name = "Mira the Bold";
+    // A live session spent HP elsewhere after this form opened.
+    await wrapper.setProps({ member: { ...base, current_hp: 7 } });
+    await vm.save();
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update.mock.calls[0][0].update).toEqual({ name: "Mira the Bold" });
+  });
+
+  it("skips the request when nothing changed", async () => {
+    const base = { ...member("2024"), name: "Mira", proficiency_bonus: 2 } as PartyMember;
+    const wrapper = mountForm(base);
+    await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
+    expect(update).not.toHaveBeenCalled();
+  });
+});

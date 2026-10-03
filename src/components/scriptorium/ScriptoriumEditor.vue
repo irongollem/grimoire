@@ -65,6 +65,8 @@
     <!-- Tags row -->
     <TagInput v-model="tags" />
 
+    <DraftConflictNotice :fields="conflictLabels" :on-discard="discardEdits" />
+
     <p v-if="saveError" class="text-destructive text-body">
       {{ saveError }}
     </p>
@@ -188,7 +190,9 @@
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, nextTick, onUnmounted, provide } from "vue";
+import { ref, computed, nextTick, onUnmounted, provide, toRefs, watch } from "vue";
+import { useRecordDraft } from "@/composables/useRecordDraft";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
@@ -251,29 +255,107 @@ const showBlockPicker = ref(false);
 const showCoverInspector = ref(false);
 const showArtPicker = ref(false);
 
-// Metadata. For a new document seeded from a template, fall back to the
-// template's docType/settings before the hard defaults.
+// Metadata, held as a draft of the document as the server last reported it
+// (#946): a field the author has not touched follows the server when the
+// document refetches, and save() sends only the columns they changed. The body
+// is the exception, it lives in the Tiptap editor and is tracked below.
+// For a new document seeded from a template, fall back to the template's
+// docType/settings before the hard defaults.
 const seedSettings = props.seed?.settings;
-const title = ref(props.doc?.title ?? "");
-const docType = ref<ScriptoriumDocType>(props.doc?.doc_type ?? props.seed?.docType ?? "custom");
-const isPublished = ref(props.doc?.is_published ?? false);
-const isTwoColumn = ref(props.doc?.is_two_column ?? seedSettings?.isTwoColumn ?? false);
-const theme = ref<ScriptoriumTheme>(props.doc?.theme ?? seedSettings?.theme ?? "onednd2024");
-// Read by entityEmbed node views (EntityEmbedView.vue) so their stat blocks
-// format themselves in the document's own theme rather than a hardcoded
-// default (#917 story 2) — see scriptoriumTheme.ts's own doc.
-provide(SCRIPTORIUM_THEME_KEY, theme);
-const pageSize = ref<ScriptoriumPageSize>(props.doc?.page_size ?? seedSettings?.pageSize ?? "A4");
-const inkFriendly = ref(props.doc?.ink_friendly ?? seedSettings?.inkFriendly ?? false);
-const tags = ref<string[]>(props.doc?.tags ?? seedSettings?.tags ?? []);
-const showPageNumbers = ref(props.doc?.show_page_numbers ?? seedSettings?.showPageNumbers ?? false);
-const footerText = ref(props.doc?.footer_text ?? seedSettings?.footerText ?? "");
-const pageNumberStart = ref(props.doc?.page_number_start ?? seedSettings?.pageNumberStart ?? 1);
 
 // Campaign scope (#915). An existing document keeps its own scope; a new one
 // defaults to whatever campaign is active, or account-wide if none is.
 const { activeCampaignId } = storeToRefs(useCampaignStore());
-const campaignId = ref<string | null>(props.doc ? props.doc.campaign_id : activeCampaignId.value);
+
+interface DocDraft {
+  title: string;
+  docType: ScriptoriumDocType;
+  campaignId: string | null;
+  isPublished: boolean;
+  isTwoColumn: boolean;
+  theme: ScriptoriumTheme;
+  pageSize: ScriptoriumPageSize;
+  inkFriendly: boolean;
+  tags: string[];
+  showPageNumbers: boolean;
+  footerText: string;
+  pageNumberStart: number;
+  furniture: PageFurnitureItem[];
+}
+
+function toDraft(doc: ScriptoriumDocument | null): DocDraft {
+  return {
+    title: doc?.title ?? "",
+    docType: doc?.doc_type ?? props.seed?.docType ?? "custom",
+    campaignId: doc ? doc.campaign_id : activeCampaignId.value,
+    isPublished: doc?.is_published ?? false,
+    isTwoColumn: doc?.is_two_column ?? seedSettings?.isTwoColumn ?? false,
+    theme: doc?.theme ?? seedSettings?.theme ?? "onednd2024",
+    pageSize: doc?.page_size ?? seedSettings?.pageSize ?? "A4",
+    inkFriendly: doc?.ink_friendly ?? seedSettings?.inkFriendly ?? false,
+    tags: [...(doc?.tags ?? seedSettings?.tags ?? [])],
+    showPageNumbers: doc?.show_page_numbers ?? seedSettings?.showPageNumbers ?? false,
+    footerText: doc?.footer_text ?? seedSettings?.footerText ?? "",
+    pageNumberStart: doc?.page_number_start ?? seedSettings?.pageNumberStart ?? 1,
+    furniture: [...(doc?.page_furniture ?? [])],
+  };
+}
+
+const { draft, conflicts, changes, commit, reset: resetDraft } = useRecordDraft({
+  source: () => props.doc,
+  identity: (doc) => doc.id,
+  toDraft,
+});
+const {
+  title, docType, campaignId, isPublished, isTwoColumn, theme, pageSize,
+  inkFriendly, tags, showPageNumbers, footerText, pageNumberStart, furniture,
+} = toRefs(draft);
+// Read by entityEmbed node views (EntityEmbedView.vue) so their stat blocks
+// format themselves in the document's own theme rather than a hardcoded
+// default (#917 story 2) — see scriptoriumTheme.ts's own doc.
+provide(SCRIPTORIUM_THEME_KEY, theme);
+
+// A pure function of its draft: useRecordDraft runs it over the server copy too.
+function buildRow(d: DocDraft) {
+  return {
+    title: d.title.trim(),
+    doc_type: d.docType,
+    campaign_id: d.campaignId,
+    tags: d.tags,
+    is_published: d.isPublished,
+    is_two_column: d.isTwoColumn,
+    theme: d.theme,
+    page_size: d.pageSize,
+    ink_friendly: d.inkFriendly,
+    show_page_numbers: d.showPageNumbers,
+    footer_text: d.footerText,
+    page_number_start: d.pageNumberStart,
+    page_furniture: d.furniture,
+  };
+}
+
+const CONFLICT_LABELS: Record<keyof DocDraft, string> = {
+  title: "Title",
+  docType: "Type",
+  campaignId: "Campaign",
+  isPublished: "Published",
+  isTwoColumn: "Two columns",
+  theme: "Theme",
+  pageSize: "Page size",
+  inkFriendly: "Ink friendly",
+  tags: "Tags",
+  showPageNumbers: "Page numbers",
+  footerText: "Footer text",
+  pageNumberStart: "First page number",
+  furniture: "Page furniture",
+};
+// The body is not a draft field; it joins the list when the stored body moved
+// on while the author had unsaved edits in the editor.
+const bodyConflict = ref(false);
+const conflictLabels = computed(() => [
+  ...conflicts.value.map((key) => CONFLICT_LABELS[key]),
+  ...(bodyConflict.value ? ["Document text"] : []),
+]);
 
 // Every campaign this account DMs, archived included — the toolbar's scope
 // select needs names for the active campaign and, when it differs, the
@@ -302,22 +384,21 @@ const campaignOptions = computed(() => {
 // `contentError` and the editor/preview pane is replaced by a visible message
 // rather than silently handing broken content to Tiptap.
 const contentError = ref<Error | null>(null);
-function computeInitialDoc(): { content: JSONContent | string; furniture: PageFurnitureItem[] } {
+function computeInitialDoc(): { content: JSONContent | string } {
   if (props.doc?.content) {
     try {
-      return { content: parseStoredContent(props.doc.content), furniture: props.doc.page_furniture ?? [] };
+      return { content: parseStoredContent(props.doc.content) };
     } catch (e: unknown) {
       contentError.value = e instanceof Error ? e : new Error(String(e));
-      return { content: "", furniture: [] };
+      return { content: "" };
     }
   }
-  return { content: props.seed?.content ?? "", furniture: [] };
+  return { content: props.seed?.content ?? "" };
 }
 const initialDoc = computeInitialDoc();
 
 // Page furniture (Phase D) — decorations anchored to pages/blocks, dragged on
-// the book. Lives alongside content; the selected item drives the inspector.
-const furniture = ref<PageFurnitureItem[]>(initialDoc.furniture);
+// the book. A draft field alongside the metadata; the selected item drives the inspector.
 const selectedFurnitureId = ref<string | null>(null);
 const selectedFurniture = computed(
   () => furniture.value.find((f) => f.id === selectedFurnitureId.value) ?? null,
@@ -373,16 +454,71 @@ function updateDerived(editor: { getHTML: () => string; getJSON: () => JSONConte
   wordCount.value = text.trim() ? text.trim().split(/\s+/).length : 0;
 }
 
+// The body as the server last had it, in the editor's own serialisation: set when
+// the editor opens, when stored content is loaded into it, and when a save lands.
+// "Did the author edit the body" is the editor differing from this, so a body
+// they never touched is not written back over a newer one (#946). The stored
+// string is tracked beside it to notice when the server's copy changes.
+let editorBaseline = "";
+let knownServerContent: string | null = props.doc?.content ?? null;
+
 const editor = useEditor({
   content: initialDoc.content,
   extensions: createScriptoriumExtensions(),
   onCreate({ editor }) {
     updateDerived(editor);
+    editorBaseline = JSON.stringify(editor.getJSON());
   },
   onUpdate({ editor }) {
     updateDerived(editor);
   },
 });
+
+function bodyEdited(): boolean {
+  return !!editor.value && JSON.stringify(editor.value.getJSON()) !== editorBaseline;
+}
+
+function loadStoredBody(stored: string) {
+  const ed = editor.value;
+  if (!ed) return;
+  try {
+    ed.commands.setContent(parseStoredContent(stored), { emitUpdate: false });
+    contentError.value = null;
+  } catch (e: unknown) {
+    contentError.value = e instanceof Error ? e : new Error(String(e));
+    return;
+  }
+  updateDerived(ed);
+  editorBaseline = JSON.stringify(ed.getJSON());
+  knownServerContent = stored;
+  bodyConflict.value = false;
+}
+
+// A body saved elsewhere reaches the editor unless the author is mid-edit, in
+// which case their text stays and the notice says the stored one moved. A
+// different document in the same editor loads whole. The first save of a new
+// document (no id yet, then its own id) is neither: the editor already holds it.
+watch(
+  () => [props.doc?.id, props.doc?.content] as const,
+  ([id, stored], [prevId]) => {
+    if (id && prevId && id !== prevId) {
+      if (stored) loadStoredBody(stored);
+      return;
+    }
+    if (!stored || stored === knownServerContent) return;
+    if (bodyEdited()) {
+      knownServerContent = stored;
+      bodyConflict.value = true;
+      return;
+    }
+    loadStoredBody(stored);
+  },
+);
+
+function discardEdits() {
+  resetDraft();
+  if (props.doc?.content) loadStoredBody(props.doc.content);
+}
 
 // Linked entities (#915 story 3): the preview/PDF pipeline stays HTML-string
 // based (Paged.js lays out a string, not live Vue components), so the raw
@@ -463,29 +599,32 @@ async function save() {
   isSaving.value = true;
   saveError.value = "";
   try {
-    const payload = {
-      title: title.value.trim(),
-      content: JSON.stringify(editor.value?.getJSON() ?? {}),
-      doc_type: docType.value,
-      campaign_id: campaignId.value,
-      tags: tags.value,
-      is_published: isPublished.value,
-      is_two_column: isTwoColumn.value,
-      theme: theme.value,
-      page_size: pageSize.value,
-      ink_friendly: inkFriendly.value,
-      word_count: wordCount.value,
-      show_page_numbers: showPageNumbers.value,
-      footer_text: footerText.value,
-      page_number_start: pageNumberStart.value,
-      page_furniture: furniture.value,
-    };
+    const content = JSON.stringify(editor.value?.getJSON() ?? {});
     if (props.doc) {
+      // Only the columns the author changed, and the body only if they edited
+      // it: the rest may have moved on the server since this loaded (#946).
+      const bodyChanged = bodyEdited();
+      const changed = {
+        ...changes(buildRow),
+        ...(bodyChanged ? { content, word_count: wordCount.value } : {}),
+      };
       const oldContent = props.doc.content;
-      await update({ id: props.doc.id, update: payload });
-      cleanupRemovedRichTextImages(oldContent, payload.content);
+      if (Object.keys(changed).length > 0) await update({ id: props.doc.id, update: changed });
+      commit();
+      if (bodyChanged) {
+        editorBaseline = JSON.stringify(editor.value?.getJSON() ?? {});
+        knownServerContent = content;
+        bodyConflict.value = false;
+        cleanupRemovedRichTextImages(oldContent, content);
+      }
     } else {
-      const created = await create(payload);
+      const created = await create({
+        ...buildRow(draft),
+        content,
+        word_count: wordCount.value,
+      });
+      editorBaseline = JSON.stringify(editor.value?.getJSON() ?? {});
+      knownServerContent = content;
       router.replace(`/scriptorium/${created.id}`);
     }
   } catch (e: unknown) {

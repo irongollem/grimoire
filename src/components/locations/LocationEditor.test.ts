@@ -114,9 +114,10 @@ describe("LocationEditor scope default", () => {
     const wrapper = mountEditor(existing);
     (wrapper.vm as unknown as { name: string }).name = "The Wandering Inn II";
     await vi.advanceTimersByTimeAsync(2100);
-    expect(mocks.update).toHaveBeenCalledWith(
-      expect.objectContaining({ update: expect.objectContaining({ campaign_id: null }) }),
-    );
+    // Scope was not touched, so it is not written at all (and certainly not re-scoped).
+    const sent = mocks.update.mock.calls[0]![0].update as Record<string, unknown>;
+    expect(sent.name).toBe("The Wandering Inn II");
+    expect(sent).not.toHaveProperty("campaign_id");
   });
 });
 
@@ -210,6 +211,12 @@ describe("LocationEditor autosave", () => {
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
+  it("sends only the columns that changed, not untouched fields", async () => {
+    const wrapper = mountEditor(existing);
+    await edit(wrapper, (vm) => { vm.tags = ["ruin"]; });
+    expect(mocks.update.mock.calls[0]![0].update).toEqual({ tags: ["ruin"] });
+  });
+
   it("pauses on a blank name and saves nothing", async () => {
     const wrapper = mountEditor(existing);
     await edit(wrapper, (vm) => { vm.name = "  "; });
@@ -220,7 +227,7 @@ describe("LocationEditor autosave", () => {
   it("marks provenance edited only when the content changed", async () => {
     const wrapper = mountEditor(existing);
     await edit(wrapper, (vm) => { vm.tags = ["ruin"]; });
-    expect(mocks.update.mock.calls[0]![0].update.ai_provenance).toEqual({ source: "ai", edited: false });
+    expect(mocks.update.mock.calls[0]![0].update).not.toHaveProperty("ai_provenance");
 
     await edit(wrapper, (vm) => { vm.description = "New walls"; });
     expect(mocks.update.mock.calls[1]![0].update.ai_provenance).toMatchObject({ edited: true });

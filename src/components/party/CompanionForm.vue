@@ -224,6 +224,8 @@
         <EntityNotesPanel entity-type="companion" :entity-id="companion.id" :campaign-id="companion.campaign_id" />
       </div>
 
+      <DraftConflictNotice :fields="conflictLabels" :on-discard="reset" />
+
       <!-- Error -->
       <p v-if="saveError" class="text-destructive text-body">{{ saveError }}</p>
 
@@ -245,7 +247,7 @@
 
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import { ref, reactive, computed } from "vue";
+import { ref, computed } from "vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { IconAddImage, IconClose } from '@/lib/icons';
 import { useCreateCompanion, useUpdateCompanion } from "@/composables/encounters/useCompanions";
@@ -260,7 +262,9 @@ import {
   COMPANION_TYPES,
   COMPANION_TYPE_LABELS,
 } from "@/types/companion.types";
-import type { Companion, CompanionType, CompanionSourceType } from "@/types/companion.types";
+import { useRecordDraft } from "@/composables/useRecordDraft";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import type { Companion, CompanionInsert, CompanionType, CompanionSourceType } from "@/types/companion.types";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
@@ -351,10 +355,133 @@ const { mutateAsync: create } = useCreateCompanion();
 const { mutateAsync: update } = useUpdateCompanion();
 const { isUploading, upload } = useImageUpload("npc-portraits");
 
-// Form state
-const sourceType        = ref<CompanionSourceType>(props.companion?.source_type ?? "custom");
-const selectedMonsterId = ref(props.companion?.source_monster_id ?? "");
-const selectedNpcId     = ref(props.companion?.source_npc_id ?? "");
+// Form state. One draft holds every field, including the stat block and its
+// toggle, so the row builder below is a pure function of it and an edit saves
+// only the columns the user changed. Without that, a companion opened from a
+// stale cache wrote its old HP and conditions back over a live session (#946).
+interface CompanionDraft {
+  sourceType: CompanionSourceType;
+  selectedMonsterId: string;
+  selectedNpcId: string;
+  name: string;
+  companionType: CompanionType;
+  ownerMemberId: string;
+  combatReady: boolean;
+  maxHp: number;
+  currentHp: number;
+  ac: number;
+  speed: number;
+  portraitUrl: string | null;
+  focalPoint: { x: number; y: number } | null;
+  // Not on this form, but the payload carries them, so the draft must too.
+  conditions: string[];
+  sortOrder: number;
+  hasStatBlock: boolean;
+  sb: {
+    challenge_rating: string;
+    hit_points: string;
+    speed: string;
+    str: number; dex: number; con: number; int: number; wis: number; cha: number;
+    skills: string;
+    senses: string;
+    languages: string;
+    damage_resistances: string;
+    special_abilities: Array<{ name: string; description: string }>;
+    actions: Array<{ name: string; description: string }>;
+    reactions: Array<{ name: string; description: string }>;
+  };
+}
+
+function toCompanionDraft(c: Companion | null): CompanionDraft {
+  const stat = c?.stat_block;
+  return {
+    sourceType: c?.source_type ?? "custom",
+    selectedMonsterId: c?.source_monster_id ?? "",
+    selectedNpcId: c?.source_npc_id ?? "",
+    name: c?.name ?? "",
+    companionType: c?.companion_type ?? "ally",
+    ownerMemberId: props.lockedOwnerId ?? c?.owner_party_member_id ?? "",
+    combatReady: c?.combat_ready ?? true,
+    maxHp: c?.max_hp ?? 1,
+    currentHp: c?.current_hp ?? 1,
+    ac: c?.ac ?? 10,
+    speed: c?.speed ?? 30,
+    portraitUrl: c?.portrait_url ?? null,
+    focalPoint: c?.portrait_focal_point ? { ...c.portrait_focal_point } : null,
+    conditions: [...(c?.conditions ?? [])],
+    sortOrder: c?.sort_order ?? 0,
+    hasStatBlock: !!stat,
+    sb: {
+      challenge_rating: stat?.challenge_rating ?? "0",
+      hit_points:       stat?.hit_points ?? "4 (1d8)",
+      speed:            stat?.speed ?? "30 ft.",
+      str: stat?.str ?? 10,
+      dex: stat?.dex ?? 10,
+      con: stat?.con ?? 10,
+      int: stat?.int ?? 10,
+      wis: stat?.wis ?? 10,
+      cha: stat?.cha ?? 10,
+      skills:             skillsToString(stat?.skills),
+      senses:             stat?.senses ?? "",
+      languages:          stat?.languages ?? "",
+      damage_resistances: stat?.damage_resistances ?? "",
+      special_abilities:  stat?.special_abilities ? stat.special_abilities.map((t) => ({ ...t })) : [],
+      actions:            stat?.actions ? stat.actions.map((t) => ({ ...t })) : [],
+      reactions:          stat?.reactions ? stat.reactions.map((t) => ({ ...t })) : [],
+    },
+  };
+}
+
+const { draft, changes, commit, reset, conflicts } = useRecordDraft({
+  source: () => props.companion,
+  identity: (c: Companion) => c.id,
+  toDraft: toCompanionDraft,
+});
+
+// Each form field keeps the ref the template and handlers were written against,
+// as a two-way view onto the draft.
+function field<K extends keyof CompanionDraft>(key: K) {
+  return computed<CompanionDraft[K]>({
+    get: () => draft[key] as CompanionDraft[K],
+    set: (value) => { (draft as CompanionDraft)[key] = value; },
+  });
+}
+const sourceType        = field("sourceType");
+const selectedMonsterId = field("selectedMonsterId");
+const selectedNpcId     = field("selectedNpcId");
+const name              = field("name");
+const companionType     = field("companionType");
+const ownerMemberId     = field("ownerMemberId");
+const combatReady       = field("combatReady");
+const maxHp             = field("maxHp");
+const currentHp         = field("currentHp");
+const ac                = field("ac");
+const speed             = field("speed");
+const portraitUrl       = field("portraitUrl");
+const focalPoint        = field("focalPoint");
+const hasStatBlock      = field("hasStatBlock");
+// Computed, not a captured reference: a merge can replace draft.sb whole.
+const sb                = computed(() => draft.sb);
+
+const conflictLabels = computed(() => {
+  const labels: Partial<Record<keyof CompanionDraft, string>> = {
+    sourceType: "Source", selectedMonsterId: "Monster", selectedNpcId: "NPC", name: "Name",
+    companionType: "Type", ownerMemberId: "Owner", combatReady: "Status", maxHp: "Max HP",
+    currentHp: "Current HP", ac: "AC", speed: "Speed (ft)", portraitUrl: "Portrait",
+    focalPoint: "Portrait", hasStatBlock: "Stat block", sb: "Stat block",
+  };
+  return [...new Set(conflicts.value.map((k) => labels[k]).filter((l): l is string => !!l))];
+});
+
+const saving            = ref(false);
+const saveError         = ref("");
+const fileInput         = ref<HTMLInputElement | null>(null);
+// SegmentedControl needs a string|number model; combatReady is the boolean
+// the payload actually stores, so this is the two-way bridge between them.
+const statusValue = computed<"party" | "elsewhere">({
+  get: () => combatReady.value ? "party" : "elsewhere",
+  set: (v) => { combatReady.value = v === "party"; },
+});
 
 // The source combobox both picks and displays, so it offers the scoped list plus
 // whatever this companion already points at — otherwise EntityCombobox has no
@@ -365,47 +492,6 @@ const monsterOptions = computed<Monster[]>(() => {
   const stored = (allMonsters.value ?? []).find((m) => m.id === selectedMonsterId.value);
   return stored ? [stored, ...pickable] : pickable;
 });
-const name              = ref(props.companion?.name ?? "");
-const companionType     = ref<CompanionType>(props.companion?.companion_type ?? "ally");
-const ownerMemberId     = ref(props.lockedOwnerId ?? props.companion?.owner_party_member_id ?? "");
-const combatReady       = ref(props.companion?.combat_ready ?? true);
-// SegmentedControl needs a string|number model; combatReady is the boolean
-// the payload actually stores, so this is the two-way bridge between them.
-const statusValue = computed<"party" | "elsewhere">({
-  get: () => combatReady.value ? "party" : "elsewhere",
-  set: (v) => { combatReady.value = v === "party"; },
-});
-const maxHp             = ref(props.companion?.max_hp ?? 1);
-const currentHp         = ref(props.companion?.current_hp ?? 1);
-const ac                = ref(props.companion?.ac ?? 10);
-const speed             = ref(props.companion?.speed ?? 30);
-const portraitUrl       = ref<string | null>(props.companion?.portrait_url ?? null);
-const focalPoint        = ref<{ x: number; y: number } | null>(props.companion?.portrait_focal_point ?? null);
-const saving            = ref(false);
-const saveError         = ref("");
-const fileInput         = ref<HTMLInputElement | null>(null);
-
-// Stat block
-const hasStatBlock = ref(!!props.companion?.stat_block);
-const sb = reactive({
-  challenge_rating: props.companion?.stat_block?.challenge_rating ?? "0",
-  hit_points:       props.companion?.stat_block?.hit_points ?? "4 (1d8)",
-  speed:            props.companion?.stat_block?.speed ?? "30 ft.",
-  str: props.companion?.stat_block?.str ?? 10,
-  dex: props.companion?.stat_block?.dex ?? 10,
-  con: props.companion?.stat_block?.con ?? 10,
-  int: props.companion?.stat_block?.int ?? 10,
-  wis: props.companion?.stat_block?.wis ?? 10,
-  cha: props.companion?.stat_block?.cha ?? 10,
-  skills:             skillsToString(props.companion?.stat_block?.skills),
-  senses:             props.companion?.stat_block?.senses ?? "",
-  languages:          props.companion?.stat_block?.languages ?? "",
-  damage_resistances: props.companion?.stat_block?.damage_resistances ?? "",
-  special_abilities:  props.companion?.stat_block?.special_abilities ? [...props.companion.stat_block.special_abilities] : [] as Array<{ name: string; description: string }>,
-  actions:            props.companion?.stat_block?.actions ? [...props.companion.stat_block.actions] : [] as Array<{ name: string; description: string }>,
-  reactions:          props.companion?.stat_block?.reactions ? [...props.companion.stat_block.reactions] : [] as Array<{ name: string; description: string }>,
-});
-
 function onLoadFromBestiary(monsterId: string) {
   if (!monsterId) return;
   const m = (allMonsters.value ?? []).find(x => x.id === monsterId);
@@ -415,7 +501,7 @@ function onLoadFromBestiary(monsterId: string) {
 
 function applyStatBlockFromMonster(statBlock: MonsterStatBlock) {
   hasStatBlock.value = true;
-  Object.assign(sb, {
+  Object.assign(sb.value, {
     challenge_rating:   statBlock.challenge_rating,
     hit_points:         statBlock.hit_points,
     speed:              statBlock.speed,
@@ -431,11 +517,12 @@ function applyStatBlockFromMonster(statBlock: MonsterStatBlock) {
   });
 }
 
-function buildStatBlock(): MonsterStatBlock | null {
-  if (!hasStatBlock.value) return null;
+function buildStatBlock(d: CompanionDraft): MonsterStatBlock | null {
+  if (!d.hasStatBlock) return null;
+  const sb = d.sb;
   const skillsRecord = skillsToRecord(sb.skills);
   return {
-    armor_class:        ac.value,
+    armor_class:        d.ac,
     hit_points:         sb.hit_points,
     speed:              sb.speed,
     str: sb.str, dex: sb.dex, con: sb.con,
@@ -448,6 +535,29 @@ function buildStatBlock(): MonsterStatBlock | null {
     ...(sb.special_abilities?.length ? { special_abilities: sb.special_abilities } : {}),
     ...(sb.actions?.length    ? { actions: sb.actions } : {}),
     ...(sb.reactions?.length  ? { reactions: sb.reactions } : {}),
+  };
+}
+
+// The companion row for a draft. Pure: useRecordDraft runs it over the draft and
+// over the server copy to find the columns the user changed.
+function buildPayload(d: CompanionDraft): Omit<CompanionInsert, "campaign_id"> {
+  return {
+    name:                  d.name.trim(),
+    companion_type:        d.companionType,
+    source_type:           d.sourceType,
+    source_monster_id:     d.sourceType === "monster" ? d.selectedMonsterId || null : null,
+    source_npc_id:         d.sourceType === "npc" ? d.selectedNpcId || null : null,
+    owner_party_member_id: d.ownerMemberId || null,
+    combat_ready:          d.combatReady,
+    max_hp:                d.maxHp,
+    current_hp:            d.currentHp,
+    ac:                    d.ac,
+    speed:                 d.speed,
+    conditions:            d.conditions,
+    sort_order:            d.sortOrder,
+    portrait_url:          d.portraitUrl,
+    portrait_focal_point:  d.focalPoint,
+    stat_block:            buildStatBlock(d),
   };
 }
 
@@ -507,29 +617,14 @@ async function save() {
   saving.value    = true;
   saveError.value = "";
   try {
-    const payload = {
-      name:                  name.value.trim(),
-      companion_type:        companionType.value,
-      source_type:           sourceType.value,
-      source_monster_id:     sourceType.value === "monster" ? selectedMonsterId.value || null : null,
-      source_npc_id:         sourceType.value === "npc" ? selectedNpcId.value || null : null,
-      owner_party_member_id: ownerMemberId.value || null,
-      combat_ready:          combatReady.value,
-      max_hp:                maxHp.value,
-      current_hp:            currentHp.value,
-      ac:                    ac.value,
-      speed:                 speed.value,
-      conditions:            props.companion?.conditions ?? [],
-      sort_order:            props.companion?.sort_order ?? 0,
-      portrait_url:          portraitUrl.value,
-      portrait_focal_point:  focalPoint.value,
-      stat_block:            buildStatBlock(),
-    };
-
     if (isEdit && props.companion) {
-      await update({ id: props.companion.id, update: payload });
+      const changed = changes(buildPayload);
+      if (Object.keys(changed).length > 0) {
+        await update({ id: props.companion.id, update: changed });
+      }
+      commit();
     } else {
-      await create(payload);
+      await create(buildPayload(draft));
     }
     emit("saved");
   } catch (e: unknown) {

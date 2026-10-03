@@ -1,6 +1,7 @@
 <template>
   <div class="flex flex-col gap-6">
     <p v-if="saveError" class="text-destructive text-body">{{ saveError }}</p>
+    <DraftConflictNotice :fields="conflictLabels" :on-discard="reset" />
 
     <div class="grid grid-cols-1 lg:grid-cols-[13.75rem_1fr] gap-6">
       <!-- Left: Portrait + Tags -->
@@ -358,7 +359,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
 import { isQuotaExceeded } from "@/lib/quotaError";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { ref, computed } from "vue";
+import { ref, computed, toRefs } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
@@ -403,41 +404,130 @@ import type { DamageRoll } from "@/lib/dice/dice";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
+import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 
 const props = defineProps<{ item: Item | null; prefillName?: string }>();
 const router = useRouter();
 const route = useRoute();
 
-// ── Core fields ───────────────────────────────────────────────────────────────
-const name = ref(props.item?.name ?? props.prefillName ?? "");
-const itemType = ref<ItemType>(props.item?.item_type ?? "gear");
-const subtype = ref(props.item?.subtype ?? "");
-const rarity = ref<ItemRarity>(props.item?.rarity ?? "mundane");
-const weight = ref<number | null>(
-  typeof props.item?.weight === "string"
-    ? parseFloat(props.item.weight) || null
-    : (props.item?.weight ?? null),
-);
-const cost = ref(props.item?.cost ?? "");
-const description = ref(props.item?.description ?? "");
-const content = ref<string | null>(props.item?.content ?? null);
-const contentPlayerWritable = ref(props.item?.content_player_writable ?? false);
-// Master fold for the Written Contents card: non-null content is a real signal
-// (feather badge, tome tab in player journals), so the editor only opens once
-// the DM says the item carries writing. Initialized from the writable flag too,
-// so a writable-but-blank item doesn't silently lose its flag on save.
-const hasWrittenContent = ref(
-  (props.item?.content ?? null) !== null || (props.item?.content_player_writable ?? false),
-);
-const mundaneDescription = ref(props.item?.mundane_description ?? "");
-const source = ref(props.item?.source ?? "");
-const imageUrl = ref(props.item?.image_url ?? "");
-const imageFocalPoint = ref(props.item?.image_focal_point ?? null);
-const mundaneImageUrl = ref(props.item?.mundane_image_url ?? "");
-const mundaneImageFocalPoint = ref(props.item?.mundane_image_focal_point ?? null);
+function parseRecharge(val: string | null): { roll: string | null; when: string } {
+  if (!val) return { roll: null, when: "" };
+  const m = val.match(/^(.+?)\s+charges?\s+(?:at\s+)?(.*)$/i);
+  return m ? { roll: m[1].trim(), when: m[2].trim() } : { roll: val, when: "" };
+}
+
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+// Every editable field in one draft, so the row builder below is a pure
+// function of it and useRecordDraft can send only what this edit changed (#946).
+function toDraft(item: Item | null) {
+  const recharge = parseRecharge(item?.recharge ?? null);
+  return {
+    name: item?.name ?? props.prefillName ?? "",
+    itemType: (item?.item_type ?? "gear") as ItemType,
+    subtype: item?.subtype ?? "",
+    rarity: (item?.rarity ?? "mundane") as ItemRarity,
+    weight: (typeof item?.weight === "string"
+      ? parseFloat(item.weight) || null
+      : (item?.weight ?? null)) as number | null,
+    cost: item?.cost ?? "",
+    description: item?.description ?? "",
+    content: (item?.content ?? null) as string | null,
+    contentPlayerWritable: item?.content_player_writable ?? false,
+    // Master fold for the Written Contents card: non-null content is a real signal
+    // (feather badge, tome tab in player journals), so the editor only opens once
+    // the DM says the item carries writing. Initialized from the writable flag too,
+    // so a writable-but-blank item doesn't silently lose its flag on save.
+    hasWrittenContent: (item?.content ?? null) !== null || (item?.content_player_writable ?? false),
+    mundaneDescription: item?.mundane_description ?? "",
+    source: item?.source ?? "",
+    imageUrl: item?.image_url ?? "",
+    imageFocalPoint: item?.image_focal_point ?? null,
+    mundaneImageUrl: item?.mundane_image_url ?? "",
+    mundaneImageFocalPoint: item?.mundane_image_focal_point ?? null,
+    tags: [...(item?.tags ?? [])],
+    aiProvenance: (item?.ai_provenance ?? null) as AiProvenance | null,
+    damageRolls: cloneDraftValue(item?.damage_rolls ?? []) as DamageRoll[],
+    properties: [...(item?.properties ?? [])] as string[],
+    weaponRange: item?.weapon_range ?? "",
+    versatileDamage: item?.versatile_damage ?? "",
+    mastery: (item?.mastery ?? null) as WeaponMasteryProperty | null,
+    armorClass: item?.armor_class ?? "",
+    isArcaneFocus: item?.is_arcane_focus ?? false,
+    bundleItems: (item?.bundle_items ?? []).map((e) => ({ name: e.name, quantity: e.quantity ?? 1 })),
+    isCursed: !!item?.curse_description,
+    curseDescription: item?.curse_description ?? "",
+    campaignId: (item?.campaign_id ?? activeCampaignId.value ?? null) as string | null,
+    dmNotes: item?.dm_notes ?? "",
+    requiresAttunement: item?.requires_attunement ?? false,
+    attunementRequirements: item?.attunement_requirements ?? "",
+    charges: (item?.charges ?? null) as number | null,
+    rechargeRoll: recharge.roll,
+    rechargeWhen: recharge.when,
+    spellIds: [...(item?.spell_ids ?? [])],
+  };
+}
+type ItemDraft = ReturnType<typeof toDraft>;
+
+const { draft, conflicts, changes, commit, reset } = useRecordDraft({
+  source: () => props.item,
+  identity: (item) => item.id,
+  toDraft,
+});
+
+// The template and the helpers below bind to refs of the draft, so a re-seed or
+// a merged refetch reaches them without a copy step.
+const {
+  name, itemType, subtype, rarity, weight, cost, description, content,
+  contentPlayerWritable, hasWrittenContent, mundaneDescription, source,
+  imageUrl, imageFocalPoint, mundaneImageUrl, mundaneImageFocalPoint, tags,
+  aiProvenance, damageRolls, properties, weaponRange, versatileDamage, mastery,
+  armorClass, isArcaneFocus, bundleItems, isCursed, curseDescription,
+  campaignId, dmNotes, requiresAttunement, attunementRequirements, charges,
+  rechargeRoll, rechargeWhen, spellIds,
+} = toRefs(draft);
 const artTab = ref<'identified' | 'mundane'>('identified');
-const tags = ref<string[]>(props.item?.tags ?? []);
-const aiProvenance = ref<AiProvenance | null>(props.item?.ai_provenance ?? null);
+
+const CONFLICT_LABELS: Record<keyof ItemDraft, string> = {
+  name: "Name",
+  itemType: "Type",
+  subtype: "Subtype",
+  rarity: "Rarity",
+  weight: "Weight",
+  cost: "Cost",
+  description: "Description",
+  content: "Written contents",
+  contentPlayerWritable: "Written contents",
+  hasWrittenContent: "Written contents",
+  mundaneDescription: "Mundane Description",
+  source: "Source",
+  imageUrl: "Portrait",
+  imageFocalPoint: "Portrait focus",
+  mundaneImageUrl: "Mundane portrait",
+  mundaneImageFocalPoint: "Mundane portrait focus",
+  tags: "Tags",
+  aiProvenance: "AI provenance",
+  damageRolls: "Damage",
+  properties: "Properties",
+  weaponRange: "Range",
+  versatileDamage: "Versatile damage",
+  mastery: "Mastery",
+  armorClass: "Armor class",
+  isArcaneFocus: "Arcane focus",
+  bundleItems: "Bundle Contents",
+  isCursed: "Curse",
+  curseDescription: "Curse",
+  campaignId: "Campaign",
+  dmNotes: "DM Notes",
+  requiresAttunement: "Attunement",
+  attunementRequirements: "Attunement",
+  charges: "Charges",
+  rechargeRoll: "Recharge",
+  rechargeWhen: "Recharge",
+  spellIds: "Linked Spells",
+};
+const conflictLabels = computed(() => [...new Set(conflicts.value.map((k) => CONFLICT_LABELS[k]))]);
 
 const aiContext = computed(() => {
   const base = [name.value, ITEM_TYPE_LABELS[itemType.value], ITEM_RARITY_LABELS[rarity.value]];
@@ -447,18 +537,6 @@ const aiContext = computed(() => {
     : buildEntityContext([name.value, ITEM_TYPE_LABELS[itemType.value], toPlainText(mundaneDescription.value)]);
 });
 
-// ── Weapon fields ─────────────────────────────────────────────────────────────
-const damageRolls = ref<DamageRoll[]>(props.item?.damage_rolls ?? []);
-const properties = ref<string[]>(props.item?.properties ?? []);
-const weaponRange = ref(props.item?.weapon_range ?? "");
-const versatileDamage = ref(props.item?.versatile_damage ?? "");
-const mastery = ref<WeaponMasteryProperty | null>(props.item?.mastery ?? null);
-
-// ── Armor fields ──────────────────────────────────────────────────────────────
-const armorClass = ref(props.item?.armor_class ?? "");
-
-// ── Spellcasting ──────────────────────────────────────────────────────────────
-const isArcaneFocus = ref(props.item?.is_arcane_focus ?? false);
 const isContainer = computed({
   get: () => tags.value.includes('container'),
   set: (v) => {
@@ -468,9 +546,6 @@ const isContainer = computed({
 });
 
 // ── Pack / bundle fields ───────────────────────────────────────────────────────
-const bundleItems = ref<Array<{ name: string; quantity: number }>>(
-  (props.item?.bundle_items ?? []).map(e => ({ name: e.name, quantity: e.quantity ?? 1 })),
-);
 const isPack = computed(() => itemType.value === "pack");
 const bundleItemInput = ref("");
 
@@ -483,30 +558,6 @@ function addBundleItem() {
 function removeBundleItem(idx: number) {
   bundleItems.value = bundleItems.value.filter((_, i) => i !== idx);
 }
-
-// ── Curse fields ──────────────────────────────────────────────────────────────
-const isCursed = ref(!!(props.item?.curse_description));
-const curseDescription = ref(props.item?.curse_description ?? "");
-
-// ── Scope + DM notes ──────────────────────────────────────────────────────────
-const { activeCampaignId } = storeToRefs(useCampaignStore());
-const campaignId = ref<string | null>(props.item?.campaign_id ?? activeCampaignId.value ?? null);
-const dmNotes = ref(props.item?.dm_notes ?? "");
-
-// ── Magic fields ──────────────────────────────────────────────────────────────
-const requiresAttunement = ref(props.item?.requires_attunement ?? false);
-const attunementRequirements = ref(props.item?.attunement_requirements ?? "");
-const charges = ref<number | null>(props.item?.charges ?? null);
-
-function parseRecharge(val: string | null): { roll: string | null; when: string } {
-  if (!val) return { roll: null, when: "" };
-  const m = val.match(/^(.+?)\s+charges?\s+(?:at\s+)?(.*)$/i);
-  return m ? { roll: m[1].trim(), when: m[2].trim() } : { roll: val, when: "" };
-}
-const { roll: _rechargeRoll, when: _rechargeWhen } = parseRecharge(props.item?.recharge ?? null);
-const rechargeRoll = ref<string | null>(_rechargeRoll);
-const rechargeWhen = ref(_rechargeWhen);
-const spellIds = ref<string[]>(props.item?.spell_ids ?? []);
 
 // ── Spell picker ──────────────────────────────────────────────────────────────
 const { data: allSpells, isLoading: spellsLoading } = useSpells();
@@ -542,12 +593,13 @@ function isBlankContent(json: string | null): boolean {
   if (!json) return true;
   return !tiptapToPlainText(json).trim() && extractRichTextImageUrls(json).length === 0;
 }
-const normalizedContent = computed(() => (isBlankContent(content.value) ? null : content.value));
 // Folding the card closed unsays "this is a document": drafted text stays in
-// the ref (reopening the fold restores it pre-save) but persists as NULL.
-const effectiveContent = computed(() =>
-  hasWrittenContent.value ? normalizedContent.value : null,
-);
+// the draft (reopening the fold restores it pre-save) but persists as NULL.
+function effectiveContentOf(d: ItemDraft): string | null {
+  if (!d.hasWrittenContent) return null;
+  return isBlankContent(d.content) ? null : d.content;
+}
+const effectiveContent = computed(() => effectiveContentOf(draft));
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
 const { mutateAsync: createItem } = useCreateItem();
@@ -558,49 +610,50 @@ const isDeleting = ref(false);
 const isCloning = ref(false);
 const saveError = ref("");
 
-function buildPayload() {
+function buildPayload(d: ItemDraft) {
+  const isWeapon = isWeaponType(d.itemType);
+  const isArmor = isArmorType(d.itemType);
+  const isMagic = d.rarity !== "mundane";
   return {
-    name: name.value.trim(),
-    item_type: itemType.value,
-    subtype: subtype.value.trim() || null,
-    rarity: rarity.value,
-    requires_attunement: requiresAttunement.value,
-    attunement_requirements: requiresAttunement.value
-      ? attunementRequirements.value.trim() || null
+    name: d.name.trim(),
+    item_type: d.itemType,
+    subtype: d.subtype.trim() || null,
+    rarity: d.rarity,
+    requires_attunement: d.requiresAttunement,
+    attunement_requirements: d.requiresAttunement
+      ? d.attunementRequirements.trim() || null
       : null,
-    weight: weight.value,
-    cost: cost.value.trim() || null,
-    damage_rolls: isWeapon.value && damageRolls.value.length ? damageRolls.value : null,
-    armor_class: isArmor.value ? armorClass.value.trim() || null : null,
-    properties: isWeapon.value ? properties.value : [],
-    mastery: isWeapon.value ? mastery.value : null,
-    weapon_range: isWeapon.value ? weaponRange.value.trim() || null : null,
-    versatile_damage: isWeapon.value ? versatileDamage.value.trim() || null : null,
-    charges: charges.value ?? null,
-    recharge: rechargeRoll.value
-      ? `${rechargeRoll.value} charges${rechargeWhen.value ? ` at ${rechargeWhen.value}` : ""}`.trim()
+    weight: d.weight,
+    cost: d.cost.trim() || null,
+    damage_rolls: isWeapon && d.damageRolls.length ? d.damageRolls : null,
+    armor_class: isArmor ? d.armorClass.trim() || null : null,
+    properties: isWeapon ? d.properties : [],
+    mastery: isWeapon ? d.mastery : null,
+    weapon_range: isWeapon ? d.weaponRange.trim() || null : null,
+    versatile_damage: isWeapon ? d.versatileDamage.trim() || null : null,
+    charges: d.charges ?? null,
+    recharge: d.rechargeRoll
+      ? `${d.rechargeRoll} charges${d.rechargeWhen ? ` at ${d.rechargeWhen}` : ""}`.trim()
       : null,
-    spell_ids: spellIds.value,
-    description: description.value,
-    content: effectiveContent.value,
-    content_player_writable: hasWrittenContent.value ? contentPlayerWritable.value : false,
-    mundane_description: isMagic.value ? mundaneDescription.value || null : null,
-    source: source.value.trim() || null,
-    source_title: props.item?.source_title ?? null,
-    source_url: props.item?.source_url ?? null,
-    tags: tags.value,
-    image_url: imageUrl.value || null,
-    image_focal_point: imageFocalPoint.value,
-    mundane_image_url: mundaneImageUrl.value || null,
-    mundane_image_focal_point: mundaneImageFocalPoint.value,
-    is_arcane_focus: isArcaneFocus.value,
-    curse_description: isCursed.value ? curseDescription.value || null : null,
-    bundle_items: isPack.value && bundleItems.value.length
-      ? bundleItems.value.map(e => ({ name: e.name, quantity: e.quantity }))
+    spell_ids: d.spellIds,
+    description: d.description,
+    content: effectiveContentOf(d),
+    content_player_writable: d.hasWrittenContent ? d.contentPlayerWritable : false,
+    mundane_description: isMagic ? d.mundaneDescription || null : null,
+    source: d.source.trim() || null,
+    tags: d.tags,
+    image_url: d.imageUrl || null,
+    image_focal_point: d.imageFocalPoint,
+    mundane_image_url: d.mundaneImageUrl || null,
+    mundane_image_focal_point: d.mundaneImageFocalPoint,
+    is_arcane_focus: d.isArcaneFocus,
+    curse_description: d.isCursed ? d.curseDescription || null : null,
+    bundle_items: d.itemType === "pack" && d.bundleItems.length
+      ? d.bundleItems.map(e => ({ name: e.name, quantity: e.quantity }))
       : null,
-    campaign_id: campaignId.value,
-    dm_notes: dmNotes.value.trim() ? dmNotes.value : null,
-    ai_provenance: aiProvenance.value,
+    campaign_id: d.campaignId,
+    dm_notes: d.dmNotes.trim() ? d.dmNotes : null,
+    ai_provenance: d.aiProvenance,
   };
 }
 
@@ -642,11 +695,18 @@ async function save() {
       if (contentChanged) aiProvenance.value = markEdited(aiProvenance.value);
 
       const oldContent = props.item.content;
-      await updateItem({ id: props.item.id, update: buildPayload() });
+      // Only the columns this edit changed, so a stale cached copy cannot write
+      // untouched fields back at old values (#946).
+      const changed = changes(buildPayload);
+      if (Object.keys(changed).length > 0) {
+        await updateItem({ id: props.item.id, update: changed });
+        commit();
+      }
       cleanupRemovedRichTextImages(oldContent, effectiveContent.value);
       router.push("/vault");
     } else {
-      await createItem(buildPayload());
+      // A new item has no import provenance; the builder stays pure over the draft.
+      await createItem({ ...buildPayload(draft), source_title: null, source_url: null });
       const redirect = route.query.redirect as string | undefined;
       router.replace(redirect ?? "/vault");
     }
@@ -679,7 +739,7 @@ async function cloneItem() {
   isCloning.value = true;
   try {
     const created = await createItem({
-      ...buildPayload(),
+      ...buildPayload(draft),
       name: `${props.item.name} - Clone`,
       source: null,
       source_title: null,

@@ -24,6 +24,8 @@
       </div>
     </div>
 
+    <DraftConflictNotice v-if="isOwner" :fields="conflictLabels" :on-discard="reset" />
+
     <!-- Identity -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
@@ -264,11 +266,13 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, watch } from "vue";
+import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useBackground } from "@/composables/rules/useBackgrounds";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useAllDeities } from "@/composables/deities/useDeities";
+import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -301,53 +305,90 @@ function saveDescription(value: string) {
 }
 
 // ── Editable lore form (owner only) ──────────────────────────────────────────
-const form = reactive({
-  age:                  member.age                  ?? "",
-  gender:               member.gender               ?? "",
-  pronouns:             member.pronouns             ?? "",
-  physical_description: member.physical_description ?? "",
-  alignment:            member.alignment            ?? "",
-  deity:                member.deity                ?? "",
-  deity_id:             member.deity_id             ?? null as string | null,
-  personality_traits:   member.personality_traits   ?? "",
-  ideals:               member.ideals               ?? "",
-  bonds:                member.bonds                ?? "",
-  flaws:                member.flaws                ?? "",
+interface LoreForm {
+  age: string;
+  gender: string;
+  pronouns: string;
+  physical_description: string;
+  alignment: string;
+  deity: string;
+  deity_id: string | null;
+  personality_traits: string;
+  ideals: string;
+  bonds: string;
+  flaws: string;
+}
+
+function loreToForm(m: PartyMember | null): LoreForm {
+  return {
+    age:                  m?.age                  ?? "",
+    gender:               m?.gender               ?? "",
+    pronouns:             m?.pronouns             ?? "",
+    physical_description: m?.physical_description ?? "",
+    alignment:            m?.alignment            ?? "",
+    deity:                m?.deity                ?? "",
+    deity_id:             m?.deity_id             ?? null,
+    personality_traits:   m?.personality_traits   ?? "",
+    ideals:               m?.ideals               ?? "",
+    bonds:                m?.bonds                ?? "",
+    flaws:                m?.flaws                ?? "",
+  };
+}
+
+// The sheet may have been edited elsewhere since this tab mounted; the draft
+// takes fresh values for fields untouched here and saves only what changed (#946).
+const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
+  source: () => member,
+  identity: (m: PartyMember) => m.id,
+  toDraft: loreToForm,
 });
 
-watch(() => member.id, () => {
-  form.age                  = member.age                  ?? "";
-  form.gender               = member.gender               ?? "";
-  form.pronouns             = member.pronouns             ?? "";
-  form.physical_description = member.physical_description ?? "";
-  form.alignment            = member.alignment            ?? "";
-  form.deity                = member.deity                ?? "";
-  form.deity_id             = member.deity_id             ?? null;
-  form.personality_traits   = member.personality_traits   ?? "";
-  form.ideals               = member.ideals               ?? "";
-  form.bonds                = member.bonds                ?? "";
-  form.flaws                = member.flaws                ?? "";
-});
+const CONFLICT_LABELS: Record<keyof LoreForm, string> = {
+  age: "Age",
+  gender: "Gender",
+  pronouns: "Pronouns",
+  physical_description: "Physical description",
+  alignment: "Alignment",
+  deity: "Deity",
+  deity_id: "Deity",
+  personality_traits: "Personality traits",
+  ideals: "Ideals",
+  bonds: "Bonds",
+  flaws: "Flaws",
+};
+const conflictLabels = computed(() => [...new Set(conflicts.value.map((key) => CONFLICT_LABELS[key]))]);
+
+function loreRow(f: LoreForm) {
+  return {
+    age:                  f.age || null,
+    gender:               f.gender || null,
+    pronouns:             f.pronouns || null,
+    physical_description: f.physical_description || null,
+    alignment:            f.alignment || null,
+    deity:                f.deity || null,
+    deity_id:             f.deity_id || null,
+    personality_traits:   f.personality_traits || null,
+    ideals:               f.ideals || null,
+    bonds:                f.bonds || null,
+    flaws:                f.flaws || null,
+  };
+}
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 function scheduleAutoSave() {
   if (saveTimer) clearTimeout(saveTimer);
+  const scheduledFor = member.id;
   saveTimer = setTimeout(() => {
-    void updateMember({
-      id: member.id,
-      update: {
-        age:                  form.age || null,
-        gender:               form.gender || null,
-        pronouns:             form.pronouns || null,
-        physical_description: form.physical_description || null,
-        alignment:            form.alignment || null,
-        deity:                form.deity || null,
-        deity_id:             form.deity_id || null,
-        personality_traits:   form.personality_traits || null,
-        ideals:               form.ideals || null,
-        bonds:                form.bonds || null,
-        flaws:                form.flaws || null,
-      },
+    // The draft re-seeds when the tab moves to another character; what is in it
+    // now is no longer the sheet this timer was set for.
+    if (member.id !== scheduledFor) return;
+    const update = changes(loreRow);
+    if (Object.keys(update).length === 0) return;
+    const sent = loreRow(form);
+    void updateMember({ id: member.id, update }).then(() => {
+      // Typing during the request is not part of what was sent: leave it as an
+      // unsaved edit rather than baselining it.
+      if (draftValueEqual(loreRow(form), sent)) commit();
     });
   }, 600);
 }

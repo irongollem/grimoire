@@ -136,6 +136,9 @@
       @update:active-tab="setTab"
     />
 
+    <!-- Only ever non-empty while an entry is open for editing (#946). -->
+    <DraftConflictNotice :fields="conflictLabels" :on-discard="resetEdit" />
+
     <!-- Quest Log tab -->
     <PlayerJournalQuestLogTab
       v-if="activeTab === 'quest-log'"
@@ -194,7 +197,7 @@
       :filter-category="filterCategory"
       :expanded="expanded"
       :editing-id="editingId"
-      :edit-form="editForm"
+      :edit-form="editDraft"
       :edit-ref-options="editRefOptions"
       :saving="saving"
       :mention-items="mentionItems"
@@ -206,7 +209,7 @@
       @toggle="toggleExpand"
       @start-edit="startEdit"
       @remove-entry="removeEntry"
-      @edit-form-change="(patch) => Object.assign(editForm, patch)"
+      @edit-form-change="(patch) => Object.assign(editDraft, patch)"
       @cancel-edit="cancelEdit"
       @submit-edit="submitEdit"
       @reorder="reorderMyEntries"
@@ -223,6 +226,8 @@ import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLocation, Ico
 import TabBar from "@/components/common/TabBar.vue";
 import SortControl from "@/components/common/SortControl.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import { useRecordDraft } from "@/composables/useRecordDraft";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -244,7 +249,7 @@ import { useUiStore } from "@/stores/ui";
 import { storeToRefs } from "pinia";
 import { sortEntities, type SortField } from "@/lib/noteSort";
 import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
-import type { JournalCategory, PlayerJournalEntry, JournalRefType } from "@/composables/notes/usePlayerJournal";
+import type { JournalCategory, PlayerJournalEntry, PlayerJournalEntryUpdate, JournalRefType } from "@/composables/notes/usePlayerJournal";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import type { Quest } from "@/types/quest.types";
 import { usePlayerVisiblePuzzles } from "@/composables/dungeon-features/usePuzzles";
@@ -520,7 +525,7 @@ function getRefOptions(refType: string): { id: string; name: string }[] {
 }
 
 const refOptions = computed(() => getRefOptions(formRefType.value));
-const editRefOptions = computed(() => getRefOptions(editForm.value.ref_type));
+const editRefOptions = computed(() => getRefOptions(editDraft.ref_type));
 
 function resolveLabel(refType: string, refId: string, options: { id: string; name: string }[]): string | null {
   if (!refType || !refId) return null;
@@ -551,55 +556,92 @@ async function submitNew() {
 }
 
 // ── Edit ──────────────────────────────────────────────────────────────────────
-const editForm = ref({
-  title:          "" as string | null,
-  content:        "",
-  category:       "adventure" as JournalCategory,
-  is_private:     true,
-  shared_with_dm: false,
-  ref_type:       "" as string,
-  ref_id:         "" as string,
+// The open entry's form is a draft of the entry as the server last reported it,
+// so an edit made on another device reaches the form, and saving sends only the
+// columns this player changed (#946).
+interface EntryDraft {
+  title:          string | null;
+  content:        string;
+  category:       JournalCategory;
+  is_private:     boolean;
+  shared_with_dm: boolean;
+  ref_type:       string;
+  ref_id:         string;
+}
+
+function toEntryDraft(entry: PlayerJournalEntry | null): EntryDraft {
+  return {
+    title:          entry?.title ?? null,
+    content:        entry?.content ?? "",
+    category:       entry?.category ?? "adventure",
+    is_private:     entry?.is_private ?? true,
+    shared_with_dm: entry?.shared_with_dm ?? false,
+    ref_type:       entry?.ref_type ?? "",
+    ref_id:         entry?.ref_id ?? "",
+  };
+}
+
+// ref_label is not here: it depends on the live option lists, so it is added
+// below only when the context link itself changed.
+function buildEntryRow(d: EntryDraft) {
+  return {
+    title:          d.title?.trim() || null,
+    content:        d.content,
+    category:       d.category,
+    is_private:     d.is_private,
+    shared_with_dm: d.shared_with_dm,
+    ref_type:       (d.ref_type as JournalRefType) || null,
+    ref_id:         d.ref_id || null,
+  };
+}
+
+const editingEntry = computed(() => (myEntries.value ?? []).find((e) => e.id === editingId.value) ?? null);
+
+const { draft: editDraft, conflicts, changes, commit, reset: resetEdit } = useRecordDraft({
+  source: () => editingEntry.value,
+  identity: (entry) => entry.id,
+  toDraft: toEntryDraft,
 });
-const editOriginalContent = ref<string>("");
+
+const CONFLICT_LABELS: Record<keyof EntryDraft, string> = {
+  title: "Title",
+  content: "Entry text",
+  category: "Category",
+  is_private: "Privacy",
+  shared_with_dm: "Share with DM",
+  ref_type: "Context",
+  ref_id: "Context",
+};
+const conflictLabels = computed(() => [...new Set(conflicts.value.map((key) => CONFLICT_LABELS[key]))]);
+
+// The draft outlives the form: closing it by any route (Cancel, collapsing the
+// card, saving) must not bring a discarded edit back on the next open.
+watch(editingId, (id) => {
+  if (!id) resetEdit();
+});
 
 function startEdit(entry: PlayerJournalEntry) {
-  editOriginalContent.value = entry.content;
-  editForm.value = {
-    title:          entry.title,
-    content:        entry.content,
-    category:       entry.category,
-    is_private:     entry.is_private,
-    shared_with_dm: entry.shared_with_dm,
-    ref_type:       entry.ref_type ?? "",
-    ref_id:         entry.ref_id ?? "",
-  };
   editingId.value = entry.id;
 }
 
 function cancelEdit() {
   editingId.value = null;
-  editOriginalContent.value = "";
 }
 
 async function submitEdit() {
-  if (!editingId.value || isRteEmpty(editForm.value.content)) return;
+  if (!editingId.value || isRteEmpty(editDraft.content)) return;
   saving.value = true;
-  const oldContent = editOriginalContent.value;
+  // The latest server copy, not the text the form opened with: it is what the
+  // new content replaces, so it is what image cleanup must compare against.
+  const oldContent = editingEntry.value?.content ?? "";
   try {
-    await update({
-      id: editingId.value,
-      update: {
-        title:          editForm.value.title?.trim() || null,
-        content:        editForm.value.content,
-        category:       editForm.value.category,
-        is_private:     editForm.value.is_private,
-        shared_with_dm: editForm.value.shared_with_dm,
-        ref_type:       (editForm.value.ref_type as JournalRefType) || null,
-        ref_id:     editForm.value.ref_id || null,
-        ref_label:  resolveLabel(editForm.value.ref_type, editForm.value.ref_id, editRefOptions.value),
-      },
-    });
-    cleanupRemovedRichTextImages(oldContent, editForm.value.content);
+    const changed: PlayerJournalEntryUpdate = changes(buildEntryRow);
+    if (changed.ref_type !== undefined || changed.ref_id !== undefined) {
+      changed.ref_label = resolveLabel(editDraft.ref_type, editDraft.ref_id, editRefOptions.value);
+    }
+    if (Object.keys(changed).length > 0) await update({ id: editingId.value, update: changed });
+    commit();
+    if (changed.content !== undefined) cleanupRemovedRichTextImages(oldContent, editDraft.content);
     editingId.value = null;
   } finally {
     saving.value = false;

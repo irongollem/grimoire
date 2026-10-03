@@ -24,7 +24,8 @@ export interface ProviderConfig {
   updated_at: string;
 }
 
-export type ProviderConfigUpdate = Omit<ProviderConfig, "updated_at">;
+/** The provider key plus whichever columns change; an editor sends only what it changed (#946). */
+export type ProviderConfigUpdate = Pick<ProviderConfig, "provider"> & Partial<Omit<ProviderConfig, "provider" | "updated_at">>;
 
 export const PROVIDER_LABELS: Record<string, string> = {
   openai:    "OpenAI",

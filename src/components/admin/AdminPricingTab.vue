@@ -31,6 +31,7 @@
           Enter the Stripe Price ID and click Save — price data is fetched from Stripe and cached. Credits field controls how many credits the buyer receives.
         </p>
       </div>
+      <DraftConflictNotice :fields="packConflictLabels" />
       <div v-if="pricingQuery.packs.isPending.value" class="text-muted-foreground text-body">Loading…</div>
       <div v-else-if="pricingQuery.packs.isError.value" class="text-destructive text-body">Failed to load packs.</div>
       <!-- The tables are wider than a phone; scroll them rather than clip the last columns. -->
@@ -50,7 +51,7 @@
             <td class="py-2 font-fell text-foreground">{{ pack.label }}</td>
             <td class="py-2 text-right">
               <AppInput
-                v-model.number="draftPacks[pack.pack_id].credits"
+                v-model.number="packDrafts.drafts[pack.pack_id]!.credits"
                 type="number" min="1"
                 tone="filled"
                 size="body-xs"
@@ -65,12 +66,12 @@
             </td>
             <td class="py-2 pl-3">
               <AppInput
-                v-model="draftPacks[pack.pack_id].stripe_price_id"
+                v-model="packDrafts.drafts[pack.pack_id]!.stripe_price_id"
                 placeholder="price_…"
                 tone="filled"
                 size="body-xs"
                 class="font-mono text-xs placeholder:text-muted-foreground/50"
-                :class="draftPacks[pack.pack_id].stripe_price_id ? 'text-ink-success' : 'text-ink-caution'"
+                :class="packDrafts.drafts[pack.pack_id]!.stripe_price_id ? 'text-ink-success' : 'text-ink-caution'"
               />
             </td>
             <td class="py-2 pl-2 text-right">
@@ -96,6 +97,7 @@
           Credits deducted per generation when not using BYOK (server-side mode).
         </p>
       </div>
+      <DraftConflictNotice :fields="genConflictLabels" />
       <div v-if="pricingQuery.generationCosts.isPending.value" class="text-muted-foreground text-body">Loading…</div>
       <div v-else-if="pricingQuery.generationCosts.isError.value" class="text-destructive text-body">Failed to load costs.</div>
       <div v-else class="overflow-x-auto">
@@ -121,7 +123,7 @@
               <p class="text-label text-muted-foreground">{{ gen.generation_type }}</p>
               <div v-if="categoryOf(gen.generation_type) === 'image'" class="mt-1.5 space-y-1 max-w-56">
                 <SegmentedControl
-                  v-model="draftGenQuality[gen.generation_type]"
+                  v-model="genDrafts.drafts[gen.generation_type]!.tier"
                   variant="subtle"
                   size="xs"
                   wrap
@@ -134,7 +136,7 @@
             </td>
             <td class="py-2 text-right">
               <AppInput
-                v-model.number="draftGenCosts[gen.generation_type]"
+                v-model.number="genDrafts.drafts[gen.generation_type]!.credit_cost"
                 type="number" min="0"
                 tone="filled"
                 size="body-xs"
@@ -212,6 +214,8 @@ import { useAdminCalibration } from "@/composables/admin/useAdminCalibration";
 import type { CalibrationHint } from "@/composables/admin/useAdminCalibration";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import { useKeyedRecordDrafts } from "@/composables/admin/useKeyedRecordDrafts";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import AdminPromptScreeningPanel from "@/components/admin/AdminPromptScreeningPanel.vue";
@@ -257,40 +261,62 @@ function calibrationStatus(hint: CalibrationHint): CalibrationStatus {
   return "ok";
 }
 
+// Every row saves on its own, so each has its own draft and server copy: a
+// refetch reaches the fields the admin has not touched, and saving one row never
+// rebaselines another row's unsaved edits (#946).
 type PackDraft = { credits: number; stripe_price_id: string };
-const draftPacks = reactive<Record<string, PackDraft>>({});
+const packDrafts = useKeyedRecordDrafts<CreditPackConfig, PackDraft>((p) => ({
+  credits: p.credits,
+  stripe_price_id: p.stripe_price_id ?? "",
+}));
 const packSaving = reactive<Record<string, boolean>>({});
 
 watch(
   () => pricingQuery.packs.data.value,
   (packs) => {
     if (!packs) return;
-    for (const p of packs) {
-      if (!(p.pack_id in draftPacks)) {
-        draftPacks[p.pack_id] = { credits: p.credits, stripe_price_id: p.stripe_price_id ?? "" };
-      }
-    }
+    for (const p of packs) packDrafts.sync(p.pack_id, p);
   },
   { immediate: true },
 );
 
+const PACK_LABELS: Record<keyof PackDraft, string> = { credits: "Credits", stripe_price_id: "Stripe Price ID" };
+
+function conflictLabels<K extends string>(
+  conflicts: Record<string, K[]>,
+  labels: Record<K, string>,
+  rowLabel: (key: string) => string,
+): string[] {
+  return Object.entries(conflicts).flatMap(([key, fields]) => fields.map((f) => `${rowLabel(key)} ${labels[f]}`));
+}
+
+const packConflictLabels = computed(() =>
+  conflictLabels(
+    packDrafts.conflicts,
+    PACK_LABELS,
+    (id) => pricingQuery.packs.data.value?.find((p) => p.pack_id === id)?.label ?? id,
+  ),
+);
+
 async function savePack(pack: CreditPackConfig) {
+  const changed = packDrafts.changes(pack.pack_id, (d) => d);
+  const base = packDrafts.baseline(pack.pack_id);
+  if (!base || Object.keys(changed).length === 0) return;
   packSaving[pack.pack_id] = true;
-  const draft = draftPacks[pack.pack_id];
   try {
-    const priceId = draft.stripe_price_id.trim();
+    const priceId = changed.stripe_price_id?.trim();
     if (priceId) {
+      // A new Price ID is fetched from Stripe; credits ride along, from the
+      // latest server value when the admin did not touch them.
       await pricingQuery.syncStripePrice.mutateAsync({
         packId: pack.pack_id,
         stripePriceId: priceId,
-        credits: draft.credits,
+        credits: changed.credits ?? base.credits,
       });
-    } else {
-      await pricingQuery.updatePack.mutateAsync({
-        pack_id: pack.pack_id,
-        credits: draft.credits,
-      });
+    } else if (changed.credits !== undefined) {
+      await pricingQuery.updatePack.mutateAsync({ pack_id: pack.pack_id, credits: changed.credits });
     }
+    packDrafts.commit(pack.pack_id);
   } finally {
     packSaving[pack.pack_id] = false;
   }
@@ -345,26 +371,10 @@ const NON_SQUARE_NOTE: Record<string, { label: string; size: string }> = {
 
 function derivedNonSquare(generationType: string): { label: string; cost: number } | null {
   const note = NON_SQUARE_NOTE[generationType];
-  const base = draftGenCosts[generationType];
+  const base = genDrafts.drafts[generationType]?.credit_cost;
   if (!note || typeof base !== "number" || Number.isNaN(base)) return null;
   return { label: note.label, cost: wholeCredits(base * sizeMultiplier(note.size)) };
 }
-
-const draftGenCosts = reactive<Record<string, number>>({});
-const genCostSaving = reactive<Record<string, boolean>>({});
-
-watch(
-  () => pricingQuery.generationCosts.data.value,
-  (costs) => {
-    if (!costs) return;
-    for (const c of costs) {
-      if (!(c.generation_type in draftGenCosts)) {
-        draftGenCosts[c.generation_type] = c.credit_cost;
-      }
-    }
-  },
-  { immediate: true },
-);
 
 // ── Image quality tier (image generation types only) ──────────────────────
 // "default" stands in for a null image_quality_tier (the provider's own
@@ -376,19 +386,26 @@ const QUALITY_TIER_OPTIONS: ReadonlyArray<{ value: QualityDraft; label: string }
   { value: "standard", label: "Standard" },
   { value: "high", label: "High" },
 ];
-const draftGenQuality = reactive<Record<string, QualityDraft>>({});
+
+type GenCostDraft = { credit_cost: number; tier: QualityDraft };
+const genDrafts = useKeyedRecordDrafts<GenerationCreditCost, GenCostDraft>((c) => ({
+  credit_cost: c.credit_cost,
+  tier: c.image_quality_tier ?? "default",
+}));
+const genCostSaving = reactive<Record<string, boolean>>({});
 
 watch(
   () => pricingQuery.generationCosts.data.value,
   (costs) => {
     if (!costs) return;
-    for (const c of costs) {
-      if (!(c.generation_type in draftGenQuality)) {
-        draftGenQuality[c.generation_type] = c.image_quality_tier ?? "default";
-      }
-    }
+    for (const c of costs) genDrafts.sync(c.generation_type, c);
   },
   { immediate: true },
+);
+
+const GEN_LABELS: Record<keyof GenCostDraft, string> = { credit_cost: "Credits", tier: "Quality" };
+const genConflictLabels = computed(() =>
+  conflictLabels(genDrafts.conflicts, GEN_LABELS, (type) => type),
 );
 
 // What "Default" currently resolves to for each platform provider, read the
@@ -404,17 +421,20 @@ const providerDefaultCaption = computed(() => {
 });
 
 async function saveGenCost(gen: GenerationCreditCost) {
-  genCostSaving[gen.generation_type] = true;
+  const type = gen.generation_type;
+  const isImage = categoryOf(type) === "image";
+  // Pure over the draft, so `changes` can run it over the server copy too.
+  const changed = genDrafts.changes(type, (d) => ({
+    credit_cost: d.credit_cost,
+    ...(isImage ? { image_quality_tier: d.tier === "default" ? null : d.tier } : {}),
+  }));
+  if (Object.keys(changed).length === 0) return;
+  genCostSaving[type] = true;
   try {
-    const isImage = categoryOf(gen.generation_type) === "image";
-    const draftTier = draftGenQuality[gen.generation_type];
-    await pricingQuery.updateGenerationCost.mutateAsync({
-      generation_type: gen.generation_type,
-      credit_cost: draftGenCosts[gen.generation_type],
-      ...(isImage ? { image_quality_tier: draftTier === "default" ? null : draftTier } : {}),
-    });
+    await pricingQuery.updateGenerationCost.mutateAsync({ generation_type: type, ...changed });
+    genDrafts.commit(type);
   } finally {
-    genCostSaving[gen.generation_type] = false;
+    genCostSaving[type] = false;
   }
 }
 </script>

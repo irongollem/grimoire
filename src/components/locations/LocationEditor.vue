@@ -54,6 +54,8 @@
       </template>
     </EntityEditorActionBar>
 
+    <DraftConflictNotice :fields="conflictLabels" :on-discard="resetDraft" />
+
     <!--
       Sigil + identity fields.
       Mobile: stack vertically — sigil on top (capped to avoid eating the
@@ -226,7 +228,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, reactive, toRefs, computed, watch } from "vue";
+import { ref, toRefs, computed, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRoute, useRouter } from "vue-router";
@@ -247,6 +249,8 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useAutosave } from "@/composables/useAutosave";
+import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSounds } from "@/composables/soundboard/useSounds";
@@ -264,7 +268,6 @@ import {
 } from "@/types/location.types";
 import type { Location, LocationType } from "@/types/location.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
-import { deepEqual } from "@/lib/utils";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 
@@ -354,8 +357,7 @@ interface PlaceDraft {
 // "nothing to scope to yet" case.
 const { activeCampaignId } = storeToRefs(useCampaignStore());
 
-function seedDraft(): PlaceDraft {
-  const loc = props.location;
+function placeToDraft(loc: Location | null): PlaceDraft {
   return {
     name: loc?.name ?? props.initialName ?? "",
     locationType: loc?.location_type ?? "other",
@@ -373,7 +375,30 @@ function seedDraft(): PlaceDraft {
   };
 }
 
-const draft = reactive<PlaceDraft>(seedDraft());
+// The place as the server last reported it: fresh data reaches every field the
+// DM has not touched, and a save sends only the columns that changed (#946).
+const { draft, changes, commit, reset: resetDraft, conflicts } = useRecordDraft({
+  source: () => props.location,
+  identity: (loc: Location) => loc.id,
+  toDraft: placeToDraft,
+});
+
+const CONFLICT_LABELS: Record<keyof PlaceDraft, string> = {
+  name: "Name",
+  locationType: "Type",
+  description: "Description",
+  playerSummary: "Player summary",
+  tags: "Tags",
+  eraStart: "Era",
+  eraEnd: "Era",
+  audioTheme: "Ambient",
+  selectedParentId: "Parent",
+  imageUrl: "Image",
+  npcOwnerId: "Proprietor",
+  relatedLocationIds: "Related places",
+  campaignId: "Scope",
+};
+const conflictLabels = computed(() => [...new Set(conflicts.value.map((key) => CONFLICT_LABELS[key]))]);
 const {
   name,
   locationType,
@@ -389,18 +414,6 @@ const {
   relatedLocationIds,
   campaignId,
 } = toRefs(draft);
-
-function sameList<T>(a: T[], b: T[]) {
-  return a.length === b.length && a.every((item, i) => item === b[i]);
-}
-function draftsEqual(a: PlaceDraft, b: PlaceDraft) {
-  return a.name === b.name && a.locationType === b.locationType
-    && a.description === b.description && a.playerSummary === b.playerSummary
-    && sameList(a.tags, b.tags) && a.eraStart === b.eraStart && a.eraEnd === b.eraEnd
-    && a.audioTheme === b.audioTheme && a.selectedParentId === b.selectedParentId
-    && a.imageUrl === b.imageUrl && a.npcOwnerId === b.npcOwnerId
-    && sameList(a.relatedLocationIds, b.relatedLocationIds) && a.campaignId === b.campaignId;
-}
 
 // Full ancestor chain for breadcrumb (root → … → direct parent).
 // Loop extracted into a helper to keep `computed` single-return — oxlint's
@@ -466,7 +479,6 @@ const themeOptions = computed(() =>
     sounds.value === undefined ? [] : sounds.value,
   ),
 );
-const aiProvenance = ref<AiProvenance | null>(props.location?.ai_provenance ?? null);
 const saving = ref(false);
 const deleting = ref(false);
 // The create path's error. An existing place reports through the autosave status.
@@ -508,7 +520,7 @@ const { mutateAsync: update } = useUpdateLocation();
 const { mutateAsync: del } = useDeleteLocation();
 
 /** The columns this form owns, and no others. */
-function recordFields(d: PlaceDraft, provenance: AiProvenance | null) {
+function recordFields(d: PlaceDraft) {
   return {
     name: d.name.trim() || "Unnamed Location",
     location_type: d.locationType,
@@ -524,46 +536,35 @@ function recordFields(d: PlaceDraft, provenance: AiProvenance | null) {
     player_summary: d.playerSummary || null,
     npc_owner_id: d.npcOwnerId || null,
     related_location_ids: d.relatedLocationIds,
-    ai_provenance: provenance,
     campaign_id: d.campaignId,
   };
 }
 
 // Material edit detection (#606): tags, sigil art, era bounds, ambient theme and
 // hierarchy fields are excluded per the "moves/tags/image/visibility" carve-outs.
-// Compared with the last *saved* values rather than the prop, because the prop
-// only catches up after the refetch and an autosave can fire again before it.
-let savedContent = {
-  name: props.location?.name ?? "",
-  locationType: props.location?.location_type,
-  description: props.location?.description ?? null,
-  playerSummary: props.location?.player_summary ?? null,
-};
+// Decided from the columns this save actually changes against the server copy,
+// so another device's edit to the description is not mistaken for ours.
+const MATERIAL_COLUMNS = ["name", "location_type", "description", "player_summary"] as const;
 
 async function saveExisting(snapshot: PlaceDraft) {
   const loc = props.location!;
-  const content = {
-    name: snapshot.name.trim(),
-    locationType: snapshot.locationType,
-    description: snapshot.description,
-    playerSummary: snapshot.playerSummary || null,
-  };
-  const contentChanged =
-    content.name !== savedContent.name ||
-    content.locationType !== savedContent.locationType ||
-    !deepEqual(content.description, savedContent.description) ||
-    !deepEqual(content.playerSummary, savedContent.playerSummary);
-  const provenance = contentChanged ? markEdited(aiProvenance.value) : aiProvenance.value;
-  await update({ id: loc.id, update: recordFields(snapshot, provenance) });
-  aiProvenance.value = provenance;
-  savedContent = content;
+  const fields: Partial<ReturnType<typeof recordFields>> & { ai_provenance?: AiProvenance | null } =
+    changes(recordFields);
+  if (Object.keys(fields).length === 0) return;
+  if (MATERIAL_COLUMNS.some((column) => column in fields)) {
+    fields.ai_provenance = markEdited(loc.ai_provenance ?? null);
+  }
+  await update({ id: loc.id, update: fields });
+  // Edits made while the request was in flight are not part of what was sent;
+  // they stay unsaved until the refetch confirms the write.
+  if (draftValueEqual(recordFields(draft), recordFields(snapshot))) commit();
 }
 
 const autosave = props.location
   ? useAutosave({
       draft,
-      initial: seedDraft,
-      equal: draftsEqual,
+      initial: () => placeToDraft(props.location),
+      equal: draftValueEqual,
       save: saveExisting,
       canSave: () => !!draft.name.trim(),
       errorMessage: "Failed to save",
@@ -590,7 +591,8 @@ async function save() {
     // requires those columns, so they are written once here at their empty
     // values. Build and Reveal own them from then on.
     const created = await create({
-      ...recordFields(draft, aiProvenance.value),
+      ...recordFields(draft),
+      ai_provenance: null,
       notes: null,
       map_url: null,
       map_pins: [],

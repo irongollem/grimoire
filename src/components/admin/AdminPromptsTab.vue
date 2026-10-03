@@ -21,16 +21,20 @@
               {{ prompt.generator_type }}
             </span>
           </div>
-          <button
-            class="px-3 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          <AppButton
+            variant="primary"
+            size="sm"
             :disabled="promptSaving[prompt.generator_type]"
+            :label="promptSaving[prompt.generator_type] ? 'Saving…' : 'Save'"
             @click="savePrompt(prompt)"
-          >
-            {{ promptSaving[prompt.generator_type] ? 'Saving…' : 'Save' }}
-          </button>
+          />
         </div>
+        <DraftConflictNotice
+          :fields="drafts.conflicts[prompt.generator_type]?.length ? ['Prompt text'] : []"
+          :on-discard="() => drafts.reset(prompt.generator_type)"
+        />
         <textarea
-          v-model="draftPrompts[prompt.generator_type]"
+          v-model="drafts.drafts[prompt.generator_type]!.content"
           rows="12"
           class="w-full bg-muted border border-border rounded px-2.5 py-2 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
         />
@@ -41,35 +45,38 @@
 
 <script setup lang="ts">
 import { reactive, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import { useAdminPrompts } from "@/composables/admin/useAdminPrompts";
 import type { AiSystemPrompt } from "@/composables/admin/useAdminPrompts";
+import { useKeyedRecordDrafts } from "@/composables/admin/useKeyedRecordDrafts";
 
 const promptsQuery = useAdminPrompts();
-const draftPrompts = reactive<Record<string, string>>({});
 const promptSaving = reactive<Record<string, boolean>>({});
+
+// Each prompt saves on its own, and a refetch (another admin, another tab) must
+// reach prompts that have not been touched here (#946).
+const drafts = useKeyedRecordDrafts<AiSystemPrompt, { content: string }>((p) => ({ content: p.content }));
 
 watch(
   () => promptsQuery.prompts.value,
   (list) => {
     if (!list) return;
-    for (const p of list) {
-      if (!(p.generator_type in draftPrompts)) {
-        draftPrompts[p.generator_type] = p.content;
-      }
-    }
+    for (const p of list) drafts.sync(p.generator_type, p);
   },
   { immediate: true },
 );
 
 async function savePrompt(prompt: AiSystemPrompt) {
-  promptSaving[prompt.generator_type] = true;
+  const key = prompt.generator_type;
+  const changed = drafts.changes(key, (d) => d);
+  if (changed.content === undefined) return;
+  promptSaving[key] = true;
   try {
-    await promptsQuery.updatePrompt.mutateAsync({
-      generator_type: prompt.generator_type,
-      content: draftPrompts[prompt.generator_type] ?? prompt.content,
-    });
+    await promptsQuery.updatePrompt.mutateAsync({ generator_type: key, content: changed.content });
+    drafts.commit(key);
   } finally {
-    promptSaving[prompt.generator_type] = false;
+    promptSaving[key] = false;
   }
 }
 </script>

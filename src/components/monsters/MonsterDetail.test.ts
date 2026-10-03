@@ -226,3 +226,33 @@ describe("MonsterDetail — copy to campaign (#598)", () => {
     expect(paywalls.find((p) => p.props("resource") === "monsters")?.props("modelValue")).toBe(true);
   });
 });
+
+describe("MonsterDetail — saves only what changed (#946)", () => {
+  beforeEach(() => {
+    updateMonster.mockReset();
+    routerPush.mockClear();
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  async function saveFrom(wrapper: ReturnType<typeof mountDetail>) {
+    wrapper.findComponent({ name: "EntityEditorActionBar" }).vm.$emit("save");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  it("sends only the edited column, not the untouched ones", async () => {
+    const wrapper = mountDetail(monster({ habitat: "Forest" }));
+    wrapper.findComponent({ name: "EntityEditorActionBar" }).vm.$emit("update:title", "Dire Owlbear");
+    await saveFrom(wrapper);
+    expect(updateMonster).toHaveBeenCalledWith({ id: "monster-1", update: { name: "Dire Owlbear" } });
+  });
+
+  it("skips the update call when nothing changed, and still leaves the editor", async () => {
+    const wrapper = mountDetail(monster());
+    await saveFrom(wrapper);
+    expect(updateMonster).not.toHaveBeenCalled();
+    expect(routerPush).toHaveBeenCalledWith("/monsters/monster-1");
+  });
+});

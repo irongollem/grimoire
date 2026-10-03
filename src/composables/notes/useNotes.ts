@@ -1,7 +1,7 @@
 import { reportHandledError } from "@/lib/observability/sentry";
 import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Note, NoteInsert, NoteUpdate } from "@/types/notes.types";
 import { storeToRefs } from "pinia";
@@ -30,11 +30,20 @@ async function fetchNote(id: string): Promise<Note> {
   return data as Note;
 }
 
-/** Exported so a resolved downtime outcome can mint a seed note into the campaign. */
+/**
+ * Exported so a resolved downtime outcome can mint a seed note into the campaign.
+ *
+ * Stamps the signed-in user, as `createItem` does. `notes.user_id` is NOT NULL
+ * with no default, and `NoteInsert` has no `user_id`, so a caller could not pass
+ * one honestly: the note editor smuggled it in through an untyped spread, and
+ * the downtime seed reward (which had no such spread) failed every insert.
+ */
 export async function createNote(note: NoteInsert): Promise<Note> {
+  const user = getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
   const { data, error } = await supabase
     .from("notes")
-    .insert(note)
+    .insert({ ...note, user_id: user.id })
     .select()
     .single();
   if (error) throw error;

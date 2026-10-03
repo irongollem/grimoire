@@ -63,6 +63,11 @@
           />
         </div>
 
+        <DraftConflictNotice
+          :fields="providerConflictLabels(row.provider)"
+          :on-discard="() => providerDrafts.reset(row.provider)"
+        />
+
         <!-- Save error -- e.g. the DB's "at most one embedding vendor" unique index
              (provider_config_single_embedding_vendor) rejecting a save that would
              leave two providers enabled. The banner above should already have
@@ -88,9 +93,9 @@
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <!-- Text generation -->
           <ProviderCapabilityCell
-            v-model:model="draftProviders[row.provider].text_model"
-            v-model:enabled="draftProviders[row.provider].text_enabled"
-            v-model:multiplier="draftProviders[row.provider].text_multiplier"
+            v-model:model="providerDrafts.drafts[row.provider]!.text_model"
+            v-model:enabled="providerDrafts.drafts[row.provider]!.text_enabled"
+            v-model:multiplier="providerDrafts.drafts[row.provider]!.text_multiplier"
             label="Text"
             :provider="row.provider"
             capability="text"
@@ -101,7 +106,7 @@
               <div class="space-y-1">
                 <label class="block text-label text-muted-foreground">Fast model</label>
                 <AppInput
-                  v-model="draftProviders[row.provider].fast_text_model"
+                  v-model="providerDrafts.drafts[row.provider]!.fast_text_model"
                   :list="`fast-text-models-${row.provider}`"
                   type="text"
                   size="caption"
@@ -120,9 +125,9 @@
 
           <!-- Image generation -->
           <ProviderCapabilityCell
-            v-model:model="draftProviders[row.provider].image_model"
-            v-model:enabled="draftProviders[row.provider].image_enabled"
-            v-model:multiplier="draftProviders[row.provider].image_multiplier"
+            v-model:model="providerDrafts.drafts[row.provider]!.image_model"
+            v-model:enabled="providerDrafts.drafts[row.provider]!.image_enabled"
+            v-model:multiplier="providerDrafts.drafts[row.provider]!.image_multiplier"
             label="Image"
             :provider="row.provider"
             capability="image"
@@ -139,9 +144,9 @@
                     variant="subtle"
                     size="xs"
                     class="flex-1"
-                    :active="draftProviders[row.provider]?.image_quality === opt.value"
+                    :active="providerDrafts.drafts[row.provider]?.image_quality === opt.value"
                     :label="opt.label"
-                    @click="draftProviders[row.provider].image_quality = opt.value"
+                    @click="providerDrafts.drafts[row.provider]!.image_quality = opt.value"
                   />
                 </div>
                 <p class="text-caption-sm text-muted-foreground/60 italic">Higher = more output tokens = higher real cost.</p>
@@ -152,9 +157,9 @@
           <!-- Audio generation. generate-music reads provider_config.audio_model
                at generation time, so this field is where the music model is set. -->
           <ProviderCapabilityCell
-            v-model:model="draftProviders[row.provider].audio_model"
-            v-model:enabled="draftProviders[row.provider].audio_enabled"
-            v-model:multiplier="draftProviders[row.provider].audio_multiplier"
+            v-model:model="providerDrafts.drafts[row.provider]!.audio_model"
+            v-model:enabled="providerDrafts.drafts[row.provider]!.audio_enabled"
+            v-model:multiplier="providerDrafts.drafts[row.provider]!.audio_multiplier"
             label="Audio"
             :provider="row.provider"
             capability="audio"
@@ -190,10 +195,10 @@
                   <span class="font-cinzel text-2xs text-muted-foreground">TXT-IN $</span>
                   <AppInput
                     type="text" inputmode="decimal"
-                    :model-value="draftModelPricing[m.model].input_cost_per_million_tokens"
+                    :model-value="pricingDrafts.drafts[m.model]!.input_cost_per_million_tokens"
                     align="right" size="caption" :block="false"
                     class="w-16 font-mono"
-                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
+                    @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'input_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
@@ -201,10 +206,10 @@
                   <span class="font-cinzel text-2xs text-muted-foreground">OUT $</span>
                   <AppInput
                     type="text" inputmode="decimal"
-                    :model-value="draftModelPricing[m.model].output_cost_per_million_tokens"
+                    :model-value="pricingDrafts.drafts[m.model]!.output_cost_per_million_tokens"
                     align="right" size="caption" :block="false"
                     class="w-16 font-mono"
-                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'output_cost_per_million_tokens', e)"
+                    @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'output_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
@@ -214,10 +219,10 @@
                   <span class="font-cinzel text-2xs text-muted-foreground">TXT-IN $</span>
                   <AppInput
                     type="text" inputmode="decimal"
-                    :model-value="draftModelPricing[m.model].input_cost_per_million_tokens"
+                    :model-value="pricingDrafts.drafts[m.model]!.input_cost_per_million_tokens"
                     align="right" size="caption" :block="false"
                     class="w-14 font-mono"
-                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
+                    @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'input_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
@@ -225,10 +230,10 @@
                   <span class="font-cinzel text-2xs text-muted-foreground">IMG-IN $</span>
                   <AppInput
                     type="text" inputmode="decimal"
-                    :model-value="draftModelPricing[m.model].image_input_cost_per_million_tokens"
+                    :model-value="pricingDrafts.drafts[m.model]!.image_input_cost_per_million_tokens"
                     align="right" size="caption" :block="false"
                     class="w-14 font-mono"
-                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'image_input_cost_per_million_tokens', e)"
+                    @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'image_input_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
@@ -236,10 +241,10 @@
                   <span class="font-cinzel text-2xs text-muted-foreground">IMG-OUT $</span>
                   <AppInput
                     type="text" inputmode="decimal"
-                    :model-value="draftModelPricing[m.model].image_output_cost_per_million_tokens"
+                    :model-value="pricingDrafts.drafts[m.model]!.image_output_cost_per_million_tokens"
                     align="right" size="caption" :block="false"
                     class="w-14 font-mono"
-                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'image_output_cost_per_million_tokens', e)"
+                    @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'image_output_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
@@ -250,10 +255,10 @@
                   <span class="font-cinzel text-2xs text-muted-foreground">PER GEN $</span>
                   <AppInput
                     type="text" inputmode="decimal"
-                    :model-value="draftModelPricing[m.model].cost_per_image_usd"
+                    :model-value="pricingDrafts.drafts[m.model]!.cost_per_image_usd"
                     align="right" size="caption" :block="false"
                     class="w-20 font-mono"
-                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'cost_per_image_usd', e)"
+                    @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'cost_per_image_usd', e)"
                   />
                 </div>
                 <span class="font-cinzel text-2xs text-ink-caution/60 shrink-0">est.</span>
@@ -265,10 +270,10 @@
                   <span class="font-cinzel text-2xs text-muted-foreground">IN $</span>
                   <AppInput
                     type="text" inputmode="decimal"
-                    :model-value="draftModelPricing[m.model].input_cost_per_million_tokens"
+                    :model-value="pricingDrafts.drafts[m.model]!.input_cost_per_million_tokens"
                     align="right" size="caption" :block="false"
                     class="w-16 font-mono"
-                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
+                    @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'input_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
@@ -284,7 +289,7 @@
 
               <!-- Last verified -->
               <span class="font-cinzel text-2xs text-muted-foreground/40 shrink-0 text-right w-16">
-                {{ draftModelPricing[m.model]?.last_verified_at ? new Date(draftModelPricing[m.model].last_verified_at!).toLocaleDateString() : 'never' }}
+                {{ pricingDrafts.drafts[m.model]?.last_verified_at ? new Date(pricingDrafts.drafts[m.model]!.last_verified_at!).toLocaleDateString() : 'never' }}
               </span>
 
               <!-- Save (marks verified) -->
@@ -311,10 +316,13 @@
 import { reactive, computed, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import { useKeyedRecordDrafts } from "@/composables/admin/useKeyedRecordDrafts";
 import { useAdminKeys, PROVIDERS } from "@/composables/admin/useAdminKeys";
 import type { KeyProvider } from "@/composables/admin/useAdminKeys";
 import { useAdminProviders, PROVIDER_LABELS } from "@/composables/admin/useAdminProviders";
 import type { ProviderConfig } from "@/composables/admin/useAdminProviders";
+import type { ModelPricing } from "@/composables/admin/useAdminModelPricing";
 import { useAdminModelPricing } from "@/composables/admin/useAdminModelPricing";
 import { useProviderModels } from "@/composables/ai/useProviderModels";
 import { useAiUsageStats } from "@/composables/ai/useAiUsageStats";
@@ -334,8 +342,26 @@ function isKeySet(provider: KeyProvider): boolean {
 // ── Provider config ────────────────────────────────────────────────────────
 const { query: providersQuery, update: updateProvider } = useAdminProviders();
 
+// Every provider saves on its own, so each has its own draft and server copy: a
+// refetch (the embedding vendor control, another admin) reaches the fields not
+// touched here, and a save sends only the columns that were edited (#946).
 type ProviderDraft = Omit<ProviderConfig, "updated_at">;
-const draftProviders = reactive<Record<string, ProviderDraft>>({});
+const providerDrafts = useKeyedRecordDrafts<ProviderConfig, ProviderDraft>((r) => ({
+  provider:          r.provider,
+  text_model:        r.text_model,
+  fast_text_model:   r.fast_text_model,
+  image_model:       r.image_model,
+  image_quality:     r.image_quality,
+  audio_model:       r.audio_model,
+  embedding_model:   r.embedding_model,
+  text_multiplier:   r.text_multiplier,
+  image_multiplier:  r.image_multiplier,
+  audio_multiplier:  r.audio_multiplier,
+  text_enabled:      r.text_enabled,
+  image_enabled:     r.image_enabled,
+  audio_enabled:     r.audio_enabled,
+  embedding_enabled: r.embedding_enabled,
+}));
 const providerSaving = reactive<Record<string, boolean>>({});
 const providerSaveError = reactive<Record<string, string>>({});
 
@@ -343,39 +369,47 @@ watch(
   () => providersQuery.data.value,
   (rows) => {
     if (!rows) return;
-    for (const r of rows) {
-      if (!(r.provider in draftProviders)) {
-        draftProviders[r.provider] = {
-          provider:          r.provider,
-          text_model:        r.text_model,
-          fast_text_model:   r.fast_text_model,
-          image_model:       r.image_model,
-          image_quality:     r.image_quality,
-          audio_model:       r.audio_model,
-          embedding_model:   r.embedding_model,
-          text_multiplier:   r.text_multiplier,
-          image_multiplier:  r.image_multiplier,
-          audio_multiplier:  r.audio_multiplier,
-          text_enabled:      r.text_enabled,
-          image_enabled:     r.image_enabled,
-          audio_enabled:     r.audio_enabled,
-          embedding_enabled: r.embedding_enabled,
-        };
-      }
-    }
+    for (const r of rows) providerDrafts.sync(r.provider, r);
   },
   { immediate: true },
 );
 
+const PROVIDER_FIELD_LABELS: Record<keyof ProviderDraft, string> = {
+  provider: "Provider",
+  text_model: "Text model",
+  fast_text_model: "Fast model",
+  image_model: "Image model",
+  image_quality: "Image quality",
+  audio_model: "Audio model",
+  embedding_model: "Embedding model",
+  text_multiplier: "Text multiplier",
+  image_multiplier: "Image multiplier",
+  audio_multiplier: "Audio multiplier",
+  text_enabled: "Text enabled",
+  image_enabled: "Image enabled",
+  audio_enabled: "Audio enabled",
+  embedding_enabled: "Embedding enabled",
+};
+
+function providerConflictLabels(provider: string): string[] {
+  return (providerDrafts.conflicts[provider] ?? []).map((k) => PROVIDER_FIELD_LABELS[k]);
+}
+
 async function saveProvider(provider: string) {
+  // A cleared Fast model box is "fall back to the text model", which the
+  // edge function reads as null — an empty string would be sent as a model
+  // id and fail the provider call instead of falling back. Built purely from
+  // the draft so `changes` can run it over the server copy as well.
+  const changed = providerDrafts.changes(provider, (d) => ({
+    ...d,
+    fast_text_model: d.fast_text_model?.trim() || null,
+  }));
+  if (Object.keys(changed).length === 0) return;
   providerSaving[provider] = true;
   providerSaveError[provider] = "";
   try {
-    const draft = draftProviders[provider]!;
-    // A cleared Fast model box is "fall back to the text model", which the
-    // edge function reads as null — an empty string would be sent as a model
-    // id and fail the provider call instead of falling back.
-    await updateProvider.mutateAsync({ ...draft, fast_text_model: draft.fast_text_model?.trim() || null });
+    await updateProvider.mutateAsync({ ...changed, provider });
+    providerDrafts.commit(provider);
   } catch (err) {
     providerSaveError[provider] = err instanceof Error ? err.message : "Save failed.";
   } finally {
@@ -447,7 +481,7 @@ const KNOWN_EMBEDDING_MODELS: Record<string, string[]> = {
 // one that was needed and absent is the #595 failure mode this whole feature
 // exists to prevent.
 const embeddingEnabledLabels = computed(() =>
-  Object.values(draftProviders)
+  Object.values(providerDrafts.drafts)
     .filter((d) => d.embedding_enabled)
     .map((d) => PROVIDER_LABELS[d.provider] ?? d.provider),
 );
@@ -463,7 +497,15 @@ type ModelPricingDraft = {
   cost_per_image_usd: number | null;
   last_verified_at: string | null;
 };
-const draftModelPricing = reactive<Record<string, ModelPricingDraft>>({});
+// Keyed by model; each row saves on its own (#946).
+const pricingDrafts = useKeyedRecordDrafts<ModelPricing | undefined, ModelPricingDraft>((pricing) => ({
+  input_cost_per_million_tokens:        pricing?.input_cost_per_million_tokens        ?? null,
+  output_cost_per_million_tokens:       pricing?.output_cost_per_million_tokens       ?? null,
+  image_input_cost_per_million_tokens:  pricing?.image_input_cost_per_million_tokens  ?? null,
+  image_output_cost_per_million_tokens: pricing?.image_output_cost_per_million_tokens ?? null,
+  cost_per_image_usd:                   pricing?.cost_per_image_usd                   ?? null,
+  last_verified_at:                     pricing?.last_verified_at                     ?? null,
+}));
 const modelPricingSaving = reactive<Record<string, boolean>>({});
 
 watch(
@@ -471,23 +513,15 @@ watch(
   ([providers, pricingRows]) => {
     // Wait until both data sources are loaded before initialising drafts.
     // Without this guard, the watch fires immediately (providers loaded, pricing
-    // still undefined), seeds every model with all-null values, and then when
-    // pricing data arrives the "already in map" guard prevents re-initialisation.
+    // still undefined), seeds every model with all-null values, and the drafts
+    // would then read as edited relative to the real prices.
     if (!providers || pricingRows === undefined) return;
 
     const pricingByModel = new Map((pricingRows ?? []).map((r) => [r.model, r]));
 
     function initModel(model: string | null | undefined) {
-      if (!model || model in draftModelPricing) return;
-      const pricing = pricingByModel.get(model);
-      draftModelPricing[model] = {
-        input_cost_per_million_tokens:        pricing?.input_cost_per_million_tokens        ?? null,
-        output_cost_per_million_tokens:       pricing?.output_cost_per_million_tokens       ?? null,
-        image_input_cost_per_million_tokens:  pricing?.image_input_cost_per_million_tokens  ?? null,
-        image_output_cost_per_million_tokens: pricing?.image_output_cost_per_million_tokens ?? null,
-        cost_per_image_usd:                   pricing?.cost_per_image_usd                   ?? null,
-        last_verified_at:                     pricing?.last_verified_at                     ?? null,
-      };
+      if (!model) return;
+      pricingDrafts.sync(model, pricingByModel.get(model));
     }
 
     for (const p of providers ?? []) {
@@ -524,7 +558,7 @@ interface ModelConfigItem { model: string; model_type: "text" | "image" | "audio
 
 const modelsByProvider = computed(() => {
   const map: Record<string, ModelConfigItem[]> = {};
-  for (const [provider, draft] of Object.entries(draftProviders)) {
+  for (const [provider, draft] of Object.entries(providerDrafts.drafts)) {
     if (!draft) continue;
     const items: ModelConfigItem[] = [];
     if (draft.text_model)  items.push({ model: draft.text_model,  model_type: "text" });
@@ -543,9 +577,9 @@ const modelsByProvider = computed(() => {
     } else if (draft.embedding_model) {
       items.push({ model: draft.embedding_model, model_type: "embedding" });
     }
-    // Only show pricing rows for models that have been persisted (initialized in draftModelPricing).
+    // Only show pricing rows for models that have been persisted (initialized in pricingDrafts.drafts).
     // This prevents a crash when the user is mid-type in a model name input.
-    const initialized = items.filter(item => item.model in draftModelPricing);
+    const initialized = items.filter(item => item.model in pricingDrafts.drafts);
     if (initialized.length) map[provider] = initialized;
   }
   return map;
@@ -558,16 +592,28 @@ function setDecimal(obj: Record<string, unknown>, key: string, e: Event): void {
 }
 
 async function saveModelPricing(model: string, provider: string, model_type: "text" | "image" | "audio" | "embedding") {
+  // Only the rates the admin edited, plus the verification stamp: Save means
+  // "I checked these against the provider", so it always writes the date. The
+  // date is not a rate and is left out of the comparison.
+  const changed = pricingDrafts.changes(model, (d) => ({
+    input_cost_per_million_tokens: d.input_cost_per_million_tokens,
+    output_cost_per_million_tokens: d.output_cost_per_million_tokens,
+    image_input_cost_per_million_tokens: d.image_input_cost_per_million_tokens,
+    image_output_cost_per_million_tokens: d.image_output_cost_per_million_tokens,
+    cost_per_image_usd: d.cost_per_image_usd,
+  }));
   modelPricingSaving[model] = true;
   try {
+    const verifiedAt = new Date().toISOString();
     await modelPricingQuery.upsert.mutateAsync({
       model,
       provider,
       model_type,
-      ...draftModelPricing[model],
-      last_verified_at: new Date().toISOString(),
+      ...changed,
+      last_verified_at: verifiedAt,
     });
-    draftModelPricing[model].last_verified_at = new Date().toISOString();
+    pricingDrafts.drafts[model]!.last_verified_at = verifiedAt;
+    pricingDrafts.commit(model);
   } finally {
     modelPricingSaving[model] = false;
   }

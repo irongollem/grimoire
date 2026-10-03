@@ -30,6 +30,7 @@
     />
 
     <p v-if="saveError" class="text-destructive text-body">{{ saveError }}</p>
+    <DraftConflictNotice v-if="!isShared" :fields="conflictLabels" :on-discard="reset" />
 
     <div class="grid grid-cols-1 xl:grid-cols-[13.75rem_1fr_16.25rem] gap-6">
       <!-- ── Portrait + Source ─────────────────────────────────────────── -->
@@ -235,7 +236,7 @@ const { confirm } = useConfirm();
 import { useToast } from "@/composables/useToast";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { ref, computed, reactive, watch } from "vue";
+import { ref, computed, reactive, watch, toRefs } from "vue";
 import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRouter } from "vue-router";
@@ -251,6 +252,8 @@ import { spellInsertFromAi } from "@/ai/spellAiAdapter";
 import type { SpellAiGenerated } from "@/ai/types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
+import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
+import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
@@ -295,27 +298,109 @@ const { copyOpen, copyIds, openCopy, onCopied } = useCopyEntityToCampaign({
   noun: "spell",
 });
 
-// ── Core fields ───────────────────────────────────────────────────────────────
-const name = ref(props.spell?.name ?? "");
-const level = ref(props.spell?.level ?? 1);
-const school = ref<SpellSchool>(props.spell?.school ?? "evocation");
-const castingTime = ref(props.spell?.casting_time ?? "Action");
-const castingTimeCustom = ref(props.spell?.casting_time_custom ?? "");
-const range = ref(props.spell?.range ?? "60 ft.");
-const rangeCustom = ref(props.spell?.range_custom ?? "");
-const duration = ref(props.spell?.duration ?? "Instantaneous");
-const durationCustom = ref(props.spell?.duration_custom ?? "");
-const concentration = ref(props.spell?.concentration ?? false);
-const ritual = ref(props.spell?.ritual ?? false);
-const components = ref<string[]>(props.spell?.components ?? []);
-const material = ref(props.spell?.material ?? "");
-const description = ref(props.spell?.description ?? "");
-const higherLevels = ref(props.spell?.higher_levels ?? "");
-const classes = ref<string[]>(props.spell?.classes ?? []);
-const source = ref(props.spell?.source ?? "");
-const imageUrl = ref(props.spell?.image_url ?? "");
-const imageFocalPoint = ref(props.spell?.image_focal_point ?? null);
-const aiProvenance = ref<AiProvenance | null>(props.spell?.ai_provenance ?? null);
+// Scope: null = every campaign, set = exclusive to that campaign. Editing an
+// existing spell keeps its stored scope, including a stored null — which
+// `spell ? spell.campaign_id : …` preserves. Chaining `??`
+// instead (`spell?.campaign_id ?? activeCampaignId.value`) would be
+// wrong: an existing global spell's campaign_id is legitimately null, and
+// `??` can't distinguish that from "no spell yet", so it would silently
+// re-scope the spell into whichever campaign happens to be active next time
+// someone opens and saves it — and most spells are global today (#596). A
+// new spell (no spell) defaults to the active campaign instead of
+// "every campaign" by accident — global is still available via
+// CampaignScopeField, just no longer the silent default. No active campaign
+// is a genuine "nothing to scope to yet" case.
+//
+// Every editable field lives in one draft, so the row builder below is a pure
+// function of it and useRecordDraft sends only what this edit changed (#946).
+function toDraft(spell: Spell | null) {
+  return {
+    name: spell?.name ?? "",
+    level: spell?.level ?? 1,
+    school: (spell?.school ?? "evocation") as SpellSchool,
+    castingTime: spell?.casting_time ?? "Action",
+    castingTimeCustom: spell?.casting_time_custom ?? "",
+    range: spell?.range ?? "60 ft.",
+    rangeCustom: spell?.range_custom ?? "",
+    duration: spell?.duration ?? "Instantaneous",
+    durationCustom: spell?.duration_custom ?? "",
+    concentration: spell?.concentration ?? false,
+    ritual: spell?.ritual ?? false,
+    components: [...(spell?.components ?? [])] as string[],
+    material: spell?.material ?? "",
+    description: spell?.description ?? "",
+    higherLevels: spell?.higher_levels ?? "",
+    classes: [...(spell?.classes ?? [])] as string[],
+    source: spell?.source ?? "",
+    imageUrl: spell?.image_url ?? "",
+    imageFocalPoint: spell?.image_focal_point ?? null,
+    aiProvenance: (spell?.ai_provenance ?? null) as AiProvenance | null,
+    tags: [...(spell?.tags ?? [])],
+    campaignId: (spell ? spell.campaign_id : activeCampaignId.value ?? null) as string | null,
+    attackType: spell?.attack_type ?? "",
+    saveAttribute: spell?.save_attribute ?? "",
+    saveEffect: spell?.save_effect ?? "",
+    damageRolls: cloneDraftValue(spell?.damage_rolls ?? []) as DamageRoll[],
+    healingDice: spell?.healing_dice ?? "",
+    targetDescription: spell?.target_description ?? "",
+    aoeShape: spell?.aoe_shape ?? "",
+    aoeSize: spell?.aoe_size ?? "",
+    conditionInflicted: spell?.condition_inflicted ?? "",
+  };
+}
+type SpellDraft = ReturnType<typeof toDraft>;
+
+// A shared library spell's art arrives after mount through the prop; the draft
+// merges it in for every field the user has not touched (art edits on a shared
+// spell go to the art table, never into the draft).
+const { draft, conflicts, changes, commit, reset } = useRecordDraft({
+  source: () => props.spell,
+  identity: (spell) => spell.id,
+  toDraft,
+});
+const {
+  name, level, school, castingTime, castingTimeCustom, range, rangeCustom,
+  duration, durationCustom, concentration, ritual, components, material,
+  description, higherLevels, classes, source, imageUrl, imageFocalPoint,
+  aiProvenance, tags, campaignId, attackType, saveAttribute, saveEffect,
+  damageRolls, healingDice, targetDescription, aoeShape, aoeSize,
+  conditionInflicted,
+} = toRefs(draft);
+
+const CONFLICT_LABELS: Record<keyof SpellDraft, string> = {
+  name: "Name",
+  level: "Level",
+  school: "School",
+  castingTime: "Casting Time",
+  castingTimeCustom: "Casting Time",
+  range: "Range",
+  rangeCustom: "Range",
+  duration: "Duration",
+  durationCustom: "Duration",
+  concentration: "Concentration",
+  ritual: "Ritual",
+  components: "Components",
+  material: "Material",
+  description: "Description",
+  higherLevels: "At Higher Levels",
+  classes: "Classes",
+  source: "Source",
+  imageUrl: "Image",
+  imageFocalPoint: "Image focus",
+  aiProvenance: "AI provenance",
+  tags: "Tags",
+  campaignId: "Campaign",
+  attackType: "Attack type",
+  saveAttribute: "Save",
+  saveEffect: "Save",
+  damageRolls: "Damage",
+  healingDice: "Healing",
+  targetDescription: "Target",
+  aoeShape: "Area",
+  aoeSize: "Area",
+  conditionInflicted: "Condition",
+};
+const conflictLabels = computed(() => [...new Set(conflicts.value.map((k) => CONFLICT_LABELS[k]))]);
 
 const aiContext = computed(() =>
   buildEntityContext([
@@ -323,33 +408,6 @@ const aiContext = computed(() =>
     `${level.value === 0 ? "cantrip" : `level ${level.value}`} ${school.value} spell`,
     toPlainText(description.value),
   ]),
-);
-const tags = ref<string[]>(props.spell?.tags ?? []);
-// Scope: null = every campaign, set = exclusive to that campaign. Editing an
-// existing spell keeps its stored scope, including a stored null — which
-// `props.spell ? props.spell.campaign_id : …` preserves. Chaining `??`
-// instead (`props.spell?.campaign_id ?? activeCampaignId.value`) would be
-// wrong: an existing global spell's campaign_id is legitimately null, and
-// `??` can't distinguish that from "no spell yet", so it would silently
-// re-scope the spell into whichever campaign happens to be active next time
-// someone opens and saves it — and most spells are global today (#596). A
-// new spell (no props.spell) defaults to the active campaign instead of
-// "every campaign" by accident — global is still available via
-// CampaignScopeField, just no longer the silent default. No active campaign
-// is a genuine "nothing to scope to yet" case.
-const campaignId = ref<string | null>(
-  props.spell ? props.spell.campaign_id : activeCampaignId.value ?? null,
-);
-
-// When library art loads asynchronously, sync art fields from the updated prop
-watch(
-  () => props.spell,
-  (s) => {
-    if (isShared.value && s) {
-      imageUrl.value = s.image_url ?? "";
-      imageFocalPoint.value = s.image_focal_point ?? null;
-    }
-  },
 );
 
 function onImageUrlUpdate(url: string | null) {
@@ -361,16 +419,6 @@ function onImageFocalUpdate(pt: { x: number; y: number } | null) {
   else imageFocalPoint.value = pt;
 }
 
-// ── Mechanics ─────────────────────────────────────────────────────────────────
-const attackType = ref(props.spell?.attack_type ?? "");
-const saveAttribute = ref(props.spell?.save_attribute ?? "");
-const saveEffect = ref(props.spell?.save_effect ?? "");
-const damageRolls = ref<DamageRoll[]>(props.spell?.damage_rolls ?? []);
-const healingDice = ref(props.spell?.healing_dice ?? "");
-const targetDescription = ref(props.spell?.target_description ?? "");
-const aoeShape = ref(props.spell?.aoe_shape ?? "");
-const aoeSize = ref(props.spell?.aoe_size ?? "");
-const conditionInflicted = ref(props.spell?.condition_inflicted ?? "");
 function levelSuffix(n: number): string {
   if (n === 1) return "st";
   if (n === 2) return "nd";
@@ -526,47 +574,42 @@ const isSaving = ref(false);
 const isDeleting = ref(false);
 const saveError = ref("");
 
-function buildPayload() {
+function buildPayload(d: SpellDraft) {
   return {
-    name: name.value.trim(),
-    level: level.value,
-    school: school.value,
-    casting_time: castingTime.value,
+    name: d.name.trim(),
+    level: d.level,
+    school: d.school,
+    casting_time: d.castingTime,
     casting_time_custom:
-      castingTime.value === "Special" || castingTime.value === "Reaction"
-        ? castingTimeCustom.value || null
+      d.castingTime === "Special" || d.castingTime === "Reaction"
+        ? d.castingTimeCustom || null
         : null,
-    range: range.value,
-    range_custom: range.value === "Special" ? rangeCustom.value || null : null,
-    duration: duration.value,
-    duration_custom: duration.value === "Special" ? durationCustom.value || null : null,
-    concentration: concentration.value,
-    ritual: ritual.value,
-    components: components.value,
-    material: components.value.includes("M") ? material.value || null : null,
-    description: description.value,
-    higher_levels: higherLevels.value || null,
-    classes: classes.value,
-    tags: tags.value,
-    campaign_id: campaignId.value,
-    source: source.value || null,
-    source_title: props.spell?.source_title ?? null,
-    source_url: props.spell?.source_url ?? null,
-    open5e_import: props.spell?.open5e_import ?? false,
-    image_url: imageUrl.value || null,
-    image_focal_point: imageFocalPoint.value,
-    attack_type: attackType.value || null,
-    save_attribute: attackType.value === "save" ? saveAttribute.value || null : null,
-    save_effect: attackType.value === "save" ? saveEffect.value || null : null,
-    damage_rolls: damageRolls.value.length ? damageRolls.value : null,
-    healing_dice: healingDice.value || null,
-    target_description: targetDescription.value || null,
-    aoe_shape: aoeShape.value || null,
-    aoe_size: aoeSize.value || null,
-    condition_inflicted: conditionInflicted.value || null,
-    higher_level_damage: props.spell?.higher_level_damage ?? null,
-    higher_level_healing: props.spell?.higher_level_healing ?? null,
-    ai_provenance: aiProvenance.value,
+    range: d.range,
+    range_custom: d.range === "Special" ? d.rangeCustom || null : null,
+    duration: d.duration,
+    duration_custom: d.duration === "Special" ? d.durationCustom || null : null,
+    concentration: d.concentration,
+    ritual: d.ritual,
+    components: d.components,
+    material: d.components.includes("M") ? d.material || null : null,
+    description: d.description,
+    higher_levels: d.higherLevels || null,
+    classes: d.classes,
+    tags: d.tags,
+    campaign_id: d.campaignId,
+    source: d.source || null,
+    image_url: d.imageUrl || null,
+    image_focal_point: d.imageFocalPoint,
+    attack_type: d.attackType || null,
+    save_attribute: d.attackType === "save" ? d.saveAttribute || null : null,
+    save_effect: d.attackType === "save" ? d.saveEffect || null : null,
+    damage_rolls: d.damageRolls.length ? d.damageRolls : null,
+    healing_dice: d.healingDice || null,
+    target_description: d.targetDescription || null,
+    aoe_shape: d.aoeShape || null,
+    aoe_size: d.aoeSize || null,
+    condition_inflicted: d.conditionInflicted || null,
+    ai_provenance: d.aiProvenance,
   };
 }
 
@@ -606,10 +649,25 @@ async function save() {
         aoeSize.value !== (props.spell.aoe_size ?? "") ||
         conditionInflicted.value !== (props.spell.condition_inflicted ?? "");
       if (contentChanged) aiProvenance.value = markEdited(aiProvenance.value);
-      await update({ id: props.spell.id, update: buildPayload() });
+      // Only the columns this edit changed, so a stale cached copy cannot write
+      // untouched fields back at old values (#946).
+      const changed = changes(buildPayload);
+      if (Object.keys(changed).length > 0) {
+        await update({ id: props.spell.id, update: changed });
+        commit();
+      }
       router.push("/spells");
     } else {
-      const created = await create(buildPayload());
+      // Import provenance and scaling come only from an import; a hand-made spell
+      // starts without them, and the builder stays pure over the draft.
+      const created = await create({
+        ...buildPayload(draft),
+        source_title: null,
+        source_url: null,
+        open5e_import: false,
+        higher_level_damage: null,
+        higher_level_healing: null,
+      });
       router.replace(`/spells/${created.id}?edit=true`);
     }
   } catch (e: unknown) {
