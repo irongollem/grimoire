@@ -724,6 +724,32 @@ export function md5Hex(bytes: Uint8Array): string {
 }
 
 // ---------------------------------------------------------------------------
+// Pure parts: focal point guess
+
+export interface FocalPoint {
+  x: number;
+  y: number;
+}
+
+/** What the vision model is asked to locate, per kind (#965: these answers held up on a spot check where image saliency did not). */
+export function focalTarget(kind: ArtKind): string {
+  if (kind === "monster") return "the creature's head or face (the point a portrait crop should centre on)";
+  if (kind === "item") return "the centre of the main object (not the background props)";
+  return "the centre of the main subject: the caster's face if a caster is the focus, otherwise the heart of the magical effect";
+}
+
+/** Reads the model's `{"x","y"}` answer as whole percents in 0-100; throws on anything else. */
+export function parseFocalAnswer(text: string): FocalPoint {
+  const parsed: unknown = JSON.parse(text);
+  if (typeof parsed !== "object" || parsed === null) throw new Error(`focal answer is not an object: ${text}`);
+  const { x, y } = parsed as { x?: unknown; y?: unknown };
+  const nx = Number(x), ny = Number(y);
+  if (!Number.isFinite(nx) || !Number.isFinite(ny)) throw new Error(`focal answer has no numeric x/y: ${text}`);
+  const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
+  return { x: clamp(nx), y: clamp(ny) };
+}
+
+// ---------------------------------------------------------------------------
 // I/O shell: database reads
 
 function requireEnv(name: string): string {
@@ -963,6 +989,32 @@ function base64ToBytes(b64: string): Uint8Array {
   return new Uint8Array(Buffer.from(b64, "base64"));
 }
 
+/** Asks the text model where the picture's focus is. `imageUrl` must be publicly fetchable (the CDN variant). */
+async function guessFocalPoint(apiKey: string, model: string, imageUrl: string, kind: ArtKind): Promise<FocalPoint> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      ...reasoningParams(model),
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `You locate focal points in illustrations. Reply with JSON {"x": <0-100>, "y": <0-100>}: the position of ${focalTarget(kind)}, as a percentage of the image width (x, from the left) and height (y, from the top).`,
+        },
+        { role: "user", content: [{ type: "image_url", image_url: { url: imageUrl, detail: "low" } }] },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as OpenAiErrorBody;
+    throw new Error(body.error?.message ?? `OpenAI focal guess error ${res.status}`);
+  }
+  const data = (await res.json()) as { choices: { message: { content: string } }[] };
+  return parseFocalAnswer(data.choices[0].message.content);
+}
+
 async function runGenerate(opts: GenerateOptions): Promise<void> {
   const { client, url } = connect();
   console.log(`Project: ${url} (${isLoopbackUrl(url) ? "loopback" : "NOT loopback"})`);
@@ -1155,6 +1207,33 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
   if (rows.error) throw new Error(`Could not update library_items: ${rows.error.message}`);
 }
 
+/**
+ * Writes the focal point for a just-published picture and marks it unchecked
+ * (`focal_point_checked_at` null) so the admin focal-point queue (#965) shows it
+ * for review. A new picture always replaces the old point: that point was set
+ * on the picture this one replaces. `null` (the guess failed) clears it, so the
+ * cards fall back to their default crop instead of the old picture's point.
+ */
+async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids: string[], focal: FocalPoint | null): Promise<void> {
+  const check = (error: { message: string } | null, what: string) => {
+    if (error) throw new Error(`Could not write the focal point on ${what}: ${error.message}`);
+  };
+  if (entry.kind === "spell") {
+    if (entry.id === null) throw new Error(`${entry.slug}: a spell entry needs an id.`);
+    check((await client.from("library_spell_art_canonical").update({ portrait_focal_point: focal, focal_point_checked_at: null }).eq("entry_id", entry.id)).error, "library_spell_art_canonical");
+    check((await client.from("library_spells").update({ image_focal_point: focal }).in("id", ids)).error, "library_spells");
+    return;
+  }
+  if (entry.kind === "monster") {
+    check((await client.from("library_monster_art_canonical").update({ portrait_focal_point: focal, focal_point_checked_at: null }).in("entry_id", ids)).error, "library_monster_art_canonical");
+    check((await client.from("library_monsters").update({ portrait_focal_point: focal }).in("id", ids)).error, "library_monsters");
+    return;
+  }
+  const names = itemNames(entry).map((name) => name.toLowerCase());
+  check((await client.from("library_art_defaults").update({ image_focal_point: focal, focal_point_checked_at: null }).eq("content_type", "item").in("content_name", names)).error, "library_art_defaults");
+  check((await client.from("library_items").update({ image_focal_point: focal }).in("id", ids)).error, "library_items");
+}
+
 async function runPublish(opts: PublishOptions): Promise<void> {
   const { client, url: supabaseUrl } = connect();
   const loopback = isLoopbackUrl(supabaseUrl);
@@ -1176,6 +1255,9 @@ async function runPublish(opts: PublishOptions): Promise<void> {
     return;
   }
   const owner = opts.write ? await resolveOwner(client, opts.libraryOwner) : opts.libraryOwner;
+  // The focal guess reuses the platform text model, as `generate` does for subjects.
+  const focalModel = opts.write ? (await loadSettings(client)).textModel : null;
+  const openaiKey = opts.write ? requireEnv("OPENAI_API_KEY") : null;
 
   for (const entry of entries) {
     const bucket = BUCKET_FOR_KIND[entry.kind];
@@ -1199,6 +1281,7 @@ async function runPublish(opts: PublishOptions): Promise<void> {
     console.log(`  provenance ${bucket} ${path} owner ${owner ?? "(resolved at --write)"}`);
     console.log(`  ${TABLES_FOR_KIND[entry.kind]} -> ${storedUrl}`);
     console.log(`  rows: ${rowIds.join(", ")}`);
+    console.log("  focal: guessed by the text model after upload, marked unchecked for the focal-point queue");
     if (!opts.write || r2 === null || owner === null) continue;
 
     // Fix the path before the first byte leaves, so a re-run reuses it.
@@ -1213,6 +1296,15 @@ async function runPublish(opts: PublishOptions): Promise<void> {
     }
     await registerImageProvenance(client, bucket, path, owner, prov);
     await writeRows(client, entry, rowIds, storedUrl);
+    let focal: FocalPoint | null = null;
+    try {
+      if (openaiKey === null || focalModel === null) throw new Error("no model");
+      focal = await guessFocalPoint(openaiKey, focalModel, assetCdnUrl(bucket, variantPath(path, 400), cdnBase) ?? storedUrl, entry.kind);
+    } catch (error) {
+      console.log(`  focal guess failed (${error instanceof Error ? error.message : String(error)}); cleared, the card uses its default crop`);
+    }
+    await writeFocalGuess(client, entry, rowIds, focal);
+    if (focal) console.log(`  focal ${focal.x},${focal.y} (unchecked)`);
     manifest = updateEntry(manifest, entry.slug, {
       status: "published",
       publish: { bucket, path, url: storedUrl, publishedAt: new Date().toISOString(), rowsUpdated: rowIds },

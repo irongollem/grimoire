@@ -11,6 +11,9 @@
          useEmbeddingBackfill's module-level state. -->
     <MonsterEmbeddingBackfill />
 
+    <!-- Focal point review (#965) -->
+    <LibraryFocalQueuePanel />
+
     <!-- Library art repair -->
     <LibraryArtRepairPanel />
     <LibraryArtRepairPanel mode="spell" />
@@ -98,6 +101,7 @@ import { ref, computed } from "vue";
 import { IconCheck } from "@/lib/icons";
 import DemoCampaignAdminPanel from "@/components/admin/DemoCampaignAdminPanel.vue";
 import MonsterEmbeddingBackfill from "@/components/admin/MonsterEmbeddingBackfill.vue";
+import LibraryFocalQueuePanel from "@/components/admin/LibraryFocalQueuePanel.vue";
 import LibraryArtRepairPanel from "@/components/admin/LibraryArtRepairPanel.vue";
 import VariantSweepPanel from "@/components/admin/VariantSweepPanel.vue";
 import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vue";

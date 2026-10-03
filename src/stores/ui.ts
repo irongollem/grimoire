@@ -10,6 +10,7 @@ import type { NpcStatus, NpcRelationship, NpcRelationshipType } from "@/types/np
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 import type { DocumentScope } from "@/lib/scriptorium/documentScope";
 import type { ItemType, ItemRarity } from "@/types/item.types";
+import type { FocalKind, FocalStatus } from "@/lib/library/focalQueue";
 import type { ItemScope } from "@/lib/items/itemScope";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import type { SoundCategory } from "@/types/sound.types";
@@ -140,6 +141,19 @@ export const useUiStore = defineStore("ui", () => {
     monstersSearch.value = "";
     monstersFilterType.value = "all";
     monstersFilterSource.value = "all";
+  }
+
+  // Admin focal-point queue (#965)
+  const focalQueueKind = ref<FocalKind>("monster");
+  const focalQueueStatus = ref<FocalStatus>("unchecked");
+
+  const focalQueueHasActiveFilters = computed(
+    () => focalQueueKind.value !== "monster" || focalQueueStatus.value !== "unchecked",
+  );
+
+  function resetFocalQueueFilters() {
+    focalQueueKind.value = "monster";
+    focalQueueStatus.value = "unchecked";
   }
 
   // Spellbook UI state
@@ -1143,6 +1157,12 @@ export const useUiStore = defineStore("ui", () => {
     monstersHasActiveFilters,
     resetMonstersFilters,
     monsterGeneratorOpen,
+
+    // Admin focal-point queue
+    focalQueueKind,
+    focalQueueStatus,
+    focalQueueHasActiveFilters,
+    resetFocalQueueFilters,
 
     // Spells
     spellsSearch,

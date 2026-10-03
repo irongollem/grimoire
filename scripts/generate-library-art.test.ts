@@ -26,7 +26,9 @@ import {
   retryAfterMs,
   selectEntries,
   selectForPublish,
+  focalTarget,
   itemNames,
+  parseFocalAnswer,
   itemScene,
   itemSetting,
   itemStaging,
@@ -347,5 +349,25 @@ describe("encoding round trip", () => {
       const meta = await sharp(v.bytes).metadata();
       expect(meta.width).toBe(Math.min(v.width, width));
     }
+  });
+});
+
+describe("focal point guess", () => {
+  it("asks for the face of a creature, the centre of an item and the focus of a spell", () => {
+    expect(focalTarget("monster")).toMatch(/head or face/);
+    expect(focalTarget("item")).toMatch(/centre of the main object/);
+    expect(focalTarget("spell")).toMatch(/caster's face|magical effect/);
+  });
+
+  it("reads the model's answer as whole percents and clamps it", () => {
+    expect(parseFocalAnswer('{"x": 52.4, "y": 23.6}')).toEqual({ x: 52, y: 24 });
+    expect(parseFocalAnswer('{"x": -4, "y": 140}')).toEqual({ x: 0, y: 100 });
+    expect(parseFocalAnswer('{"x": "61", "y": "30"}')).toEqual({ x: 61, y: 30 });
+  });
+
+  it("refuses an answer without a usable point", () => {
+    expect(() => parseFocalAnswer('{"x": "left"}')).toThrow(/numeric/);
+    expect(() => parseFocalAnswer("null")).toThrow(/not an object/);
+    expect(() => parseFocalAnswer("not json")).toThrow();
   });
 });

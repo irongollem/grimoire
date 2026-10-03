@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-4 space-y-4">
     <div>
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Variant Sweep</h2>
+      <h2 class="text-heading-sm font-bold text-foreground">Variant Sweep</h2>
       <p class="text-caption text-muted-foreground italic mt-0.5">
         Scans shared and your own image folders for originals missing pre-generated size variants, and backfills them.
       </p>
