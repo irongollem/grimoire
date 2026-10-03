@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { partyRoomInSite, reachableRoomIds } from "./siteRun";
+import { partyRoomInSite, reachableRoomIds, siteReachability } from "./siteRun";
 import type { DoorEdge } from "./siteRun";
 
 function door(overrides: Partial<DoorEdge> = {}): DoorEdge {
@@ -99,5 +99,28 @@ describe("reachableRoomIds", () => {
   it("defaults unlockedDoorIds to empty when the caller omits it", () => {
     const doors = [door({ id: "door-x", starts_locked: true })];
     expect(reachableRoomIds("room-a", doors)).toEqual(new Set(["room-a"]));
+  });
+});
+
+describe("siteReachability", () => {
+  it("makes no claim before the party is in a room of the site", () => {
+    expect(siteReachability(null, [door()])).toBeNull();
+  });
+
+  // A site with rooms and no ways out drawn used to answer "only the room
+  // the party is in", which locked the party into the first room clicked.
+  it("makes no claim when the site has no way out with a room on both sides", () => {
+    expect(siteReachability("room-a", [])).toBeNull();
+    expect(siteReachability("room-a", [door({ to_location_id: null })])).toBeNull();
+  });
+
+  it("is the reachable set once the door graph says something", () => {
+    expect(siteReachability("room-a", [door()])).toEqual(new Set(["room-a", "room-b"]));
+  });
+
+  it("still reports a room behind a locked door as out of reach", () => {
+    const doors = [door({ id: "door-x", starts_locked: true })];
+    expect(siteReachability("room-a", doors)).toEqual(new Set(["room-a"]));
+    expect(siteReachability("room-a", doors, new Set(["door-x"]))).toEqual(new Set(["room-a", "room-b"]));
   });
 });

@@ -29,7 +29,13 @@
            purpose: the column must stretch to the beat card's height for
            `mt-auto` to have anywhere to push the strip down to (#776's fix,
            which must not regress into a sticky bar again). -->
-      <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <!-- Under the site handoff there is no rail: frame 06 draws the site
+           across the whole cockpit, and its own three columns need that
+           width. Beside a 20rem rail the handoff's two fixed columns left
+           the floor plan a column zero pixels wide. The ledger and story so
+           far come back with "Leave site"; "Advance beat" opens the same
+           dialog the rail's outcome strip does. -->
+      <div class="grid gap-3" :class="showSiteHandoff ? '' : 'xl:grid-cols-[minmax(0,1fr)_20rem]'">
         <div class="flex flex-col gap-3 min-h-0">
           <QuestSiteHandoff
             v-if="showSiteHandoff"
@@ -47,6 +53,8 @@
               :attachments="currentAttachments"
               :thread-badge="currentThreadBadge"
               :place-name="stagedLocation?.name ?? null"
+              :site-name="stagedSiteWithRooms?.name ?? null"
+              @enter-site="siteHandoffDismissed = false"
               @open-attachment="selectedAttachment = $event"
               @reveal="revealBeat(currentBeat.id)"
             />
@@ -90,7 +98,7 @@
         </div>
         <!-- Rail, xl and up only — below that Ledger/Story so far/Open Chains
              already mount inside the Prep sheet, so this doesn't mount at all. -->
-        <div v-if="!belowXl" class="flex flex-col gap-3 min-h-0">
+        <div v-if="!belowXl && !showSiteHandoff" class="flex flex-col gap-3 min-h-0">
           <QuestRunObjectivesLedger :quest-id="anchorQuestId" :thread-id="threadId" :outgoing="context.outgoing" :threads="context.threads" />
           <QuestRunStorySoFar
             :quest-id="anchorQuestId"

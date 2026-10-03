@@ -27,7 +27,6 @@
           size="sm"
           block
           class="min-w-0 flex-1 gap-2.5 p-0"
-          :to="linkTo(room)"
           @click="onRowClick(room)"
         >
           <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded font-cinzel text-label font-bold" :class="numberClass(room)">
@@ -63,12 +62,16 @@
  * The site's rooms, numbered in `compareSiblings` order — the one room list
  * shared by `SiteRunSurface` (the Atlas Run action) and `QuestSiteHandoff`
  * (#850 story H). Previously each surface grew its own copy of this exact
- * click-to-move / unreachable-links-to-sheet logic; this is the single
- * version both now mount, so it can never drift into two answers for "can
- * the party reach this room" again.
+ * click-to-move logic; this is the single version both now mount, so it can
+ * never drift into two answers for "can the party reach this room" again.
+ *
+ * A row always moves the party. A room the door graph leaves out is dimmed
+ * and captioned, and `useMoveParty` asks before moving there; it used to be
+ * a link to the room's Atlas page instead, which took the DM off the surface
+ * and left no way to put the party anywhere the graph did not allow.
  *
  * Self-contained on purpose, the same shape `LootPlacementList` already set:
- * it performs its own writes (`useSetCampaignLocation` to move the party,
+ * it performs its own writes (`useMoveParty` to move the party,
  * `useUpdateLocation` to save a Fill) and only *announces* what happened via
  * `move` / `fill`, mirroring `LootPlacementList`'s `dropped`. Neither current
  * caller needs to react to either emit — both mutations already invalidate
@@ -83,9 +86,8 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { IconCoins, IconHide, IconShieldCheck } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
+import { useMoveParty } from "@/composables/locations/useMoveParty";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
-import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
-import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { roomRowCaption, roomsWithHeldLoot } from "@/lib/quests/siteHandoff";
 import type { LocationState, LocationStateFact } from "@/types/locationState.types";
@@ -119,7 +121,6 @@ const {
 }>();
 const emit = defineEmits<{ move: [roomId: string]; fill: [roomId: string] }>();
 
-const campaign = useCampaignStore();
 const toast = useToast();
 
 function indexOf(room: Location): number {
@@ -166,19 +167,11 @@ function numberClass(room: Location): string {
 }
 
 // ── Move ──────────────────────────────────────────────────────────────────
-const { mutate: setCampaignLocation, isPending: isMoving } = useSetCampaignLocation();
+const { moveParty } = useMoveParty();
 
-function linkTo(room: Location): string | undefined {
-  if (room.id === currentRoomId) return undefined;
-  return isReachable(room) ? undefined : placeRoute(room.id);
-}
-
-function onRowClick(room: Location): void {
-  if (room.id === currentRoomId || !isReachable(room) || !campaign.activeCampaignId || isMoving.value) return;
-  setCampaignLocation(
-    { id: campaign.activeCampaignId, locationId: room.id },
-    { onSuccess: () => emit("move", room.id), onError: (e) => toast.error(toast.fromError(e)) },
-  );
+async function onRowClick(room: Location): Promise<void> {
+  const moved = await moveParty({ roomId: room.id, roomName: room.name, currentRoomId, reachable });
+  if (moved) emit("move", room.id);
 }
 
 // ── Fill ──────────────────────────────────────────────────────────────────

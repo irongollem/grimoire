@@ -174,7 +174,6 @@ const pointerOptions: UseRegionNavPointerOptions = {
   onNavigate,
   onDescend: (spaceId) => emit("descend", spaceId),
   onMoveParty: (roomId) => emit("move-party", roomId),
-  isReachable: (roomId) => !reachableRoomIds || reachableRoomIds.has(roomId),
   isNestedSite: (spaceId) => nestedSiteIds.has(spaceId),
   onHover: (regionId) => emit("hover-region", regionId),
 };

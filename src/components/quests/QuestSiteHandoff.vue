@@ -6,7 +6,7 @@
     Loading the site…
   </div>
 
-  <div v-else class="flex flex-col gap-4">
+  <div v-else class="@container flex flex-col gap-4">
     <!-- Header strip -->
     <!-- `min-w-0 flex-1` on the title gives it a 0% flex-basis, so `flex-wrap`
          never actually wraps the button row onto its own line below xl — the
@@ -65,9 +65,14 @@
          it is a JS-level branch (not CSS visibility) — both arms mount
          SiteRunRoomStack/SiteRunWaysOut/LocationStateControls, and mounting
          both would double every query they run. -->
-    <div v-if="!belowXl" class="grid grid-cols-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_20rem]">
+    <!-- The column count follows this component's own width (a container
+         query), not the viewport's: the app sidebar and whatever sits beside
+         the handoff take their share first, and two fixed 20rem columns on a
+         viewport breakpoint left the floor plan no width at all. Under 72rem
+         the third column drops beneath the plan, so the plan keeps the room. -->
+    <div v-if="!belowXl" class="grid grid-cols-[20rem_minmax(0,1fr)] gap-4 @6xl:grid-cols-[20rem_minmax(0,1fr)_20rem]">
       <!-- Rooms -->
-      <section class="flex min-h-0 flex-col gap-2 rounded-xl border border-border bg-card p-3">
+      <section class="row-span-2 flex min-h-0 flex-col gap-2 rounded-xl border border-border bg-card p-3 @6xl:row-span-1">
         <header class="flex items-center gap-2">
           <h2 class="font-cinzel text-sm font-bold text-foreground">{{ siteSpaceHeading }}</h2>
           <span v-if="unwrittenIds.size" class="ml-auto rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">
@@ -84,7 +89,6 @@
           run-captions
           :secret-undiscovered-ids="secretUndiscoveredIds"
           :zone-notes="zoneNotes"
-          @move="moveTo"
         />
         <p class="text-caption text-muted-foreground">
           {{ roomsFooterCaption }}
@@ -147,10 +151,11 @@
         </section>
       </div>
 
-      <!-- Right: ways out of the current room, and its progress. -->
-      <div class="flex min-h-0 flex-col gap-4">
+      <!-- Right: ways out of the current room, and its progress. Absent
+           until the party is in a room: both halves need one, and an empty
+           grid item would still open a second row under the plan. -->
+      <div v-if="currentRoom" class="flex min-h-0 flex-col gap-4">
         <SiteRunWaysOut
-          v-if="currentRoom"
           :site-id="site.id"
           :room-id="currentRoom.id"
           :room-name="currentRoom.name"
@@ -158,7 +163,7 @@
           :door-state="doorStateOf"
         />
 
-        <section v-if="currentRoom" class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
+        <section class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
           <h3 class="font-cinzel text-sm font-bold text-foreground">Progress</h3>
           <p class="text-caption text-muted-foreground">{{ currentRoom.name }}</p>
           <LocationStateControls :location-id="currentRoom.id" />
@@ -347,14 +352,14 @@ import { useLocationStateForRooms, useDoorStateForSite } from "@/composables/loc
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
 import { useQuest } from "@/composables/quests/useQuests";
-import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
+import { useMoveParty } from "@/composables/locations/useMoveParty";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { useBelow } from "@/composables/useBreakpoint";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { bindableSpaces, childSpaceType, isInteriorType, isSiteType, spaceHeading, spaceNoun } from "@/lib/locations/tiers";
 import { compareSiblings } from "@/lib/locations/tree";
-import { partyRoomInSite, reachableRoomIds as computeReachableRoomIds } from "@/lib/locations/siteRun";
+import { partyRoomInSite, siteReachability } from "@/lib/locations/siteRun";
 import { threadBadge, threadBadges } from "@/lib/quests/threads";
 import { roomOrdinal, unwrittenRoomIds } from "@/lib/quests/siteHandoff";
 import { zoneSummary } from "@/lib/locations/zones";
@@ -454,10 +459,8 @@ const doorsQuery = useSiteDoors(roomIds);
 const doors = computed(() => doorsQuery.data.value ?? []);
 const { stateOf: doorStateOf } = useDoorStateForSite(siteId);
 const reachable = computed(() => {
-  const from = currentRoomId.value;
-  if (!from) return null;
   const unlocked = new Set(doors.value.filter((d) => doorStateOf(d.id, "unlocked")?.value === true).map((d) => d.id));
-  return computeReachableRoomIds(from, doors.value, unlocked);
+  return siteReachability(currentRoomId.value, doors.value, unlocked);
 });
 
 const regionsQuery = useLocationMapRegions(siteId);
@@ -551,22 +554,25 @@ const triggerZone = computed(() => {
 const showTriggerPrompt = computed(() => !!triggerZone.value && dismissedRoomId.value !== currentRoomId.value);
 function dismissTriggerPrompt(): void { dismissedRoomId.value = currentRoomId.value; }
 
-const { mutate: setCampaignLocation, isPending: isMoving } = useSetCampaignLocation();
-function moveTo(roomId: string): void {
-  if (!campaign.activeCampaignId || isMoving.value || roomId === currentRoomId.value) return;
-  setCampaignLocation({ id: campaign.activeCampaignId, locationId: roomId }, { onError: (e) => toast.error(toast.fromError(e)) });
+// A click on the plan. The room list makes the same move itself
+// (`SiteRoomList`); both go through `useMoveParty`, which asks before a move
+// the door graph does not allow rather than refusing it.
+const { moveParty } = useMoveParty();
+function moveTo(roomId: string): Promise<boolean> {
+  const space = siteSpaces.value.find((s) => s.id === roomId);
+  if (!space) return Promise.resolve(false);
+  return moveParty({ roomId, roomName: space.name, currentRoomId: currentRoomId.value, reachable: reachable.value });
 }
 
 // Frame 4's Rooms sheet and expanded-map sheet both close on a successful
 // move — the DM asked "where next," got their answer, and the sheet
 // covering the current-room card is no longer where they want to look.
-function onRoomsSheetMove(roomId: string): void {
-  moveTo(roomId);
+// The Rooms sheet's list has already moved the party by the time it emits.
+function onRoomsSheetMove(): void {
   roomsSheetOpen.value = false;
 }
-function onExpandedMapMove(roomId: string): void {
-  moveTo(roomId);
-  mapExpandOpen.value = false;
+async function onExpandedMapMove(roomId: string): Promise<void> {
+  if (await moveTo(roomId)) mapExpandOpen.value = false;
 }
 
 // ── Show/hide the map to players ────────────────────────────────────────

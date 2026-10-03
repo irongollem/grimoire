@@ -1,5 +1,5 @@
 import { flushPromises, shallowMount } from "@vue/test-utils";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestRunCockpit from "./QuestRunCockpit.vue";
 import QuestRunSessionPanel from "./QuestRunSessionPanel.vue";
@@ -333,6 +333,25 @@ describe("QuestRunCockpit", () => {
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
     expect(wrapper.findComponent({ name: "QuestSiteHandoff" }).exists()).toBe(true);
     expect(wrapper.findComponent(QuestRunBeatCard).exists()).toBe(false);
+  });
+
+  // Frame 06 draws the site across the whole cockpit. Beside the 20rem rail
+  // the handoff's own fixed columns left its floor plan zero pixels wide, so
+  // the rail steps aside for as long as the handoff is up, and comes back on
+  // "Leave site".
+  it("gives the site handoff the whole width: no rail beside it, and the rail back on Leave site", async () => {
+    mocks.context.value = runningContext();
+    mocks.beats.value = [{ ...beat, staged_at_location_id: "room-1" }];
+    mocks.locations.value = [
+      { id: "site-1", parent_id: null, location_type: "dungeon" },
+      { id: "room-1", parent_id: "site-1", location_type: "room" },
+    ];
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    expect(wrapper.findComponent(QuestRunOutcomeStrip).exists()).toBe(false);
+
+    wrapper.findComponent({ name: "QuestSiteHandoff" }).vm.$emit("leave");
+    await nextTick();
+    expect(wrapper.findComponent(QuestRunOutcomeStrip).exists()).toBe(true);
   });
 
   it("does not mount the site handoff for a beat staged at a non-site location", () => {

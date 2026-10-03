@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="@container flex flex-col gap-4">
     <SiteRunHeader
       :site-name="location.name"
       :quest-title="currentBeat?.quest?.title ?? null"
@@ -8,10 +8,14 @@
       @stop="stopRunning"
     />
 
-    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_20rem]">
+    <!-- Columns follow this surface's own width (a container query), not the
+         viewport's: it renders inside the Atlas pane, beside the app sidebar
+         and the tree's fold rail, so at a viewport of `xl` two fixed 20rem
+         columns left the plan a sliver. Same rule as `QuestSiteHandoff`. -->
+    <div class="grid grid-cols-1 gap-4 @3xl:grid-cols-[20rem_minmax(0,1fr)] @6xl:grid-cols-[20rem_minmax(0,1fr)_20rem]">
       <!-- Rooms — the plain click-to-move list, which is what makes a site
            runnable before any of it is traced. -->
-      <section class="flex flex-col gap-3">
+      <section class="flex flex-col gap-3 @3xl:row-span-2 @6xl:row-span-1">
         <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Rooms</h2>
         <SiteRoomList
           :site-id="location.id"
@@ -23,7 +27,6 @@
           run-captions
           :secret-undiscovered-ids="secretUndiscoveredIds"
           :zone-notes="zoneNotes"
-          @move="moveTo"
         />
       </section>
 
@@ -85,8 +88,9 @@
         </p>
       </div>
 
-      <!-- Beat card (when one is staged here), ways out, progress. -->
-      <div class="flex flex-col gap-4">
+      <!-- Beat card (when one is staged here), ways out, progress. Absent
+           when it would hold nothing, so an empty item opens no second row. -->
+      <div v-if="currentBeat || currentRoom" class="flex flex-col gap-4">
         <SiteRunBeatCard v-if="currentBeat" :beat="currentBeat" />
 
         <SiteRunWaysOut
@@ -151,13 +155,12 @@ import { useLocationMapRegions } from "@/composables/locations/useLocationMapReg
 import { useLootPlacements, useQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useLocationStateForRooms, useDoorStateForSite } from "@/composables/locations/useLocationState";
-import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
+import { useMoveParty } from "@/composables/locations/useMoveParty";
 import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
-import { useToast } from "@/composables/useToast";
 import { compareSiblings } from "@/lib/locations/tree";
-import { partyRoomInSite, reachableRoomIds as computeReachableRoomIds } from "@/lib/locations/siteRun";
+import { partyRoomInSite, siteReachability } from "@/lib/locations/siteRun";
 import { unwrittenRoomIds } from "@/lib/quests/siteHandoff";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import { zoneSummary } from "@/lib/locations/zones";
@@ -167,7 +170,6 @@ const { location } = defineProps<{ location: Location }>();
 
 const route = useRoute();
 const router = useRouter();
-const toast = useToast();
 const campaign = useCampaignStore();
 const ui = useUiStore();
 
@@ -204,13 +206,12 @@ const { data: currentRoomLoot } = useLootPlacements({ locationId: currentRoomIdO
 const doorsQuery = useSiteDoors(roomIds);
 const doors = computed(() => doorsQuery.data.value ?? []);
 const { stateOf: doorStateOf } = useDoorStateForSite(siteId);
-// `null` before the party has entered any room of this site — nothing to be
-// unreachable from yet, so every room renders and behaves as reachable.
+// `null` when there is nothing to derive it from (the party is not in a room
+// here yet, or the site has no ways out drawn): every room then renders and
+// behaves as reachable. See `siteReachability`.
 const reachable = computed(() => {
-  const from = currentRoomId.value;
-  if (!from) return null;
   const unlocked = new Set(doors.value.filter((d) => doorStateOf(d.id, "unlocked")?.value === true).map((d) => d.id));
-  return computeReachableRoomIds(from, doors.value, unlocked);
+  return siteReachability(currentRoomId.value, doors.value, unlocked);
 });
 const unwrittenIds = computed(() => unwrittenRoomIds(rooms.value));
 
@@ -321,14 +322,15 @@ const backToBeatTarget = computed<RouteLocationRaw | null>(() =>
 );
 
 // ── Moving the party ──────────────────────────────────────────────────────
-const { mutate: setCampaignLocation, isPending: isMoving } = useSetCampaignLocation();
+// A click on the plan. The room list makes the same move itself
+// (`SiteRoomList`); both go through `useMoveParty`, which asks before a move
+// the door graph does not allow rather than refusing it.
+const { moveParty } = useMoveParty();
 
 function moveTo(roomId: string): void {
-  if (!campaign.activeCampaignId || isMoving.value || roomId === currentRoomId.value) return;
-  setCampaignLocation(
-    { id: campaign.activeCampaignId, locationId: roomId },
-    { onError: (e) => toast.error(toast.fromError(e)) },
-  );
+  const space = siteSpaces.value.find((s) => s.id === roomId);
+  if (!space) return;
+  void moveParty({ roomId, roomName: space.name, currentRoomId: currentRoomId.value, reachable: reachable.value });
 }
 
 // ── Context: the site's own state at a glance ────────────────────────────────
