@@ -313,6 +313,7 @@
 }
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden img) > .flex.flex-1.flex-col.p-3 h3 {
   flex: none;
+  max-width: 100%;
   font-family: "Cinzel", Georgia, serif;
   font-size: 1rem;
   font-weight: 700;
@@ -347,16 +348,21 @@
 /* Badges beside the name (monster source book and CR) crowd a centred
    title; they move onto the bottom-right of the plate as labels instead:
    the source as a paper label, CR keeping its ramp colour. Positioned
-   against the card, so only for the standard h-36 plate. */
+   against the card, so only for the standard h-36 plate. Anchored on both
+   sides so a long book title truncates inside the plate instead of running
+   out past its left edge. */
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden.h-36 img) > .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div {
   position: absolute;
   z-index: 3;
   top: calc(0.7rem + 9rem - 1.85rem);
   right: 1.2rem;
+  left: 1.2rem;
+  justify-content: flex-end;
   gap: 0.3rem;
 }
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden.h-36 img) > .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div > span { border-radius: 0; padding: 0.15rem 0.4rem; box-shadow: 0 1px 0 rgb(43 32 25 / 0.25); }
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden.h-36 img) > .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div > span:not(:last-child) {
+  min-width: 0;
   max-width: none;
   background: color-mix(in oklab, var(--card) 92%, transparent);
   border: 1px solid color-mix(in oklab, var(--foreground) 35%, transparent);
