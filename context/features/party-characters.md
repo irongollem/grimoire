@@ -534,12 +534,12 @@ the classless state.
 #### The owner acts for a character (migration `20261002153212`)
 
 A character has a creator (`user_id`) and an owner (`owner_user_id`). They
-differ once a DM-made character is handed to a player. Seventeen functions (the
-level and spell RPCs) and eight policies were written before that mattered and
+differ once a DM-made character is handed to a player. Eighteen functions (the
+level, spell and Wild Shape RPCs) and eight policies were written before that mattered and
 admitted "creator or owner", so the account that made a character kept its
 rights after handing it over. A security audit of the one class model did it
-for real: as the creator of a character someone else owned, and which he could
-no longer even read, `apply_de_level` rewrote its hit points.
+for real: as the creator of a character someone else owned, and which the creator
+could no longer even read, `apply_de_level` rewrote its hit points.
 
 The rule, everywhere: **the owner, or the creator while nobody owns it**, plus
 (where it was already so) the DM of the character's table and the member seated

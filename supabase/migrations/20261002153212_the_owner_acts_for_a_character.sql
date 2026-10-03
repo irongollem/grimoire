@@ -2,7 +2,7 @@
 --
 -- A character has two accounts on it: user_id, who created the row, and
 -- owner_user_id, whose character it is. They differ once a DM-made roster
--- character is handed to a player (20261002151707). Seventeen functions and
+-- character is handed to a player (20261002151707). Eighteen functions and
 -- eight policies were written before that distinction mattered, and admit
 -- "creator or owner":
 --
@@ -1454,3 +1454,129 @@ begin
   return new;
 end;
 $function$;
+
+-- ── exchange_wild_shape (20261003103928, epic #959) ─────────────────────────
+-- Written while this epic was in review, with the same "creator or owner"
+-- clause, and with a fallback to the typed class for a druid that has no class
+-- row, which cannot exist since 20261002151709. Its migration's own note
+-- expected both to go here. The body is that migration's, with those two
+-- changes.
+
+create or replace function public.exchange_wild_shape(
+  p_party_member_id uuid,
+  p_action text,
+  p_slot_level integer,
+  p_slot_pool text default 'spellcasting',
+  p_slot_template jsonb default null,
+  p_healing integer default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_member public.party_members%rowtype;
+  v_slots jsonb;
+  v_slot jsonb;
+  v_used integer;
+  v_uses integer;
+  v_choices jsonb;
+  v_form jsonb;
+  v_found boolean := false;
+begin
+  -- Total checks: `x not in (...)` is NULL for a NULL x and would not raise,
+  -- so every argument is tested for absence explicitly.
+  if p_action is null or p_action not in ('slot_for_healing', 'slot_for_use', 'use_for_slot') then
+    raise exception 'Invalid Wild Shape exchange';
+  end if;
+  if p_action in ('slot_for_healing', 'slot_for_use')
+     and (p_slot_level is null or p_slot_level not between 1 and 9 or p_slot_pool is null) then
+    raise exception 'Choose a spell slot to spend';
+  end if;
+
+  select * into v_member from public.party_members where id = p_party_member_id for update;
+  if not found then raise exception 'Party member not found'; end if;
+  if not coalesce((
+    v_member.owner_user_id = (select auth.uid())
+    or (v_member.owner_user_id is null and v_member.user_id = (select auth.uid()))
+    or private.is_campaign_dm(v_member.campaign_id)
+    or exists (
+      select 1 from public.campaign_members cm
+      where cm.user_id = (select auth.uid()) and cm.party_member_id = v_member.id
+    )
+  ), false) then raise exception 'Access denied'; end if;
+
+  -- The same test as the client's `druidProfile`: a druid class row. The class
+  -- rows are the only record of a character's classes.
+  if not exists (
+    select 1 from public.character_classes cc
+    where cc.party_member_id = v_member.id and cc.class_name ilike '%druid%'
+  ) then raise exception 'Wild Shape requires a Druid'; end if;
+
+  v_uses := coalesce(v_member.wildshapes_used, 0);
+  v_choices := coalesce(v_member.class_choices, '{}'::jsonb);
+  v_form := v_member.wildshape_state;
+  v_slots := coalesce(v_member.spell_slots, '[]'::jsonb);
+
+  if p_action = 'slot_for_healing' then
+    -- Only a form with its own hit point pool (2014) can be healed this way.
+    -- Coalesced: an absent key makes jsonb_typeof NULL, the IF would not fire,
+    -- and the slot would be spent before jsonb_set nulled the whole form.
+    if v_form is null
+       or coalesce(jsonb_typeof(v_form -> 'beast_hp'), '') <> 'number'
+       or coalesce(jsonb_typeof(v_form -> 'beast_max_hp'), '') <> 'number' then
+      raise exception 'Not in a beast form with its own hit points';
+    end if;
+    if p_healing is null or p_healing < p_slot_level or p_healing > 8 * p_slot_level then
+      raise exception 'Healing must be what 1d8 per slot level can roll';
+    end if;
+    v_slots := public.spend_spell_slot(p_party_member_id, p_slot_level, p_slot_pool, p_slot_template);
+    v_form := jsonb_set(v_form, '{beast_hp}', to_jsonb(least(
+      (v_form ->> 'beast_max_hp')::integer,
+      (v_form ->> 'beast_hp')::integer + p_healing
+    )), false);
+    update public.party_members set wildshape_state = v_form where id = p_party_member_id;
+
+  elsif p_action = 'slot_for_use' then
+    if v_uses <= 0 then raise exception 'No Wild Shape use has been spent'; end if;
+    v_slots := public.spend_spell_slot(p_party_member_id, p_slot_level, p_slot_pool, p_slot_template);
+    v_uses := v_uses - 1;
+    update public.party_members set wildshapes_used = v_uses where id = p_party_member_id;
+
+  elsif p_action = 'use_for_slot' then
+    if coalesce((v_choices ->> 'wild_resurgence_slot_taken')::boolean, false) then
+      raise exception 'Already regained a slot from Wild Shape this long rest';
+    end if;
+    if jsonb_typeof(v_slots) <> 'array' then raise exception 'Invalid spell slot state'; end if;
+    if jsonb_array_length(v_slots) > 0 then
+      for v_index in 0..jsonb_array_length(v_slots) - 1 loop
+        v_slot := v_slots -> v_index;
+        v_used := coalesce((v_slot ->> 'used')::integer, 0);
+        if (v_slot ->> 'level')::integer = 1
+           and coalesce(v_slot ->> 'pool', 'spellcasting') = 'spellcasting'
+           and v_used > 0 then
+          v_slots := jsonb_set(v_slots, array[v_index::text, 'used'], to_jsonb(v_used - 1), false);
+          v_found := true;
+          exit;
+        end if;
+      end loop;
+    end if;
+    if not v_found then raise exception 'No expended level 1 spell slot to regain'; end if;
+    v_uses := v_uses + 1;
+    v_choices := jsonb_set(v_choices, '{wild_resurgence_slot_taken}', 'true'::jsonb, true);
+    update public.party_members
+      set spell_slots = v_slots, wildshapes_used = v_uses, class_choices = v_choices
+      where id = p_party_member_id;
+  else
+    raise exception 'Invalid Wild Shape exchange';
+  end if;
+
+  return jsonb_build_object(
+    'spell_slots', v_slots,
+    'wildshapes_used', v_uses,
+    'wildshape_state', v_form,
+    'class_choices', v_choices
+  );
+end;
+$$;

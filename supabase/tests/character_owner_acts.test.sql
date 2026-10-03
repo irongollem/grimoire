@@ -2,7 +2,7 @@
 -- (20261002153212).
 --
 -- A character has a creator (user_id) and an owner (owner_user_id). They
--- differ once a DM-made character is handed to a player. Seventeen functions
+-- differ once a DM-made character is handed to a player. Eighteen functions
 -- and eight policies admitted "creator or owner", so the account that made a
 -- character kept its rights after handing it over; an audit rewrote another
 -- player's hit points that way. The rule now: the owner, or the creator while
