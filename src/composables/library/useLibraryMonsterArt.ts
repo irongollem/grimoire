@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { useAuthStore } from "@/stores/auth";
+import { writeCanonicalLibraryArt, MONSTER_CANONICAL_ART, type CanonicalArtEdit } from "./writeCanonicalLibraryArt";
 import type { Monster } from "@/types/monster.types";
 
 const QUERY_KEY = "library-monster-art";
@@ -113,66 +115,13 @@ export function withLibraryArtAll<T extends Pick<Monster, "id" | "image_url" | "
   return rows.map((row) => withLibraryArt(row, artMap[row.id]));
 }
 
-async function upsertLibraryMonsterArt(entry: {
-  entry_id: string;
-  image_url?: string | null;
-  cutout_url?: string | null;
-  portrait_focal_point?: { x: number; y: number } | null;
-}): Promise<void> {
+
+async function upsertOwnLibraryMonsterArt(entry: CanonicalArtEdit): Promise<void> {
   const user = getCurrentUser();
   const { error } = await supabase
     .from("library_monster_art")
     .upsert({ ...entry, user_id: user!.id }, { onConflict: "user_id,entry_id" });
   if (error) throw error;
-}
-
-/**
- * Promotes the admin's own uploaded monster art to canonical: merges it onto
- * whatever canonical row already exists for the same entry_id (per field —
- * an own row that only ever set a cutout must not null out an existing
- * canonical picture), upserts the merged rows into
- * library_monster_art_canonical (admin-only via RLS), then drops the
- * now-redundant private copies. Only ever succeeds for an app admin —
- * private.is_app_admin() gates the canonical table's insert policy.
- */
-async function bulkMarkLibraryMonsterArtAsCanonical(): Promise<number> {
-  const user = getCurrentUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const { data: ownRows, error: fetchErr } = await supabase
-    .from("library_monster_art")
-    .select(ART_COLUMNS)
-    .eq("user_id", user.id);
-  if (fetchErr) throw fetchErr;
-  if (!ownRows.length) return 0;
-
-  const entryIds = ownRows.map((row) => row.entry_id);
-  const { data: existingCanonical, error: canonicalFetchErr } = await supabase
-    .from("library_monster_art_canonical")
-    .select(ART_COLUMNS)
-    .in("entry_id", entryIds);
-  if (canonicalFetchErr) throw canonicalFetchErr;
-
-  const existingById = new Map(existingCanonical.map((row) => [row.entry_id, row]));
-  const mergedRows = ownRows.map((own) => {
-    const existing = existingById.get(own.entry_id);
-    return {
-      entry_id: own.entry_id,
-      image_url: own.image_url ?? existing?.image_url ?? null,
-      cutout_url: own.cutout_url ?? existing?.cutout_url ?? null,
-      portrait_focal_point: own.portrait_focal_point ?? existing?.portrait_focal_point ?? null,
-    };
-  });
-
-  const { error: upsertErr } = await supabase
-    .from("library_monster_art_canonical")
-    .upsert(mergedRows, { onConflict: "entry_id" });
-  if (upsertErr) throw upsertErr;
-
-  const { error: deleteErr } = await supabase.from("library_monster_art").delete().eq("user_id", user.id);
-  if (deleteErr) throw deleteErr;
-
-  return ownRows.length;
 }
 
 /** The exact query key `useLibraryMonsterArt` uses, so another composable can
@@ -190,17 +139,19 @@ export function useLibraryMonsterArt() {
 
 export function useUpsertLibraryMonsterArt() {
   const queryClient = useQueryClient();
+  const auth = useAuthStore();
   return useMutation({
-    mutationFn: upsertLibraryMonsterArt,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  });
-}
-
-export function useBulkMarkLibraryMonsterArtAsCanonical() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: bulkMarkLibraryMonsterArtAsCanonical,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    mutationFn: async (entry: CanonicalArtEdit): Promise<void> => {
+      if (auth.isAppAdmin) await writeCanonicalLibraryArt(MONSTER_CANONICAL_ART, entry);
+      else await upsertOwnLibraryMonsterArt(entry);
+    },
+    onSuccess: async () => {
+      // An admin write also changes library_monsters rows, which the lists cache.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+        queryClient.invalidateQueries({ queryKey: ["library-monsters"] }),
+      ]);
+    },
   });
 }
 

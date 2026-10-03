@@ -37,6 +37,7 @@
       <div class="flex flex-col gap-4">
         <EntityImageBlock
           bucket="spell-images"
+          :folder-prefix="artFolderPrefix"
           :model-value="imageUrl || null"
           show-focal-point
           :focal-point="imageFocalPoint"
@@ -237,6 +238,7 @@ import { useToast } from "@/composables/useToast";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { ref, computed, reactive, watch, toRefs } from "vue";
+import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRouter } from "vue-router";
@@ -291,6 +293,10 @@ const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
 const { mutateAsync: upsertLibraryArt } = useUpsertLibrarySpellArt();
 const isShared = computed(() => !!props.isShared);
+// An admin's edit to a shared library row is the canonical art, and canonical art
+// lives under srd/, never a user folder (CLAUDE.md storage convention, #952).
+const auth = useAuthStore();
+const artFolderPrefix = computed(() => (isShared.value && auth.isAppAdmin ? "srd" : undefined));
 
 // ── Copy to campaign (#598) ──────────────────────────────────────────────────
 const { copyOpen, copyIds, openCopy, onCopied } = useCopyEntityToCampaign({

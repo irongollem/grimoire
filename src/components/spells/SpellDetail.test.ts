@@ -23,6 +23,11 @@ const activeCampaignId = ref<string | null>("campaign-1");
 // reactive(), not a plain object with a getter: SpellDetail reads this store
 // through Pinia's storeToRefs, which only picks up properties that are
 // themselves refs/reactive — a plain getter is invisible to it.
+// A DM, not the admin: shared-art edits stay personal overrides and upload to the user's folder.
+vi.mock("@/stores/auth", () => ({
+  useAuthStore: () => ({ isAppAdmin: false }),
+}));
+
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => reactive({ activeCampaignId, isAiEnabled: false }),
 }));

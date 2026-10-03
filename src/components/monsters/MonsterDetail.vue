@@ -110,6 +110,7 @@
           :model-value="isCutoutTab ? form.cutout_url : form.image_url"
           :focal-point="isCutoutTab ? undefined : form.portrait_focal_point"
           bucket="monster-images"
+          :folder-prefix="artFolderPrefix"
           :show-focal-point="!isCutoutTab"
           :ai-kind="isCutoutTab ? undefined : 'monster'"
           :ai-target-id="isCutoutTab ? undefined : props.monster?.id"
@@ -280,6 +281,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
+import { useAuthStore } from "@/stores/auth";
 import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { storeToRefs } from "pinia";
@@ -348,6 +350,10 @@ const props = defineProps<{ monster: Monster | null }>();
 const router = useRouter();
 
 const isShared = computed(() => !!props.monster?.is_shared);
+// An admin's edit to a shared library row is the canonical art, and canonical art
+// lives under srd/, never a user folder (CLAUDE.md storage convention, #952).
+const auth = useAuthStore();
+const artFolderPrefix = computed(() => (isShared.value && auth.isAppAdmin ? "srd" : undefined));
 // Only a campaign/user-owned monster has notes that could mention it — a
 // shared library reference (whose id may be a text id like `srd_owlbear`
 // rather than a uuid) is never editable and never the target of an

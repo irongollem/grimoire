@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { useAuthStore } from "@/stores/auth";
+import { writeCanonicalLibraryArt, SPELL_CANONICAL_ART } from "./writeCanonicalLibraryArt";
 
 const QUERY_KEY = "library-spell-art";
 
@@ -51,11 +53,13 @@ async function fetchLibrarySpellArt(): Promise<LibrarySpellArtMap> {
   return mergeLibrarySpellArtLayers(canonicalRes.data, ownRes.data);
 }
 
-async function upsertLibrarySpellArt(entry: {
+type SpellArtEdit = {
   entry_id: string;
   image_url?: string | null;
   portrait_focal_point?: { x: number; y: number } | null;
-}): Promise<void> {
+};
+
+async function upsertOwnLibrarySpellArt(entry: SpellArtEdit): Promise<void> {
   const user = getCurrentUser();
   const { error } = await supabase
     .from("library_spell_art")
@@ -73,42 +77,18 @@ export function useLibrarySpellArt() {
 
 export function useUpsertLibrarySpellArt() {
   const queryClient = useQueryClient();
+  const auth = useAuthStore();
   return useMutation({
-    mutationFn: upsertLibrarySpellArt,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  });
-}
-
-/**
- * Promotes the admin's own uploaded spell art to canonical: copies it into
- * library_spell_art_canonical (admin-only via RLS), then drops the now-redundant
- * private copy. Only ever succeeds for an app admin — private.is_app_admin()
- * gates the canonical table's insert policy.
- */
-export function useBulkMarkLibrarySpellArtAsCanonical() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<number> => {
-      const user = getCurrentUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: ownRows, error: fetchErr } = await supabase
-        .from("library_spell_art")
-        .select("entry_id, image_url, portrait_focal_point")
-        .eq("user_id", user.id);
-      if (fetchErr) throw fetchErr;
-      if (!ownRows.length) return 0;
-
-      const { error: upsertErr } = await supabase
-        .from("library_spell_art_canonical")
-        .upsert(ownRows, { onConflict: "entry_id" });
-      if (upsertErr) throw upsertErr;
-
-      const { error: deleteErr } = await supabase.from("library_spell_art").delete().eq("user_id", user.id);
-      if (deleteErr) throw deleteErr;
-
-      return ownRows.length;
+    mutationFn: async (entry: SpellArtEdit): Promise<void> => {
+      if (auth.isAppAdmin) await writeCanonicalLibraryArt(SPELL_CANONICAL_ART, entry);
+      else await upsertOwnLibrarySpellArt(entry);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: async () => {
+      // An admin write also changes library_spells rows, which the lists cache.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+        queryClient.invalidateQueries({ queryKey: ["library-spells"] }),
+      ]);
+    },
   });
 }

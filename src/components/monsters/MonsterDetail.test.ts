@@ -59,6 +59,11 @@ vi.mock("vue-router", () => ({
   useRouter: () => ({ push: routerPush, replace: routerReplace }),
 }));
 
+// A DM, not the admin: shared-art edits stay personal overrides and upload to the user's folder.
+vi.mock("@/stores/auth", () => ({
+  useAuthStore: () => ({ isAppAdmin: false }),
+}));
+
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ isAiEnabled: false, activeCampaignId: ref("campaign-1") }),
 }));
