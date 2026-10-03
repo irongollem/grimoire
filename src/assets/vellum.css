@@ -260,6 +260,17 @@
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > .relative.shrink-0.overflow-hidden:has(img) img {
   filter: sepia(0.18) saturate(0.92) contrast(1.02);
 }
+/* A plate that sits beside text rather than above it (the player's own
+   sheet) is already inset by its layout, so it only takes the frame. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) .card-plate:has(img) {
+  border-radius: 0;
+  outline: 1px solid color-mix(in oklab, var(--foreground) 55%, transparent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--foreground) 25%, transparent);
+}
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) .card-plate:has(img) img {
+  filter: sepia(0.18) saturate(0.92) contrast(1.02);
+}
 /* Controls and the status badge over the plate are paper labels, not dark
    glass: card fill, ink text, a thin rule, no blur. The control strip moves
    in to sit inside the inset plate; a revealed entity keeps its gilt. The

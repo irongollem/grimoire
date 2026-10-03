@@ -383,18 +383,17 @@ The primary player-facing character sheet. Also used by the DM via `PartyMemberV
 
 **Header section** (`PlayerCharacterHeader`):
 
-- Portrait, name, class/level, species, background
-- Current HP / Max HP with temp HP display
-- Colour-coded HP bar (green → amber → red → grey at 0)
-- AC, Speed, Initiative
-- Inspiration indicator
-- Mobile HP bar
+- Portrait as a plate inset in the paper, name, class/level, species, inspiration star
+- Armor Class (in a shield), Initiative, Speed, Proficiency, Hit Dice, boxed as on the 2024 sheet
+- Current HP / Max HP with temp HP, a colour-coded meter (green → amber → red → grey at 0) and the damage/heal/temp controls
+- Rest, conditions (slotted in from `PlayerConditions`) and the add-condition picker
+- The parent card closes with `AbilityScoreTable layout="sheet"`; there is no separate HP bar on any width
 
 **Ability Scores** (`AbilityScoreTable`):
 
-- 6 ability scores with modifiers shown
-- Saving throw bonuses (modifier + proficiency if applicable)
-- Clickable to roll: clicking an ability score prompts a d20 roll (with advantage/disadvantage applied automatically if a condition requires it); result displayed in `RollToast`
+- Two layouts. `statblock` (default): two groups of three rows, score / mod / save, as in the 2024 Monster Manual, for creature panels. `sheet`: the 2024 character sheet's six ability boxes, for a character's own sheet
+- Saving throw bonuses (modifier + proficiency if applicable), with the same proficiency pip as the skill rows
+- Each ability is exactly two roll targets, the check (name, score and modifier together) and the save, and both answer a hover the same way: the ability's own colour tint deepens and the rolled number turns gold. Clicking prompts a d20 roll (with advantage/disadvantage applied automatically if a condition requires it); result displayed in `RollToast`
 
 **Conditions** (`PlayerConditions`):
 

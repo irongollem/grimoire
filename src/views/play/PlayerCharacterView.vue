@@ -16,42 +16,27 @@
 
     <template v-else>
       <!-- ── Always visible ─────────────────────────────────── -->
-      <!-- Outer wrapper: unified card on tablet+; stacked cards on mobile -->
-      <div class="md:rounded-lg md:border md:border-border md:overflow-hidden">
-        <div class="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0">
-          <PlayerCharacterHeader
-            :member="member"
-            :wildshape="activeWildshape ?? undefined"
-            :beast-speed="beastMonster?.stat_block?.speed"
-            :hide-player-actions="hidePlayerActions"
-            class="md:flex-1"
-            @level-up="emit('level-up')"
-          />
-          <div class="md:w-72 md:shrink-0 md:border-l md:border-border md:bg-card md:flex md:flex-col">
-            <!-- Ability scores: vertical single-table, flush against card edges -->
-            <AbilityScoreTable
-              :scores="effectiveScores"
-              :saves="memberSaves"
-              :rounded="false"
-              :vertical="true"
-              :borderless="true"
-              :roll-mode-picker="true"
-              @roll-ability="onRollAbility"
-              @roll-save="onRollSave"
-            />
-            <!-- Conditions: separated by a divider, padded -->
-            <div class="border-t border-border/40 px-3 py-2.5">
-              <PlayerConditions :member="member" @roll="onChildRoll" />
-            </div>
-          </div>
-        </div>
-        <!-- Full-width HP bar — tablet+ only (mobile bar lives inside PlayerCharacterHeader) -->
-        <div class="hidden md:block h-1.5 bg-muted overflow-hidden">
-          <div class="h-full flex">
-            <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpBarWidthPct}%` }" />
-            <div v-if="tempHpBarPct > 0" class="h-full transition-all bg-tone-info" :style="{ width: `${tempHpBarPct}%` }" />
-          </div>
-        </div>
+      <!-- One card: the header, closed underneath by the six ability boxes -->
+      <div class="rounded-lg border border-border bg-card overflow-hidden">
+        <PlayerCharacterHeader
+          :member="member"
+          :wildshape="activeWildshape ?? undefined"
+          :beast-speed="beastMonster?.stat_block?.speed"
+          :hide-player-actions="hidePlayerActions"
+          @level-up="emit('level-up')"
+        >
+          <template #conditions>
+            <PlayerConditions :member="member" @roll="onChildRoll" />
+          </template>
+        </PlayerCharacterHeader>
+        <AbilityScoreTable
+          layout="sheet"
+          :scores="effectiveScores"
+          :saves="memberSaves"
+          :roll-mode-picker="true"
+          @roll-ability="onRollAbility"
+          @roll-save="onRollSave"
+        />
       </div>
 
       <!-- Tracks (custom + built-in rule trackers) -->
@@ -69,16 +54,19 @@
 
       <!-- ── Tabs + Export Sheet ──────────────────────────── -->
       <div class="flex items-center gap-3 flex-wrap">
+        <!-- On a phone the tabs span the page like the cards around them, and
+             the two actions share the row beneath. -->
         <SegmentedControl
           v-model="activeTab"
           :options="tabOptions"
           variant="ghost"
           size="sm"
+          :block="isPhone"
           class="rounded-md border border-border/50 bg-muted/40 p-1"
         />
-        <div v-if="!hidePlayerActions && member" class="flex items-center gap-2 ml-auto">
-          <AppButton v-if="!ui.dmPreviewMode" to="/play/champions" variant="subtle" size="sm" label="My Characters" />
-          <AppButton :to="{ name: 'play-character-sheet' }" variant="subtle" size="sm" label="Export Sheet" />
+        <div v-if="!hidePlayerActions && member" class="flex items-center gap-2 max-sm:w-full sm:ml-auto">
+          <AppButton v-if="!ui.dmPreviewMode" to="/play/champions" variant="subtle" size="sm" class="max-sm:flex-1" label="My Characters" />
+          <AppButton :to="{ name: 'play-character-sheet' }" variant="subtle" size="sm" class="max-sm:flex-1" label="Export Sheet" />
         </div>
       </div>
 
@@ -153,6 +141,7 @@ import type { PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/rules/useRules";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import { useBelow } from "@/composables/useBreakpoint";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import RollToast from "@/components/common/RollToast.vue";
 import type { RollResult } from "@/components/common/RollToast.vue";
@@ -249,6 +238,7 @@ const ALL_TABS = [
 ] as const;
 type TabId = (typeof ALL_TABS)[number]["id"];
 const activeTab = ref<TabId>("skills");
+const isPhone = useBelow("sm");
 
 // Wild Shape tab is only visible for Druids (or if somehow wildshaped)
 const visibleTabs = computed(() =>
@@ -282,43 +272,6 @@ const attackDisadvantage = computed(() => hasAttackDisadvantage(member.value?.co
 const checkDisadvantage = computed(() => hasCheckDisadvantage(member.value?.conditions ?? [], ruleset.value));
 // 2024-only flat penalty (0 under 2014, which uses the disadvantage flags above instead).
 const exhaustionD20Penalty = computed(() => getExhaustionD20Penalty(member.value?.conditions ?? [], ruleset.value));
-
-// ── HP bar (full-width, spans header + sidebar on tablet+) ────────────────────
-const hpPct = computed(() => {
-  const m = member.value;
-  if (!m) return 0;
-  const hp = activeWildshape.value?.beast_hp ?? m.current_hp;
-  const maxHp = activeWildshape.value?.beast_max_hp ?? m.max_hp;
-  if (maxHp === 0) return 0;
-  return Math.max(0, Math.min(100, (hp / maxHp) * 100));
-});
-const hpBarColor = computed(() => {
-  const p = hpPct.value;
-  if (p <= 0) return "bg-muted-foreground/40";
-  if (p < 33) return "bg-destructive";
-  if (p < 66) return "bg-tone-caution";
-  return "bg-elven-green";
-});
-// Temp HP is a buffer in front of whichever HP pool is active — it survives
-// Wild Shape and is spent before the beast's HP, so the segment is shown in
-// beast form too (denominator uses the beast's max, matching the HP segment).
-const tempHpBarPct = computed(() => {
-  const m = member.value;
-  if (!m) return 0;
-  const maxHp = activeWildshape.value?.beast_max_hp ?? m.max_hp;
-  const temp = m.temp_hp ?? 0;
-  if (temp <= 0 || maxHp + temp === 0) return 0;
-  return (temp / (maxHp + temp)) * 100;
-});
-const hpBarWidthPct = computed(() => {
-  const m = member.value;
-  if (!m) return 0;
-  const hp = activeWildshape.value?.beast_hp ?? m.current_hp;
-  const maxHp = activeWildshape.value?.beast_max_hp ?? m.max_hp;
-  const total = maxHp + (m.temp_hp ?? 0);
-  if (total === 0) return 0;
-  return Math.max(0, Math.min(100, (hp / total) * 100));
-});
 
 // ── Roll toast (shared across all rolling children) ───────────────────────────
 const lastRoll = ref<RollResult | null>(null);

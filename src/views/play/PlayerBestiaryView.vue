@@ -246,7 +246,6 @@
             </div>
             <AbilityScoreTable
               :scores="lightboxScores"
-              :rounded="false"
               :roll-mode-picker="true"
               @roll-ability="(_k, label, modifier, m) => rollCheck(modifier, `${label} Check`, m)"
               @roll-save="(_k, label, bonus, m) => rollCheck(bonus, `${label} Save`, m)"

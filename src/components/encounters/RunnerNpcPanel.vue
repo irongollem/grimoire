@@ -30,7 +30,6 @@
           wis: npc.stat_block.wis ?? 10,
           cha: npc.stat_block.cha ?? 10,
         }"
-        :rounded="false"
         @roll-ability="(_, label, mod) => emit('roll-check', mod, label + ' Check')"
         @roll-save="(_, label, bonus) => emit('roll-check', bonus, label + ' Save')"
       />

@@ -16,7 +16,6 @@
       <AbilityScoreTable
         :scores="scoresObj"
         :saves="savesObj"
-        :rounded="false"
         :roll-mode-picker="true"
         @roll-ability="(_k, label, modifier, mode) => roll(modifier, `${label} Check`, mode)"
         @roll-save="(_k, label, bonus, mode) => roll(bonus, `${label} Save`, mode)"

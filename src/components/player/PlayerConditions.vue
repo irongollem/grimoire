@@ -1,6 +1,7 @@
 <template>
-  <!-- Conditions row: chips + add button -->
-  <div class="flex flex-wrap items-center gap-1.5 min-h-8">
+  <!-- Condition chips. `contents`, so each chip flows in the header's own
+       rest-and-conditions row, and no conditions leaves no empty box. -->
+  <div class="contents">
 
     <!-- Exhaustion (single chip with pip levels) -->
     <ExhaustionChip
@@ -38,7 +39,7 @@
   </div>
 
   <!-- Death saves (shown only at 0 HP) -->
-  <div v-if="member.current_hp <= 0" class="mt-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+  <div v-if="member.current_hp <= 0" class="basis-full mt-1 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
     <p class="text-label-lg font-semibold text-destructive mb-3">Death Saving Throws</p>
     <div class="flex items-center gap-8">
       <div>

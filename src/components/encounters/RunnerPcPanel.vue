@@ -29,7 +29,6 @@
     <AbilityScoreTable
       :scores="playerScores"
       :saves="playerSaves"
-      :rounded="false"
       @roll-ability="(_, label, mod) => emit('roll-check', mod, label + ' Check')"
       @roll-save="(_, label, bonus) => emit('roll-check', bonus, label + ' Save')"
     />

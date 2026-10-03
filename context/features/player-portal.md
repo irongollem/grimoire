@@ -86,11 +86,13 @@ The character sheet is the player's primary view. When no character is linked, i
 
 **Always-visible header section:**
 
-- Portrait, name, class, subclass, level, species, background
-- HP bar with current/max HP and temp HP (colour-coded: green → amber → red → grey at 0)
-- AC display
-- Conditions list with active condition badges
-- Ability score table (STR/DEX/CON/INT/WIS/CHA) with saving throw proficiency indicators — each score and save are tappable to roll
+One paper card, laid out like the head of the 2024 character sheet (`PlayerCharacterHeader` + `AbilityScoreTable layout="sheet"`, composed in `PlayerCharacterView`):
+
+- Portrait as a plate inset in the paper (`.card-plate`; Vellum frames it in `vellum.css`), name, class, subclass, level, species
+- Reference numbers boxed as on the sheet: Armor Class in a shield, then Initiative, Speed, Proficiency and Hit Dice in small frames. A block beside the name from `sm` up, a row of five under the portrait on a phone
+- Hit points: current/max, temp HP, a colour-coded meter (green → amber → red → grey at 0) and the Damage / Heal / Temp controls on one row
+- Rest, Sleep, the active condition chips (`PlayerConditions`, slotted into the header row) and the add-condition picker
+- Six ability boxes closing the card: full name, the modifier large, the score in an oval on the bottom edge, the save beneath with its proficiency pip. Six across from `sm` up, three by two on a phone. Each ability keeps its colour (as the 2024 books colour-code them), mixed into ink, frame and a faint wash. Every ability is exactly two roll targets, the check and the save, and both answer a hover the same way
 - Custom tracks (per-rule trackers shared by the DM, e.g. Bardic Inspiration, Ki points)
 - Shapeshifter appearance controls (visible only to shapeshifter characters)
 

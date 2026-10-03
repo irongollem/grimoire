@@ -1,151 +1,128 @@
 <template>
-  <!-- ── Horizontal (default): two tables side-by-side ────────────────────── -->
-  <div v-if="!vertical" class="flex flex-row gap-px">
-    <table
-      v-for="group in ABILITY_GROUPS"
-      :key="group[0].key"
-      class="flex-1 overflow-hidden"
-      :class="[
-        borderless ? '' : 'border border-border/50',
-        rounded ? 'rounded-lg' : '',
-      ]"
-    >
-      <thead>
-        <tr class="border-b border-border/40">
-          <th class="py-1 px-1.5 text-label text-muted-foreground/70 text-left font-normal"></th>
-          <th class="py-1 text-label text-muted-foreground/70 text-center font-normal">#</th>
-          <th class="py-1 text-label text-muted-foreground/70 text-center font-normal">MOD</th>
-          <th class="py-1 px-1.5 text-label text-muted-foreground/70 text-center font-normal">SAVE</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-border/30">
-        <tr
-          v-for="ab in group"
-          :key="ab.key"
-          :style="{ backgroundColor: ab.color + '0d' }"
-        >
-          <td class="py-0 px-0">
-            <button
-              class="w-full py-1.5 px-1.5 text-label font-bold text-left transition-opacity hover:opacity-60 cursor-pointer"
-              :style="{ color: ab.color }"
-              :title="`Roll ${ab.label} check`"
-              v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.label, mod(ab.key), m) }"
-            >{{ ab.label }}</button>
-          </td>
-          <td class="py-0 px-0 text-center">
-            <button
-              class="w-full py-1.5 px-1 font-cinzel text-sm font-bold text-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
-              :title="`Roll ${ab.label} check`"
-              v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.label, mod(ab.key), m) }"
-            >{{ scores[ab.key] }}</button>
-          </td>
-          <td class="py-0 px-0 text-center">
-            <button
-              class="w-full py-1.5 px-1 font-cinzel text-xs font-bold rounded hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
-              :class="mod(ab.key) >= 0 ? 'text-elven-green' : 'text-destructive'"
-              :title="`Roll ${ab.label} check`"
-              v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.label, mod(ab.key), m) }"
-            >{{ fmt(mod(ab.key)) }}</button>
-          </td>
-          <td class="py-0 px-0 text-center">
-            <button
-              class="w-full flex items-center justify-center gap-1 py-1.5 px-1.5 rounded hover:bg-primary/10 transition-colors cursor-pointer group"
-              :title="`Roll ${ab.label} saving throw`"
-              v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-save', ab.key, ab.label, saveBonus(ab.key), m) }"
-            >
-              <span
-                class="h-2.5 w-2.5 rounded-full border-2 shrink-0 transition-colors"
-                :class="isProficient(ab.key) ? 'bg-primary border-primary' : 'border-muted-foreground/30 group-hover:border-primary/50'"
-              />
-              <span
-                class="font-cinzel text-2xs font-bold group-hover:text-primary transition-colors"
-                :class="saveBonus(ab.key) >= 0 ? 'text-foreground' : 'text-destructive'"
-              >{{ fmt(saveBonus(ab.key)) }}</span>
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <!--
+    Every ability is exactly two targets, in both layouts: the check (name,
+    score and modifier together, because they all roll the same d20) and the
+    save. Both answer a hover the same way: the ability's own tint deepens and
+    the number you would roll turns gold.
+
+    Each ability keeps its colour, as the 2024 books colour-code them. The
+    colour is mixed into the ink, the border and a faint wash rather than used
+    neat, so amber and green stay readable on paper and in the dark themes.
+  -->
+
+  <!-- ── Sheet: the 2024 character sheet's ability boxes ──────────────────
+       A framed box per ability: name, the modifier large (it is what you add
+       to the d20), the score in an oval on the bottom edge, and the save under
+       it. Six across from sm up, three by two on a phone. -->
+  <div v-if="layout === 'sheet'" data-ability-sheet class="grid grid-cols-3 gap-x-2 gap-y-3 border-t border-border p-3 sm:grid-cols-6 sm:gap-x-3">
+    <div v-for="ab in ABILITIES" :key="ab.key" class="flex min-w-0 flex-col" :style="{ '--ab': ab.color }">
+      <AppButton
+        variant="menu"
+        size="body"
+        block
+        class="group relative flex-col justify-center gap-1 rounded-md border px-1 pt-2 pb-4 text-center"
+        :class="[FRAME, WASH, HOVER]"
+        :tooltip="`Roll a ${ab.name} check`"
+        :aria-label="`${ab.name} ${scores[ab.key]}, modifier ${fmt(mod(ab.key))}: roll a check`"
+        v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.abbr, mod(ab.key), m) }"
+      >
+        <span class="max-w-full truncate text-label font-bold" :class="INK">{{ ab.name }}</span>
+        <span
+          class="font-cinzel text-title font-bold leading-none transition-colors group-hover:text-primary"
+          :class="mod(ab.key) < 0 ? 'text-destructive' : 'text-foreground'"
+        >{{ fmt(mod(ab.key)) }}</span>
+        <span class="absolute -bottom-2.5 left-1/2 min-w-9 -translate-x-1/2 rounded-full border bg-card px-2 font-cinzel text-label-lg leading-snug text-foreground" :class="FRAME">{{ scores[ab.key] }}</span>
+      </AppButton>
+      <AppButton
+        variant="menu"
+        size="body"
+        block
+        class="group mt-3.5 justify-center gap-1.5 rounded-md px-1 py-1"
+        :class="HOVER"
+        :tooltip="`Roll a ${ab.name} saving throw`"
+        :aria-label="`${ab.name} saving throw ${fmt(saveBonus(ab.key))}${isProficient(ab.key) ? ', proficient' : ''}: roll a save`"
+        v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-save', ab.key, ab.abbr, saveBonus(ab.key), m) }"
+      >
+        <span class="h-3 w-3 shrink-0 rounded-full border-2" :class="pipClass(ab.key)" />
+        <span class="text-label text-muted-foreground">Save</span>
+        <span
+          class="font-cinzel text-label-lg font-bold transition-colors group-hover:text-primary"
+          :class="saveBonus(ab.key) < 0 ? 'text-destructive' : 'text-foreground'"
+        >{{ fmt(saveBonus(ab.key)) }}</span>
+      </AppButton>
+    </div>
   </div>
 
-  <!-- ── Vertical: single full-width table, all 6 rows ────────────────────── -->
-  <table
-    v-else
-    class="w-full overflow-hidden"
-    :class="[
-      borderless ? '' : 'border border-border/50',
-      rounded ? 'rounded-lg' : '',
-    ]"
-  >
-    <thead>
-      <tr class="border-b border-border/40">
-        <th class="py-1 px-3 text-label text-muted-foreground/70 text-left font-normal"></th>
-        <th class="py-1 text-label text-muted-foreground/70 text-center font-normal">#</th>
-        <th class="py-1 text-label text-muted-foreground/70 text-center font-normal">MOD</th>
-        <th class="py-1 px-3 text-label text-muted-foreground/70 text-center font-normal">SAVE</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-border/30">
-      <tr
-        v-for="ab in ABILITIES"
-        :key="ab.key"
-        :style="{ backgroundColor: ab.color + '0d' }"
-      >
-        <td class="py-0 px-0">
-          <button
-            class="w-full py-1.5 px-3 text-label font-bold text-left transition-opacity hover:opacity-60 cursor-pointer"
-            :style="{ color: ab.color }"
-            :title="`Roll ${ab.label} check`"
-            v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.label, mod(ab.key), m) }"
-          >{{ ab.label }}</button>
-        </td>
-        <td class="py-0 px-0 text-center">
-          <button
-            class="w-full py-1.5 px-2 font-cinzel text-sm font-bold text-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
-            :title="`Roll ${ab.label} check`"
-            v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.label, mod(ab.key), m) }"
-          >{{ scores[ab.key] }}</button>
-        </td>
-        <td class="py-0 px-0 text-center">
-          <button
-            class="w-full py-1.5 px-2 font-cinzel text-xs font-bold rounded hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
-            :class="mod(ab.key) >= 0 ? 'text-elven-green' : 'text-destructive'"
-            :title="`Roll ${ab.label} check`"
-            v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.label, mod(ab.key), m) }"
-          >{{ fmt(mod(ab.key)) }}</button>
-        </td>
-        <td class="py-0 px-0 text-center">
-          <button
-            class="w-full flex items-center justify-center gap-1 py-1.5 px-3 rounded hover:bg-primary/10 transition-colors cursor-pointer group"
-            :title="`Roll ${ab.label} saving throw`"
-            v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-save', ab.key, ab.label, saveBonus(ab.key), m) }"
-          >
-            <span
-              class="h-2.5 w-2.5 rounded-full border-2 shrink-0 transition-colors"
-              :class="isProficient(ab.key) ? 'bg-primary border-primary' : 'border-muted-foreground/30 group-hover:border-primary/50'"
-            />
-            <span
-              class="font-cinzel text-2xs font-bold group-hover:text-primary transition-colors"
-              :class="saveBonus(ab.key) >= 0 ? 'text-foreground' : 'text-destructive'"
-            >{{ fmt(saveBonus(ab.key)) }}</span>
-          </button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <!-- ── Stat block: two groups of three, as in the 2024 Monster Manual ─── -->
+  <div v-else class="flex flex-row gap-px">
+    <div
+      v-for="group in ABILITY_GROUPS"
+      :key="group[0].key"
+      class="grid flex-1 grid-cols-[1fr_auto_auto_auto] border border-border/50"
+    >
+      <div class="col-span-4 grid grid-cols-subgrid border-b border-border/40 text-label text-muted-foreground/70">
+        <span class="col-start-3 px-1.5 py-1 text-center">Mod</span>
+        <span class="px-1.5 py-1 text-center">Save</span>
+      </div>
+      <template v-for="(ab, i) in group" :key="ab.key">
+        <AppButton
+          :style="{ '--ab': ab.color }"
+          variant="menu"
+          size="body"
+          class="group col-span-3 grid grid-cols-subgrid items-baseline gap-0 rounded-none px-0 py-1.5"
+          :class="[WASH, HOVER, i > 0 && 'border-t border-border/30']"
+          :tooltip="`Roll a ${ab.name} check`"
+          :aria-label="`${ab.name} ${scores[ab.key]}, modifier ${fmt(mod(ab.key))}: roll a check`"
+          v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.abbr, mod(ab.key), m) }"
+        >
+          <span class="pl-2 text-label font-bold" :class="INK">{{ ab.abbr }}</span>
+          <span class="px-1.5 text-center font-cinzel text-sm font-bold text-foreground">{{ scores[ab.key] }}</span>
+          <span
+            class="px-1.5 text-center font-cinzel text-xs font-bold transition-colors group-hover:text-primary"
+            :class="mod(ab.key) < 0 ? 'text-destructive' : 'text-foreground'"
+          >{{ fmt(mod(ab.key)) }}</span>
+        </AppButton>
+        <AppButton
+          :style="{ '--ab': ab.color }"
+          variant="menu"
+          size="body"
+          class="group justify-center gap-1 rounded-none border-l border-border/30 px-1.5 py-1.5"
+          :class="[WASH, HOVER, i > 0 && 'border-t']"
+          :tooltip="`Roll a ${ab.name} saving throw`"
+          :aria-label="`${ab.name} saving throw ${fmt(saveBonus(ab.key))}${isProficient(ab.key) ? ', proficient' : ''}: roll a save`"
+          v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-save', ab.key, ab.abbr, saveBonus(ab.key), m) }"
+        >
+          <span class="h-2.5 w-2.5 shrink-0 rounded-full border-2" :class="pipClass(ab.key)" />
+          <span
+            class="font-cinzel text-xs font-bold transition-colors group-hover:text-primary"
+            :class="saveBonus(ab.key) < 0 ? 'text-destructive' : 'text-foreground'"
+          >{{ fmt(saveBonus(ab.key)) }}</span>
+        </AppButton>
+      </template>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
+import AppButton from "@/components/common/AppButton.vue";
 import type { RollMode } from "@/lib/dice/roller";
 
 const ABILITIES = [
-  { key: "str", label: "STR", color: "#ef4444" },
-  { key: "dex", label: "DEX", color: "#22c55e" },
-  { key: "con", label: "CON", color: "#f59e0b" },
-  { key: "int", label: "INT", color: "#3b82f6" },
-  { key: "wis", label: "WIS", color: "#14b8a6" },
-  { key: "cha", label: "CHA", color: "#a855f7" },
+  { key: "str", abbr: "STR", name: "Strength", color: "#ef4444" },
+  { key: "dex", abbr: "DEX", name: "Dexterity", color: "#22c55e" },
+  { key: "con", abbr: "CON", name: "Constitution", color: "#f59e0b" },
+  { key: "int", abbr: "INT", name: "Intelligence", color: "#3b82f6" },
+  { key: "wis", abbr: "WIS", name: "Wisdom", color: "#14b8a6" },
+  { key: "cha", abbr: "CHA", name: "Charisma", color: "#a855f7" },
 ] as const;
+
+// Each reads the `--ab` colour set on the ability's element.
+const WASH = "bg-[color:color-mix(in_oklab,var(--ab)_5%,transparent)]";
+const HOVER = "hover:bg-[color:color-mix(in_oklab,var(--ab)_13%,transparent)]";
+const FRAME = "border-[color:color-mix(in_oklab,var(--ab)_35%,var(--border))]";
+const INK = "text-[color:color-mix(in_oklab,var(--ab)_70%,var(--foreground))]";
+
+type AbilityKey = (typeof ABILITIES)[number]["key"];
 
 const ABILITY_GROUPS = [ABILITIES.slice(0, 3), ABILITIES.slice(3)];
 
@@ -157,27 +134,22 @@ export interface SaveEntry {
 const {
   scores,
   saves,
-  rounded = true,
+  layout = "statblock",
 } = defineProps<{
   /** The six ability scores. */
-  scores: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
+  scores: Record<AbilityKey, number>;
   /**
    * Optional pre-computed saves keyed by ability ("str" | "dex" | …).
    * If omitted, save bonus falls back to the raw ability modifier with no proficiency pip.
    */
   saves?: Record<string, SaveEntry>;
-  /** Whether to apply outer border-radius to each table. Default true. */
-  rounded?: boolean;
   /**
-   * Stack all six abilities in a single full-width table instead of two side-by-side tables.
-   * Use in narrow contexts where horizontal space is limited.
+   * `statblock` (default): two bordered groups of three rows, score / mod / save,
+   * for creature panels. `sheet`: six ability boxes in one band (three by two on
+   * a phone), modifier first and score below it, for a character's own sheet.
+   * It draws a top rule and its own padding, so it closes the card it sits in.
    */
-  vertical?: boolean;
-  /**
-   * Remove the outer border so the table blends flush into its parent card.
-   * Use when the parent already provides the visual boundary.
-   */
-  borderless?: boolean;
+  layout?: "statblock" | "sheet";
   /**
    * Enable the long-press / right-click advantage-disadvantage picker on each
    * roll button (#501). Off by default so shared DM / read-only usages are
@@ -193,19 +165,24 @@ const emit = defineEmits<{
   "roll-save": [key: string, label: string, bonus: number, mode?: RollMode | null];
 }>();
 
-function mod(key: string): number {
-  return Math.floor((scores[key as keyof typeof scores] - 10) / 2);
+function mod(key: AbilityKey): number {
+  return Math.floor((scores[key] - 10) / 2);
 }
 
 function fmt(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;
 }
 
-function saveBonus(key: string): number {
+function saveBonus(key: AbilityKey): number {
   return saves?.[key]?.bonus ?? mod(key);
 }
 
-function isProficient(key: string): boolean {
+function isProficient(key: AbilityKey): boolean {
   return saves?.[key]?.proficient ?? false;
+}
+
+/** The same proficiency pip as the skill rows, so a proficient save reads the same as a proficient skill. */
+function pipClass(key: AbilityKey): string {
+  return isProficient(key) ? "border-primary bg-primary/20" : "border-muted-foreground/30";
 }
 </script>

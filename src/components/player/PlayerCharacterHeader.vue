@@ -1,128 +1,122 @@
 <template>
-  <div class="rounded-lg border border-border bg-card overflow-hidden flex flex-col md:rounded-none md:border-0">
-    <div class="flex items-stretch flex-1">
-      <!-- Portrait (beast image when wildshaped) -->
-      <div class="shrink-0 w-24 relative overflow-hidden bg-muted/50">
-        <MiniPortraitOverlay :source="{ table: 'party_members', id: member.id }">
-          <FocalImage
-            v-if="portrait.src"
-            :src="portrait.src"
-            :alt="portrait.alt"
-            format="portrait"
-            :focal-point="portrait.focalPoint"
-            :lightbox="true"
-          />
-          <span
-            v-else
-            class="absolute inset-0 flex items-center justify-center text-display font-bold text-muted-foreground"
-          >{{ wildshape ? wildshape.beast_name.charAt(0) : member.name.charAt(0) }}</span>
-        </MiniPortraitOverlay>
-      </div>
+  <!--
+    The top of a character's sheet, laid out like the head of the 2024 sheet:
+    the portrait as a plate inset in the paper, then name and class with the
+    numbers a player reads out most (AC, initiative, speed, proficiency, hit
+    dice), then hit points with their controls, then rest and conditions. The
+    parent owns the card; the ability boxes close it underneath.
+  -->
+  <div class="flex flex-wrap items-start gap-3 p-3 sm:flex-nowrap sm:gap-4">
+    <!-- Portrait (beast image when wildshaped) -->
+    <div class="card-plate relative h-27 w-18 shrink-0 overflow-hidden rounded-md bg-muted/50 sm:h-30 sm:w-20">
+      <MiniPortraitOverlay :source="{ table: 'party_members', id: member.id }">
+        <FocalImage
+          v-if="portrait.src"
+          :src="portrait.src"
+          :alt="portrait.alt"
+          format="portrait"
+          :focal-point="portrait.focalPoint"
+          :lightbox="true"
+        />
+        <span
+          v-else
+          class="absolute inset-0 flex items-center justify-center text-display font-bold text-muted-foreground"
+        >{{ wildshape ? wildshape.beast_name.charAt(0) : member.name.charAt(0) }}</span>
+      </MiniPortraitOverlay>
+    </div>
 
-      <!-- Right column -->
-      <div class="flex-1 min-w-0 flex flex-col">
-        <!-- Name + inspiration -->
-        <div class="flex items-start gap-2 px-3 pt-3 pb-1">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-1.5">
-              <h1 class="text-heading font-bold text-foreground leading-tight truncate">
-                {{ wildshape ? wildshape.beast_name : member.name }}
-              </h1>
-              <AppButton
-                v-if="!wildshape"
-                variant="ghost"
-                size="inline-xs"
-                :active="member.inspiration"
-                active-fill="none"
-                class="shrink-0"
-                :class="member.inspiration ? '' : 'text-muted-foreground/30 hover:text-muted-foreground/60'"
-                tooltip="Inspiration"
-                @click="toggleInspiration"
-              >
-                <template #icon>
-                  <IconStar class="h-3.5 w-3.5" :class="member.inspiration ? 'fill-current' : ''" />
-                </template>
-              </AppButton>
+    <div class="flex min-w-0 flex-1 flex-col gap-2.5">
+      <!-- Identity -->
+      <div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-heading font-bold text-foreground leading-tight truncate">
+              {{ wildshape ? wildshape.beast_name : member.name }}
+            </h1>
+            <AppButton
+              v-if="!wildshape"
+              variant="ghost"
+              size="inline-xs"
+              :active="member.inspiration"
+              active-fill="none"
+              class="shrink-0"
+              :class="member.inspiration ? '' : 'text-muted-foreground/30 hover:text-muted-foreground/60'"
+              tooltip="Inspiration"
+              @click="toggleInspiration"
+            >
+              <template #icon>
+                <IconStar class="h-3.5 w-3.5" :class="member.inspiration ? 'fill-current' : ''" />
+              </template>
+            </AppButton>
+          </div>
+          <p class="text-caption text-muted-foreground italic">
+            <template v-if="wildshape">🐺 {{ member.name }}</template>
+            <template v-else>{{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}</template>
+            <span v-if="!wildshape && memberTotalLevel" class="font-cinzel text-2xs text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
+          </p>
+          <!-- XP progress -->
+          <div v-if="xpLevellingEnabled && !wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
+            <span class="text-eyebrow text-muted-foreground">XP</span>
+            <div class="flex-1 max-w-32 h-1 rounded-full bg-muted overflow-hidden">
+              <div class="h-full transition-all"
+                :class="readyToLevelUp ? 'bg-primary' : 'bg-primary/50'"
+                :style="{ width: `${xpPct}%` }" />
             </div>
-            <p class="text-caption text-muted-foreground italic">
-              <template v-if="wildshape">🐺 {{ member.name }}</template>
-              <template v-else>{{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}</template>
-              <span v-if="!wildshape && memberTotalLevel" class="font-cinzel text-2xs text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
-            </p>
-            <!-- XP progress -->
-            <div v-if="xpLevellingEnabled && !wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
-              <span class="text-eyebrow text-muted-foreground">XP</span>
-              <div class="flex-1 max-w-32 h-1 rounded-full bg-muted overflow-hidden">
-                <div class="h-full transition-all"
-                  :class="readyToLevelUp ? 'bg-primary' : 'bg-primary/50'"
-                  :style="{ width: `${xpPct}%` }" />
-              </div>
-              <span class="font-cinzel text-2xs text-muted-foreground">
-                {{ member.experience_points ?? 0 }}<template v-if="xpToNext !== null"> / {{ xpToNext }}</template>
-              </span>
-              <!-- DM: emit event (player /play/* routes aren't accessible to DMs) -->
-              <AppButton
-                v-if="readyToLevelUp && auth.isDM"
-                variant="link"
-                size="inline-xs"
-                class="ml-0.5"
-                label="Ready ↑"
-                @click="emit('level-up')"
-              />
-              <!-- Player: link to the level-up flow -->
-              <AppButton
-                v-else-if="readyToLevelUp && !hidePlayerActions"
-                variant="link"
-                size="inline-xs"
-                class="ml-0.5"
-                :to="`/play/character/levelup?memberId=${member.id}`"
-                label="Ready ↑"
-              />
-            </div>
+            <span class="font-cinzel text-2xs text-muted-foreground">
+              {{ member.experience_points ?? 0 }}<template v-if="xpToNext !== null"> / {{ xpToNext }}</template>
+            </span>
+            <!-- DM: emit event (player /play/* routes aren't accessible to DMs) -->
+            <AppButton
+              v-if="readyToLevelUp && auth.isDM"
+              variant="link"
+              size="inline-xs"
+              class="ml-0.5"
+              label="Ready ↑"
+              @click="emit('level-up')"
+            />
+            <!-- Player: link to the level-up flow -->
+            <AppButton
+              v-else-if="readyToLevelUp && !hidePlayerActions"
+              variant="link"
+              size="inline-xs"
+              class="ml-0.5"
+              :to="`/play/character/levelup?memberId=${member.id}`"
+              label="Ready ↑"
+            />
           </div>
         </div>
 
-        <!-- Combat stats: AC · SPD · INIT · PROF · HD (static reference, grouped with identity) -->
-        <div class="flex items-center flex-wrap gap-y-0.5 px-3 pb-2">
-          <template v-for="(cs, csIdx) in combatStats" :key="cs.label">
-            <div class="flex items-baseline gap-0.5">
-              <span class="text-label text-muted-foreground">{{ cs.label }}</span>
-              <span class="font-cinzel text-xs font-bold text-foreground ml-0.5">{{ cs.value }}<span v-if="cs.suffix" class="text-2xs text-muted-foreground">{{ cs.suffix }}</span></span>
-            </div>
-            <span v-if="csIdx < combatStats.length - 1" class="text-border mx-1 select-none">·</span>
-          </template>
-        </div>
+      </div>
 
-        <!-- HP readout (current state — shown before controls) -->
-        <div class="flex items-baseline gap-1.5 px-3 pt-1 flex-wrap">
-          <span class="text-title font-bold" :class="hpColor">{{ displayHp }}</span>
+      <!-- Hit points: readout, meter, then the controls that change it -->
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <div class="flex items-baseline gap-1.5">
+          <span class="text-label text-muted-foreground">Hit points</span>
+          <span class="text-title font-bold leading-none" :class="hpColor">{{ displayHp }}</span>
           <span class="text-body text-muted-foreground">/ {{ displayMaxHp }}</span>
           <AppButton
             v-if="member.temp_hp"
             variant="link"
             tone="info"
             size="inline-xs"
-            class="ml-1"
             tooltip="Click to clear temp HP"
             @click="clearTempHp"
-          >+{{ member.temp_hp }} tmp <span class="text-tone-info/50">×</span></AppButton>
-          <span v-if="attackDisadvantage" class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
-          <span v-if="checkDisadvantage"  class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
-          <span v-if="exhaustionD20Penalty !== 0" class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20 ml-1" title="Exhaustion penalty on every d20 Test (attack rolls, ability checks, saving throws)">{{ exhaustionD20Penalty }} d20</span>
-          <AppButton
-            v-if="member.concentration"
-            variant="tinted"
-            tone="arcane"
-            emphasis="soft"
-            size="xs"
-            class="ml-1"
-            :tooltip="`Concentrating on ${member.concentration.spellName} — click to drop`"
-            @click="dropConcentration"
-          >✦ Conc: {{ member.concentration.spellName }} <span class="text-muted-foreground">×</span></AppButton>
+          >+{{ member.temp_hp }} temp <span class="text-tone-info/50">×</span></AppButton>
         </div>
-
-        <!-- HP controls (directly below the readout) -->
-        <div class="flex items-center gap-1 px-3 pt-1.5 pb-1">
+        <div
+          class="h-1.5 w-24 overflow-hidden rounded-full bg-muted sm:w-32"
+          role="meter"
+          aria-label="Hit points"
+          :aria-valuenow="displayHp"
+          aria-valuemin="0"
+          :aria-valuemax="displayMaxHp"
+        >
+          <div class="flex h-full">
+            <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpBarWidthPct}%` }" />
+            <div v-if="tempHpBarPct > 0" class="h-full transition-all bg-tone-info" :style="{ width: `${tempHpBarPct}%` }" />
+          </div>
+        </div>
+        <div class="flex items-center gap-1">
           <AppInput
             v-model.number="hpInput"
             type="number"
@@ -131,78 +125,114 @@
             align="center"
             min="0"
             placeholder="0"
+            aria-label="Amount"
             class="w-10"
             @keydown="blockInvalidChars"
             @focus="($event.target as HTMLInputElement).select()"
           />
-          <AppButton variant="tinted" size="xs" tone="danger" emphasis="soft" label="DMG" @click="applyDamage" />
-          <AppButton variant="tinted" size="xs" tone="success" emphasis="soft" label="HEAL" @click="applyHeal" />
-          <AppButton variant="tinted" size="xs" tone="info" emphasis="soft" label="TMP" @click="applyTempHp" />
+          <AppButton variant="tinted" size="xs" tone="danger" emphasis="soft" label="Damage" @click="applyDamage" />
+          <AppButton variant="tinted" size="xs" tone="success" emphasis="soft" label="Heal" @click="applyHeal" />
+          <AppButton variant="tinted" size="xs" tone="info" emphasis="soft" label="Temp" @click="applyTempHp" />
         </div>
+        <span v-if="attackDisadvantage" class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20" title="Disadvantage on attack rolls">⚔ Dis</span>
+        <span v-if="checkDisadvantage"  class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20" title="Disadvantage on ability checks">✦ Dis</span>
+        <span v-if="exhaustionD20Penalty !== 0" class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20" title="Exhaustion penalty on every d20 Test (attack rolls, ability checks, saving throws)">{{ exhaustionD20Penalty }} d20</span>
+        <AppButton
+          v-if="member.concentration"
+          variant="tinted"
+          tone="arcane"
+          emphasis="soft"
+          size="xs"
+          :tooltip="`Concentrating on ${member.concentration.spellName} — click to drop`"
+          @click="dropConcentration"
+        >✦ Conc: {{ member.concentration.spellName }} <span class="text-muted-foreground">×</span></AppButton>
+      </div>
 
-        <!-- Rest + condition picker (management actions, pinned to bottom) -->
-        <div class="flex items-center gap-1 px-3 pb-3 mt-auto">
-          <RestButtons :member="member" />
-          <button
-            ref="conditionPickerBtn"
-            class="h-6 w-6 flex items-center justify-center rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground/50 hover:border-tone-caution/60 hover:text-ink-caution transition-colors text-base leading-none"
-            title="Add condition"
-            @click="openConditionPicker"
-          >+</button>
+      <!-- Rest, then the conditions on the character and the picker that adds one -->
+      <div class="flex flex-wrap items-center gap-1.5">
+        <RestButtons :member="member" />
+        <slot name="conditions" />
+        <AppButton
+          ref="conditionPickerBtn"
+          variant="subtle"
+          size="toolbar"
+          :icon="IconAdd"
+          icon-size="xs"
+          class="border-dashed"
+          label="Condition"
+          tooltip="Add condition"
+          @click="openConditionPicker"
+        />
 
-          <Teleport to="body">
-            <template v-if="showConditionPicker">
-              <div class="fixed inset-0 z-40" @click="showConditionPicker = false" />
-              <div
-                class="fixed z-50 w-52 rounded-lg border border-border bg-card shadow-xl overflow-hidden"
-                :style="{ top: pickerPos.top + 'px', right: pickerPos.right + 'px' }"
-              >
-                <div class="p-2 border-b border-border">
-                  <AppInput
-                    ref="conditionSearchInput"
-                    v-model="conditionSearch"
-                    type="text"
-                    tone="muted"
-                    size="body-xs"
-                    placeholder="Search conditions…"
-                    @keydown.escape="showConditionPicker = false"
-                  />
-                </div>
-                <div class="max-h-56 overflow-y-auto">
-                  <AppButton
-                    v-for="cond in filteredConditions"
-                    :key="cond"
-                    variant="menu"
-                    block
-                    size="sm"
-                    :tone="hasCondition(cond) ? 'danger' : 'caution'"
-                    :fill="hasCondition(cond) ? 'none' : 'tone'"
-                    :disabled="hasCondition(cond)"
-                    :label="cond"
-                    :tooltip="getConditionDescription(cond, ruleset)"
-                    @click="addCondition(cond)"
-                  />
-                </div>
+        <Teleport to="body">
+          <template v-if="showConditionPicker">
+            <div class="fixed inset-0 z-40" @click="showConditionPicker = false" />
+            <div
+              class="fixed z-50 w-52 rounded-lg border border-border bg-card shadow-xl overflow-hidden"
+              :style="{ top: pickerPos.top + 'px', right: pickerPos.right + 'px' }"
+            >
+              <div class="p-2 border-b border-border">
+                <AppInput
+                  ref="conditionSearchInput"
+                  v-model="conditionSearch"
+                  type="text"
+                  tone="muted"
+                  size="body-xs"
+                  placeholder="Search conditions…"
+                  @keydown.escape="showConditionPicker = false"
+                />
               </div>
-            </template>
-          </Teleport>
-        </div>
+              <div class="max-h-56 overflow-y-auto">
+                <AppButton
+                  v-for="cond in filteredConditions"
+                  :key="cond"
+                  variant="menu"
+                  block
+                  size="sm"
+                  :tone="hasCondition(cond) ? 'danger' : 'caution'"
+                  :fill="hasCondition(cond) ? 'none' : 'tone'"
+                  :disabled="hasCondition(cond)"
+                  :label="cond"
+                  :tooltip="getConditionDescription(cond, ruleset)"
+                  @click="addCondition(cond)"
+                />
+              </div>
+            </div>
+          </template>
+        </Teleport>
       </div>
     </div>
 
-    <!-- HP bar — mobile only; md+ uses the parent wrapper's full-width bar -->
-    <div class="h-1.5 w-full bg-muted overflow-hidden md:hidden">
-      <div class="h-full flex">
-        <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpBarWidthPct}%` }" />
-        <div v-if="tempHpBarPct > 0" class="h-full transition-all bg-tone-info" :style="{ width: `${tempHpBarPct}%` }" />
+    <!-- Reference numbers, boxed as on the 2024 sheet: Armor Class in its
+         shield, the rest in small frames with the label beneath. Read at the
+         table, never rolled from here. A row of five under the portrait on a
+         phone; a block beside the name from sm up. -->
+    <dl class="grid basis-full grid-cols-5 gap-1.5 sm:flex sm:basis-auto sm:shrink-0 sm:gap-2">
+      <div v-for="cs in combatStats" :key="cs.label" class="flex min-w-0 flex-col-reverse items-center gap-1">
+        <dt class="text-center text-label leading-tight text-muted-foreground">
+          <span class="sm:hidden">{{ cs.short }}</span><span class="max-sm:hidden">{{ cs.label }}</span>
+        </dt>
+        <dd class="relative flex h-12 w-full items-center justify-center font-cinzel text-heading font-bold leading-none text-foreground sm:w-16">
+          <svg
+            v-if="cs.shield"
+            viewBox="0 0 40 48"
+            class="absolute inset-y-0 left-1/2 h-full -translate-x-1/2 text-border"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path d="M20 1.5 37.5 7v15.5c0 11.2-7.4 19.6-17.5 24C9.9 42.1 2.5 33.7 2.5 22.5V7Z" stroke="currentColor" stroke-width="1.5" />
+          </svg>
+          <span v-else class="absolute inset-0 rounded-md border border-border" aria-hidden="true" />
+          <span class="relative -mt-0.5">{{ cs.value }}<span v-if="cs.suffix" class="ml-0.5 text-label font-normal text-muted-foreground">{{ cs.suffix }}</span></span>
+        </dd>
       </div>
-    </div>
+    </dl>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from "vue";
-import { IconStar } from '@/lib/icons';
+import { IconAdd, IconStar } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useClassByName } from "@/composables/rules/useCustomClasses";
@@ -383,11 +413,11 @@ const initiativeDisplay = computed(() => {
 });
 
 const combatStats = computed(() => [
-  { label: "AC",   value: displayAc.value, suffix: "" },
-  { label: "SPD",  value: (props.wildshape ? walkingSpeed(props.beastSpeed) : null) ?? props.member.speed, suffix: "ft" },
-  { label: "INIT", value: initiativeDisplay.value, suffix: "" },
-  { label: "PROF", value: `+${props.member.proficiency_bonus}`, suffix: "" },
-  { label: "HD",   value: `${hitDiceRemaining.value}/${memberTotalLevel.value}`, suffix: hitDicePoolLabel.value },
+  { label: "Armor Class", short: "AC",       value: displayAc.value, suffix: "", shield: true },
+  { label: "Initiative",  short: "Init",     value: initiativeDisplay.value, suffix: "", shield: false },
+  { label: "Speed",       short: "Speed",    value: (props.wildshape ? walkingSpeed(props.beastSpeed) : null) ?? props.member.speed, suffix: "ft", shield: false },
+  { label: "Proficiency", short: "Prof",     value: `+${props.member.proficiency_bonus}`, suffix: "", shield: false },
+  { label: "Hit Dice",    short: "Hit Dice", value: `${hitDiceRemaining.value}/${memberTotalLevel.value}`, suffix: hitDicePoolLabel.value, shield: false },
 ]);
 
 const hpPct = computed(() => {
