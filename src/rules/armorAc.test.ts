@@ -135,6 +135,14 @@ describe("equippedArmorByMember", () => {
     expect(equippedArmorByMember([inv({})], [item({ armor_class: null })])).toEqual({});
   });
 
+  it("resolves armor picked from the shared library (#956)", () => {
+    const result = equippedArmorByMember(
+      [inv({ item_id: null, library_item_id: "srd_srd_2024_chain_mail" })],
+      [item({ id: "srd_srd_2024_chain_mail" })],
+    );
+    expect(Object.keys(result)).toEqual(["pm-1"]);
+  });
+
   it("ignores rows with no carrier or no resolvable vault item", () => {
     expect(equippedArmorByMember([inv({ carried_by: null })], [item({})])).toEqual({});
     expect(equippedArmorByMember([inv({ item_id: null })], [item({})])).toEqual({});

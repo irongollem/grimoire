@@ -1,5 +1,6 @@
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
+import { inventoryItemRef } from "@/lib/itemRef";
 
 /**
  * How a piece of body armor applies the wearer's Dexterity modifier to AC.
@@ -113,8 +114,11 @@ export function equippedArmorByMember(
   const itemById = new Map(items.map((i) => [i.id, i]));
   const result: Record<string, ParsedArmor> = {};
   for (const inv of inventory) {
-    if (inv.location !== "equipped" || !inv.carried_by || !inv.item_id || inv.is_ruined) continue;
-    const item = itemById.get(inv.item_id);
+    // `inventoryItemRef`, not `item_id`: gear picked from the shared library is
+    // referenced by `library_item_id` and never counted otherwise (#956).
+    const ref = inventoryItemRef(inv);
+    if (inv.location !== "equipped" || !inv.carried_by || !ref || inv.is_ruined) continue;
+    const item = itemById.get(ref);
     if (!item || item.item_type !== "armor") continue;
     const parsed = parseArmorClass(item.armor_class);
     if (!parsed) continue;

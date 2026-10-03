@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchOpen5eItems, mapOpen5eV2Weapon, mapOpen5eV2MagicItem } from "@/lib/library/open5eImport";
+import { fetchOpen5eItems, magicArmorClass, mapOpen5eV2Armor, mapOpen5eV2Weapon, mapOpen5eV2MagicItem } from "@/lib/library/open5eImport";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -79,6 +79,66 @@ describe("weapon mastery extraction", () => {
 
     const item = mapOpen5eV2MagicItem(ring, new Map());
     expect(item.mastery).toBeNull();
+  });
+});
+
+describe("shield, ammunition and magic armor classification (#956)", () => {
+  const srd2014Document = {
+    key: "srd-2014",
+    name: "System Reference Document 5.1",
+    display_name: "5e 2014 Rules",
+    gamesystem: { key: "5e-2014", name: "5th Edition 2014" },
+  };
+  // What /v2/armor/ really returns for the 2024 Shield: category "heavy".
+  const shield2024 = {
+    key: "srd-2024_shield", name: "Shield", document: srd2024Document, ac_display: "2", category: "heavy",
+  };
+  const magic = (over: Partial<Parameters<typeof mapOpen5eV2MagicItem>[0]>) => ({
+    key: "k", name: "n", desc: "", category: { name: "Wondrous Item", key: "wondrous-item" },
+    rarity: { name: "Rare", key: "rare" }, weapon: null, armor: null, weight: null, cost: null,
+    requires_attunement: false, attunement_detail: null, document: srd2024Document, ...over,
+  });
+
+  it("files the 2024 Shield as a shield although Open5e calls it heavy armor", () => {
+    expect(mapOpen5eV2Armor(shield2024).item_type).toBe("shield");
+  });
+
+  it("files 2014 magic shields under their own Shield category as shields", () => {
+    const item = mapOpen5eV2MagicItem(
+      magic({ name: "Animated Shield", category: { name: "Shield", key: "shield" }, document: srd2014Document }),
+      new Map(),
+    );
+    expect(item.item_type).toBe("shield");
+  });
+
+  it("files 2024 magic shields, which Open5e calls Armor, as shields", () => {
+    const unlinked = mapOpen5eV2MagicItem(magic({ name: "Spellguard Shield", category: { name: "Armor", key: "armor" } }), new Map());
+    expect(unlinked.item_type).toBe("shield");
+    const linked = mapOpen5eV2MagicItem(
+      magic({ name: "Shield (+1)", category: { name: "Armor", key: "armor" }, armor: shield2024 }),
+      new Map(),
+    );
+    expect(linked.item_type).toBe("shield");
+    expect(linked.armor_class).toBe("3");
+  });
+
+  it("keeps a wondrous item whose name only contains the word as a prefix", () => {
+    expect(mapOpen5eV2MagicItem(magic({ name: "Brooch of Shielding" }), new Map()).item_type).toBe("wondrous_item");
+  });
+
+  it("files magic ammunition as ammunition", () => {
+    const item = mapOpen5eV2MagicItem(
+      magic({ name: "Arrow of Slaying", category: { name: "Ammunition", key: "ammunition" }, document: srd2014Document }),
+      new Map(),
+    );
+    expect(item.item_type).toBe("ammunition");
+  });
+
+  it("adds a magic armor's bonus to its base armor class", () => {
+    expect(magicArmorClass("14 + Dex modifier (max 2)", "Breastplate (+2)")).toBe("16 + Dex modifier (max 2)");
+    expect(magicArmorClass("16", "Chain Mail (+1)")).toBe("17");
+    expect(magicArmorClass("16", "Chain Mail")).toBe("16");
+    expect(magicArmorClass(null, "Armor (+1)")).toBeNull();
   });
 });
 

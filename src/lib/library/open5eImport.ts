@@ -83,8 +83,23 @@ function mapRarity(raw: string): ItemRarity {
   return valid.includes(value as ItemRarity) ? value as ItemRarity : "common";
 }
 
-function magicItemType(category: string): ItemType {
+/**
+ * A shield, told by name where Open5e's category cannot be trusted (#956). The
+ * 2024 SRD's mundane Shield comes back from `/v2/armor/` with category `heavy`,
+ * and its magic shields (Animated Shield, Shield (+1), ...) from
+ * `/v2/magicitems/` with category `Armor`, so a category-only test files every
+ * one of them as body armor: no shield bonus, and an equipped Shield read as
+ * armor with base AC 2. Whole word only, so "Brooch of Shielding" stays wondrous.
+ */
+function isShieldName(name: string): boolean {
+  return /\bshield\b/i.test(name);
+}
+
+function magicItemType(category: string, name: string): ItemType {
   const value = category.toLowerCase();
+  // The 2014 SRD files its magic shields under a `Shield` category of their own.
+  if (value.includes("shield") || (value.includes("armor") && isShieldName(name))) return "shield";
+  if (value.includes("ammunition")) return "ammunition";
   if (value.includes("armor")) return "armor";
   if (value.includes("weapon")) return "weapon";
   if (value.includes("ring")) return "ring";
@@ -94,6 +109,22 @@ function magicItemType(category: string): ItemType {
   if (value.includes("potion")) return "potion";
   if (value.includes("scroll")) return "scroll";
   return "wondrous_item";
+}
+
+/**
+ * The armor class a magic armor or shield grants, bonus included (#956).
+ *
+ * Open5e embeds the *base* armor in a "+N" item and gives no bonus field, so
+ * "Chain Mail (+1)" arrived as AC 16 and "Shield (+1)" as a +2 shield. The
+ * bonus is read from the name, the only place Open5e states it, and added to
+ * the leading base integer, which is the form `parseArmorClass` and
+ * `parseShieldAcBonus` read ("14 + Dex modifier (max 2)" becomes "15 + ...").
+ */
+export function magicArmorClass(acDisplay: string | null | undefined, name: string): string | null {
+  if (!acDisplay) return null;
+  const bonus = name.match(/\+\s*(\d)\b/);
+  if (!bonus) return acDisplay;
+  return acDisplay.replace(/^\s*(\d+)/, (_, base: string) => String(Number(base) + Number(bonus[1])));
 }
 
 function weaponProperties(record: Open5eV2EmbeddedWeapon): WeaponProperty[] {
@@ -184,7 +215,7 @@ export function mapOpen5eV2Armor(
 ): ItemInsert {
   return {
     ...baseItem(record, documentMetadata),
-    item_type: record.category.toLowerCase() === "shield" ? "shield" : "armor",
+    item_type: record.category.toLowerCase() === "shield" || isShieldName(record.name) ? "shield" : "armor",
     subtype: record.category,
     rarity: "mundane",
     requires_attunement: false,
@@ -218,7 +249,11 @@ export function mapOpen5eV2MagicItem(
   if (record.weapon && !baseWeapon) {
     throw new Error(`Open5e magic weapon ${record.key} wraps ${record.weapon.key}, which the weapons fetch did not return`);
   }
-  const itemType = record.weapon ? "weapon" : record.armor ? "armor" : magicItemType(record.category.name);
+  const itemType = record.weapon
+    ? "weapon"
+    : record.armor
+      ? (isShieldName(record.armor.name) ? "shield" : "armor")
+      : magicItemType(record.category.name, record.name);
   return {
     ...baseItem(record, documentMetadata),
     item_type: itemType,
@@ -231,7 +266,7 @@ export function mapOpen5eV2MagicItem(
     damage_rolls: record.weapon?.damage_dice && record.weapon.damage_type
       ? [{ dice: record.weapon.damage_dice, type: record.weapon.damage_type.name.toLowerCase() }]
       : null,
-    armor_class: record.armor?.ac_display || null,
+    armor_class: magicArmorClass(record.armor?.ac_display, record.name),
     properties: record.weapon ? weaponProperties(record.weapon) : [],
     mastery: record.weapon ? weaponMastery(record.weapon) : null,
     charges: null,

@@ -100,6 +100,15 @@ describe("shieldAcBonusByMember", () => {
     expect(shieldAcBonusByMember([inv({ item_id: "missing" })], [item({})])).toEqual({});
   });
 
+  it("counts a shield picked from the shared library (#956)", () => {
+    expect(
+      shieldAcBonusByMember(
+        [inv({ item_id: null, library_item_id: "srd_srd_2024_shield" })],
+        [item({ id: "srd_srd_2024_shield" })],
+      ),
+    ).toEqual({ "pm-1": 2 });
+  });
+
   it("uses the magic shield's own armor_class value", () => {
     expect(
       shieldAcBonusByMember([inv({})], [item({ armor_class: "+3" })]),
