@@ -1,0 +1,74 @@
+import { generateEntityText } from "./entityTextGeneration";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
+import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
+import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
+import { useUiStore } from "@/stores/ui";
+import { captureImageGenerationContext } from "./useImageGeneration";
+import { featureInsertFromAi, type FeatureAiResult } from "@/lib/codex/featureAi";
+import type { ClassFeatureInsert, FeatureType } from "@/types/feature.types";
+
+// ── Module-level singleton state ────────────────────────────────────────────
+const _state = createAiGenerationState();
+
+registerAiGenerator({
+  ..._state,
+  label: "Ability",
+  entityRoute: (id) => `/features/${id}`,
+  openPanel: () => {
+    useUiStore().classFeatureGeneratorOpen = true;
+  },
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface ClassFeatureGenerationOptions {
+  featureType?: FeatureType;
+  /** Free text: the class or species this ability is for. */
+  forWhom?: string;
+}
+
+export function useClassFeatureGeneration() {
+  const { ruleset } = useTableRuleset();
+
+  /** Returns an ability row ready to insert (edition-shaped), or null on failure. */
+  async function generate(
+    userPrompt: string,
+    options?: ClassFeatureGenerationOptions,
+  ): Promise<ClassFeatureInsert | null> {
+    if (isAnyAiGenerating.value) return null;
+    _state.isGenerating.value = true;
+    _state.error.value = null;
+    startAiQuotes();
+
+    try {
+      const context = captureImageGenerationContext();
+      const constraints: string[] = [];
+      if (options?.featureType) constraints.push(`Feature type: ${options.featureType}`);
+      const forWhom = options?.forWhom?.trim();
+      if (forWhom) constraints.push(`For: ${forWhom.slice(0, 200)}`);
+
+      const raw = await generateEntityText<FeatureAiResult>({
+        generator: "class_feature",
+        campaignId: context.campaignId,
+        settingPrompt: context.settingPrompt,
+        ruleset: ruleset.value,
+        prompt: userPrompt,
+        constraints,
+      });
+      const insert = featureInsertFromAi(
+        { ...raw, ...(options?.featureType ? { feature_type: options.featureType } : {}) },
+        { ruleset: ruleset.value, campaignId: context.campaignId },
+      );
+      if (!insert) throw new Error("The model did not return a usable ability. Try again.");
+      return insert;
+    } catch (e) {
+      _state.error.value = e instanceof Error ? e.message : "Generation failed";
+      return null;
+    } finally {
+      _state.isGenerating.value = false;
+      stopAiQuotes();
+    }
+  }
+
+  return { ..._state, generate };
+}

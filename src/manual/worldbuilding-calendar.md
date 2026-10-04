@@ -61,6 +61,8 @@ Click a day in Month view, or the **Event** button anywhere. Fill in:
 - **Description** (rich text, optional).
 - **Visible to players**: sharing an event that wasn't already shared also drops a chat announcement naming it.
 
+**Draft with AI**: with AI turned on for the campaign, the **Draft with AI** link above the description opens a small row where you can add a steer ("A harvest festival for the river god…") and press **Generate**. The draft is grounded in your pantheon, your factions and the date you picked, and it fills in the title (only if you left it empty), the type (only if you hadn't chosen one) and the description, ending with a hook you can use at the table. Nothing is saved until you press **Create Event** or **Save Changes**, so read it over and edit freely. Each draft costs credits, shown beside the button. If you change a drafted event afterwards, Grimoire remembers that it was edited by hand.
+
 **Travel events** show two extra fields (a **location** and the **party members** travelling) and saving the event immediately moves those party members' current location to match. This is the one place a calendar event has a side effect outside the calendar itself.
 
 An event created by pinning a calendar section on a quest, encounter or location (see below) shows a read-only "Pinned `<type>`" chip with an **Open →** link back to that entity instead of the travel fields.

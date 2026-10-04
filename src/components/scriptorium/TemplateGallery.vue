@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-4">
     <p class="text-body text-muted-foreground italic">
-      Start from a finished-looking book, or begin blank — every template is fully editable.
+      Start from a finished-looking book, or begin blank. Every template is fully editable.
     </p>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -46,23 +46,20 @@
       </button>
 
       <!-- Import an existing markdown document as the starting book -->
-      <button
-        type="button"
-        class="group flex flex-col text-left rounded-lg border border-dashed border-border bg-card overflow-hidden hover:border-primary/50 hover:shadow-lg transition-all"
+      <TemplateGalleryActionCard
+        :icon="IconUpload"
+        title="Import Markdown"
+        blurb="Bring an existing .md document: chapters, notes, or a Homebrewery brew — into a styled book."
         @click="fileInput?.click()"
-      >
-        <div class="relative h-32 flex items-center justify-center overflow-hidden bg-muted/30">
-          <IconUpload class="size-8 text-muted-foreground group-hover:text-primary transition-colors" />
-        </div>
-        <div class="flex flex-col gap-1 p-3 border-t border-border">
-          <span class="font-cinzel text-sm font-bold text-foreground group-hover:text-primary transition-colors">
-            Import Markdown
-          </span>
-          <span class="text-caption text-muted-foreground leading-snug">
-            Bring an existing .md document — chapters, notes, or a Homebrewery brew — into a styled book.
-          </span>
-        </div>
-      </button>
+      />
+      <!-- Draft a handout, dossier or recap from the campaign's own data (epic #910) -->
+      <TemplateGalleryActionCard
+        v-if="campaign.isAiEnabled"
+        :icon="IconGenerate"
+        title="Draft with AI"
+        blurb="A player handout, faction dossier or session recap, written from your campaign's own NPCs, places and notes."
+        @click="ui.scriptoriumDraftOpen = true"
+      />
       <input
         ref="fileInput"
         type="file"
@@ -71,6 +68,7 @@
         @change="onFilePicked"
       />
     </div>
+
   </div>
 </template>
 
@@ -79,9 +77,14 @@ import { ref } from "vue";
 import { SCRIPTORIUM_TEMPLATES, type ScriptoriumTemplate } from "@/data/scriptoriumTemplates";
 import { importedMarkdownTemplate } from "@/data/scriptoriumTemplates/importedMarkdown";
 import { docTypeColor, docTypeLabel } from "@/lib/scriptorium/editorConstants";
-import { IconUpload } from "@/lib/icons";
+import TemplateGalleryActionCard from "./TemplateGalleryActionCard.vue";
+import { IconGenerate, IconUpload } from "@/lib/icons";
+import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 
+const ui = useUiStore();
 const templates = SCRIPTORIUM_TEMPLATES;
+const campaign = useCampaignStore();
 
 const emit = defineEmits<{ select: [template: ScriptoriumTemplate] }>();
 

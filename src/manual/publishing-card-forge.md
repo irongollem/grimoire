@@ -35,6 +35,8 @@ In **Collection** mode, five source tabs sit in the left panel:
 
 Click an entity's checkbox to select it. **All** / **None** apply to the currently filtered (searched) list. Selections across all five sources combine into a single deck: mix an NPC, three monsters, and a handful of items freely.
 
+A selected card whose NPC, monster, item or spell has no picture shows a **Paint portrait** button under its preview when AI is enabled for the campaign. It generates art from what the entity already says about itself and saves it onto the entity, so the card, its token and its detail page all gain it. It costs credits, shown beside the button, and one portrait is painted at a time. Shared library entries are read-only and do not offer it.
+
 In **Loot Deck** mode, the panel narrows to items only, and shows your selected count instead of per-tab tabs.
 
 ## Deck back

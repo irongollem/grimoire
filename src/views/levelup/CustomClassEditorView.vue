@@ -202,6 +202,8 @@ import CustomClassResources from "@/components/levelup/CustomClassResources.vue"
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import type { CustomStep, CustomResource, HitDie, CasterType, PreparedAbility } from "@/levelup/customTypes";
+import { markEdited } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 
 const route = useRoute();
 const router = useRouter();
@@ -349,7 +351,7 @@ async function save() {
   if (!canSave.value) return;
   saving.value = true;
   saveError.value = "";
-  const payload = {
+  const content = {
     class_name: form.value.class_name.trim(),
     hit_die: form.value.hit_die,
     primary_ability: form.value.primary_ability.trim() || null,
@@ -368,7 +370,18 @@ async function save() {
     prepared_divisor: form.value.isSpellcaster && form.value.caster_type !== "known" ? form.value.prepared_divisor : null,
     steps: form.value.steps,
     resources: form.value.resources,
-    source: null,
+  };
+  // Material edit detection: any change to the class's rules content means a
+  // human has now authored part of an AI-generated class. Campaign scope is a
+  // carve-out. `source` is kept as stored so a generated class stays "Grimoire:AI".
+  const row = existing.value;
+  const contentChanged = !!row && Object.entries(content).some(
+    ([key, value]) => !deepEqual(value, row[key as keyof typeof row]),
+  );
+  const payload = {
+    ...content,
+    source: row?.source ?? null,
+    ai_provenance: contentChanged ? markEdited(row?.ai_provenance) : (row?.ai_provenance ?? null),
     campaign_id: campaignScope.value === "all" ? null : campaignScope.value,
   };
   try {

@@ -13,6 +13,14 @@ Custom classes let you design entirely new character classes from the ground up,
 
 Go to **Character Codex → Classes** and click **New Class** (or open an existing custom class and click **Edit**). The editor is split into several sections; a read-only summary sheet is shown until you click Edit.
 
+## Generating a class with AI
+
+If AI is switched on for your campaign, **Character Codex → Classes** also has a **Generate** button. Describe the class in a few sentences, and optionally pick a hit die or a spellcasting style (full, half, third or pact). Grimoire designs a whole class from levels 1 to 20 and, before it writes anything, shows you what it is about to create: the class name, hit die, saving throws, spellcasting, and how many abilities it has at each stretch of levels. Choose **Create** to save it, or **Back** to change your idea.
+
+A few things are not left to the AI. The spell slot table is always built from the published full, half, third or pact caster tables, so a generated caster is never stronger than a book caster. Ability Score Improvements come at the usual levels, and the subclass level follows your campaign's edition (level 3 in the 2024 rules, level 1 to 3 in the 2014 rules). Each ability is saved as its own entry in **Character Codex → Abilities**, so you can edit them one by one.
+
+The generator reads your campaign setting and your ruleset, and each generation costs credits (the cost is shown on the button). Once you edit a generated class, it is marked as edited.
+
 ## Identity
 
 - **Class Name**: the class's name. **Create** stays disabled until you give it one.
@@ -82,6 +90,10 @@ The archetype editor has:
 - **Description**: flavour text, full rich-text editor.
 - **Base Class**: which class this archetype belongs to.
 - **Campaign Scope**: this campaign, or all your campaigns.
+
+### Generating an archetype with AI
+
+If AI is switched on for your campaign, **Character Codex → Archetypes** also has a **Generate** button. First pick the base class (required, because the archetype's features arrive at that class's subclass levels), then describe the archetype. Grimoire writes the description and the abilities, shows you a short summary, and saves everything when you choose **Create**. Each ability becomes its own entry in the Abilities compendium. Generating costs credits and reads your campaign setting and ruleset.
 
 ### Subclass Features per Level
 

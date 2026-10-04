@@ -1,236 +1,149 @@
 <template>
-  <Transition name="fade">
-    <div
-      v-if="ui.encounterGeneratorOpen"
-      class="fixed inset-0 bg-black/60 z-40"
-      @click="handleClose"
-    />
-  </Transition>
+  <GeneratorPanelShell
+    v-model:open="ui.encounterGeneratorOpen"
+    v-model:concept="concept"
+    title="Encounter Generator"
+    concept-placeholder="Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight…"
+    :concept-limit="CONCEPT_LIMIT"
+    :credits="textCreditCost"
+    :byok="textIsByok"
+    :is-generating="isGenerating"
+    :error="genError"
+    :show-results="!!result"
+    @generate="runGenerate"
+  >
+    <template #constraints>
+      <div>
+        <label class="block text-caption text-muted-foreground mb-1">Difficulty</label>
+        <SegmentedControl
+          v-model="difficulty"
+          :options="DIFFICULTY_OPTIONS"
+          variant="subtle"
+          size="sm"
+          gap="loose"
+          block
+        />
+      </div>
+    </template>
 
-  <Transition name="slide-right">
-    <aside
-      v-if="ui.encounterGeneratorOpen"
-      class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
-    >
-      <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="text-heading-sm font-semibold text-foreground">Encounter Generator</h2>
-        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" :icon="IconClose" icon-size="lg" @click="handleClose" />
+    <template v-if="result" #results>
+      <div class="flex items-center justify-between">
+        <p class="text-label-lg font-semibold text-muted-foreground">
+          GENERATED ENCOUNTER
+        </p>
+        <AppButton
+          variant="ghost"
+          size="inline-caption"
+          class="underline underline-offset-2"
+          label="Regenerate"
+          @click="clearResult"
+        />
       </div>
 
-      <!-- Body -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-5">
-        <!-- Generating state -->
-        <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
-          <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="text-body text-muted-foreground italic text-center">
-            {{ currentLoadingQuote }}
-          </p>
-          <button
-            type="button"
-            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-            @click="dismissToBackground"
-          >
-            Continue in background
-          </button>
+      <div class="rounded-md border border-border bg-muted/30 p-4 space-y-2">
+        <div class="flex items-start justify-between gap-2">
+          <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ result.name }}</h3>
+          <span class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0 capitalize">{{ result.difficulty }}</span>
         </div>
 
-        <!-- Error state -->
-        <div
-          v-else-if="genError"
-          class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
-        >
-          <p class="text-caption text-destructive">{{ genError }}</p>
-        </div>
-
-        <!-- Results state -->
-        <template v-else-if="result">
-          <div class="flex items-center justify-between">
-            <p class="text-label-lg font-semibold text-muted-foreground">
-              GENERATED ENCOUNTER
-            </p>
-            <button
-              type="button"
-              class="text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-              @click="clearResult"
-            >
-              Regenerate
-            </button>
-          </div>
-
-          <div class="rounded-md border border-border bg-muted/30 p-4 space-y-2">
-            <div class="flex items-start justify-between gap-2">
-              <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ result.name }}</h3>
-              <span class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0 capitalize">{{ result.difficulty }}</span>
-            </div>
-
-            <p v-if="result.environment" class="text-caption text-muted-foreground">
-              <span class="font-semibold text-foreground">Environment: </span>{{ result.environment }}
-            </p>
-            <p v-if="result.tactics" class="text-caption text-muted-foreground">
-              <span class="font-semibold text-foreground">Tactics: </span>{{ result.tactics }}
-            </p>
-            <p v-if="result.twist" class="text-caption text-muted-foreground">
-              <span class="font-semibold text-foreground">Twist: </span>{{ result.twist }}
-            </p>
-          </div>
-
-          <div v-if="finalMatches.length" class="space-y-1.5">
-            <p class="text-label-lg font-semibold text-muted-foreground">COMBATANTS</p>
-            <!-- #601: same-named creatures exist in several enabled sourcebooks,
-                 each with its own stat block, and name resolution had to pick
-                 one. The picker says which — and lets the DM swap. -->
-            <p v-if="hasAmbiguousMatches" class="text-caption text-muted-foreground italic">
-              Some of these exist in more than one of your sourcebooks — the version
-              shown is the one the encounter will use.
-            </p>
-            <ul class="space-y-1">
-              <!-- Keyed on entryIndex, not def.id: def ids are re-minted on
-                   every `resolved` recompute, so keying on them would remount
-                   every row (destroying an open version picker mid-use)
-                   whenever any monster changes anywhere in the app. -->
-              <li
-                v-for="m in finalMatches"
-                :key="m.entryIndex"
-                class="text-caption text-foreground"
-              >
-                {{ m.def.count }}× {{ matchedLabel(m) }}
-                <div v-if="m.candidates.length > 1" class="mt-1 flex items-center gap-1.5">
-                  <span class="text-label text-muted-foreground shrink-0">Version</span>
-                  <EntityCombobox
-                    :model-value="m.monster.id"
-                    :options="versionOptions(m)"
-                    placeholder="Version…"
-                    @update:model-value="setVersionPick(m.entryIndex, $event)"
-                  />
-                </div>
-              </li>
-            </ul>
-          </div>
-
-          <div
-            v-if="resolved.unmatched.length"
-            class="rounded-md border border-tone-caution/30 bg-tone-caution/10 px-3 py-2 space-y-1.5"
-          >
-            <p class="flex items-center gap-1.5 text-caption font-semibold text-ink-caution">
-              <IconWarning class="h-3 w-3 shrink-0" />
-              Not in your Bestiary — add these manually
-            </p>
-            <ul class="space-y-0.5">
-              <li
-                v-for="(entry, i) in resolved.unmatched"
-                :key="i"
-                class="text-caption text-ink-caution/90"
-              >
-                {{ entry.count }}× {{ unmatchedLabel(entry) }}
-              </li>
-            </ul>
-          </div>
-
-          <!-- Creation failure (e.g. the encounter quota is already full).
-               Separate from `genError` above: that block belongs to the error
-               *state*, which this result state has replaced — without its own
-               slot, a failed create would leave the DM staring at an
-               unchanged panel with no explanation. -->
-          <div
-            v-if="createError"
-            class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
-          >
-            <p class="text-caption text-destructive">{{ createError }}</p>
-          </div>
-        </template>
-
-        <!-- Form state -->
-        <template v-else>
-          <!-- Concept -->
-          <div>
-            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
-              CONCEPT
-              <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(AI will use this)</span>
-            </label>
-            <textarea
-              v-model="concept"
-              rows="4"
-              :maxlength="CONCEPT_LIMIT"
-              placeholder="Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-            />
-            <div class="flex justify-end mt-1">
-              <span
-                class="text-caption"
-                :class="concept.length >= CONCEPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
-              >{{ concept.length }} / {{ CONCEPT_LIMIT }}</span>
-            </div>
-          </div>
-
-          <div class="gold-divider" />
-
-          <!-- Difficulty -->
-          <div>
-            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
-              DIFFICULTY
-            </label>
-            <SegmentedControl
-              v-model="difficulty"
-              :options="DIFFICULTY_OPTIONS"
-              variant="subtle"
-              size="sm"
-              gap="loose"
-              block
-            />
-          </div>
-        </template>
+        <p v-if="result.environment" class="text-caption text-muted-foreground">
+          <span class="font-semibold text-foreground">Environment: </span>{{ result.environment }}
+        </p>
+        <p v-if="result.tactics" class="text-caption text-muted-foreground">
+          <span class="font-semibold text-foreground">Tactics: </span>{{ result.tactics }}
+        </p>
+        <p v-if="result.twist" class="text-caption text-muted-foreground">
+          <span class="font-semibold text-foreground">Twist: </span>{{ result.twist }}
+        </p>
       </div>
 
-      <!-- Footer -->
-      <div class="px-5 py-4 border-t border-border shrink-0 flex flex-col gap-2">
-        <!-- Results: create the encounter -->
-        <template v-if="result">
-          <AppButton
-            v-if="!createdEncounterId"
-            variant="primary"
-            size="md"
-            block
-            :icon="IconAdd"
-            :disabled="creating"
-            :label="creating ? 'Creating…' : 'Create Encounter'"
-            @click="createEncounterFromResult"
-          />
-          <AppButton
-            v-else
-            variant="primary"
-            size="md"
-            block
-            :icon="IconCheckCircle"
-            label="Open Encounter →"
-            @click="viewCreated"
-          />
-        </template>
-
-        <!-- Form: generate -->
-        <template v-else>
-          <GenerationCostBadge
-            v-if="isAiEnabled"
-            :credits="textCreditCost"
-            :byok="textIsByok"
-            class="self-center"
-          />
-          <AppButton
-            v-if="isAiEnabled"
-            variant="primary"
-            size="md"
-            block
-            :icon="IconGenerate"
-            :disabled="isAnyAiGenerating || !concept.trim()"
-            :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-            :label="isGenerating ? 'Generating…' : 'Generate with AI'"
-            @click="runGenerate"
-          />
-          <AiOffNotice v-else />
-        </template>
+      <div v-if="finalMatches.length" class="space-y-1.5">
+        <p class="text-label-lg font-semibold text-muted-foreground">COMBATANTS</p>
+        <!-- #601: same-named creatures exist in several enabled sourcebooks,
+             each with its own stat block, and name resolution had to pick
+             one. The picker says which — and lets the DM swap. -->
+        <p v-if="hasAmbiguousMatches" class="text-caption text-muted-foreground italic">
+          Some of these exist in more than one of your sourcebooks: the version
+          shown is the one the encounter will use.
+        </p>
+        <ul class="space-y-1">
+          <!-- Keyed on entryIndex, not def.id: def ids are re-minted on
+               every `resolved` recompute, so keying on them would remount
+               every row (destroying an open version picker mid-use)
+               whenever any monster changes anywhere in the app. -->
+          <li
+            v-for="m in finalMatches"
+            :key="m.entryIndex"
+            class="text-caption text-foreground"
+          >
+            {{ m.def.count }}× {{ matchedLabel(m) }}
+            <div v-if="m.candidates.length > 1" class="mt-1 flex items-center gap-1.5">
+              <span class="text-label text-muted-foreground shrink-0">Version</span>
+              <EntityCombobox
+                :model-value="m.monster.id"
+                :options="versionOptions(m)"
+                placeholder="Version…"
+                @update:model-value="setVersionPick(m.entryIndex, $event)"
+              />
+            </div>
+          </li>
+        </ul>
       </div>
-    </aside>
-  </Transition>
+
+      <div
+        v-if="resolved.unmatched.length"
+        class="rounded-md border border-tone-caution/30 bg-tone-caution/10 px-3 py-2 space-y-1.5"
+      >
+        <p class="flex items-center gap-1.5 text-caption font-semibold text-ink-caution">
+          <IconWarning class="h-3 w-3 shrink-0" />
+          Not in your Bestiary: add these manually
+        </p>
+        <ul class="space-y-0.5">
+          <li
+            v-for="(entry, i) in resolved.unmatched"
+            :key="i"
+            class="text-caption text-ink-caution/90"
+          >
+            {{ entry.count }}× {{ unmatchedLabel(entry) }}
+          </li>
+        </ul>
+      </div>
+
+      <!-- Creation failure (e.g. the encounter quota is already full).
+           Separate from `genError` above: that block belongs to the error
+           *state*, which this result state has replaced — without its own
+           slot, a failed create would leave the DM staring at an
+           unchanged panel with no explanation. -->
+      <div
+        v-if="createError"
+        class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
+      >
+        <p class="text-caption text-destructive">{{ createError }}</p>
+      </div>
+    </template>
+
+    <template #results-footer>
+      <AppButton
+        v-if="!createdEncounterId"
+        variant="primary"
+        size="md"
+        block
+        :icon="IconAdd"
+        :disabled="creating"
+        :label="creating ? 'Creating…' : 'Create Encounter'"
+        @click="createEncounterFromResult"
+      />
+      <AppButton
+        v-else
+        variant="primary"
+        size="md"
+        block
+        :icon="IconCheckCircle"
+        label="Open Encounter →"
+        @click="viewCreated"
+      />
+    </template>
+  </GeneratorPanelShell>
 
   <PaywallModal v-model="showQuotaPaywall" resource="encounters" />
 </template>
@@ -241,16 +154,13 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 
 const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { useRouter } from "vue-router";
-import { IconAdd, IconCheckCircle, IconClose, IconGenerate, IconWarning } from "@/lib/icons";
+import { IconAdd, IconCheckCircle, IconWarning } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateEncounter } from "@/composables/encounters/useEncounters";
 import { useEncounterGeneration } from "@/ai/useEncounterGeneration";
-import { currentLoadingQuote } from "@/ai/aiGenerationState";
-import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
@@ -301,8 +211,6 @@ const { mutateAsync: createEncounter } = useCreateEncounter();
 const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
 const { data: companions } = useCompanions();
-
-const isAiEnabled = computed(() => campaign.isAiEnabled);
 
 const { costOf } = useAiCredits();
 const { textMultiplierFor } = useProviderConfig();
@@ -382,14 +290,6 @@ function unmatchedLabel(entry: EncounterCombatantAiResult): string {
   return entry.role ? `${entry.name} (${entry.role})` : entry.name;
 }
 
-function handleClose() {
-  ui.encounterGeneratorOpen = false;
-}
-
-function dismissToBackground() {
-  ui.encounterGeneratorOpen = false;
-}
-
 async function runGenerate() {
   if (!canSpend(textCreditCost.value, textIsByok.value)) return;
 
@@ -467,22 +367,3 @@ function viewCreated() {
   router.push(`/encounters/${createdEncounterId.value}?edit=true`);
 }
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-.slide-right-enter-active,
-.slide-right-leave-active {
-  transition: transform 0.25s ease;
-}
-.slide-right-enter-from,
-.slide-right-leave-to {
-  transform: translateX(100%);
-}
-</style>

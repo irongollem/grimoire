@@ -25,6 +25,14 @@ Click **New Rule**. Fill in:
 
 Optionally attach a **Tracker** to the rule: see [Custom Rule Trackers](#custom-rule-trackers).
 
+## Drafting a house rule with AI
+
+When AI is enabled for your campaign, the Custom Rules tab also has a **Generate** button beside **New Rule**. Describe the idea in a sentence or two, such as "characters who see horrors lose Lucidity and act worse as it drops", and optionally pick a **Category**. Grimoire drafts the rule for you and opens it in the editor.
+
+The draft is written as a house rule for your campaign's ruleset (2014 or 2024) and your campaign setting. It has a short summary, then three headings: **When it applies**, **Effect** (with the numbers) and **Exceptions** (what it does not change). Generating costs credits, shown on the button, and the rule is created hidden from players, so you can read and change it before sharing.
+
+Leave **Allow a tracker** on and Grimoire adds a [Tracker](#custom-rule-trackers) when the rule follows a value over time, such as sanity, corruption or hunger, with levels and DM buttons filled in. Turn it off if you only want the rule text. A draft is only a starting point: check the numbers against how your table plays, and edit anything you like. Once you change an AI-drafted rule, it is marked as edited.
+
 ## Organising rules
 
 Rules are searchable by title, category, and tags. Use consistent category names across your rules: they'll be grouped the same way in the player view.

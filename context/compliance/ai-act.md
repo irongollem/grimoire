@@ -87,7 +87,9 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 | `generate-roll-table` | text | same | |
 | `generate-loot` | text | same | loot-table hoards, grounded in the DM's own item vault (#602); server-path only, no client-direct twin |
 | `generate-complication` | text | same | mid-fight complication/reinforcement proposals for the encounter runner, grounded in the DM's own bestiary and campaign entities (#604); server-path only, no client-direct twin |
-| `generate-entity-text` | text | same | spell, monster, item and faction generators — one function keyed by generator (`ai_system_prompts` row + ledger reason); their art goes through `generate-entity-image`. Added 18 Sep 2026: until then these four were client-direct only and failed for every DM without a local key |
+| `generate-entity-text` | text | same | spell, monster, item and faction generators — one function keyed by generator (`ai_system_prompts` row + ledger reason); their art goes through `generate-entity-image`. Added 18 Sep 2026: until then these four were client-direct only and failed for every DM without a local key. Epic #910 (4 Oct 2026) added twelve more keys on the same path: dungeon feature, deity, species, background, class, archetype, ability, house rule, crafting recipe and calendar event (whole entities from a DM's concept), and site room and quest beat (a fill of one existing row, grounded in context the client sends as bounded constraint lines: the site and its neighbouring rooms, the beats either side). Each writes `ai_provenance` on its row (columns added in `20261003235538`) |
+| `suggest-npc-relationships` | text | same | epic #910: proposes 3–6 ties from one NPC to existing NPCs and factions, grounded in the campaign through `_shared/campaignEntityRetrieval.ts`; names are matched back to existing rows and nothing is written until the DM accepts a suggestion, which then carries `ai_provenance`. Server-path only |
+| `draft-scriptorium-document` | text | same | epic #910: drafts a Scriptorium handout, faction dossier or session recap from rows the function reads itself, always scoped to the caller's campaign; a player-audience packet reads only what players may see. The draft is a new document carrying `ai_provenance`. Server-path only |
 | `generate-chronicle-text` | text | same | session recap text |
 | `generate-npc-voice` | text | same | "NPC Voice Coach" — generates speakable-as-is lines only; ephemeral, nothing persisted |
 | `generate-chronicle-image` | image | OpenAI (gpt-image-2.5-flare; gpt-image-2 and gpt-image-1.5 before it), Gemini (gemini-3.1-flash-image, "Nano Banana") via `_shared/imageGen.ts` | also the promotional-reuse surface (§2) |
@@ -104,9 +106,10 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 
 ### Client-direct generators (`src/ai/`, browser-side, BYOK-cloud or local-key only)
 
-The spell, monster, item and faction generators still have a client-direct
-branch, but only in local-key mode; by default they go through
-`generate-entity-text` (`src/ai/entityTextGeneration.ts` picks the path).
+Every `generate-entity-text` generator (the original four and the twelve epic
+#910 added) still has a client-direct branch, but only in local-key mode; by
+default they go through `generate-entity-text`
+(`src/ai/entityTextGeneration.ts` picks the path).
 
 `usePuzzleGeneration.ts` and `useTextEnhancement.ts` call `getTextProvider()` from
 `src/ai/providers/` (`openai.ts`, `anthropic.ts`, `gemini.ts`)

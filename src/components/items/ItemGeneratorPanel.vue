@@ -1,192 +1,62 @@
 <template>
-  <Transition name="fade">
-    <div
-      v-if="ui.itemGeneratorOpen"
-      class="fixed inset-0 bg-black/60 z-40"
-      @click="ui.itemGeneratorOpen = false"
-    />
-  </Transition>
-
-  <Transition name="slide-right">
-    <aside
-      v-if="ui.itemGeneratorOpen"
-      class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
-    >
-      <!-- Header -->
-      <div
-        class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0"
-      >
-        <h2 class="text-heading-sm font-semibold text-foreground">
-          Item Generator
-        </h2>
-        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" :icon="IconClose" icon-size="lg" @click="ui.itemGeneratorOpen = false" />
-      </div>
-
-      <!-- Body -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-5">
-        <!-- Concept -->
+  <GeneratorPanelShell
+    v-model:open="ui.itemGeneratorOpen"
+    v-model:concept="concept"
+    v-model:generate-image="generateImage"
+    title="Item Generator"
+    concept-placeholder="A staff carved from petrified dragon bone, crackling with lightning and able to call storms when wielded by a chosen champion…"
+    :credits="textCreditCost"
+    :byok="textIsByok"
+    :is-generating="isGenerating"
+    :error="genError"
+    blank-to="/vault/new"
+    blank-label="New Blank Item"
+    image-toggle-label="Generate item art"
+    @generate="generateAndCreate"
+  >
+    <template #constraints>
+      <div class="grid grid-cols-2 gap-2">
         <div>
-          <label
-            class="block text-label-lg font-semibold text-muted-foreground mb-1.5"
+          <label class="block text-caption text-muted-foreground mb-1"
+            >Item Type</label
           >
-            CONCEPT
-            <span
-              class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1"
-              >(AI will use this)</span
-            >
-          </label>
-          <textarea
-            v-model="concept"
-            rows="4"
-            :maxlength="CONCEPT_LIMIT"
-            placeholder="A staff carved from petrified dragon bone, crackling with lightning and able to call storms when wielded by a chosen champion…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-          />
-          <div class="flex justify-end mt-1">
-            <span
-              class="text-caption"
-              :class="concept.length >= CONCEPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
-            >{{ concept.length }} / {{ CONCEPT_LIMIT }}</span>
-          </div>
+          <AppSelect v-model="constraints.item_type" tone="filled" size="body" weight="normal" block>
+            <option value="">Any</option>
+            <option v-for="t in ITEM_TYPES" :key="t" :value="t">
+              {{ ITEM_TYPE_LABELS[t] }}
+            </option>
+          </AppSelect>
         </div>
-
-        <div class="gold-divider" />
-
-        <!-- Constraints -->
-        <div class="space-y-3">
-          <p
-            class="text-label-lg font-semibold text-muted-foreground"
+        <div>
+          <label class="block text-caption text-muted-foreground mb-1"
+            >Rarity</label
           >
-            CONSTRAINTS
-            <span
-              class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1"
-              >(optional)</span
-            >
-          </p>
-
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-caption text-muted-foreground mb-1"
-                >Item Type</label
-              >
-              <AppSelect v-model="constraints.item_type" tone="filled" size="body" weight="normal" block>
-                <option value="">Any</option>
-                <option v-for="t in ITEM_TYPES" :key="t" :value="t">
-                  {{ ITEM_TYPE_LABELS[t] }}
-                </option>
-              </AppSelect>
-            </div>
-            <div>
-              <label class="block text-caption text-muted-foreground mb-1"
-                >Rarity</label
-              >
-              <AppSelect v-model="constraints.rarity" tone="filled" size="body" weight="normal" block>
-                <option value="">Any</option>
-                <option v-for="r in ITEM_RARITIES" :key="r" :value="r">
-                  {{ ITEM_RARITY_LABELS[r] }}
-                </option>
-              </AppSelect>
-            </div>
-          </div>
-        </div>
-
-        <!-- Toggles -->
-        <div v-if="isAiEnabled" class="space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-caption text-muted-foreground">Generate item art</span>
-            <ToggleSwitch v-model="generateImage" aria-label="Generate item art" />
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-caption text-muted-foreground">Make it cursed <span class="text-muted-foreground/50">(AI chooses the curse)</span></span>
-            <button
-              type="button"
-              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-              :class="generateCursed ? 'bg-destructive' : 'bg-muted border border-border'"
-              @click="generateCursed = !generateCursed"
-            >
-              <span
-                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
-                :class="generateCursed ? 'translate-x-4.5' : 'translate-x-0.5'"
-              />
-            </button>
-          </div>
-        </div>
-
-        <!-- Generating state -->
-        <div
-          v-if="isGenerating"
-          class="flex flex-col items-center gap-3 py-4"
-        >
-          <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="text-body text-muted-foreground italic text-center">
-            {{ currentLoadingQuote }}
-          </p>
-          <AppButton
-            variant="ghost"
-            size="inline-caption"
-            class="mt-1 underline underline-offset-2"
-            label="Continue in background"
-            @click="ui.itemGeneratorOpen = false"
-          />
-        </div>
-
-        <!-- Error -->
-        <div
-          v-else-if="genError"
-          class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
-        >
-          <p class="text-caption text-destructive">{{ genError }}</p>
+          <AppSelect v-model="constraints.rarity" tone="filled" size="body" weight="normal" block>
+            <option value="">Any</option>
+            <option v-for="r in ITEM_RARITIES" :key="r" :value="r">
+              {{ ITEM_RARITY_LABELS[r] }}
+            </option>
+          </AppSelect>
         </div>
       </div>
+    </template>
 
-      <!-- Footer -->
-      <div
-        class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0"
-      >
-        <GenerationCostBadge
-          v-if="isAiEnabled"
-          :credits="textCreditCost"
-          :byok="textIsByok"
-          class="self-center"
-        />
-        <AppButton
-          v-if="isAiEnabled"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim()"
-          :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          :label="isGenerating ? 'Generating…' : 'Generate with AI'"
-          @click="generateAndCreate"
-        />
-        <AiOffNotice v-else />
-        <AppButton
-          to="/vault/new"
-          :variant="!isAiEnabled ? 'primary' : 'outline'"
-          size="md"
-          block
-          label="New Blank Item"
-          @click="ui.itemGeneratorOpen = false"
-        />
+    <template #extra>
+      <div v-if="isAiEnabled" class="flex items-center justify-between">
+        <span class="text-caption text-muted-foreground">Make it cursed <span class="text-muted-foreground/50">(AI chooses the curse)</span></span>
+        <ToggleSwitch v-model="generateCursed" aria-label="Make it cursed" />
       </div>
-    </aside>
-  </Transition>
+    </template>
+  </GeneratorPanelShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
-import { AI_PROMPT_LIMIT } from "@/ai/utils";
-
-const CONCEPT_LIMIT = AI_PROMPT_LIMIT;
 import { useRouter } from "vue-router";
-import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateItem } from "@/composables/items/useItems";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
@@ -194,8 +64,6 @@ import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useItemGeneration } from "@/ai/useItemGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
-import { currentLoadingQuote } from "@/ai/aiGenerationState";
-import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import {
   ITEM_TYPES,
   ITEM_TYPE_LABELS,
@@ -284,26 +152,3 @@ async function generateAndCreate() {
   }
 }
 </script>
-
-<style scoped>
-.gold-divider {
-  border-top: 1px solid
-    color-mix(in srgb, var(--color-primary) 30%, transparent);
-}
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-.slide-right-enter-active,
-.slide-right-leave-active {
-  transition: transform 0.25s ease;
-}
-.slide-right-enter-from,
-.slide-right-leave-to {
-  transform: translateX(100%);
-}
-</style>

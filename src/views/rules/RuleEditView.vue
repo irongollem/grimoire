@@ -457,6 +457,8 @@ import { useRoute, useRouter } from "vue-router";
 import { useRule, useCreateRule, useUpdateRule, useDeleteRule } from "@/composables/rules/useRules";
 import RuleSheet from "@/components/rules/RuleSheet.vue";
 import { RULE_CATEGORIES } from "@/types/rule.types";
+import { markEdited } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 import type { TrackerDef, TrackerLevel, DmButton, AbilityCode } from "@/types/rule.types";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -625,10 +627,18 @@ function removeButton(idx: number) {
 async function handleSave() {
   saving.value = true;
   try {
+    // Material edit to AI-drafted content flips the provenance flag.
+    const newContent = form.value.content ? JSON.parse(form.value.content) : null;
+    const contentChanged = !isNew.value && rule.value != null && (
+      form.value.title !== rule.value.title ||
+      !deepEqual(newContent, rule.value.content) ||
+      !deepEqual(tracker.value, rule.value.tracker)
+    );
     const payload = {
+      ai_provenance:     contentChanged ? markEdited(rule.value?.ai_provenance) : (rule.value?.ai_provenance ?? null),
       title:             form.value.title,
       category:          form.value.category || null,
-      content:           form.value.content ? JSON.parse(form.value.content) : null,
+      content:           newContent,
       is_player_visible: form.value.isPlayerVisible,
       tags:              tags.value,
       tracker:           tracker.value,

@@ -22,6 +22,8 @@ Pick from four sources:
 - **Monsters**: any monster in the bestiary.
 - **Custom**: enter a name and optionally upload a local image.
 
+An entity with no picture shows "No art" in the list. When AI is enabled for the campaign, select it and choose **Paint portrait** to generate one from what the entity already says about itself. The portrait is saved onto the NPC, monster or character, so its token, its card and its detail page all gain it at once. It costs credits, shown beside the button, and one portrait is painted at a time. Library monsters are read-only and cannot be painted here; customize a copy first.
+
 ### Token settings
 
 - **Ring colour**: six presets (Party blue, Ally gold, Enemy red, Neutral grey, Boss purple, Nature green) or a custom colour picker. The ring colour-codes the token's faction.

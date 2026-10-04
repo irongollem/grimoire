@@ -31,7 +31,7 @@ const admin = createClient(
 type ImagePurpose =
   | "chronicler" | "group_portrait" | "npc_portrait" | "npc_disguise"
   | "monster" | "item" | "spell" | "faction" | "location" | "location_map"
-  | "trap" | "puzzle" | "party_member" | "species";
+  | "trap" | "puzzle" | "party_member" | "species" | "dungeon_feature" | "deity";
 
 const PURPOSE_CONFIG: Record<ImagePurpose, {
   kind: ImageJobKind;
@@ -54,6 +54,8 @@ const PURPOSE_CONFIG: Record<ImagePurpose, {
   puzzle:         { kind: "puzzle",         bucket: "puzzle-images",   prefix: "puzzle",   creditType: "entity_image",       boostStyle: true },
   party_member:   { kind: "party_member",   bucket: "chronicle",       prefix: "party",    creditType: "entity_image",       boostStyle: true },
   species:        { kind: "species",        bucket: "asset-images",    prefix: "species",  creditType: "entity_image",       boostStyle: true },
+  dungeon_feature: { kind: "dungeon_feature", bucket: "asset-images",  prefix: "feature",  creditType: "entity_image",       boostStyle: true },
+  deity:          { kind: "deity",          bucket: "pantheon-emblems", prefix: "deity",   creditType: "entity_image",       boostStyle: true },
 };
 
 function buildScenePrompt(sceneText: string, textDescriptions: string[], settingPrompt: string, imageBasePrompt: string): string {

@@ -56,6 +56,8 @@ export const KIND_NOUNS: Record<string, string> = {
   party_member: "a character portrait of an adventurer",
   species:      "an illustration of a fantasy species or ancestry",
   puzzle:       "an illustration of a puzzle or contraption",
+  dungeon_feature: "an illustration of a dungeon feature: a secret door, hidden passage, mechanism or curiosity",
+  deity:        "a divine portrait of a god or goddess",
   chronicler:   "a scene illustration",
 };
 

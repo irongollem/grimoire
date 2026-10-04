@@ -1,3 +1,5 @@
+import type { AiProvenance } from "@/ai/provenance";
+
 export const DUNGEON_FEATURE_TYPES = [
   "Secret Door",
   "Hidden Passage",
@@ -92,6 +94,8 @@ export interface DungeonFeature {
   image_focal_point: { x: number; y: number } | null;
   tags: string[];
   notes: string | null;
+  /** AI provenance (#910); flipped to edited by the editor on a content change. */
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

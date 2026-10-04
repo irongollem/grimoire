@@ -162,6 +162,20 @@ All fields are nullable; empty fields are hidden in view mode.
 
 `NpcRelationsTab.vue`, rendered by both hosts — the desktop sheet's Relations tab and the mobile sheet's Relations accordion — so the two cannot drift (the phone had, down to NPC connections alone). Four sections, each owning its own CRUD so nothing needs the edit form: **NPC connections** (`NpcRelationsSection`), **Factions** (`NpcFactionsSection` — faction name links to the faction, role editable in place, non-Active status badged), **Party connections** (`NpcPcNotesSection`) and **Favours owed** (`NpcFavorsSection`). Factions live here rather than under the portrait: a membership is a relation with a role and a status, not a tag. See the Web section for the graph alternative.
 
+#### Suggested connections (#910)
+
+The **Suggest** button in `NpcRelationsSection.vue` (shown only when AI is enabled for the campaign) opens a steer box and proposes ties between this NPC and the rest of the campaign: other NPCs and factions. **Nothing is written until the DM accepts a proposal**; `NpcRelationSuggestions.vue` lists them one by one with Accept and Dismiss, plus Dismiss all.
+
+*Server path only:* `supabase/functions/suggest-npc-relationships/index.ts` (client: `src/ai/useNpcRelationshipSuggestions.ts`). It is not a `generate-entity-text` key because the candidate blocks come from service-role reads the browser cannot make. Flow: auth, frozen/child gate, **DM-role gate via `isCampaignDm` (`_shared/campaignAccess.ts`)**, rate limit, `reserveCredits`, candidate gathering, model call, `sanitizeSuggestions`, `recordGeneration` (refunds with `releaseCredits` on any failure). Ledger reason `npc_relationship_suggestion` (1 credit), prompt row `npc_relationships`.
+
+*The DM-role gate is the point:* the function reads every NPC and faction in the campaign with the admin client, so whatever reaches the prompt can come back in the answer. A campaign member who is a player must not get DM-only material, so membership is not enough; `isCampaignDm` admits the owner and `campaign_members.role = 'dm'` only, and fails closed on a read error. Every other DM tool that reads campaign content with the admin client (`generate-quest`, `generate-roll-table`, `generate-complication`, `generate-npc-voice`, `generate-chronicle-text`, `quest-designer-turn`, `draft-scriptorium-document`) uses the same helper, tested in `campaignAccess.test.ts`.
+
+*Candidates come from two places on purpose.* Semantic retrieval (`retrieveCampaignEntities`) ranks entities against the NPC, but it is an enhancement that can be down or empty (nothing embedded yet), so a bounded direct read of the campaign's other NPCs (40) and factions (30) always rides along. The response reports `grounded` so the client knows which it got. The model may only name candidates.
+
+*Validation* (`_shared/npcRelationshipSuggestions.ts`, shared with the client so the relationship enum has one source, `NPC_RELATIONSHIP_TYPES`): `sanitizeSuggestions` drops names that are not candidates, ties that already exist, types outside the enum and duplicates, caps at six, and bounds notes (300) and role (60). The client then maps names back to ids (`resolveSuggestionTargets`) and drops any that stopped resolving while the request was in flight.
+
+*Accepting* creates the `npc_relationships` row (or faction membership with a role) with the response's `ai_provenance`. The composable is deliberately not registered with `registerAiGenerator`: it produces no entity to navigate to, so the floating badge would have nothing to offer. It still respects `isAnyAiGenerating`.
+
 #### Combat Tab
 
 **Two ways to populate the stat block:**

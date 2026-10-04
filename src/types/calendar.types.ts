@@ -1,3 +1,5 @@
+import type { AiProvenance } from "@/ai/provenance";
+
 export interface HarptosDate {
   year: number;
   month: number | null; // null when it's a festival/intercalary day
@@ -42,6 +44,8 @@ export interface CalendarEvent {
   linked_note_id: string | null;
   travel_party_member_ids: string[];
   player_visible: boolean;
+  /** Set when the event was drafted with AI; `edited` flips on a material change. */
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

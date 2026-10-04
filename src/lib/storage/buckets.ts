@@ -251,6 +251,9 @@ export const BUCKETS = {
 
 export type BucketKey = keyof typeof BUCKETS;
 
+/** A registry bucket's id ("asset-images") — what components and upload helpers take. */
+export type BucketId = (typeof BUCKETS)[BucketKey]["id"];
+
 export const BUCKET_ENTRIES = Object.entries(BUCKETS) as [BucketKey, BucketConfig][];
 
 /**

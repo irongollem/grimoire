@@ -1,3 +1,4 @@
+import type { BucketId } from "@/lib/storage";
 import { ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useImageUpload } from "@/composables/useImageUpload";
@@ -13,7 +14,7 @@ export interface GenerateCutoutOptions {
   /** The entity's id — both the row `generate-cutout` reads the picture from and the Gallery back-link target. */
   id: string;
   /** Storage bucket id (e.g. "monster-images") — the same value EntityImageBlock already passes to ImageUpload. */
-  bucket: string;
+  bucket: BucketId;
 }
 
 interface GenerateCutoutResponse {

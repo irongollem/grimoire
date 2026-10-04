@@ -492,6 +492,12 @@ Not every discipline maps to an artisan's tool. Herbalism, Poisoncraft and Forge
 
 **Read mode** (`RecipeSheet`) — clean layout showing DC, time, ingredient list, and output list.
 
+**AI recipe generator (#910).** `CraftingView.vue` has a **Generate** action (`ui.recipeGeneratorOpen`) opening `RecipeGeneratorPanel.vue` (state in `src/ai/useRecipeGeneration.ts`, validation in `src/lib/crafting/recipeAi.ts`). Optional constraints: discipline and a specific output item the DM picks. `generate-entity-text` with `generator: "recipe"`, ledger reason `recipe_generation`.
+
+*Validation:* an unknown discipline, rarity or item type falls back to a default; DC is clamped to 5-30, ingredients capped at five (tags per ingredient at four, quantity at 99) and modifiers at two, crafting time at 999.
+
+*Output resolution, then a confirm step.* The recipe's output is a name, and `resolveRecipeOutput` decides what it points at: an item the campaign already has wins, then the shared library, otherwise a new item is drafted. Matching is a case-insensitive **exact** name, so "Healing Potion" never silently adopts "Greater Healing Potion". Nothing is written yet: the panel shows the recipe and a line from `describeOutputResolution` ("Uses X" or "Creates a new item: X") and only **Create** writes. It then creates the item first when the output is new (`useCreateItem`, with provenance), then the recipe, then the `crafting_outputs`, ingredients and modifiers rows. If the recipe row exists but a child write fails, the DM is told it was created with a partial save and which parts to check, rather than the recipe being rolled back silently. Both rows carry `ai_provenance`. After create it navigates to `/crafting/:id`.
+
 ---
 
 ### Player Crafting (`/play/crafting`)

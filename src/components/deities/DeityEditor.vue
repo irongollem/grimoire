@@ -5,11 +5,14 @@
       <!-- Divine portrait / avatar -->
       <div>
         <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">Divine Form</p>
-        <ImageUpload
+        <EntityImageBlock
           :model-value="form.portrait_url || null"
           :focal-point="form.portrait_focal_point"
           bucket="pantheon-emblems"
           show-focal-point
+          ai-kind="deity"
+          :ai-context="aiContext"
+          :ai-target-id="deity?.id ?? null"
           @update:model-value="form.portrait_url = $event ?? ''"
           @update:focal-point="form.portrait_focal_point = $event"
         />
@@ -203,13 +206,17 @@ import { useToast } from "@/composables/useToast";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useCreateDeity, useUpdateDeity, useDeleteDeity, useAllPantheons } from "@/composables/deities/useDeities";
 import { CLERIC_DOMAINS, DEITY_ALIGNMENTS, type Deity } from "@/types/deity.types";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { buildEntityContext } from "@/ai/utils";
+import { deityImageContextParts } from "@/lib/deities/deityAi";
+import { deepEqual } from "@/lib/utils";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import ImageUpload from "@/components/common/ImageUpload.vue";
+import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 
@@ -255,7 +262,23 @@ const form = ref({
   description: null as string | null,
   dm_notes: null as string | null,
   player_visible_to: [] as string[],
+  ai_provenance: null as AiProvenance | null,
 });
+
+// Entity facts the portrait author works from, built from the live form so
+// unsaved edits count and an existing deity can get a portrait.
+const aiContext = computed(() =>
+  buildEntityContext(
+    deityImageContextParts({
+      name: form.value.name,
+      titles: form.value.titles,
+      alignment: form.value.alignment,
+      domains: selectedDomains.value,
+      portfolio: form.value.portfolio,
+      symbol: form.value.symbol,
+    }),
+  ),
+);
 
 watch(
   () => deity,
@@ -273,6 +296,7 @@ watch(
     form.value.description = d.description;
     form.value.dm_notes = d.dm_notes;
     form.value.player_visible_to = d.player_visible_to ?? [];
+    form.value.ai_provenance = d.ai_provenance ?? null;
     tags.value = [...d.tags];
     alternateNames.value = [...d.alternate_names];
     selectedDomains.value = [...d.domains];
@@ -293,6 +317,21 @@ async function handleSave() {
   if (!form.value.name.trim()) return;
   saving.value = true;
   try {
+    // Material edit detection (#606): portrait, symbol art, tags and player
+    // visibility are excluded per the "moves/tags/image/visibility" carve-outs.
+    const contentChanged = !!deity && (
+      form.value.name.trim() !== deity.name ||
+      (form.value.titles || null) !== deity.titles ||
+      form.value.alignment !== deity.alignment ||
+      (form.value.symbol || null) !== deity.symbol ||
+      (form.value.portfolio || null) !== deity.portfolio ||
+      !deepEqual(selectedDomains.value, deity.domains) ||
+      !deepEqual(alternateNames.value, deity.alternate_names) ||
+      !deepEqual(form.value.description, deity.description) ||
+      !deepEqual(form.value.dm_notes, deity.dm_notes)
+    );
+    if (contentChanged) form.value.ai_provenance = markEdited(form.value.ai_provenance);
+
     const payload = {
       name: form.value.name.trim(),
       titles: form.value.titles || null,
@@ -309,6 +348,7 @@ async function handleSave() {
       dm_notes: form.value.dm_notes,
       player_visible_to: form.value.player_visible_to,
       tags: tags.value,
+      ai_provenance: form.value.ai_provenance,
     };
     if (isNew) {
       await createDeity.mutateAsync(payload);

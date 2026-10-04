@@ -83,6 +83,8 @@ import { useCreateFeature, useUpdateFeature, useDeleteFeature } from "@/composab
 import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { FEATURE_TYPES, FEATURE_TYPE_LABELS } from "@/types/feature.types";
 import type { ClassFeature } from "@/types/feature.types";
+import { markEdited } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 
 const props = defineProps<{ feature: ClassFeature | null }>();
 
@@ -136,13 +138,27 @@ async function save() {
   if (!form.value.name.trim()) return;
   saving.value = true;
   saveError.value = "";
-  const payload = {
+  const content = {
     name: form.value.name.trim(),
     feature_type: form.value.feature_type,
     source: form.value.source.trim() || null,
     prerequisite: form.value.prerequisite.trim() || null,
-    tags: form.value.tags,
     description: form.value.description,
+  };
+  // Material edit detection: a changed name, type, source, prerequisite or
+  // rules text means a human has now authored part of an AI-generated ability.
+  // Tags and campaign scope are carve-outs, as for every other generator.
+  const contentChanged = !!props.feature && (
+    content.name !== props.feature.name ||
+    content.feature_type !== props.feature.feature_type ||
+    content.source !== props.feature.source ||
+    content.prerequisite !== props.feature.prerequisite ||
+    !deepEqual(content.description, props.feature.description)
+  );
+  const payload = {
+    ...content,
+    tags: form.value.tags,
+    ai_provenance: contentChanged ? markEdited(props.feature?.ai_provenance) : (props.feature?.ai_provenance ?? null),
     campaign_id: campaignScope.value === "all" ? null : campaignScope.value,
     open5e_import: props.feature?.open5e_import ?? false,
   };

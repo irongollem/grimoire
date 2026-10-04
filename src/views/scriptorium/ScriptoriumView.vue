@@ -8,6 +8,13 @@
       <!-- Writing needs a larger screen (#915 story 7) — the phone list stays
            a reader, so there's nothing useful for this action to open here. -->
       <ListActionButton
+        v-if="canWrite && campaign.isAiEnabled"
+        variant="outline"
+        :icon="IconGenerate"
+        label="Draft with AI"
+        @click="handleDraft"
+      />
+      <ListActionButton
         v-if="canWrite"
         variant="primary"
         :icon="IconAdd"
@@ -25,19 +32,27 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { IconAdd } from '@/lib/icons';
+import { IconAdd, IconGenerate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ScriptoriumDocumentList from "@/components/scriptorium/ScriptoriumDocumentList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
+import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import { useAbove } from "@/composables/useBreakpoint";
 
 const router = useRouter();
 const { canCreate } = useQuota("scriptorium_documents");
 const showPaywall = ref(false);
 const canWrite = useAbove("md");
+const campaign = useCampaignStore();
+
+// The dialog checks the quota again before it spends anything, so no gate here.
+function handleDraft() {
+  useUiStore().scriptoriumDraftOpen = true;
+}
 
 function handleNew() {
   if (!canCreate.value) { showPaywall.value = true; return; }

@@ -32,6 +32,12 @@
           @click="speciesListRef?.toggleBulkSelectMode()"
         />
         <ListActionButton
+          v-if="activeTab === 'species' && isAiEnabled"
+          :icon="IconGenerate"
+          label="Generate"
+          @click="ui.speciesGeneratorOpen = true"
+        />
+        <ListActionButton
           v-if="activeTab === 'species'"
           variant="primary"
           :icon="IconAdd"
@@ -87,6 +93,12 @@
             @click="handleBgImport"
           />
           <ListActionButton
+            v-if="isAiEnabled"
+            :icon="IconGenerate"
+            label="Generate"
+            @click="ui.backgroundGeneratorOpen = true"
+          />
+          <ListActionButton
             variant="primary"
             :icon="IconAdd"
             label="New Background"
@@ -103,6 +115,12 @@
             :label="classImportLabel"
             :disabled="classImportMutation.isPending.value"
             @click="handleClassImport"
+          />
+          <ListActionButton
+            v-if="isAiEnabled"
+            :icon="IconGenerate"
+            label="Generate"
+            @click="ui.customClassGeneratorOpen = true"
           />
           <ListActionButton
             variant="primary"
@@ -123,6 +141,12 @@
             @click="handleArchetypeImport"
           />
           <ListActionButton
+            v-if="isAiEnabled"
+            :icon="IconGenerate"
+            label="Generate"
+            @click="ui.customSubclassGeneratorOpen = true"
+          />
+          <ListActionButton
             variant="primary"
             :icon="IconAdd"
             label="New Archetype"
@@ -139,6 +163,12 @@
             :label="abilityImportLabel"
             :disabled="abilityImporting"
             @click="handleAbilityImport"
+          />
+          <ListActionButton
+            v-if="isAiEnabled"
+            :icon="IconGenerate"
+            label="Generate"
+            @click="ui.classFeatureGeneratorOpen = true"
           />
           <ListActionButton
             variant="primary"
@@ -229,7 +259,7 @@ import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { onClickOutside } from "@vueuse/core";
-import { IconAdd, IconBookUser, IconCheck, IconDownload, IconLevel, IconLightning, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
+import { IconAdd, IconBookUser, IconGenerate, IconCheck, IconDownload, IconLevel, IconLightning, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
 import TabBar from "@/components/common/TabBar.vue";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -247,6 +277,7 @@ import ClassList from "@/components/levelup/ClassList.vue";
 import ArchetypeList from "@/components/levelup/ArchetypeList.vue";
 import AbilityList from "@/components/features/AbilityList.vue";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import {
   useImportBackgrounds,
   useOpen5eBackgroundDocuments,
@@ -283,6 +314,7 @@ const BG_SOURCE_OPTIONS = [
 ] as const;
 
 const ui = useUiStore();
+const isAiEnabled = computed(() => useCampaignStore().isAiEnabled);
 const auth = useAuthStore();
 const isDM = auth.isDM;
 const route = useRoute();

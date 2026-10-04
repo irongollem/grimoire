@@ -107,6 +107,18 @@ This is the same column documented from the Atlas / door-editing side in world-b
 
 ---
 
+### AI Dungeon Feature Generator (#910)
+
+**Entry point:** the Dungeon Craft page's Features tab "Generate" action (`DungeonCraftView.vue`, `ui.dungeonFeatureGeneratorOpen`), panel `DungeonFeatureGeneratorPanel.vue` mounted in `AiGeneratorPanels.vue`, built on `GeneratorPanelShell`. Optional constraints: feature type and trigger type. Singleton state and the AI badge entry live in `src/ai/useDungeonFeatureGeneration.ts` (label "Feature", route `/dungeon-features/:id`).
+
+**Grounding:** one `generate-entity-text` call with `generator: "feature"`, carrying the campaign setting prompt and the table's ruleset. The system prompt row is `feature` in `ai_system_prompts`. There is no retrieval step; the feature stands alone, so the setting text is all the grounding it needs.
+
+**Validation:** `normalizeDungeonFeature` in `src/lib/dungeonFeatures/featureAi.ts` launders the model's JSON. An unknown feature type falls back to "Other", an unknown trigger or glyph becomes null, the three DCs are clamped to 5-30 (null stays null, since a DC of "does not apply" is meaningful), tags are lowercased, de-duplicated and capped at eight. No usable name is a failed generation, not a blank row.
+
+**Writes:** the panel creates the `dungeon_features` row directly (`useCreateDungeonFeature`), scoped to the active campaign (the editor's Scope control can widen it later). Prose fields (description, contents, notes) go through `toTiptapJson`. `ai_provenance` is stored on the row as the server returned it, and the editor flips `edited` through `markEdited()` the first time the DM saves over it. The illustration is a second step (`generateImage` with purpose `dungeon_feature`, text-only, so the likeness gate does not apply), logged to the Gallery via `logImageGeneration` with `targetColumn: "image_url"`. Image failure is non-fatal: the feature still lands without art. Ledger reason `feature_generation` (credit row "Dungeon Feature Generation", 1 credit); the image charges separately as an image. After create the panel navigates to `/dungeon-features/:id`.
+
+**Image bucket decision:** the feature editor's `EntityImageBlock` now names `bucket="asset-images"`. Its uploads already landed there, but through a silent fallback in `resolveBucketKey` (`src/composables/useImageUpload.ts`): the editor named a bucket that is not in the registry, and the helper quietly mapped any unknown id to `assetImages`. The fallback is gone. `useImageUpload` and `removeStorageImages` take a `BucketId`, so a wrong id fails the build, and `resolveBucketKey` throws on an id it cannot find. The same removal exposed the faction editor passing a key (`factionImages`) where an id belongs; that now passes the real id `faction-images`. Do not reintroduce a default bucket.
+
 ## Traps
 
 ### What they are

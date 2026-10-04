@@ -24,6 +24,12 @@
         @click="handleImport"
       />
       <ListActionButton
+        v-if="campaign.isAiEnabled"
+        :icon="IconGenerate"
+        label="Generate"
+        @click="ui.recipeGeneratorOpen = true"
+      />
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Recipe"
@@ -153,7 +159,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconListView, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
+import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconGenerate, IconListView, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -167,10 +173,12 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type { CraftingRecipe } from "@/types/crafting.types";
 
 const ui = useUiStore();
+const campaign = useCampaignStore();
 const auth = useAuthStore();
 
 const activeDiscipline = computed(() =>

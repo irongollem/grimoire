@@ -27,6 +27,18 @@ Rather than editing raw source and compiling it into a document, you write direc
 2. Pick a **template**: Blank Book, Adventure Module, Monster Compendium, Spell Compendium, Subclass Supplement, or One-Page Dungeon, each seeded with real cover, heading, and table structure for that kind of document. Every template is fully editable afterward.
 3. Or click **Import Markdown** to bring an existing `.md` file (chapters, notes, even a Homebrewery brew) in as your starting book instead of a template.
 
+### Drafting from your campaign with AI
+
+If AI is turned on for your campaign, the template gallery and the Scriptorium list both offer **Draft with AI**. It writes a first draft of one of three documents from your own campaign data:
+
+- **Player handout**: an in-world letter, notice, journal page or proclamation about an NPC, a location or a faction.
+- **Faction dossier**: a sectioned briefing on one faction, with its leadership, members, holdings, goals and relations.
+- **Session recap**: a past-tense recap of one session, written from the players' side and ending with the open threads.
+
+Choose the kind, pick the NPC, location, faction or session it is about, and say who it is for. Add a steer if you like ("a hurried letter, half burnt"). The draft is grounded in the rows it is about and the things linked to them, and it never contradicts them. When it is written for **Players**, only what your players can already see is used, so DM-only notes and secrets stay out. When it is for **DM only**, everything on record is used.
+
+Drafting costs credits, and the cost shows beside the button. The result opens as a normal, fully editable document with plain headings and paragraphs, ready for you to restyle. Once you change the text, the document is no longer marked as untouched AI output.
+
 ## Writing
 
 The galley on the left has a full formatting toolbar:

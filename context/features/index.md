@@ -47,6 +47,31 @@ problem spans features or points outside the app.
 
 ---
 
+## AI generation plumbing (epic #910)
+
+Epic #910 ("offer AI help wherever a DM authors content") added a generator or fill to most authoring surfaces. Each surface is documented in the doc that owns it (Dungeon Features and Dungeon Craft in [dungeon-craft.md](dungeon-craft.md), site rooms and deities in [world-building.md](world-building.md), NPC connection suggestions in [npcs.md](npcs.md), the Codex generators in [party-characters.md](party-characters.md), recipes in [items-spells-crafting.md](items-spells-crafting.md), calendar events in [campaign-notes-calendar.md](campaign-notes-calendar.md), quest beats in [quests.md](quests.md), house rules, Scriptorium drafts and Paint portrait in [publishing-tools.md](publishing-tools.md)). This section holds what they share. Read [../compliance/ai-act.md](../compliance/ai-act.md) first for the transparency register.
+
+**Panel chrome: one of two components, never a hand-copied skeleton.**
+
+- `GeneratorPanelFrame.vue` is the chrome and nothing else: click-away overlay, slide-in `aside`, header with title and close, scrolling body (`default` slot) and an optional footer bar (`footer` slot, drawn only when supplied). Both overlay and close emit `close`; the owner decides what closing means. Use it directly only for a panel whose form the Shell cannot express (the NPC and Quest generators still do).
+- `GeneratorPanelShell.vue` is the standard concept-to-generate form built on the Frame: concept box with counter (`AI_PROMPT_LIMIT`), a `constraints` slot (heading omitted when empty), an optional image toggle, an `extra` slot, the generating state with "Continue in background", the error block, cost badge, Generate button, AI-off notice and the "New Blank X" link. A panel with a results step (roll and loot tables, encounters) passes `show-results`; the `results` slot then replaces the form and `results-footer` replaces the Generate footer inside the same Frame. A new panel supplies only its constraints, its state and its generate handler.
+
+Every generator panel now uses one of the two, and `GeneratorPanelFrame.test.ts` and `GeneratorPanelShell.test.ts` hold their contracts. Panels are mounted app-wide in `AiGeneratorPanels.vue` and opened through a `ui.<name>GeneratorOpen` flag, each registering with `registerAiGenerator` (`src/ai/aiGeneratorRegistry.ts`) so the floating `AiGenerationBadge` can report progress and reopen the panel from any page. A fill that lives inside an existing form (a site room, a quest beat, a calendar event) or produces no entity to open (NPC connection suggestions) either registers with a no-op `openPanel` or does not register, and says why at the call site.
+
+**`generate-entity-text` carries twelve more generators.** The edge function (`supabase/functions/generate-entity-text/index.ts`) is the server path for generators whose only job is one JSON text call. Besides spell, monster, item and faction it now serves `feature`, `deity`, `species`, `background`, `custom_class`, `custom_subclass`, `class_feature`, `custom_rule`, `recipe`, `calendar_event`, `room` and `quest_beat`. The key is the generator's own name because the client's local-key path (`src/ai/entityTextGeneration.ts`, `EntityTextGenerator`) reads `ai_system_prompts` by it; the map in the function gives each key its prompt row and ledger reason. The response carries `ai_provenance`, stamped by the function (provider, model, time, `edited: false`).
+
+**Constraints are now at most 12 lines of at most 400 characters** (was 8 of 300). The fill generators ground themselves in the campaign (a site and its neighbouring rooms, the beats either side of a quest beat, the pantheon), and that context travels as constraint lines. They are still bounded so the body cannot smuggle a second prompt past the limit, and each client builder clips to the same numbers because an overrun is a 400.
+
+**Two new image purposes**, `dungeon_feature` and `deity` (`src/ai/imagePrompt.ts` and the server copy `supabase/functions/_shared/image-prompt.ts`), with matching Gallery kinds. Any new purpose must be added to both copies.
+
+**Migration `20261003235538_ai_help_wherever_a_dm_authors`:** adds nullable `ai_provenance jsonb` to thirteen tables (`dungeon_features`, `deities`, `species`, `backgrounds`, `custom_classes`, `custom_subclasses`, `class_features`, `rules`, `crafting_recipes`, `calendar_events`, `quest_beats`, `npc_relationships`, `scriptorium_documents`); one `ai_generation_credit_costs` row per new generation type (`feature_generation`, `deity_generation`, `species_generation`, `background_generation`, `custom_class_generation` at 2, `custom_subclass_generation`, `class_feature_generation`, `custom_rule_generation`, `recipe_generation`, `calendar_event_generation`, `room_generation`, `quest_beat_generation`, `npc_relationship_suggestion`, `scriptorium_draft` at 2), each priced and calibrated on its own in the admin Pricing tab; and one `ai_system_prompts` row per generator key (plus `npc_relationships` and `scriptorium_draft` for the two dedicated functions), which admins edit in the Prompts tab and a re-run does not overwrite. Site rooms reuse `locations.ai_provenance`, which already existed.
+
+**The provenance rule for all of them:** a hand-written row has no provenance. The generator writes it at create (or fill) time. The first save that changes what the model wrote flips `edited` through `markEdited()` (`src/ai/provenance.ts`), and a save that leaves the text untouched keeps it as generated. Fill surfaces that write into a draft compare against what the model produced to decide.
+
+**Server-side reads need a DM gate.** A function that reads campaign content with the service-role client must admit only the campaign owner or a `dm` member (`isCampaignDm`, `supabase/functions/_shared/campaignAccess.ts`), never any member, because a player is a member and would get DM-only material back in the generated text.
+
+---
+
 ## Navigation
 
 `src/lib/nav.ts` is the single registry. Three surfaces read it: the desktop

@@ -69,12 +69,15 @@ async function deleteCustomClass(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export function useAllCustomClasses() {
+/** `enabled` defers the fetch for a surface mounted before it is used (the
+ *  archetype generator panel lives in the always-mounted generator cluster). */
+export function useAllCustomClasses(enabled: () => boolean = () => true) {
   const { ruleset } = useRuleset();
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, ruleset.value] as const),
     queryFn: ({ queryKey: [, rs] }) => fetchAll(rs),
     staleTime: Infinity,
+    enabled,
   });
 }
 
@@ -116,9 +119,10 @@ export function useUpdateCustomClass() {
   });
 }
 
-export function useAllSystemClasses() {
+export function useAllSystemClasses(enabled: () => boolean = () => true) {
   const { ruleset } = useRuleset();
   return useQuery({
+    enabled,
     queryKey: computed(() => ["system_classes", ruleset.value] as const),
     queryFn: async ({ queryKey: [, rs] }): Promise<SystemClass[]> => {
       const { data, error } = await supabase
@@ -138,8 +142,8 @@ export function useAllSystemClasses() {
  *  must use `data`** — DM and player alike (#566). `all` is the ungated list,
  *  for resolving the class a character already has: disabling a class hides it
  *  from the pickers, it does not stop an existing barbarian from levelling. */
-export function useCampaignSystemClasses() {
-  const { data: all, isLoading } = useAllSystemClasses();
+export function useCampaignSystemClasses(enabled: () => boolean = () => true) {
+  const { data: all, isLoading } = useAllSystemClasses(enabled);
   const campaign = useCampaignStore();
   const data = computed(() =>
     allowedSystemClasses(all.value, campaign.activeCampaign?.disabled_class_names),
@@ -151,8 +155,8 @@ export function useCampaignSystemClasses() {
  *  marked exclusive to another campaign must never reach a picker here. The DM's
  *  blocklist doesn't apply: ClassesTab only toggles SRD classes, custom ones are
  *  always available. */
-export function useCampaignCustomClasses() {
-  const { data: all, isLoading } = useAllCustomClasses();
+export function useCampaignCustomClasses(enabled: () => boolean = () => true) {
+  const { data: all, isLoading } = useAllCustomClasses(enabled);
   const campaign = useCampaignStore();
   const data = computed(() => allowedCampaignScoped(all.value, campaign.activeCampaignId));
   return { data, all, isLoading };

@@ -1,253 +1,167 @@
 <template>
-  <Transition name="fade">
-    <div
-      v-if="ui.lootTableGeneratorOpen"
-      class="fixed inset-0 bg-black/60 z-40"
-      @click="handleClose"
-    />
-  </Transition>
-
-  <Transition name="slide-right">
-    <aside
-      v-if="ui.lootTableGeneratorOpen"
-      class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
-    >
-      <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="text-heading-sm font-semibold text-foreground">Loot Table Generator</h2>
-        <AppButton variant="ghost" size="icon-sm" tooltip="Close" aria-label="Close" :icon="IconClose" icon-size="lg" @click="handleClose" />
-      </div>
-
-      <!-- Body -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-5">
-        <!-- Generating state -->
-        <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
-          <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="text-body text-muted-foreground italic text-center">
-            {{ currentLoadingQuote }}
-          </p>
+  <GeneratorPanelShell
+    v-model:open="ui.lootTableGeneratorOpen"
+    v-model:concept="concept"
+    title="Loot Table Generator"
+    concept-placeholder="The smugglers' vault beneath the Rusty Anchor: coin, contraband, one thing they stole and couldn't sell…"
+    :concept-limit="CONCEPT_LIMIT"
+    :credits="textCreditCost"
+    :byok="textIsByok"
+    :is-generating="isGenerating"
+    :error="genError"
+    :show-results="!!result"
+    @generate="runGenerate"
+  >
+    <template #constraints>
+      <div>
+        <label class="block text-caption text-muted-foreground mb-1">
+          Tier
+          <span class="font-fell text-muted-foreground/60 ml-1">(filters which items the AI is offered)</span>
+        </label>
+        <div class="grid grid-cols-3 gap-2">
           <AppButton
-            variant="ghost"
-            size="inline-caption"
-            class="mt-1 underline underline-offset-2"
-            label="Continue in background"
-            @click="dismissToBackground"
+            v-for="t in LOOT_CR_TIERS"
+            :key="t"
+            variant="subtle"
+            surface="muted"
+            size="sm"
+            :active="crTier === t"
+            :label="LOOT_CR_TIER_LABELS[t]"
+            @click="crTier = t"
           />
         </div>
+        <p class="text-caption text-muted-foreground/70 mt-1.5">
+          {{ tierRarityHint }}
+        </p>
+      </div>
 
-        <!-- Error state -->
-        <div
-          v-else-if="genError"
-          class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
-        >
-          <p class="text-caption text-destructive">{{ genError }}</p>
+      <AppCheckbox
+        v-model="excludeAttunement"
+        label="Skip items that require attunement"
+        label-role="caption"
+      />
+    </template>
+
+    <template v-if="result" #results>
+      <div class="flex items-center justify-between">
+        <p class="text-label-lg font-semibold text-muted-foreground">GENERATED HOARD</p>
+        <AppButton
+          variant="ghost"
+          size="inline-caption"
+          class="underline underline-offset-2"
+          label="Regenerate"
+          @click="clearResult"
+        />
+      </div>
+
+      <div class="rounded-md border border-border bg-muted/30 p-4 space-y-3">
+        <div class="flex items-start justify-between gap-2">
+          <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ result.name }}</h3>
+          <span
+            v-if="crTier !== 'any'"
+            class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0"
+          >{{ LOOT_CR_TIER_LABELS[crTier] }}</span>
         </div>
+        <p v-if="result.description" class="text-caption text-muted-foreground italic">{{ result.description }}</p>
 
-        <!-- Results state -->
-        <template v-else-if="result">
-          <div class="flex items-center justify-between">
-            <p class="text-label-lg font-semibold text-muted-foreground">GENERATED HOARD</p>
-            <AppButton
-              variant="ghost"
-              size="inline-caption"
-              class="underline underline-offset-2"
-              label="Regenerate"
-              @click="clearResult"
-            />
-          </div>
-
-          <div class="rounded-md border border-border bg-muted/30 p-4 space-y-3">
-            <div class="flex items-start justify-between gap-2">
-              <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ result.name }}</h3>
-              <span
-                v-if="crTier !== 'any'"
-                class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0"
-              >{{ LOOT_CR_TIER_LABELS[crTier] }}</span>
-            </div>
-            <p v-if="result.description" class="text-caption text-muted-foreground italic">{{ result.description }}</p>
-
-            <ul class="space-y-1.5">
-              <li
-                v-for="(entry, i) in resolvedEntries"
-                :key="i"
-                class="flex items-start gap-2 text-caption"
-                :class="entry.kind === 'unresolved' ? 'text-muted-foreground' : 'text-foreground'"
-              >
-                <span class="text-label text-primary font-semibold shrink-0 mt-0.5 w-9 text-right">
-                  {{ entry.kind === "unresolved" ? "—" : `${entry.dropChance}%` }}
-                </span>
-                <span class="min-w-0">
-                  <template v-if="entry.kind === 'item'">
-                    <span class="font-semibold" :class="rarityTextClass(entry.item.rarity)">{{ entry.item.name }}</span>
-                    <span class="text-muted-foreground"> ×{{ entry.dice ?? entry.fixedQty }}</span>
-                  </template>
-                  <template v-else-if="entry.kind === 'currency'">
-                    <IconCoins class="inline h-3 w-3 mb-0.5 mr-0.5 text-ink-caution" />
-                    {{ entry.label ?? "Coins" }}
-                    <span class="text-muted-foreground"> — {{ formatCoins(entry) }}</span>
-                  </template>
-                  <template v-else-if="entry.kind === 'random'">
-                    Random {{ ITEM_RARITY_LABELS[entry.rarity].toLowerCase() }}
-                    {{ entry.itemTypeFilter ? ITEM_TYPE_LABELS[entry.itemTypeFilter].toLowerCase() : "item" }}
-                    <span class="text-muted-foreground"> ×{{ entry.dice ?? entry.fixedQty }}</span>
-                  </template>
-                  <template v-else>
-                    <span class="line-through">{{ entry.generatedName }}</span>
-                    <span class="italic text-muted-foreground/70"> — {{ entry.reason }}</span>
-                  </template>
-                  <span v-if="entry.kind !== 'unresolved' && entry.notes" class="block text-muted-foreground/70 italic">
-                    {{ entry.notes }}
-                  </span>
-                </span>
-              </li>
-            </ul>
-
-            <div v-if="result.tags.length" class="flex flex-wrap gap-1.5 pt-1">
-              <span
-                v-for="tag in result.tags"
-                :key="tag"
-                class="rounded-full bg-muted border border-border px-2 py-0.5 text-caption-sm text-muted-foreground"
-              >
-                {{ tag }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Unresolved names are surfaced, never silently dropped (#337). -->
-          <div
-            v-if="unresolvedCount"
-            class="rounded-md border border-border bg-muted/30 px-3 py-2 flex gap-2"
+        <ul class="space-y-1.5">
+          <li
+            v-for="(entry, i) in resolvedEntries"
+            :key="i"
+            class="flex items-start gap-2 text-caption"
+            :class="entry.kind === 'unresolved' ? 'text-muted-foreground' : 'text-foreground'"
           >
-            <IconWarning class="h-3.5 w-3.5 text-ink-caution shrink-0 mt-0.5" />
-            <p class="text-caption text-muted-foreground">
-              {{ unresolvedCount }} {{ unresolvedCount === 1 ? "entry" : "entries" }} couldn't be matched to a real
-              item and {{ unresolvedCount === 1 ? "is" : "are" }} left out of the table.
-              <template v-if="result.grounded === false">
-                This generation ran without your Vault (the semantic index isn't available), so the model was
-                guessing at names — an admin re-embed usually fixes it.
+            <span class="text-label text-primary font-semibold shrink-0 mt-0.5 w-9 text-right">
+              {{ entry.kind === "unresolved" ? "?" : `${entry.dropChance}%` }}
+            </span>
+            <span class="min-w-0">
+              <template v-if="entry.kind === 'item'">
+                <span class="font-semibold" :class="rarityTextClass(entry.item.rarity)">{{ entry.item.name }}</span>
+                <span class="text-muted-foreground"> ×{{ entry.dice ?? entry.fixedQty }}</span>
+              </template>
+              <template v-else-if="entry.kind === 'currency'">
+                <IconCoins class="inline h-3 w-3 mb-0.5 mr-0.5 text-ink-caution" />
+                {{ entry.label ?? "Coins" }}
+                <span class="text-muted-foreground">: {{ formatCoins(entry) }}</span>
+              </template>
+              <template v-else-if="entry.kind === 'random'">
+                Random {{ ITEM_RARITY_LABELS[entry.rarity].toLowerCase() }}
+                {{ entry.itemTypeFilter ? ITEM_TYPE_LABELS[entry.itemTypeFilter].toLowerCase() : "item" }}
+                <span class="text-muted-foreground"> ×{{ entry.dice ?? entry.fixedQty }}</span>
               </template>
               <template v-else>
-                Add {{ unresolvedCount === 1 ? "it" : "them" }} to the Vault, or enable the source
-                {{ unresolvedCount === 1 ? "it comes" : "they come" }} from, and regenerate.
+                <span class="line-through">{{ entry.generatedName }}</span>
+                <span class="italic text-muted-foreground/70">: {{ entry.reason }}</span>
               </template>
-            </p>
-          </div>
-        </template>
+              <span v-if="entry.kind !== 'unresolved' && entry.notes" class="block text-muted-foreground/70 italic">
+                {{ entry.notes }}
+              </span>
+            </span>
+          </li>
+        </ul>
 
-        <!-- Form state -->
-        <template v-else>
-          <!-- Concept -->
-          <div>
-            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
-              CONCEPT
-              <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(AI will use this)</span>
-            </label>
-            <textarea
-              v-model="concept"
-              rows="4"
-              :maxlength="CONCEPT_LIMIT"
-              placeholder="The smugglers' vault beneath the Rusty Anchor — coin, contraband, one thing they stole and couldn't sell…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-            />
-            <div class="flex justify-end mt-1">
-              <span
-                class="text-caption"
-                :class="concept.length >= CONCEPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
-              >{{ concept.length }} / {{ CONCEPT_LIMIT }}</span>
-            </div>
-          </div>
-
-          <div class="gold-divider" />
-
-          <!-- Tier -->
-          <div>
-            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
-              TIER
-              <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(filters which items the AI is offered)</span>
-            </label>
-            <div class="grid grid-cols-3 gap-2">
-              <AppButton
-                v-for="t in LOOT_CR_TIERS"
-                :key="t"
-                variant="subtle"
-                surface="muted"
-                size="sm"
-                :active="crTier === t"
-                :label="LOOT_CR_TIER_LABELS[t]"
-                @click="crTier = t"
-              />
-            </div>
-            <p class="text-caption text-muted-foreground/70 mt-1.5">
-              {{ tierRarityHint }}
-            </p>
-          </div>
-
-          <!-- Attunement -->
-          <AppCheckbox
-            v-model="excludeAttunement"
-            label="Skip items that require attunement"
-            label-role="caption"
-          />
-        </template>
+        <div v-if="result.tags.length" class="flex flex-wrap gap-1.5 pt-1">
+          <span
+            v-for="tag in result.tags"
+            :key="tag"
+            class="rounded-full bg-muted border border-border px-2 py-0.5 text-caption-sm text-muted-foreground"
+          >
+            {{ tag }}
+          </span>
+        </div>
       </div>
 
-      <!-- Footer -->
-      <div class="px-5 py-4 border-t border-border shrink-0 flex flex-col gap-2">
-        <!-- Results: create the table -->
-        <template v-if="result">
-          <p v-if="createError" class="text-caption text-destructive text-center">{{ createError }}</p>
-          <AppButton
-            v-if="!createdTableId"
-            variant="primary"
-            size="md"
-            block
-            :disabled="creating || creatableCount === 0"
-            :icon="IconAdd"
-            :label="creating ? 'Creating…' : `Create Table (${creatableCount} ${creatableCount === 1 ? 'entry' : 'entries'})`"
-            @click="createTable"
-          />
-          <AppButton
-            v-else
-            variant="primary"
-            size="md"
-            block
-            :icon="IconCheckCircle"
-            label="View Table →"
-            @click="viewCreated"
-          />
-        </template>
-
-        <!-- Form: generate -->
-        <template v-else>
-          <GenerationCostBadge
-            v-if="isAiEnabled"
-            :credits="textCreditCost"
-            :byok="textIsByok"
-            class="self-center"
-          />
-          <AppButton
-            v-if="isAiEnabled"
-            variant="primary"
-            size="md"
-            block
-            :disabled="isAnyAiGenerating || !concept.trim()"
-            :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-            :icon="IconGenerate"
-            :label="isGenerating ? 'Generating…' : 'Generate with AI'"
-            @click="runGenerate"
-          />
-          <AiOffNotice v-else />
-        </template>
+      <!-- Unresolved names are surfaced, never silently dropped (#337). -->
+      <div
+        v-if="unresolvedCount"
+        class="rounded-md border border-border bg-muted/30 px-3 py-2 flex gap-2"
+      >
+        <IconWarning class="h-3.5 w-3.5 text-ink-caution shrink-0 mt-0.5" />
+        <p class="text-caption text-muted-foreground">
+          {{ unresolvedCount }} {{ unresolvedCount === 1 ? "entry" : "entries" }} couldn't be matched to a real
+          item and {{ unresolvedCount === 1 ? "is" : "are" }} left out of the table.
+          <template v-if="result.grounded === false">
+            This generation ran without your Vault (the semantic index isn't available), so the model was
+            guessing at names; an admin re-embed usually fixes it.
+          </template>
+          <template v-else>
+            Add {{ unresolvedCount === 1 ? "it" : "them" }} to the Vault, or enable the source
+            {{ unresolvedCount === 1 ? "it comes" : "they come" }} from, and regenerate.
+          </template>
+        </p>
       </div>
-    </aside>
-  </Transition>
+    </template>
+
+    <template #results-footer>
+      <p v-if="createError" class="text-caption text-destructive text-center">{{ createError }}</p>
+      <AppButton
+        v-if="!createdTableId"
+        variant="primary"
+        size="md"
+        block
+        :disabled="creating || creatableCount === 0"
+        :icon="IconAdd"
+        :label="creating ? 'Creating…' : `Create Table (${creatableCount} ${creatableCount === 1 ? 'entry' : 'entries'})`"
+        @click="createTable"
+      />
+      <AppButton
+        v-else
+        variant="primary"
+        size="md"
+        block
+        :icon="IconCheckCircle"
+        label="View Table →"
+        @click="viewCreated"
+      />
+    </template>
+  </GeneratorPanelShell>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
-import { IconAdd, IconCheckCircle, IconClose, IconCoins, IconGenerate, IconWarning } from "@/lib/icons";
+import { IconAdd, IconCheckCircle, IconCoins, IconWarning } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useItems } from "@/composables/items/useItems";
@@ -256,10 +170,7 @@ import { useLootGeneration } from "@/ai/useLootGeneration";
 import { resolveGeneratedLoot, type ResolvedLootEntry } from "@/ai/resolveGeneratedLoot";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import { currentLoadingQuote } from "@/ai/aiGenerationState";
-import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
@@ -296,15 +207,13 @@ const {
 
 const { mutateAsync: createLootTable } = useCreateLootTable();
 
-const isAiEnabled = computed(() => campaign.isAiEnabled);
-
 const concept = ref("");
 const crTier = ref<LootCrTier>("5-10");
 const excludeAttunement = ref(false);
 
 const tierRarityHint = computed(() => {
   const rarities = LOOT_TIER_RARITIES[crTier.value];
-  if (rarities.length === 0) return "No rarity filter — the AI may be offered anything in your Vault.";
+  if (rarities.length === 0) return "No rarity filter: the AI may be offered anything in your Vault.";
   return `Offers ${rarities.map((r) => ITEM_RARITY_LABELS[r].toLowerCase()).join(", ")} items.`;
 });
 
@@ -345,14 +254,6 @@ const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
   () => wholeCredits(costOf("loot_generation") * textMultiplierFor(textProvider.value)),
 );
-
-function handleClose() {
-  ui.lootTableGeneratorOpen = false;
-}
-
-function dismissToBackground() {
-  ui.lootTableGeneratorOpen = false;
-}
 
 async function runGenerate() {
   if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
@@ -452,22 +353,3 @@ function viewCreated() {
   router.push(`/loot-tables/${createdTableId.value}`);
 }
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-.slide-right-enter-active,
-.slide-right-leave-active {
-  transition: transform 0.25s ease;
-}
-.slide-right-enter-from,
-.slide-right-leave-to {
-  transform: translateX(100%);
-}
-</style>

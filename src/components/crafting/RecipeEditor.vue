@@ -231,6 +231,7 @@ import {
 } from "@/lib/crafting-disciplines";
 import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
 import { useUiStore } from "@/stores/ui";
+import { markEdited } from "@/ai/provenance";
 import { useItems } from "@/composables/items/useItems";
 import { inventoryItemRef, itemRefColumns, sameItemRef } from "@/lib/itemRef";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
@@ -512,20 +513,30 @@ async function save() {
     id = recipeId.value!;
     // Only what changed is written: a list or column the user never touched is
     // left alone, so a stale form cannot revert it.
-    const update = recipeChanges(buildRecipe);
+    const recipeColumns = recipeChanges(buildRecipe);
+    const ingredientsChanged = ingredientList.changes((d) => ({ rows: d.rows })).rows;
+    const modifiersChanged = modifierList.changes((d) => ({ rows: d.rows })).rows;
+    const outputsChanged = outputList.changes((d) => ({ rows: d.rows })).rows;
+    // Material edit (#606): visibility alone is not a content change.
+    const contentChanged =
+      Object.keys(recipeColumns).some((key) => key !== "player_visible_to") || !!ingredientsChanged || !!modifiersChanged || !!outputsChanged;
+    const update =
+      contentChanged && props.recipe?.ai_provenance
+        ? { ...recipeColumns, ai_provenance: markEdited(props.recipe.ai_provenance) }
+        : recipeColumns;
     if (Object.keys(update).length > 0) {
       await updateRecipe({ id, update });
       commitRecipe();
     }
-    if (ingredientList.changes((d) => ({ rows: d.rows })).rows) {
+    if (ingredientsChanged) {
       await replaceIngredients({ recipeId: id, ingredients: cloneDraftValue(ingredients.value) });
       ingredientList.commit();
     }
-    if (modifierList.changes((d) => ({ rows: d.rows })).rows) {
+    if (modifiersChanged) {
       await replaceModifiers({ recipeId: id, modifiers: cloneDraftValue(modifiers.value) });
       modifierList.commit();
     }
-    if (outputList.changes((d) => ({ rows: d.rows })).rows) {
+    if (outputsChanged) {
       await replaceOutputs({ recipeId: id, outputs: cloneDraftValue(outputs.value) });
       outputList.commit();
     }

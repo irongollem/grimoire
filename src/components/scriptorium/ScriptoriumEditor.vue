@@ -241,6 +241,7 @@ import { useEntityEmbedData } from "@/composables/scriptorium/useEntityEmbedData
 import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { IconWarning } from "@/lib/icons";
+import { markEdited } from "@/ai/provenance";
 
 const props = defineProps<{
   doc: ScriptoriumDocument | null;
@@ -607,6 +608,11 @@ async function save() {
       const changed = {
         ...changes(buildRow),
         ...(bodyChanged ? { content, word_count: wordCount.value } : {}),
+        // An AI-drafted body the author has now changed is no longer the
+        // model's text as written: flip the provenance (epic #910).
+        ...(bodyChanged && props.doc.ai_provenance && !props.doc.ai_provenance.edited
+          ? { ai_provenance: markEdited(props.doc.ai_provenance) }
+          : {}),
       };
       const oldContent = props.doc.content;
       if (Object.keys(changed).length > 0) await update({ id: props.doc.id, update: changed });

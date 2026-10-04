@@ -327,7 +327,7 @@ function onCancel() {
   router.push({ query: rest });
 }
 
-const { upload: uploadEmblem } = useImageUpload("factionImages");
+const { upload: uploadEmblem } = useImageUpload("faction-images");
 
 async function onFileSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];

@@ -14,6 +14,30 @@
            content entirely — a RichTextEditor cannot live inside a <button>,
            so this branch is never wrapped in one. -->
       <div v-if="fillingId === room.id" class="flex min-w-0 flex-1 flex-col gap-2">
+        <div v-if="isAiEnabled" class="flex flex-col gap-1.5">
+          <div class="flex flex-wrap items-center gap-2">
+            <AppInput
+              v-model="steer"
+              size="sm"
+              class="min-w-48 flex-1"
+              placeholder="Steer it (optional): a flooded shrine, a guard post…"
+              aria-label="Steer the room"
+              :disabled="isGenerating"
+            />
+            <GenerationCostBadge :credits="fillCreditCost" :byok="textIsByok" />
+            <AppButton
+              variant="outline"
+              size="sm"
+              :icon="IconGenerate"
+              label="Roll it with AI"
+              :loading="isGenerating"
+              :disabled="isAnyAiGenerating"
+              :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
+              @click="rollFill(room)"
+            />
+          </div>
+          <p v-if="genError" class="text-caption text-destructive">{{ genError }}</p>
+        </div>
         <RichTextEditor v-model="draft" size="sm" placeholder="What's in this room…" />
         <div class="flex justify-end gap-2">
           <AppButton variant="ghost" size="inline" label="Cancel" @click="cancelFill" />
@@ -82,10 +106,24 @@
 import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import { IconCoins, IconHide, IconShieldCheck } from "@/lib/icons";
+import { IconCoins, IconGenerate, IconHide, IconShieldCheck } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import { useUpdateLocation } from "@/composables/locations/useLocations";
+import { useAllLocations, useUpdateLocation } from "@/composables/locations/useLocations";
+import { useSiteDoors } from "@/composables/locations/useSiteDoors";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useGenerationGate } from "@/composables/ai/useGenerationGate";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useRoomFill } from "@/ai/useRoomFill";
+import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { useCampaignStore } from "@/stores/campaign";
+import { buildAtlasIndex } from "@/lib/locations/tree";
+import { levelsOf, levelOrdinal } from "@/lib/locations/levels";
+import { buildRoomFillConstraints, neighboursOf } from "@/lib/locations/roomFill";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { useMoveParty } from "@/composables/locations/useMoveParty";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
 import { useToast } from "@/composables/useToast";
@@ -136,7 +174,7 @@ function isReachable(room: Location): boolean {
 }
 
 function captionFor(room: Location): string {
-  if (unwrittenIds.has(room.id)) return "Unwritten — write it or roll it";
+  if (unwrittenIds.has(room.id)) return "Unwritten: write it or roll it";
   if (!runCaptions) return roomRowCaption(room.description, isCleared(room));
 
   // Frame 08's reachability-driven captions, opt-in via `runCaptions`.
@@ -144,7 +182,7 @@ function captionFor(room: Location): string {
     const zoneNote = zoneNotes.get(room.id);
     return zoneNote ? `Party here · ${zoneNote} active` : "Party here";
   }
-  if (secretUndiscoveredIds.has(room.id)) return "Secret door — undiscovered";
+  if (secretUndiscoveredIds.has(room.id)) return "Secret door, undiscovered";
   if (!isReachable(room)) return "Not reachable from here";
   return "Reachable";
 }
@@ -182,19 +220,73 @@ const { mutate: updateLocation, isPending: isSaving } = useUpdateLocation();
 function startFill(room: Location): void {
   fillingId.value = room.id;
   draft.value = room.description;
+  steer.value = "";
+  aiDraft.value = null;
+  aiProvenance.value = null;
+  clearError();
 }
 function cancelFill(): void {
   fillingId.value = null;
   draft.value = null;
+  aiDraft.value = null;
+  aiProvenance.value = null;
 }
 function saveFill(room: Location): void {
+  // AI-written text saved untouched keeps its provenance as generated; once the
+  // DM has changed it, the record says so (#606).
+  const provenance = aiProvenance.value && draft.value !== aiDraft.value
+    ? markEdited(aiProvenance.value)
+    : aiProvenance.value;
   updateLocation(
-    { id: room.id, update: { description: draft.value } },
+    { id: room.id, update: { description: draft.value, ...(provenance ? { ai_provenance: provenance } : {}) } },
     {
-      onSuccess: () => { emit("fill", room.id); fillingId.value = null; draft.value = null; },
+      onSuccess: () => { emit("fill", room.id); cancelFill(); },
       onError: (e) => toast.error(toast.fromError(e)),
     },
   );
+}
+
+// ── Roll it with AI (#910) — grounded in the site, its level and the doors ──
+const campaign = useCampaignStore();
+const isAiEnabled = computed(() => campaign.isAiEnabled);
+const steer = ref("");
+const aiDraft = ref<string | null>(null);
+const aiProvenance = ref<AiProvenance | null>(null);
+const { isGenerating, error: genError, clearError, fill } = useRoomFill();
+const { canSpend } = useGenerationGate();
+const { costOf } = useAiCredits();
+const { textMultiplierFor } = useProviderConfig();
+const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
+const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const fillCreditCost = computed(
+  () => wholeCredits(costOf("room_generation") * textMultiplierFor(textProvider.value)),
+);
+
+// Only fetched once a fill is open: nothing else on this list needs them.
+const fillOpen = () => fillingId.value !== null && isAiEnabled.value;
+const { data: allLocations } = useAllLocations(fillOpen);
+const roomIds = computed(() => (fillOpen() ? rooms.map((r) => r.id) : []));
+const { data: doors } = useSiteDoors(roomIds);
+
+async function rollFill(room: Location): Promise<void> {
+  if (!canSpend(fillCreditCost.value, textIsByok.value)) return;
+  const index = buildAtlasIndex(allLocations.value ?? []);
+  const site = index.byId.get(siteId) ?? null;
+  const floor = (room.parent_id ? index.byId.get(room.parent_id) : null) ?? site;
+  const levels = floor ? levelsOf(index, floor) : null;
+  const ordinal = levels && floor ? levelOrdinal(levels.levels, floor.id) : null;
+  const constraints = buildRoomFillConstraints({
+    site,
+    level: levels && floor && ordinal ? { name: floor.name, ordinal, total: levels.levels.length } : null,
+    room,
+    neighbours: neighboursOf(room.id, doors.value ?? []),
+    siblings: rooms.filter((r) => r.parent_id === room.parent_id),
+  });
+  const result = await fill({ room, constraints, steer: steer.value });
+  if (!result) return;
+  draft.value = result.description;
+  aiDraft.value = result.description;
+  aiProvenance.value = result.ai_provenance;
 }
 
 // ── Loot chip — held loot only; there is no room-anchored knowledge fact to

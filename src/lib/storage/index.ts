@@ -23,6 +23,7 @@ export {
   variantPath,
   type BucketConfig,
   type BucketKey,
+  type BucketId,
   type VariantWidth,
 } from "./buckets";
 

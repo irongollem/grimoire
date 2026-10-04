@@ -25,6 +25,26 @@
         v-model="sourceTab"
       />
 
+      <!-- An entity with no picture at all: paint its portrait onto the entity,
+           so the token, its card and its detail page all gain it at once. -->
+      <div
+        v-if="paintTarget"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-border bg-card/50 px-4 py-3"
+      >
+        <p class="text-body text-muted-foreground">
+          <span class="font-cinzel font-semibold text-foreground">{{ paintTarget.name }}</span>
+          has no portrait yet.
+        </p>
+        <PaintPortraitButton
+          :loading="activePainter.isPainting(paintTarget.id)"
+          :disabled="activePainter.isPaintingAny.value"
+          :cost="activePainter.cost.value"
+          :byok="activePainter.byok.value"
+          :error="activePainter.error.value"
+          @paint="paintSelected"
+        />
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
 
         <!-- ── Left: entity list ───────────────────────────────────────── -->
@@ -69,7 +89,7 @@
             <IconUserCircle class="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
             <p class="font-cinzel text-sm text-muted-foreground">Select an entity to forge a token.</p>
             <p class="text-caption text-muted-foreground/60 italic mt-1">
-              Entities with a portrait will use it; others get an initial placeholder.
+              Entities with a portrait will use it. Others get an initial placeholder, or you can paint a portrait with AI.
             </p>
           </div>
         </div>
@@ -161,6 +181,9 @@ import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import CoinFace from "@/components/mint/CoinFace.vue";
 import { COIN_METALS, COIN_PRINT_SIZES } from "@/types/coin.types";
 import type { CoinDesign } from "@/types/coin.types";
+import PaintPortraitButton from "@/components/common/PaintPortraitButton.vue";
+import { useMissingPortrait } from "@/ai/useMissingPortrait";
+import { npcImageContext, partyMemberImageContext, monsterImageContext } from "@/ai/entityImageContext";
 import TokenForgeTokenPreview from "@/components/tokenforge/TokenForgeTokenPreview.vue";
 import TokenForgeEntityList from "@/components/tokenforge/TokenForgeEntityList.vue";
 import TokenForgeCoinEditor from "@/components/tokenforge/TokenForgeCoinEditor.vue";
@@ -454,6 +477,56 @@ const DEFAULT_RING_COLORS: Record<SourceTab, string> = {
   monster: "#dc2626",
   custom:  "#6b7280",
 };
+
+// ── Paint a missing portrait ─────────────────────────────────────────────────
+
+const partyPainter   = useMissingPortrait("party");
+const npcPainter     = useMissingPortrait("npc");
+const monsterPainter = useMissingPortrait("monster");
+const activePainter = computed(() =>
+  sourceTab.value === "npc" ? npcPainter : sourceTab.value === "monster" ? monsterPainter : partyPainter,
+);
+
+/** The selected entity when it has no art of any kind and AI may paint it.
+ *  Shared library monsters are read-only, so they never offer it. */
+const paintTarget = computed<TokenEntity | null>(() => {
+  const entity = selected.value;
+  if (!entity || sourceTab.value === "custom" || !activePainter.value.enabled.value) return null;
+  if (entity.imageUrl || cutoutUrlById.value.has(entity.id)) return null;
+  if (sourceTab.value === "monster" && allMonsters.value?.find((m) => m.id === entity.id)?.is_shared) return null;
+  return entity;
+});
+
+function paintContext(id: string): string {
+  if (sourceTab.value === "npc") {
+    const n = npcs.value?.find((x) => x.id === id);
+    return n ? npcImageContext(n) : "";
+  }
+  if (sourceTab.value === "monster") {
+    const m = allMonsters.value?.find((x) => x.id === id);
+    return m ? monsterImageContext(m) : "";
+  }
+  const p = partyMembers.value?.find((x) => x.id === id);
+  return p
+    ? partyMemberImageContext({
+        name: p.name,
+        speciesName: speciesById.value.get(p.species_id ?? "")?.name,
+        subrace: p.subrace,
+        className: p.class,
+        level: p.level,
+      })
+    : "";
+}
+
+async function paintSelected() {
+  const entity = paintTarget.value;
+  if (!entity) return;
+  const url = await activePainter.value.paint(entity.id, paintContext(entity.id));
+  // `selected` is a snapshot of the row: carry the new art into it so the preview redraws.
+  if (url && selected.value?.id === entity.id) {
+    selected.value = { ...selected.value, imageUrl: url, focalPoint: { x: 50, y: 50 } };
+  }
+}
 
 function selectEntity(entity: TokenEntity) {
   selected.value = entity;

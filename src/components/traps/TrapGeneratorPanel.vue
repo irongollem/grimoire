@@ -1,161 +1,59 @@
 <template>
-  <Transition name="fade">
-    <div
-      v-if="ui.trapGeneratorOpen"
-      class="fixed inset-0 bg-black/60 z-40"
-      @click="ui.trapGeneratorOpen = false"
-    />
-  </Transition>
-
-  <Transition name="slide-right">
-    <aside
-      v-if="ui.trapGeneratorOpen"
-      class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
-    >
-      <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="text-heading-sm font-semibold text-foreground">Trap Generator</h2>
-        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" :icon="IconClose" icon-size="lg" @click="ui.trapGeneratorOpen = false" />
-      </div>
-
-      <!-- Body -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-5">
-        <!-- Concept -->
+  <GeneratorPanelShell
+    v-model:open="ui.trapGeneratorOpen"
+    v-model:concept="concept"
+    v-model:generate-image="generateImage"
+    title="Trap Generator"
+    concept-placeholder="A pressure plate in a dungeon corridor that triggers a volley of poisoned darts from hidden alcoves in the walls…"
+    :credits="effectiveCreditCost"
+    :byok="fullyByok"
+    :is-generating="isGenerating"
+    :error="genError"
+    blank-to="/traps/new"
+    blank-label="New Blank Trap"
+    image-toggle-label="Generate trap illustration"
+    @generate="generateAndCreate"
+  >
+    <template #constraints>
+      <div class="grid grid-cols-2 gap-2">
         <div>
-          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
-            CONCEPT
-            <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(AI will use this)</span>
-          </label>
-          <textarea
-            v-model="concept"
-            rows="4"
-            :maxlength="CONCEPT_LIMIT"
-            placeholder="A pressure plate in a dungeon corridor that triggers a volley of poisoned darts from hidden alcoves in the walls…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-          />
-          <div class="flex justify-end mt-1">
-            <span
-              class="text-caption"
-              :class="concept.length >= CONCEPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
-            >{{ concept.length }} / {{ CONCEPT_LIMIT }}</span>
-          </div>
+          <label class="block text-caption text-muted-foreground mb-1">Type</label>
+          <AppSelect v-model="constraints.trap_type" tone="filled" size="body" weight="normal" block>
+            <option value="">Any</option>
+            <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
+          </AppSelect>
         </div>
-
-        <div class="gold-divider" />
-
-        <!-- Constraints -->
-        <div class="space-y-3">
-          <p class="text-label-lg font-semibold text-muted-foreground">
-            CONSTRAINTS
-            <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional)</span>
-          </p>
-
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-caption text-muted-foreground mb-1">Type</label>
-              <AppSelect v-model="constraints.trap_type" tone="filled" size="body" weight="normal" block>
-                <option value="">Any</option>
-                <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
-              </AppSelect>
-            </div>
-            <div>
-              <label class="block text-caption text-muted-foreground mb-1">CR</label>
-              <AppSelect v-model="constraints.cr" tone="filled" size="body" weight="normal" block>
-                <option value="">Any</option>
-                <option v-for="c in CR_LIST" :key="c" :value="c">{{ c }}</option>
-              </AppSelect>
-            </div>
-          </div>
-        </div>
-
-        <!-- Image generation toggle -->
-        <div v-if="isAiEnabled" class="flex items-center justify-between">
-          <span class="text-caption text-muted-foreground">Generate trap illustration</span>
-          <ToggleSwitch v-model="generateImage" aria-label="Generate trap illustration" />
-        </div>
-
-        <!-- Party portrait toggle — only when image generation is on, OpenAI key available, and group portrait exists -->
-        <div v-if="isAiEnabled && generateImage && openAiKey && groupPortraitUrl" class="flex items-center justify-between">
-          <span class="text-caption text-muted-foreground">Add party to scene</span>
-          <ToggleSwitch v-model="includeParty" aria-label="Add party to scene" />
-        </div>
-
-        <!-- No API key nudge -->
-        <!-- Generating state -->
-        <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
-          <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
-          <AppButton
-            variant="ghost"
-            size="inline-caption"
-            class="mt-1 underline underline-offset-2"
-            label="Continue in background"
-            @click="ui.trapGeneratorOpen = false"
-          />
-        </div>
-
-        <!-- Error -->
-        <div
-          v-else-if="genError"
-          class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
-        >
-          <p class="text-caption text-destructive">{{ genError }}</p>
+        <div>
+          <label class="block text-caption text-muted-foreground mb-1">CR</label>
+          <AppSelect v-model="constraints.cr" tone="filled" size="body" weight="normal" block>
+            <option value="">Any</option>
+            <option v-for="c in CR_LIST" :key="c" :value="c">{{ c }}</option>
+          </AppSelect>
         </div>
       </div>
-
-      <!-- Footer -->
-      <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
-        <GenerationCostBadge
-          v-if="isAiEnabled"
-          :credits="effectiveCreditCost"
-          :byok="fullyByok"
-          class="self-center"
-        />
-        <AppButton
-          v-if="isAiEnabled"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim()"
-          :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          :label="isGenerating ? 'Generating…' : 'Generate with AI'"
-          @click="generateAndCreate"
-        />
-        <AiOffNotice v-else />
-        <AppButton
-          to="/traps/new"
-          :variant="!isAiEnabled ? 'primary' : 'outline'"
-          size="md"
-          block
-          label="New Blank Trap"
-          @click="ui.trapGeneratorOpen = false"
-        />
+    </template>
+    <template #extra>
+      <!-- Party portrait toggle: only when image generation is on, OpenAI key available, and group portrait exists -->
+      <div v-if="isAiEnabled && generateImage && openAiKey && groupPortraitUrl" class="flex items-center justify-between">
+        <span class="text-caption text-muted-foreground">Add party to scene</span>
+        <ToggleSwitch v-model="includeParty" aria-label="Add party to scene" />
       </div>
-    </aside>
-  </Transition>
+    </template>
+  </GeneratorPanelShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
-import { AI_PROMPT_LIMIT } from "@/ai/utils";
-
-const CONCEPT_LIMIT = AI_PROMPT_LIMIT;
 import { useRouter } from "vue-router";
-import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateTrap } from "@/composables/dungeon-features/useTraps";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useTrapGeneration } from "@/ai/useTrapGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
-import { currentLoadingQuote } from "@/ai/aiGenerationState";
-import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { TRAP_TYPES, CR_LIST } from "@/types/trap.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";

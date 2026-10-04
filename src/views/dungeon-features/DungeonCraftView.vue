@@ -15,6 +15,12 @@
           @click="handleFeaturesPopulate"
         />
         <ListActionButton
+          v-if="isAiEnabled"
+          :icon="IconGenerate"
+          label="Generate"
+          @click="ui.dungeonFeatureGeneratorOpen = true"
+        />
+        <ListActionButton
           variant="primary"
           :icon="IconAdd"
           label="New Feature"

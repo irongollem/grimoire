@@ -787,6 +787,16 @@ interface CalendarAdapter {
 - Imports pre-authored events from `src/data/bundles/` (currently: `faerun.ts`, `eberron.ts`, `greyhawk.ts`, `dragonlance.ts`)
 - Batch-inserts events with a live progress counter
 
+### Draft with AI on the event form (#910)
+
+`EventModal.vue` shows a **Draft with AI** link above the Description field when AI is enabled; it toggles `EventModalAiDraft.vue` (a steer box, cost badge and button, not a sidebar), driven by `src/ai/useCalendarEventGeneration.ts`. `generate-entity-text` with `generator: "calendar_event"`, ledger reason `calendar_event_generation`.
+
+*Grounding* (`buildCalendarEventConstraints`, `src/lib/calendar/eventGeneration.ts`): the date as the DM reads it (`formatEventDateLabel`: "3 Mirtul, 1492" or "Midwinter, 1492", from the live form and the calendar adapter's month names), the kind wanted (festival, world event, or "whichever fits the date best" for the default campaign type), and up to ten deities (with domains or portfolio), the pantheons and the factions. The row mounts only when opened, and Generate waits for all three lists to load, so a draft is never written against an empty pantheon while a query is in flight. 12 lines of 400 characters at most.
+
+*It never overwrites the DM.* `applyDraft` fills the title only when it is empty, moves the event type only off the untouched `campaign` default, and fills the description with the draft. The modal's backdrop dismiss is off so a stray click does not lose a draft. `normalizeCalendarEventResult` makes an empty title a failed generation and an unknown type fall back to the type the DM had selected.
+
+*Provenance:* `ai_provenance` is kept on the form state. A save whose title and description still equal what the model wrote stores it as generated; any change stores `markEdited()`; opening an existing event restores the stored value.
+
 ### CalendarEventRef Tiptap Extension
 
 The inline calendar event reference chip is a custom Tiptap node:

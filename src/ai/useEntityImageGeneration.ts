@@ -1,3 +1,4 @@
+import type { BucketId } from "@/lib/storage";
 import { ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useImageUpload } from "@/composables/useImageUpload";
@@ -61,7 +62,7 @@ export interface GenerateEntityImageOptions {
  * `bucketId` is the storage bucket *id* (e.g. "monster-images") — the same value
  * EntityImageBlock already passes to ImageUpload.
  */
-export function useEntityImageGeneration(bucketId: string) {
+export function useEntityImageGeneration(bucketId: BucketId) {
   const campaign = useCampaignStore();
   const { upload } = useImageUpload(bucketId);
   const { logImageGeneration } = useImageGenerationLog();

@@ -12,8 +12,8 @@
       <div class="space-y-2">
         <p class="text-heading-sm font-semibold text-foreground">No custom classes yet</p>
         <p class="text-body text-muted-foreground max-w-sm">
-          Custom classes let you define entirely new primary classes — hit die, saving throws,
-          feature progressions, and wizard steps — for use in the level-up wizard.
+          Custom classes let you define entirely new primary classes: hit die, saving throws,
+          feature progressions, and wizard steps, for use in the level-up wizard.
           Duplicate any SRD class below to use it as a starting point.
         </p>
       </div>
@@ -42,7 +42,7 @@
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
           <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Resource Pools</p>
           <p class="text-caption text-muted-foreground">
-            Tracked uses that appear on the character sheet — Grit Points, Ki, Superiority Dice, etc.
+            Tracked uses that appear on the character sheet: Grit Points, Ki, Superiority Dice, etc.
           </p>
         </div>
       </div>
@@ -82,7 +82,7 @@
     <!-- SRD Classes (always shown unless search hides them all) -->
     <div v-if="filteredSystem.length > 0" class="px-4 md:px-6 mt-6 mb-4">
       <h3 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground mb-2">
-        Reference classes — read only · duplicate to customise
+        Reference classes · read only · duplicate to customise
       </h3>
       <div class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
         <div

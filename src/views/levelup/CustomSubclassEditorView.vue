@@ -129,7 +129,8 @@ import { useAllSpells } from "@/composables/spells/useSpells";
 import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
 import type { CustomStep, CustomResource } from "@/levelup/customTypes";
-
+import { markEdited } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 const route = useRoute();
 const router = useRouter();
 
@@ -231,16 +232,27 @@ async function save() {
   if (!canSave.value) return;
   saving.value = true;
   saveError.value = "";
-  const payload = {
+  const content = {
     class_name: form.value.class_name,
     subclass_name: form.value.subclass_name,
-    source: null,
     description: toPlainText(form.value.description).trim() ? form.value.description : null,
     features: form.value.features,
     granted_spells: form.value.granted_spells,
     steps: form.value.steps,
     resources: form.value.resources,
     hp_per_level: form.value.hp_per_level,
+  };
+  // Material edit detection: any change to the archetype's rules content means
+  // a human has now authored part of an AI-generated archetype. Campaign scope
+  // is a carve-out. `source` is kept as stored so a generated one stays "Grimoire:AI".
+  const row = existing.value;
+  const contentChanged = !!row && Object.entries(content).some(
+    ([key, value]) => !deepEqual(value, row[key as keyof typeof row]),
+  );
+  const payload = {
+    ...content,
+    source: row?.source ?? null,
+    ai_provenance: contentChanged ? markEdited(row?.ai_provenance) : (row?.ai_provenance ?? null),
     campaign_id: campaignScope.value === "all" ? null : campaignScope.value,
   };
   try {

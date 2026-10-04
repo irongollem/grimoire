@@ -1,248 +1,225 @@
 <template>
-  <Transition name="fade">
+  <GeneratorPanelFrame :open="ui.questGeneratorOpen" title="Quest Generator" @close="handleClose">
+    <!-- Generating state -->
+    <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
+      <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
+      <p class="text-body text-muted-foreground italic text-center">
+        {{ currentLoadingQuote }}
+      </p>
+      <AppButton
+        variant="ghost"
+        size="inline-caption"
+        class="mt-1 underline underline-offset-2"
+        label="Continue in background"
+        @click="handleClose"
+      />
+    </div>
+
+    <!-- Error state -->
     <div
-      v-if="ui.questGeneratorOpen"
-      class="fixed inset-0 bg-black/60 z-40"
-      @click="handleClose"
-    />
-  </Transition>
-
-  <Transition name="slide-right">
-    <aside
-      v-if="ui.questGeneratorOpen"
-      class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
+      v-else-if="genError"
+      class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
     >
-      <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="text-heading-sm font-semibold text-foreground">Quest Generator</h2>
-        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" :icon="IconClose" icon-size="lg" @click="handleClose" />
-      </div>
+      <p class="text-caption text-destructive">{{ genError }}</p>
+    </div>
 
-      <!-- Body -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-5">
-        <!-- Generating state -->
-        <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
-          <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="text-body text-muted-foreground italic text-center">
-            {{ currentLoadingQuote }}
-          </p>
-          <AppButton
-            variant="ghost"
-            size="inline-caption"
-            class="mt-1 underline underline-offset-2"
-            label="Continue in background"
-            @click="dismissToBackground"
-          />
-        </div>
-
-        <!-- Error state -->
-        <div
-          v-else-if="genError"
-          class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
-        >
-          <p class="text-caption text-destructive">{{ genError }}</p>
-        </div>
-
-        <!-- Results state -->
-        <template v-else-if="hooks.length > 0">
-          <div class="flex items-center justify-between">
-            <p class="text-label-lg font-semibold text-muted-foreground">
-              GENERATED HOOKS
-            </p>
-            <AppButton
-              variant="ghost"
-              size="inline-caption"
-              class="underline underline-offset-2"
-              label="Regenerate"
-              @click="clearHooks"
-            />
-          </div>
-
-          <div
-            v-for="(hook, i) in hooks"
-            :key="i"
-            class="rounded-md border border-border bg-muted/30 p-4 space-y-3"
-          >
-            <h3 class="font-cinzel text-sm font-semibold text-foreground">{{ hook.title }}</h3>
-            <p class="text-caption text-muted-foreground/70 italic">
-              <span class="text-label not-italic text-muted-foreground/50 mr-1">PLAYER LOG</span>{{ hook.summary }}
-            </p>
-
-            <ul v-if="hook.objectives.length" class="space-y-1">
-              <li
-                v-for="obj in hook.objectives"
-                :key="obj.description"
-                class="flex items-start gap-2 text-caption text-muted-foreground"
-              >
-                <span class="text-primary mt-0.5 shrink-0">•</span>
-                <span>{{ obj.description }}</span>
-              </li>
-            </ul>
-
-            <!-- Story spine preview (#822) — the beats and their order, visible
-                 before Create rather than discovered afterwards. Deliberately
-                 compact: a numbered list and a route summary, not a graph
-                 editor. -->
-            <div v-if="spineBeatsByHook[i]?.length" class="space-y-1">
-              <p class="text-label text-muted-foreground/60">STORY BEATS</p>
-              <ol class="space-y-1">
-                <li
-                  v-for="(beat, bi) in spineBeatsByHook[i]"
-                  :key="beat.key"
-                  class="flex items-baseline gap-2 text-caption text-muted-foreground"
-                >
-                  <span class="font-cinzel text-2xs text-primary shrink-0">{{ bi + 1 }}.</span>
-                  <span class="flex-1">{{ beat.title }}</span>
-                  <span class="text-caption-sm text-muted-foreground/50 uppercase shrink-0">{{ beat.kind }}</span>
-                </li>
-              </ol>
-              <p v-if="spineRoutesByHook[i]?.length" class="text-caption-sm text-muted-foreground/50">
-                Route: {{ spineRoutesByHook[i].join(", ") }}
-              </p>
-            </div>
-
-            <div v-if="hook.tags.length" class="flex flex-wrap gap-1.5">
-              <span
-                v-for="tag in hook.tags"
-                :key="tag"
-                class="rounded-full bg-muted border border-border px-2 py-0.5 text-caption-sm text-muted-foreground"
-              >
-                {{ tag }}
-              </span>
-            </div>
-
-            <GeneratedEntityChips
-              :entities="resolvedEntitiesByHook[i] ?? []"
-              @navigate="goToEntity"
-            />
-
-            <div class="flex items-center gap-2 flex-wrap">
-              <AppButton
-                v-if="!createdQuestIds[i]"
-                variant="primary"
-                size="sm"
-                :icon="IconAdd"
-                :disabled="creatingIndex === i"
-                :label="creatingIndex === i ? 'Creating…' : 'Create Quest'"
-                @click="createFromHook(hook, i)"
-              />
-              <template v-else>
-                <span class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-ink-success">
-                  <IconCheckCircle class="h-3.5 w-3.5" />
-                  Created
-                </span>
-                <AppButton
-                  variant="link"
-                  size="inline-caption"
-                  class="hover:underline underline-offset-2"
-                  label="View Quest →"
-                  @click="viewCreated(i)"
-                />
-                <AppButton
-                  variant="link"
-                  size="inline-caption"
-                  class="hover:underline underline-offset-2"
-                  label="Build flow →"
-                  @click="buildCreated(i)"
-                />
-              </template>
-            </div>
-          </div>
-        </template>
-
-        <!-- Form state -->
-        <template v-else>
-          <!-- Party level -->
-          <div class="flex items-center gap-3">
-            <span class="text-label-lg font-semibold text-muted-foreground">
-              PARTY LEVEL
-            </span>
-            <span class="text-body text-foreground font-semibold">
-              {{ partyLevelDisplay }}
-            </span>
-          </div>
-
-          <div class="gold-divider" />
-
-          <!-- Quest Giver -->
-          <div>
-            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
-              QUEST GIVER
-              <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional)</span>
-            </label>
-            <EntityCombobox
-              v-model="giverNpcId"
-              :options="npcs ?? []"
-              placeholder="Search NPCs…"
-            />
-          </div>
-
-          <!-- Location -->
-          <div>
-            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
-              LOCATION
-              <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional)</span>
-            </label>
-            <EntityCombobox
-              v-model="locationId"
-              :options="locations ?? []"
-              placeholder="Search locations…"
-            />
-          </div>
-
-          <div class="gold-divider" />
-
-          <!-- Theme -->
-          <div>
-            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
-              THEME
-              <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional — AI will use this)</span>
-            </label>
-            <textarea
-              v-model="theme"
-              rows="3"
-              :maxlength="THEME_LIMIT"
-              placeholder="A dragon cult terrorising trade routes along the northern pass…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-            />
-            <div class="flex justify-end mt-1">
-              <span
-                class="text-caption"
-                :class="theme.length >= THEME_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
-              >{{ theme.length }} / {{ THEME_LIMIT }}</span>
-            </div>
-          </div>
-
-        </template>
-      </div>
-
-      <!-- Footer -->
-      <div class="px-5 py-4 border-t border-border shrink-0 flex flex-col gap-2">
-        <GenerationCostBadge
-          v-if="isAiEnabled && !hooks.length"
-          :credits="textCreditCost"
-          :byok="textIsByok"
-          class="self-center"
-        />
+    <!-- Results state -->
+    <template v-else-if="hooks.length > 0">
+      <div class="flex items-center justify-between">
+        <p class="text-label-lg font-semibold text-muted-foreground">
+          GENERATED HOOKS
+        </p>
         <AppButton
-          v-if="isAiEnabled && !hooks.length"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          :disabled="isAnyAiGenerating"
-          :tooltip="
-            isAnyAiGenerating && !isGenerating
-              ? 'Another generation is already in progress'
-              : undefined
-          "
-          :label="isGenerating ? 'Generating…' : 'Generate Quest Hooks'"
-          @click="runGenerate"
+          variant="ghost"
+          size="inline-caption"
+          class="underline underline-offset-2"
+          label="Regenerate"
+          @click="clearHooks"
         />
-        <AiOffNotice v-else-if="!isAiEnabled && !hooks.length" />
       </div>
-    </aside>
-  </Transition>
+
+      <div
+        v-for="(hook, i) in hooks"
+        :key="i"
+        class="rounded-md border border-border bg-muted/30 p-4 space-y-3"
+      >
+        <h3 class="font-cinzel text-sm font-semibold text-foreground">{{ hook.title }}</h3>
+        <p class="text-caption text-muted-foreground/70 italic">
+          <span class="text-label not-italic text-muted-foreground/50 mr-1">PLAYER LOG</span>{{ hook.summary }}
+        </p>
+
+        <ul v-if="hook.objectives.length" class="space-y-1">
+          <li
+            v-for="obj in hook.objectives"
+            :key="obj.description"
+            class="flex items-start gap-2 text-caption text-muted-foreground"
+          >
+            <span class="text-primary mt-0.5 shrink-0">•</span>
+            <span>{{ obj.description }}</span>
+          </li>
+        </ul>
+
+        <!-- Story spine preview (#822) — the beats and their order, visible
+             before Create rather than discovered afterwards. Deliberately
+             compact: a numbered list and a route summary, not a graph
+             editor. -->
+        <div v-if="spineBeatsByHook[i]?.length" class="space-y-1">
+          <p class="text-label text-muted-foreground/60">STORY BEATS</p>
+          <ol class="space-y-1">
+            <li
+              v-for="(beat, bi) in spineBeatsByHook[i]"
+              :key="beat.key"
+              class="flex items-baseline gap-2 text-caption text-muted-foreground"
+            >
+              <span class="font-cinzel text-2xs text-primary shrink-0">{{ bi + 1 }}.</span>
+              <span class="flex-1">{{ beat.title }}</span>
+              <span class="text-caption-sm text-muted-foreground/50 uppercase shrink-0">{{ beat.kind }}</span>
+            </li>
+          </ol>
+          <p v-if="spineRoutesByHook[i]?.length" class="text-caption-sm text-muted-foreground/50">
+            Route: {{ spineRoutesByHook[i].join(", ") }}
+          </p>
+        </div>
+
+        <div v-if="hook.tags.length" class="flex flex-wrap gap-1.5">
+          <span
+            v-for="tag in hook.tags"
+            :key="tag"
+            class="rounded-full bg-muted border border-border px-2 py-0.5 text-caption-sm text-muted-foreground"
+          >
+            {{ tag }}
+          </span>
+        </div>
+
+        <GeneratedEntityChips
+          :entities="resolvedEntitiesByHook[i] ?? []"
+          @navigate="goToEntity"
+        />
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <AppButton
+            v-if="!createdQuestIds[i]"
+            variant="primary"
+            size="sm"
+            :icon="IconAdd"
+            :disabled="creatingIndex === i"
+            :label="creatingIndex === i ? 'Creating…' : 'Create Quest'"
+            @click="createFromHook(hook, i)"
+          />
+          <template v-else>
+            <span class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-ink-success">
+              <IconCheckCircle class="h-3.5 w-3.5" />
+              Created
+            </span>
+            <AppButton
+              variant="link"
+              size="inline-caption"
+              class="hover:underline underline-offset-2"
+              label="View Quest →"
+              @click="viewCreated(i)"
+            />
+            <AppButton
+              variant="link"
+              size="inline-caption"
+              class="hover:underline underline-offset-2"
+              label="Build flow →"
+              @click="buildCreated(i)"
+            />
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- Form state -->
+    <template v-else>
+      <!-- Party level -->
+      <div class="flex items-center gap-3">
+        <span class="text-label-lg font-semibold text-muted-foreground">
+          PARTY LEVEL
+        </span>
+        <span class="text-body text-foreground font-semibold">
+          {{ partyLevelDisplay }}
+        </span>
+      </div>
+
+      <div class="gold-divider" />
+
+      <!-- Quest Giver -->
+      <div>
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
+          QUEST GIVER
+          <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional)</span>
+        </label>
+        <EntityCombobox
+          v-model="giverNpcId"
+          :options="npcs ?? []"
+          placeholder="Search NPCs…"
+        />
+      </div>
+
+      <!-- Location -->
+      <div>
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
+          LOCATION
+          <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional)</span>
+        </label>
+        <EntityCombobox
+          v-model="locationId"
+          :options="locations ?? []"
+          placeholder="Search locations…"
+        />
+      </div>
+
+      <div class="gold-divider" />
+
+      <!-- Theme -->
+      <div>
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
+          THEME
+          <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional, AI will use this)</span>
+        </label>
+        <textarea
+          v-model="theme"
+          rows="3"
+          :maxlength="THEME_LIMIT"
+          placeholder="A dragon cult terrorising trade routes along the northern pass…"
+          class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+        />
+        <div class="flex justify-end mt-1">
+          <span
+            class="text-caption"
+            :class="theme.length >= THEME_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
+          >{{ theme.length }} / {{ THEME_LIMIT }}</span>
+        </div>
+      </div>
+
+    </template>
+
+    <template v-if="!hooks.length" #footer>
+      <GenerationCostBadge
+        v-if="isAiEnabled && !hooks.length"
+        :credits="textCreditCost"
+        :byok="textIsByok"
+        class="self-center"
+      />
+      <AppButton
+        v-if="isAiEnabled && !hooks.length"
+        variant="primary"
+        size="md"
+        block
+        :icon="IconGenerate"
+        :disabled="isAnyAiGenerating"
+        :tooltip="
+          isAnyAiGenerating && !isGenerating
+            ? 'Another generation is already in progress'
+            : undefined
+        "
+        :label="isGenerating ? 'Generating…' : 'Generate Quest Hooks'"
+        @click="runGenerate"
+      />
+      <AiOffNotice v-else-if="!isAiEnabled && !hooks.length" />
+    </template>
+  </GeneratorPanelFrame>
 
   <PaywallModal v-model="showQuotaPaywall" resource="quests" />
 </template>
@@ -253,7 +230,7 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 
 const THEME_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { useRouter } from "vue-router";
-import { IconAdd, IconCheckCircle, IconClose, IconGenerate } from '@/lib/icons';
+import { IconAdd, IconCheckCircle, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/party/useParty";
@@ -264,6 +241,7 @@ import { useCreateQuestFromHook } from "@/composables/quests/useCreateQuestFromH
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import GeneratorPanelFrame from "@/components/common/GeneratorPanelFrame.vue";
 import { useQuestGeneration } from "@/ai/useQuestGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
@@ -350,7 +328,7 @@ const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("quests
 
 const partyLevelDisplay = computed(() => {
   const levels = (party.value ?? []).map((m) => m.level);
-  if (!levels.length) return "—";
+  if (!levels.length) return "-";
   const avg = Math.ceil(levels.reduce((a, b) => a + b, 0) / levels.length);
   return `${avg} (avg of ${levels.length} member${levels.length !== 1 ? "s" : ""})`;
 });
@@ -358,10 +336,6 @@ const partyLevelDisplay = computed(() => {
 const theme = ref("");
 
 function handleClose() {
-  ui.questGeneratorOpen = false;
-}
-
-function dismissToBackground() {
   ui.questGeneratorOpen = false;
 }
 
@@ -443,7 +417,7 @@ async function createFromHook(hook: QuestHookResult, index: number) {
     // notice.
     if (beatsCreated === 0) {
       toast.info(
-        `"${hook.title}" has no story beats yet — the AI didn't return one. Its objectives are ready; write the beats yourself in Story flow.`,
+        `"${hook.title}" has no story beats yet. The AI didn't return one. Its objectives are ready; write the beats yourself in Story flow.`,
         8000,
       );
     }
@@ -457,22 +431,3 @@ async function createFromHook(hook: QuestHookResult, index: number) {
   }
 }
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-.slide-right-enter-active,
-.slide-right-leave-active {
-  transition: transform 0.25s ease;
-}
-.slide-right-enter-from,
-.slide-right-leave-to {
-  transform: translateX(100%);
-}
-</style>

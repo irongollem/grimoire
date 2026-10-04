@@ -215,6 +215,19 @@ export const useUiStore = defineStore("ui", () => {
   // Faction generator
   const factionGeneratorOpen = ref(false);
 
+  // Epic #910 generators: one sidebar panel each, mounted in AiGeneratorPanels.
+  const dungeonFeatureGeneratorOpen = ref(false);
+  const deityGeneratorOpen = ref(false);
+  const speciesGeneratorOpen = ref(false);
+  const backgroundGeneratorOpen = ref(false);
+  const customClassGeneratorOpen = ref(false);
+  const customSubclassGeneratorOpen = ref(false);
+  const classFeatureGeneratorOpen = ref(false);
+  const customRuleGeneratorOpen = ref(false);
+  const recipeGeneratorOpen = ref(false);
+  // The Scriptorium "Draft with AI" dialog (mounted by ScriptoriumView and TemplateGallery).
+  const scriptoriumDraftOpen = ref(false);
+
   // Location generator
   const locationGeneratorOpen = ref(false);
 
@@ -1188,6 +1201,16 @@ export const useUiStore = defineStore("ui", () => {
     // Trap / Faction / Location / Roll Table / Encounter generators
     trapGeneratorOpen,
     factionGeneratorOpen,
+    dungeonFeatureGeneratorOpen,
+    deityGeneratorOpen,
+    speciesGeneratorOpen,
+    backgroundGeneratorOpen,
+    customClassGeneratorOpen,
+    customSubclassGeneratorOpen,
+    classFeatureGeneratorOpen,
+    customRuleGeneratorOpen,
+    recipeGeneratorOpen,
+    scriptoriumDraftOpen,
     locationGeneratorOpen,
     rollTableGeneratorOpen,
     lootTableGeneratorOpen,

@@ -1,5 +1,5 @@
 <template>
-  <AppModal :open="open" size="md" :labelled-by="headingId" @close="close">
+  <AppModal :open="open" size="md" :labelled-by="headingId" :backdrop-dismiss="false" @close="close">
     <!-- Header -->
     <header class="flex shrink-0 items-center justify-between px-5 py-4 border-b border-border">
       <div class="flex items-center gap-2">
@@ -103,10 +103,30 @@
 
         <!-- Description -->
         <div>
-          <label class="block text-label-lg font-semibold text-muted-foreground mb-1">
-            DESCRIPTION
-            <span class="text-muted-foreground font-fell normal-case tracking-normal">(optional)</span>
-          </label>
+          <div class="mb-1 flex items-center justify-between gap-2">
+            <label class="block text-label-lg font-semibold text-muted-foreground">
+              DESCRIPTION
+              <span class="text-muted-foreground font-fell normal-case tracking-normal">(optional)</span>
+            </label>
+            <AppButton
+              v-if="campaign.isAiEnabled"
+              type="button"
+              variant="link"
+              size="inline"
+              :icon="IconGenerate"
+              label="Draft with AI"
+              :aria-expanded="aiOpen"
+              @click="aiOpen = !aiOpen"
+            />
+          </div>
+          <EventModalAiDraft
+            v-if="aiOpen && campaign.isAiEnabled"
+            class="mb-2"
+            :date-label="dateLabel"
+            :event-type="form.event_type"
+            @draft="applyDraft"
+            @close="aiOpen = false"
+          />
           <RichTextEditor
             v-model="form.description"
             placeholder="What happened…"
@@ -182,8 +202,8 @@
 </template>
 
 <script setup lang="ts">
-import { watch, computed, useId } from "vue";
-import { IconClose, IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
+import { watch, computed, ref, useId } from "vue";
+import { IconClose, IconGenerate, IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -212,6 +232,12 @@ import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import EventModalTypePicker from "./EventModalTypePicker.vue";
 import EventModalDatePicker from "./EventModalDatePicker.vue";
 import EventModalTravelFields from "./EventModalTravelFields.vue";
+import EventModalAiDraft from "./EventModalAiDraft.vue";
+import { deepEqual } from "@/lib/utils";
+import { markEdited } from "@/ai/provenance";
+import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { formatEventDateLabel } from "@/lib/calendar/eventGeneration";
+import type { CalendarEventDraft } from "@/ai/useCalendarEventGeneration";
 
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{
@@ -279,6 +305,7 @@ function toDraft(row: CalendarEvent | null): EventDraft {
       linked_note_id: null,
       travel_party_member_ids: [],
       player_visible: false,
+      ai_provenance: null,
     };
   }
   return {
@@ -300,6 +327,7 @@ function toDraft(row: CalendarEvent | null): EventDraft {
     linked_note_id: row.linked_note_id,
     travel_party_member_ids: row.travel_party_member_ids ?? [],
     player_visible: row.player_visible ?? false,
+    ai_provenance: row.ai_provenance ?? null,
   };
 }
 
@@ -359,9 +387,47 @@ const availableFestivals = computed(() =>
 // (dropping edits abandoned last time); creating starts from a blank form.
 watch(open, (isOpen) => {
   if (!isOpen) return;
+  aiOpen.value = false;
+  generated = null;
   if (props.editEvent) reset();
   else Object.assign(form, toDraft(null));
 });
+
+// ── Draft with AI ─────────────────────────────────────────────────────────────
+const aiOpen = ref(false);
+/** What the model last wrote, so a save can tell whether the DM changed it. */
+let generated: { title: string; description: string | null } | null = null;
+
+const dateLabel = computed(() =>
+  formatEventDateLabel({
+    year: form.harptos_year,
+    month: form.date_type === "regular" ? form.harptos_month : null,
+    day: form.date_type === "regular" ? form.harptos_day : null,
+    festivalDay: form.date_type === "festival" ? form.festival_day : null,
+    monthName:
+      form.harptos_month !== null
+        ? (adapter.value.months.find((m) => m.num === form.harptos_month)?.name ?? null)
+        : null,
+  }),
+);
+
+function applyDraft(result: CalendarEventDraft) {
+  // Only an empty title is filled, and the type only moves off the untouched
+  // default: a DM's own choices are never overwritten by a draft.
+  if (!form.title.trim()) form.title = result.title;
+  if (form.event_type === "campaign" && result.event_type !== "campaign") {
+    form.event_type = result.event_type as CalendarEvent["event_type"];
+  }
+  form.description = toTiptapJson(result.description);
+  form.ai_provenance = result.ai_provenance;
+  generated = { title: form.title, description: form.description };
+  aiOpen.value = false;
+}
+
+/** Content the DM can edit; moving the date or visibility is not a material edit. */
+function contentChangedSince(base: { title: string; description: string | null }): boolean {
+  return form.title.trim() !== base.title.trim() || !deepEqual(form.description, base.description);
+}
 
 // An event handler rather than a watcher: a watcher would also fire when the
 // draft is seeded or merged from the server, and overwrite the saved date.
@@ -411,6 +477,10 @@ async function deleteAndClose() {
 }
 
 async function submit() {
+  const base = generated ?? props.editEvent;
+  if (form.ai_provenance && base && contentChangedSince(base)) {
+    form.ai_provenance = markEdited(form.ai_provenance);
+  }
   const payload = buildRow(form);
 
   const justSharedToPlayers =

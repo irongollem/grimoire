@@ -11,7 +11,8 @@ import type {
 
 // ── Pantheons CRUD ─────────────────────────────────────────────────────────────
 
-export function useAllPantheons() {
+/** `enabled` lets a panel mounted on every page defer the fetch until it opens. */
+export function useAllPantheons(enabled: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
@@ -26,7 +27,7 @@ export function useAllPantheons() {
       if (error) throw error;
       return data as Pantheon[];
     },
-    enabled: computed(() => !!campaignId.value),
+    enabled: computed(() => !!campaignId.value && enabled()),
   });
 }
 
@@ -96,7 +97,8 @@ export function useDeletePantheon() {
 
 // ── Deities CRUD ───────────────────────────────────────────────────────────────
 
-export function useAllDeities() {
+/** `enabled` lets a panel mounted on every page defer the fetch until it opens. */
+export function useAllDeities(enabled: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
@@ -111,7 +113,7 @@ export function useAllDeities() {
       if (error) throw error;
       return data as (Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null })[];
     },
-    enabled: computed(() => !!campaignId.value),
+    enabled: computed(() => !!campaignId.value && enabled()),
   });
 }
 

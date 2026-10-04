@@ -1,8 +1,10 @@
 /**
  * Server path for the entity generators whose only job is one JSON text call:
- * spell, monster, item, faction. Their art is a separate step the client
- * already routes through the server image pipeline, so this function is text
- * only.
+ * spell, monster, item, faction, and (epic #910) dungeon feature, deity,
+ * species, background, class, archetype, ability, house rule, recipe,
+ * calendar event, site room and quest beat. Their art is a separate step the
+ * client already routes through the server image pipeline, so this function
+ * is text only.
  *
  * These four shipped with nothing but the local-key path, so every DM without
  * a key stored in the browser vault failed before a single request left the
@@ -37,11 +39,27 @@ const admin = createClient(
 );
 
 /** generator → the `ai_system_prompts` row it reads and the ledger reason it charges. */
+// The prompt key is the generator's own name, because the client's local-key
+// path (src/ai/entityTextGeneration.ts) reads `ai_system_prompts` by it; the
+// first four predate that rule and keep their historical ledger reasons.
 const GENERATORS = {
-  spell:   { promptKey: "spell",   reason: "spell_generation" },
-  monster: { promptKey: "monster", reason: "monster_generation" },
-  item:    { promptKey: "item",    reason: "item_generation" },
-  faction: { promptKey: "faction", reason: "faction_generation" },
+  spell:           { promptKey: "spell",           reason: "spell_generation" },
+  monster:         { promptKey: "monster",         reason: "monster_generation" },
+  item:            { promptKey: "item",            reason: "item_generation" },
+  faction:         { promptKey: "faction",         reason: "faction_generation" },
+  // Epic #910: every surface where a DM authors content.
+  feature:         { promptKey: "feature",         reason: "feature_generation" },
+  deity:           { promptKey: "deity",           reason: "deity_generation" },
+  species:         { promptKey: "species",         reason: "species_generation" },
+  background:      { promptKey: "background",      reason: "background_generation" },
+  custom_class:    { promptKey: "custom_class",    reason: "custom_class_generation" },
+  custom_subclass: { promptKey: "custom_subclass", reason: "custom_subclass_generation" },
+  class_feature:   { promptKey: "class_feature",   reason: "class_feature_generation" },
+  custom_rule:     { promptKey: "custom_rule",     reason: "custom_rule_generation" },
+  recipe:          { promptKey: "recipe",          reason: "recipe_generation" },
+  calendar_event:  { promptKey: "calendar_event",  reason: "calendar_event_generation" },
+  room:            { promptKey: "room",            reason: "room_generation" },
+  quest_beat:      { promptKey: "quest_beat",      reason: "quest_beat_generation" },
 } as const;
 type Generator = keyof typeof GENERATORS;
 
@@ -49,11 +67,14 @@ function isGenerator(value: unknown): value is Generator {
   return typeof value === "string" && Object.hasOwn(GENERATORS, value);
 }
 
-// Constraints are the panel's structured fields rendered as lines ("Level: 3").
-// They are the DM's own input going into the DM's own generation, but they are
-// still bounded so the body cannot smuggle a second prompt past the limit.
-const MAX_CONSTRAINTS = 8;
-const MAX_CONSTRAINT_CHARS = 300;
+// Constraints are the panel's structured fields rendered as lines ("Level: 3"),
+// and for the fill generators (room, quest beat, calendar event) the campaign
+// context the fill is grounded in: the site and its neighbouring rooms, the
+// beats either side, the pantheon. That is the DM's own data going into the
+// DM's own generation, but it is still bounded so the body cannot smuggle a
+// second prompt past the limit.
+const MAX_CONSTRAINTS = 12;
+const MAX_CONSTRAINT_CHARS = 400;
 
 function jsonError(message: string, status: number): Response {
   return new Response(JSON.stringify({ error: message }), {

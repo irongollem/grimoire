@@ -22,7 +22,7 @@ import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
 export type ImagePurpose =
   | "chronicler" | "group_portrait" | "npc_portrait" | "npc_disguise"
   | "monster" | "item" | "spell" | "faction" | "location" | "location_map"
-  | "trap" | "puzzle" | "party_member" | "species";
+  | "trap" | "puzzle" | "party_member" | "species" | "dungeon_feature" | "deity";
 
 interface PurposeConfig {
   bucket: BucketKey;
@@ -47,6 +47,9 @@ const PURPOSES: Record<ImagePurpose, PurposeConfig> = {
   puzzle:         { bucket: "puzzleImages",   size: "1024x1536", variants: true,  scene: false, labelled: false },
   party_member:   { bucket: "chronicle",      size: "1024x1536", variants: false, scene: false, labelled: true },
   species:        { bucket: "assetImages",    size: "1024x1024", variants: false, scene: false, labelled: false },
+  // Epic #910. A feature's art has always lived in asset-images (see DungeonFeatureEditor).
+  dungeon_feature: { bucket: "assetImages",   size: "1024x1536", variants: true,  scene: false, labelled: false },
+  deity:          { bucket: "pantheonEmblems", size: "1024x1536", variants: true,  scene: false, labelled: false },
 };
 
 export interface ImageGenerationRequest {
