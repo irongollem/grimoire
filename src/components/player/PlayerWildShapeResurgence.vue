@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="px-4 py-2.5 border-b border-border">
-      <p class="text-caption font-semibold">Wild Resurgence</p>
+      <p class="text-label-lg font-semibold">Wild Resurgence</p>
     </div>
     <div class="space-y-3 p-3">
       <div class="space-y-1.5">

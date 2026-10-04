@@ -215,7 +215,7 @@
 
         <!-- Feature -->
         <div v-if="background.feature_name" class="border-t border-border pt-3 space-y-1">
-          <p class="text-caption font-semibold text-foreground">{{ background.feature_name }}</p>
+          <p class="text-heading-xs font-semibold text-foreground">{{ background.feature_name }}</p>
           <RichTextViewer v-if="background.feature_description" :content="background.feature_description" />
         </div>
 

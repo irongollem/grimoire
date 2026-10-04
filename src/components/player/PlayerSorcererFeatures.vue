@@ -6,7 +6,7 @@
     <div class="p-4 space-y-3 text-body">
       <div class="flex items-center gap-3">
         <div class="flex-1">
-          <p class="text-caption font-semibold">Innate Sorcery</p>
+          <p class="text-heading-xs font-semibold">Innate Sorcery</p>
           <p class="text-muted-foreground">For 1 minute, Sorcerer spell attacks have Advantage and your Sorcerer spell save DC increases by 1.</p>
           <p v-if="level >= 7" class="text-muted-foreground">Sorcery Incarnate also lets you combine two Metamagic options. With no uses left, activation costs 2 SP.</p>
         </div>
@@ -32,7 +32,7 @@
 
       <div v-if="level >= 5" class="flex items-center gap-3 border-t border-tone-arcane/15 pt-3">
         <div class="flex-1">
-          <p class="text-caption font-semibold">Sorcerous Restoration</p>
+          <p class="text-heading-xs font-semibold">Sorcerous Restoration</p>
           <p class="text-muted-foreground">After a Short Rest, regain up to {{ restoration }} SP. Once per Long Rest.</p>
         </div>
         <AppButton

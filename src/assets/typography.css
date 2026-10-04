@@ -49,10 +49,14 @@
    14px only as `text-heading-xs` for single-line titles in dense cards. The
    guard in typography.test.ts fails on any new `font-cinzel` + size pair. */
 
-/* = `font-cinzel text-sm`. Only for a title held to one line (`truncate`,
-   `line-clamp-*`) in a dense card or row, where it was sized to fit and 16px
-   would cut it short on a phone (#967 measured this: long monster names in the
-   bestiary rows). Every other heading at this step is `text-heading-sm`. */
+/* = `font-cinzel text-sm`. Two uses, both below `text-heading-sm`:
+   - a title held to one line (`truncate`, `line-clamp-*`) in a dense card or
+     row, sized to fit, where 16px would cut it short on a phone (#967 measured
+     this: long monster names in the bestiary rows);
+   - a feature's name above its description inside a panel ("Innate Sorcery").
+     It reads as small Cinzel capitals in the legacy themes and as Alegreya bold
+     in Vellum, which is the look the maintainer chose for each theme.
+   Every other heading at this step is `text-heading-sm`. */
 @utility text-heading-xs {
   font-family: var(--font-cinzel);
   font-size: 0.875rem;
