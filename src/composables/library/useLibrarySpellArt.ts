@@ -1,3 +1,4 @@
+import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
@@ -53,6 +54,22 @@ async function fetchLibrarySpellArt(): Promise<LibrarySpellArtMap> {
   return mergeLibrarySpellArtLayers(canonicalRes.data, ownRes.data);
 }
 
+/** One spell's merged art, for a detail page that reads a single row (#972). */
+async function fetchLibrarySpellArtEntry(entryId: string): Promise<LibrarySpellArtEntry | null> {
+  const user = getCurrentUser();
+  const columns = "entry_id, image_url, portrait_focal_point";
+  const [canonicalRes, ownRes] = await Promise.all([
+    supabase.from("library_spell_art_canonical").select(columns).eq("entry_id", entryId),
+    user
+      ? supabase.from("library_spell_art").select(columns).eq("entry_id", entryId).eq("user_id", user.id)
+      : Promise.resolve({ data: [] as LibrarySpellArtRow[], error: null }),
+  ]);
+  if (canonicalRes.error) throw canonicalRes.error;
+  if (ownRes.error) throw ownRes.error;
+
+  return mergeLibrarySpellArtLayers(canonicalRes.data, ownRes.data)[entryId] ?? null;
+}
+
 type SpellArtEdit = {
   entry_id: string;
   image_url?: string | null;
@@ -67,11 +84,23 @@ async function upsertOwnLibrarySpellArt(entry: SpellArtEdit): Promise<void> {
   if (error) throw error;
 }
 
-export function useLibrarySpellArt() {
+export function useLibrarySpellArt(enabled: MaybeRefOrGetter<boolean> = true) {
   return useQuery({
     queryKey: [QUERY_KEY],
     queryFn: fetchLibrarySpellArt,
     staleTime: 1000 * 60 * 30,
+    enabled: () => toValue(enabled),
+  });
+}
+
+/** One spell's merged art. Keyed under `["library-spell-art"]`, so the prefix
+ *  invalidation after an art write reaches it. */
+export function useLibrarySpellArtEntry(entryId: MaybeRefOrGetter<string>, enabled: MaybeRefOrGetter<boolean> = true) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "entry", toValue(entryId)] as const),
+    queryFn: ({ queryKey: [, , id] }) => fetchLibrarySpellArtEntry(id),
+    staleTime: 1000 * 60 * 30,
+    enabled: () => !!toValue(entryId) && toValue(enabled),
   });
 }
 

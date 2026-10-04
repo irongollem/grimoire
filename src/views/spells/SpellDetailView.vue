@@ -31,7 +31,8 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDocument, IconEdit } from '@/lib/icons';
 import { useResolvedSpell } from "@/composables/spells/useSpells";
-import { useLibrarySpellArt } from "@/composables/library/useLibrarySpellArt";
+import { useLibrarySpellArtEntry } from "@/composables/library/useLibrarySpellArt";
+import { isUuid } from "@/lib/library/contentIdentity";
 import { spellLevelLabel } from "@/types/spell.types";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -63,15 +64,16 @@ function stopEditing() {
 
 const lookupId = computed(() => isNew.value ? "" : (id.value ?? ""));
 const { data: resolved, isLoading, error } = useResolvedSpell(lookupId);
-const { data: artMap } = useLibrarySpellArt();
+// One spell's art, not the whole map (#972). Custom spells are uuids and carry
+// their art on their own row, so only a library id asks.
+const { data: art } = useLibrarySpellArtEntry(lookupId, () => !isUuid(lookupId.value));
 const isLibrarySpell = computed(() => resolved.value?.isShared === true);
 
 const resolvedLibrarySpell = computed(() => {
   const s = resolved.value?.spell;
   if (!s) return null;
-  const art = artMap.value?.[s.id];
-  if (!art) return s;
-  return { ...s, image_url: art.image_url ?? s.image_url, image_focal_point: art.portrait_focal_point ?? s.image_focal_point };
+  if (!art.value) return s;
+  return { ...s, image_url: art.value.image_url ?? s.image_url, image_focal_point: art.value.portrait_focal_point ?? s.image_focal_point };
 });
 
 const spell = computed(() => isLibrarySpell.value ? resolvedLibrarySpell.value : (resolved.value?.spell ?? null));

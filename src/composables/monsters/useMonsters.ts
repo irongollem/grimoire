@@ -4,7 +4,7 @@ import { computed, type Ref } from "vue";
 import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
-import { useLibraryMonsterArt, withLibraryArt, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
+import { useLibraryMonsterArt, useLibraryMonsterArtEntry, withLibraryArt, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -102,13 +102,17 @@ export interface UseMonstersOptions {
    *  Default false: scoped to general + active campaign, for browsing and
    *  picking. */
   includeAllScopes?: boolean;
+  /** Set false to hold every fetch behind {@link useAllMonsters} back (both
+   *  monster lists and the art map) — for a caller mounted permanently behind
+   *  a closed panel. Defaults to true. */
+  enabled?: boolean;
 }
 
 /** The unfiltered cache every list below derives from. Private: a caller that
  *  wants all scopes says so with `includeAllScopes`, which reads as a decision
  *  at the call site where the reviewer needs it. */
-function useMonstersQuery() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchMonsters, staleTime: Infinity });
+function useMonstersQuery(enabled: () => boolean = () => true) {
+  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchMonsters, staleTime: Infinity, enabled });
 }
 
 /** The DM's own custom monsters only — no library rows. See
@@ -130,11 +134,12 @@ export function useMonsters(getOptions?: () => UseMonstersOptions) {
  *  Dedupe rule: if a user-owned monster has the same name as an SRD row,
  *  the user row wins — preserving any edits or custom art. */
 export function useAllMonsters(getOptions?: () => UseMonstersOptions) {
-  const customQuery  = useMonstersQuery();
+  const isEnabled = () => getOptions?.().enabled !== false;
+  const customQuery  = useMonstersQuery(isEnabled);
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
   const { ruleset } = useTableRuleset();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
-  const { data: artMap } = useLibraryMonsterArt();
+  const { data: artMap } = useLibraryMonsterArt(isEnabled);
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
@@ -142,7 +147,7 @@ export function useAllMonsters(getOptions?: () => UseMonstersOptions) {
       if (slugs === null) throw new Error("useAllMonsters fetched without enabled sources");
       return fetchLibraryMonsters(slugs, rs);
     },
-    enabled: () => enabledSlugs.value !== null,
+    enabled: () => isEnabled() && enabledSlugs.value !== null,
     staleTime: Infinity,
   });
 
@@ -362,7 +367,10 @@ export function useResolvedMonster(id: Ref<string>) {
  * Art belongs to the surfaces that render a portrait, not to resolution.
  */
 export function useMonsterWithArt(id: Ref<string>) {
-  const { data: artMap } = useLibraryMonsterArt();
+  // Custom monsters are uuids and carry their art on their own row; only a
+  // library id can have art layers, so only it asks. Gated on the id rather
+  // than on `isShared` so the art read runs beside the row read, not after it.
+  const { data: art } = useLibraryMonsterArtEntry(id, () => !isUuid(id.value));
   const { data, isLoading } = useResolvedMonster(id);
 
   const isShared = computed(() => data.value?.isShared === true);
@@ -371,7 +379,7 @@ export function useMonsterWithArt(id: Ref<string>) {
     const row = data.value?.monster;
     if (!row) return null;
     if (!isShared.value) return row;
-    return withLibraryArt(row, artMap.value?.[id.value]);
+    return withLibraryArt(row, art.value ?? undefined);
   });
 
   return { monster, isShared, isLoading };

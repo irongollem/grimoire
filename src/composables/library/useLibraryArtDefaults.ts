@@ -1,3 +1,4 @@
+import { toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 
@@ -109,11 +110,15 @@ async function bulkPublishLibraryArtDefaults(): Promise<{ items: number }> {
   return { items: allItems.length };
 }
 
-export function useLibraryArtDefaults() {
+/** `enabled` holds the fetch back for callers mounted permanently behind a
+ *  closed panel (#972): the map is a full-table read, so a hidden consumer
+ *  must not pull it on every page load. */
+export function useLibraryArtDefaults(enabled: MaybeRefOrGetter<boolean> = true) {
   return useQuery({
     queryKey: [QUERY_KEY],
     queryFn: fetchLibraryArtDefaults,
     staleTime: STALE_TIME,
+    enabled: () => toValue(enabled),
   });
 }
 

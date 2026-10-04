@@ -1,3 +1,4 @@
+import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
@@ -80,6 +81,26 @@ export async function fetchLibraryMonsterArt(): Promise<LibraryArtMap> {
 }
 
 /**
+ * One monster's art: the same canonical + own-override merge as the whole map,
+ * for a single `entry_id` (#972). A detail page reads one row, so it must not
+ * download every monster's art to find it. The own-override read names the
+ * caller explicitly — RLS bounds it, it does not filter it.
+ */
+export async function fetchLibraryMonsterArtEntry(entryId: string): Promise<LibraryArtEntry | null> {
+  const user = getCurrentUser();
+  const [canonicalRes, ownRes] = await Promise.all([
+    supabase.from("library_monster_art_canonical").select(ART_COLUMNS).eq("entry_id", entryId),
+    user
+      ? supabase.from("library_monster_art").select(ART_COLUMNS).eq("entry_id", entryId).eq("user_id", user.id)
+      : Promise.resolve({ data: [] as LibraryArtRow[], error: null }),
+  ]);
+  if (canonicalRes.error) throw canonicalRes.error;
+  if (ownRes.error) throw ownRes.error;
+
+  return mergeLibraryMonsterArtLayers(canonicalRes.data, ownRes.data)[entryId] ?? null;
+}
+
+/**
  * Applies a merged art-layer entry onto a shared (library) monster row, per
  * field — an art field the entry leaves null falls back to the row's own
  * value rather than blanking it. Pure so it's usable both by
@@ -129,11 +150,23 @@ async function upsertOwnLibraryMonsterArt(entry: CanonicalArtEdit): Promise<void
  *  the fetch (`useEntityEmbedData.ts`'s embed lookup for shared monsters). */
 export const LIBRARY_MONSTER_ART_QUERY_KEY = [QUERY_KEY] as const;
 
-export function useLibraryMonsterArt() {
+export function useLibraryMonsterArt(enabled: MaybeRefOrGetter<boolean> = true) {
   return useQuery({
     queryKey: LIBRARY_MONSTER_ART_QUERY_KEY,
     queryFn: fetchLibraryMonsterArt,
     staleTime: LIBRARY_MONSTER_ART_STALE_TIME,
+    enabled: () => toValue(enabled),
+  });
+}
+
+/** One monster's merged art. Keyed under the whole map's key, so the
+ *  `["library-monster-art"]` prefix invalidation after an art write reaches it. */
+export function useLibraryMonsterArtEntry(entryId: MaybeRefOrGetter<string>, enabled: MaybeRefOrGetter<boolean> = true) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "entry", toValue(entryId)] as const),
+    queryFn: ({ queryKey: [, , id] }) => fetchLibraryMonsterArtEntry(id),
+    staleTime: LIBRARY_MONSTER_ART_STALE_TIME,
+    enabled: () => !!toValue(entryId) && toValue(enabled),
   });
 }
 

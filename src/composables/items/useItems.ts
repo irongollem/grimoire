@@ -195,7 +195,7 @@ export function useItems(getOptions?: () => UseItemsOptions) {
     staleTime: Infinity,
     enabled: isEnabled,
   });
-  const artDefaults = useLibraryArtDefaults();
+  const artDefaults = useLibraryArtDefaults(isEnabled);
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   const { ruleset } = useTableRuleset();
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
@@ -247,7 +247,7 @@ async function fetchPlayerVisibleItems(): Promise<Item[]> {
 
 export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
   const ui = useUiStore();
-  const artDefaults = useLibraryArtDefaults();
+  const artDefaults = useLibraryArtDefaults(() => getOptions?.().enabled !== false);
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   const { ruleset } = useTableRuleset();
   // Players can read campaign_enabled_sources directly (RLS allows any

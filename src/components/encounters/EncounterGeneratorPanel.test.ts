@@ -33,7 +33,7 @@ vi.mock("@/stores/campaign", () => ({
 vi.mock("@/composables/encounters/useEncounters", () => ({
   useCreateEncounter: () => ({ mutateAsync: mocks.createEncounter }),
 }));
-vi.mock("@/composables/monsters/useMonsters", () => ({ useAllMonsters: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/monsters/useMonsters", () => ({ useAllMonsters: () => ({ data: ref([]), isLoading: ref(false) }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/encounters/useCompanions", () => ({ useCompanions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/ai/useAiCredits", () => ({

@@ -129,7 +129,7 @@
         size="md"
         block
         :icon="IconAdd"
-        :disabled="creating"
+        :disabled="creating || monstersLoading"
         :label="creating ? 'Creating…' : 'Create Encounter'"
         @click="createEncounterFromResult"
       />
@@ -208,7 +208,14 @@ const {
 } = useEncounterGeneration();
 
 const { mutateAsync: createEncounter } = useCreateEncounter();
-const { data: monsters } = useAllMonsters();
+// The bestiary resolves the AI's combatant names, so it must be loaded
+// whenever a result can be shown or built from: the panel is open, a
+// generation is in flight (its result will land here even if the panel is
+// closed meanwhile), or a result is held. A closed, idle panel fetches nothing
+// (#972) — the panel is mounted on every DM page.
+const { data: monsters, isLoading: monstersLoading } = useAllMonsters(() => ({
+  enabled: ui.encounterGeneratorOpen || isGenerating.value || !!result.value,
+}));
 const { data: party } = useParty();
 const { data: companions } = useCompanions();
 
@@ -315,7 +322,9 @@ function buildDescription(): string {
 }
 
 async function createEncounterFromResult() {
-  if (!result.value) return;
+  // Never build combatants against a bestiary that has not arrived: every name
+  // would read as unmatched and the encounter would be created empty.
+  if (!result.value || monstersLoading.value) return;
   creating.value = true;
   createError.value = null;
   try {
