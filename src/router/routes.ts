@@ -136,6 +136,14 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/play/PlayerJournalView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Journal" },
   },
+  // fullscreenMobile: the reader draws its own phone header (back, title), so
+  // PlayerLayout drops its top bar and bottom nav below md, as DefaultLayout does.
+  {
+    path: "/play/handouts/:id",
+    name: "play-handout",
+    component: () => import("@/views/play/PlayerHandoutView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Handout", fullscreenMobile: true },
+  },
   {
     path: "/play/notes",
     redirect: "/play/journal",

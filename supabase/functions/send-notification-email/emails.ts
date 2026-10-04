@@ -87,6 +87,30 @@ export function noteSharedEmail(args: {
   };
 }
 
+export function handoutSharedEmail(args: {
+  campaignName: string;
+  dmName: string;
+  handoutTitle: string;
+  documentId: string;
+}): EmailContent {
+  const { campaignName, dmName, handoutTitle, documentId } = args;
+  // Deep link to the handout on the player's Journal handouts tab.
+  const handoutPath = `/play/journal?tab=handouts&handout=${encodeURIComponent(documentId)}`;
+  return {
+    subject: `${dmName} gave you a handout — ${campaignName}`,
+    html: layout(
+      campaignName,
+      `<p style="font-size: 1rem; line-height: 1.6;">
+    <strong>${escapeHtml(dmName)}</strong> gave you the handout
+    <strong>“${escapeHtml(handoutTitle)}”</strong>.
+  </p>`,
+      "Read the handout",
+      handoutPath,
+    ),
+    text: `${dmName} gave you the handout "${handoutTitle}".\n\nRead it: ${APP_ORIGIN}${handoutPath}\n\n${OPT_OUT_TEXT}`,
+  };
+}
+
 /**
  * The two one-click links, when the recipient has an RSVP token. They are the
  * fallback for the invitation attachment: a mail app that draws Accept /

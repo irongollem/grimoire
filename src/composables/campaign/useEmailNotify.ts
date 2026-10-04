@@ -21,6 +21,20 @@ export function notifyNoteShared(noteId: string, addedPartyMemberIds: string[]):
     .catch(() => { /* non-fatal — see above */ });
 }
 
+/** Email the players newly given a Scriptorium handout (party_member ids). */
+export function notifyHandoutShared(documentId: string, addedPartyMemberIds: string[]): void {
+  if (!addedPartyMemberIds.length) return;
+  void supabase.functions
+    .invoke("send-notification-email", {
+      body: {
+        type: "handout_shared",
+        document_id: documentId,
+        added_party_member_ids: addedPartyMemberIds,
+      },
+    })
+    .catch(() => { /* non-fatal — see above */ });
+}
+
 /** Email all players of the proposal's campaign about a new session date. */
 export function notifyProposalCreated(proposalId: string): void {
   void supabase.functions

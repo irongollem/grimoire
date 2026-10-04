@@ -118,7 +118,18 @@ The `tocBlock` node renders as an empty `<nav>` outside the paginated book (only
 
 ### Publishing and storage
 
-The `is_published` flag is a DM-only status badge (green, in the list) for tracking done versus draft. It does not currently share the document with players or change any access. Documents are owner-only: `scriptorium_documents` RLS is scoped to `user_id`, and the row also carries a `demo_source` marker (set only by the demo-campaign copy machinery, never by the client) that exempts demo copies from the document quota.
+The `is_published` flag is a DM-only status badge (green, in the list) for tracking done versus draft. It changes no access. Sharing with players is a separate act, described under Handouts below. Documents are owner-only for writes: `scriptorium_documents` RLS is scoped to `user_id`, and the row also carries a `demo_source` marker (set only by the demo-campaign copy machinery, never by the client) that exempts demo copies from the document quota.
+
+### Handouts (#970)
+
+A campaign's document can be given to players: `scriptorium_documents.player_visible_to` holds party member ids, written only through the `share_handout` RPC. Moving a document out of its campaign withdraws the share (DB trigger); an account-wide document cannot be shared.
+
+- **One flow, three entrances.** `HandoutShareDialog.vue` is the picker (skipped when the caller already chose) plus a confirmation built from the RPC's dry run: who receives it, what it reveals ("Ser Vallis: name (seen as The Almoner)", "The Bounty: the quest starts"), and what players will not see and why. Wording lives in `src/lib/scriptorium/handoutShareSummary.ts`. `HandoutShareControl.vue` mounts it for the desktop metadata toolbar (built on `AudienceRevealControl`; a change opens the confirmation, nothing is written until Confirm) and for the phone reader's "Give to players" button (`ScriptoriumEditorView.vue`, reader `#actions` slot).
+- **Reveals.** Each linked entry decides its own reveal (its `reveal` attr, set in the embed toolbar); sharing applies them to every recipient, idempotently. Unsharing ("Take it back from everyone?", via `useConfirm`) removes the handout and never un-reveals anything.
+- **No campaign, or another one.** The toolbar control is disabled with a hint; with no campaign it offers to move the document into the active campaign through the ordinary save. The audience is the active campaign's party, so a document from another campaign must be opened under its own.
+- **Pending-reveal banner.** `HandoutPendingBanner.vue` runs the dry run against the current recipients, debounced after each save (`usePendingHandoutReveals`), and shows "N linked entries are hidden from players. Reveal" when something would change (a newly linked NPC, say). Autosave never reveals; the button opens the same confirmation.
+- **Email.** After a share, `notifyHandoutShared` invokes `send-notification-email` with `type: "handout_shared"`. The function re-reads the document, verifies the caller is the campaign DM, intersects the ids with the stored `player_visible_to`, drops child accounts and honours preferences. It uses the `email_shared_notes` preference (the same switch as shared notes). The email carries only the title and links to `/play/journal?tab=handouts&handout=<id>`.
+- **List.** Cards show a "Shared" badge with the recipient count beside Published.
 
 ### Draft with AI (#910)
 

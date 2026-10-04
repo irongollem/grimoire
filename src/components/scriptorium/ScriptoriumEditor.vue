@@ -51,6 +51,8 @@
       :is-deleting="isDeleting"
       :is-new="!props.doc"
       :save-blocked="contentError !== null"
+      :share-document="props.doc ?? null"
+      :active-campaign-name="activeCampaignId ? campaignName(activeCampaignId) : null"
       @update:title="title = $event"
       @update:doc-type="docType = $event as ScriptoriumDocType"
       @update:campaign-id="campaignId = $event"
@@ -60,7 +62,10 @@
       @update:page-number-start="pageNumberStart = $event"
       @save="save"
       @delete="destroy"
+      @move-to-campaign="moveToActiveCampaign"
     />
+
+    <HandoutPendingBanner v-if="props.doc" :handout="props.doc" />
 
     <!-- Tags row -->
     <TagInput v-model="tags" />
@@ -224,6 +229,7 @@ import CoverPageInspector from "@/components/scriptorium/CoverPageInspector.vue"
 import ArtPickerModal from "@/components/common/ArtPickerModal.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import HandoutPendingBanner from "@/components/scriptorium/HandoutPendingBanner.vue";
 import ScriptoriumMetadataToolbar from "@/components/scriptorium/ScriptoriumMetadataToolbar.vue";
 import ScriptoriumEditorToolbar from "@/components/scriptorium/ScriptoriumEditorToolbar.vue";
 import ScriptoriumPreviewPane from "@/components/scriptorium/ScriptoriumPreviewPane.vue";
@@ -642,6 +648,13 @@ async function save() {
   } finally {
     isSaving.value = false;
   }
+}
+
+/** Files the document under the active campaign, through the ordinary save, so it can be shared. */
+async function moveToActiveCampaign() {
+  if (!activeCampaignId.value) return;
+  campaignId.value = activeCampaignId.value;
+  await save();
 }
 
 const { isPrinting, printDocument } = useScriptoriumPrint();

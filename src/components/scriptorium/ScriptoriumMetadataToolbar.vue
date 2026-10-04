@@ -46,6 +46,13 @@
         <AppInput v-model="pageNumberStartModel" type="number" tone="card" size="sm" min="1" class="w-14" />
       </label>
     </template>
+    <HandoutShareControl
+      v-if="shareDocument"
+      :handout="shareDocument"
+      form="toolbar"
+      :active-campaign-name="activeCampaignName"
+      @move-to-campaign="$emit('moveToCampaign')"
+    />
     <AppButton
       variant="primary"
       size="md"
@@ -74,6 +81,8 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import HandoutShareControl from "@/components/scriptorium/HandoutShareControl.vue";
+import type { ShareableHandout } from "@/composables/scriptorium/useHandoutShare";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 
 const {
@@ -89,6 +98,8 @@ const {
   isDeleting = false,
   isNew = false,
   saveBlocked = false,
+  shareDocument = null,
+  activeCampaignName = null,
 } = defineProps<{
   title: string;
   docType: ScriptoriumDocType;
@@ -110,6 +121,10 @@ const {
   isSaving?: boolean;
   isDeleting?: boolean;
   isNew?: boolean;
+  /** The saved document, for sharing it with players (#970); null while it is new. */
+  shareDocument?: ShareableHandout | null;
+  /** The active campaign's name, offered as where to move an unscoped document. */
+  activeCampaignName?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -122,6 +137,7 @@ const emit = defineEmits<{
   "update:pageNumberStart": [value: number];
   save: [];
   delete: [];
+  moveToCampaign: [];
 }>();
 
 // AppInput/AppSelect require a two-way v-model; these props flow one level up

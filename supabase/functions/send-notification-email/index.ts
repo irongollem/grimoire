@@ -34,6 +34,7 @@ import { buildSessionInvite, type IcsSessionEvent } from "../_shared/ics.ts";
 import { isoDate } from "../_shared/childAccount.ts";
 import { resendApiKey, sendEmail, type OutgoingEmail } from "../_shared/resend.ts";
 import {
+  handoutSharedEmail,
   noteSharedEmail,
   proposalCreatedEmail,
   type RsvpLinks,
@@ -176,6 +177,7 @@ serve(withCors(async (req: Request) => {
   let body: {
     type?: string;
     note_id?: string;
+    document_id?: string;
     added_party_member_ids?: unknown;
     proposal_id?: string;
   };
@@ -237,6 +239,43 @@ serve(withCors(async (req: Request) => {
     buildMail = (campaign, dmName, recipient) => ({
       to: recipient.email,
       content: noteSharedEmail({ campaignName: campaign, dmName, noteTitle, noteId }),
+    });
+  } else if (body.type === "handout_shared") {
+    if (!body.document_id || !Array.isArray(body.added_party_member_ids)) {
+      return json({ error: "handout_shared needs { document_id, added_party_member_ids }" }, 400);
+    }
+    const { data: doc, error } = await admin
+      .from("scriptorium_documents")
+      .select("id, title, campaign_id, player_visible_to")
+      .eq("id", body.document_id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!doc?.campaign_id) return json({ error: "Handout not found" }, 404);
+    campaignId = doc.campaign_id as string;
+
+    members = await fetchMembers(campaignId);
+    if (!members.some((m) => m.user_id === user.id && m.role === "dm")) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    // Only ids the handout actually grants visibility to, as for notes: the
+    // client's "added" list is a hint, never an authority.
+    const visible = new Set((doc.player_visible_to as string[] | null) ?? []);
+    const added = new Set(
+      (body.added_party_member_ids as unknown[]).filter(
+        (id): id is string => typeof id === "string" && visible.has(id),
+      ),
+    );
+    recipientIds = members
+      .filter((m) => m.party_member_id && added.has(m.party_member_id) && m.user_id !== user.id)
+      .map((m) => m.user_id);
+    // Same switch as a shared note: both are "the DM handed me a document".
+    prefColumn = "email_shared_notes";
+    const handoutTitle = (doc.title as string) || "Untitled handout";
+    const documentId = doc.id as string;
+    buildMail = (campaign, dmName, recipient) => ({
+      to: recipient.email,
+      content: handoutSharedEmail({ campaignName: campaign, dmName, handoutTitle, documentId }),
     });
   } else if (body.type === "proposal_created") {
     if (!body.proposal_id) return json({ error: "proposal_created needs { proposal_id }" }, 400);

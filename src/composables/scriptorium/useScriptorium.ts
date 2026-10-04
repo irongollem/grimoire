@@ -5,6 +5,7 @@ import type {
   ScriptoriumDocument,
   ScriptoriumDocumentSummary,
   ScriptoriumDocInsert,
+  HandoutShareResult,
   ScriptoriumDocUpdate,
 } from "@/types/scriptorium.types";
 
@@ -13,7 +14,7 @@ const QUERY_KEY = "scriptorium";
 /** Columns the list view renders — see ScriptoriumDocumentSummary. Selecting
  *  `*` here shipped every document's full Tiptap body just to draw its card. */
 const SUMMARY_COLUMNS =
-  "id, title, doc_type, campaign_id, tags, is_published, word_count, created_at, updated_at";
+  "id, title, doc_type, campaign_id, tags, is_published, player_visible_to, word_count, created_at, updated_at";
 
 /** The caller's own id, for scoping reads to their own documents. Since #970 a
  *  player may also SELECT a handout shared with them, so RLS alone would mix
@@ -113,5 +114,41 @@ export function useDeleteScriptoriumDocument() {
   return useMutation({
     mutationFn: deleteDocument,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+/** The `share_handout` RPC. `dryRun` writes nothing and is the confirmation summary. */
+async function callShareHandout(
+  id: string,
+  partyMemberIds: string[],
+  dryRun: boolean,
+): Promise<HandoutShareResult> {
+  const { data, error } = await supabase.rpc("share_handout", {
+    p_document_id: id,
+    p_party_member_ids: partyMemberIds,
+    p_dry_run: dryRun,
+  });
+  if (error) throw error;
+  return data as unknown as HandoutShareResult;
+}
+
+/** What sharing the document with exactly these party members would do. */
+export function previewHandoutShare(
+  id: string,
+  partyMemberIds: string[],
+): Promise<HandoutShareResult> {
+  return callShareHandout(id, partyMemberIds, true);
+}
+
+/** Sets the full recipient set and applies every linked entry's reveal (#970). */
+export function useShareHandout() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, partyMemberIds }: { id: string; partyMemberIds: string[] }) =>
+      callShareHandout(id, partyMemberIds, false),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+    },
   });
 }

@@ -88,6 +88,7 @@ export type ScriptoriumDocumentSummary = Pick<
   | "campaign_id"
   | "tags"
   | "is_published"
+  | "player_visible_to"
   | "word_count"
   | "created_at"
   | "updated_at"
@@ -98,3 +99,31 @@ export type ScriptoriumDocInsert = Omit<
   "id" | "user_id" | "created_at" | "updated_at" | "player_visible_to"
 >;
 export type ScriptoriumDocUpdate = Partial<ScriptoriumDocInsert>;
+
+/** One linked entry the handout would reveal, as `share_handout` reports it. */
+export type HandoutRevealed =
+  | { type: "npc"; id: string; name: string; fields: string[]; seen_as: string | null }
+  | { type: "location"; id: string; name: string; description: boolean }
+  | { type: "quest"; id: string; name: string; starts: boolean }
+  | { type: "monster"; id: string; name: string; stats: boolean };
+
+export type HandoutWithheldReason = "not_revealed" | "found_only" | "outside_campaign";
+
+/** A linked entry the handout leaves hidden, and why. */
+export interface HandoutWithheld {
+  type: string;
+  id: string;
+  name?: string;
+  reason: HandoutWithheldReason;
+}
+
+/** The `share_handout` result; with `p_dry_run` it is the confirmation summary. */
+export interface HandoutShareResult {
+  /** Only what would change; entries already revealed to everyone are absent. */
+  revealed: HandoutRevealed[];
+  /** In document order. */
+  withheld: HandoutWithheld[];
+  /** Party member ids newly given the handout. */
+  added: string[];
+  removed: string[];
+}

@@ -133,13 +133,21 @@
             </span>
           </div>
 
-          <!-- Published badge -->
-          <div v-if="doc.is_published" class="flex items-center gap-1">
-            <IconFaction class="h-3 w-3 text-ink-success" />
-            <span
-              class="text-label text-ink-success font-semibold"
-              >Published</span
-            >
+          <!-- Status badges -->
+          <div v-if="doc.is_published || doc.player_visible_to.length" class="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <div v-if="doc.is_published" class="flex items-center gap-1">
+              <IconFaction class="h-3 w-3 text-ink-success" />
+              <span
+                class="text-label text-ink-success font-semibold"
+                >Published</span
+              >
+            </div>
+            <div v-if="doc.player_visible_to.length" class="flex items-center gap-1">
+              <IconShare class="h-3 w-3 text-ink-success" />
+              <span class="text-label text-ink-success font-semibold"
+                >Shared · {{ doc.player_visible_to.length }}</span
+              >
+            </div>
           </div>
         </div>
 
@@ -171,7 +179,7 @@ const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
-import { IconDelete, IconFaction, IconLock, IconNavScriptorium } from '@/lib/icons';
+import { IconDelete, IconFaction, IconLock, IconNavScriptorium, IconShare } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import {
   useScriptoriumDocuments,

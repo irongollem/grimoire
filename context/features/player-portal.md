@@ -54,7 +54,7 @@ All nav items defined in `src/lib/playerNav.ts` (`ALL_PLAYER_NAV`) — 13 tabs:
 | `/play/spells`    | Spellbook | Full spell management: prepared list, spellbook, innate spells, browse          |
 | `/play/party`     | People    | Party member cards + shared NPCs with filter/search                             |
 | `/play/calendar`  | Calendar  | Current in-game date; upcoming/confirmed session dates                         |
-| `/play/journal`   | Journal   | Personal adventure journal (My Journal / Party Journal / Quest Log / Puzzles / DM Notes tabs) |
+| `/play/journal`   | Journal   | Personal adventure journal (My Journal / Party Journal / Quest Log / Puzzles / DM Notes / Handouts tabs) |
 | `/play/crafting`  | Workshop  | DM-shared crafting recipes with ingredient inventory check (hidden when the `crafting` optional rule is off) |
 | `/play/downtime`  | Interlude | Downtime activities between sessions (hidden when the `downtime` optional rule is off) |
 | `/play/atlas`     | Atlas     | Shared locations with maps, pins, NPCs, and store wares                         |
@@ -70,6 +70,7 @@ Additional sub-routes not in the nav bar:
 - `/play/encounter` — Live encounter view (mobile full-screen; tablet shows sidebar panel)
 - `/play/quests` — Redirects to `/play/journal?tab=quest-log`
 - `/play/quests/:id` — Quest detail with giver NPC, objectives, rewards, rich text description
+- `/play/handouts/:id` — A shared Scriptorium handout in the reader (`PlayerHandoutView.vue`); see "Handouts" under Adventure Journal
 - `/play/puzzles` — Redirects to `/play/journal?tab=puzzles`
 - `/play/puzzles/:id` — Puzzle detail with shared hints and player notes
 - `/play/character/create` — Character creation wizard / edit tabs
@@ -361,7 +362,7 @@ Back route goes to `/play` (character sheet) if the player triggered it from the
 
 Route: `/play/journal` (`PlayerJournalView.vue`)
 
-A personal journal owned by each player character, and also the home of the Quest Log and Puzzles tabs (`/play/quests` and `/play/puzzles` redirect here — see those sections below). Five tabs: **My Journal** (private entries), **Party Journal** (entries marked as shared), **Quest Log**, **Puzzles**, and **DM Notes** (read-only view of notes the DM has shared).
+A personal journal owned by each player character, and also the home of the Quest Log and Puzzles tabs (`/play/quests` and `/play/puzzles` redirect here — see those sections below). Six tabs: **My Journal** (private entries), **Party Journal** (entries marked as shared), **Quest Log**, **Puzzles**, **DM Notes** (read-only view of notes the DM has shared) and **Handouts** (Scriptorium documents the DM has shared with this player).
 
 Each entry has:
 
@@ -374,6 +375,16 @@ Each entry has:
 Players can filter their journal by category. Entries can be expanded inline to read or edit. The privacy toggle on any entry can be flipped post-creation.
 
 **Tome tabs** — one additional tab per document item currently in the party's inventory (any item with non-null `content` that the player can see). Derived live from the intersection of party inventory and player-visible items — not stored state — so a tome appears the moment the party picks the item up and disappears the moment it leaves the inventory (sold, dropped, given away); both source queries already live-sync. Rendered as a second row of pill `AppButton`s below the main tab bar (the fixed tab bar has no slot for a per-tome unread dot, so this is a separate strip using the same pill-button recipe used elsewhere in the journal) with a feather icon and an `EntityNewDot`. Tab identity is the item's id, with the static tabs falling back to `"mine"`, so `?tab=<item-id>` deep-links straight into a tome. Selecting one renders `PlayerJournalTomeTab`, which mounts `ItemDocumentSection` — see "Document Items (Written Contents)" above for composing/authorship/unread rules.
+
+### Handouts (#970)
+
+Tab: `/play/journal?tab=handouts` (`PlayerJournalHandoutsTab.vue`) → `/play/handouts/:id` (`PlayerHandoutView.vue`, route `play-handout`).
+
+A handout is a `scriptorium_documents` row whose `player_visible_to` holds the player's `campaign_members.party_member_id`. Players can never write that column; the DM shares through `share_handout`. Both reads (`usePlayerHandouts`, `usePlayerHandout`) filter on `campaign_id` and `player_visible_to` in the query itself, take the error, and sit under the `player-handouts` query-key root that campaign live sync invalidates when a shared document changes (no polling). The list fetches summary columns only; the reader fetches the full row, and a withdrawn handout resolves to null and renders "Handout not available".
+
+- **Cards** show title, doc-type label, last-updated date and an `EntityNewDot`. Unread uses `useReadItems("handout")`: new when `updated_at` is later than the read mark, so a DM edit relights the dot.
+- **Reader** is `ScriptoriumReader` with `audience="player"` (linked entities render from player projections only), `back-to="/play/journal?tab=handouts"`, constrained to a single readable column at `md` and up. Opening it marks the handout read, and a change while open re-marks it. `PlayerLayout` does not read `meta.fullscreenMobile`, so the view cancels the layout padding itself on phones.
+- **Deep link** `/play/journal?tab=handouts&handout=<id>` (the share email) navigates to the reader and drops the param.
 
 ### Reliquary (Rules Reference)
 

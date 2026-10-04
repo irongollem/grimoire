@@ -18,7 +18,7 @@
           :options="sortOptions"
         />
         <AppButton
-          v-if="!activeTome && activeTab !== 'dm-notes' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
+          v-if="!activeTome && activeTab !== 'dm-notes' && activeTab !== 'handouts' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
           variant="primary"
           size="md"
           :icon="IconAdd"
@@ -167,6 +167,15 @@
       @toggle-note="toggleNote"
     />
 
+    <!-- Handouts tab -->
+    <PlayerJournalHandoutsTab
+      v-else-if="activeTab === 'handouts'"
+      :is-loading="loadingHandouts"
+      :handouts="handouts ?? []"
+      :is-new="isHandoutNew"
+      :format-date="formatDate"
+    />
+
     <!-- Party Journal tab -->
     <PlayerJournalPartyTab
       v-else-if="activeTab === 'party'"
@@ -234,6 +243,8 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import PlayerJournalMyTab from "./PlayerJournalMyTab.vue";
 import PlayerJournalPartyTab from "./PlayerJournalPartyTab.vue";
 import PlayerJournalDmNotesTab from "./PlayerJournalDmNotesTab.vue";
+import PlayerJournalHandoutsTab from "./PlayerJournalHandoutsTab.vue";
+import { usePlayerHandouts } from "@/composables/scriptorium/usePlayerHandouts";
 import PlayerJournalQuestLogTab from "./PlayerJournalQuestLogTab.vue";
 import PlayerJournalPuzzlesTab from "./PlayerJournalPuzzlesTab.vue";
 import PlayerJournalTomeTab from "./PlayerJournalTomeTab.vue";
@@ -358,6 +369,8 @@ const NOTE_CATEGORIES: Record<NoteCategory, { label: string; color: string; icon
 
 const { isNew: isNoteNew } = useReadItems("note");
 const { isNew: isQuestNew } = useReadItems("quest");
+const { isNew: isHandoutNew } = useReadItems("handout");
+const { data: handouts, isLoading: loadingHandouts } = usePlayerHandouts();
 const { mutate: markRead } = useMarkRead();
 
 const selectedNote = ref<string | null>(null);
@@ -375,8 +388,8 @@ const router = useRouter();
 // admitting an arbitrary tome item id — TabBar's own T stays inferred as
 // this widened type wherever activeTab feeds it, so the static tabs simply
 // show none-active while a tome tab is open.
-type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes" | (string & {});
-const VALID_TABS: TabId[] = ["mine", "party", "quest-log", "puzzles", "dm-notes"];
+type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes" | "handouts" | (string & {});
+const VALID_TABS: TabId[] = ["mine", "party", "quest-log", "puzzles", "dm-notes", "handouts"];
 
 // One tab per document item currently in the party's inventory — derived
 // from the inventory + player-visible-items queries rather than stored
@@ -412,6 +425,7 @@ const TABS = computed(() => [
   { id: "quest-log" as const, label: "Quest Log",     count: (playerQuests.value ?? []).filter((q) => QUEST_LOG_STATUSES.includes(q.status)).length },
   { id: "puzzles"   as const, label: "Puzzles",       count: puzzles.value?.length ?? 0 },
   { id: "dm-notes"  as const, label: "DM Notes",      count: dmNotes.value.length },
+  { id: "handouts"  as const, label: "Handouts",      count: handouts.value?.length ?? 0 },
 ]);
 
 // Deep link from note-share emails: /play/journal?tab=dm-notes&note=<id>
@@ -428,6 +442,18 @@ watch(
     await nextTick();
     document.getElementById(`dm-note-${noteId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     void router.replace({ query: { tab: "dm-notes" } });
+  },
+  { immediate: true },
+);
+
+// Deep link from handout-share emails: /play/journal?tab=handouts&handout=<id>
+// opens that handout in the reader, then drops the param so Back from the
+// reader lands on the plain tab instead of bouncing straight forward again.
+watch(
+  () => route.query.handout,
+  (handoutId) => {
+    if (typeof handoutId !== "string" || activeTab.value !== "handouts") return;
+    void router.replace({ name: "play-handout", params: { id: handoutId } });
   },
   { immediate: true },
 );

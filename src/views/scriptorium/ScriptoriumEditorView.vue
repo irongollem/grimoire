@@ -19,7 +19,12 @@
       </EmptyState>
     </div>
 
-    <ScriptoriumReader v-else-if="doc" :document="doc" />
+    <ScriptoriumReader v-else-if="doc" :document="doc">
+      <!-- A DM mid-session hands a handout out from their phone (#970). -->
+      <template #actions>
+        <HandoutShareControl :handout="doc" form="phone" />
+      </template>
+    </ScriptoriumReader>
 
     <div v-else class="flex h-full flex-col items-center justify-center px-4 py-16">
       <LoadingSpinner v-if="isLoading" />
@@ -77,6 +82,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import HandoutShareControl from "@/components/scriptorium/HandoutShareControl.vue";
 import ScriptoriumEditor from "@/components/scriptorium/ScriptoriumEditor.vue";
 import ScriptoriumReader from "@/components/scriptorium/ScriptoriumReader.vue";
 import TemplateGallery from "@/components/scriptorium/TemplateGallery.vue";

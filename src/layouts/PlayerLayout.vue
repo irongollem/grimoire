@@ -1,7 +1,9 @@
 <template>
   <div class="h-dvh bg-background flex flex-col overflow-hidden">
-    <!-- Top bar: branding + character + sign out -->
-    <header class="h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
+    <!-- Top bar: branding + character + sign out. A full-screen phone route
+         (meta.fullscreenMobile, e.g. a handout in the reader) brings its own
+         header and back button, as it does under DefaultLayout. -->
+    <header v-if="!fullscreenMobile" class="h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
       <div class="flex items-center gap-2 shrink-0">
         <BrandLogo class="h-7 w-auto" />
         <span class="text-caption text-muted-foreground italic hidden sm:inline">
@@ -175,7 +177,10 @@
     <!-- Content + sidebars — reserve space above the fixed bottom nav,
          extending into the home-indicator safe area so the nav and gesture bar
          don't both land on top of the last row of content on notched phones. -->
-    <div class="flex-1 min-h-0 flex overflow-hidden pb-[calc(4rem+env(safe-area-inset-bottom))]">
+    <div
+      class="flex-1 min-h-0 flex overflow-hidden"
+      :class="fullscreenMobile ? '' : 'pb-[calc(4rem+env(safe-area-inset-bottom))]'"
+    >
       <!-- Encounter sidebar (md+, left) -->
       <Transition name="encounter-panel">
         <aside
@@ -197,7 +202,7 @@
       />
 
       <main class="flex-1 overflow-y-auto">
-        <div class="px-4 py-6">
+        <div :class="fullscreenMobile ? 'h-full' : 'px-4 py-6'">
           <!-- Renders nothing unless the DM is actually sharing audio, so a
                table that plays in one room never sees it. -->
           <PlayerAudioStream class="mb-4" />
@@ -207,7 +212,7 @@
       <CampaignChat :contained="true" :hide-tab="true" />
     </div>
 
-    <PlayerBottomNav :show-more="showMore" @open-more="showMore = true" />
+    <PlayerBottomNav v-if="!fullscreenMobile" :show-more="showMore" @open-more="showMore = true" />
   </div>
 
   <BugReportModal v-if="bugReportMounted" v-model="bugReportOpen" />
@@ -429,6 +434,9 @@ useCampaignLiveSync();
 usePlayerRemovalGuard();
 
 const isMobile = useIsMobile();
+// Same rule as DefaultLayout: below md only, a route that is a full-screen
+// takeover drops the layout's own top bar, bottom nav and content padding.
+const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscreenMobile);
 // Keep the player encounter subscription alive for the entire session so state
 // stays in sync even when the player navigates away from the encounter page.
 const { liveState: playerLiveState, liveStateLoaded: runningLoaded } =
