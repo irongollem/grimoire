@@ -7,6 +7,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { buildMonsterEmbedText, monsterEmbedHash, type EmbeddableMonster } from "../_shared/monsterEmbedText.ts";
+import { upsertEmbeddingsInChunks } from "../_shared/embeddingUpsert.ts";
 import {
   EmbeddingProviderConfigError,
   isEmbeddingStale,
@@ -297,7 +298,8 @@ async function handleBatch(body: { target?: unknown; limit?: unknown }, adminUse
     source_hash: c.hash,
   }));
 
-  const { error: upsertError } = await admin.from(config.sideTable).upsert(upsertRows, { onConflict: config.idColumn });
+  // A few rows per statement: see embeddingUpsert.ts for the timeout this avoids.
+  const { error: upsertError } = await upsertEmbeddingsInChunks(admin, config.sideTable, upsertRows, config.idColumn);
   if (upsertError) {
     console.error(`embed-monsters batch upsert failed (${config.sideTable}):`, upsertError.message);
     return json({ error: "Failed to store embeddings" }, 500);
