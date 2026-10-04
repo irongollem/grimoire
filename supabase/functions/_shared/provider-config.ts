@@ -44,11 +44,14 @@ export async function fetchProviderConfigs(
   providers: Provider[],
 ): Promise<Partial<Record<Provider, ProviderRow>>> {
   if (!providerCache || Date.now() >= providerCacheExpiry) {
-    const { data } = await admin
+    // A failed read throws: swallowed, it read as "nothing configured" and every
+    // function fell back to its hard-coded defaults without a word.
+    const { data, error } = await admin
       .from("provider_config")
       .select("provider, text_model, image_model, map_style_model, chronicle_image_model, image_quality, document_model, text_multiplier, image_multiplier, fast_text_model");
+    if (error) throw error;
     providerCache = Object.fromEntries(
-      (data ?? []).map((row: { provider: string } & ProviderRow) => [row.provider, row]),
+      data.map((row: { provider: string } & ProviderRow) => [row.provider, row]),
     ) as Partial<Record<Provider, ProviderRow>>;
     providerCacheExpiry = Date.now() + PROVIDER_TTL_MS;
   }
