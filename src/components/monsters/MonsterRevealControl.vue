@@ -35,7 +35,7 @@ import type { RevealAdapter, RevealForm } from "@/lib/reveal";
 import type { Monster } from "@/types/monster.types";
 
 const { monster, form = "button" } = defineProps<{
-  monster: Monster;
+  monster: Pick<Monster, "id" | "name" | "is_shared">;
   form?: RevealForm;
 }>();
 

@@ -177,9 +177,13 @@ function toggleSelecting() {
 // SpellList's own filters — a search/level/school/class edit there can leave
 // this selection holding an id for a row no longer shown. Prune whenever
 // that exposed set changes (#875).
+// Not while page 1 of the new filters is loading: the placeholder would prune
+// the whole selection to nothing.
 watch(
-  () => spellListRef.value?.selectableIds ?? [],
-  (ids) => pruneTo(ids),
+  () => (spellListRef.value?.selectableReady ? spellListRef.value.selectableIds : null),
+  (ids) => {
+    if (ids) pruneTo(ids);
+  },
 );
 
 const { moving: isMovingScope, move: handleMove } = useMoveToCampaignFlow({

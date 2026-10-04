@@ -16,6 +16,8 @@ import ItemsView from "./ItemsView.vue";
  */
 const mocks = vi.hoisted(() => ({
   selectableIds: ["item-1", "item-2", "item-3"] as string[],
+  ready: true,
+  sources: [] as { slug: string; title: string | null }[],
   moveScope: vi.fn(async () => ({ moved: 3 })),
   isMovingScope: false,
   activeCampaignName: "Icewind Dale" as string | null,
@@ -44,6 +46,8 @@ vi.mock("@/components/items/ItemList.vue", () => ({
       // between "Select all shown" and "Move" (#875).
       expose({
         get selectableIds() { return mocks.selectableIds; },
+        get ready() { return mocks.ready; },
+        get sources() { return mocks.sources; },
       });
       return () => null;
     },
@@ -66,9 +70,6 @@ vi.mock("@/composables/useToast", () => ({
     error: mocks.toastError,
     fromError: (e: unknown) => (e instanceof Error ? e.message : String(e)),
   }),
-}));
-vi.mock("@/composables/items/useItems", () => ({
-  useItemSources: () => ({ data: ref([]) }),
 }));
 vi.mock("@/composables/library/useEnabledSources", () => ({
   useAvailableLibraryItemSources: () => ({ data: ref([]), isLoading: ref(false) }),
@@ -106,6 +107,8 @@ describe("ItemsView — bulk move-to-campaign (#875)", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     mocks.selectableIds = ["item-1", "item-2", "item-3"];
+    mocks.ready = true;
+    mocks.sources = [];
     mocks.moveScope.mockClear();
     mocks.toastSuccess.mockClear();
     mocks.toastError.mockClear();
@@ -265,5 +268,27 @@ describe("ItemsView — AI off", () => {
     mocks.aiEnabled = true;
     expect(findButton(mountView(), "Generate")).toBeDefined();
     mocks.aiEnabled = false;
+  });
+});
+
+describe("ItemsView — server-driven Source filter (#972)", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    mocks.ready = true;
+  });
+
+  it("hides the Source filter until the server reports sources", () => {
+    mocks.sources = [];
+    expect(mountView().find('[aria-label="Source filter"]').exists()).toBe(false);
+  });
+
+  it("lists the sources ItemList exposes, labelled by title", async () => {
+    mocks.sources = [{ slug: "srd-2024", title: "SRD 2024" }];
+    const wrapper = mountView();
+    // ItemList's exposed value reaches the view after its first mount.
+    await wrapper.vm.$nextTick();
+    const select = wrapper.find('[aria-label="Source filter"]');
+    expect(select.exists()).toBe(true);
+    expect(select.text()).toContain("SRD 2024");
   });
 });

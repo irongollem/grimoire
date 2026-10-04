@@ -18,8 +18,12 @@
       <LoadingSpinner />
     </div>
 
+    <p v-else-if="error" class="text-center text-body text-destructive py-12" role="alert">
+      Could not load monsters. {{ error.message }}
+    </p>
+
     <EmptyState
-      v-else-if="!filtered.length && !search && typeFilter === 'all' && sourceFilter === 'custom'"
+      v-else-if="!total && !search && typeFilter === 'all' && sourceFilter === 'custom'"
       title="No custom monsters yet"
       description="Customize an SRD monster or build your own from scratch."
     >
@@ -30,7 +34,7 @@
     </EmptyState>
 
     <p
-      v-else-if="!filtered.length"
+      v-else-if="!total"
       class="text-center text-body text-muted-foreground italic py-12"
     >
       No monsters match your filters.
@@ -40,8 +44,8 @@
     <template v-else-if="isMobile">
       <MobileEntityMetaRow
         v-model:layout="layout"
-        :shown="filtered.length"
-        :total="allMonsters?.length ?? 0"
+        :shown="total"
+        :total="scopeTotal"
         plural="monsters"
       />
       <div
@@ -50,7 +54,7 @@
           : 'flex flex-col gap-2 pb-2'"
       >
         <BulkSelectableCard
-          v-for="monster in visibleItems"
+          v-for="monster in rows"
           :key="monster.id"
           corner="bottom-right"
           :selected="bulk.isSelected(monster.id)"
@@ -65,10 +69,12 @@
             :image-url="monster.image_url"
             :focal-point="monster.portrait_focal_point"
             :placeholder="placeholderUrl('monster')"
-            :badge-text="crLabel(monster.stat_block.challenge_rating)"
-            :badge-class="crBg(monster.stat_block.challenge_rating)"
+            :badge-text="crLabel(monster.challenge_rating)"
+            :badge-class="crBg(monster.challenge_rating)"
             :location="monster.habitat || undefined"
             :shared="isDiscovered(monster)"
+            @pointerenter="prefetchDetail(monster.id)"
+            @focusin="prefetchDetail(monster.id)"
           />
         </BulkSelectableCard>
       </div>
@@ -80,7 +86,7 @@
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
     >
       <BulkSelectableCard
-        v-for="monster in visibleItems"
+        v-for="monster in rows"
         :key="monster.id"
         corner="top-right"
         :selected="bulk.isSelected(monster.id)"
@@ -90,6 +96,8 @@
         <MonsterGridCard
           :monster="monster"
           :locked="lockedMonsterIds.has(monster.id)"
+          @pointerenter="prefetchDetail(monster.id)"
+          @focusin="prefetchDetail(monster.id)"
         />
       </BulkSelectableCard>
     </div>
@@ -97,10 +105,10 @@
     <div ref="sentinelRef" />
 
     <p
-      v-if="filtered.length && !isMobile"
+      v-if="total && !isMobile"
       class="mt-4 text-caption text-muted-foreground italic text-right"
     >
-      {{ filtered.length }} of {{ allMonsters?.length ?? 0 }} monsters
+      {{ total }} of {{ scopeTotal }} monsters
     </p>
   </div>
 
@@ -118,19 +126,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
+import { useQueryClient } from "@tanstack/vue-query";
 import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconNavBestiary } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { useUiStore } from "@/stores/ui";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { fetchResolvedMonster, RESOLVED_MONSTER_QUERY_KEY } from "@/composables/monsters/useMonsters";
+import { useMonsterBrowse } from "@/composables/monsters/useMonsterBrowse";
 import { useCampaignDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import MonsterGridCard from "@/components/monsters/MonsterGridCard.vue";
 import { crBg, crLabel } from "@/lib/monsterDisplay";
-import type { Monster } from "@/types/monster.types";
+import type { MonsterBrowseRow } from "@/types/monster.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
@@ -148,7 +157,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
-const { canCreate, quota: monsterQuota } = useQuota("monsters");
+const { canCreate } = useQuota("monsters");
 const showPaywall = ref(false);
 
 function handleNew() {
@@ -166,7 +175,18 @@ const layout = computed({
   set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
 });
 
-const { data: allMonsters, isLoading } = useAllMonsters();
+// The page is one server page at a time (#972): `browse_monsters` owns
+// membership, order, filters, counts and the quota lock. MonstersView calls it
+// with the same filters for the mobile "Show N" count; identical keys share one
+// query.
+const {
+  rows, total, scopeTotal, selectableIds, lockedIds, ready,
+  hasNextPage, isFetchingNextPage, fetchNextPage, isLoading, error,
+} = useMonsterBrowse(() => ({
+  search: ui.monstersSearch,
+  source: ui.monstersFilterSource,
+  type: ui.monstersFilterType,
+}));
 
 // ── Discovery ────────────────────────────────────────────────────────────────
 //
@@ -176,48 +196,67 @@ const { data: allMonsters, isLoading } = useAllMonsters();
 
 const { data: discoveries } = useCampaignDiscoveries();
 
-function isDiscovered(monster: Monster): boolean {
+function isDiscovered(monster: MonsterBrowseRow): boolean {
   return !!discoveries.value?.find(
     (d) => (monster.is_shared ? d.library_monster_id === monster.id : d.monster_id === monster.id),
   );
 }
 
-const filtered = computed(() => {
-  let list = allMonsters.value ?? [];
-  if (sourceFilter.value === "custom") list = list.filter((m) => !m.is_shared);
-  else if (sourceFilter.value !== "all") list = list.filter((m) => m.source === sourceFilter.value);
-  if (search.value.trim()) {
-    const q = search.value.trim().toLowerCase();
-    list = list.filter(
-      (m) =>
-        m.name.toLowerCase().includes(q) ||
-        m.monster_type.toLowerCase().includes(q) ||
-        m.habitat?.toLowerCase().includes(q) ||
-        m.tags.some((t) => t.toLowerCase().includes(q)),
-    );
-  }
-  if (typeFilter.value !== "all")
-    list = list.filter((m) => m.monster_type === typeFilter.value);
-  return list;
-});
+// ── Paging ───────────────────────────────────────────────────────────────────
+//
+// The sentinel under the grid asks for the next server page as it nears the
+// viewport. It is re-observed after every page lands, so a page too short to
+// push the sentinel out of view keeps loading instead of stalling.
+const sentinelRef = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
 
-const { savedCount, linkCount } = useScrollRestore("monsters");
-const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
-linkCount(visibleCount);
+function loadMore() {
+  if (hasNextPage.value && !isFetchingNextPage.value) void fetchNextPage();
+}
 
-const lockedMonsterIds = computed((): Set<string> => {
-  const q = monsterQuota.value;
-  if (!q || q.unlimited || q.current <= q.limit) return new Set();
-  const overCount = q.current - q.limit;
-  const customMonsters = (allMonsters.value ?? []).filter(m => !m.is_shared);
-  const sorted = [...customMonsters].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+watch(sentinelRef, (el) => {
+  observer?.disconnect();
+  if (!el) return;
+  observer = new IntersectionObserver(
+    (entries) => { if (entries[0].isIntersecting) loadMore(); },
+    { rootMargin: "200px" },
   );
-  return new Set(sorted.slice(-overCount).map(m => m.id));
+  observer.observe(el);
 });
+watch(() => rows.value.length, () => {
+  const el = sentinelRef.value;
+  if (!observer || !el) return;
+  observer.unobserve(el);
+  observer.observe(el);
+});
+onUnmounted(() => observer?.disconnect());
+
+// Coming back from a detail: the pages stay cached, so depth is restored by
+// loading pages until the saved count is reached, then the saved scroll
+// position lands on a list of the same height.
+const { savedCount, linkCount } = useScrollRestore("monsters");
+linkCount(computed(() => rows.value.length));
+let restoringDepth = !!savedCount;
+watch([ready, () => rows.value.length, hasNextPage], ([isReady, loaded, more]) => {
+  if (!restoringDepth || !isReady || savedCount === undefined) return;
+  if (loaded >= savedCount || !more) { restoringDepth = false; return; }
+  loadMore();
+}, { immediate: true });
+
+const lockedMonsterIds = computed(() => new Set(lockedIds.value));
+
+// Open the detail with its row already in hand: the modal reads the full
+// monster, which the slim list row cannot seed.
+const queryClient = useQueryClient();
+function prefetchDetail(id: string) {
+  void queryClient.prefetchQuery({
+    queryKey: [RESOLVED_MONSTER_QUERY_KEY, id],
+    queryFn: () => fetchResolvedMonster(id),
+  });
+}
 
 // Mobile-card subtitle — mirrors the desktop "{size} {type}" line.
-function monsterSubtitle(monster: Monster): string {
+function monsterSubtitle(monster: MonsterBrowseRow): string {
   return `${monster.size} ${monster.monster_type}`;
 }
 
@@ -231,20 +270,20 @@ function monsterSubtitle(monster: Monster): string {
 const bulk = useBulkSelection();
 const { activeCampaign } = storeToRefs(useCampaignStore());
 
-// Every row a bulk move may legally touch: passes the current filters and
-// isn't shared/library content. Reused by "select all" and by the prune
-// below, so both always agree on what's selectable.
-const selectableIds = computed(() => filtered.value.filter((m) => !m.is_shared).map((m) => m.id));
+// `selectableIds` is the server's: every OWN row passing the current filters,
+// across the whole result and not just the loaded pages. Reused by "select all"
+// and by the prune below, so both always agree on what's selectable.
 
 // The filters can change (or the underlying list refetch) while rows are
 // selected; prune whenever the selectable set changes so a stale id from a
 // now-hidden row never lingers in the selection or reaches the mutation
-// (#875).
-watch(selectableIds, (ids) => bulk.pruneTo(ids));
+// (#875). Not while page 1 of new filters is still loading: the previous
+// result is on screen then, and its ids are not the new answer.
+watch([selectableIds, ready], ([ids, isReady]) => { if (isReady) bulk.pruneTo(ids); });
 
 function selectAllShown() {
-  // "Shown" means every row passing the current filters, not just the
-  // windowed/painted subset — taken from `filtered`, not `visibleItems`.
+  // "Shown" means every row passing the current filters, not just the loaded
+  // pages — the server's `selectable_ids`, not `rows`.
   bulk.selectAll(selectableIds.value);
 }
 

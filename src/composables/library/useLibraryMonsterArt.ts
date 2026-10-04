@@ -205,6 +205,8 @@ export function useUpsertLibraryMonsterArt() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
         queryClient.invalidateQueries({ queryKey: ["library-monsters"] }),
+        // The Monsters page's cards carry the merged art (browse_monsters, #972).
+        queryClient.invalidateQueries({ queryKey: ["monsters", "browse"] }),
       ]);
     },
   });
@@ -219,6 +221,10 @@ export function useSyncLibraryMonsterArt() {
       if (error) throw error;
       return data as number;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["library-monsters"] }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["library-monsters"] }),
+        queryClient.invalidateQueries({ queryKey: ["monsters", "browse"] }),
+      ]),
   });
 }

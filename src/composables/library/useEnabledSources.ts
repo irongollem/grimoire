@@ -216,6 +216,13 @@ function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ["library-spells"] });
   queryClient.invalidateQueries({ queryKey: ["library-items"] });
   queryClient.invalidateQueries({ queryKey: ["library-species"] });
+  // The catalogue pages and pickers built from the enabled books (#972).
+  queryClient.invalidateQueries({ queryKey: ["monsters", "browse"] });
+  queryClient.invalidateQueries({ queryKey: ["items", "browse"] });
+  queryClient.invalidateQueries({ queryKey: ["spells", "browse"] });
+  queryClient.invalidateQueries({ queryKey: ["library-monster-index"] });
+  queryClient.invalidateQueries({ queryKey: ["library-item-index"] });
+  queryClient.invalidateQueries({ queryKey: ["library-spell-index"] });
   // Backgrounds are seeded per player from the enabled books.
   queryClient.invalidateQueries({ queryKey: ["backgrounds"] });
 }

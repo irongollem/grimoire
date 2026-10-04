@@ -65,6 +65,29 @@ export interface MonsterStatBlock {
   spellcasting?: SpellcastingBlock;
 }
 
+/**
+ * One row of `browse_monsters` (#972): just what a bestiary card paints. The
+ * three stat fields are the raw `stat_block` values the server lifts out, so
+ * they are null when a block lacks one. Never seed a `Monster` cache with this
+ * (`useResolvedMonster` reads full rows from those keys).
+ */
+export interface MonsterBrowseRow {
+  id: string;
+  name: string;
+  size: MonsterSize;
+  monster_type: MonsterType;
+  habitat: string | null;
+  source: string | null;
+  source_title: string | null;
+  is_shared: boolean;
+  tags: string[];
+  image_url: string | null;
+  portrait_focal_point: { x: number; y: number } | null;
+  challenge_rating: string | null;
+  armor_class: number | null;
+  hit_points: string | null;
+}
+
 export interface Monster extends VersionedContentMetadata {
   id: string;
   user_id: string;

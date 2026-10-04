@@ -9,7 +9,7 @@
     </div>
 
     <EmptyState
-      v-else-if="!filtered.length && !search && !levelFilter && !schoolFilter && !classFilter"
+      v-else-if="!rows.length && !search && !levelFilter && !schoolFilter && !classFilter && sourceFilter === 'all'"
       title="No spells yet"
       description="Craft your spellbook: cantrips to 9th-level catastrophes."
     >
@@ -25,7 +25,7 @@
     </EmptyState>
 
     <p
-      v-else-if="!filtered.length"
+      v-else-if="!rows.length"
       class="text-center text-body text-muted-foreground italic py-12"
     >
       No spells match your filters.
@@ -41,11 +41,11 @@
           cannot be selected or re-scoped, same as their Edit button above.
         -->
         <BulkSelectableCard
-          v-for="spell in visibleItems"
+          v-for="spell in rows"
           :key="spell.id"
           corner="top-right"
           :selected="selectedIds.has(spell.id)"
-          :selecting="selecting && !isSharedContent(spell)"
+          :selecting="selecting && !spell.is_shared"
           @toggle="emit('toggle-select', spell.id)"
         >
           <div
@@ -57,7 +57,13 @@
               class="absolute inset-0 z-2"
               @click="emit('spell-click', spell)"
             />
-            <RouterLink v-else :to="`/spells/${spell.id}`" class="absolute inset-0 z-2" />
+            <RouterLink
+              v-else
+              :to="`/spells/${spell.id}`"
+              class="absolute inset-0 z-2"
+              @pointerenter="prefetchSpell(spell.id)"
+              @focus="prefetchSpell(spell.id)"
+            />
 
             <!-- School colour bar -->
             <div
@@ -140,7 +146,7 @@
 
             <!-- Edit button — DM mode only, not shown for SRD spell cards -->
             <AppButton
-              v-if="!playerMemberId && !isSharedContent(spell)"
+              v-if="!playerMemberId && !spell.is_shared"
               :to="`/spells/${spell.id}?edit=true`"
               variant="ghost"
               size="xs"
@@ -193,31 +199,30 @@
       <div ref="sentinelRef" />
 
       <p
-        v-if="filtered.length"
         class="mt-4 text-caption text-muted-foreground italic text-right"
       >
-        {{ filtered.length }} spells
+        {{ total }} spells
       </p>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { IconAddBook, IconCheck, IconClose, IconEdit, IconNavSpellbook } from '@/lib/icons';
-import { refDebounced } from "@vueuse/core";
-import { useAllSpells } from "@/composables/spells/useSpells";
+import { refDebounced, useIntersectionObserver } from "@vueuse/core";
+import { useQueryClient } from "@tanstack/vue-query";
+import { fetchResolvedSpell, resolvedSpellKey } from "@/composables/spells/useSpells";
+import { useSpellBrowse } from "@/composables/spells/useSpellBrowse";
 import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell } from "@/composables/party/useCharacterSpells";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { SCHOOL_BG, spellLevelLabel } from "@/types/spell.types";
-import type { CasterType, Spell } from "@/types/spell.types";
+import type { CasterType, SpellBrowseRow } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
-import { isSharedContent } from "@/lib/library/contentIdentity";
 import { useSpellReplacement } from "@/composables/party/useSpellReplacement";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy, policyValueAtLevel } from "@/rules/spellPreparationPolicy";
@@ -268,7 +273,7 @@ const {
 }>();
 
 const emit = defineEmits<{
-  (e: "spell-click", spell: Spell): void;
+  (e: "spell-click", spell: SpellBrowseRow): void;
   (e: "toggle-select", id: string): void;
 }>();
 
@@ -279,7 +284,7 @@ const { candidate, clear: clearReplacement } = useSpellReplacement();
 const { ruleset } = useRuleset();
 const toast = useToast();
 
-async function handleLearn(spell: Spell) {
+async function handleLearn(spell: Pick<SpellBrowseRow, "id" | "level">) {
   if (!playerMemberId || !sourceClassId) return;
   const policy = officialRulesPolicy
     ? getSpellPreparationPolicy(classFilter, ruleset.value)
@@ -338,7 +343,7 @@ async function handleLearn(spell: Spell) {
   });
 }
 
-function handleKnownClick(spell: Spell) {
+function handleKnownClick(spell: Pick<SpellBrowseRow, "id">) {
   if (!playerMemberId) return;
   const policy = officialRulesPolicy
     ? getSpellPreparationPolicy(classFilter, ruleset.value)
@@ -371,34 +376,61 @@ function isKnown(spellId: string): boolean {
   return knownSpellIds?.includes(spellId) ?? false;
 }
 
-const { data: allSpells, isLoading } = useAllSpells();
-
-// Debounce search to avoid filtering on every keystroke
+// Debounce search so a keystroke does not ask the server each time.
 const debouncedSearch = refDebounced(computed(() => search), 200);
 
-const filtered = computed<Spell[]>(() => {
-  let list = allSpells.value ?? [];
-  const q = debouncedSearch.value.trim().toLowerCase();
-  if (q) list = list.filter((s) => s.name.toLowerCase().includes(q));
-  if (levelFilter !== "") list = list.filter((s) => s.level === parseInt(levelFilter));
-  if (schoolFilter) list = list.filter((s) => s.school === schoolFilter);
-  if (classFilter) list = list.filter((s) => s.classes.includes(classFilter));
-  if (sourceFilter === "custom") list = list.filter((s) => !isSharedContent(s));
-  else if (sourceFilter && sourceFilter !== "all") list = list.filter((s) => s.source === sourceFilter);
-  return list;
+const {
+  rows, total, selectableIds, ready, hasNextPage, isFetchingNextPage, fetchNextPage, isLoading, error,
+} = useSpellBrowse(() => ({
+  search: debouncedSearch.value,
+  level: levelFilter,
+  school: schoolFilter,
+  class: classFilter,
+  source: sourceFilter,
+}));
+
+watch(error, (e) => {
+  if (e) toast.error(toast.fromError(e));
 });
 
 /**
- * Ids selectable for a bulk campaign-scope move: every filtered spell that is
- * the DM's own. Shared/library spells (`isSharedContent`) have no
- * `campaign_id` of their own to move — "Select all shown" must never
- * pre-tick them, same rows the Edit button above already excludes.
+ * Ids selectable for a bulk campaign-scope move: every own, non-shared spell
+ * matching the filters, across all pages (the server decides). `selectableReady`
+ * is false while page 1 of the current filters loads, so the parent does not
+ * prune a selection down to an empty placeholder.
  */
-const selectableIds = computed(() => filtered.value.filter((s) => !isSharedContent(s)).map((s) => s.id));
+defineExpose({ selectableIds, selectableReady: ready });
 
-defineExpose({ selectableIds });
+// Hover/focus on a card warms the detail page's read.
+const queryClient = useQueryClient();
+function prefetchSpell(id: string) {
+  void queryClient.prefetchQuery({
+    queryKey: resolvedSpellKey(id),
+    queryFn: () => fetchResolvedSpell(id),
+  });
+}
 
+// Infinite scroll: the sentinel asks the server for the next page.
+const sentinelRef = ref<HTMLElement | null>(null);
+useIntersectionObserver(
+  sentinelRef,
+  ([entry]) => {
+    if (entry?.isIntersecting && hasNextPage.value && !isFetchingNextPage.value) void fetchNextPage();
+  },
+  { rootMargin: "200px" },
+);
+
+// Scroll restore: reload pages until the depth the user left at is back.
 const { savedCount, linkCount } = useScrollRestore("spells");
-const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
-linkCount(visibleCount);
+const loadedCount = computed(() => rows.value.length);
+linkCount(loadedCount);
+watch(
+  [loadedCount, hasNextPage, isFetchingNextPage],
+  () => {
+    if (savedCount && loadedCount.value < savedCount && hasNextPage.value && !isFetchingNextPage.value) {
+      void fetchNextPage();
+    }
+  },
+  { immediate: true },
+);
 </script>

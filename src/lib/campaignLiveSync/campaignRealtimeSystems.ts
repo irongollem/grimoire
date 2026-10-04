@@ -182,6 +182,12 @@ export function dispatchCampaignRealtimeSystem(
       invalidate(queryClient, ["items", "player-visible"], true);
       // Search results are a cross-table RPC projection, not an item-row cache.
       invalidate(queryClient, ["global-search"]);
+      // The Vault's pages (browse_items), the picker index and by-id reads
+      // (#972) are slim or merged reads keyed longer than the two segments
+      // `include` admits, so they are refetched rather than spliced.
+      invalidate(queryClient, ["items", "browse"]);
+      invalidate(queryClient, ["items", "index"]);
+      invalidate(queryClient, ["items", "by-ids"]);
       return true;
 
     case "npc_inventory":

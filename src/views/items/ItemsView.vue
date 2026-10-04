@@ -62,7 +62,7 @@
           <option value="">All rarities</option>
           <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
         </ListFilterSelect>
-        <ListFilterSelect v-if="sources?.length" v-model="sourceFilter" aria-label="Source filter">
+        <ListFilterSelect v-if="sources.length" v-model="sourceFilter" aria-label="Source filter">
           <option value="">All sources</option>
           <option v-for="s in sources" :key="s.slug" :value="s.slug">{{ itemSourceLabel(s.slug, s.title) }}</option>
         </ListFilterSelect>
@@ -124,7 +124,6 @@ import ItemList from "@/components/items/ItemList.vue";
 import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
-import { useItemSources } from "@/composables/items/useItems";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSourceLabel } from "@/types/item.types";
 import { useUiStore } from "@/stores/ui";
 import { useAvailableLibraryItemSources } from "@/composables/library/useEnabledSources";
@@ -158,8 +157,6 @@ const scopeFilter = computed({
 const hasActiveFilters = computed(() => ui.vaultHasActiveFilters);
 function clearFilters() { ui.resetVaultFilters(); }
 
-const { data: sources } = useItemSources();
-
 // ── Sources panel ────────────────────────────────────────────────────────────
 // The enable/disable wiring (campaign-scoped) now lives inside SourcesPickerPanel.
 const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLibraryItemSources();
@@ -178,6 +175,8 @@ const {
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const itemListRef = ref<InstanceType<typeof ItemList> | null>(null);
+// The Source filter's options come from the same server page the grid shows.
+const sources = computed(() => itemListRef.value?.sources ?? []);
 
 function toggleSelecting() {
   if (selecting.value) stopSelecting();
@@ -188,9 +187,13 @@ function toggleSelecting() {
 // ItemList's own filters — a search/type/rarity edit there can leave this
 // selection holding an id for a row no longer shown. Prune whenever that
 // exposed set changes (#875).
+// Not while the first page is still loading: its empty stand-in would wipe the
+// selection.
 watch(
-  () => itemListRef.value?.selectableIds ?? [],
-  (ids) => pruneTo(ids),
+  () => (itemListRef.value?.ready ? itemListRef.value.selectableIds : null),
+  (ids) => {
+    if (ids) pruneTo(ids);
+  },
 );
 
 const { moving: isMovingScope, move: handleMove } = useMoveToCampaignFlow({

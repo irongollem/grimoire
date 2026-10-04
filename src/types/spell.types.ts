@@ -192,6 +192,26 @@ export interface StructuredSpellEffect {
   modifier?: number | "spellcasting_ability" | null;
 }
 
+/** One row of `browse_spells`: just what a spell card paints. `is_shared` is a
+ *  library row, or a custom row copied from the library (`source_record_key`). */
+export interface SpellBrowseRow {
+  id: string;
+  name: string;
+  level: number;
+  school: SpellSchool;
+  ritual: boolean;
+  casting_time: string;
+  range: string;
+  components: string[];
+  concentration: boolean;
+  classes: string[];
+  tags: string[];
+  source: string | null;
+  source_title: string | null;
+  source_url: string | null;
+  is_shared: boolean;
+}
+
 export interface Spell {
   id: string;
   user_id: string;

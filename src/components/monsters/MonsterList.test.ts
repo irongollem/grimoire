@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { reactive, ref, computed, defineComponent, h, type Ref } from "vue";
+import { reactive, ref, computed, defineComponent, h } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MonsterList from "./MonsterList.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
@@ -44,8 +44,36 @@ function monster(overrides: Partial<Monster> = {}): Monster {
 vi.mock("@vueuse/core", () => ({ useMediaQuery: () => false }));
 
 const monstersData = ref<Monster[]>([]);
+const PAGE = 48;
+const fetchNextPage = vi.fn();
+const hasNextPage = ref(false);
+const browseError = ref<Error | null>(null);
+// The server pages and counts; this stand-in answers the same questions from a
+// fixture: one page painted, totals and select-all over the whole result.
+vi.mock("@/composables/monsters/useMonsterBrowse", () => ({
+  useMonsterBrowse: () => ({
+    rows: computed(() => monstersData.value.slice(0, PAGE)),
+    total: computed(() => monstersData.value.length),
+    scopeTotal: computed(() => monstersData.value.length + 5),
+    selectableIds: computed(() => monstersData.value.filter((m) => !m.is_shared).map((m) => m.id)),
+    lockedIds: computed(() => []),
+    ready: ref(true),
+    hasNextPage,
+    isFetchingNextPage: ref(false),
+    fetchNextPage,
+    isLoading: ref(false),
+    error: browseError,
+  }),
+}));
+
+const prefetchQuery = vi.fn();
+vi.mock("@tanstack/vue-query", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/vue-query")>()),
+  useQueryClient: () => ({ prefetchQuery }),
+}));
 vi.mock("@/composables/monsters/useMonsters", () => ({
-  useAllMonsters: () => ({ data: monstersData, isLoading: ref(false) }),
+  RESOLVED_MONSTER_QUERY_KEY: "resolved-monster",
+  fetchResolvedMonster: vi.fn(),
 }));
 
 vi.mock("@/composables/encounters/useDiscoveredMonsters", () => ({
@@ -107,16 +135,6 @@ vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
   }),
 }));
 
-// Windowing over `filtered` without IntersectionObserver — mirrors the real
-// composable's slicing so a >pageSize fixture still exercises "select all
-// shown selects everything filtered, not only what's painted."
-vi.mock("@/composables/useInfiniteScroll", () => ({
-  useInfiniteScroll: (filtered: Ref<Monster[]>, pageSize = 48) => ({
-    visibleItems: computed(() => filtered.value.slice(0, pageSize)),
-    sentinelRef: ref(null),
-    visibleCount: ref(Math.min(pageSize, filtered.value.length)),
-  }),
-}));
 vi.mock("@/composables/useScrollRestore", () => ({
   useScrollRestore: () => ({ savedCount: undefined, linkCount: vi.fn() }),
 }));
@@ -146,6 +164,8 @@ function exposed(wrapper: ReturnType<typeof mountList>): MonsterListExposed {
 describe("MonsterList — bulk selection (#875)", () => {
   beforeEach(() => {
     monstersData.value = [];
+    prefetchQuery.mockClear();
+    fetchNextPage.mockClear();
     mutateAsync.mockClear();
     mutateAsync.mockResolvedValue({ moved: 0 });
     toastSuccess.mockClear();
@@ -180,6 +200,28 @@ describe("MonsterList — bulk selection (#875)", () => {
     // All 60 custom rows are selected despite only 48 being rendered, and the
     // 2 shared/library rows are excluded.
     expect(wrapper.text()).toContain("60 selected");
+  });
+
+  it("shows the filtered count against the whole catalogue, from the server's totals", () => {
+    monstersData.value = [monster({ id: "m1" }), monster({ id: "m2" })];
+    const wrapper = mountList();
+    expect(wrapper.text()).toContain("2 of 7 monsters");
+  });
+
+  it("surfaces a failed read instead of an empty bestiary", () => {
+    browseError.value = new Error("boom");
+    const wrapper = mountList();
+    expect(wrapper.text()).toContain("Could not load monsters");
+    expect(wrapper.text()).toContain("boom");
+    browseError.value = null;
+  });
+
+  it("warms the detail on pointer intent", async () => {
+    monstersData.value = [monster({ id: "m1" })];
+    const wrapper = mountList();
+    await wrapper.find(".stub-card").trigger("pointerenter");
+    expect(prefetchQuery).toHaveBeenCalledTimes(1);
+    expect(prefetchQuery.mock.calls[0]![0].queryKey).toEqual(["resolved-monster", "m1"]);
   });
 
   it("clicking a card while selecting toggles it into the selection rather than navigating", async () => {

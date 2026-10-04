@@ -2,28 +2,45 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import SpellList from "./SpellList.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
-import type { Spell } from "@/types/spell.types";
+import type { SpellBrowseRow } from "@/types/spell.types";
 
-/**
- * happy-dom's IntersectionObserver never fires without a real layout, which is
- * exactly what these tests want: `visibleItems` stays pinned at the first
- * `useInfiniteScroll` page (48) so "select all shown" can be asserted against
- * the full filtered set, not just what's painted.
- */
+/** happy-dom ships no IntersectionObserver; the sentinel is not under test. */
 class IntersectionObserverStub {
   observe() {}
+  unobserve() {}
   disconnect() {}
 }
 vi.stubGlobal("IntersectionObserver", IntersectionObserverStub);
 
-// A plain array, not a ref: vi.hoisted's callback runs before any import in
-// this file (including "vue") is initialized, so calling ref() inside it
-// throws a TDZ error. The mocked useAllSpells below wraps this in a real ref
-// at call time instead, which is late enough for "vue" to be bound.
-const mocks = vi.hoisted(() => ({ spells: [] as Spell[] }));
+// vi.hoisted runs before "vue" is bound, so the rows live in a plain array and
+// the mocked composable wraps them in refs at call time. The filters it was
+// called with are recorded: the server does the filtering now.
+const mocks = vi.hoisted(() => ({
+  rows: [] as SpellBrowseRow[],
+  filters: [] as Array<Record<string, string>>,
+}));
+vi.mock("@/composables/spells/useSpellBrowse", () => ({
+  useSpellBrowse: (filters: () => Record<string, string>) => {
+    mocks.filters.push(filters());
+    return {
+      rows: ref(mocks.rows),
+      total: ref(mocks.rows.length),
+      selectableIds: ref(mocks.rows.filter((r) => !r.is_shared).map((r) => r.id)),
+      ready: ref(true),
+      hasNextPage: ref(false),
+      isFetchingNextPage: ref(false),
+      fetchNextPage: vi.fn(),
+      isLoading: ref(false),
+      error: ref(null),
+    };
+  },
+}));
+vi.mock("@tanstack/vue-query", () => ({ useQueryClient: () => ({ prefetchQuery: vi.fn() }) }));
 vi.mock("@/composables/spells/useSpells", () => ({
-  useAllSpells: () => ({ data: ref(mocks.spells), isLoading: ref(false) }),
+  fetchResolvedSpell: vi.fn(),
+  resolvedSpellKey: (id: string) => ["resolved-spell", id],
 }));
 // Sidesteps useScrollRestore's onBeforeRouteLeave, which needs an installed
 // router — irrelevant to the bulk-selection wiring under test here.
@@ -45,47 +62,23 @@ vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ error: vi.fn(), success: vi.fn(), info: vi.fn(), fromError: (e: unknown) => String(e) }),
 }));
 
-function makeSpell(overrides: Partial<Spell> = {}): Spell {
+function makeSpell(overrides: Partial<SpellBrowseRow> = {}): SpellBrowseRow {
   return {
     id: "11111111-1111-4111-8111-111111111111",
-    user_id: "user-1",
-    campaign_id: null,
     name: "Test Spell",
     level: 1,
     school: "evocation",
-    casting_time: "1 action",
-    casting_time_custom: null,
-    range: "60 feet",
-    range_custom: null,
-    components: ["V", "S"],
-    material: null,
-    duration: "Instantaneous",
-    duration_custom: null,
-    concentration: false,
     ritual: false,
-    attack_type: null,
-    save_attribute: null,
-    save_effect: null,
-    damage_rolls: null,
-    healing_dice: null,
-    target_description: null,
-    aoe_shape: null,
-    aoe_size: null,
-    condition_inflicted: null,
-    description: "",
-    higher_levels: null,
-    higher_level_damage: null,
-    higher_level_healing: null,
+    casting_time: "1 action",
+    range: "60 feet",
+    components: ["V", "S"],
+    concentration: false,
     classes: [],
     tags: [],
     source: null,
     source_title: null,
     source_url: null,
-    open5e_import: false,
-    source_record_key: null,
-    image_url: null,
-    created_at: "2026-01-01T00:00:00Z",
-    updated_at: "2026-01-01T00:00:00Z",
+    is_shared: false,
     ...overrides,
   };
 }
@@ -110,34 +103,31 @@ function mountList(
 
 describe("SpellList — bulk selection (#875)", () => {
   beforeEach(() => {
-    mocks.spells = [];
+    mocks.rows = [];
+    mocks.filters = [];
   });
 
   it("excludes a shared/library row (source_record_key set) from selectableIds", () => {
-    mocks.spells = [
+    mocks.rows = [
       makeSpell({ id: "11111111-1111-4111-8111-111111111111", name: "Homebrew Bolt" }),
-      makeSpell({ id: "22222222-2222-4222-8222-222222222222", name: "Fireball", source_record_key: "srd-2014-fireball" }),
+      makeSpell({ id: "22222222-2222-4222-8222-222222222222", name: "Fireball", is_shared: true }),
     ];
     const wrapper = mountList();
     expect(wrapper.vm.selectableIds).toEqual(["11111111-1111-4111-8111-111111111111"]);
   });
 
-  it("selectableIds covers every filtered row, not only the visible/painted window", () => {
-    mocks.spells = Array.from({ length: 60 }, (_, i) =>
-      makeSpell({
-        id: `11111111-${String(i).padStart(4, "0")}-4111-8111-111111111111`,
-        name: `Spell ${i}`,
-      }),
-    );
+  it("selectableIds is the server's whole answer, not the loaded rows", () => {
+    mocks.rows = [makeSpell(), makeSpell({ id: "22222222-2222-4222-8222-222222222222" })];
     const wrapper = mountList();
-    expect(wrapper.vm.selectableIds).toHaveLength(60);
-    expect(wrapper.findAllComponents(BulkSelectableCard)).toHaveLength(48);
+    expect(wrapper.vm.selectableIds).toHaveLength(2);
+    expect(wrapper.vm.selectableReady).toBe(true);
+    expect(wrapper.findAllComponents(BulkSelectableCard)).toHaveLength(2);
   });
 
   it("wraps a DM-owned row's card with selecting on, but a shared row's with selecting off", () => {
-    mocks.spells = [
+    mocks.rows = [
       makeSpell({ id: "11111111-1111-4111-8111-111111111111", name: "Homebrew Bolt" }),
-      makeSpell({ id: "22222222-2222-4222-8222-222222222222", name: "Fireball", source_record_key: "srd-2014-fireball" }),
+      makeSpell({ id: "22222222-2222-4222-8222-222222222222", name: "Fireball", is_shared: true }),
     ];
     const wrapper = mountList({ selecting: true });
     const cards = wrapper.findAllComponents(BulkSelectableCard);
@@ -147,13 +137,13 @@ describe("SpellList — bulk selection (#875)", () => {
   });
 
   it("does not enter selecting mode for any row when the list-wide flag is off", () => {
-    mocks.spells = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
+    mocks.rows = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
     const wrapper = mountList({ selecting: false });
     expect(wrapper.findComponent(BulkSelectableCard).props("selecting")).toBe(false);
   });
 
   it("reflects selectedIds onto the matching card's selected prop", () => {
-    mocks.spells = [
+    mocks.rows = [
       makeSpell({ id: "11111111-1111-4111-8111-111111111111" }),
       makeSpell({ id: "22222222-2222-4222-8222-222222222222" }),
     ];
@@ -167,42 +157,36 @@ describe("SpellList — bulk selection (#875)", () => {
   });
 
   it("toggling a card emits toggle-select with that row's id", async () => {
-    mocks.spells = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
+    mocks.rows = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
     const wrapper = mountList({ selecting: true });
     await wrapper.findComponent(BulkSelectableCard).vm.$emit("toggle");
     expect(wrapper.emitted("toggle-select")).toEqual([["11111111-1111-4111-8111-111111111111"]]);
   });
 
   it("puts the checkbox chip in the top-right corner, clear of the Edit button at top-left", () => {
-    mocks.spells = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
+    mocks.rows = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
     const wrapper = mountList({ selecting: true });
     expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
   });
 });
 
-describe("SpellList source filter", () => {
-  beforeEach(() => {
-    mocks.spells = [
-      makeSpell({ id: "11111111-1111-4111-8111-111111111111", name: "Unlabelled Homebrew" }),
-      makeSpell({ id: "22222222-2222-4222-8222-222222222222", name: "Labelled Homebrew", source: "Homebrew" }),
-      makeSpell({ id: "33333333-3333-4333-8333-333333333333", name: "Fireball", source: "srd-2014", source_record_key: "srd-2014-fireball" }),
+describe("SpellList filters", () => {
+  it("hands every filter to the server query, search debounced to its first value", () => {
+    mocks.filters = [];
+    mocks.rows = [];
+    mountList({ sourceFilter: "custom" });
+    expect(mocks.filters[0]).toEqual({
+      search: "", level: "", school: "", class: "", source: "custom",
+    });
+  });
+
+  it("the Edit button is hidden for a shared row", () => {
+    mocks.rows = [
+      makeSpell({ id: "11111111-1111-4111-8111-111111111111", name: "Homebrew Bolt" }),
+      makeSpell({ id: "22222222-2222-4222-8222-222222222222", name: "Fireball", is_shared: true }),
     ];
-  });
-
-  // "Custom" used to compare against the literal source "custom", which no
-  // spell the editor saves ever has: a blank source is stored as null.
-  it("Custom lists the DM's own spells, whatever their source says", () => {
-    const wrapper = mountList({ sourceFilter: "custom" });
-    expect(wrapper.vm.selectableIds).toEqual([
-      "11111111-1111-4111-8111-111111111111",
-      "22222222-2222-4222-8222-222222222222",
-    ]);
-    expect(wrapper.findAllComponents(BulkSelectableCard)).toHaveLength(2);
-  });
-
-  it("a library source lists only that source", () => {
-    const wrapper = mountList({ sourceFilter: "srd-2014" });
-    expect(wrapper.findAllComponents(BulkSelectableCard)).toHaveLength(1);
-    expect(wrapper.vm.selectableIds).toEqual([]);
+    const wrapper = mountList();
+    const edits = wrapper.findAllComponents(AppButton).filter((b) => b.props("tooltip") === "Edit spell");
+    expect(edits).toHaveLength(1);
   });
 });

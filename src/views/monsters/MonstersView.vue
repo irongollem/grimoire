@@ -300,7 +300,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useRouter } from "vue-router";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useMonsterBrowse } from "@/composables/monsters/useMonsterBrowse";
 import { useEnabledSources, useAvailableLibrarySources } from "@/composables/library/useEnabledSources";
 
 // IconSettings (sliders) reads as "filters". The overflow ⋮ has no kebab glyph
@@ -356,7 +356,6 @@ const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLib
 
 // ── Mobile filter chrome ────────────────────────────────────────────────────
 
-const { data: allMonsters } = useAllMonsters();
 
 const sourceLabel = (slug: string): string => {
   if (slug === "custom") return "Custom";
@@ -376,22 +375,11 @@ const activeFilterCount = computed(() =>
   activeChips.value.filter((c) => c.key !== "search").length,
 );
 
-// Live "Show N" count — mirrors MonsterList filtering.
-const matchCount = computed(() => {
-  let list = allMonsters.value ?? [];
-  if (ui.monstersFilterSource === "custom") list = list.filter((m) => !m.is_shared);
-  else if (ui.monstersFilterSource !== "all") list = list.filter((m) => m.source === ui.monstersFilterSource);
-  if (ui.monstersSearch.trim()) {
-    const q = ui.monstersSearch.trim().toLowerCase();
-    list = list.filter(
-      (m) =>
-        m.name.toLowerCase().includes(q) ||
-        m.monster_type.toLowerCase().includes(q) ||
-        m.habitat?.toLowerCase().includes(q) ||
-        m.tags.some((t) => t.toLowerCase().includes(q)),
-    );
-  }
-  if (ui.monstersFilterType !== "all") list = list.filter((m) => m.monster_type === ui.monstersFilterType);
-  return list.length;
-});
+// Live "Show N" count: the server's total for the filters, the same query the
+// list under it reads (identical key, one request).
+const { total: matchCount } = useMonsterBrowse(() => ({
+  search: ui.monstersSearch,
+  source: ui.monstersFilterSource,
+  type: ui.monstersFilterType,
+}));
 </script>

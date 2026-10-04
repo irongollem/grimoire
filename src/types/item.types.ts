@@ -193,6 +193,41 @@ export interface BundleItemEntry {
   quantity?: number;
 }
 
+/** One row of `browse_items` (#972): the slim card projection of a vault item,
+ *  already merged (own rows shadow library twins) with its art defaults applied. */
+export interface ItemBrowseRow {
+  id: string;
+  name: string;
+  item_type: ItemType;
+  rarity: ItemRarity;
+  tags: string[];
+  image_url: string | null;
+  image_focal_point: Item["image_focal_point"];
+  damage_rolls: DamageRoll[] | null;
+  armor_class: string | null;
+  charges: number | null;
+  /** An own row with a written document; library rows are always false. */
+  has_content: boolean;
+  campaign_id: string | null;
+  /** A shared library row rather than one of the DM's own. */
+  is_shared: boolean;
+}
+
+/** One entry of the Source filter, as `browse_items` reports it. */
+export interface ItemBrowseSource {
+  slug: string;
+  title: string | null;
+}
+
+/** One page of `browse_items`. `selectable_ids` and `sources` describe the whole
+ *  filtered result, so every page carries the same values. */
+export interface ItemBrowsePage {
+  rows: ItemBrowseRow[];
+  total: number;
+  selectable_ids: string[];
+  sources: ItemBrowseSource[];
+}
+
 export interface Item extends VersionedContentMetadata {
   id: string;
   user_id: string;

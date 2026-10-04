@@ -30,7 +30,7 @@
             class="min-w-8 rounded px-1.5 py-0.5 text-center text-label font-bold text-white"
             :class="challengeClass"
           >
-            CR {{ crText(monster.stat_block.challenge_rating) }}
+            CR {{ crText(monster.challenge_rating) }}
           </span>
         </div>
       </div>
@@ -40,10 +40,10 @@
       </p>
 
       <div class="flex gap-3 text-label-lg text-muted-foreground">
-        <span><span class="font-bold text-foreground">AC</span> {{ monster.stat_block.armor_class }}</span>
+        <span v-if="monster.armor_class !== null"><span class="font-bold text-foreground">AC</span> {{ monster.armor_class }}</span>
         <span>
           <span class="font-bold text-foreground">HP</span>
-          {{ formatHitPoints(monster.stat_block.hit_points) }}
+          {{ formatHitPoints(monster.hit_points) }}
         </span>
       </div>
 
@@ -91,14 +91,14 @@ import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue
 import { IconEdit } from "@/lib/icons";
 import { crBg, crText } from "@/lib/monsterDisplay";
 import { formatHitPoints } from "@/lib/utils";
-import type { Monster } from "@/types/monster.types";
+import type { MonsterBrowseRow } from "@/types/monster.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { monster } = defineProps<{
-  monster: Monster;
+  monster: MonsterBrowseRow;
   locked?: boolean;
 }>();
 
-const challengeClass = computed(() => crBg(monster.stat_block.challenge_rating));
+const challengeClass = computed(() => crBg(monster.challenge_rating));
 const sourceLabel = computed(() => monster.source_title ?? monster.source ?? "Reference");
 </script>

@@ -52,7 +52,7 @@ export function useToggleMonsterDiscovery() {
       currentDiscovery,
       visibleTo = null,
     }: {
-      monster: Monster;
+      monster: Pick<Monster, "id" | "is_shared">;
       currentDiscovery: DiscoveredMonster | undefined;
       visibleTo?: string[] | null;
     }) => {

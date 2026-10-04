@@ -17,11 +17,6 @@ import { mergeLibraryWithCustom } from "@/lib/library/libraryShadow";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
-interface ItemSource {
-  slug: string;
-  title: string | null;
-}
-
 const QUERY_KEY = "items";
 const LIBRARY_QUERY_KEY = "library-items";
 const UNIQUE_VIOLATION = "23505";
@@ -160,25 +155,6 @@ export function buildCatalogue(
   const offered = new Set(browse.map((i) => i.id));
   const dropped = custom.filter((i) => !offered.has(i.id)).map(withArt);
   return { browse, resolvable: dropped.length ? [...browse, ...dropped] : browse };
-}
-
-/** Distinct item sources — derived from the merged {@link useItems} catalog so
- *  campaign-enabled library_items sources surface in the Vault "Source" filter
- *  alongside any custom-item sources. */
-export function useItemSources() {
-  const { data: items, isLoading } = useItems();
-  const data = computed<ItemSource[]>(() => {
-    const list = items.value ?? [];
-    const map = new Map<string, string | null>();
-    for (const item of list) {
-      if (!item.source) continue;
-      if (!map.has(item.source) || item.source_title) map.set(item.source, item.source_title ?? null);
-    }
-    return [...map.entries()]
-      .map(([slug, title]) => ({ slug, title }))
-      .sort((a, b) => (a.title ?? a.slug).localeCompare(b.title ?? b.slug));
-  });
-  return { data, isLoading };
 }
 
 export interface UseItemsOptions {
@@ -410,30 +386,40 @@ export function useDeleteItem() {
   });
 }
 
+export interface ResolvedItem {
+  item: Item;
+  isShared: boolean;
+}
+
+export function resolvedItemKey(id: string) {
+  return ["resolved-item", id] as const;
+}
+
+/** The lookup behind {@link useResolvedItem}; exported so a list card can warm
+ *  the detail page's cache on hover (#972) with the exact same fetcher. */
+export async function fetchResolvedItem(itemId: string): Promise<ResolvedItem> {
+  // library_items ids are text slugs, custom items are uuids — the two id
+  // spaces are disjoint, so branch on the id shape and do a single lookup
+  // rather than always probing library_items first (the common owned-item
+  // detail page is a uuid and would otherwise pay a guaranteed-miss query).
+  if (isUuid(itemId)) {
+    const item = await fetchItem(itemId);
+    if (!item) throw new Error("Item not found");
+    return { item, isShared: false };
+  }
+  const { data: shared, error: sharedError } = await supabase
+    .from("library_items").select("*").eq("id", itemId).maybeSingle();
+  if (sharedError) throw sharedError;
+  if (!shared) throw new Error("Item not found");
+  return { item: normalizeLibraryItem(shared), isShared: true };
+}
+
 /** Resolve an opaque item ID against explicit shared/custom stores — mirrors
  *  {@link useResolvedMonster}/`useResolvedSpell`. */
 export function useResolvedItem(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => ["resolved-item", id.value] as const),
-    queryFn: async ({ queryKey: [, itemId] }) => {
-      // library_items ids are text slugs, custom items are uuids — the two id
-      // spaces are disjoint, so branch on the id shape and do a single lookup
-      // rather than always probing library_items first (the common owned-item
-      // detail page is a uuid and would otherwise pay a guaranteed-miss query).
-      if (isUuid(itemId)) {
-        const item = await fetchItem(itemId);
-        if (!item) throw new Error("Item not found");
-        return { item, isShared: false };
-      }
-      const { data: shared, error: sharedError } = await supabase
-        .from("library_items").select("*").eq("id", itemId).maybeSingle();
-      if (sharedError) throw sharedError;
-      if (!shared) throw new Error("Item not found");
-      return {
-        item: normalizeLibraryItem(shared),
-        isShared: true,
-      };
-    },
+    queryKey: computed(() => resolvedItemKey(id.value)),
+    queryFn: ({ queryKey: [, itemId] }) => fetchResolvedItem(itemId),
     enabled: () => !!id.value,
   });
 }

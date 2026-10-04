@@ -209,17 +209,23 @@ export function useLibrarySpell(id: Ref<string>) {
 }
 
 /** Resolve an opaque spell ID against explicit shared/custom stores. */
+export async function fetchResolvedSpell(spellId: string): Promise<{ spell: Spell; isShared: boolean }> {
+  const { data: shared, error: sharedError } = await supabase
+    .from("library_spells").select("*").eq("id", spellId).maybeSingle();
+  if (sharedError) throw sharedError;
+  if (shared) return { spell: { ...shared, user_id: "" } as Spell, isShared: true };
+  if (!isUuid(spellId)) throw new Error("Spell not found");
+  return { spell: await fetchSpell(spellId), isShared: false };
+}
+
+export function resolvedSpellKey(id: string) {
+  return ["resolved-spell", id] as const;
+}
+
 export function useResolvedSpell(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => ["resolved-spell", id.value] as const),
-    queryFn: async ({ queryKey: [, spellId] }) => {
-      const { data: shared, error: sharedError } = await supabase
-        .from("library_spells").select("*").eq("id", spellId).maybeSingle();
-      if (sharedError) throw sharedError;
-      if (shared) return { spell: { ...shared, user_id: "" } as Spell, isShared: true };
-      if (!isUuid(spellId)) throw new Error("Spell not found");
-      return { spell: await fetchSpell(spellId), isShared: false };
-    },
+    queryKey: computed(() => resolvedSpellKey(id.value)),
+    queryFn: ({ queryKey: [, spellId] }) => fetchResolvedSpell(spellId),
     enabled: () => !!id.value,
   });
 }

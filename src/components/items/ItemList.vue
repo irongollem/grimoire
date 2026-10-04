@@ -5,9 +5,17 @@
       <LoadingSpinner />
     </div>
 
+    <EmptyState
+      v-else-if="error"
+      title="Could not load items"
+      description="Something went wrong fetching the vault. Try again in a moment."
+    >
+      <template #icon><IconNavItemVault class="h-16 w-16" /></template>
+    </EmptyState>
+
     <!-- Empty state -->
     <EmptyState
-      v-else-if="!filtered.length"
+      v-else-if="!rows.length"
       title="No items found"
       :description="
         search || typeFilter || rarityFilter || sourceFilter || scopeFilter
@@ -35,11 +43,19 @@
         row always gets `selecting: false` regardless of the list-wide mode, so
         it renders untouched and cannot be selected or re-scoped.
       -->
-      <BulkSelectableCard
-        v-for="item in visibleItems"
+      <!-- `contents` keeps the grid layout as if this wrapper were absent. It
+           exists to hear pointer/focus for the detail prefetch: EntityGridCard
+           opens with a comment, so listeners passed to it do not fall through. -->
+      <div
+        v-for="item in rows"
         :key="item.id"
+        class="contents"
+        @pointerover="prefetchDetail(item.id)"
+        @focusin="prefetchDetail(item.id)"
+      >
+      <BulkSelectableCard
         :selected="selectedIds.has(item.id)"
-        :selecting="selecting && isUuid(item.id)"
+        :selecting="selecting && !item.is_shared"
         @toggle="emit('toggle-select', item.id)"
       >
         <EntityGridCard
@@ -55,7 +71,7 @@
                detail view's Clone action, which is the only way to change them. -->
           <template #actions-start>
             <AppButton
-              v-if="isUuid(item.id) && !selecting"
+              v-if="!item.is_shared && !selecting"
               :to="`/vault/${item.id}?edit=true`"
               variant="ghost"
               size="xs"
@@ -73,7 +89,7 @@
                  A plain v-else labelled the DM's own items "Reference" the
                  moment select mode hid their Edit button. -->
             <span
-              v-else-if="!isUuid(item.id)"
+              v-else-if="item.is_shared"
               class="flex h-6 items-center rounded bg-black/50 px-1.5 text-label text-white backdrop-blur-sm"
             >Reference</span>
           </template>
@@ -85,7 +101,7 @@
                 class="mb-px h-3.5 w-3.5 shrink-0 text-white/70"
               />
               <IconDocument
-                v-if="item.content !== null"
+                v-if="item.has_content"
                 class="mb-px h-3.5 w-3.5 shrink-0 text-white/70"
               />
               <span
@@ -130,13 +146,16 @@
           </template>
         </EntityGridCard>
       </BulkSelectableCard>
+      </div>
     </div>
     <div ref="sentinelRef" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, type Component as VueComponent } from "vue";
+import { computed, ref, watch, type Component as VueComponent } from "vue";
+import { useQueryClient } from "@tanstack/vue-query";
+import { useIntersectionObserver } from "@vueuse/core";
 import { IconCaravan, IconCircle, IconCoins, IconComponent, IconDocument, IconEdit, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconNavItemVault, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
@@ -171,13 +190,10 @@ const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
 function itemTypeIcon(type: ItemType): VueComponent {
   return ITEM_TYPE_ICONS[type] ?? IconComponent;
 }
-import { storeToRefs } from "pinia";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
-import { useItems } from "@/composables/items/useItems";
-import { useCampaignStore } from "@/stores/campaign";
-import { isUuid } from "@/lib/library/contentIdentity";
-import { itemScopeOf, type ItemScope } from "@/lib/items/itemScope";
+import { useItemBrowse } from "@/composables/items/useItemBrowse";
+import { fetchResolvedItem, resolvedItemKey } from "@/composables/items/useItems";
+import type { ItemScope } from "@/lib/items/itemScope";
 import { ITEM_RARITY_LABELS, RARITY_BG } from "@/types/item.types";
 import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -204,42 +220,67 @@ const {
   selectedIds?: ReadonlySet<string>;
 }>();
 
+/** A hover-prefetched detail stays fresh this long, so skimming a grid does not refetch it. */
+const DETAIL_PREFETCH_STALE_MS = 30_000;
+
 const emit = defineEmits<{ "toggle-select": [id: string] }>();
 
-// Only "Other campaigns" needs rows outside the active campaign.
-const { data: items, isLoading } = useItems(() => ({ includeAllScopes: scopeFilter === "other_campaign" }));
-const { activeCampaignId } = storeToRefs(useCampaignStore());
-
-const filtered = computed(() => {
-  const q = search.trim().toLowerCase();
-  return (items.value ?? []).filter((item) => {
-    if (typeFilter && item.item_type !== typeFilter) return false;
-    if (rarityFilter && item.rarity !== rarityFilter) return false;
-    if (sourceFilter && item.source !== sourceFilter) return false;
-    if (scopeFilter && itemScopeOf(item, activeCampaignId.value) !== scopeFilter) return false;
-    if (q) {
-      return (
-        item.name.toLowerCase().includes(q) ||
-        (item.subtype ?? "").toLowerCase().includes(q) ||
-        item.tags.some((t) => t.toLowerCase().includes(q))
-      );
-    }
-    return true;
-  });
-});
+const queryClient = useQueryClient();
+const {
+  rows,
+  selectableIds,
+  sources,
+  ready,
+  isLoading,
+  error,
+  hasNextPage,
+  isFetchingNextPage,
+  fetchNextPage,
+} = useItemBrowse(() => ({
+  search,
+  type: typeFilter,
+  rarity: rarityFilter,
+  source: sourceFilter,
+  scope: scopeFilter,
+}));
 
 /**
- * Ids selectable for a bulk campaign-scope move: every row passing the
- * current filters that is the DM's own (a UUID row). Library/reference rows
- * (a provider key like "srd_owlbear") have no `campaign_id` of their own to
- * move — "Select all shown" must never pre-tick them.
+ * `selectableIds` is every own row matching the filters (server-side, whichever
+ * page it is on), so "Select all shown" never pre-ticks a library/reference row
+ * and never misses one that has not scrolled in yet. `ready` is false while the
+ * first page of the current filters is still loading, so the view does not prune
+ * a selection against an empty stand-in.
  */
-const selectableIds = computed(() => filtered.value.filter((item) => isUuid(item.id)).map((item) => item.id));
+defineExpose({ selectableIds, sources, ready });
 
-defineExpose({ selectableIds });
+// Warm the detail route's cache before the click lands (#972).
+function prefetchDetail(id: string) {
+  void queryClient.prefetchQuery({
+    queryKey: resolvedItemKey(id),
+    queryFn: () => fetchResolvedItem(id),
+    staleTime: DETAIL_PREFETCH_STALE_MS,
+  });
+}
 
 const { savedCount, linkCount } = useScrollRestore("items");
-const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
-linkCount(visibleCount);
+linkCount(computed(() => rows.value.length));
 
+// Returning from a detail page: load pages until the depth the DM had scrolled
+// to is back, so the restored scroll position has content under it.
+watch(
+  [() => rows.value.length, hasNextPage, isFetchingNextPage],
+  ([loaded, more, fetching]) => {
+    if (savedCount !== undefined && loaded < savedCount && more && !fetching) void fetchNextPage();
+  },
+  { immediate: true },
+);
+
+const sentinelRef = ref<HTMLElement | null>(null);
+useIntersectionObserver(
+  sentinelRef,
+  ([entry]) => {
+    if (entry?.isIntersecting && hasNextPage.value && !isFetchingNextPage.value) void fetchNextPage();
+  },
+  { rootMargin: "200px" },
+);
 </script>

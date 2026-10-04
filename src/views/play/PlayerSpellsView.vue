@@ -174,7 +174,7 @@
         :known-cantrip-count="browseKnownCantripCount"
         :prepared-spell-count="browsePreparedSpellCount"
         :official-rules-policy="!!browsePolicy"
-        @spell-click="selectedSpell = $event"
+        @spell-click="openSpell($event.id)"
       />
     </template>
     </template>
@@ -191,6 +191,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { refDebounced } from "@vueuse/core";
 import { IconGenerate, IconSearch } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
+import { fetchSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
 import { useAssignCharacterSpellSource, useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
 import SpellList from "@/components/spells/SpellList.vue";
@@ -219,6 +220,17 @@ import { useToast } from "@/composables/useToast";
 const addInnateOpen = ref(false);
 
 const selectedSpell = ref<Spell | null>(null);
+
+// The browse list carries card fields only; the modal needs the whole spell.
+async function openSpell(id: string) {
+  try {
+    const spell = (await fetchSpellsByIds([id])).get(id);
+    if (!spell) throw new Error("Spell not found");
+    selectedSpell.value = spell;
+  } catch (error) {
+    toast.error(toast.fromError(error));
+  }
+}
 
 const LEVEL_FILTERS = [
   { value: "", label: "All" },

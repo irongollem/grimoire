@@ -9,13 +9,16 @@ import {
   useUpdateDiscoveryStats,
 } from "@/composables/encounters/useDiscoveredMonsters";
 
+/** What the reveal machinery reads of a monster: a list card is enough. */
+export type RevealableMonster = Pick<Monster, "id" | "is_shared">;
+
 /**
  * Encapsulates all per-monster discovery/visibility state and mutations.
  * Pass a reactive ref to the current monster; all returned functions operate on it.
  * Used in both MonsterDetailView (single monster) and MonsterList (popover monster).
  */
 export function useMonsterVisibility(
-  monster: Ref<Monster | null | undefined> | ComputedRef<Monster | null | undefined>,
+  monster: Ref<RevealableMonster | null | undefined> | ComputedRef<RevealableMonster | null | undefined>,
 ) {
   const { data: discoveries } = useCampaignDiscoveries();
   const { data: party } = useParty();
