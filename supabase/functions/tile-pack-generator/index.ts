@@ -29,10 +29,11 @@ import { fetchProviderConfigs } from "../_shared/provider-config.ts";
  * (`resolveImageProvider` in _shared/imageGen.ts) — this function used to
  * hardcode the id and so kept rendering on `gpt-image-2` long after the
  * platform moved to `gpt-image-2.5-flare`, which is faster, better and
- * cheaper. It was the only image path not reading the config, and nothing
- * surfaced it because a stale-but-valid model id renders perfectly well.
+ * cheaper. Nothing surfaced it because a stale-but-valid model id renders
+ * perfectly well. The Chronicler had the same fault by another route (a model
+ * sent from the browser overrode the config) until 5 Oct 2026.
  */
-const FALLBACK_MODEL = "gpt-image-2";
+const FALLBACK_MODEL = "gpt-image-2.5-flare";
 
 const MAX_NORMALIZED_B64 = 512_000;
 

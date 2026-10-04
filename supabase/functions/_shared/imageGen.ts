@@ -327,7 +327,7 @@ export async function generateImage(opts: {
 // ── Provider resolution ─────────────────────────────────────────────────────────
 
 const DEFAULT_MODEL: Record<string, string> = {
-  openai: "gpt-image-2",
+  openai: "gpt-image-2.5-flare",
   gemini: "gemini-3.1-flash-image",
 };
 
@@ -358,7 +358,13 @@ export function resolveImageProvider(args: {
   campaignKeys: Partial<Record<"openai" | "gemini", string | null>>;
   platformKeys: Partial<Record<"openai" | "gemini", string | null>>;
   providerConfigs: Partial<Record<string, { image_model?: string | null; image_multiplier?: number | null; image_quality?: string | null } | undefined>>;
-  /** Client-requested OpenAI sub-model (gpt-image-2/1.5). Honored only for plain "openai". */
+  /**
+   * A model the calling function chooses for itself (the map styler renders on
+   * sunburst). Never a value from the request body: a client-sent model used to
+   * override Admin → Providers here, and since the browser defaulted it to
+   * `gpt-image-2`, every Chronicler render stayed on that model long after the
+   * platform moved to `gpt-image-2.5-flare` (fixed 5 Oct 2026).
+   */
   requestedModel?: string | null;
 }): ResolvedImageProvider | null {
   const choice = (args.imageProvider ?? "openai") as ImageProviderKey;

@@ -12,7 +12,7 @@ import {
   buildLabelledImagePrompt,
   buildSimpleImagePrompt,
 } from "@/ai/imagePrompt";
-import { getImageProvider, OPENAI_IMAGE_MODEL_KEY } from "@/ai/providers";
+import { getImageProvider } from "@/ai/providers";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { waitForImageJob } from "@/ai/useImageJob";
 import { buildAiProvenance } from "@/ai/provenance";
@@ -57,7 +57,6 @@ export interface ImageGenerationRequest {
   campaignId: string;
   settingPrompt: string;
   imageProvider: string | null;
-  imageModel: string;
   /** Browser-local BYOK key captured with the campaign; never sent server-side. */
   imageApiKey: string | null;
   purpose: ImagePurpose;
@@ -77,8 +76,7 @@ export interface ImageGenerationRequest {
 
 export type ImageGenerationContext = Pick<
   ImageGenerationRequest,
-  "campaignId" | "settingPrompt" | "imageProvider" | "imageModel"
-  | "imageApiKey"
+  "campaignId" | "settingPrompt" | "imageProvider" | "imageApiKey"
 >;
 
 /** Snapshot campaign-owned image configuration before a parent generation awaits. */
@@ -96,7 +94,6 @@ export function captureImageGenerationContext(): ImageGenerationContext {
     settingPrompt: campaign.ai_setting_prompt ?? "",
     imageProvider,
     imageApiKey,
-    imageModel: (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-2",
   };
 }
 
@@ -200,9 +197,8 @@ async function runLocal(request: ImageGenerationRequest): Promise<string> {
     : config.labelled
       ? buildLabelledImagePrompt({ base, setting, subject: request.subject })
       : buildSimpleImagePrompt({ base, setting, subject: request.subject });
-  const provider = getImageProvider({
+  const provider = await getImageProvider({
     imageProvider: request.imageProvider,
-    imageModel: request.imageModel,
     apiKey: request.imageApiKey,
   });
   const { b64, usage } = references.some(Boolean) && provider.edit
@@ -237,7 +233,6 @@ async function startServer(request: ImageGenerationRequest): Promise<string> {
       portrait_urls: request.referenceUrls ?? [],
       text_descriptions: request.textDescriptions ?? [],
       source_image_b64: request.sourceImage ? await blobToBase64(request.sourceImage) : null,
-      image_model: request.imageModel,
       note_id: request.noteId ?? null,
     },
   });

@@ -3,6 +3,7 @@ import { createOpenAiTextProvider, createOpenAiImageProvider } from "./openai";
 import { createGeminiTextProvider, createGeminiImageProvider } from "./gemini";
 import { createAnthropicTextProvider } from "./anthropic";
 import { useCampaignStore } from "@/stores/campaign";
+import { supabase } from "@/lib/supabase";
 
 export type { TextProvider, ImageProvider };
 
@@ -30,14 +31,27 @@ export function getTextProvider(): TextProvider {
   }
 }
 
-export const OPENAI_IMAGE_MODEL_KEY = "grimoire_openai_image_model";
+/**
+ * The OpenAI image model an admin set in Admin → Providers. The local-key path
+ * renders in the browser and reads it here, so it follows the same setting as
+ * the server path instead of a model baked into the client.
+ */
+async function fetchOpenAiImageModel(): Promise<string> {
+  const { data, error } = await supabase
+    .from("provider_config")
+    .select("image_model")
+    .eq("provider", "openai")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.image_model) throw new Error("No OpenAI image model is configured. Ask an admin to set one in Admin → Providers.");
+  return data.image_model;
+}
 
-export function getImageProvider(options: {
+export async function getImageProvider(options: {
   imageProvider?: string | null;
-  imageModel?: string;
   /** Captured local-vault key. Null means the captured campaign had no key. */
   apiKey?: string | null;
-} = {}): ImageProvider {
+} = {}): Promise<ImageProvider> {
   const provider = options.imageProvider ?? useCampaignStore().activeCampaign?.image_provider ?? "openai";
   const key = options.apiKey === undefined ? resolveKey(provider) : (options.apiKey ?? "");
   if (!key) {
@@ -47,9 +61,6 @@ export function getImageProvider(options: {
   }
   switch (provider) {
     case "gemini":       return createGeminiImageProvider(key);
-    default: {
-      const model = options.imageModel ?? (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-2";
-      return createOpenAiImageProvider(key, model as "gpt-image-2" | "gpt-image-1.5");
-    }
+    default:             return createOpenAiImageProvider(key, await fetchOpenAiImageModel());
   }
 }

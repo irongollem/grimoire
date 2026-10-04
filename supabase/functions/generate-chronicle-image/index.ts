@@ -229,7 +229,7 @@ serve(withCors(async (req: Request) => {
   if (accountRefusal) return accountRefusal;
 
   let campaign_id: string, subject: string, portrait_urls: string[],
-      text_descriptions: string[], size: string, image_model: string,
+      text_descriptions: string[], size: string,
       purpose: ImagePurpose, source_image_b64: string | null, note_id: string | null;
 
   try {
@@ -240,7 +240,6 @@ serve(withCors(async (req: Request) => {
     portrait_urls     = Array.isArray(body.portrait_urls) ? body.portrait_urls : [];
     text_descriptions = Array.isArray(body.text_descriptions) ? body.text_descriptions : [];
     size              = body.size ?? "1024x1024";
-    image_model       = body.image_model ?? "gpt-image-2";
     purpose           = (body.purpose as ImagePurpose | undefined)
       ?? ((body.kind as string | undefined) === "group_portrait" ? "group_portrait" : "chronicler");
     source_image_b64  = typeof body.source_image_b64 === "string" ? body.source_image_b64 : null;
@@ -295,7 +294,6 @@ serve(withCors(async (req: Request) => {
     campaignKeys: { openai: campaignOpenai, gemini: campaignGemini },
     platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
-    requestedModel: image_model,
   });
   if (!img) return text("No image API key configured", 422);
   const isByok = img.isByok;

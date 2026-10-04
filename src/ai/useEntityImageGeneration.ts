@@ -4,7 +4,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { getTextProvider, getImageProvider, OPENAI_IMAGE_MODEL_KEY } from "./providers";
+import { getTextProvider, getImageProvider } from "./providers";
 import { fetchImageBasePrompt } from "./systemPrompts";
 import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "./imagePrompt";
 import { buildCampaignContext, b64ToBlob, wrapUserInput } from "./utils";
@@ -147,16 +147,11 @@ export function useEntityImageGeneration(bucketId: BucketId) {
     options: GenerateEntityImageOptions,
     campaignId: string,
   ): Promise<string | null> {
-    const imageModel =
-      (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ??
-      "gpt-image-2";
-
     const { data, error: fnError } = await supabase.functions.invoke("generate-entity-image", {
       body: {
         campaign_id: campaignId,
         kind:        options.kind,
         context:     options.context,
-        image_model: imageModel,
       },
     });
 
@@ -189,7 +184,7 @@ export function useEntityImageGeneration(bucketId: BucketId) {
     // 2. Render the image, layering the campaign style + setting under the subject.
     startAiQuotes("image");
     const imageBasePrompt = await fetchImageBasePrompt();
-    const imageProvider = getImageProvider();
+    const imageProvider = await getImageProvider();
     const imagePrompt = buildSimpleImagePrompt({
       base: imageBasePrompt,
       setting: settingPrompt,
