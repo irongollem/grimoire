@@ -125,6 +125,24 @@ create unique index quest_consequences_location_rule_uniq on public.quest_conseq
 create index quest_consequences_document_idx on public.quest_consequences (target_document_id)
   where target_document_id is not null;
 
+-- The document a fired `give_handout` event names: the rule's, or null when it
+-- has left the quest's campaign since the rule was written (the rule's trigger
+-- above checks only when the rule is written). The event row goes through
+-- zz_same_campaign_refs, which refuses a document of another campaign, so
+-- carrying the stale id would abort the whole Advance instead of the perform
+-- arm's "a handout moved out of the campaign is simply not given".
+create or replace function private.handout_still_in_campaign(p_document_id uuid, p_campaign_id uuid)
+returns uuid
+language sql
+stable
+set search_path = public, pg_temp
+as $$
+  select d.id from public.scriptorium_documents d
+   where d.id = p_document_id and d.campaign_id = p_campaign_id
+$$;
+
+revoke execute on function private.handout_still_in_campaign(uuid, uuid) from public, anon, authenticated;
+
 -- ── The engine, restated ────────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION private.apply_quest_consequences(p_campaign_id uuid, p_quest_id uuid, p_transition_id uuid, p_beat_id uuid DEFAULT NULL::uuid, p_edge_id uuid DEFAULT NULL::uuid, p_changed_objective_ids uuid[] DEFAULT '{}'::uuid[], p_settled_before boolean DEFAULT NULL::boolean, p_hold uuid[] DEFAULT '{}'::uuid[], p_location_id uuid DEFAULT NULL::uuid, p_location_fact text DEFAULT NULL::text)
@@ -195,7 +213,7 @@ begin
           held_at
         ) values (
           p_campaign_id, p_quest_id, p_transition_id, v_rule.id, v_rule.action,
-          v_rule.target_objective_id, v_rule.target_npc_id, v_rule.target_quest_id, v_rule.target_document_id,
+          v_rule.target_objective_id, v_rule.target_npc_id, v_rule.target_quest_id, private.handout_still_in_campaign(v_rule.target_document_id, p_campaign_id),
           v_rule.action_payload, v_rule.after_days,
           v_today.current_year, v_today.current_month, v_today.current_day,
           now()
@@ -224,7 +242,7 @@ begin
         action_payload, after_days, fires_on_year, fires_on_month, fires_on_day
       ) values (
         p_campaign_id, p_quest_id, p_transition_id, v_rule.id, v_rule.action,
-        v_rule.target_objective_id, v_rule.target_npc_id, v_rule.target_quest_id, v_rule.target_document_id, v_prev_status, v_prev_visible,
+        v_rule.target_objective_id, v_rule.target_npc_id, v_rule.target_quest_id, private.handout_still_in_campaign(v_rule.target_document_id, p_campaign_id), v_prev_status, v_prev_visible,
         v_rule.action_payload, v_rule.after_days,
         v_today.current_year, v_today.current_month, v_today.current_day
       ) returning id into v_event_id;
@@ -272,7 +290,7 @@ begin
           fires_on_year, fires_on_month, fires_on_day, held_at
         ) values (
           p_campaign_id, p_quest_id, p_transition_id, v_rule.id, v_rule.action,
-          v_rule.target_objective_id, v_rule.target_npc_id, v_rule.target_quest_id, v_rule.target_document_id, v_rule.action_payload, v_rule.after_days,
+          v_rule.target_objective_id, v_rule.target_npc_id, v_rule.target_quest_id, private.handout_still_in_campaign(v_rule.target_document_id, p_campaign_id), v_rule.action_payload, v_rule.after_days,
           v_today.current_year, v_today.current_month, v_today.current_day, now()
         );
         continue;
@@ -284,7 +302,7 @@ begin
         fires_on_year, fires_on_month, fires_on_day
       ) values (
         p_campaign_id, p_quest_id, p_transition_id, v_rule.id, v_rule.action,
-        v_rule.target_objective_id, v_rule.target_npc_id, v_rule.target_quest_id, v_rule.target_document_id, v_rule.action_payload, v_rule.after_days,
+        v_rule.target_objective_id, v_rule.target_npc_id, v_rule.target_quest_id, private.handout_still_in_campaign(v_rule.target_document_id, p_campaign_id), v_rule.action_payload, v_rule.after_days,
         v_today.current_year, v_today.current_month, v_today.current_day
       ) returning id into v_event_id;
 
@@ -487,9 +505,12 @@ begin
         select x from unnest(v_doc.player_visible_to) x);
       perform private.apply_handout_reveals(
         v_ev.campaign_id, v_doc.content, v_doc.player_visible_to || v_added, false);
-      update public.scriptorium_documents
-         set player_visible_to = v_doc.player_visible_to || v_added
-       where id = v_doc.id;
+      -- Nobody new: no write, or updated_at would relight every holder's dot.
+      if cardinality(v_added) > 0 then
+        update public.scriptorium_documents
+           set player_visible_to = v_doc.player_visible_to || v_added
+         where id = v_doc.id;
+      end if;
       -- The undo handle: only the recipients this event added, so undoing it
       -- never takes the handout from someone the DM gave it to by hand.
       update public.quest_consequence_events set handout_member_ids = v_added where id = p_event_id;

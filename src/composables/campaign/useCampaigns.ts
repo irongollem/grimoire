@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { track } from "@/lib/analytics";
@@ -267,10 +267,11 @@ export function useDmArchivedCampaigns() {
 }
 
 /** Every campaign this account DMs, archived or not — the quota-facing list. */
-export function useAllDmCampaigns() {
+export function useAllDmCampaigns({ enabled = true }: { enabled?: MaybeRefOrGetter<boolean> } = {}) {
   return useQuery({
     queryKey: [QUERY_KEY, "as", "dm", "all"] as const,
     queryFn: () => fetchCampaignsAs("dm", null),
+    enabled: () => toValue(enabled),
   });
 }
 

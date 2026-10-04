@@ -77,6 +77,16 @@ export interface ScriptoriumDocument {
   updated_at: string;
 }
 
+/** What the read-only renderers (ScriptoriumDocumentView, ScriptoriumReader)
+ *  actually read. A player's handout is fetched with exactly these columns
+ *  (#970): its tags, AI provenance and owner id are the DM's filing, not part
+ *  of the handout. RLS still lets a holder select the whole row, so a DM should
+ *  not keep secrets in the tags of a document they share. */
+export type ReadableScriptoriumDocument = Pick<
+  ScriptoriumDocument,
+  "id" | "title" | "content" | "doc_type" | "campaign_id" | "theme" | "updated_at"
+>;
+
 /** What the document list renders. Deliberately excludes `content` — the full
  *  Tiptap JSON body — so browsing the list does not ship every document's text.
  *  The editor fetches the whole row separately by id. */

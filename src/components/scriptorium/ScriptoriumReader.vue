@@ -76,7 +76,7 @@ import { DOC_TYPES } from "@/lib/scriptorium/editorConstants";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { revealInScrollParent } from "@/lib/motion";
-import type { ScriptoriumDocument } from "@/types/scriptorium.types";
+import type { ReadableScriptoriumDocument } from "@/types/scriptorium.types";
 
 // Renamed from the prop's own name to avoid shadowing the global `document`.
 const {
@@ -84,7 +84,7 @@ const {
   audience = "dm",
   backTo = "/scriptorium",
 } = defineProps<{
-  document: ScriptoriumDocument;
+  document: ReadableScriptoriumDocument;
   /** Passed through to the renderer; "player" shows only what the handout
    *  itself reveals of each embedded entity (#970). */
   audience?: "dm" | "player";
@@ -107,7 +107,10 @@ const themeClass = computed(() => (doc.theme === "phb2014" ? "theme-phb2014" : "
 const docTypeLabel = computed(() => (audience === "player" ? "Handout" : DOC_TYPES[doc.doc_type].label));
 
 const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
-const { data: allDmCampaigns } = useAllDmCampaigns();
+// Only a DM's document can sit in a campaign other than the active one; a
+// player's handout always belongs to the campaign they have open, so a player
+// never needs (or may read) the DM's campaign list.
+const { data: allDmCampaigns } = useAllDmCampaigns({ enabled: audience !== "player" });
 
 const scopeLabel = computed(() => {
   const scope = documentScopeOf(doc, activeCampaignId.value);
@@ -133,14 +136,9 @@ const scrollRef = ref<HTMLElement | null>(null);
 // with no separate error handling needed.
 const tocEntries = ref<ReaderTocEntry[]>([]);
 function refreshToc() {
-  const root = scrollRef.value;
-  if (!root) return;
-  // An entry whose target is gone from the DOM (an embed a player may not see
-  // renders nothing, and one still resolving has no heading yet) must not be
-  // offered: tapping it would scroll nowhere.
-  tocEntries.value = collectReaderToc(root).filter(
-    (entry) => root.querySelector(`[data-block-id="${entry.blockId}"]`) !== null,
-  );
+  // Read from the rendered DOM, so an embed a player may not see (it renders
+  // nothing) or one still resolving (no heading yet) is never offered.
+  if (scrollRef.value) tocEntries.value = collectReaderToc(scrollRef.value);
 }
 
 // ScriptoriumDocumentView's Tiptap editor renders its first content — and

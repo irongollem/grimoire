@@ -53,6 +53,7 @@
       :save-blocked="contentError !== null"
       :share-document="props.doc ?? null"
       :active-campaign-name="activeCampaignId ? campaignName(activeCampaignId) : null"
+      :prepare-share="saveBeforeShare"
       @update:title="title = $event"
       @update:doc-type="docType = $event as ScriptoriumDocType"
       @update:campaign-id="campaignId = $event"
@@ -648,6 +649,14 @@ async function save() {
   } finally {
     isSaving.value = false;
   }
+}
+
+/** share_handout reads the stored body, so pending edits (a reveal toggled on
+ *  an embed, an entry just linked) are saved first; false when the save did
+ *  not land, which cancels the share. */
+async function saveBeforeShare(): Promise<boolean> {
+  await save();
+  return !saveError.value && contentError.value === null && !showPaywall.value && !!title.value.trim();
 }
 
 /** Files the document under the active campaign, through the ordinary save, so it can be shared. */

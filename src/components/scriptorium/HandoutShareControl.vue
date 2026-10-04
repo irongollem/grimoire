@@ -47,16 +47,11 @@ import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/AppButton.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import HandoutShareDialog from "@/components/scriptorium/HandoutShareDialog.vue";
-import {
-  shareErrorMessage,
-  useHandoutSharing,
-  type ShareableHandout,
-} from "@/composables/scriptorium/useHandoutShare";
-import { useToast } from "@/composables/useToast";
+import { useHandoutSharing, type ShareableHandout } from "@/composables/scriptorium/useHandoutShare";
 import { useCampaignStore } from "@/stores/campaign";
 import { IconHide, IconShare } from "@/lib/icons";
 
-const { handout, form, activeCampaignName = null, initialRecipients = null } = defineProps<{
+const { handout, form, activeCampaignName = null, initialRecipients = null, prepare = null } = defineProps<{
   handout: ShareableHandout;
   /** `toolbar` is the desktop editor's audience control; `phone` is the reader's button. */
   form: "toolbar" | "phone";
@@ -64,13 +59,16 @@ const { handout, form, activeCampaignName = null, initialRecipients = null } = d
   activeCampaignName?: string | null;
   /** Passed to the dialog: who the picker starts with while nobody has the handout. */
   initialRecipients?: string[] | null;
+  /** Run before a share opens its confirmation; false cancels. The editor saves
+   *  here, because share_handout reads the STORED body: an unsaved reveal
+   *  toggle or newly linked entry would otherwise be silently ignored. */
+  prepare?: (() => Promise<boolean>) | null;
 }>();
 
 const emit = defineEmits<{ moveToCampaign: [] }>();
 
 const { activeCampaignId } = storeToRefs(useCampaignStore());
 const { takeBack } = useHandoutSharing();
-const toast = useToast();
 
 // The audience is the active campaign's party, so only that campaign's own
 // documents can be shared from here.
@@ -91,11 +89,12 @@ const resetKey = ref(0);
 async function onAudienceChange(next: string[]) {
   if (next.length === 0) {
     if (handout.player_visible_to.length === 0) return;
-    try {
-      await takeBack(handout.id);
-    } catch (e) {
-      toast.error(shareErrorMessage(e));
-    }
+    // takeBack confirms, toasts its own error and never throws.
+    await takeBack(handout.id);
+    resetKey.value++;
+    return;
+  }
+  if (prepare && !(await prepare())) {
     resetKey.value++;
     return;
   }

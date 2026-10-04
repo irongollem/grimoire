@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(30);
 
 -- A DM shares a Scriptorium handout with players (#970, 20261004105821).
 --
@@ -68,7 +68,15 @@ insert into public.scriptorium_documents (id, user_id, campaign_id, title, conte
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'item', 'entityId', '97000000-0000-4000-8000-000000000070', 'reveal', null))
    ))::text),
   ('97000000-0000-4000-8000-000000000081', '97000000-0000-4000-8000-000000000001', '97000000-0000-4000-8000-000000000010', 'DM draft', '{"type":"doc"}'),
-  ('97000000-0000-4000-8000-000000000082', '97000000-0000-4000-8000-000000000001', null, 'Account-wide', '{"type":"doc"}');
+  ('97000000-0000-4000-8000-000000000082', '97000000-0000-4000-8000-000000000001', null, 'Account-wide', '{"type":"doc"}'),
+  -- The same NPC linked three times (each embed node has its own blockId):
+  -- automatic, a different field set, and one set not to reveal.
+  ('97000000-0000-4000-8000-000000000083', '97000000-0000-4000-8000-000000000001', '97000000-0000-4000-8000-000000000010', 'Three sightings',
+   jsonb_build_object('type', 'doc', 'content', jsonb_build_array(
+     jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('blockId', 'b1', 'entityType', 'npc', 'entityId', '97000000-0000-4000-8000-000000000020', 'showArt', true, 'reveal', null)),
+     jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('blockId', 'b2', 'entityType', 'npc', 'entityId', '97000000-0000-4000-8000-000000000020', 'showArt', true, 'reveal', jsonb_build_object('fields', jsonb_build_array('occupation')))),
+     jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('blockId', 'b3', 'entityType', 'npc', 'entityId', '97000000-0000-4000-8000-000000000020', 'showArt', true, 'reveal', jsonb_build_object('off', true)))
+   ))::text);
 
 -- ── As the DM ──────────────────────────────────────────────────────────────
 
@@ -94,6 +102,13 @@ select is(
 select is(
   (select player_visible_to from public.npcs where id = '97000000-0000-4000-8000-000000000020'),
   '{}'::uuid[], 'a dry run writes nothing');
+
+select is(
+  (select jsonb_build_array(jsonb_array_length(r -> 'revealed'), jsonb_array_length(r -> 'withheld'))
+     from (select public.share_handout('97000000-0000-4000-8000-000000000083',
+                                       array['97000000-0000-4000-8000-000000000030']::uuid[], true) as r) s),
+  '[1, 0]'::jsonb,
+  'an NPC linked three times is one line, and its "off" embed is not withheld when another reveals it');
 
 select lives_ok(
   $$ select public.share_handout('97000000-0000-4000-8000-000000000080',

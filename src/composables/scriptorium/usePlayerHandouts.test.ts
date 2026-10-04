@@ -47,10 +47,12 @@ describe("fetchHandouts", () => {
 });
 
 describe("fetchHandout", () => {
-  it("reads one full row scoped by id, campaign and recipient", async () => {
+  it("reads the readable columns of one row, scoped by id, campaign and recipient", async () => {
     const calls = builder({ data: { id: "d1", content: "{}" }, error: null });
     expect(await fetchHandout("d1", "c1", "pm1")).toEqual({ id: "d1", content: "{}" });
-    expect(calls).toContainEqual(["select", ["*"]]);
+    // Never `*`: the DM's tags, AI provenance and owner id ride on the same row.
+    const select = calls.find(([method]) => method === "select");
+    expect(select?.[1][0]).toBe("id, title, content, doc_type, campaign_id, theme, updated_at");
     expect(calls).toContainEqual(["eq", ["id", "d1"]]);
     expect(calls).toContainEqual(["eq", ["campaign_id", "c1"]]);
     expect(calls).toContainEqual(["contains", ["player_visible_to", ["pm1"]]]);

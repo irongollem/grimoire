@@ -130,6 +130,8 @@ A campaign's document can be given to players: `scriptorium_documents.player_vis
 - **Pending-reveal banner.** `HandoutPendingBanner.vue` runs the dry run against the current recipients, debounced after each save (`usePendingHandoutReveals`), and shows "N linked entries are hidden from players. Reveal" when something would change (a newly linked NPC, say). Autosave never reveals; the button opens the same confirmation.
 - **Email.** After a share, `notifyHandoutShared` invokes `send-notification-email` with `type: "handout_shared"`. The function re-reads the document, verifies the caller is the campaign DM, intersects the ids with the stored `player_visible_to`, drops child accounts and honours preferences. It uses the `email_shared_notes` preference (the same switch as shared notes). The email carries only the title and links to `/play/journal?tab=handouts&handout=<id>`.
 - **List.** Cards show a "Shared" badge with the recipient count beside Published.
+- **Unsaved edits are saved first.** `share_handout` reads the stored body, so the editor saves pending edits before the confirmation opens (`saveBeforeShare`); a reveal toggled on an embed a moment ago is the one that applies.
+- **What a holder can read.** The player read fetches only `ReadableScriptoriumDocument`'s columns (no tags, AI provenance or owner id), but the select policy is row-level: a holder querying the API directly can read every column of a handout. Treat a shared document's tags as visible to its players.
 
 ### Draft with AI (#910)
 

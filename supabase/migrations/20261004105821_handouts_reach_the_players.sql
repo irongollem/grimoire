@@ -140,8 +140,9 @@ begin
   v_doc := coalesce(nullif(p_content, '')::jsonb, '{}'::jsonb);
   select c.user_id into v_owner from public.campaigns c where c.id = p_campaign_id;
 
-  -- Document order, each entity once: the share dialog lists what it reveals
-  -- in the order the DM reads it on the page.
+  -- Document order, each embed node once (the result is collapsed to one line
+  -- per entity after the loop): the share dialog lists what it reveals in the
+  -- order the DM reads it on the page.
   for v_attrs in
     select t.attrs
       from (select e -> 'attrs' as attrs, min(ord) as first_at
@@ -332,6 +333,24 @@ begin
     -- spell: rules text, readable by players already; nothing to reveal.
   end loop;
 
+  -- One line per entity. The loop above runs once per embed node (each has its
+  -- own blockId in attrs), so an NPC linked twice would otherwise be listed
+  -- twice: duplicate rows in the share dialog and a doubled pending count.
+  -- An entity some other embed of it reveals is not also "withheld".
+  v_revealed := (
+    select coalesce(jsonb_agg(s.x order by s.o), '[]'::jsonb)
+      from (select distinct on (t.x ->> 'type', t.x ->> 'id') t.x, t.o
+              from jsonb_array_elements(v_revealed) with ordinality t(x, o)
+             order by t.x ->> 'type', t.x ->> 'id', t.o) s);
+  v_withheld := (
+    select coalesce(jsonb_agg(s.x order by s.o), '[]'::jsonb)
+      from (select distinct on (t.x ->> 'type', t.x ->> 'id') t.x, t.o
+              from jsonb_array_elements(v_withheld) with ordinality t(x, o)
+             where not exists (
+               select 1 from jsonb_array_elements(v_revealed) r
+                where r ->> 'type' = t.x ->> 'type' and r ->> 'id' = t.x ->> 'id')
+             order by t.x ->> 'type', t.x ->> 'id', t.o) s);
+
   return jsonb_build_object('revealed', v_revealed, 'withheld', v_withheld);
 end;
 $$;
@@ -390,7 +409,11 @@ begin
 
   v_reveals := private.apply_handout_reveals(v_doc.campaign_id, v_doc.content, v_members, p_dry_run);
 
-  if not p_dry_run then
+  -- Only when the set actually changes: the write bumps updated_at, which
+  -- relights every holder's "new" dot, and re-sharing to the same table (the
+  -- pending-reveal banner's Reveal) changes nothing they can read.
+  if not p_dry_run
+     and not (v_doc.player_visible_to @> v_members and v_doc.player_visible_to <@ v_members) then
     update public.scriptorium_documents
        set player_visible_to = v_members
      where id = v_doc.id;

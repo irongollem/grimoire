@@ -51,6 +51,7 @@
       :handout="shareDocument"
       form="toolbar"
       :active-campaign-name="activeCampaignName"
+      :prepare="prepareShare"
       @move-to-campaign="$emit('moveToCampaign')"
     />
     <AppButton
@@ -100,6 +101,7 @@ const {
   saveBlocked = false,
   shareDocument = null,
   activeCampaignName = null,
+  prepareShare = null,
 } = defineProps<{
   title: string;
   docType: ScriptoriumDocType;
@@ -125,6 +127,8 @@ const {
   shareDocument?: ShareableHandout | null;
   /** The active campaign's name, offered as where to move an unscoped document. */
   activeCampaignName?: string | null;
+  /** Saves pending edits before a share; false cancels it (see HandoutShareControl). */
+  prepareShare?: (() => Promise<boolean>) | null;
 }>();
 
 const emit = defineEmits<{

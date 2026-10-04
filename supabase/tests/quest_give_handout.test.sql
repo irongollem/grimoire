@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(16);
 
 -- A quest gives the party a handout: `give_handout` (#970, 20261004110516).
 --
@@ -147,6 +147,34 @@ select is(
 select is(
   (select cardinality(player_visible_to) from public.npcs where id = '97100000-0000-4000-8000-000000000020'),
   2, 'what the letter revealed stays revealed');
+
+-- The DM files the letter under another campaign after writing the rule. The
+-- rule still names it, and the Advance must still go through: the handout is
+-- simply not given (the event row would otherwise be refused by its
+-- same-campaign trigger and abort the whole transition).
+update public.scriptorium_documents
+   set campaign_id = '97100000-0000-4000-8000-000000000011'
+ where id = '97100000-0000-4000-8000-000000000080';
+
+select lives_ok($$
+  select public.transition_quest_runtime(
+    '97100000-0000-4000-8000-000000000010', '97100000-0000-4000-8000-000000000040',
+    (select id from public.quest_threads where quest_id = '97100000-0000-4000-8000-000000000040' and label = 'Main'),
+    'advance', 3, null, '97100000-0000-4000-8000-000000000050')
+$$, 'a rule whose handout left the campaign does not block the Advance');
+
+select is(
+  (select player_visible_to from public.scriptorium_documents where id = '97100000-0000-4000-8000-000000000080'),
+  '{}'::uuid[],
+  'and the moved handout reaches nobody');
+
+select is(
+  (select ev.target_document_id from public.quest_consequence_events ev
+     join public.quest_consequences c on c.id = ev.consequence_id
+    where c.target_document_id = '97100000-0000-4000-8000-000000000080'
+    order by ev.created_at desc, ev.seq desc limit 1),
+  null::uuid,
+  'the event names no document outside its campaign');
 
 select * from finish();
 rollback;

@@ -55,7 +55,7 @@ import { computed, onUnmounted, provide, ref, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
 import { parseStoredContent, emptyDoc } from "@/lib/scriptorium/documentContent";
-import type { ScriptoriumDocument, ScriptoriumTheme } from "@/types/scriptorium.types";
+import type { ReadableScriptoriumDocument, ScriptoriumTheme } from "@/types/scriptorium.types";
 import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
 import { SCRIPTORIUM_AUDIENCE_KEY, type ScriptoriumAudience } from "@/lib/scriptorium/audience";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -63,7 +63,7 @@ import { IconWarning } from "@/lib/icons";
 
 // Renamed from the prop's own name to avoid shadowing the global `document`.
 const { document: doc, layout = "page", audience = "dm" } = defineProps<{
-  document: ScriptoriumDocument;
+  document: ReadableScriptoriumDocument;
   /** "reader" adds the `sc-document-view--reader` modifier class for the
    *  phone reading view (#915 story 7). Default "page" keeps today's
    *  page-shaped rendering (quest handouts, the desktop galley preview). */

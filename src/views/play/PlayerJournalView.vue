@@ -453,7 +453,11 @@ watch(
   () => route.query.handout,
   (handoutId) => {
     if (typeof handoutId !== "string" || activeTab.value !== "handouts") return;
-    void router.replace({ name: "play-handout", params: { id: handoutId } });
+    // Replace only the query, then push the reader on top: replacing the whole
+    // entry with the reader would leave no Handouts tab for Back to return to.
+    void router
+      .replace({ query: { tab: "handouts" } })
+      .then(() => router.push({ name: "play-handout", params: { id: handoutId } }));
   },
   { immediate: true },
 );

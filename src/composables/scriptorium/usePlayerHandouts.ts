@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import type { ScriptoriumDocument } from "@/types/scriptorium.types";
+import type { ReadableScriptoriumDocument, ScriptoriumDocument } from "@/types/scriptorium.types";
 
 /**
  * Query-key root for every player-side handout read (#970). The campaign
@@ -37,20 +37,24 @@ export async function fetchHandouts(campaignId: string, partyMemberId: string): 
   return data as PlayerHandoutSummary[];
 }
 
+/** Exactly what the reader renders (ReadableScriptoriumDocument): never the
+ *  DM's tags, AI provenance or owner id, which ride on the same row. */
+const HANDOUT_COLUMNS = "id, title, content, doc_type, campaign_id, theme, updated_at";
+
 export async function fetchHandout(
   id: string,
   campaignId: string,
   partyMemberId: string,
-): Promise<ScriptoriumDocument | null> {
+): Promise<ReadableScriptoriumDocument | null> {
   const { data, error } = await supabase
     .from("scriptorium_documents")
-    .select("*")
+    .select(HANDOUT_COLUMNS)
     .eq("id", id)
     .eq("campaign_id", campaignId)
     .contains("player_visible_to", [partyMemberId])
     .maybeSingle();
   if (error) throw error;
-  return data as ScriptoriumDocument | null;
+  return data as ReadableScriptoriumDocument | null;
 }
 
 /** The handouts shared with the signed-in player in the active campaign. */
