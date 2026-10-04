@@ -150,8 +150,16 @@
         so switching which place is being edited or run remounts instead of
         reusing stale local state, same as the old per-route pages did.
       -->
+      <div v-if="selectedLoading" class="flex flex-1 items-center justify-center p-8">
+        <LoadingSpinner />
+      </div>
+      <EmptyState
+        v-else-if="selectedFailed"
+        title="Could not open this place"
+        description="Reload the Atlas, or pick the place again."
+      />
       <LocationEditor
-        v-if="editing && selected"
+        v-else-if="editing && selected"
         :key="selected.id"
         :location="selected"
       />
@@ -186,13 +194,13 @@ import AtlasTree from "@/components/locations/AtlasTree.vue";
 import LocationEditor from "@/components/locations/LocationEditor.vue";
 import SiteRunSurface from "@/components/locations/SiteRunSurface.vue";
 import { useAtlasTreeFold } from "@/composables/locations/useAtlasTreeFold";
-import { useAllLocations } from "@/composables/locations/useLocations";
+import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
+import { useLocationTextSearch } from "@/composables/locations/useLocationTextSearch";
 import { useBelow } from "@/composables/useBreakpoint";
 import { IconChevronLeft, IconChevronRight, IconNavAtlas } from "@/lib/icons";
 import { isSiteType } from "@/lib/locations/tiers";
 import { ancestorIds, buildAtlasIndex } from "@/lib/locations/tree";
 import { scrollParentOf } from "@/lib/scrollParent";
-import { extractTiptapText } from "@/lib/utils";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 
@@ -241,9 +249,16 @@ const allLocations = computed(() => locations.value ?? []);
 const index = computed(() => buildAtlasIndex(allLocations.value));
 
 const selectedId = computed(() => ui.locationsSelectedId);
-const selected = computed(() =>
-  selectedId.value ? (index.value.byId.get(selectedId.value) ?? null) : null,
-);
+// The tree list is slim (#972); the pane, the editor and the run surface show
+// a place in full, so the selected place is read by id. The slim row only
+// decides *whether* a place is selected, never what the pane renders.
+const {
+  data: selectedRow,
+  isPending: selectedPending,
+  isError: selectedFailed,
+} = useLocation(selectedId);
+const selected = computed(() => selectedRow.value ?? null);
+const selectedLoading = computed(() => !!selectedId.value && selectedPending.value);
 
 // `edit`/`run` are route flags on the selected place, the same convention
 // `build` already uses inside `AtlasPlacePane`. `run` additionally requires a
@@ -275,6 +290,9 @@ const { treeFolded, resultsOpen, foldTree, unfoldTree, closeResults } =
  * what made the list slow. These rows are text and a colour dot, so paging them
  * would add machinery to solve a cost that no longer exists.
  */
+const searchText = computed(() => ui.locationsSearch);
+const { matchedIds: textMatchedIds } = useLocationTextSearch(searchText);
+
 const matches = computed(() => {
   if (!ui.locationsHasActiveFilters) return [];
   const type = ui.locationsFilterType;
@@ -282,11 +300,12 @@ const matches = computed(() => {
   return allLocations.value.filter((loc) => {
     if (type !== "all" && loc.location_type !== type) return false;
     if (!q) return true;
+    // Name and tags are on the slim list; description and notes are matched in
+    // the database (`useLocationTextSearch`) and arrive as ids.
     return (
       loc.name.toLowerCase().includes(q) ||
       loc.tags.some((t) => t.toLowerCase().includes(q)) ||
-      extractTiptapText(loc.description, 500).toLowerCase().includes(q) ||
-      (loc.notes !== null && loc.notes.toLowerCase().includes(q))
+      textMatchedIds.value.has(loc.id)
     );
   });
 });

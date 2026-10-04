@@ -317,7 +317,7 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import type { Npc, NpcInsert, NpcStatus, StatBlock } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES } from "@/data/npcTemplates";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
@@ -334,7 +334,7 @@ import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons"
 import { NPC_ART_VARIANTS, type NpcArtTab } from "./npcArtTabs";
 
 // Matches NpcIdentitySection's expected shape and useLocationTree's output.
-type LocationOption = Location & { depth: number };
+type LocationOption = LocationSummary & { depth: number };
 
 const {
   form,

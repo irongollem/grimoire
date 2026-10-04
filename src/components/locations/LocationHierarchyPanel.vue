@@ -208,7 +208,7 @@ import {
   LOCATION_TYPE_LABELS,
   LOCATION_TYPE_COLORS,
 } from '@/types/location.types';
-import type { Location } from '@/types/location.types';
+import type { LocationSummary } from '@/types/location.types';
 
 const {
   locationId = null,
@@ -220,8 +220,8 @@ const {
 } = defineProps<{
   locationId: string | null;
   parentId: string | null;
-  parentOptions: Location[];
-  allLocations: Location[];
+  parentOptions: LocationSummary[];
+  allLocations: LocationSummary[];
   relatedLocationIds: string[];
   isNew?: boolean;
 }>();
@@ -239,7 +239,7 @@ const parentIdStr = computed(() => parentId ?? '');
 // ── Children (direct) ─────────────────────────────────────────────────────────
 const { data: children, isLoading: childrenLoading } = locationId
   ? useLocations(locationId)
-  : { data: ref<Location[]>([]), isLoading: ref(false) };
+  : { data: ref<LocationSummary[]>([]), isLoading: ref(false) };
 
 // ── Child combobox ─────────────────────────────────────────────────────────────
 const { mutateAsync: reparent } = useUpdateLocation();
@@ -248,7 +248,7 @@ const childDropdownOpen = ref(false);
 
 const childOptions = computed(() => {
   const q = childSearch.value.toLowerCase().trim();
-  const childIds = new Set((children.value ?? []).map((c: Location) => c.id));
+  const childIds = new Set((children.value ?? []).map((c: LocationSummary) => c.id));
   return allLocations
     .filter(
       (l) =>
@@ -259,7 +259,7 @@ const childOptions = computed(() => {
     .slice(0, 8);
 });
 
-async function addChild(loc: Location) {
+async function addChild(loc: LocationSummary) {
   childSearch.value = '';
   childDropdownOpen.value = false;
   await reparent({ id: loc.id, update: { parent_id: locationId! } });
@@ -272,8 +272,8 @@ function onChildBlur() {
 }
 
 // ── Related locations ──────────────────────────────────────────────────────────
-const relatedLocationMap = computed<Map<string, Location>>(() => {
-  const m = new Map<string, Location>();
+const relatedLocationMap = computed<Map<string, LocationSummary>>(() => {
+  const m = new Map<string, LocationSummary>();
   for (const loc of allLocations) m.set(loc.id, loc);
   return m;
 });
@@ -289,7 +289,7 @@ const relatedOptions = computed(() => {
     .slice(0, 8);
 });
 
-function addRelated(loc: Location) {
+function addRelated(loc: LocationSummary) {
   relatedSearch.value = '';
   relatedDropdownOpen.value = false;
   if (!relatedLocationIds.includes(loc.id)) {

@@ -49,6 +49,8 @@ vi.mock("@/ai/aiGeneratorRegistry", () => ({ isAnyAiGenerating: ref(false) }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useUpdateLocation: () => ({ mutate: mocks.updateLocation, isPending: ref(false) }),
   useAllLocations: () => ({ data: mocks.allLocations }),
+  // The slim list carries no description; the fill reads the site's row by id.
+  useFetchLocation: () => (id: string) => Promise.resolve({ id, name: "Drowned Mine", location_type: "dungeon", description: JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A flooded mine." }] }] }) }),
 }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({ useLootPlacements: () => ({ data: mocks.loot }) }));
 vi.mock("@/composables/locations/useMoveParty", () => ({
@@ -257,7 +259,10 @@ describe("SiteRoomList", () => {
       await openFill(wrapper);
       await byLabel(wrapper, "Roll it with AI").trigger("click");
       await flushPromises();
-      expect(mocks.fill).toHaveBeenCalledWith(expect.objectContaining({ steer: "" }));
+      expect(mocks.fill).toHaveBeenCalledWith(expect.objectContaining({
+        steer: "",
+        constraints: expect.arrayContaining([expect.stringMatching(/^Site: Drowned Mine \(dungeon\).*A flooded mine\./)]),
+      }));
       expect(wrapper.findComponent({ name: "RichTextEditor" }).props("modelValue")).toBe(generated.description);
       await byLabel(wrapper, "Save").trigger("click");
       expect(mocks.updateLocation).toHaveBeenCalledWith(

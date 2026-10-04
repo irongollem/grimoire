@@ -93,7 +93,7 @@ import type { LocationPlacementWithLocation } from "@/composables/locations/useL
 import { useLocationTree } from "@/composables/locations/useLocations";
 import type { LocationPlacementInsert, LocationPlacementKind } from "@/types/locationPlacement.types";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 
 const { kind, entityId } = defineProps<{ kind: LocationPlacementKind; entityId: string }>();
 
@@ -103,7 +103,7 @@ const { data: placements } = useEntityPlacements(kind, entityIdRef);
 const toast = useToast();
 
 // ── Add ─────────────────────────────────────────────────────────────────────────
-type LocationOption = Location & { depth: number };
+type LocationOption = LocationSummary & { depth: number };
 const { locationOptions } = useLocationTree();
 
 /** Locations this entity is already placed in — filtered out of the picker so

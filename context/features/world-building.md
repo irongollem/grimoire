@@ -15,7 +15,7 @@ Route: `/locations` (list, and every place — see `placeRoute()` in `lib/locati
 **List page** (`LocationsView.vue`)
 
 - Title: "Atlas", subtitle: "Continents, cities, dungeons, and every place in between"
-- Filter bar: free-text search + type dropdown (all 19 location types)
+- Filter bar: free-text search (name and tags on the tree, description and notes in the database, see below) + type dropdown (all 19 location types)
 - Action buttons: **New Location** (primary), **Populate Setting** (bulk-inserts preset locations for the campaign's setting/calendar, e.g. Faerûn), **Populate Planes** (bulk-inserts the 21 standard D&D cosmological planes). Both populate buttons are idempotent — they skip names that already exist and report how many were added.
 - Body rendered by `AtlasExplorer.vue`
 
@@ -27,6 +27,13 @@ Two panes from `lg` up, master/detail swap below it. This replaced a flat alphab
 - **Right — place pane.** Breadcrumb of clickable ancestors, sigil, type badge, scale rail, then the location's children **grouped by scale tier** rather than laid out as equal cards. This is the part that must carry the pane for a DM with no artwork, so it leans on the taxonomy instead of on images. The map is a `SegmentedControl` mode *inside* this pane, offered only when `map_url` is set and `is_battle_map` is false — never the pane itself.
 - **Scale rail** (`AtlasScaleRail.vue`) — the six tiers as rungs; the selection's tier is lit, tiers occupied by its subtree are at half strength, and unauthored tiers are dim, so a gap in a world is visible without opening every node.
 - **The full read-only body**, via the shared `LocationDetailSections.vue` (below) — description, related locations, store, people, encounters, party. The pane is not a preview of the detail page; it renders the same content.
+
+**The tree is slim; the pane reads its place in full (#972).** `useAllLocations` (key `["locations", cid, "all"]`, shared by about fifty consumers) selects `LOCATION_SUMMARY_COLUMNS` (`location.types.ts`): identity, hierarchy, ordering, era, audio theme, image and map fields, tags and `player_summary`, never `description`, `notes` or `map_pins`. Before this it was `select *`, about 300 KB for a campaign of 185 places, on most pages. So:
+
+- The selected place, the editor and the run surface read their row with `useLocation(id)`; a tree row starts that read on hover or focus (`usePrefetchLocation`) so the pane usually opens without a loading state. Never pass a `LocationSummary` where a `Location` is expected; the type split exists to make that a compile error.
+- The search box matches name, tags and type on the slim list, and description and notes text in the database: `useLocationTextSearch` calls `search_campaign_location_text` (migration `20261004212629`, `SECURITY INVOKER`), which returns ids. It reads the plain text of the Tiptap JSON (`private.rich_text_plain`), so searching "paragraph" does not match every place's JSON keys.
+- A surface that needs a few descriptions asks for those rows only: `useLocationDescriptions(ids)` (the quest designer's "unwritten rooms", the Chronicler and music generators' @mention context). Room fill reads the site with `useFetchLocation`.
+- The live-sync reducer projects a realtime row to the summary before splicing it into the `"all"` list (`projectLocation`), so the cache keeps one shape.
 
 **`LocationDetailSections.vue` — the body the Atlas pane renders.** Holds the nine sections that are *about* a place rather than *where it sits*: Description, Related Locations, Ways out, Store, Rooms, Prepared Here, People in the Area, Encounters Here, Currently Here. Three of those are always present rather than gated on content, so the body itself is no longer conditional; the pane asks `hasSubstance` instead when it needs to know whether a place is genuinely empty. Self-contained (does its own queries; TanStack dedupes against the caller's).
 

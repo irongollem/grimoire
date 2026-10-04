@@ -34,7 +34,7 @@
  */
 import { computed, ref, watch } from "vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
-import { getPinnableDescendants, useUpdateLocation } from "@/composables/locations/useLocations";
+import { getPinnableDescendants, useUpdateLocation, type PinnableFields } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
 import { refreshPinMetadata } from "@/lib/locations/mapPins";
 import { buildMapStack } from "@/lib/locations/mapStack";
@@ -44,7 +44,7 @@ const { location, locations } = defineProps<{
   location: Location;
   /** Every place in the campaign: pin candidates are descendants reached
    *  through vague containers (`getPinnableDescendants`), not only children. */
-  locations: Location[];
+  locations: readonly PinnableFields[];
 }>();
 
 const emit = defineEmits<{ select: [id: string] }>();

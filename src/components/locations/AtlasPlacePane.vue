@@ -411,7 +411,7 @@ import type { LocationTier, TierGroup } from "@/lib/locations/tiers";
 import { ancestorPath, childrenOf, descendantsOf } from "@/lib/locations/tree";
 import type { AtlasIndex, AtlasRow } from "@/lib/locations/tree";
 import { LOCATION_TYPE_COLORS, LOCATION_TYPE_LABELS } from "@/types/location.types";
-import type { Location } from "@/types/location.types";
+import type { Location, LocationSummary } from "@/types/location.types";
 
 const { index, location, paneMode, todayYear } = defineProps<{
   index: AtlasIndex;
@@ -445,7 +445,7 @@ const isSite = computed(() => !!location && isSiteType(location.location_type));
 /** The site-tier parent, when there is one — the only shape `is_level` can
  *  ever hold (`guard_location_room_parent`), so it also gates the assignment
  *  control below. */
-const parentSite = computed<Location | null>(() => {
+const parentSite = computed<LocationSummary | null>(() => {
   if (!location?.parent_id) return null;
   const parent = index.byId.get(location.parent_id);
   return parent && isSiteType(parent.location_type) ? parent : null;
@@ -629,13 +629,13 @@ const eraLabel = computed(() => {
  * to, because this chip numbered `group.locations` on its own, which excludes
  * the parent the rail counts as level 1.
  */
-function levelChipFor(group: TierGroup, child: Location): number | null {
+function levelChipFor(group: TierGroup, child: LocationSummary): number | null {
   if (!isSite.value || group.tier !== "site" || !location) return null;
   const info = levelsInfo.value;
   return info ? levelOrdinal(info.levels, child.id) : null;
 }
 
-function rowFor(child: Location): AtlasRow {
+function rowFor(child: LocationSummary): AtlasRow {
   const kids = index.childIds.get(child.id) ?? [];
   return {
     loc: child,

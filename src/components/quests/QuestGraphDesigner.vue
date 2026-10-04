@@ -173,6 +173,7 @@ import {
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useAllLocations } from "@/composables/locations/useLocations";
+import { useLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
 import { useSiteBeatGaps } from "@/composables/quests/useSiteBeatGaps";
 import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
@@ -189,7 +190,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useConfirm } from "@/composables/useConfirm";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { type QuestBeat, type QuestConsequenceObjectiveStatus, type QuestRouteEffect, type QuestRouteKind } from "@/types/quest.types";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -277,7 +278,7 @@ const allLocationsRef = computed(() => allLocationsQuery.data.value ?? []);
 // both use), not the resolved site's own id.
 const stagedSites = computed(() => {
   const allLocations = allLocationsRef.value;
-  const result = new Map<string, Location>();
+  const result = new Map<string, LocationSummary>();
   for (const stagedId of new Set(beats.value.flatMap((beat) => beat.staged_at_location_id ? [beat.staged_at_location_id] : []))) {
     const staged = allLocations.find((candidate) => candidate.id === stagedId);
     if (!staged) continue;
@@ -305,18 +306,33 @@ const { readinessBySite } = useSiteBeatGaps(stagedSiteIds, allLocationsRef);
 // The story flow canvas draws a `site · N rooms` fact off a location's own
 // room list — the same rooms `SiteRoomsPanel` numbers and the same test for
 // "written" (`extractTiptapText`) `SiteRunSurface` uses for its own reveal.
+// #886: a `wilds` site's children are `grounds`, not `room` — the same
+// interior predicate `SiteRoomsPanel` reads, so a wilds beat's card stops
+// reporting 0 rooms for a fully built wood.
+const roomsByStagedId = computed(() => {
+  const allLocations = allLocationsRef.value;
+  const result = new Map<string, LocationSummary[]>();
+  for (const [stagedId, site] of stagedSites.value) {
+    result.set(stagedId, allLocations
+      .filter((candidate) => candidate.parent_id === site.id && isInteriorType(candidate.location_type))
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)));
+  }
+  return result;
+});
+// The place list is slim and carries no description (#972): "written" is
+// derived from the descriptions of exactly the rooms the cards count.
+const roomIdsToCheck = computed(() => [...roomsByStagedId.value.values()].flat().map((room) => room.id));
+const { data: roomDescriptions } = useLocationDescriptions(roomIdsToCheck);
 const sites = computed<Record<string, QuestBeatSiteInput>>(() => {
   const allLocations = allLocationsRef.value;
+  const descriptions = roomDescriptions.value;
   const result: Record<string, QuestBeatSiteInput> = {};
   for (const [stagedId, site] of stagedSites.value) {
-    // #886: a `wilds` site's children are `grounds`, not `room` — the same
-    // interior predicate `SiteRoomsPanel` reads, so a wilds beat's card stops
-    // reporting 0 rooms for a fully built wood.
-    const rooms = allLocations
-      .filter((candidate) => candidate.parent_id === site.id && isInteriorType(candidate.location_type))
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-    const unwrittenRooms = rooms
-      .map((room, index) => ({ position: index + 1, written: extractTiptapText(room.description, 1).length > 0 }))
+    const rooms = roomsByStagedId.value.get(stagedId) ?? [];
+    // Until the descriptions arrive nothing is claimed unwritten: a card must
+    // not flash "N unwritten" for a site that is fully written.
+    const unwrittenRooms = descriptions === undefined ? [] : rooms
+      .map((room, index) => ({ position: index + 1, written: extractTiptapText(descriptions.get(room.id) ?? null, 1).length > 0 }))
       .filter((room) => !room.written)
       .map((room) => room.position);
     // #887: `siteType` lets `formatUnwrittenRoomsLabel` call a wilds site's

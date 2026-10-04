@@ -18,6 +18,12 @@ export interface RealtimeRowReducer<Row extends RealtimeRow> {
   /** Whether a row belongs in this particular filtered list cache. */
   matches: (queryKey: QueryKey, row: Row) => boolean;
   compare?: (left: Row, right: Row) => number;
+  /**
+   * Narrows a row to the shape a particular cache stores, for lists that hold a
+   * slimmer projection than the table row (the Atlas's `locations/<cid>/all`).
+   * Applied to the merged row, so a TOAST-omitted column keeps its cached value.
+   */
+  project?: (queryKey: QueryKey, row: Row) => Row;
 }
 
 /**
@@ -77,15 +83,16 @@ export function applyRealtimeRow<Row extends RealtimeRow>(
         ? mergeRealtimeUpdate(cachedRow, change.new)
         : change.new;
       const rowMatches = reducer.matches(queryKey, merged);
+      const stored = reducer.project ? reducer.project(queryKey, merged) : merged;
 
       if (cachedRow) {
         const withoutRow = rows.filter((row) => row.id !== rowId);
-        const next = rowMatches ? [...withoutRow, merged] : withoutRow;
+        const next = rowMatches ? [...withoutRow, stored] : withoutRow;
         if (reducer.compare) next.sort(reducer.compare);
         queryClient.setQueryData(queryKey, next);
       } else if (change.eventType === "INSERT") {
         if (rowMatches) {
-          const next = [...rows, merged];
+          const next = [...rows, stored];
           if (reducer.compare) next.sort(reducer.compare);
           queryClient.setQueryData(queryKey, next);
         }

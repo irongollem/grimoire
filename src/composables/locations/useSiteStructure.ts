@@ -17,9 +17,9 @@ import { useDungeonMap } from "@/composables/cartographer/useDungeonMaps";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
 import { bindableSpaces } from "@/lib/locations/tiers";
 import { publishStaleness, siteReadiness, structureFromSite } from "@/lib/locations/siteReadiness";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 
-export function useSiteStructure(location: Ref<Location | null | undefined>) {
+export function useSiteStructure(location: Ref<LocationSummary | null | undefined>) {
   const siteId = computed(() => location.value?.id ?? "");
 
   const childrenQuery = useLocations(siteId);

@@ -4,12 +4,13 @@ import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
 import { wrapUserInput, AI_PROMPT_LIMIT_CHRONICLE } from "./utils";
-import { parseSceneEntities, type ResolvedEntity } from "./sceneEntities";
+import { mentionedLocationIds, parseSceneEntities, type ResolvedEntity } from "./sceneEntities";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Faction } from "@/types/faction.types";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
+import { fetchLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
@@ -75,7 +76,7 @@ export function useChroniclerTextGeneration() {
     monsters: Monster[] | undefined;
     partyMembers: PartyMember[] | undefined;
     factions: Faction[] | undefined;
-    locations: Location[] | undefined;
+    locations: LocationSummary[] | undefined;
     /** The campaign's existing note tags, most frequent first, so the model
      *  prefers reusing them over minting near-duplicates. */
     existingTags: string[];
@@ -85,7 +86,10 @@ export function useChroniclerTextGeneration() {
     excludeNoteId?: string;
   }): Promise<ChroniclerTextResult> {
     const { rawText, tone, npcs, monsters, partyMembers, factions, locations, existingTags, excludeNoteId } = params;
-    const entities = parseSceneEntities(rawText, { npcs, monsters, partyMembers, factions, locations });
+    // The place list is slim; the descriptions of the places this recap names go
+    // to the model, so read exactly those rows.
+    const locationDescriptions = await fetchLocationDescriptions(mentionedLocationIds(rawText, locations ?? []));
+    const entities = parseSceneEntities(rawText, { npcs, monsters, partyMembers, factions, locations, locationDescriptions });
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "No setting configured.";
     const campaignId = campaign.activeCampaign?.id;
 

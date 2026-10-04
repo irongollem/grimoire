@@ -84,9 +84,9 @@
 <script setup lang="ts">
 import EntityCombobox from '@/components/common/EntityCombobox.vue'
 import NpcFactionsSection from '@/components/factions/NpcFactionsSection.vue'
-import type { Location } from '@/types/location.types'
+import type { LocationSummary } from '@/types/location.types'
 
-type LocationOption = Location & { depth: number }
+type LocationOption = LocationSummary & { depth: number }
 
 const ALIGNMENTS = [
   'Lawful Good', 'Neutral Good', 'Chaotic Good',

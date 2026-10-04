@@ -111,7 +111,7 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { IconCoins, IconGenerate, IconHide, IconShieldCheck } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import { useAllLocations, useUpdateLocation } from "@/composables/locations/useLocations";
+import { useAllLocations, useFetchLocation, useUpdateLocation } from "@/composables/locations/useLocations";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
@@ -265,14 +265,23 @@ const fillCreditCost = computed(
 // Only fetched once a fill is open: nothing else on this list needs them.
 const fillOpen = () => fillingId.value !== null && isAiEnabled.value;
 const { data: allLocations } = useAllLocations(fillOpen);
+const fetchLocation = useFetchLocation();
 const roomIds = computed(() => (fillOpen() ? rooms.map((r) => r.id) : []));
 const { data: doors } = useSiteDoors(roomIds);
 
 async function rollFill(room: Location): Promise<void> {
   if (!canSpend(fillCreditCost.value, textIsByok.value)) return;
   const index = buildAtlasIndex(allLocations.value ?? []);
-  const site = index.byId.get(siteId) ?? null;
-  const floor = (room.parent_id ? index.byId.get(room.parent_id) : null) ?? site;
+  // The slim list has no description; the fill wants the site's, so read that
+  // one row by id (cached with the place's own `["locations", id]` entry).
+  let site: Location;
+  try {
+    site = await fetchLocation(siteId);
+  } catch (e) {
+    toast.error(toast.fromError(e));
+    return;
+  }
+  const floor = (room.parent_id ? index.byId.get(room.parent_id) : null) ?? index.byId.get(siteId) ?? null;
   const levels = floor ? levelsOf(index, floor) : null;
   const ordinal = levels && floor ? levelOrdinal(levels.levels, floor.id) : null;
   const constraints = buildRoomFillConstraints({

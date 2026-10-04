@@ -2,7 +2,7 @@ import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Faction } from "@/types/faction.types";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 import { toPlainText } from "@/ai/utils";
 
 // ── Entity material resolution ────────────────────────────────────────────────
@@ -51,16 +51,29 @@ export interface SceneEntitySources {
   partyMembers?: PartyMember[];
   npcs?: Npc[];
   monsters?: Monster[];
-  locations?: Location[];
+  locations?: LocationSummary[];
+  /**
+   * `description` by place id. The place list is slim and carries none (#972),
+   * so a caller loads the descriptions of the places the text mentions
+   * (`mentionedLocationIds`) and passes them here; a place without an entry
+   * resolves with its name alone.
+   */
+  locationDescriptions?: ReadonlyMap<string, string | null>;
   factions?: Faction[];
   groupPortraitUrl?: string | null;
+}
+
+/** Ids of the places an @mention in `text` can resolve to, to load their descriptions. */
+export function mentionedLocationIds(text: string, locations: readonly LocationSummary[]): string[] {
+  const tokens = [...new Set([...text.matchAll(/@([A-Za-z][^\s,.'":;!?@]*)/g)].map((m) => m[1]))];
+  return locations.filter((loc) => tokens.some((tok) => nameMatches(loc.name, tok))).map((loc) => loc.id);
 }
 
 export function parseSceneEntities(
   text: string,
   sources: SceneEntitySources,
 ): ResolvedEntity[] {
-  const { partyMembers, npcs, monsters, locations, factions, groupPortraitUrl } = sources;
+  const { partyMembers, npcs, monsters, locations, locationDescriptions, factions, groupPortraitUrl } = sources;
 
   // Extract @Token — stops at whitespace and common punctuation
   const tokens = [...text.matchAll(/@([A-Za-z][^\s,.'":;!?@]*)/g)].map(
@@ -126,7 +139,7 @@ export function parseSceneEntities(
     if (!found) {
       for (const loc of locations ?? []) {
         if (nameMatches(loc.name, tok)) {
-          const description = summarize(loc.description);
+          const description = summarize(locationDescriptions?.get(loc.id));
           found = {
             label: loc.name,
             portraitUrl: loc.image_url ?? null,

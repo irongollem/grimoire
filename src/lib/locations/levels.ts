@@ -1,17 +1,17 @@
 import { childrenOf } from "./tree";
 import type { AtlasIndex } from "./tree";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 
 /** A child that its DM has assigned as one of the parent's floors. */
-function isLevelChild(child: Location): boolean {
+function isLevelChild(child: LocationSummary): boolean {
   return child.is_level === true;
 }
 
 export interface LevelsInfo {
   /** The site whose levels these are — always the top of the list. */
-  container: Location;
+  container: LocationSummary;
   /** `[container, ...container's is_level children]`, in sibling order. */
-  levels: Location[];
+  levels: LocationSummary[];
 }
 
 /**
@@ -44,7 +44,7 @@ export interface LevelsInfo {
  * `is_level` with a resolvable parent. A room is never a level — the guard
  * refuses `is_level` on anything that isn't site-tier.
  */
-export function levelsOf(index: AtlasIndex, location: Location): LevelsInfo | null {
+export function levelsOf(index: AtlasIndex, location: LocationSummary): LevelsInfo | null {
   if (location.is_level && location.parent_id) {
     const parent = index.byId.get(location.parent_id);
     if (parent) {
@@ -61,7 +61,7 @@ export function levelsOf(index: AtlasIndex, location: Location): LevelsInfo | nu
 }
 
 /** 1-based position of `id` within `levels`, or `null` if it isn't in the list. */
-export function levelOrdinal(levels: readonly Location[], id: string): number | null {
+export function levelOrdinal(levels: readonly LocationSummary[], id: string): number | null {
   const idx = levels.findIndex((l) => l.id === id);
   return idx === -1 ? null : idx + 1;
 }

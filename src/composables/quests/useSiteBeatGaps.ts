@@ -15,7 +15,7 @@ import { supabase } from "@/lib/supabase";
 import { bindableSpaces } from "@/lib/locations/tiers";
 import { siteReadiness } from "@/lib/locations/siteReadiness";
 import type { SiteReadiness } from "@/lib/locations/siteReadiness";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { LocationDoor } from "@/types/locationDoor.types";
 
@@ -48,7 +48,7 @@ async function fetchDoorsFromSpaces(spaceIds: readonly string[]): Promise<Locati
 /** Each site's own bindable spaces (rooms and nested sites) — exported and
  *  pure so the grouping this composable does around `siteReadiness` can be
  *  tested without faking `useQuery` reactivity for two batched queries. */
-export function bindableSpaceIdsBySite(siteIds: readonly string[], locations: readonly Location[]): Map<string, string[]> {
+export function bindableSpaceIdsBySite(siteIds: readonly string[], locations: readonly LocationSummary[]): Map<string, string[]> {
   const map = new Map<string, string[]>();
   for (const siteId of siteIds) {
     const children = locations.filter((location) => location.parent_id === siteId);
@@ -62,7 +62,7 @@ export function bindableSpaceIdsBySite(siteIds: readonly string[], locations: re
  *  still loading) is simply absent — never a fabricated all-unready result. */
 export function deriveReadinessBySite(
   siteIds: readonly string[],
-  locations: readonly Location[],
+  locations: readonly LocationSummary[],
   regions: readonly LocationMapRegion[],
   doors: readonly LocationDoor[],
 ): Record<string, SiteReadiness> {
@@ -97,7 +97,7 @@ export function deriveReadinessBySite(
  * this for the `site · N rooms` fact `QuestBeatSiteInput` carries), read here
  * only for each site's own `map_url`/`grid_calibration` and its children.
  */
-export function useSiteBeatGaps(siteIds: Ref<string[]>, locations: Ref<Location[]>) {
+export function useSiteBeatGaps(siteIds: Ref<string[]>, locations: Ref<LocationSummary[]>) {
   const sortedSiteIds = computed(() => [...new Set(siteIds.value)].sort());
   const allSpaceIds = computed(() => [...bindableSpaceIdsBySite(sortedSiteIds.value, locations.value).values()].flat().sort());
 

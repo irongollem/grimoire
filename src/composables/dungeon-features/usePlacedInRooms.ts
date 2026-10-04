@@ -14,7 +14,7 @@ import type { LocationPlacementWithLocation } from "@/composables/locations/useL
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { resolvePlacedInRooms } from "@/lib/dungeon-features/placedIn";
 import type { PlacedInRoom } from "@/lib/dungeon-features/placedIn";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 import type { LocationPlacementKind } from "@/types/locationPlacement.types";
 
 /** The exclusive-arc column `kind` reads — a switch rather than dynamic
@@ -32,7 +32,7 @@ function targetIdOf(placement: LocationPlacementWithLocation, kind: LocationPlac
 export function usePlacedInRooms(kind: LocationPlacementKind, ids: Ref<string[]>) {
   const { data: placements } = useEntityPlacementsFor(kind, ids);
   const { data: allLocations } = useAllLocations();
-  const locationsById = computed(() => new Map<string, Location>((allLocations.value ?? []).map((l) => [l.id, l])));
+  const locationsById = computed(() => new Map<string, LocationSummary>((allLocations.value ?? []).map((l) => [l.id, l])));
 
   function placedInRows(entityId: string): PlacedInRoom[] {
     return resolvePlacedInRooms(

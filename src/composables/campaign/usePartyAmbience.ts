@@ -5,7 +5,7 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { requestAudioTheme, releaseAudioTheme, type AudioThemeRequest } from "@/lib/audio/audioTriggers";
 import { buildAtlasIndex } from "@/lib/locations/tree";
 import { resolveInheritedTheme, type AmbienceLocationLike } from "@/lib/locations/ambience";
-import type { Location } from "@/types/location.types";
+import type { Location, LocationSummary } from "@/types/location.types";
 
 /**
  * Domain placement (see CLAUDE.md's composable-placement rule): this lives in
@@ -103,7 +103,7 @@ export function usePartyAmbience(): void {
   // reused rather than a second parent-chasing lookup, per `lib/locations/tree.ts`.
   const locationsById = computed(() => buildAtlasIndex(locations.value ?? []).byId);
 
-  const partyLocation = computed<Location | null>(() => {
+  const partyLocation = computed<LocationSummary | null>(() => {
     const id = campaign.activeCampaign?.current_location_id;
     if (!id) return null;
     return locations.value?.find((loc) => loc.id === id) ?? null;

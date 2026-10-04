@@ -254,6 +254,7 @@ import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import { useCampaignStore } from "@/stores/campaign";
 import { useMapExport } from "@/composables/cartographer/useMapExport";
 import { useMapPublish } from "@/composables/cartographer/useMapPublish";
+import { useLocation } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
 import { useSiteDrawingEditor } from "@/composables/locations/useSiteDrawingEditor";
@@ -266,7 +267,7 @@ import { planAscent, planDescent, regionOrigin } from "@/lib/locations/mapZoom";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
 import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import type { AtlasIndex } from "@/lib/locations/tree";
-import type { Location } from "@/types/location.types";
+import type { Location, LocationSummary } from "@/types/location.types";
 
 /** `CartographerAiStyleModal`'s `locationOptions` prop is unused whenever
  *  `fixedTargetLabel` is set (as it always is here) — a stable module-scope
@@ -281,7 +282,7 @@ const { location, index, children, building = false } = defineProps<{
   /** Only ever mounted once the caller has confirmed `hasMap` or Build — never null. */
   location: Location;
   index: AtlasIndex;
-  children: Location[];
+  children: LocationSummary[];
   /** Build mode (#884): the plan edits in place instead of only reading. */
   building?: boolean;
 }>();
@@ -433,10 +434,13 @@ const zoomPlan = ref<ZoomPlan | null>(null);
 const zoomSettling = ref(false);
 let settleTimer: ReturnType<typeof setTimeout> | undefined;
 
+/** The parent's full row: the ascent anchors on the parent's pin for this
+ *  place, and `map_pins` is not on the slim list (#972). Read by id, once. */
+const { data: parentRow } = useLocation(() => location.parent_id);
+
 /** The parent, when rising to it can be animated. Drives the ascend control. */
 const ascendTarget = computed(() => {
-  if (!location.parent_id) return null;
-  const parent = index.byId.get(location.parent_id);
+  const parent = parentRow.value;
   return parent && planAscent(location, parent) ? parent : null;
 });
 
@@ -559,9 +563,9 @@ onBeforeUnmount(clearZoom);
 const levelsInfo = computed(() => levelsOf(index, location));
 
 /** Whose children the rail is listing — this site's own, or its parent's. */
-const levelsContainer = computed<Location | null>(() => levelsInfo.value?.container ?? null);
+const levelsContainer = computed<LocationSummary | null>(() => levelsInfo.value?.container ?? null);
 
-const levelSites = computed<Location[]>(() => levelsInfo.value?.levels ?? []);
+const levelSites = computed<LocationSummary[]>(() => levelsInfo.value?.levels ?? []);
 
 const showLevelsRail = computed(() => levelSites.value.length > 0);
 
@@ -575,7 +579,7 @@ const verticalWaysCount = computed(() => verticalWays(siteStructureDoors.value).
 
 /** Build's levels: the site's own list, or just this site while it has none,
  *  so the picker can offer the first one. */
-const buildLevels = computed<Location[]>(() => (showLevelsRail.value ? levelSites.value : [location]));
+const buildLevels = computed<LocationSummary[]>(() => (showLevelsRail.value ? levelSites.value : [location]));
 
 const { addLevel, isAdding: isAddingLevel } = useAddSiteLevel();
 const showLevelPaywall = ref(false);

@@ -298,7 +298,7 @@ import MobileSheet from "@/components/common/MobileSheet.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 import type { MonsterStatBlock, MonsterType, MonsterSize } from "@/types/monster.types";
@@ -347,7 +347,7 @@ const {
   isAiEnabled?: boolean;
 }>();
 
-type LocationOption = Location & { depth: number };
+type LocationOption = LocationSummary & { depth: number };
 const { locationOptions } = useLocationTree();
 
 const emit = defineEmits<{

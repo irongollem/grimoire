@@ -1,8 +1,8 @@
-import type { Location, LocationType } from "@/types/location.types";
+import type { LocationSummary, LocationType } from "@/types/location.types";
 import { tierIndex } from "./tiers";
 
 export interface AtlasIndex {
-  byId: Map<string, Location>;
+  byId: Map<string, LocationSummary>;
   /** Child ids per parent, sorted by scale then name. */
   childIds: Map<string, string[]>;
   /** Ids with no resolvable parent, in the same sort order. */
@@ -12,7 +12,7 @@ export interface AtlasIndex {
 }
 
 export interface AtlasRow {
-  loc: Location;
+  loc: LocationSummary;
   depth: number;
   hasChildren: boolean;
   descendantCount: number;
@@ -58,8 +58,8 @@ export function compareSiblings(a: SiblingOrder, b: SiblingOrder): number {
  * both produce that case, and a place that silently vanishes from the Atlas is
  * far worse than one that appears at the top level.
  */
-export function buildAtlasIndex(locations: readonly Location[]): AtlasIndex {
-  const byId = new Map<string, Location>();
+export function buildAtlasIndex(locations: readonly LocationSummary[]): AtlasIndex {
+  const byId = new Map<string, LocationSummary>();
   for (const loc of locations) byId.set(loc.id, loc);
 
   const childIds = new Map<string, string[]>();
@@ -122,8 +122,8 @@ function countDescendants(
  * Root-to-node chain, inclusive of `id`. Returns an empty array for an unknown
  * id. Guarded against a `parent_id` cycle, which the schema permits.
  */
-export function ancestorPath(index: AtlasIndex, id: string): Location[] {
-  const path: Location[] = [];
+export function ancestorPath(index: AtlasIndex, id: string): LocationSummary[] {
+  const path: LocationSummary[] = [];
   const seen = new Set<string>();
   let current = index.byId.get(id);
   while (current && !seen.has(current.id)) {
@@ -135,7 +135,7 @@ export function ancestorPath(index: AtlasIndex, id: string): Location[] {
 }
 
 /** Direct children of a node, already in scale order. */
-export function childrenOf(index: AtlasIndex, id: string): Location[] {
+export function childrenOf(index: AtlasIndex, id: string): LocationSummary[] {
   return (index.childIds.get(id) ?? []).map((childId) => index.byId.get(childId)!);
 }
 
@@ -143,8 +143,8 @@ export function childrenOf(index: AtlasIndex, id: string): Location[] {
  * Every place beneath a node at any depth. Feeds the scale rail, which needs to
  * know which rungs the whole subtree occupies rather than just the next one.
  */
-export function descendantsOf(index: AtlasIndex, id: string): Location[] {
-  const out: Location[] = [];
+export function descendantsOf(index: AtlasIndex, id: string): LocationSummary[] {
+  const out: LocationSummary[] = [];
   const queue = [...(index.childIds.get(id) ?? [])];
   const seen = new Set<string>([id]);
   while (queue.length) {

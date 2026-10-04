@@ -122,6 +122,11 @@ export function canZoomBetween(
   return true;
 }
 
+/** A place on either end of a zoom: what the map stack and the battle-map exclusion read. */
+export type ZoomEnd = Pick<Location, "id" | "is_battle_map"> & MapStackSource;
+/** The parent end also supplies the pin the zoom anchors on, so it must be a full row's `map_pins`. */
+export type ZoomParent = ZoomEnd & Pick<Location, "map_pins">;
+
 /** Pin position as a CSS transform-origin, clamped to the image. */
 export function pinOrigin(pin: Pick<MapPin, "x" | "y">): string {
   return `${pct(pin.x)}% ${pct(pin.y)}%`;
@@ -136,7 +141,7 @@ function pct(fraction: number): number {
 const CENTRE_ORIGIN = "50% 50%";
 
 /** The child's pin on the parent's map — the anchor both directions share. */
-function anchorOrigin(parent: Location, childId: string): string {
+function anchorOrigin(parent: Pick<Location, "map_pins">, childId: string): string {
   const pin = parent.map_pins.find((p) => p.child_location_id === childId);
   return pin ? pinOrigin(pin) : CENTRE_ORIGIN;
 }
@@ -146,8 +151,8 @@ function anchorOrigin(parent: Location, childId: string): string {
  * be animated. Callers fall back to plain selection on null.
  */
 export function planDescent(
-  parent: Location | null | undefined,
-  child: Location | null | undefined,
+  parent: ZoomParent | null | undefined,
+  child: ZoomEnd | null | undefined,
   /** Override for descending into a REGION rather than a pin (#868, S6): the
    *  traced shape's own centroid, from `regionOrigin` below, rather than a
    *  pin's point. Falls back to the pin-anchor rule when omitted. */
@@ -194,8 +199,8 @@ export function regionOrigin(
  * pulling out from an arbitrary point.
  */
 export function planAscent(
-  child: Location | null | undefined,
-  parent: Location | null | undefined,
+  child: ZoomEnd | null | undefined,
+  parent: ZoomParent | null | undefined,
 ): ZoomPlan | null {
   if (!child || !parent || !canZoomBetween(parent, child)) return null;
   return {

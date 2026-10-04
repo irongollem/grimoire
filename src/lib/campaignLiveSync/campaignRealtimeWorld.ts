@@ -2,6 +2,7 @@ import type { QueryClient, QueryKey } from "@tanstack/vue-query";
 import { applyRealtimeRow, type RealtimeRowChange } from "@/lib/campaignLiveSync/realtimeCache";
 import { compareSiblings, type SiblingOrder } from "@/lib/locations/tree";
 import { isLocationType } from "@/lib/locations/tiers";
+import { LOCATION_SUMMARY_COLUMNS } from "@/types/location.types";
 
 type WorldTable = "notes" | "quests" | "locations" | "factions" | "npcs" | "companions";
 type Row = Record<string, unknown> & { id: string; campaign_id?: string | null };
@@ -53,6 +54,19 @@ function siblingOrderOf(row: Row): SiblingOrder {
 
 function compareLocationSiblings(left: Row, right: Row): number {
   return compareSiblings(siblingOrderOf(left), siblingOrderOf(right));
+}
+
+/**
+ * The campaign-wide place list (`["locations", cid, "all"]`) caches the slim
+ * `LocationSummary` shape (#972), so a realtime row spliced into it keeps only
+ * those columns. Every other `locations` cache holds full rows and is left alone.
+ */
+function projectLocation(queryKey: QueryKey, row: Row): Row {
+  if (queryKey.length !== 3 || queryKey[2] !== "all") return row;
+  const kept = Object.fromEntries(
+    LOCATION_SUMMARY_COLUMNS.filter((column) => column in row).map((column) => [column, row[column]]),
+  );
+  return { ...kept, id: row.id };
 }
 
 /**
@@ -158,6 +172,7 @@ function applyLocations(queryClient: QueryClient, change: Change, context: Conte
       // so a realtime insert lands where SiteRoomsPanel and the Atlas tree
       // would put it, rather than reshuffling on the next full refetch.
       compare: compareLocationSiblings,
+      project: projectLocation,
     });
   }
 

@@ -423,7 +423,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 
 const route    = useRoute();
 const router   = useRouter();
@@ -462,7 +462,7 @@ const form = reactive({
   campaign_id:         campaign.activeCampaignId as string | null,
 });
 
-type LocationOption = Location & { depth: number };
+type LocationOption = LocationSummary & { depth: number };
 const { locationOptions } = useLocationTree();
 // Two lists, deliberately not one: `dungeonFeatures` resolves the anchor this
 // puzzle already stores, which must survive even after the DM rescopes the

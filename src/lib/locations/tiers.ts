@@ -1,5 +1,5 @@
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
-import type { Location, LocationType } from "@/types/location.types";
+import type { LocationSummary, LocationType } from "@/types/location.types";
 
 /**
  * The Atlas ladder — rungs of *map kind*, not of size.
@@ -206,7 +206,7 @@ export function tierIndex(type: LocationType): number {
 export interface TierGroup {
   tier: LocationTier | null;
   label: string;
-  locations: Location[];
+  locations: LocationSummary[];
 }
 
 /**
@@ -215,8 +215,8 @@ export interface TierGroup {
  * card grid: "Settlements 5 · Sites 2" tells a DM the shape of a region at a
  * glance, and needs no map or artwork to do it.
  */
-export function groupByTier(locations: readonly Location[]): TierGroup[] {
-  const buckets = new Map<LocationTier | null, Location[]>();
+export function groupByTier(locations: readonly LocationSummary[]): TierGroup[] {
+  const buckets = new Map<LocationTier | null, LocationSummary[]>();
   for (const loc of locations) {
     const tier = tierOf(loc.location_type);
     const bucket = buckets.get(tier);
@@ -240,7 +240,7 @@ export function groupByTier(locations: readonly Location[]): TierGroup[] {
  * rungs the DM has not authored. A region with towns but no buildings shows
  * the gap rather than pretending the ladder stops there.
  */
-export function occupiedTiers(locations: readonly Location[]): Set<LocationTier> {
+export function occupiedTiers(locations: readonly LocationSummary[]): Set<LocationTier> {
   const present = new Set<LocationTier>();
   for (const loc of locations) {
     const tier = tierOf(loc.location_type);

@@ -26,13 +26,13 @@ export interface RoomNeighbour {
 }
 
 export interface RoomFillContext {
-  site: Location | null;
+  site: Pick<Location, "name" | "location_type" | "description"> | null;
   /** The room's level, when it sits on one rather than directly in the site. */
   level: { name: string; ordinal: number; total: number } | null;
-  room: Location;
+  room: Pick<Location, "id" | "name" | "description">;
   neighbours: readonly RoomNeighbour[];
   /** The other rooms on the same floor, in list order. */
-  siblings: readonly Location[];
+  siblings: readonly Pick<Location, "id" | "name">[];
 }
 
 /** A door as `useSiteDoors` returns it, reduced to what neighbours need. */

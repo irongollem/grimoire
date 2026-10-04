@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSceneEntities, stripMentionTokens, type SceneEntitySources } from "./sceneEntities";
+import { mentionedLocationIds, parseSceneEntities, stripMentionTokens, type SceneEntitySources } from "./sceneEntities";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
@@ -163,13 +163,22 @@ describe("parseSceneEntities", () => {
       type: "doc",
       content: [{ type: "paragraph", content: [{ type: "text", text: "A crooked dockside tavern, lantern-lit." }] }],
     });
+    const anchor = location({ id: "anchor", name: "The Rusty Anchor", image_url: "https://example.test/anchor.webp" });
     const result = resolve("The party gathers at @The_Rusty_Anchor.", {
-      locations: [location({ name: "The Rusty Anchor", image_url: "https://example.test/anchor.webp", description: richDescription })],
+      locations: [anchor],
+      locationDescriptions: new Map([["anchor", richDescription]]),
     });
     expect(result).toHaveLength(1);
     expect(result[0].label).toBe("The Rusty Anchor");
     expect(result[0].portraitUrl).toBe("https://example.test/anchor.webp");
     expect(result[0].textDescription).toBe("The Rusty Anchor: A crooked dockside tavern, lantern-lit.");
+  });
+
+  it("names the places a text mentions, so only their descriptions are loaded", () => {
+    const anchor = location({ id: "anchor", name: "The Rusty Anchor" });
+    const vale = location({ id: "vale", name: "Whispering Vale" });
+    expect(mentionedLocationIds("We sail to @The_Rusty_Anchor at dawn.", [anchor, vale])).toEqual(["anchor"]);
+    expect(mentionedLocationIds("No mentions here.", [anchor, vale])).toEqual([]);
   });
 
   it("gives a location without an image a null portraitUrl but still a description", () => {

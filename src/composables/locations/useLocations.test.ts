@@ -3,6 +3,7 @@ import { defineComponent, h, ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import type { Location } from "@/types/location.types";
+import { LOCATION_SUMMARY_SELECT } from "@/types/location.types";
 
 /**
  * #596: locations flip from "new content defaults to global" to "new content
@@ -175,6 +176,20 @@ describe("location list reads", () => {
     // row above would already have been silently dropped by supabase.
     const orCall = mocks.calls.find((c) => c.method === "or");
     expect(orCall?.args[0]).toBe("campaign_id.eq.campaign-1,campaign_id.is.null");
+    unmount();
+  });
+
+  it("loads the slim summary columns, never every column", async () => {
+    mocks.rows = [];
+    const { unmount } = withQueryClient(() => useAllLocations());
+    await flushPromises();
+
+    const selectArg = mocks.calls.find((c) => c.method === "select")?.args[0];
+    expect(selectArg).toBe(LOCATION_SUMMARY_SELECT);
+    expect(selectArg).not.toBe("*");
+    for (const heavy of ["description", "notes", "map_pins"]) {
+      expect(String(selectArg).split(", ")).not.toContain(heavy);
+    }
     unmount();
   });
 

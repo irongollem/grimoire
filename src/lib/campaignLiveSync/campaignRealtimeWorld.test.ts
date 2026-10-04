@@ -95,6 +95,29 @@ describe("applyCampaignRealtimeWorld", () => {
     expect(invalidated(qc, ["faction-locations", "faction-1"])).toBe(true);
   });
 
+  it("keeps the campaign-wide place list slim: a spliced row carries summary columns only", () => {
+    const qc = new QueryClient();
+    const cached = row({ id: "location-1", parent_id: null, name: "Alpha", location_type: "city", sort_order: null });
+    qc.setQueryData(["locations", "campaign-1", "all"], [cached]);
+    qc.setQueryData(["locations", "campaign-1", null], [row({ id: "location-1", notes: "n" })]);
+
+    // An UPDATE payload that omits an unchanged column must not blank it.
+    const update = { id: "location-1", campaign_id: "campaign-1", name: "Beta", description: "long", notes: "secret" };
+    applyCampaignRealtimeWorld(qc, "locations", { eventType: "UPDATE", old: cached, new: update }, dm);
+    const [updated] = qc.getQueryData<Row[]>(["locations", "campaign-1", "all"]) ?? [];
+    expect(updated).toMatchObject({ id: "location-1", name: "Beta", location_type: "city" });
+    expect(updated).not.toHaveProperty("description");
+    expect(updated).not.toHaveProperty("notes");
+
+    // An INSERT lands slim in the "all" list and full in a parent-filtered one.
+    const inserted = row({ id: "location-2", parent_id: null, location_type: "town", description: "d", notes: "n" });
+    applyCampaignRealtimeWorld(qc, "locations", { eventType: "INSERT", old: {}, new: inserted }, dm);
+    const all = qc.getQueryData<Row[]>(["locations", "campaign-1", "all"]) ?? [];
+    expect(all.find((r) => r.id === "location-2")).not.toHaveProperty("notes");
+    const byParent = qc.getQueryData<Row[]>(["locations", "campaign-1", null]) ?? [];
+    expect(byParent.find((r) => r.id === "location-2")).toHaveProperty("notes", "n");
+  });
+
   it("patches raw NPC location filters but never places a raw NPC in player projections", () => {
     const qc = new QueryClient();
     const npc = row({ id: "npc-1", location_id: "inn-1", notes: "DM secret" });

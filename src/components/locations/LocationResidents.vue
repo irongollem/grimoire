@@ -162,22 +162,22 @@ import { useNpcsByLocations } from '@/composables/npcs/useNpcs';
 import { useEncountersByLocation } from '@/composables/encounters/useEncounters';
 import { useCampaignStore } from '@/stores/campaign';
 import { effectiveLocationId } from '@/lib/partyPosition';
-import type { Location } from '@/types/location.types';
+import type { LocationSummary } from '@/types/location.types';
 import type { PartyMember } from '@/types/party.types';
 
 const { locationId, npcLocationIds, allLocations } = defineProps<{
   locationId: string;
   /** flat list of location id + all descendant ids — for NPC query */
   npcLocationIds: string[];
-  allLocations: Location[];
+  allLocations: LocationSummary[];
 }>();
 
 // ── NPC data ──────────────────────────────────────────────────────────────────
 const { data: locationNpcs } = useNpcsByLocations(computed(() => npcLocationIds));
 const { data: locationEncounters } = useEncountersByLocation(locationId);
 
-const allLocationsMap = computed<Map<string, Location>>(() => {
-  const m = new Map<string, Location>();
+const allLocationsMap = computed<Map<string, LocationSummary>>(() => {
+  const m = new Map<string, LocationSummary>();
   for (const l of allLocations) m.set(l.id, l);
   return m;
 });

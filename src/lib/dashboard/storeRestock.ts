@@ -1,4 +1,4 @@
-import { STORE_LOCATION_TYPES, type Location } from "@/types/location.types";
+import { STORE_LOCATION_TYPES, type LocationSummary } from "@/types/location.types";
 import type { StoreStockRow } from "@/composables/items/useStoreItems";
 
 /**
@@ -34,7 +34,7 @@ export interface StoreRestockRow {
 
 /** Shops first, then taverns and inns — `STORE_LOCATION_TYPES` decides which
  *  location types can hold stock at all, and nothing here second-guesses it. */
-export function storeLocations(locations: readonly Location[]): Location[] {
+export function storeLocations(locations: readonly LocationSummary[]): LocationSummary[] {
   return locations.filter((location) => STORE_LOCATION_TYPES.has(location.location_type));
 }
 
@@ -46,7 +46,7 @@ export function storeLocations(locations: readonly Location[]): Location[] {
  * reason, alphabetical, so the list does not reshuffle as counts change.
  */
 export function buildStoreRestockRows(
-  locations: readonly Location[],
+  locations: readonly LocationSummary[],
   stock: readonly StoreStockRow[],
 ): StoreRestockRow[] {
   const counts = new Map<string, { total: number; visible: number }>();

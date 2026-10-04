@@ -280,6 +280,44 @@ export interface Location {
   updated_at: string;
 }
 
+/**
+ * The columns the campaign-wide place list loads (#972, story 15): the tree,
+ * the map stack and the cheap display fields, never `description`, `notes`,
+ * `map_pins` or the sharing flags. `LOCATION_SUMMARY_COLUMNS` is the single
+ * source for both the select string and the type, so they cannot drift. A
+ * place shown in full is read by id (`useLocation`).
+ */
+export const LOCATION_SUMMARY_COLUMNS = [
+  "id",
+  "user_id",
+  "campaign_id",
+  "parent_id",
+  "name",
+  "location_type",
+  "sort_order",
+  "is_level",
+  "image_url",
+  "audio_theme",
+  "is_battle_map",
+  "era_start",
+  "era_end",
+  "map_url",
+  "grid_calibration",
+  "map_layer_url",
+  "map_layer_calibration",
+  "plan_size",
+  "map_published_rev",
+  "player_summary",
+  "tags",
+  "source_map_id",
+] as const satisfies ReadonlyArray<keyof Location>;
+
+export type LocationSummaryColumn = (typeof LOCATION_SUMMARY_COLUMNS)[number];
+
+export type LocationSummary = Pick<Location, LocationSummaryColumn>;
+
+export const LOCATION_SUMMARY_SELECT = LOCATION_SUMMARY_COLUMNS.join(", ");
+
 export interface GridCalibration {
   cells_per_image_width: number;
   origin_x_pct: number;

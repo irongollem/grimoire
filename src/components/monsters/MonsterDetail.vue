@@ -306,7 +306,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
 import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
@@ -390,7 +390,7 @@ function onCancel() {
 const { mutateAsync: upsertLibraryArt } = useUpsertLibraryMonsterArt();
 const { artTab, isCutoutTab, variants: artTabVariants } = useArtTabs();
 
-type LocationOption = Location & { depth: number };
+type LocationOption = LocationSummary & { depth: number };
 const { locationOptions } = useLocationTree();
 
 const campaignStore = useCampaignStore();

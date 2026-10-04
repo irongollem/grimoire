@@ -266,7 +266,7 @@ import {
   LOCATION_TYPE_LABELS,
   STORE_LOCATION_TYPES,
 } from "@/types/location.types";
-import type { Location, LocationType } from "@/types/location.types";
+import type { Location, LocationSummary, LocationType } from "@/types/location.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
@@ -419,8 +419,8 @@ const {
 // Loop extracted into a helper to keep `computed` single-return — oxlint's
 // `vue/return-in-computed-property` rule reports a false positive when a while
 // loop appears inside the getter body.
-function buildAncestorChain(parentId: string | null | undefined, all: Location[]): Location[] {
-  const chain: Location[] = [];
+function buildAncestorChain(parentId: string | null | undefined, all: LocationSummary[]): LocationSummary[] {
+  const chain: LocationSummary[] = [];
   if (!parentId) return chain;
   let current = all.find((l) => l.id === parentId);
   while (current && chain.length < 10) {
@@ -448,7 +448,7 @@ function createChild(name: string) {
 // ── NPCs at this location (includes descendants) ───────────────────────────────
 function collectDescendantIds(
   id: string,
-  allLocs: Location[],
+  allLocs: LocationSummary[],
   visited = new Set<string>(),
 ): string[] {
   if (visited.has(id)) return [];

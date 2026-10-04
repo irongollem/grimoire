@@ -237,7 +237,7 @@ import { extractTiptapText } from "@/lib/utils";
 import { effectiveLocationId } from "@/lib/partyPosition";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { LOCATION_TYPE_COLORS, STORE_LOCATION_TYPES } from "@/types/location.types";
-import type { Location } from "@/types/location.types";
+import type { Location, LocationSummary } from "@/types/location.types";
 
 const { location, building = false } = defineProps<{
   location: Location;
@@ -255,12 +255,12 @@ const { data: allLocations } = useAllLocations();
 
 const hasDescription = computed(() => extractTiptapText(location.description, 1).length > 0);
 
-const relatedLocations = computed<Location[]>(() => {
+const relatedLocations = computed<LocationSummary[]>(() => {
   const ids = location.related_location_ids;
   if (!ids.length || !allLocations.value?.length) return [];
   return ids
     .map((id) => allLocations.value!.find((l) => l.id === id))
-    .filter((l): l is Location => !!l);
+    .filter((l): l is LocationSummary => !!l);
 });
 
 /** This place plus everything under it — an NPC in a town is in its region. */

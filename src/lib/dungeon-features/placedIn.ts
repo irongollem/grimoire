@@ -6,7 +6,7 @@
 
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { LocationPlacementWithLocation } from "@/composables/locations/useLocationPlacements";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 
 export interface PlacedInRoom {
   key: string;
@@ -26,7 +26,7 @@ export interface PlacedInRoom {
  *  Reuses the same "room's own parent is the site" rule as
  *  `resolvePlacedInRooms`, for a caller that has a bare location id instead
  *  of a placement row (`DungeonCraftPuzzlesTab`). */
-export function directRoomPlacement(locationId: string, locationsById: ReadonlyMap<string, Location>): PlacedInRoom {
+export function directRoomPlacement(locationId: string, locationsById: ReadonlyMap<string, LocationSummary>): PlacedInRoom {
   const room = locationsById.get(locationId);
   const site = room?.parent_id ? locationsById.get(room.parent_id) : undefined;
   return { key: locationId, siteName: site?.name ?? null, roomName: room?.name ?? "???", cell: null };
@@ -34,7 +34,7 @@ export function directRoomPlacement(locationId: string, locationsById: ReadonlyM
 
 export function resolvePlacedInRooms(
   placements: readonly LocationPlacementWithLocation[],
-  locationsById: ReadonlyMap<string, Location>,
+  locationsById: ReadonlyMap<string, LocationSummary>,
 ): PlacedInRoom[] {
   return placements.map((placement) => {
     const room = locationsById.get(placement.location_id);

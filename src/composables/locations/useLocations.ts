@@ -1,13 +1,13 @@
-import { computed, isRef, ref } from "vue";
+import { computed, isRef, ref, toValue, type MaybeRefOrGetter } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
-import type { GridCalibration, Location, LocationInsert, LocationUpdate } from "@/types/location.types";
+import type { GridCalibration, Location, LocationInsert, LocationSummary, LocationUpdate } from "@/types/location.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
-import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
+import { LOCATION_SUMMARY_SELECT, VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
 import { matchSettingRowIds, stampSettingSource, PLANAR_SOURCE } from "@/lib/populateSetting/settingContent";
 import { persistReorder, toReorderEntries } from "@/lib/reorder";
@@ -16,7 +16,13 @@ import { isInteriorType } from "@/lib/locations/tiers";
 /** A location enriched with the chain of vague-container names we traversed
  *  to reach it, starting with the outermost region and ending with the
  *  direct parent. Empty when the entry is a direct child of the map owner. */
-export type PinnableDescendant = Location & { parent_chain: string[] };
+export type PinnableDescendant = PinnableFields & { parent_chain: string[] };
+
+/** The fields the pin picker reads, so the slim campaign list satisfies it. */
+export type PinnableFields = Pick<
+  Location,
+  "id" | "parent_id" | "location_type" | "name" | "image_url"
+>;
 
 /**
  * Walks the location tree below `rootId` to find pins the DM could place on
@@ -30,9 +36,9 @@ export type PinnableDescendant = Location & { parent_chain: string[] };
  */
 export function getPinnableDescendants(
   rootId: string,
-  locations: Location[],
+  locations: readonly PinnableFields[],
 ): PinnableDescendant[] {
-  const byParent = new Map<string, Location[]>();
+  const byParent = new Map<string, PinnableFields[]>();
   for (const loc of locations) {
     if (!loc.parent_id) continue;
     const arr = byParent.get(loc.parent_id) ?? [];
@@ -109,18 +115,20 @@ async function fetchLocations(campaignId: string, parentId: string | null): Prom
   return data as Location[];
 }
 
-async function fetchAllLocations(campaignId: string): Promise<Location[]> {
+async function fetchAllLocations(campaignId: string): Promise<LocationSummary[]> {
   // See fetchLocations above: global (campaign_id null) locations must be
   // included here too, or the flat list this feeds (search, pickers, the
   // location tree) disagrees with the Atlas about which locations exist.
+  // Slim on purpose (#972): the tree and its pickers need these columns, not
+  // every description. A place shown in full is read by id (`useLocation`).
   const { data, error } = await supabase
     .from("locations")
-    .select("*")
+    .select(LOCATION_SUMMARY_SELECT)
     .or(`campaign_id.eq.${campaignId},campaign_id.is.null`)
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
   if (error) throw error;
-  return data as Location[];
+  return data as unknown as LocationSummary[];
 }
 
 async function fetchLocation(id: string): Promise<Location> {
@@ -208,7 +216,9 @@ export function useLocations(parentId: string | null | Ref<string | null> = null
   });
 }
 
-/** All locations in the campaign (flat list, for insert panel / search).
+/** All locations in the campaign as slim `LocationSummary` rows (flat list, for
+ *  insert panel / search / the tree). Anything that shows a place in full reads
+ *  it by id with `useLocation`; a slim row is never a `Location`.
  *
  *  `enabled` lets permanently-mounted callers (the generator panels, which live
  *  in DefaultLayout on every DM page) defer the fetch until their panel is open.
@@ -249,11 +259,11 @@ export function useLocationTree(enabled?: () => boolean) {
   });
 
   /** Tree-sorted options with depth, ready for EntityCombobox. */
-  const locationOptions = computed<Array<Location & { depth: number }>>(() => {
+  const locationOptions = computed<Array<LocationSummary & { depth: number }>>(() => {
     const locs = allLocations.value ?? [];
-    const result: Array<Location & { depth: number }> = [];
+    const result: Array<LocationSummary & { depth: number }> = [];
 
-    function visit(loc: Location, depth: number) {
+    function visit(loc: LocationSummary, depth: number) {
       result.push({ ...loc, depth });
       locs
         .filter((l) => l.parent_id === loc.id)
@@ -284,12 +294,38 @@ export function useLocationTree(enabled?: () => boolean) {
   return { locationOptions, getDescendantIds };
 }
 
-export function useLocation(id: string | Ref<string>) {
-  const idRef = isRef(id) ? id : ref(id);
+/**
+ * Reads one place's full row on demand, through the same cache entry
+ * `useLocation` uses, for an action that needs a place's `description` or
+ * `notes` once (a fill, a prompt) rather than a screen that shows it.
+ */
+export function useFetchLocation() {
+  const queryClient = useQueryClient();
+  return (id: string): Promise<Location> =>
+    queryClient.fetchQuery({ queryKey: [QUERY_KEY, id] as const, queryFn: () => fetchLocation(id) });
+}
+
+/**
+ * Starts reading a place in full before it is opened. The Atlas tree holds only
+ * slim rows (#972), so selecting a place reads its row by id; asking on hover
+ * or focus means the row is usually there by the time the click lands, and the
+ * pane opens without a loading flash. A no-op while the row is fresh.
+ */
+export function usePrefetchLocation() {
+  const queryClient = useQueryClient();
+  return (id: string) =>
+    void queryClient.prefetchQuery({ queryKey: [QUERY_KEY, id] as const, queryFn: () => fetchLocation(id), staleTime: 30_000 });
+}
+
+/** One place in full. `null` means nothing is selected, and sends nothing. */
+export function useLocation(id: MaybeRefOrGetter<string | null>) {
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
-    queryFn: ({ queryKey: [, locationId] }) => fetchLocation(locationId),
-    enabled: () => !!idRef.value,
+    queryKey: computed(() => [QUERY_KEY, toValue(id)] as const),
+    queryFn: ({ queryKey: [, locationId] }) => {
+      if (!locationId) throw new Error("useLocation fetched without an id");
+      return fetchLocation(locationId);
+    },
+    enabled: () => !!toValue(id),
   });
 }
 

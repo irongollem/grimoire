@@ -325,7 +325,8 @@ import { useSpotifyStore } from "@/stores/spotify";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useCampaignStore } from "@/stores/campaign";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
-import { parseSceneEntities, stripMentionTokens } from "@/ai/sceneEntities";
+import { mentionedLocationIds, parseSceneEntities, stripMentionTokens } from "@/ai/sceneEntities";
+import { useLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
 import {
   generateMusicLocally,
   composeFallbackPrompt,
@@ -550,12 +551,18 @@ const shownGenerateError = computed(() => generateError.value || music.error.val
 // the structuring step (see aiMusic.ts's "Mentioned characters and places").
 const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems();
 
+// The location list is slim (#972); a mentioned place's description is read
+// by id, only for the places the description actually names.
+const mentionedLocations = computed(() => mentionedLocationIds(generateDescription.value, locations.value ?? []));
+const { data: locationDescriptions } = useLocationDescriptions(mentionedLocations);
+
 const mentionedEntities = computed(() =>
   parseSceneEntities(generateDescription.value, {
     partyMembers: partyMembers.value,
     npcs: npcs.value,
     monsters: monsters.value,
     locations: locations.value,
+    locationDescriptions: locationDescriptions.value,
     factions: factions.value,
     groupPortraitUrl: campaignStore.activeCampaign?.group_portrait_url,
   }),

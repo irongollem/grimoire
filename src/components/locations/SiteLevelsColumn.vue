@@ -46,7 +46,7 @@ import { levelsOf } from "@/lib/locations/levels";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { bindableSpaces, isInteriorType } from "@/lib/locations/tiers";
 import { childrenOf, type AtlasIndex } from "@/lib/locations/tree";
-import type { Location } from "@/types/location.types";
+import type { Location, LocationSummary } from "@/types/location.types";
 
 const { location, index, children } = defineProps<{
   location: Location;
@@ -55,7 +55,7 @@ const { location, index, children } = defineProps<{
   index: AtlasIndex;
   /** This place's own children, used via `bindableSpaces` to scope its
    *  vertical ways-out panel. */
-  children: Location[];
+  children: LocationSummary[];
 }>();
 
 defineEmits<{ select: [id: string] }>();
@@ -70,9 +70,9 @@ const levelsInfo = computed(() => levelsOf(index, location));
 
 /** Whose children the rail is listing — this site's own, or its parent's,
  *  when this place has no levels of its own but IS one (#868, S6). */
-const levelsContainer = computed<Location | null>(() => levelsInfo.value?.container ?? null);
+const levelsContainer = computed<LocationSummary | null>(() => levelsInfo.value?.container ?? null);
 
-const levelSites = computed<Location[]>(() => levelsInfo.value?.levels ?? []);
+const levelSites = computed<LocationSummary[]>(() => levelsInfo.value?.levels ?? []);
 
 // `roomCount` below (feeding `SiteLevelSummary`, a type this component does
 // not own) counts interior spaces — room, and #886's `grounds` — not only

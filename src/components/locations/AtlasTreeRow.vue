@@ -25,6 +25,8 @@
       :active="selected"
       class="min-w-0 justify-start gap-2 rounded-md px-2 hover:bg-muted"
       @click="$emit('select', row.loc.id)"
+      @pointerenter="prefetchLocation(row.loc.id)"
+      @focus="prefetchLocation(row.loc.id)"
     >
       <span
         class="h-2 w-2 shrink-0 rounded-full"
@@ -62,6 +64,7 @@ import { IconChevronDown, IconChevronRight, IconMap } from "@/lib/icons";
 import type { AtlasRow } from "@/lib/locations/tree";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
+import { usePrefetchLocation } from "@/composables/locations/useLocations";
 
 const {
   row,
@@ -82,6 +85,9 @@ const {
 }>();
 
 defineEmits<{ toggle: [id: string]; select: [id: string] }>();
+
+// The pane reads the selected place in full; start that read on intent.
+const prefetchLocation = usePrefetchLocation();
 
 /** 1rem per level — deep enough to read as nesting, shallow enough for depth 6. */
 const indent = computed(() => `${row.depth}rem`);

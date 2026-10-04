@@ -88,7 +88,7 @@ import AtlasTreeRow from "@/components/locations/AtlasTreeRow.vue";
 import { isLocationOutOfEra } from "@/lib/locations/era";
 import { visibleRows } from "@/lib/locations/tree";
 import type { AtlasIndex, AtlasRow } from "@/lib/locations/tree";
-import type { Location } from "@/types/location.types";
+import type { LocationSummary } from "@/types/location.types";
 import { IconChevronLeft } from "@/lib/icons";
 
 const { index, expanded, selectedId, matches, isFiltered, totalCount, todayYear } =
@@ -97,7 +97,7 @@ const { index, expanded, selectedId, matches, isFiltered, totalCount, todayYear 
     expanded: ReadonlySet<string>;
     selectedId: string | null;
     /** Flat match list, used only while a filter is active. */
-    matches: Location[];
+    matches: LocationSummary[];
     isFiltered: boolean;
     totalCount: number;
     todayYear: number;
@@ -119,7 +119,7 @@ const countLabel = computed(() =>
 );
 
 /** Matches render without nesting, so depth and expansion are flattened away. */
-function flatRow(loc: Location): AtlasRow {
+function flatRow(loc: LocationSummary): AtlasRow {
   return {
     loc,
     depth: 0,
@@ -129,7 +129,7 @@ function flatRow(loc: Location): AtlasRow {
 }
 
 /** Null rather than "" — a top-level place has no parent, it does not have a blank one. */
-function parentNameOf(loc: Location): string | null {
+function parentNameOf(loc: LocationSummary): string | null {
   if (!loc.parent_id) return null;
   return index.byId.get(loc.parent_id)?.name ?? null;
 }
