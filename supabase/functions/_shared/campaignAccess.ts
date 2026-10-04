@@ -8,10 +8,11 @@
 //
 // They used to admit "the owner, or any campaign_members row", and fetched the
 // member's role only to ignore it. A player is a campaign member, so a player
-// calling one directly got DM-only material back in the generated text. No
-// player surface calls any of these, so the gate is the DM role, not a
-// player-aware filter. A player-facing generator, if one is ever built, needs
-// its reads filtered by `player_visible_to` instead of this check.
+// calling one directly got DM-only material back in the generated text, or
+// spent the campaign's credits and the owner's own provider key. No player
+// surface calls any AI function, so every one of them gates on the DM role
+// rather than a player-aware filter. A player-facing generator, if one is ever
+// built, needs its reads filtered by the player projections instead.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 

@@ -18,6 +18,7 @@ import { markGeneratedImage } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { registerImageProvenance } from "../_shared/provenance/register.ts";
 import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
+import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 // Keep browser-supplied composition inputs bounded before req.json()/atob hold
 // both the encoded and decoded copies in the Edge isolate.
@@ -275,11 +276,10 @@ serve(withCors(async (req: Request) => {
   if (!campaign) return text("Campaign not found", 404);
   if (campaign.ai_enabled !== true) return text("AI is disabled for this campaign", 403);
 
-  if (campaign.user_id !== user.id) {
-    const { data: membership } = await admin
-      .from("campaign_members").select("role")
-      .eq("campaign_id", campaign_id).eq("user_id", user.id).maybeSingle();
-    if (!membership) return text("Forbidden", 403);
+  // DMs only: no player surface calls this, and it spends the campaign's
+  // credits or the owner's own provider key (see _shared/campaignAccess.ts).
+  if (!(await isCampaignDm(admin, campaign, user.id))) {
+    return text("Forbidden", 403);
   }
 
   // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.

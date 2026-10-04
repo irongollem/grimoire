@@ -68,7 +68,7 @@ Every generator panel now uses one of the two, and `GeneratorPanelFrame.test.ts`
 
 **The provenance rule for all of them:** a hand-written row has no provenance. The generator writes it at create (or fill) time. The first save that changes what the model wrote flips `edited` through `markEdited()` (`src/ai/provenance.ts`), and a save that leaves the text untouched keeps it as generated. Fill surfaces that write into a draft compare against what the model produced to decide.
 
-**Server-side reads need a DM gate.** A function that reads campaign content with the service-role client must admit only the campaign owner or a `dm` member (`isCampaignDm`, `supabase/functions/_shared/campaignAccess.ts`), never any member, because a player is a member and would get DM-only material back in the generated text.
+**Every AI edge function is DM-gated.** Each one admits only the campaign owner or a `dm` member (`isCampaignDm`, `supabase/functions/_shared/campaignAccess.ts`), never any member. A player is a member, and no player surface calls any generator, so the old "owner or any member" check only ever let a player in by calling the function directly: to read DM-only content the function fed the model (hidden NPCs, session notes, an NPC's backstory), or to spend the campaign's credits and the owner's own provider key. A player-facing generator, if one is ever built, needs its reads filtered by the player projections instead.
 
 ---
 

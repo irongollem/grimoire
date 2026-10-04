@@ -30,6 +30,7 @@ import {
 } from "../_shared/ai-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
+import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
 
@@ -143,12 +144,10 @@ serve(withCors(async (req: Request) => {
   if (!campaign) return jsonError("Campaign not found", 404);
   if (campaign.ai_enabled !== true) return jsonError("AI is disabled for this campaign", 403);
 
-  if (campaign.user_id !== user.id) {
-    const { data: membership } = await admin
-      .from("campaign_members").select("role")
-      .eq("campaign_id", campaign_id).eq("user_id", user.id).maybeSingle();
-    if (!membership) return jsonError("Forbidden", 403);
-  }
+  // DMs only: the request runs on the campaign's setting prompt and, for a
+  // BYOK campaign, on the owner's own provider key. No player surface calls
+  // this (see _shared/campaignAccess.ts).
+  if (!(await isCampaignDm(admin, campaign, user.id))) return jsonError("Forbidden", 403);
 
   // Ruleset-aware generation (#564) — anything other than "2024" resolves to "2014".
   const ruleset = campaign.ruleset === "2024" ? "2024" : "2014";

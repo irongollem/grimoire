@@ -56,6 +56,7 @@ import { getMiniBase, BASE_STORAGE_PREFIX } from "../_shared/mini-bases.ts";
 import { composeStl, figureScaleFor } from "../_shared/mesh-compose.ts";
 import { composeGlb, figureScaleForGlb } from "../_shared/glb-compose.ts";
 import { parseBinaryStl, stlBounds } from "../_shared/stl.ts";
+import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -275,11 +276,10 @@ async function handleStylize(
     admin.from(sourceTable).select(selectCols).eq("id", sourceId).maybeSingle(),
   ]);
   if (!campaign) return json({ error: "not_found" }, 404);
-  if (campaign.user_id !== userId) {
-    const { data: membership } = await admin
-      .from("campaign_members").select("role")
-      .eq("campaign_id", campaignId).eq("user_id", userId).maybeSingle();
-    if (!membership) return json({ error: "forbidden" }, 403);
+  // DMs only: no player surface calls this, and it spends the campaign's
+  // credits or the owner's own provider key (see _shared/campaignAccess.ts).
+  if (!(await isCampaignDm(admin, campaign, userId))) {
+    return json({ error: "forbidden" }, 403);
   }
   // Same ai_enabled gate every other generator enforces (mirrored here rather
   // than shared because forge-mini fetches campaigns with a bespoke select
