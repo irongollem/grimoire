@@ -133,3 +133,18 @@ describe("mapOpen5eV2Monster — library_monsters row shape", () => {
     expect(Object.prototype.hasOwnProperty.call(mapOpen5eV2Monster(record()), "campaign_id")).toBe(false);
   });
 });
+
+describe("mapOpen5eV2Monster — size", () => {
+  it("maps A5E's Titanic to gargantuan, the largest 5e size", () => {
+    const monster = mapOpen5eV2Monster(
+      record({ size: { name: "Titanic", key: "titanic" } }) as Parameters<typeof mapOpen5eV2Monster>[0],
+    );
+    expect(monster.size).toBe("gargantuan");
+  });
+
+  it("refuses a size it does not know rather than calling it medium", () => {
+    expect(() =>
+      mapOpen5eV2Monster(record({ size: { name: "Colossal", key: "colossal" } }) as Parameters<typeof mapOpen5eV2Monster>[0]),
+    ).toThrow(/Colossal/);
+  });
+});

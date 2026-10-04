@@ -455,8 +455,8 @@ export function useDeleteMonster() {
  * deliberate way a library monster becomes the DM's own row. Picking a
  * library monster anywhere else stores a reference to it instead.
  */
-function libraryMonsterToInsert(libraryMonster: Monster, campaignId: string | null): MonsterInsert {
-  const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url, cutout_url } =
+export function libraryMonsterToInsert(libraryMonster: Monster, campaignId: string | null): MonsterInsert {
+  const { name, monster_type, size, alignment, habitat, source, tags, stat_block, description, notes, image_url, cutout_url } =
     libraryMonster;
   return {
     name,
@@ -467,6 +467,7 @@ function libraryMonsterToInsert(libraryMonster: Monster, campaignId: string | nu
     source: `${source ?? "SRD 5.1"} (customized)`,
     tags,
     stat_block,
+    description,
     notes,
     image_url,
     cutout_url, // #917 story 1 — a customized clone keeps the library monster's cutout too

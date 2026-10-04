@@ -98,11 +98,9 @@ function clampBatchLimit(raw: unknown): number {
   return Math.min(Math.floor(raw), MAX_BATCH_LIMIT);
 }
 
-// library_monsters has no `description` column (see src/types/monster.types.ts
-// — Monster.description is optional for exactly this reason: it only ever
-// comes back populated for rows that actually have one).
-const LIBRARY_SELECT = "id, name, monster_type, size, habitat, tags, stat_block";
-const CUSTOM_SELECT = "id, name, monster_type, size, habitat, tags, description, stat_block";
+// Both tables carry `description` (library_monsters since 20261004213715), so
+// one select serves both and their embed text is built from the same fields.
+const SOURCE_SELECT = "id, name, monster_type, size, habitat, tags, description, stat_block";
 
 interface MonsterSourceRow {
   id: string;
@@ -115,7 +113,7 @@ interface MonsterSourceRow {
   stat_block: { challenge_rating?: string | null } | null;
 }
 
-function toMonsterSourceRow(row: Record<string, unknown>, includeDescription: boolean): MonsterSourceRow {
+function toMonsterSourceRow(row: Record<string, unknown>): MonsterSourceRow {
   return {
     id: row.id as string,
     name: row.name as string,
@@ -123,7 +121,7 @@ function toMonsterSourceRow(row: Record<string, unknown>, includeDescription: bo
     size: (row.size as string | null) ?? null,
     habitat: (row.habitat as string | null) ?? null,
     tags: (row.tags as string[] | null) ?? null,
-    description: includeDescription ? (row.description as string | null) ?? null : null,
+    description: (row.description as string | null) ?? null,
     stat_block: (row.stat_block as MonsterSourceRow["stat_block"]) ?? null,
   };
 }
@@ -151,12 +149,12 @@ async function fetchAllSourceRows(target: BatchTarget): Promise<MonsterSourceRow
   let offset = 0;
   for (;;) {
     const { data, error } = target === "library"
-      ? await admin.from(config.mainTable).select(LIBRARY_SELECT).order("id").range(offset, offset + PAGE_SIZE - 1)
-      : await admin.from(config.mainTable).select(CUSTOM_SELECT).eq("open5e_import", false).order("id")
+      ? await admin.from(config.mainTable).select(SOURCE_SELECT).order("id").range(offset, offset + PAGE_SIZE - 1)
+      : await admin.from(config.mainTable).select(SOURCE_SELECT).eq("open5e_import", false).order("id")
         .range(offset, offset + PAGE_SIZE - 1);
     if (error) throw new Error(`Failed to read ${config.mainTable}: ${error.message}`);
     const page = (data ?? []) as Record<string, unknown>[];
-    for (const row of page) rows.push(toMonsterSourceRow(row, target === "custom"));
+    for (const row of page) rows.push(toMonsterSourceRow(row));
     if (page.length < PAGE_SIZE) break;
     offset += PAGE_SIZE;
   }

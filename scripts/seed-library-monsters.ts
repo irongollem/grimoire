@@ -68,9 +68,23 @@ export function libraryMonsterId(sourceRecordKey: string): string {
  * non-5e document-key args; the default and --all paths never hit it.
  */
 // `campaign_id` is excluded because library_monsters has no such column — see
-// mapOpen5eV2Monster. These rows are upserted with a bare spread, so anything
-// the mapper produces reaches PostgREST verbatim.
-type SeededMonster = Omit<MonsterInsert, "ruleset" | "campaign_id"> & { id: string; ruleset: RulesetKey };
+// mapOpen5eV2Monster. The library-owned fields are excluded by seedRow below.
+type MappedMonster = Omit<MonsterInsert, "ruleset" | "campaign_id"> & { ruleset: RulesetKey };
+type SeededMonster = Omit<MappedMonster, "habitat" | "tags" | "notes" | "image_url" | "cutout_url"> & { id: string };
+
+/**
+ * The upserted row: only what Open5e supplies, so a re-run refreshes the stat
+ * block and source metadata and leaves everything the library owns alone
+ * (docs/library-reimport.md). The mapper fills `habitat`, `tags`, `notes` and
+ * `image_url` with empties because it builds a whole `MonsterInsert`; sent as
+ * they are, an upsert wiped them on every re-run, and `cutout_url` (which lives
+ * in library_monster_art_canonical, not on this table) failed the whole batch
+ * with PGRST204. `description` never comes from the mapper at all.
+ */
+export function seedRow(monster: MappedMonster, id: string): SeededMonster {
+  const { habitat: _habitat, tags: _tags, notes: _notes, image_url: _imageUrl, cutout_url: _cutoutUrl, ...open5eFields } = monster;
+  return { ...open5eFields, id };
+}
 
 // ── art backfill from library_monster_art_canonical ───────────────────────────────
 // Reads the dedicated canonical table, not library_monster_art. Canonical art was
@@ -165,7 +179,7 @@ async function main(): Promise<void> {
   console.log("Step 1: Fetching + mapping monsters from Open5e v2…");
   const mapped = await fetchOpen5eMonsters(documentKeys);
   const supported = mapped.filter(
-    (monster): monster is Omit<MonsterInsert, "campaign_id"> & { ruleset: RulesetKey } =>
+    (monster): monster is MappedMonster =>
       monster.ruleset != null,
   );
   const unsupported = mapped.length - supported.length;
@@ -177,7 +191,7 @@ async function main(): Promise<void> {
     if (!sourceRecordKey) {
       throw new Error(`Monster "${monster.name}" has no source_record_key — cannot derive a stable library_monsters.id.`);
     }
-    return { ...monster, id: libraryMonsterId(sourceRecordKey) };
+    return seedRow(monster, libraryMonsterId(sourceRecordKey));
   });
   console.log(`  Mapped ${rows.length} monsters.\n`);
 

@@ -63,9 +63,14 @@ function normalizeType(raw: string): MonsterType {
   return (VALID_TYPES as readonly string[]).includes(value) ? value as MonsterType : "monstrosity";
 }
 
+/** A5E's "Titanic" sits above Gargantuan, which is the largest size 5e has. Any
+ *  other unknown size throws: the old fallback to "medium" stored the A5E Titanic
+ *  Kraken and Titanic Dragon Turtle as medium creatures without a word. */
 function normalizeSize(raw: string): MonsterSize {
   const value = raw.toLowerCase();
-  return (VALID_SIZES as readonly string[]).includes(value) ? value as MonsterSize : "medium";
+  if (value === "titanic") return "gargantuan";
+  if ((VALID_SIZES as readonly string[]).includes(value)) return value as MonsterSize;
+  throw new Error(`Open5e size "${raw}" has no MonsterSize.`);
 }
 
 function toSpeedString(speed: Record<string, number | boolean | string> | undefined): string {
