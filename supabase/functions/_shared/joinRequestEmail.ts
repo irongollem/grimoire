@@ -21,14 +21,8 @@ export interface EmailContent {
  */
 export type JoinRequestRole = "joiner" | "dm" | "both";
 
-export function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+import { escapeHtml } from "./emailHtml.ts";
+
 
 const COPY: Record<JoinRequestRole, { subject: string; line: string }> = {
   joiner: {

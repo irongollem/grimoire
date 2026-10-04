@@ -12,6 +12,17 @@
  */
 export const TERMS_VERSION = "2026-09-28";
 
+/**
+ * What changed in TERMS_VERSION, one plain sentence per line. Shown by the
+ * in-app Terms gate (TermsGate.vue) and by the admin's Terms notice email
+ * (send-terms-notice), so the two always say the same thing. Rewrite it in the
+ * same change as a TERMS_VERSION bump.
+ */
+export const TERMS_CHANGES: readonly string[] = [
+  "Accounts for players under 16, set up and managed by a parent.",
+  "How to report content that infringes copyright or breaks the law.",
+];
+
 // EU right-of-withdrawal consent version, shared by the checkout functions and
 // re-exported to the client by src/lib/legal.ts. The buyer ticks a timestamped
 // checkbox in the app (recorded in purchase_consents with this version). The

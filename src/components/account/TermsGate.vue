@@ -17,13 +17,13 @@
           We've updated our Terms of Service and Privacy Policy. What's new:
         </p>
         <ul class="flex flex-col gap-2">
-          <li class="flex items-start gap-2 text-body text-muted-foreground">
+          <li
+            v-for="change in TERMS_CHANGES"
+            :key="change"
+            class="flex items-start gap-2 text-body text-muted-foreground"
+          >
             <span class="mt-2 h-1.5 w-1.5 rounded-full bg-muted-foreground shrink-0" />
-            <span>Accounts for players under 16, set up and managed by a parent.</span>
-          </li>
-          <li class="flex items-start gap-2 text-body text-muted-foreground">
-            <span class="mt-2 h-1.5 w-1.5 rounded-full bg-muted-foreground shrink-0" />
-            <span>How to report content that infringes copyright or breaks the law.</span>
+            <span>{{ change }}</span>
           </li>
         </ul>
         <p class="text-body text-muted-foreground">
@@ -112,7 +112,7 @@ import { computed, onUnmounted, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { TERMS_VERSION } from "@/lib/legal";
+import { TERMS_CHANGES, TERMS_VERSION } from "@/lib/legal";
 import { legalUrl } from "@/lib/marketing";
 import { useAuthStore } from "@/stores/auth";
 import { useChildAccount } from "@/composables/account/useChildAccount";

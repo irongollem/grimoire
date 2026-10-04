@@ -8,6 +8,8 @@
 // Plenty of clients render no invitation UI at all — most webmail on a phone,
 // every plain-text reader — so the same message also carries two links here.
 
+import { escapeHtml } from "../_shared/emailHtml.ts";
+
 /** Result states the endpoint can land in. One page renderer per state. */
 export type RsvpState =
   /** GET with a well-formed token: nothing has happened yet, ask first. */
@@ -63,14 +65,6 @@ export function parseRequest(requestUrl: string, formAnswer?: string | null): Rs
   };
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 /**
  * "2026-09-03" + "19:30" → "Thursday, September 3, 2026 at 19:30". Formatted in

@@ -4,9 +4,9 @@
  * supabase/functions include). Same visual style as
  * send-notification-email/emails.ts, but that module isn't imported here:
  * edge functions don't import across each other's directories in this repo
- * (each is its own Deno bundle), so the handful of shared bits (escapeHtml,
- * the layout shell) are kept small and duplicated rather than reached for
- * across a function boundary.
+ * (each is its own Deno bundle). What they share lives in `_shared/`, which is
+ * where escapeHtml comes from (`_shared/emailHtml.ts`); the layout shell stays
+ * local because each email's frame differs.
  *
  * Every word is fixed. Nothing the requester controls reaches this template,
  * only the request token inside the link. That includes the campaign name:
@@ -21,14 +21,8 @@ export interface EmailContent {
   text: string;
 }
 
-export function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+import { escapeHtml } from "../_shared/emailHtml.ts";
+
 
 export interface ParentConsentRequestArgs {
   /** The request came from a valid campaign invite. Never the campaign's name: see the header. */

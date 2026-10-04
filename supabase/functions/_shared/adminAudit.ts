@@ -31,7 +31,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type AdminAuditAction =
   | "account_ban"
   | "account_unban"
-  | "credit_pack_refund";
+  | "credit_pack_refund"
+  | "terms_notice_sent";
 
 export async function recordAdminAction(
   admin: SupabaseClient,
@@ -39,14 +40,15 @@ export async function recordAdminAction(
     /** The acting admin, from the verified JWT — never from the request body. */
     adminUserId: string;
     action: AdminAuditAction;
-    targetUserId: string;
+    /** Omitted for an action that has no single target, such as a bulk notice. */
+    targetUserId?: string;
     details?: Record<string, unknown>;
   },
 ): Promise<void> {
   const { error } = await admin.from("admin_audit_log").insert({
     admin_user_id: entry.adminUserId,
     action: entry.action,
-    target_user_id: entry.targetUserId,
+    target_user_id: entry.targetUserId ?? null,
     details: entry.details ?? {},
   });
   if (error) {

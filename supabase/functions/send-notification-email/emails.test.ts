@@ -1,17 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
-  escapeHtml,
   formatProposalDate,
   proposalCreatedEmail,
 } from "./emails";
-
-describe("escapeHtml", () => {
-  it("escapes all HTML-significant characters", () => {
-    expect(escapeHtml(`<img src=x onerror="alert('1')" & more>`)).toBe(
-      "&lt;img src=x onerror=&quot;alert(&#39;1&#39;)&quot; &amp; more&gt;",
-    );
-  });
-});
 
 describe("formatProposalDate", () => {
   it("formats a date-only proposal in UTC, unshifted", () => {

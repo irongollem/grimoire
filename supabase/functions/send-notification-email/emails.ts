@@ -15,14 +15,8 @@ export interface EmailContent {
   text: string;
 }
 
-export function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+import { escapeHtml } from "../_shared/emailHtml.ts";
+
 
 /**
  * "2026-08-05" + "19:30" → "Wednesday, August 5, 2026 at 19:30". The date is a

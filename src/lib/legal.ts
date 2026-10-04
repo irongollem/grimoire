@@ -4,7 +4,7 @@
  * how to bump the Terms version), re-exported here so the client, the edge
  * functions and the database cannot drift apart.
  */
-export { TERMS_VERSION, WITHDRAWAL_CONSENT_VERSION } from "@edge-shared/consent.ts";
+export { TERMS_VERSION, TERMS_CHANGES, WITHDRAWAL_CONSENT_VERSION } from "@edge-shared/consent.ts";
 
 /**
  * AI-use, likeness, and Pro re-offer consent-notice versions (EU AI Act

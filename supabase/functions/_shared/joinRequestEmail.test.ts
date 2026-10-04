@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeHtml, joinRequestEmail, type JoinRequestRole } from "./joinRequestEmail";
+import { joinRequestEmail, type JoinRequestRole } from "./joinRequestEmail";
 
 const URL = "https://app.example/account/family";
 const roles: JoinRequestRole[] = ["joiner", "dm", "both"];
@@ -32,9 +32,5 @@ describe("joinRequestEmail", () => {
       const m = joinRequestEmail({ role, familyUrl: URL });
       expect(m.subject + m.html + m.text).not.toContain("—");
     }
-  });
-
-  it("escapeHtml handles all five characters", () => {
-    expect(escapeHtml(`&<>"'`)).toBe("&amp;&lt;&gt;&quot;&#39;");
   });
 });

@@ -171,6 +171,8 @@ function detailSummary(entry: AdminAuditEntry): string {
       return typeof d.reason === "string" ? d.reason : "";
     case "account_erasure":
       return `${d.ledger_rows_anonymized ?? 0} ledger rows anonymized`;
+    case "terms_notice_sent":
+      return `version ${d.terms_version ?? "?"} · ${d.sent ?? "?"} sent, ${d.failed ?? "?"} failed`;
     default:
       return "";
   }
