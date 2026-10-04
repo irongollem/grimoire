@@ -139,6 +139,10 @@ export async function writeQuestSpine(
     // transaction's `now()`, so writing all beats together would hand the
     // entry to whichever random uuid sorts first. A refused opening beat
     // writes no spine at all, as the sequential loop this replaced did.
+    //
+    // The same fact means beats 2..N share one `created_at`. Their story order
+    // is kept by `canvas_x` (`i * 320` above), so every beat read orders by
+    // `created_at, canvas_x, id` (`fetchBeats`, `useQuestBoardSummaries`).
     const opening = await writeBatchIsolatingFailures([openingRow], deps.createBeats);
     recordBeats(opening.written);
     if (opening.refused.length === 0) {

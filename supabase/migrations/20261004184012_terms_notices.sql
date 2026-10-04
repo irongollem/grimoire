@@ -2,8 +2,13 @@
 --
 -- Who has been emailed about which Terms of Service version. The admin's
 -- "Send Terms notice" tool (edge function `send-terms-notice`) writes one row
--- per account it mails, so running it again, after a partial send or by a
+-- per account it tries, so running it again, after a partial send or by a
 -- second click, never emails anyone twice about the same version.
+--
+-- A row is in one of two states: `sent_at` set (mailed, never mailed again) or
+-- only `failed_at` set (the last attempt failed; the next runs try it after
+-- everyone not yet attempted, oldest failure first, so a few permanently bad
+-- addresses cannot stall the send). A successful retry sets `sent_at`.
 --
 -- Email is for planning and for notices like this one, never for play (see
 -- context/features/notifications.md). A Terms change is a notice about the
@@ -17,10 +22,12 @@
 create table public.terms_notices (
   user_id uuid not null references auth.users (id) on delete cascade,
   terms_version text not null,
-  sent_at timestamptz not null default now(),
+  sent_at timestamptz,
+  failed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  primary key (user_id, terms_version)
+  primary key (user_id, terms_version),
+  constraint terms_notices_outcome_check check (sent_at is not null or failed_at is not null)
 );
 
 create trigger terms_notices_updated_at

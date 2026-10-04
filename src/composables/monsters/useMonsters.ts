@@ -79,11 +79,50 @@ async function deleteMonster(monster: Monster): Promise<void> {
 
 const LIBRARY_QUERY_KEY = "library-monsters";
 
+/**
+ * Every `library_monsters` column a library row is read with, which is every
+ * column except `description`. The lore runs to several hundred words a
+ * creature, and a bestiary list (disk-cached, #972) has no use for 3,541 of
+ * them; it is read one creature at a time by `useLibraryMonsterDescription`.
+ * One list for every library read, so a row seeded from the list cache and a
+ * row fetched by id have the same shape (`useResolvedMonster` relies on that).
+ * A column added to the table is invisible to the app until it is added here.
+ */
+const LIBRARY_MONSTER_COLUMNS = [
+  "id", "name", "monster_type", "size", "alignment", "habitat", "source", "source_title", "source_url",
+  "is_shared", "open5e_import", "tags", "stat_block", "notes", "image_url", "portrait_focal_point",
+  "created_at", "updated_at", "ruleset", "conceptual_key", "source_document_key", "source_record_key",
+  "source_revision", "source_license", "provenance",
+].join(",");
+
+const LIBRARY_DESCRIPTION_QUERY_KEY = "library-monster-description";
+
+async function fetchLibraryMonsterDescription(id: string): Promise<string | null> {
+  const { data, error } = await supabase.from("library_monsters").select("description").eq("id", id).single();
+  if (error) throw error;
+  return data.description;
+}
+
+/** A library monster's lore (Tiptap JSON), or null when it has none. Its own
+ *  key prefix on purpose: `useResolvedMonster` treats everything under
+ *  `library-monsters` as a whole `Monster` row. */
+export function useLibraryMonsterDescription(id: () => string | null) {
+  return useQuery({
+    queryKey: computed(() => [LIBRARY_DESCRIPTION_QUERY_KEY, id()] as const),
+    queryFn: ({ queryKey: [, monsterId] }) => {
+      if (monsterId === null) throw new Error("useLibraryMonsterDescription ran without an id");
+      return fetchLibraryMonsterDescription(monsterId);
+    },
+    enabled: () => id() !== null,
+    staleTime: Infinity,
+  });
+}
+
 async function fetchLibraryMonsters(enabledSlugs: string[], ruleset: RulesetKey): Promise<Monster[]> {
   if (enabledSlugs.length === 0) return [];
   const { data, error } = await supabase
     .from("library_monsters")
-    .select("*")
+    .select(LIBRARY_MONSTER_COLUMNS)
     .in("source", enabledSlugs)
     .eq("ruleset", ruleset)
     .order("name", { ascending: true });
@@ -266,7 +305,7 @@ export function useLibraryMonster(id: Ref<string>) {
     queryFn: async ({ queryKey: [, monsterId] }) => {
       const { data, error } = await supabase
         .from("library_monsters")
-        .select("*")
+        .select(LIBRARY_MONSTER_COLUMNS)
         .eq("id", monsterId)
         .single();
       if (error) throw error;
@@ -299,7 +338,7 @@ export interface ResolvedMonster {
  */
 export async function fetchResolvedMonster(monsterId: string): Promise<ResolvedMonster> {
   const { data: shared, error: sharedError } = await supabase
-    .from("library_monsters").select("*").eq("id", monsterId).maybeSingle();
+    .from("library_monsters").select(LIBRARY_MONSTER_COLUMNS).eq("id", monsterId).maybeSingle();
   if (sharedError) throw sharedError;
   if (shared) return { monster: libraryMonsterRow(shared), isShared: true };
   if (!isUuid(monsterId)) throw new Error("Monster not found");
@@ -455,8 +494,12 @@ export function useDeleteMonster() {
  * deliberate way a library monster becomes the DM's own row. Picking a
  * library monster anywhere else stores a reference to it instead.
  */
-export function libraryMonsterToInsert(libraryMonster: Monster, campaignId: string | null): MonsterInsert {
-  const { name, monster_type, size, alignment, habitat, source, tags, stat_block, description, notes, image_url, cutout_url } =
+export function libraryMonsterToInsert(
+  libraryMonster: Monster,
+  description: string | null,
+  campaignId: string | null,
+): MonsterInsert {
+  const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url, cutout_url } =
     libraryMonster;
   return {
     name,
@@ -482,8 +525,15 @@ export function useCloneLibraryMonster() {
   return useMutation({
     // Scoped to the campaign the DM cloned it in, like any other new
     // creation — the shared original stays available everywhere regardless.
-    mutationFn: async (libraryMonster: Monster): Promise<Monster> =>
-      createMonster(libraryMonsterToInsert(libraryMonster, activeCampaignId.value)),
+    mutationFn: async (libraryMonster: Monster): Promise<Monster> => {
+      // The lore is not on the row (LIBRARY_MONSTER_COLUMNS); the copy keeps it.
+      const description = await queryClient.fetchQuery({
+        queryKey: [LIBRARY_DESCRIPTION_QUERY_KEY, libraryMonster.id],
+        queryFn: () => fetchLibraryMonsterDescription(libraryMonster.id),
+        staleTime: Infinity,
+      });
+      return createMonster(libraryMonsterToInsert(libraryMonster, description, activeCampaignId.value));
+    },
     onSuccess: (monster) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       // This path calls createMonster() directly rather than going through

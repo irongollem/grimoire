@@ -17,7 +17,7 @@ describe("selectTermsNoticeRecipients", () => {
       u("c", "c@example.com", "2027-01-01T00:00:00Z"),
       u("d", "d@example.com"),
     ];
-    const r = selectTermsNoticeRecipients(users, new Map(), new Set(), V, NOW);
+    const r = selectTermsNoticeRecipients(users, new Map(), new Set(), new Map(), V, NOW);
     expect(r.recipients.map((x) => x.id)).toEqual(["d"]);
     expect(r.alreadyAccepted).toBe(0);
     expect(r.alreadyNotified).toBe(0);
@@ -28,6 +28,7 @@ describe("selectTermsNoticeRecipients", () => {
       [u("a", "a@example.com", "2020-01-01T00:00:00Z")],
       new Map(),
       new Set(),
+      new Map(),
       V,
       NOW,
     );
@@ -41,10 +42,34 @@ describe("selectTermsNoticeRecipients", () => {
       ["b", "2026-01-01"],
       ["c", null],
     ]);
-    const r = selectTermsNoticeRecipients(users, accepted, new Set(["b"]), V, NOW);
+    const r = selectTermsNoticeRecipients(users, accepted, new Set(["b"]), new Map(), V, NOW);
     expect(r.alreadyAccepted).toBe(1);
     expect(r.alreadyNotified).toBe(1);
     expect(r.recipients.map((x) => x.id)).toEqual(["c", "d"]);
+  });
+});
+
+describe("selectTermsNoticeRecipients, previously failed", () => {
+  it("puts never-attempted first, then failures oldest first, and counts them", () => {
+    const users = [u("a", "a@x.com"), u("b", "b@x.com"), u("c", "c@x.com"), u("d", "d@x.com"), u("e", "e@x.com")];
+    const failed = new Map([
+      ["a", "2026-10-04T10:00:00Z"],
+      ["c", "2026-10-03T10:00:00Z"],
+    ]);
+    const r = selectTermsNoticeRecipients(users, new Map(), new Set(), failed, V, NOW);
+    expect(r.recipients.map((x) => x.id)).toEqual(["b", "d", "e", "c", "a"]);
+    expect(r.previouslyFailed).toBe(2);
+  });
+
+  it("does not count a failed user who was accepted or notified since", () => {
+    const users = [u("a", "a@x.com"), u("b", "b@x.com")];
+    const failed = new Map([
+      ["a", "2026-10-03T10:00:00Z"],
+      ["b", "2026-10-03T10:00:00Z"],
+    ]);
+    const r = selectTermsNoticeRecipients(users, new Map([["a", V]]), new Set(["b"]), failed, V, NOW);
+    expect(r.recipients).toEqual([]);
+    expect(r.previouslyFailed).toBe(0);
   });
 });
 

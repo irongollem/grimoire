@@ -14,16 +14,17 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignI
 function setup(query: string) {
   const text = ref(query);
   let matchedIds!: ReturnType<typeof useLocationTextSearch>["matchedIds"];
+  let matchedTerm!: ReturnType<typeof useLocationTextSearch>["matchedTerm"];
   const wrapper = mount(
     defineComponent({
       setup() {
-        ({ matchedIds } = useLocationTextSearch(text));
+        ({ matchedIds, matchedTerm } = useLocationTextSearch(text));
         return () => h("div");
       },
     }),
     { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] } },
   );
-  return { text, wrapper, matchedIds: () => matchedIds.value };
+  return { text, wrapper, matchedIds: () => matchedIds.value, matchedTerm: () => matchedTerm.value };
 }
 
 describe("useLocationTextSearch", () => {
@@ -54,5 +55,33 @@ describe("useLocationTextSearch", () => {
       p_query: "dragon",
     });
     expect([...matchedIds()]).toEqual(["a", "b"]);
+  });
+
+  it("keeps the previous ids, and the term they answer, while the next term loads", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: ["a"], error: null });
+    const { text, matchedIds, matchedTerm } = setup("dragon");
+    await vi.advanceTimersByTimeAsync(300);
+    await flushPromises();
+    expect(matchedTerm()).toBe("dragon");
+
+    let release!: (v: { data: string[]; error: null }) => void;
+    mocks.rpc.mockReturnValueOnce(new Promise((r) => { release = r; }));
+    text.value = "dragons";
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(mocks.rpc).toHaveBeenCalledTimes(2);
+    expect([...matchedIds()]).toEqual(["a"]);
+    expect(matchedTerm()).toBe("dragon");
+
+    release({ data: ["b"], error: null });
+    await flushPromises();
+    expect([...matchedIds()]).toEqual(["b"]);
+    expect(matchedTerm()).toBe("dragons");
+  });
+
+  it("has no term and no ids below the minimum length", async () => {
+    const { matchedTerm } = setup("a");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(matchedTerm()).toBeNull();
   });
 });

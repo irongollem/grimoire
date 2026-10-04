@@ -7,16 +7,16 @@ export interface TermsNoticeStatus {
   configured: boolean;
   version: string;
   changes: string[];
-  /** Accounts that would be mailed. */
+  /** Accounts still to mail. After a real run this is the count as it now stands. */
   pending: number;
   /** Accepted this version in the app, so not mailed. */
   alreadyAccepted: number;
-  /** Already mailed about this version. */
+  /** Already mailed about this version (after a real run, including that run). */
   alreadyNotified: number;
+  /** Of `pending`, those an earlier send failed for; they are tried last. */
+  previouslyFailed: number;
   sent: number;
   failed: number;
-  /** Still to mail after this call. */
-  remaining: number;
   /** The most one real run mails (the function's cap), so the UI never restates it. */
   batchSize: number;
 }

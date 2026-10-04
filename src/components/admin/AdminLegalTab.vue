@@ -34,6 +34,16 @@
           {{ countsSentence }}
         </p>
 
+        <p
+          v-if="status.previouslyFailed > 0"
+          class="text-caption text-muted-foreground"
+          data-testid="terms-previously-failed"
+        >
+          {{ status.previouslyFailed }}
+          {{ status.previouslyFailed === 1 ? "address" : "addresses" }} could not be reached before;
+          {{ status.previouslyFailed === 1 ? "it is" : "they are" }} tried last.
+        </p>
+
         <CautionNotice v-if="!status.configured" class="text-caption">
           Email is not set up, so nothing can be sent. Add the Resend key to the project's
           secrets first.

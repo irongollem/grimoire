@@ -15,8 +15,11 @@
       <p v-else-if="state === 'searching'" class="px-1 text-caption text-muted-foreground italic">
         Searching…
       </p>
+      <p v-else-if="state === 'error'" class="px-1 text-caption text-muted-foreground italic">
+        Search failed. Try again.
+      </p>
       <p v-else-if="state === 'empty'" class="px-1 text-caption text-muted-foreground italic">
-        Nothing matches “{{ query.trim() }}”.
+        {{ failedGroups.length > 0 ? failedMessage : `Nothing matches “${query.trim()}”.` }}
       </p>
 
       <div v-else class="-mx-3 divide-y divide-border/50">
@@ -33,6 +36,9 @@
             {{ hit.name }}
           </RouterLink>
         </div>
+        <p v-if="failedGroups.length > 0" class="px-3 pt-2 text-caption text-muted-foreground italic">
+          {{ failedMessage }}
+        </p>
       </div>
     </div>
   </DashboardWidget>
@@ -58,7 +64,7 @@ import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import { useGlobalSearch } from "@/composables/useGlobalSearch";
+import { failedGroupsMessage, useGlobalSearch } from "@/composables/useGlobalSearch";
 
 /**
  * A local ref, and that is the Filter State Pattern applying rather than being
@@ -72,13 +78,17 @@ const query = ref("");
  *  never runs, so anything the card said about results would be invented. */
 const MIN_QUERY = 2;
 
-const { data: groups, isFetching } = useGlobalSearch(query);
+const { data, isFetching, isError } = useGlobalSearch(query);
 
-const state = computed<"idle" | "searching" | "empty" | "results">(() => {
+const groups = computed(() => data.value?.groups ?? []);
+const failedGroups = computed(() => data.value?.failedGroups ?? []);
+const failedMessage = computed(() => failedGroupsMessage(failedGroups.value));
+
+const state = computed<"idle" | "searching" | "error" | "empty" | "results">(() => {
   if (query.value.trim().length < MIN_QUERY) return "idle";
   if (isFetching.value) return "searching";
-  const found = groups.value;
-  if (found === undefined || found.length === 0) return "empty";
+  if (isError.value) return "error";
+  if (groups.value.length === 0) return "empty";
   return "results";
 });
 </script>

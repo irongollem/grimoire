@@ -77,8 +77,12 @@
             <BannerLoader class="h-4" />
             Searching…
           </div>
+          <div v-else-if="isError" class="px-4 py-8 text-center text-body text-muted-foreground">
+            Search failed. Try again.
+          </div>
           <div v-else-if="mobileGroups.length === 0" class="px-4 py-8 text-center text-body text-muted-foreground">
-            No results for "{{ mobileQuery.trim() }}"
+            <template v-if="failedGroups.length > 0">{{ failedMessage }}</template>
+            <template v-else>No results for "{{ mobileQuery.trim() }}"</template>
           </div>
           <template v-else>
             <template v-for="group in mobileGroups" :key="group.type">
@@ -97,6 +101,9 @@
                 @click="searchOpen = false"
               />
             </template>
+            <p v-if="failedGroups.length > 0" class="px-4 py-3 text-caption text-muted-foreground">
+              {{ failedMessage }}
+            </p>
           </template>
         </div>
       </div>
@@ -116,7 +123,7 @@ import type { AppInputHandle } from "@/components/common/fieldVariants";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import SessionControl from "./SessionControl.vue";
-import { useGlobalSearch } from "@/composables/useGlobalSearch";
+import { failedGroupsMessage, useGlobalSearch } from "@/composables/useGlobalSearch";
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -128,12 +135,14 @@ const searchOpen = ref(false);
 const mobileQuery = ref("");
 const mobileInputRef = ref<AppInputHandle | null>(null);
 
-const { data, isFetching } = useGlobalSearch(mobileQuery);
+const { data, isFetching, isError } = useGlobalSearch(mobileQuery);
 
 const mobileGroups = computed(() => {
   if (mobileQuery.value.trim().length < 2) return [];
-  return data.value ?? [];
+  return data.value?.groups ?? [];
 });
+const failedGroups = computed(() => data.value?.failedGroups ?? []);
+const failedMessage = computed(() => failedGroupsMessage(failedGroups.value));
 
 watch(searchOpen, async (val) => {
   if (val) {

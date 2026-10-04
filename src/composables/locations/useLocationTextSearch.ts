@@ -1,7 +1,7 @@
 import { computed } from "vue";
 import type { Ref } from "vue";
 import { refDebounced } from "@vueuse/core";
-import { useQuery } from "@tanstack/vue-query";
+import { keepPreviousData, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 
@@ -9,13 +9,19 @@ import { useCampaignStore } from "@/stores/campaign";
 export const LOCATION_TEXT_SEARCH_DEBOUNCE_MS = 250;
 export const LOCATION_TEXT_SEARCH_MIN_LENGTH = 2;
 
-async function searchLocationText(campaignId: string, query: string): Promise<string[]> {
+interface TextSearchAnswer {
+  /** The term these ids answer; the data carries it so the two never separate. */
+  term: string;
+  ids: string[];
+}
+
+async function searchLocationText(campaignId: string, query: string): Promise<TextSearchAnswer> {
   const { data, error } = await supabase.rpc("search_campaign_location_text", {
     p_campaign_id: campaignId,
     p_query: query,
   });
   if (error) throw error;
-  return data;
+  return { term: query, ids: data };
 }
 
 /**
@@ -24,6 +30,10 @@ async function searchLocationText(campaignId: string, query: string): Promise<st
  * The Atlas list no longer carries those columns (#972, story 15), so the text
  * match runs in the database and the client intersects the ids with the tree it
  * already holds. Name, tag and type matching stay client-side.
+ *
+ * While the next term loads the previous answer stays, and `matchedTerm` says
+ * which term it answers, so the caller can compute its whole list against that
+ * one term instead of mixing two.
  *
  * Keyed outside the `locations` root on purpose: results only need to be fresh
  * per query, and a `["locations", ...]` key would be picked up by the live-sync
@@ -42,12 +52,15 @@ export function useLocationTextSearch(query: Ref<string>) {
       return searchLocationText(cid, text);
     },
     enabled: () => !!campaignId.value && settled.value.length >= LOCATION_TEXT_SEARCH_MIN_LENGTH,
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
-  const matchedIds = computed(() => new Set(
-    settled.value.length >= LOCATION_TEXT_SEARCH_MIN_LENGTH ? (result.data.value ?? []) : [],
-  ));
+  const answer = computed(() =>
+    settled.value.length >= LOCATION_TEXT_SEARCH_MIN_LENGTH ? (result.data.value ?? null) : null,
+  );
+  const matchedIds = computed(() => new Set(answer.value?.ids));
+  const matchedTerm = computed(() => answer.value?.term ?? null);
 
-  return { matchedIds, isFetching: result.isFetching };
+  return { matchedIds, matchedTerm, isFetching: result.isFetching };
 }

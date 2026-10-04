@@ -38,7 +38,7 @@ function base(overrides: Partial<TermsNoticeStatus> = {}): TermsNoticeStatus {
     alreadyNotified: 3,
     sent: 0,
     failed: 0,
-    remaining: 0,
+    previouslyFailed: 0,
     batchSize: 50,
     ...overrides,
   };
@@ -104,10 +104,20 @@ describe("AdminLegalTab", () => {
   });
 
   it("offers the next batch and reports sent and failed after a run", () => {
-    runData.value = base({ pending: 70, sent: 49, failed: 1, remaining: 70 });
+    runData.value = base({ pending: 70, sent: 49, failed: 1 });
     status.value = runData.value;
     const w = mount(AdminLegalTab);
     expect(w.get('[data-testid="terms-last-run"]').text()).toBe("Sent 49, 1 failed.");
     expect(button(w).text()).toContain("Send the next 50");
+  });
+
+  it("says how many addresses failed before, only when there are some", () => {
+    status.value = base({ previouslyFailed: 3 });
+    const w = mount(AdminLegalTab);
+    expect(w.get('[data-testid="terms-previously-failed"]').text()).toBe(
+      "3 addresses could not be reached before; they are tried last.",
+    );
+    status.value = base();
+    expect(mount(AdminLegalTab).find('[data-testid="terms-previously-failed"]').exists()).toBe(false);
   });
 });

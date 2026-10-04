@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { placeRoute } from "@/lib/locations/placeRoute";
+import { reportHandledError } from "@/lib/observability/sentry";
 
 export interface SearchHit {
   id: string;
@@ -17,9 +18,15 @@ export interface SearchGroup {
   items: SearchHit[];
 }
 
+export interface SearchResult {
+  groups: SearchGroup[];
+  /** Labels (as the user sees them) of groups whose read failed. */
+  failedGroups: string[];
+}
+
 const LIMIT = 5;
 
-async function searchAll(query: string, campaignId: string | null): Promise<SearchGroup[]> {
+async function searchAll(query: string, campaignId: string | null): Promise<SearchResult> {
   const q = `%${query}%`;
 
   const [
@@ -54,11 +61,24 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
       : Promise.resolve({ data: [] as { id: string; title: string }[], error: null }),
   ]);
 
-  // A failed table is an error the caller must see, not a silently empty
-  // group that reads as "no matches".
-  const failed = [notesRes, npcsRes, monstersRes, libraryMonstersRes, spellsRes, librarySpellsRes, itemsRes, locationsRes, questsRes]
-    .find((res) => res.error);
-  if (failed?.error) throw failed.error;
+  // One failing table must not blank the others. Each failure goes to Sentry
+  // and its group label is handed back so the UI can say what was not searched;
+  // only when every read failed is the search itself down, and that throws.
+  const reads = [
+    { label: "Notes", res: notesRes },
+    { label: "NPCs", res: npcsRes },
+    { label: "Bestiary", res: monstersRes },
+    { label: "Bestiary", res: libraryMonstersRes },
+    { label: "Spells", res: spellsRes },
+    { label: "Spells", res: librarySpellsRes },
+    { label: "Vault", res: itemsRes },
+    { label: "Locations", res: locationsRes },
+    { label: "Quests", res: questsRes },
+  ];
+  const failedReads = reads.filter((r) => r.res.error);
+  for (const { label, res } of failedReads) reportHandledError(res.error, "global-search", { group: label });
+  if (failedReads.length === reads.length && failedReads[0]?.res.error) throw failedReads[0].res.error;
+  const failedGroups = [...new Set(failedReads.map((r) => r.label))];
 
   const groups: SearchGroup[] = [
     {
@@ -134,7 +154,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     },
   ];
 
-  return groups.filter((g) => g.items.length > 0);
+  return { groups: groups.filter((g) => g.items.length > 0), failedGroups };
 }
 
 /** How long typing must pause before a search goes out. One search is nine
@@ -152,7 +172,7 @@ export function useGlobalSearch(query: Ref<string>) {
     queryFn: ({ queryKey: [, search, activeCampaignId] }) => searchAll(search, activeCampaignId),
     enabled: () => settled.value.length >= 2,
     staleTime: 30_000,
-    placeholderData: [],
+    placeholderData: { groups: [], failedGroups: [] } satisfies SearchResult,
   });
 
   // Still typing counts as searching: the results on screen are for a term
@@ -160,4 +180,12 @@ export function useGlobalSearch(query: Ref<string>) {
   const isFetching = computed(() => result.isFetching.value || (trimmed.value.length >= 2 && settled.value !== trimmed.value));
 
   return { ...result, isFetching };
+}
+
+/** "Quests", "Quests and Locations", "Notes, Quests and Locations". */
+export function failedGroupsMessage(failedGroups: string[]): string {
+  const list = failedGroups.length > 1
+    ? `${failedGroups.slice(0, -1).join(", ")} and ${failedGroups[failedGroups.length - 1]}`
+    : failedGroups.join("");
+  return `Couldn't search ${list}.`;
 }

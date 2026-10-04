@@ -15,7 +15,7 @@ const STATUS: TermsNoticeStatus = {
   alreadyNotified: 1,
   sent: 0,
   failed: 0,
-  remaining: 0,
+  previouslyFailed: 0,
   batchSize: 50,
 };
 

@@ -115,13 +115,13 @@ Proposal emails link `/play/settings` (the RSVP toggles).
 
 ## Terms of Service notice (admin)
 
-`send-terms-notice` is an admin-only edge function that emails accounts when the Terms of Service change. Body `{ dryRun?: boolean }`; it returns `{ configured, version, changes, pending, alreadyAccepted, alreadyNotified, sent, failed, remaining }`. A dry run only counts.
+`send-terms-notice` is an admin-only edge function that emails accounts when the Terms of Service change. Body `{ dryRun?: boolean }`; it returns `{ configured, version, changes, pending, alreadyAccepted, alreadyNotified, previouslyFailed, sent, failed }`. A dry run only counts. Every count is as it stands after the call, so a real run's answer is the new status: `pending` is already reduced by `sent` and `alreadyNotified` increased by it.
 
 - **Manual only, by design.** Terms change rarely, and an automatic email to every user fired from CI is easy to set off by mistake. An admin presses the button when `TERMS_VERSION` has been bumped and released.
 - **Who gets it, and why.** Every account that has not yet accepted the current `TERMS_VERSION` (`user_subscriptions.terms_version`), because the in-app Terms gate will stop them at their next visit and the email tells them why. Never mailed: accounts with no email, young players' generated login addresses (`isChildLoginEmail`), and banned accounts.
 - **No opt-out.** It is a notice about the reader's agreement with Grimoire, not a notification preference, so the footer says it cannot be switched off.
-- **Idempotent per version.** After each successful send a `terms_notices (user_id, terms_version)` row is written, so running again (or a crash mid-run) never mails anyone twice. A failed send writes nothing and is retried next run.
-- **50 per run.** One invocation sends to at most 50 recipients, sequentially, to stay inside the function's time limit; `remaining` says how many are left, and the admin runs it again. One `terms_notice_sent` audit row (`{ terms_version, sent, failed }`) is written per run that sent anything.
+- **Idempotent per version.** After each attempt a `terms_notices (user_id, terms_version)` row is upserted: `sent_at` on success (that is what "notified" means, and the account is never mailed again), or only `failed_at` on failure. Running again, or a crash mid-run, never mails anyone twice. Failed addresses are retried, but last: recipients never attempted come first, then earlier failures oldest first, so a few permanently bad addresses cannot stall the send (`previouslyFailed` counts them, and the admin tab says so). The lookups page through `user_subscriptions` and `terms_notices` 1000 rows at a time, because PostgREST truncates one response at `max_rows`.
+- **50 per run.** One invocation sends to at most 50 recipients, sequentially, to stay inside the function's time limit; `pending` says how many are left, and the admin runs it again. One `terms_notice_sent` audit row (`{ terms_version, sent, failed }`) is written per run that sent anything.
 - **Wording.** The "what's new" list is `TERMS_CHANGES` in `_shared/consent.ts`, the same list the in-app Terms gate shows. Rewrite it in the same change as a `TERMS_VERSION` bump. The email itself is `_shared/termsNotice.ts`; email addresses are never returned or logged.
 
 ## Configuration (production)

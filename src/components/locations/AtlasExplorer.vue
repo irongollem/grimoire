@@ -195,11 +195,15 @@ import LocationEditor from "@/components/locations/LocationEditor.vue";
 import SiteRunSurface from "@/components/locations/SiteRunSurface.vue";
 import { useAtlasTreeFold } from "@/composables/locations/useAtlasTreeFold";
 import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
-import { useLocationTextSearch } from "@/composables/locations/useLocationTextSearch";
+import {
+  LOCATION_TEXT_SEARCH_MIN_LENGTH,
+  useLocationTextSearch,
+} from "@/composables/locations/useLocationTextSearch";
 import { useBelow } from "@/composables/useBreakpoint";
 import { IconChevronLeft, IconChevronRight, IconNavAtlas } from "@/lib/icons";
 import { isSiteType } from "@/lib/locations/tiers";
 import { ancestorIds, buildAtlasIndex } from "@/lib/locations/tree";
+import { chooseMatchTerm } from "@/lib/locations/matchTerm";
 import { scrollParentOf } from "@/lib/scrollParent";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -265,19 +269,24 @@ const selectedLoading = computed(() => !!selectedId.value && selectedPending.val
 // site-tier place — a stray `?run=true` on anything else falls through to
 // the plain pane rather than erroring, same as the old page's own guard.
 const editing = computed(() => route.query.edit === "true");
-const running = computed(
-  () => route.query.run === "true" && !!selected.value && isSiteType(selected.value.location_type),
+// Decided from the slim row (it carries `location_type`), not the full one, so
+// switching to a place that is not cached yet does not flip the layout while it
+// loads: the tree would unfold, then fold again and remount the runner. The
+// full row is still what the pane, editor and runner render. The full row's
+// type covers a place the slim list has not caught up with yet.
+const selectedType = computed(
+  () => (selectedId.value ? index.value.byId.get(selectedId.value)?.location_type : undefined)
+    ?? selected.value?.location_type,
 );
+const selectedIsSite = computed(() => !!selectedType.value && isSiteType(selectedType.value));
+const running = computed(() => route.query.run === "true" && selectedIsSite.value);
 
 // The site runner and a site's Map tab both want the pane's full width, so the
 // tree folds for as long as either is on screen. Derived, never stored: see
 // `useAtlasTreeFold` for why this must not touch the DM's own fold.
 const paneWantsWidth = computed(() => {
-  if (!selected.value || editing.value) return false;
-  return (
-    running.value ||
-    (ui.locationsPaneMode === "map" && isSiteType(selected.value.location_type))
-  );
+  if (!selectedId.value || editing.value) return false;
+  return running.value || (ui.locationsPaneMode === "map" && selectedIsSite.value);
 });
 const { treeFolded, resultsOpen, foldTree, unfoldTree, closeResults } =
   useAtlasTreeFold(paneWantsWidth);
@@ -291,12 +300,19 @@ const { treeFolded, resultsOpen, foldTree, unfoldTree, closeResults } =
  * would add machinery to solve a cost that no longer exists.
  */
 const searchText = computed(() => ui.locationsSearch);
-const { matchedIds: textMatchedIds } = useLocationTextSearch(searchText);
+const { matchedIds: textMatchedIds, matchedTerm } = useLocationTextSearch(searchText);
 
 const matches = computed(() => {
   if (!ui.locationsHasActiveFilters) return [];
   const type = ui.locationsFilterType;
-  const q = ui.locationsSearch.trim().toLowerCase();
+  // One term for name, tag and text matching alike, so the list moves in one
+  // step when the database answer lands and never mixes two terms.
+  const { term, useTextMatches } = chooseMatchTerm(
+    ui.locationsSearch,
+    matchedTerm.value,
+    LOCATION_TEXT_SEARCH_MIN_LENGTH,
+  );
+  const q = term.toLowerCase();
   return allLocations.value.filter((loc) => {
     if (type !== "all" && loc.location_type !== type) return false;
     if (!q) return true;
@@ -305,7 +321,7 @@ const matches = computed(() => {
     return (
       loc.name.toLowerCase().includes(q) ||
       loc.tags.some((t) => t.toLowerCase().includes(q)) ||
-      textMatchedIds.value.has(loc.id)
+      (useTextMatches && textMatchedIds.value.has(loc.id))
     );
   });
 });

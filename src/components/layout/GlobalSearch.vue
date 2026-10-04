@@ -49,12 +49,18 @@
         Searching…
       </div>
 
+      <!-- Every read failed: the search is down, which is not "no matches" -->
+      <div v-else-if="isError" class="px-3 py-3 text-caption text-muted-foreground text-center">
+        Search failed. Try again.
+      </div>
+
       <!-- No results -->
       <div
-        v-else-if="!isFetching && groups.length === 0"
+        v-else-if="groups.length === 0"
         class="px-3 py-3 text-caption text-muted-foreground text-center"
       >
-        No results for "{{ query.trim() }}"
+        <template v-if="failedGroups.length > 0">{{ failedMessage }}</template>
+        <template v-else>No results for "{{ query.trim() }}"</template>
       </div>
 
       <!-- Results -->
@@ -77,6 +83,9 @@
             <span class="truncate">{{ item.name }}</span>
           </RouterLink>
         </template>
+        <div v-if="failedGroups.length > 0" class="px-3 py-2 text-caption text-muted-foreground">
+          {{ failedMessage }}
+        </div>
       </template>
     </div>
   </div>
@@ -87,7 +96,7 @@ import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { IconClose, IconSearch } from '@/lib/icons';
-import { useGlobalSearch } from "@/composables/useGlobalSearch";
+import { failedGroupsMessage, useGlobalSearch } from "@/composables/useGlobalSearch";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { formatCombo, isMacPlatform } from "@/lib/hotkeys";
 import type { SearchGroup } from "@/composables/useGlobalSearch";
@@ -109,12 +118,14 @@ const focusedIndex = ref(-1);
 const inputRef = ref<AppInputHandle | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 
-const { data, isFetching } = useGlobalSearch(query);
+const { data, isFetching, isError } = useGlobalSearch(query);
 
 const groups = computed<SearchGroup[]>(() => {
   if (query.value.trim().length < 2) return [];
-  return data.value ?? [];
+  return data.value?.groups ?? [];
 });
+const failedGroups = computed(() => data.value?.failedGroups ?? []);
+const failedMessage = computed(() => failedGroupsMessage(failedGroups.value));
 
 // Flat list of all results for keyboard navigation
 const flatItems = computed(() =>

@@ -72,13 +72,17 @@ export function prepareQuestBeatOptimisticUpdate(
   };
 }
 
-async function fetchBeats(questId: string): Promise<QuestBeat[]> {
+export async function fetchBeats(questId: string): Promise<QuestBeat[]> {
   const { data, error } = await supabase
     .from("quest_beats")
     .select("*")
     .eq("quest_id", questId)
     .neq("kind", "archived")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    // A generated quest's beats 2..N share one created_at (a single multi-row
+    // insert). canvas_x is story position within that batch, id makes it total.
+    .order("canvas_x", { ascending: true })
+    .order("id", { ascending: true });
   if (error) throw error;
   return (data ?? []) as QuestBeat[];
 }
@@ -322,7 +326,7 @@ export function useQuestBoardSummaries() {
     queryFn: async ({ queryKey: [, , campaignId] }): Promise<Record<string, QuestBoardSummary>> => {
       if (campaignId === null) throw new Error("useQuestBoardSummaries fetched without a campaign");
       const [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult, threadsResult, consequencesResult, objectivesResult] = await Promise.all([
-        supabase.from("quest_beats").select("*").eq("campaign_id", campaignId).neq("kind", "archived").order("created_at"),
+        supabase.from("quest_beats").select("*").eq("campaign_id", campaignId).neq("kind", "archived").order("created_at").order("canvas_x").order("id"),
         supabase.from("quest_beat_edges").select("*").eq("campaign_id", campaignId).order("created_at"),
         supabase.from("quest_beat_attachments").select("*").eq("campaign_id", campaignId).order("sort_order").order("created_at"),
         supabase.from("quest_runtime_state").select("*").eq("campaign_id", campaignId),

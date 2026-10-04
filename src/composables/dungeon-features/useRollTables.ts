@@ -4,6 +4,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RollTable, RollTableInsert, RollTableUpdate } from "@/types/rollTable.types";
 import { ROLL_TABLE_SEEDS } from "@/data/rollTableSeeds";
+import { missingSeeds } from "@/lib/dungeon-features/rollTableSeedNames";
 
 const QUERY_KEY = "roll_tables";
 
@@ -119,7 +120,7 @@ export function useEncountersInRollTables() {
 }
 
 /**
- * Idempotent seed of example tables — skips by `name` so re-running just adds
+ * Idempotent seed of example tables — skips by name (`missingSeeds`) so re-running just adds
  * what's missing. Tables are inserted with `campaign_id = activeCampaignId`
  * so they only show up in the campaign the DM ran the populate from.
  */
@@ -137,10 +138,9 @@ export function usePopulateRollTables() {
         .select("name")
         .eq("user_id", user!.id);
       if (fetchErr) throw fetchErr;
-      const haveNames = new Set((existing ?? []).map((r: { name: string }) => r.name.toLowerCase()));
+      const existingNames = (existing ?? []).map((r: { name: string }) => r.name);
 
-      const toInsert = ROLL_TABLE_SEEDS
-        .filter((s) => !haveNames.has(s.name.toLowerCase()))
+      const toInsert = missingSeeds(ROLL_TABLE_SEEDS, existingNames)
         .map((s) => ({
           ...s,
           user_id: user!.id,

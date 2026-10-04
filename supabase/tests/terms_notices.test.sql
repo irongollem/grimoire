@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(4);
+select plan(5);
 
 -- terms_notices (20261004184012): the per-account record of who was emailed
 -- about which Terms version. Written by the admin's send-terms-notice function
@@ -11,14 +11,19 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, r
   ('97200000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tn-a@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('97200000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tn-b@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.terms_notices (user_id, terms_version) values
-  ('97200000-0000-4000-8000-000000000001', '2026-09-28'),
-  ('97200000-0000-4000-8000-000000000002', '2026-09-28');
+insert into public.terms_notices (user_id, terms_version, sent_at) values
+  ('97200000-0000-4000-8000-000000000001', '2026-09-28', now()),
+  ('97200000-0000-4000-8000-000000000002', '2026-09-28', now());
+
+select throws_ok(
+  $$ insert into public.terms_notices (user_id, terms_version, sent_at)
+     values ('97200000-0000-4000-8000-000000000001', '2026-09-28', now()) $$,
+  '23505', null, 'an account is recorded once per version, so a re-run cannot mail it twice');
 
 select throws_ok(
   $$ insert into public.terms_notices (user_id, terms_version)
-     values ('97200000-0000-4000-8000-000000000001', '2026-09-28') $$,
-  '23505', null, 'an account is recorded once per version, so a re-run cannot mail it twice');
+     values ('97200000-0000-4000-8000-000000000001', '2026-10-01') $$,
+  '23514', null, 'a row records an outcome: sent or failed');
 
 select lives_ok(
   $$ insert into public.admin_audit_log (admin_user_id, action, target_user_id, details)

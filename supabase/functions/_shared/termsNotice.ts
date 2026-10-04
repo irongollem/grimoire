@@ -24,21 +24,29 @@ export interface NoticeSelection<T extends NoticeCandidate> {
   recipients: Array<T & { email: string }>;
   alreadyAccepted: number;
   alreadyNotified: number;
+  /** Recipients whose earlier send failed; they sit at the end of `recipients`. */
+  previouslyFailed: number;
 }
 
 /**
  * Pick who to mail. Skipped without being counted: no email, a generated child
  * login address (young players are never mailed), and a banned account.
  * Counted: accepted this version already, and notified already (idempotency).
+ *
+ * Order: never attempted first (input order), then those whose earlier send
+ * failed, oldest failure first, so permanently bad addresses cannot stall a
+ * run's batch ahead of everyone else.
  */
 export function selectTermsNoticeRecipients<T extends NoticeCandidate>(
   users: readonly T[],
   acceptedByUser: ReadonlyMap<string, string | null>,
   notifiedUserIds: ReadonlySet<string>,
+  failedAtByUser: ReadonlyMap<string, string>,
   version: string,
   now: Date = new Date(),
 ): NoticeSelection<T> {
-  const recipients: Array<T & { email: string }> = [];
+  const fresh: Array<T & { email: string }> = [];
+  const retries: Array<{ user: T & { email: string }; failedAt: number }> = [];
   let alreadyAccepted = 0;
   let alreadyNotified = 0;
 
@@ -54,10 +62,19 @@ export function selectTermsNoticeRecipients<T extends NoticeCandidate>(
       alreadyNotified++;
       continue;
     }
-    recipients.push({ ...user, email });
+    const failedAt = failedAtByUser.get(user.id);
+    if (failedAt === undefined) fresh.push({ ...user, email });
+    else retries.push({ user: { ...user, email }, failedAt: new Date(failedAt).getTime() });
   }
 
-  return { recipients, alreadyAccepted, alreadyNotified };
+  // Array.prototype.sort is stable, so equal failure times keep input order.
+  retries.sort((a, b) => a.failedAt - b.failedAt);
+  return {
+    recipients: [...fresh, ...retries.map((r) => r.user)],
+    alreadyAccepted,
+    alreadyNotified,
+    previouslyFailed: retries.length,
+  };
 }
 
 export interface TermsNoticeEmail {

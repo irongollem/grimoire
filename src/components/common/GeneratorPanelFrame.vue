@@ -1,5 +1,5 @@
 <template>
-  <Transition name="fade">
+  <Transition name="fade" appear>
     <div
       v-if="open"
       class="fixed inset-0 bg-black/60 z-40"
@@ -7,7 +7,7 @@
     />
   </Transition>
 
-  <Transition name="slide-right">
+  <Transition name="slide-right" appear>
     <aside
       v-if="open"
       class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
