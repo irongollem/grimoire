@@ -12,8 +12,9 @@ import type { RulesetKey } from "@/types/ruleset.types";
 
 /** Prefix must not start with "library-items": that root is persisted wholesale (#972). */
 const LIBRARY_INDEX_KEY = "library-item-index";
+// `cost` and `subtype` are shown in the store's add list and Card Forge.
 const INDEX_COLUMNS =
-  "id, name, item_type, rarity, source, source_document_key, source_record_key, image_url, ruleset";
+  "id, name, item_type, subtype, rarity, cost, source, source_document_key, source_record_key, image_url, ruleset";
 const CUSTOM_INDEX_COLUMNS = `${INDEX_COLUMNS}, campaign_id`;
 
 type LibraryIndexRow = Omit<ItemIndexEntry, "is_shared" | "campaign_id">;

@@ -11,8 +11,8 @@ import type { RulesetKey } from "@/types/ruleset.types";
 // Must NOT start with "library-spells": that prefix is the full-row cache.
 const LIBRARY_INDEX_KEY = "library-spell-index";
 
-const LIBRARY_COLUMNS = "id, name, level, school, source, classes";
-const CUSTOM_COLUMNS = "id, name, level, school, source, classes, campaign_id";
+const LIBRARY_COLUMNS = "id, name, level, school, concentration, source, classes";
+const CUSTOM_COLUMNS = "id, name, level, school, concentration, source, classes, campaign_id";
 const PAGE = 1000;
 
 type LibraryRow = Omit<SpellIndexEntry, "is_shared" | "campaign_id">;

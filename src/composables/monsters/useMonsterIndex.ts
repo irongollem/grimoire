@@ -20,15 +20,23 @@ const CUSTOM_INDEX_KEY = ["monsters", "index"] as const;
 /** What a picker or a name lookup shows: no stat block, no description. The
  *  challenge rating is lifted out of the stat block server-side, so the 2 MB
  *  bestiary does not travel to read one field of each row. */
-const CUSTOM_INDEX_COLUMNS =
-  "id, name, monster_type, size, source, image_url, campaign_id, challenge_rating:stat_block->>challenge_rating";
+// `speed` decides wild shape eligibility (fly and swim limits) and
+// `source_title` labels a version in the encounter generator; the cutout and
+// focal point are the own side's token art (Token Forge). A library row has no
+// cutout of its own (its art lives in the art tables).
+const SHARED_INDEX_COLUMNS =
+  "id, name, monster_type, size, source, source_title, image_url, portrait_focal_point, challenge_rating:stat_block->>challenge_rating, speed:stat_block->>speed";
+const CUSTOM_INDEX_COLUMNS = `${SHARED_INDEX_COLUMNS}, campaign_id, cutout_url`;
+
+type LibraryIndexRow = Omit<MonsterIndexEntry, "is_shared" | "campaign_id" | "cutout_url">;
+type CustomIndexRow = Omit<MonsterIndexEntry, "is_shared">;
 
 async function fetchLibraryIndex(slugs: string[], ruleset: RulesetKey): Promise<MonsterIndexEntry[]> {
   if (slugs.length === 0) return [];
   const rows = await fetchAllRows((from, to) =>
     supabase
       .from("library_monsters")
-      .select("id, name, monster_type, size, source, image_url, challenge_rating:stat_block->>challenge_rating")
+      .select(SHARED_INDEX_COLUMNS)
       .in("source", slugs)
       .eq("ruleset", ruleset)
       .order("name", { ascending: true })
@@ -36,7 +44,7 @@ async function fetchLibraryIndex(slugs: string[], ruleset: RulesetKey): Promise<
       .range(from, to),
   );
   // Shared rows belong to no campaign; which campaigns see them is decided by enabled sources.
-  return rows.map((row) => ({ ...row, campaign_id: null, is_shared: true }));
+  return (rows as LibraryIndexRow[]).map((row) => ({ ...row, campaign_id: null, cutout_url: null, is_shared: true }));
 }
 
 async function fetchCustomIndex(campaignId: string | null, ruleset: RulesetKey): Promise<MonsterIndexEntry[]> {
@@ -57,7 +65,7 @@ async function fetchCustomIndex(campaignId: string | null, ruleset: RulesetKey):
     : query.is("campaign_id", null);
   const { data, error } = await query.order("name", { ascending: true });
   if (error) throw error;
-  return data.map((row) => ({ ...row, is_shared: false }));
+  return (data as CustomIndexRow[]).map((row) => ({ ...row, is_shared: false }));
 }
 
 /** The picker / name-lookup list: the same members `useAllMonsters()` returns by

@@ -286,7 +286,9 @@ export interface ItemIndexEntry {
   id: string;
   name: string;
   item_type: ItemType;
+  subtype: Item["subtype"];
   rarity: ItemRarity;
+  cost: Item["cost"];
   source: string | null;
   source_document_key: string | null;
   source_record_key: string | null;

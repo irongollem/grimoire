@@ -155,8 +155,14 @@ export interface MonsterIndexEntry {
   size: MonsterSize;
   /** Lifted from `stat_block.challenge_rating`; null when a stat block carries none. */
   challenge_rating: string | null;
+  /** Lifted from `stat_block.speed`, a string like "30 ft., fly 60 ft.". */
+  speed: string | null;
   source: string | null;
+  source_title: string | null;
   image_url: string | null;
+  portrait_focal_point: Monster["portrait_focal_point"];
+  /** Own rows only; a library row's cutout lives in the art tables. */
+  cutout_url: string | null;
   is_shared: boolean;
   campaign_id: string | null;
 }

@@ -75,7 +75,7 @@ describe("useMonsterIndex", () => {
     await flushPromises();
     const lib = mocks.calls.find((c) => c.table === "library_monsters");
     expect(lib?.select).toBe(
-      "id, name, monster_type, size, source, image_url, challenge_rating:stat_block->>challenge_rating",
+      "id, name, monster_type, size, source, source_title, image_url, portrait_focal_point, challenge_rating:stat_block->>challenge_rating, speed:stat_block->>speed",
     );
     expect(lib?.select).not.toContain("*");
     expect(lib?.in).toEqual([["source", ["srd-2024"]]]);

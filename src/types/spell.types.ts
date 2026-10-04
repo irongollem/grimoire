@@ -656,6 +656,7 @@ export interface SpellIndexEntry {
   name: string;
   level: number;
   school: SpellSchool;
+  concentration: boolean;
   source: string | null;
   classes: string[];
   is_shared: boolean;

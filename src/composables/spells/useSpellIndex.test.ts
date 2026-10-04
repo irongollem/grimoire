@@ -58,8 +58,8 @@ describe("useSpellIndex", () => {
   it("reads slim columns, scopes custom spells by campaign and never by user", async () => {
     run();
     await flushPromises();
-    expect(ops("library_spells", "select")[0].args[0]).toBe("id, name, level, school, source, classes");
-    expect(ops("spells", "select")[0].args[0]).toBe("id, name, level, school, source, classes, campaign_id");
+    expect(ops("library_spells", "select")[0].args[0]).toBe("id, name, level, school, concentration, source, classes");
+    expect(ops("spells", "select")[0].args[0]).toBe("id, name, level, school, concentration, source, classes, campaign_id");
     expect(ops("spells", "or").map((o) => o.args[0])).toEqual([
       "ruleset.is.null,ruleset.eq.2024",
       "campaign_id.is.null,campaign_id.eq.camp-1",
