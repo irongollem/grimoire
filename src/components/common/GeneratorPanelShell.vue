@@ -89,8 +89,9 @@
           :byok="byok"
           class="self-center"
         />
+        <!-- Saving a paid result costs nothing and needs no AI: it survives AI being switched off. -->
         <AppButton
-          v-if="campaign.isAiEnabled"
+          v-if="campaign.isAiEnabled || unsavedLabel"
           variant="primary"
           size="md"
           block
@@ -105,7 +106,7 @@
         <AppButton
           v-if="blankTo && blankLabel"
           :to="blankTo"
-          :variant="!campaign.isAiEnabled ? 'primary' : 'outline'"
+          :variant="!campaign.isAiEnabled && !unsavedLabel ? 'primary' : 'outline'"
           size="md"
           block
           :label="blankLabel"

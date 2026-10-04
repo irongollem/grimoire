@@ -8,14 +8,14 @@
     :credits="textCreditCost"
     :byok="textIsByok"
     :is-generating="isGenerating"
-    :unsaved-label="unsaved ? 'deity' : null"
-    :is-saving="isSaving"
+    :unsaved-label="retained.unsaved.value ? 'deity' : null"
+    :is-saving="retained.isSaving.value"
     :error="genError"
     blank-to="/deities/new"
     blank-label="New Blank Deity"
     image-toggle-label="Generate a portrait"
     @generate="onGenerate"
-    @discard="unsaved = null"
+    @discard="retained.clear()"
   >
     <template #constraints>
       <div>
@@ -61,6 +61,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
+import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useDeityGeneration } from "@/ai/useDeityGeneration";
@@ -101,14 +102,15 @@ const pantheonOptions = computed(() =>
 );
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
-// A paid result whose save failed is kept (with the choices it was saved
-// under) so the retry costs nothing, even after upgrading from a quota wall.
-const unsaved = ref<{ result: Generated; pantheonId: string | null; alignment: string | null } | null>(null);
-const isSaving = ref(false);
+// The result is kept with the choices it was generated under, so a retry
+// after the form changed (or after upgrading from a quota wall) saves where
+// it was meant to.
+interface DeityDraft { result: Generated; pantheonId: string | null; alignment: string | null }
+const retained = useRetainedGeneration<DeityDraft>();
 
 async function onGenerate() {
-  if (unsaved.value) {
-    await save(unsaved.value.result, unsaved.value.pantheonId, unsaved.value.alignment);
+  if (retained.unsaved.value) {
+    await save(retained.unsaved.value);
     return;
   }
   await generateAndCreate();
@@ -136,42 +138,39 @@ async function generateAndCreate() {
   });
   if (!result) return;
 
-  await save(result, pantheon?.id ?? null, constraints.alignment || null);
+  await save({ result, pantheonId: pantheon?.id ?? null, alignment: constraints.alignment || null });
 }
 
-async function save(result: Generated, pantheonIdForRow: string | null, alignment: string | null) {
+async function save(draft: DeityDraft) {
+  const { result } = draft;
   // The generation is already paid for: a failed save keeps the result so the
   // DM can save it again without generating (and paying) twice.
-  isSaving.value = true;
-  let deity;
-  try {
-    deity = await createDeity({
-      name:              result.name,
-      titles:            result.titles,
-      alternate_names:   result.alternate_names,
-      pantheon_id:       pantheonIdForRow,
-      alignment:         result.alignment ?? alignment,
-      symbol:            result.symbol,
-      symbol_image_url:  null,
-      portrait_url:      result.portrait_url,
-      portrait_focal_point: result.portrait_url ? { x: 50, y: 50 } : null,
-      domains:           result.domains,
-      portfolio:         result.portfolio,
-      description:       result.description ? toTiptapJson(result.description) : null,
-      dm_notes:          result.dm_notes ? toTiptapJson(result.dm_notes) : null,
-      player_visible_to: [],
-      tags:              result.tags,
-      ai_provenance:     result.ai_provenance ?? null,
-    });
-  } catch (e) {
-    unsaved.value = { result, pantheonId: pantheonIdForRow, alignment };
-    if (gateQuotaError(e)) return;
-    toast.error(toast.fromError(e));
-    return;
-  } finally {
-    isSaving.value = false;
-  }
-  unsaved.value = null;
+  const deity = await retained.run(draft, async (d) => {
+    try {
+      return await createDeity({
+        name:              d.result.name,
+        titles:            d.result.titles,
+        alternate_names:   d.result.alternate_names,
+        pantheon_id:       d.pantheonId,
+        alignment:         d.result.alignment ?? d.alignment,
+        symbol:            d.result.symbol,
+        symbol_image_url:  null,
+        portrait_url:      d.result.portrait_url,
+        portrait_focal_point: d.result.portrait_url ? { x: 50, y: 50 } : null,
+        domains:           d.result.domains,
+        portfolio:         d.result.portfolio,
+        description:       d.result.description ? toTiptapJson(d.result.description) : null,
+        dm_notes:          d.result.dm_notes ? toTiptapJson(d.result.dm_notes) : null,
+        player_visible_to: [],
+        tags:              d.result.tags,
+        ai_provenance:     d.result.ai_provenance ?? null,
+      });
+    } catch (e) {
+      if (!gateQuotaError(e)) toast.error(toast.fromError(e));
+      return null;
+    }
+  });
+  if (!deity) return;
 
   // Log the portrait to the Gallery, linked back to the new deity.
   if (result.portrait_url) {

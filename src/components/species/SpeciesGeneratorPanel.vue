@@ -8,14 +8,14 @@
     :credits="textCreditCost"
     :byok="textIsByok"
     :is-generating="isGenerating"
-    :unsaved-label="unsaved ? 'species' : null"
-    :is-saving="isSaving"
+    :unsaved-label="retained.unsaved.value ? 'species' : null"
+    :is-saving="retained.isSaving.value"
     :error="genError"
     blank-to="/species/new"
     blank-label="New Blank Species"
     image-toggle-label="Generate species portrait"
     @generate="onGenerate"
-    @discard="unsaved = null"
+    @discard="retained.clear()"
   >
     <template #constraints>
       <div>
@@ -40,6 +40,7 @@ import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
+import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useSpeciesGeneration } from "@/ai/useSpeciesGeneration";
 import { SPECIES_SIZES } from "@/lib/codex/speciesAi";
@@ -64,17 +65,15 @@ const textCreditCost = computed(
 );
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
-// A paid result whose save failed is kept so the retry costs nothing.
-const unsaved = ref<Generated | null>(null);
-const isSaving = ref(false);
+const retained = useRetainedGeneration<Generated>();
 
 const concept = ref("");
 const size = ref<SpeciesSize | "">("");
 const generateImage = ref(true);
 
 async function onGenerate() {
-  if (unsaved.value) {
-    await save(unsaved.value);
+  if (retained.unsaved.value) {
+    await save(retained.unsaved.value);
     return;
   }
   await generateAndCreate();
@@ -97,18 +96,15 @@ async function generateAndCreate() {
 async function save(draft: Generated) {
   // The generation is already paid for: a failed save keeps the result so the
   // DM can save it again without generating (and paying) twice.
-  isSaving.value = true;
-  let species;
-  try {
-    species = await createSpecies(draft);
-  } catch (e) {
-    unsaved.value = draft;
-    toast.error(toast.fromError(e));
-    return;
-  } finally {
-    isSaving.value = false;
-  }
-  unsaved.value = null;
+  const species = await retained.run(draft, async (r) => {
+    try {
+      return await createSpecies(r);
+    } catch (e) {
+      toast.error(toast.fromError(e));
+      return null;
+    }
+  });
+  if (!species) return;
 
   completedEntityId.value = species.id;
   ui.speciesGeneratorOpen = false;

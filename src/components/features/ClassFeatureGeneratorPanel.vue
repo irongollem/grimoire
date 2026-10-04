@@ -7,13 +7,13 @@
     :credits="textCreditCost"
     :byok="textIsByok"
     :is-generating="isGenerating"
-    :unsaved-label="unsaved ? 'feature' : null"
-    :is-saving="isSaving"
+    :unsaved-label="retained.unsaved.value ? 'feature' : null"
+    :is-saving="retained.isSaving.value"
     :error="genError"
     blank-to="/features/new"
     blank-label="New Blank Ability"
     @generate="onGenerate"
-    @discard="unsaved = null"
+    @discard="retained.clear()"
   >
     <template #constraints>
       <div>
@@ -43,6 +43,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
+import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useClassFeatureGeneration } from "@/ai/useClassFeatureGeneration";
 import { FEATURE_TYPES, FEATURE_TYPE_LABELS, type FeatureType } from "@/types/feature.types";
@@ -66,17 +67,15 @@ const textCreditCost = computed(
 );
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
-// A paid result whose save failed is kept so the retry costs nothing.
-const unsaved = ref<Generated | null>(null);
-const isSaving = ref(false);
+const retained = useRetainedGeneration<Generated>();
 
 const concept = ref("");
 const featureType = ref<FeatureType | "">("");
 const forWhom = ref("");
 
 async function onGenerate() {
-  if (unsaved.value) {
-    await save(unsaved.value);
+  if (retained.unsaved.value) {
+    await save(retained.unsaved.value);
     return;
   }
   await generateAndCreate();
@@ -99,18 +98,15 @@ async function generateAndCreate() {
 async function save(draft: Generated) {
   // The generation is already paid for: a failed save keeps the result so the
   // DM can save it again without generating (and paying) twice.
-  isSaving.value = true;
-  let feature;
-  try {
-    feature = await createFeature(draft);
-  } catch (e) {
-    unsaved.value = draft;
-    toast.error(toast.fromError(e));
-    return;
-  } finally {
-    isSaving.value = false;
-  }
-  unsaved.value = null;
+  const feature = await retained.run(draft, async (r) => {
+    try {
+      return await createFeature(r);
+    } catch (e) {
+      toast.error(toast.fromError(e));
+      return null;
+    }
+  });
+  if (!feature) return;
 
   completedEntityId.value = feature.id;
   ui.classFeatureGeneratorOpen = false;

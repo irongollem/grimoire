@@ -7,13 +7,13 @@
     :credits="textCreditCost"
     :byok="textIsByok"
     :is-generating="isGenerating"
-    :unsaved-label="unsaved ? 'rule' : null"
-    :is-saving="isSaving"
+    :unsaved-label="retained.unsaved.value ? 'rule' : null"
+    :is-saving="retained.isSaving.value"
     :error="genError"
     blank-to="/rules/new"
     blank-label="New Blank Rule"
     @generate="onGenerate"
-    @discard="unsaved = null"
+    @discard="retained.clear()"
   >
     <template #constraints>
       <div>
@@ -43,6 +43,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
+import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useCustomRuleGeneration } from "@/ai/useCustomRuleGeneration";
 import { RULE_CATEGORIES } from "@/types/rule.types";
@@ -66,16 +67,14 @@ const textCreditCost = computed(
 );
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
-// A paid result whose save failed is kept so the retry costs nothing.
-const unsaved = ref<Generated | null>(null);
-const isSaving = ref(false);
+const retained = useRetainedGeneration<Generated>();
 
 const concept = ref("");
 const constraints = reactive({ category: "", allowTracker: true });
 
 async function onGenerate() {
-  if (unsaved.value) {
-    await save(unsaved.value);
+  if (retained.unsaved.value) {
+    await save(retained.unsaved.value);
     return;
   }
   await generateAndCreate();
@@ -98,26 +97,23 @@ async function generateAndCreate() {
 async function save(result: Generated) {
   // The generation is already paid for: a failed save keeps the result so the
   // DM can save it again without generating (and paying) twice.
-  isSaving.value = true;
-  let rule;
-  try {
-    rule = await createRule({
-      title: result.title,
-      category: result.category,
-      content: result.content,
-      tags: result.tags,
-      is_player_visible: false,
-      tracker: result.tracker,
-      ai_provenance: result.ai_provenance,
-    });
-  } catch (e) {
-    unsaved.value = result;
-    toast.error(toast.fromError(e));
-    return;
-  } finally {
-    isSaving.value = false;
-  }
-  unsaved.value = null;
+  const rule = await retained.run(result, async (r) => {
+    try {
+      return await createRule({
+        title: r.title,
+        category: r.category,
+        content: r.content,
+        tags: r.tags,
+        is_player_visible: false,
+        tracker: r.tracker,
+        ai_provenance: r.ai_provenance,
+      });
+    } catch (e) {
+      toast.error(toast.fromError(e));
+      return null;
+    }
+  });
+  if (!rule) return;
 
   completedEntityId.value = rule.id;
   ui.customRuleGeneratorOpen = false;

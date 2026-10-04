@@ -8,14 +8,14 @@
     :credits="effectiveCreditCost"
     :byok="fullyByok"
     :is-generating="isGenerating"
-    :unsaved-label="unsaved ? 'feature' : null"
-    :is-saving="isSaving"
+    :unsaved-label="retained.unsaved.value ? 'feature' : null"
+    :is-saving="retained.isSaving.value"
     :error="genError"
     blank-to="/dungeon-features/new"
     blank-label="New Blank Feature"
     image-toggle-label="Generate an illustration"
     @generate="onGenerate"
-    @discard="unsaved = null"
+    @discard="retained.clear()"
   >
     <template #constraints>
       <div class="grid grid-cols-2 gap-2">
@@ -50,6 +50,7 @@ import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
+import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useDungeonFeatureGeneration } from "@/ai/useDungeonFeatureGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
@@ -91,17 +92,15 @@ const effectiveCreditCost = computed(() => {
 });
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
-// A paid result whose save failed is kept so the retry costs nothing.
-const unsaved = ref<Generated | null>(null);
-const isSaving = ref(false);
+const retained = useRetainedGeneration<Generated>();
 
 function prose(text: string | null): string | null {
   return text ? toTiptapJson(text) : null;
 }
 
 async function onGenerate() {
-  if (unsaved.value) {
-    await save(unsaved.value);
+  if (retained.unsaved.value) {
+    await save(retained.unsaved.value);
     return;
   }
   await generateAndCreate();
@@ -126,37 +125,34 @@ async function generateAndCreate() {
 async function save(result: Generated) {
   // The generation is already paid for: a failed save keeps the result so the
   // DM can save it again without generating (and paying) twice.
-  isSaving.value = true;
-  let feature;
-  try {
-    feature = await createFeature({
-      // Scoped to the campaign it was generated for; widened from the editor's
-      // Scope control if the DM wants it everywhere.
-      campaign_id:          campaign.activeCampaignId,
-      name:                 result.name,
-      feature_type:         result.feature_type,
-      description:          prose(result.description),
-      perception_dc:        result.perception_dc,
-      investigation_dc:     result.investigation_dc,
-      arcana_dc:            result.arcana_dc,
-      trigger_type:         result.trigger_type,
-      trigger_description:  result.trigger_description,
-      feature_glyph:        result.feature_glyph,
-      contents_description: prose(result.contents_description),
-      image_url:            result.image_url,
-      image_focal_point:    null,
-      tags:                 result.tags,
-      notes:                prose(result.notes),
-      ai_provenance:        result.ai_provenance ?? null,
-    });
-  } catch (e) {
-    unsaved.value = result;
-    toast.error(toast.fromError(e));
-    return;
-  } finally {
-    isSaving.value = false;
-  }
-  unsaved.value = null;
+  const feature = await retained.run(result, async (r) => {
+    try {
+      return await createFeature({
+        // Scoped to the campaign it was generated for; widened from the editor's
+        // Scope control if the DM wants it everywhere.
+        campaign_id:          campaign.activeCampaignId,
+        name:                 r.name,
+        feature_type:         r.feature_type,
+        description:          prose(r.description),
+        perception_dc:        r.perception_dc,
+        investigation_dc:     r.investigation_dc,
+        arcana_dc:            r.arcana_dc,
+        trigger_type:         r.trigger_type,
+        trigger_description:  r.trigger_description,
+        feature_glyph:        r.feature_glyph,
+        contents_description: prose(r.contents_description),
+        image_url:            r.image_url,
+        image_focal_point:    null,
+        tags:                 r.tags,
+        notes:                prose(r.notes),
+        ai_provenance:        r.ai_provenance ?? null,
+      });
+    } catch (e) {
+      toast.error(toast.fromError(e));
+      return null;
+    }
+  });
+  if (!feature) return;
 
   // Log the generated illustration to the Gallery, linked back to the feature.
   if (result.image_url) {

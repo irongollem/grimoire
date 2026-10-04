@@ -122,6 +122,23 @@ describe("GeneratorPanelShell", () => {
       expect(w.emitted("discard")).toHaveLength(1);
     });
 
+    it("keeps Save again and Discard when AI is switched off, and never offers Generate", async () => {
+      campaignState.isAiEnabled = false;
+      const w = mountShell({ unsavedLabel: "feature" });
+      expect(w.findComponent(AiOffNotice).exists()).toBe(false);
+      expect(w.text()).toContain("could not be saved");
+      await saveButton(w)!.trigger("click");
+      expect(w.emitted("generate")).toHaveLength(1);
+      expect(w.findAll("button").find((b) => b.text() === "Discard")).toBeTruthy();
+    });
+
+    it("still shows the AI-off notice, not a Generate button, when nothing is unsaved", () => {
+      campaignState.isAiEnabled = false;
+      const w = mountShell();
+      expect(w.findComponent(AiOffNotice).exists()).toBe(true);
+      expect(saveButton(w)).toBeFalsy();
+    });
+
     it("shows no notice when there is nothing unsaved", () => {
       expect(mountShell().text()).not.toContain("could not be saved");
     });

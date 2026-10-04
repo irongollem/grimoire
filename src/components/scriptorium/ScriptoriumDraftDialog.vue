@@ -56,18 +56,41 @@
 
       <p v-if="genError" class="text-body text-destructive">{{ genError }}</p>
       <p v-if="createError" class="text-body text-destructive">{{ createError }}</p>
+
+      <!-- A paid draft whose save failed: keep it, offer a save-only retry -->
+      <div
+        v-if="retained.unsaved.value"
+        class="space-y-1 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2"
+        role="alert"
+      >
+        <p class="text-caption text-destructive">
+          The generated draft could not be saved. Save it again, or discard it and generate a new one.
+        </p>
+        <AppButton variant="ghost" size="inline-caption" class="underline underline-offset-2" label="Discard" @click="retained.clear()" />
+      </div>
     </div>
 
     <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border px-5 py-4">
       <GenerationCostBadge
-        v-if="campaign.isAiEnabled"
+        v-if="campaign.isAiEnabled && !retained.unsaved.value"
         :credits="textCreditCost"
         :byok="textIsByok"
         class="me-auto"
       />
       <AppButton variant="subtle" size="md" label="Cancel" :disabled="busy" @click="close" />
+      <!-- Saving a paid draft costs nothing and needs no AI: it survives AI being switched off. -->
       <AppButton
-        v-if="campaign.isAiEnabled"
+        v-if="retained.unsaved.value"
+        variant="primary"
+        size="md"
+        :icon="IconGenerate"
+        :loading="retained.isSaving.value"
+        :disabled="retained.isSaving.value"
+        label="Save again"
+        @click="saveRetained"
+      />
+      <AppButton
+        v-else-if="campaign.isAiEnabled"
         variant="primary"
         size="md"
         :icon="IconGenerate"
@@ -98,6 +121,7 @@ import { IconGenerate } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
+import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllFactions } from "@/composables/factions/useFactions";
@@ -119,6 +143,9 @@ const campaign = useCampaignStore();
 const { isGenerating, error: genError, generate } = useScriptoriumDraft();
 const { mutateAsync: createDocument } = useCreateScriptoriumDocument();
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("scriptorium_documents");
+type Draft = NonNullable<Awaited<ReturnType<typeof generate>>>;
+// A paid draft whose save failed is kept so the retry costs nothing.
+const retained = useRetainedGeneration<Draft>();
 
 // Mounted app-wide in AiGeneratorPanels: fetch the pickers only while open.
 const whenOpen = () => open;
@@ -222,33 +249,44 @@ async function generateAndCreate() {
     prompt: steer.value,
   });
   if (!draft) return;
+  await save(draft);
+}
 
-  let created;
-  try {
-    const { content, furniture } = htmlToScriptoriumJson(draft.html);
-    created = await createDocument({
-      title: draft.title,
-      content: JSON.stringify(content),
-      doc_type: "custom",
-      campaign_id: campaign.activeCampaignId,
-      tags: [],
-      is_published: false,
-      is_two_column: false,
-      theme: "onednd2024",
-      page_size: "A4",
-      ink_friendly: false,
-      word_count: wordCountOf(draft.html),
-      show_page_numbers: false,
-      footer_text: "",
-      page_number_start: 1,
-      page_furniture: furniture,
-      ai_provenance: draft.ai_provenance,
-    });
-  } catch (e) {
-    if (gateQuotaError(e)) return;
-    createError.value = e instanceof Error ? e.message : "The draft could not be saved.";
-    return;
-  }
+async function saveRetained() {
+  if (retained.unsaved.value) await save(retained.unsaved.value);
+}
+
+async function save(draft: Draft) {
+  createError.value = "";
+  // The draft is already paid for: a failed save keeps it so the DM can save
+  // it again without generating (and paying) twice.
+  const created = await retained.run(draft, async (d) => {
+    try {
+      const { content, furniture } = htmlToScriptoriumJson(d.html);
+      return await createDocument({
+        title: d.title,
+        content: JSON.stringify(content),
+        doc_type: "custom",
+        campaign_id: campaign.activeCampaignId,
+        tags: [],
+        is_published: false,
+        is_two_column: false,
+        theme: "onednd2024",
+        page_size: "A4",
+        ink_friendly: false,
+        word_count: wordCountOf(d.html),
+        show_page_numbers: false,
+        footer_text: "",
+        page_number_start: 1,
+        page_furniture: furniture,
+        ai_provenance: d.ai_provenance,
+      });
+    } catch (e) {
+      if (!gateQuotaError(e)) createError.value = e instanceof Error ? e.message : "The draft could not be saved.";
+      return null;
+    }
+  });
+  if (!created) return;
 
   steer.value = "";
   emit("close");
