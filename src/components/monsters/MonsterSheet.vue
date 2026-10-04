@@ -142,7 +142,7 @@ import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import { useEncountersByMonster } from "@/composables/encounters/useEncounters";
-import { useLibraryMonsterDescription } from "@/composables/monsters/useMonsters";
+import { useMonsterDescription } from "@/composables/monsters/useMonsterDescription";
 import { useMonsterLootTables } from "@/composables/dungeon-features/useLootTables";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { placeRoute } from "@/lib/locations/placeRoute";
@@ -151,14 +151,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ monster: Monster }>();
 
-// A library row is read without its lore (LIBRARY_MONSTER_COLUMNS in
-// useMonsters), so the sheet fetches it for the one creature on screen.
-const { data: libraryDescription } = useLibraryMonsterDescription(
-  () => (props.monster.is_shared ? props.monster.id : null),
-);
-const description = computed(() =>
-  props.monster.is_shared ? libraryDescription.value : props.monster.description,
-);
+const description = useMonsterDescription(() => props.monster);
 
 const featuredIn = useEncountersByMonster(computed(() => props.monster.id));
 const lootTables = useMonsterLootTables(computed(() => props.monster.id));

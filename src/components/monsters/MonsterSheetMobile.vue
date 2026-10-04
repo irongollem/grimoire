@@ -181,16 +181,16 @@
       <!-- 5. Accordion sections -->
       <NpcAccordionSection v-model:open="openSections.lore" title="Lore">
         <div class="flex flex-col gap-4">
-          <div v-if="monster.description" class="flex flex-col gap-1">
+          <div v-if="description" class="flex flex-col gap-1">
             <h3 class="text-label-lg font-bold uppercase text-primary">Description</h3>
-            <RichTextViewer :content="monster.description" />
+            <RichTextViewer :content="description" />
           </div>
           <div v-if="monster.notes" class="flex flex-col gap-1">
             <h3 class="text-label-lg font-bold uppercase text-muted-foreground">DM Notes</h3>
             <RichTextViewer :content="monster.notes" />
           </div>
           <p
-            v-if="!monster.description && !monster.notes"
+            v-if="!description && !monster.notes"
             class="text-body italic text-muted-foreground"
           >
             No lore recorded for this monster.
@@ -310,6 +310,7 @@ import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import { IconCopy, IconDelete, IconEdit, IconLocation, IconReveal, IconScrollText } from "@/lib/icons";
 import { useCloneLibraryMonster, useDeleteMonster } from "@/composables/monsters/useMonsters";
+import { useMonsterDescription } from "@/composables/monsters/useMonsterDescription";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { useMonsterVisibility } from "@/composables/monsters/useMonsterVisibility";
@@ -318,6 +319,8 @@ import type { Monster } from "@/types/monster.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { monster } = defineProps<{ monster: Monster }>();
+
+const description = useMonsterDescription(() => monster);
 
 const router = useRouter();
 
