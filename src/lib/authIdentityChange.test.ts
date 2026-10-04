@@ -7,6 +7,25 @@ describe("createIdentityChangeGate", () => {
     expect(changed("dm-1")).toBe(true);
   });
 
+  it("does not report the page's first INITIAL_SESSION: a cold load has no cache of another identity", () => {
+    const changed = createIdentityChangeGate();
+    expect(changed("dm-1", "INITIAL_SESSION")).toBe(false);
+    // The same session re-announced stays quiet, a different account does not.
+    expect(changed("dm-1", "SIGNED_IN")).toBe(false);
+    expect(changed("dm-2", "SIGNED_IN")).toBe(true);
+  });
+
+  it("still reports a first sighting that arrives as SIGNED_IN", () => {
+    const changed = createIdentityChangeGate();
+    expect(changed("dm-1", "SIGNED_IN")).toBe(true);
+  });
+
+  it("reports a sign-in after a signed-out INITIAL_SESSION", () => {
+    const changed = createIdentityChangeGate();
+    expect(changed(null, "INITIAL_SESSION")).toBe(false);
+    expect(changed("dm-1", "SIGNED_IN")).toBe(true);
+  });
+
   it("stays quiet while auth-js re-announces the same session", () => {
     const changed = createIdentityChangeGate();
     changed("dm-1");

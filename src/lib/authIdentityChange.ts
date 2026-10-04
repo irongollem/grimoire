@@ -24,15 +24,34 @@
  * for nothing.
  */
 
-/** Tracks the last identity seen, so repeats of the same one are not changes. */
-export function createIdentityChangeGate(): (userId: string | null) => boolean {
+/**
+ * Tracks the last identity seen, so repeats of the same one are not changes.
+ *
+ * `event` is auth-js's event name. The one case it matters: the page's first
+ * `INITIAL_SESSION` is not a change even though it is a first sighting. A cold
+ * load has nothing cached that could belong to anyone else, because nothing
+ * can query before it arrives: auth-js emits it while `getSession()` is still
+ * resolving, every router navigation awaits `auth.initialize()` (which awaits
+ * that same `getSession()`) before it or any component reads anything, and the
+ * app mounts only after the first navigation. The only entries in the cache at
+ * that moment are the static library lists restored from disk, which are not
+ * identity-scoped. Resetting there cancelled the boot's own in-flight reads
+ * and sent each of them twice. A first sighting under any other event
+ * (`SIGNED_IN`, say) still counts as a change, as does every later switch.
+ */
+export function createIdentityChangeGate(): (
+  userId: string | null,
+  event?: string,
+) => boolean {
   // `undefined` = nothing seen yet, which is different from "signed out"
   // (`null`): the first event of a session must be able to count as a change.
   let seen: string | null | undefined = undefined;
 
-  return (userId: string | null): boolean => {
+  return (userId: string | null, event?: string): boolean => {
+    const firstSighting = seen === undefined;
     const changed = seen !== userId;
     seen = userId;
+    if (firstSighting && event === "INITIAL_SESSION") return false;
     // Signing OUT is not a reason to refetch: the router sends the user to
     // /login, and the cache is about to belong to nobody. Signing IN, or
     // switching accounts, is. A first sighting is a change by construction,

@@ -129,7 +129,9 @@ import AppButton from "@/components/common/AppButton.vue";
 // alive across navigation is unchanged. Do NOT convert this to a `v-if` on the
 // open flag: generateAndCreate() lives in the panel component, so unmounting a
 // dismissed panel would strand an in-flight generation before it creates the
-// entity.
+// entity. (Inside the wrapper each panel mounts on its first open and then
+// stays: a latch, never a mirror, so the guarantee holds and a closed panel's
+// credit, provider and party reads stay off the boot.)
 const AiGeneratorPanels = defineAsyncComponent(
   () => import("@/components/common/AiGeneratorPanels.vue"),
 );

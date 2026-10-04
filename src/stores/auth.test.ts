@@ -287,10 +287,48 @@ describe("auth listener reloads", () => {
     expect(reads.n).toBe(0);
   });
 
-  it("reloads on SIGNED_IN", async () => {
+  it("does not reload on a same-user SIGNED_IN or TOKEN_REFRESHED right after boot", async () => {
     const { reads } = await bootAndCount();
     authState.listener?.("SIGNED_IN", authState.session);
+    authState.listener?.("TOKEN_REFRESHED", authState.session);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(reads.n).toBe(0);
+  });
+
+  it("reloads on SIGNED_IN once the last load is no longer fresh", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { reads } = await bootAndCount();
+      vi.setSystemTime(Date.now() + 60_000);
+      authState.listener?.("SIGNED_IN", authState.session);
+      await vi.waitFor(() => expect(reads.n).toBe(1));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reloads on SIGNED_IN for a different user", async () => {
+    const { reads } = await bootAndCount();
+    authState.listener?.("SIGNED_IN", { user: { id: "u2" } });
     await vi.waitFor(() => expect(reads.n).toBe(1));
+  });
+
+  it("retries on a same-user event when the first child-link load failed", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    signedIn();
+    const reads = { n: 0 };
+    childAccountsTable.resolve = async () => {
+      reads.n++;
+      return reads.n === 1 ? { data: null, error: new Error("offline") } : { data: null, error: null };
+    };
+    const auth = useAuthStore();
+    await auth.initialize();
+    expect(auth.childLinkLoaded).toBe(false);
+
+    authState.listener?.("TOKEN_REFRESHED", authState.session);
+    await vi.waitFor(() => expect(auth.childLinkLoaded).toBe(true));
+    expect(reads.n).toBe(2);
+    errorSpy.mockRestore();
   });
 });
 

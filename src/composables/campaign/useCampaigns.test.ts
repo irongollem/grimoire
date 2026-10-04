@@ -30,7 +30,15 @@ vi.mock("@/lib/supabase", () => ({
 }));
 vi.mock("@/lib/analytics", () => ({ track: () => {} }));
 
-import { fetchCampaignsAs } from "./useCampaigns";
+import { defineComponent, h } from "vue";
+import { mount, flushPromises } from "@vue/test-utils";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+import {
+  fetchCampaignsAs,
+  useAllDmCampaigns,
+  useDmArchivedCampaigns,
+  useDmCampaigns,
+} from "./useCampaigns";
 
 describe("fetchCampaignsAs", () => {
   beforeEach(() => {
@@ -76,5 +84,45 @@ describe("fetchCampaignsAs", () => {
 
     expect(await fetchCampaignsAs("dm", false)).toEqual([]);
     expect(calls.select).toBe("");
+  });
+});
+
+describe("the DM campaign lists share one request", () => {
+  it("serves the active, archived and all views from a single fetch", async () => {
+    currentUser = { id: "me" };
+    rows = [
+      { id: "a", name: "Open", is_archived: false, campaign_members: [] },
+      { id: "b", name: "Shelved", is_archived: true, campaign_members: [] },
+    ];
+    let fetches = 0;
+    const original = calls.filters;
+    calls.filters = new Proxy(original, {
+      get(target, prop, receiver) {
+        if (prop === "push") fetches += 1;
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    let views: { active: unknown; archived: unknown; all: unknown } | null = null;
+    const Probe = defineComponent({
+      setup() {
+        const active = useDmCampaigns();
+        const archived = useDmArchivedCampaigns();
+        const all = useAllDmCampaigns();
+        views = { active: active.data, archived: archived.data, all: all.data };
+        return () => h("div");
+      },
+    });
+    mount(Probe, {
+      global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    });
+    await flushPromises();
+
+    // Each fetch records its two role filters (user and role); three fetches would record six.
+    expect(fetches).toBe(2);
+    const read = (ref: unknown) => (ref as { value: { id: string }[] }).value.map((c) => c.id);
+    expect(read(views!.active)).toEqual(["a"]);
+    expect(read(views!.archived)).toEqual(["b"]);
+    expect(read(views!.all)).toEqual(["a", "b"]);
+    calls.filters = original;
   });
 });

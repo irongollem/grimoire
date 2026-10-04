@@ -37,7 +37,7 @@ const PAID_MARKERS = [
  */
 const EXEMPT = new Map<string, string>([
   [
-    "components/billing/OutOfCreditsModal.vue",
+    "components/billing/OutOfCreditsDialog.vue",
     "It reads the credit balance to say what is short, but it is the step before a purchase: " +
       "nothing has been generated or paid for yet, so dismissing it loses nothing.",
   ],

@@ -146,15 +146,21 @@ supabase.auth.onAuthStateChange((event) => {
 // the whole app on each of those would be a storm for nothing. Deferred by a
 // tick for the same reason as the handler above: this runs inside the auth lock.
 const identityChanged = createIdentityChangeGate();
-supabase.auth.onAuthStateChange((_event, session) => {
+// Pruning is not tied to the cache reset: the reset is skipped on a cold
+// load's INITIAL_SESSION (see the gate), but another account's library copy
+// and week-old records must still leave the device once per user seen.
+let prunedFor: string | null = null;
+supabase.auth.onAuthStateChange((event, session) => {
   const userId = session?.user?.id ?? null;
   // Before the gate, which answers false for a null user: signing out must empty
   // the disk copy so the next account on this device never sees it.
   if (userId === null) setTimeout(() => void persistence.clear(), 0);
-  if (!identityChanged(userId) || userId === null) return;
+  if (userId !== null && userId !== prunedFor) {
+    prunedFor = userId;
+    setTimeout(() => void persistence.prune(userId), 0);
+  }
+  if (!identityChanged(userId, event) || userId === null) return;
   setTimeout(() => {
-    // Another account's library copy and week-old records leave the device when someone new signs in.
-    void persistence.prune(userId);
     // Cancel before invalidating: a read that left anonymously a moment ago is
     // still in flight, and left alone it resolves AFTER the refetch and writes
     // its empty answer over the real one — the same wrong screen by a shorter

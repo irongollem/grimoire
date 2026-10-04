@@ -132,20 +132,22 @@ export const useAuthStore = defineStore("auth", () => {
     clearAuthSnapshot();
   }
 
-  async function loadUsername(userId: string) {
+  /** Resolves true only when the read answered; a failed or stale one is false. */
+  async function loadUsername(userId: string): Promise<boolean> {
     const { data, error } = await supabase
       .from("profiles")
       .select("username")
       .eq("user_id", userId)
       .single();
-    if (answersAnotherAccount(userId)) return;
+    if (answersAnotherAccount(userId)) return false;
     // A failed read must not read as "no username": the boot now revalidates a
     // snapshot in the background, and an offline failure would blank a good value.
     if (error) {
       console.error("Failed to load username:", error);
-      return;
+      return false;
     }
     username.value = data?.username ?? null;
+    return true;
   }
 
   /**
@@ -159,22 +161,23 @@ export const useAuthStore = defineStore("auth", () => {
    * errors into a null default, made explicit here because "leave it alone"
    * needs a comment where "default to null" does not.
    */
-  async function loadChildLink(userId: string) {
+  async function loadChildLink(userId: string): Promise<boolean> {
     const { data, error } = await supabase
       .from("child_accounts")
       .select(CHILD_ACCOUNT_COLUMNS)
       .eq("child_user_id", userId)
       .maybeSingle();
-    if (answersAnotherAccount(userId)) return;
+    if (answersAnotherAccount(userId)) return false;
     if (error) {
       console.error("Failed to load child-account link:", error);
-      return;
+      return false;
     }
     childLink.value = data as ChildAccountLink | null;
     childLinkLoaded.value = true;
+    return true;
   }
 
-  async function loadMembership(userId: string, campaignId?: string) {
+  async function loadMembership(userId: string, campaignId?: string): Promise<boolean> {
     let query = supabase
       .from("campaign_members")
       .select("*")
@@ -187,7 +190,7 @@ export const useAuthStore = defineStore("auth", () => {
     }
 
     const { data, error } = await query.maybeSingle();
-    if (answersAnotherAccount(userId)) return;
+    if (answersAnotherAccount(userId)) return false;
     // Same as loadUsername: an error leaves the current value alone, and skips
     // the display-name backfill below (there is no row to backfill). But only a
     // value that answers THIS question may stay. After a campaign switch the
@@ -200,7 +203,7 @@ export const useAuthStore = defineStore("auth", () => {
       if (campaignId && membership.value && membership.value.campaign_id !== campaignId) {
         membership.value = null;
       }
-      return;
+      return false;
     }
     membership.value = data ?? null;
 
@@ -229,6 +232,41 @@ export const useAuthStore = defineStore("auth", () => {
         .eq("id", data.id);
       membership.value = { ...data, display_name: fallback };
     }
+    return true;
+  }
+
+  /**
+   * The identity trio most recently requested, and when. A sign-in or boot that
+   * has just loaded it makes the SIGNED_IN / TOKEN_REFRESHED that follows a few
+   * milliseconds later redundant (auth-js emits one right after getSession()
+   * and after signInWithPassword), so the listener asks `identityIsFresh`
+   * before reloading. Any failed read clears the record, which is what keeps
+   * this fail-closed: an identity that did not fully load is never "fresh", so
+   * the next event retries it, and `childLinkLoaded` stays false until it does.
+   */
+  let identityLoad: { userId: string; at: number } | null = null;
+  // Long enough to cover the events a sign-in or boot emits, short enough that
+  // returning to a tab after being away still re-reads a membership that
+  // changed in the meantime.
+  const IDENTITY_FRESH_MS = 30_000;
+
+  function identityIsFresh(userId: string): boolean {
+    return (
+      identityLoad !== null &&
+      identityLoad.userId === userId &&
+      Date.now() - identityLoad.at < IDENTITY_FRESH_MS
+    );
+  }
+
+  async function loadIdentity(userId: string, campaignId?: string): Promise<void> {
+    const load = { userId, at: Date.now() };
+    identityLoad = load;
+    const results = await Promise.all([
+      loadMembership(userId, campaignId),
+      loadUsername(userId),
+      loadChildLink(userId),
+    ]);
+    if (!results.every(Boolean) && identityLoad === load) identityLoad = null;
   }
 
   // Persist the identity facts for the next boot (see authSnapshot.ts). Watched
@@ -282,12 +320,6 @@ export const useAuthStore = defineStore("auth", () => {
           const storedCampaignId =
             localStorage.getItem("grimoire_active_campaign") ?? undefined;
           const userId = user.value.id;
-          const loadIdentity = () =>
-            Promise.all([
-              loadMembership(userId, storedCampaignId),
-              loadUsername(userId),
-              loadChildLink(userId),
-            ]);
           const snapshot = readAuthSnapshot(userId, storedCampaignId);
           if (snapshot) {
             // The network used to be the first thing the app waited on for
@@ -298,11 +330,11 @@ export const useAuthStore = defineStore("auth", () => {
             username.value = snapshot.username;
             childLink.value = snapshot.childLink;
             childLinkLoaded.value = snapshot.childLinkLoaded;
-            void loadIdentity().catch((err: unknown) => {
+            void loadIdentity(userId, storedCampaignId).catch((err: unknown) => {
               console.error("Failed to revalidate identity:", err);
             });
           } else {
-            await loadIdentity();
+            await loadIdentity(userId, storedCampaignId);
           }
         } else {
           // A session that ended without a SIGNED_OUT event (expired while the
@@ -336,18 +368,26 @@ export const useAuthStore = defineStore("auth", () => {
           // loaded (or is still revalidating), so reloading here doubles the
           // boot's identity reads for nothing. SIGNED_IN (re-emitted on tab
           // focus) and TOKEN_REFRESHED still reload: the app leans on them to
-          // notice a membership that changed while it was away.
+          // notice a membership that changed while it was away. They do not
+          // reload when the same account's trio was requested moments ago and
+          // every read of it succeeded (`identityIsFresh`): that is the
+          // duplicate a boot or sign-in emits about itself.
           if (user.value && event === "INITIAL_SESSION") return;
           if (user.value) {
             const userId = user.value.id;
+            if (
+              (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") &&
+              identityIsFresh(userId)
+            ) {
+              return;
+            }
             setTimeout(() => {
               const storedCampaignId =
                 localStorage.getItem("grimoire_active_campaign") ?? undefined;
-              void loadMembership(userId, storedCampaignId);
-              void loadUsername(userId);
-              void loadChildLink(userId);
+              void loadIdentity(userId, storedCampaignId);
             }, 0);
           } else {
+            identityLoad = null;
             membership.value = null;
             username.value = null;
             childLink.value = null;
@@ -402,11 +442,7 @@ export const useAuthStore = defineStore("auth", () => {
         setCachedUser(data.user);
         const storedCampaignId =
           localStorage.getItem("grimoire_active_campaign") ?? undefined;
-        await Promise.all([
-          loadMembership(data.user.id, storedCampaignId),
-          loadUsername(data.user.id),
-          loadChildLink(data.user.id),
-        ]);
+        await loadIdentity(data.user.id, storedCampaignId);
       }
     } finally {
       loading.value = false;

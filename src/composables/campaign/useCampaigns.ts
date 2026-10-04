@@ -250,29 +250,39 @@ async function claimOrphanedData(campaignId: string): Promise<void> {
   );
 }
 
+/**
+ * One request for everything this account DMs. The active list, the archived
+ * list and the quota-facing "all" list are the same rows split on `is_archived`,
+ * so they share this query and each hook is a `select` view of it. Three
+ * separate keys sent three requests per cold load for rows one already holds.
+ */
+const DM_CAMPAIGNS_KEY = [QUERY_KEY, "as", "dm"] as const;
+
+function useDmCampaignRows<T>(
+  select: (campaigns: Campaign[]) => T,
+  enabled: MaybeRefOrGetter<boolean> = true,
+) {
+  return useQuery({
+    queryKey: DM_CAMPAIGNS_KEY,
+    queryFn: () => fetchCampaignsAs("dm", null),
+    select,
+    enabled: () => toValue(enabled),
+  });
+}
+
 /** Active campaigns this account DMs — the list every DM surface works from. */
 export function useDmCampaigns() {
-  return useQuery({
-    queryKey: [QUERY_KEY, "as", "dm"] as const,
-    queryFn: () => fetchCampaignsAs("dm", false),
-  });
+  return useDmCampaignRows((campaigns) => campaigns.filter((c) => !c.is_archived));
 }
 
 /** Archived campaigns this account DMs. */
 export function useDmArchivedCampaigns() {
-  return useQuery({
-    queryKey: [QUERY_KEY, "as", "dm", "archived"] as const,
-    queryFn: () => fetchCampaignsAs("dm", true),
-  });
+  return useDmCampaignRows((campaigns) => campaigns.filter((c) => c.is_archived));
 }
 
 /** Every campaign this account DMs, archived or not — the quota-facing list. */
 export function useAllDmCampaigns({ enabled = true }: { enabled?: MaybeRefOrGetter<boolean> } = {}) {
-  return useQuery({
-    queryKey: [QUERY_KEY, "as", "dm", "all"] as const,
-    queryFn: () => fetchCampaignsAs("dm", null),
-    enabled: () => toValue(enabled),
-  });
+  return useDmCampaignRows((campaigns) => campaigns, enabled);
 }
 
 /** Active campaigns this account plays in — never one it DMs. */
