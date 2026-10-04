@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/supabase", () => ({ supabase: {} }));
+const inMock = vi.fn();
+const fromMock = vi.fn();
+vi.mock("@/lib/supabase", () => ({ supabase: { from: (...args: unknown[]) => fromMock(...args) } }));
 
 import {
   approvalOptions,
+  fetchReviewsForCharacters,
+  pendingCountByCharacter,
   contentKindLabel,
   isApprovalWait,
   isChangedSinceSeen,
@@ -127,5 +131,44 @@ describe("contentKindLabel", () => {
   it("names each kind of choice", () => {
     expect(contentKindLabel("species")).toBe("Species");
     expect(contentKindLabel("feat")).toBe("Feat");
+  });
+});
+
+describe("fetchReviewsForCharacters", () => {
+  it("sends nothing for an empty list", async () => {
+    fromMock.mockClear();
+    expect(await fetchReviewsForCharacters([])).toEqual([]);
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it("reads every character in one request", async () => {
+    fromMock.mockClear();
+    inMock.mockReset();
+    const rows = [review({ id: "a" })];
+    inMock.mockReturnValue({ order: () => Promise.resolve({ data: rows, error: null }) });
+    fromMock.mockReturnValue({ select: () => ({ in: inMock }) });
+    expect(await fetchReviewsForCharacters(["pm1", "pm2", "pm3"])).toEqual(rows);
+    expect(fromMock).toHaveBeenCalledTimes(1);
+    expect(inMock).toHaveBeenCalledWith("party_member_id", ["pm1", "pm2", "pm3"]);
+  });
+
+  it("throws the database error", async () => {
+    const error = new Error("boom");
+    fromMock.mockReturnValue({ select: () => ({ in: () => ({ order: () => Promise.resolve({ data: null, error }) }) }) });
+    await expect(fetchReviewsForCharacters(["pm1"])).rejects.toBe(error);
+  });
+});
+
+describe("pendingCountByCharacter", () => {
+  it("counts only pending flags, per character", () => {
+    const counts = pendingCountByCharacter([
+      review({ id: "a", party_member_id: "pm1" }),
+      review({ id: "b", party_member_id: "pm1" }),
+      review({ id: "c", party_member_id: "pm2", status: "approved" }),
+      review({ id: "d", party_member_id: "pm3" }),
+    ]);
+    expect(counts.get("pm1")).toBe(2);
+    expect(counts.has("pm2")).toBe(false);
+    expect(counts.get("pm3")).toBe(1);
   });
 });

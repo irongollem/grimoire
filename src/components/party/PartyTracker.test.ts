@@ -46,7 +46,7 @@ vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers
 vi.mock("@/composables/notes/usePlayerJournal", () => ({
   useDmAllSharedJournalEntries: () => ({ data: { value: [] } }),
 }));
-vi.mock("@/composables/rules/useSpecies", () => ({ useAllSpecies: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/rules/useSpecies", () => ({ useAllSpecies: () => ({ data: { value: [] } }), useSpeciesNames: () => () => null }));
 vi.mock("@/composables/party/useCharacterClasses", () => ({
   useAllCampaignCharacterClasses: () => ({ data: { value: [] } }),
 }));

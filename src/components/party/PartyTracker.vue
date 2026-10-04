@@ -39,6 +39,7 @@
         :key="member.id"
         :member="member"
         :location-name-map="locationNameMap"
+        :species-name="speciesNameOf(member)"
         :class-label="memberClassLabel(member.id)"
         :level-display="memberLevelDisplay(member.id, member.level)"
         :companions="companionsFor(member.id)"
@@ -109,6 +110,7 @@ import CompanionForm from "./CompanionForm.vue";
 import PartyTrackerRow from "./PartyTrackerRow.vue";
 import PartyInventoryInline from "./PartyInventoryInline.vue";
 import PartyXpAward from "./PartyXpAward.vue";
+import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import type { Companion } from "@/types/companion.types";
 const { data: party, isError, refetch } = useParty();
@@ -142,6 +144,9 @@ function memberLevelDisplay(memberId: string, ownLevel: number): number {
   const list = classesByMember.value.get(memberId) ?? [];
   return list.length > 0 ? totalLevel(list) : ownLevel;
 }
+
+// One species lookup for the whole party; each row gets its resolved name.
+const speciesNameOf = useSpeciesNames(() => party.value ?? []);
 
 const sortedMembers = computed(() => {
   const members = party.value ?? [];

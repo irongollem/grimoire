@@ -45,6 +45,7 @@
         v-for="pl in visible"
         :key="pl.id"
         :playlist="pl"
+        :tracks="tracksByPlaylist?.get(pl.id)"
         @edit="startEdit(pl)"
         @delete="handleDelete(pl.id)"
       />
@@ -91,7 +92,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { PLAYLIST_NOUNS } from "@/lib/audio/playlistPeers";
-import { usePlaylists, useDeletePlaylist } from "@/composables/soundboard/useSoundboardPlaylists";
+import { usePlaylists, useDeletePlaylist, usePlaylistsTracks } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useQuota } from "@/composables/billing/useQuota";
@@ -140,6 +141,9 @@ const spotifySounds = computed(() => {
 });
 
 const { data: playlists, isPending } = usePlaylists();
+// One tracks query for every playlist in the campaign (not just the visible
+// ones, so typing in the filter never changes the key or refetches).
+const { byPlaylist: tracksByPlaylist } = usePlaylistsTracks(() => (playlists.value ?? []).map((pl) => pl.id));
 const { mutate: deletePlaylist } = useDeletePlaylist();
 const store = useSoundboardStore();
 const { canCreate: canCreatePlaylist } = useQuota("soundboard_playlists");

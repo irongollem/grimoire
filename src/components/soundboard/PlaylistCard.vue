@@ -183,19 +183,22 @@
 import { computed } from "vue";
 import { IconPlay, IconPause, IconStop, IconSkipBack, IconSkipForward, IconEdit, IconDelete, IconMusicNote, IconWind } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { usePlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useActiveAudioTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
-import type { SoundboardPlaylist } from "@/types/sound.types";
+import type { PlaylistTrackWithSound, SoundboardPlaylist } from "@/types/sound.types";
 import AppButton from "@/components/common/AppButton.vue";
 import CastButton from "./CastButton.vue";
 import CausedByChip from "./CausedByChip.vue";
 
-const { playlist } = defineProps<{ playlist: SoundboardPlaylist }>();
+const { playlist, tracks } = defineProps<{
+  playlist: SoundboardPlaylist;
+  /** This playlist's tracks, read for the whole grid in one query by the parent; undefined while loading. */
+  tracks: PlaylistTrackWithSound[] | undefined;
+}>();
 defineEmits<{ edit: []; delete: [] }>();
 
 const store = useSoundboardStore();
 
-const { data: tracks, isPending: tracksLoading } = usePlaylistTracks(computed(() => playlist.id));
+const tracksLoading = computed(() => tracks === undefined);
 
 const { triggerForPlaylist } = useActiveAudioTriggers();
 const trigger = computed(() => triggerForPlaylist(playlist.id));
@@ -211,13 +214,13 @@ const isSeeded = computed(() => playlist.library_scene_slug !== null);
 /** How many chips fit before the card starts looking like a list. */
 const LAYER_CHIP_LIMIT = 4;
 
-const sceneLayers = computed(() => (tracks.value === undefined ? [] : tracks.value));
+const sceneLayers = computed(() => (tracks === undefined ? [] : tracks));
 const loopingCount = computed(() => sceneLayers.value.filter((t) => !t.is_generator).length);
 const generatorCount = computed(() => sceneLayers.value.filter((t) => t.is_generator).length);
 const layerChips = computed(() => sceneLayers.value.slice(0, LAYER_CHIP_LIMIT));
 const hiddenLayerCount = computed(() => Math.max(0, sceneLayers.value.length - LAYER_CHIP_LIMIT));
 
-const trackCount = computed(() => tracks.value?.length ?? 0);
+const trackCount = computed(() => tracks?.length ?? 0);
 
 // Asked per playlist rather than per slot, because several scenes run at once
 // and "is the ambient slot busy" no longer answers "is this card playing".
@@ -232,15 +235,15 @@ const currentTrackName = computed(() => {
   const mpl = store.activeMusicPlaylist;
   if (!mpl || mpl.playlistId !== playlist.id) return null;
   const soundId = mpl.trackSoundIds[mpl.currentIndex];
-  return tracks.value?.find((t) => t.sound.id === soundId)?.sound.name ?? null;
+  return tracks?.find((t) => t.sound.id === soundId)?.sound.name ?? null;
 });
 
 // Always scoped to this playlist: stopping a scene from its own card must not
 // take down the other scenes stacked with it.
 function togglePlay() {
-  if (!tracks.value) return;
+  if (!tracks) return;
   if (isActive.value) store.stopPlaylist(playlist.playlist_type, playlist.id);
-  else store.playPlaylist(playlist, tracks.value);
+  else store.playPlaylist(playlist, tracks);
 }
 
 function togglePause() {

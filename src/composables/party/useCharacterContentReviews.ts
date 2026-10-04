@@ -182,6 +182,27 @@ async function fetchReviewsForCharacter(partyMemberId: string): Promise<Characte
   return data as CharacterContentReview[];
 }
 
+/** One read for a list of characters, so a list of cards is one request, not one per card. */
+export async function fetchReviewsForCharacters(partyMemberIds: readonly string[]): Promise<CharacterContentReview[]> {
+  if (partyMemberIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("character_content_reviews")
+    .select("*")
+    .in("party_member_id", [...partyMemberIds])
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data as CharacterContentReview[];
+}
+
+/** How many flags still bench each character, keyed by party member id. Characters with none are absent. */
+export function pendingCountByCharacter(reviews: readonly CharacterContentReview[] | undefined): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const review of pendingReviews(reviews)) {
+    counts.set(review.party_member_id, (counts.get(review.party_member_id) ?? 0) + 1);
+  }
+  return counts;
+}
+
 async function fetchPendingReviewsForCampaign(campaignId: string): Promise<CharacterContentReview[]> {
   const { data, error } = await supabase
     .from("character_content_reviews")
@@ -202,6 +223,20 @@ export function useCharacterContentReviews(partyMemberId: MaybeRefOrGetter<strin
       return fetchReviewsForCharacter(id);
     },
     enabled: () => !!toValue(partyMemberId),
+  });
+}
+
+/**
+ * The flags on many characters in one read (a list of cards). Keyed on the
+ * sorted, unique ids under the same root as the per-character key, so every
+ * invalidation of CONTENT_REVIEWS_KEY reaches it.
+ */
+export function useCharactersContentReviews(partyMemberIds: MaybeRefOrGetter<readonly string[]>) {
+  const ids = computed(() => [...new Set(toValue(partyMemberIds))].sort());
+  return useQuery({
+    queryKey: computed(() => [CONTENT_REVIEWS_KEY, "characters", ids.value] as const),
+    queryFn: ({ queryKey: [, , keyIds] }) => fetchReviewsForCharacters(keyIds),
+    enabled: () => ids.value.length > 0,
   });
 }
 

@@ -116,19 +116,20 @@ import { useAttachCharacter, useDetachCharacter, useCloneCharacter, useDeletePoo
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
-import { pendingReviews, useCharacterContentReviews } from "@/composables/party/useCharacterContentReviews";
 import { benchedMessage, useBenchedAfterAttach } from "@/composables/party/useBenchedAfterAttach";
 import { isRulesetAdmissible, parseRulesetBounce, rulesetRules, rulesetYear } from "@/composables/party/useCharacterRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Campaign } from "@/types/campaign.types";
 
-const { character, attachedCampaign, availableCampaigns } = defineProps<{
+const { character, attachedCampaign, availableCampaigns, waitingCount } = defineProps<{
   character: PartyMember;
   /** The campaign this character is currently attached to, resolved by the parent. Null when resting. */
   attachedCampaign: Campaign | null;
   /** Campaigns where the caller's role is "player" — the only valid attach targets. */
   availableCampaigns: Campaign[];
+  /** Flags still benching this character; the parent reads them for the whole list in one query. */
+  waitingCount: number;
 }>();
 
 const router = useRouter();
@@ -141,10 +142,6 @@ const { mutateAsync: attachChar, isPending: attaching } = useAttachCharacter();
 const { mutateAsync: detachChar, isPending: detaching } = useDetachCharacter();
 const { mutateAsync: cloneChar, isPending: cloning } = useCloneCharacter();
 const { mutateAsync: deleteChar, isPending: deleting } = useDeletePoolCharacter();
-
-// Flags on this card's own character, read only once it sits at a table.
-const { data: ownReviews } = useCharacterContentReviews(() => (attachedCampaign ? character.id : null));
-const waitingCount = computed(() => pendingReviews(ownReviews.value).length);
 
 // A character just attached (this one, or the converted copy the bounce dialog
 // made) may have been benched by the database; see `useBenchedAfterAttach`.

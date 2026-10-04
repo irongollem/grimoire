@@ -8,7 +8,6 @@ const attach = vi.fn();
 const toastError = vi.fn();
 const toastInfo = vi.fn();
 const refetchReviews = vi.fn();
-const ownReviews = { value: [] as Array<{ status: string }> };
 
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
@@ -17,13 +16,7 @@ vi.mock("@/composables/useToast", () => ({
 }));
 vi.mock("@/composables/party/useCharacterContentReviews", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/composables/party/useCharacterContentReviews")>();
-  return {
-    ...actual,
-    useCharacterContentReviews: (id: unknown) =>
-      typeof id === "function"
-        ? { data: { get value() { return ownReviews.value; } } }
-        : { refetch: refetchReviews },
-  };
+  return { ...actual, useCharacterContentReviews: () => ({ refetch: refetchReviews }) };
 });
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({}) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({}) }));
@@ -40,7 +33,7 @@ const open = { id: "c24", name: "New Keep", ruleset: "2024", allows_mixed_rulese
 
 function mountCard() {
   return mount(CharacterPoolCard, {
-    props: { character, attachedCampaign: null, availableCampaigns: [strict, open] },
+    props: { character, attachedCampaign: null, availableCampaigns: [strict, open], waitingCount: 0 },
     global: { stubs: { FocalImage: true, RulesetBounceDialog: true } },
   });
 }
@@ -61,7 +54,6 @@ describe("CharacterPoolCard editions", () => {
     toastError.mockReset();
     toastInfo.mockReset();
     refetchReviews.mockReset();
-    ownReviews.value = [];
   });
 
   it("shows the character's edition and each table's", async () => {
@@ -133,9 +125,8 @@ describe("CharacterPoolCard editions", () => {
   });
 
   it("marks an attached character that is waiting", () => {
-    ownReviews.value = [{ status: "pending" }];
     const wrapper = mount(CharacterPoolCard, {
-      props: { character, attachedCampaign: open, availableCampaigns: [] },
+      props: { character, attachedCampaign: open, availableCampaigns: [], waitingCount: 1 },
       global: { stubs: { FocalImage: true, RulesetBounceDialog: true } },
     });
     expect(wrapper.get("[data-testid='waiting-marker']").text()).toBe("Waiting for approval");

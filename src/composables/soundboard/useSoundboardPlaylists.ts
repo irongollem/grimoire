@@ -1,5 +1,5 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
 import { DEFAULT_LAYER, type PlaylistTrackLayer } from "@/types/sound.types";
@@ -15,6 +15,8 @@ import type {
 
 const PLAYLISTS_KEY = "soundboard_playlists";
 const TRACKS_KEY = "soundboard_playlist_tracks";
+/** Second key segment of the list-form query; a uuid never equals it, so it cannot collide with a per-playlist key. */
+const TRACKS_MANY = "many";
 
 // ── Fetch helpers ─────────────────────────────────────────────────────────
 
@@ -37,6 +39,28 @@ async function fetchPlaylistTracks(playlistId: string): Promise<PlaylistTrackWit
     .order("sort_order", { ascending: true });
   if (error) throw error;
   return data as PlaylistTrackWithSound[];
+}
+
+/** Every track of many playlists in one read, ordered per playlist by sort_order. */
+export async function fetchTracksForPlaylists(playlistIds: readonly string[]): Promise<PlaylistTrackWithSound[]> {
+  if (playlistIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("soundboard_playlist_tracks")
+    .select("*, sound:sounds(*)")
+    .in("playlist_id", [...playlistIds])
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data as PlaylistTrackWithSound[];
+}
+
+/** Group rows by playlist; every requested playlist gets an entry, so "no tracks" is [] and not "unknown". */
+export function groupTracksByPlaylist(
+  playlistIds: readonly string[],
+  tracks: readonly PlaylistTrackWithSound[],
+): Map<string, PlaylistTrackWithSound[]> {
+  const grouped = new Map<string, PlaylistTrackWithSound[]>(playlistIds.map((id) => [id, []]));
+  for (const track of tracks) grouped.get(track.playlist_id)?.push(track);
+  return grouped;
 }
 
 // ── Mutation helpers ──────────────────────────────────────────────────────
@@ -150,6 +174,25 @@ export function usePlaylistTracks(playlistId: MaybeRefOrGetter<string | null>) {
 }
 
 /**
+ * The tracks of a whole list of playlists in one query (a grid of cards), as a
+ * map from playlist id; undefined while loading. Keyed under TRACKS_KEY/"many"
+ * so every track mutation invalidates it together with the per-playlist key.
+ */
+export function usePlaylistsTracks(playlistIds: MaybeRefOrGetter<readonly string[]>) {
+  const ids = computed(() => [...new Set(toValue(playlistIds))].sort());
+  const query = useQuery({
+    queryKey: computed(() => [TRACKS_KEY, TRACKS_MANY, ids.value] as const),
+    queryFn: ({ queryKey: [, , keyIds] }) => fetchTracksForPlaylists(keyIds),
+    enabled: () => ids.value.length > 0,
+    // A new or deleted playlist changes the key; keep the grid's tracks on
+    // screen meanwhile instead of turning every card back into a spinner.
+    placeholderData: keepPreviousData,
+  });
+  const byPlaylist = computed(() => (query.data.value ? groupTracksByPlaylist(ids.value, query.data.value) : undefined));
+  return { byPlaylist, isPending: query.isPending };
+}
+
+/**
  * Fetch one playlist's tracks on demand, reading the cache when it is warm.
  *
  * The command palette lists every playlist but cannot mount a query per row, so
@@ -227,6 +270,7 @@ export function useAddTrackToPlaylist() {
       addTrack(playlistId, soundId, sortOrder),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: [TRACKS_KEY, vars.playlistId] });
+      qc.invalidateQueries({ queryKey: [TRACKS_KEY, TRACKS_MANY] });
     },
   });
 }
@@ -239,6 +283,7 @@ export function useRemoveTrackFromPlaylist() {
       removeTrack(trackId),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: [TRACKS_KEY, vars.playlistId] });
+      qc.invalidateQueries({ queryKey: [TRACKS_KEY, TRACKS_MANY] });
     },
   });
 }
@@ -251,6 +296,7 @@ export function useReplacePlaylistTracks() {
       replaceTracksForPlaylist(playlistId, tracks),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: [TRACKS_KEY, vars.playlistId] });
+      qc.invalidateQueries({ queryKey: [TRACKS_KEY, TRACKS_MANY] });
     },
   });
 }

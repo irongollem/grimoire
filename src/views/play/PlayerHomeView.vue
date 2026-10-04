@@ -56,6 +56,7 @@
           :character="char"
           :attached-campaign="campaignFor(char.campaign_id)"
           :available-campaigns="playerCampaigns"
+          :waiting-count="waitingCounts.get(char.id) ?? 0"
         />
       </div>
     </section>
@@ -117,6 +118,7 @@ import PlayerBooksPanel from "@/components/play/PlayerBooksPanel.vue";
 import CharacterPoolCard from "@/components/play/CharacterPoolCard.vue";
 import CampaignLensNotice from "@/components/campaign/CampaignLensNotice.vue";
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
+import { pendingCountByCharacter, useCharactersContentReviews } from "@/composables/party/useCharacterContentReviews";
 import { usePlayerCampaigns } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
@@ -141,6 +143,12 @@ const campaignById = computed(() => {
   for (const c of playerCampaigns.value) map.set(c.id, c);
   return map;
 });
+
+// Flags on the characters that sit at a table, read once for the whole list.
+const { data: attachedReviews } = useCharactersContentReviews(() =>
+  (characters.value ?? []).filter((c) => c.campaign_id).map((c) => c.id),
+);
+const waitingCounts = computed(() => pendingCountByCharacter(attachedReviews.value));
 
 function campaignFor(id: string | null): Campaign | null {
   return id ? (campaignById.value.get(id) ?? null) : null;

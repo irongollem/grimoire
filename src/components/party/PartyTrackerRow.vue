@@ -274,7 +274,6 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
-import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { useReadItems } from "@/composables/play/useReadItems";
 import PlayerJournalDmModal from "./PlayerJournalDmModal.vue";
@@ -299,6 +298,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const {
   member,
+  speciesName,
   locationNameMap,
   classLabel,
   levelDisplay,
@@ -307,6 +307,7 @@ const {
   dmPlayerName = "",
 } = defineProps<{
   member: PartyMember;
+  speciesName: string | null;
   locationNameMap: Map<string, string>;
   classLabel: string;
   levelDisplay: number;
@@ -317,8 +318,6 @@ const {
 
 // One row per member: conditions and anything else below resolve per character.
 provideCharacterRuleset(() => member);
-const { data: speciesById } = useSpeciesByIds(() => [member.species_id]);
-const speciesName = computed(() => (member.species_id ? (speciesById.value.get(member.species_id)?.name ?? null) : null));
 
 const emit = defineEmits<{
   'open-companion-form': [payload: { companion: Companion | null; ownerId?: string }];
