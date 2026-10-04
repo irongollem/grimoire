@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runImportSweep, type ImportSweepDeps, type ImportSweepInput } from "./importSweep";
+import { runImportSweep, type BeatAttachmentWrite, type ImportSweepDeps, type ImportSweepInput } from "./importSweep";
 import type { ImportDecision } from "./entityMatching";
 import type { UsableEntity } from "./sanitizeEntities";
 import type { InsertRowOutcome } from "./runImportKind";
@@ -41,19 +41,23 @@ function fakeDeps(overrides: Partial<ImportSweepDeps> = {}): ImportSweepDeps {
     insertRow: vi.fn(async (kind: ImportEntityKind): Promise<InsertRowOutcome> => ({ status: "inserted", id: nextId(kind) })),
     generateMonster: vi.fn(async (): Promise<InsertRowOutcome> => ({ status: "inserted", id: nextId("generated") })),
     fetchNameLookup: vi.fn(async (): Promise<readonly NameLookupRow[]> => []),
-    applyLinkResolution: vi.fn(async () => {}),
+    applyLinkResolutions: vi.fn(async () => {}),
     writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map<string, string>() })),
     resolveMonsterNames: vi.fn(async () => new Map()),
     updateEncounterCombatants: vi.fn(async () => {}),
-    updateBeatLocation: vi.fn(async () => {}),
-    insertBeatAttachment: vi.fn(async () => {}),
-    insertLootPlacement: vi.fn(async () => {}),
+    insertBeatAttachments: vi.fn(async () => {}),
+    insertLootPlacements: vi.fn(async () => {}),
     insertQuestRefs: vi.fn(async () => {}),
     updateQuestParent: vi.fn(async () => {}),
     persistImportedCounts: vi.fn(async () => {}),
     markComplete: vi.fn(async () => {}),
     ...overrides,
   };
+}
+
+/** Every row a batch dep was handed, across all its calls, in call order. */
+function rowsOf<T>(fn: (rows: T[]) => unknown): T[] {
+  return vi.mocked(fn).mock.calls.flatMap((call) => call[0]);
 }
 
 function input(overrides: Partial<ImportSweepInput> = {}): ImportSweepInput {
@@ -118,11 +122,11 @@ describe("runImportSweep", () => {
     );
 
     expect(deps.insertRow).not.toHaveBeenCalled();
-    // Every kind after "monsters" still runs (with zero entities of its own)
-    // and checkpoints normally, but "monsters" itself is never re-attempted
-    // or re-counted — every persisted snapshot keeps it at its resumed value.
-    const calls = (deps.persistImportedCounts as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
-    for (const counts of calls) expect(counts.monsters).toBe(3);
+    // "monsters" is never re-attempted or re-counted: the completed row keeps
+    // it at its resumed value. Every later kind had nothing to import, so
+    // none of them spends a checkpoint request (#951).
+    expect(deps.persistImportedCounts).not.toHaveBeenCalled();
+    expect(deps.markComplete).toHaveBeenCalledWith(expect.objectContaining({ monsters: 3 }));
   });
 
   it("reports onProgress for every kind and a final linking phase", async () => {
@@ -156,9 +160,7 @@ describe("runImportSweep", () => {
       );
 
       expect(report.unresolvedLinks).toEqual([]);
-      const applied = (deps.applyLinkResolution as ReturnType<typeof vi.fn>).mock.calls.map(
-        (c) => c[0] as Extract<LinkResolution, { status: "resolved" }>,
-      );
+      const applied = rowsOf(deps.applyLinkResolutions as (rows: Extract<LinkResolution, { status: "resolved" }>[]) => Promise<void>);
       expect(applied).toContainEqual(
         expect.objectContaining({ field: "npc_location_name", apply: { kind: "fk_update", table: "npcs", column: "location_id" } }),
       );
@@ -196,8 +198,7 @@ describe("runImportSweep", () => {
       deps,
     );
 
-    const joinInserts = (deps.applyLinkResolution as ReturnType<typeof vi.fn>).mock.calls
-      .map((c) => c[0] as Extract<LinkResolution, { status: "resolved" }>)
+    const joinInserts = rowsOf(deps.applyLinkResolutions as (rows: Extract<LinkResolution, { status: "resolved" }>[]) => Promise<void>)
       .filter((r) => r.apply.kind === "join_insert" && r.apply.table === "faction_locations");
     expect(joinInserts).toHaveLength(2);
   });
@@ -219,8 +220,7 @@ describe("runImportSweep", () => {
       deps,
     );
 
-    const joinInserts = (deps.applyLinkResolution as ReturnType<typeof vi.fn>).mock.calls
-      .map((c) => c[0] as Extract<LinkResolution, { status: "resolved" }>)
+    const joinInserts = rowsOf(deps.applyLinkResolutions as (rows: Extract<LinkResolution, { status: "resolved" }>[]) => Promise<void>)
       .filter((r) => r.apply.kind === "join_insert" && r.apply.table === "faction_locations");
     expect(joinInserts).toHaveLength(1);
     expect(joinInserts[0]!.sourceId).toBe("fac-existing");
@@ -269,8 +269,13 @@ describe("runImportSweep", () => {
       const report = await runImportSweep(IMPORT_ROW, questInput(), deps);
 
       expect(report.createdQuestId).toBe("quests-1");
-      expect(deps.updateBeatLocation).toHaveBeenCalledWith("beat-1", "locations-1");
-      const attachments = (deps.insertBeatAttachment as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+      // Staged in the beat insert itself (#951), not by an update per beat.
+      expect(deps.writeQuestSpine).toHaveBeenCalledWith(
+        expect.objectContaining({ stagedLocationIdByKey: new Map([["b1", "locations-1"]]) }),
+      );
+      // Every attachment of the sweep in one write.
+      expect(deps.insertBeatAttachments).toHaveBeenCalledTimes(1);
+      const attachments = rowsOf(deps.insertBeatAttachments);
       expect(attachments).toContainEqual(expect.objectContaining({ attachment_type: "npc", ref_id: "npcs-1", beat_id: "beat-1" }));
       expect(attachments).toContainEqual(expect.objectContaining({ attachment_type: "faction", ref_id: "factions-1" }));
       expect(attachments).toContainEqual(expect.objectContaining({ attachment_type: "encounter", ref_id: "encounters-1" }));
@@ -300,8 +305,7 @@ describe("runImportSweep", () => {
     it("skips a beat that never got a real id (best-effort — matches every other write here)", async () => {
       const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map() })) }); // "b1" never landed
       const report = await runImportSweep(IMPORT_ROW, questInput(), deps);
-      expect(deps.updateBeatLocation).not.toHaveBeenCalled();
-      expect(deps.insertBeatAttachment).not.toHaveBeenCalled();
+      expect(deps.insertBeatAttachments).not.toHaveBeenCalled();
       expect(report.unresolvedLinks).toEqual([]); // not "unresolved" — the beat itself just isn't there
     });
   });
@@ -326,8 +330,8 @@ describe("runImportSweep", () => {
         deps,
       );
 
-      expect(deps.insertBeatAttachment).toHaveBeenCalledWith(expect.objectContaining({ attachment_type: "monster", ref_id: "monsters-1" }));
-      expect(deps.insertLootPlacement).toHaveBeenCalledWith(
+      expect(rowsOf(deps.insertBeatAttachments)).toContainEqual(expect.objectContaining({ attachment_type: "monster", ref_id: "monsters-1" }));
+      expect(rowsOf(deps.insertLootPlacements)).toContainEqual(
         expect.objectContaining({ home: { beat_id: "beat-1", quest_id: "quests-1" }, kind: "item", item_ref: "items-1", label: "Silver bell" }),
       );
       expect(report.unresolvedLinks).toEqual([]);
@@ -356,8 +360,8 @@ describe("runImportSweep", () => {
       // either (neither kind was imported this sweep), both names are
       // genuinely unresolved rather than library-linked — this asserts the
       // plain "matched nothing" path still fires when there's truly no match.
-      expect(deps.insertBeatAttachment).not.toHaveBeenCalled();
-      expect(deps.insertLootPlacement).not.toHaveBeenCalled();
+      expect(deps.insertBeatAttachments).not.toHaveBeenCalled();
+      expect(deps.insertLootPlacements).not.toHaveBeenCalled();
       expect(report.unresolvedLinks).toContain('Beat "Fight" → monster "Owlbear"');
       expect(report.unresolvedLinks).toContain('Beat "Fight" → item "Bag of Holding"');
     });
@@ -380,7 +384,7 @@ describe("runImportSweep", () => {
       );
 
       expect(deps.insertRow).not.toHaveBeenCalledWith("monsters", expect.anything());
-      expect(deps.insertBeatAttachment).toHaveBeenCalledWith(expect.objectContaining({ attachment_type: "monster", ref_id: "srd_owlbear" }));
+      expect(rowsOf(deps.insertBeatAttachments)).toContainEqual(expect.objectContaining({ attachment_type: "monster", ref_id: "srd_owlbear" }));
       expect(report.unresolvedLinks).toEqual([]);
       expect(report.perKind.monsters).toMatchObject({ imported: 0, linked: 1 });
       const refs = (deps.insertQuestRefs as ReturnType<typeof vi.fn>).mock.calls.flatMap((c) => c[0]);
@@ -404,7 +408,7 @@ describe("runImportSweep", () => {
         deps,
       );
 
-      expect(deps.insertLootPlacement).toHaveBeenCalledWith(
+      expect(rowsOf(deps.insertLootPlacements)).toContainEqual(
         expect.objectContaining({ home: { beat_id: "beat-1", quest_id: "quests-1" }, item_ref: "srd_bag_of_holding" }),
       );
       expect(report.unresolvedLinks).toEqual([]);
@@ -416,7 +420,7 @@ describe("runImportSweep", () => {
     it("reports a loot reference the database refuses instead of swallowing it", async () => {
       const deps = fakeDeps({
         writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })),
-        insertLootPlacement: vi.fn(async () => {
+        insertLootPlacements: vi.fn(async () => {
           throw { message: 'insert or update on table "loot_placements" violates foreign key constraint' };
         }),
       });
@@ -443,7 +447,7 @@ describe("runImportSweep", () => {
     it("reports a beat attachment the database refuses instead of swallowing it", async () => {
       const deps = fakeDeps({
         writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })),
-        insertBeatAttachment: vi.fn(async () => {
+        insertBeatAttachments: vi.fn(async () => {
           throw new Error("Invalid monster attachment srd_owlbear");
         }),
       });
@@ -508,7 +512,7 @@ describe("runImportSweep", () => {
         deps,
       );
 
-      expect(deps.insertLootPlacement).toHaveBeenCalledWith(
+      expect(rowsOf(deps.insertLootPlacements)).toContainEqual(
         expect.objectContaining({ home: { location_id: "locations-1" }, kind: "item", item_ref: "items-1", label: "Rusty Pick" }),
       );
       // The room has no parent on this page, so it's downgraded to `other`
@@ -539,7 +543,7 @@ describe("runImportSweep", () => {
         deps,
       );
 
-      expect(deps.insertLootPlacement).toHaveBeenCalledWith(
+      expect(rowsOf(deps.insertLootPlacements)).toContainEqual(
         expect.objectContaining({ home: { location_id: "existing-room" }, kind: "item", item_ref: "items-1", label: "Rusty Pick" }),
       );
     });
@@ -561,7 +565,7 @@ describe("runImportSweep", () => {
         deps,
       );
 
-      expect(deps.insertLootPlacement).toHaveBeenCalledWith(
+      expect(rowsOf(deps.insertLootPlacements)).toContainEqual(
         expect.objectContaining({ home: { location_id: "locations-1" }, kind: "item", item_ref: "srd_bag_of_holding", label: "Bag of Holding" }),
       );
     });
@@ -583,7 +587,7 @@ describe("runImportSweep", () => {
         deps,
       );
 
-      expect(deps.insertLootPlacement).not.toHaveBeenCalled();
+      expect(deps.insertLootPlacements).not.toHaveBeenCalled();
       expect(report.unresolvedLinks).toEqual([]);
     });
   });
@@ -632,11 +636,11 @@ describe("runImportSweep", () => {
       );
 
       // The room keeps its own loot, homed on the room itself.
-      const lootCalls = (deps.insertLootPlacement as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+      const lootCalls = rowsOf(deps.insertLootPlacements);
       expect(lootCalls).toContainEqual(expect.objectContaining({ home: { location_id: "locations-2" }, item_ref: "items-1", label: "Rusty Pick" }));
 
       // The beat staged at the site does NOT re-list the room's own fight...
-      const attachmentCalls = (deps.insertBeatAttachment as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+      const attachmentCalls = rowsOf(deps.insertBeatAttachments);
       expect(attachmentCalls.find((a) => a.ref_id === "encounters-1")).toBeUndefined(); // Guardroom Fight
       // ...or the room's own loot, as a second, beat-homed placement.
       expect(lootCalls.find((l) => l.item_ref === "items-1" && "beat_id" in l.home)).toBeUndefined();
@@ -687,7 +691,7 @@ describe("runImportSweep", () => {
       // "The Rusty Anchor" has no rooms of its own in this sweep, so the
       // site/room skip never applies — the encounter attaches normally even
       // though it's staged at the exact same location as the beat.
-      expect(deps.insertBeatAttachment).toHaveBeenCalledWith(expect.objectContaining({ attachment_type: "encounter", ref_id: "encounters-1" }));
+      expect(rowsOf(deps.insertBeatAttachments)).toContainEqual(expect.objectContaining({ attachment_type: "encounter", ref_id: "encounters-1" }));
     });
   });
 
@@ -817,6 +821,99 @@ describe("runImportSweep", () => {
         deps,
       );
       expect(report.unresolvedLinks).toContain('Encounter "Ambush" → combatant "Nobody"');
+    });
+
+    // #951: the RPC is keyed by the queried name, so every encounter's
+    // unresolved names go in one call rather than one call per encounter.
+    it("asks the RPC once for every encounter's names", async () => {
+      const deps = fakeDeps({
+        resolveMonsterNames: vi.fn(async () => new Map([
+          ["Owlbear", { targetId: "mon-owlbear" }],
+          ["Troll", { targetId: "mon-troll" }],
+        ])),
+      });
+      await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            encounters: [
+              usable("e1", { name: "Ambush", combatants: [{ name: "Owlbear", count: 1 }] }),
+              usable("e2", { name: "Bridge", combatants: [{ name: "Troll", count: 1 }, { name: "Owlbear", count: 2 }] }),
+            ],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["encounters", new Map([["e1", CREATE], ["e2", CREATE]])]]),
+        }),
+        deps,
+      );
+
+      expect(deps.resolveMonsterNames).toHaveBeenCalledTimes(1);
+      expect([...vi.mocked(deps.resolveMonsterNames).mock.calls[0]![0]].sort()).toEqual(["Owlbear", "Troll"]);
+      expect(deps.updateEncounterCombatants).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("one write per kind of row (#951)", () => {
+    function twoNpcBeatInput(): ImportSweepInput {
+      return input({
+        entitiesByKind: {
+          quests: [usable("q1", { title: "X", beats: [
+            { key: "b1", title: "Parley", kind: "social", dm_content: "", npc_names: ["Father Corvin", "Old Gaffer", "Father Corvin"] },
+          ] })],
+          npcs: [usable("n1", { name: "Father Corvin" }), usable("n2", { name: "Old Gaffer" })],
+        },
+        decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+          ["quests", new Map([["q1", CREATE]])],
+          ["npcs", new Map([["n1", CREATE], ["n2", CREATE]])],
+        ]),
+      });
+    }
+
+    it("attaches an NPC a beat names twice only once, so the unique attachment never refuses the batch", async () => {
+      const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
+      await runImportSweep(IMPORT_ROW, twoNpcBeatInput(), deps);
+
+      expect(deps.insertBeatAttachments).toHaveBeenCalledTimes(1);
+      expect(rowsOf(deps.insertBeatAttachments).map((a) => [a.ref_id, a.sort_order])).toEqual([
+        ["npcs-1", 0],
+        ["npcs-2", 1],
+      ]);
+    });
+
+    it("keeps every attachment but the one the database refuses, and reports that one", async () => {
+      const deps = fakeDeps({
+        writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })),
+        insertBeatAttachments: vi.fn(async (rows: BeatAttachmentWrite[]) => {
+          if (rows.some((row) => row.ref_id === "npcs-2")) throw { message: "Invalid npc attachment" };
+        }),
+      });
+      const report = await runImportSweep(IMPORT_ROW, twoNpcBeatInput(), deps);
+
+      // The batch, then each row on its own.
+      expect(deps.insertBeatAttachments).toHaveBeenCalledTimes(3);
+      expect(report.unresolvedLinks).toEqual(['Beat "Parley" → npc "Old Gaffer" (not saved: Invalid npc attachment)']);
+    });
+
+    it("hands every resolved link to one call", async () => {
+      const deps = fakeDeps();
+      await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            factions: [usable("f1", { name: "The Watch", location_names: ["Dock Ward"] })],
+            npcs: [usable("n1", { name: "Reyes", faction_name: "The Watch" }), usable("n2", { name: "Ilsa", faction_name: "The Watch" })],
+            locations: [usable("l1", { name: "Dock Ward" })],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+            ["factions", new Map([["f1", CREATE]])],
+            ["npcs", new Map([["n1", CREATE], ["n2", CREATE]])],
+            ["locations", new Map([["l1", CREATE]])],
+          ]),
+        }),
+        deps,
+      );
+
+      expect(deps.applyLinkResolutions).toHaveBeenCalledTimes(1);
+      expect(rowsOf(deps.applyLinkResolutions)).toHaveLength(3);
     });
   });
 });

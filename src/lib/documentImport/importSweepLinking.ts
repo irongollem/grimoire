@@ -14,7 +14,15 @@ import { resolveEncounterCombatants } from "./normalize";
 import type { ImportEntityKind, ExtractedQuestBeat } from "@/types/documentImport.types";
 import type { CombatantDef } from "@/types/encounter.types";
 import type { QuestBeatAttachmentType, QuestRefType } from "@/types/quest.types";
-import { plainRows, type ImportSweepDeps, type LootPlacementHome, type SourcedRow } from "./importSweep";
+import { refusalReason, writeBatchIsolatingFailures } from "@/lib/batchWrite";
+import {
+  plainRows,
+  type BeatAttachmentWrite,
+  type ImportSweepDeps,
+  type LootPlacementHome,
+  type LootPlacementWrite,
+  type SourcedRow,
+} from "./importSweep";
 
 export interface QuestBeatContext {
   questId: string;
@@ -22,6 +30,10 @@ export interface QuestBeatContext {
   questDisplayName: string;
   beatIdByKey: Map<string, string>;
   beats: ExtractedQuestBeat[];
+  /** Where each beat was staged, by spine key, resolved before the spine was
+   *  written so the location rode in on the beat insert (#951). A beat with
+   *  a `location_name` and no entry here named a place that matched nothing. */
+  stagedLocationIdByKey: ReadonlyMap<string, string>;
 }
 
 export interface EncounterCombatantContext {
@@ -116,7 +128,7 @@ function itemAlreadyRoomed(
   return false;
 }
 
-function findByNameSourced(rows: readonly SourcedRow[], name: string): SourcedRow | undefined {
+export function findByNameSourced(rows: readonly SourcedRow[], name: string): SourcedRow | undefined {
   const needle = normalizeEntityName(name);
   if (needle === null) return undefined;
   return rows.find((row) => normalizeEntityName(row.name) === needle);
@@ -135,24 +147,29 @@ export async function resolveEncounters(
   const npcLookup = plainRows(lookups.npcs);
   const monsterLookup = lookups.monsters ?? [];
 
+  // The sweep's own monster registry (created/linked this run, campaign OR
+  // library) first — a combatant naming a monster this same sweep already
+  // resolved should use *that* row, not a fresh RPC lookup that might rank
+  // a different candidate. Every name it doesn't cover, across every
+  // encounter, goes to the RPC in ONE call (#951): the RPC is keyed by the
+  // queried name, so one encounter's answer is every encounter's answer.
+  const registryMatches = new Map<string, { targetId: string }>();
+  const needRpc = new Set<string>();
   for (const context of contexts) {
-    const names = [...new Set(context.combatants.map((c) => c.custom_name).filter((n): n is string => n !== null))];
-    if (names.length === 0) continue;
-
-    // The sweep's own monster registry (created/linked this run, campaign OR
-    // library) first — a combatant naming a monster this same sweep already
-    // resolved should use *that* row, not a fresh RPC lookup that might rank
-    // a different candidate. Only names it doesn't cover go to the RPC.
-    const monsterMatches = new Map<string, { targetId: string }>();
-    const needRpc: string[] = [];
-    for (const name of names) {
+    for (const combatant of context.combatants) {
+      const name = combatant.custom_name;
+      if (name === null || registryMatches.has(name) || needRpc.has(name)) continue;
       const match = findByNameSourced(monsterLookup, name);
-      if (match) monsterMatches.set(name, { targetId: match.id });
-      else needRpc.push(name);
+      if (match) registryMatches.set(name, { targetId: match.id });
+      else needRpc.add(name);
     }
-    if (needRpc.length > 0) {
-      for (const [name, match] of await deps.resolveMonsterNames(needRpc)) monsterMatches.set(name, match);
-    }
+  }
+  const rpcMatches = needRpc.size > 0 ? await deps.resolveMonsterNames([...needRpc]) : new Map<string, { targetId: string }>();
+  const monsterMatches = new Map([...rpcMatches, ...registryMatches]);
+
+  const updates: Promise<void>[] = [];
+  for (const context of contexts) {
+    if (!context.combatants.some((c) => c.custom_name !== null)) continue;
 
     const resolved = resolveEncounterCombatants(context.combatants, npcLookup, monsterMatches);
     for (const combatant of resolved) {
@@ -166,13 +183,12 @@ export async function resolveEncounters(
         unresolvedLinks.push(`Encounter "${context.name}" → combatant "${combatant.custom_name}"`);
       }
     }
-
-    try {
-      await deps.updateEncounterCombatants(context.id, resolved);
-    } catch {
-      // Best-effort: the encounter already landed and is already counted.
-    }
+    // Each encounter gets its own combatant list, so these stay one update
+    // per encounter — sent together rather than one after another.
+    updates.push(deps.updateEncounterCombatants(context.id, resolved));
   }
+  // Best-effort: every encounter already landed and is already counted.
+  await Promise.allSettled(updates);
 }
 
 /**
@@ -184,54 +200,63 @@ export async function resolveEncounters(
  * the sweep would report the link as made.
  */
 function writeFailure(label: string, err: unknown): string {
-  // A Supabase error is a plain object with a `message`, not an `Error`.
-  const reason = typeof err === "object" && err !== null && "message" in err
-    ? String((err as { message: unknown }).message)
-    : "the write was refused";
-  return `${label} (not saved: ${reason})`;
+  return `${label} (not saved: ${refusalReason(err)})`;
+}
+
+/** A planned write and the label its refusal is reported under. */
+interface LabelledWrite<Row> {
+  row: Row;
+  label: string;
+}
+
+/**
+ * Writes every planned row in one request and reports each refused one in
+ * `unresolvedLinks` (#951). Returns the rows that landed. See
+ * `writeBatchIsolatingFailures` for why one refused row costs only itself.
+ */
+async function writeLabelled<Row>(
+  writes: readonly LabelledWrite<Row>[],
+  writeMany: (rows: Row[]) => Promise<void>,
+  unresolvedLinks: string[],
+): Promise<Row[]> {
+  const { refused } = await writeBatchIsolatingFailures(writes, (batch) => writeMany(batch.map((write) => write.row)));
+  const refusedWrites = new Set(refused.map(({ item }) => item));
+  for (const { item, error } of refused) unresolvedLinks.push(writeFailure(item.label, error));
+  return writes.filter((write) => !refusedWrites.has(write)).map((write) => write.row);
 }
 
 // ── Item loot (shared by a beat's own loot and a room's own loot) ───────────
 
 /**
- * Resolves one item name against `itemsLookup` and, when it matches, writes
+ * Resolves one item name against `itemsLookup` and, when it matches, plans
  * the `loot_placements` row for it (a library match is stored as a
- * `library_item_id` reference, never cloned — the runner splits the id) — parameterised by
- * `home` rather than duplicated per caller, since a beat's loot
- * (`beat_id`+`quest_id`) and a room's loot (`location_id`) differ only in
- * which column carries the placement (`loot_placements_one_home`,
+ * `library_item_id` reference, never cloned — the runner splits the id) —
+ * parameterised by `home` rather than duplicated per caller, since a beat's
+ * loot (`beat_id`+`quest_id`) and a room's loot (`location_id`) differ only
+ * in which column carries the placement (`loot_placements_one_home`,
  * `loot_placements_beat_pair` in the database — see `LootPlacementHome`,
  * importSweep.ts). An unresolved name is reported rather than silently
- * dropped.
+ * dropped. The caller writes every planned row together.
  */
-async function attachItemLoot(
+function planItemLoot(
   name: string,
   home: LootPlacementHome,
   contextLabel: string,
   campaignId: string,
   itemsLookup: readonly SourcedRow[],
-  deps: Pick<ImportSweepDeps, "insertLootPlacement">,
   unresolvedLinks: string[],
   addSweepRef: (refType: QuestRefType, refId: string) => void,
-  /** Called with the resolved item id right after a successful insert —
-   *  `resolveLocationLoot` uses this to record which items landed in which
-   *  room, so a later beat staged at that room's site doesn't re-list them
-   *  (see `SiteRoomIndex`). A beat's own loot has nothing downstream that
-   *  needs to know about it, so it passes no callback at all. */
-  onPlaced?: (itemId: string) => void,
-): Promise<void> {
+): LabelledWrite<LootPlacementWrite> | null {
   const match = findByNameSourced(itemsLookup, name);
   if (!match) {
     unresolvedLinks.push(`${contextLabel} → item "${name}"`);
-    return;
+    return null;
   }
   addSweepRef("item", match.id);
-  try {
-    await deps.insertLootPlacement({ home, campaign_id: campaignId, kind: "item", item_ref: match.id, quantity: 1, label: name });
-    onPlaced?.(match.id);
-  } catch (err) {
-    unresolvedLinks.push(writeFailure(`${contextLabel} → item "${name}"`, err));
-  }
+  return {
+    row: { home, campaign_id: campaignId, kind: "item", item_ref: match.id, quantity: 1, label: name },
+    label: `${contextLabel} → item "${name}"`,
+  };
 }
 
 // ── A room's own loot (`ExtractedLocation.item_names`) ──────────────────────
@@ -250,7 +275,7 @@ export async function resolveLocationLoot(
   contexts: readonly LocationLootContext[],
   itemsLookup: readonly SourcedRow[],
   campaignId: string,
-  deps: Pick<ImportSweepDeps, "insertLootPlacement">,
+  deps: Pick<ImportSweepDeps, "insertLootPlacements">,
   unresolvedLinks: string[],
   addSweepRef: (refType: QuestRefType, refId: string) => void,
   /** Records `(context.locationId, resolved item id)` for every placement
@@ -259,20 +284,23 @@ export async function resolveLocationLoot(
    *  staged at the same site not to re-list it. */
   recordPlacement: (locationId: string, itemId: string) => void,
 ): Promise<void> {
+  const planned: LabelledWrite<LootPlacementWrite>[] = [];
   for (const context of contexts) {
     for (const name of context.itemNames) {
-      await attachItemLoot(
+      const write = planItemLoot(
         name,
         { location_id: context.locationId },
         `Location "${context.locationName}"`,
         campaignId,
         itemsLookup,
-        deps,
         unresolvedLinks,
         addSweepRef,
-        (itemId) => recordPlacement(context.locationId, itemId),
       );
+      if (write) planned.push(write);
     }
+  }
+  for (const row of await writeLabelled(planned, deps.insertLootPlacements, unresolvedLinks)) {
+    if ("location_id" in row.home) recordPlacement(row.home.location_id, row.item_ref);
   }
 }
 
@@ -281,7 +309,7 @@ export async function resolveLocationLoot(
 export async function resolveBeatCrossReferences(
   contexts: readonly QuestBeatContext[],
   lookups: Partial<Record<ImportEntityKind, SourcedRow[]>>,
-  deps: Pick<ImportSweepDeps, "updateBeatLocation" | "insertBeatAttachment" | "insertLootPlacement">,
+  deps: Pick<ImportSweepDeps, "insertBeatAttachments" | "insertLootPlacements">,
   unresolvedLinks: string[],
   addSweepRef: (refType: QuestRefType, refId: string) => void,
   /** Built by `importSweep.ts` from this batch's own `locations` — see
@@ -302,26 +330,21 @@ export async function resolveBeatCrossReferences(
    *  is staged, so checking it against `siteRoomIndex` needs this lookup. */
   encounterLocationById: ReadonlyMap<string, string>,
 ): Promise<void> {
+  // Every beat's attachments and loot are planned first and written in one
+  // request each (#951) — they were one request per row, 39 attachments on
+  // a single chapter. Nothing below needs a written row's result.
+  const attachments: LabelledWrite<BeatAttachmentWrite>[] = [];
+  const beatLoot: LabelledWrite<LootPlacementWrite>[] = [];
+
   for (const context of contexts) {
     for (const beat of context.beats) {
       const beatId = context.beatIdByKey.get(beat.key);
       if (!beatId) continue; // the beat itself failed to create — best-effort skip, like every other write in this pass
 
-      let stagedLocationId: string | undefined;
-      if (beat.location_name) {
-        const match = findByNameSourced(lookups.locations ?? [], beat.location_name);
-        if (match) {
-          stagedLocationId = match.id;
-          addSweepRef("location", match.id);
-          try {
-            await deps.updateBeatLocation(beatId, match.id);
-          } catch {
-            // Best-effort.
-          }
-        } else {
-          unresolvedLinks.push(`Beat "${beat.title}" → location "${beat.location_name}"`);
-        }
-      }
+      // Staged with the beat insert itself (`QuestBeatContext.stagedLocationIdByKey`).
+      const stagedLocationId = context.stagedLocationIdByKey.get(beat.key);
+      if (stagedLocationId) addSweepRef("location", stagedLocationId);
+      else if (beat.location_name) unresolvedLinks.push(`Beat "${beat.title}" → location "${beat.location_name}"`);
 
       // `null` when the staged location is neither a site nor a room of one
       // (per THIS sweep's own wiring) — every reference below then resolves
@@ -329,32 +352,38 @@ export async function resolveBeatCrossReferences(
       const siteExcludeIds = stagedLocationId ? siteAndRoomIds(stagedLocationId, siteRoomIndex) : null;
 
       let sortOrder = 0;
-      const attach = async (attachmentType: QuestBeatAttachmentType, refId: string, name: string) => {
-        try {
-          await deps.insertBeatAttachment({
+      // `quest_beat_attachments` is unique on (beat, type, ref, role): a page
+      // naming the same NPC twice in one beat attaches it once, rather than a
+      // duplicate refusing the whole batch into its row-by-row fallback.
+      const attachedHere = new Set<string>();
+      const attach = (attachmentType: QuestBeatAttachmentType, refId: string, name: string) => {
+        const key = `${attachmentType}:${refId}`;
+        if (attachedHere.has(key)) return;
+        attachedHere.add(key);
+        attachments.push({
+          row: {
             beat_id: beatId,
             quest_id: context.questId,
             campaign_id: context.campaignId,
             attachment_type: attachmentType,
             ref_id: refId,
             sort_order: sortOrder++,
-          });
-        } catch (err) {
-          unresolvedLinks.push(writeFailure(`Beat "${beat.title}" → ${attachmentType} "${name}"`, err));
-        }
+          },
+          label: `Beat "${beat.title}" → ${attachmentType} "${name}"`,
+        });
       };
 
       for (const name of beat.npc_names ?? []) {
         const match = findByNameSourced(lookups.npcs ?? [], name);
         if (!match) { unresolvedLinks.push(`Beat "${beat.title}" → npc "${name}"`); continue; }
         addSweepRef("npc", match.id);
-        await attach("npc", match.id, name);
+        attach("npc", match.id, name);
       }
       for (const name of beat.faction_names ?? []) {
         const match = findByNameSourced(lookups.factions ?? [], name);
         if (!match) { unresolvedLinks.push(`Beat "${beat.title}" → faction "${name}"`); continue; }
         addSweepRef("faction", match.id);
-        await attach("faction", match.id, name);
+        attach("faction", match.id, name);
       }
       for (const name of beat.encounter_names ?? []) {
         const match = findByNameSourced(lookups.encounters ?? [], name);
@@ -367,14 +396,14 @@ export async function resolveBeatCrossReferences(
         const encounterLocationId = encounterLocationById.get(match.id);
         if (siteExcludeIds && encounterLocationId && siteExcludeIds.has(encounterLocationId)) continue;
         addSweepRef("encounter", match.id);
-        await attach("encounter", match.id, name);
+        attach("encounter", match.id, name);
       }
       for (const name of beat.monster_names ?? []) {
         const match = findByNameSourced(lookups.monsters ?? [], name);
         if (!match) { unresolvedLinks.push(`Beat "${beat.title}" → monster "${name}"`); continue; }
         addSweepRef("monster", match.id);
         // A library monster's text id is a valid attachment ref as it stands.
-        await attach("monster", match.id, name);
+        attach("monster", match.id, name);
       }
       for (const name of beat.item_names ?? []) {
         // Loot this same sweep already placed in one of the site's own rooms
@@ -383,21 +412,25 @@ export async function resolveBeatCrossReferences(
         // location of its own to look up — `roomLootByLocation` already
         // records WHERE it landed.
         if (siteExcludeIds) {
-          const itemsLookup = lookups.items ?? [];
-          const match = findByNameSourced(itemsLookup, name);
+          const match = findByNameSourced(lookups.items ?? [], name);
           if (match && itemAlreadyRoomed(match.id, siteExcludeIds, roomLootByLocation)) continue;
         }
-        await attachItemLoot(
+        const write = planItemLoot(
           name,
           { beat_id: beatId, quest_id: context.questId },
           `Beat "${beat.title}"`,
           context.campaignId,
           lookups.items ?? [],
-          deps,
           unresolvedLinks,
           addSweepRef,
         );
+        if (write) beatLoot.push(write);
       }
     }
   }
+
+  await Promise.all([
+    writeLabelled(attachments, deps.insertBeatAttachments, unresolvedLinks),
+    writeLabelled(beatLoot, deps.insertLootPlacements, unresolvedLinks),
+  ]);
 }

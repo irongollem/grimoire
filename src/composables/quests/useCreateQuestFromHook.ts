@@ -1,9 +1,8 @@
 import { useCampaignStore } from "@/stores/campaign";
-import { useCreateQuest, useCreateObjective, useCreateQuestRef } from "@/composables/quests/useQuests";
-import { useCreateQuestBeat, useCreateQuestBeatEdge, useCreateQuestConsequence } from "@/composables/quests/useQuestFlow";
+import { useCreateQuest, useCreateQuestRefs } from "@/composables/quests/useQuests";
+import { useQuestSpineWriter } from "@/composables/quests/useQuestSpineWriter";
 import { resolveGeneratedEntities, type ResolvedEntity } from "@/ai/resolveGeneratedEntities";
 import { splitQuestSummary } from "@/lib/quests/summary";
-import { writeQuestSpine } from "@/lib/quests/spineWrite";
 import type { QuestHookResult } from "@/ai/types";
 import type { AiProvenance } from "@/ai/provenance";
 
@@ -73,11 +72,8 @@ export interface CreateQuestFromHookResult {
 export function useCreateQuestFromHook() {
   const campaign = useCampaignStore();
   const { mutateAsync: createQuest } = useCreateQuest();
-  const { mutateAsync: createObjective } = useCreateObjective();
-  const { mutateAsync: createQuestRef } = useCreateQuestRef();
-  const { mutateAsync: createBeat } = useCreateQuestBeat();
-  const { mutateAsync: createBeatEdge } = useCreateQuestBeatEdge();
-  const { mutateAsync: createConsequence } = useCreateQuestConsequence();
+  const { mutateAsync: createQuestRefs } = useCreateQuestRefs();
+  const { writeSpine } = useQuestSpineWriter();
 
   async function createFromHook(input: CreateQuestFromHookInput): Promise<CreateQuestFromHookResult> {
     const { hook, giverNpcId, locationId, entityPools, aiProvenance, parentQuestId } = input;
@@ -124,16 +120,13 @@ export function useCreateQuestFromHook() {
     // spine, resolved from the model's local `key`s to real ids as each beat
     // lands. No fallback beat when there is nothing usable here: see this
     // composable's doc comment.
-    const { beatIdByKey } = await writeQuestSpine(
-      {
-        questId: quest.id,
-        campaignId: campaign.activeCampaignId!,
-        beats: spineBeats,
-        routes: hook.routes,
-        objectives: hook.objectives,
-      },
-      { createBeat, createBeatEdge, createObjective, createConsequence },
-    );
+    const { beatIdByKey } = await writeSpine({
+      questId: quest.id,
+      campaignId: campaign.activeCampaignId!,
+      beats: spineBeats,
+      routes: hook.routes,
+      objectives: hook.objectives,
+    });
 
     // Resolved npcs/locations become quest_refs so they show up in Key NPCs /
     // Key Locations on the quest detail page — but skip the giver/location,
@@ -148,19 +141,15 @@ export function useCreateQuestFromHook() {
         !(e.kind === "location" && e.id === locationId),
     );
 
-    // Best-effort like the objectives above, but explicitly tolerant of
-    // per-ref failure: a lost cross-reference chip is fine, an undone quest
-    // creation is not.
-    await Promise.allSettled(
-      refTargets.map((e) =>
-        createQuestRef({
-          quest_id: quest.id,
-          ref_type: e.kind,
-          ref_id: e.id,
-          is_player_visible: false,
-        }),
-      ),
-    );
+    // One write for every ref (#951). Best-effort like the spine above: a
+    // lost cross-reference chip is fine, an undone quest creation is not.
+    try {
+      await createQuestRefs(
+        refTargets.map((e) => ({ quest_id: quest.id, ref_type: e.kind, ref_id: e.id, is_player_visible: false })),
+      );
+    } catch {
+      // See above.
+    }
 
     return { questId: quest.id, beatsCreated: beatIdByKey.size };
   }

@@ -19,7 +19,7 @@ import type {
 } from "@/types/quest.types";
 
 const QUESTS_KEY     = "quests";
-const OBJECTIVES_KEY = "quest_objectives";
+export const OBJECTIVES_KEY = "quest_objectives";
 const REFS_KEY       = "quest_refs";
 const CONSEQUENCE_EVENTS_KEY = "quest_consequence_events";
 const QUEST_FILTER_ENTITIES_KEY = "quest_filter_entities";
@@ -145,10 +145,19 @@ async function fetchCampaignRefs(campaignId: string): Promise<QuestRef[]> {
   return (data ?? []) as unknown as QuestRef[];
 }
 
-async function createRef(ref: QuestRefInsert): Promise<QuestRef> {
-  const { data, error } = await supabase.from("quest_refs").insert(ref).select().single();
+/**
+ * Many refs in ONE write that skips a row already there (#951). `quest_refs`
+ * is unique on `(quest_id, ref_type, ref_id)`, and a beat attachment's own
+ * sync trigger has often written some of these first, so a duplicate is the
+ * write's business (`on conflict do nothing`), never a 409 for the caller to
+ * swallow.
+ */
+export async function insertQuestRefs(refs: readonly QuestRefInsert[]): Promise<void> {
+  if (refs.length === 0) return;
+  const { error } = await supabase
+    .from("quest_refs")
+    .upsert([...refs], { onConflict: "quest_id,ref_type,ref_id", ignoreDuplicates: true });
   if (error) throw error;
-  return data as QuestRef;
 }
 
 async function updateRef(id: string, update: { is_player_visible: boolean }): Promise<QuestRef> {
@@ -436,12 +445,16 @@ export function useQuestFilterEntities(enabled?: () => boolean) {
   });
 }
 
-export function useCreateQuestRef() {
+export function useCreateQuestRefs() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createRef,
-    onSuccess: (_data, vars) =>
-      queryClient.invalidateQueries({ queryKey: [REFS_KEY, vars.quest_id] }),
+    mutationFn: insertQuestRefs,
+    onSuccess: (_data, refs) =>
+      Promise.all(
+        [...new Set(refs.map((ref) => ref.quest_id))].map((questId) =>
+          queryClient.invalidateQueries({ queryKey: [REFS_KEY, questId] }),
+        ),
+      ),
   });
 }
 

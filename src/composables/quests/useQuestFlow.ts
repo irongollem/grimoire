@@ -35,7 +35,7 @@ import type {
 /** Exported so `useQuestThreads` can invalidate the board summary too — a
  *  thread opening or closing changes what the board's `threads[]` shows. */
 export const BEATS_KEY = "quest_beats";
-const EDGES_KEY = "quest_beat_edges";
+export const EDGES_KEY = "quest_beat_edges";
 const EDGE_GATES_KEY = "quest_beat_edge_gates";
 const RUNTIME_KEY = "quest_runtime_state";
 const RUNTIME_CONTEXT_KEY = "quest_runtime_context";
@@ -47,7 +47,7 @@ const TRANSITIONS_KEY = "quest_beat_transitions";
 export const QUEST_RUNTIME_QUERY_KEYS = [RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY] as const;
 const ATTACHMENTS_KEY = "quest_beat_attachments";
 const LOOT_KEY = "loot_placements";
-const CONSEQUENCES_KEY = "quest_consequences";
+export const CONSEQUENCES_KEY = "quest_consequences";
 const CONSEQUENCE_EVENTS_KEY = "quest_consequence_events";
 
 /** Player projections are audience-keyed. An authored beat change can alter

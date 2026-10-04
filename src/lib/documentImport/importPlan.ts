@@ -414,7 +414,7 @@ export interface LinkedRowList {
 /**
  * The list-field counterpart of `resolveLinks`: each name in the array gets
  * its own `LinkResolution`, since a faction naming three locations needs
- * three `faction_locations` rows, not one. `applyLinkResolution` (the
+ * three `faction_locations` rows, not one. `applyLinkResolutions` (the
  * composable) already knows how to apply a `join_insert` — this function
  * changes nothing about how a resolution is *applied*, only how it's found,
  * so no new apply path was needed to add this field.

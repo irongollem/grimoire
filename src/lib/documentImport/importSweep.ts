@@ -61,6 +61,7 @@ import { getEntityKindEntry } from "./entityKinds";
 import { normalizeEntityName } from "./entityName";
 import {
   buildSiteRoomIndex,
+  findByNameSourced,
   resolveBeatCrossReferences,
   resolveEncounters,
   resolveLocationLoot,
@@ -189,9 +190,11 @@ export interface ImportSweepDeps {
    *  global rows) — the fallback lookup once the sweep's own registry has
    *  been consulted. */
   fetchNameLookup: (targetKind: ImportEntityKind) => Promise<readonly NameLookupRow[]>;
-  /** Applies one resolved scalar or list link. Best-effort by convention: a
-   *  link write failing must not undo the row it points from. */
-  applyLinkResolution: (resolution: Extract<LinkResolution, { status: "resolved" }>) => Promise<void>;
+  /** Applies every resolved scalar and list link of the sweep, together —
+   *  grouped per table by the implementation rather than one request per
+   *  link (#951). Best-effort by convention: a link write failing must not
+   *  undo the row it points from. */
+  applyLinkResolutions: (resolutions: readonly Extract<LinkResolution, { status: "resolved" }>[]) => Promise<void>;
   /** Only ever invoked once per inserted quest that carries a spine. */
   writeQuestSpine: (input: {
     questId: string;
@@ -199,16 +202,22 @@ export interface ImportSweepDeps {
     beats: ExtractedQuestBeat[] | undefined;
     routes: QuestSpineRouteResult[] | undefined;
     objectives: QuestObjectiveResult[] | undefined;
+    /** Written with each beat (`quest_beats.staged_at_location_id`) rather
+     *  than as an update per beat afterwards (#951). */
+    stagedLocationIdByKey: ReadonlyMap<string, string>;
   }) => Promise<WriteQuestSpineOutcome>;
   /** Resolves combatant names against this campaign's monsters and the
    *  shared library, keyed by the name that was queried — mirrors
-   *  `resolve_monster_references`'s own `distinct on (query_name)` contract. */
+   *  `resolve_monster_references`'s own `distinct on (query_name)` contract.
+   *  Called once per sweep with every encounter's names. */
   resolveMonsterNames: (names: readonly string[]) => Promise<ReadonlyMap<string, { targetId: string }>>;
   updateEncounterCombatants: (encounterId: string, combatants: readonly CombatantDef[]) => Promise<void>;
-  /** `quest_beats.staged_at_location_id`. */
-  updateBeatLocation: (beatId: string, locationId: string) => Promise<void>;
-  insertBeatAttachment: (attachment: BeatAttachmentWrite) => Promise<void>;
-  insertLootPlacement: (placement: LootPlacementWrite) => Promise<void>;
+  /** Every row in ONE request; throws when the database refuses it, and the
+   *  sweep then writes row by row so a refusal costs only its own row and is
+   *  reported in `unresolvedLinks` (`writeBatchIsolatingFailures`). */
+  insertBeatAttachments: (attachments: BeatAttachmentWrite[]) => Promise<void>;
+  /** As `insertBeatAttachments`. */
+  insertLootPlacements: (placements: LootPlacementWrite[]) => Promise<void>;
   /** Every quest ref of the sweep, in ONE write that skips a row already
    *  there. `quest_refs` carries a unique `(quest_id, ref_type, ref_id)`
    *  constraint, and a beat attachment's own sync trigger has usually written
@@ -220,8 +229,8 @@ export interface ImportSweepDeps {
   insertQuestRefs: (refs: readonly QuestRefWrite[]) => Promise<void>;
   updateQuestParent: (questId: string, parentQuestId: string) => Promise<void>;
   /** Persists the *complete*, accumulated `imported_counts` so far — called
-   *  after every kind, so a crash mid-sweep resumes from the last kind that
-   *  finished rather than from scratch. */
+   *  after every kind that had anything to import, so a crash mid-sweep
+   *  resumes from the last kind that finished rather than from scratch. */
   persistImportedCounts: (counts: Partial<Record<ImportEntityKind, number>>) => Promise<void>;
   /** Marks the row `complete` once every phase is done. */
   markComplete: (counts: Partial<Record<ImportEntityKind, number>>) => Promise<void>;
@@ -304,20 +313,32 @@ function registryToSourcedRows(registry: Map<string, RegistryEntry> | undefined)
  *  `quests` and `spells` never appear as a link *target*. */
 const LOOKUP_TARGET_KINDS = ["factions", "locations", "npcs", "encounters", "monsters", "items"] as const;
 
+/** One kind's link targets: this sweep's own registry first, then the
+ *  campaign's existing rows. */
+async function buildLookup(
+  kind: ImportEntityKind,
+  registry: SweepRegistry,
+  fetchNameLookup: ImportSweepDeps["fetchNameLookup"],
+): Promise<SourcedRow[]> {
+  // Every existing campaign row `fetchNameLookup` returns is, by
+  // construction, a `monsters`/`items`/etc row in THIS app's own tables —
+  // never a library row (a library id would never satisfy that query) — so
+  // `source: "campaign"` is correct here, not a guess.
+  const fetched = (await fetchNameLookup(kind)).map((row) => ({ ...row, source: "campaign" as const }));
+  return [...registryToSourcedRows(registry[kind]), ...fetched];
+}
+
 async function buildLookups(
   registry: SweepRegistry,
   fetchNameLookup: ImportSweepDeps["fetchNameLookup"],
 ): Promise<Partial<Record<ImportEntityKind, SourcedRow[]>>> {
   const lookups: Partial<Record<ImportEntityKind, SourcedRow[]>> = {};
-  for (const kind of LOOKUP_TARGET_KINDS) {
-    const fromRegistry = registryToSourcedRows(registry[kind]);
-    // Every existing campaign row `fetchNameLookup` returns is, by
-    // construction, a `monsters`/`items`/etc row in THIS app's own tables —
-    // never a library row (a library id would never satisfy that query) — so
-    // `source: "campaign"` is correct here, not a guess.
-    const fetched = (await fetchNameLookup(kind)).map((row) => ({ ...row, source: "campaign" as const }));
-    lookups[kind] = [...fromRegistry, ...fetched];
-  }
+  // Independent reads, so sent together rather than one after another.
+  await Promise.all(
+    LOOKUP_TARGET_KINDS.map(async (kind) => {
+      lookups[kind] = await buildLookup(kind, registry, fetchNameLookup);
+    }),
+  );
   return lookups;
 }
 
@@ -453,11 +474,15 @@ export async function runImportSweep(
 
     perKind[kind] = { ...result.report, linked, ignored };
     importedCounts[kind] = result.report.imported;
-    try {
-      await deps.persistImportedCounts({ ...importedCounts });
-    } catch {
-      // Best-effort checkpoint: losing it costs a from-scratch resume, not
-      // the rows that already landed.
+    // A kind the page had none of wrote nothing, so there is nothing for a
+    // resume to skip and no checkpoint worth a request (#951).
+    if (entities.length > 0) {
+      try {
+        await deps.persistImportedCounts({ ...importedCounts });
+      } catch {
+        // Best-effort checkpoint: losing it costs a from-scratch resume, not
+        // the rows that already landed.
+      }
     }
 
     registry[kind] = buildKindRegistry(kind, entities, kindDecisions, result.insertedIds);
@@ -500,17 +525,30 @@ export async function runImportSweep(
     }
 
     if (kind === "quests") {
+      // `locations` imports before `quests`, so where each beat is staged is
+      // already knowable here, and rides in on the beat insert instead of an
+      // update per beat afterwards (#951). Read once, and only when a quest
+      // actually has a spine.
+      let beatLocationLookup: SourcedRow[] | null = null;
       for (const [ref, id] of result.insertedIds) {
         createdQuestIds.push(id);
         const meta = result.linkedEntities.get(ref);
         if (!meta?.questSpine) continue;
         try {
+          const stagedLocationIdByKey = new Map<string, string>();
+          for (const beat of meta.questSpine.beats) {
+            if (!beat.location_name) continue;
+            beatLocationLookup ??= await buildLookup("locations", registry, deps.fetchNameLookup);
+            const match = findByNameSourced(beatLocationLookup, beat.location_name);
+            if (match) stagedLocationIdByKey.set(beat.key, match.id);
+          }
           const spineResult = await deps.writeQuestSpine({
             questId: id,
             campaignId,
             beats: meta.questSpine.beats,
             routes: meta.questSpine.routes,
             objectives: meta.questSpine.objectives,
+            stagedLocationIdByKey,
           });
           questContexts.push({
             questId: id,
@@ -518,6 +556,7 @@ export async function runImportSweep(
             questDisplayName: displayNameById.get(id) ?? id,
             beatIdByKey: spineResult.beatIdByKey,
             beats: meta.questSpine.beats,
+            stagedLocationIdByKey,
           });
         } catch {
           // Best-effort: a partially wired spine doesn't undo the quest,
@@ -550,6 +589,7 @@ export async function runImportSweep(
   // an encounter is staged, which its own id can't say.
   const encounterLocationById = new Map<string, string>();
 
+  const resolvedLinks: Extract<LinkResolution, { status: "resolved" }>[] = [];
   for (const kind of LINK_SOURCE_KINDS) {
     const rows = linkedRowsByKind[kind] ?? [];
     for (const resolution of resolveLinks(kind, rows, plainLookups)) {
@@ -560,11 +600,7 @@ export async function runImportSweep(
       if (kind === "encounters" && resolution.field === "encounter_location_name") {
         encounterLocationById.set(resolution.sourceId, resolution.targetId);
       }
-      try {
-        await deps.applyLinkResolution(resolution);
-      } catch {
-        // Best-effort: see the file header on every other write in this pass.
-      }
+      resolvedLinks.push(resolution);
     }
   }
 
@@ -575,11 +611,15 @@ export async function runImportSweep(
         unresolvedLinks.push(formatUnresolvedLink(kind, resolution, displayNameById));
         continue;
       }
-      try {
-        await deps.applyLinkResolution(resolution);
-      } catch {
-        // Best-effort, as above.
-      }
+      resolvedLinks.push(resolution);
+    }
+  }
+
+  if (resolvedLinks.length > 0) {
+    try {
+      await deps.applyLinkResolutions(resolvedLinks);
+    } catch {
+      // Best-effort: see the file header on every other write in this pass.
     }
   }
 

@@ -25,7 +25,8 @@ import { isQuotaExceeded } from "@/lib/quotaError";
 import { normalizeMonsterReferenceRows } from "@/lib/documentImport/entityMatching";
 import { monsterGenerationConcept, monsterGenerationOptionsFromPage } from "@/lib/documentImport/monsterGenerationConcept";
 import { useGenerateMonster } from "@/composables/monsters/useGenerateMonster";
-import { writeQuestSpine } from "@/lib/quests/spineWrite";
+import { useQuestSpineWriter } from "@/composables/quests/useQuestSpineWriter";
+import { insertQuestRefs } from "@/composables/quests/useQuests";
 import {
   runImportSweep as runImportSweepCore,
   type BeatAttachmentWrite,
@@ -34,7 +35,6 @@ import {
   type ImportSweepProgress,
   type ImportSweepReport,
   type LootPlacementWrite,
-  type QuestRefWrite,
 } from "@/lib/documentImport/importSweep";
 import type { InsertRowOutcome } from "@/lib/documentImport/runImportKind";
 import { activeImportKey } from "./useDocumentImport";
@@ -86,6 +86,7 @@ function buildDeps(
   importRow: DocumentImport,
   userId: string,
   generateAndCreateMonster: ReturnType<typeof useGenerateMonster>["generateAndCreateMonster"],
+  writeQuestSpine: ImportSweepDeps["writeQuestSpine"],
   invalidateActiveImport: () => Promise<void>,
 ): ImportSweepDeps {
   const campaignId = importRow.campaign_id;
@@ -165,43 +166,35 @@ function buildDeps(
 
     // Best-effort: a link write failing doesn't undo the row it points from,
     // which already landed and is already counted as imported.
-    applyLinkResolution: async (resolution) => {
-      const { apply, sourceId, targetId } = resolution;
-      if (apply.kind === "fk_update") {
-        await supabase.from(apply.table).update({ [apply.column]: targetId }).eq("id", sourceId);
-      } else {
-        await supabase.from(apply.table).insert({
-          user_id: userId,
-          [apply.sourceColumn]: sourceId,
-          [apply.targetColumn]: targetId,
-        });
+    applyLinkResolutions: async (resolutions) => {
+      // Join rows go in one write per table (#951). Each pair is unique, so a
+      // pair the DM's own row already holds is skipped by the database rather
+      // than refusing the whole write.
+      const joinRowsByTable = new Map<string, { onConflict: string; rows: Record<string, string>[] }>();
+      const fkUpdates: Promise<unknown>[] = [];
+      for (const { apply, sourceId, targetId } of resolutions) {
+        if (apply.kind === "fk_update") {
+          // Every row gets its own value, so these stay one update per row:
+          // sent together rather than one after another.
+          fkUpdates.push(Promise.resolve(supabase.from(apply.table).update({ [apply.column]: targetId }).eq("id", sourceId)));
+          continue;
+        }
+        let group = joinRowsByTable.get(apply.table);
+        if (!group) {
+          group = { onConflict: `${apply.sourceColumn},${apply.targetColumn}`, rows: [] };
+          joinRowsByTable.set(apply.table, group);
+        }
+        group.rows.push({ user_id: userId, [apply.sourceColumn]: sourceId, [apply.targetColumn]: targetId });
       }
+      await Promise.allSettled([
+        ...fkUpdates,
+        ...[...joinRowsByTable].map(([table, { onConflict, rows }]) =>
+          supabase.from(table).upsert(rows, { onConflict, ignoreDuplicates: true }),
+        ),
+      ]);
     },
 
-    writeQuestSpine: async (input) => {
-      return writeQuestSpine(input, {
-        createBeat: async (beat) => {
-          const { data, error } = await supabase.from("quest_beats").insert(beat).select().single();
-          if (error) throw error;
-          return data;
-        },
-        createBeatEdge: async (edge) => {
-          const { data, error } = await supabase.from("quest_beat_edges").insert(edge).select().single();
-          if (error) throw error;
-          return data;
-        },
-        createObjective: async (objective) => {
-          const { data, error } = await supabase.from("quest_objectives").insert(objective).select().single();
-          if (error) throw error;
-          return data;
-        },
-        createConsequence: async (consequence) => {
-          const { data, error } = await supabase.from("quest_consequences").insert(consequence).select().single();
-          if (error) throw error;
-          return data;
-        },
-      });
-    },
+    writeQuestSpine,
 
     resolveMonsterNames: async (names) => {
       const rows = await fetchMonsterMatchRows(campaignId, names);
@@ -212,23 +205,18 @@ function buildDeps(
       await supabase.from("encounters").update({ combatants: combatants as CombatantDef[] }).eq("id", encounterId);
     },
 
-    updateBeatLocation: async (beatId, locationId) => {
-      const { error } = await supabase.from("quest_beats").update({ staged_at_location_id: locationId }).eq("id", beatId);
+    insertBeatAttachments: async (attachments: BeatAttachmentWrite[]) => {
+      const { error } = await supabase.from("quest_beat_attachments").insert(attachments);
       if (error) throw error;
     },
 
-    insertBeatAttachment: async (attachment: BeatAttachmentWrite) => {
-      const { error } = await supabase.from("quest_beat_attachments").insert(attachment);
-      if (error) throw error;
-    },
-
-    insertLootPlacement: async (placement: LootPlacementWrite) => {
+    insertLootPlacements: async (placements: LootPlacementWrite[]) => {
       // `LootPlacementWrite.home` is exactly one of the two shapes
       // `loot_placements_one_home`/`loot_placements_beat_pair` (the database)
       // allow — a beat's own loot (`beat_id`+`quest_id`) or a room's own loot
       // (`location_id` alone). Widened into the real row shape here, at the
       // one place this dep actually talks to Supabase.
-      const row = {
+      const rows = placements.map((placement) => ({
         campaign_id: placement.campaign_id,
         kind: placement.kind,
         // A library pick is stored as a reference, never cloned: the picked
@@ -239,20 +227,13 @@ function buildDeps(
         beat_id: "beat_id" in placement.home ? placement.home.beat_id : null,
         quest_id: "beat_id" in placement.home ? placement.home.quest_id : null,
         location_id: "location_id" in placement.home ? placement.home.location_id : null,
-      };
-      const { error } = await supabase.from("loot_placements").insert(row);
+      }));
+      const { error } = await supabase.from("loot_placements").insert(rows);
       if (error) throw error;
     },
 
-    insertQuestRefs: async (refs: readonly QuestRefWrite[]) => {
-      // One request, and a row the beat-attachment sync trigger already wrote
-      // is skipped by the database (`on conflict do nothing`) rather than
-      // refused with a 409 the caller then has to swallow.
-      const { error } = await supabase
-        .from("quest_refs")
-        .upsert([...refs], { onConflict: "quest_id,ref_type,ref_id", ignoreDuplicates: true });
-      if (error) throw error;
-    },
+    // One request; see `insertQuestRefs` (useQuests.ts).
+    insertQuestRefs,
 
     updateQuestParent: async (questId, parentQuestId) => {
       const { error } = await supabase.from("quests").update({ parent_quest_id: parentQuestId }).eq("id", questId);
@@ -278,6 +259,7 @@ export function useDocumentImportRunner() {
   const qc = useQueryClient();
   const campaign = useCampaignStore();
   const { generateAndCreateMonster } = useGenerateMonster();
+  const { writeSpine } = useQuestSpineWriter();
 
   /**
    * Runs the whole sweep for `importRow`: every kind in `input.entitiesByKind`
@@ -299,7 +281,7 @@ export function useDocumentImportRunner() {
     if (!user) throw new Error("You must be signed in to import.");
 
     const invalidateActiveImport = () => qc.invalidateQueries({ queryKey: activeImportKey(campaign.activeCampaignId) });
-    const deps = buildDeps(importRow, user.id, generateAndCreateMonster, invalidateActiveImport);
+    const deps = buildDeps(importRow, user.id, generateAndCreateMonster, writeSpine, invalidateActiveImport);
     return runImportSweepCore(importRow, input, deps, onProgress);
   }
 

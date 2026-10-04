@@ -4,7 +4,7 @@ import type { QuestHookResult } from "@/ai/types";
 const mocks = vi.hoisted(() => ({
   createQuest: vi.fn(),
   createObjective: vi.fn(),
-  createQuestRef: vi.fn(),
+  createQuestRefs: vi.fn(),
   createBeat: vi.fn(),
   createBeatEdge: vi.fn(),
   createConsequence: vi.fn(),
@@ -15,14 +15,25 @@ vi.mock("@/stores/campaign", () => ({
 }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useCreateQuest: () => ({ mutateAsync: mocks.createQuest }),
-  useCreateObjective: () => ({ mutateAsync: mocks.createObjective }),
-  useCreateQuestRef: () => ({ mutateAsync: mocks.createQuestRef }),
+  useCreateQuestRefs: () => ({ mutateAsync: mocks.createQuestRefs }),
 }));
-vi.mock("@/composables/quests/useQuestFlow", () => ({
-  useCreateQuestBeat: () => ({ mutateAsync: mocks.createBeat }),
-  useCreateQuestBeatEdge: () => ({ mutateAsync: mocks.createBeatEdge }),
-  useCreateQuestConsequence: () => ({ mutateAsync: mocks.createConsequence }),
-}));
+// The spine's batch writes run through the real `writeQuestSpine`, with
+// each batch fanned out to the per-row recorders below so the assertions can
+// still read one call per row.
+vi.mock("@/composables/quests/useQuestSpineWriter", async () => {
+  const { writeQuestSpine } = await import("@/lib/quests/spineWrite");
+  return {
+    useQuestSpineWriter: () => ({
+      writeSpine: (input: Parameters<typeof writeQuestSpine>[0]) =>
+        writeQuestSpine(input, {
+          createBeats: async (rows) => Promise.all(rows.map((row) => mocks.createBeat(row))),
+          createBeatEdges: async (rows) => { for (const row of rows) await mocks.createBeatEdge(row); },
+          createObjectives: async (rows) => Promise.all(rows.map((row) => mocks.createObjective(row))),
+          createConsequences: async (rows) => { for (const row of rows) await mocks.createConsequence(row); },
+        }),
+    }),
+  };
+});
 
 import { useCreateQuestFromHook } from "./useCreateQuestFromHook";
 
@@ -45,7 +56,7 @@ describe("useCreateQuestFromHook", () => {
   beforeEach(() => {
     mocks.createQuest.mockReset();
     mocks.createObjective.mockReset();
-    mocks.createQuestRef.mockReset();
+    mocks.createQuestRefs.mockReset();
     mocks.createBeat.mockReset();
     mocks.createBeatEdge.mockReset();
     mocks.createConsequence.mockReset();
@@ -208,6 +219,27 @@ describe("useCreateQuestFromHook", () => {
       giver_npc_id: "npc-1",
       location_id: "loc-1",
     });
+  });
+
+  it("writes every resolved npc/location ref in one request, skipping the giver and quest location (#951)", async () => {
+    const { createFromHook } = useCreateQuestFromHook();
+    await createFromHook({
+      hook: hook({ npcs: ["Elder Mara", "Brother Ash"], locations: ["The Belfry", "The Crypt"] }),
+      giverNpcId: "npc-mara",
+      locationId: "loc-belfry",
+      entityPools: {
+        npcs: [{ id: "npc-mara", name: "Elder Mara" }, { id: "npc-ash", name: "Brother Ash" }],
+        locations: [{ id: "loc-belfry", name: "The Belfry" }, { id: "loc-crypt", name: "The Crypt" }],
+        factions: [],
+      },
+      aiProvenance: null,
+    });
+
+    expect(mocks.createQuestRefs).toHaveBeenCalledTimes(1);
+    expect(mocks.createQuestRefs.mock.calls[0]![0]).toEqual([
+      { quest_id: "quest-1", ref_type: "npc", ref_id: "npc-ash", is_player_visible: false },
+      { quest_id: "quest-1", ref_type: "location", ref_id: "loc-crypt", is_player_visible: false },
+    ]);
   });
 
   it("writes parent_quest_id when the caller supplies one (#873), and null when it doesn't", async () => {

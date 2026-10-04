@@ -7,7 +7,7 @@ import type { QuestHookResult } from "@/ai/types";
 const mocks = vi.hoisted(() => ({
   createQuest: vi.fn(),
   createObjective: vi.fn(),
-  createQuestRef: vi.fn(),
+  createQuestRefs: vi.fn(),
   createBeat: vi.fn(),
   createBeatEdge: vi.fn(),
   createConsequence: vi.fn(),
@@ -48,17 +48,26 @@ vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => 
 vi.mock("@/composables/factions/useFactions", () => ({ useAllFactions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useCreateQuest: () => ({ mutateAsync: mocks.createQuest }),
-  useCreateObjective: () => ({ mutateAsync: mocks.createObjective }),
-  useCreateQuestRef: () => ({ mutateAsync: mocks.createQuestRef }),
+  useCreateQuestRefs: () => ({ mutateAsync: mocks.createQuestRefs }),
 }));
 // useCreateQuestFromHook (#822) calls straight through to these — mocked here
 // rather than mocking useCreateQuestFromHook itself, so this test still
-// exercises the real orchestration logic end to end.
-vi.mock("@/composables/quests/useQuestFlow", () => ({
-  useCreateQuestBeat: () => ({ mutateAsync: mocks.createBeat }),
-  useCreateQuestBeatEdge: () => ({ mutateAsync: mocks.createBeatEdge }),
-  useCreateQuestConsequence: () => ({ mutateAsync: mocks.createConsequence }),
-}));
+// exercises the real orchestration logic end to end: the spine's batch writes
+// run through the real `writeQuestSpine`, fanned out to per-row recorders.
+vi.mock("@/composables/quests/useQuestSpineWriter", async () => {
+  const { writeQuestSpine } = await import("@/lib/quests/spineWrite");
+  return {
+    useQuestSpineWriter: () => ({
+      writeSpine: (input: Parameters<typeof writeQuestSpine>[0]) =>
+        writeQuestSpine(input, {
+          createBeats: async (rows) => Promise.all(rows.map((row) => mocks.createBeat(row))),
+          createBeatEdges: async (rows) => { for (const row of rows) await mocks.createBeatEdge(row); },
+          createObjectives: async (rows) => Promise.all(rows.map((row) => mocks.createObjective(row))),
+          createConsequences: async (rows) => { for (const row of rows) await mocks.createConsequence(row); },
+        }),
+    }),
+  };
+});
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 0 }) }));
 const requireCredits = vi.fn(() => true);
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits }) }));
@@ -100,13 +109,13 @@ describe("QuestGeneratorPanel — createFromHook", () => {
   beforeEach(() => {
     mocks.createQuest.mockReset();
     mocks.createObjective.mockReset();
-    mocks.createQuestRef.mockReset();
+    mocks.createQuestRefs.mockReset();
     mocks.createBeat.mockReset();
     mocks.createBeatEdge.mockReset();
     mocks.createConsequence.mockReset();
     mocks.push.mockReset();
     mocks.createQuest.mockResolvedValue({ id: "quest-new" });
-    mocks.createObjective.mockResolvedValue({ id: "objective-new" });
+    mocks.createObjective.mockImplementation(async (objective: { sort_order: number }) => ({ id: "objective-new", ...objective }));
     isAiEnabled.value = true;
     canCreateQuest.value = true;
     hooks.value = [hook];
