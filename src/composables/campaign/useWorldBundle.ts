@@ -186,6 +186,15 @@ function stripLibraryRow(row: Row): Row {
   return copy;
 }
 
+/**
+ * A document's `player_visible_to` names the exporter's party members, who do
+ * not exist in the importer's account. Bundle rows also lose `campaign_id`, and
+ * the database refuses a campaign-less document with an audience.
+ */
+function clearDocumentAudience(row: Row): Row {
+  return { ...row, player_visible_to: [] };
+}
+
 /** Party members additionally drop owner_user_id — imported characters land
  *  unassigned (DM characters), and the source owner's UUID shouldn't leak. */
 export function stripPartyMemberRow(row: Row): Row {
@@ -349,7 +358,7 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
     selection.has("scriptorium_documents") && (async () => {
       const ids = selection.get("scriptorium_documents")!;
       const docs = await fetchByIds("scriptorium_documents", ids);
-      bundle.scriptorium_documents = docs.map(stripLibraryRow);
+      bundle.scriptorium_documents = docs.map(stripLibraryRow).map(clearDocumentAudience);
       entityCounts.scriptorium_documents = docs.length;
     })(),
 
@@ -602,6 +611,8 @@ export function remapScriptoriumDocumentForImport(doc: Row, idMap: IdMap, userId
     ...normalizeImportedDocument(doc),
     id: idMap.get(doc.id as string) ?? crypto.randomUUID(),
     user_id: userId,
+    // Cleared again here for bundles exported before the export did it.
+    player_visible_to: [],
   };
 }
 

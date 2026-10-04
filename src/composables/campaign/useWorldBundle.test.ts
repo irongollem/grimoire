@@ -205,6 +205,15 @@ describe("remapScriptoriumDocumentForImport", () => {
     expect(JSON.parse(result.content as string)).toEqual(JSON.parse(json));
   });
 
+  it("always imports with an empty audience: the exporter's party does not exist here", () => {
+    const result = remapScriptoriumDocumentForImport(
+      { id: "doc-4", content: null, player_visible_to: ["pm-source"] },
+      new Map(),
+      "dm-importer",
+    );
+    expect(result.player_visible_to).toEqual([]);
+  });
+
   it("normalizes a bundle exported long ago that still holds raw HTML content", () => {
     const result = remapScriptoriumDocumentForImport(
       { id: "doc-2", title: "Old Adventure", content: "<h1>Old Adventure</h1><p>Body.</p>" },

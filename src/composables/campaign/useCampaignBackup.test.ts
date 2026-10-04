@@ -122,3 +122,27 @@ describe("executeImport class definitions", () => {
     expect(pin.subclass_definition_id).toBe(sub.id);
   });
 });
+
+describe("executeImport scriptorium document audience", () => {
+  beforeEach(() => {
+    inserted.length = 0;
+  });
+
+  it("remaps player_visible_to onto the restored party, exactly as notes do", async () => {
+    const backup = backupWith({
+      party_members: [member],
+      notes: [{ id: "note-1", player_visible_to: ["pm-1", "pm-gone"] }],
+      scriptorium_documents: [
+        { id: "doc-1", title: "Handout", content: null, player_visible_to: ["pm-1", "pm-gone"] },
+      ],
+    });
+    await executeImport(backup, "Restored");
+    const pm = inserted.find((i) => i.table === "party_members")!.rows[0];
+    const doc = inserted.find((i) => i.table === "scriptorium_documents")!.rows[0];
+    const note = inserted.find((i) => i.table === "notes")!.rows[0];
+    expect(pm.id).not.toBe("pm-1");
+    expect((doc.player_visible_to as string[])[0]).toBe(pm.id);
+    // An id the backup cannot map is handled the same way as on notes.
+    expect(doc.player_visible_to).toEqual(note.player_visible_to);
+  });
+});

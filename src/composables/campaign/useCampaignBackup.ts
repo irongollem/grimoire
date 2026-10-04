@@ -541,6 +541,9 @@ export async function executeImport(
         id: r(doc.id, idMap),
         campaign_id: newCampaignId,
         user_id: userId,
+        // Party-member ids, remapped like notes and NPCs; the restored
+        // campaign has its party, so the audience carries over.
+        player_visible_to: rArr(doc.player_visible_to, idMap),
         content: rMention(doc.content, idMap),
       })),
     );
