@@ -1,4 +1,5 @@
 import { computed, type Ref } from "vue";
+import { refDebounced } from "@vueuse/core";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -52,6 +53,12 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
       ? supabase.from("quests").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)
       : Promise.resolve({ data: [] as { id: string; title: string }[], error: null }),
   ]);
+
+  // A failed table is an error the caller must see, not a silently empty
+  // group that reads as "no matches".
+  const failed = [notesRes, npcsRes, monstersRes, libraryMonstersRes, spellsRes, librarySpellsRes, itemsRes, locationsRes, questsRes]
+    .find((res) => res.error);
+  if (failed?.error) throw failed.error;
 
   const groups: SearchGroup[] = [
     {
@@ -130,16 +137,27 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
   return groups.filter((g) => g.items.length > 0);
 }
 
+/** How long typing must pause before a search goes out. One search is nine
+ *  requests, so searching every keystroke sent ~60 for an eight-letter word. */
+export const SEARCH_DEBOUNCE_MS = 250;
+
 export function useGlobalSearch(query: Ref<string>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId ?? null);
   const trimmed = computed(() => query.value.trim());
+  const settled = refDebounced(trimmed, SEARCH_DEBOUNCE_MS);
 
-  return useQuery({
-    queryKey: computed(() => ["global-search", trimmed.value, campaignId.value] as const),
+  const result = useQuery({
+    queryKey: computed(() => ["global-search", settled.value, campaignId.value] as const),
     queryFn: ({ queryKey: [, search, activeCampaignId] }) => searchAll(search, activeCampaignId),
-    enabled: () => trimmed.value.length >= 2,
+    enabled: () => settled.value.length >= 2,
     staleTime: 30_000,
     placeholderData: [],
   });
+
+  // Still typing counts as searching: the results on screen are for a term
+  // the DM has already moved past.
+  const isFetching = computed(() => result.isFetching.value || (trimmed.value.length >= 2 && settled.value !== trimmed.value));
+
+  return { ...result, isFetching };
 }
