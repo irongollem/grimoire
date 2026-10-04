@@ -14,6 +14,7 @@ import { adoptCampaignSession, refetchCampaignSession } from "@/composables/camp
 import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
 import { PLAYER_NPCS_KEY } from "@/composables/npcs/useNpcs";
 import { PLAYER_HANDOUTS_KEY } from "@/composables/scriptorium/usePlayerHandouts";
+import { BACKLINKS_KEY } from "@/composables/notes/useEntityBacklinks";
 import { THREADS_KEY } from "@/composables/quests/useQuestThreads";
 import type { CampaignSessionState } from "@/types/session.types";
 import { useAuthStore } from "@/stores/auth";
@@ -141,6 +142,10 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // the players' root is refreshed; the DM's own `scriptorium` queries back an
   // open editor and must not be refetched underneath it.
   ["scriptorium_documents", [PLAYER_HANDOUTS_KEY]],
+  // "Mentioned in" (#972). The index of @mentions is DM-only and rewritten by
+  // a trigger only when a source's set of mentions actually changes
+  // (20261004221637), so an autosave that leaves them alone rings nothing.
+  ["entity_mentions", [BACKLINKS_KEY]],
 ]);
 
 // Deduped set of every key the sync owns, plus "campaigns" (handled specially
