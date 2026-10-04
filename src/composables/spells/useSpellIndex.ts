@@ -1,6 +1,7 @@
 import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import type { SpellIndexEntry } from "@/types/spell.types";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
@@ -19,15 +20,18 @@ type CustomRow = Omit<SpellIndexEntry, "is_shared">;
 
 async function fetchLibrarySpellIndex(slugs: string[], ruleset: RulesetKey): Promise<SpellIndexEntry[]> {
   if (slugs.length === 0) return [];
-  const { data, error } = await supabase
-    .from("library_spells")
-    .select(LIBRARY_COLUMNS)
-    .in("source", slugs)
-    .eq("ruleset", ruleset)
-    .order("level", { ascending: true })
-    .order("name", { ascending: true });
-  if (error) throw error;
-  return (data as LibraryRow[]).map((row) => ({ ...row, is_shared: true, campaign_id: null }));
+  const rows = await fetchAllRows((from, to) =>
+    supabase
+      .from("library_spells")
+      .select(LIBRARY_COLUMNS)
+      .in("source", slugs)
+      .eq("ruleset", ruleset)
+      .order("level", { ascending: true })
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  return (rows as LibraryRow[]).map((row) => ({ ...row, is_shared: true, campaign_id: null }));
 }
 
 /**

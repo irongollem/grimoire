@@ -18,7 +18,7 @@ vi.mock("@/lib/supabase", () => ({
         Promise.resolve({ data: mocks.rows[table] ?? [], error: null }),
         {} as Record<string, unknown>,
       );
-      for (const m of ["select", "eq", "in", "or", "is", "order"]) {
+      for (const m of ["select", "eq", "in", "or", "is", "order", "range"]) {
         b[m] = (...args: unknown[]) => {
           call.ops.push([m, args]);
           return b;

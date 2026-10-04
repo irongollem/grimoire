@@ -4,6 +4,7 @@ import type { Ref, ComputedRef } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { useLibraryArtDefaults, type ArtDefaultsMap } from "@/composables/library/useLibraryArtDefaults";
@@ -109,14 +110,17 @@ async function fetchLibraryItems(enabledSlugs: string[], ruleset: RulesetKey): P
   // sources add to it. Array-form `.in()` (not a string-interpolated
   // `.or(...in.(...))`) keeps slug values from ever being parsed as PostgREST
   // filter syntax, and a single-element list handles the no-enabled-sources case.
-  const { data, error } = await supabase
-    .from("library_items")
-    .select("*")
-    .in("source_document_key", ["grimoire-bundled", ...enabledSlugs])
-    .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
-    .order("name", { ascending: true });
-  if (error) throw error;
-  return (data ?? []).map(normalizeLibraryItem);
+  const rows = await fetchAllRows((from, to) =>
+    supabase
+      .from("library_items")
+      .select("*")
+      .in("source_document_key", ["grimoire-bundled", ...enabledSlugs])
+      .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  return rows.map(normalizeLibraryItem);
 }
 
 

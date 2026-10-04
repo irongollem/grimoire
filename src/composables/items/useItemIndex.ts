@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
@@ -20,14 +21,17 @@ type CustomIndexRow = Omit<ItemIndexEntry, "is_shared">;
 
 async function fetchLibraryIndex(enabledSlugs: string[], ruleset: RulesetKey): Promise<ItemIndexEntry[]> {
   // Same membership as fetchLibraryItems: edition-neutral bundled gear plus the enabled books.
-  const { data, error } = await supabase
-    .from("library_items")
-    .select(INDEX_COLUMNS)
-    .in("source_document_key", ["grimoire-bundled", ...enabledSlugs])
-    .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
-    .order("name", { ascending: true });
-  if (error) throw error;
-  return ((data ?? []) as LibraryIndexRow[]).map((row) => ({ ...row, is_shared: true, campaign_id: null }));
+  const rows = await fetchAllRows((from, to) =>
+    supabase
+      .from("library_items")
+      .select(INDEX_COLUMNS)
+      .in("source_document_key", ["grimoire-bundled", ...enabledSlugs])
+      .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  return (rows as LibraryIndexRow[]).map((row) => ({ ...row, is_shared: true, campaign_id: null }));
 }
 
 async function fetchCustomIndex(

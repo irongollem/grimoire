@@ -2,6 +2,7 @@ import { computed, type ComputedRef } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
@@ -24,15 +25,18 @@ const CUSTOM_INDEX_COLUMNS =
 
 async function fetchLibraryIndex(slugs: string[], ruleset: RulesetKey): Promise<MonsterIndexEntry[]> {
   if (slugs.length === 0) return [];
-  const { data, error } = await supabase
-    .from("library_monsters")
-    .select("id, name, monster_type, size, source, image_url, challenge_rating:stat_block->>challenge_rating")
-    .in("source", slugs)
-    .eq("ruleset", ruleset)
-    .order("name", { ascending: true });
-  if (error) throw error;
+  const rows = await fetchAllRows((from, to) =>
+    supabase
+      .from("library_monsters")
+      .select("id, name, monster_type, size, source, image_url, challenge_rating:stat_block->>challenge_rating")
+      .in("source", slugs)
+      .eq("ruleset", ruleset)
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
   // Shared rows belong to no campaign; which campaigns see them is decided by enabled sources.
-  return data.map((row) => ({ ...row, campaign_id: null, is_shared: true }));
+  return rows.map((row) => ({ ...row, campaign_id: null, is_shared: true }));
 }
 
 async function fetchCustomIndex(campaignId: string | null, ruleset: RulesetKey): Promise<MonsterIndexEntry[]> {

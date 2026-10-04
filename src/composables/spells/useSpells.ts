@@ -2,6 +2,7 @@ import { computed, ref, isRef } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
@@ -124,15 +125,18 @@ export function useSpells() {
 
 async function fetchLibrarySpells(enabledSlugs: string[], ruleset: RulesetKey): Promise<Spell[]> {
   if (enabledSlugs.length === 0) return [];
-  const { data, error } = await supabase
-    .from("library_spells")
-    .select("*")
-    .in("source", enabledSlugs)
-    .eq("ruleset", ruleset)
-    .order("level", { ascending: true })
-    .order("name", { ascending: true });
-  if (error) throw error;
-  return (data ?? []).map((row) => ({ ...row, user_id: "" })) as Spell[];
+  const rows = await fetchAllRows((from, to) =>
+    supabase
+      .from("library_spells")
+      .select("*")
+      .in("source", enabledSlugs)
+      .eq("ruleset", ruleset)
+      .order("level", { ascending: true })
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  return rows.map((row) => ({ ...row, user_id: "" })) as Spell[];
 }
 
 /** Returns SRD spells filtered by the campaign's enabled sources + the user's

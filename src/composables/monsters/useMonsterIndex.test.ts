@@ -22,6 +22,7 @@ vi.mock("@/lib/supabase", () => {
     b.is = (c: string, v: unknown) => (call.is.push([c, v]), b);
     b.in = (c: string, v: unknown) => (call.in.push([c, v]), b);
     b.order = () => b;
+    b.range = () => b;
     return b;
   };
   return { getCurrentUser: () => ({ id: "user-1" }), supabase: { from: builder } };
