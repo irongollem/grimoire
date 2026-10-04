@@ -19,6 +19,8 @@ function providerRow(overrides: Partial<ProviderConfig> = {}): ProviderConfig {
     text_model: "gpt-5.6-luna",
     fast_text_model: "gpt-5.6-luna-mini",
     image_model: null,
+    map_style_model: null,
+    chronicle_image_model: null,
     image_quality: null,
     audio_model: null,
     embedding_model: null,

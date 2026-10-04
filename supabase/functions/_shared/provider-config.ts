@@ -10,6 +10,10 @@ export interface ProviderRow {
   text_model: string | null;
   image_model: string | null;
   image_quality: string | null;
+  /** The AI map styler's image model; NULL = image_model. See resolveImageProvider's `surface`. */
+  map_style_model: string | null;
+  /** Chronicler scenes' and group portraits' image model; NULL = image_model. */
+  chronicle_image_model: string | null;
   /**
    * Model for document/image extraction (#353). Separate from `text_model`
    * because reading a document is a distinct capability: on Anthropic the
@@ -42,7 +46,7 @@ export async function fetchProviderConfigs(
   if (!providerCache || Date.now() >= providerCacheExpiry) {
     const { data } = await admin
       .from("provider_config")
-      .select("provider, text_model, image_model, image_quality, document_model, text_multiplier, image_multiplier, fast_text_model");
+      .select("provider, text_model, image_model, map_style_model, chronicle_image_model, image_quality, document_model, text_multiplier, image_multiplier, fast_text_model");
     providerCache = Object.fromEntries(
       (data ?? []).map((row: { provider: string } & ProviderRow) => [row.provider, row]),
     ) as Partial<Record<Provider, ProviderRow>>;

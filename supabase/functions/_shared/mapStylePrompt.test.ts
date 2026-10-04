@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMapStylePrompt, MAP_STYLE_OPENAI_MODEL } from "./mapStylePrompt";
+import { buildMapStylePrompt } from "./mapStylePrompt";
 
 describe("buildMapStylePrompt", () => {
   it("opens with keeping the drawn layout", () => {
@@ -26,9 +26,5 @@ describe("buildMapStylePrompt", () => {
     for (const preset of ["playable", "explorer", "isometric", "tactical", "tome", "woodcut"]) {
       expect(buildMapStylePrompt(preset, "X", null, null)).not.toMatch(/D&D|Player's Handbook|OneDnD|5e/);
     }
-  });
-
-  it("renders on the sunburst model", () => {
-    expect(MAP_STYLE_OPENAI_MODEL).toBe("gpt-image-2.5-sunburst");
   });
 });

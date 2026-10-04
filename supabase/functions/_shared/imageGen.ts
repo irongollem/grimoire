@@ -331,6 +331,22 @@ const DEFAULT_MODEL: Record<string, string> = {
   gemini: "gemini-3.1-flash-image",
 };
 
+/** Image surfaces with their own model setting in provider_config. */
+export type ImageSurface = "map_style" | "chronicle";
+
+const SURFACE_MODEL_COLUMN = {
+  map_style: "map_style_model",
+  chronicle: "chronicle_image_model",
+} as const satisfies Record<ImageSurface, string>;
+
+export interface ImageProviderConfig {
+  image_model?: string | null;
+  map_style_model?: string | null;
+  chronicle_image_model?: string | null;
+  image_multiplier?: number | null;
+  image_quality?: string | null;
+}
+
 export interface ResolvedImageProvider {
   provider: ImageProviderKey;
   /** Underlying provider whose key/config/pricing applies — currently
@@ -357,15 +373,16 @@ export function resolveImageProvider(args: {
   imageProvider: string | null | undefined;
   campaignKeys: Partial<Record<"openai" | "gemini", string | null>>;
   platformKeys: Partial<Record<"openai" | "gemini", string | null>>;
-  providerConfigs: Partial<Record<string, { image_model?: string | null; image_multiplier?: number | null; image_quality?: string | null } | undefined>>;
+  providerConfigs: Partial<Record<string, ImageProviderConfig | undefined>>;
   /**
-   * A model the calling function chooses for itself (the map styler renders on
-   * sunburst). Never a value from the request body: a client-sent model used to
-   * override Admin → Providers here, and since the browser defaulted it to
-   * `gpt-image-2`, every Chronicler render stayed on that model long after the
-   * platform moved to `gpt-image-2.5-flare` (fixed 5 Oct 2026).
+   * The surface rendering, when it has its own model column in provider_config
+   * (`map_style_model`, `chronicle_image_model`); an empty column falls back to
+   * `image_model`. A surface's model is always a setting, never a code constant
+   * or a request field: a browser-sent model used to override this and kept the
+   * Chronicler on gpt-image-2 long after the platform moved to flare (fixed
+   * 5 Oct 2026).
    */
-  requestedModel?: string | null;
+  surface?: ImageSurface;
 }): ResolvedImageProvider | null {
   const choice = (args.imageProvider ?? "openai") as ImageProviderKey;
   const base = choice;
@@ -374,9 +391,10 @@ export function resolveImageProvider(args: {
   const apiKey = campaignKey ?? args.platformKeys[base] ?? null;
   if (!apiKey) return null;
 
-  const model = choice === "openai" && args.requestedModel
-    ? args.requestedModel
-    : (args.providerConfigs[base]?.image_model ?? DEFAULT_MODEL[base]);
+  const config = args.providerConfigs[base];
+  const model = (args.surface ? config?.[SURFACE_MODEL_COLUMN[args.surface]] : null)
+    ?? config?.image_model
+    ?? DEFAULT_MODEL[base];
 
   return {
     provider: choice,

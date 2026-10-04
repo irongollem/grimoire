@@ -11,6 +11,7 @@ select plan(2);
 -- then count as free. That is how gpt-image-2.5-sunburst rendered maps for a
 -- week uncosted (20261003151734): it was a constant in mapStylePrompt.ts, not a
 -- provider_config value, so the admin pricing panel never listed it either.
+-- (Since 20261004230642 it is provider_config.map_style_model.)
 --
 -- Two sources name a model:
 --
@@ -31,8 +32,7 @@ insert into edge_function_models (model) values
   ('gemini-2.5-flash'),
   ('gemini-3.1-flash-image'),
   ('gpt-5.6-luna'),
-  ('gpt-image-2.5-flare'),
-  ('gpt-image-2.5-sunburst');
+  ('gpt-image-2.5-flare');
 
 select is_empty(
   $$ select m.model from edge_function_models m
@@ -46,6 +46,8 @@ select is_empty(
        ('text_model', c.text_model),
        ('fast_text_model', c.fast_text_model),
        ('image_model', c.image_model),
+       ('map_style_model', c.map_style_model),
+       ('chronicle_image_model', c.chronicle_image_model),
        ('document_model', c.document_model),
        ('audio_model', c.audio_model),
        ('embedding_model', c.embedding_model)

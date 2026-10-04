@@ -65,6 +65,6 @@ describe("edge function model pricing", () => {
   it("still finds the models it is meant to find", () => {
     // Guards the scan itself: a regex that silently matched nothing would make
     // the comparison above pass against an emptied list.
-    expect(namedModels()).toContain("gpt-image-2.5-sunburst");
+    expect(namedModels()).toContain("gpt-image-2.5-flare");
   });
 });

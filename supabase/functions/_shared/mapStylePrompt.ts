@@ -2,16 +2,6 @@
 // function so vitest can hold it: the prompt is what decides whether a render
 // keeps the DM's layout, and no gate sees a regression in it otherwise.
 
-/**
- * The OpenAI model the styler renders with, whatever the platform default is.
- * The rest of the platform runs `gpt-image-2.5-flare` for speed; a restyle
- * has to keep the drawn walls where they are, and flare treated the input as
- * a loose sketch (27 Sep 2026: bigger buildings, invented rooms, a title
- * banner). Neither 2.5 model accepts `input_fidelity`, so the stronger model
- * and the prompt below are the levers there are.
- */
-export const MAP_STYLE_OPENAI_MODEL = "gpt-image-2.5-sunburst";
-
 const WATERMARK = "a small 'dungeongrimoire.com' text watermark in the bottom-right corner";
 
 /**

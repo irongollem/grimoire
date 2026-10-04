@@ -103,23 +103,14 @@
             placeholder="e.g. gpt-5.6-luna"
           >
             <template #extra>
-              <div class="space-y-1">
-                <label class="block text-label text-muted-foreground">Fast model</label>
-                <AppInput
-                  v-model="providerDrafts.drafts[row.provider]!.fast_text_model"
-                  :list="`fast-text-models-${row.provider}`"
-                  type="text"
-                  size="caption"
-                  class="font-mono"
-                  placeholder="Falls back to the text model"
-                />
-                <datalist :id="`fast-text-models-${row.provider}`">
-                  <option v-for="m in providerModelOptions[row.provider]" :key="m" :value="m" />
-                </datalist>
-                <p class="text-caption-sm text-muted-foreground/60 italic">
-                  Used by the quest designer's back-and-forth turns. Leave empty to use the text model.
-                </p>
-              </div>
+              <ProviderModelOverrideField
+                v-model="providerDrafts.drafts[row.provider]!.fast_text_model"
+                label="Fast model"
+                :list-id="`fast-text-models-${row.provider}`"
+                :options="providerModelOptions[row.provider]"
+                placeholder="Falls back to the text model"
+                hint="Used by the quest designer's back-and-forth turns. Leave empty to use the text model."
+              />
             </template>
           </ProviderCapabilityCell>
 
@@ -134,8 +125,8 @@
             :known-models="providerModelOptions[row.provider]"
             placeholder="e.g. gpt-image-2"
           >
-            <template #extra>
-              <div v-if="IMAGE_QUALITY_OPTIONS[row.provider]" class="space-y-1">
+            <template v-if="IMAGE_QUALITY_OPTIONS[row.provider]" #extra>
+              <div class="space-y-1">
                 <label class="block text-label text-muted-foreground">Quality</label>
                 <div class="flex gap-1">
                   <AppButton
@@ -151,6 +142,22 @@
                 </div>
                 <p class="text-caption-sm text-muted-foreground/60 italic">Higher = more output tokens = higher real cost.</p>
               </div>
+              <ProviderModelOverrideField
+                v-model="providerDrafts.drafts[row.provider]!.map_style_model"
+                label="Map styler model"
+                :list-id="`map-style-models-${row.provider}`"
+                :options="providerModelOptions[row.provider]"
+                placeholder="Falls back to the image model"
+                hint="Restyles a drawn map. Needs a model that keeps the drawn walls in place."
+              />
+              <ProviderModelOverrideField
+                v-model="providerDrafts.drafts[row.provider]!.chronicle_image_model"
+                label="Chronicler model"
+                :list-id="`chronicle-image-models-${row.provider}`"
+                :options="providerModelOptions[row.provider]"
+                placeholder="Falls back to the image model"
+                hint="Chronicler scenes and group portraits, composed from character portraits."
+              />
             </template>
           </ProviderCapabilityCell>
 
@@ -331,6 +338,7 @@ import GithubIntegrationConfig from "@/components/admin/GithubIntegrationConfig.
 import EmbeddingVendorControl from "@/components/admin/EmbeddingVendorControl.vue";
 import PlatformKeyField from "@/components/admin/PlatformKeyField.vue";
 import ProviderCapabilityCell from "@/components/admin/ProviderCapabilityCell.vue";
+import ProviderModelOverrideField from "@/components/admin/ProviderModelOverrideField.vue";
 
 // ── Keys ───────────────────────────────────────────────────────────────────
 const { keysQuery } = useAdminKeys();
@@ -351,6 +359,8 @@ const providerDrafts = useKeyedRecordDrafts<ProviderConfig, ProviderDraft>((r) =
   text_model:        r.text_model,
   fast_text_model:   r.fast_text_model,
   image_model:       r.image_model,
+  map_style_model:   r.map_style_model,
+  chronicle_image_model: r.chronicle_image_model,
   image_quality:     r.image_quality,
   audio_model:       r.audio_model,
   embedding_model:   r.embedding_model,
@@ -379,6 +389,8 @@ const PROVIDER_FIELD_LABELS: Record<keyof ProviderDraft, string> = {
   text_model: "Text model",
   fast_text_model: "Fast model",
   image_model: "Image model",
+  map_style_model: "Map styler model",
+  chronicle_image_model: "Chronicler model",
   image_quality: "Image quality",
   audio_model: "Audio model",
   embedding_model: "Embedding model",
@@ -396,13 +408,16 @@ function providerConflictLabels(provider: string): string[] {
 }
 
 async function saveProvider(provider: string) {
-  // A cleared Fast model box is "fall back to the text model", which the
-  // edge function reads as null — an empty string would be sent as a model
-  // id and fail the provider call instead of falling back. Built purely from
-  // the draft so `changes` can run it over the server copy as well.
+  // A cleared fallback box (Fast, Map styler, Chronicler) means "use the
+  // general model", which the edge functions read as null; an empty string
+  // would be sent as a model id and fail the provider call instead of falling
+  // back. Built purely from the draft so `changes` can run it over the server
+  // copy as well.
   const changed = providerDrafts.changes(provider, (d) => ({
     ...d,
     fast_text_model: d.fast_text_model?.trim() || null,
+    map_style_model: d.map_style_model?.trim() || null,
+    chronicle_image_model: d.chronicle_image_model?.trim() || null,
   }));
   if (Object.keys(changed).length === 0) return;
   providerSaving[provider] = true;
@@ -528,6 +543,8 @@ watch(
       initModel(p.text_model);
       initModel(p.fast_text_model);
       initModel(p.image_model);
+      initModel(p.map_style_model);
+      initModel(p.chronicle_image_model);
       // Audio is free-text like text/image -- KNOWN_AUDIO_MODELS only feeds the
       // datalist, so the pricing row tracks the model actually configured.
       initModel(p.audio_model);
@@ -567,7 +584,10 @@ const modelsByProvider = computed(() => {
     if (draft.fast_text_model && draft.fast_text_model !== draft.text_model) {
       items.push({ model: draft.fast_text_model, model_type: "text" });
     }
-    if (draft.image_model) items.push({ model: draft.image_model, model_type: "image" });
+    // One pricing row per distinct image model: the surface models usually
+    // repeat image_model, and a duplicate would collide on the v-for :key.
+    const imageModels = new Set([draft.image_model, draft.map_style_model, draft.chronicle_image_model]);
+    for (const m of imageModels) if (m) items.push({ model: m, model_type: "image" });
     // Same reasoning as the initModel(p.audio_model) call above -- audio is
     // free-text, so only the configured model gets a pricing row.
     if (draft.audio_model) items.push({ model: draft.audio_model, model_type: "audio" });

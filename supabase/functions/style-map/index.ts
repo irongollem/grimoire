@@ -12,7 +12,7 @@ import { isValidGeminiAspectRatio } from "../_shared/geminiAspect.ts";
 import { isValidStyleImageSize, readPngDimensions } from "../_shared/imageSize.ts";
 import { isFlexibleOpenAiModel } from "../_shared/openaiImageModel.ts";
 import { isPromptRejected } from "../_shared/moderation.ts";
-import { buildMapStylePrompt, MAP_STYLE_OPENAI_MODEL } from "../_shared/mapStylePrompt.ts";
+import { buildMapStylePrompt } from "../_shared/mapStylePrompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
@@ -104,8 +104,8 @@ serve(withCors(async (req: Request) => {
     campaignKeys: { openai: campaignOpenai, gemini: campaignGemini },
     platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
-    // Honoured for plain "openai" only; see MAP_STYLE_OPENAI_MODEL.
-    requestedModel: MAP_STYLE_OPENAI_MODEL,
+    // Admin → Providers' map styler model (sunburst; see migration 20261004230642).
+    surface: "map_style",
   });
   if (!img) {
     return new Response("No image API key configured", { status: 422 });

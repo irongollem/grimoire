@@ -11,6 +11,10 @@ export interface ProviderConfig {
    */
   fast_text_model: string | null;
   image_model: string | null;
+  /** The AI map styler's image model. Null falls back to image_model (style-map). */
+  map_style_model: string | null;
+  /** Chronicler scenes' and group portraits' image model. Null falls back to image_model. */
+  chronicle_image_model: string | null;
   image_quality: string | null;
   audio_model: string | null;
   embedding_model: string | null;

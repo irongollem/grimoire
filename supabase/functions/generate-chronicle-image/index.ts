@@ -294,6 +294,9 @@ serve(withCors(async (req: Request) => {
     campaignKeys: { openai: campaignOpenai, gemini: campaignGemini },
     platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
+    // Scenes and group portraits follow Admin → Providers' Chronicler model;
+    // the entity purposes this function also renders follow the image model.
+    surface: PURPOSE_CONFIG[purpose].creditType === "chronicle_image" ? "chronicle" : undefined,
   });
   if (!img) return text("No image API key configured", 422);
   const isByok = img.isByok;
