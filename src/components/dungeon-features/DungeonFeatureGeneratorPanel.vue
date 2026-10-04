@@ -8,11 +8,14 @@
     :credits="effectiveCreditCost"
     :byok="fullyByok"
     :is-generating="isGenerating"
+    :unsaved-label="unsaved ? 'feature' : null"
+    :is-saving="isSaving"
     :error="genError"
     blank-to="/dungeon-features/new"
     blank-label="New Blank Feature"
     image-toggle-label="Generate an illustration"
-    @generate="generateAndCreate"
+    @generate="onGenerate"
+    @discard="unsaved = null"
   >
     <template #constraints>
       <div class="grid grid-cols-2 gap-2">
@@ -87,8 +90,21 @@ const effectiveCreditCost = computed(() => {
   return cost;
 });
 
+type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
+// A paid result whose save failed is kept so the retry costs nothing.
+const unsaved = ref<Generated | null>(null);
+const isSaving = ref(false);
+
 function prose(text: string | null): string | null {
   return text ? toTiptapJson(text) : null;
+}
+
+async function onGenerate() {
+  if (unsaved.value) {
+    await save(unsaved.value);
+    return;
+  }
+  await generateAndCreate();
 }
 
 async function generateAndCreate() {
@@ -104,9 +120,13 @@ async function generateAndCreate() {
   });
 
   if (!result) return;
+  await save(result);
+}
 
-  // The generation is already paid for: a failed save must say so, and the
-  // panel stays open so the DM can retry.
+async function save(result: Generated) {
+  // The generation is already paid for: a failed save keeps the result so the
+  // DM can save it again without generating (and paying) twice.
+  isSaving.value = true;
   let feature;
   try {
     feature = await createFeature({
@@ -130,9 +150,13 @@ async function generateAndCreate() {
       ai_provenance:        result.ai_provenance ?? null,
     });
   } catch (e) {
+    unsaved.value = result;
     toast.error(toast.fromError(e));
     return;
+  } finally {
+    isSaving.value = false;
   }
+  unsaved.value = null;
 
   // Log the generated illustration to the Gallery, linked back to the feature.
   if (result.image_url) {

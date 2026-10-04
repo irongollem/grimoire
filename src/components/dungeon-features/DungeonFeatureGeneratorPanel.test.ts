@@ -146,4 +146,37 @@ describe("DungeonFeatureGeneratorPanel", () => {
     expect(mocks.logImage).not.toHaveBeenCalled();
     expect(mocks.ui.dungeonFeatureGeneratorOpen).toBe(true);
   });
+
+  it("keeps the paid result after a failed save and retries the create without generating again", async () => {
+    mocks.generate.mockResolvedValue(generated);
+    mocks.createFeature.mockRejectedValueOnce(new Error("insert failed")).mockResolvedValueOnce({ id: "f2" });
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A bookcase that swings aside.");
+
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await vi.waitFor(() => expect(wrapper.text()).toContain("could not be saved"));
+    expect(mocks.generate).toHaveBeenCalledTimes(1);
+
+    await wrapper.findAll("button").find((b) => b.text().includes("Save again"))!.trigger("click");
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/dungeon-features/f2"));
+
+    expect(mocks.generate).toHaveBeenCalledTimes(1);
+    expect(mocks.createFeature).toHaveBeenCalledTimes(2);
+    expect(mocks.logImage).toHaveBeenCalledTimes(1);
+    expect(mocks.ui.dungeonFeatureGeneratorOpen).toBe(false);
+  });
+
+  it("discards the kept result and goes back to generating", async () => {
+    mocks.generate.mockResolvedValue(generated);
+    mocks.createFeature.mockRejectedValue(new Error("insert failed"));
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A bookcase.");
+
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await vi.waitFor(() => expect(wrapper.text()).toContain("could not be saved"));
+    await wrapper.findAll("button").find((b) => b.text() === "Discard")!.trigger("click");
+
+    expect(wrapper.text()).not.toContain("could not be saved");
+    expect(wrapper.findAll("button").some((b) => b.text().includes("Generate with AI"))).toBe(true);
+  });
 });

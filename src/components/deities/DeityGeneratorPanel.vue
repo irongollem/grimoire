@@ -8,11 +8,14 @@
     :credits="textCreditCost"
     :byok="textIsByok"
     :is-generating="isGenerating"
+    :unsaved-label="unsaved ? 'deity' : null"
+    :is-saving="isSaving"
     :error="genError"
     blank-to="/deities/new"
     blank-label="New Blank Deity"
     image-toggle-label="Generate a portrait"
-    @generate="generateAndCreate"
+    @generate="onGenerate"
+    @discard="unsaved = null"
   >
     <template #constraints>
       <div>
@@ -97,6 +100,20 @@ const pantheonOptions = computed(() =>
   (pantheons.value ?? []).map((p) => ({ id: p.id, name: p.name })),
 );
 
+type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
+// A paid result whose save failed is kept (with the choices it was saved
+// under) so the retry costs nothing, even after upgrading from a quota wall.
+const unsaved = ref<{ result: Generated; pantheonId: string | null; alignment: string | null } | null>(null);
+const isSaving = ref(false);
+
+async function onGenerate() {
+  if (unsaved.value) {
+    await save(unsaved.value.result, unsaved.value.pantheonId, unsaved.value.alignment);
+    return;
+  }
+  await generateAndCreate();
+}
+
 async function generateAndCreate() {
   if (!canSpend(textCreditCost.value, textIsByok.value)) return;
 
@@ -119,14 +136,21 @@ async function generateAndCreate() {
   });
   if (!result) return;
 
+  await save(result, pantheon?.id ?? null, constraints.alignment || null);
+}
+
+async function save(result: Generated, pantheonIdForRow: string | null, alignment: string | null) {
+  // The generation is already paid for: a failed save keeps the result so the
+  // DM can save it again without generating (and paying) twice.
+  isSaving.value = true;
   let deity;
   try {
     deity = await createDeity({
       name:              result.name,
       titles:            result.titles,
       alternate_names:   result.alternate_names,
-      pantheon_id:       pantheon?.id ?? null,
-      alignment:         result.alignment ?? (constraints.alignment || null),
+      pantheon_id:       pantheonIdForRow,
+      alignment:         result.alignment ?? alignment,
       symbol:            result.symbol,
       symbol_image_url:  null,
       portrait_url:      result.portrait_url,
@@ -140,10 +164,14 @@ async function generateAndCreate() {
       ai_provenance:     result.ai_provenance ?? null,
     });
   } catch (e) {
+    unsaved.value = { result, pantheonId: pantheonIdForRow, alignment };
     if (gateQuotaError(e)) return;
     toast.error(toast.fromError(e));
     return;
+  } finally {
+    isSaving.value = false;
   }
+  unsaved.value = null;
 
   // Log the portrait to the Gallery, linked back to the new deity.
   if (result.portrait_url) {

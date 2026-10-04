@@ -95,4 +95,35 @@ describe("GeneratorPanelShell", () => {
     await blank.trigger("click");
     expect(w.emitted("update:open")?.at(-1)).toEqual([false]);
   });
+
+  describe("unsaved result", () => {
+    const saveButton = (w: ReturnType<typeof mountShell>) =>
+      w.findAll("button").find((b) => b.text().includes("Save again"));
+
+    it("shows the notice, Save again label, and no cost badge", () => {
+      const w = mountShell({ unsavedLabel: "feature" });
+      expect(w.text()).toContain("The generated feature could not be saved");
+      expect(saveButton(w)).toBeTruthy();
+      expect(generateButton(w)).toBeFalsy();
+      expect(w.findComponent({ name: "GenerationCostBadge" }).exists()).toBe(false);
+    });
+
+    it("is enabled with an empty concept and emits generate", async () => {
+      const w = mountShell({ unsavedLabel: "feature", concept: "" });
+      const btn = saveButton(w)!;
+      expect(btn.attributes("disabled")).toBeUndefined();
+      await btn.trigger("click");
+      expect(w.emitted("generate")).toHaveLength(1);
+    });
+
+    it("emits discard", async () => {
+      const w = mountShell({ unsavedLabel: "feature" });
+      await w.findAll("button").find((b) => b.text() === "Discard")!.trigger("click");
+      expect(w.emitted("discard")).toHaveLength(1);
+    });
+
+    it("shows no notice when there is nothing unsaved", () => {
+      expect(mountShell().text()).not.toContain("could not be saved");
+    });
+  });
 });

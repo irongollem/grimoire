@@ -7,10 +7,13 @@
     :credits="textCreditCost"
     :byok="textIsByok"
     :is-generating="isGenerating"
+    :unsaved-label="unsaved ? 'rule' : null"
+    :is-saving="isSaving"
     :error="genError"
     blank-to="/rules/new"
     blank-label="New Blank Rule"
-    @generate="generateAndCreate"
+    @generate="onGenerate"
+    @discard="unsaved = null"
   >
     <template #constraints>
       <div>
@@ -62,8 +65,21 @@ const textCreditCost = computed(
   () => wholeCredits(costOf("custom_rule_generation") * textMultiplierFor(textProvider.value)),
 );
 
+type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
+// A paid result whose save failed is kept so the retry costs nothing.
+const unsaved = ref<Generated | null>(null);
+const isSaving = ref(false);
+
 const concept = ref("");
 const constraints = reactive({ category: "", allowTracker: true });
+
+async function onGenerate() {
+  if (unsaved.value) {
+    await save(unsaved.value);
+    return;
+  }
+  await generateAndCreate();
+}
 
 async function generateAndCreate() {
   if (!canSpend(textCreditCost.value, textIsByok.value)) return;
@@ -76,9 +92,13 @@ async function generateAndCreate() {
     allowTracker: constraints.allowTracker,
   });
   if (!result) return;
+  await save(result);
+}
 
-  // The generation is already paid for: a failed save must say so, and the
-  // panel stays open so the DM can retry.
+async function save(result: Generated) {
+  // The generation is already paid for: a failed save keeps the result so the
+  // DM can save it again without generating (and paying) twice.
+  isSaving.value = true;
   let rule;
   try {
     rule = await createRule({
@@ -91,9 +111,13 @@ async function generateAndCreate() {
       ai_provenance: result.ai_provenance,
     });
   } catch (e) {
+    unsaved.value = result;
     toast.error(toast.fromError(e));
     return;
+  } finally {
+    isSaving.value = false;
   }
+  unsaved.value = null;
 
   completedEntityId.value = rule.id;
   ui.customRuleGeneratorOpen = false;

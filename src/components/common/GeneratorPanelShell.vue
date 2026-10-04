@@ -44,6 +44,18 @@
 
       <slot name="extra" />
 
+      <!-- A paid result whose save failed: keep it, offer a save-only retry -->
+      <div
+        v-if="unsavedLabel"
+        class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 space-y-1"
+        role="alert"
+      >
+        <p class="text-caption text-destructive">
+          The generated {{ unsavedLabel }} could not be saved. Save it again, or discard it and generate a new one.
+        </p>
+        <AppButton variant="ghost" size="inline-caption" class="underline underline-offset-2" label="Discard" @click="emit('discard')" />
+      </div>
+
       <!-- Generating state -->
       <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
         <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
@@ -72,7 +84,7 @@
 
       <template v-else>
         <GenerationCostBadge
-          v-if="campaign.isAiEnabled"
+          v-if="campaign.isAiEnabled && !unsavedLabel"
           :credits="credits"
           :byok="byok"
           class="self-center"
@@ -83,9 +95,10 @@
           size="md"
           block
           :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim() || !canGenerate"
+          :disabled="isAnyAiGenerating || isSaving || (!unsavedLabel && (!concept.trim() || !canGenerate))"
+          :loading="isSaving"
           :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          :label="isGenerating ? 'Generating…' : generateLabel"
+          :label="unsavedLabel ? 'Save again' : isGenerating ? 'Generating…' : generateLabel"
           @click="emit('generate')"
         />
         <AiOffNotice v-else />
@@ -119,6 +132,10 @@
  * A panel with a results step passes `show-results` while it holds a result:
  * the `results` slot then replaces the whole form and `results-footer`
  * replaces the Generate footer, all inside the same Frame instance.
+ *
+ * `unsavedLabel` marks a paid result whose save failed: the notice shows, the
+ * primary button reads "Save again" (still emits `generate`; the panel decides
+ * it means a save-only retry), the cost badge hides, and Discard emits `discard`.
  */
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { IconGenerate } from "@/lib/icons";
@@ -145,6 +162,8 @@ const {
   showResults = false,
   canGenerate = true,
   generateLabel = "Generate with AI",
+  unsavedLabel = null,
+  isSaving = false,
 } = defineProps<{
   title: string;
   conceptPlaceholder: string;
@@ -159,13 +178,16 @@ const {
   showResults?: boolean;
   canGenerate?: boolean;
   generateLabel?: string;
+  /** Names a generated result whose save failed ("feature"). While set, the primary button becomes "Save again". */
+  unsavedLabel?: string | null;
+  isSaving?: boolean;
 }>();
 
 const open = defineModel<boolean>("open", { required: true });
 const concept = defineModel<string>("concept", { required: true });
 const generateImage = defineModel<boolean>("generateImage", { default: false });
 
-const emit = defineEmits<{ generate: [] }>();
+const emit = defineEmits<{ generate: []; discard: [] }>();
 
 const campaign = useCampaignStore();
 </script>

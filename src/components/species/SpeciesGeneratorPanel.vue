@@ -8,11 +8,14 @@
     :credits="textCreditCost"
     :byok="textIsByok"
     :is-generating="isGenerating"
+    :unsaved-label="unsaved ? 'species' : null"
+    :is-saving="isSaving"
     :error="genError"
     blank-to="/species/new"
     blank-label="New Blank Species"
     image-toggle-label="Generate species portrait"
-    @generate="generateAndCreate"
+    @generate="onGenerate"
+    @discard="unsaved = null"
   >
     <template #constraints>
       <div>
@@ -60,9 +63,22 @@ const textCreditCost = computed(
   () => wholeCredits(costOf("species_generation") * textMultiplierFor(textProvider.value)),
 );
 
+type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
+// A paid result whose save failed is kept so the retry costs nothing.
+const unsaved = ref<Generated | null>(null);
+const isSaving = ref(false);
+
 const concept = ref("");
 const size = ref<SpeciesSize | "">("");
 const generateImage = ref(true);
+
+async function onGenerate() {
+  if (unsaved.value) {
+    await save(unsaved.value);
+    return;
+  }
+  await generateAndCreate();
+}
 
 async function generateAndCreate() {
   if (!canSpend(textCreditCost.value, textIsByok.value)) return;
@@ -75,16 +91,24 @@ async function generateAndCreate() {
     generateImage: generateImage.value,
   });
   if (!draft) return;
+  await save(draft);
+}
 
-  // The generation is already paid for: a failed save must say so, and the
-  // panel stays open so the DM can retry.
+async function save(draft: Generated) {
+  // The generation is already paid for: a failed save keeps the result so the
+  // DM can save it again without generating (and paying) twice.
+  isSaving.value = true;
   let species;
   try {
     species = await createSpecies(draft);
   } catch (e) {
+    unsaved.value = draft;
     toast.error(toast.fromError(e));
     return;
+  } finally {
+    isSaving.value = false;
   }
+  unsaved.value = null;
 
   completedEntityId.value = species.id;
   ui.speciesGeneratorOpen = false;
