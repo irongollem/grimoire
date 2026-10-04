@@ -126,7 +126,7 @@ import { computed, defineAsyncComponent, onUnmounted, ref } from "vue";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useNpc } from "@/composables/npcs/useNpcs";
 import { useFaction } from "@/composables/factions/useFactions";
-import { useItems } from "@/composables/items/useItems";
+import { useItemsByIds } from "@/composables/items/useItemsByIds";
 import { useResolvedMonster } from "@/composables/monsters/useMonsters";
 import { useNote } from "@/composables/notes/useNotes";
 import { useParty } from "@/composables/party/useParty";
@@ -173,9 +173,10 @@ const handoutRecord = computed(() => handoutQuery.data.value ?? null);
 // "Give to players" starts on the whole party, the way a `give_handout` payoff gives it.
 const { data: partyData } = useParty();
 const wholeParty = computed(() => (partyData.value ?? []).map((member) => member.id));
-// A stored attachment resolves in `resolvable`; the edition and books only narrow what a picker offers (#961).
-const { resolvable: items } = useItems(() => ({ enabled: props.attachment.attachment_type === "item" }));
-const item = computed(() => props.attachment.attachment_type === "item" ? items.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
+// A stored attachment resolves by id; the edition and books only narrow what a picker offers (#961).
+const isItemAttachment = computed(() => props.attachment.attachment_type === "item");
+const { data: items } = useItemsByIds(() => [props.attachment.ref_id], () => ({ enabled: isItemAttachment.value }));
+const item = computed(() => isItemAttachment.value ? items.value.get(props.attachment.ref_id) ?? null : null);
 const portraitSrc = computed(() => npcRecord.value?.portrait_url ?? factionRecord.value?.emblem_url ?? item.value?.image_url ?? monster.value?.image_url ?? null);
 const { data: sounds } = useSounds(() => props.attachment.attachment_type === "sound");
 const isPlaylistAttachment = computed(() => props.attachment.attachment_type === "audio_scene" || props.attachment.attachment_type === "playlist");

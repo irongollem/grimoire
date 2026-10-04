@@ -129,7 +129,7 @@
         <EncounterCombatants
           v-model:combatants="form.combatants"
           :factions="form.factions"
-          :monsters="monsters ?? []"
+          :monsters="monsters"
           :pickable-monsters="pickableMonsters ?? []"
           :npcs="npcs ?? []"
           :excluded-monster-ids="excludedMonsterIds"
@@ -141,7 +141,7 @@
           :location-id="form.location_id"
           :combatants="form.combatants"
           :factions="form.factions"
-          :monsters="monsters ?? []"
+          :monsters="monsters"
           :npcs="npcs ?? []"
           @update:combatants="form.combatants = $event"
         />
@@ -187,7 +187,7 @@
         <EncounterEvents
           v-model:events="form.events"
           :combatants="form.combatants"
-          :monsters="monsters ?? []"
+          :monsters="monsters"
           :pickable-monsters="pickableMonsters ?? []"
           :npcs="npcs ?? []"
           :factions="form.factions"
@@ -235,12 +235,14 @@ const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCheckDouble, IconChevronLeft, IconClose, IconPlay, IconReset, IconStop } from '@/lib/icons';
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
+import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
 import { useParty } from "@/composables/party/useParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useItems } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { useAllLocations } from "@/composables/locations/useLocations";
@@ -310,19 +312,19 @@ function onCancel() {
   router.push({ query: rest });
 }
 const campaign = useCampaignStore();
-// Two lists per entity, deliberately not one: `monsters`/`allTraps` resolve
+// Two reads per entity, deliberately not one: `monsters`/`allTraps` resolve
 // combatants and trap refs the encounter already stores, which must survive
-// even after the DM rescopes them to another campaign (#597) — so those stay
-// unscoped. `pickableMonsters`/`pickableTraps` back the "add new" search
-// panels, which should only ever offer this campaign's own creatures.
-const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
-const { data: pickableMonsters } = useAllMonsters();
+// even after the DM rescopes them to another campaign (#597) — so those are
+// read by id with no scope filter. `pickableMonsters`/`pickableTraps` back the
+// "add new" search panels, which should only ever offer this campaign's own
+// creatures, and are the slim index.
+const { data: pickableMonsters } = useMonsterIndex();
 
 /** Combatants eligible as lair owners — any monster/NPC slot in this encounter.
  *  Shows an indicator next to entries whose stat block already has lair_actions. */
 const lairOwnerOptions = computed(() => {
   return form.combatants.map((c) => {
-    const monster = c.monster_id ? (monsters.value ?? []).find((m) => m.id === c.monster_id) : null;
+    const monster = c.monster_id ? monsters.value.find((m) => m.id === c.monster_id) : null;
     const npc = c.npc_id ? (npcs.value ?? []).find((n) => n.id === c.npc_id) : null;
     const hasLairActions = !!(monster?.stat_block?.lair_actions?.length);
     const baseName = c.custom_name ?? monster?.name ?? npc?.name ?? "Combatant";
@@ -336,7 +338,7 @@ const lairOwnerOptions = computed(() => {
 const { data: party, isLoading: partyLoading } = useParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
-const { data: allItems } = useItems();
+const { data: allItems } = useItemIndex();
 const { data: allTraps } = useTraps(() => ({ includeAllScopes: true }));
 const { data: pickableTraps } = useTraps();
 const { sendCurrencyDrop, sendItemDrop } = useCampaignMessages();
@@ -453,6 +455,18 @@ const CONFLICT_LABELS: Record<keyof EncounterDraft, string> = {
 };
 const conflictLabels = computed(() => [...new Set(conflicts.value.map((k) => CONFLICT_LABELS[k]))]);
 
+// The monsters this encounter stores (combatants, and companions' source
+// monsters for difficulty), read by id. Art is merged for the battlefield tokens.
+const { data: monsterMap } = useMonstersByIds(
+  () =>
+    encounterMonsterIds(
+      form.combatants,
+      (companions.value ?? []).filter((c) => form.companion_ids.includes(c.id)),
+    ),
+  { withArt: true },
+);
+const monsters = computed(() => [...monsterMap.value.values()]);
+
 // Loot ids may be library ids from a book the campaign has since disabled; the
 // picker (allItems) respects enablement, the stored references must not.
 const { items: storedItems } = useStoredItemRefs(() => form.item_ids);
@@ -518,7 +532,7 @@ const { difficulty, thresholdTiers, enemyEntries } = useEncounterDifficulty({
   partyMemberIds: computed(() => form.party_member_ids),
   companionIds: computed(() => form.companion_ids),
   trapIds: computed(() => form.trap_ids),
-  monsters: computed(() => monsters.value ?? []),
+  monsters,
   npcs: computed(() => npcs.value ?? []),
   party,
   companions,

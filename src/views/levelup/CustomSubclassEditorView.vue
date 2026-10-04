@@ -125,7 +125,8 @@ import CustomClassResources from "@/components/levelup/CustomClassResources.vue"
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { toPlainText } from "@/ai/utils";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
-import { useAllSpells } from "@/composables/spells/useSpells";
+import { useSpellIndex } from "@/composables/spells/useSpellIndex";
+import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
 import type { CustomStep, CustomResource } from "@/levelup/customTypes";
@@ -165,14 +166,6 @@ const allFeatureOptions = computed(() =>
   (allFeatures.value ?? []).map(f => ({ id: f.id, name: f.name })),
 );
 
-const { data: allSpells } = useAllSpells();
-const allSpellOptions = computed(() =>
-  (allSpells.value ?? []).map(s => ({
-    id: s.id,
-    name: s.level === 0 ? `${s.name} (cantrip)` : `${s.name} (lvl ${s.level})`,
-  })),
-);
-
 // ── Form state ────────────────────────────────────────────────────────────────
 
 interface FormState {
@@ -195,6 +188,18 @@ const form = ref<FormState>({
   steps: [],
   resources: [],
   hp_per_level: null,
+});
+
+const { data: spellIndex } = useSpellIndex();
+// Spells already granted resolve by id, so one outside the enabled sources still shows its name.
+const { data: grantedRows } = useSpellsByIds(() => Object.values(form.value.granted_spells).flat());
+const allSpellOptions = computed(() => {
+  const label = (s: { name: string; level: number }) =>
+    s.level === 0 ? `${s.name} (cantrip)` : `${s.name} (lvl ${s.level})`;
+  const options = new Map<string, { id: string; name: string }>();
+  for (const s of grantedRows.value.values()) options.set(s.id, { id: s.id, name: label(s) });
+  for (const s of spellIndex.value ?? []) options.set(s.id, { id: s.id, name: label(s) });
+  return [...options.values()];
 });
 
 // Same default flip as CustomClassEditorView (#596): a new subclass defaults

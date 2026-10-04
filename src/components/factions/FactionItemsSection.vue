@@ -32,14 +32,14 @@ import {
   useRemoveFactionItem,
   type FactionItemWithItem,
 } from "@/composables/factions/useFactions";
-import { useItems } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
 import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 import EntityLinkSection from "@/components/common/EntityLinkSection.vue";
 
 const props = defineProps<{ factionId: string }>();
 
 const { data: entries }  = useFactionItems(props.factionId);
-const { data: allItems } = useItems();
+const { data: allItems } = useItemIndex();
 const addMut    = useAddFactionItem();
 const removeMut = useRemoveFactionItem();
 

@@ -114,7 +114,7 @@ import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteCustomSubclass } from "@/composables/rules/useCustomSubclasses";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
-import { useAllSpells } from "@/composables/spells/useSpells";
+import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import type { CustomSubclass } from "@/levelup/customTypes";
@@ -126,14 +126,14 @@ const { confirm } = useConfirm();
 const deleteMut = useDeleteCustomSubclass();
 
 const { data: allFeatures } = useAllFeatures();
-const { data: allSpells } = useAllSpells();
+const { data: grantedSpells } = useSpellsByIds(() => Object.values(props.sub.granted_spells ?? {}).flat());
 
 function featureNameById(id: string): string {
   return allFeatures.value?.find(f => f.id === id)?.name ?? id;
 }
 
 function spellNameById(id: string): string {
-  return allSpells.value?.find(s => s.id === id)?.name ?? id;
+  return grantedSpells.value.get(id)?.name ?? id;
 }
 
 const populatedLevels = computed<number[]>(() =>

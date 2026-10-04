@@ -156,14 +156,14 @@ import AppInput from "@/components/common/AppInput.vue";
 import { IconAdd, IconClose, IconCoins, IconLoot, IconMinus, IconPackage } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import type { Item } from "@/types/item.types";
+import type { Item, ItemIndexEntry } from "@/types/item.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 
 const itemIds = defineModel<string[]>("itemIds", { required: true });
 const currencyPools = defineModel<RewardCurrencyPool[]>("currencyPools", { required: true });
 const props = defineProps<{
   /** What the picker offers: respects the campaign's enabled sources. */
-  allItems: Item[];
+  allItems: ItemIndexEntry[];
   /** What the stored ids resolve against: includes library items from a source
    *  the campaign has since disabled, so a stored reference never vanishes. */
   storedItems: Item[];

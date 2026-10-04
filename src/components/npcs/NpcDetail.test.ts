@@ -83,8 +83,15 @@ vi.mock("@/composables/locations/useLocations", () => ({
 }));
 
 vi.mock("@/composables/monsters/useMonsters", () => ({
-  useAllMonsters: () => ({ data: ref([]) }),
   useCreateMonster: () => ({ mutateAsync: vi.fn() }),
+}));
+
+vi.mock("@/composables/monsters/useMonsterIndex", () => ({
+  useMonsterIndex: () => ({ data: ref([]) }),
+}));
+
+vi.mock("@/composables/monsters/useMonstersByIds", () => ({
+  useMonstersByIds: () => ({ data: ref(new Map()) }),
 }));
 
 vi.mock("@/composables/scriptorium/useScriptorium", () => ({

@@ -270,8 +270,10 @@ import {
   useDeleteLootTable,
 } from "@/composables/dungeon-features/useLootTables";
 import { useItems } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
-import { useMonsters } from "@/composables/monsters/useMonsters";
+import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import {
   LOOT_CR_TIERS,
   LOOT_CR_TIER_LABELS,
@@ -284,6 +286,7 @@ import {
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
+  type Item,
 } from "@/types/item.types";
 import { formatCoinParts } from "@/rules/currency";
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -344,35 +347,34 @@ watch(table, (t) => {
 }, { immediate: true });
 
 // ── Items (Vault) ──────────────────────────────────────────────────────────
-const itemsQuery = useItems();
+const itemIndex = useItemIndex();
 // The picker offers what the campaign's enabled sources allow (`itemOptions`
-// below); the entries this table already stores resolve even if their book has
-// since been disabled, so a roll never silently drops a library item (#954).
+// below); the entries this table already stores resolve by id even if their book
+// has since been disabled, so a roll never silently drops a library item (#954).
 const { items: storedItems } = useStoredItemRefs(
   () => form.value.entries.flatMap((e) => (e.item_id ? [e.item_id] : [])),
-  itemsQuery.resolvable,
 );
+// A random entry rolls from every item that fits its rarity and type, so the
+// catalogue is read only for a table that has one.
+const hasRandomEntry = computed(() => form.value.entries.some((e) => (e.type ?? "item") === "random"));
+const poolQuery = useItems(() => ({ enabled: hasRandomEntry.value }));
 const itemsById = computed(() => {
-  const m = new Map<string, NonNullable<typeof itemsQuery.data.value>[number]>();
+  const m = new Map<string, Item>();
+  for (const it of poolQuery.resolvable.value ?? []) m.set(it.id, it);
   for (const it of storedItems.value) m.set(it.id, it);
   return m;
 });
 const itemOptions = computed(() =>
-  (itemsQuery.data.value ?? []).map((it) => ({ id: it.id, name: it.name })),
+  (itemIndex.data.value ?? []).map((it) => ({ id: it.id, name: it.name })),
 );
 
 // ── Monsters ───────────────────────────────────────────────────────────────
 // Naming a monster this table already drops for has to work whatever campaign
-// that monster now belongs to, or the chip falls back to a raw uuid; adding a
-// new one should only offer this campaign's. Hence the two queries — they
-// share a cache, so the second costs nothing.
-const monstersQuery = useMonsters(() => ({ includeAllScopes: true }));
-const pickableMonstersQuery = useMonsters();
-const monstersById = computed(() => {
-  const m = new Map<string, NonNullable<typeof monstersQuery.data.value>[number]>();
-  for (const mo of monstersQuery.data.value ?? []) m.set(mo.id, mo);
-  return m;
-});
+// that monster now belongs to, or the chip falls back to a raw uuid, so stored
+// ids resolve by id with no scoping; adding a new one only offers the picker's
+// slim index (this campaign's and the enabled books').
+const pickableMonstersQuery = useMonsterIndex();
+const { data: monstersById } = useMonstersByIds(() => [...(table.value?.monster_ids ?? []), ...form.value.monster_ids]);
 const availableMonsterOptions = computed(() =>
   (pickableMonstersQuery.data.value ?? [])
     .filter((mo) => !form.value.monster_ids.includes(mo.id))

@@ -6,8 +6,8 @@ import { createPinia, setActivePinia } from "pinia";
 vi.mock("@/composables/campaign/useWhisperRecipients", () => ({
   useWhisperTarget: () => ({ whisperTarget: ref(""), whisperableMembers: ref([]) }),
 }));
-vi.mock("@/composables/items/useItems", () => ({
-  useItems: () => ({ data: ref([]) }),
+vi.mock("@/composables/items/useItemIndex", () => ({
+  useItemIndex: () => ({ data: ref([]) }),
 }));
 vi.mock("@/composables/dice/usePromptedRoll", () => ({
   usePromptedRoll: () => ({ promptRoll: vi.fn() }),

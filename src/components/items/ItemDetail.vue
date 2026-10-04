@@ -373,7 +373,8 @@ import ItemArmorBlock from "@/components/items/ItemArmorBlock.vue";
 import ItemEditorCard from "@/components/items/ItemEditorCard.vue";
 import ItemWrittenContentsCard from "@/components/items/ItemWrittenContentsCard.vue";
 import { useCreateItem, useUpdateItem, useDeleteItem } from "@/composables/items/useItems";
-import { useSpells } from "@/composables/spells/useSpells";
+import { useSpellIndex } from "@/composables/spells/useSpellIndex";
+import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import { useCampaignStore } from "@/stores/campaign";
 import { storeToRefs } from "pinia";
 import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
@@ -560,21 +561,29 @@ function removeBundleItem(idx: number) {
 }
 
 // ── Spell picker ──────────────────────────────────────────────────────────────
-const { data: allSpells, isLoading: spellsLoading } = useSpells();
+const { data: spellIndex, isLoading: spellsLoading } = useSpellIndex();
+// The linked spells are stored ids: read as rows (the Scriptorium export needs them in full).
+const { data: linkedSpells } = useSpellsByIds(() => spellIds.value);
 const spellSearch = ref("");
 
 const filteredSpells = computed(() => {
   const q = spellSearch.value.trim().toLowerCase();
-  return (allSpells.value ?? []).filter(
+  // Own spells only, as before: `items.spell_ids` is a uuid[] column, so a
+  // library spell's text id could not be stored on an item.
+  return (spellIndex.value ?? []).filter(
     (s) =>
-      !q ||
+      !s.is_shared &&
+      (!q ||
       s.name.toLowerCase().includes(q) ||
-      s.school.toLowerCase().includes(q),
+      s.school.toLowerCase().includes(q)),
   );
 });
 
-const selectedSpells = computed(
-  () => (allSpells.value ?? []).filter((s) => spellIds.value.includes(s.id)),
+const selectedSpells = computed(() =>
+  spellIds.value.flatMap((id) => {
+    const spell = linkedSpells.value.get(id);
+    return spell ? [spell] : [];
+  }),
 );
 
 // ── Derived ───────────────────────────────────────────────────────────────────

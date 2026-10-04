@@ -112,7 +112,7 @@ import ModalHeader from "@/components/common/ModalHeader.vue";
 import { IconGenerate, IconLocation, IconMonster, IconParty } from '@/lib/icons';
 import type { Editor } from "@tiptap/core";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useMonsters } from "@/composables/monsters/useMonsters";
+import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useSpells } from "@/composables/spells/useSpells";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
@@ -163,7 +163,9 @@ const search = ref("");
 // ── Data ──────────────────────────────────────────────────────────────────────
 
 const { data: npcs, isPending: npcsLoading } = useNpcs();
-const { data: monsters, isPending: monstersLoading } = useMonsters();
+// This tab lists the DM's own monsters only; the shared bestiary is not insertable here.
+const { data: monsterIndex, isLoading: monstersLoading } = useMonsterIndex();
+const monsters = computed(() => monsterIndex.value?.filter((m) => !m.is_shared));
 const { data: spells, isPending: spellsLoading } = useSpells();
 const { data: locations, isPending: locationsLoading } = useAllLocations();
 
@@ -207,7 +209,7 @@ const allItems = computed<ListItem[]>(() => {
     return (monsters.value ?? []).map((m) => ({
       id: m.id,
       name: m.name,
-      subtitle: `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}`,
+      subtitle: `${m.size} ${m.monster_type} · CR ${m.challenge_rating}`,
       badge: m.monster_type,
       badgeColor: MONSTER_TYPE_VAR[m.monster_type] ?? "var(--muted-foreground)",
       type: "monsters" as TabKey,

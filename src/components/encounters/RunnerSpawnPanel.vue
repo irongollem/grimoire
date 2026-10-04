@@ -56,8 +56,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -74,9 +76,29 @@ const factionOptions = computed(() =>
   store.factions.map((f) => ({ id: f.id, name: f.name })),
 );
 
+// The picker offers the slim index (this campaign's enabled monsters); the full
+// row is read only for the one that gets spawned.
+const { data: monsterIndex } = useMonsterIndex();
 const monsterOptions = computed(() =>
-  (store.availableMonsters ?? []).map((m) => ({ id: m.id, name: m.name })),
+  (monsterIndex.value ?? []).map((m) => ({ id: m.id, name: m.name })),
 );
+
+const pendingSpawn = ref<{ id: string; factionId: string; count: number } | null>(null);
+const { data: spawnRows, isLoading: spawnLoading } = useMonstersByIds(
+  () => [pendingSpawn.value?.id],
+  { withArt: true },
+);
+watch([spawnRows, spawnLoading, pendingSpawn], ([rows, loading, pending]) => {
+  if (!pending) return;
+  const monster = rows.get(pending.id);
+  if (!monster) {
+    if (!loading) pendingSpawn.value = null;
+    return;
+  }
+  pendingSpawn.value = null;
+  if (!store.availableMonsters.some((m) => m.id === monster.id)) store.availableMonsters.push(monster);
+  store.addMonster(monster.id, pending.factionId, pending.count);
+});
 
 const npcOptions = computed(() =>
   (store.availableNpcs ?? [])
@@ -87,7 +109,7 @@ const npcOptions = computed(() =>
 function handleAdd() {
   if (!entityId.value) return;
   if (tab.value === "monster") {
-    store.addMonster(entityId.value, factionId.value, count.value);
+    pendingSpawn.value = { id: entityId.value, factionId: factionId.value, count: count.value };
   } else {
     store.addNpc(entityId.value, factionId.value, count.value);
   }

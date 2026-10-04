@@ -278,7 +278,7 @@ import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { useReadItems } from "@/composables/play/useReadItems";
 import PlayerJournalDmModal from "./PlayerJournalDmModal.vue";
 import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -349,8 +349,12 @@ const { isNew: isJournalNew } = useReadItems("player_journal");
 const unreadJournalCount = computed(() =>
   dmSharedJournal.filter((e) => isJournalNew(e.id, e.updated_at)).length,
 );
-// Resolves a companion's stored source_monster_id — same reason as PartyTracker.
-const { data: allMonsters } = useAllMonsters(() => ({ includeAllScopes: true }));
+// Resolves a companion's stored source_monster_id (same reason as PartyTracker)
+// and the wild shape beast, both stored ids, by id and unscoped.
+const { data: storedMonsters } = useMonstersByIds(() => [
+  member.wildshape_state?.monster_id,
+  ...companions.map((c) => c.source_monster_id),
+]);
 const { data: allNpcs } = useNpcs();
 
 const hpInput = ref(0);
@@ -365,7 +369,7 @@ const portrait = computed(() => formPortrait(member, member.wildshape_state));
 // A wild-shaped member moves at the beast's walking speed.
 const displaySpeed = computed(() => {
   const form = member.wildshape_state;
-  const beast = form ? allMonsters.value?.find((m) => m.id === form.monster_id) : undefined;
+  const beast = form ? storedMonsters.value.get(form.monster_id) : undefined;
   return walkingSpeed(beast?.stat_block.speed) ?? member.speed;
 });
 const displayHp = computed(() => member.wildshape_state?.beast_hp ?? member.current_hp);
@@ -456,7 +460,7 @@ function hpBarColor(current: number, max: number) {
 
 function companionSourceName(c: Companion): string {
   if (c.source_type === "monster" && c.source_monster_id) {
-    return (allMonsters.value ?? []).find((m) => m.id === c.source_monster_id)?.name ?? "";
+    return storedMonsters.value.get(c.source_monster_id)?.name ?? "";
   }
   if (c.source_type === "npc" && c.source_npc_id) {
     return (allNpcs.value ?? []).find((n) => n.id === c.source_npc_id)?.name ?? "";

@@ -162,7 +162,8 @@
 
 <script setup lang="ts">
 import { reactive, computed, nextTick } from "vue";
-import { useSpells } from "@/composables/spells/useSpells";
+import { useSpellIndex } from "@/composables/spells/useSpellIndex";
+import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -176,7 +177,11 @@ const props = defineProps<{
   challengeRating?: string;
 }>();
 
-const { data: allSpells } = useSpells();
+const { data: spellIndex } = useSpellIndex();
+// Stored ids resolve by id so a library spell shows its name too.
+const { data: storedSpells } = useSpellsByIds(() =>
+  (model.value?.entries ?? []).flatMap((entry) => entry.spell_ids),
+);
 
 function crToProfBonus(cr: string): number {
   const n = cr === "1/8" ? 0.125 : cr === "1/4" ? 0.25 : cr === "1/2" ? 0.5 : parseFloat(cr) || 0;
@@ -234,14 +239,8 @@ const attackBonusModel = computed<number | null>({
   set: (v) => patch({ attack_bonus: v ?? undefined }),
 });
 
-const spellMap = computed(() => {
-  const m = new Map<string, string>();
-  for (const s of allSpells.value ?? []) m.set(s.id, s.name);
-  return m;
-});
-
 function spellName(id: string) {
-  return spellMap.value.get(id) ?? "Unknown Spell";
+  return storedSpells.value.get(id)?.name ?? "Unknown Spell";
 }
 
 function levelLabel(level: number) {
@@ -313,7 +312,9 @@ function setSearchRef(i: number, el: HTMLElement | null) {
 function filteredSpells(i: number) {
   const q = (searchQuery[i] ?? "").toLowerCase().trim();
   const selectedIds = new Set(model.value?.entries[i]?.spell_ids ?? []);
-  const candidates = (allSpells.value ?? []).filter(s => !selectedIds.has(s.id));
+  // Own spells only, as this picker always offered: other readers of a stat
+  // block's spellcasting resolve its ids against own spells.
+  const candidates = (spellIndex.value ?? []).filter(s => !s.is_shared && !selectedIds.has(s.id));
   if (!q) return candidates.slice(0, 50);
   return candidates.filter(s => s.name.toLowerCase().includes(q)).slice(0, 50);
 }

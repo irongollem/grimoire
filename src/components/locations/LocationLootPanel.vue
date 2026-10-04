@@ -82,11 +82,10 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { useCreateLootPlacement } from "@/composables/quests/useQuestFlow";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useItems } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
 import { itemRefColumns } from "@/lib/itemRef";
-import { isUuid } from "@/lib/library/contentIdentity";
 import { useLootTables } from "@/composables/dungeon-features/useLootTables";
 import { useImageUpload } from "@/composables/useImageUpload";
-import { useAuthStore } from "@/stores/auth";
 import { LOCATION_STATE_QUERY_KEY } from "@/composables/locations/useLocationState";
 import {
   rollLootTable,
@@ -106,12 +105,12 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import LootPlacementList from "@/components/quests/LootPlacementList.vue";
 import type { LootPlacement, LootPlacementKind } from "@/types/quest.types";
 import type { LootChestAtom } from "@/types/chat.types";
+import type { Item } from "@/types/item.types";
 
 const { locationId, campaignId, loot } = defineProps<{ locationId: string; campaignId: string; loot: LootPlacement[] }>();
 
-const auth = useAuthStore();
 const queryClient = useQueryClient();
-const { data: items, resolvable } = useItems();
+const { data: items } = useItemIndex();
 const { data: lootTables } = useLootTables();
 const createLoot = useCreateLootPlacement();
 
@@ -137,10 +136,8 @@ const chestImageUrl = ref<string | null>(null);
 const adding = ref(false);
 const error = ref("");
 
-const itemOptions = computed(() => (items.value ?? [])
-  // Library rows (text ids) are offered as references; own rows stay scoped to this account or campaign.
-  .filter((item) => !isUuid(item.id) || item.user_id === auth.user?.id || item.campaign_id === campaignId)
-  .map((item) => ({ id: item.id, name: item.name })));
+// Library rows are offered as references; the index already holds only this account's own rows.
+const itemOptions = computed(() => (items.value ?? []).map((item) => ({ id: item.id, name: item.name })));
 
 const lootTableOptions = computed(() => (lootTables.value ?? []).map((table) => ({ id: table.id, name: table.name })));
 const selectedLootTable = computed(() => (lootTables.value ?? []).find((table) => table.id === lootTableId.value) ?? null);
@@ -148,9 +145,17 @@ const selectedLootTable = computed(() => (lootTables.value ?? []).find((table) =
 // entries resolve whatever they are now, so a roll never drops one (#954, #961).
 const { items: storedItems } = useStoredItemRefs(
   () => (selectedLootTable.value?.entries ?? []).flatMap((e) => (e.item_id ? [e.item_id] : [])),
-  resolvable,
 );
-const itemsById = computed(() => new Map(storedItems.value.map((item) => [item.id, item])));
+// A random entry rolls from every item that fits its rarity and type, so the
+// catalogue is read only for a table that has one.
+const hasRandomEntry = computed(() => (selectedLootTable.value?.entries ?? []).some((e) => (e.type ?? "item") === "random"));
+const poolQuery = useItems(() => ({ enabled: hasRandomEntry.value }));
+const itemsById = computed(() => {
+  const map = new Map<string, Item>();
+  for (const item of poolQuery.resolvable.value ?? []) map.set(item.id, item);
+  for (const item of storedItems.value) map.set(item.id, item);
+  return map;
+});
 
 const rolledAtoms = computed<LootChestAtom[]>(() => {
   const atoms: LootChestAtom[] = [];

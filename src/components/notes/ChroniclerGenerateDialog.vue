@@ -161,7 +161,7 @@ watch(() => props.visible, (v) => {
   }
 });
 
-const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems();
+const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems({ monsterRows: true });
 
 const mentionedLocations = computed(() => mentionedLocationIds(scenePrompt.value, locations.value ?? []));
 const { data: locationDescriptions } = useLocationDescriptions(mentionedLocations);

@@ -221,7 +221,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useIsMobile } from '@/composables/useBreakpoint'
 import NpcGenerateDialog from '@/ai/NpcGenerateDialog.vue'
@@ -236,7 +236,9 @@ import { useCampaignMessages } from '@/composables/campaign/useCampaignMessages'
 import { useChatSendFailure } from '@/composables/campaign/chatSendErrors'
 import { useUiStore } from '@/stores/ui'
 import { useLocationTree } from '@/composables/locations/useLocations'
-import { useAllMonsters, useCreateMonster } from '@/composables/monsters/useMonsters'
+import { useCreateMonster } from '@/composables/monsters/useMonsters'
+import { useMonsterIndex } from '@/composables/monsters/useMonsterIndex'
+import { useMonstersByIds } from '@/composables/monsters/useMonstersByIds'
 import { useCreateScriptoriumDocument } from '@/composables/scriptorium/useScriptorium'
 import { formatNpcForScriptorium } from '@/lib/scriptorium/scriptoriumImport'
 import { buildEntityEmbedDocumentContent } from '@/lib/scriptorium/entityEmbeds'
@@ -251,6 +253,7 @@ import type { NpcArtTab } from '@/components/npcs/npcArtTabs'
 import { buildEntityContext, toPlainText } from '@/ai/utils'
 import NpcEditMobile from '@/components/npcs/NpcEditMobile.vue'
 import type { Npc, NpcInsert, StatBlock } from '@/types/npc.types'
+import type { Monster } from '@/types/monster.types'
 import { useCampaignStore } from '@/stores/campaign'
 import EntityCombobox from '@/components/common/EntityCombobox.vue'
 import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
@@ -290,7 +293,11 @@ const isMobile = useIsMobile()
 
 const router = useRouter()
 const { locationOptions } = useLocationTree()
-const { data: allMonsters } = useAllMonsters()
+const { data: allMonsters } = useMonsterIndex()
+// A pick needs the full stat block, which the picker's slim index lacks: the
+// picked id is read as a row and applied once it arrives.
+const pickedMonsterId = ref<string | null>(null)
+const { data: pickedMonsters } = useMonstersByIds(() => [pickedMonsterId.value])
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc()
 const { mutateAsync: updateNpc, isPending: isUpdating } = useUpdateNpc()
 const { mutateAsync: deleteNpc } = useDeleteNpc()
@@ -415,9 +422,20 @@ async function promoteToMonster() {
 }
 
 function onMonsterLinked(monsterId: string | null) {
-  if (!monsterId) { form.linked_monster_id = null; return }
-  const m = (allMonsters.value ?? []).find(x => x.id === monsterId)
+  if (!monsterId) { pickedMonsterId.value = null; form.linked_monster_id = null; return }
+  pickedMonsterId.value = monsterId
+}
+
+watch([pickedMonsterId, pickedMonsters], ([id, rows]) => {
+  if (!id) return
+  const m = rows.get(id)
   if (!m) return
+  pickedMonsterId.value = null
+  applyMonster(m)
+})
+
+function applyMonster(m: Monster) {
+  const monsterId = m.id
   // SRD monsters don't have UUID rows — import their data as a template but don't link
   form.linked_monster_id = m.is_shared ? null : monsterId
 

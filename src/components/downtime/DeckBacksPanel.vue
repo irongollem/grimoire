@@ -5,7 +5,7 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useItems } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useDeckBacks, useCreateDeckBack, useDeleteDeckBack } from "@/composables/downtime/useDowntime";
 import { useDowntimeRewardName } from "@/composables/downtime/useDowntimeRewardName";
@@ -15,7 +15,7 @@ import type { DowntimeDeckBack, DowntimeRewardType } from "@/types/downtime.type
 
 const { data: backs } = useDeckBacks();
 const { data: npcs } = useNpcs();
-const { data: items } = useItems();
+const { data: items } = useItemIndex();
 const { data: notes } = useNotes();
 const { rewardName: resolveRewardName } = useDowntimeRewardName(() =>
   (backs.value ?? []).filter((b) => b.reward_type === "item").map((b) => b.reward_id),

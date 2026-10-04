@@ -21,6 +21,7 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useDispatchLoot: () => ({ mutateAsync: mocks.dispatch }),
 }));
 vi.mock("@/composables/items/useItems", () => ({ useItems: () => ({ data: { value: [] }, resolvable: { value: [] } }) }));
+vi.mock("@/composables/items/useItemIndex", () => ({ useItemIndex: () => ({ data: { value: [] } }) }));
 vi.mock("@/composables/items/useStoredItemRefs", () => ({ useStoredItemRefs: () => ({ items: { value: [] }, find: () => undefined }) }));
 vi.mock("@/composables/useImageUpload", () => ({ useImageUpload: () => ({ upload: vi.fn() }) }));
 

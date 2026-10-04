@@ -39,8 +39,8 @@ vi.mock("@/composables/quests/useQuests", () => ({
 vi.mock("@/composables/npcs/useNpcs", () => ({
   useNpcs: () => ({ data: { value: [{ id: "npc-1", name: "Oarus Masthew" }] } }),
 }));
-vi.mock("@/composables/items/useItems", () => ({
-  useItems: () => ({ data: { value: [{ id: "item-1", name: "Tally-stick", user_id: "dm", campaign_id: "campaign-1" }] } }),
+vi.mock("@/composables/items/useItemIndex", () => ({
+  useItemIndex: () => ({ data: { value: [{ id: "item-1", name: "Tally-stick", campaign_id: "campaign-1" }] } }),
 }));
 vi.mock("@/composables/scriptorium/useScriptorium", () => ({
   useScriptoriumDocuments: () => ({ data: { value: [

@@ -132,7 +132,8 @@ import { useRunningEncounters } from "@/composables/encounters/useEncounterLive"
 import { DIFFICULTY_COLORS } from "@/types/encounter.types";
 import { difficultyLookups, encounterDifficulty } from "@/lib/encounters/difficulty";
 import type { Encounter } from "@/types/encounter.types";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
+import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
@@ -161,13 +162,21 @@ const hideFinished = computed(() => ui.encountersHideFinished);
 const questFilter = computed(() => ui.encountersFilterQuestId);
 
 const { data: encounters, isLoading } = useEncounters();
-// Difficulty labels resolve each encounter's already-stored combatant.monster_id,
-// so a monster scoped elsewhere must still be found here.
-const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
 const { data: npcs } = useNpcs();
 const { data: party } = useParty();
 const { data: characterClasses } = useAllCampaignCharacterClasses();
 const { data: companions } = useCompanions();
+// Difficulty labels resolve each listed encounter's stored combatant.monster_id
+// (and its companions' source monsters): exactly those rows, in one read, with no
+// scope filter so a monster scoped elsewhere still counts.
+const { data: monsters } = useMonstersByIds(() => {
+  const list = encounters.value ?? [];
+  const fielded = new Set(list.flatMap((e) => e.companion_ids));
+  return encounterMonsterIds(
+    list.flatMap((e) => e.combatants),
+    (companions.value ?? []).filter((c) => fielded.has(c.id)),
+  );
+});
 const { data: traps } = useTraps(() => ({ includeAllScopes: true }));
 const { data: questLinks } = useEncounterQuestLinks();
 const { isEncounterRunning } = useRunningEncounters();
@@ -242,7 +251,7 @@ function totalMonsterCount(encounter: Encounter): number {
 // disagree (`lib/encounters/difficulty`).
 const difficultyRows = computed(() =>
   difficultyLookups({
-    monsters: monsters.value ?? [],
+    monsters: [...monsters.value.values()],
     npcs: npcs.value ?? [],
     party: party.value ?? [],
     characterClasses: characterClasses.value ?? [],

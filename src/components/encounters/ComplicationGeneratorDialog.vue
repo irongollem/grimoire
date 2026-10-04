@@ -205,6 +205,7 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import { IconAdd, IconClose, IconGenerate, IconRefresh, IconWarning } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useComplicationGeneration, type ComplicationMode } from "@/ai/useComplicationGeneration";
 import { resolveGeneratedComplication, buildComplicationEvent } from "@/ai/resolveGeneratedComplication";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
@@ -232,6 +233,9 @@ const open = defineModel<boolean>({ required: true });
 
 const campaign = useCampaignStore();
 const store = useEncounterRunStore();
+// Names the model wrote are matched against what the DM can pick from (the slim
+// index); a spawn that fires later reads its full row through the runner surface.
+const { data: monsterIndex } = useMonsterIndex();
 
 const {
   isGenerating,
@@ -270,7 +274,7 @@ watch(
 const resolved = computed(() =>
   result.value
     ? resolveGeneratedComplication(result.value, {
-      monsters: store.availableMonsters,
+      monsters: monsterIndex.value === undefined ? [] : monsterIndex.value,
       npcs: store.availableNpcs,
       factions: store.factions,
     })

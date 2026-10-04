@@ -211,14 +211,14 @@ import type {
   EventTrigger,
   EventAction,
 } from "@/types/encounter.types";
-import type { Monster } from "@/types/monster.types";
+import type { Monster, MonsterIndexEntry } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
 
 const events = defineModel<EncounterEvent[]>("events", { required: true });
 const props = defineProps<{
   combatants: CombatantDef[];
   monsters: Monster[];
-  pickableMonsters: Monster[];
+  pickableMonsters: MonsterIndexEntry[];
   /** Needed only to name NPC spawns in an event's summary line. This editor
    *  cannot author one — NPC reinforcements come from the runner's
    *  complication generator (#604) — but it does have to describe them

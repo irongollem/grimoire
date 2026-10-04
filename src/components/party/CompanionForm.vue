@@ -251,7 +251,10 @@ import { ref, computed } from "vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { IconAddImage, IconClose } from '@/lib/icons';
 import { useCreateCompanion, useUpdateCompanion } from "@/composables/encounters/useCompanions";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { fetchResolvedMonster } from "@/composables/monsters/useMonsters";
+import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
+import { useToast } from "@/composables/useToast";
 import { useNpcs, useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -314,14 +317,15 @@ const emit = defineEmits<{
 
 const isEdit = !!props.companion;
 
-// Picker vs. resolver, the #597 split. `pickableMonsters` is scoped to general +
-// the active campaign — what belongs in this campaign to attach next.
-// `allMonsters` is unscoped, because `companions.source_monster_id` is an
-// already-stored reference that outlives any later re-scoping: resolving it
-// against the scoped list blanks the field for a companion whose source monster
-// now lives in another campaign.
-const { data: pickableMonsters } = useAllMonsters();
-const { data: allMonsters }      = useAllMonsters(() => ({ includeAllScopes: true }));
+// Picker vs. resolver, the #597 split. The picker is the slim index, scoped to
+// general + the active campaign: what belongs in this campaign to attach next.
+// `companions.source_monster_id` is an already-stored reference that outlives
+// any later re-scoping, so it resolves by id, unscoped: resolving it against the
+// scoped list blanks the field for a companion whose source monster now lives
+// in another campaign. A pick that copies a stat block fetches that one row.
+const { data: pickableMonsters } = useMonsterIndex();
+const { data: storedMonsters }   = useMonstersByIds(() => [props.companion?.source_monster_id]);
+const toast = useToast();
 
 // NPC source — role-gated. DMs browse the raw `npcs` table (full stat blocks,
 // true identities); players get the player-visible projection only, so a
@@ -486,17 +490,20 @@ const statusValue = computed<"party" | "elsewhere">({
 // The source combobox both picks and displays, so it offers the scoped list plus
 // whatever this companion already points at — otherwise EntityCombobox has no
 // option to render the stored id against and the field renders blank.
-const monsterOptions = computed<Monster[]>(() => {
+const monsterOptions = computed<{ id: string; name: string }[]>(() => {
   const pickable = pickableMonsters.value ?? [];
   if (!selectedMonsterId.value || pickable.some((m) => m.id === selectedMonsterId.value)) return pickable;
-  const stored = (allMonsters.value ?? []).find((m) => m.id === selectedMonsterId.value);
-  return stored ? [stored, ...pickable] : pickable;
+  const stored = storedMonsters.value.get(selectedMonsterId.value);
+  return stored ? [{ id: stored.id, name: stored.name }, ...pickable] : pickable;
 });
-function onLoadFromBestiary(monsterId: string) {
+async function onLoadFromBestiary(monsterId: string) {
   if (!monsterId) return;
-  const m = (allMonsters.value ?? []).find(x => x.id === monsterId);
-  if (!m) return;
-  applyStatBlockFromMonster(m.stat_block);
+  try {
+    const { monster } = await fetchResolvedMonster(monsterId);
+    applyStatBlockFromMonster(monster.stat_block);
+  } catch (e) {
+    toast.error(toast.fromError(e, "Could not load that monster."));
+  }
 }
 
 function applyStatBlockFromMonster(statBlock: MonsterStatBlock) {
@@ -568,9 +575,15 @@ function parseSpeedNum(speedStr: string): number {
   return parseInt(speedStr, 10) || 30;
 }
 
-function onMonsterSelected() {
-  const m = (allMonsters.value ?? []).find((x) => x.id === selectedMonsterId.value);
-  if (!m) return;
+async function onMonsterSelected() {
+  if (!selectedMonsterId.value) return;
+  let m: Monster;
+  try {
+    m = (await fetchResolvedMonster(selectedMonsterId.value)).monster;
+  } catch (e) {
+    toast.error(toast.fromError(e, "Could not load that monster."));
+    return;
+  }
   name.value      = m.name;
   maxHp.value     = parseHpNum(m.stat_block.hit_points);
   currentHp.value = maxHp.value;

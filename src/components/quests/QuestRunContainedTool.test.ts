@@ -27,7 +27,7 @@ vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { valu
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpc: () => ({ data: mocks.npc }) }));
 vi.mock("@/composables/factions/useFactions", () => ({ useFaction: () => ({ data: mocks.faction }) }));
-vi.mock("@/composables/items/useItems", () => ({ useItems: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/items/useItemsByIds", () => ({ useItemsByIds: () => ({ data: { value: new Map() } }) }));
 vi.mock("@/composables/monsters/useMonsters", () => ({ useResolvedMonster: (id: { value: string }) => {
   mocks.monsterId = id;
   return { data: mocks.monster };

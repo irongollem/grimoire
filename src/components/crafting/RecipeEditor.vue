@@ -232,7 +232,7 @@ import {
 import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
 import { useUiStore } from "@/stores/ui";
 import { markEdited } from "@/ai/provenance";
-import { useItems } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
 import { inventoryItemRef, itemRefColumns, sameItemRef } from "@/lib/itemRef";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import {
@@ -261,7 +261,7 @@ const recipeId = computed(() => props.recipe?.id);
 
 const ui = useUiStore();
 
-const { data: allItems, resolvable } = useItems();
+const { data: allItems } = useItemIndex();
 
 // Load existing sub-resources when editing — pass the computed so the query
 // re-enables reactively once the recipe prop resolves after a hard refresh.
@@ -439,7 +439,6 @@ function matchesSearch(name: string, query: string): boolean {
 // the table's edition or books are now (#961).
 const { find: findStoredItem } = useStoredItemRefs(
   () => [...outputs.value, ...ingredients.value].map(inventoryItemRef),
-  resolvable,
 );
 
 function itemById(id: string | null) {
@@ -447,13 +446,11 @@ function itemById(id: string | null) {
 }
 
 function addOutput(itemId: string) {
-  const picked = itemById(itemId);
-  if (!picked) return;
   outputSearch.value = "";
   // A vault (uuid) id and a library (text) id route to different columns —
   // itemRefColumns is the one place that decides which (#819). Referencing
   // shared content directly beats cloning it into the vault first.
-  const ref = itemRefColumns(picked.id);
+  const ref = itemRefColumns(itemId);
   const existing = outputs.value.find((o) => sameItemRef(o, ref));
   if (existing) {
     existing.quantity += 1;
@@ -463,10 +460,8 @@ function addOutput(itemId: string) {
 }
 
 function addIngredient(itemId: string) {
-  const picked = itemById(itemId);
-  if (!picked) return;
   ingredientSearch.value = "";
-  const ref = itemRefColumns(picked.id);
+  const ref = itemRefColumns(itemId);
   const existing = ingredients.value.find((i) => sameItemRef(i, ref));
   if (existing) {
     existing.quantity += 1;

@@ -92,8 +92,8 @@
             @click="addMonsterToCombatants(monster)"
           >
             <span class="text-body text-foreground">{{ monster.name }}</span>
-            <span class="text-label text-muted-foreground">
-              CR {{ monster.stat_block.challenge_rating }} · AC {{ monster.stat_block.armor_class }} · {{ monster.stat_block.speed }}
+            <span v-if="monster.challenge_rating" class="text-label text-muted-foreground">
+              CR {{ monster.challenge_rating }}
             </span>
           </AppButton>
           <AppButton
@@ -213,14 +213,14 @@ import AppInput from "@/components/common/AppInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { CombatantDef, FactionDef } from "@/types/encounter.types";
 import { crToXp } from "@/types/encounter.types";
-import type { Monster } from "@/types/monster.types";
+import type { Monster, MonsterIndexEntry } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
 
 const combatants = defineModel<CombatantDef[]>("combatants", { required: true });
 const props = defineProps<{
   factions: FactionDef[];
   monsters: Monster[];
-  pickableMonsters: Monster[];
+  pickableMonsters: MonsterIndexEntry[];
   npcs: Npc[];
   excludedMonsterIds: Set<string>;
 }>();
@@ -247,21 +247,30 @@ function emitCombatants() {
 
 // Monster lookup
 const monsterMap = computed(() => new Map(props.monsters.map((m) => [m.id, m])));
+// A monster picked a moment ago is not in the parent's by-id read yet; the index
+// row it was picked from already names it and gives its CR.
+const pickedMap = computed(() => new Map(props.pickableMonsters.map((m) => [m.id, m])));
 const npcMap = computed(() => new Map(props.npcs.map((n) => [n.id, n])));
 
 function monsterName(monsterId: string | null): string {
   if (!monsterId) return "Unknown";
-  return monsterMap.value.get(monsterId)?.name ?? "Unknown";
+  return monsterMap.value.get(monsterId)?.name ?? pickedMap.value.get(monsterId)?.name ?? "Unknown";
+}
+
+function monsterCrOrNull(monsterId: string): string | null | undefined {
+  const full = monsterMap.value.get(monsterId);
+  if (full) return full.stat_block.challenge_rating;
+  return pickedMap.value.get(monsterId)?.challenge_rating;
 }
 
 function monsterCr(monsterId: string | null): string {
   if (!monsterId) return "0";
-  return monsterMap.value.get(monsterId)?.stat_block.challenge_rating ?? "0";
+  return monsterCrOrNull(monsterId) ?? "0";
 }
 
 function crXp(monsterId: string | null): number {
   if (!monsterId) return 0;
-  return crToXp(monsterMap.value.get(monsterId)?.stat_block.challenge_rating);
+  return crToXp(monsterCrOrNull(monsterId));
 }
 
 function npcName(npcId: string | null): string {
@@ -374,7 +383,7 @@ const filteredMonsters = computed(() => {
   return all.filter((m) => m.name.toLowerCase().includes(q)).slice(0, 10);
 });
 
-function addMonsterToCombatants(monster: Monster) {
+function addMonsterToCombatants(monster: MonsterIndexEntry) {
   localCombatants.value.push({
     id: crypto.randomUUID(),
     monster_id: monster.id,

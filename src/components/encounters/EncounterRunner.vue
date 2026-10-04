@@ -119,7 +119,7 @@
           <RunnerEntityDetail
             :selected-id="selectedId"
             :selected-trap-id="selectedTrapId"
-            :monsters="monsters ?? []"
+            :monsters="store.availableMonsters"
             :party-members="partyMembers ?? []"
             @close="selectedId = null; selectedTrapId = null"
           />
@@ -145,7 +145,6 @@ import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useCombatExploration } from "@/composables/encounters/useCombatExploration";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCompanions, useUpdateCompanion } from "@/composables/encounters/useCompanions";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
@@ -185,7 +184,6 @@ const { reportChatFailure } = useChatSendFailure();
 
 // The runner resolves combatants' stored monster_id (detail panel, auto-discover
 // on go-live) rather than letting the DM pick, so scoping must stay off here.
-const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
 const { data: partyMembers } = useParty();
 const { data: companions } = useCompanions();
 const { data: encounter } = useEncounter(encounterId);
@@ -343,7 +341,7 @@ async function handleGoLive() {
         .map((c) => c.monster_id!),
     );
     if (monsterIds.size > 0) {
-      const monstersToDiscover = (monsters.value ?? []).filter((m) => monsterIds.has(m.id));
+      const monstersToDiscover = store.availableMonsters.filter((m) => monsterIds.has(m.id));
       const partyMemberIds = (partyMembers.value ?? []).map((m) => m.id);
       await autoDiscover({ monsters: monstersToDiscover, partyMemberIds });
     }

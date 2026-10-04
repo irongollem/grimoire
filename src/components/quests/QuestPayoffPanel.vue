@@ -124,13 +124,11 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch, type Component } from "vue";
-import { useAuthStore } from "@/stores/auth";
 import { useCreateLootPlacement, useCreateQuestConsequence, useDeleteLootPlacement, useDeleteQuestConsequence } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
 import { useUnlockEntryPicker } from "@/composables/quests/useUnlockEntryPicker";
-import { useItems } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
 import { itemRefColumns } from "@/lib/itemRef";
-import { isUuid } from "@/lib/library/contentIdentity";
 import { useHandoutPayoff } from "@/composables/quests/useHandoutPayoff";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { drawerTransition } from "@/lib/motion";
@@ -229,18 +227,15 @@ const adding = ref(false);
 const error = ref("");
 
 // Loot fields
-const auth = useAuthStore();
-const { data: items } = useItems();
+const { data: items } = useItemIndex();
 const createLoot = useCreateLootPlacement();
 const itemId = ref("");
 const label = ref("");
 const quantity = ref(1);
 const COINS = ["pp", "gp", "ep", "sp", "cp"] as const;
 const currency = reactive<Record<(typeof COINS)[number], number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
-const itemOptions = computed(() => (items.value ?? [])
-  // Library rows (text ids) are offered as references; own rows stay scoped to this account or campaign.
-  .filter((item) => !isUuid(item.id) || item.user_id === auth.user?.id || item.campaign_id === beat.campaign_id)
-  .map((item) => ({ id: item.id, name: item.name })));
+// Library rows are offered as references; the index already holds only this account's own rows.
+const itemOptions = computed(() => (items.value ?? []).map((item) => ({ id: item.id, name: item.name })));
 
 // Consequence fields
 const createConsequence = useCreateQuestConsequence();

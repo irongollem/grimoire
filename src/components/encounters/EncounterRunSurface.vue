@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
 import { useEncounter } from "@/composables/encounters/useEncounters";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useParty } from "@/composables/party/useParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -28,7 +28,7 @@ import EncounterRunner from "@/components/encounters/EncounterRunner.vue";
 const props = defineProps<{ encounterId: string }>();
 const id = computed(() => props.encounterId);
 const { data: encounter } = useEncounter(id);
-const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
+
 const { data: party } = useParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
@@ -36,12 +36,57 @@ const { data: allTraps } = useTraps(() => ({ includeAllScopes: true }));
 const store = useEncounterRunStore();
 const { liveState, liveStateLoaded } = useEncounterLive(id);
 
-const isReady = computed(() => !!encounter.value && !!monsters.value && !!party.value && !!companions.value && !!npcs.value && !!allTraps.value);
+/** Monsters an encounter's events may spawn (an absent `kind` means monster, see SpawnDef). */
+function spawnedMonsterIds(events: Encounter["events"] | undefined): string[] {
+  const ids: string[] = [];
+  for (const event of events ?? []) {
+    for (const action of event.actions) {
+      if (action.type !== "spawn_combatants") continue;
+      for (const spawn of action.spawns) if (spawn.kind !== "npc") ids.push(spawn.monster_id);
+    }
+  }
+  return ids;
+}
+
+// The runner needs full rows (stat block, size, art) for exactly the monsters it
+// can put on the field: the encounter's combatants, whatever its events spawn, and
+// whatever a live run already holds. Read by id with no scope filter, so a monster
+// the DM later scoped away still resolves mid-fight (#597).
+const { data: monsterMap, isLoading: monstersLoading } = useMonstersByIds(
+  () => [
+    ...(encounter.value?.combatants ?? []).map((c) => c.monster_id),
+    ...spawnedMonsterIds(encounter.value?.events),
+    ...(liveState.value?.combatants_live ?? []).map((c) => c.monster_id),
+  ],
+  { withArt: true },
+);
+
+// Monsters that join the field after the run starts (a spawn picked in the panel,
+// an event a complication added) are read the same way and merged into what the
+// store holds. Merge only: nothing is dropped (a row read again with its art replaces its plain twin), and the init watcher below never
+// re-runs for them.
+const { data: fieldMonsterMap } = useMonstersByIds(
+  () => [
+    ...store.combatants.map((c) => c.monster_id),
+    ...spawnedMonsterIds(store.events),
+  ],
+  { withArt: true },
+);
+watch(fieldMonsterMap, (map) => {
+  for (const monster of map.values()) {
+    const at = store.availableMonsters.findIndex((m) => m.id === monster.id);
+    if (at < 0) store.availableMonsters.push(monster);
+    else if (store.availableMonsters[at] !== monster) store.availableMonsters.splice(at, 1, monster);
+  }
+});
+
+const isReady = computed(() => !!encounter.value && !monstersLoading.value && !!party.value && !!companions.value && !!npcs.value && !!allTraps.value);
 
 watch(
-  [encounter, monsters, party, companions, npcs, allTraps, liveState, liveStateLoaded],
-  ([enc, mons, par, _comps, npcList, traps]) => {
-    if (!enc || !mons || !par || !npcList || !traps || !liveStateLoaded.value) return;
+  [encounter, monsterMap, monstersLoading, party, companions, npcs, allTraps, liveState, liveStateLoaded],
+  ([enc, monsterRows, loadingMonsters, par, _comps, npcList, traps]) => {
+    if (!enc || loadingMonsters || !par || !npcList || !traps || !liveStateLoaded.value) return;
+    const mons = [...monsterRows.values()];
     const live = liveState.value;
     if (live?.encounter_id === enc.id && live?.is_running) {
       if (store.encounterId === enc.id && store.started) return;

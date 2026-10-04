@@ -74,7 +74,7 @@ import { IconAdd, IconDelete, IconLoot } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } from "@/composables/items/useNpcInventory";
-import { useItems } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
@@ -93,7 +93,7 @@ const { mutateAsync: addItem } = useAddNpcInventoryItem();
 const { mutateAsync: removeItem } = useRemoveNpcInventoryItem();
 const { sendItemDrop } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
-const { data: vaultItems } = useItems();
+const { data: vaultItems } = useItemIndex();
 
 const selectedVaultId = ref("");
 const adding = ref(false);

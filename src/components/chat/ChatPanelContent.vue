@@ -372,7 +372,7 @@ import type {
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 import type { DieSize, RollMode, RollResult } from "@/lib/dice/dice";
-import { useItems } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
 import { COINS, type CoinKey, toCP } from "@/rules/currency";
 import { useAuthStore } from "@/stores/auth";
 import { useWhisperTarget } from "@/composables/campaign/useWhisperRecipients";
@@ -449,7 +449,7 @@ const vendorDesc  = ref("");
 const vendorItemQuery = ref("");
 const vendorItemId    = ref("");
 const vendorShowItems = ref(false);
-const { data: allVaultItems } = useItems();
+const { data: allVaultItems } = useItemIndex();
 const vendorItemSuggestions = computed(() => {
   const q = vendorItemQuery.value.trim().toLowerCase();
   const all = allVaultItems.value ?? [];

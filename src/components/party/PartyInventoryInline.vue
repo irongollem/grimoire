@@ -182,7 +182,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, nextTick } from "vue";
+import { ref, computed, reactive, nextTick, watch } from "vue";
 import { useRouter } from "vue-router";
 import { IconArrowUp, IconDelete, IconExternalLink, IconInventory } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
@@ -190,9 +190,10 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/items/usePartyInventory";
-import { useItems } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
+import { useItemsByIds } from "@/composables/items/useItemsByIds";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
-import type { Item } from "@/types/item.types";
+import type { Item, ItemIndexEntry } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, RARITY_SURFACE_BG } from "@/types/item.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
@@ -214,10 +215,9 @@ const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
 
 // `catalogItems` is what the add picker offers; carried rows resolve in `resolvedItems` (#961).
-const { data: catalogItems, resolvable } = useItems();
+const { data: catalogItems } = useItemIndex();
 const { items: resolvedItems } = useStoredItemRefs(
   () => (inventoryAll.value ?? []).map(inventoryItemRef),
-  resolvable,
 );
 const catalogItemMap = computed(() => {
   const map = new Map<string, Item>();
@@ -228,18 +228,24 @@ const catalogItemMap = computed(() => {
 const addItemOpen = ref(false);
 const searchInputRef = ref<AppInputHandle | null>(null);
 const newItem = reactive({ name: "", quantity: 1, carried_by: "", notes: "", selectedItemId: "", isAttuned: false });
+// The picker lists slim index rows; the one picked is read in full for what the
+// index leaves out (whether it needs attunement).
+const { data: pickedItems } = useItemsByIds(() => [newItem.selectedItemId]);
+watch(
+  () => pickedItems.value.get(newItem.selectedItemId)?.requires_attunement,
+  (requiresAttunement) => {
+    if (requiresAttunement !== undefined) newItem.isAttuned = requiresAttunement;
+  },
+);
+
 const showItemDropdown = ref(false);
 const dropdownItemRefs = reactive<Record<number, HTMLButtonElement>>({});
 
-const filteredCatalogItems = computed((): Item[] => {
+const filteredCatalogItems = computed((): ItemIndexEntry[] => {
   const q = newItem.name.trim().toLowerCase();
   const all = catalogItems.value ?? [];
   if (!q) return all.slice(0, 8);
-  return all.filter((item) =>
-    item.name.toLowerCase().includes(q) ||
-    (item.subtype ?? "").toLowerCase().includes(q) ||
-    item.tags.some((t) => t.toLowerCase().includes(q))
-  ).slice(0, 8);
+  return all.filter((item) => item.name.toLowerCase().includes(q)).slice(0, 8);
 });
 
 function onItemSearchInput() {
@@ -247,10 +253,10 @@ function onItemSearchInput() {
   showItemDropdown.value = true;
 }
 
-function selectCatalogItem(item: Item) {
+function selectCatalogItem(item: ItemIndexEntry) {
   newItem.name = item.name;
   newItem.selectedItemId = item.id;
-  newItem.isAttuned = item.requires_attunement;
+  newItem.isAttuned = false;
   showItemDropdown.value = false;
 }
 

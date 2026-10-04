@@ -13,7 +13,7 @@ vi.mock("@/composables/party/useShieldAc", () => ({ useShieldAcBonus: () => ({ a
 vi.mock("@/composables/play/useReadItems", () => ({
   useReadItems: () => ({ isUnread: () => false, markRead: vi.fn() }),
 }));
-vi.mock("@/composables/monsters/useMonsters", () => ({ useAllMonsters: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/monsters/useMonstersByIds", () => ({ useMonstersByIds: () => ({ data: { value: new Map() } }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { value: [] } }) }));
 
 const CAMPAIGN_ID = "c1";

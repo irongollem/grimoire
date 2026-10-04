@@ -99,7 +99,7 @@ import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -193,8 +193,10 @@ function dmPlayerNameFor(memberId: string): string {
 // Companions
 const { data: companions } = useCompanions();
 // companionSourceName() resolves a companion's stored source_monster_id, so a
-// monster later scoped to another campaign must still be found here.
-const { data: allMonsters } = useAllMonsters(() => ({ includeAllScopes: true }));
+// monster later scoped to another campaign must still be found here: by id, unscoped.
+const { data: companionMonsters } = useMonstersByIds(() =>
+  (companions.value ?? []).map((c) => c.source_monster_id),
+);
 const { data: allNpcs } = useNpcs();
 const { mutateAsync: deleteComp } = useDeleteCompanion();
 
@@ -211,7 +213,7 @@ const unownedCompanions = computed(() =>
 
 function companionSourceName(c: Companion): string {
   if (c.source_type === "monster" && c.source_monster_id) {
-    return (allMonsters.value ?? []).find((m) => m.id === c.source_monster_id)?.name ?? "";
+    return companionMonsters.value.get(c.source_monster_id)?.name ?? "";
   }
   if (c.source_type === "npc" && c.source_npc_id) {
     return (allNpcs.value ?? []).find((n) => n.id === c.source_npc_id)?.name ?? "";

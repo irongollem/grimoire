@@ -316,7 +316,7 @@ import { computed, ref } from "vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import type { Npc, NpcInsert, NpcStatus, StatBlock } from "@/types/npc.types";
-import type { Monster } from "@/types/monster.types";
+import type { MonsterIndexEntry } from "@/types/monster.types";
 import type { LocationSummary } from "@/types/location.types";
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES } from "@/data/npcTemplates";
 import AppButton from "@/components/common/AppButton.vue";
@@ -354,7 +354,7 @@ const {
   hasStatBlock: boolean;
   artTab: NpcArtTab;
   locationOptions: LocationOption[];
-  allMonsters?: Monster[];
+  allMonsters?: MonsterIndexEntry[];
   npc?: Npc | null;
   isNew?: boolean;
   isSaving?: boolean;

@@ -254,7 +254,8 @@ import {
 import { useQuestsForEncounter } from "@/composables/quests/useQuests";
 import { useParty } from "@/composables/party/useParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
+import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
@@ -287,8 +288,15 @@ const { data: linkedQuests } = useQuestsForEncounter(props.encounter.id);
 const { data: party }        = useParty();
 const { data: companions }   = useCompanions();
 // Difficulty below resolves the encounter's stored combatant.monster_id and
-// trap_ids, so neither list may be scoped away from what was saved.
-const { data: monsters }     = useAllMonsters(() => ({ includeAllScopes: true }));
+// trap_ids, so neither may be scoped away from what was saved: monsters are read
+// by id (no scope filter), companions' source monsters included.
+const { data: monsterMap }   = useMonstersByIds(() =>
+  encounterMonsterIds(
+    props.encounter.combatants ?? [],
+    (companions.value ?? []).filter((c) => (props.encounter.companion_ids ?? []).includes(c.id)),
+  ),
+);
+const monsters               = computed(() => [...monsterMap.value.values()]);
 const { data: npcs }         = useNpcs();
 const { find: findStoredItem } = useStoredItemRefs(() => props.encounter.item_ids ?? []);
 const { data: traps }        = useTraps(() => ({ includeAllScopes: true }));
@@ -301,7 +309,7 @@ const { difficulty, thresholdTiers, enemyEntries } = useEncounterDifficulty({
   partyMemberIds: computed(() => props.encounter.party_member_ids ?? []),
   companionIds:   computed(() => props.encounter.companion_ids ?? []),
   trapIds:        computed(() => props.encounter.trap_ids ?? []),
-  monsters:       computed(() => monsters.value ?? []),
+  monsters,
   npcs:           computed(() => npcs.value ?? []),
   party,
   companions,
@@ -355,7 +363,7 @@ type Combatant = { id: string; name: string; count: number; cr: string | null; f
 
 const combatantRows = computed<Combatant[]>(() =>
   (props.encounter.combatants ?? []).map((c) => {
-    const monster = c.monster_id ? (monsters.value ?? []).find((m) => m.id === c.monster_id) : null;
+    const monster = c.monster_id ? monsters.value.find((m) => m.id === c.monster_id) : null;
     const npc     = c.npc_id ? (npcs.value ?? []).find((n) => n.id === c.npc_id) : null;
     const name = c.custom_name || monster?.name || npc?.name || "Unknown";
     const cr = monster?.stat_block?.challenge_rating ?? null;

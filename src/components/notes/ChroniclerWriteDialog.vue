@@ -227,7 +227,7 @@ const error             = ref("");
 
 const { confirm } = useConfirm();
 const { isGenerating, generate: generateChronicle } = useChroniclerTextGeneration();
-const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems();
+const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems({ monsterRows: true });
 const { data: notes } = useNotes();
 
 const campaign = useCampaignStore();

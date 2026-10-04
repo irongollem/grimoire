@@ -97,7 +97,8 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useToast } from "@/composables/useToast";
-import { useItems, useCreateItem } from "@/composables/items/useItems";
+import { useCreateItem } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
 import {
   useCreateRecipe,
   useReplaceIngredients,
@@ -138,7 +139,7 @@ const {
 } = useRecipeGeneration();
 
 // Mounted on every DM page: only fetch the item catalogue once the panel opens.
-const { data: items } = useItems(() => ({ enabled: ui.recipeGeneratorOpen }));
+const { data: items } = useItemIndex(() => ({ enabled: ui.recipeGeneratorOpen }));
 
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();

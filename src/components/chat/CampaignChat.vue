@@ -116,7 +116,7 @@ import { useToast } from "@/composables/useToast";
 import { postgrestMessage, useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
-import { useItems } from "@/composables/items/useItems";
+import { useItemsByIds } from "@/composables/items/useItemsByIds";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
@@ -207,8 +207,16 @@ const { reportChatFailure, reportMessageFailure } = useChatSendFailure();
 const chatOpen = () => ui.chatOpen;
 const { data: members } = useCampaignMembers(chatOpen);
 const { data: party }    = useParty(chatOpen);
-// Both lookups below resolve an item a chat message already names, so they read `resolvable` (#961).
-const { resolvable: allItems } = useItems(() => ({ enabled: ui.chatOpen }));
+// Both lookups below resolve an item a chat message already names, so they read exactly
+// those items by id, with no source or edition filter (#961), and only while the panel is open.
+const namedItemIds = computed(() =>
+  messages.value.flatMap((m) => {
+    if (m.type === "vendor_offer") return [(m.metadata as VendorOfferMetadata).item_id];
+    if (m.type === "loot_chest") return ((m.metadata as LootChestMetadata).rolled_atoms ?? []).map((a) => a.item_id ?? null);
+    return [];
+  }),
+);
+const { data: namedItems } = useItemsByIds(namedItemIds, () => ({ enabled: ui.chatOpen }));
 const { data: npcsData } = useNpcs(chatOpen);
 const { mutateAsync: addInventoryItem }    = useAddInventoryItem();
 const { mutateAsync: updatePartyMember }   = useUpdatePartyMember();
@@ -350,7 +358,7 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
   }
 
   const { pp, gp, ep, sp, cp } = fromCP(walletCP - costCP);
-  const vendorVaultItem = (allItems.value ?? []).find(i => i.id === meta.item_id);
+  const vendorVaultItem = meta.item_id ? namedItems.value.get(meta.item_id) : undefined;
   const isService = vendorVaultItem?.item_type === "service";
   await Promise.all([
     updatePartyMember({ id: member.id, update: { pp, gp, ep, sp, cp } }),
@@ -475,7 +483,7 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
   {
     // Flags come from the rolled atom (captured from the source item), not the
     // claimer's vault cache — same identification/container leak as item_drop.
-    const vaultItem = (allItems.value ?? []).find(i => i.id === atom.item_id);
+    const vaultItem = atom.item_id ? namedItems.value.get(atom.item_id) : undefined;
     await addInventoryItem({
       name: atom.item_name ?? "",
       quantity: 1,

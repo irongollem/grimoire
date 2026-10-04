@@ -78,7 +78,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import { IconDelete, IconSearch } from "@/lib/icons";
 import { inventoryItemRef } from "@/lib/itemRef";
 import type { ItemRefColumns } from "@/lib/itemRef";
-import type { Item } from "@/types/item.types";
+import type { Item, ItemIndexEntry } from "@/types/item.types";
 
 interface OutputEntry extends ItemRefColumns {
   quantity: number;
@@ -90,7 +90,7 @@ const {
   search = "",
 } = defineProps<{
   outputs?: OutputEntry[];
-  filteredItems?: Item[];
+  filteredItems?: ItemIndexEntry[];
   search?: string;
   itemById: (id: string | null) => Item | undefined;
 }>();

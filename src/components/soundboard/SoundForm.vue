@@ -549,7 +549,7 @@ const shownGenerateError = computed(() => generateError.value || music.error.val
 // @-mentions in the description resolve against the same campaign entities
 // the Chronicler reads — their images go to Lyria, their descriptions go to
 // the structuring step (see aiMusic.ts's "Mentioned characters and places").
-const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems();
+const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems({ monsterRows: true });
 
 // The location list is slim (#972); a mentioned place's description is read
 // by id, only for the places the description actually names.

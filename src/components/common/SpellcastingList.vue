@@ -58,20 +58,17 @@ import { ref, computed } from "vue";
 import { IconChevronRight } from '@/lib/icons';
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
-import { useSpells } from "@/composables/spells/useSpells";
+import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
 import type { SpellcastingBlock } from "@/types/npc.types";
 import type { Spell } from "@/types/spell.types";
 
 const props = defineProps<{ spellcasting?: SpellcastingBlock }>();
 
-const { data: allSpells } = useSpells();
-
-const spellMap = computed(() => {
-  const m = new Map<string, Spell>();
-  for (const s of allSpells.value ?? []) m.set(s.id, s);
-  return m;
-});
+// Stored ids, library and custom alike: read by id, not from a catalogue list.
+const { data: spellMap } = useSpellsByIds(() =>
+  (props.spellcasting?.entries ?? []).flatMap((entry) => entry.spell_ids),
+);
 
 interface SpellItem {
   spellId: string;

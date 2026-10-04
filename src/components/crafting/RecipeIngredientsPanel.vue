@@ -114,7 +114,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { IconAdd, IconDelete, IconSearch, IconTag } from "@/lib/icons";
 import { inventoryItemRef } from "@/lib/itemRef";
-import type { Item } from "@/types/item.types";
+import type { Item, ItemIndexEntry } from "@/types/item.types";
 
 interface IngredientEntry {
   item_id: string | null;
@@ -130,7 +130,7 @@ const {
   tagInput = "",
 } = defineProps<{
   ingredients?: IngredientEntry[];
-  filteredItems?: Item[];
+  filteredItems?: ItemIndexEntry[];
   itemSearch?: string;
   tagInput?: string;
   itemById: (id: string | null) => Item | undefined;

@@ -164,7 +164,7 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import { IconAdd, IconCheckCircle, IconCoins, IconWarning } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useItems } from "@/composables/items/useItems";
+import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useCreateLootTable } from "@/composables/dungeon-features/useLootTables";
 import { useLootGeneration } from "@/ai/useLootGeneration";
 import { resolveGeneratedLoot, type ResolvedLootEntry } from "@/ai/resolveGeneratedLoot";
@@ -192,7 +192,7 @@ const router = useRouter();
 const campaign = useCampaignStore();
 // Mounted on every DM page — the vault catalogue is multiple MB, so only fetch
 // it once the panel is actually open (same guard the other panels use).
-const { data: vaultItems } = useItems(() => ({ enabled: ui.lootTableGeneratorOpen }));
+const { data: vaultItems } = useItemIndex(() => ({ enabled: ui.lootTableGeneratorOpen }));
 
 const {
   isGenerating,

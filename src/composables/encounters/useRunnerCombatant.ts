@@ -1,7 +1,6 @@
 import { ref, computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useParty } from "@/composables/party/useParty";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
 import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
@@ -23,9 +22,6 @@ import type { RunCombatant, RevealState } from "@/types/encounter.types";
 export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>) {
   const store = useEncounterRunStore();
   const { data: partyList } = useParty();
-  // Auto-discover resolves this combatant's stored monster_id, so a monster
-  // scoped elsewhere later must still be found here.
-  const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
   const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
   const { rollConcentrationSave, endConcentration } = useConcentration();
   const { acFor } = useShieldAcBonus();
@@ -258,7 +254,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     store.cycleRevealState(c.instance_id);
     const updated = store.sortedCombatants.find((x) => x.instance_id === c.instance_id);
     if (updated?.reveal_state !== "revealed" || !updated.monster_id) return;
-    const monstersToDiscover = (monsters.value ?? []).filter((m) => m.id === updated.monster_id);
+    const monstersToDiscover = store.availableMonsters.filter((m) => m.id === updated.monster_id);
     const partyMemberIds = (partyList.value ?? []).map((m) => m.id);
     if (monstersToDiscover.length && partyMemberIds.length) {
       void autoDiscover({ monsters: monstersToDiscover, partyMemberIds });

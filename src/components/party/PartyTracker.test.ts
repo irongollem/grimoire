@@ -50,7 +50,7 @@ vi.mock("@/composables/rules/useSpecies", () => ({ useAllSpecies: () => ({ data:
 vi.mock("@/composables/party/useCharacterClasses", () => ({
   useAllCampaignCharacterClasses: () => ({ data: { value: [] } }),
 }));
-vi.mock("@/composables/monsters/useMonsters", () => ({ useAllMonsters: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/monsters/useMonstersByIds", () => ({ useMonstersByIds: () => ({ data: { value: new Map() } }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { value: [] } }) }));
 vi.mock("@/composables/rules/useOptionalRules", () => ({ useIsRuleEnabled: () => ({ value: false }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));

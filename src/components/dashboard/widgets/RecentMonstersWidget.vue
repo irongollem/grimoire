@@ -36,9 +36,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useCampaignDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
-import { deriveRecentMonsters } from "@/lib/dashboard/recentMonsters";
+import { deriveRecentMonsters, RECENT_MONSTERS_LIMIT } from "@/lib/dashboard/recentMonsters";
 import { timeAgo } from "@/lib/utils";
 import FocalImage from "@/components/common/FocalImage.vue";
 import DashboardWidget from "../DashboardWidget.vue";
@@ -55,9 +55,9 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
  * `useCampaignDiscoveries()` is the DM's own unfiltered read of
  * `discovered_monsters` for the active campaign (no player-visibility
  * filtering — this widget only ever mounts on the DM dashboard, same as
- * `CursedItemsWidget`). `useAllMonsters()` is the merged bestiary: a
- * discovery can point at either a DM-created row (`monsters`) or a shared
- * `library_monsters` row, and both resolve through the same merged list to
+ * `CursedItemsWidget`). `useMonstersByIds()` resolves the stored discovery references (only the
+ * newest few, with library art): a discovery can point at either a DM-created
+ * row (`monsters`) or a shared `library_monsters` row, and both resolve to
  * the same `/monsters/:id` route — `recentMonsters.ts` owns the two-column
  * reference lookup, the join, the sort and the limit.
  *
@@ -65,7 +65,17 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
  * active campaign off the store through its own composables.
  */
 const { data: discoveries } = useCampaignDiscoveries();
-const { data: monsters } = useAllMonsters();
+
+// The widget shows the newest few, so only those references are read (as rows,
+// not the whole bestiary).
+const newestRefs = computed(() =>
+  [...(discoveries.value ?? [])]
+    .filter((d) => d.discovered_at)
+    .sort((a, b) => new Date(b.discovered_at).getTime() - new Date(a.discovered_at).getTime())
+    .slice(0, RECENT_MONSTERS_LIMIT)
+    .map((d) => d.monster_id ?? d.library_monster_id),
+);
+const { data: monsters } = useMonstersByIds(newestRefs, { withArt: true });
 
 /**
  * `?? []` is safe here for the same reason `DeathSavesWidget` / `CursedItemsWidget`
@@ -74,5 +84,5 @@ const { data: monsters } = useAllMonsters();
  * distinction for a widget that hides itself entirely rather than showing a
  * loading or empty state.
  */
-const recentMonsters = computed(() => deriveRecentMonsters(discoveries.value ?? [], monsters.value ?? []));
+const recentMonsters = computed(() => deriveRecentMonsters(discoveries.value ?? [], [...monsters.value.values()]));
 </script>

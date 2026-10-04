@@ -125,7 +125,6 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteRecipe, useRecipeIngredients, useRecipeOutputs, useRecipeModifiers, useUpdateRecipe } from "@/composables/crafting/useCrafting";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { useItems } from "@/composables/items/useItems";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { getDiscipline } from "@/lib/crafting-disciplines";
@@ -146,7 +145,6 @@ function reveal(playerVisibleTo: string[]) {
 
 const discipline = computed(() => getDiscipline(props.recipe.discipline));
 
-const { resolvable } = useItems();
 const { data: outputs } = useRecipeOutputs(computed(() => props.recipe.id));
 const { data: ingredients } = useRecipeIngredients(computed(() => props.recipe.id));
 const { data: modifiers } = useRecipeModifiers(computed(() => props.recipe.id));
@@ -154,7 +152,6 @@ const { data: modifiers } = useRecipeModifiers(computed(() => props.recipe.id));
 // Stored recipe references resolve whatever the table's edition or books are now (#961).
 const { find: findStoredItem } = useStoredItemRefs(
   () => [...(outputs.value ?? []), ...(ingredients.value ?? [])].map(inventoryItemRef),
-  resolvable,
 );
 
 function itemById(id: string | null) {
