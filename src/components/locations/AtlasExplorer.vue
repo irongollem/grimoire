@@ -129,6 +129,7 @@
     </div>
 
     <div
+      ref="paneColumn"
       class="min-h-0 min-w-0 flex-1 flex-col lg:pl-4"
       :class="selectedId && !resultsOpen ? 'flex' : 'hidden lg:flex'"
     >
@@ -173,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
@@ -186,9 +187,11 @@ import LocationEditor from "@/components/locations/LocationEditor.vue";
 import SiteRunSurface from "@/components/locations/SiteRunSurface.vue";
 import { useAtlasTreeFold } from "@/composables/locations/useAtlasTreeFold";
 import { useAllLocations } from "@/composables/locations/useLocations";
+import { useBelow } from "@/composables/useBreakpoint";
 import { IconChevronLeft, IconChevronRight, IconNavAtlas } from "@/lib/icons";
 import { isSiteType } from "@/lib/locations/tiers";
 import { ancestorIds, buildAtlasIndex } from "@/lib/locations/tree";
+import { scrollParentOf } from "@/lib/scrollParent";
 import { extractTiptapText } from "@/lib/utils";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -378,4 +381,23 @@ watch(
 // campaign scope changes under it. The watcher above already resolves `at`
 // against the live index and yields null when it no longer matches, so a stale
 // id renders the empty prompt rather than a pane with no way back.
+
+// ── Where a phone lands ─────────────────────────────────────────────────────
+// Below lg the tree and the pane take turns on one page that the layout's
+// `<main>` scrolls, so a place opened from a row far down the tree used to
+// open at that row's depth: halfway through its description, with its name,
+// its actions and its Overview/Map tabs all above the fold (4 Oct 2026).
+// Opening a place starts at its top. Going back to "All places" puts the tree
+// where it was, because the row the DM tapped is where they were reading.
+const isBelowLg = useBelow("lg");
+const paneColumn = useTemplateRef<HTMLElement>("paneColumn");
+let treeScrollTop = 0;
+watch(selectedId, async (id, previous) => {
+  if (!isBelowLg.value || !paneColumn.value || id === previous) return;
+  const scroller = scrollParentOf(paneColumn.value);
+  if (!scroller) return;
+  if (id && !previous) treeScrollTop = scroller.scrollTop;
+  await nextTick();
+  scroller.scrollTop = id ? 0 : treeScrollTop;
+});
 </script>

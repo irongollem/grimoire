@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   stop: vi.fn(),
   answered: { value: true },
   query: { value: {} as Record<string, string> },
+  push: vi.fn(),
 }));
 
 const playingOwner = ref<string | null>(null);
@@ -51,7 +52,7 @@ vi.mock("@/composables/quests/useBeatsStagedAt", () => ({
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
   useRoute: () => ({ query: mocks.query.value }),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: mocks.push }),
 }));
 
 function place(over: Partial<Location> & { id: string }): Location {
@@ -104,6 +105,7 @@ beforeEach(() => {
   mocks.stop.mockClear();
   mocks.answered.value = true;
   mocks.query.value = {};
+  mocks.push.mockClear();
 });
 
 afterEach(() => {
@@ -212,5 +214,33 @@ describe("AtlasPlacePane header buttons (#958)", () => {
     const w = mountPane(place({ id: "w", location_type: "region", map_url: "https://x/m.webp", is_battle_map: true }));
     await flushPromises();
     expect(w.findComponent({ name: "TabBar" }).exists()).toBe(true);
+  });
+});
+
+// The meter's Mapped pill is how a DM finds a site's map from the Overview,
+// on a phone above all. Opening it to read must not drop them into Build
+// (4 Oct 2026): Build is only where a site with nothing to look at yet goes,
+// to start its first layer in the Layers panel.
+describe("AtlasPlacePane Mapped pill", () => {
+  function openMap(w: VueWrapper) {
+    w.findComponent({ name: "SiteReadinessMeter" }).vm.$emit("open-map");
+  }
+
+  it("opens a mapped site's Map in Browse", async () => {
+    const w = mountPane(place({ id: "s", location_type: "dungeon", map_url: "https://x/m.webp" }));
+    await flushPromises();
+    openMap(w);
+    await flushPromises();
+    expect(w.emitted("update:paneMode")?.at(-1)).toEqual(["map"]);
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("takes a site with no map yet into Build, where the first layer starts", async () => {
+    const w = mountPane(place({ id: "s", location_type: "dungeon" }));
+    await flushPromises();
+    openMap(w);
+    await flushPromises();
+    expect(w.emitted("update:paneMode")?.at(-1)).toEqual(["map"]);
+    expect(mocks.push).toHaveBeenCalledWith({ query: { build: "true" } });
   });
 });

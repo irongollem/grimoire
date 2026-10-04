@@ -138,6 +138,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useSlots, watch } from "vue";
 import { useBelow } from "@/composables/useBreakpoint";
+import { scrollParentOf } from "@/lib/scrollParent";
 
 defineProps<{
   title: string;
@@ -161,14 +162,6 @@ const SCROLL_THRESHOLD_PX = 8;
 
 let scroller: HTMLElement | null = null;
 let lastY = 0;
-
-function scrollParentOf(el: HTMLElement): HTMLElement | null {
-  for (let node = el.parentElement; node; node = node.parentElement) {
-    const { overflowY } = getComputedStyle(node);
-    if (overflowY === "auto" || overflowY === "scroll") return node;
-  }
-  return null;
-}
 
 function onScroll() {
   if (!scroller || !headerEl.value) return;

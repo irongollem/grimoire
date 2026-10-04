@@ -1,5 +1,10 @@
 <template>
-  <div class="flex flex-wrap items-center gap-1.5">
+  <!-- One swipeable line on a phone, bled to the screen edges: wrapped at
+       finger size the pills took three rows, and those rows came out of the
+       map underneath them. Wraps as before from sm. -->
+  <div
+    class="layer-strip -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&>*]:shrink-0"
+  >
     <span class="flex items-center gap-1 text-label-lg font-semibold text-muted-foreground">
       <IconReveal class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       Show
@@ -17,7 +22,7 @@
         v-if="image.present"
         variant="outline"
         shape="pill"
-        size="xs"
+        :size="pillSize"
         :icon="image.icon"
         :label="image.label"
         :active="siteMapLayers[image.key]"
@@ -32,7 +37,7 @@
       :key="pill.key"
       variant="outline"
       shape="pill"
-      size="xs"
+      :size="pillSize"
       :active="siteMapLayers[pill.key]"
       :class="siteMapLayers[pill.key] ? '' : 'opacity-50'"
       @click="toggleSiteMapLayer(pill.key)"
@@ -46,7 +51,7 @@
     <AppButton
       variant="outline"
       shape="pill"
-      size="xs"
+      :size="pillSize"
       :icon="IconGrid"
       label="Grid"
       :active="siteMapLayers.grid"
@@ -65,7 +70,7 @@
         v-if="played?.tokens"
         variant="outline"
         shape="pill"
-        size="xs"
+        :size="pillSize"
         :icon="IconParty"
         label="Tokens"
         :active="siteMapLayers.tokens"
@@ -76,7 +81,7 @@
         v-if="played?.fog"
         variant="outline"
         shape="pill"
-        size="xs"
+        :size="pillSize"
         :icon="IconFog"
         label="Fog"
         :active="siteMapLayers.fog"
@@ -110,6 +115,7 @@ import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconBrush, IconFog, IconGrid, IconImage, IconParty, IconReveal } from "@/lib/icons";
+import { useBelow } from "@/composables/useBreakpoint";
 import { useUiStore } from "@/stores/ui";
 
 const { counts, layers, played } = defineProps<{
@@ -127,6 +133,10 @@ const { counts, layers, played } = defineProps<{
    *  single "has images" flag. */
   played?: { tokens?: boolean; fog?: boolean };
 }>();
+
+// Finger-sized on a phone; the dense strip above the map everywhere else.
+const isBelowSm = useBelow("sm");
+const pillSize = computed(() => (isBelowSm.value ? "sm" : "xs"));
 
 const uiStore = useUiStore();
 const { siteMapLayers } = storeToRefs(uiStore);
@@ -153,3 +163,14 @@ const pills: Array<{ key: "spaces" | "ways" | "zones" | "prepared"; label: strin
   { key: "prepared", label: "Prepared", swatch: "#dc2626" },
 ];
 </script>
+
+<style scoped>
+/* The strip scrolls on a phone; a scrollbar under a row of chips reads as
+   chrome, so it goes, the same as the list action row's. */
+.layer-strip {
+  scrollbar-width: none;
+}
+.layer-strip::-webkit-scrollbar {
+  display: none;
+}
+</style>
