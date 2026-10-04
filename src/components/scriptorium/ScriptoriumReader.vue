@@ -23,6 +23,7 @@
           {{ docTypeLabel }} · {{ scopeLabel }}
         </p>
       </div>
+      <slot name="actions" />
     </header>
 
     <!-- The book, as one flowing column — sc-theme + the theme class give it
@@ -46,7 +47,7 @@
         </ul>
       </div>
 
-      <ScriptoriumDocumentView :document="doc" layout="reader" />
+      <ScriptoriumDocumentView :document="doc" layout="reader" :audience="audience" />
     </div>
   </div>
 </template>
@@ -76,7 +77,18 @@ import { revealInScrollParent } from "@/lib/motion";
 import type { ScriptoriumDocument } from "@/types/scriptorium.types";
 
 // Renamed from the prop's own name to avoid shadowing the global `document`.
-const { document: doc } = defineProps<{ document: ScriptoriumDocument }>();
+const {
+  document: doc,
+  audience = "dm",
+  backTo = "/scriptorium",
+} = defineProps<{
+  document: ScriptoriumDocument;
+  /** Passed through to the renderer; "player" shows only what the handout
+   *  itself reveals of each embedded entity (#970). */
+  audience?: "dm" | "player";
+  /** Where Back goes when there is no history to return to. */
+  backTo?: string;
+}>();
 
 const router = useRouter();
 
@@ -84,7 +96,7 @@ function goBack() {
   // Same "back if there's history, else the list" rule as the NPC sheet and
   // QuestPhoneTopBar — copied, not re-derived.
   if (window.history.length > 1) router.back();
-  else void router.push("/scriptorium");
+  else void router.push(backTo);
 }
 
 const themeClass = computed(() => (doc.theme === "phb2014" ? "theme-phb2014" : "theme-onednd2024"));
@@ -117,7 +129,14 @@ const scrollRef = ref<HTMLElement | null>(null);
 // with no separate error handling needed.
 const tocEntries = ref<ReaderTocEntry[]>([]);
 function refreshToc() {
-  if (scrollRef.value) tocEntries.value = collectReaderToc(scrollRef.value);
+  const root = scrollRef.value;
+  if (!root) return;
+  // An entry whose target is gone from the DOM (an embed a player may not see
+  // renders nothing, and one still resolving has no heading yet) must not be
+  // offered: tapping it would scroll nowhere.
+  tocEntries.value = collectReaderToc(root).filter(
+    (entry) => root.querySelector(`[data-block-id="${entry.blockId}"]`) !== null,
+  );
 }
 
 // ScriptoriumDocumentView's Tiptap editor renders its first content — and

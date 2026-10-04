@@ -13,6 +13,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { adoptCampaignSession, refetchCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
 import { PLAYER_NPCS_KEY } from "@/composables/npcs/useNpcs";
+import { PLAYER_HANDOUTS_KEY } from "@/composables/scriptorium/usePlayerHandouts";
 import { THREADS_KEY } from "@/composables/quests/useQuestThreads";
 import type { CampaignSessionState } from "@/types/session.types";
 import { useAuthStore } from "@/stores/auth";
@@ -134,6 +135,12 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // an item_id, with the name behind it living in the player-visible
   // projection — refresh both, or a shop stocked mid-session lists "Unknown item".
   ["store_items", ["store-items", "items"]],
+  // A shared handout (#970). Documents ring instead of subscribing: they are
+  // large, most are DM-only drafts, and the editor autosaves, so the trigger
+  // (20261004105821) rings only when a document a player holds changes. Only
+  // the players' root is refreshed; the DM's own `scriptorium` queries back an
+  // open editor and must not be refetched underneath it.
+  ["scriptorium_documents", [PLAYER_HANDOUTS_KEY]],
 ]);
 
 // Deduped set of every key the sync owns, plus "campaigns" (handled specially

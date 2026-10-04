@@ -15,10 +15,21 @@ const QUERY_KEY = "scriptorium";
 const SUMMARY_COLUMNS =
   "id, title, doc_type, campaign_id, tags, is_published, word_count, created_at, updated_at";
 
+/** The caller's own id, for scoping reads to their own documents. Since #970 a
+ *  player may also SELECT a handout shared with them, so RLS alone would mix
+ *  another table's handouts into a DM's own Scriptorium (CLAUDE.md, Client
+ *  Reads: RLS is a ceiling, not a filter). */
+function ownerId(): string {
+  const user = getCurrentUser();
+  if (!user) throw new Error("Not signed in");
+  return user.id;
+}
+
 async function fetchDocuments(): Promise<ScriptoriumDocumentSummary[]> {
   const { data, error } = await supabase
     .from("scriptorium_documents")
     .select(SUMMARY_COLUMNS)
+    .eq("user_id", ownerId())
     .order("updated_at", { ascending: false });
   if (error) throw error;
   return data as ScriptoriumDocumentSummary[];
@@ -29,6 +40,7 @@ async function fetchDocument(id: string): Promise<ScriptoriumDocument> {
     .from("scriptorium_documents")
     .select("*")
     .eq("id", id)
+    .eq("user_id", ownerId())
     .single();
   if (error) throw error;
   return data as ScriptoriumDocument;

@@ -54,6 +54,10 @@ export interface ScriptoriumDocument {
    *  never sets `demo_source` — that column exists only for the demo copy's
    *  quota exemption and is not part of this type. */
   campaign_id: string | null;
+  /** Party member ids holding this document as a handout (#970). Empty unless
+   *  the document belongs to a campaign; written only through `share_handout`,
+   *  which also applies what the handout's linked entries reveal. */
+  player_visible_to: string[];
   tags: string[];
   is_published: boolean;
   is_two_column: boolean;
@@ -91,6 +95,6 @@ export type ScriptoriumDocumentSummary = Pick<
 
 export type ScriptoriumDocInsert = Omit<
   ScriptoriumDocument,
-  "id" | "user_id" | "created_at" | "updated_at"
+  "id" | "user_id" | "created_at" | "updated_at" | "player_visible_to"
 >;
 export type ScriptoriumDocUpdate = Partial<ScriptoriumDocInsert>;

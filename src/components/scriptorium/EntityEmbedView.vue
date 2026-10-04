@@ -12,7 +12,7 @@
     :data-block-id="props.node.attrs.blockId"
     contenteditable="false"
   >
-    <div v-if="isEditable" class="sc-entity-embed-toolbar" contenteditable="false">
+    <div v-if="isEditable && !isPlayer" class="sc-entity-embed-toolbar" contenteditable="false">
       <span class="sc-entity-embed-badge">{{ typeLabel }} · linked</span>
       <div class="sc-entity-embed-actions">
         <SegmentedControl
@@ -69,6 +69,12 @@
           tooltip="Start this entry on a fresh page — turn off for a variant that follows its family's first entry on the same page"
           @click="toggleStartsPage"
         />
+        <EmbedRevealControl
+          :entity-type="entityType"
+          :show-art="showArt"
+          :reveal="reveal"
+          @update:reveal="setReveal"
+        />
         <AppButton
           size="xs"
           variant="ghost"
@@ -90,9 +96,16 @@
       </div>
     </div>
 
-    <div v-if="isLoading && rawHtml === undefined" class="sc-entity-embed-loading">Loading&hellip;</div>
+    <!-- A player never sees a loading line, a "missing" marker or any other
+         trace of an embed they cannot read: it renders nothing at all, and the
+         wrapper above stays an empty zero-height block (#970). -->
+    <template v-if="!isPlayer">
+      <div v-if="isLoading && rawHtml === undefined" class="sc-entity-embed-loading">Loading&hellip;</div>
+      <!-- eslint-disable-next-line vue/no-v-html -- sanitized via sanitizeHtml() in processedHtml -->
+      <div v-else class="sc-entity-embed-body" v-html="processedHtml" />
+    </template>
     <!-- eslint-disable-next-line vue/no-v-html -- sanitized via sanitizeHtml() in processedHtml -->
-    <div v-else class="sc-entity-embed-body" v-html="processedHtml" />
+    <div v-else-if="rawHtml" class="sc-entity-embed-body" v-html="processedHtml" />
   </NodeViewWrapper>
 </template>
 
@@ -104,6 +117,8 @@ import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import { useConfirm } from "@/composables/useConfirm";
+import EmbedRevealControl from "@/components/scriptorium/EmbedRevealControl.vue";
+import { usePlayerEntityEmbed } from "@/composables/scriptorium/usePlayerEntityEmbed";
 import { useEntityEmbedData } from "@/composables/scriptorium/useEntityEmbedData";
 import {
   entityRefKey,
@@ -112,6 +127,8 @@ import {
   type EmbedNodeOptions,
 } from "@/lib/scriptorium/entityEmbeds";
 import type { EntityArtChoice } from "@/lib/scriptorium/entityArt";
+import type { EntityEmbedReveal } from "@/lib/scriptorium/embedReveal";
+import { SCRIPTORIUM_AUDIENCE_KEY, type ScriptoriumAudience } from "@/lib/scriptorium/audience";
 import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { placeRoute } from "@/lib/locations/placeRoute";
@@ -210,9 +227,41 @@ const typeLabel = computed(() => TYPE_LABELS[entityType.value]);
 // for why this was never merely a galley cosmetic gap). Falls back to
 // "onednd2024" only when neither ancestor provided one.
 const theme = inject(SCRIPTORIUM_THEME_KEY, ref<ScriptoriumTheme>("onednd2024"));
-const refs = computed(() => [{ type: entityType.value, id: entityId.value }]);
-const { lookup, isLoading } = useEntityEmbedData(refs, { theme });
-const rawHtml = computed(() => lookup.value[entityRefKey({ type: entityType.value, id: entityId.value })]);
+
+// Who is reading decides where the body comes from, and it is read once at
+// setup because a mounted view's audience never changes. A player's embed must
+// not so much as construct useEntityEmbedData: its queries read the DM's tables
+// unscoped and its output carries the true name, portrait and lore. They get
+// only the player-gated projections, resolved for this one embed (#970).
+const audience = inject(
+  SCRIPTORIUM_AUDIENCE_KEY,
+  ref<ScriptoriumAudience>({ audience: "dm" }),
+).value;
+const isPlayer = audience.audience === "player";
+
+function useDmBody() {
+  const refs = computed(() => [{ type: entityType.value, id: entityId.value }]);
+  const { lookup, isLoading } = useEntityEmbedData(refs, { theme });
+  return {
+    rawHtml: computed<string | null | undefined>(
+      () => lookup.value[entityRefKey({ type: entityType.value, id: entityId.value })],
+    ),
+    isLoading,
+  };
+}
+
+function usePlayerBody(campaignId: string) {
+  const { html, isLoading } = usePlayerEntityEmbed(
+    entityType.value,
+    entityId.value,
+    campaignId,
+    () => theme.value,
+  );
+  return { rawHtml: computed<string | null | undefined>(() => html.value), isLoading };
+}
+
+const { rawHtml, isLoading } =
+  audience.audience === "player" ? usePlayerBody(audience.campaignId) : useDmBody();
 
 // The per-node options (size/art/lore/band) applied on top of the shared,
 // resolved entity body — same shape resolveEntityEmbeds() applies to the
@@ -241,6 +290,11 @@ function buildProcessedHtml(raw: string, opts: EmbedNodeOptions): string {
 const processedHtml = computed(() =>
   buildProcessedHtml(rawHtml.value ?? missingEntityMarkerHtml(entityType.value), nodeOptions.value),
 );
+
+const reveal = computed(() => (props.node.attrs.reveal as EntityEmbedReveal | null | undefined) ?? null);
+function setReveal(next: EntityEmbedReveal | null) {
+  props.updateAttributes({ reveal: next });
+}
 
 const ENTITY_ROUTES: Record<Exclude<EntityEmbedType, "location">, string> = {
   npc: "/npcs",

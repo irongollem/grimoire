@@ -43,7 +43,8 @@ insert into live_sync_subscribed (name) values
 create temporary table live_sync_doorbell (name text primary key) on commit drop;
 insert into live_sync_doorbell (name) values
   ('store_items'), ('quest_runtime_state'), ('quest_threads'),
-  ('quest_beat_transitions'), ('campaign_session_state'), ('ruleset_reviews');
+  ('quest_beat_transitions'), ('campaign_session_state'), ('ruleset_reviews'),
+  ('scriptorium_documents');
 
 create temporary table live_sync_named_signal (name text primary key, source text not null) on commit drop;
 insert into live_sync_named_signal (name, source) values
@@ -61,7 +62,8 @@ language sql stable as $$
        and not g.tgisinternal
        and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
                         'public.signal_store_item_change()'::regprocedure,
-                        'public.signal_ruleset_review_change()'::regprocedure)
+                        'public.signal_ruleset_review_change()'::regprocedure,
+                        'public.signal_handout_change()'::regprocedure)
        and (g.tgtype & p_event_bit) <> 0)
 $$;
 

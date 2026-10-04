@@ -8,6 +8,15 @@
       <IconWarning class="h-16 w-16" />
     </template>
   </EmptyState>
+  <EmptyState
+    v-else-if="missingCampaign"
+    title="This handout is not available"
+    description="It is not attached to a campaign."
+  >
+    <template #icon>
+      <IconWarning class="h-16 w-16" />
+    </template>
+  </EmptyState>
   <EditorContent
     v-else-if="editor"
     :editor="editor"
@@ -48,16 +57,21 @@ import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtens
 import { parseStoredContent, emptyDoc } from "@/lib/scriptorium/documentContent";
 import type { ScriptoriumDocument, ScriptoriumTheme } from "@/types/scriptorium.types";
 import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
+import { SCRIPTORIUM_AUDIENCE_KEY, type ScriptoriumAudience } from "@/lib/scriptorium/audience";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { IconWarning } from "@/lib/icons";
 
 // Renamed from the prop's own name to avoid shadowing the global `document`.
-const { document: doc, layout = "page" } = defineProps<{
+const { document: doc, layout = "page", audience = "dm" } = defineProps<{
   document: ScriptoriumDocument;
   /** "reader" adds the `sc-document-view--reader` modifier class for the
    *  phone reading view (#915 story 7). Default "page" keeps today's
    *  page-shaped rendering (quest handouts, the desktop galley preview). */
   layout?: "page" | "reader";
+  /** Who is reading (#970). "player" resolves every entity embed through the
+   *  player-gated projections only (see EntityEmbedView.vue); "dm" is the
+   *  default and today's behaviour. */
+  audience?: "dm" | "player";
 }>();
 
 /** Stored content is current-version Tiptap JSON only (see documentContent.ts)
@@ -93,6 +107,17 @@ const theme = computed<ScriptoriumTheme>(() => (doc.theme === "phb2014" ? "phb20
 // so getting this wrong wasn't merely a galley cosmetic gap (#917 story 2).
 provide(SCRIPTORIUM_THEME_KEY, theme);
 const themeClass = computed(() => (theme.value === "phb2014" ? "theme-phb2014" : "theme-onednd2024"));
+
+// A shared handout always has a campaign (the player projections are keyed on
+// it), so a player document without one is not renderable rather than being
+// rendered with embeds that could never resolve.
+const audienceState = computed<ScriptoriumAudience>(() =>
+  audience === "player" && doc.campaign_id
+    ? { audience: "player", campaignId: doc.campaign_id }
+    : { audience: "dm" },
+);
+const missingCampaign = computed(() => audience === "player" && !doc.campaign_id);
+provide(SCRIPTORIUM_AUDIENCE_KEY, audienceState);
 
 onUnmounted(() => editor.value?.destroy());
 </script>

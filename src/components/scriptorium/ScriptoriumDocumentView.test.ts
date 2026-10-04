@@ -19,6 +19,7 @@ function makeDoc(overrides: Partial<ScriptoriumDocument> = {}): ScriptoriumDocum
     content: JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hello" }] }] }),
     doc_type: "custom",
     campaign_id: null,
+    player_visible_to: [],
     tags: [],
     is_published: false,
     is_two_column: false,
@@ -87,5 +88,21 @@ describe("ScriptoriumDocumentView", () => {
     const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeDoc(), layout: "reader" } });
     await flushEditor();
     expect(wrapper.find(".sc-document-view").classes()).toContain("sc-document-view--reader");
+  });
+
+  it("shows an empty state for a player document with no campaign", () => {
+    const wrapper = mount(ScriptoriumDocumentView, {
+      props: { document: makeDoc({ campaign_id: null }), audience: "player" },
+    });
+    expect(wrapper.text()).toContain("This handout is not available");
+    expect(wrapper.text()).not.toContain("Hello");
+  });
+
+  it("renders a player document that belongs to a campaign", async () => {
+    const wrapper = mount(ScriptoriumDocumentView, {
+      props: { document: makeDoc({ campaign_id: "camp-1", player_visible_to: ["member-1"] }), audience: "player" },
+    });
+    await flushEditor();
+    expect(wrapper.text()).toContain("Hello");
   });
 });

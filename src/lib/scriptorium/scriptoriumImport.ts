@@ -535,7 +535,7 @@ function italicizeAttackRunins(html: string): string {
  * used to interpolate it straight into the HTML string unescaped, which is
  * safe only by luck for content that happens to contain no `&`/`<`/`>`.
  */
-function richTextOrPlain(value: string | null | undefined): string {
+export function richTextOrPlain(value: string | null | undefined): string {
   if (!value) return "";
   if (value.trimStart().startsWith("{")) {
     try {

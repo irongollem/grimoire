@@ -2,6 +2,7 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import { VueNodeViewRenderer } from "@tiptap/vue-3";
 import EntityEmbedView from "@/components/scriptorium/EntityEmbedView.vue";
 import { ENTITY_ART_CHOICES, type EntityArtChoice } from "@/lib/scriptorium/entityArt";
+import { normalizeEmbedReveal, type EntityEmbedReveal } from "@/lib/scriptorium/embedReveal";
 
 /*
  * EntityEmbed — a Scriptorium block that holds a live reference to a game
@@ -87,6 +88,12 @@ export interface EntityEmbedAttrs {
    * showArt is off, or on an entity type with no art at all yet.
    */
   art?: EntityArtChoice;
+  /**
+   * What sharing the handout reveals about this entity (#970). `null` means
+   * automatic. Read by `public.share_handout`, so the shape is a contract
+   * (see embedReveal.ts).
+   */
+  reveal?: EntityEmbedReveal | null;
 }
 
 declare module "@tiptap/core" {
@@ -168,6 +175,20 @@ export const EntityEmbed = Node.create({
         renderHTML: (attrs: { art?: EntityArtChoice }) => ({
           "data-art": attrs.art ?? "auto",
         }),
+      },
+      reveal: {
+        default: null as EntityEmbedReveal | null,
+        parseHTML: (el: HTMLElement) => {
+          const raw = el.getAttribute("data-reveal");
+          if (!raw) return null;
+          try {
+            return normalizeEmbedReveal(JSON.parse(raw));
+          } catch {
+            return null;
+          }
+        },
+        renderHTML: (attrs: { reveal?: EntityEmbedReveal | null }) =>
+          attrs.reveal ? { "data-reveal": JSON.stringify(attrs.reveal) } : {},
       },
     };
   },

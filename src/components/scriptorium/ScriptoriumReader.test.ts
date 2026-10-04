@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import ScriptoriumReader from "./ScriptoriumReader.vue";
 import type { ScriptoriumDocument } from "@/types/scriptorium.types";
 
@@ -11,7 +11,10 @@ function flushEditor(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-const mocks = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn() }));
+const mocks = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn(), embedHtml: { value: null as string | null } }));
+vi.mock("@/composables/scriptorium/usePlayerEntityEmbed", () => ({
+  usePlayerEntityEmbed: () => ({ html: computed(() => mocks.embedHtml.value), isLoading: computed(() => false) }),
+}));
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
   useRouter: () => ({ back: mocks.back, push: mocks.push }),
@@ -33,6 +36,7 @@ function makeDoc(overrides: Partial<ScriptoriumDocument> = {}): ScriptoriumDocum
     content: null,
     doc_type: "adventure",
     campaign_id: null,
+    player_visible_to: [],
     tags: [],
     is_published: false,
     is_two_column: false,
@@ -126,5 +130,44 @@ describe("ScriptoriumReader", () => {
     const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc({ content: "not json" }) } });
     expect(wrapper.text()).toContain("This document could not be read");
     expect(wrapper.text()).not.toContain("Contents");
+  });
+
+  it("falls back to backTo, and renders the actions slot in the header", async () => {
+    const wrapper = mount(ScriptoriumReader, {
+      props: { document: makeDoc(), backTo: "/play/journal" },
+      slots: { actions: '<button data-test="give">Give to players</button>' },
+    });
+    expect(wrapper.find("header [data-test='give']").exists()).toBe(true);
+    Object.defineProperty(window.history, "length", { value: 1, configurable: true });
+    await wrapper.get('button[aria-label="Back to Scriptorium"]').trigger("click");
+    expect(mocks.push).toHaveBeenCalledWith("/play/journal");
+  });
+
+  it("passes the audience through to ScriptoriumDocumentView", () => {
+    const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc({ campaign_id: "camp-1", player_visible_to: ["member-1"] }), audience: "player" } });
+    expect(wrapper.findComponent({ name: "ScriptoriumDocumentView" }).props("audience")).toBe("player");
+  });
+
+  it("lists no contents entry for an embed a player cannot see, and one for an embed they can", async () => {
+    const content = JSON.stringify({
+      type: "doc",
+      content: [
+        { type: "heading", attrs: { level: 1, blockId: "h1" }, content: [{ type: "text", text: "Chapter One" }] },
+        { type: "entityEmbed", attrs: { entityType: "monster", entityId: "srd_owlbear", blockId: "e1" } },
+      ],
+    });
+    const props = { document: makeDoc({ content, campaign_id: "camp-1", player_visible_to: ["member-1"] }), audience: "player" as const };
+
+    mocks.embedHtml.value = null;
+    const hidden = mount(ScriptoriumReader, { props });
+    await flushEditor();
+    expect(hidden.findAll("button").some((b) => b.text() === "Chapter One")).toBe(true);
+    expect(hidden.findAll("button").some((b) => b.text() === "Owlbear")).toBe(false);
+
+    mocks.embedHtml.value = '<div class="sc-statblock-entry"><h2 class="sc-statblock-entry-heading">Owlbear</h2></div>';
+    const shown = mount(ScriptoriumReader, { props });
+    await flushEditor();
+    await flushEditor();
+    expect(shown.findAll("button").some((b) => b.text() === "Owlbear")).toBe(true);
   });
 });
