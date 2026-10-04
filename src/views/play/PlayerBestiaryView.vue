@@ -309,6 +309,7 @@ import { availableWildShapeForms, knownFormIds, wildShapeFormCost } from "@/rule
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { useParty } from "@/composables/party/useParty";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useUiStore } from "@/stores/ui";
@@ -338,7 +339,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 // `PlayerVisibleMonster`, not `Monster` (#842): everything on this view comes
-// from `usePlayerVisibleMonsters`, whose projection nulls `stat_block` for a
+// from `usePlayerMonstersByIds`, whose projection nulls `stat_block` for a
 // creature the DM has not revealed. The compiler now says so at every site.
 interface BestiaryEntry { discovery: DiscoveredMonster; monster: PlayerVisibleMonster | null }
 interface FormEntry { monster: PlayerVisibleMonster; name: string; imageUrl: string | null; usesCost: number }
@@ -351,7 +352,6 @@ const { promptRoll } = usePromptedRoll();
 const { data: discoveries, isLoading: isLoadingDiscoveries } = usePlayerDiscoveries();
 const { isNew } = useReadItems("discovery");
 const { mutate: markRead } = useMarkRead();
-const { data: allMonsters } = usePlayerVisibleMonsters();
 const { data: partyMembers } = useParty();
 const { data: playerPinnedForms } = usePinnedForms();
 const { mutate: togglePinnedForm } = useTogglePinnedForm();
@@ -390,6 +390,32 @@ const visibleTabOptions = computed(() => visibleTabs.value.map((tab) => ({ value
 
 const activeTab = ref<"bestiary" | "forms">("bestiary");
 
+// ── Which monsters this view holds ids for ────────────────────────────────────
+// Only these are read (#972): what the player has met, what is pinned for them,
+// and, for a druid, the 2024 Known Forms roster.
+// Build a set of discovered monster keys visible to the current (preview) player
+const discoveredMonsterKeys = computed<Set<string>>(() => {
+  const s = new Set<string>();
+  for (const d of (discoveries.value ?? []).filter(isVisibleToPreviewMember)) {
+    if (d.monster_id) s.add(d.monster_id);
+    if (d.library_monster_id)   s.add(d.library_monster_id);
+  }
+  return s;
+});
+
+// Pinned forms for the current party member (player view or DM preview)
+const visiblePins = computed(() => {
+  const pins = playerPinnedForms.value ?? [];
+  return ui.dmPreviewMode ? pins.filter((p) => p.party_member_id === ui.dmPreviewPartyMemberId) : pins;
+});
+const knownIds = computed(() => new Set(knownFormIds(member.value?.class_choices)));
+const heldIds = computed<string[]>(() => [
+  ...discoveredMonsterKeys.value,
+  ...visiblePins.value.map((p) => p.library_monster_id ?? p.monster_id),
+  ...(isDruid.value ? knownIds.value : []),
+].filter((id): id is string => !!id));
+const { data: heldMonsters } = usePlayerMonstersByIds(heldIds);
+
 // ── Bestiary tab ─────────────────────────────────────────────────────────────
 function isVisibleToPreviewMember(d: DiscoveredMonster): boolean {
   if (!ui.dmPreviewMode || !ui.dmPreviewPartyMemberId) return true;
@@ -398,11 +424,8 @@ function isVisibleToPreviewMember(d: DiscoveredMonster): boolean {
 
 const resolved = computed<BestiaryEntry[]>(() =>
   (discoveries.value ?? []).filter(isVisibleToPreviewMember).map((d) => {
-    let monster: PlayerVisibleMonster | null = null;
-    if (allMonsters.value) {
-      if (d.library_monster_id)    monster = allMonsters.value.find((m) => m.id === d.library_monster_id) ?? null;
-      else if (d.monster_id) monster = allMonsters.value.find((m) => m.id === d.monster_id) ?? null;
-    }
+    const id = d.library_monster_id ?? d.monster_id;
+    const monster: PlayerVisibleMonster | null = id ? (heldMonsters.value.get(id) ?? null) : null;
     return { discovery: d, monster };
   }),
 );
@@ -425,15 +448,9 @@ function isEligibleBeast(m: PlayerVisibleMonster): boolean {
 
 // Pinned forms for the current party member (player view or DM preview)
 const pinnedFormMonsters = computed<FormEntry[]>(() => {
-  const pins = playerPinnedForms.value ?? [];
-  const filteredPins = ui.dmPreviewMode
-    ? pins.filter((p) => p.party_member_id === ui.dmPreviewPartyMemberId)
-    : pins;
-
-  return filteredPins.flatMap((pin) => {
-    const monster = allMonsters.value?.find((m) =>
-      pin.library_monster_id ? m.id === pin.library_monster_id : m.id === pin.monster_id,
-    ) ?? null;
+  return visiblePins.value.flatMap((pin) => {
+    const pinId = pin.library_monster_id ?? pin.monster_id;
+    const monster = pinId ? (heldMonsters.value.get(pinId) ?? null) : null;
     if (!monster) return [];
     return [{ monster, name: monster.name, imageUrl: monster.image_url ?? null, usesCost: wildShapeFormCost(monster, wildshapeRules.value) ?? 1 }];
   });
@@ -441,20 +458,16 @@ const pinnedFormMonsters = computed<FormEntry[]>(() => {
 
 const pinnedMonsterIds = computed(() => new Set(pinnedFormMonsters.value.map((e) => e.monster.id)));
 
-// Build a set of discovered monster keys visible to the current (preview) player
-const discoveredMonsterKeys = computed<Set<string>>(() => {
-  const s = new Set<string>();
-  for (const d of (discoveries.value ?? []).filter(isVisibleToPreviewMember)) {
-    if (d.monster_id) s.add(d.monster_id);
-    if (d.library_monster_id)   s.add(d.library_monster_id);
-  }
-  return s;
-});
-
 // DM: eligible beasts not yet shared with the previewed party member
+// The ONE whole-list read on this view: the DM preview's "share all eligible"
+// has to see beasts nobody has met, so there are no ids to ask for. A player
+// never reaches it (enabled only in DM preview of a 2014 druid).
+const { data: everyMonster } = usePlayerVisibleMonsters({
+  enabled: () => ui.dmPreviewMode && isDruid.value && !is2024.value,
+});
 const unsharedEligibleBeasts = computed(() => {
   if (!isDruid.value) return [];
-  return (allMonsters.value ?? []).filter(
+  return everyMonster.value.filter(
     (m) => isEligibleBeast(m) && !discoveredMonsterKeys.value.has(m.id),
   );
 });
@@ -476,13 +489,12 @@ async function shareAllEligibleBeasts() {
 // The same list the sheet and the runner build (`availableWildShapeForms`), so the
 // three cannot disagree: 2014 discovered or pinned, 2024 known or pinned. The pinned
 // ones already show in their own section above.
-const knownIds = computed(() => new Set(knownFormIds(member.value?.class_choices)));
 const knownCount = computed(() => knownIds.value.size);
 
 const eligibleBeastForms = computed<FormEntry[]>(() => {
   if (!isDruid.value) return [];
   return availableWildShapeForms({
-    monsters: allMonsters.value ?? [],
+    monsters: [...heldMonsters.value.values()],
     rules: wildshapeRules.value,
     discoveredIds: discoveredMonsterKeys.value,
     pinnedIds: pinnedMonsterIds.value,

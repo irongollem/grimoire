@@ -41,7 +41,7 @@ vi.mock("@/composables/quests/useQuests", () => ({
 vi.mock("@/composables/play/useReadItems", () => ({ useMarkRead: () => ({ mutate: mocks.markRead }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useSharedNpcs: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useSharedLocations: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/monsters/useMonsters", () => ({ usePlayerVisibleMonsters: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/monsters/usePlayerMonstersByIds", () => ({ usePlayerMonstersByIds: () => ({ data: ref(new Map()) }) }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({ usePlayerQuestBeats: () => ({ data: ref([]) }) }));
 
 function mountView() {

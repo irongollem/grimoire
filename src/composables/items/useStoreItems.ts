@@ -3,7 +3,9 @@ import { computed, watch } from "vue";
 import type { Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item } from "@/types/item.types";
-import { usePlayerVisibleItems, normalizeLibraryItem } from "@/composables/items/useItems";
+import { usePlayerItemProjection, normalizeLibraryItem } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { isUuid } from "@/lib/library/contentIdentity";
 import { inventoryItemRef } from "@/lib/itemRef";
 import type { ItemRefColumns } from "@/lib/itemRef";
 
@@ -21,7 +23,7 @@ export interface StoreItem extends ItemRefColumns {
 
 /** The player-facing shape: `item` is resolved from the player-visible
  *  projection rather than an embedded RLS join (players cannot read `items`
- *  directly — see {@link usePlayerVisibleItems}), so it can genuinely be
+ *  directly — see {@link usePlayerItemProjection}), so it can genuinely be
  *  absent (row not yet reflected in the projection cache). `null` is a real,
  *  renderable state — not "still loading". */
 export type PlayerStoreItem = Omit<StoreItem, "item"> & { item: Item | null };
@@ -171,8 +173,10 @@ export function useStoreItems(locationId: Ref<string | undefined>) {
  * resource used by {@link useStoreItems} is RLS-blocked for players — the
  * join comes back null (migration 20260711000014 dropped the player select
  * policies on `items`). So this fetches the bare rows and resolves each
- * `item_id` against {@link usePlayerVisibleItems} instead, which shares its
- * DM-preview branch (full owned catalog) and real-player projection.
+ * `item_id` against {@link usePlayerItemProjection} instead, which shares its
+ * DM-preview branch (full owned catalog) and real-player projection. A library
+ * ware (a text id) is public and is read by id instead; only a DM's own ware (a
+ * uuid) depends on the projection, which is why only uuids drive the refetch below.
  *
  * A row's item can resolve to `null` only while the two caches disagree, and
  * that gap has to be closed rather than merely rendered: the row list obeys the
@@ -201,13 +205,20 @@ export function useSharedStoreItems(locationId: Ref<string | undefined>) {
     },
     enabled: () => !!locationId.value,
   });
-  const { data: visibleItems, isLoading: itemsLoading, refetch: refetchVisibleItems } =
-    usePlayerVisibleItems();
+  const { data: projection, isLoading: projectionLoading, refetch: refetchVisibleItems } =
+    usePlayerItemProjection();
+  // A library ware is public and read by id; a DM's own ware (a uuid) can only
+  // come through the projection (#972: never the whole catalogue).
+  const { items: resolvedItems, isLoading: refsLoading } = useStoredItemRefs(
+    () => (rowsQuery.data.value ?? []).map((row) => inventoryItemRef(row)),
+    projection,
+  );
+  const itemsLoading = computed(() => projectionLoading.value || refsLoading.value);
 
   const data = computed<PlayerStoreItem[] | undefined>(() => {
     const rows = rowsQuery.data.value;
     if (!rows) return undefined;
-    const byId = new Map((visibleItems.value ?? []).map((item) => [item.id, item]));
+    const byId = new Map(resolvedItems.value.map((item) => [item.id, item]));
     return rows.map((row) => {
       const ref = inventoryItemRef(row);
       return { ...row, item: (ref ? byId.get(ref) : undefined) ?? null };
@@ -222,12 +233,11 @@ export function useSharedStoreItems(locationId: Ref<string | undefined>) {
     (data.value ?? [])
       .filter((row) => !row.item)
       .map((row) => inventoryItemRef(row))
-      .filter((id): id is string => id !== null),
+      .filter((id): id is string => id !== null && isUuid(id)),
   );
 
   // Ask once per item id, not once per unresolved render. The refetch is not
-  // guaranteed to resolve a given id — the projection is filtered client-side
-  // by ruleset and campaign scope, so an item scoped to another campaign stays
+  // guaranteed to resolve a given id — an item the projection withholds stays
   // absent no matter how often it is fetched — and without this set that item
   // would drive a refetch loop for as long as the panel is open.
   const requested = new Set<string>();

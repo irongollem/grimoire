@@ -132,7 +132,8 @@ import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
-import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { usePlayerItemProjection } from "@/composables/items/useItems";
+import { usePlayerItemPicker } from "@/composables/items/usePlayerItemPicker";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
@@ -156,12 +157,14 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
-// `catalogue` is what the add pickers offer; `allItems` is what a carried row resolves in
-// (#961), so a character keeps its weight and details after an edition or book change.
-const { data: catalogue, resolvable } = usePlayerVisibleItems();
+// `catalogue` is what the add pickers offer, slim (#972); `allItems` is what a carried row
+// resolves in (#961): the player's projection plus the library ids read by id, so a
+// character keeps its weight and details after an edition or book change.
+const { data: catalogue } = usePlayerItemPicker();
+const { data: projection } = usePlayerItemProjection();
 const { items: allItems } = useStoredItemRefs(
   () => (inventory.value ?? []).map(inventoryItemRef),
-  resolvable,
+  projection,
 );
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const { sendCurrencyDrop } = useCampaignMessages();
@@ -197,7 +200,7 @@ const member = computed<PartyMember | null>(
   () =>
     partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null,
 );
-// Items are table rules: usePlayerVisibleItems and the weapon block read the campaign's
+// Items are table rules: the item pickers and the weapon block read the campaign's
 // edition when this character is seated here, and fall back to the character's own when
 // it is not. Weapon mastery is a build rule and always reads the character's edition.
 // The scope is provided for those two reads; slots and mutations read no edition.

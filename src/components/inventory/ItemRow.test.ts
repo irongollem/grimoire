@@ -1,11 +1,7 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import ItemRow from "./ItemRow.vue";
 import type { PartyInventoryItem } from "@/types/inventory.types";
-
-vi.mock("@/composables/items/useItems", () => ({
-  usePlayerVisibleItems: () => ({ data: { value: [] }, resolvable: { value: [] } }),
-}));
 
 function makeItem(overrides: Partial<PartyInventoryItem> = {}): PartyInventoryItem {
   return {
@@ -60,5 +56,13 @@ describe("ItemRow", () => {
   it("shows no note caption when there is no note", () => {
     const wrapper = mountRow(makeItem({ notes: null }));
     expect(wrapper.find("p.italic").exists()).toBe(false);
+  });
+
+  it("shows the written-contents icon only when the parent says the item has content", () => {
+    const row = makeItem();
+    const yes = mount(ItemRow, { props: { item: row, allContainers: [], hasContent: true } });
+    const no = mount(ItemRow, { props: { item: row, allContainers: [] } });
+    expect(yes.find("[title='Has written contents']").exists()).toBe(true);
+    expect(no.find("[title='Has written contents']").exists()).toBe(false);
   });
 });

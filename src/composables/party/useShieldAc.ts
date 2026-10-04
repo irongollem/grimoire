@@ -1,10 +1,10 @@
 import { computed } from "vue";
 import { createSharedComposable } from "@vueuse/core";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
-import { useItems, usePlayerVisibleItems } from "@/composables/items/useItems";
+import { usePlayerItemProjection } from "@/composables/items/useItems";
+import { useAuthStore } from "@/stores/auth";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
-import type { Item } from "@/types/item.types";
 import { shieldAcBonusByMember } from "@/rules/shieldAc";
 import { equippedArmorByMember, resolveBaseAc, type ParsedArmor } from "@/rules/armorAc";
 
@@ -29,30 +29,17 @@ type AcMember = { id: string; ac: number; ac_formula?: string | null; dex: numbe
  */
 function useShieldAcBonusImpl() {
   const { data: inventory } = usePartyInventory();
-  // Runs in both DM and player contexts. The DM reads the full catalog (owner
-  // policy); a player reads only their visible items via the projection (base
-  // items RLS is owner-only since 20260711000014). Merge both so shield lookup
-  // resolves regardless of who's viewing — one side is empty in each context.
-  const { resolvable: items } = useItems();
-  const { resolvable: playerItems } = usePlayerVisibleItems();
-
-  // Equipped gear is *held*, so it resolves in `resolvable` (#961): switching the
-  // table's edition or disabling a book must not strip a worn shield's bonus.
-  const known = computed<Item[] | undefined>(() => {
-    if (items.value === undefined && playerItems.value === undefined) return undefined;
-    const base = items.value ?? [];
-    const proj = playerItems.value ?? [];
-    if (!proj.length) return base;
-    if (!base.length) return proj;
-    const byId = new Map(base.map((i) => [i.id, i]));
-    for (const p of proj) if (!byId.has(p.id)) byId.set(p.id, p);
-    return [...byId.values()];
-  });
-  // Library ids neither list holds (a disabled book) are fetched by id.
-  const { items: mergedItems } = useStoredItemRefs(
-    () => (inventory.value ?? []).map(inventoryItemRef),
-    known,
-  );
+  // Runs in both DM and player contexts, and reads only the equipped ids (#972,
+  // never the catalogue). The DM reads those ids directly (owner policy, library
+  // ids included); a player resolves them in the gated projection (base items RLS
+  // is owner-only since 20260711000014), with library ids read by id. Equipped gear
+  // is *held*, so no edition or book filter applies (#961).
+  const auth = useAuthStore();
+  const refs = computed(() => (inventory.value ?? []).map(inventoryItemRef));
+  const { items: dmItems } = useStoredItemRefs(() => (auth.isDM ? refs.value : []));
+  const { data: projection } = usePlayerItemProjection(() => ({ enabled: !auth.isDM }));
+  const { items: playerItems } = useStoredItemRefs(() => (auth.isDM ? [] : refs.value), projection);
+  const mergedItems = computed(() => (auth.isDM ? dmItems.value : playerItems.value));
 
   const bonusByMember = computed(() =>
     shieldAcBonusByMember(inventory.value ?? [], mergedItems.value),

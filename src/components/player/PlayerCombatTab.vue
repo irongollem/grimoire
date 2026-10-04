@@ -255,7 +255,7 @@ import { rollParsed, combineModes } from "@/lib/dice/roller";
 import type { RollMode, DieSize } from "@/lib/dice/roller";
 import type { ParsedExpression } from "@/lib/dice/dice";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
-import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { useAmmoConsumption } from "@/composables/encounters/useAmmoConsumption";
@@ -301,7 +301,7 @@ const props = defineProps<{
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
 
 const { data: inventory } = usePartyInventory();
-const { resolvable } = usePlayerVisibleItems();
+const { data: projection } = usePlayerItemProjection();
 const { sendRoll } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
@@ -378,8 +378,8 @@ async function revealSelf() {
 const myInventory = computed(() =>
   (inventory.value ?? []).filter((i) => i.carried_by === props.member.id),
 );
-// Carried rows resolve in `resolvable`, not the edition-narrowed browse list (#961).
-const { items: allItems } = useStoredItemRefs(() => myInventory.value.map(inventoryItemRef), resolvable);
+// Carried rows resolve in the player projection, plus library ids read by id (#961, #972).
+const { items: allItems } = useStoredItemRefs(() => myInventory.value.map(inventoryItemRef), projection);
 
 // Weapon-hand slots — an item-less (custom-named) item equipped here is treated
 // as a weapon (rendered with improvised 1d4 stats), so it still gets an attack row.

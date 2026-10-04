@@ -85,7 +85,7 @@
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed } from "vue";
-import { useItem, useResolvedItem, usePlayerVisibleItems } from "@/composables/items/useItems";
+import { useItem, useResolvedItem, usePlayerItemProjection } from "@/composables/items/useItems";
 import { isUuid } from "@/lib/library/contentIdentity";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {
@@ -102,15 +102,15 @@ const props = defineProps<{ itemId: string }>();
 // drop lands in party_inventory or a shared, visible store — see
 // get_player_visible_items, migration 20260711000014). No role branch is
 // needed: exactly one side ever has data for a given viewer, and DM-preview
-// is already handled inside usePlayerVisibleItems.
+// is already handled inside usePlayerItemProjection.
 // A shared library id is a text slug and cannot be asked of the uuid `items`
 // table, so each lookup is switched off ("" disables the query) for the other
 // id shape. library_items is public read, so a player resolves it directly.
 const ownedId = computed(() => (isUuid(props.itemId) ? props.itemId : ""));
 const libraryId = computed(() => (isUuid(props.itemId) ? "" : props.itemId));
 const { data: baseItem, isPending: baseItemPending } = useItem(ownedId);
-// `resolvable`, not the browse list: a dropped item resolves whatever the table's edition is now (#961).
-const { resolvable: visibleItems, isLoading: visibleItemsLoading } = usePlayerVisibleItems();
+// The projection holds only the player's custom items; a library drop is read by id above (#961, #972).
+const { data: visibleItems, isLoading: visibleItemsLoading } = usePlayerItemProjection();
 const { data: libraryResolved, isPending: libraryPending } = useResolvedItem(libraryId);
 const item = computed(
   () => libraryResolved.value?.item ?? baseItem.value ?? visibleItems.value?.find((i) => i.id === props.itemId) ?? null,

@@ -1,4 +1,4 @@
-import { defineComponent, h, ref, shallowRef, type Ref } from "vue";
+import { computed, defineComponent, h, ref, shallowRef, type Ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
@@ -6,6 +6,9 @@ import type { Item } from "@/types/item.types";
 
 /** Just the two fields the resolver reads off a projected item. */
 type ProjectedItem = Pick<Item, "id" | "name">;
+
+const OWNED = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const WARE = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 const mocks = vi.hoisted(() => ({
   /** Rows `store_items` hands back for the location under test. */
@@ -32,7 +35,7 @@ vi.mock("@/composables/items/useItems", () => {
   const projection = shallowRef<ProjectedItem[]>([]);
   mocks.projection = projection;
   return {
-    usePlayerVisibleItems: () => ({
+    usePlayerItemProjection: () => ({
       data: projection,
       isLoading: ref(false),
       refetch: async () => {
@@ -53,6 +56,14 @@ vi.mock("@/composables/items/useItems", () => {
     }),
   };
 });
+
+// The resolver itself is covered in useStoredItemRefs; here it resolves in the projection alone.
+vi.mock("@/composables/items/useStoredItemRefs", () => ({
+  useStoredItemRefs: (_ids: unknown, source: Ref<ProjectedItem[] | undefined>) => ({
+    items: computed(() => source.value ?? []),
+    isLoading: ref(false),
+  }),
+}));
 
 /** Imported after the mocks so the composable picks them up. */
 import type { RawStoreItemRow } from "@/composables/items/useStoreItems";
@@ -79,11 +90,11 @@ function mountPanel() {
 describe("useSharedStoreItems", () => {
   beforeEach(() => {
     mocks.rows = [
-      { id: "row-owned", item_id: "item-owned" },
-      { id: "row-ware", item_id: "item-ware" },
+      { id: "row-owned", item_id: OWNED },
+      { id: "row-ware", item_id: WARE },
     ];
     // The snapshot a player's page loaded with: their vault, and no shop.
-    mocks.projection!.value = [{ id: "item-owned", name: "Tanned Leather" }];
+    mocks.projection!.value = [{ id: OWNED, name: "Tanned Leather" }];
     mocks.refetches = 0;
   });
 
@@ -100,8 +111,8 @@ describe("useSharedStoreItems", () => {
     await flushPromises();
 
     mocks.projection!.value = [
-      { id: "item-owned", name: "Tanned Leather" },
-      { id: "item-ware", name: "Studded Leather" },
+      { id: OWNED, name: "Tanned Leather" },
+      { id: WARE, name: "Studded Leather" },
     ];
     await flushPromises();
 
@@ -115,7 +126,7 @@ describe("useSharedStoreItems", () => {
 
     // A refetch that does not help: the projection filters by ruleset and
     // campaign scope client-side, so a ware outside either stays absent.
-    mocks.projection!.value = [{ id: "item-owned", name: "Tanned Leather" }];
+    mocks.projection!.value = [{ id: OWNED, name: "Tanned Leather" }];
     await flushPromises();
 
     expect(mocks.refetches).toBe(1);

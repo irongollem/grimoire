@@ -129,7 +129,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import type { WildshapeState } from "@/types/encounter.types";
-import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 import type { RollMode } from "@/lib/dice/roller";
 import { combineModes } from "@/lib/dice/roller";
@@ -202,9 +202,9 @@ const { ruleset } = useTableRuleset();
 // ── Wild Shape ─────────────────────────────────────────────────────────────────
 // The tab itself lives in PlayerWildShapeTab; the sheet keeps what the other tabs
 // and the header need: the active form, its monster, and who is a druid.
-// Resolved against the player-visible list, not `useAllMonsters`: a player cannot
-// read the `monsters` table at all (see PlayerWildShapeTab).
-const { data: allMonsters } = usePlayerVisibleMonsters();
+// Resolved by id through `usePlayerMonstersByIds`, not `useAllMonsters`: a player
+// cannot read the `monsters` table at all (see PlayerWildShapeTab). Only the
+// active form is asked for.
 
 const activeWildshape = computed<WildshapeState | null>(() =>
   (member.value?.wildshape_state as WildshapeState | null) ?? null,
@@ -212,9 +212,10 @@ const activeWildshape = computed<WildshapeState | null>(() =>
 
 const { isDruid } = useWildshapeDruid(resolvedMemberId, () => member.value);
 
+const { data: formMonsters } = usePlayerMonstersByIds(() => [activeWildshape.value?.monster_id]);
 const beastMonster = computed(() => {
   if (!activeWildshape.value) return null;
-  return allMonsters.value?.find((x) => x.id === activeWildshape.value!.monster_id) ?? null;
+  return formMonsters.value.get(activeWildshape.value.monster_id) ?? null;
 });
 
 // Beast's ability scores override STR/DEX/CON; player keeps INT/WIS/CHA.

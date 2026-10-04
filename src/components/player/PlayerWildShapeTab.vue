@@ -127,7 +127,7 @@
       v-if="rules.knownForms !== null && isDruid"
       :member="member"
       :rules="rules"
-      :monsters="allMonsters ?? []"
+      :monsters="heldList"
       :can-manage="canManage"
     />
 
@@ -158,8 +158,7 @@ import PlayerWildShapeSlotTrade from "@/components/player/PlayerWildShapeSlotTra
 import WildshapePreviewLightbox from "@/components/play/WildshapePreviewLightbox.vue";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
-import { useLibraryMonsterArt, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
-import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { useClassFeatureGroups } from "@/composables/party/useClassFeatureGroups";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { usePinnedForms } from "@/composables/play/usePinnedForms";
@@ -188,23 +187,44 @@ const toast = useToast();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { promptRoll } = usePromptedRoll();
 const { ruleset } = useRuleset();
-// Wildshape resolves stored discovery/pinned-form/wildshape_state monster ids
-// against this list. It is the player-visible list, not `useAllMonsters`: a
-// player cannot read the `monsters` table at all, so a beast the DM made (and
-// pinned or revealed for this druid) was missing from the picker and could not
-// be resolved once assumed. The projection carries exactly those rows, and
-// hands a DM their own full list. Neither branch filters by campaign scope.
-const { data: allMonsters } = usePlayerVisibleMonsters();
+// Wildshape resolves stored discovery/pinned-form/wildshape_state monster ids,
+// and asks for those ids only (`usePlayerMonstersByIds`, #972), not the library.
+// A player cannot read the `monsters` table at all, so a beast the DM made (and
+// pinned or revealed for this druid) comes through the projection; a DM gets
+// their own rows. Neither branch filters by campaign scope.
 const { data: discoveries } = usePlayerDiscoveries();
 const { data: pinnedForms } = usePinnedForms();
-const { data: libraryArt } = useLibraryMonsterArt();
 
 const memberId = computed(() => member.id);
 const { isDruid, isCircleOfMoon, rules } = useWildshapeDruid(memberId, () => member);
 
 const activeWildshape = computed<WildshapeState | null>(() => (member.wildshape_state as WildshapeState | null) ?? null);
+
+// Both lists are narrowed to THIS character. A player's own reads already
+// are, by RLS; a DM looking at one sheet reads every member's pins and every
+// discovery, and would otherwise offer this druid another character's forms.
+const discoveredKeys = computed(() => new Set<string>(
+  (discoveries.value ?? [])
+    .filter((d) => d.visible_to === null || d.visible_to.includes(member.id))
+    .flatMap((d) => [d.monster_id, d.library_monster_id].filter(Boolean) as string[]),
+));
+const pinnedKeys = computed(() => new Set<string>(
+  (pinnedForms.value ?? [])
+    .filter((p) => p.party_member_id === member.id)
+    .flatMap((p) => p.monster_id ?? p.library_monster_id ?? []),
+));
+const knownKeys = computed(() => new Set(knownFormIds(member.class_choices)));
+const heldIds = computed<string[]>(() => [
+  activeWildshape.value?.monster_id,
+  ...discoveredKeys.value,
+  ...pinnedKeys.value,
+  ...knownKeys.value,
+].filter((id): id is string => !!id));
+const { data: heldMonsters } = usePlayerMonstersByIds(heldIds);
+const heldList = computed(() => [...heldMonsters.value.values()]);
+
 const beastMonster = computed(() =>
-  activeWildshape.value ? (allMonsters.value?.find((x) => x.id === activeWildshape.value!.monster_id) ?? null) : null,
+  activeWildshape.value ? (heldMonsters.value.get(activeWildshape.value.monster_id) ?? null) : null,
 );
 
 // Uses by the edition's table: 0 below druid level 2, null = unlimited (2014 Archdruid).
@@ -243,26 +263,12 @@ const showWildshapePicker = ref(false);
 const previewBeast = ref<PlayerVisibleMonster | null>(null);
 const availableForms = computed(() => {
   if (!isDruid.value) return [];
-  // Both lists are narrowed to THIS character. A player's own reads already
-  // are, by RLS; a DM looking at one sheet reads every member's pins and every
-  // discovery, and would otherwise offer this druid another character's forms.
-  const id = member.id;
-  const discoveredKeys = new Set<string>(
-    (discoveries.value ?? [])
-      .filter((d) => d.visible_to === null || d.visible_to.includes(id))
-      .flatMap((d) => [d.monster_id, d.library_monster_id].filter(Boolean) as string[]),
-  );
-  const pinnedKeys = new Set<string>(
-    (pinnedForms.value ?? [])
-      .filter((p) => p.party_member_id === id)
-      .flatMap((p) => p.monster_id ?? p.library_monster_id ?? []),
-  );
   return availableWildShapeForms({
-    monsters: allMonsters.value ?? [],
+    monsters: heldList.value,
     rules: rules.value,
-    discoveredIds: discoveredKeys,
-    pinnedIds: pinnedKeys,
-    knownIds: new Set(knownFormIds(member.class_choices)),
+    discoveredIds: discoveredKeys.value,
+    pinnedIds: pinnedKeys.value,
+    knownIds: knownKeys.value,
   });
 });
 const wildshapeForms = computed<PlayerVisibleMonster[]>(() => availableForms.value.map((f) => f.monster));
@@ -272,7 +278,7 @@ const canTakePreview = computed(() => (previewBeast.value ? canSpend(formCost(pr
 async function handleWildshape(monster: PlayerVisibleMonster) {
   // Null when the DM has not revealed this beast's stats (no hit point pool or
   // AC to assume; the picker disables such a row) or it is not a legal form.
-  const entry = wildshapeStateFor(monster.is_shared ? withLibraryArt(monster, libraryArt.value?.[monster.id]) : monster, rules.value);
+  const entry = wildshapeStateFor(monster, rules.value);
   if (!entry || !canSpend(entry.usesCost)) return;
   const update: PartyMemberUpdate = {
     wildshape_state: entry.form,

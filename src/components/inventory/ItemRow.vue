@@ -113,7 +113,6 @@ import { computed } from "vue";
 import { IconAdd, IconArrowUp, IconDelete, IconDocument, IconDrag, IconMinus, IconScissors, IconShop } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
-import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -124,20 +123,9 @@ const props = defineProps<{
   partyMembers?: PartyMember[];
   sellable?: boolean;
   weightPerUnit?: number;
+  /** The item this row carries is a written document. The parent holds the resolved items. */
+  hasContent?: boolean;
 }>();
-
-// Resolves against the same player-visible item catalogue the surrounding
-// inventory views already query — this row only carries item_id, not the
-// vault item's own fields (content included), and ItemRow has no parent-fed
-// item map to read instead, so it shares the cached query directly.
-// `resolvable`: a carried item resolves whatever the table's edition is now (#961).
-const { resolvable: allVisibleItems } = usePlayerVisibleItems();
-import { inventoryItemRef } from "@/lib/itemRef";
-const hasContent = computed(() => {
-  const id = inventoryItemRef(props.item);
-  if (!id) return false;
-  return allVisibleItems.value?.find((it) => it.id === id)?.content != null;
-});
 
 defineEmits<{
   'adjust-qty': [item: PartyInventoryItem, delta: number];

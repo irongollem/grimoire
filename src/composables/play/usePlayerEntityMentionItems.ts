@@ -1,7 +1,7 @@
 import { computed } from "vue";
 import { useParty } from "@/composables/party/useParty";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
-import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { useSharedLocations } from "@/composables/locations/useLocations";
 import { usePlayerVisibleFactions } from "@/composables/factions/useFactions";
@@ -10,18 +10,16 @@ import type { EntityMentionItem } from "@/lib/tiptap/EntityMention";
 export function usePlayerEntityMentionItems() {
   const { data: partyMembers }      = useParty();
   const { data: sharedNpcs }        = useSharedNpcs();
-  const { data: allMonsters }       = usePlayerVisibleMonsters();
   const { data: playerDiscoveries } = usePlayerDiscoveries();
+  // Only what the player has met can be mentioned, so only those ids are read.
+  const { data: discoveredMonsterMap } = usePlayerMonstersByIds(() =>
+    (playerDiscoveries.value ?? []).map((d) => d.library_monster_id ?? d.monster_id),
+  );
   const { data: sharedLocations }   = useSharedLocations();
   const { data: factions }          = usePlayerVisibleFactions();
 
   const mentionItems = computed<EntityMentionItem[]>(() => {
-    const discoveredIds = new Set(
-      (playerDiscoveries.value ?? []).map((d) => d.library_monster_id ?? d.monster_id),
-    );
-    const discoveredMonsters = (allMonsters.value ?? []).filter(
-      (m) => discoveredIds.has(m.id),
-    );
+    const discoveredMonsters = [...discoveredMonsterMap.value.values()].sort((x, y) => x.name.localeCompare(y.name));
 
     return [
       ...(partyMembers.value ?? []).map((m) => ({

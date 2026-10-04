@@ -277,7 +277,7 @@ import {
 import { useMarkRead } from "@/composables/play/useReadItems";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useSharedLocations } from "@/composables/locations/useLocations";
-import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { resolveQuestSiteLocationId } from "@/lib/quests/playerSite";
@@ -307,7 +307,6 @@ const { data: questRefs } = useQuestRefs(questId);
 // NPCs' real names (get_player_visible_npcs gates name/race/occupation).
 const { data: npcs } = useSharedNpcs();
 const { data: locations } = useSharedLocations();
-const { data: allMonsters } = usePlayerVisibleMonsters();
 
 // NPC lightbox
 const selectedNpc = ref<PlayerNpc | null>(null);
@@ -368,6 +367,8 @@ const linkedLocationRefs = computed(() =>
 const linkedMonsterRefs = computed(() =>
   visibleRefs.value.filter((r) => r.ref_type === "monster"),
 );
+// Names for just the creatures this quest attaches.
+const { data: questMonsters } = usePlayerMonstersByIds(() => linkedMonsterRefs.value.map((r) => r.ref_id));
 
 // The DB's RLS policy already excludes a `dormant` objective (an untaken
 // branch) from what a player can read at all (#798). Filtered again here so
@@ -390,6 +391,6 @@ function locationName2(id: string) {
   return (locations.value ?? []).find((l) => l.id === id)?.name ?? "???";
 }
 function monsterName(id: string) {
-  return (allMonsters.value ?? []).find((m) => m.id === id)?.name ?? "???";
+  return questMonsters.value.get(id)?.name ?? "???";
 }
 </script>

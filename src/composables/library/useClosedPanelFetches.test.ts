@@ -39,7 +39,7 @@ vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ dmPreviewMode: false }) }))
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ isAppAdmin: false }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ show: vi.fn() }) }));
 
-import { useItems, usePlayerVisibleItems } from "@/composables/items/useItems";
+import { useItems, usePlayerItemProjection } from "@/composables/items/useItems";
 import { useAllMonsters } from "@/composables/monsters/useMonsters";
 
 function run(setup: () => unknown) {
@@ -74,10 +74,18 @@ describe("closed panels fetch nothing (#972)", () => {
     expect(mocks.tables).toContain("library_art_defaults");
   });
 
-  it("usePlayerVisibleItems with enabled false skips the art defaults", async () => {
-    run(() => usePlayerVisibleItems(() => ({ enabled: false })));
+  it("usePlayerItemProjection with enabled false sends no request", async () => {
+    run(() => usePlayerItemProjection(() => ({ enabled: false })));
     await flushPromises();
-    expect(mocks.tables).not.toContain("library_art_defaults");
+    expect(mocks.tables).toEqual([]);
+    expect(mocks.rpcs).toEqual([]);
+  });
+
+  it("usePlayerItemProjection reads the projection and never the library", async () => {
+    run(() => usePlayerItemProjection());
+    await flushPromises();
+    expect(mocks.rpcs).toEqual(["get_player_visible_items"]);
+    expect(mocks.tables).not.toContain("library_items");
   });
 
   it("useAllMonsters with enabled false reads neither bestiary list nor the art map", async () => {

@@ -77,6 +77,7 @@
           :all-containers="allContainers"
           :sellable="sellable"
           :weight-per-unit="weightForItem(item)"
+          :has-content="hasContent(item)"
           @remove="(id) => $emit('remove', id)"
           @adjust-qty="(item, d) => $emit('adjust-qty', item, d)"
           @drop-to-chat="(item) => $emit('drop-to-chat', item)"
@@ -97,13 +98,13 @@ import { ref, computed, watch, nextTick, onUnmounted } from "vue";
 import { IconChevronRight, IconInfo } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.types";
-import type { Item } from "@/types/item.types";
+import type { Item, ItemIndexEntry } from "@/types/item.types";
 import { formatWeightLb, parseWeightLb } from "@/lib/utils";
 import ItemRow from "./ItemRow.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
-import { inventoryItemRef } from "@/lib/itemRef";
+import { inventoryItemRef, contentItemIds } from "@/lib/itemRef";
 
 const props = defineProps<{
   label: string;
@@ -111,8 +112,8 @@ const props = defineProps<{
   allContainers: PartyInventoryItem[];
   /** Resolves the carried rows (weight). */
   allItems: Item[];
-  /** What the add box may suggest. */
-  catalogue: Item[];
+  /** What the add box may suggest, slim; the full row is read when one is picked. */
+  catalogue: ItemIndexEntry[];
   resolvedMemberId: string | null;
   location: InventoryLocation;
   container?: PartyInventoryItem;
@@ -141,6 +142,14 @@ const itemWeightMap = computed((): Map<string, number> => {
   for (const it of props.allItems) m.set(it.id, parseWeightLb(it.weight));
   return m;
 });
+
+/** Items among the carried ones that are a written document (the feather badge). */
+const contentRefs = computed(() => contentItemIds(props.allItems));
+
+function hasContent(item: PartyInventoryItem): boolean {
+  const ref = inventoryItemRef(item);
+  return ref !== null && contentRefs.value.has(ref);
+}
 
 function weightForItem(item: PartyInventoryItem): number {
   const ref = inventoryItemRef(item);
@@ -193,18 +202,14 @@ const addSelectedId = ref("");
 watch(showAdd, (v) => { if (v) void nextTick(() => addInputRef.value?.focus()); });
 const showSuggestions = ref(false);
 
-const suggestions = computed((): Item[] => {
+const suggestions = computed((): ItemIndexEntry[] => {
   const q = addName.value.trim().toLowerCase();
   if (!q) return props.catalogue.slice(0, 6);
-  return props.catalogue.filter(it =>
-    it.name.toLowerCase().includes(q) ||
-    (it.subtype ?? "").toLowerCase().includes(q) ||
-    it.tags.some(t => t.toLowerCase().includes(q))
-  ).slice(0, 6);
+  return props.catalogue.filter(it => it.name.toLowerCase().includes(q)).slice(0, 6);
 });
 
 function onInput() { addSelectedId.value = ""; showSuggestions.value = true; }
-function selectSuggestion(it: Item) { addName.value = it.name; addSelectedId.value = it.id; showSuggestions.value = false; }
+function selectSuggestion(it: ItemIndexEntry) { addName.value = it.name; addSelectedId.value = it.id; showSuggestions.value = false; }
 
 function submit() {
   if (!addSelectedId.value) return;

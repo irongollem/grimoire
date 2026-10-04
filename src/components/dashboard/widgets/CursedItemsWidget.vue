@@ -68,7 +68,7 @@ import DashboardWidget from "../DashboardWidget.vue";
  * DM-private by construction, not by an extra check here: `usePartyInventory`
  * and `useItems` are the DM's own owner-scoped reads (the same ones
  * `UnidentifiedWidget` and the Vault already use), never the gated
- * `usePlayerVisibleItems`/`get_player_visible_items` projection the player
+ * `usePlayerItemProjection`/`get_player_visible_items` projection the player
  * portal reads from. This widget only ever mounts on the DM dashboard
  * (`widgetComponents.ts` → `DashboardView.vue`, both gated to DM mode by the
  * router), so there is no code path where a player's client requests this

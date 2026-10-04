@@ -200,7 +200,7 @@ import { canonicalToolName, hasToolProficiency } from "@/rules/toolProficiency";
 import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs, useCraftableOutputItems } from "@/composables/crafting/useCrafting";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { inventoryItemRef } from "@/lib/itemRef";
-import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useParty } from "@/composables/party/useParty";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
@@ -211,7 +211,7 @@ import type { CraftingRecipe, CraftingDiscipline, CraftingIngredient, CraftingMo
 const auth = useAuthStore();
 const ui = useUiStore();
 const { data: recipes } = usePlayerCraftingRecipes();
-const { resolvable } = usePlayerVisibleItems();
+const { data: projection } = usePlayerItemProjection();
 const { map: craftableOutputNames } = useCraftableOutputItems();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
@@ -291,15 +291,15 @@ const allRecipeIds = computed(() => (recipes.value ?? []).map((r) => r.id));
 const ingredientsMap = useAllRecipeIngredients(allRecipeIds);
 const outputsMap = useAllRecipeOutputs(allRecipeIds);
 
-// Carried rows, ingredients and outputs resolve in `resolvable`, not the
-// edition-narrowed browse list (#961).
+// Carried rows, ingredients and outputs resolve in the player projection, plus
+// library ids read by id (#961, #972).
 const { items: allItems } = useStoredItemRefs(
   () => [
     ...myInventory.value.map(inventoryItemRef),
     ...[...ingredientsMap.value.values()].flat().map(inventoryItemRef),
     ...[...outputsMap.value.values()].flat().map(inventoryItemRef),
   ],
-  resolvable,
+  projection,
 );
 const modifiersMap = useAllRecipeModifiers(allRecipeIds);
 
@@ -322,7 +322,7 @@ function itemName(ref: string | null): string {
     // resolve its name from the craftable-output projection before giving up.
     // (That projection only ever covers vault items — see useCraftableOutputItems
     // — but a library-referenced ref already resolved above via allItems, which
-    // includes the shared catalogue directly.)
+    // reads it by id.)
     ?? craftableOutputNames.value.get(ref)
     ?? "Unknown item";
 }

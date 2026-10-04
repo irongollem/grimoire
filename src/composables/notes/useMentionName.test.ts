@@ -39,8 +39,15 @@ vi.mock("@/composables/factions/useFactions", () => ({
 }));
 
 const playerVisibleMonstersData = ref<Array<{ id: string; name: string }>>([]);
-vi.mock("@/composables/monsters/useMonsters", () => ({
-  usePlayerVisibleMonsters: () => ({ data: playerVisibleMonstersData }),
+const askedMonsterIds: string[][] = [];
+vi.mock("@/composables/monsters/usePlayerMonstersByIds", () => ({
+  usePlayerMonstersByIds: (ids: () => readonly string[]) => ({
+    data: computed(() => {
+      const wanted = ids();
+      askedMonsterIds.push([...wanted]);
+      return new Map(playerVisibleMonstersData.value.filter((m) => wanted.includes(m.id)).map((m) => [m.id, m]));
+    }),
+  }),
 }));
 
 const playerDiscoveriesData = ref<Array<{ monster_id: string | null; library_monster_id: string | null }>>([]);
@@ -126,7 +133,10 @@ describe("useMentionName — player portal", () => {
     playerDiscoveriesData.value = [{ monster_id: null, library_monster_id: "mon-1" }];
 
     expect(run(() => useMentionName("monster", "mon-1")).value).toBe("Owlbear");
+    askedMonsterIds.length = 0;
     expect(run(() => useMentionName("monster", "mon-2")).value).toBeNull();
+    // Undiscovered: no id is asked for at all.
+    expect(askedMonsterIds.flat()).toEqual([]);
   });
 
   it("resolves the party sentinel to 'Party', same as the DM side", () => {

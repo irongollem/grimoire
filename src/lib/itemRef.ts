@@ -28,7 +28,7 @@ export interface ItemRefColumns {
 }
 
 /**
- * The id to look up in the merged item list (`useItems` / `usePlayerVisibleItems`
+ * The id to look up in the merged item list (`useItems` / `useStoredItemRefs`
  * return vault rows keyed by uuid and library rows keyed by text in one array,
  * so a single `find` resolves either once handed the right id).
  *
@@ -51,6 +51,11 @@ export function itemRefColumns(pickedId: string | null | undefined): ItemRefColu
   return isUuid(pickedId)
     ? { item_id: pickedId, library_item_id: null }
     : { item_id: null, library_item_id: pickedId };
+}
+
+/** Ids of the items that are written documents (the feather badge), for a parent to hand its rows. */
+export function contentItemIds(items: readonly { id: string; content: string | null }[]): Set<string> {
+  return new Set(items.filter((it) => it.content != null).map((it) => it.id));
 }
 
 /** True when two rows reference the same catalogue entry — stack/ingredient matching. */

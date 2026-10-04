@@ -20,15 +20,21 @@ function chunks<T>(items: readonly T[]): T[][] {
   return out;
 }
 
+/** Library rows by id, no source or ruleset filter. Public rows, so a player may call it too. */
+export async function fetchLibraryMonstersByIds(libraryIds: readonly string[]): Promise<Monster[]> {
+  const rows = await Promise.all(
+    chunks(libraryIds).map(async (ids) => {
+      const { data, error } = await supabase.from("library_monsters").select(LIBRARY_MONSTER_COLUMNS).in("id", ids);
+      if (error) throw error;
+      return data.map(libraryMonsterRow);
+    }),
+  );
+  return rows.flat();
+}
+
 async function fetchByIds(libraryIds: readonly string[], customIds: readonly string[]): Promise<Map<string, Monster>> {
   const [libraryRows, customRows] = await Promise.all([
-    Promise.all(
-      chunks(libraryIds).map(async (ids) => {
-        const { data, error } = await supabase.from("library_monsters").select(LIBRARY_MONSTER_COLUMNS).in("id", ids);
-        if (error) throw error;
-        return data.map(libraryMonsterRow);
-      }),
-    ),
+    fetchLibraryMonstersByIds(libraryIds),
     Promise.all(
       chunks(customIds).map(async (ids) => {
         const { data, error } = await supabase.from("monsters").select("*").in("id", ids);
@@ -37,7 +43,7 @@ async function fetchByIds(libraryIds: readonly string[], customIds: readonly str
       }),
     ),
   ]);
-  return new Map([...libraryRows.flat(), ...customRows.flat()].map((m) => [m.id, m]));
+  return new Map([...libraryRows, ...customRows.flat()].map((m) => [m.id, m]));
 }
 
 /** Resolves STORED monster ids (encounter combatants, companions, wild shape

@@ -14,7 +14,9 @@ import type {
   PartyInventoryItem,
   InventoryLocation,
 } from "@/types/inventory.types";
-import type { Item } from "@/types/item.types";
+import { isUuid } from "@/lib/library/contentIdentity";
+import { fetchResolvedItem } from "@/composables/items/useItems";
+import type { Item, ItemIndexEntry } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
 
 interface UseInventoryMutationsOptions {
@@ -23,8 +25,9 @@ interface UseInventoryMutationsOptions {
   myItems: ComputedRef<PartyInventoryItem[]>;
   /** Resolves a row the character already carries (#961). */
   allItems: ComputedRef<Item[] | undefined>;
-  /** What may be added: the edition and enabled books narrow this, not `allItems`. */
-  catalogue: ComputedRef<Item[] | undefined>;
+  /** What may be added, slim: the edition and enabled books narrow this, not `allItems`.
+   *  A pick is read in full by id before it is written (#972). */
+  catalogue: ComputedRef<ItemIndexEntry[] | undefined>;
   partyMembers: ComputedRef<PartyMember[] | undefined>;
   selectedInv: Ref<PartyInventoryItem | null>;
 }
@@ -70,18 +73,22 @@ export function useInventoryMutations({
   }
 
   // ── Vault item helpers ────────────────────────────────────────────────────────
-  function isContainerVaultItem(itemId: string | null): boolean {
-    if (!itemId) return false;
-    return (
-      allItems.value
-        ?.find((it) => it.id === itemId)
-        ?.tags.includes("container") ?? false
-    );
+  /** The full row behind a picked id: a held or projected one from `allItems`,
+   *  a library one read by id. A custom id the projection lacks is not readable
+   *  by a player, so it resolves to null rather than being fetched. */
+  async function loadItem(itemId: string | null): Promise<Item | null> {
+    if (!itemId) return null;
+    const known = allItems.value?.find((it) => it.id === itemId);
+    if (known) return known;
+    if (isUuid(itemId)) return null;
+    return (await fetchResolvedItem(itemId)).item;
   }
 
-  function isMagicVaultItem(itemId: string | null): boolean {
-    if (!itemId) return false;
-    const item = (allItems.value ?? []).find((i) => i.id === itemId);
+  function isContainerVaultItem(item: Item | null): boolean {
+    return item?.tags.includes("container") ?? false;
+  }
+
+  function isMagicVaultItem(item: Item | null): boolean {
     return !!item && item.rarity !== "mundane";
   }
 
@@ -207,6 +214,7 @@ export function useInventoryMutations({
     name: string,
     itemId: string | null,
   ) {
+    const vaultItem = await loadItem(itemId);
     await addInventoryItem({
       name,
       quantity: 1,
@@ -218,19 +226,18 @@ export function useInventoryMutations({
       carried_by: resolvedMemberId.value ?? null,
       location,
       slot: null,
-      is_container: isContainerVaultItem(itemId),
+      is_container: isContainerVaultItem(vaultItem),
       container_id: containerId,
       is_attuned: false,
       is_equipped: false,
       notes: null,
       is_ruined: false,
-      is_identified: !isMagicVaultItem(itemId),
+      is_identified: !isMagicVaultItem(vaultItem),
     });
   }
 
   async function addItem(selectedId: string, name: string, qty: number) {
-    const vaultItem =
-      (catalogue.value ?? []).find((i) => i.id === selectedId) ?? null;
+    const vaultItem = await loadItem(selectedId || null);
     const bundleItems = vaultItem?.bundle_items;
 
     if (bundleItems && bundleItems.length > 0) {
@@ -249,12 +256,18 @@ export function useInventoryMutations({
         is_ruined: false,
         is_identified: true,
       });
-      await addInventoryItems(
+      // Each bundle part is matched by name in the slim list, then read in full.
+      const subVaults = await Promise.all(
         bundleItems.map((sub) => {
-          const subVault =
-            (catalogue.value ?? []).find(
-              (i) => i.name.toLowerCase() === sub.name.toLowerCase(),
-            ) ?? null;
+          const entry = (catalogue.value ?? []).find(
+            (i) => i.name.toLowerCase() === sub.name.toLowerCase(),
+          );
+          return loadItem(entry?.id ?? null);
+        }),
+      );
+      await addInventoryItems(
+        bundleItems.map((sub, i) => {
+          const subVault = subVaults[i];
           return {
             name: sub.name,
             quantity: sub.quantity ?? 1,
@@ -280,13 +293,13 @@ export function useInventoryMutations({
         carried_by: resolvedMemberId.value ?? null,
         location: "backpack",
         slot: null,
-        is_container: isContainerVaultItem(selectedId || null),
+        is_container: isContainerVaultItem(vaultItem),
         container_id: null,
         is_attuned: false,
         is_equipped: false,
         notes: null,
         is_ruined: false,
-        is_identified: !isMagicVaultItem(selectedId || null),
+        is_identified: !isMagicVaultItem(vaultItem),
       });
     }
   }
@@ -335,7 +348,6 @@ export function useInventoryMutations({
     containerPickerSearch,
     containerCandidates,
     promoteToContainer,
-    isContainerVaultItem,
     adjustQty,
     moveItem,
     handleReorder,

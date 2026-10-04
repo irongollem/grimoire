@@ -9,7 +9,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useAuthStore } from "@/stores/auth";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
-import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
 import {
@@ -39,7 +39,7 @@ const { data: draws } = useDowntimeDraws();
 const { data: outcomes } = useDowntimeOutcomes();
 // Player-visible projections only (gated names) — never the raw tables.
 const { data: npcs } = useSharedNpcs();
-const { resolvable: items } = usePlayerVisibleItems();
+const { data: items } = usePlayerItemProjection();
 const { find: findRewardItem } = useStoredItemRefs(
   () => (outcomes.value ?? []).flatMap((o) => (o.reward_type === "item" && o.reward_id !== null ? [o.reward_id] : [])),
   items,

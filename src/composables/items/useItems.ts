@@ -214,60 +214,41 @@ export function useItems(getOptions?: () => UseItemsOptions) {
   return { ...itemsQuery, data, resolvable, isLoading };
 }
 
-/** Player-visible items (their vault + shared store items) via the
+/** The player-visible custom items (their vault + shared store items) via the
  *  get_player_visible_items SECURITY DEFINER projection (migration
  *  20260711000014), with `dm_notes` nulled. Players have no direct base-table
- *  read path (RLS is owner-only). Drop-in replacement for {@link useItems} on
- *  every player surface — same art-defaults merge + campaign-scope filtering. */
+ *  read path (RLS is owner-only). A small list: it holds no library rows. */
 async function fetchPlayerVisibleItems(): Promise<Item[]> {
   const { data, error } = await supabase.rpc("get_player_visible_items");
   if (error) throw error;
   return (data ?? []) as Item[];
 }
 
-export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
+export function usePlayerItemProjection(getOptions?: () => { enabled?: boolean }) {
   const ui = useUiStore();
-  const artDefaults = useLibraryArtDefaults(() => getOptions?.().enabled !== false);
-  const { activeCampaignId } = storeToRefs(useCampaignStore());
-  const { ruleset } = useTableRuleset();
-  // Players can read campaign_enabled_sources directly (RLS allows any
-  // campaign member select), so the same enabled-sources → library_items query
-  // used by the DM catalog works unchanged here.
-  const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
+  const isEnabled = () => getOptions?.().enabled !== false;
 
-  const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
-    queryFn: ({ queryKey: [, slugs, rs] }) => {
-      if (slugs === null) throw new Error("usePlayerVisibleItems library fetch ran without enabled sources");
-      return fetchLibraryItems(slugs, rs);
-    },
-    enabled: () => enabledSlugs.value !== null,
-    staleTime: Infinity,
-  });
-
-  // Real player → gated projection. DM preview → full owned catalog (the DM
+  // Real player → gated projection. DM preview → the DM's own rows (the DM
   // isn't a campaign_member, so the projection returns nothing; the DM owns the
   // rows and needs them to resolve inventory item details). Shares the base
-  // `[QUERY_KEY]` cache with useItems.
+  // `[QUERY_KEY]` cache with useItems. Never the library: a held library id is
+  // read by id through `useStoredItemRefs`, and a picker reads `useItemIndex` (#972).
   const projectionQuery = useQuery({
     queryKey: [QUERY_KEY, "player-visible"],
     queryFn: fetchPlayerVisibleItems,
-    enabled: () => !ui.dmPreviewMode,
+    enabled: () => isEnabled() && !ui.dmPreviewMode,
     staleTime: Infinity,
   });
   const baseQuery = useQuery({
     queryKey: [QUERY_KEY],
     queryFn: fetchItems,
-    enabled: () => ui.dmPreviewMode,
+    enabled: () => isEnabled() && ui.dmPreviewMode,
     staleTime: Infinity,
   });
-  const rawItems = computed(() =>
-    ui.dmPreviewMode ? baseQuery.data.value : projectionQuery.data.value,
-  );
+  /** The player's custom items; the source to resolve held ids in. */
+  const data = computed(() => (ui.dmPreviewMode ? baseQuery.data.value : projectionQuery.data.value));
   const isLoading = computed(() =>
-    sourcesLoading.value ||
-    libraryQuery.isLoading.value ||
-    (ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value),
+    ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value,
   );
 
   /**
@@ -279,31 +260,13 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
    * subscription never receives those events, and the tables that widen the
    * projection from the outside (`store_items`) are not campaign-scoped and so
    * are not on the live-sync channel at all. A caller that can tell the
-   * snapshot is behind — it holds a row whose item the projection does not
-   * know — has to be able to say so. See `useSharedStoreItems`.
+   * snapshot is behind has to be able to say so. See `useSharedStoreItems`.
    */
   async function refetch(): Promise<void> {
     await (ui.dmPreviewMode ? baseQuery.refetch() : projectionQuery.refetch());
   }
 
-  const catalogue = computed(() => {
-    const items = rawItems.value;
-    if (!items) return undefined;
-    return buildCatalogue(
-      items,
-      libraryQuery.data.value ?? [],
-      artDefaults.data.value,
-      ruleset.value,
-      activeCampaignId.value,
-      getOptions?.().includeAllScopes,
-    );
-  });
-  /** What a picker may offer. Never resolve a held item in this; see `resolvable`. */
-  const data = computed(() => catalogue.value?.browse);
-  /** What a held item resolves in (#961). See {@link buildCatalogue}. */
-  const resolvable = computed(() => catalogue.value?.resolvable);
-
-  return { data, resolvable, isLoading, refetch };
+  return { data, isLoading, refetch };
 }
 
 export function useItem(id: Ref<string> | ComputedRef<string> | string) {

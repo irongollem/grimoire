@@ -37,7 +37,7 @@ import { useParty } from "@/composables/party/useParty";
 import { useNpcs, useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useAllLocations, useSharedLocations } from "@/composables/locations/useLocations";
 import { useAllFactions, usePlayerVisibleFactions } from "@/composables/factions/useFactions";
-import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import type { EntityType } from "@/lib/tiptap/EntityMention";
 
@@ -115,15 +115,13 @@ function useDmMonsterName(id: string): ComputedRef<string | null> {
 }
 
 function usePlayerMonsterName(id: string): ComputedRef<string | null> {
-  const { data: allMonsters } = usePlayerVisibleMonsters();
   const { data: discoveries } = usePlayerDiscoveries();
-  return computed(() => {
-    const discovered = (discoveries.value ?? []).some(
-      (d) => d.monster_id === id || d.library_monster_id === id,
-    );
-    if (!discovered) return null;
-    return allMonsters.value?.find((m) => m.id === id)?.name ?? null;
-  });
+  const discovered = computed(() =>
+    (discoveries.value ?? []).some((d) => d.monster_id === id || d.library_monster_id === id),
+  );
+  // Not discovered means no read at all: the id is only asked for once the player has met it.
+  const { data: monsters } = usePlayerMonstersByIds(() => (discovered.value ? [id] : []));
+  return computed(() => (discovered.value ? (monsters.value.get(id)?.name ?? null) : null));
 }
 
 /**

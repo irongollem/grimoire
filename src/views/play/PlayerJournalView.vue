@@ -267,10 +267,10 @@ import { usePlayerVisiblePuzzles } from "@/composables/dungeon-features/usePuzzl
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useSharedLocations } from "@/composables/locations/useLocations";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
-import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
-import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { useNotes } from "@/composables/notes/useNotes";
 import { usePlayerEntityMentionItems } from "@/composables/play/usePlayerEntityMentionItems";
@@ -296,14 +296,17 @@ const { data: puzzles, isLoading: loadingPuzzles } = usePlayerVisiblePuzzles();
 const { data: sharedNpcs }        = useSharedNpcs();
 const { data: sharedLocations }   = useSharedLocations();
 const { data: inventory }         = usePartyInventory();
-const { resolvable: resolvableItems } = usePlayerVisibleItems();
+const { data: resolvableItems } = usePlayerItemProjection();
 // A carried tome resolves by id whatever the table's edition or books are now (#961).
 const { items: allVisibleItems } = useStoredItemRefs(
   () => (inventory.value ?? []).map(inventoryItemRef),
   resolvableItems,
 );
-const { data: allMonsters }       = usePlayerVisibleMonsters();
 const { data: playerDiscoveries } = usePlayerDiscoveries();
+// Only the monsters the player has met are offered as a context link, so only those are read.
+const { data: discoveredMonsters } = usePlayerMonstersByIds(() =>
+  (playerDiscoveries.value ?? []).map((d) => d.library_monster_id ?? d.monster_id),
+);
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateJournalEntry();
@@ -508,9 +511,9 @@ function getRefOptions(refType: string): { id: string; name: string }[] {
     }
     case "monster": {
       const discoveries = playerDiscoveries.value ?? [];
-      const monsters = allMonsters.value ?? [];
       return discoveries.flatMap((d) => {
-        const m = monsters.find((m) => d.library_monster_id ? m.id === d.library_monster_id : m.id === d.monster_id);
+        const id = d.library_monster_id ?? d.monster_id;
+        const m = id ? discoveredMonsters.value.get(id) : undefined;
         return m ? [{ id: m.id, name: m.name }] : [];
       });
     }

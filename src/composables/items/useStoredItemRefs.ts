@@ -63,5 +63,8 @@ export function useStoredItemRefs(
     return resolved.value.find((i) => i.id === id);
   }
 
-  return { items: resolved, find };
+  /** True while a read for a named id is in flight, so a caller can hold its placeholder. */
+  const isLoading = computed(() => byIds.isLoading.value || fetched.isLoading.value);
+
+  return { items: resolved, find, isLoading };
 }

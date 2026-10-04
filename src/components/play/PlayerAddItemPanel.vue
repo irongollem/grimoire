@@ -74,10 +74,11 @@
 import { ref, computed, reactive } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import type { Item } from "@/types/item.types";
+import type { ItemIndexEntry } from "@/types/item.types";
 
 const { allItems } = defineProps<{
-  allItems: Item[];
+  /** Slim picker rows; the full item is read once one is chosen. */
+  allItems: ItemIndexEntry[];
 }>();
 
 const emit = defineEmits<{
@@ -90,7 +91,7 @@ const newItemSelectedId = ref("");
 const showDropdown = ref(false);
 const dropdownRefs = reactive<Record<number, HTMLButtonElement>>({});
 
-const filteredItems = computed((): Item[] => {
+const filteredItems = computed((): ItemIndexEntry[] => {
   const q = newItemName.value.trim().toLowerCase();
   if (!q) return allItems.slice(0, 8);
   return allItems.filter((it) => it.name.toLowerCase().includes(q));
@@ -101,7 +102,7 @@ function onAddInput() {
   showDropdown.value = true;
 }
 
-function selectItem(it: Item) {
+function selectItem(it: ItemIndexEntry) {
   newItemName.value = it.name;
   newItemSelectedId.value = it.id;
   showDropdown.value = false;

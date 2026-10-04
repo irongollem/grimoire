@@ -47,7 +47,7 @@ import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
-import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
@@ -78,9 +78,9 @@ const backgroundMap = useBackgroundNameMap();
 const inventory = computed(() =>
   (inventoryItems.value ?? []).filter((i) => i.carried_by === linkedMemberId.value),
 );
-// Carried rows resolve in `resolvable`, not the edition-narrowed browse list (#961).
-const { resolvable } = usePlayerVisibleItems();
-const { items } = useStoredItemRefs(() => inventory.value.map(inventoryItemRef), resolvable);
+// Carried rows resolve in the player projection, plus library ids read by id (#961, #972).
+const { data: projection } = usePlayerItemProjection();
+const { items } = useStoredItemRefs(() => inventory.value.map(inventoryItemRef), projection);
 
 const speciesName = computed(() =>
   member.value?.species_id ? (speciesById.value.get(member.value.species_id)?.name ?? null) : null,

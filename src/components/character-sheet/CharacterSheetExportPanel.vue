@@ -134,7 +134,7 @@ const { member, inventory, storageKey, speciesName = null, backgroundName = null
   speciesName?: string | null;
   backgroundName?: string | null;
   /** Vault items backing equipped weapons — real attack math on the illustrated front.
-   *  The caller supplies its context's catalog (DM: useItems, player: usePlayerVisibleItems). */
+   *  The caller supplies its context's catalog (DM: useItems, player: usePlayerItemProjection + useStoredItemRefs). */
   items?: Item[];
 }>();
 

@@ -17,9 +17,10 @@ import { computed, ref, type ComputedRef } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useSharedLocations } from "@/composables/locations/useLocations";
-import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
-import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { usePlayerItemProjection } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import { useLibrarySpell } from "@/composables/spells/useSpells";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -64,14 +65,16 @@ function useLocationEmbed(id: string): Source {
 }
 
 function useMonsterEmbed(id: string, theme: () => ScriptoriumTheme): Source {
-  const { data: monsters, isLoading: monstersLoading } = usePlayerVisibleMonsters();
   const { data: discoveries, isLoading: discoveriesLoading } = usePlayerDiscoveries();
+  // Not discovered means not asked for: the one id is read only once the player has met it.
+  const met = computed(() => !!discoveries.value?.some((d) => d.monster_id === id || d.library_monster_id === id));
+  const { data: monsters, isLoading: monstersLoading } = usePlayerMonstersByIds(() => (met.value ? [id] : []));
   return {
     html: computed(() => {
       // Not discovered means not there: the library list alone proves nothing.
       const discovery = discoveries.value?.find((d) => d.monster_id === id || d.library_monster_id === id);
       if (!discovery) return null;
-      const monster = monsters.value?.find((m) => m.id === id);
+      const monster = monsters.value.get(id);
       return monster ? playerMonsterHtml(monster, discovery.reveal_stats, theme()) : null;
     }),
     isLoading: computed(() => monstersLoading.value || discoveriesLoading.value),
@@ -79,13 +82,15 @@ function useMonsterEmbed(id: string, theme: () => ScriptoriumTheme): Source {
 }
 
 function useItemEmbed(id: string): Source {
-  const { data, isLoading } = usePlayerVisibleItems();
+  // One id: the projection holds the player's custom items, a library id is read by id (#972).
+  const { data: projection, isLoading: projectionLoading } = usePlayerItemProjection();
+  const { find, isLoading } = useStoredItemRefs(() => [id], projection);
   return {
     html: computed(() => {
-      const item = data.value?.find((i) => i.id === id);
+      const item = find(id);
       return item ? playerItemHtml(item) : null;
     }),
-    isLoading: computed(() => isLoading.value),
+    isLoading: computed(() => projectionLoading.value || isLoading.value),
   };
 }
 

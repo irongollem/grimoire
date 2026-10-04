@@ -150,6 +150,7 @@
           :all-containers="allContainers"
           :sellable="true"
           :weight-per-unit="weightPerUnit(item)"
+          :has-content="hasContent(item)"
           @remove="(id) => $emit('remove', id)"
           @adjust-qty="(item, delta) => $emit('adjust-qty', item, delta)"
           @drop-to-chat="(inv) => $emit('drop-to-chat', inv)"
@@ -185,6 +186,7 @@
           :party-members="partyMembers"
           :all-containers="allContainers"
           :weight-per-unit="weightPerUnit(item)"
+          :has-content="hasContent(item)"
           @remove="(id) => $emit('remove', id)"
           @adjust-qty="(item, delta) => $emit('adjust-qty', item, delta)"
           @drop-to-chat="(inv) => $emit('drop-to-chat', inv)"
@@ -205,11 +207,12 @@ import { VueDraggable } from 'vue-draggable-plus';
 import { IconAdd } from '@/lib/icons';
 import type { PartyInventoryItem, InventoryLocation } from '@/types/inventory.types';
 import type { PartyMember } from '@/types/party.types';
-import type { Item } from '@/types/item.types';
+import type { Item, ItemIndexEntry } from '@/types/item.types';
 import ContainerSection from '@/components/inventory/ContainerSection.vue';
 import ItemRow from '@/components/inventory/ItemRow.vue';
 import AppButton from '@/components/common/AppButton.vue';
 import AppInput from '@/components/common/AppInput.vue';
+import { inventoryItemRef, contentItemIds } from '@/lib/itemRef';
 
 const {
   backpackItems,
@@ -241,7 +244,7 @@ const {
   partyMembers: PartyMember[];
   allContainers: PartyInventoryItem[];
   allItems: Item[];
-  catalogue: Item[];
+  catalogue: ItemIndexEntry[];
   resolvedMemberId: string | null | undefined;
   showContainerPicker: boolean;
   containerPickerSearch: string;
@@ -250,6 +253,12 @@ const {
   containerWeight: (cid: string) => number;
   weightPerUnit: (inv: PartyInventoryItem) => number;
 }>();
+
+const contentRefs = computed(() => contentItemIds(allItems));
+function hasContent(inv: PartyInventoryItem): boolean {
+  const ref = inventoryItemRef(inv);
+  return ref !== null && contentRefs.value.has(ref);
+}
 
 interface SortAddEvent { newIndex?: number; }
 

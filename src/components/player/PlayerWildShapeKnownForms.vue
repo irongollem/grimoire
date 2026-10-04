@@ -103,6 +103,7 @@ import {
   wildShapeFormCost,
   type WildShapeRules,
 } from "@/rules/wildshape";
+import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import type { PlayerVisibleMonster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -113,7 +114,9 @@ const SEARCH_FROM = 12;
 const { member, rules, monsters, canManage } = defineProps<{
   member: PartyMember;
   rules: WildShapeRules;
-  /** Everything the viewer can resolve; candidates are narrowed to legal forms here. */
+  /** The roster's own monsters, resolved by id by the parent. The learn/replace
+   *  candidates are NOT among them: the picker reads the whole list itself, and
+   *  only once it opens. */
   monsters: readonly PlayerVisibleMonster[];
   canManage: boolean;
 }>();
@@ -136,11 +139,15 @@ const picker = ref<"learn" | "replace" | null>(null);
 const replacing = ref<string | null>(null);
 const search = ref("");
 
+// The one place a player surface needs every legal beast, so the whole-list
+// read waits until a picker is actually open (#972).
+const { data: everyMonster } = usePlayerVisibleMonsters({ enabled: () => picker.value !== null });
+
 const replacingName = computed(
   () => entries.value.find((e) => e.id === replacing.value)?.monster?.name ?? "this form",
 );
 const candidates = computed(() =>
-  monsters
+  everyMonster.value
     .filter((m) => m.stat_block !== null && wildShapeFormCost(m, rules) !== null && !known.value.includes(m.id))
     .sort((a, b) => parseCr(a.stat_block?.challenge_rating) - parseCr(b.stat_block?.challenge_rating)),
 );

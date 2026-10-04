@@ -216,7 +216,7 @@ export function useAllMonsters(getOptions?: () => UseMonstersOptions) {
  *  revealed stats, and DM `notes`/`description` are stripped. This is the ONLY
  *  player read path for custom monsters — the base table's player SELECT branch
  *  was dropped (20260711000011) so it can't be mined via devtools. */
-async function fetchPlayerVisibleMonsters(campaignId: string): Promise<Monster[]> {
+export async function fetchPlayerVisibleMonsters(campaignId: string): Promise<Monster[]> {
   const { data, error } = await supabase.rpc("get_player_visible_monsters", {
     p_campaign_id: campaignId,
   });
@@ -224,7 +224,12 @@ async function fetchPlayerVisibleMonsters(campaignId: string): Promise<Monster[]
   return (data ?? []) as Monster[];
 }
 
-/** Player-facing sibling of {@link useAllMonsters}: SRD reference monsters (public)
+/** The WHOLE player-visible list (every library monster of the enabled sources).
+ *  Only a picker that must offer every legal beast may read it, and then with
+ *  `enabled` held false until the picker opens; a view that shows monsters it
+ *  already has ids for reads `usePlayerMonstersByIds`.
+ *
+ *  Player-facing sibling of {@link useAllMonsters}: SRD reference monsters (public)
  *  plus this player's visible CUSTOM monsters from the projection. A DM owns the
  *  rows and needs the full list (including undiscovered beasts for the "share
  *  all eligible" affordance), so for a DM it reads the base table directly
@@ -239,7 +244,8 @@ async function fetchPlayerVisibleMonsters(campaignId: string): Promise<Monster[]
  *  player is one the DM revealed here — re-filtering it by `campaign_id` would
  *  only hide a creature the party has already met, which is the same silent
  *  disappearance {@link UseMonstersOptions.includeAllScopes} exists to prevent. */
-export function usePlayerVisibleMonsters() {
+export function usePlayerVisibleMonsters(options?: { enabled?: () => boolean }) {
+  const isEnabled = () => options?.enabled?.() ?? true;
   const ui = useUiStore();
   const auth = useAuthStore();
   const viewerIsDm = () => ui.dmPreviewMode || auth.isDM;
@@ -247,7 +253,7 @@ export function usePlayerVisibleMonsters() {
   const campaignId = computed(() => campaign.activeCampaignId);
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
   const { ruleset } = useTableRuleset();
-  const { data: artMap } = useLibraryMonsterArt();
+  const { data: artMap } = useLibraryMonsterArt(isEnabled);
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
@@ -255,7 +261,7 @@ export function usePlayerVisibleMonsters() {
       if (slugs === null) throw new Error("usePlayerVisibleMonsters fetched without enabled sources");
       return fetchLibraryMonsters(slugs, rs);
     },
-    enabled: () => enabledSlugs.value !== null,
+    enabled: () => isEnabled() && enabledSlugs.value !== null,
     staleTime: Infinity,
   });
 
@@ -266,7 +272,7 @@ export function usePlayerVisibleMonsters() {
       if (cid === null) throw new Error("usePlayerVisibleMonsters fetched without a campaign");
       return fetchPlayerVisibleMonsters(cid);
     },
-    enabled: () => !!campaignId.value && !viewerIsDm(),
+    enabled: () => isEnabled() && !!campaignId.value && !viewerIsDm(),
     staleTime: Infinity,
   });
 
@@ -274,7 +280,7 @@ export function usePlayerVisibleMonsters() {
   const baseQuery = useQuery({
     queryKey: [QUERY_KEY],
     queryFn: fetchMonsters,
-    enabled: viewerIsDm,
+    enabled: () => isEnabled() && viewerIsDm(),
     staleTime: Infinity,
   });
 
