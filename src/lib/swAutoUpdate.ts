@@ -4,50 +4,54 @@
  * The table patches mid-session precisely because a feature is wanted at the
  * table NOW, and every player runs the installed PWA. Left alone, an open PWA
  * lags a deploy: the browser only re-checks sw.js on a navigation or roughly
- * daily. This module closes that gap without ever moving a page the user is
- * looking at:
+ * daily. This module closes that gap without ever moving a page under the
+ * user:
  *
  *   discovery - polls registration.update() every few minutes and on every
  *               return to the foreground (a phone unlocking is the common
  *               case), so an idle PWA notices a deploy in minutes, not hours;
- *   adoption  - when the fresh worker takes control, a HIDDEN page reloads at
- *               once, because nobody sees it. A VISIBLE page is never reloaded
- *               by a timer or by the worker taking control: reloading a page
- *               the user has just returned to is exactly what people
- *               experience as the app being slow. It adopts the new build at
- *               the first of: the page being backgrounded, the user's next
- *               route navigation (the caller turns it into a full page load of
- *               the destination, see takeNavigationReload, a moment when a
- *               full load costs them nothing they were looking at), or the
- *               "Reload to update" menu action. A navigation onto the new
- *               build also avoids the stale-chunk window that
- *               staleChunkRecovery otherwise has to repair.
+ *   adoption  - once the fresh worker takes control, the page adopts the new
+ *               build at the first of: the user's next route navigation (the
+ *               caller turns it into a full page load of the destination, see
+ *               takeNavigationReload, a moment when a full load costs them
+ *               nothing they were looking at) or the "Reload to update" menu
+ *               action. A navigation onto the new build also avoids the
+ *               stale-chunk window that staleChunkRecovery otherwise has to
+ *               repair.
+ *
+ * NEVER WHILE HIDDEN. This used to reload a backgrounded page at once, on the
+ * theory that nobody sees it. iOS suspends a home-screen app within seconds of
+ * it leaving the screen, so that reload ran the next boot into the freeze: a
+ * token refresh sent and never answered, which on return either held the auth
+ * lock forever (an app stuck on its splash) or had spent the refresh token
+ * whose rotated successor never arrived (signed out on the next start). Every
+ * push produced that for anyone who glanced at the app and switched away, and
+ * the way out was to kill the app and sign in again, sometimes twice. A boot
+ * belongs in the foreground, where the network is up and the user is waiting
+ * for it. Nor does a visible page reload by timer or on the worker taking
+ * control: reloading a page the user has just returned to is exactly what
+ * people experience as the app being slow (#945).
  *
  * isBusy (an in-flight mutation, which a reload would drop, or live
  * soundboard/Spotify audio, which a reload kills and autoplay policy will not
- * resume without a gesture) blocks both the background reload and the
- * navigation one. A hidden page that was busy retries every minute, so it
- * catches up once the audio stops.
+ * resume without a gesture) blocks the navigation reload and leaves it pending
+ * for a later one.
  */
 
 import type { Router } from "vue-router";
 
 const UPDATE_POLL_MS = 5 * 60_000;
-const RETRY_MS = 60_000;
 
 export interface ReloadCoordinatorOptions {
   /** True while reloading would interrupt something the user cares about. */
   isBusy: () => boolean | Promise<boolean>;
-  /** Called when a reload is deferred — surfaces the manual fallback. */
+  /** Called when a new build is waiting — surfaces the manual fallback. */
   onDeferred: () => void;
-  /** Injection points for tests. */
-  reload?: () => void;
-  doc?: Document;
 }
 
 export interface ReloadCoordinator {
-  /** A new build took control: reload now if hidden, otherwise defer. */
-  requestReload: () => Promise<void>;
+  /** A new build took control: hold it for the next navigation. */
+  requestReload: () => void;
   /**
    * Called on a route navigation. Resolves true exactly when a reload is
    * pending and nothing is busy; the coordinator then stands down because the
@@ -59,56 +63,20 @@ export interface ReloadCoordinator {
 }
 
 export function createReloadCoordinator(opts: ReloadCoordinatorOptions): ReloadCoordinator {
-  const doc = opts.doc ?? document;
-  const reload = opts.reload ?? (() => window.location.reload());
   let pending = false;
-  let retryTimer: ReturnType<typeof setInterval> | undefined;
-
-  function standDown(): void {
-    pending = false;
-    if (retryTimer !== undefined) clearInterval(retryTimer);
-    retryTimer = undefined;
-    doc.removeEventListener("visibilitychange", onVisibilityChange);
-  }
-
-  // Only a hidden page reloads: a visible one is being looked at, and moving it
-  // is the slowness users report. The visible page adopts the build through
-  // takeNavigationReload or the manual menu action instead.
-  async function attempt(): Promise<boolean> {
-    if (doc.visibilityState !== "hidden") return false;
-    if (await opts.isBusy()) return false;
-    // isBusy may be asynchronous, and the user can come back while it is being
-    // answered: a page that is visible again is not reloaded.
-    if (doc.visibilityState !== "hidden") return false;
-    standDown();
-    reload();
-    return true;
-  }
-
-  async function onVisibilityChange(): Promise<void> {
-    // Backgrounding is the ideal moment: the reload is invisible and the
-    // fresh build greets the user on return.
-    if (doc.visibilityState === "hidden") await attempt();
-  }
 
   return {
-    async requestReload(): Promise<void> {
-      if (await attempt()) return;
+    requestReload(): void {
       opts.onDeferred();
-      if (pending) return;
       pending = true;
-      doc.addEventListener("visibilitychange", onVisibilityChange);
-      // Catches a hidden page that was busy (background audio) once it idles.
-      // attempt() only reloads while hidden, so this never moves a visible page.
-      retryTimer = setInterval(() => void attempt(), RETRY_MS);
     },
 
     async takeNavigationReload(): Promise<boolean> {
       if (!pending) return false;
       if (await opts.isBusy()) return false;
-      // Re-check: a background reload may have won while isBusy was awaited.
+      // Re-check: another navigation may have taken it while isBusy was awaited.
       if (!pending) return false;
-      standDown();
+      pending = false;
       return true;
     },
   };
@@ -146,7 +114,7 @@ export function installNavigationReload(
   return () => leaving;
 }
 
-export interface SwAutoUpdateOptions extends Pick<ReloadCoordinatorOptions, "isBusy" | "onDeferred"> {
+export interface SwAutoUpdateOptions extends ReloadCoordinatorOptions {
   pollMs?: number;
 }
 
@@ -183,7 +151,7 @@ export function installSwAutoUpdate(opts: SwAutoUpdateOptions): SwAutoUpdateHand
       hadController = true;
       return;
     }
-    void coordinator.requestReload();
+    coordinator.requestReload();
   });
 
   return { takeNavigationReload: coordinator.takeNavigationReload };

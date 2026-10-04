@@ -100,7 +100,7 @@ The 8 stores and their roles:
 
 | Store | Role |
 | --- | --- |
-| `auth.ts` | Supabase session, campaign membership, `isAppAdmin`/`isDM`/`isPlayer`; feeds the router guard and `setCachedUser()`. Boots from a per-user snapshot of membership, username and child link (`src/lib/authSnapshot.ts`) and re-reads them in the background, so the app mounts without waiting on those three reads |
+| `auth.ts` | Supabase session, campaign membership, `isAppAdmin`/`isDM`/`isPlayer`; feeds the router guard and `setCachedUser()`. Boots from a per-user snapshot of membership, username and child link (`src/lib/authSnapshot.ts`) and re-reads them in the background, so the app mounts without waiting on those three reads. A token refresh that is slow (over 4 s) or fails for want of a network starts the app on the session auth-js has stored (`src/lib/persistedSession.ts`) rather than as signed out; only a refresh the server rejects signs out. Auth and data requests carry a deadline (`src/lib/requestDeadline.ts`), because a request frozen by iOS never answers and a refresh among them held the auth lock for good |
 | `campaign.ts` | `activeCampaignId` (localStorage-persisted) — the key nearly every query is scoped by; BYOK API-key decryption |
 | `ui.ts` | All list filters + per-feature UI modes + `dmPreviewMode` (mandated by CLAUDE.md) |
 | `encounterRun.ts` | Live combat run state. Deliberately UI-only: DB writes are injected via `setPersistHandler`, dice via `InitiativeRoller` |
@@ -175,8 +175,8 @@ sequenceDiagram
     B->>SW: precache manifest + cache name (content hash)
     Note over SW: install = ATOMIC app shell:<br/>every JS/CSS must cache with valid<br/>Content-Type or old worker survives
     A->>SW: registration.update() every 5 min + on foreground
-    A->>A: new build took control → a HIDDEN page reloads now<br/>(unless a mutation is in flight or audio is playing)
-    A->>A: a VISIBLE page is never reloaded under the user:<br/>it adopts the build on its next route navigation<br/>(a full load of the destination), when it is next<br/>backgrounded, or via "Reload to update"
+    A->>A: new build took control → the page is never reloaded,<br/>visible or backgrounded (iOS freezes a backgrounded boot)
+    A->>A: it adopts the build on its next route navigation<br/>(a full load of the destination, unless a mutation is<br/>in flight or audio is playing), or via "Reload to update"
     Note over R: page running old code, old cache already GC'd,<br/>dynamic import fails
     R->>R: one hard navigation to intended path<br/>(sessionStorage guard — a broken deploy<br/>degrades to visible failure, not a reload loop)
 ```

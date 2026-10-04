@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
-import type { User } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
 import { createAuthAwareFetch } from "./authAwareFetch";
+import { authStorageKey, readPersistedSession } from "./persistedSession";
+import { withRequestDeadline } from "./requestDeadline";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -67,6 +69,16 @@ export function onSessionLost(handler: () => void): void {
   sessionLostHandler = handler;
 }
 
+const AUTH_STORAGE_KEY = authStorageKey(supabaseUrl);
+
+/**
+ * The session stored on this device, with no lock and no refresh. Only for
+ * when `getSession()` could not reach the server; see persistedSession.ts.
+ */
+export function readStoredSession(): Session | null {
+  return readPersistedSession(AUTH_STORAGE_KEY);
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -81,10 +93,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     // awaited, so the rule now lives next to the setting it constrains.
     autoRefreshToken: true,
     lock: singleTabLock,
+    // The key supabase-js would derive anyway, named so readStoredSession can
+    // read it. See persistedSession.ts before changing it.
+    storageKey: AUTH_STORAGE_KEY,
   },
   global: {
     fetch: createAuthAwareFetch(
-      (input, init) => globalThis.fetch(input, init),
+      // A request frozen by iOS never answers, and a token refresh among them
+      // would hold singleTabLock above for good; see requestDeadline.ts.
+      withRequestDeadline((input, init) => globalThis.fetch(input, init)),
       () => sessionLostHandler?.(),
       {
         anonKey: supabaseAnonKey,

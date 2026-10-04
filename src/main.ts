@@ -237,12 +237,12 @@ if (lq) {
 
 // Service worker — register, poll for new deploys, and reload onto them.
 // The table patches mid-session because a feature is wanted at the table NOW,
-// so a deploy is not parked behind the "Reload to update" menu action. A hidden
-// page reloads onto the new build at once. A visible page is never reloaded
-// under the user: it adopts the build on its next navigation (the beforeEach
-// guard above), when it is next backgrounded, or through the menu action
-// (updateAvailable). A mutation in flight or live soundboard/Spotify audio
-// defers all of those, and a hidden page that was busy retries every minute.
+// so a deploy is not parked behind the "Reload to update" menu action alone. A
+// page is never reloaded under the user, and never while backgrounded, where
+// iOS freezes the boot mid-refresh (see swAutoUpdate.ts): it adopts the build
+// on its next navigation (the beforeEach guard above) or through the menu
+// action (updateAvailable). A mutation in flight or live soundboard/Spotify
+// audio defers the navigation reload to a later navigation.
 if (import.meta.env.PROD) {
   ({ takeNavigationReload } = installSwAutoUpdate({
     // Both audio stores are imported statically, and must stay that way (#593).

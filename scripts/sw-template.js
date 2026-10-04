@@ -91,7 +91,8 @@
 // would quietly undo itself with no error anywhere in the build.
 //
 // The old vite-plugin-pwa also ran `clients.claim()` and `skipWaiting()`,
-// and `main.ts` reloads the page on `controllerchange`. Preserved.
+// Preserved. `controllerchange` no longer reloads the page by itself: the page
+// adopts the new build on its next navigation (see src/lib/swAutoUpdate.ts).
 
 const CACHE_NAME = "__CACHE_NAME__";
 const PRECACHE = /** @type {string[]} */ (__PRECACHE__);

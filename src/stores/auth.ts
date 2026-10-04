@@ -1,15 +1,60 @@
 import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
-import { supabase, setCachedUser } from "@/lib/supabase";
+import { supabase, setCachedUser, readStoredSession } from "@/lib/supabase";
 import { setErrorTrackingUser } from "@/lib/observability/sentry";
 import { TERMS_VERSION } from "@/lib/legal";
 import { signInEmail } from "@edge-shared/childAccount.ts";
 import { CHILD_ACCOUNT_COLUMNS, isActiveChildLink } from "@/lib/childAccount";
 import { accountLabel } from "@/lib/accountLabel";
 import { clearAuthSnapshot, readAuthSnapshot, writeAuthSnapshot } from "@/lib/authSnapshot";
-import type { User, Session } from "@supabase/supabase-js";
+import {
+  isAuthRetryableFetchError,
+  type AuthChangeEvent,
+  type Session,
+  type User,
+} from "@supabase/supabase-js";
 import type { CampaignMember, CampaignRole } from "@/types/campaign.types";
 import type { ChildAccountLink } from "@/types/childAccount.types";
+
+/**
+ * How long a boot waits on a token refresh before it starts on the stored
+ * session. A refresh on a working network answers in well under a second;
+ * waiting longer only keeps a phone whose radio is still coming up on the
+ * splash, because auth-js retries a failing refresh for up to 30 seconds.
+ */
+const BOOT_SESSION_WAIT_MS = 4_000;
+
+/**
+ * The session a boot starts on, and the refresh it may still be waiting for.
+ *
+ * `getSession()` answers `session: null` both when nobody is signed in and when
+ * the access token expired and the refresh could not reach the server. The boot
+ * used to treat both as signed out, so a phone opened with its radio still
+ * waking up landed on the login page with a perfectly good session on disk,
+ * and signing in again was the only way back. A refresh that is slow or failed
+ * for want of a network now starts the app on the stored session instead (see
+ * persistedSession.ts): reads wait on the refresh or are refused by
+ * `authAwareFetch` until it lands, and main.ts refetches on TOKEN_REFRESHED.
+ * A refresh the server actually rejects still answers null, and signs out.
+ */
+async function bootSession(): Promise<{ session: Session | null; loaded: ReturnType<typeof supabase.auth.getSession> }> {
+  const loaded = supabase.auth.getSession();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const slow = new Promise<"slow">((resolve) => {
+    timer = setTimeout(() => resolve("slow"), BOOT_SESSION_WAIT_MS);
+  });
+  const first = await Promise.race([loaded, slow]);
+  clearTimeout(timer);
+
+  if (first === "slow") {
+    return { session: readStoredSession() ?? (await loaded).data.session, loaded };
+  }
+  if (first.data.session) return { session: first.data.session, loaded };
+  if (first.error && isAuthRetryableFetchError(first.error)) {
+    return { session: readStoredSession(), loaded };
+  }
+  return { session: null, loaded };
+}
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
@@ -305,16 +350,72 @@ export const useAuthStore = defineStore("auth", () => {
   let initPromise: Promise<void> | null = null;
   let authListener: { unsubscribe: () => void } | null = null;
 
+  /**
+   * Applies an auth-js event to the store.
+   *
+   * IMPORTANT: auth-js invokes its listeners *inside* the exclusive auth lock it
+   * holds during getSession() / token refresh. Calling supabase.from() here (even
+   * indirectly via loadMembership) would queue behind that same lock: deadlock,
+   * and every DB query hangs with no network activity. So synchronous state is
+   * updated at once and the DB call is scheduled with setTimeout, to run after
+   * the lock is released.
+   */
+  function applyAuthEvent(event: AuthChangeEvent, newSession: Session | null): void {
+    if (newSession?.user) resetIdentityFor(newSession.user.id);
+    session.value = newSession;
+    user.value = newSession?.user ?? null;
+    setCachedUser(user.value);
+    if (user.value) {
+      const userId = user.value.id;
+      // SIGNED_IN (re-emitted on tab focus) and TOKEN_REFRESHED reload: the app
+      // leans on them to notice a membership that changed while it was away.
+      // They do not reload when the same account's trio was requested moments
+      // ago and every read of it succeeded (`identityIsFresh`): that is the
+      // duplicate a boot or sign-in emits about itself.
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && identityIsFresh(userId)) {
+        return;
+      }
+      setTimeout(() => {
+        const storedCampaignId = localStorage.getItem("grimoire_active_campaign") ?? undefined;
+        void loadIdentity(userId, storedCampaignId);
+      }, 0);
+    } else {
+      identityLoad = null;
+      membership.value = null;
+      username.value = null;
+      childLink.value = null;
+      childLinkLoaded.value = false;
+      clearAuthSnapshot();
+      // TOKEN_REFRESHED failure, reuse detection, or explicit sign-out — all
+      // arrive here as SIGNED_OUT. The router guard will redirect to /login on
+      // the next navigation; if we're mid-session we do it immediately.
+      if (event === "SIGNED_OUT" && initialized.value) {
+        setTimeout(() => {
+          if (!user.value) window.location.href = "/login";
+        }, 0);
+      }
+    }
+  }
+
   async function initialize() {
     if (initialized.value) return;
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
-        session.value = data.session;
-        user.value = data.session?.user ?? null;
+        const boot = await bootSession();
+        session.value = boot.session;
+        user.value = boot.session?.user ?? null;
         setCachedUser(user.value);
+        if (boot.session) {
+          // Started on the stored session while the refresh was out: when it
+          // ends, a session auth-js has removed was rejected by the server.
+          // Checked here rather than left to the listener below, which may not
+          // be registered yet when auth-js emits that SIGNED_OUT.
+          void boot.loaded.then(({ data }) => {
+            if (!data.session && readStoredSession() === null) applyAuthEvent("SIGNED_OUT", null);
+          });
+        }
 
         if (user.value) {
           const storedCampaignId =
@@ -353,55 +454,14 @@ export const useAuthStore = defineStore("auth", () => {
         const {
           data: { subscription },
         } = supabase.auth.onAuthStateChange((event, newSession) => {
-          // IMPORTANT: this callback is invoked *inside* the exclusive navigator.locks lock
-          // that supabase-js holds during getSession() / token refresh. If we call
-          // supabase.from() here (even indirectly via loadMembership), it tries to acquire
-          // the same lock → deadlock → all DB queries hang forever with no network activity.
-          //
-          // Fix: update synchronous state immediately, then schedule the DB call with
-          // setTimeout so it runs after the lock is released.
-          if (newSession?.user) resetIdentityFor(newSession.user.id);
-          session.value = newSession;
-          user.value = newSession?.user ?? null;
-          setCachedUser(user.value);
           // INITIAL_SESSION is auth-js replaying the session initialize() just
-          // loaded (or is still revalidating), so reloading here doubles the
-          // boot's identity reads for nothing. SIGNED_IN (re-emitted on tab
-          // focus) and TOKEN_REFRESHED still reload: the app leans on them to
-          // notice a membership that changed while it was away. They do not
-          // reload when the same account's trio was requested moments ago and
-          // every read of it succeeded (`identityIsFresh`): that is the
-          // duplicate a boot or sign-in emits about itself.
-          if (user.value && event === "INITIAL_SESSION") return;
-          if (user.value) {
-            const userId = user.value.id;
-            if (
-              (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") &&
-              identityIsFresh(userId)
-            ) {
-              return;
-            }
-            setTimeout(() => {
-              const storedCampaignId =
-                localStorage.getItem("grimoire_active_campaign") ?? undefined;
-              void loadIdentity(userId, storedCampaignId);
-            }, 0);
-          } else {
-            identityLoad = null;
-            membership.value = null;
-            username.value = null;
-            childLink.value = null;
-            childLinkLoaded.value = false;
-            clearAuthSnapshot();
-            // TOKEN_REFRESHED failure, reuse detection, or explicit sign-out — all
-            // arrive here as SIGNED_OUT. The router guard will redirect to /login on
-            // the next navigation; if we're mid-session we do it immediately.
-            if (event === "SIGNED_OUT" && initialized.value) {
-              setTimeout(() => {
-                if (!user.value) window.location.href = "/login";
-              }, 0);
-            }
-          }
+          // loaded, and nothing in it is news. When it differs, it is the
+          // refresh that bootSession() chose not to wait for, answering null
+          // for a session that is still stored: applying that would sign out
+          // the user the boot just kept signed in. A real end of the session
+          // arrives as SIGNED_OUT.
+          if (event === "INITIAL_SESSION") return;
+          applyAuthEvent(event, newSession);
         });
         authListener = subscription;
       } catch (err) {

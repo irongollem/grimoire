@@ -98,10 +98,13 @@ core:
 ## Client-side rollout (after frontend-release deploys)
 
 Users don't get the new build instantly. The service worker adopts it:
-poll every 5 min / on foreground. A hidden page reloads at once; a visible
-page is never reloaded under the user and adopts the build on its next route
-navigation, when it is next backgrounded, or through the "Reload to update"
-action (#945). A mutation in flight or live audio defers all of those.
+poll every 5 min / on foreground. A page is never reloaded under the user and
+never while backgrounded: it adopts the build on its next route navigation or
+through the "Reload to update" action (#945). A mutation in flight or live
+audio defers the navigation reload. Reloading a backgrounded page was removed
+on 5 Oct 2026: iOS suspends a home-screen app within seconds, so that reload
+ran the boot's token refresh into the freeze, and the app came back stuck on
+its splash or signed out after every push.
 `staleChunkRecovery` stays the one-reload backstop for the old-code /
 new-cache window. Navigations are served from the cached shell, so the first
 load after a deploy boots the previous build and then updates. Details in

@@ -20,6 +20,10 @@ const { childAccountsTable, tables, authState } = vi.hoisted(() => ({
   authState: {
     session: null as unknown,
     listener: null as null | ((event: string, session: unknown) => void),
+    // What getSession() answers; defaults to the session above.
+    getSession: null as null | (() => Promise<{ data: { session: unknown }; error?: unknown }>),
+    // What auth-js has on disk (readStoredSession).
+    stored: null as unknown,
   },
 }));
 
@@ -29,7 +33,8 @@ const { childAccountsTable, tables, authState } = vi.hoisted(() => ({
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
-      getSession: async () => ({ data: { session: authState.session } }),
+      getSession: () =>
+        authState.getSession?.() ?? Promise.resolve({ data: { session: authState.session } }),
       onAuthStateChange: (cb: (event: string, session: unknown) => void) => {
         authState.listener = cb;
         return { data: { subscription: { unsubscribe: () => {} } } };
@@ -55,6 +60,7 @@ vi.mock("@/lib/supabase", () => ({
     },
   },
   setCachedUser: () => {},
+  readStoredSession: () => authState.stored,
 }));
 
 import { useAuthStore } from "./auth";
@@ -62,6 +68,7 @@ import { readAuthSnapshot, writeAuthSnapshot } from "@/lib/authSnapshot";
 import type { CampaignMember } from "@/types/campaign.types";
 import type { ChildAccountLink } from "@/types/childAccount.types";
 import { nextTick } from "vue";
+import { AuthApiError, AuthRetryableFetchError } from "@supabase/supabase-js";
 
 const ACTIVE_LINK = {
   child_user_id: "u1",
@@ -79,6 +86,8 @@ beforeEach(() => {
   localStorage.clear();
   authState.session = null;
   authState.listener = null;
+  authState.getSession = null;
+  authState.stored = null;
   childAccountsTable.resolve = async () => ({ data: null, error: null });
   tables.campaign_members = async () => ({ data: null, error: null });
   tables.profiles = async () => ({ data: null, error: null });
@@ -263,6 +272,110 @@ describe("initialize() and the identity snapshot", () => {
     expect(auth.username).toBe("kept");
     expect(readAuthSnapshot("u1", "c1")?.username).toBe("kept");
     errorSpy.mockRestore();
+  });
+});
+
+// A phone opened with its radio still waking: the access token has expired and
+// the refresh cannot reach the server. auth-js keeps the session on disk and
+// retries, but getSession() answers null, which the boot used to read as signed
+// out and send the user to the login page.
+describe("initialize() when the token refresh cannot reach the server", () => {
+  const STORED = { user: { id: "u1", app_metadata: {} } };
+
+  it("starts on the stored session when the refresh failed for want of a network", async () => {
+    authState.stored = STORED;
+    authState.getSession = async () => ({
+      data: { session: null },
+      error: new AuthRetryableFetchError("Load failed", 0),
+    });
+
+    const auth = useAuthStore();
+    await auth.initialize();
+
+    expect(auth.isAuthenticated).toBe(true);
+    expect(auth.user?.id).toBe("u1");
+  });
+
+  it("signs out when the server rejected the refresh", async () => {
+    authState.stored = STORED;
+    authState.getSession = async () => ({
+      data: { session: null },
+      error: new AuthApiError("Invalid Refresh Token: Already Used", 400, "refresh_token_already_used"),
+    });
+
+    const auth = useAuthStore();
+    await auth.initialize();
+
+    expect(auth.isAuthenticated).toBe(false);
+  });
+
+  it("does not wait on a slow refresh, and signs out if the server then rejects it", async () => {
+    vi.useFakeTimers();
+    try {
+      authState.stored = STORED;
+      const refresh = deferred<{ data: { session: unknown } }>();
+      authState.getSession = () => refresh.promise;
+
+      const auth = useAuthStore();
+      const booted = auth.initialize();
+      await vi.advanceTimersByTimeAsync(4_000);
+      await booted;
+      expect(auth.isAuthenticated).toBe(true);
+
+      // auth-js removes a session the server refused before answering null.
+      authState.stored = null;
+      refresh.resolve({ data: { session: null } });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(auth.isAuthenticated).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stays signed in when a slow refresh fails for want of a network", async () => {
+    vi.useFakeTimers();
+    try {
+      authState.stored = STORED;
+      const refresh = deferred<{ data: { session: unknown } }>();
+      authState.getSession = () => refresh.promise;
+
+      const auth = useAuthStore();
+      const booted = auth.initialize();
+      await vi.advanceTimersByTimeAsync(4_000);
+      await booted;
+
+      refresh.resolve({ data: { session: null } }); // still on disk: auth-js retries
+      await vi.advanceTimersByTimeAsync(0);
+      expect(auth.isAuthenticated).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores the INITIAL_SESSION replay of that failed refresh", async () => {
+    authState.stored = STORED;
+    authState.getSession = async () => ({
+      data: { session: null },
+      error: new AuthRetryableFetchError("Load failed", 0),
+    });
+    const auth = useAuthStore();
+    await auth.initialize();
+
+    authState.listener?.("INITIAL_SESSION", null);
+
+    expect(auth.isAuthenticated).toBe(true);
+  });
+
+  it("does not invent a session when nothing is stored", async () => {
+    authState.getSession = async () => ({
+      data: { session: null },
+      error: new AuthRetryableFetchError("Load failed", 0),
+    });
+
+    const auth = useAuthStore();
+    await auth.initialize();
+
+    expect(auth.isAuthenticated).toBe(false);
   });
 });
 
