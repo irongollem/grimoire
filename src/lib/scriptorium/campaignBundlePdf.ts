@@ -52,7 +52,7 @@ export async function attachBundleToPdf(
   const json = new TextEncoder().encode(JSON.stringify(bundle));
   await doc.attach(json, CAMPAIGN_ATTACHMENT_NAME, {
     mimeType: "application/json",
-    description: "Grimoire campaign data — import this PDF into Grimoire to populate your campaign.",
+    description: "Grimoire campaign data: import this PDF into Grimoire to populate your campaign.",
   });
   return doc.save();
 }

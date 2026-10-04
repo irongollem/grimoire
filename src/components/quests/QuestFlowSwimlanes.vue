@@ -16,7 +16,7 @@
         :style="{ borderColor: `color-mix(in oklab, ${lane.tone.cssVar} 52%, transparent)` }"
       >
         <IconNavigate class="h-3 w-3" aria-hidden="true" />
-        {{ lane.letter }} — {{ lane.label }} · {{ lane.stateLabel }}
+        {{ lane.letter }} · {{ lane.label }} · {{ lane.stateLabel }}
       </span>
     </div>
   </div>

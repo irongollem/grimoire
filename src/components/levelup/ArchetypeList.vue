@@ -11,7 +11,7 @@
     <div class="space-y-2">
       <p class="text-heading-sm font-semibold text-foreground">No archetypes yet</p>
       <p class="text-body text-muted-foreground max-w-sm">
-        Archetypes let you define custom subclasses for any of the 13 SRD classes — add features
+        Archetypes let you define custom subclasses for any of the 13 SRD classes: add features
         per level, choices shown in the level-up wizard, and tracked resource pools.
       </p>
     </div>
@@ -46,14 +46,14 @@
       <div class="rounded-lg border border-border bg-card p-3 space-y-1">
         <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Wizard Steps</p>
         <p class="text-caption text-muted-foreground">
-          Choices shown to the player during level-up — e.g. pick a fighting style or a bonus spell.
+          Choices shown to the player during level-up, e.g. pick a fighting style or a bonus spell.
           Results are saved in class_choices.
         </p>
       </div>
       <div class="rounded-lg border border-border bg-card p-3 space-y-1">
         <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Resource Pools</p>
         <p class="text-caption text-muted-foreground">
-          Tracked uses that appear on the character sheet — e.g. Rage uses, Ki points, Channel
+          Tracked uses that appear on the character sheet, e.g. Rage uses, Ki points, Channel
           Divinity. Set how they scale and which rest recharges them.
         </p>
       </div>
@@ -80,7 +80,7 @@
           class="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
         >
           <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ sc.subclass_name }}</p>
+            <p class="text-heading-xs font-semibold text-foreground truncate">{{ sc.subclass_name }}</p>
             <p v-if="sc.description" class="text-caption text-muted-foreground mt-0.5 line-clamp-2">{{ toPlainText(sc.description) }}</p>
             <p class="text-caption text-muted-foreground mt-0.5">
               <template v-if="featureLevelCount(sc) === 0 && sc.steps.length === 0 && sc.resources.length === 0">

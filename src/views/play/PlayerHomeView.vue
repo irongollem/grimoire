@@ -14,7 +14,7 @@
     <!-- Your characters -->
     <section data-tour="character-pool" class="space-y-3">
       <div class="flex items-center justify-between gap-3">
-        <h2 class="font-cinzel text-sm font-semibold text-foreground">Your Characters</h2>
+        <h2 class="text-heading-sm font-semibold text-foreground">Your Characters</h2>
         <AppButton
           data-tour="create-character"
           variant="primary"
@@ -35,7 +35,7 @@
       >
         <IconDM class="h-8 w-8 text-muted-foreground/40 mx-auto" />
         <div>
-          <p class="font-cinzel text-sm font-semibold text-foreground">No characters yet</p>
+          <p class="text-heading-sm font-semibold text-foreground">No characters yet</p>
           <p class="text-body text-muted-foreground italic mt-1">
             Create your first character to begin your adventure.
           </p>
@@ -64,7 +64,7 @@
 
     <!-- Your campaigns -->
     <section data-tour="player-campaigns" class="space-y-3">
-      <h2 class="font-cinzel text-sm font-semibold text-foreground">Your Campaigns</h2>
+      <h2 class="text-heading-sm font-semibold text-foreground">Your Campaigns</h2>
 
       <div v-if="!playerCampaigns.length" class="rounded-lg border border-border bg-card p-6 text-center">
         <p class="text-body text-muted-foreground italic">No campaigns yet. Join one with an invite link.</p>
@@ -76,7 +76,7 @@
           :key="c.id"
           class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3"
         >
-          <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ c.name }}</p>
+          <p class="text-heading-xs font-semibold text-foreground truncate">{{ c.name }}</p>
           <AppButton variant="primary" size="sm" label="Play" @click="playCampaign(c)" />
         </div>
       </div>
@@ -84,7 +84,7 @@
 
     <!-- Join a campaign -->
     <section data-tour="join-campaign" class="space-y-3">
-      <h2 class="font-cinzel text-sm font-semibold text-foreground">Join a Campaign</h2>
+      <h2 class="text-heading-sm font-semibold text-foreground">Join a Campaign</h2>
       <div class="rounded-lg border border-border bg-card p-4 space-y-2">
         <div class="flex gap-2">
           <AppInput

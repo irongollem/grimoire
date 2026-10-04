@@ -62,7 +62,7 @@ export function useRollTableGeneration() {
         : await generateServerSide(userPrompt, options);
 
       if (!Array.isArray(result.entries) || result.entries.length === 0) {
-        throw new Error("AI returned no table entries — please try again.");
+        throw new Error("AI returned no table entries. Please try again.");
       }
 
       // The model occasionally returns out-of-bounds or overlapping ranges;

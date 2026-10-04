@@ -198,7 +198,7 @@ export async function fetchAllFromDocuments<T extends { document: { key: string 
   const stray = results.find((record) => !allowed.has(record.document.key));
   if (stray) {
     throw new Error(
-      `${baseUrl}: document__key__in filter was not honored — received a record from document "${stray.document.key}", outside the requested set`,
+      `${baseUrl}: document__key__in filter was not honored; received a record from document "${stray.document.key}", outside the requested set`,
     );
   }
   return results;

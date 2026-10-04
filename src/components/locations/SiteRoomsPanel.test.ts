@@ -101,7 +101,7 @@ describe("SiteRoomsPanel — Browse vs Build (#884)", () => {
 
   it("Build: the empty state points at adding a room, not at Build itself", () => {
     const wrapper = mountPanel(true);
-    expect(wrapper.text()).toContain("add the first one below");
+    expect(wrapper.text()).toContain("Add the first one below");
   });
 });
 
@@ -174,7 +174,7 @@ describe("SiteRoomsPanel — grounds follow a `wilds` parent (#886)", () => {
     ];
     const wrapper = mountPanel(true);
     expect(wrapper.find('input[placeholder="Add grounds…"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain("No grounds yet — add the first one below.");
+    expect(wrapper.text()).toContain("No grounds yet. Add the first one below.");
   });
 
   it("creates `grounds`, not `room`, when adding under a `wilds` site", async () => {

@@ -116,7 +116,7 @@ function effectSummary(effect: DowntimeEffect): string {
       >
         <span class="capitalize">{{ effect.kind }}:</span>
         <span>{{ effectSummary(effect) }}</span>
-        <span v-if="effect.note" class="italic">— {{ effect.note }}</span>
+        <span v-if="effect.note" class="italic">({{ effect.note }})</span>
       </li>
     </ul>
   </article>

@@ -53,7 +53,7 @@
           <span
             v-if="scene.generators[id]"
             class="shrink-0 rounded border border-gold-500/20 bg-gold-500/10 px-1 text-2xs text-gold-400"
-            title="Fires at random intervals rather than looping — this fader is the ceiling, not a live level"
+            title="Fires at random intervals rather than looping. This fader is the ceiling, not a live level"
           >
             gen
           </span>

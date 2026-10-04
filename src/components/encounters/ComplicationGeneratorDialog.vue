@@ -49,7 +49,7 @@
           <p class="text-label-lg font-semibold text-muted-foreground">{{ previewLabel }}</p>
 
           <div class="rounded-md border border-border bg-muted/30 p-4 space-y-3">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ resolved.name }}</h3>
+            <h3 class="text-heading-sm font-bold text-foreground leading-tight">{{ resolved.name }}</h3>
             <p class="text-body text-foreground italic border-l-2 border-primary/40 pl-3">
               {{ resolved.narration }}
             </p>
@@ -65,7 +65,7 @@
                   <span class="text-label text-primary font-semibold shrink-0 mt-0.5 w-8 text-right">{{ r.count }}×</span>
                   <span class="min-w-0">
                     <span class="font-semibold">{{ r.name }}</span>
-                    <span class="text-muted-foreground"> — {{ r.factionName }}</span>
+                    <span class="text-muted-foreground">, {{ r.factionName }}</span>
                     <span v-if="r.role" class="italic text-muted-foreground/70"> ({{ r.role }})</span>
                   </span>
                 </template>
@@ -73,7 +73,7 @@
                   <span class="text-label shrink-0 mt-0.5 w-8 text-right">—</span>
                   <span class="min-w-0">
                     <span class="line-through">{{ r.name }}</span>
-                    <span class="italic text-muted-foreground/70"> — {{ r.reason }}, will not be added</span>
+                    <span class="italic text-muted-foreground/70">, {{ r.reason }}, will not be added</span>
                   </span>
                 </template>
               </li>
@@ -110,7 +110,7 @@
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
               STEER
-              <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional — AI will use this)</span>
+              <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional, AI will use this)</span>
             </label>
             <textarea
               v-model="steer"
@@ -324,7 +324,7 @@ async function handleAddToEvents() {
     store.addGeneratedEvent(event);
 
     const encounterId = store.encounterId;
-    if (!encounterId) throw new Error("No active encounter — the event is in the runner but was not saved.");
+    if (!encounterId) throw new Error("No active encounter; the event is in the runner but was not saved.");
 
     const { data, error: selectError } = await supabase
       .from("encounters")

@@ -23,7 +23,7 @@
 
     <!-- Max level guard -->
     <div v-if="nextLevel > 20" class="rounded-lg border border-border bg-card p-6 text-center">
-      <p class="font-cinzel text-sm text-muted-foreground">{{ member.name }} has already reached level 20.</p>
+      <p class="text-body text-muted-foreground">{{ member.name }} has already reached level 20.</p>
     </div>
 
     <template v-else>

@@ -1,7 +1,7 @@
 <template>
   <section aria-labelledby="quest-story-heading" class="space-y-3">
     <div>
-      <h3 id="quest-story-heading" class="font-cinzel text-base font-bold text-foreground">Story so far</h3>
+      <h3 id="quest-story-heading" class="text-heading-sm font-bold text-foreground">Story so far</h3>
       <p class="text-caption text-muted-foreground">Only moments the party has learned or lived through appear here.</p>
     </div>
 

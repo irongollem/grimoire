@@ -7,7 +7,7 @@
       <span
         class="font-fell font-normal normal-case text-muted-foreground/60 ml-1"
       >
-        — click image to set
+        (click image to set)
       </span>
     </p>
 

@@ -29,7 +29,7 @@
           <div v-else class="flex items-center gap-3 px-4 py-3">
             <IconCalendarCheck class="h-4 w-4 text-elven-green shrink-0" />
             <div class="flex-1 min-w-0">
-              <p class="font-cinzel text-sm font-semibold text-foreground">{{ p.title }}</p>
+              <p class="text-heading-sm font-semibold text-foreground">{{ p.title }}</p>
               <p class="text-caption text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
             </div>
             <AppButton as="span" variant="tinted" tone="success" size="xs" :label="`${availabilityCount(p.id)}/${playerCount} available`" />
@@ -82,7 +82,7 @@
             <div class="flex items-center gap-3 px-4 py-3">
               <IconCalendar class="h-4 w-4 text-primary shrink-0" />
               <div class="flex-1 min-w-0">
-                <p class="font-cinzel text-sm font-semibold text-foreground">{{ p.title }}</p>
+                <p class="text-heading-sm font-semibold text-foreground">{{ p.title }}</p>
                 <p class="text-caption text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
               </div>
               <!-- Availability summary -->
@@ -231,7 +231,7 @@
       </h3>
       <p class="text-caption text-muted-foreground">
         Subscribe once and your calendar app will automatically receive future
-        session updates — confirmed dates as normal events, and dates you have
+        session updates, confirmed dates as normal events, and dates you have
         only suggested as tentative ones that leave the evening free.
       </p>
 
@@ -274,7 +274,7 @@
           variant="subtle"
           size="sm"
           :icon="IconDownload"
-          tooltip="A one-off snapshot of the same events — it will not update"
+          tooltip="A one-off snapshot of the same events; it will not update"
           label="Download .ics"
           @click="exportIcal"
         />
@@ -286,7 +286,7 @@
           class="hover:text-destructive hover:border-destructive"
           :disabled="isRegenerating"
           :icon="IconRefresh"
-          tooltip="Generate a new URL — existing subscriptions will stop updating"
+          tooltip="Generate a new URL; existing subscriptions will stop updating"
           :label="isRegenerating ? 'Regenerating…' : 'Regenerate URL'"
           @click="regenerateToken"
         />
@@ -470,7 +470,7 @@ async function addProposal() {
   });
   void sendCampaignAnnouncement(
     campaign.activeCampaignId,
-    `📅 Session date proposed: ${created.title} — ${formatDate(created.proposed_date, created.proposed_time)}`,
+    `📅 Session date proposed: ${created.title} · ${formatDate(created.proposed_date, created.proposed_time)}`,
   );
   notifyProposalCreated(created.id);
   resetForm();

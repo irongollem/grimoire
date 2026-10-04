@@ -43,12 +43,12 @@
         v-if="packValidationMissing > 0"
         class="text-caption-sm text-ink-caution mt-1.5"
       >
-        {{ packValidationMissing }} slot(s) missing — using placeholders.
+        {{ packValidationMissing }} slot(s) missing. Using placeholders.
       </p>
     </div>
 
     <p class="text-caption-sm text-muted-foreground italic leading-relaxed">
-      Switching packs changes future strokes only — existing cells keep their stored pack.
+      Switching packs changes future strokes only. Existing cells keep their stored pack.
     </p>
 
     <!-- Select tool: a read-only summary of what's in the selected cell. -->
@@ -260,7 +260,7 @@
         class="mb-2"
         @update:model-value="$emit('update:caveRadius', $event)"
       />
-      <p class="text-caption-sm text-muted-foreground">Each stroke uses a different noise seed — repaint to vary the organic shape.</p>
+      <p class="text-caption-sm text-muted-foreground">Each stroke uses a different noise seed. Repaint to vary the organic shape.</p>
     </div>
   </aside>
 </template>

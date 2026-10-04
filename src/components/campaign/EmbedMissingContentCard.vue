@@ -5,7 +5,7 @@
     </div>
     <div class="p-4 flex flex-col gap-3">
       <p class="text-caption text-muted-foreground italic">
-        {{ summary }} not indexed for AI search — the loot generator, encounter suggester and other
+        {{ summary }} not indexed for AI search: the loot generator, encounter suggester and other
         retrieval-backed generators will not offer this content until it is. This usually happens after a
         campaign transfer, since a handed-over campaign's cloned items and NPCs arrive without one. Indexing is
         free and can be run any time.
@@ -83,12 +83,12 @@ const partialResultMessage = computed(() => {
   // DM hunting a problem that does not exist.
   if (result.remaining > 0) {
     return `Indexed ${result.indexed}. The daily indexing allowance is spent, so ${result.remaining} `
-      + `${result.remaining === 1 ? "row is" : "rows are"} still waiting — they stay listed here and can be `
+      + `${result.remaining === 1 ? "row is" : "rows are"} still waiting; they stay listed here and can be `
       + `indexed tomorrow.`;
   }
 
   if (result.failed === 0) return null;
-  return `Indexed ${result.indexed}, ${result.failed} failed — click Index these again to retry the rest.`;
+  return `Indexed ${result.indexed}, ${result.failed} failed. Click Index these again to retry the rest.`;
 });
 
 async function onIndex() {

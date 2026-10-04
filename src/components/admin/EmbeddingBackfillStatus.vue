@@ -3,7 +3,7 @@
     <p class="flex items-center gap-2 text-caption text-muted-foreground">
       <BannerLoader class="h-4" />
       <span>
-        Re-embedding {{ EMBED_TARGET_LABELS[currentTarget] }} — {{ processedThisTarget }} processed this pass,
+        Re-embedding {{ EMBED_TARGET_LABELS[currentTarget] }}: {{ processedThisTarget }} processed this pass,
         {{ remainingThisTarget ?? '…' }} remaining.
         <template v-if="totalProcessed > processedThisTarget">{{ totalProcessed }} total this run.</template>
       </span>

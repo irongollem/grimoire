@@ -1,12 +1,12 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-4 space-y-3">
     <div>
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Embedding Vendor</h2>
+      <h2 class="text-heading-sm font-semibold text-foreground">Embedding Vendor</h2>
       <p class="text-caption text-muted-foreground italic mt-0.5">
-        Exactly one vendor may power semantic-search embedding (#595, #600) — the database enforces this with a
+        Exactly one vendor may power semantic-search embedding (#595, #600); the database enforces this with a
         unique index (<code class="font-mono text-2xs">provider_config_single_embedding_vendor</code>), so this is
         a single choice rather than a toggle per provider. Applying a change re-embeds every monster, NPC, faction,
-        location and note automatically — there is nothing else to remember afterward.
+        location and note automatically; there is nothing else to remember afterward.
       </p>
     </div>
 

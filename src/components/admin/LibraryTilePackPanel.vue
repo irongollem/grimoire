@@ -3,9 +3,9 @@
     <div class="flex items-start justify-between gap-3">
       <div>
         <p class="text-eyebrow text-muted-foreground">Library Sets</p>
-        <h2 class="mt-0.5 font-cinzel text-sm font-semibold tracking-wide text-foreground">Tile Packs</h2>
+        <h2 class="mt-0.5 text-heading-sm font-semibold text-foreground">Tile Packs</h2>
         <p class="mt-0.5 text-caption text-muted-foreground italic">
-          Shared platform content, published once and available to every DM — no credits charged.
+          Shared platform content, published once and available to every DM; no credits charged.
           Tile packs are the first content type this shell hosts; monsters, spells and items will
           follow the same shape.
         </p>
@@ -55,7 +55,7 @@
 
     <div v-if="packsQuery.isPending.value" class="text-caption text-muted-foreground">Loading library sets…</div>
     <p v-else-if="packs.length === 0" class="text-caption text-muted-foreground italic">
-      No library tile packs yet — start one above.
+      No library tile packs yet. Start one above.
     </p>
     <div v-else class="space-y-3">
       <LibraryTilePackRow

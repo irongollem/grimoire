@@ -45,13 +45,13 @@
 
     <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
       <!-- 1. The route taken -->
-      <section v-show="!isMobile || step === 1" aria-label="The route taken — the others become unreachable">
+      <section v-show="!isMobile || step === 1" aria-label="The route taken: the others become unreachable">
         <p v-if="isMobile" class="mb-3 text-body text-muted-foreground">
           One transition is recorded. Consequences fire now; loot waits for you.
         </p>
         <p class="mb-2 flex items-center gap-1.5 text-eyebrow font-semibold text-muted-foreground">
           <component :is="IconShuffle" class="h-3.5 w-3.5" />
-          The route taken — the others become unreachable
+          The route taken: the others become unreachable
         </p>
         <div class="space-y-1.5">
           <label
@@ -72,7 +72,7 @@
               @change="selectChoice(route.edge_id)"
             />
             <span class="min-w-0 flex-1">
-              <span class="block font-cinzel text-sm font-bold text-foreground">{{ route.beat_title || "Untitled beat" }}</span>
+              <span class="block text-heading-sm font-bold text-foreground">{{ route.beat_title || "Untitled beat" }}</span>
               <span v-if="!isClosed(route)" class="block text-caption text-muted-foreground">
                 → {{ route.beat_title || "Untitled beat" }} · Thread {{ threadLetter }}'s cursor moves here
               </span>
@@ -85,7 +85,7 @@
             <label class="flex cursor-pointer items-start gap-2.5">
               <input type="radio" name="advance-route" class="mt-1 shrink-0" :checked="improviseSelected" @change="selectImprovise" />
               <span class="min-w-0 flex-1">
-                <span class="block font-cinzel text-sm font-bold text-foreground">Something else happened</span>
+                <span class="block text-heading-sm font-bold text-foreground">Something else happened</span>
                 <span class="block text-caption text-muted-foreground">Name it and it becomes an improvised beat in this thread</span>
               </span>
             </label>
@@ -134,11 +134,11 @@
       <section
         v-if="parallelRoutes.length && !improviseSelected"
         v-show="!isMobile || step === 2"
-        aria-label="Also opens — both paths get walked"
+        aria-label="Also opens: both paths get walked"
       >
         <p class="mb-2 flex items-center gap-1.5 text-eyebrow font-semibold text-ink-info">
           <component :is="IconLayers" class="h-3.5 w-3.5" />
-          Also opens — both paths get walked
+          Also opens: both paths get walked
         </p>
         <div class="space-y-1.5">
           <AppCheckbox
@@ -155,10 +155,10 @@
             ]"
           >
             <span class="min-w-0 flex-1">
-              <span class="block font-cinzel text-sm font-bold text-foreground">{{ route.beat_title || "Untitled beat" }}</span>
+              <span class="block text-heading-sm font-bold text-foreground">{{ route.beat_title || "Untitled beat" }}</span>
               <span v-if="!isClosed(route)" class="block text-caption text-muted-foreground">
                 <template v-if="plan?.spawnLetters[route.edge_id]">
-                  Creates Thread {{ plan.spawnLetters[route.edge_id] }} — “{{ route.thread_label || route.beat_title }}” — at that beat. Thread {{ threadLetter }} keeps its own cursor —
+                  Creates Thread {{ plan.spawnLetters[route.edge_id] }}, “{{ route.thread_label || route.beat_title }}”, at that beat. Thread {{ threadLetter }} keeps its own cursor:
                   untick to prepare the layer without opening it yet.
                 </template>
                 <template v-else>
@@ -238,7 +238,7 @@
     </div>
     <div v-else-if="isMobile" class="flex flex-col gap-2 border-t border-border px-5 py-3">
       <p class="text-caption text-muted-foreground">
-        <template v-if="improviseSelected">Improvised beats carry no payoff yet — add consequences from the beat editor after the session.</template>
+        <template v-if="improviseSelected">Improvised beats carry no payoff yet. Add consequences from the beat editor after the session.</template>
         <template v-else-if="plan">
           After this: threads <span class="font-semibold text-foreground">{{ plan.threadsAfter.join(", ") }}</span> live ·
           {{ plan.fired }} consequence{{ plan.fired === 1 ? "" : "s" }} fired · {{ plan.held }} loot held
@@ -252,7 +252,7 @@
     </div>
     <div v-else class="flex items-center gap-2 border-t border-border px-5 py-3">
       <p class="flex-1 text-caption text-muted-foreground">
-        <template v-if="improviseSelected">Improvised beats carry no payoff yet — add consequences from the beat editor after the session.</template>
+        <template v-if="improviseSelected">Improvised beats carry no payoff yet. Add consequences from the beat editor after the session.</template>
         <template v-else-if="plan">
           After this: threads <span class="font-semibold text-foreground">{{ plan.threadsAfter.join(", ") }}</span> live ·
           {{ plan.fired }} consequence{{ plan.fired === 1 ? "" : "s" }} fired · {{ plan.held }} loot held

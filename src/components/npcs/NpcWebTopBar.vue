@@ -8,7 +8,7 @@
       NPCs
     </RouterLink>
     <span class="text-border">|</span>
-    <h1 class="font-cinzel text-sm font-bold tracking-wider text-foreground">Relationship Web</h1>
+    <h1 class="text-heading-sm font-bold text-foreground">Relationship Web</h1>
     <ManualHelpLink page="npc-relationship-web" />
 
     <div class="ml-auto flex items-center gap-2 flex-wrap">

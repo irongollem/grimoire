@@ -40,7 +40,7 @@ describe("QuestRunOutcomeStrip", () => {
     const parallel = { ...outgoing[0]!, route_kind: "parallel" as const, thread_label: "The sealed crypt" };
     const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [parallel] } });
     expect(wrapper.text()).toContain("opens alongside");
-    expect(wrapper.text()).toContain("Ticked by default — advancing also spawns Thread The sealed crypt.");
+    expect(wrapper.text()).toContain("Ticked by default. Advancing also spawns Thread The sealed crypt.");
     expect(wrapper.findAll("button").some((button) => button.text() === "Choose")).toBe(false);
   });
 
@@ -77,7 +77,7 @@ describe("QuestRunOutcomeStrip", () => {
     const openGate = { ...closedGate, current_status: "complete" as const, is_open: true };
     const gated = [{ ...outgoing[0]!, gate: openGate }];
     const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: gated } });
-    expect(wrapper.text()).toContain("ready — “Clear the checkpoint” is completed");
+    expect(wrapper.text()).toContain("ready: “Clear the checkpoint” is completed");
     const chooseButton = wrapper.findAll("button").find((button) => button.text() === "Choose");
     expect(chooseButton?.attributes("disabled")).toBeUndefined();
   });

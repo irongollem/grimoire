@@ -33,7 +33,7 @@
               <EntityCombobox
                 :model-value="editEventData.combatant_def_id"
                 :options="monsterCombatantOptions"
-                placeholder="— select combatant —"
+                placeholder="Select combatant"
                 @update:model-value="editEventData.combatant_def_id = $event"
               />
               <div v-if="editEventData.triggerType === 'combatant_hp_pct'" class="flex items-center gap-2">
@@ -52,13 +52,13 @@
               <EntityCombobox
                 :model-value="editEventData.spawnMonster"
                 :options="props.pickableMonsters"
-                placeholder="— select monster —"
+                placeholder="Select monster"
                 @update:model-value="editEventData.spawnMonster = $event"
               />
               <div class="flex items-center gap-2">
                 <div class="flex items-center gap-1">
                   <AppButton variant="subtle" size="icon-xs" surface="card" :icon="IconMinus" @click="editEventData.spawnCount = Math.max(1, editEventData.spawnCount - 1)" />
-                  <span class="font-cinzel text-sm font-bold w-6 text-center">{{ editEventData.spawnCount }}</span>
+                  <span class="text-heading-sm font-bold w-6 text-center">{{ editEventData.spawnCount }}</span>
                   <AppButton variant="subtle" size="icon-xs" surface="card" :icon="IconAdd" @click="editEventData.spawnCount = Math.min(20, editEventData.spawnCount + 1)" />
                 </div>
                 <EntityCombobox
@@ -134,7 +134,7 @@
             <EntityCombobox
               :model-value="newEvent.combatant_def_id"
               :options="monsterCombatantOptions"
-              placeholder="— select combatant —"
+              placeholder="Select combatant"
               @update:model-value="newEvent.combatant_def_id = $event"
             />
             <div v-if="newEvent.triggerType === 'combatant_hp_pct'" class="flex items-center gap-2">
@@ -153,13 +153,13 @@
             <EntityCombobox
               :model-value="newEvent.spawnMonster"
               :options="props.pickableMonsters"
-              placeholder="— select monster —"
+              placeholder="Select monster"
               @update:model-value="newEvent.spawnMonster = $event"
             />
             <div class="flex items-center gap-2">
               <div class="flex items-center gap-1">
                 <AppButton variant="subtle" size="icon-xs" surface="card" :icon="IconMinus" @click="newEvent.spawnCount = Math.max(1, newEvent.spawnCount - 1)" />
-                <span class="font-cinzel text-sm font-bold w-6 text-center">{{ newEvent.spawnCount }}</span>
+                <span class="text-heading-sm font-bold w-6 text-center">{{ newEvent.spawnCount }}</span>
                 <AppButton variant="subtle" size="icon-xs" surface="card" :icon="IconAdd" @click="newEvent.spawnCount = Math.min(20, newEvent.spawnCount + 1)" />
               </div>
               <EntityCombobox

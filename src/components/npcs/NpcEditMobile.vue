@@ -200,7 +200,7 @@
                 class="field-input"
                 @change="emit('apply-template', ($event.target as HTMLSelectElement).value)"
               >
-                <option value="">— Custom / blank —</option>
+                <option value="">Custom / blank</option>
                 <optgroup v-for="cat in templateCategories" :key="cat" :label="cat">
                   <option v-for="t in templatesByCategory(cat)" :key="t.id" :value="t.id">
                     {{ t.name }} (CR {{ t.stat_block.challenge_rating }})

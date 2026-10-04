@@ -9,7 +9,7 @@
     :class="isTrimmed
       ? 'flex items-center gap-1 px-1.5 py-0.5 font-cinzel tracking-wide text-gold-400 bg-gold-500/10 border border-gold-500/20 hover:bg-gold-500/20'
       : 'italic text-muted-foreground/40 [@media(hover:hover)]:text-muted-foreground/0 [@media(hover:hover)]:group-hover:text-muted-foreground/40 hover:text-muted-foreground!'"
-    :title="isTrimmed ? `Trim ${committedLabel} — click to adjust` : 'Correct this sound\'s loudness'"
+    :title="isTrimmed ? `Trim ${committedLabel}. Click to adjust` : 'Correct this sound\'s loudness'"
     @click="startEdit"
   >{{ isTrimmed ? `Trim ${committedLabel}` : 'Trim…' }}</button>
 

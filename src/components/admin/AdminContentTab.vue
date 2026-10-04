@@ -30,7 +30,7 @@
     <!-- Placeholder Art Focal Points -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-4">
       <div>
-        <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Placeholder Art</h2>
+        <h2 class="text-heading-sm font-semibold text-foreground">Placeholder Art</h2>
         <p class="text-caption text-muted-foreground italic mt-0.5">
           Click anywhere on a placeholder image to set where the focus point should be. This corrects
           cases where smartcrop picks the wrong area (e.g. torso instead of face).

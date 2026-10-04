@@ -19,19 +19,19 @@ describe("parseEncounterAiResult", () => {
 
   it("throws when combatants is missing", () => {
     expect(() => parseEncounterAiResult({ name: "Ambush", difficulty: "medium" })).toThrow(
-      "AI returned malformed encounter data — please try again.",
+      "AI returned malformed encounter data. Please try again.",
     );
   });
 
   it("throws when combatants is not an array", () => {
     expect(() =>
       parseEncounterAiResult({ name: "Ambush", combatants: "not-an-array" }),
-    ).toThrow("AI returned malformed encounter data — please try again.");
+    ).toThrow("AI returned malformed encounter data. Please try again.");
   });
 
   it("throws when combatants is an empty array", () => {
     expect(() => parseEncounterAiResult({ name: "Ambush", combatants: [] })).toThrow(
-      "AI returned malformed encounter data — please try again.",
+      "AI returned malformed encounter data. Please try again.",
     );
   });
 
@@ -65,7 +65,7 @@ describe("parseEncounterAiResult", () => {
         name: "Ambush",
         combatants: [{ count: 2 }, { name: "" }, "not-an-object"],
       }),
-    ).toThrow("AI returned malformed encounter data — please try again.");
+    ).toThrow("AI returned malformed encounter data. Please try again.");
   });
 
   it("falls back count to 1 when NaN or absent", () => {
@@ -111,13 +111,13 @@ describe("parseEncounterAiResult", () => {
 
   it("throws on non-object input", () => {
     expect(() => parseEncounterAiResult("just a string")).toThrow(
-      "AI returned malformed encounter data — please try again.",
+      "AI returned malformed encounter data. Please try again.",
     );
     expect(() => parseEncounterAiResult(null)).toThrow(
-      "AI returned malformed encounter data — please try again.",
+      "AI returned malformed encounter data. Please try again.",
     );
     expect(() => parseEncounterAiResult(42)).toThrow(
-      "AI returned malformed encounter data — please try again.",
+      "AI returned malformed encounter data. Please try again.",
     );
   });
 });

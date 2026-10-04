@@ -35,7 +35,7 @@
           placeholder="e.g. heroic action pose with sword raised, thicker staff, less clutter"
         />
         <p class="mt-1 text-caption-sm text-muted-foreground/70 italic">
-          Describe the pose or details the mini should have — it doesn't have to match the portrait.
+          Describe the pose or details the mini should have. It doesn't have to match the portrait.
         </p>
       </label>
 

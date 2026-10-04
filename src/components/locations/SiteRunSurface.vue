@@ -16,7 +16,7 @@
       <!-- Rooms — the plain click-to-move list, which is what makes a site
            runnable before any of it is traced. -->
       <section class="flex flex-col gap-3 @3xl:row-span-2 @6xl:row-span-1">
-        <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Rooms</h2>
+        <h2 class="text-heading-sm font-bold text-foreground">Rooms</h2>
         <SiteRoomList
           :site-id="location.id"
           :rooms="rooms"
@@ -84,7 +84,7 @@
           :campaign-id="campaign.activeCampaignId"
         />
         <p v-else class="rounded-xl border border-dashed border-border p-4 text-caption italic text-muted-foreground">
-          The party hasn't entered a room here yet — click one on the left to move them in.
+          The party hasn't entered a room here yet. Click one on the left to move them in.
         </p>
       </div>
 
@@ -103,7 +103,7 @@
         />
 
         <section v-if="currentRoom" class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
-          <h3 class="font-cinzel text-sm font-bold text-foreground">Progress</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">Progress</h3>
           <p class="text-caption text-muted-foreground">{{ currentRoom.name }}</p>
           <LocationStateControls :location-id="currentRoom.id" />
         </section>

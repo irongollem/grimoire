@@ -65,7 +65,7 @@ export function useLootGeneration() {
         localStorage.getItem(LOCAL_MODE_KEY) === "local";
       if (isLocalMode) {
         throw new Error(
-          "Loot generation needs the server so it can search your Vault — it isn't available in local-key mode. " +
+          "Loot generation needs the server so it can search your Vault. It isn't available in local-key mode. " +
           "Switch to platform credits or a campaign API key in Settings → AI.",
         );
       }
@@ -90,7 +90,7 @@ export function useLootGeneration() {
       // is no logUsage() here.
       const result = data as LootTableAiResult;
       if (!Array.isArray(result.entries) || result.entries.length === 0) {
-        throw new Error("AI returned no loot entries — please try again.");
+        throw new Error("AI returned no loot entries. Please try again.");
       }
 
       _result.value = result;

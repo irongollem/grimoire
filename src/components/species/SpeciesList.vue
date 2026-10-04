@@ -34,7 +34,7 @@
       <template #action>
         <RouterLink
           to="/species/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-heading-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         >
           Add your first species
         </RouterLink>
@@ -100,7 +100,7 @@
           </div>
 
           <div class="p-3 flex flex-col gap-2 flex-1">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-1">
+            <h3 class="text-heading-xs font-bold text-foreground leading-tight line-clamp-1">
               {{ s.name }}
             </h3>
 

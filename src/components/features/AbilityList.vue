@@ -32,7 +32,7 @@
     >
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
-          <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ feat.name }}</p>
+          <p class="text-heading-xs font-semibold text-foreground truncate">{{ feat.name }}</p>
           <span class="shrink-0 rounded px-1.5 py-0.5 text-eyebrow bg-muted text-muted-foreground">
             {{ FEATURE_TYPE_LABELS[feat.feature_type] }}
           </span>

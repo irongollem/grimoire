@@ -7,7 +7,7 @@
       <div class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1">
         <span class="text-eyebrow font-semibold text-muted-foreground">How it works</span>
         <ol class="text-caption text-muted-foreground list-decimal list-inside space-y-0.5 leading-relaxed">
-          <li>The table is rolled now — the <strong class="text-foreground">preview</strong> below shows what drops.</li>
+          <li>The table is rolled now; the <strong class="text-foreground">preview</strong> below shows what drops.</li>
           <li><strong class="text-foreground">Claims</strong> sets how many times players can take an item before the chest closes.</li>
           <li>Players click items in the chat chest one at a time; each claim removes one slot.</li>
           <li>The chest closes when claims run out <em>or</em> all items are taken, whichever comes first.</li>
@@ -67,7 +67,7 @@
             <template v-else>· {{ atom.item_name }}</template>
           </li>
         </ul>
-        <p v-else class="text-caption text-muted-foreground italic">Nothing rolled — chest will be empty.</p>
+        <p v-else class="text-caption text-muted-foreground italic">Nothing rolled; the chest will be empty.</p>
       </div>
 
       <!-- Under-delivery warning: entries that hit but produced no loot -->
@@ -81,7 +81,7 @@
         </span>
         <ul class="flex flex-col gap-0.5">
           <li v-for="u in unresolved" :key="u.entry_id" class="text-caption text-muted-foreground">
-            {{ u.wanted }} — {{ unresolvedReasonLabel(u.reason) }}
+            {{ u.wanted }}: {{ unresolvedReasonLabel(u.reason) }}
           </li>
         </ul>
         <p class="text-caption-sm text-muted-foreground italic">

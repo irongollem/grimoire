@@ -25,7 +25,7 @@
           />
         </div>
         <div class="min-w-0 flex-1">
-          <p class="truncate font-cinzel text-sm font-semibold text-foreground">{{ member.name }}</p>
+          <p class="truncate text-heading-xs font-semibold text-foreground">{{ member.name }}</p>
           <p v-if="member.isDead" class="text-caption font-bold uppercase tracking-wide text-destructive">Dead</p>
           <p v-else class="text-caption text-muted-foreground">Making death saves</p>
         </div>

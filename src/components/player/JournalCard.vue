@@ -9,7 +9,7 @@
       <component :is="icon" class="h-4 w-4 shrink-0 mt-0.5" :style="{ color }" />
       <div class="flex-1 min-w-0">
         <div class="flex items-baseline gap-2 flex-wrap">
-          <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ title }}</p>
+          <p class="text-heading-xs font-semibold text-foreground truncate">{{ title }}</p>
           <span class="text-label shrink-0" :style="{ color }">{{ categoryLabel }}</span>
         </div>
         <div v-if="preview" class="text-caption text-muted-foreground mt-0.5 line-clamp-1">{{ preview }}</div>

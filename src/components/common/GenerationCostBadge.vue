@@ -57,7 +57,7 @@ const balanceLabel = computed(() => `${Math.round(((balance.value ?? 0) as numbe
 const affordable = computed(() => canAfford(rounded.value, byok));
 const title = computed(() =>
   byok
-    ? "Using your own API key — no credits are charged"
+    ? "Using your own API key; no credits are charged"
     : `This render costs ${creditLabel.value}. Balance: ${balanceLabel.value}.`,
 );
 </script>

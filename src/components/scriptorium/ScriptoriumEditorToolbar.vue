@@ -191,7 +191,7 @@
         <AppButton
           variant="ghost"
           size="icon-xs"
-          tooltip="Wrap left — text flows around right edge"
+          tooltip="Wrap left: text flows around right edge"
           :active="editor.getAttributes('image').layoutMode === 'wrapLeft'"
           @click="editor.chain().focus().updateAttributes('image', { layoutMode: 'wrapLeft' }).run()"
         >
@@ -200,7 +200,7 @@
         <AppButton
           variant="ghost"
           size="icon-xs"
-          tooltip="Wrap right — text flows around left edge"
+          tooltip="Wrap right: text flows around left edge"
           :active="editor.getAttributes('image').layoutMode === 'wrapRight'"
           :icon="IconWrapText"
           @click="editor.chain().focus().updateAttributes('image', { layoutMode: 'wrapRight' }).run()"
@@ -208,7 +208,7 @@
         <AppButton
           variant="ghost"
           size="icon-xs"
-          tooltip="Absolute position — pin image at exact page coordinates"
+          tooltip="Absolute position: pin image at exact page coordinates"
           :active="editor.getAttributes('image').layoutMode === 'absolute'"
           :icon="IconPin"
           @click="editor.chain().focus().updateAttributes('image', { layoutMode: 'absolute', posTop: '60', posLeft: '40', posRight: null, posBottom: null }).run()"

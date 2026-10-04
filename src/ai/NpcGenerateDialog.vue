@@ -40,7 +40,7 @@
           class="gap-2.5"
         />
         <p v-if="generateAlterEgo" class="text-caption text-ink-caution italic">
-          ⚠ Uses 2× generation credits — a true-form portrait is generated first, then used as seed for the disguise portrait.
+          ⚠ Uses 2× generation credits: a true-form portrait is generated first, then used as seed for the disguise portrait.
         </p>
         <p v-else class="text-caption text-muted-foreground italic">
           Also generate a disguised identity (name + portrait) for this NPC.

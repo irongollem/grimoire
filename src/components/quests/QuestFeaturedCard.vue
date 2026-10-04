@@ -5,7 +5,7 @@
         <div class="flex flex-wrap items-center gap-2">
           <RouterLink
             :to="`/quests/${quest.id}`"
-            class="font-cinzel text-lg font-bold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded-sm"
+            class="text-heading font-bold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded-sm"
           >
             {{ quest.title || "Untitled Quest" }}
           </RouterLink>
@@ -22,15 +22,15 @@
       <dl class="grid shrink-0 grid-cols-2 gap-x-5 gap-y-1 text-right sm:grid-cols-1">
         <div>
           <dt class="text-label uppercase tracking-wide text-muted-foreground">Beats</dt>
-          <dd class="font-cinzel text-base font-bold text-foreground">{{ visitedBeatCount }} / {{ summary.beatSegments.length }}</dd>
+          <dd class="text-heading-sm font-bold text-foreground">{{ visitedBeatCount }} / {{ summary.beatSegments.length }}</dd>
         </div>
         <div>
           <dt class="text-label uppercase tracking-wide text-muted-foreground">Threads</dt>
-          <dd class="font-cinzel text-base font-bold text-foreground">{{ summary.liveThreadCount }} live</dd>
+          <dd class="text-heading-sm font-bold text-foreground">{{ summary.liveThreadCount }} live</dd>
         </div>
         <div v-if="summary.objectivesTotal > 0">
           <dt class="text-label uppercase tracking-wide text-muted-foreground">Objectives</dt>
-          <dd class="font-cinzel text-base font-bold text-foreground">{{ summary.objectivesDone }} / {{ summary.objectivesTotal }}</dd>
+          <dd class="text-heading-sm font-bold text-foreground">{{ summary.objectivesDone }} / {{ summary.objectivesTotal }}</dd>
         </div>
       </dl>
     </div>

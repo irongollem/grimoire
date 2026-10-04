@@ -45,7 +45,7 @@ const store = useEncounterRunStore();
 }
 
 .init-input {
-  @apply w-10 text-center bg-muted border border-border rounded px-1 py-0.5 font-cinzel text-sm font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply w-10 text-center bg-muted border border-border rounded px-1 py-0.5 text-heading-sm font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 
 .init-roll-btn {

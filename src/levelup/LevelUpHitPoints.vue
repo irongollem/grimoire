@@ -98,6 +98,6 @@ const emit = defineEmits<{
 const hpModeOptions: SegmentedOption<"average" | "roll" | "max">[] = [
   { value: "average", label: "Average" },
   { value: "roll", label: "Roll" },
-  { value: "max", label: "Max", tooltip: "House rule — take the hit die's maximum." },
+  { value: "max", label: "Max", tooltip: "House rule: take the hit die's maximum." },
 ];
 </script>

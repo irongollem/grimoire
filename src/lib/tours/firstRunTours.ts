@@ -61,7 +61,7 @@ const DM_TOUR_STEPS: readonly TourStepDef[] = [
     // data-tour attribute, since AppSidebar.vue belongs to a sibling agent.
     selector: "aside nav",
     title: "Chart Your Course",
-    description: "Everything else — NPCs, encounters, notes, and more — lives in this navigation.",
+    description: "Everything else (NPCs, encounters, notes, and more) lives in this navigation.",
   },
   {
     // The account-menu *trigger*, not the ModeToggle inside the popover — the
@@ -69,7 +69,7 @@ const DM_TOUR_STEPS: readonly TourStepDef[] = [
     // out and the step silently dropped.
     selector: '[data-tour="account-menu"]',
     title: "Wearing Two Hats",
-    description: "Click your name to switch between DM and Player mode — run one table, adventure at another.",
+    description: "Click your name to switch between DM and Player mode: run one table, adventure at another.",
   },
 ];
 
@@ -100,7 +100,7 @@ const PLAYER_TOUR_STEPS: readonly TourStepDef[] = [
     // inside the closed menu.
     selector: '[data-tour="account-menu"]',
     title: "Switch Hats",
-    description: "This menu holds the DM/Player switch — become a Dungeon Master any time without losing your place here.",
+    description: "This menu holds the DM/Player switch: become a Dungeon Master any time without losing your place here.",
   },
 ];
 

@@ -51,7 +51,7 @@
           @change="onCalendarChange"
         >
           <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
-          <option value="custom">— Custom calendar…</option>
+          <option value="custom">Custom calendar…</option>
         </AppSelect>
       </div>
       <div>
@@ -176,7 +176,7 @@
         <div class="flex-1 min-w-0">
           <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Show VTT tokens to players</span>
           <p class="text-caption text-muted-foreground mt-0.5">
-            When off, the player battle map shows only the map and fog of war — no character or monster tokens. Use for in-person sessions where combat happens with physical minis or theater of the mind. The DM's view is unaffected.
+            When off, the player battle map shows only the map and fog of war; no character or monster tokens. Use for in-person sessions where combat happens with physical minis or theater of the mind. The DM's view is unaffected.
           </p>
         </div>
       </label>

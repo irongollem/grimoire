@@ -77,7 +77,7 @@
 
           <!-- Info -->
           <div class="p-2.5 flex flex-col gap-0.5">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ feature.name }}</h3>
+            <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">{{ feature.name }}</h3>
             <div class="flex items-center gap-2">
               <span v-if="feature.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">
                 {{ feature.trigger_type }}

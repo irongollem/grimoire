@@ -36,7 +36,7 @@
         </div>
 
         <div class="flex flex-col gap-1 p-3 border-t border-border">
-          <span class="font-cinzel text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+          <span class="text-heading-sm font-bold text-foreground group-hover:text-primary transition-colors">
             {{ t.name }}
           </span>
           <span class="text-caption text-muted-foreground leading-snug">
@@ -49,7 +49,7 @@
       <TemplateGalleryActionCard
         :icon="IconUpload"
         title="Import Markdown"
-        blurb="Bring an existing .md document: chapters, notes, or a Homebrewery brew — into a styled book."
+        blurb="Bring an existing .md document (chapters, notes, or a Homebrewery brew) into a styled book."
         @click="fileInput?.click()"
       />
       <!-- Draft a handout, dossier or recap from the campaign's own data (epic #910) -->

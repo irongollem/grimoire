@@ -30,7 +30,7 @@
       <div class="rounded-md bg-muted p-2.5">
         <div class="flex items-center justify-between mb-1">
           <span class="text-label text-muted-foreground">HP</span>
-          <span class="font-cinzel text-sm font-bold" :class="hpColor">
+          <span class="text-heading-sm font-bold" :class="hpColor">
             {{ companion.current_hp }} / {{ companion.max_hp }}
           </span>
         </div>
@@ -78,7 +78,7 @@
         <IconShield class="h-4 w-4 text-muted-foreground shrink-0" />
         <div>
           <p class="text-eyebrow text-muted-foreground">AC</p>
-          <p class="font-cinzel text-sm font-bold text-foreground">{{ companion.ac }}</p>
+          <p class="text-heading-sm font-bold text-foreground">{{ companion.ac }}</p>
         </div>
       </div>
     </div>

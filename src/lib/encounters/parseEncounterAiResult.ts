@@ -2,7 +2,7 @@ import type { EncounterAiResult, EncounterCombatantAiResult } from "@/ai/types";
 
 const VALID_DIFFICULTIES = new Set(["easy", "medium", "hard", "deadly"]);
 
-const MALFORMED_MESSAGE = "AI returned malformed encounter data — please try again.";
+const MALFORMED_MESSAGE = "AI returned malformed encounter data. Please try again.";
 
 /** Coerces a raw field to a string, substituting `fallback` when it is absent
  *  or not a string. Never blindly `?? ""` — every call site below states why

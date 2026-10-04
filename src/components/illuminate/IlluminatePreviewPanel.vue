@@ -13,8 +13,8 @@
     >
       <IconImage class="h-10 w-10 text-muted-foreground/40" />
       <div class="text-center">
-        <p class="font-cinzel text-sm font-semibold text-foreground">Drop an image here</p>
-        <p class="text-body text-muted-foreground mt-0.5">or click to browse — PNG, JPG, WebP</p>
+        <p class="text-heading-sm font-semibold text-foreground">Drop an image here</p>
+        <p class="text-body text-muted-foreground mt-0.5">or click to browse (PNG, JPG, WebP)</p>
       </div>
     </div>
 

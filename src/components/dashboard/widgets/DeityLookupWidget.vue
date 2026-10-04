@@ -56,10 +56,10 @@
                 {{ row.titles }}
               </p>
               <p v-if="row.alignment" class="text-caption text-muted-foreground">
-                <span class="font-semibold text-foreground">Alignment</span> — {{ row.alignment }}
+                <span class="font-semibold text-foreground">Alignment</span>: {{ row.alignment }}
               </p>
               <p v-if="row.symbol" class="text-caption text-muted-foreground">
-                <span class="font-semibold text-foreground">Symbol</span> — {{ row.symbol }}
+                <span class="font-semibold text-foreground">Symbol</span>: {{ row.symbol }}
               </p>
 
               <!-- Domains are a set of facts, not a status — nothing here is

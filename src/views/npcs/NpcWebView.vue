@@ -23,7 +23,7 @@
       </div>
       <div v-else-if="nodeCount === 0" class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground">
         <IconNetwork class="h-10 w-10 opacity-30" />
-        <p class="font-cinzel text-sm">No connections recorded yet.</p>
+        <p class="text-body">No connections recorded yet.</p>
         <p class="text-caption">Add NPC relationships from any NPC sheet to populate the web.</p>
       </div>
       <VNetworkGraph

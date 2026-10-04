@@ -14,11 +14,11 @@
         </div>
         <div class="row-content">
           <div class="shrink-0 w-8 text-center self-center">
-            <span class="font-cinzel text-sm font-bold text-muted-foreground">{{ combatant.initiative ?? "—" }}</span>
+            <span class="text-heading-sm font-bold text-muted-foreground">{{ combatant.initiative ?? "—" }}</span>
           </div>
           <div class="flex-1 min-w-0 self-center">
             <div class="flex items-center gap-2 overflow-hidden">
-              <span class="combatant-name font-cinzel text-sm font-semibold text-muted-foreground italic truncate">???</span>
+              <span class="combatant-name text-heading-xs font-semibold text-muted-foreground italic truncate">???</span>
               <span class="pc-npc-badge shrink-0 text-eyebrow px-1.5 py-0.5 rounded font-bold bg-muted text-muted-foreground">NPC</span>
             </div>
           </div>
@@ -48,14 +48,14 @@
         <div class="row-content">
           <div class="shrink-0 w-8 text-center self-center">
             <span
-              class="font-cinzel text-sm font-bold"
+              class="text-heading-sm font-bold"
               :class="isActive(combatant) ? 'text-primary' : 'text-muted-foreground'"
             >{{ combatant.initiative ?? "—" }}</span>
           </div>
 
           <div class="flex-1 min-w-0 self-center">
             <div class="flex items-center gap-2 overflow-hidden">
-              <span class="combatant-name font-cinzel text-sm font-semibold text-foreground truncate min-w-0">{{ combatant.name }}</span>
+              <span class="combatant-name text-heading-xs font-semibold text-foreground truncate min-w-0">{{ combatant.name }}</span>
               <span
                 class="pc-npc-badge shrink-0 text-label px-1.5 py-0.5 rounded font-bold"
                 :class="combatant.type === 'player' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
@@ -81,7 +81,7 @@
           <div class="shrink-0 text-right self-center pr-3">
             <template v-if="healthVis === 'strategic'">
               <template v-if="combatant.type === 'player'">
-                <span class="font-cinzel text-sm font-bold" :class="hpColor(combatant)">{{ displayHp(combatant) }}</span>
+                <span class="text-heading-sm font-bold" :class="hpColor(combatant)">{{ displayHp(combatant) }}</span>
                 <span class="text-caption text-muted-foreground">/{{ displayMaxHp(combatant) }}</span>
                 <span v-if="displayTempHp(combatant) > 0" class="text-caption text-ink-info ml-1">+{{ displayTempHp(combatant) }}</span>
               </template>

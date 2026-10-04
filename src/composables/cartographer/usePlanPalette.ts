@@ -324,7 +324,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
    *  paint stroke can start on a pen-traced region — confirmed once, same
    *  wording the Atlas uses. */
   async function confirmConvert(region: LocationMapRegion): Promise<boolean> {
-    const ok = await confirm("Painting converts this pen-traced shape to cells — the diagonal edges are lost. Continue?", { danger: true });
+    const ok = await confirm("Painting converts this pen-traced shape to cells. The diagonal edges are lost. Continue?", { danger: true });
     if (!ok) return false;
     const before = { vertices: region.vertices, cells: region.cells };
     const after = { vertices: null, cells: region.cells };

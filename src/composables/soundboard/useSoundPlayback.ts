@@ -52,7 +52,7 @@ export function useBlockedCheck(): (sound: Sound) => string | null {
     // Safari refuses WebM audio outright, so the file is not merely slow — it
     // will never play, and offering the button is a lie.
     const path = (sound.storage_path ?? sound.file_url).split("?")[0];
-    if (path.endsWith(".webm") && IS_SAFARI) return "WebM — cannot play in Safari";
+    if (path.endsWith(".webm") && IS_SAFARI) return "WebM: cannot play in Safari";
     if (soundboardStore.getState(sound.id).loadError) return "Failed to load";
     return null;
   };

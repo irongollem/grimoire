@@ -22,7 +22,7 @@
     </div>
     <div class="h-14 px-3 flex items-center gap-2 overflow-hidden">
       <div class="flex-1 min-w-0">
-        <p class="font-cinzel text-sm font-bold text-foreground truncate leading-tight">{{ title }}</p>
+        <p class="text-heading-xs font-bold text-foreground truncate leading-tight">{{ title }}</p>
         <p v-if="subtitle" class="text-caption text-muted-foreground italic truncate mt-0.5">{{ subtitle }}</p>
         <p v-if="meta" class="text-label text-muted-foreground mt-0.5 truncate">{{ meta }}</p>
       </div>

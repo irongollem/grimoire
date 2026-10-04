@@ -22,7 +22,7 @@
             class="text-label-lg text-muted-foreground"
             >HP</span
           >
-          <span class="font-cinzel text-sm font-bold" :class="hpColor">
+          <span class="text-heading-sm font-bold" :class="hpColor">
             {{ previewHp }}
             <span
               class="text-caption text-muted-foreground font-normal"

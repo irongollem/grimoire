@@ -73,7 +73,7 @@ describe("QuestBeatAttachmentsPanel", () => {
     const wrapper = shallowMount(QuestBeatAttachmentsPanel, {
       props: { beat, attachments: [attachment({ id: "a-1", target_exists: false, compact_detail: null })] },
     });
-    expect(wrapper.get(".sr-only").text()).toBe("Required, missing — prep gap");
+    expect(wrapper.get(".sr-only").text()).toBe("Required, missing, prep gap");
     const buttons = wrapper.findAllComponents({ name: "AppButton" });
     expect(buttons.some((button) => button.props("label") === "Attach")).toBe(true);
     expect(buttons.some((button) => button.props("label") === "Edit")).toBe(false);
@@ -84,7 +84,7 @@ describe("QuestBeatAttachmentsPanel", () => {
       props: { beat, attachments: [attachment({ id: "a-1", is_required: false, compact_detail: null })] },
     });
     expect(wrapper.get(".sr-only").text()).toBe("Optional");
-    expect(wrapper.text()).toContain("Optional fallback — kept out of the prep-gap count");
+    expect(wrapper.text()).toContain("Optional fallback, kept out of the prep-gap count");
   });
 
   it("renders a check placement with its green mark, skill/DC label, and contested-by caption", () => {

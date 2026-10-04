@@ -137,7 +137,7 @@ async function toggleBan(user: AdminUser) {
 
 async function deleteUserAccount(user: AdminUser) {
   const ok = await confirm(
-    `Permanently delete ${user.email}? This deletes their auth account immediately: campaigns they own — and everything in them — are erased, and content they created in other campaigns is removed. Billing ledger rows are kept, anonymized, as legally required. This cannot be undone.`,
+    `Permanently delete ${user.email}? This deletes their auth account immediately: campaigns they own, and everything in them, are erased, and content they created in other campaigns is removed. Billing ledger rows are kept, anonymized, as legally required. This cannot be undone.`,
     { title: "Delete account", confirmLabel: "Delete permanently", danger: true },
   );
   if (!ok) return;

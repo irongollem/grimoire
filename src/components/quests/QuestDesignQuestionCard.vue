@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-2.5 rounded-lg border border-border bg-card p-4">
     <p v-if="aboutTitle" class="text-caption-sm text-muted-foreground/70">about {{ aboutTitle }}</p>
-    <h3 class="font-cinzel text-sm font-semibold text-foreground">{{ question.question }}</h3>
+    <h3 class="text-heading-sm font-semibold text-foreground">{{ question.question }}</h3>
     <p class="text-caption text-muted-foreground">{{ question.why }}</p>
 
     <div class="flex flex-wrap gap-2">

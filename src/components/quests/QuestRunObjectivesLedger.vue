@@ -1,7 +1,7 @@
 <template>
   <section class="space-y-2 rounded-xl border border-border bg-card p-3" aria-label="Objectives ledger">
     <div class="flex items-center justify-between gap-2">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Objectives</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Objectives</h3>
       <span v-if="objectives.length" class="text-caption text-muted-foreground">{{ doneCount }}/{{ objectives.length }}</span>
     </div>
     <ul v-if="objectives.length" class="flex flex-col gap-1">
@@ -69,7 +69,7 @@ const consequencesQuery = useQuestConsequences(computed(() => questId));
 function statusTooltip(objective: QuestObjective): string {
   const label = QUEST_OBJECTIVE_STATUS_LABELS[objective.status];
   const next = QUEST_OBJECTIVE_STATUS_LABELS[nextObjectiveStatus(objective.status)];
-  return `${label} — click for ${next.toLowerCase()}`;
+  return `${label}: click for ${next.toLowerCase()}`;
 }
 
 function captionFor(objective: QuestObjective): string {

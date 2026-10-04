@@ -189,7 +189,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   const volumeControlNote = computed(() =>
     volumeControlAvailable.value
       ? null
-      : "Direct output is on and this device reserves volume for its hardware controls — use the car or device dial.",
+      : "Direct output is on and this device reserves volume for its hardware controls. Use the car or device dial.",
   );
 
   /**

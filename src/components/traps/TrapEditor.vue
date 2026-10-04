@@ -194,7 +194,7 @@
                   @click="form.damage_entries.splice(i, 1)"
                 />
               </div>
-              <p v-if="!form.damage_entries.length" class="text-caption text-muted-foreground italic">No damage — add a component above.</p>
+              <p v-if="!form.damage_entries.length" class="text-caption text-muted-foreground italic">No damage. Add a component above.</p>
             </div>
           </div>
         </div>

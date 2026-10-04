@@ -107,7 +107,7 @@ export function validateTotalUploadBytes(byteSize: number): UploadValidationResu
     return {
       ok: false,
       reason: "too_large",
-      message: `The combined upload is ${(byteSize / 1024 / 1024).toFixed(1)} MB — the limit is ${MAX_IMPORT_BYTES / (1024 * 1024)} MB per import.`,
+      message: `The combined upload is ${(byteSize / 1024 / 1024).toFixed(1)} MB. The limit is ${MAX_IMPORT_BYTES / (1024 * 1024)} MB per import.`,
     };
   }
   return { ok: true };
@@ -150,7 +150,7 @@ function checkPageCap(pageCount: number, isPro: boolean): UploadValidationResult
       reason: "too_many_pages",
       message: isPro
         ? `That document has ${pageCount} pages. The limit is ${limit} pages per import.`
-        : `That document has ${pageCount} pages. Free accounts are limited to ${limit} pages per import — upgrade to Pro for up to ${PRO_PAGE_LIMIT}.`,
+        : `That document has ${pageCount} pages. Free accounts are limited to ${limit} pages per import. Upgrade to Pro for up to ${PRO_PAGE_LIMIT}.`,
     };
   }
   return { ok: true };

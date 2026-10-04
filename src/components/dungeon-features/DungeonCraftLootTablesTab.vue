@@ -8,7 +8,7 @@
     no-match-text="No loot tables match your filter."
     empty-icon="Coins"
     empty-title="No loot tables yet"
-    empty-description="Build your first hoard — add Vault items with their own drop chances and quantities."
+    empty-description="Build your first hoard: add Vault items with their own drop chances and quantities."
     empty-action-label="New Loot Table"
     table="loot_tables"
     :ids="lootTableFilteredIds"
@@ -46,7 +46,7 @@
           class="flex flex-col rounded-lg border border-border bg-card p-3 hover:border-primary/50 transition-colors"
         >
           <div class="flex items-start justify-between gap-2 mb-1">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
+            <h3 class="text-heading-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
             <span v-if="t.cr_tier !== 'any'" class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0">{{ LOOT_CR_TIER_LABELS[t.cr_tier] }}</span>
           </div>
           <p v-if="t.description" class="text-caption text-muted-foreground italic line-clamp-2">{{ t.description }}</p>

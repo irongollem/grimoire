@@ -182,7 +182,7 @@ async function rollAttack(attack: CustomAttack, override: RollMode | null = null
   // sources cancel to normal (5e RAW), same as PlayerCombatTab's rollAttackWith.
   const mode: RollMode = combineModes(override ?? "normal", attackDisadvantage ? "disadvantage" : "normal");
   const totalMod = attack.attack_bonus + attackPenalty;
-  const label = `${attack.name} — Attack` + modeTag(mode);
+  const label = `${attack.name} · Attack` + modeTag(mode);
   const result = await promptRoll({ counts: { 20: 1 }, modifier: totalMod, label, mode });
   if (!result) return;
   const kept = result.breakdown.find((d) => !d.dropped)!;
@@ -193,7 +193,7 @@ async function rollAttack(attack: CustomAttack, override: RollMode | null = null
 async function rollDamage(attack: CustomAttack) {
   const parsed = customAttackDamageExpression(attack);
   if (!parsed) return;
-  const label = attack.damage_type ? `${attack.name} — Damage (${attack.damage_type})` : `${attack.name} — Damage`;
+  const label = attack.damage_type ? `${attack.name} · Damage (${attack.damage_type})` : `${attack.name} · Damage`;
   const counts = parsedToCounts(parsed.terms);
   if (Object.keys(counts).length === 0) {
     // Flat expression (e.g. "4") — no physical-dice prompt needed.

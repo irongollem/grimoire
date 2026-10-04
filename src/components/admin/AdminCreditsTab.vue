@@ -9,7 +9,7 @@
     <!-- ── User lookup ──────────────────────────────────────────────────────── -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-4">
       <div>
-        <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">User Lookup</h2>
+        <h2 class="text-heading-sm font-semibold text-foreground">User Lookup</h2>
         <p class="text-caption text-muted-foreground italic mt-0.5">
           Search a user to see their name, credit balance, and ledger. Other users stay hidden.
         </p>
@@ -43,7 +43,7 @@
             </p>
           </div>
           <span
-            class="font-cinzel text-sm font-bold tracking-wide shrink-0"
+            class="text-heading-sm font-bold shrink-0"
             :class="ledger.balance.value > 0 ? 'text-ink-caution' : 'text-muted-foreground'"
           >
             {{ ledger.balance.value }} credits
@@ -88,15 +88,15 @@
         <!-- Ledger summary -->
         <div class="grid grid-cols-3 gap-2">
           <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
-            <p class="font-cinzel text-sm font-bold text-foreground">{{ ledger.generationCount.value }}</p>
+            <p class="text-heading-sm font-bold text-foreground">{{ ledger.generationCount.value }}</p>
             <p class="text-caption text-muted-foreground italic">Generations</p>
           </div>
           <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
-            <p class="font-cinzel text-sm font-bold text-foreground">${{ ledger.estimatedCostUsd.value.toFixed(2) }}</p>
+            <p class="text-heading-sm font-bold text-foreground">${{ ledger.estimatedCostUsd.value.toFixed(2) }}</p>
             <p class="text-caption text-muted-foreground italic">Est. cost (USD)</p>
           </div>
           <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
-            <p class="font-cinzel text-sm font-bold text-foreground">+{{ ledger.granted.value }} / −{{ ledger.spent.value }}</p>
+            <p class="text-heading-sm font-bold text-foreground">+{{ ledger.granted.value }} / −{{ ledger.spent.value }}</p>
             <p class="text-caption text-muted-foreground italic">Granted / Spent</p>
           </div>
         </div>

@@ -1,12 +1,12 @@
 <template>
   <EmptyState
     title="The ritual fizzles"
-    description="The simulacrum collapses into mist — the binding sigils are not yet inscribed. The ritual to bind a true simulacrum is still being researched."
+    description="The simulacrum collapses into mist; the binding sigils are not yet inscribed. The ritual to bind a true simulacrum is still being researched."
   >
     <template #icon><VitruvianIcon class="text-6xl" label="Simulacrum" /></template>
     <template #action>
       <p v-if="interestQuery.data.value" class="text-body text-primary">
-        Your sigil is inscribed — you will be told when the ritual is ready.
+        Your sigil is inscribed. You will be told when the ritual is ready.
       </p>
       <button
         v-else

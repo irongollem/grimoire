@@ -76,7 +76,7 @@
         size="body"
         @update:model-value="(v) => patch({ ac: Number(v) })"
       />
-      <span class="text-caption text-muted-foreground italic">Without shield — an equipped shield adds its bonus automatically.</span>
+      <span class="text-caption text-muted-foreground italic">Without shield, an equipped shield adds its bonus automatically.</span>
     </label>
     <label class="block">
       <span class="field-label">Speed (ft)</span>
@@ -108,7 +108,7 @@
         type="text"
         tone="filled"
         size="body"
-        placeholder="*2, +30, 150 — blank = STR×15"
+        placeholder="*2, +30, 150 (blank = STR×15)"
         @update:model-value="(v) => patch({ carry_capacity_override: v || null })"
       />
     </label>

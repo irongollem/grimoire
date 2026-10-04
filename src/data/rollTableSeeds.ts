@@ -19,7 +19,7 @@ type Seed = Omit<RollTableInsert, "campaign_id" | "notes"> & { notes?: string | 
 
 export const ROLL_TABLE_SEEDS: Seed[] = [
   {
-    name: "Dungeon Level 1–2 — Wandering",
+    name: "Dungeon Level 1–2: Wandering",
     description: "Low-level dungeon patrols and scavengers. Roll once per hour the party lingers.",
     dice: "1d8",
     entries: [
@@ -28,7 +28,7 @@ export const ROLL_TABLE_SEEDS: Seed[] = [
       entry(4, 4, "1d4 Giant Centipedes", "Climbing the ceiling, drop on first failed Stealth."),
       entry(5, 5, "Goblin scouting party (1d4 + 1)", "One carries a lantern."),
       entry(6, 6, "Lone wandering Stirge", "Hungry. Surprises on a 1–3."),
-      entry(7, 7, "Distant howl, cold draft", "No combat — but morale check next encounter."),
+      entry(7, 7, "Distant howl, cold draft", "No combat, but morale check next encounter."),
       entry(8, 8, "Shrieker patch ahead", "Triggers if party moves in light."),
     ],
     tags: ["dungeon", "low-level"],
@@ -36,7 +36,7 @@ export const ROLL_TABLE_SEEDS: Seed[] = [
   },
 
   {
-    name: "Forest Road — Daytime",
+    name: "Forest Road: Daytime",
     description: "Travel encounter for a well-trodden forest road. Roll on each watch.",
     dice: "1d12",
     entries: [
@@ -71,7 +71,7 @@ export const ROLL_TABLE_SEEDS: Seed[] = [
       entry(16, 17, "Drow patrol (1d4 + 2)", "Prefer ambush."),
       entry(18, 18, "Otyugh", "Wallowing in a refuse pit."),
       entry(19, 19, "Stone Giant lost from above", "Confused, will trade for directions."),
-      entry(20, 20, "Echoes only", "No encounter — but DC 14 Wisdom (Insight) reveals being watched."),
+      entry(20, 20, "Echoes only", "No encounter, but DC 14 Wisdom (Insight) reveals being watched."),
     ],
     tags: ["underdark", "high-level"],
     notes: "Check: every 4 hours of travel in deep tunnels.",
@@ -86,7 +86,7 @@ export const ROLL_TABLE_SEEDS: Seed[] = [
       entry(3,  4,  "Sahuagin scouting party (1d4)", "Climbing the cliff in the dark."),
       entry(5,  5,  "Wrecked ship sighting", "1d4 hours away. Loot or survivors."),
       entry(6,  6,  "Smuggler longboat", "Avoid eye contact."),
-      entry(7,  7,  "Storm front", "Cover or ride it out — Constitution save vs exhaustion."),
+      entry(7,  7,  "Storm front", "Cover or ride it out: Constitution save vs exhaustion."),
       entry(8,  8,  "Aarakocra patrol", "Curious, will trade simple words."),
       entry(9,  9,  "Hippogriff hunting", "Aggressive if mounts present."),
       entry(10, 10, "Bottle in the surf", "Sealed letter, hook for next session."),

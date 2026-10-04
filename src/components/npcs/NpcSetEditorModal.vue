@@ -9,7 +9,7 @@
           ref="nameInput"
           v-model="draft.name"
           class="modal-input"
-          placeholder="Session 12 — The Docks…"
+          placeholder="Session 12: The Docks…"
           @keydown.enter.prevent="canSave && save()"
         />
       </label>

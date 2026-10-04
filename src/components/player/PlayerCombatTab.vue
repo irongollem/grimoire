@@ -21,7 +21,7 @@
           </p>
           <p class="text-caption text-muted-foreground leading-snug">
             {{ isHidden
-              ? "You are unseen — attacking or making noise reveals you."
+              ? "You are unseen · attacking or making noise reveals you."
               : "Roll Dexterity (Stealth) to slip out of sight." }}
           </p>
         </div>
@@ -142,7 +142,7 @@
               fill="muted"
               size="sm"
               class="group"
-              :tooltip="`Throw ${inv.name} — lands on the ground, recoverable from chat`"
+              :tooltip="`Throw ${inv.name} · lands on the ground, recoverable from chat`"
               v-roll-mode="(mode: RollMode | null) => rollThrowAttack(inv, item, mode)"
             >
               <IconSend class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -354,7 +354,7 @@ async function takeHideAction(override: RollMode | null = null) {
       props.checkDisadvantage ? "disadvantage" : "normal",
     );
     const modifier = stealthBonus.value + props.checkPenalty;
-    const label = "Hide — Dexterity (Stealth)" + modeTag(mode);
+    const label = "Hide · Dexterity (Stealth)" + modeTag(mode);
     const result = await promptRoll({ counts: { 20: 1 }, modifier, label, mode });
     if (!result) return; // physical-dice prompt cancelled — don't mark hidden
     const kept = result.breakdown.find((d) => !d.dropped)!;
@@ -521,7 +521,7 @@ async function rollAttackWith(mod: number, baseLabel: string, override: RollMode
     props.attackDisadvantage ? "disadvantage" : "normal",
   );
   const totalMod = mod + props.attackPenalty;
-  const fullLabel = `${baseLabel} — Attack` + modeTag(mode);
+  const fullLabel = `${baseLabel} · Attack` + modeTag(mode);
   const result = await promptRoll({ counts: { 20: 1 }, modifier: totalMod, label: fullLabel, mode });
   if (!result) return false;
   const kept = result.breakdown.find(d => !d.dropped)!;
@@ -587,7 +587,7 @@ function rollImprovisedDamage() {
   return rollDamageLabelled(
     { terms: [{ count: 1, sides: 4 }], modifier: 0 },
     improvisedAttackMod.value,
-    "Improvised Weapon — Damage",
+    "Improvised Weapon · Damage",
   );
 }
 
@@ -597,7 +597,7 @@ function rollWeaponDamage(inv: PartyInventoryItem, item: Item | null) {
   const parsed = weaponDamageParsedExpression(item);
   if (!parsed) return;
   const typeLabel = libWeaponDamageType(item);
-  const label = `${inv.name} — Damage (${typeLabel})`;
+  const label = `${inv.name} · Damage (${typeLabel})`;
   return rollDamageLabelled(parsed, abilMod, label);
 }
 </script>

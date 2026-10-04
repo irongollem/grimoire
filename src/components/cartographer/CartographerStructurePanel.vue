@@ -7,7 +7,7 @@
         <AppButton variant="ghost" fill="muted" size="xs" label="Re-detect" @click="$emit('redetect')" />
       </div>
       <p class="text-caption-sm text-muted-foreground italic mb-2">
-        Detected by flood fill over the floor layer, cut at closed doors and solid blocks. A region here is a proposal until you publish — nothing on this panel writes to the Atlas.
+        Detected by flood fill over the floor layer, cut at closed doors and solid blocks. A region here is a proposal until you publish. Nothing on this panel writes to the Atlas.
       </p>
       <div v-if="spaceRows.length > 0" class="space-y-0.5">
         <AppButton
@@ -55,11 +55,11 @@
       </p>
       <dl class="space-y-1 text-caption-sm">
         <div>
-          <dt class="text-muted-foreground inline">Ways out — </dt>
+          <dt class="text-muted-foreground inline">Ways out: </dt>
           <dd class="inline text-foreground">{{ selectedSpaceInspector.waysSummary }}</dd>
         </div>
         <div v-for="link in selectedSpaceInspector.linked" :key="link">
-          <dt class="text-muted-foreground inline">Linked — </dt>
+          <dt class="text-muted-foreground inline">Linked: </dt>
           <dd class="inline text-foreground">{{ link }}</dd>
         </div>
       </dl>
@@ -80,7 +80,7 @@
         </li>
       </ul>
       <p class="text-caption-sm text-muted-foreground italic mt-1.5">
-        One drawing may serve several places — a reused gatehouse is one map published twice. The place owns the rooms and the state; the map owns the picture.
+        One drawing may serve several places: a reused gatehouse is one map published twice. The place owns the rooms and the state; the map owns the picture.
       </p>
     </div>
   </aside>
@@ -107,7 +107,7 @@ export interface SelectedSpaceInspector {
 const PROVENANCE_LABEL: Record<SpaceRow["provenance"], string> = {
   selected: "Selected",
   annotation: "From annotation",
-  unnamed: "Unnamed — annotate it or name it here",
+  unnamed: "Unnamed. Annotate it or name it here",
 };
 
 const props = defineProps<{

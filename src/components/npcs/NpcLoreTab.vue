@@ -6,7 +6,7 @@
         :model-value="appearance"
         placeholder="Physical description, clothing, distinguishing features…"
         size="md"
-        :ai-context="`NPC appearance — ${npcName || 'unnamed NPC'}`"
+        :ai-context="`NPC appearance: ${npcName || 'unnamed NPC'}`"
         :entity-mention-items="entityMentionItems"
         @update:model-value="emit('update:appearance', $event)"
       />
@@ -17,7 +17,7 @@
         :model-value="personality"
         placeholder="Traits, mannerisms, ideals, bonds, flaws…"
         size="md"
-        :ai-context="`NPC personality — ${npcName || 'unnamed NPC'}`"
+        :ai-context="`NPC personality: ${npcName || 'unnamed NPC'}`"
         :entity-mention-items="entityMentionItems"
         @update:model-value="emit('update:personality', $event)"
       />
@@ -28,7 +28,7 @@
         :model-value="backstory"
         placeholder="History, origin, formative events…"
         size="md"
-        :ai-context="`NPC backstory — ${npcName || 'unnamed NPC'}`"
+        :ai-context="`NPC backstory: ${npcName || 'unnamed NPC'}`"
         :entity-mention-items="entityMentionItems"
         @update:model-value="emit('update:backstory', $event)"
       />
@@ -39,7 +39,7 @@
         :model-value="notes"
         placeholder="Session notes, secrets, loose threads…"
         size="md"
-        :ai-context="`NPC notes — ${npcName || 'unnamed NPC'}`"
+        :ai-context="`NPC notes: ${npcName || 'unnamed NPC'}`"
         :entity-mention-items="entityMentionItems"
         @update:model-value="emit('update:notes', $event)"
       />

@@ -9,12 +9,12 @@
     <div class="shrink-0 px-5 pt-5 pb-3">
       <h2
         id="manual-roll-title"
-        class="font-cinzel text-sm font-bold text-foreground tracking-wide"
+        class="text-heading-sm font-bold text-foreground"
       >
         Enter your dice roll
       </h2>
       <p class="mt-1 text-body text-muted-foreground leading-snug">
-        {{ pending?.label }} — roll your physical dice and enter the result{{
+        {{ pending?.label }}: roll your physical dice and enter the result{{
           totalDice > 1 ? "s" : ""
         }}.
       </p>

@@ -9,16 +9,16 @@
         <RouterLink
           v-if="resolved?.feature"
           :to="`/features/${resolved.feature.id}`"
-          class="font-cinzel text-sm font-bold text-primary hover:underline"
+          class="text-heading-sm font-bold text-primary hover:underline"
         >{{ originFeat.name }}</RouterLink>
-        <p v-else class="font-cinzel text-sm font-bold text-foreground">{{ originFeat.name }}</p>
+        <p v-else class="text-heading-sm font-bold text-foreground">{{ originFeat.name }}</p>
         <span
           v-if="originFeat.variant"
           class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
         >{{ originFeat.variant }}</span>
       </div>
       <p v-if="!resolved?.feature" class="text-caption text-ink-caution  italic">
-        Not yet imported — import SRD feats from
+        Not yet imported. Import SRD feats from
         <RouterLink to="/codex/abilities" class="underline font-semibold">Codex → Abilities</RouterLink>
         to link this grant to its full text.
       </p>

@@ -19,7 +19,7 @@
         >
           <div class="flex items-start gap-1.5">
             <IconPin class="h-3 w-3 text-primary mt-0.5 shrink-0" />
-            <p class="font-cinzel text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+            <p class="text-heading-xs font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
               {{ note.title || "Untitled" }}
             </p>
           </div>

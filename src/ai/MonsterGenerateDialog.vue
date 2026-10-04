@@ -31,7 +31,7 @@
       <!-- Optional constraints -->
       <div class="flex flex-col gap-3">
         <p class="text-label-lg font-semibold text-muted-foreground">
-          CONSTRAINTS <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional — AI fills blanks)</span>
+          CONSTRAINTS <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional, AI fills blanks)</span>
         </p>
         <div class="grid grid-cols-3 gap-3">
           <label class="flex flex-col gap-1">

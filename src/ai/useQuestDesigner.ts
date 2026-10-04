@@ -68,7 +68,7 @@ export function useQuestDesigner() {
         return false;
       }
       if (!response) {
-        error.value = "The Quest Designer returned no result — please try again.";
+        error.value = "The Quest Designer returned no result. Please try again.";
         return false;
       }
 
@@ -95,7 +95,7 @@ export function useQuestDesigner() {
       return;
     }
     if (trimmed.length > QUEST_DESIGN_PROSE_LIMIT) {
-      error.value = `That's too long — keep it under ${QUEST_DESIGN_PROSE_LIMIT} characters.`;
+      error.value = `That's too long. Keep it under ${QUEST_DESIGN_PROSE_LIMIT} characters.`;
       return;
     }
     await sendTurn((campaignId) => ({

@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-4 space-y-4">
     <div>
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Demo campaign</h2>
+      <h2 class="text-heading-sm font-semibold text-foreground">Demo campaign</h2>
       <p class="text-caption text-muted-foreground italic mt-0.5">
         Controls whether new users are offered the published demo campaign.
       </p>

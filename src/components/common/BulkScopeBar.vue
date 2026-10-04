@@ -8,7 +8,7 @@
          shared library, which no campaign owns. Said out loud rather than
          leaving the DM to tick at cards that will not tick (#875). -->
     <span v-if="selectableCount === 0" class="text-caption text-muted-foreground">
-      Nothing here can be moved — these entries come from the shared library.
+      Nothing here can be moved: these entries come from the shared library.
     </span>
     <template v-else>
       <AppButton variant="ghost" size="sm" label="Select all shown" tooltip="Selects every row matching the current filters, not only what's painted on screen" @click="emit('select-all')" />
@@ -22,7 +22,7 @@
         size="sm"
         :label="campaignName ? `Move to ${campaignName}` : 'Move to campaign'"
         :disabled="!campaignName || busy || count === 0"
-        :tooltip="campaignName ? undefined : 'No active campaign — switch to one to move rows there'"
+        :tooltip="campaignName ? undefined : 'No active campaign. Switch to one to move rows there'"
         @click="onMoveToCampaign"
       />
       <AppButton
@@ -38,7 +38,7 @@
         variant="outline"
         size="sm"
         label="Copy to campaign…"
-        tooltip="Makes an independent copy somewhere else — the original stays where it is"
+        tooltip="Makes an independent copy somewhere else; the original stays where it is"
         :disabled="busy || count === 0"
         @click="emit('copy')"
       />

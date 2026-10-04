@@ -13,7 +13,7 @@
       />
     </div>
     <p v-else class="text-caption text-muted-foreground italic text-right">
-      Reference — read only
+      Reference: read only
     </p>
 
     <!-- Identity card: two-column layout -->
@@ -104,7 +104,7 @@
       </div>
       <div class="p-4 flex flex-col gap-5">
         <div v-for="sub in species.subraces" :key="sub.name">
-          <h3 class="font-cinzel text-sm font-bold text-foreground mb-1">{{ sub.name }}</h3>
+          <h3 class="text-heading-sm font-bold text-foreground mb-1">{{ sub.name }}</h3>
           <p v-if="asiToString(sub.ability_score_increases ?? null)" class="text-body text-muted-foreground mb-2">
             {{ asiToString(sub.ability_score_increases ?? null) }}
           </p>

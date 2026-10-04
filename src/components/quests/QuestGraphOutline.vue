@@ -1,7 +1,7 @@
 <template>
   <section class="space-y-2 rounded-lg border border-border bg-card p-3" aria-labelledby="quest-outline-heading">
     <header class="flex items-baseline gap-2">
-      <h3 id="quest-outline-heading" class="font-cinzel text-sm font-bold text-foreground">Outline</h3>
+      <h3 id="quest-outline-heading" class="text-heading-sm font-bold text-foreground">Outline</h3>
       <span class="ml-auto text-caption text-muted-foreground">keyboard-first list of the graph</span>
     </header>
     <ol>

@@ -76,7 +76,7 @@
             <span
               v-else
               class="font-cinzel text-2xs text-destructive whitespace-nowrap self-center"
-            >— no ammo</span>
+            >no ammo</span>
           </template>
         </div>
       </div>
@@ -108,7 +108,7 @@
           <span class="font-cinzel text-2xs text-muted-foreground whitespace-nowrap self-center">× {{ throwCountFor(atk.weaponInvId) }}</span>
         </div>
       </div>
-      <span class="detail-trait-desc">Thrown attack. The weapon lands on the ground — recoverable from chat.</span>
+      <span class="detail-trait-desc">Thrown attack. The weapon lands on the ground, recoverable from chat.</span>
     </div>
   </template>
 

@@ -5,7 +5,7 @@
     @close="showArtPicker = false"
   />
   <AppModal :open="show" size="md" panel-class="max-h-[90vh]" @close="$emit('close')">
-    <ModalHeader :title="`Edit Cover — ${variantLabel}`" closeable @close="$emit('close')" />
+    <ModalHeader :title="`Edit Cover: ${variantLabel}`" closeable @close="$emit('close')" />
 
     <!-- Fields -->
     <div class="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">

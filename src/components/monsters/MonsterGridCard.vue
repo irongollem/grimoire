@@ -15,7 +15,7 @@
   >
     <template #body>
       <div class="flex items-start justify-between gap-2">
-        <h3 class="line-clamp-1 flex-1 font-cinzel text-sm leading-tight font-bold text-foreground">
+        <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">
           {{ monster.name }}
         </h3>
         <div class="flex shrink-0 items-center gap-1">

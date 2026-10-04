@@ -91,7 +91,7 @@ export function validatePack(manifest: TilePackManifest): ValidationResult {
     // WebP-only enforcement on provided URLs.
     for (const slot of provided) {
       if (!slot.url.toLowerCase().endsWith(".webp")) {
-        warnings.push(`${cat}${slot.side ? `/${slot.side}` : ""}/${slot.variant}: non-WebP asset (${slot.url}) — pipeline is WebP-only`);
+        warnings.push(`${cat}${slot.side ? `/${slot.side}` : ""}/${slot.variant}: non-WebP asset (${slot.url}); pipeline is WebP-only`);
       }
     }
   }

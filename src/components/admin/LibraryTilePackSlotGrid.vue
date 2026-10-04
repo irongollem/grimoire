@@ -161,8 +161,8 @@ function tileUrl(entry: SlotCoverage): string {
 }
 
 function titleFor(entry: SlotCoverage): string {
-  const state = entry.drawn ? "drawn — upload to replace" : "empty";
-  return `${entry.id}${entry.required ? " (required)" : ""} — ${state}`;
+  const state = entry.drawn ? "drawn (upload to replace)" : "empty";
+  return `${entry.id}${entry.required ? " (required)" : ""} · ${state}`;
 }
 
 function pickFileFor(entry: SlotCoverage): void {
@@ -212,7 +212,7 @@ function regenerateTooltip(entry: SlotCoverage): string {
   const verb = entry.drawn ? "Regenerate" : "Generate";
   return rendered === entry.id
     ? `${verb} this tile`
-    : `${verb} ${rendered} — this tile is that one turned, so both are rewritten`;
+    : `${verb} ${rendered}: this tile is that one turned, so both are rewritten`;
 }
 
 /**
@@ -246,7 +246,7 @@ async function regenerate(entry: SlotCoverage): Promise<void> {
     await runUntilPause(run.run_id);
     toast.success(
       run.status === "proof_pending"
-        ? `${renderedSlotFor(entry)} regenerated — approve the style to keep it.`
+        ? `${renderedSlotFor(entry)} regenerated. Approve the style to keep it.`
         : `Regenerated ${renderedSlotFor(entry)}.`,
     );
   } catch (caught) {

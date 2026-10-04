@@ -121,7 +121,7 @@ describe("SiteMapRoomRules", () => {
 
     await comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "quest-2");
     await flushPromises();
-    expect(wrapper.text()).toContain("This quest has no objectives yet — add one on its overview first.");
+    expect(wrapper.text()).toContain("This quest has no objectives yet. Add one on its overview first.");
   });
 
   it("adds a ledger rule scoped to this room and refreshes the by-location cache", async () => {

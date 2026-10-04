@@ -164,7 +164,7 @@ async function resolveSelectedPhase() {
         const rolled = rollParsed({ ...parsed, modifier: parsed.modifier + abilityModifier });
         const total = Math.floor(rolled.total * effect.multiplier);
         const damageType = damageTypeOverride ?? effect.damageType;
-        const label = `${spell.name} — ${target}: ${effect.kind}${damageType ? ` (${damageType})` : ""}${effect.multiplier === 0.5 ? " · successful save, half" : ""}`;
+        const label = `${spell.name} · ${target}: ${effect.kind}${damageType ? ` (${damageType})` : ""}${effect.multiplier === 0.5 ? " · successful save, half" : ""}`;
         await sendRoll({ total, label, modifier: parsed.modifier + abilityModifier, breakdown: rolled.breakdown, isCrit: outcomes[targetId] === "critical_hit", isFumble: false, isDamage: effect.kind === "damage" }).catch((e) => reportChatFailure(e, "post the roll to the chat"));
       } else if (effect.condition || effect.description) {
         await sendFlavorMessage(`${target}: ${effect.condition ?? effect.description}`, spell.name).catch((e) => reportChatFailure(e, "post the effect to the chat"));

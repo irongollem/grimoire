@@ -40,7 +40,7 @@ const node = (fn: () => unknown): JSONContent => fn() as JSONContent;
 const blankBook: ScriptoriumTemplate = {
   id: "blank-book",
   name: "Blank Book",
-  description: "A cover and a table of contents — the bare bones of a bound volume, ready for anything.",
+  description: "A cover and a table of contents; the bare bones of a bound volume, ready for anything.",
   docType: "custom",
   settings: settings(),
   build: () =>
@@ -55,7 +55,7 @@ const blankBook: ScriptoriumTemplate = {
 const adventureModule: ScriptoriumTemplate = {
   id: "adventure-module",
   name: "Adventure Module",
-  description: "Front cover, credits, contents, and chapter scaffolding with read-aloud and DM callouts — a publishable adventure shell.",
+  description: "Front cover, credits, contents, and chapter scaffolding with read-aloud and DM callouts; a publishable adventure shell.",
   docType: "adventure",
   settings: settings({ footerText: "An Unofficial Adventure" }),
   build: () =>
@@ -85,7 +85,7 @@ const adventureModule: ScriptoriumTemplate = {
 const monsterCompendium: ScriptoriumTemplate = {
   id: "monster-compendium",
   name: "Monster Compendium",
-  description: "A bestiary shell — cover, contents, and a section layout ready for stat blocks dropped in via the Insert panel.",
+  description: "A bestiary shell: cover, contents, and a section layout ready for stat blocks dropped in via the Insert panel.",
   docType: "monster",
   settings: settings({ footerText: "Bestiary" }),
   build: () =>
@@ -93,19 +93,19 @@ const monsterCompendium: ScriptoriumTemplate = {
       ...cover(() => frontCoverTemplate({ title: "Tome of Beasts", subtitle: "A Bestiary of the North" })),
       toc(),
       h1("Introduction"),
-      p("Describe how to use this bestiary — challenge ratings, habitats, and any house rules for the creatures within."),
+      p("Describe how to use this bestiary: challenge ratings, habitats, and any house rules for the creatures within."),
       note(p(strong("Tip. "), text('Use the toolbar\'s Insert button to drop a monster\'s stat block straight from your campaign, or Block → Monster Stat Block for a blank one.'))),
       pageBreak(),
       h1("Monsters"),
       h2("Creatures of the Tundra"),
-      p("Group your creatures by habitat, type, or alphabetically — whatever suits the tome."),
+      p("Group your creatures by habitat, type, or alphabetically; whatever suits the tome."),
     ),
 };
 
 const spellCompendium: ScriptoriumTemplate = {
   id: "spell-compendium",
   name: "Spell Compendium",
-  description: "A grimoire shell with spells organised by level — example entry included.",
+  description: "A grimoire shell with spells organised by level, example entry included.",
   docType: "spell",
   settings: settings({ footerText: "Grimoire of Spells" }),
   build: () =>
@@ -132,7 +132,7 @@ const spellCompendium: ScriptoriumTemplate = {
 const subclassSupplement: ScriptoriumTemplate = {
   id: "subclass-supplement",
   name: "Subclass Supplement",
-  description: "A class options booklet — intro, a pre-built progression table, and feature scaffolding.",
+  description: "A class options booklet: intro, a pre-built progression table, and feature scaffolding.",
   docType: "subclass",
   settings: settings({ footerText: "Class Options" }),
   build: () =>
@@ -141,7 +141,7 @@ const subclassSupplement: ScriptoriumTemplate = {
       toc(),
       h1("The Frostwarden"),
       p(em("A subclass for the Ranger")),
-      p("Open with the flavour and fantasy of this subclass — who takes it, and why."),
+      p("Open with the flavour and fantasy of this subclass: who takes it, and why."),
       node(() => fullCasterTable()),
       h2("Subclass Features"),
       h3("Frostwarden Magic"),
@@ -156,7 +156,7 @@ const subclassSupplement: ScriptoriumTemplate = {
 const onePageDungeon: ScriptoriumTemplate = {
   id: "one-page-dungeon",
   name: "One-Page Dungeon",
-  description: "A single dense page — title, read-aloud intro, and keyed areas. No covers, no page numbers.",
+  description: "A single dense page: title, read-aloud intro, and keyed areas. No covers, no page numbers.",
   docType: "adventure",
   settings: settings({ showPageNumbers: false }),
   build: () =>
@@ -170,7 +170,7 @@ const onePageDungeon: ScriptoriumTemplate = {
       h3("2. The Flooded Hall"),
       p("Describe hazards, secrets, and any encounter."),
       h3("3. The Crypt Proper"),
-      p("The climax area — the prize and the price of taking it."),
+      p("The climax area; the prize and the price of taking it."),
       h2("Wandering Threats"),
       bullets("Roll a d6 each hour; on a 1, a threat appears.", "List 2–3 possible threats here."),
     ),

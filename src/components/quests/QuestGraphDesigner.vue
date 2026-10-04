@@ -2,7 +2,7 @@
   <section class="space-y-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-3 lg:space-y-0 lg:overflow-hidden" aria-label="Quest Build mode">
     <div class="flex shrink-0 flex-wrap items-center gap-2">
       <div>
-        <h2 class="font-cinzel text-base font-bold text-foreground">Story flow</h2>
+        <h2 class="text-heading-sm font-bold text-foreground">Story flow</h2>
         <p class="text-caption text-muted-foreground">Create, connect, label, and arrange narrative beats.</p>
         <p v-if="tallyTotal" class="mt-1 flex flex-wrap items-center gap-1" aria-label="Story flow progress">
           <span v-if="reachTally.visited" class="rounded bg-tone-success/15 px-1.5 py-0.5 text-label uppercase text-ink-success">{{ reachTally.visited }} visited</span>
@@ -35,7 +35,7 @@
     />
 
     <div v-if="pendingDeleteBeat" class="rounded-lg border border-destructive/40 bg-card p-3">
-      <h3 class="font-cinzel text-sm font-bold">Remove “{{ pendingDeleteBeat.title }}” from the flow?</h3>
+      <h3 class="text-heading-sm font-bold">Remove “{{ pendingDeleteBeat.title }}” from the flow?</h3>
       <p class="mt-1 text-caption text-muted-foreground">
         This detaches {{ deletionImpact.edgeCount }} route{{ deletionImpact.edgeCount === 1 ? '' : 's' }} and
         {{ deletionImpact.attachmentCount }} placement{{ deletionImpact.attachmentCount === 1 ? '' : 's' }}. Visit history remains; linked entities, encounters, chat, and inventory are not deleted.
@@ -470,7 +470,7 @@ function openParallelComposer() {
   const source = selectedBeatId.value;
   if (!source) { mutationError.value = "Select the beat this parallel route branches from first."; return; }
   const hasChoiceRoute = edges.value.some((edge) => edge.source_beat_id === source && edge.route_kind === "choice");
-  if (!hasChoiceRoute) { mutationError.value = "This beat has no choice route yet — add one before opening a parallel route, or its thread would have nowhere to send the cursor."; return; }
+  if (!hasChoiceRoute) { mutationError.value = "This beat has no choice route yet. Add one before opening a parallel route, or its thread would have nowhere to send the cursor."; return; }
   const sourceBeat = beats.value.find((beat) => beat.id === source);
   composerError.value = "";
   mutationError.value = "";
@@ -530,8 +530,8 @@ async function linkExisting(sourceBeatId: string, targetBeatId: string) {
 async function saveEdge() {
   if (!selectedEdge.value) return;
   if (edgeGateStatus.value && !edgeGateObjectiveId.value) { mutationError.value = "Choose which objective gates this route, or set it back to No gate."; return; }
-  if (edgeRouteKind.value === "parallel" && !edgeThreadLabel.value.trim()) { mutationError.value = "A parallel route needs a thread label — it is shown to the DM and on the player thread."; return; }
-  if (edgeRouteKind.value === "parallel" && !canSelectedEdgeBeParallel.value) { mutationError.value = "This beat has no other choice route — switching this one to parallel would leave its thread nowhere to go."; return; }
+  if (edgeRouteKind.value === "parallel" && !edgeThreadLabel.value.trim()) { mutationError.value = "A parallel route needs a thread label. It is shown to the DM and on the player thread."; return; }
+  if (edgeRouteKind.value === "parallel" && !canSelectedEdgeBeParallel.value) { mutationError.value = "This beat has no other choice route. Switching this one to parallel would leave its thread nowhere to go."; return; }
   const edge = selectedEdge.value;
   edgeSaving.value = true;
   try {

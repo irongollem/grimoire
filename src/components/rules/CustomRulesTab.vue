@@ -31,7 +31,7 @@
               class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
               :class="openBuiltIns.has(def.key) ? 'rotate-90' : ''"
             />
-            <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ def.name }}</span>
+            <span class="text-heading-sm font-bold text-foreground flex-1">{{ def.name }}</span>
           </button>
           <div v-if="openBuiltIns.has(def.key)" class="px-4 pb-4 pl-9.5">
             <p class="text-caption text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>
@@ -54,7 +54,7 @@
       <template #action>
         <RouterLink
           to="/rules/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-heading-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         >
           Write your first rule
         </RouterLink>
@@ -76,7 +76,7 @@
         class="group flex flex-col gap-2 rounded-lg border border-border bg-card p-4 hover:border-primary/50 transition-colors"
       >
         <div class="flex items-start justify-between gap-2">
-          <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1">
+          <h3 class="text-heading-xs font-bold text-foreground leading-tight line-clamp-2 flex-1">
             {{ rule.title }}
           </h3>
           <div class="flex items-center gap-1 shrink-0">

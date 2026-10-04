@@ -21,7 +21,7 @@
         <!-- Bundle info -->
         <div class="rounded-lg border border-border bg-muted/30 px-4 py-3 flex flex-col gap-1.5">
           <div class="flex items-center justify-between">
-            <span class="font-cinzel text-sm font-bold text-foreground">{{ bundle.name }}</span>
+            <span class="text-heading-sm font-bold text-foreground">{{ bundle.name }}</span>
             <span class="font-cinzel text-xs text-muted-foreground">{{ bundle.events.length }} events</span>
           </div>
           <p class="text-body text-muted-foreground">{{ bundle.description }}</p>
@@ -36,10 +36,10 @@
             </span>
           </div>
           <div v-else-if="result === 'success'" class="flex items-center gap-2 text-ink-success">
-            <span class="font-cinzel text-sm font-semibold">✓ {{ imported }} events imported</span>
+            <span class="text-heading-sm font-semibold">✓ {{ imported }} events imported</span>
           </div>
           <div v-else-if="result === 'error'" class="text-destructive">
-            <span class="font-cinzel text-sm font-semibold">Import failed — check console for details.</span>
+            <span class="text-heading-sm font-semibold">Import failed. Check console for details.</span>
           </div>
         </div>
 

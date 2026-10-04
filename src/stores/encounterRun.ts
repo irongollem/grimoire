@@ -498,7 +498,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         // continuing presence is DERIVED from `eventsFired`, not stored, so
         // there is no third piece of state to sync, persist or get out of step
         // with the fired list (see activeEnvironmentEffects).
-        pendingBroadcasts.value.push(`${action.label} — ${action.description}`);
+        pendingBroadcasts.value.push(`${action.label}: ${action.description}`);
       }
     }
   }

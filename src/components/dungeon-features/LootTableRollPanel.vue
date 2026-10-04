@@ -2,7 +2,7 @@
   <!-- ── Roll panel ────────────────────────────────────────────────────────── -->
   <div class="self-start">
     <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
-      <h3 class="font-cinzel text-sm font-bold tracking-wider text-foreground">Roll loot</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Roll loot</h3>
       <AppButton
         variant="primary"
         size="md"
@@ -18,25 +18,25 @@
         <ul v-if="lastRoll.length" class="flex flex-col gap-1.5">
           <li v-for="r in lastRoll" :key="r.entry_id" class="flex items-center gap-2">
             <template v-if="r.type === 'item'">
-              <span class="font-cinzel text-sm font-bold text-primary shrink-0 w-7 text-right">{{ r.qty }}×</span>
+              <span class="text-heading-sm font-bold text-primary shrink-0 w-7 text-right">{{ r.qty }}×</span>
               <span class="text-body text-foreground truncate">{{ r.item_name }}</span>
             </template>
             <template v-else-if="r.type === 'currency'">
-              <span class="font-cinzel text-sm font-bold text-ink-caution shrink-0 w-7 text-right">💰</span>
+              <span class="text-heading-sm font-bold text-ink-caution shrink-0 w-7 text-right">💰</span>
               <span class="text-body text-foreground truncate">
                 {{ r.currency_label ? r.currency_label + ': ' : '' }}{{ formatCoinParts(r.pp, r.gp, r.ep, r.sp, r.cp).join(', ') || '0 GP' }}
               </span>
             </template>
             <template v-else-if="r.type === 'unresolved'">
-              <span class="font-cinzel text-sm font-bold text-ink-caution shrink-0 w-7 text-right" title="This entry hit but produced no loot">⚠</span>
+              <span class="text-heading-sm font-bold text-ink-caution shrink-0 w-7 text-right" title="This entry hit but produced no loot">⚠</span>
               <span class="text-body text-muted-foreground truncate italic">
-                {{ r.wanted }} — {{ unresolvedReasonLabel(r.reason) }}
+                {{ r.wanted }}: {{ unresolvedReasonLabel(r.reason) }}
               </span>
             </template>
           </li>
         </ul>
         <p v-else class="text-caption text-muted-foreground italic">
-          Empty — no entries hit. Better luck next room.
+          Empty: no entries hit. Better luck next room.
         </p>
       </div>
 

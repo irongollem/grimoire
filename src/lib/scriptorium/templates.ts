@@ -122,7 +122,7 @@ export function magicItemTemplate(): string {
   return `<h3>[Item Name]</h3>
 <p><em>[Weapon / Wondrous Item / Armor], [Uncommon / Rare / Very Rare / Legendary] (requires attunement)</em></p>
 <p>[Describe the item's appearance, history, or flavour text.]</p>
-<p>[Describe the mechanical effect — what does it do when activated or worn?]</p>
+<p>[Describe the mechanical effect: what does it do when activated or worn?]</p>
 <p><strong>Charges.</strong> This item has [N] charges. You expend 1 charge to [effect]. It regains [1d6] expended charges daily at dawn.</p>`;
 }
 

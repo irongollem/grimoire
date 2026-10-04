@@ -6,7 +6,7 @@
 
     <!-- Class picker -->
     <div v-if="!mergedClasses.length" class="rounded-lg border border-border bg-card p-6 text-center">
-      <p class="text-body text-muted-foreground italic">No classes available — skip for now.</p>
+      <p class="text-body text-muted-foreground italic">No classes available. Skip for now.</p>
     </div>
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <button v-for="cls in mergedClasses" :key="cls.choice_key" type="button"
@@ -17,7 +17,7 @@
         @click="onClassSelect(cls.choice_key)">
         <div class="flex items-start gap-2">
           <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-sm font-bold text-foreground">{{ cls.class_name }}</p>
+            <p class="text-heading-sm font-bold text-foreground">{{ cls.class_name }}</p>
             <p class="text-eyebrow text-muted-foreground/70">
               {{ cls.definition_kind === 'system' ? 'Official' : (cls.source_document_key ? 'Imported' : 'Custom') }}
               <template v-if="cls.source_revision"> · {{ cls.source_revision }}</template>
@@ -41,7 +41,7 @@
     </div>
 
     <p v-if="f.class" class="text-label-lg text-primary/70 text-center">
-      ✓ {{ f.class }} selected — subclass unlocked through levelling
+      ✓ {{ f.class }} selected, subclass unlocked through levelling
     </p>
 
     <!-- Proficiencies (collapsible) -->
@@ -52,7 +52,7 @@
         block
         class="justify-between px-3 py-2 rounded-none"
         @click="showProfs = !showProfs">
-        <span>PROFICIENCIES — SKILLS · SAVES · TOOLS · LANGUAGES</span>
+        <span>PROFICIENCIES · SKILLS · SAVES · TOOLS · LANGUAGES</span>
         <span class="text-base transition-transform" :class="showProfs ? '' : '-rotate-90'">▾</span>
       </AppButton>
       <div v-if="showProfs" class="px-3 pb-3 space-y-4">
@@ -108,7 +108,7 @@
           <div v-for="(choice, ci) in bgSkillChoices" :key="`bgchoice-${ci}`"
             class="mb-2 rounded-md border border-tone-caution/30 bg-tone-caution/5 p-2">
             <p class="font-cinzel text-2xs text-ink-caution  mb-1.5">
-              BACKGROUND CHOICE — pick {{ choice.count }}
+              BACKGROUND CHOICE: pick {{ choice.count }}
               <span class="text-ink-caution/70">({{ bgChosenSkills.length }}/{{ bgChoiceLimit }} chosen)</span>
             </p>
             <div class="flex flex-wrap gap-1.5">

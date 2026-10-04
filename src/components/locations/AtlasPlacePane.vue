@@ -67,7 +67,7 @@
         />
       </div>
       <div class="min-w-0 flex-1">
-        <h2 class="truncate font-cinzel text-lg font-bold text-foreground">
+        <h2 class="truncate text-heading font-bold text-foreground">
           {{ location.name || "Unnamed Location" }}
         </h2>
         <!-- "Ashmouth Undercroft · three levels" (#868, frame 06) — only

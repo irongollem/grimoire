@@ -42,7 +42,7 @@
 
       <div class="rounded-md border border-border bg-muted/30 p-4 space-y-2">
         <div class="flex items-start justify-between gap-2">
-          <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ result.name }}</h3>
+          <h3 class="text-heading-sm font-bold text-foreground leading-tight">{{ result.name }}</h3>
           <span class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0 capitalize">{{ result.difficulty }}</span>
         </div>
 

@@ -25,7 +25,7 @@
       v-if="releasable"
       type="button"
       class="shrink-0 text-gold-100 opacity-40 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/chip:opacity-100 focus-visible:opacity-100"
-      title="Release this trigger — hands the slot back to what was playing before"
+      title="Release this trigger: hands the slot back to what was playing before"
       @click.stop="release"
     >
       <IconClose :class="small ? 'h-2.5 w-2.5' : 'h-3 w-3'" />

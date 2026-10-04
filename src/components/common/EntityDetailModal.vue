@@ -11,7 +11,7 @@
     <!-- Header — name, what it is, whatever the entity wants to offer, close. -->
     <header class="flex shrink-0 items-start gap-3 border-b border-border px-5 py-4">
       <div class="min-w-0 flex-1">
-        <h2 :id="headingId" class="truncate font-cinzel text-lg font-bold tracking-wide text-foreground">
+        <h2 :id="headingId" class="truncate text-heading font-bold text-foreground">
           {{ title }}
         </h2>
         <p v-if="subtitle" class="truncate text-body text-muted-foreground italic">

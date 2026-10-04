@@ -26,7 +26,7 @@
           :class="isTabDimmed(d) ? 'opacity-60' : ''"
           :active="ui.playerCraftingActiveTab === d.id"
           :icon="d.icon"
-          :tooltip="!hasProficiency(d.tools) ? `No ${d.tools[0]} proficiency — no proficiency bonus` : d.label"
+          :tooltip="!hasProficiency(d.tools) ? `No ${d.tools[0]} proficiency: no proficiency bonus` : d.label"
           @click="ui.playerCraftingActiveTab = d.id"
         >
           <span>{{ d.label }}<span v-if="!hasProficiency(d.tools)" class="text-eyebrow text-muted-foreground/60 ml-1">NO PROF</span></span>
@@ -43,7 +43,7 @@
             + Proficiency (+{{ member.proficiency_bonus }}).
           </template>
           <template v-else>
-            — <span class="text-gold-400">no proficiency bonus</span>.
+            · <span class="text-gold-400">no proficiency bonus</span>.
           </template>
         </span>
       </p>
@@ -54,7 +54,7 @@
           :is="activeDiscipline ? activeDiscipline.icon : IconListView"
           class="h-8 w-8 text-muted-foreground/40 mx-auto mb-3"
         />
-        <p class="font-cinzel text-sm font-semibold text-muted-foreground">No recipes known</p>
+        <p class="text-heading-sm font-semibold text-muted-foreground">No recipes known</p>
         <p class="text-caption text-muted-foreground/60 italic mt-1">
           {{ activeDiscipline
             ? `Your DM can share ${activeDiscipline.label.toLowerCase()} recipes with you.`
@@ -72,7 +72,7 @@
           <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-start justify-between gap-2">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-0.5">
-                <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ recipe.name }}</p>
+                <p class="text-heading-xs font-bold text-foreground truncate">{{ recipe.name }}</p>
                 <span
                   v-if="!activeDiscipline"
                   class="shrink-0 text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
@@ -89,7 +89,7 @@
               <p
                 v-else-if="!recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
                 class="text-caption text-gold-400 mt-0.5"
-              >No {{ getDiscipline(recipe.discipline).tools[0] }} — disadvantage</p>
+              >No {{ getDiscipline(recipe.discipline).tools[0] }}: disadvantage</p>
             </div>
             <span
               v-if="recipe.requires_proficiency && !hasProficiency(getDiscipline(recipe.discipline).tools)"
@@ -108,7 +108,7 @@
             <span
               v-else-if="!hasTools(getDiscipline(recipe.discipline).tools)"
               class="shrink-0 text-eyebrow px-1.5 py-0.5 rounded border border-gold-500/40 text-gold-400 bg-gold-500/10"
-              :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} in inventory — roll at disadvantage`"
+              :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} in inventory: roll at disadvantage`"
             >
               DISADV
             </span>

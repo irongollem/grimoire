@@ -2,7 +2,7 @@
   <div class="battle-map-legend" role="note" aria-label="Map legend">
     <span class="legend-item">
       <span class="legend-swatch legend-swatch--disc" :style="{ background: PARTY_COLOR }" />
-      Party — ring from the Mint
+      Party: ring from the Mint
     </span>
     <span class="legend-item">
       <span class="legend-swatch legend-swatch--disc" :style="{ background: HOSTILE_COLOR }" />
@@ -10,7 +10,7 @@
     </span>
     <span class="legend-item">
       <span class="legend-swatch legend-swatch--disc" :style="{ background: LARGE_COLOR }" />
-      Large — footprint 2, from creature size
+      Large: footprint 2, from creature size
     </span>
     <span class="legend-item">
       <span class="legend-swatch legend-swatch--disc" :style="{ background: ACTIVE_TURN_COLOR }" />
@@ -18,7 +18,7 @@
     </span>
     <span v-for="zone in zones" :key="zone.region.id" class="legend-item">
       <span class="legend-swatch legend-swatch--square" :style="{ background: ZONE_COLOR }" />
-      {{ zone.region.label ?? "Difficult terrain" }} — difficult terrain, from the zone you traced
+      {{ zone.region.label ?? "Difficult terrain" }}: difficult terrain, from the zone you traced
     </span>
   </div>
 </template>

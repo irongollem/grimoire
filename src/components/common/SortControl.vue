@@ -16,7 +16,7 @@
       v-if="sortBy !== 'manual'"
       type="button"
       class="flex items-center justify-center border-l border-border px-2 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
-      :title="sortDir === 'asc' ? 'Ascending — click for descending' : 'Descending — click for ascending'"
+      :title="sortDir === 'asc' ? 'Ascending, click for descending' : 'Descending, click for ascending'"
       @click="sortDir = sortDir === 'asc' ? 'desc' : 'asc'"
     >
       <IconChevronUp v-if="sortDir === 'asc'" class="h-3.5 w-3.5" />

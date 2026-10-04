@@ -43,7 +43,7 @@
         :key="i"
         class="rounded-md border border-border bg-muted/30 p-4 space-y-3"
       >
-        <h3 class="font-cinzel text-sm font-semibold text-foreground">{{ hook.title }}</h3>
+        <h3 class="text-heading-sm font-semibold text-foreground">{{ hook.title }}</h3>
         <p class="text-caption text-muted-foreground/70 italic">
           <span class="text-label not-italic text-muted-foreground/50 mr-1">PLAYER LOG</span>{{ hook.summary }}
         </p>

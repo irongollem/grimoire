@@ -43,7 +43,7 @@
         <span
           v-if="hit.isLoopable"
           class="shrink-0 px-1 py-0.5 rounded text-caption-sm tracking-wide bg-gold-500/15 text-gold-300 border border-gold-500/30"
-          title="Authored to loop seamlessly — safe to run as a bed"
+          title="Authored to loop seamlessly; safe to run as a bed"
         >
           Loops
         </span>

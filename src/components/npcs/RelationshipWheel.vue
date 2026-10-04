@@ -42,7 +42,7 @@
     </g>
 
     <!-- Center disk — tap to reset to Unknown -->
-    <title>Unknown — clear stance</title>
+    <title>Unknown: clear stance</title>
     <circle
       cx="100" cy="100" r="32"
       :style="{ fill: modelValue === 'unknown' ? softFill(UNKNOWN_COLOR, 20) : 'var(--color-card)' }"

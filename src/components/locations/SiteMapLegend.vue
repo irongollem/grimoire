@@ -12,7 +12,7 @@
     <!-- Frame 08's own caption — the one write this surface makes, spelled
          out so a DM never wonders whether a click did more than move a pin. -->
     <span v-if="mode === 'run'" class="italic text-caption-sm text-muted-foreground/80">
-      Click a room to move the party — the only write this surface makes.
+      Click a room to move the party. It is the only write this surface makes.
     </span>
     <!-- "3 traps · 4 features · 2 puzzles · 2 encounters · 1 loot cache"
          (#868, frame 10) — only when there's something to report; a caller

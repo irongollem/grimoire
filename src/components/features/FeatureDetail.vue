@@ -63,7 +63,7 @@
       <label class="block text-eyebrow text-muted-foreground mb-1.5">DESCRIPTION</label>
       <RichTextEditor
         v-model="form.description"
-        placeholder="Full rules text — mechanics, damage rolls, saving throws, conditions…"
+        placeholder="Full rules text, mechanics, damage rolls, saving throws, conditions…"
         size="md"
       />
     </div>

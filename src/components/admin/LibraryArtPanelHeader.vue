@@ -19,7 +19,7 @@ const emit = defineEmits<{ toggle: [] }>();
     @click="emit('toggle')"
   >
     <div>
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">
+      <h2 class="text-heading-sm font-semibold text-foreground">
         {{ title }}
       </h2>
       <p class="text-caption text-muted-foreground italic mt-0.5">

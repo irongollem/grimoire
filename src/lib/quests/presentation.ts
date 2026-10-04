@@ -255,7 +255,7 @@ export function deriveQuestBeatPrepGaps(
   // Named for the consequence: the player thread drops a revealed beat that has
   // no copy rather than printing a card that says nothing, so this gap is the
   // only place the DM learns the reveal produced nothing at the table.
-  if (beat.visibility === "revealed" && !beat.reveal_text) gaps.push({ kind: "player_copy", label: "Add reveal copy — players see nothing without it" });
+  if (beat.visibility === "revealed" && !beat.reveal_text) gaps.push({ kind: "player_copy", label: "Add reveal copy: players see nothing without it" });
   for (const attachment of attachments.filter((row) => row.prep_gap)) {
     gaps.push({ kind: "attachment", label: `Replace ${attachment.label}` });
   }
@@ -267,7 +267,7 @@ export function deriveQuestBeatPrepGaps(
   // caption: an unbound/untraced room is the cheaper fix, so it leads; a site
   // with nothing left to bind but no doors at all still can't move the party.
   if (options.site && (!options.site.bound || !options.site.waysOut)) {
-    const detail = options.site.caption ?? "no ways out — the party cannot leave this site";
+    const detail = options.site.caption ?? "no ways out; the party cannot leave this site";
     gaps.push({ kind: "site", label: detail });
   }
   return gaps;

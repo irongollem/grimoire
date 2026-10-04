@@ -8,7 +8,7 @@
   >
     <template #empty>
       <p class="text-body text-muted-foreground italic">
-        No monsters in this campaign's bestiary yet — add a custom monster or
+        No monsters in this campaign's bestiary yet. Add a custom monster or
         enable a source under Codex.
       </p>
     </template>
@@ -46,7 +46,7 @@
 
       <div v-else-if="current" class="flex flex-col gap-1 rounded-lg bg-muted/40 px-3 py-2.5">
         <div class="flex items-start justify-between gap-2">
-          <p class="font-cinzel text-sm font-bold text-foreground">{{ current.name }}</p>
+          <p class="text-heading-sm font-bold text-foreground">{{ current.name }}</p>
           <!-- Not an AppButton tinted pill: `crBg`/`crLabel` are the bestiary's
                own single source of truth for a CR badge (MonsterGridCard,
                MonsterSheetMobile, the player bestiary all read it), colouring

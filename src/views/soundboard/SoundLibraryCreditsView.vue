@@ -13,7 +13,7 @@
       <p class="text-body text-muted-foreground max-w-3xl">
         Every sound in the Grimoire library is either public domain (CC0) or Creative Commons
         Attribution. The attributed ones are credited below, and each credit travels with the sound
-        onto your board — you don't have to reproduce any of this yourself.
+        onto your board; you don't have to reproduce any of this yourself.
       </p>
 
       <LoadingSpinner v-if="isPending" />
@@ -61,7 +61,7 @@
             Public domain ({{ publicDomain.length }})
           </h2>
           <p class="text-caption text-muted-foreground">
-            CC0 — no credit required. Listed as a courtesy to the people who released them.
+            CC0. No credit required. Listed as a courtesy to the people who released them.
           </p>
           <ul class="flex flex-wrap gap-1.5">
             <li

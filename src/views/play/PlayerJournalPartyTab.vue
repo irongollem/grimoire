@@ -40,7 +40,7 @@
   <!-- Empty state -->
   <div v-else-if="visibleEntries.length === 0" class="text-center py-16 space-y-3">
     <IconPopulate class="h-10 w-10 text-muted-foreground/30 mx-auto" />
-    <p class="font-cinzel text-sm text-muted-foreground">No shared entries from the party yet.</p>
+    <p class="text-body text-muted-foreground">No shared entries from the party yet.</p>
   </div>
 
   <!-- Entry feed -->

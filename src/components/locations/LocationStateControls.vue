@@ -93,7 +93,7 @@ function tooltipFor(fact: LocationStateFact): string {
   const label = LOCATION_STATE_FACT_LABELS[fact];
   const row = stateOf(fact);
   if (!row) return `${label}: not yet asserted`;
-  return `${provenanceVerdict(label, row)} — ${displayNameFor(row.asserted_by, "someone")} · ${timeAgo(row.asserted_at)}${row.asserted_note ? ` — "${row.asserted_note}"` : ""}`;
+  return `${provenanceVerdict(label, row)} · ${displayNameFor(row.asserted_by, "someone")} · ${timeAgo(row.asserted_at)}${row.asserted_note ? ` · "${row.asserted_note}"` : ""}`;
 }
 
 function provenanceVerdict(label: string, row: LocationState): string {

@@ -246,7 +246,7 @@
                 <EntityCombobox
                   :model-value="form.location_id ?? ''"
                   :options="locationOptions"
-                  placeholder="— none —"
+                  placeholder="None"
                   @update:model-value="form.location_id = $event || null"
                 >
                   <template #option="{ opt }">
@@ -259,7 +259,7 @@
                 <EntityCombobox
                   :model-value="form.dungeon_feature_id ?? ''"
                   :options="pickableDungeonFeatures ?? []"
-                  placeholder="— none —"
+                  placeholder="None"
                   @update:model-value="form.dungeon_feature_id = $event || null"
                 />
               </div>

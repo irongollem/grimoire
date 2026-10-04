@@ -211,7 +211,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   {
     id: "live-encounter",
     title: "Live encounter",
-    description: "Live encounter banner — shows only while a combat is running.",
+    description: "Live encounter banner; shows only while a combat is running.",
     widths: FULL_ONLY,
     defaultWidth: "full",
     defaultHeight: 1,
@@ -232,7 +232,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   {
     id: "dm-screen-card",
     title: "DM screen card",
-    description: "One reference table from the DM screen — pick which, add as many as you like.",
+    description: "One reference table from the DM screen: pick which, add as many as you like.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
@@ -297,7 +297,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   {
     id: "initiative-mini",
     title: "Initiative",
-    description: "Whose turn, what round, and everyone's HP — only while a combat is running.",
+    description: "Whose turn, what round, and everyone's HP; only while a combat is running.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
@@ -471,7 +471,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   {
     id: "death-saves",
     title: "Death saves",
-    description: "Appears only while someone is dying — successes, failures, how close to either end.",
+    description: "Appears only while someone is dying: successes, failures, how close to either end.",
     // All three widths, though the card is never more than a few rows. The
     // executor argued `full` was pointless for so little content; the DM can
     // still want this one shouting across the board, and a width they cannot

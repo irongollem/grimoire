@@ -74,7 +74,7 @@ export function useDowntimeSeedCardData(data: MaybeRefOrGetter<DowntimeSeed>) {
   });
 
   const typeTag = computed(() => `${activityTitle.value} · ${rewardNoun.value}`.toUpperCase());
-  const typeLine = computed(() => `${activityTitle.value} — yields ${rewardName.value}`);
+  const typeLine = computed(() => `${activityTitle.value}: yields ${rewardName.value}`);
 
   const riskLabel = computed(() =>
     activity.value ? RISK_LABELS[activity.value.risk] : "???",
@@ -97,7 +97,7 @@ export function useDowntimeSeedCardData(data: MaybeRefOrGetter<DowntimeSeed>) {
   const metaRows = computed(() => [
     { label: "From", value: activityTitle.value },
     { label: "Risk", value: riskLabel.value },
-    { label: "Yields", value: `${rewardNoun.value} — ${rewardName.value}` },
+    { label: "Yields", value: `${rewardNoun.value}: ${rewardName.value}` },
   ]);
 
   return {

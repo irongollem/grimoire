@@ -57,7 +57,7 @@
           :is="activeDiscipline ? activeDiscipline.icon : IconNavWorkshop"
           class="h-8 w-8 text-muted-foreground/40 mx-auto mb-3"
         />
-        <p class="font-cinzel text-sm font-semibold text-muted-foreground">
+        <p class="text-heading-sm font-semibold text-muted-foreground">
           {{ activeDiscipline ? `No ${activeDiscipline.label} recipes yet` : 'No recipes yet' }}
         </p>
         <p class="text-caption text-muted-foreground/60 italic mt-1">
@@ -86,7 +86,7 @@
         >
           <!-- Left: name + tags + meta -->
           <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ recipe.name }}</p>
+            <p class="text-heading-xs font-bold text-foreground truncate">{{ recipe.name }}</p>
 
             <div
               v-if="!activeDiscipline || recipe.requires_proficiency || recipe.requires_tools"

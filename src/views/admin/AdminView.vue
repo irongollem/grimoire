@@ -2,7 +2,7 @@
   <div class="flex flex-col h-full min-h-0 overflow-hidden">
     <!-- Header -->
     <div class="px-4 pt-4 pb-3 md:px-6 md:pt-6 shrink-0">
-      <h1 class="font-cinzel text-xl md:text-3xl font-bold text-foreground tracking-wide">
+      <h1 class="text-heading-lg md:text-3xl font-bold text-foreground">
         Admin Panel
       </h1>
       <p class="text-body md:text-base text-muted-foreground italic mt-0.5">

@@ -19,7 +19,7 @@
             class="w-24"
           />
           <AppSelect v-model.number="model.startMonth" size="body">
-            <option :value="null">— Month —</option>
+            <option :value="null">Month</option>
             <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
           </AppSelect>
           <AppInput
@@ -49,7 +49,7 @@
             class="w-24"
           />
           <AppSelect v-model.number="model.endMonth" size="body">
-            <option :value="null">— Month —</option>
+            <option :value="null">Month</option>
             <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
           </AppSelect>
           <AppInput

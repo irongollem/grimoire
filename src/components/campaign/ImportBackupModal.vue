@@ -42,7 +42,7 @@
           <p class="text-eyebrow font-semibold text-muted-foreground">
             Original campaign
           </p>
-          <p class="font-cinzel text-sm font-bold text-foreground">{{ preview.campaignName }}</p>
+          <p class="text-heading-sm font-bold text-foreground">{{ preview.campaignName }}</p>
           <p class="text-caption text-muted-foreground italic">
             Exported {{ formattedDate }}
           </p>

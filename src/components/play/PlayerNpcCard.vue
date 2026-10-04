@@ -41,7 +41,7 @@
 
     <!-- Info -->
     <div class="p-2.5 flex flex-col gap-0.5 flex-1">
-      <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">
+      <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">
         {{ npc.player_visible_fields.includes('name') ? displayName : '???' }}
       </h3>
       <!-- Status always shown — "unknown" is a valid soft-hidden state. -->

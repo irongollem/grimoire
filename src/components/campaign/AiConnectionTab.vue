@@ -60,7 +60,7 @@
           class="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2.5"
         >
           <div class="min-w-0">
-            <p class="font-cinzel text-sm text-foreground truncate">{{ grant.client.name || "AI client" }}</p>
+            <p class="text-heading-xs text-foreground truncate">{{ grant.client.name || "AI client" }}</p>
             <p class="text-caption text-muted-foreground">
               Connected {{ formatDate(grant.granted_at) }}
             </p>

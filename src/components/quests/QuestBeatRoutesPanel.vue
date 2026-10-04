@@ -1,7 +1,7 @@
 <template>
   <section class="rounded-xl border border-border bg-card p-3" aria-label="Routes out">
     <header class="flex items-center gap-2">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Routes out</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Routes out</h3>
       <span class="ml-auto rounded bg-primary/15 px-1.5 py-0.5 text-label uppercase text-primary">{{ summaryChip }}</span>
     </header>
 
@@ -79,7 +79,7 @@ const outgoing = computed(() => edges
   .map((edge) => {
     const target = beatById(edge.target_beat_id);
     const caption = edge.route_kind === "parallel"
-      ? "Opens whichever choice fires. This beat's own thread is untouched — this is the layer that appears without abandoning the tree."
+      ? "Opens whichever choice fires. This beat's own thread is untouched. This is the layer that appears without abandoning the tree."
       : `→ ${target?.title || "Missing beat"} · cursor moves, the thread continues`;
     return {
       edge,

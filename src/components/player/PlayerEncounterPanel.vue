@@ -28,7 +28,7 @@
         <!-- No encounter in progress -->
         <div v-if="!liveState" class="text-center py-12 space-y-3">
           <IconEncounter class="h-8 w-8 text-muted-foreground/30 mx-auto" />
-          <p class="font-cinzel text-sm text-muted-foreground">No encounter in progress.</p>
+          <p class="text-body text-muted-foreground">No encounter in progress.</p>
           <p class="text-caption text-muted-foreground italic">Your DM will start a live encounter when combat begins.</p>
         </div>
 
@@ -53,7 +53,7 @@
             class="flex items-center justify-center gap-2 rounded-lg border border-primary bg-primary/10 px-4 py-3 animate-pulse"
           >
             <IconEncounter class="h-4 w-4 text-primary shrink-0" />
-            <span class="font-cinzel text-sm font-bold text-primary tracking-wider">YOUR TURN!</span>
+            <span class="text-heading-sm font-bold text-primary">YOUR TURN!</span>
             <IconEncounter class="h-4 w-4 text-primary shrink-0" />
           </div>
 
@@ -63,7 +63,7 @@
             class="flex items-center gap-3 rounded-lg border border-tone-caution/30 bg-tone-caution/5 px-4 py-3"
           >
             <IconEncounter class="h-4 w-4 text-ink-caution/60 shrink-0" />
-            <span class="font-cinzel text-sm font-semibold text-ink-caution/80 tracking-wider">Gathering Party…</span>
+            <span class="text-heading-sm font-semibold text-ink-caution/80">Gathering Party…</span>
             <span class="text-caption text-muted-foreground italic ml-auto">DM is preparing</span>
           </div>
 
@@ -113,7 +113,7 @@
               <div class="text-title font-bold text-primary">{{ liveState.current_round }}</div>
               <div v-if="activeCombatant" class="ml-4 flex items-center gap-2 min-w-0">
                 <span class="text-label-lg text-muted-foreground shrink-0">ACTIVE:</span>
-                <span class="font-cinzel text-sm font-bold text-foreground wrap-break-word min-w-0">
+                <span class="text-heading-sm font-bold text-foreground wrap-break-word min-w-0">
                   {{
                     activeCombatant.type === "monster" &&
                     (activeCombatant.reveal_state ?? "hidden") === "hidden"
@@ -125,7 +125,7 @@
             </div>
 
             <div class="round-header-compact rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 flex items-center gap-1.5 min-w-0">
-              <span class="font-cinzel text-sm font-bold text-primary shrink-0">{{ liveState.current_round }}:</span>
+              <span class="text-heading-sm font-bold text-primary shrink-0">{{ liveState.current_round }}:</span>
               <span class="font-cinzel text-xs font-semibold text-foreground truncate">
                 {{
                   activeCombatant

@@ -17,7 +17,7 @@
           :disabled="isGenerating"
           :maxlength="PROMPT_LIMIT"
           rows="5"
-          placeholder="e.g. A cantrip that draws a faintly glowing chalk circle on the floor — anyone crossing it sees a single illusory image of their choosing for one round…"
+          placeholder="e.g. A cantrip that draws a faintly glowing chalk circle on the floor; anyone crossing it sees a single illusory image of their choosing for one round…"
           class="field-input resize-none disabled:opacity-50"
         />
         <div class="flex justify-end">
@@ -31,7 +31,7 @@
       <!-- Optional constraints -->
       <div class="flex flex-col gap-3">
         <p class="text-label-lg font-semibold text-muted-foreground">
-          CONSTRAINTS <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional — AI fills blanks)</span>
+          CONSTRAINTS <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional, AI fills blanks)</span>
         </p>
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1">

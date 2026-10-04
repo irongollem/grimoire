@@ -89,7 +89,7 @@
                 class="mb-px h-3.5 w-3.5 shrink-0 text-white/70"
               />
               <span
-                class="line-clamp-2 font-cinzel text-sm font-bold leading-tight text-white transition-colors group-hover:text-primary/90"
+                class="line-clamp-2 text-heading-xs font-bold leading-tight text-white transition-colors group-hover:text-primary/90"
               >
                 {{ item.name }}
               </span>

@@ -33,7 +33,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 3,
     title: "A friend in low places",
     vignette:
-      "Three drinks in, the quiet one at the end of the bar finally speaks. She does not ask your name, and she does not offer hers — but she names a price for the kind of goods that never see a market stall, and she says it like an invitation.",
+      "Three drinks in, the quiet one at the end of the bar finally speaks. She does not ask your name, and she does not offer hers, but she names a price for the kind of goods that never see a market stall, and she says it like an invitation.",
     artUrl: null,
     proposedEffects: [
       {
@@ -72,7 +72,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "First blood, no hard feelings",
     vignette:
-      "You beat him at cards. He challenged you to arm-wrestle. You beat him at that too. Somewhere around the fourth contest, the tavern started taking bets — and somewhere around the sixth, he started laughing. He'll be looking for you next time.",
+      "You beat him at cards. He challenged you to arm-wrestle. You beat him at that too. Somewhere around the fourth contest, the tavern started taking bets, and somewhere around the sixth, he started laughing. He'll be looking for you next time.",
     artUrl: null,
     proposedEffects: [
       {
@@ -107,7 +107,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "In vino, veritas",
     vignette:
-      "The old man in the corner has been nursing the same cup for two hours. When you sit down, he tells you — unprompted, and in considerable detail — exactly why he was dismissed from the academy. Halfway through, you realise he is not raving.",
+      "The old man in the corner has been nursing the same cup for two hours. When you sit down, he tells you, unprompted, and in considerable detail, exactly why he was dismissed from the academy. Halfway through, you realise he is not raving.",
     artUrl: null,
     proposedEffects: [],
     reward: {
@@ -189,7 +189,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         personality:
           "Scrupulously fair and entirely without mercy. Would rather be paid than be owed.",
         backstory:
-          "Collects for whoever pays him. Holds your marker, and will hold it patiently — with interest — for as long as it takes.",
+          "Collects for whoever pays him. Holds your marker, and will hold it patiently, with interest, for as long as it takes.",
         relationship: "unfriendly",
         tags: ["debt", "complication", "carouse"],
         portrait_url: art("seed-debt-collector"),
@@ -217,7 +217,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         personality:
           "Delightful company, wholly unreliable, and genuinely surprised when anyone minds.",
         backstory:
-          "Escapes an arranged betrothal one tavern at a time. Their family would pay well to know where they drink — which makes knowing them dangerous.",
+          "Escapes an arranged betrothal one tavern at a time. Their family would pay well to know where they drink, which makes knowing them dangerous.",
         relationship: "friendly",
         tags: ["noble", "contact", "carouse"],
         portrait_url: art("seed-flirtatious-noble"),
@@ -257,7 +257,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         weight: 5,
         cost: "50 gp",
         description:
-          "A set of tools worked to a fit no shop-bought kit can match — balanced, quiet, and unmistakably yours. Grants advantage on checks made to repeat the craft that made them, at the DM's discretion.",
+          "A set of tools worked to a fit no shop-bought kit can match: balanced, quiet, and unmistakably yours. Grants advantage on checks made to repeat the craft that made them, at the DM's discretion.",
         tags: ["crafted", "tool"],
         image_url: art("seed-masterwork-tools"),
       },
@@ -269,7 +269,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "A little magic, bound patiently",
     vignette:
-      "It took the whole interlude and most of your patience, but the trinket holds its charm now — a small, honest enchantment that does one thing and does it well.",
+      "It took the whole interlude and most of your patience, but the trinket holds its charm now: a small, honest enchantment that does one thing and does it well.",
     artUrl: null,
     proposedEffects: [
       {
@@ -294,7 +294,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         weight: 0,
         cost: null,
         description:
-          "A modest enchanted trinket of your own making. Pick one minor, always-on effect with the DM — a light that never gutters, a compass that finds home, a coin that always lands true once a day.",
+          "A modest enchanted trinket of your own making. Pick one minor, always-on effect with the DM: a light that never gutters, a compass that finds home, a coin that always lands true once a day.",
         tags: ["crafted", "wondrous"],
         image_url: art("seed-handmade-charm"),
       },
@@ -306,7 +306,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "Folded, quenched, and true",
     vignette:
-      "No magic in it — just good steel, folded and quenched by someone who cared how it turned out. It will hold an edge long after cheaper work has chipped.",
+      "No magic in it, just good steel, folded and quenched by someone who cared how it turned out. It will hold an edge long after cheaper work has chipped.",
     artUrl: null,
     proposedEffects: [
       {
@@ -331,7 +331,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         weight: 3,
         cost: "15 gp",
         description:
-          "A longsword of honest, careful make. No enchantment — but it will never be the thing that fails you.",
+          "A longsword of honest, careful make. No enchantment, but it will never be the thing that fails you.",
         tags: ["crafted", "weapon"],
         image_url: art("seed-well-forged-blade"),
       },
@@ -344,7 +344,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "A batch, not a bottle",
     vignette:
-      "You did not make one. You worked out the ratios, wrote them down properly, and then made as many as the reagents allowed — which is the difference between a lucky brew and knowing how.",
+      "You did not make one. You worked out the ratios, wrote them down properly, and then made as many as the reagents allowed, which is the difference between a lucky brew and knowing how.",
     artUrl: null,
     proposedEffects: [
       {
@@ -369,7 +369,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         weight: 1,
         cost: "25 gp",
         description:
-          "Several doses of the same brew, corked and labelled in your own hand. Agree the effect with your DM — the point is that you can make more.",
+          "Several doses of the same brew, corked and labelled in your own hand. Agree the effect with your DM; the point is that you can make more.",
         tags: ["crafted", "alchemy", "consumable"],
         image_url: art("seed-alchemists-batch"),
       },
@@ -381,7 +381,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 1,
     title: "Only you can open it",
     vignette:
-      "Not a lock — a lock is a puzzle, and puzzles get solved. What you built asks a question only you know the answer to, and it is very patient about waiting for the wrong one.",
+      "Not a lock. A lock is a puzzle, and puzzles get solved. What you built asks a question only you know the answer to, and it is very patient about waiting for the wrong one.",
     artUrl: null,
     proposedEffects: [
       {
@@ -449,7 +449,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         weight: 2,
         cost: null,
         description:
-          "Exquisite work with something subtly amiss in it. The DM decides what — a curse, a quirk, an effect that fires when it shouldn't. It functions. It just isn't only yours.",
+          "Exquisite work with something subtly amiss in it. The DM decides what: a curse, a quirk, an effect that fires when it shouldn't. It functions. It just isn't only yours.",
         tags: ["crafted", "flawed", "hook"],
         image_url: art("seed-flawed-masterwork"),
       },
@@ -463,14 +463,14 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 3,
     title: "A thread worth pulling",
     vignette:
-      "Buried in a stack no one had touched in years, a single passage stops you cold — a name you know, in a context you didn't expect, pointing somewhere you hadn't thought to look.",
+      "Buried in a stack no one had touched in years, a single passage stops you cold: a name you know, in a context you didn't expect, pointing somewhere you hadn't thought to look.",
     artUrl: art("seed-lore-fragment"),
     proposedEffects: [],
     reward: {
       kind: "note",
       note: {
         title: "Research: a thread worth pulling",
-        body: "During the interlude you turned up a fragment of lore connecting a name your party already knows to something older. Fill in the specifics for your world — but the thread is real, and it leads somewhere.",
+        body: "During the interlude you turned up a fragment of lore connecting a name your party already knows to something older. Fill in the specifics for your world, but the thread is real, and it leads somewhere.",
         category: "lore",
         tags: ["research", "lore"],
       },
@@ -482,14 +482,14 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "The map lies, but consistently",
     vignette:
-      "Three old charts disagree about the same stretch of coast — and the way they disagree tells you exactly what someone went to trouble to hide.",
+      "Three old charts disagree about the same stretch of coast, and the way they disagree tells you exactly what someone went to trouble to hide.",
     artUrl: art("seed-map-clue"),
     proposedEffects: [],
     reward: {
       kind: "note",
       note: {
         title: "Research: a discrepancy in the maps",
-        body: "Cross-referencing old maps surfaced a deliberate omission — a place edited out of the record. Note where you think it points; the party now has a lead only careful research could have found.",
+        body: "Cross-referencing old maps surfaced a deliberate omission, a place edited out of the record. Note where you think it points; the party now has a lead only careful research could have found.",
         category: "lore",
         tags: ["research", "location", "clue"],
       },
@@ -501,7 +501,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "A page worth copying",
     vignette:
-      "The archive would not let the book leave — but it said nothing about your own ink and a steady hand. By the end of the interlude the working is yours, transcribed and legible.",
+      "The archive would not let the book leave, but it said nothing about your own ink and a steady hand. By the end of the interlude the working is yours, transcribed and legible.",
     artUrl: art("seed-copied-spell"),
     proposedEffects: [
       {
@@ -519,7 +519,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Research: a transcribed working",
-        body: "You copied out a spell, ritual, or formula found in the archives. Decide with the DM what it is and whether it's yet usable — but the transcription itself is done and in your hands.",
+        body: "You copied out a spell, ritual, or formula found in the archives. Decide with the DM what it is and whether it's yet usable, but the transcription itself is done and in your hands.",
         category: "lore",
         tags: ["research", "spell", "transcription"],
       },
@@ -532,7 +532,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "It isn't in the catalogue",
     vignette:
-      "The book you want is not in the index, which is how you know it exists. A clerk, well paid and badly frightened, finds it for you anyway — and asks that you never say where.",
+      "The book you want is not in the index, which is how you know it exists. A clerk, well paid and badly frightened, finds it for you anyway, and asks that you never say where.",
     artUrl: art("seed-forbidden-index"),
     proposedEffects: [
       {
@@ -550,7 +550,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Research: a book that isn't catalogued",
-        body: "You got hold of something the archive does not admit to holding. Note what it is and who now knows you have read it — a fact that was hidden this carefully was hidden *from* someone.",
+        body: "You got hold of something the archive does not admit to holding. Note what it is and who now knows you have read it: a fact that was hidden this carefully was hidden *from* someone.",
         category: "lore",
         tags: ["research", "lore", "hook"],
       },
@@ -569,7 +569,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Research: two accounts that cannot both be true",
-        body: "Careful reading turned up a contradiction in the record. Note which two sources disagree and on what — the interesting question is not which is wrong, but who benefited from the lie.",
+        body: "Careful reading turned up a contradiction in the record. Note which two sources disagree and on what; the interesting question is not which is wrong, but who benefited from the lie.",
         category: "lore",
         tags: ["research", "lore", "clue"],
       },
@@ -581,7 +581,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 1,
     title: "Weeks, for a wall",
     vignette:
-      "You read everything. You paid the fees, you charmed the archivist, you stayed past the lamps going out. And at the end of it the trail simply stops — not hidden, not guarded. Just gone.",
+      "You read everything. You paid the fees, you charmed the archivist, you stayed past the lamps going out. And at the end of it the trail simply stops, not hidden, not guarded. Just gone.",
     artUrl: art("seed-dead-end"),
     proposedEffects: [
       {
@@ -599,7 +599,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Research: the trail stops here",
-        body: "A dead end — but a *documented* one. Note what was ruled out and where the record ends. Someone went to the trouble of making this trail stop, or it never began; both are worth knowing.",
+        body: "A dead end, but a *documented* one. Note what was ruled out and where the record ends. Someone went to the trouble of making this trail stop, or it never began; both are worth knowing.",
         category: "lore",
         tags: ["research", "dead-end", "hook"],
       },
@@ -613,7 +613,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 3,
     title: "Reps, and then more reps",
     vignette:
-      "It is not glamorous. It is a season of early mornings and aching muscles and one small correction repeated a thousand times — until the thing you could not do becomes the thing you no longer think about.",
+      "It is not glamorous. It is a season of early mornings and aching muscles and one small correction repeated a thousand times, until the thing you could not do becomes the thing you no longer think about.",
     artUrl: art("seed-proficiency-log"),
     proposedEffects: [],
     reward: {
@@ -650,7 +650,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Training: language primer",
-        body: "You spent the interlude studying a language under a tutor. Note which one and how far you got — enough to read a sign and haggle badly, if not yet to pass as a native.",
+        body: "You spent the interlude studying a language under a tutor. Note which one and how far you got: enough to read a sign and haggle badly, if not yet to pass as a native.",
         category: "general",
         tags: ["training", "language"],
       },
@@ -663,7 +663,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "Someone better than you",
     vignette:
-      "They put you on your back every morning for a month, and every morning they told you exactly why. By the end you were still losing — but you were losing later, and for better reasons.",
+      "They put you on your back every morning for a month, and every morning they told you exactly why. By the end you were still losing, but you were losing later, and for better reasons.",
     artUrl: null,
     proposedEffects: [
       {
@@ -677,7 +677,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Training: a partner who beats you",
-        body: "You trained against someone genuinely better. Note who they are — a rival, a mentor, or both — and what specifically they fixed. Progress bought with bruises tends to stick.",
+        body: "You trained against someone genuinely better. Note who they are (a rival, a mentor, or both) and what specifically they fixed. Progress bought with bruises tends to stick.",
         category: "general",
         tags: ["training", "rival"],
       },
@@ -707,7 +707,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Training: under an old master",
-        body: "You studied under someone with real skill and no patience. Note what they taught, what they refused to teach, and what they want in return — that last one is rarely just money.",
+        body: "You studied under someone with real skill and no patience. Note what they taught, what they refused to teach, and what they want in return; that last one is rarely just money.",
         category: "general",
         tags: ["training", "mentor", "hook"],
       },
@@ -726,7 +726,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Training: self-taught from a manual",
-        body: "You taught yourself. It works, mostly — but note the bad habit it came with, and let it show at the table when the pressure is on.",
+        body: "You taught yourself. It works, mostly, but note the bad habit it came with, and let it show at the table when the pressure is on.",
         category: "general",
         tags: ["training", "self-taught"],
       },
@@ -750,7 +750,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       {
         kind: "condition",
         applied: false,
-        note: "Run into the ground — clear it after a long rest.",
+        note: "Run into the ground; clear it after a long rest.",
         condition: "Exhaustion",
       },
     ],
@@ -758,7 +758,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Training: overreached",
-        body: "You pushed too hard and hurt yourself. Note what you were chasing and whether it was worth it — the DM may rule the progress incomplete until you have properly healed.",
+        body: "You pushed too hard and hurt yourself. Note what you were chasing and whether it was worth it; the DM may rule the progress incomplete until you have properly healed.",
         category: "general",
         tags: ["training", "injury", "complication"],
       },
@@ -790,7 +790,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Business: a quarter in the black",
-        body: "Your shop, shrine, or cell turned a steady profit this interlude. Log the takings and any regulars worth remembering — the enterprise is becoming part of the world.",
+        body: "Your shop, shrine, or cell turned a steady profit this interlude. Log the takings and any regulars worth remembering; the enterprise is becoming part of the world.",
         category: "faction",
         tags: ["business", "income"],
       },
@@ -820,7 +820,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Business: robbed while away",
-        body: "Someone hit your enterprise while the party was out. Note what was taken and who might have known your schedule — a complication that owes you an answer.",
+        body: "Someone hit your enterprise while the party was out. Note what was taken and who might have known your schedule: a complication that owes you an answer.",
         category: "faction",
         tags: ["business", "complication", "hook"],
       },
@@ -851,7 +851,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Business: a lean quarter",
-        body: "The enterprise stayed open and stayed solvent, and did nothing else. Note why trade was slow — a rival, a bad season, a road closed — because a reason is a hook.",
+        body: "The enterprise stayed open and stayed solvent, and did nothing else. Note why trade was slow (a rival, a bad season, a road closed), because a reason is a hook.",
         category: "faction",
         tags: ["business", "income"],
       },
@@ -863,7 +863,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "You put the money back in",
     vignette:
-      "A second room, or a second pair of hands, or a name painted properly above the door. It cost more than the quarter made — which is either an investment or the beginning of a mistake.",
+      "A second room, or a second pair of hands, or a name painted properly above the door. It cost more than the quarter made, which is either an investment or the beginning of a mistake.",
     artUrl: null,
     proposedEffects: [
       {
@@ -881,7 +881,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Business: expanded",
-        body: "You reinvested — new premises, new staff, or a proper sign. Note what changed and who you now depend on. The DM may rule future quarters richer, and future complications louder.",
+        body: "You reinvested: new premises, new staff, or a proper sign. Note what changed and who you now depend on. The DM may rule future quarters richer, and future complications louder.",
         category: "faction",
         tags: ["business", "investment"],
       },
@@ -911,7 +911,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Business: undercut by a rival",
-        body: "A competitor is taking your trade. Note who they are and how they can afford it — nobody sells below cost for a whole season without a reason worth finding out.",
+        body: "A competitor is taking your trade. Note who they are and how they can afford it; nobody sells below cost for a whole season without a reason worth finding out.",
         category: "faction",
         tags: ["business", "rival", "hook"],
       },
@@ -941,7 +941,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Business: an unreasonably good order",
-        body: "Someone bought a great deal, at your price, without blinking. Note who — a buyer who does not haggle is a buyer who needs something, and that is worth more than the coin.",
+        body: "Someone bought a great deal, at your price, without blinking. Note who: a buyer who does not haggle is a buyer who needs something, and that is worth more than the coin.",
         category: "faction",
         tags: ["business", "income", "hook"],
       },
@@ -986,7 +986,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         weight: 0,
         cost: "25 gp",
         description:
-          "A carved token handed to the winner of the pit — worth a little coin, worth more as proof. Doors open for someone who can produce one of these.",
+          "A carved token handed to the winner of the pit, worth a little coin, worth more as proof. Doors open for someone who can produce one of these.",
         tags: ["pit-fighting", "trophy"],
         image_url: art("seed-champions-token"),
       },
@@ -998,7 +998,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "You lost, but you didn't fold",
     vignette:
-      "The other one was faster than the odds said. You still walked out on your own feet, a confiscated blade in your fist that nobody stepped up to reclaim — and a limp you'll be nursing for days.",
+      "The other one was faster than the odds said. You still walked out on your own feet, a confiscated blade in your fist that nobody stepped up to reclaim, and a limp you'll be nursing for days.",
     artUrl: null,
     proposedEffects: [
       {
@@ -1010,7 +1010,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       {
         kind: "condition",
         applied: false,
-        note: "Wrung out from the bout — clear it after a long rest.",
+        note: "Wrung out from the bout; clear it after a long rest.",
         condition: "Exhaustion",
       },
     ],
@@ -1112,7 +1112,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         weight: 0,
         cost: "5 gp",
         description:
-          "A stamped token given to a fighter who takes a dive — proof of payment, and proof of what you did. The man who gave it to you kept the other half.",
+          "A stamped token given to a fighter who takes a dive, proof of payment, and proof of what you did. The man who gave it to you kept the other half.",
         tags: ["pit-fighting", "underworld", "complication", "hook"],
         image_url: art("seed-fixers-marker"),
       },
@@ -1124,7 +1124,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 1,
     title: "Nobody bet on you",
     vignette:
-      "The odds were an insult and you took them anyway, with everything you had. Then you won — and the room went very quiet, because a great deal of money had just changed hands in the wrong direction.",
+      "The odds were an insult and you took them anyway, with everything you had. Then you won, and the room went very quiet, because a great deal of money had just changed hands in the wrong direction.",
     artUrl: null,
     proposedEffects: [
       {
@@ -1167,7 +1167,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 1,
     title: "It didn't heal straight",
     vignette:
-      "You remember the sound more than the blow. They stopped the bout, which tells you something. You kept his blade, which tells you something else — and the arm has not been right since.",
+      "You remember the sound more than the blow. They stopped the bout, which tells you something. You kept his blade, which tells you something else, and the arm has not been right since.",
     artUrl: null,
     proposedEffects: [
       {
@@ -1179,7 +1179,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       {
         kind: "condition",
         applied: false,
-        note: "Wrung out and hurt — clear it after a long rest, or don't.",
+        note: "Wrung out and hurt; clear it after a long rest, or don't.",
         condition: "Exhaustion",
       },
     ],
@@ -1208,7 +1208,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 3,
     title: "The heat dies down",
     vignette:
-      "You do nothing worth writing home about, which is the whole point. A safe room, plain food, and time — and by the end of the interlude the people looking for you have run out of places to look.",
+      "You do nothing worth writing home about, which is the whole point. A safe room, plain food, and time, and by the end of the interlude the people looking for you have run out of places to look.",
     artUrl: null,
     proposedEffects: [
       {
@@ -1222,7 +1222,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Lie low: the heat dies down",
-        body: "You spent the interlude out of sight and let a bounty, a rumour, or a rival's attention cool off. Note what you were hiding from and whether it's truly gone — or just quieter.",
+        body: "You spent the interlude out of sight and let a bounty, a rumour, or a rival's attention cool off. Note what you were hiding from and whether it's truly gone, or just quieter.",
         category: "general",
         tags: ["lie-low", "downtime"],
       },
@@ -1234,14 +1234,14 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "A quiet room hears everything",
     vignette:
-      "Staying still and unnoticed, you catch what a louder person would have drowned out — a name, a date, a plan, murmured by people who never imagined anyone was listening.",
+      "Staying still and unnoticed, you catch what a louder person would have drowned out: a name, a date, a plan, murmured by people who never imagined anyone was listening.",
     artUrl: null,
     proposedEffects: [],
     reward: {
       kind: "note",
       note: {
         title: "Lie low: something overheard",
-        body: "While keeping your head down you overheard a rumour worth acting on. Write down what and who — the party now holds a lead earned by patience rather than force.",
+        body: "While keeping your head down you overheard a rumour worth acting on. Write down what and who; the party now holds a lead earned by patience rather than force.",
         category: "general",
         tags: ["lie-low", "rumor", "hook"],
       },
@@ -1268,7 +1268,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Lie low: someone sheltered you",
-        body: "A stranger hid you and asked for nothing — which means you owe them, and they know it. Note who they are and what they will eventually want. An unpaid favour is a debt with better manners.",
+        body: "A stranger hid you and asked for nothing, which means you owe them, and they know it. Note who they are and what they will eventually want. An unpaid favour is a debt with better manners.",
         category: "general",
         tags: ["lie-low", "favour", "hook"],
       },
@@ -1280,7 +1280,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "Nothing happened, at length",
     vignette:
-      "No knock at the door. No face you recognised in the street. Just a season of dull, uninterrupted, profoundly boring safety — and a body that finally had time to knit itself back together.",
+      "No knock at the door. No face you recognised in the street. Just a season of dull, uninterrupted, profoundly boring safety, and a body that finally had time to knit itself back together.",
     artUrl: null,
     proposedEffects: [
       {
@@ -1294,7 +1294,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Lie low: a season of nothing",
-        body: "Uneventful, and that was the point. You are properly mended and properly forgotten. Note how long it has been — the world moved on while you sat still, and you will need to catch up.",
+        body: "Uneventful, and that was the point. You are properly mended and properly forgotten. Note how long it has been; the world moved on while you sat still, and you will need to catch up.",
         category: "general",
         tags: ["lie-low", "recovery"],
       },
@@ -1306,7 +1306,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 1,
     title: "They knocked on the wrong door first",
     vignette:
-      "You heard them working down the row — a knock, a question, a knock. You went out the back with your boots in your hand and paid a bargeman not to look at you. It was close enough to taste.",
+      "You heard them working down the row: a knock, a question, a knock. You went out the back with your boots in your hand and paid a bargeman not to look at you. It was close enough to taste.",
     artUrl: null,
     proposedEffects: [
       {
@@ -1330,7 +1330,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Lie low: a close call",
-        body: "They very nearly found you. Note who was doing the looking and how near they got — you are still hidden, but the heat has not gone anywhere.",
+        body: "They very nearly found you. Note who was doing the looking and how near they got; you are still hidden, but the heat has not gone anywhere.",
         category: "general",
         tags: ["lie-low", "complication", "hook"],
       },
@@ -1356,7 +1356,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       kind: "note",
       note: {
         title: "Lie low: your cover was sold",
-        body: "Someone gave you up. Note who knew where you were — the list is short, and one of them talked. The heat did not die down; it now knows your address.",
+        body: "Someone gave you up. Note who knew where you were; the list is short, and one of them talked. The heat did not die down; it now knows your address.",
         category: "general",
         tags: ["lie-low", "betrayal", "hook"],
       },
@@ -1395,7 +1395,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         weight: 1,
         cost: "150 gp",
         description:
-          "The prize of a clean job — a valuable object someone will eventually miss. Reskin it to whatever the party actually lifted.",
+          "The prize of a clean job: a valuable object someone will eventually miss. Reskin it to whatever the party actually lifted.",
         tags: ["heist", "stolen", "valuable"],
         image_url: art("seed-the-score"),
       },
@@ -1407,7 +1407,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 1,
     title: "You got out. Mostly.",
     vignette:
-      "The take is smaller than the plan promised and the description of your face is already making the rounds. You have something to show for it — and something following you because of it.",
+      "The take is smaller than the plan promised and the description of your face is already making the rounds. You have something to show for it, and something following you because of it.",
     artUrl: null,
     proposedEffects: [
       {
@@ -1423,7 +1423,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       {
         kind: "condition",
         applied: false,
-        note: "Ran hard to shake the pursuit — winded and hunted.",
+        note: "Ran hard to shake the pursuit, winded and hunted.",
         condition: "Exhaustion",
       },
     ],
@@ -1438,7 +1438,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         weight: 2,
         cost: "20 gp",
         description:
-          "A grab-bag of whatever you could carry before the whistles started. Worth a little coin — and evidence, if the wrong person recognises it.",
+          "A grab-bag of whatever you could carry before the whistles started. Worth a little coin, and evidence, if the wrong person recognises it.",
         tags: ["heist", "complication", "hook"],
         image_url: art("seed-botched-haul"),
       },
@@ -1475,7 +1475,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         weight: 0,
         cost: "1 gp",
         description:
-          "A key cut from a wax impression you did not take. It still opens that door — and someone knows you have it.",
+          "A key cut from a wax impression you did not take. It still opens that door, and someone knows you have it.",
         tags: ["heist", "contact", "hook"],
         image_url: art("seed-copied-key"),
       },
@@ -1487,7 +1487,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 2,
     title: "This wasn't what we came for",
     vignette:
-      "Right street, right roof, wrong house — and you were three rooms in before the furniture told you so. You took something anyway, because you were there, and because it was clearly worth taking.",
+      "Right street, right roof, wrong house, and you were three rooms in before the furniture told you so. You took something anyway, because you were there, and because it was clearly worth taking.",
     artUrl: null,
     proposedEffects: [
       {
@@ -1561,7 +1561,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     weight: 1,
     title: "You went out through the window",
     vignette:
-      "The lamp came on while your hand was still in the drawer. You got out — over the sill, down the ivy, through a canal you would rather not describe — with almost nothing, and you left something of yours behind.",
+      "The lamp came on while your hand was still in the drawer. You got out, over the sill, down the ivy, through a canal you would rather not describe, with almost nothing, and you left something of yours behind.",
     artUrl: null,
     proposedEffects: [
       {
@@ -1583,7 +1583,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       {
         kind: "condition",
         applied: false,
-        note: "Ran until you could not — clear it after a long rest.",
+        note: "Ran until you could not; clear it after a long rest.",
         condition: "Exhaustion",
       },
     ],
@@ -1598,7 +1598,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         weight: 1,
         cost: "10 gp",
         description:
-          "A handful of nothing much, taken in a hurry. The DM should decide what you *left* behind — a tool, a glove, a name — and who is holding it now.",
+          "A handful of nothing much, taken in a hurry. The DM should decide what you *left* behind (a tool, a glove, a name) and who is holding it now.",
         tags: ["heist", "botched", "complication", "hook"],
         image_url: art("seed-botched-keepsake"),
       },

@@ -15,8 +15,8 @@
           :title="!speed.fly
             ? 'Set a fly speed to enable hover'
             : speed.hover
-              ? 'Hover on — click to disable'
-              : 'Hover off — click to enable'"
+              ? 'Hover on, click to disable'
+              : 'Hover off, click to enable'"
           @click="toggleHover"
         >
           <IconWind

@@ -35,7 +35,7 @@
             <template v-else>💰 {{ formatCoinParts(atom.pp ?? 0, atom.gp ?? 0, atom.ep ?? 0, atom.sp ?? 0, atom.cp ?? 0).join(', ') || '0 GP' }}</template>
           </p>
           <p v-for="u in rolledUnresolved" :key="u.entry_id" class="text-caption-sm text-muted-foreground italic">
-            ⚠ {{ u.wanted }} — {{ unresolvedReasonLabel(u.reason) }}
+            ⚠ {{ u.wanted }}: {{ unresolvedReasonLabel(u.reason) }}
           </p>
           <AppButton variant="ghost" size="inline-xs" label="↻ re-roll" class="self-start italic" @click="rollChest" />
         </div>

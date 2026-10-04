@@ -165,7 +165,7 @@ describe("QuestBoardCard", () => {
   it("reads a held, unnamed unlock rule as a caption of its own", () => {
     const held: QuestBoardSummary = { ...summary, isLive: false, heldPayoffCount: 1 };
     const wrapper = mount(QuestBoardCard, { props: { quest: quest({ status: "undiscovered" }), summary: held }, global });
-    expect(wrapper.text()).toContain("Held payoff — not yet fired");
+    expect(wrapper.text()).toContain("Held payoff, not yet fired");
     expect(wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Draft beats")).toBeUndefined();
   });
 

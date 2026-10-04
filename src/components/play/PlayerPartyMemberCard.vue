@@ -23,7 +23,7 @@
     </div>
     <div class="p-2.5 flex flex-col gap-1.5">
       <div>
-        <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ member.name }}</h3>
+        <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">{{ member.name }}</h3>
         <p class="text-caption text-muted-foreground italic truncate">
           {{ subtitle }}
           <span v-if="member.level" class="font-cinzel not-italic text-primary ml-1">Lv{{ member.level }}</span>

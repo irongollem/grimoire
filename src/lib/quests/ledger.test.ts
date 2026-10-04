@@ -119,7 +119,7 @@ describe("routeCondition", () => {
 
   it("reads an open gate as ready, and a closed one as a need", () => {
     expect(routeCondition(gate({ is_open: true, current_status: "complete" })))
-      .toEqual({ open: true, text: "ready — “Recover the Baron's ledger” is completed" });
+      .toEqual({ open: true, text: "ready: “Recover the Baron's ledger” is completed" });
     expect(routeCondition(gate()))
       .toEqual({ open: false, text: "needs “Recover the Baron's ledger” completed" });
   });
@@ -134,9 +134,9 @@ describe("describeForkState", () => {
   it("counts the settled outcomes among the gated routes", () => {
     const shut = choice("e1", "b4", "Confront", gate());
     const open = choice("e2", "b5", "Carry the news", gate({ is_open: true }));
-    expect(describeForkState([shut, choice("e3", "b6", "Ungated")])).toBe("no outcome is settled yet — the ledger decides");
+    expect(describeForkState([shut, choice("e3", "b6", "Ungated")])).toBe("no outcome is settled yet; the ledger decides");
     expect(describeForkState([shut, open])).toBe("one outcome is settled");
-    expect(describeForkState([open, { ...open, edge_id: "e4" }])).toBe("2 outcomes are settled — your call");
+    expect(describeForkState([open, { ...open, edge_id: "e4" }])).toBe("2 outcomes are settled; your call");
   });
 });
 
@@ -188,7 +188,7 @@ describe("storySpine", () => {
       consequences: rules, objectives,
     });
     expect(spine.slice(1)).toEqual([
-      { beatId: "b4", title: "Confront the Baron", state: "next", note: "ready — “Recover the Baron's ledger” is completed", edgeId: "e1", open: true },
+      { beatId: "b4", title: "Confront the Baron", state: "next", note: "ready: “Recover the Baron's ledger” is completed", edgeId: "e1", open: true },
       { beatId: "b2", title: "Back to the note", state: "next", note: "", edgeId: "e2", open: true },
     ]);
   });

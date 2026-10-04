@@ -230,7 +230,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     group: "Callouts",
     label: "Pull Quote",
     description:
-      "Italic pulled quote with optional attribution line. No decorative frame — font treatment only. Shortcut: Mod-Alt-Q.",
+      "Italic pulled quote with optional attribution line. No decorative frame: font treatment only. Shortcut: Mod-Alt-Q.",
     icon: IconComment,
     action: (editor) => editor.chain().focus().toggleQuoteBlock().run(),
   },
@@ -273,7 +273,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
   // ── Templates ────────────────────────────────────────────────────────────────
   {
     group: "Templates",
-    label: "Class Table — Full Caster",
+    label: "Class Table: Full Caster",
     description:
       "20-row progression table for full spellcasters (e.g. Wizard, Sorcerer): Level, Prof. Bonus, Features, Cantrips Known, and 1st–9th spell slots. Spans both columns via Wide Block.",
     icon: IconTable,
@@ -282,7 +282,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
   },
   {
     group: "Templates",
-    label: "Class Table — Half Caster",
+    label: "Class Table: Half Caster",
     description:
       "20-row progression table for half-casters (e.g. Paladin, Ranger): Level, Prof. Bonus, Features, and 1st–5th spell slots. Spans both columns via Wide Block.",
     icon: IconTable,
@@ -291,7 +291,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
   },
   {
     group: "Templates",
-    label: "Class Table — Third Caster",
+    label: "Class Table: Third Caster",
     description:
       "20-row progression table for third-casters (e.g. Arcane Trickster, Eldritch Knight): Level, Prof. Bonus, Features, and 1st–4th spell slots (spellcasting starts at L3). Spans both columns via Wide Block.",
     icon: IconTable,
@@ -300,7 +300,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
   },
   {
     group: "Templates",
-    label: "Class Table — Martial",
+    label: "Class Table: Martial",
     description:
       "20-row progression table for martial classes (e.g. Fighter, Monk): Level, Prof. Bonus, Features, and one custom numeric column. You will be prompted for the column name (e.g. Ki Points, Sneak Attack). Spans both columns via Wide Block.",
     icon: IconTable,

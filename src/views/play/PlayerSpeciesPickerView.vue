@@ -60,7 +60,7 @@
             weight="normal"
             block
           >
-            <option value="">— None —</option>
+            <option value="">None</option>
             <option v-for="sr in pendingSpecies.subraces" :key="sr.name" :value="sr.name">
               {{ sr.name }}
             </option>

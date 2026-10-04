@@ -14,13 +14,13 @@
           format="portrait"
           :focal-point="character.portrait_focal_point ?? null"
         />
-        <span v-else class="font-cinzel text-2xl font-bold text-muted-foreground/50">{{ initial }}</span>
+        <span v-else class="text-title font-bold text-muted-foreground/50">{{ initial }}</span>
       </div>
 
       <!-- Info -->
       <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
         <div>
-          <h3 class="font-cinzel text-sm font-bold text-foreground truncate">{{ character.name }}</h3>
+          <h3 class="text-heading-xs font-bold text-foreground truncate">{{ character.name }}</h3>
           <p class="text-caption text-muted-foreground italic mt-0.5 truncate">{{ summary }}</p>
           <div class="flex flex-wrap items-center gap-1 mt-1">
             <!--

@@ -47,7 +47,7 @@ describe("describeQuestRouteGate", () => {
   const closed: QuestRouteGate = { objective_id: "o1", objective: "Save the princess", required_status: "complete", current_status: "pending", is_open: false };
 
   it("says a route is open and why", () => {
-    expect(describeQuestRouteGate(open)).toBe("Open — “Save the princess” is completed");
+    expect(describeQuestRouteGate(open)).toBe("Open: “Save the princess” is completed");
   });
 
   it("says a route is closed, the requirement, and the current state — the reason has to be visible", () => {

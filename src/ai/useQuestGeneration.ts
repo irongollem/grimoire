@@ -83,7 +83,7 @@ export function useQuestGeneration() {
     if (data?.error) throw new Error(data.error);
 
     if (!Array.isArray(data?.hooks) || data.hooks.length === 0) {
-      throw new Error("AI returned no quest hooks — please try again.");
+      throw new Error("AI returned no quest hooks. Please try again.");
     }
 
     // The server bills credits itself as part of the retrieval+generation call,
@@ -116,7 +116,7 @@ export function useQuestGeneration() {
     const result = JSON.parse(content) as QuestHooksAiResult;
 
     if (!Array.isArray(result.hooks) || result.hooks.length === 0) {
-      throw new Error("AI returned no quest hooks — please try again.");
+      throw new Error("AI returned no quest hooks. Please try again.");
     }
 
     logUsage({ reason: "quest_generation", textUsage });

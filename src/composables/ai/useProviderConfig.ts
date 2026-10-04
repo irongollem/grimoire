@@ -17,7 +17,7 @@ export interface ProviderConfigRow {
 
 export const PROVIDER_DISPLAY: Record<string, string> = {
   openai:    "OpenAI",
-  anthropic: "Anthropic — Claude Haiku 3",
+  anthropic: "Anthropic · Claude Haiku 3",
   gemini:    "Google Gemini",
 };
 

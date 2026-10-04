@@ -25,7 +25,7 @@
     <div v-else-if="!characters?.length && !offeredCharacters?.length" class="rounded-lg border border-border bg-card p-8 text-center space-y-3">
       <IconDM class="h-8 w-8 text-muted-foreground/40 mx-auto" />
       <div>
-        <p class="font-cinzel text-sm font-semibold text-foreground">No characters yet</p>
+        <p class="text-heading-sm font-semibold text-foreground">No characters yet</p>
         <p class="text-body text-muted-foreground italic mt-1">Create your first champion to begin your adventure.</p>
       </div>
       <AppButton
@@ -64,7 +64,7 @@
             <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
               <div>
                 <div class="flex items-center gap-2">
-                  <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
+                  <h2 class="text-heading-xs font-bold text-foreground truncate">{{ char.name }}</h2>
                   <span
                     v-if="isActive(char)"
                     class="shrink-0 text-label px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
@@ -139,7 +139,7 @@
       <!-- Offered by DM -->
       <div v-if="!ui.dmPreviewMode && offeredCharacters?.length" class="space-y-3">
         <div class="flex items-center gap-2">
-          <h2 class="font-cinzel text-sm font-semibold text-foreground">Available from your DM</h2>
+          <h2 class="text-heading-sm font-semibold text-foreground">Available from your DM</h2>
           <span class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{{ offeredCharacters.length }}</span>
         </div>
         <div
@@ -163,7 +163,7 @@
             <!-- Info -->
             <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
               <div>
-                <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
+                <h2 class="text-heading-xs font-bold text-foreground truncate">{{ char.name }}</h2>
                 <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
                   {{ charSummary(char, speciesNameOf(char)) }}
                 </p>

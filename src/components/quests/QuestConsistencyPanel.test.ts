@@ -24,7 +24,7 @@ describe("QuestConsistencyPanel", () => {
   });
 
   it("renders each finding's message verbatim", () => {
-    const message = 'A route waits for "Free the prisoner" to be complete, and nothing ever sets it — that branch can never be taken.';
+    const message = 'A route waits for "Free the prisoner" to be complete, and nothing ever sets it. That branch can never be taken.';
     const wrapper = mount(QuestConsistencyPanel, {
       props: { findings: [finding({ kind: "gate_never_opens", message })] },
     });

@@ -3,7 +3,7 @@
     <div>
       <div class="flex items-start gap-3">
         <div class="min-w-0 flex-1">
-          <h3 class="font-cinzel text-sm font-bold text-foreground">Quest lifecycle</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">Quest lifecycle</h3>
           <p class="text-caption text-muted-foreground">Objectives and consequences that span multiple beats.</p>
         </div>
         <AppButton
@@ -178,7 +178,7 @@ const doneCount = computed(() => countObjectivesComplete(objectives.value ?? [])
 function statusTooltip(objective: QuestObjective) {
   const label = QUEST_OBJECTIVE_STATUS_LABELS[objective.status];
   const next = QUEST_OBJECTIVE_STATUS_LABELS[nextObjectiveStatus(objective.status)];
-  return `${label} — click for ${next.toLowerCase()}`;
+  return `${label}: click for ${next.toLowerCase()}`;
 }
 
 function submitObjective() {
@@ -205,8 +205,8 @@ async function toggleObjective(objective: QuestObjective) {
 // first — by hand here, or via a beat's `raise` effect during play — is what
 // makes Reveal available again.
 function visibilityTooltip(objective: QuestObjective) {
-  if (objective.status === "dormant") return "Dormant objectives are hidden until raised — raise it first";
-  return objective.is_player_visible ? "Visible to players — click to hide" : "Hidden from players — click to reveal";
+  if (objective.status === "dormant") return "Dormant objectives are hidden until raised. Raise it first";
+  return objective.is_player_visible ? "Visible to players: click to hide" : "Hidden from players: click to reveal";
 }
 
 async function toggleObjectiveVisibility(objective: QuestObjective) {

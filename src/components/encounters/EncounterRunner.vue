@@ -46,7 +46,7 @@
           class="go-live-btn"
           :class="isLive ? 'live-active' : ''"
           :disabled="goingLive"
-          :title="isLive ? 'Live' : ui.sessionRunning ? 'Go Live' : 'Go Live — also starts the session'"
+          :title="isLive ? 'Live' : ui.sessionRunning ? 'Go Live' : 'Go Live (also starts the session)'"
           @click="handleGoLive"
         >
           <IconLive class="h-3.5 w-3.5" />
@@ -81,7 +81,7 @@
         <button
           @click="handleAbandon"
           class="abandon-btn"
-          title="Abandon — end run without syncing HP or discovering monsters"
+          title="Abandon: end run without syncing HP or discovering monsters"
         >
           <IconDungeon class="h-3.5 w-3.5" />
           <span class="btn-label">Abandon</span>
@@ -259,7 +259,7 @@ store.setInitiativeRoller(async (combatant) => {
   const result = await promptRoll({
     counts: { 20: 1 },
     modifier: initiativeModifier(combatant),
-    label: `Initiative — ${combatant.name}`,
+    label: `Initiative · ${combatant.name}`,
     senderName: combatant.name,
     silent: true,
   });
@@ -333,7 +333,7 @@ async function handleGoLive() {
     // Run is at the table. Said out loud rather than done quietly: the session
     // is what makes NPC reveals announce themselves to players, and that is not
     // a thing to switch on behind someone's back. See #758.
-    if (startedSession) toast.info("Session started — reveals now announce to your players.");
+    if (startedSession) toast.info("Session started. Reveals now announce to your players.");
 
     // Auto-discover only revealed monsters when going live — hidden/unseen
     // combatants haven't been seen by players yet.
@@ -537,7 +537,7 @@ async function handleEndCombat() {
 }
 
 .round-label {
-  @apply font-cinzel text-sm font-bold text-foreground px-2;
+  @apply text-heading-sm font-bold text-foreground px-2;
 }
 
 .top-right {
@@ -545,7 +545,7 @@ async function handleEndCombat() {
 }
 
 .encounter-name {
-  @apply font-cinzel text-sm font-bold text-foreground hidden sm:block;
+  @apply text-heading-sm font-bold text-foreground hidden sm:block;
 }
 
 /*

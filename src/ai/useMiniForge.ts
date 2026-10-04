@@ -53,7 +53,7 @@ export function waitForSculpt(miniId: string): Promise<Mini> {
     resolveWhen: (row) => row.status === "ready",
     rejectWhen: (row) => (row.status === "failed" ? (row.error ?? "The sculpt failed.") : null),
     timeoutMs: SCULPT_TIMEOUT_MS,
-    timeoutMessage: "The sculpt is taking longer than expected. It may still finish — check back on this mini shortly.",
+    timeoutMessage: "The sculpt is taking longer than expected. It may still finish. Check back on this mini shortly.",
     pollIntervalMs: SCULPT_POLL_MS,
   });
 }
@@ -77,7 +77,7 @@ export async function waitForStylize(miniId: string, jobId: string): Promise<Min
 function friendlyError(error: string): string {
   switch (error) {
     case "no_portrait":
-      return "This entity has no portrait yet — add one before forging a mini.";
+      return "This entity has no portrait yet. Add one before forging a mini.";
     case "invalid_state":
       return "This mini isn't in a state that allows that action right now.";
     case "meshy_unavailable":

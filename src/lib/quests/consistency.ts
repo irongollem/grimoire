@@ -119,7 +119,7 @@ function unreachableBeats(input: QuestConsistencyInput): QuestConsistencyFinding
     .filter((beat) => isLive(beat) && !reached.has(beat.id))
     .map((beat) => ({
       kind: "unreachable_beat" as const,
-      message: `"${shortTitle(beat.title)}" cannot be reached from the opening — no route leads to it.`,
+      message: `"${shortTitle(beat.title)}" cannot be reached from the opening. No route leads to it.`,
       beatIds: [beat.id],
     }));
 }
@@ -150,7 +150,7 @@ function objectivesNeverRaised(input: QuestConsistencyInput): QuestConsistencyFi
     .filter((objective) => objective.status === "dormant" && !producible.get(objective.id)?.has("pending"))
     .map((objective) => ({
       kind: "objective_never_raised" as const,
-      message: `"${shortTitle(objective.description)}" is dormant and nothing raises it — no beat will ever put it in front of the party.`,
+      message: `"${shortTitle(objective.description)}" is dormant and nothing raises it. No beat will ever put it in front of the party.`,
       objectiveIds: [objective.id],
     }));
 }
@@ -174,7 +174,7 @@ function gatesThatNeverOpen(input: QuestConsistencyInput): QuestConsistencyFindi
     if (producible.get(gate.objective_id)?.has(gate.status)) return [];
     return [{
       kind: "gate_never_opens" as const,
-      message: `A route waits for "${shortTitle(objective.description)}" to be ${gate.status}, and nothing ever sets it — that branch can never be taken.`,
+      message: `A route waits for "${shortTitle(objective.description)}" to be ${gate.status}, and nothing ever sets it. That branch can never be taken.`,
       objectiveIds: [objective.id],
       edgeId: gate.edge_id,
     }];
@@ -254,7 +254,7 @@ function objectivesNeverResolved(input: QuestConsistencyInput): QuestConsistency
     })
     .map((objective) => ({
       kind: "objective_never_resolves" as const,
-      message: `Nothing completes or fails "${shortTitle(objective.description)}" — it can only be ticked by hand.`,
+      message: `Nothing completes or fails "${shortTitle(objective.description)}". It can only be ticked by hand.`,
       objectiveIds: [objective.id],
       advisory: true,
     }));

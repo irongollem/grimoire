@@ -22,17 +22,17 @@
           <span class="text-foreground font-semibold">{{ creditsLabel(needed ?? 0) }}</span>
           and your balance is
           <span class="text-foreground font-semibold">{{ creditsLabel(balance ?? 0) }}</span>.
-          Top up here and carry on — checkout brings you straight back to this page.
+          Top up here and carry on; checkout brings you straight back to this page.
         </p>
 
         <!-- Free DMs are offered Pro first: its monthly allowance is the better
              deal for anyone generating regularly. Pro and comped accounts never
              see this — they are out of credits, not missing a plan. -->
         <section v-if="!isPro" class="space-y-2 rounded-lg border border-tone-caution/25 bg-tone-caution/5 p-4">
-          <p class="font-cinzel text-sm font-bold text-foreground tracking-wide">Go Pro</p>
+          <p class="text-heading-sm font-bold text-foreground">Go Pro</p>
           <p class="text-body text-muted-foreground leading-snug">
             <template v-if="monthlyCredits > 0">
-              {{ monthlyCredits.toLocaleString() }} AI credits every month, included —
+              {{ monthlyCredits.toLocaleString() }} AI credits every month, included,
             </template>
             plus no Free limits and your own API key if you have one.
           </p>
@@ -45,7 +45,7 @@
             block
             :loading="stripeLoading"
             :disabled="stripeLoading || !monthlyLabel || !subConsent"
-            :label="monthlyLabel ? `Subscribe — ${monthlyLabel}/month` : 'Pricing unavailable'"
+            :label="monthlyLabel ? `Subscribe: ${monthlyLabel}/month` : 'Pricing unavailable'"
             @click="createCheckoutSession('month', subConsent, returnPath)"
           />
           <AppButton
@@ -53,7 +53,7 @@
             variant="link"
             size="inline-caption"
             :disabled="stripeLoading || !subConsent"
-            :label="savedMonths > 0 ? `or ${yearlyLabel}/year — ${savedMonths} months free` : `or ${yearlyLabel}/year`"
+            :label="savedMonths > 0 ? `or ${yearlyLabel}/year, ${savedMonths} months free` : `or ${yearlyLabel}/year`"
             @click="createCheckoutSession('year', subConsent, returnPath)"
           />
           <p v-if="stripeError" role="alert" class="text-caption text-destructive italic">{{ stripeError }}</p>
@@ -127,8 +127,8 @@ watch(
     if (!boughtCredits && !subscribed) return;
     success(
       subscribed
-        ? "Welcome to Pro — your monthly credits are on their way."
-        : "Credits bought — they will show in your balance in a moment.",
+        ? "Welcome to Pro. Your monthly credits are on their way."
+        : "Credits bought. They will show in your balance in a moment.",
     );
     const query = { ...route.query };
     delete query.checkout;

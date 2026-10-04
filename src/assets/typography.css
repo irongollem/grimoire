@@ -42,8 +42,22 @@
 
 /* ── Heading tiers (Cinzel) ───────────────────────────────────────────────
    Display type carries NO letter-spacing — tracking belongs to the small
-   uppercase label roles above, not to headings. Sizes map 1:1 onto the scale
-   these headings already used, so adopting them changes nothing visually. */
+   uppercase label roles above, not to headings. Sizes map 1:1 onto Tailwind's
+   scale, with one deliberate exception: #967 moved the ~360 headings that had
+   been hand-rolled at 14px (`font-cinzel text-sm`) up to `text-heading-sm`,
+   after checking every DM and player page for wraps and truncation, and kept
+   14px only as `text-heading-xs` for single-line titles in dense cards. The
+   guard in typography.test.ts fails on any new `font-cinzel` + size pair. */
+
+/* = `font-cinzel text-sm`. Only for a title held to one line (`truncate`,
+   `line-clamp-*`) in a dense card or row, where it was sized to fit and 16px
+   would cut it short on a phone (#967 measured this: long monster names in the
+   bestiary rows). Every other heading at this step is `text-heading-sm`. */
+@utility text-heading-xs {
+  font-family: var(--font-cinzel);
+  font-size: 0.875rem;
+  line-height: var(--tw-leading, calc(1.25 / 0.875));
+}
 
 /* = `font-cinzel text-base` */
 @utility text-heading-sm {

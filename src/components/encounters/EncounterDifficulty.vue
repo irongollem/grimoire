@@ -1,6 +1,6 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
-    <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">
+    <h2 class="text-heading-sm font-bold text-foreground tracking-wider uppercase">
       Difficulty Analysis
     </h2>
 

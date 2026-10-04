@@ -108,18 +108,18 @@ describe("BLOCK_REGISTRY", () => {
     expect(entry.enabled!(editor, { isTwoColumn: true })).toBe(true);
   });
 
-  it('"Class Table — Martial" prompts for a column name and inserts a table', () => {
+  it('"Class Table: Martial" prompts for a column name and inserts a table', () => {
     vi.stubGlobal("prompt", () => "Sneak Attack");
-    const entry = BLOCK_REGISTRY.find((e) => e.label === "Class Table — Martial")!;
+    const entry = BLOCK_REGISTRY.find((e) => e.label === "Class Table: Martial")!;
     const editor = makeEditor();
     entry.action!(editor);
     const html = editor.getHTML();
     expect(html).toContain("Sneak Attack");
   });
 
-  it('"Class Table — Martial" inserts nothing when the prompt is cancelled', () => {
+  it('"Class Table: Martial" inserts nothing when the prompt is cancelled', () => {
     vi.stubGlobal("prompt", () => null);
-    const entry = BLOCK_REGISTRY.find((e) => e.label === "Class Table — Martial")!;
+    const entry = BLOCK_REGISTRY.find((e) => e.label === "Class Table: Martial")!;
     const editor = makeEditor();
     const before = editor.getHTML();
     entry.action!(editor);

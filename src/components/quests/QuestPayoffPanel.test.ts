@@ -279,7 +279,7 @@ describe("QuestPayoffPanel", () => {
       await flushPromises();
 
       expect(wrapper.findAllComponents({ name: "EntityCombobox" })).toHaveLength(1);
-      expect(wrapper.text()).toContain("This quest has no beats yet — it will open at whichever beat is written first.");
+      expect(wrapper.text()).toContain("This quest has no beats yet. It will open at whichever beat is written first.");
     });
   });
 

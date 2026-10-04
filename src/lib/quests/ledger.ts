@@ -182,7 +182,7 @@ export function routeCondition(gate: QuestRouteGate | null | undefined): RouteCo
   if (!gate) return null;
   const required = QUEST_OBJECTIVE_STATUS_LABELS[gate.required_status].toLowerCase();
   return gate.is_open
-    ? { open: true, text: `ready — “${gate.objective}” is ${required}` }
+    ? { open: true, text: `ready: “${gate.objective}” is ${required}` }
     : { open: false, text: `needs “${gate.objective}” ${required}` };
 }
 
@@ -193,9 +193,9 @@ export function describeForkState(outgoing: readonly QuestRuntimeChoice[]): stri
   const gated = outgoing.filter((choice) => choice.gate);
   if (!gated.length) return "";
   const ready = gated.filter((choice) => choice.gate!.is_open).length;
-  if (ready === 0) return "no outcome is settled yet — the ledger decides";
+  if (ready === 0) return "no outcome is settled yet; the ledger decides";
   if (ready === 1) return "one outcome is settled";
-  return `${ready} outcomes are settled — your call`;
+  return `${ready} outcomes are settled; your call`;
 }
 
 // ── The story so far ────────────────────────────────────────────────────────

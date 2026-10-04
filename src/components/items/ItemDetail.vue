@@ -143,7 +143,7 @@
         <div v-if="!isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
           <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
             {{ itemType === "ammunition" ? "Quantity" : "Charges" }}
-            <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
+            <span class="normal-case font-fell font-normal text-muted-foreground/60">(optional)</span>
           </h3>
           <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">
@@ -180,7 +180,7 @@
         <div v-if="isPack" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
           <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
             Bundle Contents
-            <span class="normal-case font-fell font-normal text-muted-foreground/60"> — items added when this pack is opened</span>
+            <span class="normal-case font-fell font-normal text-muted-foreground/60">(items added when this pack is opened)</span>
           </h3>
           <div class="flex flex-col gap-1.5">
             <div
@@ -224,7 +224,7 @@
           <div class="flex items-center justify-between">
             <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
               Linked Spells
-              <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
+              <span class="normal-case font-fell font-normal text-muted-foreground/60">(optional)</span>
             </h3>
             <span v-if="selectedSpells.length" class="text-caption-sm text-muted-foreground italic">{{ selectedSpells.length }} linked</span>
           </div>
@@ -259,11 +259,11 @@
         <div v-if="isMagic && !isArtObject" class="flex flex-col gap-1">
           <span class="text-label-lg text-muted-foreground uppercase">
             Mundane Description
-            <span class="normal-case font-fell font-normal text-muted-foreground/60"> — shown before identification</span>
+            <span class="normal-case font-fell font-normal text-muted-foreground/60">(shown before identification)</span>
           </span>
           <RichTextEditor
             v-model="mundaneDescription"
-            placeholder="What does this item appear to be before it's identified? Describe only its physical appearance — no magical hints…"
+            placeholder="What does this item appear to be before it's identified? Describe only its physical appearance, no magical hints…"
             size="md"
           />
         </div>

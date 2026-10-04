@@ -1,6 +1,6 @@
 <template>
   <section class="flex flex-col gap-2" aria-label="What happens next">
-    <h3 v-if="!headless" class="font-cinzel text-sm font-bold text-foreground">What happens next</h3>
+    <h3 v-if="!headless" class="text-heading-sm font-bold text-foreground">What happens next</h3>
     <AppInput v-if="choices.length > 4" v-model="branchSearch" placeholder="Filter branches…" />
     <div class="grid gap-2">
       <article v-for="choice in filteredChoices" :key="choice.edge_id" class="space-y-2 rounded-lg border border-border bg-card p-3">
@@ -11,7 +11,7 @@
           <span v-if="choice.prepGapCount" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">{{ choice.prepGapCount }} gap{{ choice.prepGapCount === 1 ? '' : 's' }}</span>
         </div>
         <div>
-          <p class="font-cinzel text-sm font-bold text-foreground">{{ choice.beat_title }}</p>
+          <p class="text-heading-sm font-bold text-foreground">{{ choice.beat_title }}</p>
           <p v-if="captionFor(choice)" class="text-caption" :class="choice.gate && !choice.gate.is_open ? 'text-destructive' : 'text-muted-foreground'">{{ captionFor(choice) }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -33,8 +33,8 @@
         <span class="inline-flex items-center gap-1 rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">
           <IconParallel class="h-3 w-3" aria-hidden="true" />opens alongside
         </span>
-        <p class="font-cinzel text-sm font-bold text-foreground">{{ choice.beat_title }}</p>
-        <p class="text-caption text-muted-foreground">Ticked by default — advancing also spawns Thread {{ choice.thread_label }}.</p>
+        <p class="text-heading-sm font-bold text-foreground">{{ choice.beat_title }}</p>
+        <p class="text-caption text-muted-foreground">Ticked by default. Advancing also spawns Thread {{ choice.thread_label }}.</p>
       </article>
 
       <!-- The fork's open-ended option: no target beat exists yet, so naming
@@ -43,7 +43,7 @@
            dialog is "the only place a thread is created," improvising
            included, so this strip no longer carries its own inline form. -->
       <article class="space-y-2 rounded-lg border border-dashed border-border bg-card p-3">
-        <p class="font-cinzel text-sm font-bold text-foreground">Something else…</p>
+        <p class="text-heading-sm font-bold text-foreground">Something else…</p>
         <p class="text-caption text-muted-foreground">Name what just happened and it becomes a beat.</p>
         <AppButton label="Something else…" size="sm" variant="subtle" :disabled="navigationDisabled" @click="emit('something-else')" />
       </article>

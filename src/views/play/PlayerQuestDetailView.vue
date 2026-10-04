@@ -18,7 +18,7 @@
       class="text-center py-16 space-y-3"
     >
       <IconScrollText class="h-10 w-10 text-muted-foreground/30 mx-auto" />
-      <p class="font-cinzel text-sm text-muted-foreground">Quest not found.</p>
+      <p class="text-body text-muted-foreground">Quest not found.</p>
     </div>
 
     <template v-else>

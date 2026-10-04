@@ -292,7 +292,7 @@ const undiscoveredCaption = computed(() => {
   if (summary.entersAt) parts.push(`enters at ${summary.entersAt}`);
   if (hasNoBeats.value) parts.push("no beats yet");
   if (parts.length) return parts.join(" · ");
-  if (summary.heldPayoffCount) return "Held payoff — not yet fired";
+  if (summary.heldPayoffCount) return "Held payoff, not yet fired";
   return null;
 });
 

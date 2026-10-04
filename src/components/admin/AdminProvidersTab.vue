@@ -1,9 +1,9 @@
 <template>
   <div class="space-y-6">
     <div class="rounded-lg border border-border bg-card p-4 space-y-1">
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">AI Providers</h2>
+      <h2 class="text-heading-sm font-semibold text-foreground">AI Providers</h2>
       <p class="text-caption text-muted-foreground italic">
-        Platform key, model selection, credit multipliers, and API cost rates — all per provider.
+        Platform key, model selection, credit multipliers, and API cost rates, all per provider.
         Keys are encrypted at rest. Multipliers are relative to the OpenAI 1× baseline.
         Save model costs to mark them verified; compare estimated totals to provider invoices monthly.
       </p>
@@ -51,7 +51,7 @@
       >
         <!-- Header -->
         <div class="flex items-center justify-between">
-          <h3 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">
+          <h3 class="text-heading-sm font-semibold text-foreground">
             {{ PROVIDER_LABELS[row.provider] ?? row.provider }}
           </h3>
           <AppButton

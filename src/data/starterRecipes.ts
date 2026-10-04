@@ -49,7 +49,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   {
     name: "Roast Meat",
     description:
-      "Slow-roast a seasoned cut over steady heat. Produces a more satisfying meal — and two servings.",
+      "Slow-roast a seasoned cut over steady heat. Produces a more satisfying meal, and two servings.",
     discipline: "cooking",
     dc: 10,
     crafting_time: 2,
@@ -65,7 +65,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   {
     name: "Smoked Meat (Jerky)",
     description:
-      "Salt the meat and smoke it low and slow. The result keeps for weeks — invaluable on long journeys.",
+      "Salt the meat and smoke it low and slow. The result keeps for weeks, invaluable on long journeys.",
     discipline: "cooking",
     dc: 12,
     crafting_time: 1,
@@ -327,7 +327,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   {
     name: "Brew Alchemist's Fire",
     description:
-      "Combine refined oil with powdered brimstone and seal the flask tightly. The mixture ignites violently on contact with air — handle with great care.",
+      "Combine refined oil with powdered brimstone and seal the flask tightly. The mixture ignites violently on contact with air; handle with great care.",
     discipline: "alchemy",
     dc: 14,
     crafting_time: 4,
@@ -477,7 +477,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   },
   {
     name: "Cut Emerald",
-    description: "Saw the beryl crystal to remove inclusions, then grind the characteristic step cut that bears the stone's name — patience and precision above all.",
+    description: "Saw the beryl crystal to remove inclusions, then grind the characteristic step cut that bears the stone's name: patience and precision above all.",
     discipline: "jewelcrafting",
     dc: 16,
     crafting_time: 4,
@@ -490,7 +490,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   },
   {
     name: "Cut Blue Sapphire",
-    description: "Split the blue corundum along the basal plane and grind a brilliant oval cut — the vivid cornflower hue rewards a steady hand.",
+    description: "Split the blue corundum along the basal plane and grind a brilliant oval cut; the vivid cornflower hue rewards a steady hand.",
     discipline: "jewelcrafting",
     dc: 16,
     crafting_time: 4,
@@ -503,7 +503,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   },
   {
     name: "Cut Black Sapphire",
-    description: "Shape the rare black corundum into a polished cabochon — its inner star only reveals itself under a master's finishing touch.",
+    description: "Shape the rare black corundum into a polished cabochon; its inner star only reveals itself under a master's finishing touch.",
     discipline: "jewelcrafting",
     dc: 18,
     crafting_time: 4,
@@ -516,7 +516,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   },
   {
     name: "Cut Ruby",
-    description: "Cleave the corundum along the basal plane and grind a precise oval brilliant cut — any error at this value is catastrophic.",
+    description: "Cleave the corundum along the basal plane and grind a precise oval brilliant cut; any error at this value is catastrophic.",
     discipline: "jewelcrafting",
     dc: 18,
     crafting_time: 4,
@@ -579,7 +579,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   {
     name: "Forge Iron Spikes",
     description:
-      "Draw hot iron into points and flatten the heads — useful as climbing pitons, door spikes, or plain old nails. Simple work, but always needed.",
+      "Draw hot iron into points and flatten the heads, useful as climbing pitons, door spikes, or plain old nails. Simple work, but always needed.",
     discipline: "smithing",
     dc: 8,
     crafting_time: 1,
@@ -774,7 +774,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   {
     name: "Build Camp Oven",
     description:
-      "Stack and mortar fieldstones into a domed bread oven. Once cured with a hot fire it holds heat for hours — a proper kitchen wherever you make camp.",
+      "Stack and mortar fieldstones into a domed bread oven. Once cured with a hot fire it holds heat for hours, a proper kitchen wherever you make camp.",
     discipline: "masonry",
     dc: 12,
     crafting_time: 1,
@@ -791,7 +791,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   {
     name: "Shape Grindstone",
     description:
-      "Dress a coarse-grit stone disc onto an iron axle. Mounted on a trestle it sharpens blades far faster than a whetstone — essential for a smith on campaign.",
+      "Dress a coarse-grit stone disc onto an iron axle. Mounted on a trestle it sharpens blades far faster than a whetstone, essential for a smith on campaign.",
     discipline: "masonry",
     dc: 10,
     crafting_time: 4,
@@ -821,7 +821,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   {
     name: "Carve Stone Idol",
     description:
-      "Rough out a block of stone with a point chisel and refine the form with progressively finer tools. The result is a recognisable effigy — deity, beast, or ancestor — that serves as an offering, ward, or quest item.",
+      "Rough out a block of stone with a point chisel and refine the form with progressively finer tools. The result is a recognisable effigy (deity, beast, or ancestor) that serves as an offering, ward, or quest item.",
     discipline: "masonry",
     dc: 14,
     crafting_time: 2,
@@ -851,7 +851,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   {
     name: "Construct Forge Hearth",
     description:
-      "Build a permanent forge housing from firebrick and mortar — firebox, tuyere port, ash dump, and hood. Once cured it provides a reliable workspace bonus to all Smithing work done here.",
+      "Build a permanent forge housing from firebrick and mortar: firebox, tuyere port, ash dump, and hood. Once cured it provides a reliable workspace bonus to all Smithing work done here.",
     discipline: "masonry",
     dc: 16,
     crafting_time: 2,
@@ -1041,7 +1041,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   },
   {
     name: "Forge Caltrops",
-    description: "Cut and bend iron scraps into four-pointed caltrops — each lands with a point upright however it falls.",
+    description: "Cut and bend iron scraps into four-pointed caltrops; each lands with a point upright however it falls.",
     discipline: "smithing",
     dc: 10,
     crafting_time: 1,
@@ -1067,7 +1067,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   },
   {
     name: "Forge Iron Padlock",
-    description: "Shape a hasp body and shackle from iron, then rivet the case shut. A crude but solid lock — no pin mechanism.",
+    description: "Shape a hasp body and shackle from iron, then rivet the case shut. A crude but solid lock, no pin mechanism.",
     discipline: "smithing",
     dc: 12,
     crafting_time: 4,
@@ -1273,7 +1273,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   },
   {
     name: "Craft Military Saddle",
-    description: "Build a deep-seated saddle with high cantle and knee rolls — designed to keep a rider mounted under heavy blows.",
+    description: "Build a deep-seated saddle with high cantle and knee rolls, designed to keep a rider mounted under heavy blows.",
     discipline: "leathercraft",
     dc: 16,
     crafting_time: 3,
@@ -1305,7 +1305,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
   },
   {
     name: "Craft Exotic Saddle",
-    description: "Construct an articulated frame with adjustable attachment points for non-horse mounts — griffons, giant lizards, and the like.",
+    description: "Construct an articulated frame with adjustable attachment points for non-horse mounts (griffons, giant lizards, and the like).",
     discipline: "leathercraft",
     dc: 18,
     crafting_time: 4,

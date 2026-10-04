@@ -2,7 +2,7 @@
   <SettingsSection title="My Character">
     <div v-if="linkedCharacter" class="flex items-center gap-3">
       <div class="flex-1">
-        <p class="font-cinzel text-sm font-semibold text-foreground">{{ linkedCharacter.name }}</p>
+        <p class="text-heading-sm font-semibold text-foreground">{{ linkedCharacter.name }}</p>
         <p class="text-caption text-muted-foreground italic">
           {{ linkedCharacter.class }} {{ linkedCharacter.level > 0 ? `· Level ${linkedCharacter.level}` : '' }}
         </p>
@@ -34,7 +34,7 @@
           :active="claimTarget === m.id"
           @click="claimTarget = m.id"
         >
-          <span class="font-cinzel text-sm font-semibold">{{ m.name }}</span>
+          <span class="text-heading-sm font-semibold">{{ m.name }}</span>
           <span class="text-caption text-muted-foreground ml-2">
             {{ m.class }} {{ m.level > 0 ? `· Lv ${m.level}` : '' }}
           </span>

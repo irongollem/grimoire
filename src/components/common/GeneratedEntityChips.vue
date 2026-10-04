@@ -13,7 +13,7 @@
       </button>
       <span
         v-else
-        title="Not in your campaign — the model introduced this"
+        title="Not in your campaign: the model introduced this"
         class="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/40 px-2 py-0.5 text-caption-sm text-muted-foreground"
       >
         <component :is="ENTITY_CHIP_ICON[entity.kind]" class="h-3 w-3 shrink-0" />

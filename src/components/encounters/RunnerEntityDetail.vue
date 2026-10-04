@@ -153,7 +153,7 @@
               :key="i"
               class="flex items-center gap-2"
             >
-              <span class="font-cinzel text-sm font-bold text-foreground">{{ entry.dice }}</span>
+              <span class="text-heading-sm font-bold text-foreground">{{ entry.dice }}</span>
               <span v-if="entry.type" class="text-caption text-muted-foreground italic capitalize">{{ entry.type }}</span>
               <button
                 v-if="hasRollableDice(entry.dice)"
@@ -361,7 +361,7 @@ async function announceSpellSave(spell: SpellType, dc: number) {
     : "";
   // Best-effort announcement — sendSystemMessage no-ops without a campaign.
   await sendSystemMessage(
-    `casts ${spell.name} — DC ${dc} ${ability} saving throw${effect}`,
+    `casts ${spell.name} · DC ${dc} ${ability} saving throw${effect}`,
     selectedMember.value?.name ?? selectedCombatant.value?.name ?? "Player",
   ).catch((e) => reportChatFailure(e, "announce the saving throw in the chat"));
 }
@@ -430,7 +430,7 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-name {
-  @apply font-cinzel text-sm font-bold text-foreground truncate;
+  @apply text-heading-xs font-bold text-foreground truncate;
 }
 
 .detail-close {
@@ -462,7 +462,7 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-stat strong {
-  @apply font-cinzel text-sm font-bold text-foreground;
+  @apply text-heading-sm font-bold text-foreground;
 }
 
 .detail-check-grid {

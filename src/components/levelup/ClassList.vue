@@ -64,7 +64,7 @@
           class="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
         >
           <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ cls.class_name }}</p>
+            <p class="text-heading-xs font-semibold text-foreground truncate">{{ cls.class_name }}</p>
             <p class="text-caption text-muted-foreground mt-0.5">
               d{{ cls.hit_die }}
               <span v-if="cls.saving_throws.length > 0"> · {{ cls.saving_throws.join(', ') }} saves</span>
@@ -91,7 +91,7 @@
           class="flex items-center gap-3 px-4 py-3"
         >
           <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ cls.class_name }}</p>
+            <p class="text-heading-xs font-semibold text-foreground truncate">{{ cls.class_name }}</p>
             <p class="text-caption text-muted-foreground mt-0.5">
               d{{ cls.hit_die }}
               <span v-if="cls.saving_throws.length > 0"> · {{ cls.saving_throws.join(', ') }} saves</span>

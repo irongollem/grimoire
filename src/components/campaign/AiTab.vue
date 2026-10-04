@@ -40,7 +40,7 @@
     <ProFeatureGate
       v-if="!isPro"
       class="max-w-md"
-      message="Bring your own API keys, choose specific providers, and customize this campaign's AI setting prompt — available on the Pro plan. Free campaigns still get AI generation billed to Grimoire-managed credits once the toggle above is on."
+      message="Bring your own API keys, choose specific providers, and customize this campaign's AI setting prompt; available on the Pro plan. Free campaigns still get AI generation billed to Grimoire-managed credits once the toggle above is on."
     />
 
     <template v-else-if="form.ai_enabled">
@@ -77,8 +77,8 @@
           <div class="flex items-center justify-between">
             <label class="font-cinzel text-xs text-muted-foreground tracking-wide">
               {{ p.label }}
-              <span v-if="clearedKeys[p.id]" class="ml-1.5 text-caption-sm normal-case tracking-normal text-ink-caution ">— will be removed on save</span>
-              <span v-else-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 text-caption-sm normal-case tracking-normal text-primary/80">— key on file (leave blank to keep)</span>
+              <span v-if="clearedKeys[p.id]" class="ml-1.5 text-caption-sm normal-case tracking-normal text-ink-caution ">(will be removed on save)</span>
+              <span v-else-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 text-caption-sm normal-case tracking-normal text-primary/80">(key on file; leave blank to keep)</span>
             </label>
             <div class="flex items-center gap-3">
               <button
@@ -157,7 +157,7 @@
             Your key · no credits charged
           </p>
           <p v-else-if="enabledTextProviders.length > 1" class="text-caption text-muted-foreground">
-            Quality tier available — add an API key above to choose provider.
+            Quality tier available. Add an API key above to choose provider.
           </p>
         </div>
 
@@ -183,7 +183,7 @@
           <p class="text-caption text-muted-foreground">
             <template v-if="!hasByokImageKey">≈ {{ selectedImageCredits }} credits / image</template>
             <template v-else>Your key · no credits charged</template>
-            · {{ imageSpeed(selectedImageProvider) }} per image<span v-if="selectedImageProvider === 'gemini'"> — much faster than gpt-image</span>
+            · {{ imageSpeed(selectedImageProvider) }} per image<span v-if="selectedImageProvider === 'gemini'"> (much faster than gpt-image)</span>
           </p>
         </div>
 
@@ -209,7 +209,7 @@
         <textarea
           v-model="form.ai_setting_prompt"
           rows="6"
-          placeholder="Describe the visual tone of your world — palette, materials, lighting, atmosphere, and character style. e.g. Frozen northern survival fantasy. Favour cold blues, greys, bone tones, weathered leather and fur. Use blizzard haze, moonlit ice, and dim firelight to support the subject. Characters wear practical cold-weather gear with cultural details through scars, markings, and trophies. Keep the mood solemn, hardy, and world-consistent."
+          placeholder="Describe the visual tone of your world: palette, materials, lighting, atmosphere, and character style. e.g. Frozen northern survival fantasy. Favour cold blues, greys, bone tones, weathered leather and fur. Use blizzard haze, moonlit ice, and dim firelight to support the subject. Characters wear practical cold-weather gear with cultural details through scars, markings, and trophies. Keep the mood solemn, hardy, and world-consistent."
           class="field-input resize-none"
         />
       </div>
@@ -387,13 +387,13 @@ const selectedImageCredits = computed(
 
 // BYOK provider options (shown when the user has entered their own keys)
 const BYOK_TEXT_OPTIONS = [
-  { value: "openai",    label: "OpenAI — GPT-4o mini",       keyProvider: "openai"    },
+  { value: "openai",    label: "OpenAI · GPT-4o mini",       keyProvider: "openai"    },
   { value: "gemini",    label: "Google Gemini 2.5 Flash",    keyProvider: "gemini"    },
 ] as const;
 
 const BYOK_IMAGE_OPTIONS = [
-  { value: "openai", label: "OpenAI — gpt-image",     keyProvider: "openai" },
-  { value: "gemini", label: "Google — Nano Banana",   keyProvider: "gemini" },
+  { value: "openai", label: "OpenAI · gpt-image",     keyProvider: "openai" },
+  { value: "gemini", label: "Google · Nano Banana",   keyProvider: "gemini" },
 ] as const;
 
 function providerHasKey(providerId: string): boolean {

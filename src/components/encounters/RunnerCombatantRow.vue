@@ -56,7 +56,7 @@
           size="xs"
           class="ml-1"
           label="✦ Surprised ×"
-          tooltip="Surprised — click to remove"
+          tooltip="Surprised: click to remove"
           @click.stop="store.toggleSurprised(combatant.instance_id)"
         />
         <button
@@ -95,7 +95,7 @@
           :block="false"
           class="w-11 text-muted-foreground font-normal"
           min="1"
-          title="Max HP — edit to raise or lower on the fly"
+          title="Max HP: edit to raise or lower on the fly"
           @update:model-value="(v) => handleSetMaxHp(Number(v))"
         />
         <button class="hp-btn" @click="handleAdjustHp(1)">+</button>
@@ -125,13 +125,13 @@
           v-for="cond in nonExhaustion(displayConditions)"
           :key="cond"
           class="cond-badge"
-          :title="`${cond} — click to remove\n\n${getConditionDescription(cond, ruleset)}`"
+          :title="`${cond}: click to remove\n\n${getConditionDescription(cond, ruleset)}`"
           @click="store.toggleCondition(combatant.instance_id, cond)"
         >{{ cond }} ×</span>
         <span
           v-if="pcConcentration"
           class="conc-chip"
-          :title="`Concentrating on ${pcConcentration} — click to drop`"
+          :title="`Concentrating on ${pcConcentration}: click to drop`"
           @click="dropCombatantConcentration"
         >✦ {{ pcConcentration }} ×</span>
         <button
@@ -139,7 +139,7 @@
           type="button"
           class="reaction-chip"
           :class="combatant.reactionUsed ? 'reaction-used' : 'reaction-ready'"
-          :title="combatant.reactionUsed ? 'Reaction used — click to restore' : 'Reaction available — click to mark used'"
+          :title="combatant.reactionUsed ? 'Reaction used: click to restore' : 'Reaction available: click to mark used'"
           @click="store.toggleReaction(combatant.instance_id)"
         >⚡</button>
         <ConditionPicker
@@ -264,7 +264,7 @@ function toggleDetail() {
 
 /* ── Shared badge + chip styles ─────────────────────────────────────────── */
 .combatant-name {
-  @apply font-cinzel text-sm font-semibold text-foreground hover:text-primary transition-colors;
+  @apply text-heading-sm font-semibold text-foreground hover:text-primary transition-colors;
 }
 
 .type-badge {
@@ -299,7 +299,7 @@ function toggleDetail() {
 
 /* ── Shared HP styles ───────────────────────────────────────────────────── */
 .hp-btn {
-  @apply w-6 h-6 rounded bg-muted border border-border font-cinzel font-bold text-sm flex items-center justify-center hover:bg-card transition-colors;
+  @apply w-6 h-6 rounded bg-muted border border-border text-heading-sm font-bold flex items-center justify-center hover:bg-card transition-colors;
 }
 
 @keyframes damage-flash {
@@ -393,7 +393,7 @@ function toggleDetail() {
 .hp-max { @apply font-cinzel text-xs text-muted-foreground; }
 
 .ac-cell  { @apply flex items-center justify-center; }
-.ac-value { @apply font-cinzel text-sm font-bold text-foreground text-center; }
+.ac-value { @apply text-heading-sm font-bold text-foreground text-center; }
 
 .conditions-cell { @apply flex items-center flex-wrap gap-1; }
 

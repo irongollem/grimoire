@@ -26,7 +26,7 @@ export const DOWNTIME_ACTIVITIES: DowntimeActivity[] = [
   {
     key: "craft",
     title: "Craft & Enchant",
-    hook: "Bend metal, brew, or bind magic — and walk away with something made.",
+    hook: "Bend metal, brew, or bind magic, and walk away with something made.",
     risk: 1,
     rewardType: "item",
     accent: "#7A4B12",
@@ -56,7 +56,7 @@ export const DOWNTIME_ACTIVITIES: DowntimeActivity[] = [
   {
     key: "business",
     title: "Run a Business",
-    hook: "Mind the ledger of a shop, a shrine, or a cell — and see what it brings in.",
+    hook: "Mind the ledger of a shop, a shrine, or a cell, and see what it brings in.",
     risk: 2,
     rewardType: "note",
     accent: "#6B5510",

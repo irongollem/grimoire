@@ -1,6 +1,6 @@
 <template>
   <div v-if="!beat.staged_at_location_id" class="rounded-xl border border-border bg-card p-4 text-caption italic text-muted-foreground">
-    This beat has no site staged — the cockpit should not have mounted the site handoff for it.
+    This beat has no site staged. The cockpit should not have mounted the site handoff for it.
   </div>
   <div v-else-if="!site" class="rounded-xl border border-border bg-card p-4 text-caption italic text-muted-foreground">
     Loading the site…
@@ -29,7 +29,7 @@
           </span>
           <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ quest?.title ?? "…" }}</span>
         </div>
-        <h1 class="font-cinzel text-lg font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h1>
+        <h1 class="text-heading font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h1>
         <p class="mt-0.5 text-caption text-muted-foreground">{{ kindLabel }} · staged at a site · {{ positionLabel }}</p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -74,7 +74,7 @@
       <!-- Rooms -->
       <section class="row-span-2 flex min-h-0 flex-col gap-2 rounded-xl border border-border bg-card p-3 @6xl:row-span-1">
         <header class="flex items-center gap-2">
-          <h2 class="font-cinzel text-sm font-bold text-foreground">{{ siteSpaceHeading }}</h2>
+          <h2 class="text-heading-sm font-bold text-foreground">{{ siteSpaceHeading }}</h2>
           <span v-if="unwrittenIds.size" class="ml-auto rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">
             {{ unwrittenIds.size }} unwritten
           </span>
@@ -135,7 +135,7 @@
         </p>
 
         <section v-if="otherThreads.length" class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
-          <h3 class="font-cinzel text-sm font-bold text-foreground">{{ otherThreadsHeading }}</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">{{ otherThreadsHeading }}</h3>
           <div v-for="badge in otherThreads" :key="badge.thread.id" class="flex items-center gap-3 rounded-lg border border-border bg-card p-2">
             <span class="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-md" :class="badge.tone.bg">
               <IconNavigate class="h-3.5 w-3.5" :class="badge.tone.text" aria-hidden="true" />
@@ -164,7 +164,7 @@
         />
 
         <section class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
-          <h3 class="font-cinzel text-sm font-bold text-foreground">Progress</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">Progress</h3>
           <p class="text-caption text-muted-foreground">{{ currentRoom.name }}</p>
           <LocationStateControls :location-id="currentRoom.id" />
         </section>
@@ -226,7 +226,7 @@
               {{ roomOrdinalValue }}
             </span>
             <div class="min-w-0 flex-1">
-              <h2 class="truncate font-cinzel text-sm font-bold text-foreground">{{ currentRoom.name }}</h2>
+              <h2 class="truncate text-heading-xs font-bold text-foreground">{{ currentRoom.name }}</h2>
               <p class="truncate text-caption text-muted-foreground">Party is here{{ currentRoomZoneNote ? ` · ${currentRoomZoneNote}` : "" }}</p>
             </div>
           </header>
@@ -247,7 +247,7 @@
             :door-state="doorStateOf"
           />
           <div class="flex flex-col gap-2">
-            <h3 class="font-cinzel text-sm font-bold text-foreground">Progress</h3>
+            <h3 class="text-heading-sm font-bold text-foreground">Progress</h3>
             <LocationStateControls :location-id="currentRoom.id" />
           </div>
         </section>
@@ -447,7 +447,7 @@ const currentRoom = computed(() => rooms.value.find((r) => r.id === currentRoomI
 const roomOrdinalValue = computed(() => roomOrdinal(currentRoomId.value, roomIds.value));
 const positionLabel = computed(() => {
   if (roomOrdinalValue.value !== null) return `${siteSpaceNoun.value.singular} ${roomOrdinalValue.value} of ${rooms.value.length}`;
-  return openingRoom.value ? `not yet inside — opens at ${openingRoom.value.name}` : "not yet inside";
+  return openingRoom.value ? `not yet inside, opens at ${openingRoom.value.name}` : "not yet inside";
 });
 const switchingCaption = computed(() => roomOrdinalValue.value === null
   ? "Switching back leaves this site"
@@ -519,13 +519,13 @@ const currentRoomZoneNote = computed(() => currentRoomId.value ? zoneNotes.value
 // `childTypeArticled` uses on the location side, mirrored here since this
 // prose needs an article and `pluralizeCount`/`spaceNoun` do not cover one.
 const emptySpaceEntry = computed(() => (siteIsGrounds.value ? "grounds" : "a room"));
-const emptyRoomCaption = computed(() => `The party hasn't entered ${emptySpaceEntry.value} here yet — click one on the left to move them in.`);
-const emptyRoomCaptionMobile = computed(() => `The party hasn't entered ${emptySpaceEntry.value} here yet — open ${siteSpaceHeading.value} below to move them in.`);
+const emptyRoomCaption = computed(() => `The party hasn't entered ${emptySpaceEntry.value} here yet. Click one on the left to move them in.`);
+const emptyRoomCaptionMobile = computed(() => `The party hasn't entered ${emptySpaceEntry.value} here yet. Open ${siteSpaceHeading.value} below to move them in.`);
 const roomsFooterCaption = computed(() =>
   // "The last one" rather than "The last room"/"The last grounds" — repeating
   // the site's own noun here would read as "The last grounds may hand...",
   // which is no cleaner than the thing this story exists to fix.
-  `${siteSpaceHeading.value} are the site's own content, not beats. The last one may hand the thread on to a real beat — which is how a crawl ends without a fake "you leave the dungeon" beat.`);
+  `${siteSpaceHeading.value} are the site's own content, not beats. The last one may hand the thread on to a real beat, which is how a crawl ends without a fake "you leave the dungeon" beat.`);
 const roomsDockLabel = computed(() => `${siteSpaceHeading.value} · ${rooms.value.length}`);
 
 // ── A zone can name a beat (#868 S12) — a trigger zone whose payload names

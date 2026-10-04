@@ -1,7 +1,7 @@
 <template>
   <ListPageLayout
     title="NPC Sets"
-    description="Playlists of NPCs — assemble the cast for a session, then export them to the Card Forge in one tap"
+    description="Playlists of NPCs: assemble the cast for a session, then export them to the Card Forge in one tap"
   >
     <template #title-suffix>
       <ManualHelpLink page="npc-sets" />

@@ -31,7 +31,7 @@
           class="screen-table torn mb-6 break-inside-avoid rounded-lg border border-border overflow-hidden"
         >
           <div class="bg-muted/40 px-4 py-2.5 border-b border-border">
-            <h3 class="font-cinzel text-sm font-bold text-foreground tracking-wider">{{ table.title }}</h3>
+            <h3 class="text-heading-sm font-bold text-foreground">{{ table.title }}</h3>
           </div>
           <!-- The table itself is shared with the dashboard's DM-screen quick
                card (#764); only this panel's chrome is local. -->

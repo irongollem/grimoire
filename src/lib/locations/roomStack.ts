@@ -169,7 +169,7 @@ export function buildRoomStack(input: RoomStackInput): RoomStackRow[] {
         id: `encounter-zone:${zone.id}`,
         kind: "encounter",
         label: encounter.name,
-        subtitle: `Trigger zone on ${zone.label ?? "this room"} — prompt, never automatic`,
+        subtitle: `Trigger zone on ${zone.label ?? "this room"}: prompt, never automatic`,
         action: "run",
         target: `/encounters/${encounter.id}/run`,
       });

@@ -28,7 +28,7 @@
           v-if="background?.open5e_import"
           class="text-caption text-muted-foreground italic"
         >
-          Imported from Open5e — {{ background?.source_title ?? background?.source }}. Edits stay local and won't be overwritten by re-sync unless Open5e changes the base fields.
+          Imported from Open5e: {{ background?.source_title ?? background?.source }}. Edits stay local and won't be overwritten by re-sync unless Open5e changes the base fields.
         </div>
 
         <!-- Proficiency chips -->
@@ -94,7 +94,7 @@
 
     <!-- Feat grant (2024 PHB) -->
     <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-3">
-      <span class="text-label-lg font-semibold text-muted-foreground">Feat grant <span class="font-normal text-muted-foreground/60">(2024 PHB — optional)</span></span>
+      <span class="text-label-lg font-semibold text-muted-foreground">Feat grant <span class="font-normal text-muted-foreground/60">(2024 PHB: optional)</span></span>
       <AppInput
         v-model="form.feat_grant_name"
         size="lg"
@@ -103,17 +103,17 @@
       />
       <RichTextEditor
         v-model="form.feat_grant_description"
-        placeholder="Brief summary of what the feat grants — passive bonuses, spells, proficiencies…"
+        placeholder="Brief summary of what the feat grants (passive bonuses, spells, proficiencies…)"
         size="sm"
       />
       <p v-if="form.feat_grant_name" class="text-caption text-muted-foreground italic">
-        Linked to the Origin feat "{{ originFeatPreview?.name }}"<template v-if="originFeatPreview?.variant"> ({{ originFeatPreview.variant }})</template> — matched by name against imported feats when a character picks this background.
+        Linked to the Origin feat "{{ originFeatPreview?.name }}"<template v-if="originFeatPreview?.variant"> ({{ originFeatPreview.variant }})</template>, matched by name against imported feats when a character picks this background.
       </p>
     </div>
 
     <!-- Ability score increase trio (2024 PHB) -->
     <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-3">
-      <span class="text-label-lg font-semibold text-muted-foreground">Ability score trio <span class="font-normal text-muted-foreground/60">(2024 PHB — optional, pick exactly 3)</span></span>
+      <span class="text-label-lg font-semibold text-muted-foreground">Ability score trio <span class="font-normal text-muted-foreground/60">(2024 PHB: optional, pick exactly 3)</span></span>
       <div class="flex flex-wrap gap-2">
         <AppButton
           v-for="key in ABILITY_SCORE_KEYS"
@@ -131,10 +131,10 @@
         :class="isAsiTrioInvalid ? 'text-ink-caution ' : 'text-muted-foreground'"
       >
         {{ asiTrioSet.size === 0
-          ? "No trio set — this background grants no 2024 ASI."
+          ? "No trio set; this background grants no 2024 ASI."
           : asiTrioSet.size === 3
             ? "Trio complete."
-            : `${asiTrioSet.size} of 3 selected — pick exactly 3 abilities or none.` }}
+            : `${asiTrioSet.size} of 3 selected. Pick exactly 3 abilities or none.` }}
       </p>
     </div>
 

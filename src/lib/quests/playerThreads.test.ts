@@ -48,7 +48,7 @@ describe("groupPlayerBeatsByThread", () => {
     expect(columns[0]!.threadId).toBe("thread-main");
     expect(columns[0]!.isPrimary).toBe(true);
     expect(columns[0]!.eyebrow).toBe("Main");
-    expect(columns[1]!.eyebrow).toBe("Also following — The Drowned Vault");
+    expect(columns[1]!.eyebrow).toBe("Also following: The Drowned Vault");
     expect(columns[1]!.isPrimary).toBe(false);
   });
 

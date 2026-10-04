@@ -1,7 +1,7 @@
 <template>
   <section class="space-y-2 rounded-xl border border-border bg-card p-3" aria-label="Story so far">
     <div class="flex items-center justify-between gap-2">
-      <h3 v-if="!headless" class="font-cinzel text-sm font-bold text-foreground">Story so far</h3>
+      <h3 v-if="!headless" class="text-heading-sm font-bold text-foreground">Story so far</h3>
       <span class="ml-auto text-caption text-muted-foreground">{{ threadLabel }}</span>
     </div>
     <ul v-if="rows.length" class="flex flex-col gap-1.5">

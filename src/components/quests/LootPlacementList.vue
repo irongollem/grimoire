@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-start gap-2">
     <div>
-      <h3 class="font-cinzel text-sm font-bold text-foreground">{{ title }}</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">{{ title }}</h3>
       <p class="text-caption text-muted-foreground">Prepare here, then drop through the existing claimable campaign chat.</p>
     </div>
     <AppButton v-if="heldCount" class="ml-auto" label="Drop all" size="xs" :loading="dispatching === 'all'" @click="dispatch()" />

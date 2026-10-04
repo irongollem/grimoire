@@ -6,15 +6,15 @@
         Start your campaign
       </h2>
       <p class="text-body text-muted-foreground leading-snug">
-        DM mode is where you build and run a campaign of your own — its places, NPCs,
+        DM mode is where you build and run a campaign of your own: its places, NPCs,
         quests and sessions all live inside it. Create one to begin.
       </p>
       <p class="mt-2 text-body text-muted-foreground leading-snug">
-        Here to play in someone else's game? Switch to Player — your characters and their
+        Here to play in someone else's game? Switch to Player: your characters and their
         campaign are there.
       </p>
       <p v-if="hasArchived" class="mt-2 text-caption text-muted-foreground">
-        You have archived campaigns too — restore one from the campaign switcher in the
+        You have archived campaigns too. Restore one from the campaign switcher in the
         sidebar.
       </p>
 

@@ -130,7 +130,7 @@ async function toggleDeathSave(type: "success" | "failure", pip: number) {
 
 async function rollDeathSave() {
   const name = props.member.name;
-  const r = await promptRoll({ counts: { 20: 1 }, modifier: 0, label: `${name} — Death Save`, silent: true });
+  const r = await promptRoll({ counts: { 20: 1 }, modifier: 0, label: `${name} · Death Save`, silent: true });
   if (!r) return;
   const d = r.breakdown.find(b => !b.dropped)!.val;
   let update: Partial<{ current_hp: number; death_save_successes: number; death_save_failures: number }>;
@@ -138,10 +138,10 @@ async function rollDeathSave() {
 
   if (d === 20) {
     update = { current_hp: 1, death_save_successes: 0, death_save_failures: 0 };
-    outcome = "Nat 20 — Stabilized";
+    outcome = "Nat 20 · Stabilized";
   } else if (d === 1) {
     update = { death_save_failures: Math.min(3, props.member.death_save_failures + 2) };
-    outcome = "Nat 1 — 2 Failures";
+    outcome = "Nat 1 · 2 Failures";
   } else if (d >= 10) {
     update = { death_save_successes: Math.min(3, props.member.death_save_successes + 1) };
     outcome = "Success";
@@ -151,7 +151,7 @@ async function rollDeathSave() {
   }
 
   await updateMember({ id: props.member.id, update });
-  const label = `${name} — Death Save (${outcome})`;
+  const label = `${name} · Death Save (${outcome})`;
   emit("roll", { label, dice: d, modifier: 0, total: d });
   await sendRoll({ ...r, label }).catch((e) => reportChatFailure(e, "post the death save to the chat"));
 }

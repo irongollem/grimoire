@@ -75,7 +75,7 @@
           type="text"
           tone="card"
           size="body"
-          placeholder="e.g. Tiefling — Infernal Legacy"
+          placeholder="e.g. Tiefling: Infernal Legacy"
           class="mt-1"
         />
       </div>
@@ -107,7 +107,7 @@
             <AppButton
               variant="ghost"
               size="sm"
-              class="font-cinzel text-sm"
+              class="text-heading-sm"
               :disabled="grantForm.usesCount <= 1"
               label="−"
               @click="grantForm.usesCount = Math.max(1, grantForm.usesCount - 1); grantForm.usesPerDay = grantForm.usesCount"
@@ -116,7 +116,7 @@
             <AppButton
               variant="ghost"
               size="sm"
-              class="font-cinzel text-sm"
+              class="text-heading-sm"
               label="+"
               @click="grantForm.usesCount++; grantForm.usesPerDay = grantForm.usesCount"
             />

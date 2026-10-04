@@ -61,7 +61,7 @@
             </p>
             <span class="text-eyebrow text-ink-caution/60 ">2024 PHB</span>
           </div>
-          <p class="font-cinzel text-sm font-bold text-foreground">{{ pendingBg.feat_grant_name }}</p>
+          <p class="text-heading-sm font-bold text-foreground">{{ pendingBg.feat_grant_name }}</p>
         </div>
 
         <!-- Proficiencies granted by the new background -->

@@ -15,7 +15,7 @@
             rel="noopener noreferrer"
             class="text-primary hover:underline not-italic"
           >Spotify Developer App</a>
-          and a Spotify Premium account. Only you (the DM) need to connect — players are not affected.
+          and a Spotify Premium account. Only you (the DM) need to connect; players are not affected.
         </p>
         <ol class="text-caption text-muted-foreground space-y-1 list-decimal list-inside">
           <li>Create a free app at <span class="font-semibold text-foreground">developer.spotify.com/dashboard</span></li>
@@ -53,7 +53,7 @@
         <p class="text-caption text-muted-foreground italic leading-relaxed">
           Steps 3 and 4 are the ones people miss. Spotify used to offer a single
           "Web" option and to grant the app owner access implicitly, so older apps
-          often have only Web API ticked and an empty user list — both now return a
+          often have only Web API ticked and an empty user list; both now return a
           bare <span class="font-mono not-italic">403</span> with no explanation.
         </p>
       </div>
@@ -66,7 +66,7 @@
       </div>
       <div class="p-4 flex flex-col gap-3">
         <p class="text-caption text-muted-foreground italic">
-          Found on your Spotify Developer App dashboard. This is not a secret — it is safe to store in your campaign.
+          Found on your Spotify Developer App dashboard. This is not a secret; it is safe to store in your campaign.
         </p>
         <div class="relative">
           <!--
@@ -111,7 +111,7 @@
           </div>
           <div v-else class="flex items-center gap-1.5">
             <span class="h-1.5 w-1.5 rounded-full bg-tone-success shrink-0" />
-            <span class="text-caption text-ink-success">Client ID saved — connect your account from the Soundboard.</span>
+            <span class="text-caption text-ink-success">Client ID saved. Connect your account from the Soundboard.</span>
           </div>
         </div>
       </div>

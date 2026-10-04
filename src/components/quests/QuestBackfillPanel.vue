@@ -1,10 +1,10 @@
 <template>
   <section class="space-y-3 rounded-lg border border-border bg-card p-3" aria-label="Record what already happened">
     <div>
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Record what already happened</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Record what already happened</h3>
       <p class="text-caption text-muted-foreground">
         Backfilling ten sessions of history should not mean performing them. Select the beats the party already
-        played, apply their consequences, and optionally place the party — without starting a session. Corrections
+        played, apply their consequences, and optionally place the party, without starting a session. Corrections
         append to the log as recorded, never as played.
       </p>
     </div>
@@ -47,11 +47,11 @@
         <p class="text-caption font-semibold text-foreground">This will move:</p>
         <ul v-if="previewLines.length" class="space-y-0.5">
           <li v-for="line in previewLines" :key="line.key" class="text-caption text-muted-foreground">
-            <span class="text-foreground">{{ line.beatTitle }}</span> — {{ line.text }}
+            <span class="text-foreground">{{ line.beatTitle }}</span>: {{ line.text }}
           </li>
         </ul>
         <p v-else class="text-caption italic text-muted-foreground">
-          No consequence rules are attached to these beats directly — a rule watching an objective they move may still fire.
+          No consequence rules are attached to these beats directly. A rule watching an objective they move may still fire.
         </p>
       </section>
 

@@ -17,7 +17,7 @@
       :aria-checked="model === opt.value"
       :aria-label="opt.label"
       :title="opt.label"
-      class="flex min-h-11 flex-1 items-center justify-center rounded-md border bg-card font-cinzel text-sm font-bold tracking-wider transition-colors"
+      class="flex min-h-11 flex-1 items-center justify-center rounded-md border bg-card text-heading-sm font-bold transition-colors"
       :class="chipClass(opt)"
       @click="model = opt.value"
     >

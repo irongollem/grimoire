@@ -2,7 +2,7 @@
   <section class="space-y-3 rounded-lg border border-border bg-card p-3" aria-label="Quest-wide fields">
     <div class="flex items-start gap-3">
       <div class="min-w-0 flex-1">
-        <h3 class="font-cinzel text-sm font-bold text-foreground">Quest identity</h3>
+        <h3 class="text-heading-sm font-bold text-foreground">Quest identity</h3>
         <p class="text-caption text-muted-foreground">What the quest is, rather than what happens in it. The story itself lives in its beats.</p>
       </div>
       <AutosaveStatus :status="status" :error="saveError" />
@@ -27,7 +27,7 @@
           tone="card"
           size="body"
           :maxlength="QUEST_SUMMARY_MAX"
-          placeholder="Players see this verbatim — the blurb that tells you what the quest is without opening it. One sentence, no DM secrets."
+          placeholder="Players see this verbatim: the blurb that tells you what the quest is without opening it. One sentence, no DM secrets."
         />
       </label>
 

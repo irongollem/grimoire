@@ -1,5 +1,5 @@
 <template>
-  <p v-if="!rooms.length" class="text-caption-sm text-muted-foreground italic">Not placed — catalogue only</p>
+  <p v-if="!rooms.length" class="text-caption-sm text-muted-foreground italic">Not placed (catalogue only)</p>
   <div v-else class="flex flex-wrap items-center gap-1">
     <span
       v-for="room in shown"

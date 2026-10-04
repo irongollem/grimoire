@@ -8,7 +8,7 @@
     no-match-text="No traps match your filter."
     empty-icon="Crosshair"
     empty-title="No traps yet"
-    empty-description="Build your first trap — set the trigger, DCs, damage, and CR."
+    empty-description="Build your first trap: set the trigger, DCs, damage, and CR."
     empty-action-label="New Trap"
     table="traps"
     :ids="trapFilteredIds"
@@ -56,7 +56,7 @@
             >{{ trap.trap_type }}</span>
           </div>
           <div class="p-2.5 flex flex-col gap-1">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
+            <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
             <div class="flex items-center gap-2">
               <span v-if="trap.cr" class="text-label text-muted-foreground">CR {{ trap.cr }}</span>
               <span v-if="trap.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>

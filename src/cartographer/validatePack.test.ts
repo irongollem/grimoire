@@ -72,6 +72,6 @@ describe("duplicate slot identities", () => {
 
     const result = validatePack(manifest);
     expect(result.warnings).toContain("objectChest/0: duplicate asset slot");
-    expect(result.warnings).toContain("objectChest/0: non-WebP asset (objectChest/0.png) — pipeline is WebP-only");
+    expect(result.warnings).toContain("objectChest/0: non-WebP asset (objectChest/0.png); pipeline is WebP-only");
   });
 });

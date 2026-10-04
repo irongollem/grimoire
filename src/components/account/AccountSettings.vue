@@ -16,7 +16,7 @@
        since SettingsSection has no accent prop. -->
   <section v-if="!isChild" class="rounded-lg border border-destructive/40 bg-destructive/5 overflow-hidden">
     <header class="px-4 py-3 border-b border-destructive/20">
-      <h3 class="font-cinzel text-sm font-bold text-destructive tracking-wide">Delete Account</h3>
+      <h3 class="text-heading-sm font-bold text-destructive">Delete Account</h3>
       <p class="text-caption text-muted-foreground italic mt-0.5">Permanent. There is no undo.</p>
     </header>
     <div class="p-4 space-y-4">

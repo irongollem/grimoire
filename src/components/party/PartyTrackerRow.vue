@@ -27,7 +27,7 @@
           <div class="flex items-center gap-1">
             <RouterLink
               :to="`/party/${member.id}`"
-              class="font-cinzel text-sm font-bold text-foreground leading-tight underline-offset-2 hover:text-primary hover:underline transition-colors flex-1"
+              class="text-heading-sm font-bold text-foreground leading-tight underline-offset-2 hover:text-primary hover:underline transition-colors flex-1"
             >
               {{ member.name }}
             </RouterLink>

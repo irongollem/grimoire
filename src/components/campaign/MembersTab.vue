@@ -22,7 +22,7 @@
         <div class="flex items-center gap-3 flex-1 min-w-0">
           <div class="relative shrink-0">
             <div
-              class="h-9 w-9 rounded-full flex items-center justify-center font-cinzel font-bold text-sm"
+              class="h-9 w-9 rounded-full flex items-center justify-center text-heading-sm font-bold"
               :class="
                 member.role === 'dm'
                   ? 'bg-gold-500/20 text-gold-400'
@@ -48,7 +48,7 @@
           </div>
           <div class="min-w-0">
             <p
-              class="font-cinzel text-sm font-semibold text-foreground truncate"
+              class="text-heading-xs font-semibold text-foreground truncate"
             >
               {{ member.display_name || "(unnamed player)" }}
             </p>
@@ -115,13 +115,13 @@
       >
         <IconParty class="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
         <p class="text-body text-muted-foreground italic">
-          No players have joined yet — generate an invite link below to get started.
+          No players have joined yet. Generate an invite link below to get started.
         </p>
       </div>
 
       <!-- Characters left behind by a removed player -->
       <div v-if="unattachedCharacters.length" class="space-y-2 pt-2">
-        <h3 class="font-cinzel text-sm font-semibold text-foreground">
+        <h3 class="text-heading-sm font-semibold text-foreground">
           Characters without a player
         </h3>
         <p class="text-caption text-muted-foreground italic">
@@ -134,7 +134,7 @@
           class="rounded-lg border border-border bg-card p-3 flex items-center gap-3"
         >
           <div class="min-w-0 flex-1">
-            <p class="font-cinzel text-sm font-semibold text-foreground truncate">
+            <p class="text-heading-xs font-semibold text-foreground truncate">
               {{ pm.name }}
             </p>
             <p class="text-caption text-muted-foreground italic truncate">
@@ -150,7 +150,7 @@
             icon-size="md"
             class="shrink-0 hover:bg-accent"
             :icon="IconUndo"
-            tooltip="Detach — return to owner's pool"
+            tooltip="Detach: return to owner's pool"
             :disabled="detachCharacter.isPending.value"
             @click="detachOrphan(pm)"
           />
@@ -194,7 +194,7 @@
           Character<span v-if="removedPlayerCharacters.length > 1">s</span>
           <strong class="text-foreground">{{ removedCharacterNames }}</strong>
           <template v-if="removedPlayerCharacters.length > 1"> return</template><template v-else> returns</template>
-          to the player's own pool automatically — nothing is deleted, and they can
+          to the player's own pool automatically; nothing is deleted, and they can
           bring {{ removedPlayerCharacters.length > 1 ? "them" : "it" }} to another campaign.
         </p>
         <div class="flex gap-2 justify-end">

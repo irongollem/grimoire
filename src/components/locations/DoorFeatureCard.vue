@@ -10,7 +10,7 @@
       Feature · {{ feature.feature_type }}{{ feature.trigger_type ? ` · trigger: ${feature.trigger_type}` : "" }}
     </p>
     <p v-if="dcLine" class="text-caption text-muted-foreground">{{ dcLine }}</p>
-    <p v-if="feature.trigger_description" class="text-caption text-muted-foreground">Opens by — {{ feature.trigger_description }}</p>
+    <p v-if="feature.trigger_description" class="text-caption text-muted-foreground">Opens by: {{ feature.trigger_description }}</p>
     <div v-if="$slots.actions" class="flex flex-wrap justify-end gap-2 pt-0.5">
       <slot name="actions" />
     </div>

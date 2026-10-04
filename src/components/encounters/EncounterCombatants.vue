@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
     <div class="flex items-center justify-between">
-      <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">
+      <h2 class="text-heading-sm font-bold text-foreground tracking-wider uppercase">
         Combatants
       </h2>
       <div class="flex items-center gap-3">
@@ -126,7 +126,7 @@
             :style="{ backgroundColor: factionColor(entry.faction_id) }"
           />
           <div class="flex-1 min-w-0">
-            <span class="font-cinzel text-sm font-semibold text-foreground line-clamp-1">
+            <span class="text-heading-xs font-semibold text-foreground line-clamp-1">
               {{ combatantLabel(entry) }}
             </span>
             <div class="flex flex-wrap gap-x-2 gap-y-0">
@@ -165,7 +165,7 @@
             icon-size="xs"
             @click="changeCount(entry, -1)"
           />
-          <span class="font-cinzel text-sm font-bold text-foreground w-6 text-center">{{ entry.count }}</span>
+          <span class="text-heading-sm font-bold text-foreground w-6 text-center">{{ entry.count }}</span>
           <AppButton
             variant="subtle"
             size="icon-xs"

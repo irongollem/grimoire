@@ -83,7 +83,7 @@ const missingHint = computed(() => {
   if (mode.value !== "plus2plus1" || complete.value) return "";
   if (!modelValue?.primary) return "Pick an ability for +2, then a different one for +1.";
   if (!modelValue?.secondary) return "Pick a different ability for +1.";
-  return "Choice incomplete — pick both a +2 and a +1 ability.";
+  return "Choice incomplete: pick both a +2 and a +1 ability.";
 });
 
 function abilityToSaveKey(key: AbilityScoreKey): SaveKey {

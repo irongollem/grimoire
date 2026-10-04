@@ -86,7 +86,7 @@
 
       <!-- Empty states -->
       <p v-else-if="pinnableForms.length" class="text-caption text-muted-foreground italic px-1 py-2">
-        No forms unlocked yet — pin an eligible beast below to make it available.
+        No forms unlocked yet. Pin an eligible beast below to make it available.
       </p>
       <p v-else class="text-caption text-muted-foreground italic px-1 py-2">
         No eligible beast forms at this level.
@@ -304,7 +304,7 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .detail-stat strong {
-  @apply font-cinzel text-sm font-bold text-foreground;
+  @apply text-heading-sm font-bold text-foreground;
 }
 
 .detail-section-label {
@@ -341,7 +341,7 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .pick-pin {
-  @apply font-cinzel text-sm text-muted-foreground shrink-0 w-3 text-center;
+  @apply text-heading-sm text-muted-foreground shrink-0 w-3 text-center;
 }
 
 .pick-name {

@@ -21,7 +21,7 @@
       </div>
       <div class="flex flex-col justify-between min-w-0 p-3 flex-1">
         <div>
-          <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ name }}</h3>
+          <h3 class="text-heading-sm font-bold text-foreground leading-tight">{{ name }}</h3>
           <p v-if="monster" class="text-caption text-muted-foreground italic capitalize">{{ monster.size }} {{ monster.monster_type }}</p>
         </div>
         <div v-if="monster" class="flex gap-3 font-cinzel text-xs text-muted-foreground">

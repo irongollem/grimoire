@@ -3,10 +3,10 @@
     <div class="flex flex-wrap items-center gap-1.5">
       <span v-if="beat.quest" class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ beat.quest.title }}</span>
     </div>
-    <h3 class="font-cinzel text-base font-bold text-foreground">Beat · {{ beat.title || "Untitled beat" }}</h3>
+    <h3 class="text-heading-sm font-bold text-foreground">Beat · {{ beat.title || "Untitled beat" }}</h3>
 
     <section v-if="beat.read_aloud" class="rounded-lg border border-primary/30 bg-primary/5 p-4">
-      <h4 class="mb-2 font-cinzel text-sm font-bold text-primary">Read aloud</h4>
+      <h4 class="mb-2 text-heading-sm font-bold text-primary">Read aloud</h4>
       <RichTextViewer :content="beat.read_aloud" />
     </section>
 
@@ -16,7 +16,7 @@
     </div>
 
     <p class="text-caption text-muted-foreground">
-      Staged here by the beat itself. Nothing about the beat changes — it simply has a room surface worth opening now.
+      Staged here by the beat itself. Nothing about the beat changes. It simply has a room surface worth opening now.
     </p>
   </article>
 

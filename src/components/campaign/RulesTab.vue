@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <section class="rounded-lg border border-border bg-card p-4 space-y-3">
       <div>
-        <h2 class="font-cinzel text-sm font-semibold text-foreground">Rules edition</h2>
+        <h2 class="text-heading-sm font-semibold text-foreground">Rules edition</h2>
         <p class="text-caption text-muted-foreground mt-1">
           The edition this table plays by. Every character keeps the edition it was built with.
         </p>

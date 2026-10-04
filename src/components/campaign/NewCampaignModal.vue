@@ -64,7 +64,7 @@
               @change="onCalendarChange"
             >
               <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
-              <option value="custom">— Custom calendar…</option>
+              <option value="custom">Custom calendar…</option>
             </AppSelect>
           </div>
           <div>

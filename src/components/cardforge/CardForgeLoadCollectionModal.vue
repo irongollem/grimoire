@@ -92,7 +92,7 @@ function formatDate(iso: string) {
   @apply flex flex-col flex-1 min-w-0;
 }
 .library-name {
-  @apply font-cinzel text-sm font-semibold text-foreground;
+  @apply text-heading-sm font-semibold text-foreground;
 }
 .library-meta {
   @apply text-caption text-muted-foreground;
@@ -104,7 +104,7 @@ function formatDate(iso: string) {
   @apply font-cinzel text-xs font-semibold px-2 py-1 rounded bg-primary/20 text-primary hover:bg-primary/30 transition-colors;
 }
 .lib-del-btn {
-  @apply font-cinzel text-sm font-bold px-2 py-1 rounded text-muted-foreground hover:text-destructive transition-colors;
+  @apply text-heading-sm font-bold px-2 py-1 rounded text-muted-foreground hover:text-destructive transition-colors;
 }
 
 @media print {

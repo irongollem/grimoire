@@ -87,7 +87,7 @@
         >
           <div class="text-center">
             <IconUserCircle class="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
-            <p class="font-cinzel text-sm text-muted-foreground">Select an entity to forge a token.</p>
+            <p class="text-body text-muted-foreground">Select an entity to forge a token.</p>
             <p class="text-caption text-muted-foreground/60 italic mt-1">
               Entities with a portrait will use it. Others get an initial placeholder, or you can paint a portrait with AI.
             </p>
@@ -138,7 +138,7 @@
             Print Sheet
           </button>
           <p class="text-caption text-muted-foreground italic text-center">
-            Prints fronts then backs. Flip on the long (left) edge for duplex — backs are column-reversed to align.
+            Prints fronts then backs. Flip on the long (left) edge for duplex; backs are column-reversed to align.
           </p>
         </div>
       </div>

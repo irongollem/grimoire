@@ -69,7 +69,7 @@
       <span><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd> move</span>
       <span><kbd class="kbd">⏎</kbd> fire</span>
       <span><kbd class="kbd">Esc</kbd> close</span>
-      <span class="ml-auto">Stays open — fire several in a row</span>
+      <span class="ml-auto">Stays open: fire several in a row</span>
     </div>
   </AppModal>
 </template>

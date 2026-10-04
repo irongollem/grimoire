@@ -17,7 +17,7 @@
     <div class="divide-y divide-border">
       <div v-for="row in rows" :key="row.id" class="px-3 py-2 flex flex-col gap-1.5">
         <div class="flex items-center justify-between gap-2">
-          <p :title="row.name" class="font-cinzel text-sm font-semibold text-foreground truncate">{{ row.name }}</p>
+          <p :title="row.name" class="text-heading-xs font-semibold text-foreground truncate">{{ row.name }}</p>
           <!-- Every pill here is `AppButton variant="tinted"` rather than a
                hand-rolled span: these are coloured pills whose colour means
                something (arcane = concentration, caution = short rest, info =
@@ -58,7 +58,7 @@
             emphasis="soft"
             size="xs"
             :label="`${res.label} ${res.current}/${res.max}`"
-            :tooltip="`${res.label} — ${res.rest} rest`"
+            :tooltip="`${res.label}: ${res.rest} rest`"
           />
         </div>
       </div>

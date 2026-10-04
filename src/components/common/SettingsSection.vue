@@ -2,7 +2,7 @@
   <section class="rounded-lg border border-border bg-card overflow-hidden">
     <header v-if="title || description || $slots.header" class="px-4 py-3 border-b border-border">
       <slot name="header">
-        <h3 class="font-cinzel text-sm font-bold text-foreground tracking-wide">{{ title }}</h3>
+        <h3 class="text-heading-sm font-bold text-foreground">{{ title }}</h3>
         <p v-if="description" class="text-caption text-muted-foreground italic mt-0.5">{{ description }}</p>
       </slot>
     </header>

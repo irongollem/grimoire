@@ -133,7 +133,7 @@
       >
         <div class="flex items-center gap-2 mb-1">
           <span class="text-gold-400 text-lg">✦</span>
-          <span class="font-cinzel text-sm font-bold text-gold-400 tracking-wider">
+          <span class="text-heading-sm font-bold text-gold-400">
             {{ festival.name }}
           </span>
           <span v-if="festival.isLeapOnly" class="text-caption text-muted-foreground italic">

@@ -21,8 +21,8 @@
           :icon="IconLock"
           :tooltip="
             form.requires_proficiency
-              ? 'Requires proficiency — click to allow unskilled attempts'
-              : 'Unskilled attempts allowed — click to require proficiency'
+              ? 'Requires proficiency, click to allow unskilled attempts'
+              : 'Unskilled attempts allowed, click to require proficiency'
           "
           @click="form.requires_proficiency = !form.requires_proficiency"
         />
@@ -35,8 +35,8 @@
           :icon="IconTool"
           :tooltip="
             form.requires_tools
-              ? 'Requires physical tools — click to allow without tools'
-              : 'Attemptable without tools (disadvantage) — click to require them'
+              ? 'Requires physical tools, click to allow without tools'
+              : 'Attemptable without tools (disadvantage), click to require them'
           "
           @click="form.requires_tools = !form.requires_tools"
         />

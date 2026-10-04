@@ -37,7 +37,7 @@
         <div>
           <span class="text-label-lg font-semibold text-muted-foreground">Group Portrait</span>
           <p class="text-caption text-muted-foreground italic mt-0.5">
-            Use <span class="font-cinzel text-2xs font-bold">@Party</span> in Chronicler scenes to reference this shot instead of individual portraits — saves tokens and effort.
+            Use <span class="font-cinzel text-2xs font-bold">@Party</span> in Chronicler scenes to reference this shot instead of individual portraits; saves tokens and effort.
           </p>
         </div>
         <div class="flex items-center gap-2 shrink-0">

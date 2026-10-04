@@ -191,7 +191,7 @@ const traitSections = computed(() => {
 }
 
 .detail-stat strong {
-  @apply font-cinzel text-sm font-bold text-foreground;
+  @apply text-heading-sm font-bold text-foreground;
 }
 
 .detail-check-grid {

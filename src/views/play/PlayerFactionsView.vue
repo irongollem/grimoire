@@ -58,7 +58,7 @@
               </div>
             </div>
             <div class="flex-1 min-w-0">
-              <h3 class="font-cinzel text-sm font-bold text-foreground truncate">{{ faction.name }}</h3>
+              <h3 class="text-heading-xs font-bold text-foreground truncate">{{ faction.name }}</h3>
               <p v-if="faction.faction_type" class="text-caption text-muted-foreground italic">{{ faction.faction_type }}</p>
               <div v-if="faction.tags?.length" class="flex flex-wrap gap-1 mt-1">
                 <span

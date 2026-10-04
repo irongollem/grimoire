@@ -302,7 +302,7 @@ export function useMapExport(opts: {
       }
       // Log the restyled map to the Gallery, linked back to the location.
       void logImageGeneration({
-        kind: "map", imageUrl: url, prompt: `${opts.mapName() || "Map"} — ${selectedPresetId.value} style`,
+        kind: "map", imageUrl: url, prompt: `${opts.mapName() || "Map"}, ${selectedPresetId.value} style`,
         targetId: styleAtlasLocationId.value, targetColumn: "map_url",
       });
       showStyleResult.value = false;

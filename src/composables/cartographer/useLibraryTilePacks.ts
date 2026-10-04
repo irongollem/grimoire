@@ -242,7 +242,7 @@ export function describeLibraryPackError(caught: unknown): string {
     case "pack_not_found":
       return "That library pack no longer exists.";
     case "invalid_pack_id":
-      return 'That pack id isn\'t valid — use lowercase letters, numbers and hyphens, and it can\'t start with "custom-".';
+      return 'That pack id isn\'t valid. Use lowercase letters, numbers and hyphens, and it can\'t start with "custom-".';
     case "invalid_pack_concept":
       return "Give the pack a name (a description over 1000 characters won't fit).";
     case "invalid_license_keys":
@@ -252,7 +252,7 @@ export function describeLibraryPackError(caught: unknown): string {
     case "invalid_sort_order":
       return "Sort order must be a whole number.";
     case "no_changes":
-      return "Nothing to save — change a field first.";
+      return "Nothing to save. Change a field first.";
     case "invalid_slot":
       return "That tile slot isn't part of this pack's schema.";
     case "image_too_large":
@@ -262,15 +262,15 @@ export function describeLibraryPackError(caught: unknown): string {
     case "generation_already_running":
       return "This pack already has a generation run in progress.";
     case "nothing_to_generate":
-      return "Every slot already has art — there is nothing left to generate.";
+      return "Every slot already has art. There is nothing left to generate.";
     case "unknown_slot_id":
       return "One of those slots isn't part of this pack's schema.";
     case "pack_incomplete": {
       if (typeof detail?.required === "number" && typeof detail?.requiredDrawn === "number") {
         const missing = detail.required - detail.requiredDrawn;
-        return `This pack still has ${missing} unfilled required slot${missing === 1 ? "" : "s"} — finish generating it before publishing.`;
+        return `This pack still has ${missing} unfilled required slot${missing === 1 ? "" : "s"}. Finish generating it before publishing.`;
       }
-      return "This pack still has unfilled slots — finish generating it before publishing.";
+      return "This pack still has unfilled slots. Finish generating it before publishing.";
     }
     case "unpublish_before_deleting":
       return "Unpublish this pack before deleting it.";

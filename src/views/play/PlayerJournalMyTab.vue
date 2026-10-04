@@ -27,7 +27,7 @@
   <!-- Empty state -->
   <div v-else-if="visibleEntries.length === 0" class="text-center py-16 space-y-3">
     <IconPopulate class="h-10 w-10 text-muted-foreground/30 mx-auto" />
-    <p class="font-cinzel text-sm text-muted-foreground">Your journal is empty.</p>
+    <p class="text-body text-muted-foreground">Your journal is empty.</p>
     <p class="text-caption text-muted-foreground italic">Record your adventures, clues, and discoveries.</p>
   </div>
 
@@ -135,7 +135,7 @@
           </AppSelect>
           <div v-if="editForm.ref_type" class="flex-1 min-w-32">
             <AppSelect v-model="refIdModel" tone="muted" size="body" block weight="normal">
-              <option value="">— Select —</option>
+              <option value="">Select</option>
               <option v-for="opt in editRefOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
             </AppSelect>
           </div>

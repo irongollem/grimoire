@@ -16,7 +16,7 @@
         v-for="entry in equippedBySlot"
         :key="entry.inv.id"
         class="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 pl-2 pr-1 py-0.5 max-w-full"
-        :title="`${entry.inv.name} — ${SLOT_LABELS[entry.slot] ?? entry.slot}`"
+        :title="`${entry.inv.name} · ${SLOT_LABELS[entry.slot] ?? entry.slot}`"
       >
         <span class="text-eyebrow text-muted-foreground shrink-0">{{ SLOT_LABELS[entry.slot] ?? entry.slot }}</span>
         <span class="text-caption text-foreground truncate">{{ entry.inv.name }}</span>

@@ -16,7 +16,7 @@
   >
     <template #body>
       <div class="flex items-start justify-between gap-1">
-        <h3 class="line-clamp-1 flex-1 font-cinzel text-sm leading-tight font-bold text-foreground">
+        <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">
           {{ displayName }}
         </h3>
         <span

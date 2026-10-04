@@ -35,7 +35,7 @@
           <span v-if="selected === c.id" class="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
         </span>
         <div class="flex-1 min-w-0 flex flex-col items-start">
-          <p class="font-cinzel text-sm font-semibold text-foreground truncate">
+          <p class="text-heading-xs font-semibold text-foreground truncate">
             {{ c.name }}
           </p>
           <p class="text-caption text-muted-foreground italic truncate">

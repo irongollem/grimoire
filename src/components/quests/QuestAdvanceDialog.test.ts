@@ -125,7 +125,7 @@ describe("QuestAdvanceDialog", () => {
     // One existing thread ("Main") becomes A; the ticked parallel route's
     // projected thread is B — the fixture's authored thread_label "C" is
     // quoted as the route's name, not mistaken for the thread's own letter.
-    expect(wrapper.text()).toContain("Creates Thread B — “C” — at that beat.");
+    expect(wrapper.text()).toContain("Creates Thread B, “C”, at that beat.");
   });
 
   it("shows the selected route's payoff and loot, and recomputes the footer as ticks change", async () => {
@@ -218,8 +218,8 @@ describe("QuestAdvanceDialog", () => {
 
     it("step 1 shows only the route section, with Continue disabled until a route is chosen", async () => {
       const wrapper = await mountDialog();
-      expect(wrapper.get('section[aria-label="The route taken — the others become unreachable"]').isVisible()).toBe(true);
-      expect(wrapper.get('section[aria-label="Also opens — both paths get walked"]').isVisible()).toBe(false);
+      expect(wrapper.get('section[aria-label="The route taken: the others become unreachable"]').isVisible()).toBe(true);
+      expect(wrapper.get('section[aria-label="Also opens: both paths get walked"]').isVisible()).toBe(false);
       expect(wrapper.text()).toContain("Leaving “Confront Ser Vallis”");
 
       expect(findButton(wrapper, "Continue").props("disabled")).toBe(true);
@@ -232,13 +232,13 @@ describe("QuestAdvanceDialog", () => {
       await radios(wrapper)[0]!.trigger("change");
       await findButton(wrapper, "Continue").trigger("click");
 
-      expect(wrapper.get('section[aria-label="The route taken — the others become unreachable"]').isVisible()).toBe(false);
-      expect(wrapper.get('section[aria-label="Also opens — both paths get walked"]').isVisible()).toBe(true);
+      expect(wrapper.get('section[aria-label="The route taken: the others become unreachable"]').isVisible()).toBe(false);
+      expect(wrapper.get('section[aria-label="Also opens: both paths get walked"]').isVisible()).toBe(true);
       expect(wrapper.get('section[aria-label="Payoff from this route"]').isVisible()).toBe(true);
       expect(wrapper.text()).toContain("→ Testify before the Guild");
 
       await findButton(wrapper, "Back").trigger("click");
-      expect(wrapper.get('section[aria-label="The route taken — the others become unreachable"]').isVisible()).toBe(true);
+      expect(wrapper.get('section[aria-label="The route taken: the others become unreachable"]').isVisible()).toBe(true);
       expect((radios(wrapper)[0]!.element as HTMLInputElement).checked).toBe(true);
     });
 

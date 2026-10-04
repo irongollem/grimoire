@@ -3,7 +3,7 @@
     <template v-if="entry !== undefined && widget !== undefined">
       <ModalHeader
         :title="widget.title"
-        subtitle="Settings for this card only — other copies keep their own."
+        subtitle="Settings for this card only. Other copies keep their own."
         :icon="IconSettings"
         tone="gold"
         closeable

@@ -70,7 +70,7 @@
             @click="importRace(race)"
           >
             <div class="min-w-0 flex-1 flex flex-col items-start">
-              <span class="font-cinzel text-sm font-semibold text-foreground truncate">{{ race.name }}</span>
+              <span class="text-heading-xs font-semibold text-foreground truncate">{{ race.name }}</span>
               <span class="text-caption text-muted-foreground italic">{{ race.document.display_name ?? race.document.name }}</span>
             </div>
             <IconDownload class="h-4 w-4 text-muted-foreground shrink-0" />

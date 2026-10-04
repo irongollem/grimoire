@@ -18,7 +18,7 @@
           <IconScrollText class="h-4 w-4 shrink-0 mt-0.5" :style="{ color: docTypeColor(h.doc_type) }" />
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-baseline gap-2">
-              <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ h.title }}</p>
+              <p class="text-heading-xs font-semibold text-foreground truncate">{{ h.title }}</p>
               <span class="text-label shrink-0" :style="{ color: docTypeColor(h.doc_type) }">{{ docTypeLabel(h.doc_type) }}</span>
             </div>
             <div class="mt-1.5 flex flex-wrap items-center gap-3">

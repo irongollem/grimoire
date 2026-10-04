@@ -232,7 +232,7 @@ const hasEnoughQuery = computed(() => debouncedQuery.value.trim().length >= prov
 
 const emptyPrompt = computed(() =>
   provider.value.minQueryLength <= 1
-    ? "Type to search the library — or browse a theme like rain, tavern or dungeon."
+    ? "Type to search the library, or browse a theme like rain, tavern or dungeon."
     : `Type at least ${provider.value.minQueryLength} characters to search.`,
 );
 

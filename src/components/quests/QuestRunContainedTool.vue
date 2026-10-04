@@ -4,7 +4,7 @@
         <header class="flex items-start gap-2">
           <div class="min-w-0 flex-1">
             <p class="text-label font-bold uppercase tracking-wider text-primary">{{ adapter.label }} · contained {{ adapter.runAction }}</p>
-            <h2 class="truncate font-cinzel text-lg font-bold text-foreground">{{ attachment.label }}</h2>
+            <h2 class="truncate text-heading font-bold text-foreground">{{ attachment.label }}</h2>
             <p v-if="attachment.compact_detail" class="text-caption text-muted-foreground">{{ attachment.compact_detail }}</p>
           </div>
           <AppButton label="Close" size="sm" variant="subtle" @click="emit('close')" />
@@ -36,7 +36,7 @@
             <p v-else class="text-body text-foreground">Audio cue is unavailable.</p>
           </div>
           <div v-else-if="adapter.containedSurface === 'check'" class="rounded-lg border border-border bg-card p-4 text-center">
-            <p class="font-cinzel text-2xl font-bold text-foreground">{{ checkMetadata.skill }} DC {{ checkMetadata.dc }}</p>
+            <p class="text-title font-bold text-foreground">{{ checkMetadata.skill }} DC {{ checkMetadata.dc }}</p>
             <p v-if="checkMetadata.contested_by" class="mt-1 text-caption text-muted-foreground">Contested by {{ checkMetadata.contested_by }}</p>
             <p v-else-if="checkMetadata.note" class="mt-1 text-caption text-muted-foreground">{{ checkMetadata.note }}</p>
             <AppButton label="Roll" :icon="IconDice" variant="primary" class="mt-3" :loading="rolling" @click="rollCheck" />
@@ -62,7 +62,7 @@
               class="mt-2 text-caption"
               :class="checkOutcome === 'passed' ? 'text-ink-success' : 'text-destructive'"
             >
-              Marked {{ checkOutcome }} — noted for this table, not saved.
+              Marked {{ checkOutcome }}, noted for this table, not saved.
             </p>
           </div>
           <div v-else-if="attachment.attachment_type === 'npc'" class="rounded-lg border border-border bg-card p-3">

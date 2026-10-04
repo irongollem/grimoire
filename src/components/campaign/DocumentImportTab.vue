@@ -12,18 +12,18 @@
     <!-- ── Extracting: server-side progress, no action to offer ───────────── -->
     <template v-else-if="extractingRow">
       <div>
-        <h3 class="font-cinzel text-sm font-semibold text-foreground">Extracting…</h3>
+        <h3 class="text-heading-sm font-semibold text-foreground">Extracting…</h3>
         <p class="text-body text-muted-foreground italic mt-1">
           Reading "{{ extractingRow.display_name }}" ({{ pageLabel(extractingRow.page_count) }}).
         </p>
       </div>
-      <LoadingSpinner message="This can take a minute — you can leave this tab, extraction keeps running." />
+      <LoadingSpinner message="This can take a minute. You can leave this tab; extraction keeps running." />
     </template>
 
     <!-- ── Pending: uploaded, not yet extracted ────────────────────────────── -->
     <template v-else-if="pendingRow">
       <div>
-        <h3 class="font-cinzel text-sm font-semibold text-foreground">Ready to extract</h3>
+        <h3 class="text-heading-sm font-semibold text-foreground">Ready to extract</h3>
         <p class="text-body text-muted-foreground italic mt-1">
           "{{ pendingRow.display_name }}" is uploaded and waiting to be read.
         </p>
@@ -75,7 +75,7 @@
     <!-- ── Failed: local fallback, or (defensively) a live row ─────────────── -->
     <template v-else-if="failedView">
       <div>
-        <h3 class="font-cinzel text-sm font-semibold text-foreground">Import failed</h3>
+        <h3 class="text-heading-sm font-semibold text-foreground">Import failed</h3>
         <p class="text-body text-muted-foreground italic mt-1">
           "{{ failedView.displayName }}" could not be extracted.
         </p>
@@ -110,7 +110,7 @@
     <!-- ── Complete: local fallback, or (defensively) a live row ───────────── -->
     <template v-else-if="completeView">
       <div>
-        <h3 class="font-cinzel text-sm font-semibold text-foreground">Import complete</h3>
+        <h3 class="text-heading-sm font-semibold text-foreground">Import complete</h3>
         <p class="text-body text-muted-foreground italic mt-1">
           "{{ completeView.displayName }}" has been added to your campaign.
         </p>
@@ -135,7 +135,7 @@
     <!-- ── Upload / paste step ──────────────────────────────────────────────── -->
     <template v-else>
       <div>
-        <h3 class="font-cinzel text-sm font-semibold text-foreground">Document Import</h3>
+        <h3 class="text-heading-sm font-semibold text-foreground">Document Import</h3>
         <p class="text-body text-muted-foreground italic mt-1">
           Import from a PDF, page photos, or pasted text.
         </p>
@@ -143,7 +143,7 @@
 
       <p class="text-caption text-muted-foreground">
         <template v-if="isPro">Pro plan: up to {{ PRO_PAGE_LIMIT }} pages per import.</template>
-        <template v-else>Free plan: up to {{ FREE_PAGE_LIMIT }} pages per import — Pro raises this to {{ PRO_PAGE_LIMIT }}.</template>
+        <template v-else>Free plan: up to {{ FREE_PAGE_LIMIT }} pages per import; Pro raises this to {{ PRO_PAGE_LIMIT }}.</template>
       </p>
 
       <SegmentedControl v-model="sourceMode" :options="SOURCE_MODE_OPTIONS" />

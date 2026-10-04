@@ -117,7 +117,7 @@ interface QuestGroupDefinition {
 
 const GROUP_DEFINITIONS: readonly QuestGroupDefinition[] = [
   { key: "active", heading: "Active", shortLabel: "active", icon: IconQuest, statuses: ["active"], primaryStatus: "active" },
-  { key: "undiscovered", heading: "Undiscovered — waiting to be unlocked", shortLabel: "undiscovered", icon: IconLock, statuses: ["undiscovered"], primaryStatus: "undiscovered" },
+  { key: "undiscovered", heading: "Undiscovered: waiting to be unlocked", shortLabel: "undiscovered", icon: IconLock, statuses: ["undiscovered"], primaryStatus: "undiscovered" },
   { key: "settled", heading: "Settled", shortLabel: "settled", icon: IconCheck, statuses: ["completed", "failed"], primaryStatus: "completed" },
 ];
 

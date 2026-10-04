@@ -3,7 +3,7 @@
     <header class="flex items-start justify-between gap-2">
       <div class="min-w-0">
         <p class="text-caption uppercase text-muted-foreground">{{ kindEyebrow }}</p>
-        <h3 class="truncate font-cinzel text-sm font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h3>
+        <h3 class="truncate text-heading-xs font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h3>
       </div>
       <div class="flex shrink-0 gap-1.5">
         <AppButton :icon="IconReveal" size="icon-xs" variant="subtle" tooltip="Preview as players" @click="emit('preview')" />

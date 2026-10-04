@@ -121,7 +121,7 @@ export async function countPages(files: readonly File[]): Promise<PageCountResul
     return {
       ok: false,
       reason: "mixed_selection",
-      message: "Choose either one PDF or a batch of photos — a single import can't be both.",
+      message: "Choose either one PDF or a batch of photos; a single import can't be both.",
     };
   }
 

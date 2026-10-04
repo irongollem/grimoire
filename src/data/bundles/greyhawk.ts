@@ -10,12 +10,12 @@ import type { SettingBundle } from "./index";
  */
 const greyhawkBundle: SettingBundle = {
   calendarId: "greyhawk",
-  name: "World of Greyhawk — Major Historical Events",
+  name: "World of Greyhawk: Major Historical Events",
   description:
     "Key events in the history of Oerth's Flanaess: from the Twin Cataclysms of the ancient Baklunish-Suloise War, through the rise of Iuz and the Circle of Eight, to the Greyhawk Wars and the treachery of Rary. Essential context for any campaign set on Oerth.",
   events: [
     {
-      title: "The Twin Cataclysms — Rain of Colorless Fire & Invoked Devastation",
+      title: "The Twin Cataclysms: Rain of Colorless Fire & Invoked Devastation",
       description:
         "The Baklunish and Suloise empires destroy each other with weapons of mass magical destruction. The Baklunish call down the Rain of Colorless Fire, obliterating the Suloise homeland into the Sea of Dust. The Suloise unleash the Invoked Devastation, turning the Baklunish lands into a desolate waste. Survivors scatter across the Flanaess, reshaping its demographics for millennia.",
       event_type: "world",
@@ -30,7 +30,7 @@ const greyhawkBundle: SettingBundle = {
       color: "#E67E22",
     },
     {
-      title: "Common Year Established — Kingdom of Aerdy Founded",
+      title: "Common Year Established: Kingdom of Aerdy Founded",
       description:
         "The Aerdi people, migrants from the east, establish the Great Kingdom of Aerdy and inaugurate the Common Year calendar. The Kingdom will eventually dominate much of the Flanaess for centuries before fracturing into squabbling successor states.",
       event_type: "discovery",
@@ -47,7 +47,7 @@ const greyhawkBundle: SettingBundle = {
     {
       title: "Free City of Greyhawk Founded",
       description:
-        "What began as a minor trading post at the confluence of the Selintan River grows into the Free City of Greyhawk — the City of Hawks, the Gem of the Flanaess. Its strategic location, great library, and legendary dungeons beneath nearby Castle Greyhawk make it the most influential city on Oerth.",
+        "What began as a minor trading post at the confluence of the Selintan River grows into the Free City of Greyhawk (the City of Hawks, the Gem of the Flanaess). Its strategic location, great library, and legendary dungeons beneath nearby Castle Greyhawk make it the most influential city on Oerth.",
       event_type: "discovery",
       harptos_year: 356,
       harptos_month: 1,
@@ -62,7 +62,7 @@ const greyhawkBundle: SettingBundle = {
     {
       title: "The Hateful Wars",
       description:
-        "A coalition of Flan, Suel, and Oeridian peoples — backed by the dwarves of the Lortmil Mountains — wages a systematic campaign to drive goblins, orcs, hobgoblins, and other humanoids from the Lortmils. The wars succeed, but displace vast numbers of humanoids who flood into surrounding regions, causing decades of strife.",
+        "A coalition of Flan, Suel, and Oeridian peoples, backed by the dwarves of the Lortmil Mountains, wages a systematic campaign to drive goblins, orcs, hobgoblins, and other humanoids from the Lortmils. The wars succeed, but displace vast numbers of humanoids who flood into surrounding regions, causing decades of strife.",
       event_type: "boss_fight",
       harptos_year: 447,
       harptos_month: 1,
@@ -77,7 +77,7 @@ const greyhawkBundle: SettingBundle = {
     {
       title: "Iuz the Old Appears",
       description:
-        "The demigod Iuz — son of the arch-devil Graz'zt and the Witch-Queen Iggwilv — first appears as a powerful and ruthless ruler in the northern Flanaess, carving out a domain of evil north of Furyondy. Whether Iuz is truly immortal, a demon, or something else, no one agrees — but his cruelty is undeniable.",
+        "The demigod Iuz, son of the arch-devil Graz'zt and the Witch-Queen Iggwilv, first appears as a powerful and ruthless ruler in the northern Flanaess, carving out a domain of evil north of Furyondy. Whether Iuz is truly immortal, a demon, or something else (no one agrees), but his cruelty is undeniable.",
       event_type: "world",
       harptos_year: 505,
       harptos_month: 1,
@@ -105,9 +105,9 @@ const greyhawkBundle: SettingBundle = {
       color: "#6A1B9A",
     },
     {
-      title: "Temple of Elemental Evil — The Battle of Emridy Meadows",
+      title: "Temple of Elemental Evil: The Battle of Emridy Meadows",
       description:
-        "Forces of good — including knights of Furyondy and Veluna, with elven allies from the Gnarley Forest — defeat the humanoid armies of the Temple of Elemental Evil at Emridy Meadows. The Temple is sealed, but not destroyed. Evil festers within.",
+        "Forces of good, including knights of Furyondy and Veluna, with elven allies from the Gnarley Forest, defeat the humanoid armies of the Temple of Elemental Evil at Emridy Meadows. The Temple is sealed, but not destroyed. Evil festers within.",
       event_type: "boss_fight",
       harptos_year: 569,
       harptos_month: 6,
@@ -122,7 +122,7 @@ const greyhawkBundle: SettingBundle = {
     {
       title: "Giants Begin Raiding the Sterich & Geoff",
       description:
-        "Hill giants, stone giants, frost giants, fire giants, and cloud giants begin coordinated raids across the Sheldomar Valley, striking Sterich, Geoff, and the surrounding states. The raids appear far too organized to be random — someone is commanding them.",
+        "Hill giants, stone giants, frost giants, fire giants, and cloud giants begin coordinated raids across the Sheldomar Valley, striking Sterich, Geoff, and the surrounding states. The raids appear far too organized to be random; someone is commanding them.",
       event_type: "boss_fight",
       harptos_year: 576,
       harptos_month: 4,
@@ -135,7 +135,7 @@ const greyhawkBundle: SettingBundle = {
       color: "#C0392B",
     },
     {
-      title: "Slave Lords Exposed — The A-Series Raids",
+      title: "Slave Lords Exposed: The A-Series Raids",
       description:
         "A mysterious organization of slavers operating out of the Pomarj begins raiding coastal towns along the Wild Coast and Woolly Bay. Adventurers expose the Slave Lords' network, striking at their island fortress. The raids reveal a vast criminal conspiracy supported by hidden evil powers.",
       event_type: "world",
@@ -167,7 +167,7 @@ const greyhawkBundle: SettingBundle = {
     {
       title: "Vecna's Ascension Attempt",
       description:
-        "The archlich Vecna — Lord of the Rotted Tower, the Whispered One, He Who Is All — attempts to ascend to full godhood and reshape the multiverse by destroying the secret of his own existence. He nearly succeeds, rewriting reality itself. The heroes of Sigil stop him at the Siege Perilous, but Vecna does achieve a lesser apotheosis and joins the ranks of the gods.",
+        "The archlich Vecna (Lord of the Rotted Tower, the Whispered One, He Who Is All) attempts to ascend to full godhood and reshape the multiverse by destroying the secret of his own existence. He nearly succeeds, rewriting reality itself. The heroes of Sigil stop him at the Siege Perilous, but Vecna does achieve a lesser apotheosis and joins the ranks of the gods.",
       event_type: "boss_fight",
       harptos_year: 581,
       harptos_month: 10,
@@ -197,7 +197,7 @@ const greyhawkBundle: SettingBundle = {
     {
       title: "Rary's Betrayal & the Pact of Greyhawk",
       description:
-        "As representatives of the free nations gather in Greyhawk to sign a peace treaty ending the Greyhawk Wars, the archmage Rary of the Circle of Eight betrays his colleagues, killing Otiluke and Tenser. Rary and Lord Robilar flee to the Bright Desert, where Rary establishes his own kingdom. The Pact of Greyhawk is signed, ending the wars — but leaving many injustices unaddressed.",
+        "As representatives of the free nations gather in Greyhawk to sign a peace treaty ending the Greyhawk Wars, the archmage Rary of the Circle of Eight betrays his colleagues, killing Otiluke and Tenser. Rary and Lord Robilar flee to the Bright Desert, where Rary establishes his own kingdom. The Pact of Greyhawk is signed, ending the wars, but leaving many injustices unaddressed.",
       event_type: "npc_death",
       harptos_year: 584,
       harptos_month: 8,
@@ -210,7 +210,7 @@ const greyhawkBundle: SettingBundle = {
       color: "#7F8C8D",
     },
     {
-      title: "Post-War Reconstruction — 'From the Ashes' Era",
+      title: "Post-War Reconstruction: 'From the Ashes' Era",
       description:
         "The Flanaess rebuilds from the devastation of the Greyhawk Wars. Entire nations have been destroyed or transformed. The Shield Lands remain under Iuz's rule. Furyondy is scarred. The Great Kingdom is finally dissolved into successor states. Adventurers are in high demand as the region struggles to recover.",
       event_type: "world",

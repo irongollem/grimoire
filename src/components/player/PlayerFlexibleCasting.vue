@@ -7,7 +7,7 @@
       <div class="flex items-center gap-2">
         <AppSelect v-model.number="createLevel" size="sm" class="min-w-0 flex-1">
           <option v-for="level in creatableLevels" :key="level" :value="level">
-            Level {{ level }} — {{ SLOT_COSTS[level] }} SP
+            Level {{ level }} · {{ SLOT_COSTS[level] }} SP
           </option>
         </AppSelect>
         <AppButton
@@ -24,7 +24,7 @@
       <div class="flex items-center gap-2">
         <AppSelect v-model="sacrificeKey" size="sm" class="min-w-0 flex-1">
           <option v-for="slot in sacrificableSlots" :key="spellSlotKey(slot)" :value="spellSlotKey(slot)">
-            {{ poolLabel(slot) }} level {{ slot.level }} — +{{ slot.level }} SP
+            {{ poolLabel(slot) }} level {{ slot.level }} · +{{ slot.level }} SP
           </option>
         </AppSelect>
         <AppButton

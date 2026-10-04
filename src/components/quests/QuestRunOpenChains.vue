@@ -5,7 +5,7 @@
     class="space-y-1 rounded-xl border border-border bg-card p-3"
   >
     <div class="px-2">
-      <h2 id="open-chains-heading" class="font-cinzel text-sm font-bold text-foreground">Also open</h2>
+      <h2 id="open-chains-heading" class="text-heading-sm font-bold text-foreground">Also open</h2>
     </div>
     <div
       v-for="badge in siblingBadges"
@@ -17,7 +17,7 @@
         <IconThread class="h-3.5 w-3.5" aria-hidden="true" />
       </span>
       <span class="min-w-0 flex-1">
-        <span class="block truncate font-cinzel text-sm font-semibold text-foreground">{{ threadTitle(badge) }}</span>
+        <span class="block truncate text-heading-xs font-semibold text-foreground">{{ threadTitle(badge) }}</span>
         <span class="block truncate text-caption text-muted-foreground">this quest · {{ describeThreadCursor(badge.thread) }}</span>
       </span>
       <AppButton label="Switch" size="xs" @click="emit('switch-thread', badge.thread.id)" />

@@ -145,7 +145,7 @@ export function getConditionDescription(name: string, ruleset: RulesetKey): stri
 
   const levelMatch = name.match(/^Exhausted\s+(\d)$/i);
   if (levelMatch) {
-    return `${name} — level ${levelMatch[1]} of 6.\n\n${cond.description}`;
+    return `${name} (level ${levelMatch[1]} of 6).\n\n${cond.description}`;
   }
   return cond.description;
 }

@@ -1,6 +1,6 @@
 <template>
   <section data-tour="player-books" class="space-y-3">
-    <h2 class="font-cinzel text-sm font-semibold text-foreground">Your books</h2>
+    <h2 class="text-heading-sm font-semibold text-foreground">Your books</h2>
     <!--
       `relative z-10`: a themed card is its own stacking context, so the picker's
       popover is painted inside this one. Without the lift, the cards after it on

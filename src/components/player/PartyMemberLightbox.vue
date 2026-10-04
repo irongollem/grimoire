@@ -54,7 +54,7 @@
                     <template v-if="showNumericHp">
                       <div class="flex items-center justify-between mb-1">
                         <span class="text-label text-muted-foreground">HP</span>
-                        <span class="font-cinzel text-sm font-bold" :class="hpColor">
+                        <span class="text-heading-sm font-bold" :class="hpColor">
                           {{ member.current_hp }} / {{ member.max_hp }}
                         </span>
                       </div>
@@ -77,7 +77,7 @@
                       <IconShield class="h-4 w-4 text-muted-foreground shrink-0" />
                       <span class="text-label text-muted-foreground">AC</span>
                     </div>
-                    <span class="font-cinzel text-sm font-bold text-foreground">{{ displayAc }}</span>
+                    <span class="text-heading-sm font-bold text-foreground">{{ displayAc }}</span>
                   </div>
 
                   <!-- Species chip — clickable -->
@@ -124,7 +124,7 @@
       >
         <div class="bg-card rounded-xl border border-border w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
           <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-            <h3 class="font-cinzel text-sm font-bold text-foreground">{{ displaySpecies.name }}</h3>
+            <h3 class="text-heading-sm font-bold text-foreground">{{ displaySpecies.name }}</h3>
             <AppButton
               variant="ghost"
               size="icon-xs"
@@ -178,7 +178,7 @@
             <div v-if="displaySpecies.subraces?.length" class="space-y-3">
               <p class="text-label font-semibold text-muted-foreground">SUBRACES</p>
               <div v-for="sub in displaySpecies.subraces" :key="sub.name" class="space-y-1">
-                <h4 class="font-cinzel text-sm font-bold text-foreground">{{ sub.name }}</h4>
+                <h4 class="text-heading-sm font-bold text-foreground">{{ sub.name }}</h4>
                 <RichTextViewer v-if="sub.description" :content="sub.description" />
                 <div v-if="sub.traits?.length" class="pl-3 border-l border-border space-y-1.5 mt-1">
                   <div v-for="trait in sub.traits" :key="trait.name">

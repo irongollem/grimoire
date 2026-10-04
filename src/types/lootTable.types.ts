@@ -118,7 +118,7 @@ function validateQuantity(e: LootEntry): string | null {
   }
   if (typeof e.dice === "string" && e.dice.trim()) {
     const parsed = parseExpression(e.dice);
-    if (!parsed) return `"${e.dice}" isn't a valid quantity — try "1d4", "2d6+1", or a plain number.`;
+    if (!parsed) return `"${e.dice}" isn't a valid quantity. Try "1d4", "2d6+1", or a plain number.`;
     if (maxExpression(parsed) <= 0) {
       return `"${e.dice}" can never roll a positive quantity, so this entry would always drop nothing.`;
     }

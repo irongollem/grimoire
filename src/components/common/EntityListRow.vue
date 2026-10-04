@@ -39,7 +39,7 @@
     </div>
 
     <div class="min-w-0 flex-1">
-      <p class="truncate font-cinzel text-sm font-bold text-foreground">{{ title }}</p>
+      <p class="truncate text-heading-xs font-bold text-foreground">{{ title }}</p>
       <p v-if="subtitle" class="text-label text-muted-foreground mt-0.5">{{ subtitle }}</p>
       <div v-if="tags.length" class="mt-1.5 flex flex-wrap gap-1">
         <span

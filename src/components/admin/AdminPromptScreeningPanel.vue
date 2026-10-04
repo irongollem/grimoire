@@ -2,7 +2,7 @@
   <div class="rounded-lg border border-border bg-card p-4 space-y-4">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Prompt Screening</h2>
+        <h2 class="text-heading-sm font-semibold text-foreground">Prompt Screening</h2>
         <p class="text-caption text-muted-foreground italic mt-0.5 max-w-prose">
           IMAGE_PROMPT_THRESHOLDS was set from eight test prompts. This is what real
           image-generation traffic says about it: which thresholds let something through
@@ -42,7 +42,7 @@
         <component :is="IconShieldCheck" class="mx-auto h-6 w-6 text-muted-foreground/50" aria-hidden="true" />
         <p class="text-body text-foreground">No screenings recorded in the last {{ windowDays }} days.</p>
         <p class="text-caption text-muted-foreground italic">
-          Every image prompt is screened before it renders — this fills in as soon as one runs.
+          Every image prompt is screened before it renders; this fills in as soon as one runs.
         </p>
       </div>
 
@@ -50,7 +50,7 @@
         <!-- Composition: always the whole window, never narrowed by the surface filter —
              this is what a naive unfiltered percentile is silently averaging over. -->
         <div class="space-y-1.5">
-          <p class="text-label-lg text-foreground">Composition — last {{ windowDays }} days</p>
+          <p class="text-label-lg text-foreground">Composition: last {{ windowDays }} days</p>
           <div class="flex flex-wrap gap-1.5">
             <AppButton
               v-for="t in hints.by_type"
@@ -74,7 +74,7 @@
               {{ Math.round(dominance.share * 100) }}% of this window.
               <template v-if="dominance.bulk">
                 Its prompts are templated and near-duplicate, which pulls the unfiltered
-                percentiles below toward it — filter to one surface to read those cleanly.
+                percentiles below toward it; filter to one surface to read those cleanly.
               </template>
               <template v-else>
                 The unfiltered numbers below mostly reflect this one surface already.
@@ -302,11 +302,11 @@ const DIAGNOSIS_FILL: Record<CategoryDiagnosis, string> = {
 function diagnosisTitle(hint: PromptScreeningCategoryHint): string {
   switch (diagnoseCategory(hint)) {
     case "too_high":
-      return `${hint.refused_after_pass} prompt(s) we allowed were refused by the renderer anyway — lower this threshold.`;
+      return `${hint.refused_after_pass} prompt(s) we allowed were refused by the renderer anyway. Lower this threshold.`;
     case "headroom":
-      return `The highest allowed score (${fmtScore(hint.max_allowed)}) sits well below the threshold (${hint.threshold}) — room to raise it.`;
+      return `The highest allowed score (${fmtScore(hint.max_allowed)}) sits well below the threshold (${hint.threshold}); there is room to raise it.`;
     case "steady":
-      return "Traffic sits close to the threshold with no renderer disagreement — no change indicated.";
+      return "Traffic sits close to the threshold with no renderer disagreement; no change indicated.";
     case "no_data":
       return "No screenings in this window judged this category.";
   }

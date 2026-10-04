@@ -20,7 +20,7 @@
           @click="classEquipmentChoice = key">
           <p class="font-cinzel text-xs font-semibold text-foreground">
             {{ key === 'a' ? 'Choice A' : 'Choice B' }}
-            <span class="font-fell font-normal text-muted-foreground ml-1">— {{ classEquipmentPack[key].label }}</span>
+            <span class="font-fell font-normal text-muted-foreground ml-1">· {{ classEquipmentPack[key].label }}</span>
           </p>
           <ul class="space-y-0.5">
             <li
@@ -65,7 +65,7 @@
       class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 p-3 flex items-start gap-2">
       <span class="text-ink-caution shrink-0 mt-0.5">⚡</span>
       <p class="text-body text-ink-caution ">
-        No starting equipment — pick a class and background first, or continue and add gear manually.
+        No starting equipment. Pick a class and background first, or continue and add gear manually.
       </p>
     </div>
   </div>

@@ -35,7 +35,7 @@
               size="icon-xs"
               :icon="IconLock"
               :active="view.door.starts_locked"
-              :tooltip="view.door.lock_note ? `Starts locked — ${view.door.lock_note}` : 'Starts locked'"
+              :tooltip="view.door.lock_note ? `Starts locked: ${view.door.lock_note}` : 'Starts locked'"
               class="shrink-0"
               @click="toggleFlag(view.door, 'starts_locked')"
             />
@@ -44,7 +44,7 @@
               size="icon-xs"
               :icon="IconHide"
               :active="view.door.is_secret"
-              tooltip="Secret — hidden until the party finds it"
+              tooltip="Secret: hidden until the party finds it"
               class="shrink-0"
               @click="toggleFlag(view.door, 'is_secret')"
             />
@@ -68,14 +68,14 @@
             <IconLock
               v-if="view.door.starts_locked"
               class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-              :aria-label="view.door.lock_note ? `Starts locked — ${view.door.lock_note}` : 'Starts locked'"
-              :title="view.door.lock_note ? `Starts locked — ${view.door.lock_note}` : 'Starts locked'"
+              :aria-label="view.door.lock_note ? `Starts locked: ${view.door.lock_note}` : 'Starts locked'"
+              :title="view.door.lock_note ? `Starts locked: ${view.door.lock_note}` : 'Starts locked'"
             />
             <IconHide
               v-if="view.door.is_secret"
               class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
               aria-label="Secret"
-              title="Secret — hidden until the party finds it"
+              title="Secret: hidden until the party finds it"
             />
           </template>
         </template>
@@ -83,12 +83,12 @@
           <PlacementNoteInput
             v-if="view.door.starts_locked"
             :model-value="view.door.lock_note"
-            placeholder="What opens it — e.g. the brass key"
+            placeholder="What opens it, e.g. the brass key"
             @commit="(value) => onLockNoteCommit(view.door, value)"
           />
           <PlacementNoteInput
             :model-value="view.door.label"
-            placeholder="Label — e.g. iron grille"
+            placeholder="Label, e.g. iron grille"
             @commit="(value) => onLabelCommit(view.door, value)"
           />
         </template>
@@ -96,7 +96,7 @@
       </PlacementRow>
     </div>
     <p v-else class="text-caption text-muted-foreground italic">
-      {{ building ? "No ways out yet — add one below." : "No ways out yet. Build the site to add them." }}
+      {{ building ? "No ways out yet. Add one below." : "No ways out yet. Build the site to add them." }}
     </p>
 
     <!-- Inline add — Build only. -->
@@ -110,7 +110,7 @@
         type="text"
         tone="bare"
         size="xs"
-        placeholder="Label — e.g. iron grille"
+        placeholder="Label, e.g. iron grille"
         class="px-0 text-caption"
       />
       <div class="flex flex-wrap items-center gap-4">
@@ -123,7 +123,7 @@
         v-model="newLockNote"
         type="text"
         size="xs"
-        placeholder="What opens it — the brass key, DC 15 thieves' tools…"
+        placeholder="What opens it: the brass key, DC 15 thieves' tools…"
       />
       <AppButton
         variant="ghost"

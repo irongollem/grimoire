@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <!-- New Invite Link -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-3">
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">New Invite Link</h2>
+      <h2 class="text-heading-sm font-semibold text-foreground">New Invite Link</h2>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <AppInput
           v-model="newLabel"
@@ -46,7 +46,7 @@
 
     <!-- Active Links -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-3">
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Active Links</h2>
+      <h2 class="text-heading-sm font-semibold text-foreground">Active Links</h2>
 
       <div v-if="invitesQuery.isPending.value" class="text-center py-4">
         <BannerLoader class="h-8" />

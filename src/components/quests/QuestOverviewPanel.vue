@@ -19,14 +19,14 @@
     <LoadingSpinner v-if="beatsQuery.isLoading.value || edgesQuery.isLoading.value" class="mx-auto my-12" />
 
     <section v-else-if="!beats.length" class="space-y-3 rounded-lg border border-dashed border-border bg-card p-4 text-center" aria-label="No opening beat yet">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Write the opening beat</h3>
-      <p class="text-caption text-muted-foreground">A quest starts once it has a first beat — the scene where the party actually picks it up.</p>
+      <h3 class="text-heading-sm font-bold text-foreground">Write the opening beat</h3>
+      <p class="text-caption text-muted-foreground">A quest starts once it has a first beat: the scene where the party actually picks it up.</p>
       <AppButton label="Write the opening beat" variant="primary" :loading="creating" @click="createOpeningBeat" />
       <p v-if="createError" role="alert" class="text-caption text-destructive">{{ createError }}</p>
     </section>
 
     <section v-else class="space-y-2 rounded-lg border border-border bg-card p-3" aria-label="Opening beats">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Opens at</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Opens at</h3>
       <p v-if="!roots.length && !entryBeat" role="alert" class="text-caption text-tone-caution">
         Every beat here has an incoming route, so there is no way in for the party. Open Story flow and break the loop.
       </p>

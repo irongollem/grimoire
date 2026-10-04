@@ -18,7 +18,7 @@
           :style="{ backgroundColor: locColor }"
         />
         <EntityNewDot :is-new="isNew" title="New" />
-        <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ loc.name }}</span>
+        <span class="flex-1 text-heading-xs font-semibold text-foreground truncate">{{ loc.name }}</span>
         <span class="text-label text-muted-foreground shrink-0">
           {{ locLabel }}
         </span>

@@ -9,10 +9,10 @@
         Party here
       </span>
     </div>
-    <h2 class="font-cinzel text-base font-bold text-foreground">{{ room.name }}</h2>
+    <h2 class="text-heading-sm font-bold text-foreground">{{ room.name }}</h2>
 
     <section v-if="hasDescription" class="rounded-lg border border-primary/30 bg-primary/5 p-4">
-      <h3 class="mb-2 font-cinzel text-sm font-bold text-primary">Read aloud</h3>
+      <h3 class="mb-2 text-heading-sm font-bold text-primary">Read aloud</h3>
       <RichTextViewer :content="room.description" />
     </section>
     <p v-else class="text-caption italic text-muted-foreground">Nothing written for this room yet.</p>
@@ -44,7 +44,7 @@
 
     <LocationLootPanel v-if="campaignId" :location-id="room.id" :campaign-id="campaignId" :loot="loot" />
 
-    <p class="text-caption text-muted-foreground">Prompts, not automation — Trigger, Run, Reveal, Roll and Drop are all buttons. Nothing on this surface fires because a token moved.</p>
+    <p class="text-caption text-muted-foreground">Prompts, not automation: Trigger, Run, Reveal, Roll and Drop are all buttons. Nothing on this surface fires because a token moved.</p>
   </div>
 </template>
 

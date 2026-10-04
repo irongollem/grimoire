@@ -52,7 +52,7 @@ const { variant = "card" } = defineProps<{
 
 const headingClass = computed(() =>
   variant === "card"
-    ? "font-cinzel text-sm font-semibold tracking-wide text-foreground"
+    ? "text-heading-sm font-semibold text-foreground"
     : "text-label-lg font-semibold text-muted-foreground uppercase",
 );
 const successClass = computed(() => (variant === "card" ? "text-ink-success" : "text-elven-green"));

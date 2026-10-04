@@ -27,7 +27,7 @@
            result list and "you haven't typed yet" look identical otherwise,
            and only one of them is worth explaining. -->
       <p v-if="!query.trim()" class="px-1 text-caption text-muted-foreground italic">
-        Search the SRD compendium — conditions, actions, spells and more —
+        Search the SRD compendium (conditions, actions, spells and more)
         without leaving the dashboard.
       </p>
 

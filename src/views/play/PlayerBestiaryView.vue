@@ -230,7 +230,7 @@
             together in the projection; assuming so is what crashed here.
           -->
           <template v-if="lightbox?.monster?.stat_block && (lightbox.revealStats ?? activeTab === 'forms')">
-            <div class="flex gap-4 font-cinzel text-sm">
+            <div class="flex gap-4 text-heading-sm">
               <div class="text-center">
                 <p class="text-2xs text-muted-foreground tracking-wider">AC</p>
                 <p class="font-bold">{{ lightbox.monster.stat_block.armor_class }}</p>

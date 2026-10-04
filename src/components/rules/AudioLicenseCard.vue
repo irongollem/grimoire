@@ -2,7 +2,7 @@
   <div class="rounded-lg border border-border bg-card p-3 space-y-2">
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0">
-        <p class="font-cinzel text-sm font-bold text-foreground">{{ group.source }}</p>
+        <p class="text-heading-sm font-bold text-foreground">{{ group.source }}</p>
         <p class="text-caption text-muted-foreground">
           {{ group.sound_count.toLocaleString() }}
           {{ group.sound_count === 1 ? "sound" : "sounds" }}
@@ -39,8 +39,8 @@
       >
         {{ credits.length.toLocaleString() }} credit
         {{ credits.length === 1 ? "line" : "lines" }}
-        <span class="group-open/credits:hidden">— show</span>
-        <span class="hidden group-open/credits:inline">— hide</span>
+        <span class="group-open/credits:hidden">show</span>
+        <span class="hidden group-open/credits:inline">hide</span>
       </summary>
       <ul class="mt-2 space-y-1.5">
         <li

@@ -153,7 +153,7 @@
         <div class="flex-1 min-w-0">
           <RouterLink
             :to="`/npcs/${otherNpcId(rel)}`"
-            class="font-cinzel text-sm font-semibold text-foreground hover:text-primary transition-colors"
+            class="text-heading-sm font-semibold text-foreground hover:text-primary transition-colors"
           >
             {{ otherNpcName(rel) }}
           </RouterLink>

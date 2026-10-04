@@ -11,7 +11,7 @@
         That roll table is no longer in this campaign. Pick another one from this card's settings.
       </p>
       <p v-else class="text-body text-muted-foreground italic">
-        No roll tables yet — build one and it appears here.
+        No roll tables yet. Build one and it appears here.
       </p>
     </template>
 

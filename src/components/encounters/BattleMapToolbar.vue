@@ -50,7 +50,7 @@
           class="inline-flex items-center gap-1"
         />
         <span v-if="calibrationFromPublish" class="layer-caption">
-          Calibration came with the publish — nothing to align
+          Calibration came with the publish; nothing to align
         </span>
       </div>
 

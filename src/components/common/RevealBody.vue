@@ -56,7 +56,7 @@
     </div>
 
     <p v-else class="px-3 pb-3 text-caption text-muted-foreground italic">
-      No party members yet — add some to share with.
+      No party members yet. Add some to share with.
     </p>
 
     <!--

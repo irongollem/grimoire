@@ -43,7 +43,7 @@
         New {{ planTool === "zone" ? "zone" : "space" }}
       </AppButton>
       <p class="text-caption-sm text-muted-foreground mt-2">
-        Paint, pen or drop a template to extend the current shape — click an existing unbound one on the canvas to resume it.
+        Paint, pen or drop a template to extend the current shape. Click an existing unbound one on the canvas to resume it.
       </p>
     </div>
 

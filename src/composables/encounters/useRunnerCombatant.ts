@@ -113,9 +113,9 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
   }
 
   function revealBtnTitle(state: RevealState | undefined): string {
-    if (state === "revealed") return "Revealed — click to hide";
-    if (state === "unseen") return "Unseen — click to reveal";
-    return "Hidden — click to show slot";
+    if (state === "revealed") return "Revealed. Click to hide";
+    if (state === "unseen") return "Unseen. Click to reveal";
+    return "Hidden. Click to show slot";
   }
 
   function nonExhaustion(conditions: string[]): string[] {

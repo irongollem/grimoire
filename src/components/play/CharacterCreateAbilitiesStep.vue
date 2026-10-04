@@ -17,7 +17,7 @@
         <p class="text-label-lg font-semibold text-muted-foreground">ASSIGN SCORES</p>
         <div class="flex items-center gap-2">
           <span class="font-cinzel text-xs text-muted-foreground">Points remaining:</span>
-          <span class="font-cinzel text-sm font-bold"
+          <span class="text-heading-sm font-bold"
             :class="pointsRemaining < 0 ? 'text-destructive' : pointsRemaining === 0 ? 'text-ink-success' : 'text-primary'">
             {{ pointsRemaining }}
           </span>
@@ -65,14 +65,14 @@
       <div class="flex items-center justify-between flex-wrap gap-2">
         <p class="text-body text-muted-foreground italic">
           <template v-if="scoreMode === 'array'">Assign the standard array (15, 14, 13, 12, 10, 8) to your abilities.</template>
-          <template v-else>4d6 drop lowest — reroll until happy, then assign.</template>
+          <template v-else>4d6 drop lowest. Reroll until happy, then assign.</template>
         </p>
         <AppButton v-if="scoreMode === 'roll'" variant="primary" size="sm" label="Reroll Pool" @click="rollAbilityScores" />
       </div>
       <div class="flex items-center gap-1.5 flex-wrap rounded-md border border-border bg-card px-3 py-2">
         <span class="text-label text-muted-foreground mr-1">POOL</span>
         <span v-for="(val, idx) in scorePool" :key="idx"
-          class="w-9 h-9 rounded-md border font-cinzel text-sm font-bold flex items-center justify-center transition-colors"
+          class="w-9 h-9 rounded-md border text-heading-sm font-bold flex items-center justify-center transition-colors"
           :class="Object.values(scoreAssignment).includes(idx)
             ? 'border-primary/30 bg-primary/10 text-primary/60 line-through'
             : 'border-border bg-muted/50 text-foreground'">{{ val }}</span>
@@ -154,14 +154,14 @@
       <!-- Racial mode: structured — bonuses shown directly in score cards above -->
       <p v-if="asiMode === 'bonus' && asiIsStructured"
         class="text-caption text-muted-foreground italic">
-        Racial bonuses reflected in your scores above — applied automatically on save.
+        Racial bonuses reflected in your scores above, applied automatically on save.
       </p>
 
       <!-- Racial mode: unstructured — show free-text description, player adjusts manually -->
       <div v-else-if="asiMode === 'bonus' && !asiIsStructured" class="space-y-1">
         <p class="text-body text-foreground">{{ asiDescriptionText }}</p>
         <p class="text-caption text-muted-foreground italic">
-          Free-text bonus — adjust your scores above to include it, then use Skip or Custom instead.
+          Free-text bonus: adjust your scores above to include it, then use Skip or Custom instead.
         </p>
       </div>
 
@@ -184,7 +184,7 @@
                 :disabled="customAsi[stat.key] <= 0"
                 @click="adjustCustomAsi(stat.key, -1)"
               />
-              <span class="font-cinzel text-sm font-bold w-5 text-center"
+              <span class="text-heading-sm font-bold w-5 text-center"
                 :class="customAsi[stat.key] > 0 ? 'text-primary' : 'text-muted-foreground'">
                 +{{ customAsi[stat.key] }}
               </span>
@@ -202,7 +202,7 @@
 
       <!-- Skip mode -->
       <p v-else class="text-caption text-muted-foreground italic">
-        Racial bonuses skipped — you handle your ability scores above.
+        Racial bonuses skipped: you handle your ability scores above.
       </p>
     </div>
   </div>

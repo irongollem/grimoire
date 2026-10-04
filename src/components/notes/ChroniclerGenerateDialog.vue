@@ -42,7 +42,7 @@
           </span>
         </div>
         <p v-else-if="hasMentions" class="text-caption text-muted-foreground italic">
-          No @mentions matched known characters — generating from description only.
+          No @mentions matched known characters. Generating from description only.
         </p>
       </div>
 
@@ -214,7 +214,7 @@ async function generate() {
     emit("started", { jobId, prompt, size: size.value });
     queuedCount.value += 1;
     scenePrompt.value = "";
-    queuedNotice.value = "Queued — it'll render into your note";
+    queuedNotice.value = "Queued: it'll render into your note";
     clearNoticeAfter(2500);
     await nextTick();
     dialogRef.value?.querySelector("textarea")?.focus();

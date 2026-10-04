@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
     <p class="text-body text-muted-foreground italic">
-      Choose how this miniature will be made — the format decides the stylized render, the mesh
+      Choose how this miniature will be made: the format decides the stylized render, the mesh
       parameters, and which files you'll be able to download.
     </p>
 
@@ -17,7 +17,7 @@
         @click="emit('update:modelValue', opt.value)"
       >
         <div class="flex items-center justify-between">
-          <span class="font-cinzel text-sm font-semibold tracking-wide text-foreground">{{ opt.label }}</span>
+          <span class="text-heading-sm font-semibold text-foreground">{{ opt.label }}</span>
           <span
             v-if="modelValue === opt.value"
             class="rounded-full bg-primary px-1.5 py-0.5 text-label font-semibold text-primary-foreground"

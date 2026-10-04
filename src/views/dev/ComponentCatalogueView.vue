@@ -5,7 +5,7 @@
         <h1 class="text-title text-foreground">Component catalogue</h1>
         <p class="text-caption text-muted-foreground max-w-2xl">
           Every variant and size of the shared control primitives, rendered in the real app
-          build. Dev-only — this route does not exist in production. Drive it headlessly with
+          build. Dev-only: this route does not exist in production. Drive it headlessly with
           <code class="text-caption-sm">?theme=&lt;id&gt;</code>.
         </p>
       </div>
@@ -21,7 +21,7 @@
          enumerations in appButtonVariants.ts, which a compile-time assertion keeps
          in step with the cva config — so a new variant cannot go unrendered. -->
     <CatalogueSection
-      title="AppButton — variant × size"
+      title="AppButton: variant × size"
       note="Every cell is one button. A missing row or column means the enumeration and the cva config have diverged, which will not compile."
     >
       <div class="overflow-x-auto">
@@ -60,7 +60,7 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppButton — states"
+      title="AppButton: states"
       note="`active` colours the border only on variants that draw one; on ghost/link/chip a border colour would paint nothing."
     >
       <div class="flex flex-col gap-3">
@@ -78,8 +78,8 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppButton — shape"
-      note="`pill` rounds the control fully. The largest recipe the sweep could not express — 88 sites, 56 of them circular icon buttons across 45 files. An axis rather than new sizes, because the shape is orthogonal to the box: every size can be a pill. It is declared after `size` in the cva config so its rounded-full wins the radius group; a test pins that ordering."
+      title="AppButton: shape"
+      note="`pill` rounds the control fully. The largest recipe the sweep could not express: 88 sites, 56 of them circular icon buttons across 45 files. An axis rather than new sizes, because the shape is orthogonal to the box: every size can be a pill. It is declared after `size` in the cva config so its rounded-full wins the radius group; a test pins that ordering."
     >
       <div class="flex flex-wrap items-center gap-3">
         <AppButton variant="subtle" size="icon-sm" shape="pill" aria-label="Close" :icon="IconClose" />
@@ -91,8 +91,8 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppButton — iconSize"
-      note="The glyph size is a prop, not something to hand-write through the slot. :icon used to hard-code h-3.5, so 58 call sites bypassed the prop entirely to get h-3/h-4/h-5. Reach for the #icon slot only when the glyph needs more than a size — a colour, an opacity, a conditional class."
+      title="AppButton: iconSize"
+      note="The glyph size is a prop, not something to hand-write through the slot. :icon used to hard-code h-3.5, so 58 call sites bypassed the prop entirely to get h-3/h-4/h-5. Reach for the #icon slot only when the glyph needs more than a size (a colour, an opacity, a conditional class)."
     >
       <div class="flex flex-wrap items-center gap-3">
         <AppButton
@@ -109,8 +109,8 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppInput — icon inset"
-      note="A leading or trailing glyph inside the field. This was recorded as an unsupported recipe for three waves on the theory that a call-site pl-9 could not beat fieldVariants' px-3 — nobody tested it. Both classes do survive cn(), and it does not matter: Tailwind emits per-side padding AFTER the axis shorthand, so the inset wins. This is the sanctioned override-one-token case, not the banned re-declare-the-whole-box."
+      title="AppInput: icon inset"
+      note="A leading or trailing glyph inside the field. This was recorded as an unsupported recipe for three waves on the theory that a call-site pl-9 could not beat fieldVariants' px-3; nobody tested it. Both classes do survive cn(), and it does not matter: Tailwind emits per-side padding AFTER the axis shorthand, so the inset wins. This is the sanctioned override-one-token case, not the banned re-declare-the-whole-box."
     >
       <div class="flex flex-wrap items-center gap-3">
         <div class="relative w-64">
@@ -131,8 +131,8 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="ToggleSwitch — size, against the labels each one sits beside"
-      note="Two sizes, not the three the raw measurement suggested. A third (h-4 w-7, 6 sites) was measured and rejected: those sites contradicted each other — one picked it beside the same text-xs label the md sites use, another beside a larger one, and one Illuminate panel picked it while its four siblings on the same screen did not. Each row here pairs a size with the label typography its call sites actually carry."
+      title="ToggleSwitch: size, against the labels each one sits beside"
+      note="Two sizes, not the three the raw measurement suggested. A third (h-4 w-7, 6 sites) was measured and rejected: those sites contradicted each other: one picked it beside the same text-xs label the md sites use, another beside a larger one, and one Illuminate panel picked it while its four siblings on the same screen did not. Each row here pairs a size with the label typography its call sites actually carry."
     >
       <div class="flex flex-col gap-4">
         <div v-for="row in SWITCH_ROWS" :key="row.size" class="flex items-center gap-4">
@@ -147,8 +147,8 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppButton — fill"
-      note="Whether a button paints a background on hover rather than only recolouring text. The largest recipe the sweep could not express — 104 hover:bg-muted and 116 hover:bg-<tone>/N occurrences across the app. It is an axis rather than a variant so it composes: ghost+fill is a toolbar toggle, ghost+fill+danger is a destructive icon button."
+      title="AppButton: fill"
+      note="Whether a button paints a background on hover rather than only recolouring text. The largest recipe the sweep could not express: 104 hover:bg-muted and 116 hover:bg-<tone>/N occurrences across the app. It is an axis rather than a variant so it composes: ghost+fill is a toolbar toggle, ghost+fill+danger is a destructive icon button."
     >
       <div class="flex flex-col gap-3">
         <div v-for="f in BUTTON_FILLS" :key="f" class="flex flex-wrap items-center gap-2">
@@ -161,8 +161,8 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppButton — press (touch feedback)"
-      note="`fill`'s twin, on `active:` rather than `hover:`. It exists because a :hover state sticks after a tap on a touch device — the button stays lit until you touch something else — so the mobile-only screens (NpcDetailMobile, NpcEditMobile, MonsterSheetMobile, MonsterEditMobile, DmBottomNav) deliberately avoid hover and could not use the primitive at all. Compose it WITH fill for a control reachable by both pointer and touch. These only visibly change while held down."
+      title="AppButton: press (touch feedback)"
+      note="`fill`'s twin, on `active:` rather than `hover:`. It exists because a :hover state sticks after a tap on a touch device (the button stays lit until you touch something else), so the mobile-only screens (NpcDetailMobile, NpcEditMobile, MonsterSheetMobile, MonsterEditMobile, DmBottomNav) deliberately avoid hover and could not use the primitive at all. Compose it WITH fill for a control reachable by both pointer and touch. These only visibly change while held down."
     >
       <div class="flex flex-col gap-3">
         <div v-for="p in BUTTON_PRESSES" :key="p" class="flex flex-wrap items-center gap-2">
@@ -175,7 +175,7 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppButton — active × tone"
+      title="AppButton: active × tone"
       note="A selected state that is not gold. `primary` is deliberately absent from the compound table: it is the default tone, so a rule for it would repaint every plain :active button in the app."
     >
       <div class="flex flex-wrap items-center gap-2">
@@ -192,8 +192,8 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppButton — activeFill (selection without a box)"
-      note="`tint` is the default and is what `active` has always drawn. `none` recolours the glyph and paints nothing, for the fifteen controls whose selected state IS the colour — the inspiration star, the favourite star, CastButton, the Spotify transport, the bottom-nav tabs. Each of those stayed hand-rolled through five waves of #648 because `active` always painted a box behind them, and a filled box behind a star reads as two competing signals. Compare the rows: the stars on the right are the real case."
+      title="AppButton: activeFill (selection without a box)"
+      note="`tint` is the default and is what `active` has always drawn. `none` recolours the glyph and paints nothing, for the fifteen controls whose selected state IS the colour: the inspiration star, the favourite star, CastButton, the Spotify transport, the bottom-nav tabs. Each of those stayed hand-rolled through five waves of #648 because `active` always painted a box behind them, and a filled box behind a star reads as two competing signals. Compare the rows: the stars on the right are the real case."
     >
       <div class="flex flex-col gap-3">
         <div v-for="af in BUTTON_ACTIVE_FILLS" :key="af" class="flex flex-wrap items-center gap-2">
@@ -208,8 +208,8 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppButton — menu rows"
-      note="A row in a dropdown, popover or picker list. The only variant that overrides the base `justify-center`, because a menu row is left-aligned and full-bleed — pair it with `block`. It fills on hover rather than just recolouring text: the whole band is the hit target, so the highlight has to cover the band."
+      title="AppButton: menu rows"
+      note="A row in a dropdown, popover or picker list. The only variant that overrides the base `justify-center`, because a menu row is left-aligned and full-bleed; pair it with `block`. It fills on hover rather than just recolouring text: the whole band is the hit target, so the highlight has to cover the band."
     >
       <div class="max-w-xs rounded-md border border-border bg-card py-1">
         <AppButton variant="menu" size="sm" block label="Send to party chat" :icon="IconWand" />
@@ -220,8 +220,8 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppButton — ghost + danger"
-      note="The chromeless remove-row ✕. `ghost` is the only non-tinted variant that reads `tone`, and only for `danger`: these sites have no box, so `destructive` — which draws a border and a resting outline — would put a visible frame around every ✕ in every editor list. Hover the middle one to see the affordance the 58 hand-rolled copies each carried inline."
+      title="AppButton: ghost + danger"
+      note="The chromeless remove-row ✕. `ghost` is the only non-tinted variant that reads `tone`, and only for `danger`: these sites have no box, so `destructive` (which draws a border and a resting outline) would put a visible frame around every ✕ in every editor list. Hover the middle one to see the affordance the 58 hand-rolled copies each carried inline."
     >
       <div class="flex flex-wrap items-center gap-4">
         <AppButton variant="ghost" size="icon-sm" aria-label="Remove" :icon="IconDelete" />
@@ -233,7 +233,7 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppButton — tinted tone × emphasis"
+      title="AppButton: tinted tone × emphasis"
       note="Semantic tones, not hues: each resolves through a --color-tone-* custom property, so a future theme repaints every damage/heal/arcane control by reassigning six variables."
     >
       <table class="border-separate border-spacing-3">
@@ -259,7 +259,7 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppButton — label collapse"
+      title="AppButton: label collapse"
       note="Resize the window across the sm (40rem) and lg (64rem) breakpoints. This is the behaviour that has regressed twice: a label that should stay visible silently disappearing, or an inline link gaining a box."
     >
       <div class="flex flex-wrap items-center gap-2">
@@ -301,7 +301,7 @@
 
     <CatalogueSection
       title="AppSelect"
-      note="Shares fieldVariants with AppInput. Native picker with appearance:none — the caret is drawn by the base rule in main.css and follows the theme. Opening one still gives the OS menu, which is the point on mobile."
+      note="Shares fieldVariants with AppInput. Native picker with appearance:none; the caret is drawn by the base rule in main.css and follows the theme. Opening one still gives the OS menu, which is the point on mobile."
     >
       <div class="flex flex-wrap items-end gap-3">
         <label v-for="size in FIELD_SIZES" :key="size" class="flex flex-col gap-1">
@@ -321,7 +321,7 @@
       </div>
     </CatalogueSection>
 
-    <CatalogueSection title="AppInput" note="size × tone from fieldVariants — the same recipe AppSelect and EntityCombobox use. An input and a select at the same size must line up; the day/month/year row on the Dashboard is the case that matters.">
+    <CatalogueSection title="AppInput" note="size × tone from fieldVariants: the same recipe AppSelect and EntityCombobox use. An input and a select at the same size must line up; the day/month/year row on the Dashboard is the case that matters.">
       <div class="flex flex-col gap-3">
         <div v-for="tone in FIELD_TONES" :key="tone" class="flex flex-wrap items-end gap-3">
           <span class="text-label text-muted-foreground w-16 shrink-0 self-center">{{ tone }}</span>
@@ -342,7 +342,7 @@
 
     <CatalogueSection
       title="AppCheckbox"
-      note="size × labelRole from checkboxVariants. One box recipe — the 100 raw checkboxes it replaced had drifted into twelve visual states (#751). Two accents only: `amber` is semantic (DM-private, like the amber DM Notes panel). There is no `gold` — gold-500 is a fixed literal that happens to equal the default theme's primary, so five soundboard checkboxes had silently opted out of theming; switch this page to ?theme=tome to see what that would have looked like. labelWeight/labelTone are opt-out axes: omit them and the role's own bundle stands. Bound to a string[] it behaves as Vue's checkbox group."
+      note="size × labelRole from checkboxVariants. One box recipe: the 100 raw checkboxes it replaced had drifted into twelve visual states (#751). Two accents only: `amber` is semantic (DM-private, like the amber DM Notes panel). There is no `gold`: gold-500 is a fixed literal that happens to equal the default theme's primary, so five soundboard checkboxes had silently opted out of theming; switch this page to ?theme=tome to see what that would have looked like. labelWeight/labelTone are opt-out axes: omit them and the role's own bundle stands. Bound to a string[] it behaves as Vue's checkbox group."
     >
       <div class="flex flex-col gap-3">
         <div v-for="size in CHECKBOX_SIZES" :key="size" class="flex flex-wrap items-center gap-4">
@@ -378,7 +378,7 @@
           class="max-w-64"
         />
         <AppCheckbox v-model="checkboxValue" label-layout="row" class="max-w-64 rounded px-2 py-1 hover:bg-accent">
-          <span class="min-w-0 flex-1 truncate">label-layout="row" — slot with trailing meta</span>
+          <span class="min-w-0 flex-1 truncate">label-layout="row": slot with trailing meta</span>
           <span class="font-cinzel text-2xs text-muted-foreground shrink-0">42</span>
         </AppCheckbox>
         <div class="flex flex-wrap items-center gap-4">
@@ -395,7 +395,7 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="AppModal — sizes"
+      title="AppModal: sizes"
       note="Open one and check the backdrop tint against this theme, that Escape and a backdrop click both close it, and that Tab cycles inside the panel rather than escaping into the page behind."
     >
       <div class="flex flex-wrap items-center gap-2">
@@ -416,7 +416,7 @@
         @close="openModal = null"
       >
         <div class="flex flex-col gap-3 p-5">
-          <h2 class="font-cinzel text-lg font-bold text-foreground">Size “{{ openModal }}”</h2>
+          <h2 class="text-heading font-bold text-foreground">Size “{{ openModal }}”</h2>
           <p class="text-body text-muted-foreground">
             The shell owns the backdrop, the blur, the panel box, dismissal, focus containment
             and the open animation. Everything in here is the caller's.
@@ -430,8 +430,8 @@
     </CatalogueSection>
 
     <CatalogueSection
-      title="ModalHeader — tones"
-      note="Each opens a modal headed by ModalHeader. Two things are worth checking here that a screenshot cannot show: inspect the panel and confirm aria-labelledby points at the heading's id with no call site passing it, and that the tinted circle is aria-hidden. The 'danger, asks a question' one also carries aria-describedby and refuses a backdrop click — Escape still closes it."
+      title="ModalHeader: tones"
+      note="Each opens a modal headed by ModalHeader. Two things are worth checking here that a screenshot cannot show: inspect the panel and confirm aria-labelledby points at the heading's id with no call site passing it, and that the tinted circle is aria-hidden. The 'danger, asks a question' one also carries aria-describedby and refuses a backdrop click; Escape still closes it."
     >
       <div class="flex flex-wrap items-center gap-2">
         <AppButton
@@ -541,8 +541,8 @@ import { FIELD_SIZES, FIELD_TONES } from "@/components/common/fieldVariants";
 const LOADER_HEIGHTS = ["h-3", "h-3.5", "h-4", "h-5", "h-6", "h-8", "h-10", "h-14", "h-26"] as const;
 
 const SWITCH_ROWS = [
-  { size: "md", label: "GENERATE PORTRAIT ART", labelClass: "font-cinzel text-xs font-bold tracking-widest uppercase text-foreground", note: "IlluminateDofPanel — a panel option row" },
-  { size: "lg", label: "Keep screen awake", labelClass: "font-cinzel text-sm text-foreground", note: "PlayerSettingsAppearance — a settings row with a description" },
+  { size: "md", label: "GENERATE PORTRAIT ART", labelClass: "font-cinzel text-xs font-bold tracking-widest uppercase text-foreground", note: "IlluminateDofPanel: a panel option row" },
+  { size: "lg", label: "Keep screen awake", labelClass: "text-heading-sm text-foreground", note: "PlayerSettingsAppearance: a settings row with a description" },
 ] as const satisfies readonly { size: (typeof SWITCH_SIZES)[number]; label: string; labelClass: string; note: string }[];
 
 const switchStates = ref<Record<string, boolean>>({ md: true, lg: true });
@@ -555,7 +555,7 @@ const SEGMENT_OPTIONS = [
 ] as const;
 
 const EMPTY_VALUE_OPTIONS = [
-  { value: "", label: "General — all campaigns" },
+  { value: "", label: "General · all campaigns" },
   { value: "campaign", label: "This campaign" },
 ] as const;
 

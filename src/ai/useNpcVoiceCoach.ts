@@ -69,7 +69,7 @@ export function useNpcVoiceCoach() {
 
       const sanitized = sanitizeLines(result.lines);
       if (sanitized.length === 0) {
-        error.value = "AI returned no usable dialogue — please try again.";
+        error.value = "AI returned no usable dialogue. Please try again.";
         return;
       }
       lines.value = sanitized;
@@ -124,7 +124,7 @@ export function useNpcVoiceCoach() {
     try {
       parsed = JSON.parse(content) as NpcVoiceAiResult;
     } catch {
-      throw new Error("AI returned malformed dialogue — please try again.");
+      throw new Error("AI returned malformed dialogue. Please try again.");
     }
 
     logUsage({ reason: "npc_voice_generation", textUsage });

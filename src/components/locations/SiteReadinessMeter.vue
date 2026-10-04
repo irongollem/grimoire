@@ -79,6 +79,6 @@ const restPills = computed(() => pills.value.filter((p) => p.key !== "mapped"));
 const ariaLabel = computed(() => {
   const missing = pills.value.filter((p) => !p.ok).map((p) => p.label);
   if (!missing.length) return "Floor plan ready: mapped, calibrated, traced, bound, ways out";
-  return `Floor plan missing: ${missing.join(", ")}${readiness.caption ? ` — ${readiness.caption}` : ""}`;
+  return `Floor plan missing: ${missing.join(", ")}${readiness.caption ? ` · ${readiness.caption}` : ""}`;
 });
 </script>

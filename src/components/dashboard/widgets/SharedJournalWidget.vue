@@ -23,7 +23,7 @@
       >
         <div class="min-w-0 flex-1">
           <p
-            class="truncate font-cinzel text-sm font-semibold text-foreground transition-colors group-hover:text-primary"
+            class="truncate text-heading-xs font-semibold text-foreground transition-colors group-hover:text-primary"
           >
             {{ row.title }}
           </p>

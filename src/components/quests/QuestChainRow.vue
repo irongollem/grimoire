@@ -9,7 +9,7 @@
       aria-hidden="true"
     />
     <span class="min-w-0 flex-1">
-      <span class="block truncate font-cinzel text-sm font-semibold text-foreground">{{ chain.quest_title }}</span>
+      <span class="block truncate text-heading-xs font-semibold text-foreground">{{ chain.quest_title }}</span>
       <span class="block truncate text-caption text-muted-foreground">{{ chain.beat_title }}</span>
     </span>
     <span

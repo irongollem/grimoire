@@ -66,7 +66,7 @@
           fill="muted"
           label="New page"
           :active="startsPage"
-          tooltip="Start this entry on a fresh page — turn off for a variant that follows its family's first entry on the same page"
+          tooltip="Start this entry on a fresh page; turn off for a variant that follows its family's first entry on the same page"
           @click="toggleStartsPage"
         />
         <EmbedRevealControl
@@ -197,7 +197,7 @@ const bandPosition = computed(
 );
 const BAND_POSITION_OPTIONS: SegmentedOption<"top" | "bottom">[] = [
   { value: "top", label: "Top", tooltip: "Band first, art/lore below (default)" },
-  { value: "bottom", label: "Bottom", tooltip: "Art/lore first, band below — a wide entry only" },
+  { value: "bottom", label: "Bottom", tooltip: "Art/lore first, band below, a wide entry only" },
 ];
 function setBandPosition(next: "top" | "bottom") {
   props.updateAttributes({ bandPosition: next });

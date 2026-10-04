@@ -16,7 +16,7 @@
       </div>
 
       <p v-else-if="error" class="text-caption text-destructive italic px-1">
-        Failed to load rules. The database may need syncing — contact your DM.
+        Failed to load rules. The database may need syncing. Contact your DM.
       </p>
 
       <p v-else-if="!libraryRules?.length" class="text-caption text-muted-foreground italic px-1">

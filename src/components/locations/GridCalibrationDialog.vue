@@ -4,8 +4,8 @@
 
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
       <p class="text-body text-muted-foreground leading-relaxed">
-        Drag the two handles to span a known distance on the map — usually one side of a single
-        5-ft square, or end-to-end of a known-length hallway. Then enter how many 5-ft squares
+        Drag the two handles to span a known distance on the map (usually one side of a single
+        5-ft square, or end-to-end of a known-length hallway). Then enter how many 5-ft squares
         that line covers. The VTT will use this scale to overlay a grid and snap tokens.
       </p>
 

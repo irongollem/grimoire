@@ -90,7 +90,7 @@
         <div v-if="vaultItem?.charges && localIdentified" class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-3">
           <div class="flex items-center justify-between">
             <span class="text-label-lg font-semibold text-muted-foreground uppercase">Charges</span>
-            <span class="font-cinzel text-sm font-bold text-foreground">
+            <span class="text-heading-sm font-bold text-foreground">
               {{ currentCharges }} / {{ vaultItem.charges }}
             </span>
           </div>
@@ -576,7 +576,7 @@ const castButtonTitle = computed(() => {
   if (isScrollType.value && props.inv.quantity <= 0) return "Scroll consumed";
   if (props.vaultItem?.charges && localCharges.value <= 0) return "No charges remaining";
   if (isScrollType.value) return "Cast and consume scroll";
-  if (props.vaultItem?.charges) return `Cast — spend 1 charge (${localCharges.value} remaining)`;
+  if (props.vaultItem?.charges) return `Cast · spend 1 charge (${localCharges.value} remaining)`;
   return "Cast (free use)";
 });
 
@@ -595,7 +595,7 @@ async function castFromItem(spell: Spell) {
         const parsed = parseExpression(dmg.dice);
         if (!parsed) continue;
         const typeLabel = dmg.type ? ` ${dmg.type}` : "";
-        const label = `${spell.name} — ${dmg.dice}${typeLabel} damage`;
+        const label = `${spell.name} · ${dmg.dice}${typeLabel} damage`;
         const counts = parsedToCounts(parsed.terms);
         if (Object.keys(counts).length === 0) {
           const { total, breakdown } = rollParsed(parsed);
@@ -610,7 +610,7 @@ async function castFromItem(spell: Spell) {
     if (spell.healing_dice) {
       const parsed = parseExpression(spell.healing_dice);
       if (parsed) {
-        const label = `${spell.name} — ${spell.healing_dice} healing`;
+        const label = `${spell.name} · ${spell.healing_dice} healing`;
         const counts = parsedToCounts(parsed.terms);
         if (Object.keys(counts).length === 0) {
           const { total, breakdown } = rollParsed(parsed);

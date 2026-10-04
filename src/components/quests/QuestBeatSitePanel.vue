@@ -1,7 +1,7 @@
 <template>
   <section class="rounded-xl border border-border bg-card p-3" aria-label="Site">
     <header class="flex items-center gap-2">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Site</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Site</h3>
       <span class="ml-auto rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">
         {{ site ? `site · ${roomCountLabel}` : 'none' }}
       </span>
@@ -78,7 +78,7 @@
   <section v-if="readiness" class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3" aria-label="Site readiness">
     <header class="flex items-center gap-2">
       <component :is="siteReady ? IconCheck : IconWarning" class="h-4 w-4 shrink-0" :class="siteReady ? 'text-tone-success' : 'text-tone-caution'" aria-hidden="true" />
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Site readiness</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Site readiness</h3>
     </header>
     <p class="flex items-center gap-1.5 text-caption">
       <component :is="floorPlanPublished ? IconCheck : IconWarning" class="h-3.5 w-3.5 shrink-0" :class="floorPlanPublished ? 'text-tone-success' : 'text-tone-caution'" />
@@ -86,7 +86,7 @@
     </p>
     <p class="flex items-center gap-1.5 text-caption">
       <component :is="readiness.waysOut ? IconCheck : IconWarning" class="h-3.5 w-3.5 shrink-0" :class="readiness.waysOut ? 'text-tone-success' : 'text-tone-caution'" />
-      <span :class="readiness.waysOut ? 'text-foreground' : 'text-ink-caution'">Ways out {{ readiness.waysOut ? `traced — ${doorCount}` : "not traced yet" }}</span>
+      <span :class="readiness.waysOut ? 'text-foreground' : 'text-ink-caution'">Ways out {{ readiness.waysOut ? `traced: ${doorCount}` : "not traced yet" }}</span>
     </p>
     <p v-if="readiness.caption" class="flex items-center gap-1.5 text-caption">
       <IconWarning class="h-3.5 w-3.5 shrink-0 text-tone-caution" />
@@ -278,11 +278,11 @@ const resolvedAmbience = computed(() => {
 });
 const ambienceCaption = computed(() => {
   const resolved = resolvedAmbience.value;
-  if (!resolved || !resolved.theme) return "None set — per room where set";
+  if (!resolved || !resolved.theme) return "None set, per room where set";
   const source = resolved.kind === "inherited" && resolved.from && resolved.from.id !== (openingRoom.value?.id ?? site.value?.id)
     ? `, from ${resolved.from.name}`
     : "";
-  return `${resolved.theme}${source} — per room where set`;
+  return `${resolved.theme}${source}, per room where set`;
 });
 
 // ── Readiness (#868 S12, frame 15) — the same checks `useSiteStructure`

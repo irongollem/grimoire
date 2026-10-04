@@ -12,7 +12,7 @@
         <div class="flex justify-between gap-2">
           <span class="text-muted-foreground shrink-0">Type</span>
           <span class="font-semibold text-foreground text-right">
-            {{ ITEM_TYPE_LABELS[item.item_type] }}{{ item.subtype ? ` — ${item.subtype}` : '' }}
+            {{ ITEM_TYPE_LABELS[item.item_type] }}{{ item.subtype ? `, ${item.subtype}` : '' }}
           </span>
         </div>
         <div class="flex justify-between gap-2">
@@ -77,7 +77,7 @@
          sits in a shared, visible store). Same "unclaimed" placeholder either
          way — see the composed lookup below. -->
     <p v-else class="text-xs italic text-muted-foreground py-1">
-      You don't know anything about this item yet — claim it to reveal its details.
+      You don't know anything about this item yet. Claim it to reveal its details.
     </p>
   </div>
 </template>

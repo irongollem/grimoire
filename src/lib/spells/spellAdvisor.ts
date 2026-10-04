@@ -202,7 +202,7 @@ export function adviseLevelRange(inputs: AdvisorInputs): AdvisorResult {
   switch (inputs.targetingMode) {
     case "self":
       score -= 0.5;
-      factors.push("Self-only — no targeting required -½ level");
+      factors.push("Self-only: no targeting required -½ level");
       break;
     case "single":
       // baseline, no adjustment
@@ -236,36 +236,36 @@ export function adviseLevelRange(inputs: AdvisorInputs): AdvisorResult {
   // ── Save / reliability adjustment ────────────────────────────────────────
   if (inputs.saveType === "automatic") {
     score += 1;
-    factors.push("No save or attack roll — guaranteed effect +1 level");
+    factors.push("No save or attack roll: guaranteed effect +1 level");
   } else if (inputs.saveType === "save_negates") {
     score += 0.5;
-    factors.push("Save negates — all-or-nothing +½ level");
+    factors.push("Save negates: all-or-nothing +½ level");
   } else if (inputs.saveType === "attack_roll") {
     score -= 0.25;
-    factors.push("Attack roll required — can miss, slight reduction");
+    factors.push("Attack roll required: can miss, slight reduction");
   }
   // save_for_half: no adjustment (the standard benchmark)
 
   // ── Duration adjustment ───────────────────────────────────────────────────
   if (inputs.requiresConcentration) {
     score -= 0.5;
-    factors.push("Requires Concentration — resource cost -½ level");
+    factors.push("Requires Concentration: resource cost -½ level");
   }
 
   if (inputs.durationTier === "conc_1min") {
     // Already handled by concentration flag above
   } else if (inputs.durationTier === "conc_10min") {
     score += 0.5;
-    factors.push("Concentration up to 10 min — longer battlefield control +½ level");
+    factors.push("Concentration up to 10 min: longer battlefield control +½ level");
   } else if (inputs.durationTier === "conc_1hour") {
     score += 1;
-    factors.push("Concentration up to 1 hour — exploration utility +1 level");
+    factors.push("Concentration up to 1 hour: exploration utility +1 level");
   } else if (inputs.durationTier === "sustained_1min") {
     score += 1;
     factors.push("1 minute non-concentration (strong) +1 level");
   } else if (inputs.durationTier === "sustained_long") {
     score += 2;
-    factors.push("8+ hours non-concentration — long-lasting effect +2 levels");
+    factors.push("8+ hours non-concentration: long-lasting effect +2 levels");
   }
 
   // ── Secondary effects ─────────────────────────────────────────────────────
@@ -277,7 +277,7 @@ export function adviseLevelRange(inputs: AdvisorInputs): AdvisorResult {
   // ── Ritual ────────────────────────────────────────────────────────────────
   if (inputs.isRitual) {
     score -= 0.5;
-    factors.push("Can be cast as ritual — extended cast time offsets power");
+    factors.push("Can be cast as ritual: extended cast time offsets power");
   }
 
   // ── Clamp and round to level range ────────────────────────────────────────
@@ -286,7 +286,7 @@ export function adviseLevelRange(inputs: AdvisorInputs): AdvisorResult {
   const max = Math.min(9, finalLevel + 1);
 
   if (factors.length === 0) {
-    factors.push("No specific effects selected — cannot estimate");
+    factors.push("No specific effects selected: cannot estimate");
   }
 
   return { suggestedMin: min, suggestedMax: max, factors, score };
@@ -442,7 +442,7 @@ export const SCHOOL_DESIGN_TIPS: Record<string, { title: string; tips: string[] 
     tips: [
       "Core purpose: protection, prevention, and counterspelling.",
       "Typical mechanics: temporary HP, AC bonuses, damage resistance, negating other spells.",
-      "Most abjurations are reactions or short-duration buffs — concentration is common for the bigger ones.",
+      "Most abjurations are reactions or short-duration buffs; concentration is common for the bigger ones.",
       "Avoid overlap with the Armor of Agathys / Shield / Counterspell design space without a meaningful twist.",
     ],
   },
@@ -458,10 +458,10 @@ export const SCHOOL_DESIGN_TIPS: Record<string, { title: string; tips: string[] 
   divination: {
     title: "Divination",
     tips: [
-      "Core purpose: information and foresight — no direct damage.",
+      "Core purpose: information and foresight; no direct damage.",
       "Value scales with information quality: targeting one creature < targeting an area < campaign-scope knowledge.",
       "Most divinations should be ritual-eligible; they rarely need concentration.",
-      "Be careful with scrying effects — unlimited range information is a 5th-level benchmark (Scrying).",
+      "Be careful with scrying effects; unlimited range information is a 5th-level benchmark (Scrying).",
     ],
   },
   enchantment: {
@@ -469,7 +469,7 @@ export const SCHOOL_DESIGN_TIPS: Record<string, { title: string; tips: string[] 
     tips: [
       "Core purpose: directly influencing the minds of others.",
       "Most enchantments are Wisdom saves (the mental defense stat).",
-      "Charm vs. dominate is the key axis: charm = friendly, dominate = puppet — domination is ~2 levels higher.",
+      "Charm vs. dominate is the key axis: charm = friendly, dominate = puppet; domination is ~2 levels higher.",
       "The more creatures affected or the less agency they retain, the higher the level should be.",
       "Consider humanoids-only restrictions to keep lower-level spells balanced.",
     ],
@@ -487,21 +487,21 @@ export const SCHOOL_DESIGN_TIPS: Record<string, { title: string; tips: string[] 
   illusion: {
     title: "Illusion",
     tips: [
-      "Core purpose: deception — false sensory information.",
+      "Core purpose: deception: false sensory information.",
       "Illusions that deal no direct harm are generally 1-2 levels lower than equivalent control spells.",
       "Interaction checks (Investigation vs. spell DC) should be part of the spell text.",
       "Silent Image (1st) → Major Image (3rd) → Programmed Illusion (6th) is the canonical complexity ladder.",
-      'Illusory damage that is "real" to the target is extremely powerful — treat as full damage spells.',
+      'Illusory damage that is "real" to the target is extremely powerful; treat as full damage spells.',
     ],
   },
   necromancy: {
     title: "Necromancy",
     tips: [
-      "Core purpose: life force manipulation — both dealing necrotic damage and raising undead.",
+      "Core purpose: life force manipulation (both dealing necrotic damage and raising undead).",
       "Necrotic damage is rarely resisted, so benchmark slightly above equivalent fire damage.",
-      "Undead summoning scales with undead CR and quantity — Animate Dead is 3rd because the undead persist.",
+      "Undead summoning scales with undead CR and quantity; Animate Dead is 3rd because the undead persist.",
       "Life-drain effects (steal HP and give to caster) are powerful; the healing component adds ~1 level.",
-      "Resurrection spells are off the normal scale — cost is in material components, not level alone.",
+      "Resurrection spells are off the normal scale; cost is in material components, not level alone.",
     ],
   },
   transmutation: {
@@ -509,7 +509,7 @@ export const SCHOOL_DESIGN_TIPS: Record<string, { title: string; tips: string[] 
     tips: [
       "Core purpose: changing the physical properties of creatures or objects.",
       "Buffs that grant a wholly new capability (flight, water breathing) follow the utility scale, not the buff scale.",
-      "Polymorphing a target is Concentration + powerful transformation — a 4th-level benchmark (Polymorph).",
+      "Polymorphing a target is Concentration + powerful transformation; a 4th-level benchmark (Polymorph).",
       "Physical stat boosts (+2 STR etc.) are weaker than advantage; keep them at 2nd–3rd level.",
       "Object-only transmutations (heat metal, stone shape) can be lower level as they don't affect action economy.",
     ],

@@ -5,8 +5,8 @@
     aria-label="Quest consistency"
   >
     <div>
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Consistency checks</h3>
-      <p class="text-caption text-muted-foreground">Wiring gaps a graph can prove — no beat, objective or route guessed at.</p>
+      <h3 class="text-heading-sm font-bold text-foreground">Consistency checks</h3>
+      <p class="text-caption text-muted-foreground">Wiring gaps a graph can prove: no beat, objective or route guessed at.</p>
     </div>
 
     <ul v-if="primaryFindings.length" class="space-y-1.5">

@@ -41,7 +41,7 @@
               type="number"
               min="0"
               :max="memberCoins[coin.key]"
-              class="w-full bg-muted/30 border border-border rounded px-1 py-0.5 font-cinzel text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-muted/30 border border-border rounded px-1 py-0.5 text-heading-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
               :class="coinDrop[coin.key] > memberCoins[coin.key] ? 'border-destructive' : ''"
               :title="`Max: ${memberCoins[coin.key]}`"
               @input="$emit('update-drop', coin.key, Number(($event.target as HTMLInputElement).value))"

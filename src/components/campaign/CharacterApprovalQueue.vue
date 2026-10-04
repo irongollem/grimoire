@@ -12,7 +12,7 @@
     aria-labelledby="character-approval-queue-title"
   >
     <div class="space-y-2">
-      <h2 id="character-approval-queue-title" class="font-cinzel text-sm font-semibold text-foreground">
+      <h2 id="character-approval-queue-title" class="text-heading-sm font-semibold text-foreground">
         Waiting for your approval
       </h2>
       <CautionNotice class="text-caption">

@@ -7,7 +7,7 @@
       <component :is="icon" class="size-8 text-muted-foreground group-hover:text-primary transition-colors" />
     </div>
     <div class="flex flex-col gap-1 p-3 border-t border-border">
-      <span class="font-cinzel text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+      <span class="text-heading-sm font-bold text-foreground group-hover:text-primary transition-colors">
         {{ title }}
       </span>
       <span class="text-caption text-muted-foreground leading-snug">{{ blurb }}</span>

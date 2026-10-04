@@ -27,7 +27,7 @@
 
         <!-- Variable-spend: Lay on Hands -->
         <template v-if="res.key === 'lay_on_hands'">
-          <span class="font-cinzel text-sm text-foreground shrink-0">{{ res.current }} / {{ res.max }}</span>
+          <span class="text-heading-sm text-foreground shrink-0">{{ res.current }} / {{ res.max }}</span>
           <template v-if="pendingSpendKey === res.key">
             <AppInput
               v-model.number="pendingSpendAmount"
@@ -79,7 +79,7 @@
             :disabled="res.current <= 0"
             @click="emit('spend', res.key)"
           />
-          <span class="font-cinzel text-sm text-foreground w-10 text-center">
+          <span class="text-heading-sm text-foreground w-10 text-center">
             {{ res.current }} / {{ res.max }}
           </span>
           <AppButton

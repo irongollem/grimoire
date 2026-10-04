@@ -16,7 +16,7 @@
           v-if="hint"
           class="normal-case font-fell font-normal"
           :class="tone === 'amber' ? 'text-muted-foreground/70' : 'text-muted-foreground/60'"
-        > — {{ hint }}</span>
+        > ({{ hint }})</span>
       </h3>
       <AppCheckbox
         v-model="toggle"
@@ -35,7 +35,7 @@
         v-if="hint"
         class="normal-case font-fell font-normal"
         :class="tone === 'amber' ? 'text-muted-foreground/70' : 'text-muted-foreground/60'"
-      > — {{ hint }}</span>
+      > ({{ hint }})</span>
     </h3>
     <slot />
   </div>

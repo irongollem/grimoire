@@ -941,7 +941,7 @@ async function onEnhance() {
   border-bottom: 1px solid rgba(201, 146, 10, 0.35);
 }
 .rte-content :deep(.ProseMirror h3) {
-  @apply font-cinzel text-sm font-bold mb-2 mt-3 first:mt-0;
+  @apply text-heading-sm font-bold mb-2 mt-3 first:mt-0;
 }
 .rte-content :deep(.ProseMirror ul) {
   @apply list-disc pl-5 mb-3 space-y-1;

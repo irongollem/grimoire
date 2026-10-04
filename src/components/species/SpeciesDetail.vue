@@ -57,7 +57,7 @@
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">SIZE</label>
             <AppSelect v-model="form.size" size="body">
-              <option value="">— none —</option>
+              <option value="">None</option>
               <option v-for="sz in SIZES" :key="sz" :value="sz" class="capitalize">{{ sz }}</option>
             </AppSelect>
           </div>

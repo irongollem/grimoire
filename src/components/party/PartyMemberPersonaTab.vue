@@ -37,7 +37,7 @@
             @mousedown.prevent="selectDeity(d.id, d.name)"
           >
             <span>{{ d.name }}</span>
-            <span v-if="d.titles" class="text-muted-foreground text-xs truncate">— {{ d.titles }}</span>
+            <span v-if="d.titles" class="text-muted-foreground text-xs truncate">· {{ d.titles }}</span>
           </li>
         </ul>
       </div>
@@ -101,7 +101,7 @@
       <RichTextEditor
         :model-value="form.ideals"
         size="sm"
-        placeholder="What drives them — justice, freedom, knowledge…"
+        placeholder="What drives them: justice, freedom, knowledge…"
         :entity-mention-items="entityMentionItems"
         @update:model-value="patch({ ideals: $event })"
       />

@@ -27,7 +27,7 @@ registerOptionalRule({
   description:
     "Keeps combat moving by giving each combatant a fixed amount of time to decide and take their turn.\n\n" +
     "The DM sets the duration in **Campaign Settings → Rules**. When combat is live, a countdown appears in the encounter runner and on each player's encounter panel; it **resets automatically at the start of every turn**.\n\n" +
-    "It's a *soft* timer — it flashes red when time runs out, but it never force-ends a turn or takes an action for you. Use it as a gentle nudge, not a hard cut-off.",
+    "It's a *soft* timer; it flashes red when time runs out, but it never force-ends a turn or takes an action for you. Use it as a gentle nudge, not a hard cut-off.",
   dmOnly: false,
   defaultEnabled: false,
   config: [
@@ -43,7 +43,7 @@ registerOptionalRule({
     "Re-roll everyone's initiative at the start of every round, so the turn order is never the same twice.",
   description:
     "By default initiative is rolled once and the order holds for the whole fight. With this rule enabled, **every combatant's initiative is re-rolled and the order re-sorted at the start of each new round**, keeping combat unpredictable and tense.\n\n" +
-    "The re-rolls happen automatically when the turn wraps back to the top of the order — no prompts, even in physical-dice mode — and each new round starts from the top of the freshly-shuffled order.",
+    "The re-rolls happen automatically when the turn wraps back to the top of the order: no prompts, even in physical-dice mode, and each new round starts from the top of the freshly-shuffled order.",
   dmOnly: false,
   defaultEnabled: false,
 });
@@ -56,7 +56,7 @@ registerOptionalRule({
     "Waive the PHB ability-score thresholds for multiclassing. Players don't need STR 13 to take a Fighter level, etc.",
   description:
     "By default, multiclassing requires meeting minimum ability scores for both the class you're leaving and the one you're entering (PHB p.163).\n\n" +
-    "With this rule enabled, those thresholds are ignored — any character can take a level in any class regardless of their ability scores.",
+    "With this rule enabled, those thresholds are ignored: any character can take a level in any class regardless of their ability scores.",
   dmOnly: true,
   defaultEnabled: false,
 });
@@ -66,9 +66,9 @@ registerOptionalRule({
   key: "tashas_optional_features",
   name: "Optional Class Features",
   summary:
-    "Allow the optional class-feature swaps from Tasha's Cauldron of Everything — e.g. a Ranger replacing Primeval Awareness with Primal Awareness to gain always-prepared spells.",
+    "Allow the optional class-feature swaps from Tasha's Cauldron of Everything, e.g. a Ranger replacing Primeval Awareness with Primal Awareness to gain always-prepared spells.",
   description:
-    "Tasha's Cauldron of Everything offers *optional* class features that a character may take **in place of** a default feature (PHB) — Primal Awareness for Primeval Awareness, Favored Foe for Favored Enemy, Deft Explorer for Natural Explorer, and more.\n\n" +
+    "Tasha's Cauldron of Everything offers *optional* class features that a character may take **in place of** a default feature (PHB): Primal Awareness for Primeval Awareness, Favored Foe for Favored Enemy, Deft Explorer for Natural Explorer, and more.\n\n" +
     "With this rule enabled, eligible characters can choose these swaps during **Level Up**, and already-levelled characters can adopt them from their sheet. Some of these features grant spells that are **always prepared and don't count against your prepared limit** (for example, Primal Awareness grants Speak with Animals at 3rd level, Beast Sense at 5th, and so on), with any once-per-long-rest free casting tracked for you.\n\n" +
     "This is a permission the DM grants for the whole campaign; each player still opts in per feature. Leaving it off keeps every class on its default PHB features.",
   dmOnly: true,
@@ -82,7 +82,7 @@ registerOptionalRule({
   summary:
     "Track earned XP per character. Level-up unlocks automatically when a character crosses the XP threshold for their level, instead of milestone levelling.",
   description:
-    "By default Grimoire uses milestone levelling — the DM decides when characters level up. With this rule enabled, each character tracks **earned experience points** instead.\n\n" +
+    "By default Grimoire uses milestone levelling; the DM decides when characters level up. With this rule enabled, each character tracks **earned experience points** instead.\n\n" +
     "Your character sheet shows an XP bar with how far you are from the next level. When you reach the XP threshold for your current level, the **Level Up** button unlocks automatically (PHB p.15 advancement table).\n\n" +
     "Your DM awards XP after encounters and milestones from the Party screen.",
   dmOnly: false,
@@ -107,12 +107,12 @@ registerOptionalRule({
   key: "downtime",
   name: "The Interlude",
   summary:
-    "Between sessions, players spend DM-granted downtime draws on activity cards — carousing, crafting, lying low — and the results become real campaign content.",
+    "Between sessions, players spend DM-granted downtime draws on activity cards (carousing, crafting, lying low), and the results become real campaign content.",
   description: `The Interlude turns the quiet weeks between sessions into play.\n\n
-    **How you get a draw.** Downtime is a *gift your DM gives*, not a meter that fills. When the story says there's a lull — a season passes, you winter in town, a patron pays you off — your DM grants you one or more **downtime draws**. You'll see your balance in the **Interlude** tab.\n\n
+    **How you get a draw.** Downtime is a *gift your DM gives*, not a meter that fills. When the story says there's a lull (a season passes, you winter in town, a patron pays you off), your DM grants you one or more **downtime draws**. You'll see your balance in the **Interlude** tab.\n\n
     **Spending it.** Each draw lets you lay down one **activity card**: Carouse, Craft & Enchant, Research & Scribe, Train, Run a Business, Pit Fighting, Lie Low, or Pull a Job. Pick the card, and the draw goes to your DM.\n\n
-    **What comes back.** Your DM resolves the draw and you get a short **vignette** — a beat of fiction — plus something real: a contact you now know, an item you made, a page you copied. It becomes an actual entity in the campaign, not a throwaway line.\n\n
-    **Consequences.** A card may propose a cost — coin spent, a bruised rib, a night that catches up with you. Nothing touches your character sheet until your DM ticks it off. The world stays theirs to run.`,
+    **What comes back.** Your DM resolves the draw and you get a short **vignette**, a beat of fiction, plus something real: a contact you now know, an item you made, a page you copied. It becomes an actual entity in the campaign, not a throwaway line.\n\n
+    **Consequences.** A card may propose a cost: coin spent, a bruised rib, a night that catches up with you. Nothing touches your character sheet until your DM ticks it off. The world stays theirs to run.`,
   dmOnly: false,
   defaultEnabled: true,
 });
@@ -139,7 +139,7 @@ registerOptionalRule({
     "Two allies threatening the same enemy from opposite sides grant advantage.",
   description:
     "When a creature and at least one of its allies are adjacent to an enemy and on opposite sides or corners of the enemy's space, they are **flanking** that enemy.\n\n" +
-    "A creature can't flank an enemy that it can't see. A creature also can't flank while it is incapacitated. Large or larger creatures occupy multiple squares — use DM discretion for flanking angles.",
+    "A creature can't flank an enemy that it can't see. A creature also can't flank while it is incapacitated. Large or larger creatures occupy multiple squares; use DM discretion for flanking angles.",
   dmOnly: false,
 });
 
@@ -161,7 +161,7 @@ registerOptionalRule({
   summary:
     "NPCs and monsters may flee or surrender when things go badly for them.",
   description:
-    "Whenever a significant threat occurs — a monster's ally is slain, the monster drops below half HP, or the situation clearly turns against it — the DM may call for a **DC 10 Wisdom saving throw**.\n\n" +
+    "Whenever a significant threat occurs (a monster's ally is slain, the monster drops below half HP, or the situation clearly turns against it), the DM may call for a **DC 10 Wisdom saving throw**.\n\n" +
     "On a failure the creature attempts to flee, surrenders, or becomes frightened at DM discretion. Mindless creatures, undead, and creatures immune to the frightened condition are unaffected.",
   dmOnly: false,
 });
@@ -184,7 +184,7 @@ registerOptionalRule({
   summary:
     "Characters don't regain HP at the end of a long rest without spending Hit Dice.",
   description:
-    "With this rule, characters regain Hit Dice (not hit points) at the end of a long rest. To regain hit points, a character must spend Hit Dice during or after a long rest — the normal benefit of rolling them during a short rest.\n\n" +
+    "With this rule, characters regain Hit Dice (not hit points) at the end of a long rest. To regain hit points, a character must spend Hit Dice during or after a long rest (the normal benefit of rolling them during a short rest).\n\n" +
     "This makes healing resources more precious and encourages players to seek out healers, potions, and safe resting places.",
   dmOnly: false,
 });

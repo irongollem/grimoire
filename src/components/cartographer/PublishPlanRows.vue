@@ -139,7 +139,7 @@ const spaceRows = computed<Row[]>(() => {
       rows.push({
         key: `create:${change.space.key}`,
         tone: "new",
-        text: `${change.proposedName} — New region, ${change.space.cells.length} cell${change.space.cells.length === 1 ? "" : "s"}${change.space.nameSource === "annotation" ? " · name from annotation" : ""}`,
+        text: `${change.proposedName}: New region, ${change.space.cells.length} cell${change.space.cells.length === 1 ? "" : "s"}${change.space.nameSource === "annotation" ? " · name from annotation" : ""}`,
         action: "→ Create room",
       });
     } else if (change.kind === "bind") {
@@ -147,7 +147,7 @@ const spaceRows = computed<Row[]>(() => {
       rows.push({
         key: `bind:${change.space.key}`,
         tone: "new",
-        text: `${name} — ${change.space.cells.length} cell${change.space.cells.length === 1 ? "" : "s"}, drawn for the first time`,
+        text: `${name}: ${change.space.cells.length} cell${change.space.cells.length === 1 ? "" : "s"}, drawn for the first time`,
         action: "→ Place existing room",
       });
     } else if (change.kind === "update") {
@@ -155,7 +155,7 @@ const spaceRows = computed<Row[]>(() => {
       rows.push({
         key: `update:${change.region.id}`,
         tone: "changed",
-        text: `${name} — ${change.before} → ${change.after} cells`,
+        text: `${name}: ${change.before} → ${change.after} cells`,
         action: "→ Update shape",
       });
     } else if (change.kind === "held") {
@@ -163,7 +163,7 @@ const spaceRows = computed<Row[]>(() => {
       rows.push({
         key: `held:${change.region.id}`,
         tone: "changed",
-        text: `${name} — you've edited this shape by hand; the drawing has since changed`,
+        text: `${name}: you've edited this shape by hand; the drawing has since changed`,
         action: "→ keep mine",
       });
     } else if (change.kind === "orphan") {
@@ -171,8 +171,8 @@ const spaceRows = computed<Row[]>(() => {
       rows.push({
         key: `orphan:${change.region.id}`,
         tone: "gone",
-        text: `${name} — gone from the drawing`,
-        action: "→ orphaned — kept, not deleted",
+        text: `${name}: gone from the drawing`,
+        action: "→ orphaned (kept, not deleted)",
       });
     } else {
       skipped.push(roomName(change.region.space_location_id, change.space.name));
@@ -182,7 +182,7 @@ const spaceRows = computed<Row[]>(() => {
     rows.push({
       key: "skip:all",
       tone: "unchanged",
-      text: `${skipped.join(" · ")} — Unchanged`,
+      text: `${skipped.join(" · ")}: Unchanged`,
       action: "bindings and state kept → skip",
     });
   }
@@ -269,10 +269,10 @@ const wayRows = computed<Row[]>(() => {
 });
 
 function heldDoorReason(door: { starts_locked: boolean; is_secret: boolean; lock_note: string | null; label: string }): string {
-  if (door.starts_locked) return `You set this locked${door.lock_note ? ` ('${door.lock_note}')` : ""} — the map still says plain door`;
-  if (door.is_secret) return "You marked this secret — the map still says plain door";
-  if (door.label) return `You named this ('${door.label}') — the map still says plain door`;
-  return "You've edited this by hand — the map has since changed";
+  if (door.starts_locked) return `You set this locked${door.lock_note ? ` ('${door.lock_note}')` : ""}. The map still says plain door`;
+  if (door.is_secret) return "You marked this secret. The map still says plain door";
+  if (door.label) return `You named this ('${door.label}'). The map still says plain door`;
+  return "You've edited this by hand. The map has since changed";
 }
 
 const waySummary = computed(() => {

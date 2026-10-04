@@ -50,7 +50,7 @@ const linkedIds = computed(() => new Set((entries.value ?? []).map((e) => e.deit
 const availableDeities = computed(() =>
   (allDeities.value ?? [])
     .filter((d) => !linkedIds.value.has(d.id))
-    .map((d) => ({ id: d.id, name: d.titles ? `${d.name} — ${d.titles}` : d.name })),
+    .map((d) => ({ id: d.id, name: d.titles ? `${d.name}, ${d.titles}` : d.name })),
 );
 
 const newDeityId = ref("");

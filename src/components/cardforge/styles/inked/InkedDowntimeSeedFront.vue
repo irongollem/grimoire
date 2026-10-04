@@ -26,7 +26,7 @@
       </div>
 
       <div class="ik-yield">
-        <em>Yields</em> {{ rewardNoun.toLowerCase() }} — {{ rewardName }}
+        <em>Yields</em> {{ rewardNoun.toLowerCase() }}: {{ rewardName }}
       </div>
     </div>
   </InkedShell>

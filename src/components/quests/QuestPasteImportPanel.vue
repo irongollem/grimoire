@@ -68,14 +68,14 @@
           <AppInput
             v-model="questSummary"
             :maxlength="QUEST_SUMMARY_MAX"
-            placeholder="Players see this verbatim — the blurb that tells you what the quest is without opening it."
+            placeholder="Players see this verbatim: the blurb that tells you what the quest is without opening it."
           />
         </div>
         <p v-if="beatCount > 0" class="text-caption text-muted-foreground">
-          {{ beatCount }} story beat{{ beatCount === 1 ? "" : "s" }} found — wired into a draft flow you can edit.
+          {{ beatCount }} story beat{{ beatCount === 1 ? "" : "s" }} found, wired into a draft flow you can edit.
         </p>
         <p v-if="primaryQuest.extraCount > 0" class="text-caption text-muted-foreground">
-          This page describes {{ primaryQuest.extraCount + 1 }} possible quests — only the first is used here. Open
+          This page describes {{ primaryQuest.extraCount + 1 }} possible quests. Only the first is used here. Open
           Document Import in Campaign Settings to review the rest.
         </p>
       </template>

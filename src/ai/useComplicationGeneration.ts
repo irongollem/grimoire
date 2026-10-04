@@ -76,7 +76,7 @@ export function useComplicationGeneration() {
         localStorage.getItem(LOCAL_MODE_KEY) === "local";
       if (isLocalMode) {
         throw new Error(
-          "Complications need the server so they can draw on your bestiary and cast — not available in local-key mode. " +
+          "Complications need the server so they can draw on your bestiary and cast. They aren't available in local-key mode. " +
           "Switch to platform credits or a campaign API key in Settings → AI.",
         );
       }
@@ -98,7 +98,7 @@ export function useComplicationGeneration() {
 
       const result = data as ComplicationAiResult;
       if (typeof result.narration !== "string" || !result.narration.trim()) {
-        throw new Error("The AI returned a complication with nothing to read out — please try again.");
+        throw new Error("The AI returned a complication with nothing to read out. Please try again.");
       }
 
       _result.value = result;

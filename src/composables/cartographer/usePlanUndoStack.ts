@@ -71,7 +71,7 @@ export function usePlanUndoStack() {
       // nothing else toasts this — do it here, and put the entry back so a
       // retry (another Ctrl+Z) can try again rather than the stack silently
       // going dead.
-      toastError(fromError(err, "Couldn't undo that — try again."));
+      toastError(fromError(err, "Couldn't undo that. Try again."));
       past.push(entry);
     } finally {
       busy.value = false;
@@ -88,7 +88,7 @@ export function usePlanUndoStack() {
       await entry.redo();
       past.push(entry);
     } catch (err) {
-      toastError(fromError(err, "Couldn't redo that — try again."));
+      toastError(fromError(err, "Couldn't redo that. Try again."));
       future.push(entry);
     } finally {
       busy.value = false;

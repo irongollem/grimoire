@@ -5,7 +5,7 @@
     aria-labelledby="family-requests-heading"
   >
     <header class="px-4 py-3 border-b border-primary/20">
-      <h2 id="family-requests-heading" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+      <h2 id="family-requests-heading" class="text-heading-sm font-bold text-foreground">
         Waiting on you
       </h2>
       <p class="text-caption text-muted-foreground italic mt-0.5">

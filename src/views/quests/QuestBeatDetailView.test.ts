@@ -168,7 +168,7 @@ describe("QuestBeatDetailView", () => {
     mocks.locationOptions = [{ id: "loc-1", name: "Ashmouth", location_type: "town", parent_id: null }];
     const staged = mountView();
     expect(staged.text()).toContain("Ashmouth");
-    expect(staged.text()).toContain("staged at · not a site — no room surface");
+    expect(staged.text()).toContain("staged at · not a site; no room surface");
   });
 
   it("describes a beat staged at a site by its room count", () => {
@@ -191,7 +191,7 @@ describe("QuestBeatDetailView", () => {
     ];
     const wrapper = mountView();
     expect(wrapper.text()).toContain("Nave of Ash");
-    expect(wrapper.text()).toContain("staged at · opens at this room in The sealed crypt — 2 rooms");
+    expect(wrapper.text()).toContain("staged at · opens at this room in The sealed crypt: 2 rooms");
   });
 
   // #886: `grounds` moved into the interior tier beside `room` — the count
@@ -221,7 +221,7 @@ describe("QuestBeatDetailView", () => {
       { id: "grounds-2", name: "The grave plot", location_type: "grounds", parent_id: "site-1" },
     ];
     const wrapper = mountView();
-    expect(wrapper.text()).toContain("staged at · opens at these grounds in The Thornwood — 2 grounds");
+    expect(wrapper.text()).toContain("staged at · opens at these grounds in The Thornwood: 2 grounds");
   });
 
   it("adds the site's readiness to the beat's own prep gap count once staged there", () => {

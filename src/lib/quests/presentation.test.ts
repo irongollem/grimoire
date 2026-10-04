@@ -59,7 +59,7 @@ describe("quest beat presentation", () => {
     const optional = { prep_gap: false, label: "Optional sound" } as QuestBeatAttachmentSummary;
     expect(deriveQuestBeatPrepGaps(draft, [required, optional], { isDisconnected: true })).toEqual([
       { kind: "guidance", label: "Add DM guidance" },
-      { kind: "player_copy", label: "Add reveal copy — players see nothing without it" },
+      { kind: "player_copy", label: "Add reveal copy: players see nothing without it" },
       { kind: "attachment", label: "Replace Missing map" },
       { kind: "improv_review", label: "Review improvised beat" },
       { kind: "connection", label: "Connect this staging beat to the story flow" },
@@ -77,7 +77,7 @@ describe("quest beat presentation", () => {
     // unbound/untraced count against, so the gap falls back to naming the
     // actual blocker: the party has nowhere to go.
     expect(deriveQuestBeatPrepGaps(prepared, [], { site: readiness({ waysOut: false }) }))
-      .toEqual([{ kind: "site", label: "no ways out — the party cannot leave this site" }]);
+      .toEqual([{ kind: "site", label: "no ways out; the party cannot leave this site" }]);
     expect(deriveQuestBeatPrepGaps(prepared, [], { site: readiness() })).toEqual([]);
     // No site input at all (a beat staged nowhere, or a beat staged
     // somewhere nobody has fetched readiness for yet) reports nothing.

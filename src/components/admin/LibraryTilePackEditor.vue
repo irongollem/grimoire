@@ -38,7 +38,7 @@
       <label class="block space-y-1">
         <span class="text-label text-muted-foreground">Attribution source</span>
         <AppSelect v-model="contentSourceKey" block tone="default">
-          <option value="">— none —</option>
+          <option value="">None</option>
           <option v-for="source in contentSources" :key="source.key" :value="source.key">
             {{ source.title }}
           </option>
@@ -78,7 +78,7 @@
 
       <p v-if="counts.requiredDrawn < counts.required" class="text-caption text-muted-foreground">
         {{ counts.required - counts.requiredDrawn }} required
-        {{ counts.required - counts.requiredDrawn === 1 ? "slot" : "slots" }} still blank — this pack cannot be
+        {{ counts.required - counts.requiredDrawn === 1 ? "slot" : "slots" }} still blank. This pack cannot be
         published until they are filled.
       </p>
 
@@ -93,7 +93,7 @@
           @click="startGeneration"
         />
         <SegmentedControl v-model="scope" :options="scopeOptions" size="xs" />
-        <span class="text-caption-sm text-muted-foreground">Free to generate — real cost is still recorded.</span>
+        <span class="text-caption-sm text-muted-foreground">Free to generate. The real cost is still recorded.</span>
       </div>
       <p v-else class="text-caption text-muted-foreground italic">Every slot in this pack has art.</p>
     </div>

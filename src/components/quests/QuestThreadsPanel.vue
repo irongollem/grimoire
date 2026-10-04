@@ -1,7 +1,7 @@
 <template>
   <section class="rounded-lg border border-border bg-card p-3" aria-label="Quest threads">
     <header class="flex items-center gap-2">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Threads</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Threads</h3>
       <span v-if="liveCount" class="ml-auto rounded bg-primary/15 px-1.5 py-0.5 text-label uppercase text-primary">{{ liveCount }} live</span>
     </header>
     <ul class="mt-2 space-y-1.5">
@@ -30,7 +30,7 @@
         />
       </li>
     </ul>
-    <p class="mt-2 text-caption text-muted-foreground">Closing a thread is your call, here or in the cockpit — nothing closes on its own.</p>
+    <p class="mt-2 text-caption text-muted-foreground">Closing a thread is your call, here or in the cockpit. Nothing closes on its own.</p>
   </section>
 </template>
 

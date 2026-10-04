@@ -4,7 +4,7 @@
     <div class="rounded-lg border border-border bg-card p-4">
       <div class="flex items-center justify-between gap-4">
         <div>
-          <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Promotion Codes</h2>
+          <h2 class="text-heading-sm font-semibold text-foreground">Promotion Codes</h2>
           <p class="text-caption text-muted-foreground italic mt-0.5">
             When enabled, a promo code field appears on the Stripe checkout page. Disable when no active promotion is running so users don't wonder if they're missing out.
           </p>
@@ -26,9 +26,9 @@
     <!-- Credit packs -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-3">
       <div>
-        <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Credit Packs</h2>
+        <h2 class="text-heading-sm font-semibold text-foreground">Credit Packs</h2>
         <p class="text-caption text-muted-foreground italic mt-0.5">
-          Enter the Stripe Price ID and click Save — price data is fetched from Stripe and cached. Credits field controls how many credits the buyer receives.
+          Enter the Stripe Price ID and click Save; price data is fetched from Stripe and cached. Credits field controls how many credits the buyer receives.
         </p>
       </div>
       <DraftConflictNotice :fields="packConflictLabels" />
@@ -92,7 +92,7 @@
     <!-- Generation costs -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-3">
       <div>
-        <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Generation Costs</h2>
+        <h2 class="text-heading-sm font-semibold text-foreground">Generation Costs</h2>
         <p class="text-caption text-muted-foreground italic mt-0.5">
           Credits deducted per generation when not using BYOK (server-side mode).
         </p>
@@ -162,7 +162,7 @@
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'loss'"
                 class="font-cinzel text-2xs text-destructive tracking-wide whitespace-nowrap font-semibold"
-                :title="calibrationTitle(calibrationHints[gen.generation_type], 'Below cost — every call loses money')"
+                :title="calibrationTitle(calibrationHints[gen.generation_type], 'Below cost: every call loses money')"
               >⚠ ↑ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
               <!-- Fair — within the threshold of the target margin. -->
               <span
@@ -245,7 +245,7 @@ type CalibrationStatus = "ok" | "under" | "over" | "loss";
 // telling an operator what is going on.
 function calibrationTitle(hint: CalibrationHint, lead: string): string {
   const cost = (hint.cost_per_charge_usd_cents / 100).toFixed(4);
-  return `${lead} — costs $${cost} per charge, break-even ${hint.breakeven_cost} credits, `
+  return `${lead}: costs $${cost} per charge, break-even ${hint.breakeven_cost} credits, `
     + `target ${hint.suggested_cost} (${hint.sample_size} charges)`;
 }
 

@@ -1,6 +1,6 @@
 <template>
   <section class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
-    <h3 class="font-cinzel text-sm font-bold text-foreground">Ways out of {{ roomName }}</h3>
+    <h3 class="text-heading-sm font-bold text-foreground">Ways out of {{ roomName }}</h3>
     <p v-if="!views.length" class="text-caption italic text-muted-foreground">No ways out from here yet.</p>
     <PlacementRow v-for="view in views" :key="view.door.id" :to="placeRoute(view.otherRoomId)" :name="view.otherRoomName">
       <template #badge>

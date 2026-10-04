@@ -53,9 +53,9 @@
         <div class="px-5 pb-4">
           <div class="rounded-lg border border-tone-caution/25 bg-tone-caution/5 px-4 py-3 flex items-center justify-between gap-4">
             <div>
-              <p class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro DM</p>
+              <p class="text-heading-sm font-bold text-foreground">Pro DM</p>
               <p v-if="yearlyLabel" class="text-caption text-muted-foreground mt-0.5">
-                or {{ yearlyLabel }} / year<span v-if="savedMonths > 0"> — save {{ savedMonths }} month{{ savedMonths > 1 ? 's' : '' }}</span>
+                or {{ yearlyLabel }} / year<span v-if="savedMonths > 0">, save {{ savedMonths }} month{{ savedMonths > 1 ? 's' : '' }}</span>
               </p>
             </div>
             <p v-if="monthlyLabel" class="text-heading font-bold text-ink-caution shrink-0">
@@ -139,7 +139,7 @@ const BENEFITS = computed(() => [
     : []),
   "Bring your own OpenAI or Gemini key for AI generation",
   "Soundboard and tile-pack uploads, unlimited pages & playlists",
-  "Your whole table plays free — always",
+  "Your whole table plays free, always",
 ])
 
 function close() {

@@ -32,7 +32,7 @@
 
         <div class="min-w-0 flex-1 flex flex-wrap items-center gap-1.5">
           <p
-            class="truncate font-cinzel text-sm font-semibold"
+            class="truncate text-heading-xs font-semibold"
             :class="row.type === 'player' ? 'text-foreground' : 'text-muted-foreground'"
           >
             {{ row.name }}

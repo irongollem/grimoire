@@ -433,6 +433,40 @@ campaign rows second — same "linked rows win" precedence the pre-#893 code
 already used for the per-kind case, just no longer scoped to "rows this kind's
 own decisions produced."
 
+**The sweep writes a list per request, not a row per request (#951).** One
+real chapter used to cost about 200 requests, because every attachment, spine
+row, beat location, link and loot placement was its own awaited write. Now:
+
+- **Entity inserts stay one per row.** Each reports its own `quota_exceeded`
+  or failure, and the review counts them per kind. Do not batch these.
+- **The spine** (`writeQuestSpine`, shared with the AI quest generator through
+  `useQuestSpineWriter`) is five requests: the opening beat alone, the other
+  beats together, then edges, objectives and consequences. The opening beat
+  goes first on its own because its insert settles `quests.entry_beat_id`
+  (`private.settle_quest_entry_beat`), which breaks ties on `created_at`, and
+  every row of one multi-row insert shares the transaction's `now()`. Rows
+  come back keyed by `canvas_x` (beats) and `sort_order` (objectives), never
+  by position.
+- **A beat's location rides in on the beat insert.** `locations` imports
+  before `quests`, so the sweep resolves each beat's `location_name` before
+  writing the spine. That replaced one update per beat.
+- **Beat attachments, beat loot and room loot** are one insert each.
+  Attachments are deduped per beat first, so a page naming the same NPC twice
+  cannot trip the unique constraint.
+- **Links** go to `applyLinkResolutions` in one call: join rows as one upsert
+  per table (`ignoreDuplicates`, since a linked faction may already hold the
+  place), FK updates sent together because each row gets a different value.
+- **Combatant names** for every encounter go to `resolve_monster_references`
+  in one call. The name lookups run in parallel, and `persistImportedCounts`
+  skips a kind the page had none of.
+
+A refused list is not a lost list. `writeBatchIsolatingFailures`
+(`src/lib/batchWrite.ts`) writes the list in one request, and only if the
+database refuses it does it write each row on its own. A refused multi-row
+insert is one statement, so nothing in it landed and nothing is written twice.
+A good import pays one request; one bad row costs one request per row and is
+reported in `unresolvedLinks` with the database's reason, never swallowed.
+
 **New extraction fields, and where each one lands:**
 
 | Field | On | Lands as |
@@ -517,8 +551,8 @@ library" copy were deleted rather than kept as a fallback.
 **Accounting:** a library `link` tallies as `link` in `reviewDecisions.ts`'s
 `tallyDecisions` and as `linked` in the sweep report. `rowsAddedToQuota` counts
 only `create` and `generate`: a reference inserts no row, so it never consumes
-plan room. `ImportEntityReviewRow.vue` labels a library candidate "Uses library
-entry: <name>".
+plan room. `ImportEntityReviewRow.vue` labels a library candidate
+`Uses library entry: <name>`.
 
 **A reference resolves even if the book is later disabled** for the campaign.
 Enabled sources govern what the review offers as candidates, not whether a

@@ -6,7 +6,7 @@
       class="rounded-lg border border-border bg-card px-5 py-8 text-center space-y-2"
     >
       <IconGenerate class="h-8 w-8 mx-auto text-muted-foreground/60" />
-      <p class="font-cinzel text-sm font-semibold text-foreground">No innate spells</p>
+      <p class="text-heading-sm font-semibold text-foreground">No innate spells</p>
       <p class="text-body text-muted-foreground max-w-sm mx-auto">
         Add racial traits, feats, or item-granted spells using the button above.
       </p>
@@ -272,7 +272,7 @@ function castButtonStyle(entry: CharacterSpellEntry): { variant: ButtonVariant; 
 function castButtonTitle(entry: CharacterSpellEntry): string {
   if (entry.uses_per_day !== null && !entry.uses_remaining) return "No uses remaining";
   if (entry.uses_per_day === null) return "Cast at will (no spell slot)";
-  return `Cast — use 1 of ${entry.uses_remaining} remaining`;
+  return `Cast: use 1 of ${entry.uses_remaining} remaining`;
 }
 
 async function rollInnateDamage(entry: CharacterSpellEntry) {
@@ -284,7 +284,7 @@ async function rollInnateDamage(entry: CharacterSpellEntry) {
       continue;
     }
     const typeLabel = dmg.type ? ` ${dmg.type}` : "";
-    let label = `${spell.name} — ${dmg.dice}${typeLabel} damage`;
+    let label = `${spell.name}: ${dmg.dice}${typeLabel} damage`;
     if (spell.attack_type === "save" && spell.save_effect === "half") {
       label += ` (half on ${spell.save_attribute ?? "save"})`;
     }
@@ -306,7 +306,7 @@ async function rollInnateHealing(entry: CharacterSpellEntry) {
     toast.error(`Cannot roll unsupported healing expression: ${dice}`);
     return;
   }
-  const label = `${entry.spell.name} — ${dice} healing`;
+  const label = `${entry.spell.name}: ${dice} healing`;
   const counts = parsedToCounts(parsed.terms);
   if (Object.keys(counts).length === 0) {
     const { total, breakdown } = rollParsed(parsed);

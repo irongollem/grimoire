@@ -86,7 +86,7 @@
               <RichTextViewer :content="inf.description" />
             </div>
             <p v-else class="text-caption text-muted-foreground italic">
-              No effect text yet — add it from your sourcebook.
+              No effect text yet. Add it from your sourcebook.
             </p>
             <AppButton variant="ghost" size="inline" class="mt-1" @click="openEditText(inf)">{{ inf.description ? "Edit text" : "+ Add effect text" }}</AppButton>
           </template>

@@ -24,7 +24,7 @@
         {{ badge(s).label }}
       </span>
       <div class="flex-1 min-w-0">
-        <div class="font-cinzel text-sm font-semibold text-foreground">
+        <div class="text-heading-sm font-semibold text-foreground">
           {{ s.target_name }}
           <span v-if="s.kind === 'faction'" class="font-fell font-normal text-muted-foreground">
             (faction)

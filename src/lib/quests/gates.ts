@@ -48,7 +48,7 @@ export function questRouteGateLabel(gate: QuestRouteGate): string {
  *  to be visible on a closed route, not just the fact that it is closed. */
 export function describeQuestRouteGate(gate: QuestRouteGate): string {
   const required = QUEST_OBJECTIVE_STATUS_LABELS[gate.required_status].toLowerCase();
-  if (gate.is_open) return `Open — “${gate.objective}” is ${required}`;
+  if (gate.is_open) return `Open: “${gate.objective}” is ${required}`;
   const current = QUEST_OBJECTIVE_STATUS_LABELS[gate.current_status].toLowerCase();
   return `Closed: needs “${gate.objective}” to be ${required}, currently ${current}`;
 }

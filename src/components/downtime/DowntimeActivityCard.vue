@@ -111,7 +111,7 @@ function onSelect() {
 
         <!-- Card foot -->
         <div class="shrink-0 border-t border-border bg-card p-3">
-          <h3 class="font-cinzel text-sm font-semibold">{{ activity.title }}</h3>
+          <h3 class="text-heading-sm font-semibold">{{ activity.title }}</h3>
           <p class="mt-1 line-clamp-2 text-caption-sm text-muted-foreground">{{ activity.hook }}</p>
         </div>
       </div>
@@ -123,7 +123,7 @@ function onSelect() {
       >
         <div class="absolute inset-0" :style="backStyle" aria-hidden="true" />
         <span class="relative text-4xl opacity-70" aria-hidden="true">{{ activity.glyph }}</span>
-        <p class="relative font-cinzel text-sm font-semibold">{{ activity.title }}</p>
+        <p class="relative text-heading-sm font-semibold">{{ activity.title }}</p>
         <p class="relative text-caption-sm text-muted-foreground">In your DM's hands</p>
         <span
           v-if="pendingCount > 1"

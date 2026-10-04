@@ -2,7 +2,7 @@
   <header
     class="sidenav:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-card sticky top-0 z-30"
   >
-    <h1 class="font-cinzel text-lg font-semibold text-gold-500 tracking-wider flex-1 truncate">
+    <h1 class="text-heading font-semibold text-gold-500 flex-1 truncate">
       {{ pageTitle }}
     </h1>
 

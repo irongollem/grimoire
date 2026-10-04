@@ -20,14 +20,14 @@
         <IconCircleCheck class="h-6 w-6" />
       </div>
       <h3
-        class="font-cinzel text-sm font-bold text-foreground tracking-wide"
+        class="text-heading-sm font-bold text-foreground"
       >
         {{ isBug ? "Bug Reported!" : "Feature Requested!" }}
       </h3>
       <p
         class="text-body text-muted-foreground max-w-xs leading-relaxed"
       >
-        Thank you — issue #{{ issueNumber }} has been filed and the
+        Thank you: issue #{{ issueNumber }} has been filed and the
         development team will look into it.
       </p>
       <AppButton variant="subtle" size="sm" label="Close" class="mt-2" @click="close" />
@@ -383,7 +383,7 @@ async function submit() {
     issueNumber.value = (data as { issueNumber: number })?.issueNumber ?? null;
     submitted.value = true;
   } catch (e) {
-    error.value = "Something went wrong — please try again.";
+    error.value = "Something went wrong. Please try again.";
     console.error("Bug report submit error:", e);
   } finally {
     submitting.value = false;

@@ -17,7 +17,7 @@
         class="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30"
       >
         <p
-          class="min-w-0 flex-1 truncate font-cinzel text-sm font-semibold text-foreground transition-colors group-hover:text-primary"
+          class="min-w-0 flex-1 truncate text-heading-xs font-semibold text-foreground transition-colors group-hover:text-primary"
         >
           {{ row.name }}
         </p>
@@ -90,7 +90,7 @@ const isLoading = computed(
  */
 const emptyText = computed(() =>
   shopIds.value.length === 0
-    ? "No shops in this campaign yet — add a store, tavern or inn to the atlas."
+    ? "No shops in this campaign yet. Add a store, tavern or inn to the atlas."
     : "Every shop has something on the shelves.",
 );
 

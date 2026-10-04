@@ -18,7 +18,7 @@
     no-match-text="No roll tables match your filter."
     empty-icon="Dices"
     empty-title="No roll tables yet"
-    empty-description="Build a wandering monster table or two — the DM rolls live during play to surface what shows up."
+    empty-description="Build a wandering monster table or two; the DM rolls live during play to surface what shows up."
     empty-action-label="New Roll Table"
     table="roll_tables"
     :ids="rollTableFilteredIds"
@@ -53,7 +53,7 @@
           @click="selectedRollTableId = t.id"
         >
           <div class="flex items-start justify-between gap-2 mb-1 w-full">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
+            <h3 class="text-heading-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
             <span class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0">{{ t.dice }}</span>
           </div>
           <p v-if="t.description" class="text-caption text-muted-foreground italic line-clamp-2">{{ t.description }}</p>

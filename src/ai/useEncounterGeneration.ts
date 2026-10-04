@@ -132,7 +132,7 @@ export function useEncounterGeneration() {
     try {
       raw = JSON.parse(content);
     } catch {
-      throw new Error("AI returned malformed encounter data — please try again.");
+      throw new Error("AI returned malformed encounter data. Please try again.");
     }
     const result = parseEncounterAiResult(raw);
 

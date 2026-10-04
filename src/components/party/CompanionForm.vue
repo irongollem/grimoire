@@ -4,7 +4,7 @@
     <div class="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl flex flex-col gap-4 p-5 max-h-[90vh] overflow-y-auto">
       <!-- Header -->
       <div class="flex items-center justify-between">
-        <h2 class="font-cinzel text-base font-bold text-foreground tracking-wide">
+        <h2 class="text-heading-sm font-bold text-foreground">
           {{ isEdit ? "Edit Companion" : "Add Companion" }}
         </h2>
         <AppButton variant="ghost" size="icon-sm" :icon="IconClose" tooltip="Close" aria-label="Close" @click="$emit('cancel')" />
@@ -102,7 +102,7 @@
             v-model="ownerMemberId"
             size="body"
           >
-            <option value="">— Party —</option>
+            <option value="">Party</option>
             <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
           </AppSelect>
           <p

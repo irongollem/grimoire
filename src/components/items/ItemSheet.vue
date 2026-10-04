@@ -170,7 +170,7 @@
         <div v-if="item.mundane_description" class="flex flex-col gap-1 rounded-lg border border-border bg-card/50 p-3">
           <h3 class="text-eyebrow font-bold text-muted-foreground">
             Mundane Description
-            <span class="normal-case font-fell font-normal text-muted-foreground/60"> — shown before identification</span>
+            <span class="normal-case font-fell font-normal text-muted-foreground/60">(shown before identification)</span>
           </h3>
           <RichTextViewer :content="item.mundane_description" />
         </div>

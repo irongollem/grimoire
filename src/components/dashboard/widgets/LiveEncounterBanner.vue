@@ -8,7 +8,7 @@
     class="flex items-center gap-3 rounded-lg border border-tone-success/40 bg-tone-success/10 px-4 py-3 hover:bg-tone-success/15 transition-colors"
   >
     <IconLive class="h-4 w-4 text-tone-success animate-pulse shrink-0" />
-    <span class="font-cinzel text-sm font-semibold text-tone-success tracking-wide">Encounter in progress</span>
+    <span class="text-heading-sm font-semibold text-tone-success">Encounter in progress</span>
     <span class="text-caption text-tone-success/70 italic flex-1">Round {{ firstRunning.current_round }}</span>
     <span class="text-label text-tone-success">Resume →</span>
   </RouterLink>

@@ -47,7 +47,7 @@
             {{ removedEntriesMessage(d) }}
           </template>
           <template v-else>
-            <span class="text-foreground font-semibold">{{ d.label }}</span> — {{ clearedFieldMessage(d) }}
+            <span class="text-foreground font-semibold">{{ d.label }}</span>: {{ clearedFieldMessage(d) }}
           </template>
         </p>
       </div>
@@ -317,7 +317,7 @@ function clearedFieldMessage(d: DroppedReference): string {
 function needsSourcesMessage(n: LibrarySourceNotice): string {
   const what = n.names.length === 1 ? `${n.names[0]} is` : `${n.names.join(", ")} are`;
   const src = n.sources.length === 1 ? `${n.sources[0]} is` : `${n.sources.join(", ")} are`;
-  return `${what} shared-library content the copy keeps, but ${src} not enabled in the target campaign — enable it there and the reference resolves.`;
+  return `${what} shared-library content the copy keeps, but ${src} not enabled in the target campaign. Enable it there and the reference resolves.`;
 }
 
 function removedEntriesMessage(d: DroppedReference): string {

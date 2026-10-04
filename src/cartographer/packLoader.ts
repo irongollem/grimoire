@@ -147,7 +147,7 @@ export function getLoadedPack(packId: string, packVersion: number): TilePackRunt
 
 export function describeValidation(v: ValidationResult): string {
   const lines: string[] = [];
-  if (!v.valid) lines.push(`Pack invalid — ${v.missing.length} required slot(s) missing:`);
+  if (!v.valid) lines.push(`Pack invalid: ${v.missing.length} required slot(s) missing:`);
   if (v.missing.length) lines.push(formatMissingForDisplay(v.missing));
   if (v.warnings.length) lines.push("Warnings:\n" + v.warnings.map((w) => `  • ${w}`).join("\n"));
   if (v.extras.length) lines.push("Unknown categories in manifest: " + v.extras.join(", "));

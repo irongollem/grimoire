@@ -24,7 +24,7 @@
 
       <!-- Name + type badge -->
       <div class="min-w-0 flex-1">
-        <p class="font-cinzel text-sm font-semibold text-foreground truncate leading-tight">
+        <p class="text-heading-xs font-semibold text-foreground truncate leading-tight">
           {{ companion.name || "Unnamed" }}
         </p>
         <p class="text-caption-sm text-muted-foreground italic leading-tight">
@@ -39,7 +39,7 @@
 
       <!-- HP -->
       <div class="text-right shrink-0">
-        <span class="font-cinzel text-sm font-bold" :class="hpTextColor">{{ companion.current_hp }}</span>
+        <span class="text-heading-sm font-bold" :class="hpTextColor">{{ companion.current_hp }}</span>
         <span class="text-caption text-muted-foreground">/{{ companion.max_hp }}</span>
       </div>
 
@@ -96,8 +96,8 @@
         emphasis="soft"
         :label="companion.combat_ready ? 'With Party' : 'Elsewhere'"
         :tooltip="companion.combat_ready
-          ? 'With the party — joins new encounters. Click to bench.'
-          : 'Elsewhere — sits out new encounters. Click to bring back.'"
+          ? 'With the party · joins new encounters. Click to bench.'
+          : 'Elsewhere · sits out new encounters. Click to bring back.'"
         class="border border-border"
         @click="toggleCombatReady"
       />

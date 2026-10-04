@@ -29,7 +29,7 @@
       class="py-12 text-center space-y-2"
     >
       <component :is="noun.icon" class="h-8 w-8 text-muted-foreground/30 mx-auto" />
-      <p class="font-cinzel text-sm text-muted-foreground">No {{ noun.plural.toLowerCase() }} yet</p>
+      <p class="text-body text-muted-foreground">No {{ noun.plural.toLowerCase() }} yet</p>
       <p class="text-caption text-muted-foreground/70 italic">{{ noun.blurb }}</p>
       <button
         class="mt-2 px-4 py-2 rounded-md border border-gold-500/30 font-cinzel text-xs tracking-wide text-gold-400 hover:bg-gold-500/10 transition-colors"

@@ -3,7 +3,7 @@
     <div class="px-4 py-3 border-b border-border bg-muted/20">
       <span class="text-label-lg font-semibold text-muted-foreground">Milestones</span>
       <p class="text-caption text-muted-foreground italic mt-0.5">
-        What the party has earned, newest first — awarded from a quest's payoff or added here.
+        What the party has earned, newest first, awarded from a quest's payoff or added here.
       </p>
     </div>
 

@@ -1,10 +1,10 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-4 space-y-3">
     <div>
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Abuse Velocity Guard</h2>
+      <h2 class="text-heading-sm font-semibold text-foreground">Abuse Velocity Guard</h2>
       <p class="text-caption text-muted-foreground italic mt-0.5">
         Caps how fast a new account can burn purchased credits (friendly-fraud blast radius).
-        Leave off until you have real usage data — enabling with low limits can throttle legit power users.
+        Leave off until you have real usage data. Enabling with low limits can throttle legit power users.
       </p>
     </div>
 
@@ -15,7 +15,7 @@
       <AppCheckbox
         v-model="local.enforce"
         :disabled="!local.enabled"
-        label="Enforce (block over-limit spends) — off = log-only"
+        label="Enforce (block over-limit spends; off = log-only)"
         :label-class="local.enabled ? undefined : 'text-muted-foreground'"
       />
 

@@ -10,7 +10,7 @@ export const FAERUN_PANTHEONS: SettingPantheonDef[] = [
   },
   {
     name: "Seldarine",
-    description: "The elven pantheon — the 'fellowship of brothers and sisters of the wood'. Led by Corellon Larethian, they dwell in Arborea and protect elven culture, art, and magic. The Seldarine oppose the Dark Seldarine and the corruption of Lolth.",
+    description: "The elven pantheon; the 'fellowship of brothers and sisters of the wood'. Led by Corellon Larethian, they dwell in Arborea and protect elven culture, art, and magic. The Seldarine oppose the Dark Seldarine and the corruption of Lolth.",
     tags: ["elves", "seldarine", "arborea"],
   },
   {
@@ -25,17 +25,17 @@ export const FAERUN_PANTHEONS: SettingPantheonDef[] = [
   },
   {
     name: "The Dead Three",
-    description: "Bane, Bhaal, and Myrkul — three mortals who ascended to godhood through murder and ambition. Together they represent conquest, murder, and death. Though Bhaal and Myrkul were slain during the Time of Troubles, their essences persist in mortal avatars and cult activity.",
+    description: "Bane, Bhaal, and Myrkul: three mortals who ascended to godhood through murder and ambition. Together they represent conquest, murder, and death. Though Bhaal and Myrkul were slain during the Time of Troubles, their essences persist in mortal avatars and cult activity.",
     tags: ["evil", "bane", "bhaal", "myrkul", "dead three"],
   },
   {
     name: "The Orc Pantheon",
-    description: "The brutal pantheon worshipped by orcs across Faerûn, led by Gruumsh One-Eye. These are gods of strength, conquest, survival, and darkness — each embodying a facet of orc culture. They dwell in Nishrek on Acheron and wage endless war against elven gods.",
+    description: "The brutal pantheon worshipped by orcs across Faerûn, led by Gruumsh One-Eye. These are gods of strength, conquest, survival, and darkness, each embodying a facet of orc culture. They dwell in Nishrek on Acheron and wage endless war against elven gods.",
     tags: ["orcs", "gruumsh", "acheron", "evil"],
   },
   {
     name: "The Draconic Pantheon",
-    description: "The pantheon of dragonkind, led by the primordial Io who spawned all dragons at the dawn of time. His twin aspects — Bahamut and Tiamat — embody the eternal conflict between metallic and chromatic dragons. Other draconic deities govern aspects of dragon nature and the flow of dragon fate.",
+    description: "The pantheon of dragonkind, led by the primordial Io who spawned all dragons at the dawn of time. His twin aspects, Bahamut and Tiamat, embody the eternal conflict between metallic and chromatic dragons. Other draconic deities govern aspects of dragon nature and the flow of dragon fate.",
     tags: ["dragons", "bahamut", "tiamat", "io"],
   },
   {
@@ -50,7 +50,7 @@ export const FAERUN_PANTHEONS: SettingPantheonDef[] = [
   },
   {
     name: "Lords of the Nine Hells",
-    description: "The nine archdevils who each rule a layer of Baator — the Nine Hells. They are not gods in the traditional sense, but are powerful enough to grant divine power to clerics and warlock patrons. Asmodeus, the Supreme Master, sits atop all nine and schemes for dominion over the cosmos. Devil-worshipping cults and Faustian pact-makers throughout Faerûn look to these lords for power.",
+    description: "The nine archdevils who each rule a layer of Baator, the Nine Hells. They are not gods in the traditional sense, but are powerful enough to grant divine power to clerics and warlock patrons. Asmodeus, the Supreme Master, sits atop all nine and schemes for dominion over the cosmos. Devil-worshipping cults and Faustian pact-makers throughout Faerûn look to these lords for power.",
     tags: ["devils", "nine hells", "baator", "evil", "lawful", "archdevil"],
   },
   {
@@ -60,12 +60,12 @@ export const FAERUN_PANTHEONS: SettingPantheonDef[] = [
   },
   {
     name: "The Seelie Court",
-    description: "The Summer Court of the Feywild, ruled by Titania the Summer Queen. The Seelie Court embodies the radiant, joyful, and sometimes capricious face of the fey — beauty, warmth, wild revelry, and the fierce protectiveness of nature. Though not evil, the Seelie Court is utterly alien in its values and can be casually cruel. Warlock pacts with Seelie archfey tend toward charm, nature magic, and the power of midsummer.",
+    description: "The Summer Court of the Feywild, ruled by Titania the Summer Queen. The Seelie Court embodies the radiant, joyful, and sometimes capricious face of the fey: beauty, warmth, wild revelry, and the fierce protectiveness of nature. Though not evil, the Seelie Court is utterly alien in its values and can be casually cruel. Warlock pacts with Seelie archfey tend toward charm, nature magic, and the power of midsummer.",
     tags: ["fey", "feywild", "seelie", "summer court", "archfey"],
   },
   {
     name: "The Unseelie Court",
-    description: "The Winter Court of the Feywild, dominated by the Queen of Air and Darkness. The Unseelie Court is the cold, remorseless, and predatory face of the fey — the darkness before dawn, the killing frost, the beauty that destroys. Unlike the Seelie, the Unseelie rarely grant favours without extracting something worse in return. Their pacts come with a chill that never quite leaves the soul.",
+    description: "The Winter Court of the Feywild, dominated by the Queen of Air and Darkness. The Unseelie Court is the cold, remorseless, and predatory face of the fey: the darkness before dawn, the killing frost, the beauty that destroys. Unlike the Seelie, the Unseelie rarely grant favours without extracting something worse in return. Their pacts come with a chill that never quite leaves the soul.",
     tags: ["fey", "feywild", "unseelie", "winter court", "archfey", "evil"],
   },
 ];
@@ -93,7 +93,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A pair of female eyes surrounded by seven silver stars",
     domains: ["Life", "Twilight"],
     portfolio: "The moon, stars, navigation, wanderers, questers, lycanthropes",
-    description: "Selûne is one of the oldest deities in Faerûn, locked in eternal conflict with her twin sister Shar. She is worshipped by navigators, the lost, and lycanthropes who seek to retain their humanity. Her tears, shed in her ancient battle with Shar, crystallised into the Tears of Selûne — the asteroids trailing the moon.",
+    description: "Selûne is one of the oldest deities in Faerûn, locked in eternal conflict with her twin sister Shar. She is worshipped by navigators, the lost, and lycanthropes who seek to retain their humanity. Her tears, shed in her ancient battle with Shar, crystallised into the Tears of Selûne, the asteroids trailing the moon.",
     tags: ["moon", "stars", "good", "navigation", "lycanthropes"],
   },
   {
@@ -116,7 +116,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A ring of seven stars surrounding a flowing red mist",
     domains: ["Arcana", "Knowledge"],
     portfolio: "Magic, spells, the Weave",
-    description: "Mystra maintains the Weave — the fabric of magic that enables all spellcasting in Faerûn. Without her, arcane magic would collapse into wild, destructive chaos. She has died and been reborn multiple times; each death caused the Spellplague or similar catastrophes. Wizards, sorcerers, and bards owe her reverence above all other gods.",
+    description: "Mystra maintains the Weave, the fabric of magic that enables all spellcasting in Faerûn. Without her, arcane magic would collapse into wild, destructive chaos. She has died and been reborn multiple times; each death caused the Spellplague or similar catastrophes. Wizards, sorcerers, and bards owe her reverence above all other gods.",
     tags: ["magic", "weave", "good", "wizards"],
   },
   {
@@ -127,7 +127,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A white right gauntlet",
     domains: ["War", "Order"],
     portfolio: "Duty, loyalty, obedience, paladins, truth, self-sacrifice",
-    description: "Torm is the god of duty and self-sacrifice, patron of paladins and loyal soldiers. He died fighting the god Bane during the Time of Troubles and was resurrected by Ao. Torm demands complete loyalty and punishes oathbreakers severely. His rivalry with Helm is famous — both gods value protection but disagree on whether it requires blind obedience.",
+    description: "Torm is the god of duty and self-sacrifice, patron of paladins and loyal soldiers. He died fighting the god Bane during the Time of Troubles and was resurrected by Ao. Torm demands complete loyalty and punishes oathbreakers severely. His rivalry with Helm is famous: both gods value protection but disagree on whether it requires blind obedience.",
     tags: ["good", "paladins", "duty", "lawful", "military"],
   },
   {
@@ -138,7 +138,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A staring eye on a gauntlet",
     domains: ["Life", "Light"],
     portfolio: "Guardians, protectors, protection, those who keep watch",
-    description: "Helm is the embodiment of guardianship — not heroic adventure, but the patient duty of standing watch. He was the only god who remained at his post during the Time of Troubles, guarding the Celestial Stairway. He killed Mystra when ordered to, earning universal condemnation. His followers are guards, watchmen, and protectors of all kinds.",
+    description: "Helm is the embodiment of guardianship: not heroic adventure, but the patient duty of standing watch. He was the only god who remained at his post during the Time of Troubles, guarding the Celestial Stairway. He killed Mystra when ordered to, earning universal condemnation. His followers are guards, watchmen, and protectors of all kinds.",
     tags: ["protection", "guards", "duty", "lawful"],
   },
   {
@@ -149,7 +149,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "An upright skeletal arm holding balanced scales",
     domains: ["Death", "Grave"],
     portfolio: "Death, the dead, the passage of the soul",
-    description: "The fairest of the death gods, Kelemvor judges the souls of the dead without favouritism. He hates the undead as an abomination — souls denied their rightful rest — and his clergy actively hunt and destroy undead. His realm in the Fugue Plane serves as the waystation for all mortal souls awaiting judgement.",
+    description: "The fairest of the death gods, Kelemvor judges the souls of the dead without favouritism. He hates the undead as an abomination (souls denied their rightful rest), and his clergy actively hunt and destroy undead. His realm in the Fugue Plane serves as the waystation for all mortal souls awaiting judgement.",
     tags: ["death", "undead hunters", "judgement", "lawful"],
   },
   {
@@ -160,7 +160,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A blazing silver sword on a blood-red shield",
     domains: ["War", "Tempest"],
     portfolio: "War, battle, warriors",
-    description: "Tempus cares nothing for the reasons behind a war — only that it is fought with courage and skill. He blesses both sides equally and the strongest survives. He is among the most widely worshipped deities in Faerûn; soldiers of all alignments pray to him before battle.",
+    description: "Tempus cares nothing for the reasons behind a war, only that it is fought with courage and skill. He blesses both sides equally and the strongest survives. He is among the most widely worshipped deities in Faerûn; soldiers of all alignments pray to him before battle.",
     tags: ["war", "battle", "soldiers", "neutral"],
   },
   {
@@ -171,7 +171,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A set of scales balanced on a warhammer",
     domains: ["War", "Order"],
     portfolio: "Justice, law, tribunals, fair courts",
-    description: "Tyr is the god of justice — not mercy, but the impartial application of law. He lost his right hand to the god Kezef the Chaos Hound and wears the wound as a mark of his commitment to justice at any cost. His clerics staff law courts across Faerûn and are often called upon to magically detect lies in legal proceedings.",
+    description: "Tyr is the god of justice: not mercy, but the impartial application of law. He lost his right hand to the god Kezef the Chaos Hound and wears the wound as a mark of his commitment to justice at any cost. His clerics staff law courts across Faerûn and are often called upon to magically detect lies in legal proceedings.",
     tags: ["justice", "lawful", "good", "law", "paladins"],
   },
   {
@@ -182,7 +182,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A face of a beautiful woman with red hair",
     domains: ["Life", "Light"],
     portfolio: "Beauty, love, passion, art",
-    description: "Sune is the goddess of beauty and romantic love — one of the most widely worshipped of all Faerûnian deities. She demands that her followers be attractive, passionate, and generous with their love. The Firehair's temples are lavish and welcoming. She is also the patron of artists, poets, and anyone who creates beauty.",
+    description: "Sune is the goddess of beauty and romantic love, one of the most widely worshipped of all Faerûnian deities. She demands that her followers be attractive, passionate, and generous with their love. The Firehair's temples are lavish and welcoming. She is also the patron of artists, poets, and anyone who creates beauty.",
     tags: ["good", "beauty", "love", "charisma", "art"],
   },
   {
@@ -193,7 +193,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "An 'L'-shaped coin rune, or a silver coin",
     domains: ["Trickery"],
     portfolio: "Good fortune, skill, victory, adventurers, gambling",
-    description: "Tymora is the bright face of luck — the patron of bold adventurers and those who risk everything on a throw of the dice. She is the twin of Beshaba the goddess of misfortune. She was once part of Tyche, the goddess of luck, before she split in two. Tymora's temples are found at every crossroads, and her followers embrace risk-taking as holy.",
+    description: "Tymora is the bright face of luck, the patron of bold adventurers and those who risk everything on a throw of the dice. She is the twin of Beshaba the goddess of misfortune. She was once part of Tyche, the goddess of luck, before she split in two. Tymora's temples are found at every crossroads, and her followers embrace risk-taking as holy.",
     tags: ["luck", "good", "adventurers", "chaotic", "gambling"],
   },
   {
@@ -204,7 +204,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "Black antlers",
     domains: ["Trickery"],
     portfolio: "Misfortune, random mischief, bad luck, accidents",
-    description: "The dark twin of Tymora, Beshaba is the goddess of random misfortune and capricious ill luck. She is worshipped out of fear — most people leave offerings not to gain her favour but to stave off her malice. Her clergy sow discord and misfortune wherever they go. She and Tymora despise one another.",
+    description: "The dark twin of Tymora, Beshaba is the goddess of random misfortune and capricious ill luck. She is worshipped out of fear: most people leave offerings not to gain her favour but to stave off her malice. Her clergy sow discord and misfortune wherever they go. She and Tymora despise one another.",
     tags: ["evil", "chaos", "bad luck", "misfortune"],
   },
   {
@@ -215,7 +215,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "Two hands bound together at the wrist with a red cord",
     domains: ["Life", "Twilight"],
     portfolio: "Endurance, suffering, martyrdom, perseverance",
-    description: "Ilmater is the god of compassion — he willingly takes on the suffering of others. He is worshipped by healers, slaves, and the downtrodden across Faerûn. His followers comfort the dying, care for the sick, and lay down their lives to protect the innocent. He is the patron of those who suffer in the service of others.",
+    description: "Ilmater is the god of compassion; he willingly takes on the suffering of others. He is worshipped by healers, slaves, and the downtrodden across Faerûn. His followers comfort the dying, care for the sick, and lay down their lives to protect the innocent. He is the patron of those who suffer in the service of others.",
     tags: ["good", "lawful", "healing", "suffering", "martyrdom"],
   },
   {
@@ -226,7 +226,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A unicorn's head",
     domains: ["Nature"],
     portfolio: "Forests, forest creatures, rangers, dryads, unicorns",
-    description: "Mielikki is the goddess of the forest and its creatures. She is the patron of rangers — those who protect the wild places and walk between civilisation and nature. Her symbol is the unicorn, her sacred animal, and her clergy tend wounded animals and protect ancient groves. She is closely allied with Silvanus though somewhat more personable.",
+    description: "Mielikki is the goddess of the forest and its creatures. She is the patron of rangers, those who protect the wild places and walk between civilisation and nature. Her symbol is the unicorn, her sacred animal, and her clergy tend wounded animals and protect ancient groves. She is closely allied with Silvanus though somewhat more personable.",
     tags: ["good", "nature", "rangers", "forest", "unicorns"],
   },
   {
@@ -237,7 +237,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A leaf with a face in the form of an oak",
     domains: ["Nature"],
     portfolio: "Wild nature, druids",
-    description: "Silvanus cares for the vast, untamed wilderness — forests, mountains, and all wild places beyond civilisation's reach. He is the patron of druids and rangers, demanding that mortals leave the wilds unspoiled. His druids police threats to natural balance, and he opposes both unchecked civilisation and unnatural magic that damages nature.",
+    description: "Silvanus cares for the vast, untamed wilderness: forests, mountains, and all wild places beyond civilisation's reach. He is the patron of druids and rangers, demanding that mortals leave the wilds unspoiled. His druids police threats to natural balance, and he opposes both unchecked civilisation and unnatural magic that damages nature.",
     tags: ["nature", "druids", "forest", "neutral", "wilderness"],
   },
   {
@@ -248,7 +248,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A bestial claw with brown fur and curved nails",
     domains: ["Nature"],
     portfolio: "Hunt, bloodlust, evil lycanthropes, predators",
-    description: "Malar is the god of the savage hunt — the dark mirror of Mielikki. He delights in the terror of prey and the thrill of the kill. Evil lycanthropes worship him, as do hunters who kill for sport rather than need. His clergy conduct ceremonial hunts where intelligent prey is chased and killed. He opposes Mielikki at every turn.",
+    description: "Malar is the god of the savage hunt, the dark mirror of Mielikki. He delights in the terror of prey and the thrill of the kill. Evil lycanthropes worship him, as do hunters who kill for sport rather than need. His clergy conduct ceremonial hunts where intelligent prey is chased and killed. He opposes Mielikki at every turn.",
     tags: ["evil", "chaotic", "hunting", "lycanthropes", "bloodlust"],
   },
   {
@@ -259,7 +259,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A six-pointed snowflake of white and blue",
     domains: ["Nature", "Tempest"],
     portfolio: "Cold, winter, winds from the north",
-    description: "Auril is the goddess of cold and winter — beautiful, cruel, and utterly indifferent to the suffering she causes. She is worshipped out of fear in northern Faerûn, particularly in Icewind Dale and the Spine of the World. She has attempted to plunge all of Faerûn into permanent winter several times. Her clerics preach that cold teaches strength.",
+    description: "Auril is the goddess of cold and winter: beautiful, cruel, and utterly indifferent to the suffering she causes. She is worshipped out of fear in northern Faerûn, particularly in Icewind Dale and the Spine of the World. She has attempted to plunge all of Faerûn into permanent winter several times. Her clerics preach that cold teaches strength.",
     tags: ["evil", "cold", "winter", "north", "storms"],
   },
   {
@@ -270,7 +270,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "Three lightning bolts radiating from a central point",
     domains: ["Tempest"],
     portfolio: "Storms, destruction, rebellion, conflagrations, earthquakes",
-    description: "Talos is the god of storms and destruction — raw elemental fury given divine form. He is worshipped out of fear, and his clergy rejoice in natural disasters and acts of wanton destruction. Sailors dread his name above all others. He is one of the most powerful evil deities in Faerûn, and his tempest clerics can call down devastating weather.",
+    description: "Talos is the god of storms and destruction: raw elemental fury given divine form. He is worshipped out of fear, and his clergy rejoice in natural disasters and acts of wanton destruction. Sailors dread his name above all others. He is one of the most powerful evil deities in Faerûn, and his tempest clerics can call down devastating weather.",
     tags: ["evil", "storms", "destruction", "tempest", "chaos"],
   },
   {
@@ -282,7 +282,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A wave curling left and right",
     domains: ["Tempest"],
     portfolio: "Oceans, currents, underwater hazards, sea winds",
-    description: "Umberlee rules the seas with caprice and cruelty. Every sailor leaves an offering at her temples before sailing — not out of love, but desperation. She demands tribute for safe passage and takes what she will when denied. Her priests are feared and despised, yet their blessing is indispensable to seafarers.",
+    description: "Umberlee rules the seas with caprice and cruelty. Every sailor leaves an offering at her temples before sailing, not out of love, but desperation. She demands tribute for safe passage and takes what she will when denied. Her priests are feared and despised, yet their blessing is indispensable to seafarers.",
     tags: ["evil", "sea", "ocean", "sailors", "chaos"],
   },
   {
@@ -293,7 +293,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A cloud with three lightning bolts",
     domains: ["Tempest", "War"],
     portfolio: "Sailors, ships, favorable winds, naval combat",
-    description: "Valkur is the courageous sea god — the antithesis of Umberlee. Where she brings death and capricious storms, he brings courage and favorable winds. Sailors worship him as the protector who will guide them home. He is said to personally captain a great warship through the planes and will sometimes fight Umberlee directly to protect a worthy crew.",
+    description: "Valkur is the courageous sea god, the antithesis of Umberlee. Where she brings death and capricious storms, he brings courage and favorable winds. Sailors worship him as the protector who will guide them home. He is said to personally captain a great warship through the planes and will sometimes fight Umberlee directly to protect a worthy crew.",
     tags: ["good", "sailors", "sea", "courage", "ships"],
   },
   {
@@ -304,7 +304,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A sheaf of grain or a blooming rose over grain",
     domains: ["Life", "Nature"],
     portfolio: "Agriculture, plants, farmers, gardeners, summer",
-    description: "Chauntea is the embodiment of the living earth — the soil, the harvest, and the seasons of growth. She tends to the world as a loving mother and nurses civilisations through droughts and blights. She is among the oldest deities in Faerûn, and her bond with Lathander ensures that every dawn brings new hope for crops and communities.",
+    description: "Chauntea is the embodiment of the living earth: the soil, the harvest, and the seasons of growth. She tends to the world as a loving mother and nurses civilisations through droughts and blights. She is among the oldest deities in Faerûn, and her bond with Lathander ensures that every dawn brings new hope for crops and communities.",
     tags: ["good", "nature", "agriculture", "harvest", "earth"],
   },
   {
@@ -315,7 +315,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A waterfall plunging into still water",
     domains: ["Life", "Nature"],
     portfolio: "Quiet places, springs, pools, peace, waterfalls",
-    description: "Eldath is the goddess of peace and still water. Her sacred places are hidden pools, misty waterfalls, and silent forest springs. She hates violence and her clergy are pacifists and healers. Her greatest gift is sanctuary — any place she claims as sacred must be free of conflict. Even those fleeing terrible enemies are sometimes protected by her benediction.",
+    description: "Eldath is the goddess of peace and still water. Her sacred places are hidden pools, misty waterfalls, and silent forest springs. She hates violence and her clergy are pacifists and healers. Her greatest gift is sanctuary: any place she claims as sacred must be free of conflict. Even those fleeing terrible enemies are sometimes protected by her benediction.",
     tags: ["good", "peace", "nature", "water", "healing"],
   },
   {
@@ -326,7 +326,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "Three teardrop shapes arranged in a triangle",
     domains: ["Death"],
     portfolio: "Disease, poison, suffering",
-    description: "Talona is the goddess of plague and poison — despised even by most evil deities. She is deeply jealous of Loviatar and constantly competes with her for followers. Her clergy deliberately spread disease and leave poisoned offerings. She is worshipped by assassins who specialise in poison and by the desperate seeking to inflict suffering on their enemies.",
+    description: "Talona is the goddess of plague and poison, despised even by most evil deities. She is deeply jealous of Loviatar and constantly competes with her for followers. Her clergy deliberately spread disease and leave poisoned offerings. She is worshipped by assassins who specialise in poison and by the desperate seeking to inflict suffering on their enemies.",
     tags: ["evil", "disease", "poison", "chaos"],
   },
   {
@@ -337,7 +337,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A nine-tailed barbed scourge",
     domains: ["Death"],
     portfolio: "Pain, hurt, agony, torment, suffering, torture",
-    description: "Loviatar is the goddess of pain — cold, precise, and utterly without mercy. Unlike Talona, she is organised and methodical. Her clergy believe that pain purifies, and they willingly inflict and endure suffering as holy ritual. Slavers, torturers, and those who enjoy cruelty worship her. She is in perpetual conflict with Talona over which form of suffering is more sacred.",
+    description: "Loviatar is the goddess of pain: cold, precise, and utterly without mercy. Unlike Talona, she is organised and methodical. Her clergy believe that pain purifies, and they willingly inflict and endure suffering as holy ritual. Slavers, torturers, and those who enjoy cruelty worship her. She is in perpetual conflict with Talona over which form of suffering is more sacred.",
     tags: ["evil", "lawful", "pain", "torture", "suffering"],
   },
   {
@@ -348,7 +348,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A blank scroll",
     domains: ["Knowledge"],
     portfolio: "Knowledge, inspiration, invention, bards",
-    description: "Oghma is the god of knowledge in all its forms — written, oral, and inspired. Scholars, bards, and sages revere him equally. He is the patron of scribes and the custodian of the Infinite Staircase. He claims no side in divine conflicts, valuing the free flow of information above all else.",
+    description: "Oghma is the god of knowledge in all its forms: written, oral, and inspired. Scholars, bards, and sages revere him equally. He is the patron of scribes and the custodian of the Infinite Staircase. He claims no side in divine conflicts, valuing the free flow of information above all else.",
     tags: ["knowledge", "bards", "scholars", "neutral", "scribes"],
   },
   {
@@ -359,7 +359,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A lit candle above an open eye",
     domains: ["Arcana", "Knowledge"],
     portfolio: "Literature, literacy, art, cartography, scribes",
-    description: "Deneir is the god of letters and written knowledge — a lesser deity in service to Oghma. He protects libraries, blesses scribes, and guards sacred texts. His most notable act was merging with the Weave to protect magical writing during a crisis. He is beloved by cartographers, historians, and anyone who values the written word.",
+    description: "Deneir is the god of letters and written knowledge, a lesser deity in service to Oghma. He protects libraries, blesses scribes, and guards sacred texts. His most notable act was merging with the Weave to protect magical writing during a crisis. He is beloved by cartographers, historians, and anyone who values the written word.",
     tags: ["knowledge", "scribes", "literacy", "good", "art"],
   },
   {
@@ -414,7 +414,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A toothed cog with four spokes",
     domains: ["Forge", "Knowledge"],
     portfolio: "Artifice, craft, construction, smithwork",
-    description: "Gond is the god of invention and craft, beloved by engineers, artisans, and all who build things with their hands. His priests in Lantan and Baldur's Gate are famous for dangerous mechanical innovations. Some say the cannon and the printing press were both blessings — or curses — of Gond.",
+    description: "Gond is the god of invention and craft, beloved by engineers, artisans, and all who build things with their hands. His priests in Lantan and Baldur's Gate are famous for dangerous mechanical innovations. Some say the cannon and the printing press were both blessings, or curses, of Gond.",
     tags: ["neutral", "craft", "invention", "smithing", "artifice"],
   },
   {
@@ -438,7 +438,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A crescent moon",
     domains: ["Arcana", "Light"],
     portfolio: "Magic, music, arts, crafts, poetry, war-skill, the elves",
-    description: "Corellon Larethian is the progenitor of the elven race and lord of the Seldarine. His rivalry with the orc god Gruumsh is ancient — Corellon shot out Gruumsh's eye, sowing eternal hatred between elves and orcs. He also cast out Lolth and the drow after her betrayal. He embodies all that is beautiful and noble in the elven people: art, music, war-skill, and arcane mastery.",
+    description: "Corellon Larethian is the progenitor of the elven race and lord of the Seldarine. His rivalry with the orc god Gruumsh is ancient: Corellon shot out Gruumsh's eye, sowing eternal hatred between elves and orcs. He also cast out Lolth and the drow after her betrayal. He embodies all that is beautiful and noble in the elven people: art, music, war-skill, and arcane mastery.",
     tags: ["elves", "good", "magic", "art", "seldarine"],
   },
   {
@@ -449,7 +449,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A cloud with a bird silhouette",
     domains: ["Life", "Tempest"],
     portfolio: "Air, weather, birds, freedom, winds, avariel elves",
-    description: "Aerdrie Faenya is the elven goddess of air and weather, patron of the avariel (winged elves). She represents freedom in its most literal sense — the open sky above all constraints. She dislikes stagnation of any kind and favours elves who are capricious and unpredictable. She is associated with the auroras and sudden winds.",
+    description: "Aerdrie Faenya is the elven goddess of air and weather, patron of the avariel (winged elves). She represents freedom in its most literal sense, the open sky above all constraints. She dislikes stagnation of any kind and favours elves who are capricious and unpredictable. She is associated with the auroras and sudden winds.",
     tags: ["elves", "good", "air", "birds", "freedom"],
   },
   {
@@ -471,7 +471,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "An asymmetric eight-pointed star",
     domains: ["Trickery"],
     portfolio: "Mischief, change, rogue-craft, impersonation",
-    description: "Erevan is the elven trickster god — the divine patron of rogues, pranksters, and those who survive by their wits. He is never the same twice, constantly changing his appearance and allegiances. He can be counted on to appear at inconvenient moments and to make any situation more complicated. He has a complicated relationship with Fenmarel Mestarine, whom he once pranked badly enough to cause a permanent rift.",
+    description: "Erevan is the elven trickster god, the divine patron of rogues, pranksters, and those who survive by their wits. He is never the same twice, constantly changing his appearance and allegiances. He can be counted on to appear at inconvenient moments and to make any situation more complicated. He has a complicated relationship with Fenmarel Mestarine, whom he once pranked badly enough to cause a permanent rift.",
     tags: ["elves", "trickery", "rogues", "chaos", "mischief"],
   },
   {
@@ -482,7 +482,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "Two peering elven eyes in darkness",
     domains: ["Nature", "Trickery"],
     portfolio: "Feral elves, solitude, outcasts, scapegoats",
-    description: "Fenmarel is the god of outcast elves — those exiled from elven society and those who choose to live apart from it. He is sullen, antisocial, and deeply bitter, but fiercely protective of those elves who have been cast out. He communicates through wolves and is most active at the fringes of elven settlements, watching the dark.",
+    description: "Fenmarel is the god of outcast elves, those exiled from elven society and those who choose to live apart from it. He is sullen, antisocial, and deeply bitter, but fiercely protective of those elves who have been cast out. He communicates through wolves and is most active at the fringes of elven settlements, watching the dark.",
     tags: ["elves", "outcasts", "solitude", "wild", "wolves"],
   },
   {
@@ -538,7 +538,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A silver arrow with green fletching",
     domains: ["Nature", "War"],
     portfolio: "Archery, hunting, wilderness survival, stalking prey",
-    description: "Solonor Thelandira is the elven master of the bow and the hunt. His arrows never miss a target he truly intends to hit. He teaches patient, disciplined hunting and the ethical treatment of hunted prey — unlike Malar, who glorifies the kill. He watches over elven hunters and rangers and gifts those worthy of his regard with unnatural archery skill.",
+    description: "Solonor Thelandira is the elven master of the bow and the hunt. His arrows never miss a target he truly intends to hit. He teaches patient, disciplined hunting and the ethical treatment of hunted prey, unlike Malar, who glorifies the kill. He watches over elven hunters and rangers and gifts those worthy of his regard with unnatural archery skill.",
     tags: ["elves", "archery", "hunting", "rangers", "nature"],
   },
 
@@ -563,7 +563,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A sword-wielding female dancer outlined against a full moon",
     domains: ["Life", "Light"],
     portfolio: "Good drow, moonlight, beauty, song, dance, swordwork",
-    description: "Eilistraee is the only good-aligned drow deity — the goddess of drow who seek redemption and a return to the surface world. She teaches that the drow's exile was a punishment, not their destiny, and that they can reclaim the beauty and goodness of their elven heritage. Her followers are rare and persecuted by Lolth's clergy.",
+    description: "Eilistraee is the only good-aligned drow deity, the goddess of drow who seek redemption and a return to the surface world. She teaches that the drow's exile was a punishment, not their destiny, and that they can reclaim the beauty and goodness of their elven heritage. Her followers are rare and persecuted by Lolth's clergy.",
     tags: ["drow", "good", "moon", "dance", "redemption"],
   },
   {
@@ -574,7 +574,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A purple eye with a black iris",
     domains: ["Death", "Nature"],
     portfolio: "Oozes, slimes, jellies, outcasts, ropers, rebels",
-    description: "Ghaunadaur is an ancient, alien entity worshipped by the most depraved creatures of the Underdark. He is associated with primordial slimes and oozes — the oldest and most mindless of life forms. He accepts worship from any outcasts, regardless of race. Even Lolth fears him, as he predates her dominion over the Underdark.",
+    description: "Ghaunadaur is an ancient, alien entity worshipped by the most depraved creatures of the Underdark. He is associated with primordial slimes and oozes, the oldest and most mindless of life forms. He accepts worship from any outcasts, regardless of race. Even Lolth fears him, as he predates her dominion over the Underdark.",
     tags: ["evil", "underdark", "oozes", "chaotic", "alien"],
   },
   {
@@ -596,7 +596,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A spider on a crossed sword and mace",
     domains: ["War", "Trickery"],
     portfolio: "Warriors, slaughter, drow fighters, viciousness in battle",
-    description: "Selvetarm is a demi-god forced into service as Lolth's champion. He was once a god of good drow warriors before being enslaved through treachery by Lolth. Now he is the patron of drow male warriors and those who fight with twin weapons. He is barely contained — pure martial fury with little divine wisdom.",
+    description: "Selvetarm is a demi-god forced into service as Lolth's champion. He was once a god of good drow warriors before being enslaved through treachery by Lolth. Now he is the patron of drow male warriors and those who fight with twin weapons. He is barely contained: pure martial fury with little divine wisdom.",
     tags: ["drow", "evil", "warriors", "chaotic", "slaughter"],
   },
   {
@@ -607,7 +607,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A black mask",
     domains: ["Trickery", "War"],
     portfolio: "Thievery, dark ambition, male drow, territorial expansion",
-    description: "Vhaeraun is the patron of male drow who chafe under the matriarchal rule of Lolth. He promotes a vision of drow as conquerors of the surface world rather than cave-dwelling spiders. His followers conduct raids and heists against surface communities. He is in constant opposition to Lolth and — ironically — also to Eilistraee, whose peaceful vision he finds weak.",
+    description: "Vhaeraun is the patron of male drow who chafe under the matriarchal rule of Lolth. He promotes a vision of drow as conquerors of the surface world rather than cave-dwelling spiders. His followers conduct raids and heists against surface communities. He is in constant opposition to Lolth and, ironically, also to Eilistraee, whose peaceful vision he finds weak.",
     tags: ["drow", "evil", "male drow", "thieves", "surface"],
   },
 
@@ -620,7 +620,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A hammer and anvil",
     domains: ["Forge", "Knowledge"],
     portfolio: "Dwarves, creation, smithing, protection, metalwork, stonework",
-    description: "Moradin is the creator and father of the dwarven race — he forged the first dwarves from metals and gems and breathed life into them with divine breath. He is the ideal dwarf: strong, stubborn, dedicated to craft, and fiercely protective of his people. His priests maintain the great forges in dwarven holds.",
+    description: "Moradin is the creator and father of the dwarven race; he forged the first dwarves from metals and gems and breathed life into them with divine breath. He is the ideal dwarf: strong, stubborn, dedicated to craft, and fiercely protective of his people. His priests maintain the great forges in dwarven holds.",
     tags: ["dwarves", "good", "forge", "lawful", "creation"],
   },
   {
@@ -631,7 +631,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A jewelled dagger, point-down",
     domains: ["Trickery"],
     portfolio: "Greed, theft, treachery among dwarves",
-    description: "Abbathor is the only truly evil member of the dwarven pantheon — the dark face of dwarvish love of treasure taken too far. He tempts dwarves into treachery, theft, and avarice. His followers are dwarven thieves and treasure-hoarders who have turned a cultural virtue into a moral failing. Moradin despises him but cannot expel him from the pantheon.",
+    description: "Abbathor is the only truly evil member of the dwarven pantheon, the dark face of dwarvish love of treasure taken too far. He tempts dwarves into treachery, theft, and avarice. His followers are dwarven thieves and treasure-hoarders who have turned a cultural virtue into a moral failing. Moradin despises him but cannot expel him from the pantheon.",
     tags: ["dwarves", "evil", "greed", "thieves", "treachery"],
   },
   {
@@ -642,7 +642,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "Two interlocked silver rings",
     domains: ["Life", "Order"],
     portfolio: "Home, hearth, truth, honesty, loyalty, marriage, family",
-    description: "Berronar Truesilver is the consort of Moradin and the matron of dwarven homes and families. She embodies the domestic virtues — loyalty, truth-telling, and the keeping of oaths — that make dwarven society function. Her clergy officiate dwarven marriages and oversee the raising of young dwarves. She is the dwarven goddess of healing and sanctuary.",
+    description: "Berronar Truesilver is the consort of Moradin and the matron of dwarven homes and families. She embodies the domestic virtues (loyalty, truth-telling, and the keeping of oaths) that make dwarven society function. Her clergy officiate dwarven marriages and oversee the raising of young dwarves. She is the dwarven goddess of healing and sanctuary.",
     tags: ["dwarves", "good", "lawful", "hearth", "family"],
   },
   {
@@ -653,7 +653,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "Two crossed axes",
     domains: ["War", "Order"],
     portfolio: "Battle, war, valor, bravery, honour in combat",
-    description: "Clangeddin Silverbeard is the dwarven god of battle — the warrior aspect of the pantheon. He is Moradin's most trusted general and the god dwarven warriors invoke before battle. He values courage over strategy and expects warriors to throw themselves into combat with joyful ferocity. His clerics are front-line fighters who lead by example.",
+    description: "Clangeddin Silverbeard is the dwarven god of battle, the warrior aspect of the pantheon. He is Moradin's most trusted general and the god dwarven warriors invoke before battle. He values courage over strategy and expects warriors to throw themselves into combat with joyful ferocity. His clerics are front-line fighters who lead by example.",
     tags: ["dwarves", "good", "lawful", "war", "battle"],
   },
   {
@@ -664,7 +664,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "An open book with a rune",
     domains: ["Forge", "Knowledge"],
     portfolio: "Scholarship, invention, discovery, tinkering, free thinking",
-    description: "Dugmaren is the most eccentric of the dwarven gods — a tinkerer and scholar who values the thrill of discovery above practical application. His followers chase theories for the sake of understanding them, which puts them at odds with more practical dwarves. He is the patron of innovative engineers and curious young dwarves who look to the surface world with interest.",
+    description: "Dugmaren is the most eccentric of the dwarven gods, a tinkerer and scholar who values the thrill of discovery above practical application. His followers chase theories for the sake of understanding them, which puts them at odds with more practical dwarves. He is the patron of innovative engineers and curious young dwarves who look to the surface world with interest.",
     tags: ["dwarves", "good", "invention", "knowledge", "tinkering"],
   },
   {
@@ -675,7 +675,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A mountain with a gemstone at its heart",
     domains: ["Death", "Knowledge"],
     portfolio: "Mining, underground exploration, geology, gems, the dead dwarves",
-    description: "Dumathoin guards the secrets of the deep places — the ore in the rock, the knowledge buried with the dead. He is the patron of miners and the custodian of dwarven souls after death. He is silent and cryptic, communicating through the natural features of stone and ore. Finding an unusually rich vein is a sign of his favour.",
+    description: "Dumathoin guards the secrets of the deep places: the ore in the rock, the knowledge buried with the dead. He is the patron of miners and the custodian of dwarven souls after death. He is silent and cryptic, communicating through the natural features of stone and ore. Finding an unusually rich vein is a sign of his favour.",
     tags: ["dwarves", "neutral", "mining", "secrets", "underground"],
   },
   {
@@ -686,7 +686,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A bronze mask with eyes of fire",
     domains: ["War", "Order"],
     portfolio: "Guardian, protection, vigilance, watchfulness",
-    description: "Gorm Gulthyn is the dwarven watcher — the god of vigilant defence. He is the sentinel who never sleeps, patron of the watchmen on the walls of dwarven holds. He died fighting the demon Orcus and was elevated to divine status for his selfless sacrifice. His followers maintain constant watch and consider sleep an act of negligence.",
+    description: "Gorm Gulthyn is the dwarven watcher, the god of vigilant defence. He is the sentinel who never sleeps, patron of the watchmen on the walls of dwarven holds. He died fighting the demon Orcus and was elevated to divine status for his selfless sacrifice. His followers maintain constant watch and consider sleep an act of negligence.",
     tags: ["dwarves", "good", "lawful", "protection", "vigilance"],
   },
   {
@@ -697,7 +697,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "An upright sword entwined with two spirals of flame",
     domains: ["Life", "War"],
     portfolio: "Luck in battle, joy of battle, female dwarven warriors",
-    description: "Haela Brightaxe is the goddess of dwarven battle-luck — the unpredictable element that turns a losing fight into a victory. She is one of the few dwarven deities associated with chaos (of the good variety), laughing through battle with weapons swinging. She is particularly beloved by female dwarven warriors.",
+    description: "Haela Brightaxe is the goddess of dwarven battle-luck, the unpredictable element that turns a losing fight into a victory. She is one of the few dwarven deities associated with chaos (of the good variety), laughing through battle with weapons swinging. She is particularly beloved by female dwarven warriors.",
     tags: ["dwarves", "good", "luck", "battle", "warriors"],
   },
   {
@@ -708,7 +708,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "An upright mace in front of a fur-lined boot",
     domains: ["Nature", "Trickery"],
     portfolio: "Travel, wanderers, expatriate dwarves, lightning",
-    description: "Marthammor Duin is the most unusual of the dwarven deities — he values travel and the open road, which makes him something of an oddity in a culture that values staying put. He is the patron of dwarves who venture into the wider world and those who have been separated from their holds. His symbol, the boot and mace, represents both the journey and the readiness to fight on the road.",
+    description: "Marthammor Duin is the most unusual of the dwarven deities; he values travel and the open road, which makes him something of an oddity in a culture that values staying put. He is the patron of dwarves who venture into the wider world and those who have been separated from their holds. His symbol, the boot and mace, represents both the journey and the readiness to fight on the road.",
     tags: ["dwarves", "good", "travel", "wanderers", "lightning"],
   },
   {
@@ -719,7 +719,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A burning needle",
     domains: ["Life", "Nature"],
     portfolio: "Healing, mercy, romantic love, fertility, renewal",
-    description: "Sharindlar is the dwarven goddess of healing and love — the gentlest of the dwarven pantheon. She is the patron of healers and of dwarven marriages entered into for love rather than clan politics. Her aspect of fertility makes her important to communities concerned with dwarven population growth. She is warmly regarded by other healers across Faerûn.",
+    description: "Sharindlar is the dwarven goddess of healing and love, the gentlest of the dwarven pantheon. She is the patron of healers and of dwarven marriages entered into for love rather than clan politics. Her aspect of fertility makes her important to communities concerned with dwarven population growth. She is warmly regarded by other healers across Faerûn.",
     tags: ["dwarves", "good", "healing", "love", "fertility"],
   },
   {
@@ -730,7 +730,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A gold coin with a dwarven face",
     domains: ["Trickery", "Knowledge"],
     portfolio: "Wealth, luck, chance, negotiation, dwarven merchants",
-    description: "Vergadain is the dwarven god of trade and wealth — the merchant face of a culture that loves gold. He is neutral rather than lawful, favouring shrewdness and profitable deals over strict honesty. He is also the patron of gambling and lucky chance. His followers are traders, merchants, and those dwarves who have more ambition than Abbathor but more honour than thieves.",
+    description: "Vergadain is the dwarven god of trade and wealth, the merchant face of a culture that loves gold. He is neutral rather than lawful, favouring shrewdness and profitable deals over strict honesty. He is also the patron of gambling and lucky chance. His followers are traders, merchants, and those dwarves who have more ambition than Abbathor but more honour than thieves.",
     tags: ["dwarves", "neutral", "trade", "luck", "merchants"],
   },
 
@@ -779,7 +779,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "An unwinking eye",
     domains: ["Tempest", "War"],
     portfolio: "Orcs, conquest, strength, survival, territory",
-    description: "Gruumsh is the patron god of orcs — one-eyed because Corellon or Sehanine Moonbow shot out his eye. He views the world as something to be conquered and consumed, driving orcs to raid and pillage constantly. His priests are fearsome war-shamans who lead the largest orc war bands.",
+    description: "Gruumsh is the patron god of orcs, one-eyed because Corellon or Sehanine Moonbow shot out his eye. He views the world as something to be conquered and consumed, driving orcs to raid and pillage constantly. His priests are fearsome war-shamans who lead the largest orc war bands.",
     tags: ["orcs", "evil", "war", "chaos", "conquest"],
   },
   {
@@ -790,7 +790,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A broken femur bone",
     domains: ["War"],
     portfolio: "Strength, loyalty to Gruumsh, physical power",
-    description: "Bahgtru is Gruumsh's son — powerful but dim-witted, the embodiment of brute strength over cunning. He is loyal to his father without question. Orc warriors worship him for his unstoppable physical power. He is the patron of those orcs who charge into battle without a plan, relying on muscle and momentum to carry the day.",
+    description: "Bahgtru is Gruumsh's son: powerful but dim-witted, the embodiment of brute strength over cunning. He is loyal to his father without question. Orc warriors worship him for his unstoppable physical power. He is the patron of those orcs who charge into battle without a plan, relying on muscle and momentum to carry the day.",
     tags: ["orcs", "evil", "strength", "loyalty", "brute force"],
   },
   {
@@ -801,7 +801,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A blood-dipped sword",
     domains: ["War", "Order"],
     portfolio: "War strategy, tactics, commanding orc armies",
-    description: "Ilneval is the strategist of the orc pantheon — unusually lawful for an orc deity, which means his followers plan their raids and campaigns rather than simply charging forward. He is Gruumsh's general and is worshipped by orc warlords who want to win rather than just fight. Orc tribes that follow Ilneval are significantly more dangerous than average.",
+    description: "Ilneval is the strategist of the orc pantheon, unusually lawful for an orc deity, which means his followers plan their raids and campaigns rather than simply charging forward. He is Gruumsh's general and is worshipped by orc warlords who want to win rather than just fight. Orc tribes that follow Ilneval are significantly more dangerous than average.",
     tags: ["orcs", "evil", "lawful", "war", "tactics"],
   },
   {
@@ -812,7 +812,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "An orcish rune of four lines",
     domains: ["Life", "Nature"],
     portfolio: "Orc females, fertility, caves, healing, family",
-    description: "Luthic is the consort of Gruumsh and the mother of the orc race. She is the most domestically-focused of the orc deities — governing birth, healing, and the stronghold caves where orc families live. Female orcs worship her almost exclusively. While evil, she is more pragmatic than cruel, caring about the survival of orc communities rather than conquest.",
+    description: "Luthic is the consort of Gruumsh and the mother of the orc race. She is the most domestically-focused of the orc deities, governing birth, healing, and the stronghold caves where orc families live. Female orcs worship her almost exclusively. While evil, she is more pragmatic than cruel, caring about the survival of orc communities rather than conquest.",
     tags: ["orcs", "evil", "healing", "fertility", "caves"],
   },
   {
@@ -823,7 +823,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A red crescent moon with a skull",
     domains: ["Death", "Trickery"],
     portfolio: "Darkness, night, thieves, stealth, rats",
-    description: "Shargaas is the orc deity of darkness and stealth — profoundly unusual in a culture that glorifies open combat. He is worshipped by orc rogues, night-raiders, and assassins. The other orc deities treat him with suspicion; Gruumsh himself considers stealth cowardly. This makes Shargaas's followers the outcasts of orc society.",
+    description: "Shargaas is the orc deity of darkness and stealth, profoundly unusual in a culture that glorifies open combat. He is worshipped by orc rogues, night-raiders, and assassins. The other orc deities treat him with suspicion; Gruumsh himself considers stealth cowardly. This makes Shargaas's followers the outcasts of orc society.",
     tags: ["orcs", "evil", "darkness", "thieves", "night"],
   },
   {
@@ -834,7 +834,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A white hand, palm outward",
     domains: ["Death"],
     portfolio: "Death, disease, plague, the orc dead",
-    description: "Yurtrus is the orc god of death and disease. He is the most feared of the orc deities — regarded with revulsion even by orcs. His priests are shunned by other orcs and serve only to inter the dead and treat the diseased. He never speaks; his will is communicated through plague and pestilence. Even Gruumsh avoids him.",
+    description: "Yurtrus is the orc god of death and disease. He is the most feared of the orc deities, regarded with revulsion even by orcs. His priests are shunned by other orcs and serve only to inter the dead and treat the diseased. He never speaks; his will is communicated through plague and pestilence. Even Gruumsh avoids him.",
     tags: ["orcs", "evil", "death", "disease", "plague"],
   },
 
@@ -848,7 +848,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A multi-coloured metallic disk",
     domains: ["Knowledge", "Life"],
     portfolio: "All dragonkind, creation, the cycle of life and death",
-    description: "Io is the primordial dragon-god who created all dragonkind at the beginning of time. He contains within himself the nature of all dragons. He was struck down by the primordial Erek-Hus at the dawn of the world, and from his remains were born Bahamut and Tiamat — his two aspects splitting into separate beings. He is the source of all draconic power.",
+    description: "Io is the primordial dragon-god who created all dragonkind at the beginning of time. He contains within himself the nature of all dragons. He was struck down by the primordial Erek-Hus at the dawn of the world, and from his remains were born Bahamut and Tiamat, his two aspects splitting into separate beings. He is the source of all draconic power.",
     tags: ["dragons", "neutral", "primordial", "creation"],
   },
   {
@@ -859,7 +859,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A dragon's head in profile facing left",
     domains: ["Life", "War"],
     portfolio: "Good dragons, wind, wisdom, enlightened justice",
-    description: "Bahamut is the deity of metallic dragons and just causes. He opposes Tiamat in all things. He wanders Faerûn in mortal guise — often as an old human man accompanied by seven polymorphed gold dragons — testing those who would champion justice. Paladins of Bahamut are among the most uncompromising servants of law and good.",
+    description: "Bahamut is the deity of metallic dragons and just causes. He opposes Tiamat in all things. He wanders Faerûn in mortal guise, often as an old human man accompanied by seven polymorphed gold dragons, testing those who would champion justice. Paladins of Bahamut are among the most uncompromising servants of law and good.",
     tags: ["dragons", "good", "lawful", "justice", "metallic dragons"],
   },
   {
@@ -870,7 +870,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A five-pointed star of five different colours, with a dragon face in the centre",
     domains: ["Death", "Trickery"],
     portfolio: "Evil dragons, greed, chthonic power",
-    description: "Tiamat is the five-headed goddess of chromatic dragons, imprisoned in Avernus by Asmodeus. Each of her five heads represents a type of chromatic dragon — red, blue, green, black, and white. The Cult of the Dragon seeks her release and her dominion over all Faerûn. She is eternally opposed to Bahamut.",
+    description: "Tiamat is the five-headed goddess of chromatic dragons, imprisoned in Avernus by Asmodeus. Each of her five heads represents a type of chromatic dragon: red, blue, green, black, and white. The Cult of the Dragon seeks her release and her dominion over all Faerûn. She is eternally opposed to Bahamut.",
     tags: ["dragons", "evil", "greed", "chromatic dragons", "avernus"],
   },
   {
@@ -881,7 +881,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A grinning dragon mask",
     domains: ["Trickery", "Knowledge"],
     portfolio: "Learning, invention, pleasure, acquisition",
-    description: "Aasterinian is a servant of Io who delights in curiosity and chaos. She is the trickster and inventor of the draconic pantheon — always experimenting, always learning, always causing mild havoc. She acts as Io's messenger and is one of the few draconic deities who interacts freely with non-draconic beings.",
+    description: "Aasterinian is a servant of Io who delights in curiosity and chaos. She is the trickster and inventor of the draconic pantheon, always experimenting, always learning, always causing mild havoc. She acts as Io's messenger and is one of the few draconic deities who interacts freely with non-draconic beings.",
     tags: ["dragons", "chaotic", "trickery", "invention", "learning"],
   },
   {
@@ -892,7 +892,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A closed eye",
     domains: ["Death", "Knowledge"],
     portfolio: "Death and fate of dragons, the passage of time",
-    description: "Chronepsis is the silent dragon-god of death — not violent death, but the natural end of a dragon's long life. He watches without judgement and does not intervene in mortal affairs. When a dragon's time comes, Chronepsis comes for its soul. He is accompanied by a great hourglass and speaks only in the rarest circumstances.",
+    description: "Chronepsis is the silent dragon-god of death: not violent death, but the natural end of a dragon's long life. He watches without judgement and does not intervene in mortal affairs. When a dragon's time comes, Chronepsis comes for its soul. He is accompanied by a great hourglass and speaks only in the rarest circumstances.",
     tags: ["dragons", "neutral", "death", "fate", "time"],
   },
   {
@@ -903,7 +903,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A dragon head breathing fire",
     domains: ["Tempest", "War"],
     portfolio: "Fire, destruction, renewal through fire, red dragons",
-    description: "Garyx is the god of draconic destruction — specifically fire and the cleansing annihilation of old things to make way for new ones. He is worshipped by red dragons who see their destructive nature as holy. He is barely comprehensible even to other draconic deities, caring only for fire and the purifying chaos of total destruction.",
+    description: "Garyx is the god of draconic destruction, specifically fire and the cleansing annihilation of old things to make way for new ones. He is worshipped by red dragons who see their destructive nature as holy. He is barely comprehensible even to other draconic deities, caring only for fire and the purifying chaos of total destruction.",
     tags: ["dragons", "evil", "fire", "destruction", "chaos"],
   },
   {
@@ -914,7 +914,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A laughing dragon face",
     domains: ["Trickery", "Life"],
     portfolio: "Humor, tricks, pleasure, relaxation, stories",
-    description: "Hlal is the copper-dragon deity of humour — the jester of the draconic pantheon. She believes that laughter and stories are more powerful than violence and that a well-timed joke can accomplish what a battle cannot. She is popular with copper dragons and any dragon who delights in interaction with other races.",
+    description: "Hlal is the copper-dragon deity of humour, the jester of the draconic pantheon. She believes that laughter and stories are more powerful than violence and that a well-timed joke can accomplish what a battle cannot. She is popular with copper dragons and any dragon who delights in interaction with other races.",
     tags: ["dragons", "good", "trickery", "humor", "copper dragons"],
   },
 
@@ -927,7 +927,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A cornucopia on a shield",
     domains: ["Life", "Order"],
     portfolio: "Halflings, protection, fertility, the golden way, family",
-    description: "Yondalla is the creator and protector of the halfling race. She watches over every halfling from birth to death, and her clergy are among the most community-focused in Faerûn. She promotes the 'golden way' — a life of comfort, community, and quiet happiness. She brooks no evil and protects halflings from those who would harm them.",
+    description: "Yondalla is the creator and protector of the halfling race. She watches over every halfling from birth to death, and her clergy are among the most community-focused in Faerûn. She promotes the 'golden way': a life of comfort, community, and quiet happiness. She brooks no evil and protects halflings from those who would harm them.",
     tags: ["halflings", "good", "lawful", "protection", "family"],
   },
   {
@@ -938,7 +938,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "Two short swords crossed",
     domains: ["War", "Order"],
     portfolio: "Defense, watchfulness, halfling warriors, territory",
-    description: "Arvoreen is the halfling god of defence — not aggression, but the fierce protection of home and kin. He teaches that halflings, though small, are fully capable of defending themselves and their communities with skill and courage. His clerics train halfling militia and ensure that every shire has capable defenders.",
+    description: "Arvoreen is the halfling god of defence: not aggression, but the fierce protection of home and kin. He teaches that halflings, though small, are fully capable of defending themselves and their communities with skill and courage. His clerics train halfling militia and ensure that every shire has capable defenders.",
     tags: ["halflings", "good", "lawful", "defense", "warriors"],
   },
   {
@@ -949,7 +949,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A halfling footprint",
     domains: ["Trickery"],
     portfolio: "Stealth, thievery, adventuring, halfling rogues",
-    description: "Brandobaris is the halfling rogue-god — the divine embodiment of curiosity, nimble fingers, and getting into and out of trouble. He is mischievous but not cruel, stealing for the thrill rather than malice. His followers are halfling adventurers and rogues who see life as one big adventure. He is admired even by halflings who would never steal.",
+    description: "Brandobaris is the halfling rogue-god, the divine embodiment of curiosity, nimble fingers, and getting into and out of trouble. He is mischievous but not cruel, stealing for the thrill rather than malice. His followers are halfling adventurers and rogues who see life as one big adventure. He is admired even by halflings who would never steal.",
     tags: ["halflings", "neutral", "rogues", "stealth", "adventure"],
   },
   {
@@ -960,7 +960,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "An open door",
     domains: ["Life", "Order"],
     portfolio: "Hearth, home, hospitality, trust, friendship",
-    description: "Cyrrollalee is the goddess of halfling homes and hospitality. She teaches that betrayal of trust is the worst crime a halfling can commit, and her followers take hosting duties extremely seriously. Breaking bread under her blessing is a sacred act. She is sometimes called the goddess of locks — not to keep others out, but to ensure guests feel safe inside.",
+    description: "Cyrrollalee is the goddess of halfling homes and hospitality. She teaches that betrayal of trust is the worst crime a halfling can commit, and her followers take hosting duties extremely seriously. Breaking bread under her blessing is a sacred act. She is sometimes called the goddess of locks: not to keep others out, but to ensure guests feel safe inside.",
     tags: ["halflings", "good", "lawful", "home", "hospitality"],
   },
   {
@@ -971,7 +971,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A flower",
     domains: ["Nature", "Tempest"],
     portfolio: "Nature, agriculture, weather, song, dance",
-    description: "Sheela Peryroyl is the halfling nature goddess — the deity of halflings who live close to the land and understand the cycles of planting and harvest. She is associated with music and dance as expressions of the joy of natural life. She watches over halfling farmers and those who maintain the pastoral communities that are the backbone of halfling culture.",
+    description: "Sheela Peryroyl is the halfling nature goddess, the deity of halflings who live close to the land and understand the cycles of planting and harvest. She is associated with music and dance as expressions of the joy of natural life. She watches over halfling farmers and those who maintain the pastoral communities that are the backbone of halfling culture.",
     tags: ["halflings", "good", "nature", "farming", "dance"],
   },
   {
@@ -982,7 +982,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A silhouette of a dog's head",
     domains: ["Death", "Grave"],
     portfolio: "Earth, death, protection of the dead halflings",
-    description: "Urogalan is the halfling death deity — solemn, patient, and ultimately kind. He guides halfling souls to their afterlife and ensures they are treated with the dignity they deserve. He is associated with the earth that halflings are buried in. His clergy are funerary priests who ensure every halfling receives proper rites and that the dead are not disturbed.",
+    description: "Urogalan is the halfling death deity: solemn, patient, and ultimately kind. He guides halfling souls to their afterlife and ensures they are treated with the dignity they deserve. He is associated with the earth that halflings are buried in. His clergy are funerary priests who ensure every halfling receives proper rites and that the dead are not disturbed.",
     tags: ["halflings", "neutral", "lawful", "death", "earth"],
   },
 
@@ -995,7 +995,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A golden nugget",
     domains: ["Forge", "Trickery"],
     portfolio: "Gnomes, trickery, protection, gemcutting, humor",
-    description: "Garl Glittergold is the patron deity of gnomes — a god of cleverness, wit, and the kind of trickery that teaches rather than harms. His most famous act was collapsing a mountain on the giant Kurtulmak, trapping the first kobolds. He is warm and sociable, and his temples are full of laughter and the smell of fine metalwork.",
+    description: "Garl Glittergold is the patron deity of gnomes, a god of cleverness, wit, and the kind of trickery that teaches rather than harms. His most famous act was collapsing a mountain on the giant Kurtulmak, trapping the first kobolds. He is warm and sociable, and his temples are full of laughter and the smell of fine metalwork.",
     tags: ["gnomes", "good", "lawful", "trickery", "gemcutting"],
   },
   {
@@ -1017,7 +1017,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A golden star with six points",
     domains: ["Knowledge", "Nature"],
     portfolio: "Stone, mining, deep gnomes (svirfneblin), the Underdark",
-    description: "Callarduran Smoothhands is the patron of the deep gnomes — the svirfneblin who dwell in the Underdark. He is associated with stone and the secrets of the deep earth. His smooth hands are said to allow him to work stone with no tool. He watches over those gnomes who have adapted to the underground, protecting them from the drow and other Underdark threats.",
+    description: "Callarduran Smoothhands is the patron of the deep gnomes, the svirfneblin who dwell in the Underdark. He is associated with stone and the secrets of the deep earth. His smooth hands are said to allow him to work stone with no tool. He watches over those gnomes who have adapted to the underground, protecting them from the drow and other Underdark threats.",
     tags: ["gnomes", "neutral", "deep gnomes", "mining", "underdark"],
   },
   {
@@ -1028,7 +1028,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A flaming hammer",
     domains: ["Forge", "Knowledge"],
     portfolio: "Metalwork, smithing, alchemy, mining, fire",
-    description: "Flandal Steelskin is the gnomish god of metalwork — the divine smith who taught gnomes to craft the fine metalwork they are famous for. He is said to have been burned by a dragon and emerged with skin of steel. His temples double as smithies, and his priests are the finest gnomish craftspeople.",
+    description: "Flandal Steelskin is the gnomish god of metalwork, the divine smith who taught gnomes to craft the fine metalwork they are famous for. He is said to have been burned by a dragon and emerged with skin of steel. His temples double as smithies, and his priests are the finest gnomish craftspeople.",
     tags: ["gnomes", "good", "smithing", "metalwork", "alchemy"],
   },
   {
@@ -1039,7 +1039,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A bellows and a lizard tail",
     domains: ["Forge", "Trickery"],
     portfolio: "Invention, luck, accidents, change, gnomish engineering",
-    description: "Nebelun is the gnomish god of luck and happy accidents. He is the patron of mad inventors — those whose experiments almost work perfectly, producing something entirely different but often useful. His followers celebrate failure as much as success. He is associated with the unexpected and with the wonderful chaos of a gnomish workshop operating at full capacity.",
+    description: "Nebelun is the gnomish god of luck and happy accidents. He is the patron of mad inventors, those whose experiments almost work perfectly, producing something entirely different but often useful. His followers celebrate failure as much as success. He is associated with the unexpected and with the wonderful chaos of a gnomish workshop operating at full capacity.",
     tags: ["gnomes", "good", "chaotic", "invention", "luck"],
   },
   {
@@ -1050,7 +1050,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A glowing gemstone",
     domains: ["Light", "Nature"],
     portfolio: "Earth, nature, burrowing animals, the gnome dead",
-    description: "Segojan Earthcaller is the gnomish deity of the earth and the natural world — more elemental than Baervan, connected to the soil beneath the burrow rather than the forest above. He is the patron of gnomish druids and those who speak with burrowing animals. He also tends to gnomish souls after death.",
+    description: "Segojan Earthcaller is the gnomish deity of the earth and the natural world, more elemental than Baervan, connected to the soil beneath the burrow rather than the forest above. He is the patron of gnomish druids and those who speak with burrowing animals. He also tends to gnomish souls after death.",
     tags: ["gnomes", "good", "earth", "nature", "animals"],
   },
   {
@@ -1061,7 +1061,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A white clawed mole",
     domains: ["Death", "War"],
     portfolio: "Greed, bloodlust, murder, gnomish corruption",
-    description: "Urdlen is the dark face of the gnomish pantheon — a mindless, evil entity that represents everything gnomes are supposed to transcend. He appears as a great blind mole and burrows through the planes looking for things to destroy. Garl Glittergold is his eternal enemy. Gnomes who fall to greed, murder, or madness are said to have been claimed by Urdlen.",
+    description: "Urdlen is the dark face of the gnomish pantheon, a mindless, evil entity that represents everything gnomes are supposed to transcend. He appears as a great blind mole and burrows through the planes looking for things to destroy. Garl Glittergold is his eternal enemy. Gnomes who fall to greed, murder, or madness are said to have been claimed by Urdlen.",
     tags: ["gnomes", "evil", "chaotic", "corruption", "greed"],
   },
 
@@ -1085,7 +1085,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A sword wreathed in flame against a red sun",
     domains: ["War"],
     portfolio: "War, conquest, the Blood War, the corruption of paladins",
-    description: "Zariel was once a solar angel sent to observe the Blood War, who fell from grace and descended into Hell driven by martial obsession. Now she rules Avernus — the first layer and frontline of the Blood War — as a fearsome warlord. Her greatest desire is to corrupt righteous champions, turning paladins into her warriors.",
+    description: "Zariel was once a solar angel sent to observe the Blood War, who fell from grace and descended into Hell driven by martial obsession. Now she rules Avernus, the first layer and frontline of the Blood War, as a fearsome warlord. Her greatest desire is to corrupt righteous champions, turning paladins into her warriors.",
     tags: ["devils", "evil", "lawful", "avernus", "archdevil", "fallen angel", "war"],
   },
   {
@@ -1096,7 +1096,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "An iron scepter crowned with a pentagram",
     domains: ["Trickery"],
     portfolio: "Cities, secrets, surveillance, imprisonment, iron",
-    description: "Dispater rules Dis — the great iron city of the second layer — from an impregnable iron tower. Paranoid and cunning, he is the master of espionage and political manipulation. Unlike most archdevils, he rarely leaves his tower, preferring to surveil his domain through magical means. His cultists are urban manipulators, blackmailers, and iron-fisted rulers.",
+    description: "Dispater rules Dis, the great iron city of the second layer, from an impregnable iron tower. Paranoid and cunning, he is the master of espionage and political manipulation. Unlike most archdevils, he rarely leaves his tower, preferring to surveil his domain through magical means. His cultists are urban manipulators, blackmailers, and iron-fisted rulers.",
     tags: ["devils", "evil", "lawful", "dis", "archdevil", "cities"],
   },
   {
@@ -1118,7 +1118,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A four-pointed crown of black iron wreathed in flame",
     domains: ["Trickery", "Order"],
     portfolio: "Corruption, manipulation, temptation, the corruption of the virtuous",
-    description: "Belial co-rules Phlegethos with his daughter Fierna — he is the mind and she is the face. A cold, calculating manipulator, Belial specialises in corrupting the righteous: seducing paladins, bribing priests, and turning idealists into instruments of Hell. He nominally defers to Fierna in public appearances while pulling every string from behind closed doors. His relationship with Asmodeus is one of mutual wariness.",
+    description: "Belial co-rules Phlegethos with his daughter Fierna; he is the mind and she is the face. A cold, calculating manipulator, Belial specialises in corrupting the righteous: seducing paladins, bribing priests, and turning idealists into instruments of Hell. He nominally defers to Fierna in public appearances while pulling every string from behind closed doors. His relationship with Asmodeus is one of mutual wariness.",
     tags: ["devils", "evil", "lawful", "phlegethos", "archdevil", "corruption", "temptation"],
   },
   {
@@ -1130,7 +1130,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A crown of crackling fire",
     domains: ["Trickery"],
     portfolio: "Seduction, passion, fire, manipulation, lust",
-    description: "Fierna co-rules the volcanic layer of Phlegethos with her father Belial. She is the public throne and he is the hidden hand — though whether she is truly his puppet or has her own agenda is a matter of infernal debate. Beautiful and devastatingly charismatic, she rules through personal magnetism and emotional manipulation. Her cultists are seducers, temptresses, and those who use desire as a weapon.",
+    description: "Fierna co-rules the volcanic layer of Phlegethos with her father Belial. She is the public throne and he is the hidden hand, though whether she is truly his puppet or has her own agenda is a matter of infernal debate. Beautiful and devastatingly charismatic, she rules through personal magnetism and emotional manipulation. Her cultists are seducers, temptresses, and those who use desire as a weapon.",
     tags: ["devils", "evil", "phlegethos", "archdevil", "fire", "seduction"],
   },
   {
@@ -1141,7 +1141,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A shard of ice encasing a black sword",
     domains: ["Trickery", "Death"],
     portfolio: "Betrayal, intrigue, revenge, the frozen, warlocks",
-    description: "Levistus rules Stygia from within a glacier of Asmodeus's making, frozen solid as punishment for an ancient betrayal — yet he still commands legions of ice devils through telepathy. Perhaps the greatest patron of warlocks among the archdevils, he offers pacts to mortals who feel wronged and seek vengeance. His power base is the resentful and the backstabbed.",
+    description: "Levistus rules Stygia from within a glacier of Asmodeus's making, frozen solid as punishment for an ancient betrayal, yet he still commands legions of ice devils through telepathy. Perhaps the greatest patron of warlocks among the archdevils, he offers pacts to mortals who feel wronged and seek vengeance. His power base is the resentful and the backstabbed.",
     tags: ["devils", "evil", "lawful", "stygia", "archdevil", "ice", "betrayal", "warlock"],
   },
   {
@@ -1163,7 +1163,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A great black fly",
     domains: ["Death", "Trickery"],
     portfolio: "Corruption, lies, filth, decay, bureaucratic rot",
-    description: "Baalzebul was once a celestial, but fell through pride and was further punished by Asmodeus who twisted him into a massive slug-like form. He rules Maladomini — a layer of ruined cities — and is a master of political corruption. His cultists seed decay in institutions, corrupt the virtuous through small compromises, and spread the lies that topple kingdoms.",
+    description: "Baalzebul was once a celestial, but fell through pride and was further punished by Asmodeus who twisted him into a massive slug-like form. He rules Maladomini, a layer of ruined cities, and is a master of political corruption. His cultists seed decay in institutions, corrupt the virtuous through small compromises, and spread the lies that topple kingdoms.",
     tags: ["devils", "evil", "lawful", "maladomini", "archdevil", "corruption", "fallen"],
   },
   {
@@ -1174,7 +1174,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A stylised flame of white and blue hellfire",
     domains: ["Knowledge", "Arcana"],
     portfolio: "Hellfire, arcane magic, ambition, scholarship, power",
-    description: "Mephistopheles rules the blizzard-wracked eighth layer of Cania and is the most intellectually sophisticated of the archdevils. He is obsessed with arcane magic — particularly hellfire — and believes he should rightfully sit on Asmodeus's throne. His cultists are ambitious wizards, scholars of forbidden arts, and those who pursue power at any price.",
+    description: "Mephistopheles rules the blizzard-wracked eighth layer of Cania and is the most intellectually sophisticated of the archdevils. He is obsessed with arcane magic, particularly hellfire, and believes he should rightfully sit on Asmodeus's throne. His cultists are ambitious wizards, scholars of forbidden arts, and those who pursue power at any price.",
     tags: ["devils", "evil", "lawful", "cania", "archdevil", "magic", "hellfire"],
   },
 
@@ -1187,7 +1187,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A forked tail curling around two baboon heads",
     domains: ["Death", "War"],
     portfolio: "Madness, power, domination, the sea's depths, the Abyss",
-    description: "Demogorgon is the self-proclaimed Prince of Demons, a towering two-headed monstrosity whose two minds — Aameul and Hethradiah — are in constant conflict. His two heads project waves of madness and despair. Despite the chaos of his nature, he holds sway over more demon lords than any other through sheer terror. His cultists seek to spread madness and claim power through destruction.",
+    description: "Demogorgon is the self-proclaimed Prince of Demons, a towering two-headed monstrosity whose two minds, Aameul and Hethradiah, are in constant conflict. His two heads project waves of madness and despair. Despite the chaos of his nature, he holds sway over more demon lords than any other through sheer terror. His cultists seek to spread madness and claim power through destruction.",
     tags: ["demons", "evil", "chaotic", "abyss", "demon lord", "madness"],
   },
   {
@@ -1199,7 +1199,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A goat-headed skull on an obsidian rod",
     domains: ["Death"],
     portfolio: "Undead, death, necromancy, darkness",
-    description: "Orcus is the Demon Lord of Undead, a bloated and winged abomination who wields the legendary Wand of Orcus — a skull-tipped rod capable of slaying any living thing. He despises the living and seeks to fill the multiverse with undead servants. His priests are necromancers and death cult leaders. He once briefly killed and replaced the god of the dead, styling himself Tenebrous.",
+    description: "Orcus is the Demon Lord of Undead, a bloated and winged abomination who wields the legendary Wand of Orcus, a skull-tipped rod capable of slaying any living thing. He despises the living and seeks to fill the multiverse with undead servants. His priests are necromancers and death cult leaders. He once briefly killed and replaced the god of the dead, styling himself Tenebrous.",
     tags: ["demons", "evil", "chaotic", "abyss", "demon lord", "undead", "necromancy"],
   },
   {
@@ -1221,7 +1221,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A triple flail dripping blood",
     domains: ["Death", "War"],
     portfolio: "Gnolls, slaughter, butchery, predation, famine",
-    description: "Yeenoghu is a towering gnoll-like demon who exists to hunt and kill. He is the creator and patron deity of gnolls — when he feasts on a slaughtered humanoid, gnolls are born from what he leaves behind. His cultists revel in slaughter for its own sake and serve as the shock troops of demonic incursions.",
+    description: "Yeenoghu is a towering gnoll-like demon who exists to hunt and kill. He is the creator and patron deity of gnolls: when he feasts on a slaughtered humanoid, gnolls are born from what he leaves behind. His cultists revel in slaughter for its own sake and serve as the shock troops of demonic incursions.",
     tags: ["demons", "evil", "chaotic", "abyss", "demon lord", "gnolls", "slaughter"],
   },
   {
@@ -1232,7 +1232,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A mushroom cap dripping with spores",
     domains: ["Nature", "Death"],
     portfolio: "Fungi, rot, spores, infestation, the slow corruption of the living",
-    description: "Zuggtmoy is a bizarre demon lord who resembles a mass of pulsating fungal matter. She does not seek conquest through war but through infection — her spores can enslave the minds of living creatures, turning them into mindless drones who tend her mycelial empire. She appeared in the Underdark beneath the Sword Coast during the demonic incursions known as the Rage of Demons.",
+    description: "Zuggtmoy is a bizarre demon lord who resembles a mass of pulsating fungal matter. She does not seek conquest through war but through infection; her spores can enslave the minds of living creatures, turning them into mindless drones who tend her mycelial empire. She appeared in the Underdark beneath the Sword Coast during the demonic incursions known as the Rage of Demons.",
     tags: ["demons", "evil", "chaotic", "abyss", "demon lord", "fungi", "underdark"],
   },
   {
@@ -1243,7 +1243,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A horned goat skull surrounded by a labyrinth pattern",
     domains: ["Nature", "War"],
     portfolio: "Minotaurs, beasts, savage hunting, labyrinths, the monstrous",
-    description: "Baphomet is the creator and patron of minotaurs, a vast demon lord who resembles a titanic minotaur. He embodies the predator — the savage, instinct-driven urge to hunt and dominate. His followers build labyrinths to honour him and conduct hunts within them. He and Yeenoghu are bitter rivals.",
+    description: "Baphomet is the creator and patron of minotaurs, a vast demon lord who resembles a titanic minotaur. He embodies the predator: the savage, instinct-driven urge to hunt and dominate. His followers build labyrinths to honour him and conduct hunts within them. He and Yeenoghu are bitter rivals.",
     tags: ["demons", "evil", "chaotic", "abyss", "demon lord", "minotaurs", "beasts"],
   },
   {
@@ -1254,7 +1254,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A fanged, grinning mask",
     domains: ["Trickery"],
     portfolio: "Deception, illusion, theft of magic, lost things",
-    description: "Fraz-Urb'luu is the greatest deceiver among the demon lords — a master illusionist who spent centuries imprisoned in a staff wielded by mortal wizards before breaking free. His domain is a labyrinthine city of false architecture. He delights in making mortals believe impossible lies and stealing the magic of those who trust him.",
+    description: "Fraz-Urb'luu is the greatest deceiver among the demon lords, a master illusionist who spent centuries imprisoned in a staff wielded by mortal wizards before breaking free. His domain is a labyrinthine city of false architecture. He delights in making mortals believe impossible lies and stealing the magic of those who trust him.",
     tags: ["demons", "evil", "chaotic", "abyss", "demon lord", "deception", "illusion"],
   },
   {
@@ -1265,7 +1265,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A black circle surrounded by radiating spokes of ooze",
     domains: ["Death"],
     portfolio: "Oozes, slimes, dissolution, the erasure of form",
-    description: "Juiblex is the least personable of the demon lords — barely sentient in any humanoid sense, simply a vast mass of shifting ooze that hungers to dissolve and absorb all things into itself. Most demons consider it little more than a force of nature. Its cultists are those who embrace formlessness, entropy, and the obliteration of identity.",
+    description: "Juiblex is the least personable of the demon lords, barely sentient in any humanoid sense, simply a vast mass of shifting ooze that hungers to dissolve and absorb all things into itself. Most demons consider it little more than a force of nature. Its cultists are those who embrace formlessness, entropy, and the obliteration of identity.",
     tags: ["demons", "evil", "chaotic", "abyss", "demon lord", "ooze", "slime"],
   },
 
@@ -1278,7 +1278,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A silver crown entwined with flowers of every season",
     domains: ["Nature", "Life", "Light"],
     portfolio: "Summer, beauty, joy, nature's bounty, fey royalty, the Seelie Court",
-    description: "Titania is the supreme ruler of the Seelie Court and arguably the most powerful archfey in the Feywild. She embodies the radiant face of faerie — beauty that cuts, generosity that binds, and joy fierce enough to destroy. She is neither good nor evil by mortal measure, but she is deeply just by fey measure, which is its own terrifying thing. Warlocks who swear pacts with her receive power over charm, light, and the green world.",
+    description: "Titania is the supreme ruler of the Seelie Court and arguably the most powerful archfey in the Feywild. She embodies the radiant face of faerie: beauty that cuts, generosity that binds, and joy fierce enough to destroy. She is neither good nor evil by mortal measure, but she is deeply just by fey measure, which is its own terrifying thing. Warlocks who swear pacts with her receive power over charm, light, and the green world.",
     tags: ["fey", "seelie", "archfey", "summer", "queen", "feywild"],
   },
   {
@@ -1289,7 +1289,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "An oak tree growing into antlers",
     domains: ["Nature", "War"],
     portfolio: "The wild hunt, beasts, forests, primal nature, passion",
-    description: "Oberon is Titania's consort and the embodiment of the Feywild's untamed wilderness. Where Titania represents the court and its radiant order, Oberon is the hunt — primal, fierce, and indifferent to mortal concerns. He leads the Wild Hunt through the planes and is patron of those who embrace the beast within. His relationship with Titania is a cosmic romance of equals who are never entirely at peace.",
+    description: "Oberon is Titania's consort and the embodiment of the Feywild's untamed wilderness. Where Titania represents the court and its radiant order, Oberon is the hunt: primal, fierce, and indifferent to mortal concerns. He leads the Wild Hunt through the planes and is patron of those who embrace the beast within. His relationship with Titania is a cosmic romance of equals who are never entirely at peace.",
     tags: ["fey", "seelie", "archfey", "hunt", "beasts", "feywild"],
   },
   {
@@ -1300,7 +1300,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A grinning satyr's face wreathed in vines",
     domains: ["Trickery", "Nature"],
     portfolio: "Revelry, music, trickery, satyrs, the intoxicating madness of the fey",
-    description: "Hyrsam is the First Satyr — the original creature of that kind, who has existed since the Feywild first dreamed itself into being. He is the patron of all who revel, play music, seduce, and deceive, and he delights in humbling the proud. He is nominally Seelie but wanders both courts freely, tolerated everywhere because everyone secretly hopes he will put on a performance. His warlocks tend to be bards and tricksters.",
+    description: "Hyrsam is the First Satyr, the original creature of that kind, who has existed since the Feywild first dreamed itself into being. He is the patron of all who revel, play music, seduce, and deceive, and he delights in humbling the proud. He is nominally Seelie but wanders both courts freely, tolerated everywhere because everyone secretly hopes he will put on a performance. His warlocks tend to be bards and tricksters.",
     tags: ["fey", "seelie", "archfey", "satyrs", "music", "trickery", "feywild"],
   },
 
@@ -1313,7 +1313,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A shattered crown of black iron over a crescent moon",
     domains: ["Trickery", "Death"],
     portfolio: "Shadow, winter's cruelty, the Unseelie Court, obsession, cursed beauty",
-    description: "The Queen of Air and Darkness rules the Unseelie Court from her palace of black ice. She was once the twin of Titania — two halves of the same primal fey force — but was corrupted by some ancient catastrophe that left her invisible, voiceless, and utterly cold. She communicates only through intermediaries, and her desires are inscrutable. Pacts with her grant shadow magic and cold power, but she always takes more than she gives.",
+    description: "The Queen of Air and Darkness rules the Unseelie Court from her palace of black ice. She was once the twin of Titania, two halves of the same primal fey force, but was corrupted by some ancient catastrophe that left her invisible, voiceless, and utterly cold. She communicates only through intermediaries, and her desires are inscrutable. Pacts with her grant shadow magic and cold power, but she always takes more than she gives.",
     tags: ["fey", "unseelie", "archfey", "winter", "shadow", "queen", "feywild"],
   },
   {
@@ -1324,7 +1324,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A six-pointed snowflake made of black ice with a crack through the centre",
     domains: ["Nature", "Death"],
     portfolio: "Cold, heartbreak, betrayal, winter, the cruelty of beauty",
-    description: "The Prince of Frost was once a mortal prince who fell desperately in love with a fey noblewoman, followed her into the Feywild, and was abandoned there. Over centuries the cold warped him into something no longer mortal — an archfey of winter and heartbreak who has forgotten what warmth felt like. He seeks to freeze all warm things, not out of hatred, but because he cannot bear that they still exist and he does not.",
+    description: "The Prince of Frost was once a mortal prince who fell desperately in love with a fey noblewoman, followed her into the Feywild, and was abandoned there. Over centuries the cold warped him into something no longer mortal: an archfey of winter and heartbreak who has forgotten what warmth felt like. He seeks to freeze all warm things, not out of hatred, but because he cannot bear that they still exist and he does not.",
     tags: ["fey", "unseelie", "archfey", "winter", "cold", "heartbreak", "feywild"],
   },
 
@@ -1337,7 +1337,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A mortar and pestle, or a chicken-legged hut",
     domains: ["Knowledge", "Death", "Nature"],
     portfolio: "Witchcraft, primal magic, transformation, wisdom, the cycle of life and death",
-    description: "Baba Yaga is perhaps the most ancient hag in existence — so old she predates the distinction between hag and archfey. She travels the planes in her magical hut that walks on giant chicken legs and is equally likely to grant a boon or devour a petitioner whole. She is the patron of all witches, the grandmother of transformation magic, and she answers to no court. Her daughters, the Horsemen of Dawn, Day, and Dusk, serve as her heralds.",
+    description: "Baba Yaga is perhaps the most ancient hag in existence, so old she predates the distinction between hag and archfey. She travels the planes in her magical hut that walks on giant chicken legs and is equally likely to grant a boon or devour a petitioner whole. She is the patron of all witches, the grandmother of transformation magic, and she answers to no court. Her daughters (the Horsemen of Dawn, Day, and Dusk) serve as her heralds.",
     tags: ["fey", "hag", "archfey", "witchcraft", "independent", "ancient", "transformation"],
   },
 ];
@@ -1394,7 +1394,7 @@ export const DRAGONLANCE_DEITIES: SettingDeityDef[] = [
     symbol: "A bison's horns",
     domains: ["War", "Order"],
     portfolio: "Honor, courage, war for just causes",
-    description: "Kiri-Jolith is the patron of military honour and just warfare. He is worshipped by Solamnic Knights and soldiers who fight for noble causes. He and Sargonnas are direct opposites — both gods of war, but one serves justice while the other serves conquest.",
+    description: "Kiri-Jolith is the patron of military honour and just warfare. He is worshipped by Solamnic Knights and soldiers who fight for noble causes. He and Sargonnas are direct opposites: both gods of war, but one serves justice while the other serves conquest.",
     tags: ["good", "war", "honour", "lawful", "dragonlance"],
   },
   {
@@ -1405,7 +1405,7 @@ export const DRAGONLANCE_DEITIES: SettingDeityDef[] = [
     symbol: "A bard's harp",
     domains: ["Life", "Light"],
     portfolio: "Music, song, joy, bards, kender",
-    description: "Branchala is the god of music and joy among the good gods. He is the patron of bards and kender alike — both groups known for their irrepressible exuberance. His music is said to soothe wounded souls and remind mortals what they are fighting to protect.",
+    description: "Branchala is the god of music and joy among the good gods. He is the patron of bards and kender alike, both groups known for their irrepressible exuberance. His music is said to soothe wounded souls and remind mortals what they are fighting to protect.",
     tags: ["good", "music", "bards", "kender", "dragonlance"],
   },
   {
@@ -1416,7 +1416,7 @@ export const DRAGONLANCE_DEITIES: SettingDeityDef[] = [
     symbol: "A blue phoenix",
     domains: ["Life", "Nature"],
     portfolio: "Animals, nature, the sea, renewal",
-    description: "Habbakuk is the patron of animals and the natural world. He is associated with the sea and with renewal — the cycle of seasons and the return of life after winter. Rangers, sailors, and those who live close to nature worship him.",
+    description: "Habbakuk is the patron of animals and the natural world. He is associated with the sea and with renewal: the cycle of seasons and the return of life after winter. Rangers, sailors, and those who live close to nature worship him.",
     tags: ["good", "nature", "animals", "sea", "dragonlance"],
   },
   {
@@ -1427,7 +1427,7 @@ export const DRAGONLANCE_DEITIES: SettingDeityDef[] = [
     symbol: "A copper spider",
     domains: ["Knowledge", "Order"],
     portfolio: "Discipline, meditation, focus, monks",
-    description: "Majere is the god of discipline and contemplation. He is the patron of monks and those who seek inner mastery. He teaches that the greatest power comes not from without but from within — through perfect mental discipline and the mastery of one's own impulses. The Order of the Mantis serves him.",
+    description: "Majere is the god of discipline and contemplation. He is the patron of monks and those who seek inner mastery. He teaches that the greatest power comes not from without but from within, through perfect mental discipline and the mastery of one's own impulses. The Order of the Mantis serves him.",
     tags: ["good", "lawful", "monks", "discipline", "dragonlance"],
   },
   {
@@ -1438,7 +1438,7 @@ export const DRAGONLANCE_DEITIES: SettingDeityDef[] = [
     symbol: "An open book",
     domains: ["Knowledge"],
     portfolio: "Knowledge, neutrality, free will, the Tobril (book of all knowledge)",
-    description: "Gilean leads the gods of neutrality on Krynn. He maintains the cosmic balance and guards the Tobril — the sacred book containing all knowledge of the universe's purpose. He refuses to take sides in conflicts between good and evil, seeing mortal free will as paramount.",
+    description: "Gilean leads the gods of neutrality on Krynn. He maintains the cosmic balance and guards the Tobril, the sacred book containing all knowledge of the universe's purpose. He refuses to take sides in conflicts between good and evil, seeing mortal free will as paramount.",
     tags: ["neutral", "knowledge", "balance", "dragonlance"],
   },
   {
@@ -1460,7 +1460,7 @@ export const DRAGONLANCE_DEITIES: SettingDeityDef[] = [
     symbol: "A feather",
     domains: ["Nature", "Tempest"],
     portfolio: "Nature, the wilderness, instinct",
-    description: "Chislev is the nature goddess of Krynn — primal, instinctive, and deeply connected to the world's wild places. She is the consort of Zivilyn. Her followers are druids who maintain the balance of Krynn's natural world. She has little interest in the politics of mortals but reacts fiercely to the despoiling of natural places.",
+    description: "Chislev is the nature goddess of Krynn: primal, instinctive, and deeply connected to the world's wild places. She is the consort of Zivilyn. Her followers are druids who maintain the balance of Krynn's natural world. She has little interest in the politics of mortals but reacts fiercely to the despoiling of natural places.",
     tags: ["neutral", "nature", "dragonlance", "wilderness"],
   },
   {
@@ -1516,7 +1516,7 @@ export const DRAGONLANCE_DEITIES: SettingDeityDef[] = [
     symbol: "Broken merchant's scales",
     domains: ["Trickery"],
     portfolio: "Greed, dishonest merchants, betrayal, lies, ill-gotten gains",
-    description: "Hiddukel is the god of corrupt merchants and liars — the patron of those who cheat and steal rather than work. He brokers corrupt deals and profits from every betrayal. His followers are con artists, thieves, and merchants who bribe their way to wealth.",
+    description: "Hiddukel is the god of corrupt merchants and liars, the patron of those who cheat and steal rather than work. He brokers corrupt deals and profits from every betrayal. His followers are con artists, thieves, and merchants who bribe their way to wealth.",
     tags: ["evil", "chaotic", "greed", "lies", "merchants", "dragonlance"],
   },
   {
@@ -1551,7 +1551,7 @@ export const GREYHAWK_DEITIES: SettingDeityDef[] = [
     symbol: "A sun face",
     domains: ["Life", "Light"],
     portfolio: "Sun, light, healing, agriculture, strength",
-    description: "Pelor is the most widely worshipped deity in the Flanaess — the benevolent sun god who heals the sick and blesses the harvest. He opposes darkness and undead with particular vigour. The Festival of Pelor is celebrated across dozens of nations.",
+    description: "Pelor is the most widely worshipped deity in the Flanaess, the benevolent sun god who heals the sick and blesses the harvest. He opposes darkness and undead with particular vigour. The Festival of Pelor is celebrated across dozens of nations.",
     tags: ["good", "sun", "healing", "greyhawk"],
   },
   {
@@ -1574,7 +1574,7 @@ export const GREYHAWK_DEITIES: SettingDeityDef[] = [
     symbol: "A skull with a scythe",
     domains: ["Death"],
     portfolio: "Death, darkness, murder, the underworld",
-    description: "The original death god of Oerth — cold, impartial, and deeply malevolent. Unlike Kelemvor, Nerull revels in death and actively encourages murder and undeath. His priests are feared across the Flanaess and operate in secret cults dedicated to harvesting souls.",
+    description: "The original death god of Oerth: cold, impartial, and deeply malevolent. Unlike Kelemvor, Nerull revels in death and actively encourages murder and undeath. His priests are feared across the Flanaess and operate in secret cults dedicated to harvesting souls.",
     tags: ["evil", "death", "murder", "greyhawk"],
   },
   {
@@ -1585,7 +1585,7 @@ export const GREYHAWK_DEITIES: SettingDeityDef[] = [
     symbol: "An eye within a pentagon",
     domains: ["Arcana", "Knowledge"],
     portfolio: "Magic, arcane knowledge, balance, foresight",
-    description: "Boccob is the god of all magic on Oerth — detached and analytical, caring only for magic's advancement and its careful study. His vast library in the outer planes contains one copy of every spell ever written. He takes no side in conflicts except to preserve magic itself.",
+    description: "Boccob is the god of all magic on Oerth, detached and analytical, caring only for magic's advancement and its careful study. His vast library in the outer planes contains one copy of every spell ever written. He takes no side in conflicts except to preserve magic itself.",
     tags: ["neutral", "magic", "knowledge", "greyhawk"],
   },
   {
@@ -1596,7 +1596,7 @@ export const GREYHAWK_DEITIES: SettingDeityDef[] = [
     symbol: "A silver lightning bolt",
     domains: ["War", "Order"],
     portfolio: "Chivalry, justice, honor, war, daring, valor",
-    description: "The archetypal paladin god of Oerth. Heironeous embodies knightly virtue — honour, courage, and sacrifice in service to good. He is the eternal rival of his evil half-brother Hextor. The Order of the Shield are his most elite paladins.",
+    description: "The archetypal paladin god of Oerth. Heironeous embodies knightly virtue, honour, courage, and sacrifice in service to good. He is the eternal rival of his evil half-brother Hextor. The Order of the Shield are his most elite paladins.",
     tags: ["good", "lawful", "paladins", "chivalry", "greyhawk"],
   },
   {
@@ -1618,7 +1618,7 @@ export const GREYHAWK_DEITIES: SettingDeityDef[] = [
     symbol: "An oak leaf and acorn",
     domains: ["Nature", "Tempest"],
     portfolio: "Nature, woodlands, freedom, hunting, beasts",
-    description: "The original nature god of the Flanaess, patron of druids and the Old Faith. Obad-Hai teaches that nature must balance civilisation — neither should dominate. His druids are the guardians of Oerth's wild places and the arbiters of disputes between settlements and nature.",
+    description: "The original nature god of the Flanaess, patron of druids and the Old Faith. Obad-Hai teaches that nature must balance civilisation; neither should dominate. His druids are the guardians of Oerth's wild places and the arbiters of disputes between settlements and nature.",
     tags: ["neutral", "nature", "druids", "greyhawk"],
   },
   {
@@ -1662,7 +1662,7 @@ export const GREYHAWK_DEITIES: SettingDeityDef[] = [
     symbol: "A disk with a curved horizon line",
     domains: ["Knowledge", "Trickery"],
     portfolio: "Roads, travel, distance, horizons",
-    description: "The god of roads and travel, beloved by merchants, wanderers, and anyone who regularly faces a long journey. His shrines appear at crossroads across the Flanaess. He offers no dramatic miracles — just safe roads, fortunate weather, and good company along the way.",
+    description: "The god of roads and travel, beloved by merchants, wanderers, and anyone who regularly faces a long journey. His shrines appear at crossroads across the Flanaess. He offers no dramatic miracles, just safe roads, fortunate weather, and good company along the way.",
     tags: ["neutral", "travel", "roads", "greyhawk"],
   },
   {
@@ -1684,7 +1684,7 @@ export const GREYHAWK_DEITIES: SettingDeityDef[] = [
     symbol: "A blood drop",
     domains: ["War", "Trickery"],
     portfolio: "Envy, slaughter, panic, demoralization",
-    description: "Erythnul is the god of slaughter — not disciplined warfare, but mob violence and panicked, blood-drunk massacre. His followers seek to spread terror and chaos through random killing. He is worshipped by the most depraved humanoid raiders and by mobs that have surrendered to bloodlust.",
+    description: "Erythnul is the god of slaughter: not disciplined warfare, but mob violence and panicked, blood-drunk massacre. His followers seek to spread terror and chaos through random killing. He is worshipped by the most depraved humanoid raiders and by mobs that have surrendered to bloodlust.",
     tags: ["evil", "chaotic", "slaughter", "panic", "greyhawk"],
   },
   {
@@ -1695,7 +1695,7 @@ export const GREYHAWK_DEITIES: SettingDeityDef[] = [
     symbol: "A grinning human skull, or the symbol of Iuz",
     domains: ["Death", "Trickery"],
     portfolio: "Oppression, deceit, pain, wickedness",
-    description: "Iuz is a demigod and a cambion — the son of the demon lord Graz'zt and the witch Iggwilv. He has carved out an empire of evil in the northern Flanaess built on pain and oppression. He was once imprisoned under Castle Greyhawk. His undead armies and humanoid troops are a constant military threat to good-aligned kingdoms.",
+    description: "Iuz is a demigod and a cambion, the son of the demon lord Graz'zt and the witch Iggwilv. He has carved out an empire of evil in the northern Flanaess built on pain and oppression. He was once imprisoned under Castle Greyhawk. His undead armies and humanoid troops are a constant military threat to good-aligned kingdoms.",
     tags: ["evil", "chaotic", "oppression", "cambion", "greyhawk"],
   },
   {
@@ -1717,7 +1717,7 @@ export const GREYHAWK_DEITIES: SettingDeityDef[] = [
     symbol: "A laughing mask",
     domains: ["Trickery", "Life"],
     portfolio: "Music, revels, wine, rogues, humor, tricks",
-    description: "Olidammara is the most beloved neutral deity of Oerth — the trickster god of music, wine, and the cleverness of rogues. He has no agenda beyond fun. His followers are musicians, bards, and thieves who see life as a series of opportunities to laugh, drink, and get away with something interesting.",
+    description: "Olidammara is the most beloved neutral deity of Oerth, the trickster god of music, wine, and the cleverness of rogues. He has no agenda beyond fun. His followers are musicians, bards, and thieves who see life as a series of opportunities to laugh, drink, and get away with something interesting.",
     tags: ["neutral", "chaotic", "rogues", "music", "greyhawk"],
   },
 ];

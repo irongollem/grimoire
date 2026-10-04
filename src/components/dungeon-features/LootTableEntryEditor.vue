@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-2">
     <div class="flex items-center justify-between gap-2">
-      <h2 class="font-cinzel text-sm font-bold text-foreground">Entries ({{ entries.length }})</h2>
+      <h2 class="text-heading-sm font-bold text-foreground">Entries ({{ entries.length }})</h2>
       <div class="flex items-center gap-1.5">
         <AppButton
           variant="subtle"
@@ -38,7 +38,7 @@
     </p>
 
     <div v-if="!entries.length" class="rounded-md border border-dashed border-border px-4 py-8 text-center text-body text-muted-foreground italic">
-      No entries yet. Add items, currency pools, or art objects — each gets its own drop chance.
+      No entries yet. Add items, currency pools, or art objects. Each gets its own drop chance.
     </div>
 
     <div v-else class="flex flex-col gap-2">
@@ -131,7 +131,7 @@
                 class="flex-1 min-w-0"
                 @update:model-value="(v) => { entry.rarity = v; }"
               >
-                <option value="">— rarity —</option>
+                <option value="">Rarity</option>
                 <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
               </AppSelect>
               <AppSelect
@@ -172,7 +172,7 @@
             class="text-caption-sm italic"
             :class="(randomPoolSizes.get(entry.id) ?? 0) === 0 ? 'text-ink-caution' : 'text-muted-foreground'"
           >
-            {{ randomPoolSizes.get(entry.id) ?? 0 }} matching item{{ randomPoolSizes.get(entry.id) === 1 ? '' : 's' }} in vault{{ (randomPoolSizes.get(entry.id) ?? 0) === 0 ? ' — this entry will drop nothing' : '' }}
+            {{ randomPoolSizes.get(entry.id) ?? 0 }} matching item{{ randomPoolSizes.get(entry.id) === 1 ? '' : 's' }} in vault{{ (randomPoolSizes.get(entry.id) ?? 0) === 0 ? '; this entry will drop nothing' : '' }}
           </p>
         </template>
 

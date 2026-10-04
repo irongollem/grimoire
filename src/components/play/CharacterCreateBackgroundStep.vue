@@ -5,7 +5,7 @@
     <div class="space-y-3">
       <p class="text-label-lg font-semibold text-muted-foreground">BACKGROUND</p>
       <div v-if="!allBackgrounds?.length" class="rounded-lg border border-border bg-card p-6 text-center">
-        <p class="text-body text-muted-foreground italic">No backgrounds in the campaign yet — skip for now.</p>
+        <p class="text-body text-muted-foreground italic">No backgrounds in the campaign yet. Skip for now.</p>
       </div>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <button v-for="bg in allBackgrounds" :key="bg.id" type="button"
@@ -38,7 +38,7 @@
           </div>
 
           <div class="p-2.5">
-            <p class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ bg.name }}</p>
+            <p class="text-heading-sm font-bold text-foreground leading-tight">{{ bg.name }}</p>
             <!-- Proficiencies summary -->
             <div class="mt-1.5 flex flex-wrap gap-1">
               <span v-for="sk in bg.skill_proficiencies" :key="sk"
@@ -84,7 +84,7 @@
           <p class="text-label-lg font-semibold text-ink-caution ">FEAT GRANT</p>
           <span class="text-eyebrow text-ink-caution/60 ">2024 PHB</span>
         </div>
-        <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedBg.feat_grant_name }}</p>
+        <p class="text-heading-sm font-bold text-foreground">{{ selectedBg.feat_grant_name }}</p>
         <p v-if="selectedBg.feat_grant_description && typeof selectedBg.feat_grant_description === 'string' && !selectedBg.feat_grant_description.startsWith('{')"
           class="text-body text-foreground/80">
           {{ selectedBg.feat_grant_description }}
@@ -110,7 +110,7 @@
         class="justify-between"
         @click="showIdentity = !showIdentity"
       >
-        <span>IDENTITY — ALIGNMENT · AGE · APPEARANCE</span>
+        <span>IDENTITY · ALIGNMENT · AGE · APPEARANCE</span>
         <span class="text-base transition-transform" :class="showIdentity ? '' : '-rotate-90'">▾</span>
       </AppButton>
       <div v-if="showIdentity" class="px-3 pb-3 space-y-3">
@@ -148,7 +148,7 @@
                   @mousedown.prevent="selectDeity(d.id, d.name)"
                 >
                   <span>{{ d.name }}</span>
-                  <span v-if="d.titles" class="text-muted-foreground text-xs truncate">— {{ d.titles }}</span>
+                  <span v-if="d.titles" class="text-muted-foreground text-xs truncate">· {{ d.titles }}</span>
                 </AppButton>
               </li>
             </ul>
@@ -197,7 +197,7 @@
         <label class="block">
           <span class="field-label">Ideals</span>
           <RichTextEditor v-model="f.ideals" size="sm"
-            placeholder="What drives them — justice, freedom, knowledge…" />
+            placeholder="What drives them: justice, freedom, knowledge…" />
         </label>
         <label class="block">
           <span class="field-label">Bonds</span>

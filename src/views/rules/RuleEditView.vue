@@ -51,7 +51,7 @@
       <!-- Player visibility -->
       <AppCheckbox v-model="form.isPlayerVisible" label-role="label-lg">
         VISIBLE TO PLAYERS
-        <span class="ml-2 font-normal text-caption text-muted-foreground italic">— players can read this rule in their portal</span>
+        <span class="ml-2 font-normal text-caption text-muted-foreground italic">(players can read this rule in their portal)</span>
       </AppCheckbox>
 
       <!-- Rich text content -->
@@ -113,8 +113,8 @@
                 block
                 @change="onTypeChange"
               >
-                <option value="level">Level — named states (Chilled → Frozen → Hypothermic)</option>
-                <option value="points">Points — numeric pool (0–20 Sanity)</option>
+                <option value="level">Level: named states (Chilled → Frozen → Hypothermic)</option>
+                <option value="points">Points: numeric pool (0–20 Sanity)</option>
               </AppSelect>
             </div>
           </div>
@@ -159,7 +159,7 @@
               v-if="!tracker.levels?.length"
               class="text-caption text-muted-foreground italic"
             >
-              No levels yet — add one for each named state (e.g. Unaffected, Chilled, Frozen).
+              No levels yet. Add one for each named state (e.g. Unaffected, Chilled, Frozen).
             </div>
 
             <div

@@ -2,7 +2,7 @@
   <div class="rounded-xl border border-tone-caution/30 bg-tone-caution/5 p-6 flex flex-col gap-3">
     <div class="flex items-center gap-2.5">
       <IconDM class="h-5 w-5 text-ink-caution shrink-0" />
-      <span class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro feature</span>
+      <span class="text-heading-sm font-bold text-foreground">Pro feature</span>
     </div>
     <p class="text-body text-muted-foreground leading-relaxed">
       {{ isChild ? "AI features aren't available on young players' accounts." : message }}

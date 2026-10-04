@@ -1,6 +1,6 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
-    <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">
+    <h2 class="text-heading-sm font-bold text-foreground tracking-wider uppercase">
       Party Members
     </h2>
     <div v-if="partyLoading" class="flex justify-center py-4">
@@ -22,7 +22,7 @@
         @update:model-value="$emit('toggle-party-member', member.id)"
       >
         <div class="flex-1 min-w-0">
-          <span class="font-cinzel text-sm font-semibold text-foreground">{{ member.name }}</span>
+          <span class="text-heading-sm font-semibold text-foreground">{{ member.name }}</span>
           <span class="ml-2 text-caption text-muted-foreground italic">
             {{
               [
@@ -75,7 +75,7 @@
           @update:model-value="$emit('toggle-companion', comp.id)"
         >
           <div class="flex-1 min-w-0">
-            <span class="font-cinzel text-sm font-semibold text-foreground">{{ comp.name }}</span>
+            <span class="text-heading-sm font-semibold text-foreground">{{ comp.name }}</span>
             <span class="ml-2 text-caption text-muted-foreground italic capitalize">
               {{ comp.companion_type.replace('_', ' ') }}
             </span>

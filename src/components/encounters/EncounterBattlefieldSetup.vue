@@ -2,7 +2,7 @@
   <details class="rounded-lg border border-border bg-card" open>
     <summary class="cursor-pointer px-5 py-4 flex items-center justify-between gap-3">
       <div>
-        <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">Battlefield Setup</h2>
+        <h2 class="text-heading-sm font-bold text-foreground tracking-wider uppercase">Battlefield Setup</h2>
         <p class="text-caption text-muted-foreground mt-1">
           Place enemy tokens on the battle map ahead of time. Their starting cells are saved with
           the encounter and seeded into the runner when combat starts.
@@ -160,7 +160,7 @@ const readinessHint = computed(() => {
     // the single reader of that distinction.
     if (isInteriorType(location.value.location_type)) {
       return hasAnyMapLayer(location.value)
-        ? "This room's map isn't calibrated yet — calibrate it to enable placement."
+        ? "This room's map isn't calibrated yet. Calibrate it to enable placement."
         : "This room has no map of its own, and its site isn't calibrated either.";
     }
     return hasAnyMapLayer(location.value)

@@ -61,7 +61,7 @@
           class="flex flex-col rounded-lg border border-border bg-card p-3 hover:border-primary/50 transition-colors"
         >
           <div class="flex items-start justify-between gap-2 mb-1">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">
+            <h3 class="text-heading-sm font-bold text-foreground leading-tight">
               {{ m.name }}
             </h3>
             <span
@@ -87,7 +87,7 @@
     <EmptyState
       v-else
       title="No maps yet"
-      description="Start your first dungeon — paint floors, then walls, then publish to an Atlas location."
+      description="Start your first dungeon: paint floors, then walls, then publish to an Atlas location."
     >
       <template #icon>
         <IconNavCartographer class="h-16 w-16" />

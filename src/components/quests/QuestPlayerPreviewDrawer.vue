@@ -6,7 +6,7 @@
         <header class="flex shrink-0 items-start gap-3 border-b border-border p-4">
           <div class="min-w-0 flex-1">
             <p class="text-label font-bold uppercase tracking-wider text-primary">Saved player projection</p>
-            <h2 id="quest-preview-heading" class="font-cinzel text-lg font-bold text-foreground">Preview as players</h2>
+            <h2 id="quest-preview-heading" class="text-heading font-bold text-foreground">Preview as players</h2>
           </div>
           <AppButton label="Close" size="sm" variant="subtle" @click="emit('close')" />
         </header>

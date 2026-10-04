@@ -4,7 +4,7 @@
     <div class="flex items-center gap-2">
       <AppButton variant="outline" size="body" label="←" @click="emit('shift-back')" />
       <div class="text-center min-w-36">
-        <p class="font-cinzel text-sm font-semibold text-foreground">
+        <p class="text-heading-sm font-semibold text-foreground">
           {{ rangeLabel }}
         </p>
       </div>

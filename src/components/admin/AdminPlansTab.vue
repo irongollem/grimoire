@@ -21,7 +21,7 @@
         <div class="flex items-center justify-between">
           <div>
             <h2
-              class="font-cinzel text-sm font-semibold tracking-wide text-foreground capitalize"
+              class="text-heading-sm font-semibold text-foreground capitalize"
             >
               {{ plan.name }}
             </h2>
@@ -127,12 +127,12 @@
     <div class="rounded-lg border border-border bg-card p-4 space-y-3">
       <div>
         <h2
-          class="font-cinzel text-sm font-semibold tracking-wide text-foreground"
+          class="text-heading-sm font-semibold text-foreground"
         >
           Subscription Prices
         </h2>
         <p class="text-caption text-muted-foreground italic mt-0.5">
-          Enter Stripe Price IDs for each paid plan and click Sync — amounts are
+          Enter Stripe Price IDs for each paid plan and click Sync; amounts are
           fetched from Stripe and cached.
         </p>
       </div>

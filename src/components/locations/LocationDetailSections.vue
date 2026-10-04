@@ -14,7 +14,7 @@
   -->
   <div class="flex flex-col gap-6">
     <section v-if="hasDescription" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Description</h2>
+      <h2 class="text-heading-sm font-bold text-foreground">Description</h2>
       <RichTextViewer :content="location.description" />
     </section>
 
@@ -28,7 +28,7 @@
          inn or wilds (#810, #886) — the six types with a floor plan — so the
          word was actively wrong wherever this panel is most used. -->
     <section class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Progress</h2>
+      <h2 class="text-heading-sm font-bold text-foreground">Progress</h2>
       <LocationStateControls :location-id="location.id" />
     </section>
 
@@ -40,7 +40,7 @@
          loot is a chat message and `loot_placements` scopes to one: a
          personal, campaign-less location has nowhere for it to land. -->
     <section v-if="location.campaign_id" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Loot</h2>
+      <h2 class="text-heading-sm font-bold text-foreground">Loot</h2>
       <LocationLootPanel :location-id="location.id" :campaign-id="location.campaign_id" :loot="locationLoot ?? []" />
     </section>
 
@@ -53,7 +53,7 @@
          itself is untouched; an interior space simply doesn't render this
          section. -->
     <section v-if="relatedLocations.length && !isInteriorSpace" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+      <h2 class="text-heading-sm font-bold text-foreground">
         Related Locations
         <span class="font-fell font-normal text-muted-foreground">({{ relatedLocations.length }})</span>
       </h2>
@@ -79,7 +79,7 @@
          this is the section that makes Related Locations redundant on an
          interior space, per the comment above. -->
     <section v-if="isInteriorSpace" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Ways out</h2>
+      <h2 class="text-heading-sm font-bold text-foreground">Ways out</h2>
       <LocationDoors :room-id="location.id" :parent-id="location.parent_id" :building="building" />
     </section>
 
@@ -88,7 +88,7 @@
          "Interiors" tree group. A room's own Ways out section above stays a
          one-room view; this is the other end of the same graph. -->
     <section v-if="isSite" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Ways out</h2>
+      <h2 class="text-heading-sm font-bold text-foreground">Ways out</h2>
       <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" hide-header :building="building" />
     </section>
 
@@ -96,7 +96,7 @@
          to keep in view mode so a DM running a shop scene doesn't need to
          enter full-edit just to restock. -->
     <section v-if="isStoreType" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Store</h2>
+      <h2 class="text-heading-sm font-bold text-foreground">Store</h2>
       <StoreInventory :location-id="location.id" :owner-npc-name="ownerNpcName" />
     </section>
 
@@ -107,7 +107,7 @@
          for site-tier locations (AtlasPlacePane), so a dungeon's rooms (or a
          wilds site's grounds) are never rendered in two places at once. -->
     <section v-if="isSite" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">{{ siteSpacesHeading }}</h2>
+      <h2 class="text-heading-sm font-bold text-foreground">{{ siteSpacesHeading }}</h2>
       <SiteRoomsPanel :location-id="location.id" :building="building" />
     </section>
 
@@ -116,7 +116,7 @@
          in a tavern's back room is exactly as valid as one in a dungeon
          corridor, unlike Store/Rooms above which apply to a subset of types. -->
     <section class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Prepared Here</h2>
+      <h2 class="text-heading-sm font-bold text-foreground">Prepared Here</h2>
       <LocationPlacements :location-id="location.id" :building="building" />
     </section>
 
@@ -130,7 +130,7 @@
     <!-- People in the Area — NPCs whose location is this or any descendant. -->
     <section v-if="locationNpcs?.length" class="flex flex-col gap-2">
       <div class="flex items-center justify-between">
-        <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+        <h2 class="text-heading-sm font-bold text-foreground">
           People in the Area
           <span class="font-fell font-normal text-muted-foreground">({{ locationNpcs.length }})</span>
         </h2>
@@ -150,7 +150,7 @@
           class="group flex items-center gap-3 overflow-hidden rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/50"
         >
           <div class="min-w-0 flex-1">
-            <p class="truncate font-cinzel text-sm font-semibold text-foreground">{{ npc.name }}</p>
+            <p class="truncate text-heading-xs font-semibold text-foreground">{{ npc.name }}</p>
             <p
               v-if="npc.occupation || npc.race"
               class="truncate text-caption text-muted-foreground italic"
@@ -166,7 +166,7 @@
     </section>
 
     <section v-if="locationEncounters?.length" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+      <h2 class="text-heading-sm font-bold text-foreground">
         Encounters Here
         <span class="font-fell font-normal text-muted-foreground">({{ locationEncounters.length }})</span>
       </h2>
@@ -177,7 +177,7 @@
           :to="`/encounters/${enc.id}`"
           class="group flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:border-primary/50"
         >
-          <span class="flex-1 truncate font-cinzel text-sm font-semibold text-foreground">{{ enc.name }}</span>
+          <span class="flex-1 truncate text-heading-xs font-semibold text-foreground">{{ enc.name }}</span>
           <span v-if="enc.is_finished" class="text-label text-muted-foreground">Done</span>
           <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
         </RouterLink>
@@ -188,7 +188,7 @@
          override, or the party's location) is this id. Read-only; moving
          members happens in the editor. -->
     <section v-if="membersHere.length" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+      <h2 class="text-heading-sm font-bold text-foreground">
         Currently Here
         <span class="font-fell font-normal text-muted-foreground">({{ membersHere.length }})</span>
       </h2>

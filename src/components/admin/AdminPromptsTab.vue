@@ -14,7 +14,7 @@
       >
         <div class="flex items-center justify-between">
           <div>
-            <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">
+            <h2 class="text-heading-sm font-semibold text-foreground">
               {{ prompt.label }}
             </h2>
             <span class="font-cinzel text-2xs tracking-widest text-muted-foreground uppercase">

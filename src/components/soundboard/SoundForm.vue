@@ -5,7 +5,7 @@
       class="fixed inset-0 z-300 flex items-center justify-center bg-gold-500/10 backdrop-blur-sm pointer-events-none"
     >
       <div class="rounded-2xl border-2 border-dashed border-gold-500 bg-card/90 px-8 py-6 shadow-2xl">
-        <p class="font-cinzel text-base font-bold text-gold-300 tracking-wider">Drop audio to upload</p>
+        <p class="text-heading-sm font-bold text-gold-300">Drop audio to upload</p>
       </div>
     </div>
   </Teleport>
@@ -57,7 +57,7 @@
           tone="primary"
           emphasis="strong"
           size="sm"
-          :tooltip="isPro ? undefined : 'Pro feature — upgrade to upload your own audio files'"
+          :tooltip="isPro ? undefined : 'Pro feature: upgrade to upload your own audio files'"
           :class="[
             'flex-1',
             activeSourceTab !== 'upload' && !isPro ? 'text-muted-foreground/40 cursor-not-allowed' : '',
@@ -141,7 +141,7 @@
           <MentionTextarea
             v-model="generateDescription"
             :rows="2"
-            placeholder="e.g. the passage-grove at night, @Vesper waiting — soft and serene"
+            placeholder="e.g. the passage-grove at night, @Vesper waiting, soft and serene"
             :items="mentionItems"
             input-class="rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-none"
           />
@@ -448,7 +448,7 @@ function setSelectedFile(file: File | null): boolean {
     return false;
   }
   if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-    uploadError.value = `File too large — maximum ${MAX_FILE_SIZE_MB} MB.`;
+    uploadError.value = `File too large. Maximum ${MAX_FILE_SIZE_MB} MB.`;
     selectedFile.value = null;
     return false;
   }

@@ -115,7 +115,7 @@ const filtered = computed(() => {
 
 const emptyDescription = computed(() =>
   isTeaser.value
-    ? "The ritual to bind minis isn't complete yet — but you can register your interest."
+    ? "The ritual to bind minis isn't complete yet, but you can register your interest."
     : "Forge your first mini from any NPC, monster or hero portrait.",
 );
 </script>

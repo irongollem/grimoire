@@ -5,7 +5,7 @@
   >
     <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0">
       <p class="font-cinzel text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-        Preview — {{ themeInfo.label }}
+        Preview: {{ themeInfo.label }}
       </p>
       <div class="flex items-center gap-2">
         <span
@@ -74,7 +74,7 @@
     >
       <IconInfo class="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
       <p class="flex-1 text-caption text-muted-foreground leading-snug">
-        Your saved PDF can carry campaign data — embed NPCs, monsters, and more so another DM can
+        Your saved PDF can carry campaign data: embed NPCs, monsters, and more so another DM can
         import them straight from this file. Go to
         <strong class="text-foreground">Campaign Settings → World Bundle → Attach to PDF</strong>, or
         <RouterLink

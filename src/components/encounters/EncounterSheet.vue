@@ -102,7 +102,7 @@
 
     <!-- Linked Quests -->
     <section v-if="linkedQuests?.length" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+      <h2 class="text-heading-sm font-bold text-foreground">
         Part of Quest
         <span class="font-fell font-normal text-muted-foreground">({{ linkedQuests.length }})</span>
       </h2>
@@ -121,7 +121,7 @@
 
     <!-- Factions -->
     <section v-if="encounter.factions?.length" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+      <h2 class="text-heading-sm font-bold text-foreground">
         Factions
         <span class="font-fell font-normal text-muted-foreground">({{ encounter.factions.length }})</span>
       </h2>
@@ -142,7 +142,7 @@
 
     <!-- Party + companions -->
     <section v-if="partyRoster.length" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+      <h2 class="text-heading-sm font-bold text-foreground">
         Party
         <span class="font-fell font-normal text-muted-foreground">({{ partyRoster.length }})</span>
       </h2>
@@ -166,7 +166,7 @@
 
     <!-- Combatants -->
     <section v-if="encounter.combatants?.length" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+      <h2 class="text-heading-sm font-bold text-foreground">
         Combatants
         <span class="font-fell font-normal text-muted-foreground">({{ totalMonsters }})</span>
       </h2>
@@ -178,7 +178,7 @@
           class="group flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2 hover:border-primary/50 transition-colors"
         >
           <IconMonster class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <span class="font-cinzel text-sm font-bold text-primary shrink-0 w-8 text-right">{{ c.count }}×</span>
+          <span class="text-heading-sm font-bold text-primary shrink-0 w-8 text-right">{{ c.count }}×</span>
           <span class="flex-1 text-body text-foreground truncate">{{ c.name }}</span>
           <span
             v-if="c.factionName"
@@ -201,7 +201,7 @@
 
     <!-- Loot -->
     <section v-if="hasLoot" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Loot</h2>
+      <h2 class="text-heading-sm font-bold text-foreground">Loot</h2>
       <div v-if="coinSummary" class="text-body text-foreground">{{ coinSummary }}</div>
       <div v-if="lootItems.length" class="flex flex-wrap gap-2">
         <RouterLink
@@ -218,7 +218,7 @@
 
     <!-- Traps -->
     <section v-if="encounterTraps.length" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+      <h2 class="text-heading-sm font-bold text-foreground">
         Traps
         <span class="font-fell font-normal text-muted-foreground">({{ encounterTraps.length }})</span>
       </h2>

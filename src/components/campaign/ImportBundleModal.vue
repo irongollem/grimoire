@@ -39,7 +39,7 @@
         <!-- Bundle info -->
         <div class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-1">
           <p class="text-eyebrow font-semibold text-muted-foreground">Bundle</p>
-          <p class="font-cinzel text-sm font-bold text-foreground">{{ preview.name }}</p>
+          <p class="text-heading-sm font-bold text-foreground">{{ preview.name }}</p>
           <p v-if="preview.description" class="text-caption text-muted-foreground">
             {{ preview.description }}
           </p>
@@ -127,7 +127,7 @@
         <!-- Warning -->
         <div class="rounded-md border border-tone-caution/30 bg-tone-caution/5 px-3 py-2.5 space-y-1">
           <p class="text-caption text-ink-caution ">
-            Entities are added with fresh IDs — duplicates may appear if imported before.
+            Entities are added with fresh IDs; duplicates may appear if imported before.
             Player visibility flags are cleared; party-member links are reset.
           </p>
           <p class="text-caption text-ink-caution ">

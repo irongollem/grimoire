@@ -1,7 +1,7 @@
 <template>
   <section class="flex min-h-0 flex-1 flex-col gap-2 rounded-xl border border-border bg-card p-3" aria-label="Payoff">
     <header class="flex items-center gap-2">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Payoff</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Payoff</h3>
       <span v-if="rows.length" class="ml-auto rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ rows.length }} payoff{{ rows.length === 1 ? "" : "s" }}</span>
     </header>
     <p class="text-caption text-muted-foreground">
@@ -85,10 +85,10 @@
           </template>
           <template v-else-if="activeQuickAdd === 'quest'">
             <EntityCombobox v-if="unlockableQuestOptions.length" v-model="targetQuestId" :options="unlockableQuestOptions" placeholder="Which quest…" />
-            <p v-else class="text-caption italic text-muted-foreground">No undiscovered quests to unlock — write the sequel first and leave it undiscovered.</p>
+            <p v-else class="text-caption italic text-muted-foreground">No undiscovered quests to unlock. Write the sequel first and leave it undiscovered.</p>
             <template v-if="targetQuestId">
               <EntityCombobox v-if="entryBeatOptions.length" v-model="entryBeatId" :options="entryBeatOptions" placeholder="Enters at…" />
-              <p v-else class="text-caption italic text-muted-foreground">This quest has no beats yet — it will open at whichever beat is written first.</p>
+              <p v-else class="text-caption italic text-muted-foreground">This quest has no beats yet. It will open at whichever beat is written first.</p>
             </template>
           </template>
           <template v-else-if="activeQuickAdd === 'handout'">

@@ -8,7 +8,7 @@
       :class="modelValue !== 'none'
         ? 'border-gold-500/40 text-gold-400 bg-gold-500/10'
         : 'border-border text-muted-foreground hover:text-foreground'"
-      :title="modelValue !== 'none' ? `Effect: ${currentLabel} — click to change` : 'Add audio effect'"
+      :title="modelValue !== 'none' ? `Effect: ${currentLabel}. Click to change` : 'Add audio effect'"
       @click="toggle"
     >
       <IconWand class="h-3 w-3" />

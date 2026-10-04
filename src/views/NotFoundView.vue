@@ -10,7 +10,7 @@
     </p>
     <RouterLink
       to="/dashboard"
-      class="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+      class="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-heading-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
     >
       <IconHome class="h-4 w-4" />
       Return to Camp

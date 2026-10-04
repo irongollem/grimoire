@@ -165,7 +165,7 @@
     </template>
 
     <div v-else class="space-y-4 rounded-xl border border-border bg-card p-5">
-      <h2 class="font-cinzel text-lg font-bold text-foreground">Start the session flow</h2>
+      <h2 class="text-heading font-bold text-foreground">Start the session flow</h2>
 
       <template v-if="!pickerVisible && resolvedStartBeat">
         <div class="space-y-2">
@@ -426,7 +426,7 @@ const heldPayoffCaption = computed(() => {
   const parts: string[] = [];
   if (heldLoot.value.length) parts.push(`${heldLoot.value.length} loot`);
   if (heldCount) parts.push(`${heldCount} consequence${heldCount === 1 ? "" : "s"}`);
-  return `${total} waiting on you — ${parts.join(", ")}`;
+  return `${total} waiting on you: ${parts.join(", ")}`;
 });
 const rankedJumpTargets = computed(() => rankQuestJumpTargets(
   (jumpTargetsQuery.data.value ?? []).filter((target) => target.beat_id !== context.value?.current?.id),

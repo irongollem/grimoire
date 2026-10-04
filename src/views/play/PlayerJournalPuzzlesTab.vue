@@ -36,7 +36,7 @@
       <div class="p-2.5">
         <div class="flex items-center gap-1.5 min-w-0">
           <EntityNewDot :is-new="isNew(puzzle.id, puzzle.updated_at)" size="sm" />
-          <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
+          <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
         </div>
         <p v-if="puzzle.shared_hints.length" class="text-caption-sm text-primary mt-0.5">
           {{ puzzle.shared_hints.length }} hint{{ puzzle.shared_hints.length === 1 ? '' : 's' }} available

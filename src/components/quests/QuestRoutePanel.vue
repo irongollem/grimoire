@@ -1,7 +1,7 @@
 <template>
   <section class="rounded-lg border border-border bg-card p-3" aria-label="Selected route">
     <header class="flex items-center gap-2">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Selected route</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Selected route</h3>
       <span class="ml-auto truncate rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground">{{ sourceTitle }} → {{ targetTitle }}</span>
     </header>
 
@@ -10,13 +10,13 @@
         <span class="text-caption font-semibold text-foreground">Route kind</span>
         <SegmentedControl v-model="routeKind" size="sm" :options="routeKindOptions" />
       </div>
-      <p v-if="routeKind === 'choice' && !canBeParallel" class="text-caption text-muted-foreground">This beat has no other choice route yet — add one before opening a parallel route here, or its thread would have nowhere to send the cursor.</p>
+      <p v-if="routeKind === 'choice' && !canBeParallel" class="text-caption text-muted-foreground">This beat has no other choice route yet. Add one before opening a parallel route here, or its thread would have nowhere to send the cursor.</p>
 
-      <AppInput v-if="routeKind === 'parallel'" v-model="threadLabel" placeholder="Thread label — shown to the DM and on the player thread…" aria-label="Opens thread" />
+      <AppInput v-if="routeKind === 'parallel'" v-model="threadLabel" placeholder="Thread label: shown to the DM and on the player thread…" aria-label="Opens thread" />
 
       <div class="grid gap-2 sm:grid-cols-2">
         <AppSelect v-model="gateStatus" aria-label="Route gate">
-          <option value="">No gate — always open</option>
+          <option value="">No gate, always open</option>
           <option v-for="status in QUEST_CONSEQUENCE_OBJECTIVE_STATUSES" :key="status" :value="status">Open while an objective is {{ QUEST_OBJECTIVE_STATUS_LABELS[status].toLowerCase() }}</option>
         </AppSelect>
         <EntityCombobox v-if="gateStatus" v-model="gateObjectiveId" :options="objectiveOptions" placeholder="Which objective…" />

@@ -46,7 +46,7 @@ function onAppearanceSelected(id: string) {
       />
     </div>
     <p v-if="!member.disguise_species_id" class="text-body text-muted-foreground/60 italic">
-      Showing true form — pick a species below to take on a disguise.
+      Showing true form. Pick a species below to take on a disguise.
     </p>
     <p v-else class="text-body text-muted-foreground italic">
       Appearing as

@@ -1,7 +1,7 @@
 <template>
   <section v-if="children.length" class="flex flex-col gap-3">
     <div class="flex items-center justify-between">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+      <h2 class="text-heading-sm font-bold text-foreground">
         Sort Into {{ spaceHeadingText }}
         <span v-if="rows.length" class="font-fell font-normal text-muted-foreground">({{ rows.length }})</span>
       </h2>

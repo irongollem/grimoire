@@ -35,7 +35,7 @@
             class="flex shrink-0 items-center justify-between gap-3 px-4 pb-2"
           >
             <h2
-              class="font-cinzel text-base font-bold tracking-wide text-foreground"
+              class="text-heading-sm font-bold text-foreground"
             >
               {{ title }}
             </h2>

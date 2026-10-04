@@ -6,7 +6,7 @@
          emphasis. -->
     <header v-if="!hideHeader" class="flex items-center gap-2">
       <IconDoor class="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <h3 class="font-cinzel text-sm font-bold text-foreground">{{ verticalOnly ? "Vertical ways out" : "Ways out" }}</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">{{ verticalOnly ? "Vertical ways out" : "Ways out" }}</h3>
       <span
         v-if="rows.length"
         class="ml-auto rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground"
@@ -45,7 +45,7 @@
           </template>
         </div>
         <p class="pl-6 text-caption text-muted-foreground">
-          <template v-if="row.isUnplaced">Not placed on the plan yet — {{ row.subtitle.toLowerCase() }}</template>
+          <template v-if="row.isUnplaced">Not placed on the plan yet: {{ row.subtitle.toLowerCase() }}</template>
           <template v-else>{{ row.subtitle }}</template>
         </p>
 
@@ -64,7 +64,7 @@
                 size="icon-xs"
                 :icon="IconLock"
                 :active="row.door.starts_locked"
-                :tooltip="row.door.lock_note ? `Starts locked — ${row.door.lock_note}` : 'Starts locked'"
+                :tooltip="row.door.lock_note ? `Starts locked: ${row.door.lock_note}` : 'Starts locked'"
                 @click="toggleFlag(row.door, 'starts_locked')"
               />
               <AppButton
@@ -72,7 +72,7 @@
                 size="icon-xs"
                 :icon="IconHide"
                 :active="row.door.is_secret"
-                tooltip="Secret — hidden until the party finds it"
+                tooltip="Secret: hidden until the party finds it"
                 @click="toggleFlag(row.door, 'is_secret')"
               />
               <AppSelect
@@ -88,12 +88,12 @@
             <PlacementNoteInput
               v-if="row.door.starts_locked"
               :model-value="row.door.lock_note"
-              placeholder="What opens it — e.g. the brass key"
+              placeholder="What opens it, e.g. the brass key"
               @commit="(value) => onLockNoteCommit(row.door, value)"
             />
             <PlacementNoteInput
               :model-value="row.door.label"
-              placeholder="Label — e.g. iron grille"
+              placeholder="Label, e.g. iron grille"
               @commit="(value) => onLabelCommit(row.door, value)"
             />
 
@@ -126,7 +126,7 @@
       </div>
     </div>
     <p v-else class="text-caption italic text-muted-foreground">
-      {{ verticalOnly ? "No ways up or down yet." : building ? "No ways out yet — add one below." : "No ways out yet. Build the site to add them." }}
+      {{ verticalOnly ? "No ways up or down yet." : building ? "No ways out yet. Add one below." : "No ways out yet. Build the site to add them." }}
     </p>
 
     <!-- Inline add — Build only. -->
@@ -143,7 +143,7 @@
         type="text"
         tone="bare"
         size="xs"
-        placeholder="Label — e.g. iron grille"
+        placeholder="Label, e.g. iron grille"
         class="px-0 text-caption"
       />
       <div class="flex flex-wrap items-center gap-4">
@@ -156,7 +156,7 @@
         v-model="newLockNote"
         type="text"
         size="xs"
-        placeholder="What opens it — the brass key, DC 15 thieves' tools…"
+        placeholder="What opens it: the brass key, DC 15 thieves' tools…"
       />
       <AppButton
         variant="ghost"

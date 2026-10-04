@@ -130,9 +130,9 @@ describe("QuestOverviewLifecycle", () => {
   it("toggles an objective's status through the assert RPC, not a raw field update", async () => {
     mocks.objectives = [objective({ id: "obj-1", status: "pending" })];
     const wrapper = mountLifecycle();
-    // "Open — click for completed" is `statusTooltip` for a pending objective —
+    // "Open: click for completed" is `statusTooltip` for a pending objective —
     // pending's own label plus the state `nextObjectiveStatus` cycles to next.
-    await wrapper.find('[aria-label="Open — click for completed"]').trigger("click");
+    await wrapper.find('[aria-label="Open: click for completed"]').trigger("click");
     await flushPromises();
     expect(mocks.assertStatus).toHaveBeenCalledWith({ objectiveId: "obj-1", questId: "quest-1", status: "complete" });
     expect(mocks.updateObjective).not.toHaveBeenCalled();

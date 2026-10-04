@@ -1,7 +1,7 @@
 <template>
   <section class="space-y-3 rounded-xl border border-border bg-card p-3" aria-label="Placements">
     <header class="flex items-center gap-2">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Placements</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Placements</h3>
       <span class="ml-auto font-fell text-caption text-muted-foreground">NPCs, monsters, encounters, rolls</span>
     </header>
 
@@ -15,17 +15,17 @@
         >
           <IconCheck v-if="attachment.is_required && attachment.target_exists" class="h-2.5 w-2.5" />
           <IconWarning v-else-if="attachment.is_required" class="h-2.5 w-2.5" />
-          <span class="sr-only">{{ attachment.is_required ? (attachment.target_exists ? 'Required, present' : 'Required, missing — prep gap') : 'Optional' }}</span>
+          <span class="sr-only">{{ attachment.is_required ? (attachment.target_exists ? 'Required, present' : 'Required, missing, prep gap') : 'Optional' }}</span>
         </span>
         <div class="min-w-0 flex-1">
           <p class="truncate font-cinzel text-label-lg font-bold text-foreground">{{ attachment.label }}</p>
-          <p class="truncate text-muted-foreground">{{ attachment.compact_detail || (attachment.is_required ? '' : 'Optional fallback — kept out of the prep-gap count') }}</p>
+          <p class="truncate text-muted-foreground">{{ attachment.compact_detail || (attachment.is_required ? '' : 'Optional fallback, kept out of the prep-gap count') }}</p>
         </div>
         <AppButton
           :label="attachment.is_required ? 'Needed' : 'Optional'"
           :title="attachment.is_required
-            ? 'The beat cannot run without this — flags a prep gap if the material goes missing'
-            : 'Nice to have — its absence never flags a prep gap'"
+            ? 'The beat cannot run without this. It flags a prep gap if the material goes missing'
+            : 'Nice to have: its absence never flags a prep gap'"
           size="xs"
           variant="subtle"
           :active="attachment.is_required"

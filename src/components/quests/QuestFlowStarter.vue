@@ -2,20 +2,20 @@
   <section class="mx-auto w-full max-w-2xl space-y-5 rounded-xl border border-border bg-card p-5" aria-labelledby="new-flow-heading">
     <div>
       <p class="text-label font-bold uppercase tracking-wider text-primary">New quest</p>
-      <h2 id="new-flow-heading" class="font-cinzel text-lg font-bold text-foreground">
+      <h2 id="new-flow-heading" class="text-heading font-bold text-foreground">
         {{ startMode === "paste" ? "Paste a page from your book" : "Name the quest and what it is about" }}
       </h2>
       <p class="mt-1 text-body text-muted-foreground">
         <template v-if="startMode === 'paste'">
-          Copy a page from an adventure book — the quest lands with its story beats already wired, and anything
+          Copy a page from an adventure book. The quest lands with its story beats already wired, and anything
           else on the page (locations, NPCs, monsters…) comes along too if you want it.
         </template>
         <template v-else-if="startMode === 'design'">
-          Describe the quest in your own words — the model proposes a beat tree and asks where your prose leaves
+          Describe the quest in your own words. The model proposes a beat tree and asks where your prose leaves
           a fork ambiguous, until it's settled or you're ready to create it.
         </template>
         <template v-else>
-          The overview opens next — the quest's premise, stakes, rewards, and the material that spans the whole
+          The overview opens next: the quest's premise, stakes, rewards, and the material that spans the whole
           story. Build the beats from there once you know what the quest is.
         </template>
       </p>
@@ -42,7 +42,7 @@
         <AppInput
           v-model="summary"
           :maxlength="QUEST_SUMMARY_MAX"
-          placeholder="Players see this verbatim — the blurb that tells you what the quest is without opening it. One sentence, no DM secrets."
+          placeholder="Players see this verbatim: the blurb that tells you what the quest is without opening it. One sentence, no DM secrets."
         />
       </label>
 

@@ -18,7 +18,7 @@
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
       <p class="text-body text-muted-foreground">
         While it runs, revealing an NPC posts to your players' chat. If the table
-        has packed up, end the session — any running encounter stops and every
+        has packed up, end the session: any running encounter stops and every
         open quest pauses where the party left it.
       </p>
     </div>

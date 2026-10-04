@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-4">
     <div class="flex items-center justify-between gap-4 flex-wrap">
-      <p class="font-cinzel text-sm font-bold text-foreground">Print Sheet ({{ queue.length }} tokens)</p>
+      <p class="text-heading-sm font-bold text-foreground">Print Sheet ({{ queue.length }} tokens)</p>
       <div class="flex items-center gap-2 flex-wrap">
 
         <!-- Back style -->

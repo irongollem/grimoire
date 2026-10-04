@@ -6,13 +6,13 @@ describe("TriggerBeatPrompt", () => {
   it("names the beat and asks whether to advance, never firing on its own", () => {
     const wrapper = mount(TriggerBeatPrompt, { props: { beat: { title: "Descend the Drowned Vault" } } });
     expect(wrapper.text()).toContain("Descend the Drowned Vault");
-    expect(wrapper.text()).toContain("is staged on this floor — advance?");
+    expect(wrapper.text()).toContain("is staged on this floor. Advance?");
     expect(wrapper.emitted("advance")).toBeUndefined();
   });
 
   it("falls back to 'This beat' when the beat has no title", () => {
     const wrapper = mount(TriggerBeatPrompt, { props: { beat: { title: null } } });
-    expect(wrapper.text()).toContain("This beat is staged on this floor — advance?");
+    expect(wrapper.text()).toContain("This beat is staged on this floor. Advance?");
   });
 
   it("emits advance from its own button, and nothing else", async () => {

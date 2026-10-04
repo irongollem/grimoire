@@ -26,7 +26,7 @@
       <div class="flex min-w-0 flex-1 flex-col gap-0.5">
         <div class="flex items-center gap-1.5">
           <span v-if="statusClass" class="size-2 shrink-0 rounded-full" :class="statusClass" />
-          <h3 class="truncate font-cinzel text-sm font-bold leading-tight text-foreground">
+          <h3 class="truncate text-heading-xs font-bold leading-tight text-foreground">
             {{ title }}
           </h3>
         </div>
@@ -100,7 +100,7 @@
       <div class="flex flex-col gap-0.5 p-2.5">
         <div class="flex items-center gap-1.5">
           <span v-if="statusClass" class="size-2 shrink-0 rounded-full" :class="statusClass" />
-          <h3 class="truncate font-cinzel text-sm font-bold leading-tight text-foreground">
+          <h3 class="truncate text-heading-xs font-bold leading-tight text-foreground">
             {{ title }}
           </h3>
         </div>

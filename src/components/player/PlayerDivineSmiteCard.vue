@@ -6,7 +6,7 @@
     <div class="divide-y divide-border">
       <div v-for="row in DIVINE_SMITE_TABLE" :key="row.slotLevel" class="flex items-center gap-3 px-4 py-2">
         <span class="text-label text-muted-foreground w-14 shrink-0">Slot {{ row.slotLevel }}</span>
-        <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ row.damage }} radiant</span>
+        <span class="text-heading-sm font-bold text-foreground flex-1">{{ row.damage }} radiant</span>
         <span class="text-caption text-muted-foreground italic shrink-0">{{ row.special }} vs undead/fiends</span>
       </div>
     </div>

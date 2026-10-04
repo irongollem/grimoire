@@ -89,7 +89,7 @@
           <div>
             <h3 class="text-heading-sm font-bold text-foreground">New to Grimoire?</h3>
             <p class="text-body text-muted-foreground mt-1">
-              The DM Manual walks you through every feature — from setting up your first campaign to running live combat.
+              The DM Manual walks you through every feature, from setting up your first campaign to running live combat.
             </p>
           </div>
           <AppButton
@@ -200,7 +200,7 @@ function onContentClick(event: MouseEvent) {
   border-bottom: 1px solid rgba(201, 146, 10, 0.25);
 }
 .manual-content :deep(h3) {
-  @apply font-cinzel text-sm font-bold text-foreground mt-5 mb-2 first:mt-0;
+  @apply text-heading-sm font-bold text-foreground mt-5 mb-2 first:mt-0;
 }
 .manual-content :deep(p) {
   @apply mb-3 last:mb-0 leading-relaxed;

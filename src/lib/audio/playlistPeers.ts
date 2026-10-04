@@ -27,7 +27,7 @@ export const PLAYLIST_NOUNS: Record<PlaylistType, PlaylistNoun> = {
     plural: "Scenes",
     icon: IconWind,
     blurb:
-      "A scene layers sounds into a room — a bed underneath, and one-shots firing on their own schedule so it never sounds like a loop.",
+      "A scene layers sounds into a room: a bed underneath, and one-shots firing on their own schedule so it never sounds like a loop.",
     entriesLabel: "Layers",
   },
   music: {

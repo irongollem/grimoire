@@ -18,7 +18,7 @@
         size="sm"
         :icon="IconSettings"
         aria-label="Board settings"
-        tooltip="Board settings — pad size, triggers, sharing"
+        tooltip="Board settings: pad size, triggers, sharing"
         class="hidden sm:flex"
         @click="ui.soundboardSettingsOpen = true"
       />
@@ -44,8 +44,8 @@
           tone="success"
           emphasis="outline"
           size="sm"
-          :aria-label="spotifyStore.isReady ? 'Spotify connected — disconnect' : 'Connecting to Spotify'"
-          :tooltip="spotifyStore.isReady ? 'Spotify connected — click to disconnect' : 'Connecting to Spotify…'"
+          :aria-label="spotifyStore.isReady ? 'Spotify connected. Disconnect' : 'Connecting to Spotify'"
+          :tooltip="spotifyStore.isReady ? 'Spotify connected. Click to disconnect' : 'Connecting to Spotify…'"
           :loading="!spotifyStore.isReady"
           @click="spotifyStore.isReady ? spotifyStore.disconnect() : undefined"
         >

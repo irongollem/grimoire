@@ -7,7 +7,7 @@
     <EmptyState
       v-else-if="!filtered.length && !search && questFilter === 'all'"
       title="No encounters yet"
-      description="Build encounters to plan combat — monsters, factions, difficulty analysis, and live tracking."
+      description="Build encounters to plan combat: monsters, factions, difficulty analysis, and live tracking."
     >
       <template #icon><IconNavEncounters class="h-16 w-16" /></template>
       <template #action>
@@ -53,7 +53,7 @@
           <!-- Name -->
           <div class="flex items-start justify-between gap-2">
             <h3
-              class="font-cinzel text-sm font-bold text-foreground leading-tight flex-1 line-clamp-1"
+              class="text-heading-xs font-bold text-foreground leading-tight flex-1 line-clamp-1"
             >
               {{ encounter.name }}
             </h3>

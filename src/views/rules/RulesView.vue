@@ -6,7 +6,7 @@
       <div class="flex items-start justify-between gap-3">
         <div>
           <h1
-            class="font-cinzel text-xl md:text-3xl font-bold text-foreground tracking-wide inline-flex items-center gap-2"
+            class="text-heading-lg md:text-3xl font-bold text-foreground inline-flex items-center gap-2"
           >
             Rules Reliquary
             <ManualHelpLink v-if="manualPage" :page="manualPage" />

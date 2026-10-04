@@ -175,7 +175,7 @@
         v-model="description"
         placeholder="Describe this location…"
         size="md"
-        :ai-context="`location description — ${name || 'unnamed location'}`"
+        :ai-context="`location description: ${name || 'unnamed location'}`"
         :entity-mention-items="entityMentionItems"
       />
     </div>

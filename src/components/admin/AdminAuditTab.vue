@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
     <p class="text-caption text-muted-foreground italic">
-      Every privileged admin action — erasures, plan changes, freezes, lock-outs,
+      Every privileged admin action: erasures, plan changes, freezes, lock-outs,
       credit grants and pack refunds (#642). Append-only: entries cannot be edited
       or deleted, by anyone, including from here.
     </p>

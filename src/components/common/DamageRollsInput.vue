@@ -21,7 +21,7 @@
         class="capitalize flex-1 min-w-0"
         @update:model-value="(v) => updateRow(i, 'type', v ?? '')"
       >
-        <option value="">— untyped —</option>
+        <option value="">Untyped</option>
         <option v-for="t in DAMAGE_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
       </AppSelect>
       <!-- Remove -->

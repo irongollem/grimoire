@@ -29,7 +29,7 @@
         class="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors group"
       >
         <div class="min-w-0 flex-1">
-          <p class="truncate font-cinzel text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+          <p class="truncate text-heading-xs font-semibold text-foreground group-hover:text-primary transition-colors">
             {{ row.itemName }}
           </p>
           <p class="text-caption text-muted-foreground italic">{{ row.carrierName }}</p>

@@ -1,7 +1,7 @@
 <template>
   <section class="space-y-2 rounded-xl border border-border bg-card p-3" aria-label="Held payoff">
     <header class="flex flex-wrap items-center gap-2">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Held payoff</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Held payoff</h3>
       <span v-if="total" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">{{ total }} to dispatch</span>
       <p class="basis-full text-caption text-muted-foreground">Consequences already fired; these are yours to hand over.</p>
     </header>
@@ -29,7 +29,7 @@
         <AppButton label="Fire now" size="xs" variant="primary" :loading="firingId === event.event_id" @click="fireOne(event.event_id)" />
       </div>
     </div>
-    <p v-else class="text-caption italic text-muted-foreground">Nothing held back — every fired consequence has already gone out.</p>
+    <p v-else class="text-caption italic text-muted-foreground">Nothing held back. Every fired consequence has already gone out.</p>
     <p v-if="error" role="alert" class="text-caption text-destructive">{{ error }}</p>
   </section>
 </template>

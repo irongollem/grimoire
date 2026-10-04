@@ -19,7 +19,7 @@
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2 min-w-0">
               <EntityNewDot :is-new="isQuestNew(q.id, q.updated_at)" title="New" />
-              <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ q.title }}</p>
+              <p class="text-heading-xs font-semibold text-foreground truncate">{{ q.title }}</p>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
               <span

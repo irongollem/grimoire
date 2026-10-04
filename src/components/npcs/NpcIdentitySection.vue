@@ -38,7 +38,7 @@
           class="field-input"
           @change="emit('update:alignment', ($event.target as HTMLSelectElement).value || null)"
         >
-          <option value="">— None —</option>
+          <option value="">None</option>
           <option v-for="a in ALIGNMENTS" :key="a" :value="a">{{ a }}</option>
         </select>
       </div>
@@ -65,7 +65,7 @@
         <EntityCombobox
           :model-value="locationId ?? ''"
           :options="locationOptions"
-          placeholder="— none —"
+          placeholder="None"
           @update:model-value="emit('update:locationId', $event || null)"
         >
           <template #option="{ opt }">

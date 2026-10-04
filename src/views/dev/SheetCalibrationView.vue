@@ -62,7 +62,7 @@
         />
         <span v-if="selected !== null" class="text-caption font-mono text-muted-foreground">
           {{ editFields[selected]?.section }}: [{{ editFields[selected]?.box.join(", ") }}]
-          — drag to move, corner to resize, arrows nudge 0.1% (⇧ 0.5%, ⌥ resizes)
+          Drag to move, corner to resize, arrows nudge 0.1% (⇧ 0.5%, ⌥ resizes)
         </span>
         <span v-else class="text-caption text-muted-foreground">click a box to select</span>
       </template>
@@ -346,7 +346,7 @@ const sampleMember: PartyMember = {
   sort_order: 0,
   alignment: "Chaotic Good",
   personality_traits: "Quotes obscure arcane treatises mid-argument, whether or not anyone asked. Cannot pass a locked door without trying to pick it, on principle.",
-  ideals: "Knowledge unshared is knowledge wasted — the Vale burned because its archives were locked away from the people who needed them most.",
+  ideals: "Knowledge unshared is knowledge wasted. The Vale burned because its archives were locked away from the people who needed them most.",
   bonds: "The surviving apprentices of the Sundered Vale academy are the only family Seraphina has left, and she will burn another kingdom to keep them safe.",
   flaws: "Trusts a well-argued lie over an inconvenient truth, and has paid for it twice already.",
   deity: "Mystra",

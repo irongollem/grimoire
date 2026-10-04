@@ -58,7 +58,7 @@ export const DM_SCREEN_SECTIONS: ScreenSection[] = [
         rows: [
           ["Opportunity Attack", "A hostile creature you can see moves out of your reach."],
           ["Cast a Spell", "Spell has a casting time of 1 reaction (e.g. Shield, Counterspell)."],
-          ["Uncanny Dodge", "Rogue: attacker you can see hits you — halve the damage."],
+          ["Uncanny Dodge", "Rogue: attacker you can see hits you; halve the damage."],
           ["Parry", "Battlemaster Manoeuvre: add superiority die to AC against one attack."],
         ],
       },
@@ -233,8 +233,8 @@ export const DM_SCREEN_SECTIONS: ScreenSection[] = [
         columns: ["Condition", "Effect"],
         rows: [
           ["Bright Light", "Normal vision."],
-          ["Dim Light", "Lightly obscured — disadvantage on Perception checks relying on sight."],
-          ["Darkness", "Heavily obscured — effectively blind (auto-fail sight Perception; attacks have disadvantage)."],
+          ["Dim Light", "Lightly obscured: disadvantage on Perception checks relying on sight."],
+          ["Darkness", "Heavily obscured: effectively blind (auto-fail sight Perception; attacks have disadvantage)."],
           ["Darkvision", "See dim light as bright light, darkness as dim light, within range. No colour in darkness."],
           ["Blindsight", "Perceive surroundings without sight, within range."],
           ["Truesight", "See through darkness, illusions, shapechangers; see into Ethereal Plane."],
@@ -281,7 +281,7 @@ export const DM_SCREEN_SECTIONS: ScreenSection[] = [
         columns: ["Need", "Rule"],
         rows: [
           ["Food", "1 lb. per day; go without for 3 + Con modifier days (min 1), then 1 exhaustion per further day. Half rations count as half a day without."],
-          ["Water", "1 gallon per day, 2 in hot weather. Half that — DC 15 Con save or a level of exhaustion (automatic on less than half)."],
+          ["Water", "1 gallon per day, 2 in hot weather. Half that: DC 15 Con save or a level of exhaustion (automatic on less than half)."],
         ],
       },
       {
@@ -290,7 +290,7 @@ export const DM_SCREEN_SECTIONS: ScreenSection[] = [
         columns: ["Rest", "Rule"],
         rows: [
           ["Short rest", "1+ hour; spend Hit Dice to heal."],
-          ["Long rest", "8 hours (up to 2 hours light activity); regain all HP and half your total Hit Dice (min 1); one per 24 hours. Interrupted by 1+ hour of walking, fighting, or spellcasting — must restart."],
+          ["Long rest", "8 hours (up to 2 hours light activity); regain all HP and half your total Hit Dice (min 1); one per 24 hours. Interrupted by 1+ hour of walking, fighting, or spellcasting; must restart."],
         ],
       },
     ],

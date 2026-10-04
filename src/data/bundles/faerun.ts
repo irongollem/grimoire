@@ -7,7 +7,7 @@ import type { SettingBundle } from "./index";
  */
 const faerunBundle: SettingBundle = {
   calendarId: "faerun",
-  name: "Faerûn — Major Historical Events",
+  name: "Faerûn: Major Historical Events",
   description:
     "World-shaping events from across the ages of the Forgotten Realms: the Time of Troubles, the Spellplague, the Sundering, and the campaigns of the 5th-edition era. Gives your players context for the world they live in.",
   events: [
@@ -30,7 +30,7 @@ const faerunBundle: SettingBundle = {
     {
       title: "Fall of Myth Drannor",
       description:
-        "The great elven city of Myth Drannor falls to the Army of Darkness — a horde of demons, devils, gnolls, and orcs. The city's mythals fracture and its residents are slaughtered or scattered. The loss echoes through elven culture for centuries.",
+        "The great elven city of Myth Drannor falls to the Army of Darkness (a horde of demons, devils, gnolls, and orcs). The city's mythals fracture and its residents are slaughtered or scattered. The loss echoes through elven culture for centuries.",
       event_type: "boss_fight",
       harptos_year: 714,
       harptos_month: 1,
@@ -60,7 +60,7 @@ const faerunBundle: SettingBundle = {
     {
       title: "The Harpers Founded",
       description:
-        "A fellowship of bards, rangers, and wizards — many of them students of Elminster — establish the Harpers as a secret society dedicated to promoting good, preserving knowledge, and opposing the rise of tyranny across Faerûn.",
+        "A fellowship of bards, rangers, and wizards, many of them students of Elminster, establish the Harpers as a secret society dedicated to promoting good, preserving knowledge, and opposing the rise of tyranny across Faerûn.",
       event_type: "discovery",
       harptos_year: 1018,
       harptos_month: 1,
@@ -75,7 +75,7 @@ const faerunBundle: SettingBundle = {
     {
       title: "The Zhentarim Founded",
       description:
-        "Manshoon of Zhentil Keep secretly founds the Zhentarim — the Black Network — a ruthless mercantile and mercenary organization bent on controlling trade routes across the Moonsea and beyond.",
+        "Manshoon of Zhentil Keep secretly founds the Zhentarim, the Black Network, a ruthless mercantile and mercenary organization bent on controlling trade routes across the Moonsea and beyond.",
       event_type: "world",
       harptos_year: 1261,
       harptos_month: 1,
@@ -152,7 +152,7 @@ const faerunBundle: SettingBundle = {
       color: "#7F8C8D",
     },
     {
-      title: "Mystra Slain — Midnight Ascends",
+      title: "Mystra Slain: Midnight Ascends",
       description:
         "The goddess Mystra is slain by Helm while attempting to ascend the Celestial Staircase. The mortal mage Midnight recovers the Tablets of Fate and is elevated by Ao to replace her, becoming the new Mystra, goddess of magic.",
       event_type: "npc_death",
@@ -201,7 +201,7 @@ const faerunBundle: SettingBundle = {
     {
       title: "The Rage of Dragons",
       description:
-        "A magical frenzy afflicts all dragonkind across Faerûn. Dragons abandon their lairs and attack indiscriminately, destroying towns, trade routes, and armies. The Dracorage mythal — an ancient elven construct in the King-Emperor of the North — is eventually destroyed to end the rage.",
+        "A magical frenzy afflicts all dragonkind across Faerûn. Dragons abandon their lairs and attack indiscriminately, destroying towns, trade routes, and armies. The Dracorage mythal, an ancient elven construct in the King-Emperor of the North, is eventually destroyed to end the rage.",
       event_type: "boss_fight",
       harptos_year: 1373,
       harptos_month: 3,
@@ -216,9 +216,9 @@ const faerunBundle: SettingBundle = {
 
     // ── The Spellplague ────────────────────────────────────────────────────────
     {
-      title: "The Spellplague — Year of Blue Fire",
+      title: "The Spellplague: Year of Blue Fire",
       description:
-        "Cyric murders Mystra at the behest of Shar, destroying the goddess of magic. The Weave — the magical fabric of the multiverse — collapses. Blue fire erupts across Faerûn, consuming spellcasters and reshaping geography. Portions of the world of Abeir merge with Toril. Plaguetouched creatures emerge. Magic is fundamentally altered for a century.",
+        "Cyric murders Mystra at the behest of Shar, destroying the goddess of magic. The Weave, the magical fabric of the multiverse, collapses. Blue fire erupts across Faerûn, consuming spellcasters and reshaping geography. Portions of the world of Abeir merge with Toril. Plaguetouched creatures emerge. Magic is fundamentally altered for a century.",
       event_type: "world",
       harptos_year: 1385,
       harptos_month: 1,
@@ -235,7 +235,7 @@ const faerunBundle: SettingBundle = {
     {
       title: "The Second Sundering Begins",
       description:
-        "The realms of Abeir and Toril — merged since the Spellplague — begin to separate again. The process is violent and unpredictable: land masses shift, portals open without warning, and both planes bleed into each other in chaotic ways.",
+        "The realms of Abeir and Toril, merged since the Spellplague, begin to separate again. The process is violent and unpredictable: land masses shift, portals open without warning, and both planes bleed into each other in chaotic ways.",
       event_type: "world",
       harptos_year: 1484,
       harptos_month: 1,
@@ -265,7 +265,7 @@ const faerunBundle: SettingBundle = {
     {
       title: "War of the Silver Marches",
       description:
-        "King Hartusk of the Many-Arrows orc kingdom launches a massive war against the cities of the Silver Marches — Silverymoon, Everlund, Sundabar, and others. Simultaneously, the Shadovar of Netheril use the Darkening to blot out the sun and weaken the defenders.",
+        "King Hartusk of the Many-Arrows orc kingdom launches a massive war against the cities of the Silver Marches (Silverymoon, Everlund, Sundabar, and others). Simultaneously, the Shadovar of Netheril use the Darkening to blot out the sun and weaken the defenders.",
       event_type: "boss_fight",
       harptos_year: 1485,
       harptos_month: 1,
@@ -293,7 +293,7 @@ const faerunBundle: SettingBundle = {
       color: "#1B3A4B",
     },
     {
-      title: "The Sundering Completes — Mystra Reborn",
+      title: "The Sundering Completes: Mystra Reborn",
       description:
         "The separation of Abeir and Toril is finalized. Gods return to their true divine forms. The Weave is restored as Mystra is reborn. Magic begins to return to its pre-Spellplague nature. The 100-year era of wild, altered magic comes to an end.",
       event_type: "world",
@@ -312,7 +312,7 @@ const faerunBundle: SettingBundle = {
     {
       title: "Tyranny of Dragons",
       description:
-        "The reformed Cult of the Dragon, led by the half-dragon Severin Silrajin, marshals an army of dragons and followers to enact the Draakhorn rite — freeing Tiamat, Queen of Evil Dragons, from her prison in the Nine Hells of Avernus. Heroes from across Faerûn unite to stop the ritual.",
+        "The reformed Cult of the Dragon, led by the half-dragon Severin Silrajin, marshals an army of dragons and followers to enact the Draakhorn rite, freeing Tiamat, Queen of Evil Dragons, from her prison in the Nine Hells of Avernus. Heroes from across Faerûn unite to stop the ritual.",
       event_type: "boss_fight",
       harptos_year: 1489,
       harptos_month: 1,
@@ -340,9 +340,9 @@ const faerunBundle: SettingBundle = {
       color: "#E67E22",
     },
     {
-      title: "Rage of Demons — Demogorgon in the Underdark",
+      title: "Rage of Demons: Demogorgon in the Underdark",
       description:
-        "An unknown force tears open the barriers between the Abyss and the Underdark. Demon lords — Demogorgon, Orcus, Zuggtmoy, Juiblex, and others — pour into the deep world. Madness spreads through Underdark communities. Gauntlgrym and Menzoberranzan are both threatened.",
+        "An unknown force tears open the barriers between the Abyss and the Underdark. Demon lords (Demogorgon, Orcus, Zuggtmoy, Juiblex, and others) pour into the deep world. Madness spreads through Underdark communities. Gauntlgrym and Menzoberranzan are both threatened.",
       event_type: "boss_fight",
       harptos_year: 1492,
       harptos_month: 1,
@@ -357,7 +357,7 @@ const faerunBundle: SettingBundle = {
     {
       title: "Storm King's Thunder",
       description:
-        "The death of the giant King Hekaton throws giant society into chaos. Without the ordening to govern them, giants of all kinds — hill, stone, frost, fire, cloud, and storm — rampage across the North, each seeking to dominate the others. Small communities are obliterated. Heroes must find the king and restore order before the North is destroyed.",
+        "The death of the giant King Hekaton throws giant society into chaos. Without the ordening to govern them, giants of all kinds (hill, stone, frost, fire, cloud, and storm) rampage across the North, each seeking to dominate the others. Small communities are obliterated. Heroes must find the king and restore order before the North is destroyed.",
       event_type: "boss_fight",
       harptos_year: 1493,
       harptos_month: 4,
@@ -370,7 +370,7 @@ const faerunBundle: SettingBundle = {
       color: "#C0392B",
     },
     {
-      title: "Descent into Avernus — Elturel Falls",
+      title: "Descent into Avernus, Elturel Falls",
       description:
         "The city of Elturel is torn from Faerûn by an infernal compact and dragged bodily into the first layer of the Nine Hells, Avernus. Thousands of citizens are enslaved or killed. Baldur's Gate faces an influx of refugees and is itself threatened by the forces of Zariel, the fallen angel who rules Avernus.",
       event_type: "world",
@@ -385,9 +385,9 @@ const faerunBundle: SettingBundle = {
       color: "#C0392B",
     },
     {
-      title: "Icewind Dale — Rime of the Frostmaiden",
+      title: "Icewind Dale: Rime of the Frostmaiden",
       description:
-        "Auril the Frostmaiden, goddess of winter, withdraws from the divine planes and descends to Icewind Dale. She enforces an eternal winter — Icewind Dale has not seen sunlight in two years. Ten-Towns struggles to survive as resources run out and the cold drives the desperate to dark measures.",
+        "Auril the Frostmaiden, goddess of winter, withdraws from the divine planes and descends to Icewind Dale. She enforces an eternal winter: Icewind Dale has not seen sunlight in two years. Ten-Towns struggles to survive as resources run out and the cold drives the desperate to dark measures.",
       event_type: "world",
       harptos_year: 1489,
       harptos_month: 10,
@@ -400,9 +400,9 @@ const faerunBundle: SettingBundle = {
       color: "#2980B9",
     },
     {
-      title: "Candlekeep Mysteries — The Nameless Lich",
+      title: "Candlekeep Mysteries: The Nameless Lich",
       description:
-        "Scholars at the great library of Candlekeep uncover a series of tomes tied to strange mysteries — curses, missing persons, otherworldly threats. Each book opens a door to a different adventure, drawing researchers and heroes alike into the hidden dangers within.",
+        "Scholars at the great library of Candlekeep uncover a series of tomes tied to strange mysteries (curses, missing persons, otherworldly threats). Each book opens a door to a different adventure, drawing researchers and heroes alike into the hidden dangers within.",
       event_type: "discovery",
       harptos_year: 1492,
       harptos_month: 5,
@@ -415,7 +415,7 @@ const faerunBundle: SettingBundle = {
       color: "#C9920A",
     },
     {
-      title: "Wild Beyond the Witchlight — Prismeer Stolen",
+      title: "Wild Beyond the Witchlight: Prismeer Stolen",
       description:
         "The archfey Iggwilv (Tasha) manipulates events to steal the domain of Prismeer from its ruler, the Archfey Zybilna (also Iggwilv in disguise). The Witchlight Carnival returns to Faerûn carrying echoes of the Feywild's crisis.",
       event_type: "world",

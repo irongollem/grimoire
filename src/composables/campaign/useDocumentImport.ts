@@ -68,13 +68,13 @@ const IMPORT_DOCUMENTS_MIME_TYPES = [
 
 function validateImportFile(file: File): void {
   if (file.size === 0) {
-    throw new Error(`"${file.name}" is empty (0 bytes) — nothing to upload.`);
+    throw new Error(`"${file.name}" is empty (0 bytes); nothing to upload.`);
   }
   if (file.size > MAX_UPLOAD_BYTES) {
-    throw new Error(`"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB — the limit is 25 MB per file.`);
+    throw new Error(`"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 25 MB per file.`);
   }
   if (!(IMPORT_DOCUMENTS_MIME_TYPES as readonly string[]).includes(file.type)) {
-    throw new Error(`"${file.name}" is ${file.type || "an unrecognized file type"} — accepts PDF, JPEG, PNG or WebP.`);
+    throw new Error(`"${file.name}" is ${file.type || "an unrecognized file type"}; accepts PDF, JPEG, PNG or WebP.`);
   }
 }
 

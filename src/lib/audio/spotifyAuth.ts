@@ -66,7 +66,7 @@ const SCOPES = [
  */
 export class SpotifyUnreachableError extends Error {
   constructor(url: string) {
-    super(`Could not reach ${new URL(url).host} — check your connection.`);
+    super(`Could not reach ${new URL(url).host}. Check your connection.`);
     this.name = "SpotifyUnreachableError";
   }
 }

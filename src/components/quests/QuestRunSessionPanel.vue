@@ -1,6 +1,6 @@
 <template>
   <section class="space-y-2 rounded-xl border border-border bg-card p-3" aria-label="Session">
-    <h3 v-if="!headless" class="font-cinzel text-sm font-bold text-foreground">Session</h3>
+    <h3 v-if="!headless" class="text-heading-sm font-bold text-foreground">Session</h3>
     <div class="flex flex-wrap gap-2">
       <AppButton label="Previous" size="sm" variant="subtle" :disabled="navigationDisabled || !hasPrevious" @click="emit('previous')" />
       <AppButton label="Jump…" size="sm" variant="subtle" :disabled="navigationDisabled" @click="emit('jump')" />

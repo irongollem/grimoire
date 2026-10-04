@@ -2,7 +2,7 @@
   <!-- NPCs at this location -->
   <template v-if="locationNpcs?.length">
     <div class="flex items-center justify-between mt-2">
-      <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+      <h2 class="text-heading-sm font-bold text-foreground">
         People in the Area
         <span class="font-fell font-normal text-muted-foreground"
           >({{ locationNpcs.length }})</span
@@ -25,7 +25,7 @@
       >
         <div class="flex-1 min-w-0">
           <p
-            class="font-cinzel text-sm font-semibold text-foreground truncate"
+            class="text-heading-xs font-semibold text-foreground truncate"
           >
             {{ npc.name }}
           </p>
@@ -52,7 +52,7 @@
   <!-- Encounters at this location -->
   <template v-if="locationEncounters?.length">
     <div class="flex items-center justify-between mt-2">
-      <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+      <h2 class="text-heading-sm font-bold text-foreground">
         Encounters Here
         <span class="font-fell font-normal text-muted-foreground"
           >({{ locationEncounters.length }})</span
@@ -67,7 +67,7 @@
         class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors px-4 py-3"
       >
         <span
-          class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate"
+          class="flex-1 text-heading-xs font-semibold text-foreground truncate"
           >{{ enc.name }}</span
         >
         <span
@@ -84,7 +84,7 @@
 
   <!-- Party members currently here -->
   <div class="flex items-center justify-between mt-2">
-    <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+    <h2 class="text-heading-sm font-bold text-foreground">
       Currently Here
       <span
         v-if="membersHere.length"

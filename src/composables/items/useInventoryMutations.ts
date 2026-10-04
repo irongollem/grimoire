@@ -129,7 +129,7 @@ export function useInventoryMutations({
       (m.active_infusions ?? []).some((a) => a.inv_item_id === id),
     );
     const message = infusionHolder
-      ? `Remove this item? It is currently linked to an active infusion on ${infusionHolder.name} — that infusion link will be cleared automatically.`
+      ? `Remove this item? It is currently linked to an active infusion on ${infusionHolder.name}; that infusion link will be cleared automatically.`
       : "Remove this item?";
     if (!(await confirm(message))) return;
     await removeInventoryItem(id);
@@ -168,7 +168,7 @@ export function useInventoryMutations({
 
   async function splitStack(inv: PartyInventoryItem) {
     const raw = window.prompt(
-      `Split "${inv.name}" — how many to split off? (1–${inv.quantity - 1})`,
+      `Split "${inv.name}": how many to split off? (1–${inv.quantity - 1})`,
       "1",
     );
     if (raw === null) return;

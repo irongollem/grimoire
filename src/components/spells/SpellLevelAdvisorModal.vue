@@ -67,36 +67,36 @@
               >
               <AppSelect v-model="adv.effectIntensity" tone="muted" size="body">
                 <template v-if="adv.effectType === 'control'">
-                  <option value="weak">Weak — disadvantage, minor debuff (e.g. Bane)</option>
+                  <option value="weak">Weak: disadvantage, minor debuff (e.g. Bane)</option>
                   <option value="moderate">
-                    Moderate — restrained, frightened, slow (e.g. Hold Person)
+                    Moderate: restrained, frightened, slow (e.g. Hold Person)
                   </option>
                   <option value="major">
-                    Major — stunned, incapacitated, banished (e.g. Hold Monster)
+                    Major: stunned, incapacitated, banished (e.g. Hold Monster)
                   </option>
                   <option value="extreme">
-                    Extreme — dominated, paralysed, power word (e.g. Dominate Person)
+                    Extreme: dominated, paralysed, power word (e.g. Dominate Person)
                   </option>
                 </template>
                 <template v-else-if="adv.effectType === 'buff'">
-                  <option value="weak">Weak — minor bonus, +d4 (e.g. Guidance)</option>
+                  <option value="weak">Weak: minor bonus, +d4 (e.g. Guidance)</option>
                   <option value="moderate">
-                    Moderate — advantage, resistance (e.g. Bless, Shield)
+                    Moderate: advantage, resistance (e.g. Bless, Shield)
                   </option>
                   <option value="major">
-                    Major — extra attack, flight, haste (e.g. Haste, Fly)
+                    Major: extra attack, flight, haste (e.g. Haste, Fly)
                   </option>
-                  <option value="extreme">Extreme — extra action, immunity, resurrection</option>
+                  <option value="extreme">Extreme: extra action, immunity, resurrection</option>
                 </template>
                 <template v-else>
                   <option value="weak">
-                    Minor — convenience, limited info (e.g. Prestidigitation)
+                    Minor: convenience, limited info (e.g. Prestidigitation)
                   </option>
                   <option value="moderate">
-                    Moderate — solves a problem category (e.g. Darkvision)
+                    Moderate: solves a problem category (e.g. Darkvision)
                   </option>
-                  <option value="major">Major — teleportation, legend lore (e.g. Teleport)</option>
-                  <option value="extreme">World-altering — Wish, Gate level</option>
+                  <option value="major">Major: teleportation, legend lore (e.g. Teleport)</option>
+                  <option value="extreme">World-altering: Wish, Gate level</option>
                 </template>
               </AppSelect>
             </label>
@@ -142,10 +142,10 @@
                 >Targeting / Save</span
               >
               <AppSelect v-model="adv.saveType" tone="muted" size="body">
-                <option value="save_for_half">Saving throw — half on save</option>
-                <option value="save_negates">Saving throw — negates on save</option>
+                <option value="save_for_half">Saving throw: half on save</option>
+                <option value="save_negates">Saving throw: negates on save</option>
                 <option value="attack_roll">Attack roll (can miss)</option>
-                <option value="automatic">Automatic — no save or attack</option>
+                <option value="automatic">Automatic: no save or attack</option>
               </AppSelect>
             </label>
 
@@ -173,7 +173,7 @@
 
             <!-- 10. Result -->
             <div class="rounded-md bg-primary/10 border border-primary/30 p-4 flex flex-col gap-3">
-              <p class="font-cinzel text-sm font-bold text-primary">
+              <p class="text-heading-sm font-bold text-primary">
                 Suggested: Level {{ advResult.suggestedMin }}–{{ advResult.suggestedMax }}
               </p>
               <ul class="space-y-0.5">

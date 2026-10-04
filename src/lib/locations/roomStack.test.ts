@@ -269,7 +269,7 @@ describe("buildRoomStack", () => {
         id: "encounter-zone:zone-1",
         kind: "encounter",
         label: "Ash-wights (×4)",
-        subtitle: "Trigger zone on the altar — prompt, never automatic",
+        subtitle: "Trigger zone on the altar: prompt, never automatic",
         action: "run",
         target: "/encounters/encounter-1/run",
       },

@@ -125,7 +125,7 @@
     <p v-else class="text-caption text-muted-foreground italic">
       {{
         building
-          ? `No ${childTypePlural} yet — add the first one below.`
+          ? `No ${childTypePlural} yet. Add the first one below.`
           : `No ${childTypePlural} yet. Build the site to add them.`
       }}
     </p>

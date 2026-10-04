@@ -8,7 +8,7 @@
     no-match-text="No puzzles match your filter."
     empty-icon="Puzzle"
     empty-title="No puzzles yet"
-    empty-description="Build your first puzzle room — set the riddle, add tiered hints, and record the solution."
+    empty-description="Build your first puzzle room: set the riddle, add tiered hints, and record the solution."
     empty-action-label="New Puzzle"
     table="puzzle_rooms"
     :ids="puzzleFilteredIds"
@@ -64,7 +64,7 @@
             >{{ puzzle.difficulty }}</span>
           </div>
           <div class="p-2.5 flex flex-col gap-1">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
+            <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
             <div class="flex items-center gap-2">
               <span class="text-caption-sm text-muted-foreground italic">
                 {{ puzzle.hints.length }} hint{{ puzzle.hints.length === 1 ? '' : 's' }}

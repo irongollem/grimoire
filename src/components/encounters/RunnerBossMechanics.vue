@@ -6,7 +6,7 @@
   >
     <div class="flex items-center justify-between gap-2">
       <span class="text-label-lg font-semibold text-ink-caution">
-        SURPRISE — Optional
+        SURPRISE · Optional
       </span>
       <AppButton
         variant="ghost"
@@ -16,7 +16,7 @@
       />
     </div>
     <p v-if="!showSurprise && surprisedCount === 0" class="text-caption text-muted-foreground italic mt-0.5">
-      Mark creatures that are surprised — they'll skip their first turn.
+      Mark creatures that are surprised; they'll skip their first turn.
     </p>
     <div v-else-if="showSurprise" class="mt-2 flex flex-wrap gap-1.5">
       <AppButton
@@ -44,10 +44,10 @@
     <div class="flex items-center gap-2 flex-wrap">
       <span class="text-label-lg font-semibold"
         :class="store.lairCanFireThisRound ? 'text-ink-arcane' : 'text-muted-foreground'"
-      >✦ INIT 20 — LAIR ACTION</span>
+      >✦ INIT 20 · LAIR ACTION</span>
       <span class="text-caption text-muted-foreground flex-1">
         <template v-if="!store.lairCanFireThisRound">Fired this round. Resets on round rollover.</template>
-        <template v-else-if="lairActions.length === 0">Owner's stat block has no Lair Actions — check the monster entry.</template>
+        <template v-else-if="lairActions.length === 0">Owner's stat block has no Lair Actions. Check the monster entry.</template>
         <template v-else>Click an action to fire it for this round.</template>
       </span>
     </div>
@@ -75,7 +75,7 @@
   >
     <div class="flex items-center gap-2 flex-wrap">
       <span class="text-label-lg font-semibold text-destructive">
-        ⚔ {{ legendary.name.toUpperCase() }} — LEGENDARY ACTIONS
+        ⚔ {{ legendary.name.toUpperCase() }} · LEGENDARY ACTIONS
       </span>
       <span class="font-cinzel text-2xs text-muted-foreground">
         {{ legendary.legendary_actions_remaining }} / {{ legendary.legendary_action_cap }} remaining

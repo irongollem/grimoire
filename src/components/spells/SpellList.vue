@@ -11,13 +11,13 @@
     <EmptyState
       v-else-if="!filtered.length && !search && !levelFilter && !schoolFilter && !classFilter"
       title="No spells yet"
-      description="Craft your spellbook — cantrips to 9th-level catastrophes."
+      description="Craft your spellbook: cantrips to 9th-level catastrophes."
     >
       <template #icon><IconNavSpellbook class="h-16 w-16" /></template>
       <template v-if="!playerMemberId" #action>
         <RouterLink
           to="/spells/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-heading-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         >
           Add your first spell
         </RouterLink>
@@ -69,7 +69,7 @@
               <!-- Name + level badge -->
               <div class="flex items-start justify-between gap-2">
                 <h3
-                  class="font-cinzel text-sm font-bold text-foreground leading-tight flex-1 line-clamp-2"
+                  class="text-heading-xs font-bold text-foreground leading-tight flex-1 line-clamp-2"
                 >
                   {{ spell.name }}
                 </h3>

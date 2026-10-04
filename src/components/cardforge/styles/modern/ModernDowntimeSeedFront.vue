@@ -24,7 +24,7 @@
 
       <div class="md-yield">
         <span class="md-yield-key">Yields</span>
-        {{ rewardNoun.toLowerCase() }} — {{ rewardName }}
+        {{ rewardNoun.toLowerCase() }}: {{ rewardName }}
       </div>
     </div>
   </ModernShell>

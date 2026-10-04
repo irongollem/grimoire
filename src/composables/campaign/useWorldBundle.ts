@@ -987,7 +987,7 @@ export async function parseBundleFile(file: File): Promise<GrimoireBundle> {
   }
 
   if ((json as { file_type?: string }).file_type === "backup") {
-    throw new Error("That's a campaign backup — use the backup import instead.");
+    throw new Error("That's a campaign backup. Use the backup import instead.");
   }
   if (json.file_type !== "world_bundle") {
     throw new Error("Unrecognised file type. Make sure you selected a .grimoire bundle file.");

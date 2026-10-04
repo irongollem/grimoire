@@ -37,7 +37,7 @@ describe("QuestKanbanBoard", () => {
     });
 
     const headings = wrapper.findAll("h2").map((heading) => heading.text());
-    expect(headings).toEqual(["Active", "Undiscovered — waiting to be unlocked", "Settled"]);
+    expect(headings).toEqual(["Active", "Undiscovered: waiting to be unlocked", "Settled"]);
     // completed + failed both land in the Settled group.
     expect(wrapper.findAllComponents(QuestBoardCard)).toHaveLength(4);
     expect(wrapper.find('[aria-label="1 quests in active"]').text()).toBe("1 quest");

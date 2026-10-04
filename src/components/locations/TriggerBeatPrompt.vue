@@ -2,7 +2,7 @@
   <div class="flex items-center gap-3 rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3">
     <IconNavigate class="h-4 w-4 shrink-0 text-ink-caution" aria-hidden="true" />
     <p class="flex-1 text-caption text-foreground">
-      <span class="font-cinzel font-bold">{{ beat.title || "This beat" }}</span> is staged on this floor — advance?
+      <span class="font-cinzel font-bold">{{ beat.title || "This beat" }}</span> is staged on this floor. Advance?
     </p>
     <AppButton size="xs" variant="tinted" tone="caution" label="Advance" @click="emit('advance')" />
     <AppButton size="xs" variant="ghost" label="Dismiss" @click="emit('dismiss')" />

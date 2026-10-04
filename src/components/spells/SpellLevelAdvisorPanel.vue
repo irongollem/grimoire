@@ -65,22 +65,22 @@
         >
         <AppSelect v-model="adv.effectIntensity" tone="muted" size="body" weight="normal" block>
           <template v-if="adv.effectType === 'control'">
-            <option value="weak">Weak — disadvantage, minor debuff</option>
-            <option value="moderate">Moderate — restrained, frightened, slow</option>
-            <option value="major">Major — stunned, incapacitated, banished</option>
-            <option value="extreme">Extreme — dominated, paralysed, power word</option>
+            <option value="weak">Weak: disadvantage, minor debuff</option>
+            <option value="moderate">Moderate: restrained, frightened, slow</option>
+            <option value="major">Major: stunned, incapacitated, banished</option>
+            <option value="extreme">Extreme: dominated, paralysed, power word</option>
           </template>
           <template v-else-if="adv.effectType === 'buff'">
-            <option value="weak">Weak — minor bonus, +d4</option>
-            <option value="moderate">Moderate — advantage, resistance</option>
-            <option value="major">Major — extra attack, flight, haste</option>
-            <option value="extreme">Extreme — extra action, immunity</option>
+            <option value="weak">Weak: minor bonus, +d4</option>
+            <option value="moderate">Moderate: advantage, resistance</option>
+            <option value="major">Major: extra attack, flight, haste</option>
+            <option value="extreme">Extreme: extra action, immunity</option>
           </template>
           <template v-else>
-            <option value="weak">Minor — convenience, limited info</option>
-            <option value="moderate">Moderate — solves a problem category</option>
-            <option value="major">Major — teleportation, legend lore</option>
-            <option value="extreme">World-altering — Wish, Gate level</option>
+            <option value="weak">Minor: convenience, limited info</option>
+            <option value="moderate">Moderate: solves a problem category</option>
+            <option value="major">Major: teleportation, legend lore</option>
+            <option value="extreme">World-altering: Wish, Gate level</option>
           </template>
         </AppSelect>
       </label>
@@ -126,10 +126,10 @@
           >Targeting / Save</span
         >
         <AppSelect v-model="adv.saveType" tone="muted" size="body" weight="normal" block>
-          <option value="save_for_half">Saving throw — half on save</option>
-          <option value="save_negates">Saving throw — negates on save</option>
+          <option value="save_for_half">Saving throw: half on save</option>
+          <option value="save_negates">Saving throw: negates on save</option>
           <option value="attack_roll">Attack roll (can miss)</option>
-          <option value="automatic">Automatic — no save or attack</option>
+          <option value="automatic">Automatic: no save or attack</option>
         </AppSelect>
       </label>
 
@@ -160,7 +160,7 @@
         v-if="advResult"
         class="rounded-md bg-primary/10 border border-primary/30 p-3 flex flex-col gap-2"
       >
-        <p class="font-cinzel text-sm font-bold text-primary">
+        <p class="text-heading-sm font-bold text-primary">
           Suggested: Level {{ advResult.suggestedMin }}–{{ advResult.suggestedMax }}
         </p>
         <ul class="space-y-0.5">

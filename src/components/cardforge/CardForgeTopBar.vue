@@ -8,7 +8,7 @@
       <p class="forge-sub">
         {{
           store.mode === "loot"
-            ? "Build a printable loot deck — items only, full info on the front, shared back."
+            ? "Build a printable loot deck: items only, full info on the front, shared back."
             : "Craft printable cards for your NPCs, monsters, items &amp; spells"
         }}
       </p>
@@ -63,7 +63,7 @@
       {{
         store.mode === "loot"
           ? "Prints item fronts then a sheet of identical deck backs. Flip on the long (left) edge for double-sided."
-          : "Prints fronts then backs. For double-sided printing, flip on the long (left) edge — backs are column-reversed so they align."
+          : "Prints fronts then backs. For double-sided printing, flip on the long (left) edge; backs are column-reversed so they align."
       }}
     </p>
   </div>

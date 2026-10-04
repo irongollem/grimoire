@@ -1,5 +1,5 @@
 <template>
-  <div class="turn-timer" :class="stateClass" :title="`Turn timer — ${seconds}s per turn`">
+  <div class="turn-timer" :class="stateClass" :title="`Turn timer · ${seconds}s per turn`">
     <IconClock class="h-3.5 w-3.5 shrink-0" />
     <span class="timer-value tabular-nums">{{ display }}</span>
   </div>

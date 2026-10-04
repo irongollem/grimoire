@@ -1,7 +1,7 @@
 <template>
   <PageHeader
     :title="isNew ? 'New Archetype' : (form.subclass_name || 'Custom Archetype')"
-    description="Define a subclass — features, resources, and progression for your custom class"
+    description="Define a subclass: features, resources, and progression for your custom class"
   >
     <template v-if="isNew || isEditing" #actions>
       <AppButton

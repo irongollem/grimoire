@@ -17,10 +17,10 @@
     <div v-else class="space-y-1.5">
       <p class="font-cinzel text-xs text-muted-foreground tracking-wide">To install manually:</p>
       <p class="text-body text-foreground">
-        Android Chrome — tap the <span class="font-cinzel text-xs">⋮</span> menu → <em>Add to Home screen</em>
+        Android Chrome: tap the <span class="font-cinzel text-xs">⋮</span> menu → <em>Add to Home screen</em>
       </p>
       <p class="text-body text-foreground">
-        iOS Safari — tap <span class="font-cinzel text-xs">⎋</span> Share → <em>Add to Home Screen</em>
+        iOS Safari: tap <span class="font-cinzel text-xs">⎋</span> Share → <em>Add to Home Screen</em>
       </p>
     </div>
   </SettingsSection>

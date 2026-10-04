@@ -32,7 +32,7 @@
     <EmptyState
       v-else-if="!filtered.length"
       title="No pantheons yet"
-      description="Create a pantheon to group your deities — Faerûnian, Olympian, or wholly homebrew."
+      description="Create a pantheon to group your deities: Faerûnian, Olympian, or wholly homebrew."
     >
       <template #icon><IconNavPantheon class="h-16 w-16" /></template>
     </EmptyState>

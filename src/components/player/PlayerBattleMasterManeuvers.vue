@@ -15,7 +15,7 @@
         :disabled="superiorityDiceCurrent <= 0"
         @click="emit('spend-superiority-die')"
       >−</AppButton>
-      <span class="font-cinzel text-sm text-foreground w-10 text-center">
+      <span class="text-heading-sm text-foreground w-10 text-center">
         {{ superiorityDiceCurrent }} / {{ superiorityDiceMax }}
       </span>
       <AppButton

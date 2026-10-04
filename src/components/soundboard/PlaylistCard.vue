@@ -43,7 +43,7 @@
       <span
         v-if="isSeeded"
         class="shrink-0 rounded border border-gold-500/30 bg-gold-500/10 px-1.5 py-0.5 text-caption-sm text-gold-400"
-        title="A starter scene that came with the app — yours to edit or delete"
+        title="A starter scene that came with the app; yours to edit or delete"
       >
         seeded
       </span>
@@ -79,8 +79,8 @@
             ? 'border-gold-500/30 bg-gold-500/10 text-gold-400'
             : 'border-border text-muted-foreground'"
           :title="track.is_generator
-            ? `${track.sound.name} — fires every ${Math.round(track.min_interval_s)}–${Math.round(track.max_interval_s)} s`
-            : `${track.sound.name} — loops continuously`"
+            ? `${track.sound.name}: fires every ${Math.round(track.min_interval_s)}–${Math.round(track.max_interval_s)} s`
+            : `${track.sound.name}: loops continuously`"
         >
           {{ track.sound.name }}
         </span>

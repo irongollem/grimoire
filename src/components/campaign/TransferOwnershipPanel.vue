@@ -4,7 +4,7 @@
 
     <p class="text-body text-muted-foreground">
       Hand <span class="text-foreground font-semibold">{{ campaign?.name }}</span> to
-      another member. They become the Dungeon Master and you lose DM access — there
+      another member. They become the Dungeon Master and you lose DM access. There
       is no undo, and only they can hand it back.
     </p>
 
@@ -36,14 +36,14 @@
         <p class="text-caption text-muted-foreground">
           Every note, NPC, quest, location, item, encounter, faction, sound and
           campaign-scoped homebrew, plus whatever this campaign's encounters and
-          quests use from your cross-campaign library — monsters, traps, items,
+          quests use from your cross-campaign library: monsters, traps, items,
           NPCs, factions, locations, backgrounds and Scriptorium handouts. Those
           are copied into their library, so yours keeps its own.
         </p>
         <p class="text-caption text-muted-foreground">
           Staying with you: your AI provider keys (cleared from the campaign), your
           chat messages, your private entity notes, your credit history and minis,
-          and your Cartographer maps — locations lose their “open in Cartographer”
+          and your Cartographer maps, locations lose their “open in Cartographer”
           link.
         </p>
       </div>
@@ -108,7 +108,7 @@
                 Move to another campaign
               </span>
               <p class="text-caption text-muted-foreground italic">
-                Your originals become scoped to one campaign you keep — pick which.
+                Your originals become scoped to one campaign you keep; pick which.
               </p>
             </div>
           </label>

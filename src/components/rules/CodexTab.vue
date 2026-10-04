@@ -199,7 +199,7 @@
                         <p class="text-eyebrow font-semibold text-ink-caution ">FEAT GRANT</p>
                         <span class="text-label text-ink-caution/60 ">2024 PHB</span>
                       </div>
-                      <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedBackground.feat_grant_name }}</p>
+                      <p class="text-heading-sm font-bold text-foreground">{{ selectedBackground.feat_grant_name }}</p>
                       <RichTextViewer v-if="selectedBackground.feat_grant_description" :content="selectedBackground.feat_grant_description" />
                     </div>
                     <div v-if="selectedBackground.skill_proficiencies?.length">

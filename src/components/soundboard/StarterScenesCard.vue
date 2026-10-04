@@ -12,7 +12,7 @@
       <div class="min-w-0 flex-1 space-y-1">
         <h3 class="font-cinzel text-body text-gold-300">{{ heading }}</h3>
         <p class="text-caption text-muted-foreground">
-          Ready-made scenes built from our own Creative Commons library — free on every tier, and they
+          Ready-made scenes built from our own Creative Commons library (free on every tier) and they
           don't count against your sound or playlist limits.
         </p>
       </div>

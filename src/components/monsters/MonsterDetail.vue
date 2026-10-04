@@ -214,7 +214,7 @@
               <EntityCombobox
                 :model-value="form.lair_location_id ?? ''"
                 :options="locationOptions"
-                placeholder="— none —"
+                placeholder="None"
                 @update:model-value="form.lair_location_id = $event || null"
               >
                 <template #option="{ opt }">

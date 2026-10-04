@@ -11,7 +11,7 @@
         :disabled="isCloning"
         @click="onClone"
       />
-      <p class="pl-6 text-caption-sm text-muted-foreground">Floor plan, rooms and ways out — never state or loot.</p>
+      <p class="pl-6 text-caption-sm text-muted-foreground">Floor plan, rooms and ways out, never state or loot.</p>
     </template>
 
     <AppButton

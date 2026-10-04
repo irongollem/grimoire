@@ -263,7 +263,7 @@ describe("QuestSiteHandoff", () => {
     mocks.children = [room({ id: "room-1" }), room({ id: "room-2", name: "Antechamber" })];
     const wrapper = mountHandoff({ beat: beat({ staged_at_location_id: "room-1" }) });
     expect(wrapper.text()).toContain("The Tithe of Ashmouth");
-    expect(wrapper.text()).toContain("not yet inside — opens at The flooded shaft");
+    expect(wrapper.text()).toContain("not yet inside, opens at The flooded shaft");
     const list = wrapper.findComponent({ name: "SiteRoomList" });
     expect(list.props("siteId")).toBe("site-1");
     expect(list.props("rooms")).toHaveLength(2);
@@ -280,7 +280,7 @@ describe("QuestSiteHandoff", () => {
     };
     mocks.children = [grounds({ id: "grounds-1" }), grounds({ id: "grounds-2", name: "The grave plot" })];
     const wrapper = mountHandoff({ beat: beat({ staged_at_location_id: "grounds-1" }) });
-    expect(wrapper.text()).toContain("not yet inside — opens at The clearing");
+    expect(wrapper.text()).toContain("not yet inside, opens at The clearing");
     const list = wrapper.findComponent({ name: "SiteRoomList" });
     expect(list.props("siteId")).toBe("site-1");
     expect(list.props("rooms")).toHaveLength(2);
@@ -370,7 +370,7 @@ describe("QuestSiteHandoff", () => {
     mocks.currentLocationId = "room-1";
     mocks.regions = [roomRegion({ space_location_id: "room-1", cells: ["0,0"] }), triggerZone({ zone_payload: { beat_id: "beat-1" }, cells: ["0,0"] })];
     const wrapper = mountHandoff();
-    expect(wrapper.text()).toContain("is staged on this floor — advance?");
+    expect(wrapper.text()).toContain("is staged on this floor. Advance?");
     expect(wrapper.emitted("advance")).toBeUndefined();
 
     await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text() === "Advance")!.trigger("click");
@@ -382,7 +382,7 @@ describe("QuestSiteHandoff", () => {
     mocks.currentLocationId = "room-1";
     mocks.regions = [roomRegion({ space_location_id: "room-1", cells: ["0,0"] }), triggerZone({ zone_payload: { beat_id: "some-other-beat" }, cells: ["0,0"] })];
     const wrapper = mountHandoff();
-    expect(wrapper.text()).not.toContain("is staged on this floor — advance?");
+    expect(wrapper.text()).not.toContain("is staged on this floor. Advance?");
   });
 
   it("dismisses the trigger prompt without advancing", async () => {
@@ -391,7 +391,7 @@ describe("QuestSiteHandoff", () => {
     mocks.regions = [roomRegion({ space_location_id: "room-1", cells: ["0,0"] }), triggerZone({ zone_payload: { beat_id: "beat-1" }, cells: ["0,0"] })];
     const wrapper = mountHandoff();
     await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text() === "Dismiss")!.trigger("click");
-    expect(wrapper.text()).not.toContain("is staged on this floor — advance?");
+    expect(wrapper.text()).not.toContain("is staged on this floor. Advance?");
     expect(wrapper.emitted("advance")).toBeUndefined();
   });
 
@@ -400,10 +400,10 @@ describe("QuestSiteHandoff", () => {
     mocks.currentLocationId = "room-1";
     mocks.regions = [roomRegion({ space_location_id: "room-1", cells: ["0,0"] }), triggerZone({ zone_payload: { beat_id: "beat-1" }, cells: ["0,0"] })];
     const wrapper = mountHandoff();
-    expect(wrapper.text()).toContain("is staged on this floor — advance?");
+    expect(wrapper.text()).toContain("is staged on this floor. Advance?");
 
     await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text() === "Dismiss")!.trigger("click");
-    expect(wrapper.text()).not.toContain("is staged on this floor — advance?");
+    expect(wrapper.text()).not.toContain("is staged on this floor. Advance?");
 
     // Walk off the trigger room and back — the dismissal must not survive
     // the round trip, since "per-room, not per-session" means only staying
@@ -413,7 +413,7 @@ describe("QuestSiteHandoff", () => {
     mocks.campaignLocationRef!.value = "room-1";
     await nextTick();
 
-    expect(wrapper.text()).toContain("is staged on this floor — advance?");
+    expect(wrapper.text()).toContain("is staged on this floor. Advance?");
   });
 
   // #872 frame 4 ("On a phone the crawl is one room at a time"): below xl the
@@ -494,7 +494,7 @@ describe("QuestSiteHandoff", () => {
     it("the trigger banner still emits its two actions", async () => {
       mocks.regions = [roomRegion({ space_location_id: "room-1", cells: ["0,0"] }), triggerZone({ zone_payload: { beat_id: "beat-1" }, cells: ["0,0"] })];
       wrapper = mountHandoff();
-      expect(wrapper.text()).toContain("is staged on this floor — advance?");
+      expect(wrapper.text()).toContain("is staged on this floor. Advance?");
 
       await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text() === "Advance")!.trigger("click");
       expect(wrapper.emitted("advance")).toHaveLength(1);

@@ -198,7 +198,7 @@ async function addBack() {
     <!-- The text is one span, not loose nodes: `gap-2` treats every child as a
          flex item, so an inline <em> here would get spaced on both sides. -->
     <AppCheckbox v-model="isRecurring" class="mt-2 gap-2 text-caption-sm">
-      Recurring — this back is <em>always</em> what they find here (never consumed)
+      Recurring: this back is <em>always</em> what they find here (never consumed)
     </AppCheckbox>
 
     <p v-if="errorMessage" class="mt-2 text-caption-sm text-destructive">{{ errorMessage }}</p>

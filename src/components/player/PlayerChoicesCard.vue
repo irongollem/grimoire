@@ -20,7 +20,7 @@
       <span class="text-eyebrow text-ink-caution/60 ">2024 PHB</span>
     </div>
     <div class="px-4 py-3">
-      <p class="font-cinzel text-sm font-bold text-foreground">{{ backgroundFeat }}</p>
+      <p class="text-heading-sm font-bold text-foreground">{{ backgroundFeat }}</p>
     </div>
   </div>
 

@@ -38,7 +38,7 @@
         <h2
           :class="
             cn(
-              'flex items-center gap-2 font-cinzel text-sm font-bold tracking-wide',
+              'flex items-center gap-2 text-heading-sm font-bold',
               TONES[tone].title,
             )
           "

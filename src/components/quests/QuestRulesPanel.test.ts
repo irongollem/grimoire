@@ -288,7 +288,7 @@ describe("QuestRulesPanel", () => {
       await flushPromises();
 
       expect(comboboxes(wrapper)).toHaveLength(1);
-      expect(wrapper.text()).toContain("This quest has no beats yet — it will open at whichever beat is written first.");
+      expect(wrapper.text()).toContain("This quest has no beats yet. It will open at whichever beat is written first.");
     });
 
     it("describes an existing unlock rule by its target quest and entry beat", () => {

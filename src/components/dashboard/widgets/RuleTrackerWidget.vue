@@ -11,7 +11,7 @@
         That rule tracker is no longer in this campaign. Pick another one from this card's settings.
       </p>
       <p v-else class="text-body text-muted-foreground italic">
-        No custom rules with a tracker yet — add one under Rules → Custom Rules and it appears here.
+        No custom rules with a tracker yet. Add one under Rules → Custom Rules and it appears here.
       </p>
     </template>
 

@@ -14,14 +14,14 @@
       <span v-for="gap in prepGaps" :key="gap.label" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">{{ gap.label }}</span>
     </div>
 
-    <h2 class="font-cinzel text-xl font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h2>
+    <h2 class="text-heading-lg font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h2>
 
     <div v-if="beat.is_improvised && !beat.improv_reviewed_at" class="rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">
       Improvised at the table · needs post-session review. You can still run, attach material, take notes, and reveal it now.
     </div>
 
     <section v-if="beat.read_aloud" class="rounded-lg border border-primary/30 bg-primary/5 p-4">
-      <h3 class="mb-2 font-cinzel text-sm font-bold text-primary">Read aloud</h3>
+      <h3 class="mb-2 text-heading-sm font-bold text-primary">Read aloud</h3>
       <RichTextViewer :content="beat.read_aloud" />
     </section>
 

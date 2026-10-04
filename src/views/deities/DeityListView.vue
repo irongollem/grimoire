@@ -125,7 +125,7 @@
           </template>
 
           <template #body>
-            <p class="truncate font-cinzel text-sm font-bold text-foreground">{{ deity.name }}</p>
+            <p class="truncate text-heading-xs font-bold text-foreground">{{ deity.name }}</p>
             <p v-if="deity.titles" class="truncate text-caption italic text-muted-foreground">{{ deity.titles }}</p>
 
             <p v-if="deity.pantheon?.name" class="text-label text-muted-foreground">

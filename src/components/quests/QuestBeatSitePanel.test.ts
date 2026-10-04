@@ -144,7 +144,7 @@ describe("QuestBeatSitePanel", () => {
     // neither in this fixture, so it stays unpublished even though a region
     // has been traced.
     expect(wrapper.text()).toContain("Floor plan not published yet");
-    expect(wrapper.text()).toContain("Ways out traced — 1");
+    expect(wrapper.text()).toContain("Ways out traced: 1");
     expect(wrapper.text()).toContain("1 space unbound");
   });
 

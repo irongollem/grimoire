@@ -63,7 +63,7 @@
         <!-- Content-sized and unshrinkable; the action row wraps instead. -->
         <div class="hidden md:block md:min-w-0 md:max-w-full md:shrink-0">
           <h1
-            class="font-cinzel text-xl md:text-3xl font-bold text-foreground tracking-wide flex min-w-0 items-center gap-2"
+            class="text-heading-lg md:text-3xl font-bold text-foreground flex min-w-0 items-center gap-2"
           >
             <span class="truncate">{{ title }}</span>
             <slot name="title-suffix" />

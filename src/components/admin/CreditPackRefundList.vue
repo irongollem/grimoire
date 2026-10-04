@@ -172,7 +172,7 @@ async function doRefund(lot: PackLot) {
       override: !lot.eligible || undefined,
       reason: reason.value.trim() || undefined,
     })
-    successMsg.value = `Refunded — clawed back ${res.clawedBack} credits.`
+    successMsg.value = `Refunded: clawed back ${res.clawedBack} credits.`
     cancel()
     setTimeout(() => (successMsg.value = ''), 4000)
   } catch (err) {

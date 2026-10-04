@@ -144,7 +144,7 @@
             <p class="text-caption text-muted-foreground">vs DC {{ recipe.dc }}</p>
           </div>
         </div>
-        <p class="font-cinzel text-sm font-bold tracking-wide"
+        <p class="text-heading-sm font-bold"
           :class="{
             'text-elven-green': result.outcome === 'success',
             'text-muted-foreground': result.outcome === 'fail',
@@ -374,7 +374,7 @@ function resolveIngredientConsumption(): {
 const outcomeLabel = computed(() => {
   if (!result.value) return "";
   if (result.value.outcome === "success") return "Success!";
-  if (result.value.outcome === "ruin") return "Critical Failure — Item Ruined";
+  if (result.value.outcome === "ruin") return "Critical Failure: Item Ruined";
   return "Failure";
 });
 

@@ -2,7 +2,7 @@
   <section class="space-y-3 rounded-xl border border-primary/30 bg-card p-3" aria-label="Jump to another story beat">
     <div class="flex items-center gap-2">
       <div class="flex-1">
-        <h2 class="font-cinzel text-sm font-bold text-foreground">Jump story</h2>
+        <h2 class="text-heading-sm font-bold text-foreground">Jump story</h2>
         <p class="text-caption text-muted-foreground">Moves this quest only. The authored graph stays untouched; choose whether the detour needs a return point.</p>
       </div>
       <AppButton label="Close" size="xs" variant="subtle" @click="emit('close')" />

@@ -234,7 +234,7 @@ const mapPublish = useMapPublish({
 // once the child mounts) — this falls back to blank/zero for that one tick
 // rather than a full recompute; it self-heals as soon as the ref is set.
 const statusLine = computed(() => {
-  if (isNew.value) return "New map — paint a floor, then save.";
+  if (isNew.value) return "New map: paint a floor, then save.";
   const wb = workbenchRef.value;
   const packName = wb?.getPackName() ?? "";
   const cellsPainted = wb?.getCellsPainted() ?? 0;

@@ -179,7 +179,7 @@ async function onDrop(e: DragEvent) {
     const filename = url.split("/").pop()?.split("?")[0] || "image";
     await handleFile(new File([blob], filename, { type: blob.type }));
   } catch {
-    uploadError.value = "Can't fetch this image directly — save it to disk first, then drag the file";
+    uploadError.value = "Can't fetch this image directly. Save it to disk first, then drag the file";
   }
 }
 

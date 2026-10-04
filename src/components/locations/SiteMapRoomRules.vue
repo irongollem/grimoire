@@ -29,7 +29,7 @@
         class="flex min-w-0 flex-wrap items-center gap-1.5 rounded border border-border px-2 py-1 text-caption"
       >
         <span class="truncate font-semibold text-foreground">{{ questLabel(rule.quest_id) }}</span>
-        <span class="shrink-0 text-muted-foreground">— when {{ factLabel(rule) }} →</span>
+        <span class="shrink-0 text-muted-foreground">when {{ factLabel(rule) }} →</span>
         <span class="min-w-0 flex-1 truncate text-foreground">{{ actionSummary(rule) }}{{ delaySuffix(rule) }}</span>
         <AppButton label="Remove" size="xs" variant="subtle" :loading="removingId === rule.id" @click="remove(rule)" />
       </li>
@@ -40,7 +40,7 @@
       <template v-if="questOptions.length">
         <EntityCombobox v-model="ruleQuestId" class="min-w-0" :options="questOptions" placeholder="Which quest…" />
       </template>
-      <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">No quests in this campaign yet — write one first.</p>
+      <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">No quests in this campaign yet. Write one first.</p>
 
       <AppSelect v-model="ruleFact" size="xs" tone="card" aria-label="When this room is">
         <option v-for="fact in QUEST_CONSEQUENCE_LOCATION_FACTS" :key="fact" :value="fact">When {{ QUEST_CONSEQUENCE_LOCATION_FACT_LABELS[fact].toLowerCase() }}</option>
@@ -51,7 +51,7 @@
 
       <template v-if="ruleQuestId">
         <EntityCombobox v-if="objectiveOptions.length" v-model="ruleObjectiveId" class="min-w-0" :options="objectiveOptions" placeholder="Which objective…" />
-        <p v-else class="text-caption italic text-muted-foreground">This quest has no objectives yet — add one on its overview first.</p>
+        <p v-else class="text-caption italic text-muted-foreground">This quest has no objectives yet. Add one on its overview first.</p>
       </template>
       <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">Choose a quest first.</p>
 

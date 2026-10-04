@@ -40,14 +40,14 @@
       @click="formOpen = !formOpen"
     />
 
-    <span class="ml-auto max-sm:hidden text-caption text-muted-foreground">Switching is just navigation — no cursor moves and nothing is recorded.</span>
+    <span class="ml-auto max-sm:hidden text-caption text-muted-foreground">Switching is just navigation. No cursor moves and nothing is recorded.</span>
 
     <!-- Below sm, the picker (every thread, the caption and the create form) moves into a sheet
          behind this counter — five pills plus the caption plus the form wrap into a four-line
          block on a 390px phone and shove the beat card off the fold (frame 5). -->
     <AppButton
       :label="`${badges.length} ›`"
-      :aria-label="`${badges.length} threads — open the thread picker`"
+      :aria-label="`${badges.length} threads: open the thread picker`"
       variant="subtle"
       shape="pill"
       size="sm"
@@ -72,7 +72,7 @@
     <p v-if="error" role="alert" class="max-sm:hidden basis-full text-caption text-destructive">{{ error }}</p>
 
     <MobileSheet v-model:open="sheetOpen" title="Threads in this quest" show-until="sm">
-      <p class="mb-2 text-caption text-muted-foreground">Switching is just navigation — no cursor moves and nothing is recorded.</p>
+      <p class="mb-2 text-caption text-muted-foreground">Switching is just navigation. No cursor moves and nothing is recorded.</p>
 
       <ul class="space-y-1.5">
         <li v-for="badge in badges" :key="badge.thread.id">

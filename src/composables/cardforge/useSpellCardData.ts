@@ -59,7 +59,7 @@ export function useSpellCardData(data: MaybeRefOrGetter<Spell>) {
         label: "Comps",
         value:
           d.components.join(", ") +
-          (d.material ? " — " + truncateCard(d.material, 40) : ""),
+          (d.material ? ", " + truncateCard(d.material, 40) : ""),
       },
       { label: "Classes", value: d.classes.join(", ") },
       { label: "Level", value: spellLevelLabel(d.level) },

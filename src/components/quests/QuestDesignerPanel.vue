@@ -8,7 +8,7 @@
         <div class="space-y-4">
           <template v-if="turn === 0">
             <div>
-              <h3 class="font-cinzel text-sm font-semibold text-foreground">Describe the quest</h3>
+              <h3 class="text-heading-sm font-semibold text-foreground">Describe the quest</h3>
               <textarea
                 v-model="prose"
                 rows="8"
@@ -68,7 +68,7 @@
               />
             </template>
             <p v-else class="text-caption text-muted-foreground">
-              No open questions — the tree is settled.
+              No open questions. The tree is settled.
             </p>
 
             <label class="grid gap-1.5">
@@ -310,7 +310,7 @@ async function onSendAnswers() {
 
 async function onEdit() {
   const ok = await confirm(
-    "Editing the prose starts over — every answer so far will be lost.",
+    "Editing the prose starts over. Every answer so far will be lost.",
     { title: "Start over?", confirmLabel: "Start over" },
   );
   if (ok) reset();
@@ -342,7 +342,7 @@ async function onCreate() {
     // notice.
     if (beatsCreated === 0) {
       toast.info(
-        `"${tree.value.title}" has no story beats yet — the AI didn't return one. Its objectives are ready; write the beats yourself in Story flow.`,
+        `"${tree.value.title}" has no story beats yet. The AI didn't return one. Its objectives are ready; write the beats yourself in Story flow.`,
         8000,
       );
     }

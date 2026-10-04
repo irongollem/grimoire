@@ -10,9 +10,9 @@
     class="shrink-0"
     :icon="IconCast"
     :tooltip="isCasting
-      ? `Casting to ${castDeviceName ?? 'Google Home'} — click to stop`
+      ? `Casting to ${castDeviceName ?? 'Google Home'}. Click to stop`
       : needsSecondClick
-        ? 'Cast is ready — click again to choose a speaker'
+        ? 'Cast is ready. Click again to choose a speaker'
         : 'Cast audio to Google Home'"
     @click="openDevicePicker()"
   />

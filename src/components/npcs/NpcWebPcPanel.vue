@@ -12,7 +12,7 @@
 
   <div class="p-4 space-y-3">
     <div class="flex items-start justify-between gap-2">
-      <h2 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ pc.name }}</h2>
+      <h2 class="text-heading-sm font-bold text-foreground leading-tight">{{ pc.name }}</h2>
       <button type="button" class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click="$emit('close')">
         <IconClose class="h-4 w-4" />
       </button>

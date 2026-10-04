@@ -10,7 +10,7 @@
     <template v-else>
       <!-- Confirmation details (shown above the action row when active) -->
       <div v-if="showConfirmation && targetEntry" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
-        <p class="text-eyebrow text-muted-foreground">Reversing level {{ member.level }} — {{ lastChoice.class_name }}</p>
+        <p class="text-eyebrow text-muted-foreground">Reversing level {{ member.level }} · {{ lastChoice.class_name }}</p>
 
         <div class="space-y-1">
           <p class="text-caption text-foreground">
@@ -69,7 +69,7 @@
             emphasis="solid"
             size="sm"
             :disabled="isPending"
-            :label="isPending ? 'Applying…' : `Confirm — remove level ${member.level}`"
+            :label="isPending ? 'Applying…' : `Confirm: remove level ${member.level}`"
             @click="confirmDeLevel"
           />
         </div>
@@ -146,13 +146,13 @@ const manualReviewItems = computed<string[]>(() => {
   const items: string[] = [];
   if (!lastChoice.value) return items;
   const c = lastChoice.value;
-  if (c.asi?.mode === 'feat') items.push('Feat from this level — remove manually');
+  if (c.asi?.mode === 'feat') items.push('Feat from this level: remove manually');
   if ((c.spells_learned?.length ?? 0) > 0)
     items.push(`${c.spells_learned!.length} spell(s) from this level will be removed`);
   if ((c.cantrips_learned?.length ?? 0) > 0)
     items.push(`${c.cantrips_learned!.length} cantrip(s) from this level will be removed`);
   if (c.step_choices && Object.keys(c.step_choices).length > 0)
-    items.push('Class choices (Fighting Style, Invocations, etc.) — review manually');
+    items.push('Class choices (Fighting Style, Invocations, etc.): review manually');
   return items;
 });
 

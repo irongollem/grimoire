@@ -24,7 +24,7 @@
     </div>
 
     <p v-if="!zones.length" class="text-caption text-muted-foreground italic">
-      No zones yet — water, hazards, light and triggers all live here once traced.
+      No zones yet. Water, hazards, light and triggers all live here once traced.
     </p>
 
     <div v-else class="flex flex-col gap-1.5">
@@ -51,7 +51,7 @@
             :tone="isPlayerVisible(zone) ? 'success' : 'neutral'"
             size="inline-xs"
             :label="isPlayerVisible(zone) ? 'Shown' : 'DM'"
-            :tooltip="isPlayerVisible(zone) ? 'Visible to players' : 'DM only — click to show players'"
+            :tooltip="isPlayerVisible(zone) ? 'Visible to players' : 'DM only: click to show players'"
             @click="toggleVisible(zone)"
           />
           <AppButton
@@ -163,7 +163,7 @@
           </template>
 
           <span v-else class="text-caption text-muted-foreground italic">
-            Geometry with no mechanics — the honest default for cover, a ritual circle, anything read-aloud only.
+            Geometry with no mechanics: the honest default for cover, a ritual circle, anything read-aloud only.
           </span>
         </div>
       </div>

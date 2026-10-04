@@ -76,7 +76,7 @@
           v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.abbr, mod(ab.key), m) }"
         >
           <span class="pl-2 text-label font-bold" :class="INK">{{ ab.abbr }}</span>
-          <span class="px-1.5 text-center font-cinzel text-sm font-bold text-foreground">{{ scores[ab.key] }}</span>
+          <span class="px-1.5 text-center text-heading-sm font-bold text-foreground">{{ scores[ab.key] }}</span>
           <span
             class="px-1.5 text-center font-cinzel text-xs font-bold transition-colors group-hover:text-primary"
             :class="mod(ab.key) < 0 ? 'text-destructive' : 'text-foreground'"

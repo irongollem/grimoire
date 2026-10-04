@@ -5,7 +5,7 @@
            and a product name clipped to fit is a credit that no longer names the
            work it is crediting. -->
       <div class="min-w-0">
-        <p class="font-cinzel text-sm font-bold text-foreground">{{ source.title }}</p>
+        <p class="text-heading-sm font-bold text-foreground">{{ source.title }}</p>
         <p class="text-caption text-muted-foreground">{{ source.publisher }}</p>
       </div>
       <div v-if="source.license_keys.length" class="flex flex-wrap gap-1 shrink-0 justify-end">

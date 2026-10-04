@@ -62,7 +62,7 @@
           @click="insertItem(item)"
         >
           <div class="min-w-0">
-            <p class="font-cinzel text-sm font-semibold text-foreground truncate">
+            <p class="text-heading-xs font-semibold text-foreground truncate">
               {{ item.name }}
             </p>
             <p

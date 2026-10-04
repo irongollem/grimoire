@@ -38,14 +38,14 @@
 
     <!-- Cantrips known increase -->
     <CalloutChip v-if="cantripsKnownGain > 0" label="CANTRIPS">
-      Cantrips known increases to <strong class="font-cinzel">{{ cantripsKnownTotal }}</strong>
-      — pick {{ cantripsKnownGain }} new cantrip{{ cantripsKnownGain > 1 ? 's' : '' }} below.
+      Cantrips known increases to <strong class="font-cinzel">{{ cantripsKnownTotal }}</strong>.
+      Pick {{ cantripsKnownGain }} new cantrip{{ cantripsKnownGain > 1 ? 's' : '' }} below.
     </CalloutChip>
 
     <!-- Spells known increase -->
     <CalloutChip v-if="spellsKnownGain > 0" label="SPELLS">
-      Spells known increases to <strong class="font-cinzel">{{ spellsKnownTotal }}</strong>
-      — pick {{ spellsKnownGain }} new spell{{ spellsKnownGain > 1 ? 's' : '' }} below.
+      Spells known increases to <strong class="font-cinzel">{{ spellsKnownTotal }}</strong>.
+      Pick {{ spellsKnownGain }} new spell{{ spellsKnownGain > 1 ? 's' : '' }} below.
     </CalloutChip>
 
     <!-- Class resource updates -->

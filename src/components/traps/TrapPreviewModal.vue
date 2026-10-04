@@ -8,7 +8,7 @@
         class="text-label font-bold px-2 py-0.5 rounded text-white shrink-0"
         :class="TRAP_TYPE_BG[trap.trap_type]"
       >{{ trap.trap_type }}</span>
-      <h2 :id="headingId" class="font-cinzel text-sm font-bold text-foreground flex-1 truncate">{{ trap.name }}</h2>
+      <h2 :id="headingId" class="text-heading-xs font-bold text-foreground flex-1 truncate">{{ trap.name }}</h2>
       <span v-if="trap.cr" class="font-cinzel text-xs text-muted-foreground shrink-0">
         CR {{ trap.cr }} · {{ crToXp(trap.cr) }} XP
       </span>
@@ -65,11 +65,11 @@
               </div>
               <div v-if="trap.detection_dc">
                 <div class="text-label text-muted-foreground">Detection DC</div>
-                <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.detection_dc }}</div>
+                <div class="text-heading-sm font-bold text-foreground">{{ trap.detection_dc }}</div>
               </div>
               <div v-if="trap.disarm_dc">
                 <div class="text-label text-muted-foreground">Disarm DC</div>
-                <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.disarm_dc }}</div>
+                <div class="text-heading-sm font-bold text-foreground">{{ trap.disarm_dc }}</div>
               </div>
               <div>
                 <div class="text-label text-muted-foreground">Reset</div>
@@ -77,11 +77,11 @@
               </div>
               <div v-if="trap.trap_hp">
                 <div class="text-eyebrow text-muted-foreground">HP</div>
-                <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.trap_hp }}</div>
+                <div class="text-heading-sm font-bold text-foreground">{{ trap.trap_hp }}</div>
               </div>
               <div v-if="trap.trap_ac">
                 <div class="text-eyebrow text-muted-foreground">AC</div>
-                <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.trap_ac }}</div>
+                <div class="text-heading-sm font-bold text-foreground">{{ trap.trap_ac }}</div>
               </div>
             </div>
           </div>
@@ -98,19 +98,19 @@
             <div class="flex flex-wrap gap-4">
               <div v-if="trap.attack_bonus != null">
                 <div class="text-label text-muted-foreground">Attack</div>
-                <div class="font-cinzel text-sm font-bold text-foreground">
+                <div class="text-heading-sm font-bold text-foreground">
                   {{ trap.attack_bonus >= 0 ? "+" : "" }}{{ trap.attack_bonus }}
                 </div>
               </div>
               <div v-if="trap.save_type">
                 <div class="text-label text-muted-foreground">Save</div>
-                <div class="font-cinzel text-sm font-bold text-foreground">
+                <div class="text-heading-sm font-bold text-foreground">
                   {{ trap.save_type }} DC {{ trap.save_dc ?? "—" }}
                 </div>
               </div>
               <div v-if="trap.damage_entries?.length">
                 <div class="text-label text-muted-foreground">Damage</div>
-                <div class="font-cinzel text-sm font-bold text-foreground capitalize">
+                <div class="text-heading-sm font-bold text-foreground capitalize">
                   <span v-for="(entry, i) in trap.damage_entries" :key="i">
                     <span v-if="i > 0" class="text-muted-foreground font-normal"> + </span>
                     {{ entry.dice }}<span v-if="entry.type" class="font-normal text-xs"> {{ entry.type }}</span>

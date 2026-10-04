@@ -1,7 +1,7 @@
 <template>
   <section class="space-y-4 rounded-xl border border-border bg-card p-5 lg:sticky lg:top-4">
     <div>
-      <h2 class="font-cinzel text-lg font-bold text-foreground">{{ tree.title }}</h2>
+      <h2 class="text-heading font-bold text-foreground">{{ tree.title }}</h2>
       <p class="mt-1 text-body text-muted-foreground">{{ tree.summary }}</p>
     </div>
 
@@ -39,7 +39,7 @@
           <span class="flex-1">
             {{ objective.description }}
             <span v-if="beatTitleByKey.get(objective.raised_by ?? '')" class="text-muted-foreground/60">
-              — raised by {{ beatTitleByKey.get(objective.raised_by ?? "") }}
+              (raised by {{ beatTitleByKey.get(objective.raised_by ?? "") }})
             </span>
           </span>
         </li>

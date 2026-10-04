@@ -50,7 +50,7 @@
         @click="addUnboundRegion"
       />
     </div>
-    <p v-if="!spaces.length" class="text-caption text-muted-foreground italic">No spaces yet — add a room below, or a nested site as a child location.</p>
+    <p v-if="!spaces.length" class="text-caption text-muted-foreground italic">No spaces yet. Add a room below, or a nested site as a child location.</p>
     <div v-else class="flex flex-col gap-1.5">
       <div
         v-for="(space, i) in spaces"
@@ -86,7 +86,7 @@
             <span
               v-if="nestedSiteIndexBySpace.get(space.id)"
               class="shrink-0 rounded bg-muted/40 px-1.5 py-0.5 font-cinzel text-2xs font-bold text-muted-foreground"
-              :title="`Nested site — level ${nestedSiteIndexBySpace.get(space.id)}`"
+              :title="`Nested site · level ${nestedSiteIndexBySpace.get(space.id)}`"
             >
               L{{ nestedSiteIndexBySpace.get(space.id) }}
             </span>

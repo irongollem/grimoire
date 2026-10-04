@@ -54,7 +54,7 @@
               >
                 <IconScrollText class="h-3.5 w-3.5" :style="{ color: QUEST_STATUS_COLORS[quest.status] }" />
               </div>
-              <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1">
+              <h3 class="text-heading-xs font-bold text-foreground leading-tight line-clamp-2 flex-1">
                 {{ quest.title || "Untitled Quest" }}
               </h3>
             </div>

@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-4 space-y-3">
     <div>
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">{{ title }}</h2>
+      <h2 class="text-heading-sm font-semibold text-foreground">{{ title }}</h2>
       <p v-if="subtitle" class="text-caption text-muted-foreground italic mt-0.5">{{ subtitle }}</p>
     </div>
 

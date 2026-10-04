@@ -116,7 +116,7 @@
         class="flex-1 min-w-0 max-w-48 bg-on-caution/10 border border-on-caution/20 rounded px-2 py-0.5 text-caption text-on-caution focus:outline-none focus:ring-1 focus:ring-on-caution/30"
         @change="ui.dmPreviewPartyMemberId = ($event.target as HTMLSelectElement).value || null"
       >
-        <option value="">— pick a character —</option>
+        <option value="">Pick a character</option>
         <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
       </select>
       <button

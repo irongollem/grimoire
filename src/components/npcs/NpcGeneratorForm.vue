@@ -108,7 +108,7 @@
       <EntityCombobox
         :model-value="quickForm.location_id ?? ''"
         :options="locationOptions"
-        placeholder="— none —"
+        placeholder="None"
         @update:model-value="patchForm('location_id', $event || null)"
       >
         <template #option="{ opt }">
@@ -146,7 +146,7 @@
       <EntityCombobox
         :model-value="quickForm.related_npc_id ?? ''"
         :options="npcs ?? []"
-        placeholder="— none —"
+        placeholder="None"
         @update:model-value="patchForm('related_npc_id', $event || null)"
       />
     </div>
@@ -185,7 +185,7 @@
       v-if="generateAlterEgo"
       class="text-caption text-ink-caution italic"
     >
-      ⚠ Uses 2× generation credits — a true-form portrait is generated
+      ⚠ Uses 2× generation credits: a true-form portrait is generated
       first, then used as seed for the disguise portrait.
     </p>
     <p v-else class="text-caption text-muted-foreground italic">

@@ -3,7 +3,7 @@
     <p class="text-body text-muted-foreground italic">
       {{ isEditMode
         ? 'Review your changes before saving.'
-        : 'All set! Stats are derived from your choices — no magic numbers.' }}
+        : 'All set! Stats are derived from your choices, no magic numbers.' }}
     </p>
 
     <!-- Summary card -->
@@ -28,7 +28,7 @@
       <div class="px-4 pt-3 pb-2 grid grid-cols-6 gap-2">
         <div v-for="stat in ABILITY_STATS" :key="stat.key" class="text-center">
           <p class="text-label text-muted-foreground">{{ stat.label }}</p>
-          <p class="font-cinzel text-sm font-bold">{{ displayScore(stat.key) }}</p>
+          <p class="text-heading-sm font-bold">{{ displayScore(stat.key) }}</p>
           <p class="font-cinzel text-2xs"
             :class="totalMod(stat.key) >= 0 ? 'text-ink-success' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
@@ -91,7 +91,7 @@
     <div v-if="!f.class" class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 p-3 flex items-start gap-2">
       <span class="text-ink-caution shrink-0 mt-0.5">⚡</span>
       <p class="text-body text-ink-caution ">
-        No class selected — HP will default to 8. You can set your class later via the Edit screen.
+        No class selected. HP will default to 8. You can set your class later via the Edit screen.
       </p>
     </div>
 

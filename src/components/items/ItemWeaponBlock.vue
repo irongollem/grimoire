@@ -37,7 +37,7 @@
     </div>
     <!-- Mastery — 2024 PHB only; each weapon carries at most one -->
     <div v-if="is2024" class="flex flex-col gap-1">
-      <span class="text-eyebrow text-muted-foreground">Mastery <span class="normal-case font-fell font-normal text-muted-foreground/60">— 2024 only</span></span>
+      <span class="text-eyebrow text-muted-foreground">Mastery <span class="normal-case font-fell font-normal text-muted-foreground/60">(2024 only)</span></span>
       <AppSelect v-model="masteryModel" tone="filled" weight="normal">
         <option value="">None</option>
         <option v-for="m in WEAPON_MASTERY_PROPERTIES" :key="m" :value="m">{{ WEAPON_MASTERY_DEFINITIONS[m].label }}</option>

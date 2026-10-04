@@ -11,7 +11,7 @@
       :aria-expanded="open"
       @click="open = !open"
     >
-      <span class="font-cinzel text-base font-bold tracking-wide text-foreground">
+      <span class="text-heading-sm font-bold text-foreground">
         {{ title }}
       </span>
       <IconChevronDown

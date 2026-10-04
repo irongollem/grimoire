@@ -40,7 +40,7 @@ describe("PlayerQuestStoryThread", () => {
     });
 
     const eyebrows = wrapper.findAll("h4").map((h) => h.text());
-    expect(eyebrows).toEqual(["Main", "Also following — The Drowned Vault"]);
+    expect(eyebrows).toEqual(["Main", "Also following: The Drowned Vault"]);
     expect(wrapper.text()).toContain("Maerin asked for help.");
     expect(wrapper.text()).toContain("A drowned strongroom.");
   });

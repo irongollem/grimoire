@@ -51,23 +51,23 @@ export const SRD_CONDITIONS_2014: Condition[] = [
     name: "Exhaustion",
     description:
       "Some special abilities and environmental hazards, such as starvation and the long-term effects of freezing or scorching temperatures, can lead to a special condition called exhaustion. Exhaustion is measured in six levels. An effect can give a creature one or more levels of exhaustion, as specified in the effect's description.\n\n" +
-      "Level 1 — Disadvantage on ability checks.\n" +
-      "Level 2 — Speed halved.\n" +
-      "Level 3 — Disadvantage on attack rolls and saving throws.\n" +
-      "Level 4 — Hit point maximum halved.\n" +
-      "Level 5 — Speed reduced to 0.\n" +
-      "Level 6 — Death.\n\n" +
+      "Level 1: Disadvantage on ability checks.\n" +
+      "Level 2: Speed halved.\n" +
+      "Level 3: Disadvantage on attack rolls and saving throws.\n" +
+      "Level 4: Hit point maximum halved.\n" +
+      "Level 5: Speed reduced to 0.\n" +
+      "Level 6: Death.\n\n" +
       "If an already exhausted creature suffers another effect that causes exhaustion, its current level of exhaustion increases by the amount specified in the effect's description.\n" +
       "A creature suffers the effect of its current level of exhaustion as well as all lower levels. For example, a creature suffering level 2 exhaustion has its speed halved and has disadvantage on ability checks.\n" +
       "An effect that removes exhaustion reduces its level as specified in the effect's description, with all exhaustion effects ending if a creature's exhaustion level is reduced below 1.\n" +
       "Finishing a long rest reduces a creature's exhaustion level by 1, provided that the creature has also ingested some food and drink.",
     effects: [
-      "Level 1 — Disadvantage on ability checks.",
-      "Level 2 — Speed halved.",
-      "Level 3 — Disadvantage on attack rolls and saving throws.",
-      "Level 4 — Hit point maximum halved.",
-      "Level 5 — Speed reduced to 0.",
-      "Level 6 — Death.",
+      "Level 1: Disadvantage on ability checks.",
+      "Level 2: Speed halved.",
+      "Level 3: Disadvantage on attack rolls and saving throws.",
+      "Level 4: Hit point maximum halved.",
+      "Level 5: Speed reduced to 0.",
+      "Level 6: Death.",
       "Finishing a long rest reduces a creature's exhaustion level by 1, provided that the creature has also ingested some food and drink.",
     ],
   },

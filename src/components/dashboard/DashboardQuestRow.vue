@@ -17,7 +17,7 @@
       aria-hidden="true"
     />
     <span class="min-w-0 flex-1">
-      <span class="block truncate font-cinzel text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+      <span class="block truncate text-heading-xs font-semibold text-foreground group-hover:text-primary transition-colors">
         {{ row.title }}
       </span>
       <span v-if="row.secondary" class="block truncate text-caption text-muted-foreground italic">

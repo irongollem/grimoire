@@ -1,7 +1,7 @@
 <template>
   <header class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
     <div class="min-w-0 flex-1">
-      <h1 class="truncate font-cinzel text-base font-bold text-foreground">{{ siteName }}</h1>
+      <h1 class="truncate text-heading-sm font-bold text-foreground">{{ siteName }}</h1>
       <p class="text-caption text-muted-foreground">Running<template v-if="questTitle"> · {{ questTitle }}</template></p>
     </div>
     <div class="flex flex-wrap items-center gap-2">

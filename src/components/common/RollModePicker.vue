@@ -79,7 +79,7 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
   @apply text-label font-semibold text-muted-foreground px-2 pt-1 pb-0.5;
 }
 .menu-item {
-  @apply text-left font-cinzel text-sm font-bold tracking-wider rounded-md px-3 py-2 text-foreground transition-colors;
+  @apply text-left text-heading-sm font-bold rounded-md px-3 py-2 text-foreground transition-colors;
 }
 .opt-adv:hover { @apply bg-tone-success/15 text-ink-success ; }
 .opt-normal:hover { @apply bg-muted/60; }

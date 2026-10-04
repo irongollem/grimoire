@@ -80,7 +80,7 @@
   <!-- ── Full card mode (default) ────────────────────────────────────────── -->
   <div v-else class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
     <div class="flex items-center justify-between">
-      <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase flex items-center gap-2">
+      <h2 class="text-heading-sm font-bold text-foreground tracking-wider uppercase flex items-center gap-2">
         <IconCalendarDays class="h-4 w-4 text-muted-foreground" />
         Calendar Pins
       </h2>

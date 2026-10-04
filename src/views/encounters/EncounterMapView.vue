@@ -219,7 +219,7 @@ const siteTarget = computed(() =>
 const siteTooltip = computed(() => (surface.value?.focusRoomId ? "Back to the site" : "Back to Runner"));
 const title = computed(() => {
   const encounterName = encounter.value?.name ?? "Loading…";
-  return focusRoom.value ? `${focusRoom.value.name} — ${encounterName}` : encounterName;
+  return focusRoom.value ? `${focusRoom.value.name} · ${encounterName}` : encounterName;
 });
 const caption = computed(() => {
   if (!isLive.value) return "Encounter ready";

@@ -6,7 +6,7 @@
       @click.self="emit('close')"
     >
       <div class="bg-card border border-border rounded-xl shadow-xl p-5 w-80 max-h-[80vh] overflow-y-auto space-y-3">
-        <p class="font-cinzel text-sm font-semibold text-foreground tracking-wider capitalize">
+        <p class="text-heading-sm font-semibold text-foreground capitalize">
           {{ slotLabel }} Slot
         </p>
 

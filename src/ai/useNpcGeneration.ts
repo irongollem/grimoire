@@ -151,7 +151,7 @@ export function useNpcGeneration() {
       options?.generateAlterEgo &&
       (!npcData.disguise_name || !npcData.disguise_image_prompt)
     ) {
-      throw new Error("AI response was missing disguise fields — please try again.");
+      throw new Error("AI response was missing disguise fields. Please try again.");
     }
 
     return { ...npcData, ...await generateNpcImages(npcData, options, imageContext) };

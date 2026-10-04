@@ -8,7 +8,7 @@
     >
       <component :is="stat.icon" class="h-4 w-4 text-muted-foreground/50 shrink-0" />
       <span class="text-body text-muted-foreground">{{ stat.label }}</span>
-      <span class="ml-auto font-cinzel text-sm font-bold text-foreground">{{ stat.value }}</span>
+      <span class="ml-auto text-heading-sm font-bold text-foreground">{{ stat.value }}</span>
     </RouterLink>
   </div>
 </template>

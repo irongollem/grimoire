@@ -66,7 +66,7 @@
         </QuestFoldRow>
 
         <section ref="dmContentAnchor" class="rounded-xl border border-border bg-card p-3" aria-label="Read aloud">
-          <h3 class="font-cinzel text-sm font-bold text-foreground">Read aloud</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">Read aloud</h3>
           <!-- `belowLg` on the RichTextViewer itself (not just its `beat.read_aloud`
                wrapper): CLAUDE.md's motion rules reserve JS gating for exactly this —
                a Tiptap instance is "heavy", and this section's own `lg:hidden` on the
@@ -131,7 +131,7 @@
         <div class="flex min-w-0 flex-col gap-3">
           <section class="rounded-xl border border-border bg-card p-3" aria-label="Beat">
             <header class="flex items-center gap-2">
-              <h3 class="font-cinzel text-sm font-bold text-foreground">Beat</h3>
+              <h3 class="text-heading-sm font-bold text-foreground">Beat</h3>
               <span v-if="prepGapCount" class="ml-auto rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">
                 {{ prepGapCount }} prep gap{{ prepGapCount === 1 ? '' : 's' }}
               </span>
@@ -349,7 +349,7 @@ const stagedSiteCaption = computed(() => {
   const loc = stagedLocation.value;
   if (!loc) return "nowhere yet";
   const site = resolvedSite.value;
-  if (!site) return "not a site — no room surface";
+  if (!site) return "not a site; no room surface";
   // #886: counts `grounds` too — the interior predicate is the single reader,
   // so a `wilds` site's beat caption stops reporting 0 rooms.
   const roomCount = locationOptions.value.filter((candidate) => candidate.parent_id === site.id && isInteriorType(candidate.location_type)).length;
@@ -358,7 +358,7 @@ const stagedSiteCaption = computed(() => {
   const { singular, plural } = spaceNoun(site.location_type);
   const rooms = pluralizeCount(roomCount, singular, plural);
   const demonstrative = childSpaceType(site.location_type) === "grounds" ? "these grounds" : "this room";
-  return loc.id === site.id ? `site: ${rooms}` : `opens at ${demonstrative} in ${site.name} — ${rooms}`;
+  return loc.id === site.id ? `site: ${rooms}` : `opens at ${demonstrative} in ${site.name}: ${rooms}`;
 });
 const { readiness: siteReadiness } = useSiteStructure(resolvedSite);
 

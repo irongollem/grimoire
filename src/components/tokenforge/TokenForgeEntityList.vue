@@ -7,7 +7,7 @@
         <input
           :value="customName"
           placeholder="Name…"
-          class="w-full bg-transparent border-b border-border px-1 py-1 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+          class="w-full bg-transparent border-b border-border px-1 py-1 text-heading-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
           @input="emit('update:customName', ($event.target as HTMLInputElement).value)"
         />
         <label class="inline-flex items-center gap-2 cursor-pointer text-label-lg text-muted-foreground hover:text-foreground transition-colors">
@@ -47,7 +47,7 @@
         <span v-else class="text-white/60">{{ e.name.charAt(0).toUpperCase() }}</span>
       </div>
       <div class="flex-1 min-w-0">
-        <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ e.name }}</p>
+        <p class="text-heading-xs font-semibold text-foreground truncate">{{ e.name }}</p>
         <p class="text-caption text-muted-foreground truncate">{{ e.subtitle }}</p>
       </div>
       <span v-if="!e.imageUrl && !cutoutUrlById?.get(e.id)" class="text-label text-muted-foreground/40 shrink-0">No art</span>

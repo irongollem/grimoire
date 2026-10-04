@@ -23,7 +23,7 @@
     <!-- Active form -->
     <div v-if="activeWildshape" class="rounded-lg border border-primary/40 bg-card overflow-hidden">
       <div class="flex items-center justify-between px-4 py-2.5 bg-primary/10 border-b border-border">
-        <span class="font-cinzel text-sm font-bold text-primary">🐺 {{ activeWildshape.beast_name }}</span>
+        <span class="text-heading-sm font-bold text-primary">🐺 {{ activeWildshape.beast_name }}</span>
         <div class="flex items-center gap-1.5">
           <!-- Taking another form spends a use, the same as the first. -->
           <AppButton
@@ -44,15 +44,15 @@
       <div class="flex gap-6 px-4 py-2.5">
         <div class="text-center">
           <p class="text-eyebrow text-muted-foreground">HP</p>
-          <p class="font-cinzel text-sm font-bold">{{ formHpLabel }}</p>
+          <p class="text-heading-sm font-bold">{{ formHpLabel }}</p>
         </div>
         <div class="text-center">
           <p class="text-label text-muted-foreground">AC</p>
-          <p class="font-cinzel text-sm font-bold">{{ activeWildshape.beast_ac }}</p>
+          <p class="text-heading-sm font-bold">{{ activeWildshape.beast_ac }}</p>
         </div>
         <div v-if="beastMonster?.stat_block?.speed" class="text-center">
           <p class="text-label text-muted-foreground">SPEED</p>
-          <p class="font-cinzel text-sm font-bold">{{ beastMonster.stat_block.speed }}</p>
+          <p class="text-heading-sm font-bold">{{ beastMonster.stat_block.speed }}</p>
         </div>
       </div>
       <!-- 2014 Circle of the Moon, Combat Wild Shape: the beast has its own pool to heal. -->

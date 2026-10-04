@@ -12,7 +12,7 @@
           class="h-full w-full object-cover"
         />
         <div v-else class="flex h-full w-full items-center justify-center text-caption text-muted-foreground italic">
-          Stylized render missing — go back and re-roll.
+          Stylized render missing. Go back and re-roll.
         </div>
       </div>
       <div class="flex flex-col items-center gap-1.5">
@@ -62,7 +62,7 @@
         :poster="mini.thumbnail_url ?? mini.stylized_image_url ?? undefined"
       />
       <p v-else class="text-caption text-destructive text-center">
-        The model file is missing — try a re-sculpt.
+        The model file is missing. Try a re-sculpt.
       </p>
 
       <!-- Base & scale — free, instant swap; no Meshy re-run -->

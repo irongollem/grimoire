@@ -122,7 +122,7 @@
         <span class="text-eyebrow text-primary/60">2024 PHB</span>
       </div>
       <div class="p-4 flex flex-col gap-2">
-        <p class="font-cinzel text-sm font-bold text-foreground">{{ background.feat_grant_name }}</p>
+        <p class="text-heading-sm font-bold text-foreground">{{ background.feat_grant_name }}</p>
         <RichTextViewer v-if="background.feat_grant_description" :content="background.feat_grant_description" />
       </div>
     </div>
@@ -217,7 +217,7 @@
               />
             </div>
             <p v-if="lootboxItems.length === 0" class="text-caption text-muted-foreground italic">
-              No items parsed — equipment may be stored as rich text. Edit the background to re-save in the new format.
+              No items parsed: equipment may be stored as rich text. Edit the background to re-save in the new format.
             </p>
           </div>
 
@@ -248,7 +248,7 @@
         <span class="text-label-lg font-semibold text-muted-foreground">Feature</span>
       </div>
       <div class="p-4 flex flex-col gap-2">
-        <p class="font-cinzel text-sm font-bold text-foreground">{{ background.feature_name }}</p>
+        <p class="text-heading-sm font-bold text-foreground">{{ background.feature_name }}</p>
         <RichTextViewer v-if="background.feature_description" :content="background.feature_description" />
       </div>
     </div>

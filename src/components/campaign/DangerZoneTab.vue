@@ -12,7 +12,7 @@
         </template>
         <template v-else>
           Your notes, NPCs, party members, calendar events, and encounters will have their campaign link removed but will not be deleted.
-          <span v-if="hasHomebrew">Campaign-scoped homebrew is different — choose what happens to it below.</span>
+          <span v-if="hasHomebrew">Campaign-scoped homebrew is different: choose what happens to it below.</span>
         </template>
       </p>
 
@@ -34,7 +34,7 @@
                 Make available in all campaigns
               </span>
               <p class="text-caption text-muted-foreground italic">
-                It becomes universal homebrew — the same as homebrew that was never campaign-scoped.
+                It becomes universal homebrew, the same as homebrew that was never campaign-scoped.
               </p>
             </div>
           </label>

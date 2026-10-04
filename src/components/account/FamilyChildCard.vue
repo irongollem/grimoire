@@ -1,7 +1,7 @@
 <template>
   <section class="rounded-lg border border-border bg-card overflow-hidden">
     <header class="px-4 py-3 border-b border-border">
-      <h3 class="font-cinzel text-sm font-bold text-foreground tracking-wide">{{ child.displayName }}</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">{{ child.displayName }}</h3>
       <p class="text-caption text-muted-foreground italic mt-0.5">
         Signs in as <span class="text-foreground not-italic">{{ child.login_name }}</span>
       </p>

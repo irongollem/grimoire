@@ -110,7 +110,7 @@ export function adviseCr(inputs: TrapAdvisorInputs): TrapAdvisorResult {
     if (avg > 0) {
       factors.push(`~${Math.round(avg)} avg damage → base score ${baseScore} (CR ${crAtScore(baseScore)})`);
     } else {
-      factors.push("No damage dice set — defaulting to CR 0 base");
+      factors.push("No damage dice set: defaulting to CR 0 base");
     }
   } else if (inputs.effectCategory === "condition") {
     score = 2;
@@ -120,7 +120,7 @@ export function adviseCr(inputs: TrapAdvisorInputs): TrapAdvisorResult {
     factors.push("Terrain control (pit, collapse, flood, wall) → base score 3 (CR 1/2)");
   } else if (inputs.effectCategory === "alarm") {
     score = 0;
-    factors.push("Alarm only — no direct harm → CR 0 base");
+    factors.push("Alarm only: no direct harm → CR 0 base");
   } else if (inputs.effectCategory === "death") {
     score = 8;
     factors.push("Death or incapacitation effect → base score 8 (CR 5)");
@@ -139,28 +139,28 @@ export function adviseCr(inputs: TrapAdvisorInputs): TrapAdvisorResult {
   switch (inputs.dcTier) {
     case "low":
       score -= 1;
-      factors.push("Low DC (≤12) — easy to spot or dodge −1 CR");
+      factors.push("Low DC (≤12): easy to spot or dodge −1 CR");
       break;
     case "moderate":
-      factors.push("Moderate DC (13–16) — standard difficulty, no adjustment");
+      factors.push("Moderate DC (13–16): standard difficulty, no adjustment");
       break;
     case "high":
       score += 0.5;
-      factors.push("High DC (17–20) — hard to avoid +½ CR");
+      factors.push("High DC (17–20): hard to avoid +½ CR");
       break;
     case "extreme":
       score += 1.5;
-      factors.push("Extreme DC (21+) — nearly unavoidable +1½ CR");
+      factors.push("Extreme DC (21+): nearly unavoidable +1½ CR");
       break;
   }
 
   // ── Reset type ───────────────────────────────────────────────────────────
   if (inputs.resetType === "Manual") {
     score += 0.5;
-    factors.push("Manual reset — can be re-armed by enemies +½ CR");
+    factors.push("Manual reset: can be re-armed by enemies +½ CR");
   } else if (inputs.resetType === "Automatic") {
     score += 2;
-    factors.push("Automatic reset — triggers repeatedly, ongoing hazard +2 CR");
+    factors.push("Automatic reset: triggers repeatedly, ongoing hazard +2 CR");
   }
 
   // ── Durability (HP / AC) ──────────────────────────────────────────────────
@@ -168,21 +168,21 @@ export function adviseCr(inputs: TrapAdvisorInputs): TrapAdvisorResult {
   if (hp !== null && hp > 0) {
     if (hp <= 10) {
       score -= 0.5;
-      factors.push(`Low HP (${hp}) — easily smashed −½ CR`);
+      factors.push(`Low HP (${hp}): easily smashed −½ CR`);
     } else if (hp <= 30) {
       // baseline
     } else if (hp <= 60) {
       score += 0.5;
-      factors.push(`High HP (${hp}) — difficult to destroy +½ CR`);
+      factors.push(`High HP (${hp}): difficult to destroy +½ CR`);
     } else {
       score += 1;
-      factors.push(`Very high HP (${hp}) — extremely hard to destroy +1 CR`);
+      factors.push(`Very high HP (${hp}): extremely hard to destroy +1 CR`);
     }
   }
   const ac = inputs.trapAc;
   if (ac !== null && ac >= 18) {
     score += 0.5;
-    factors.push(`High AC (${ac}) — hard to damage physically +½ CR`);
+    factors.push(`High AC (${ac}): hard to damage physically +½ CR`);
   }
 
   // ── Secondary effect ─────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ export function adviseCr(inputs: TrapAdvisorInputs): TrapAdvisorResult {
   const maxScore = finalScore + 1;
 
   if (factors.length === 0) {
-    factors.push("No specific effects selected — cannot estimate");
+    factors.push("No specific effects selected: cannot estimate");
   }
 
   return {

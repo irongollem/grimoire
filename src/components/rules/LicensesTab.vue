@@ -14,7 +14,7 @@
       </div>
 
       <p v-else-if="error" class="text-caption text-destructive italic">
-        The attribution notices could not be loaded. They are still required reading —
+        The attribution notices could not be loaded. They are still required reading:
         please retry rather than treating this page as empty.
       </p>
 
@@ -43,7 +43,7 @@
         <section v-if="unlicensed.length" class="space-y-2">
           <h2 class="text-heading-sm font-bold text-foreground">Grimoire original content</h2>
           <p class="text-caption text-muted-foreground italic">
-            No third-party license is on record for this content — listed here for
+            No third-party license is on record for this content: listed here for
             completeness, not because it carries one.
           </p>
           <div class="space-y-2">
@@ -70,7 +70,7 @@
           <h2 class="text-heading-sm font-bold text-foreground">License texts</h2>
           <div v-for="license in presentLicenses" :key="license.key" class="space-y-2">
             <div class="flex items-baseline gap-2 flex-wrap">
-              <h3 class="font-cinzel text-sm font-bold text-foreground">{{ license.name }}</h3>
+              <h3 class="text-heading-sm font-bold text-foreground">{{ license.name }}</h3>
               <a
                 v-if="license.url"
                 :href="license.url"

@@ -110,7 +110,7 @@
                 @mousedown.prevent="selectDeity(d.id, d.name)"
               >
                 <span>{{ d.name }}</span>
-                <span v-if="d.titles" class="text-muted-foreground text-xs truncate">— {{ d.titles }}</span>
+                <span v-if="d.titles" class="text-muted-foreground text-xs truncate">· {{ d.titles }}</span>
               </li>
             </ul>
           </div>
@@ -203,7 +203,7 @@
             />
           </div>
           <div>
-            <p class="font-cinzel text-sm font-bold text-foreground">{{ background.name }}</p>
+            <p class="text-heading-sm font-bold text-foreground">{{ background.name }}</p>
             <p v-if="background.source_title || background.source" class="text-label text-muted-foreground mt-0.5">
               {{ background.source_title ?? background.source }}
             </p>

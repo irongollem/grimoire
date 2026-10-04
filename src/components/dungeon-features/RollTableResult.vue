@@ -5,7 +5,7 @@
       <span class="text-title font-bold text-primary">{{ result.rolled }}</span>
     </div>
     <template v-if="result.entry">
-      <div class="font-cinzel text-sm text-foreground font-bold">{{ result.entry.label }}</div>
+      <div class="text-heading-sm text-foreground font-bold">{{ result.entry.label }}</div>
       <AppButton
         v-if="result.entry.encounter_id"
         variant="link"

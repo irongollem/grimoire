@@ -272,6 +272,6 @@ function chipClasses(status: TilePackGenerationJob["status"]): string {
 function chipTitle(job: TilePackGenerationJob): string {
   const reason = retryReason(job);
   if (reason) return `${job.slot_id}: ${reason}`;
-  return `${job.slot_id} — ${job.status}`;
+  return `${job.slot_id} · ${job.status}`;
 }
 </script>

@@ -81,7 +81,7 @@
             weight="normal"
             class="flex-1 min-w-32"
           >
-            <option value="">— Select —</option>
+            <option value="">Select</option>
             <option v-for="opt in refOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
           </AppSelect>
         </div>

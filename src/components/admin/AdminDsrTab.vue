@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
     <p class="text-caption text-muted-foreground italic">
-      Data-subject requests received and answered (#643) — the Art. 12(3) clock runs
+      Data-subject requests received and answered (#643); the Art. 12(3) clock runs
       {{ DSR_DEADLINE_DAYS }} days from receipt. Self-serve exports and erasures record
       themselves; use the form below for requests that arrive by email. Entries cannot be
       edited or deleted, and answering a request is one-way.

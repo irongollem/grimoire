@@ -72,7 +72,7 @@
 :root[data-theme^="vellum"] .text-body { font-family: var(--vl-serif); font-size: 0.9375rem; }
 :root[data-theme^="vellum"] .text-caption { font-family: var(--vl-serif); font-size: 0.8125rem; }
 :root[data-theme^="vellum"] .text-caption-sm { font-family: var(--vl-serif); font-size: 0.6875rem; }
-:root[data-theme^="vellum"] :is(.text-heading-sm, .text-heading, .text-heading-lg) {
+:root[data-theme^="vellum"] :is(.text-heading-xs, .text-heading-sm, .text-heading, .text-heading-lg) {
   font-family: var(--vl-serif);
   font-weight: 700;
 }

@@ -45,10 +45,10 @@ const scopeValue = computed<string>({
   },
 });
 const scopeOptions = computed(() => [
-  { value: "", label: "General — all campaigns" },
+  { value: "", label: "General · all campaigns" },
   {
     value: "campaign",
-    label: `Campaign${scopeCampaignName.value ? ` — ${scopeCampaignName.value}` : ""}`,
+    label: `Campaign${scopeCampaignName.value ? ` · ${scopeCampaignName.value}` : ""}`,
     disabled: !activeCampaignId.value && !campaignId.value,
   },
 ]);

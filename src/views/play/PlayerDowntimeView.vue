@@ -160,7 +160,7 @@ async function onSelect(activity: DowntimeActivity) {
   optimisticTurn.value = activity.key;
   try {
     await spend.mutateAsync(activity.key);
-    toast.success(`${activity.title} — your draw is with your DM.`);
+    toast.success(`${activity.title}. Your draw is with your DM.`);
   } catch (e) {
     optimisticTurn.value = null;
     toast.error(toast.fromError(e, "Could not spend that draw."));
@@ -218,11 +218,11 @@ watch(myOutcomes, (list) => {
               Spend one below. Your DM resolves it before the next session.
             </template>
             <template v-else-if="pending.length > 0">
-              {{ pending.length === 1 ? "Your draw is" : "Your draws are" }} with your DM — the
+              {{ pending.length === 1 ? "Your draw is" : "Your draws are" }} with your DM; the
               outcome lands here.
             </template>
             <template v-else>
-              Nothing to spend yet — your DM grants downtime when the story allows a lull.
+              Nothing to spend yet. Your DM grants downtime when the story allows a lull.
             </template>
           </p>
         </template>
@@ -245,7 +245,7 @@ watch(myOutcomes, (list) => {
               <span class="font-medium text-foreground">
                 {{ activityLabel(draw.activity_key).title }}
               </span>
-              — {{ DOWNTIME_DRAW_STATUS_LABELS[draw.status] }}. You'll see the outcome below.
+              · {{ DOWNTIME_DRAW_STATUS_LABELS[draw.status] }}. You'll see the outcome below.
             </span>
           </li>
         </ul>

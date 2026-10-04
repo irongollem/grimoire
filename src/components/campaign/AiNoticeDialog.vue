@@ -101,14 +101,14 @@ const BASE_COPY: Record<"ai_use" | "likeness", { title: string; intro: string; b
     title: "Before you turn on AI",
     intro: "This campaign is about to start using AI-generated content. A few things worth knowing:",
     bullets: [
-      "Drafts can be inaccurate, generic, or resemble existing published works — always review before using them.",
-      "Your prompts and relevant campaign context are sent to a third-party AI provider (OpenAI, Anthropic, or Google — whichever this campaign is set to use).",
+      "Drafts can be inaccurate, generic, or resemble existing published works. Always review before using them.",
+      "Your prompts and relevant campaign context are sent to a third-party AI provider (OpenAI, Anthropic, or Google, whichever this campaign is set to use).",
       "Generated content carries an invisible AI marker, as required by EU law.",
     ],
   },
   likeness: {
     title: "Before you use a portrait",
-    intro: "This feature sends a portrait image to the AI provider — and for minis, to Meshy as well — to guide the generated artwork.",
+    intro: "This feature sends a portrait image to the AI provider, and for minis, to Meshy as well, to guide the generated artwork.",
     bullets: [
       "Only use images you have the right to use. A real person's likeness needs their permission.",
       "Minis inherit the portrait's visibility setting and can end up public.",
@@ -123,9 +123,9 @@ const BASE_COPY: Record<"ai_use" | "likeness", { title: string; intro: string; b
 // campaign open) and read very differently on purpose.
 const CHOOSE_COPY = {
   title: "Bring AI to this campaign?",
-  intro: "Grimoire can help fill the world faster — NPCs, monsters, encounters, quests, traps, session recaps, artwork and soundscapes, drafted in seconds and grounded in this campaign's own content.",
+  intro: "Grimoire can help fill the world faster: NPCs, monsters, encounters, quests, traps, session recaps, artwork and soundscapes, drafted in seconds and grounded in this campaign's own content.",
   bullets: [
-    "Drafts can be inaccurate or resemble existing works — review before using.",
+    "Drafts can be inaccurate or resemble existing works. Review before using.",
     "Prompts and relevant campaign context are processed by the third-party AI provider this campaign uses (OpenAI, Anthropic, or Google).",
     "Generated content carries an invisible AI marker, as EU law requires.",
     "You can change this anytime in campaign settings.",
@@ -140,7 +140,7 @@ const CHOOSE_COPY = {
 const PRO_REOFFER_LEAD = {
   title: "Your Pro plan includes monthly AI credits",
   intro:
-    "You turned AI off on this campaign a while back. Pro includes a batch of AI credits every month — for NPCs, encounters, recaps, artwork and more, grounded in your own campaign — so here's a fresh choice.",
+    "You turned AI off on this campaign a while back. Pro includes a batch of AI credits every month (for NPCs, encounters, recaps, artwork and more, grounded in your own campaign), so here's a fresh choice.",
 };
 
 // Full per-kind copy table, including a defensive 'ai_pro_reoffer' entry —

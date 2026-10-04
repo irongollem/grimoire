@@ -84,7 +84,7 @@ export function groupPlayerBeatsByThread(beats: readonly PlayerQuestBeat[]): Pla
   return columns.map((column, index) => ({
     threadId: column.threadId,
     label: column.label,
-    eyebrow: column.threadId === primaryThreadId ? column.label : `Also following — ${column.label}`,
+    eyebrow: column.threadId === primaryThreadId ? column.label : `Also following: ${column.label}`,
     isPrimary: column.threadId === primaryThreadId,
     tone: threadTone(index),
     beats: column.beats,

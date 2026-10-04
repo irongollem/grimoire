@@ -51,7 +51,7 @@ const KIND_ICONS: Record<BacklinkKind, Component> = {
 
 const {
   entityId,
-  headingClass = "font-cinzel text-sm font-bold tracking-wide text-foreground",
+  headingClass = "text-heading-sm font-bold text-foreground",
 } = defineProps<{
   entityId: string;
   /** The heading idiom of the sections it sits among, which differs per surface; the default is the Atlas place pane's. */

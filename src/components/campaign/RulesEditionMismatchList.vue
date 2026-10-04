@@ -7,7 +7,7 @@
   -->
   <section class="rounded-lg border border-border bg-card p-4 space-y-3">
     <div>
-      <h2 class="font-cinzel text-sm font-semibold text-foreground">Characters on the other edition</h2>
+      <h2 class="text-heading-sm font-semibold text-foreground">Characters on the other edition</h2>
       <p v-if="allowsMixed" class="text-caption text-muted-foreground mt-1">
         This table allows both editions, so this list is for information and nothing needs doing.
       </p>

@@ -1,9 +1,9 @@
 <template>
   <section class="space-y-2 rounded-lg border border-border bg-card p-3" aria-label="Quest consequences">
     <div>
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Consequences</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">Consequences</h3>
       <p class="text-caption text-muted-foreground">
-        When an objective becomes a status, the whole ledger settles, or a place gains a fact, do this — optionally after a delay.
+        When an objective becomes a status, the whole ledger settles, or a place gains a fact, do this, optionally after a delay.
       </p>
     </div>
 
@@ -81,11 +81,11 @@
       <template v-else-if="action === 'unlock_quest'">
         <EntityCombobox v-if="unlockableQuestOptions.length" v-model="targetQuestId" class="min-w-0 sm:col-span-2" :options="unlockableQuestOptions" placeholder="Which quest…" />
         <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">
-          No undiscovered quests to unlock — write the sequel first and leave it undiscovered.
+          No undiscovered quests to unlock. Write the sequel first and leave it undiscovered.
         </p>
         <template v-if="targetQuestId">
           <EntityCombobox v-if="entryBeatOptions.length" v-model="entryBeatId" class="min-w-0 sm:col-span-2" :options="entryBeatOptions" placeholder="Enters at…" />
-          <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">This quest has no beats yet — it will open at whichever beat is written first.</p>
+          <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">This quest has no beats yet. It will open at whichever beat is written first.</p>
         </template>
       </template>
       <template v-else-if="action === 'grant_knowledge'">

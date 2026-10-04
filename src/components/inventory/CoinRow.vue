@@ -8,7 +8,7 @@
       v-model.number="local"
       type="number"
       min="0"
-      class="w-full bg-muted/30 border border-border rounded px-1 py-0.5 font-cinzel text-sm font-bold text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+      class="w-full bg-muted/30 border border-border rounded px-1 py-0.5 text-heading-sm font-bold text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
       @change="commit"
       @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
     />

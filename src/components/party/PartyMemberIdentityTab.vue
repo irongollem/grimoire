@@ -32,13 +32,13 @@
           class="field-input w-full"
           @change="emit('update:selectedCampaignMemberId', ($event.target as HTMLSelectElement).value)"
         >
-          <option value="">— Unassigned —</option>
+          <option value="">Unassigned</option>
           <option v-for="p in players" :key="p.id" :value="p.id">
             {{ p.display_name || p.user_id.slice(0, 8) }}
           </option>
         </select>
         <p v-if="!players.length" class="text-caption text-muted-foreground/60 italic mt-1">
-          No players have joined yet — share an invite link first.
+          No players have joined yet. Share an invite link first.
         </p>
       </label>
     </div>
@@ -61,7 +61,7 @@
         class="field-input w-full"
         @change="patch({ subrace: ($event.target as HTMLSelectElement).value })"
       >
-        <option value="">— None —</option>
+        <option value="">None</option>
         <option v-for="sr in subraceOptions" :key="sr" :value="sr">{{ sr }}</option>
       </select>
     </div>
@@ -100,7 +100,7 @@
             class="field-input w-full"
             @change="patch({ disguise_subrace: ($event.target as HTMLSelectElement).value || null })"
           >
-            <option value="">— None —</option>
+            <option value="">None</option>
             <option v-for="sr in disguiseSubraceOptions" :key="sr" :value="sr">{{ sr }}</option>
           </select>
         </div>

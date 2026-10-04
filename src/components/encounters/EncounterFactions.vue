@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
     <div class="flex items-center justify-between">
-      <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">
+      <h2 class="text-heading-sm font-bold text-foreground tracking-wider uppercase">
         Factions
       </h2>
       <AppButton
@@ -44,7 +44,7 @@
             class="flex-1"
             @change="emitFactions"
           />
-          <span v-else class="flex-1 font-cinzel text-sm font-semibold text-foreground">
+          <span v-else class="flex-1 text-heading-sm font-semibold text-foreground">
             {{ faction.name }}
           </span>
 

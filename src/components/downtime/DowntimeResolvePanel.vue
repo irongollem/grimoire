@@ -191,7 +191,7 @@ async function onCancel() {
           v-else-if="result?.source === 'seed' && seedReward"
           class="mt-2 rounded border border-border bg-muted/40 p-2 text-caption-sm"
         >
-          A new {{ seedReward.noun }} — <span class="font-medium">{{ seedReward.name }}</span> —
+          A new {{ seedReward.noun }}, <span class="font-medium">{{ seedReward.name }}</span>,
           will be created in your campaign and linked to this outcome.
         </p>
         <p v-else class="mt-2 text-caption-sm text-destructive">
@@ -205,7 +205,7 @@ async function onCancel() {
               Draft with AI <span class="text-muted-foreground">(optional steer)</span>
               <AppInput
                 v-model="steer"
-                placeholder="Aim it at the Duke — he owes them a favour"
+                placeholder="Aim it at the Duke; he owes them a favour"
                 size="body"
                 class="mt-1"
                 @keydown.enter.prevent="onDraft"
@@ -255,7 +255,7 @@ async function onCancel() {
             <span v-if="!isAutoApplied(effect)" class="text-muted-foreground">
               (apply at the table)
             </span>
-            <span v-if="effect.note" class="italic text-muted-foreground">— {{ effect.note }}</span>
+            <span v-if="effect.note" class="italic text-muted-foreground">({{ effect.note }})</span>
           </AppCheckbox>
         </fieldset>
 

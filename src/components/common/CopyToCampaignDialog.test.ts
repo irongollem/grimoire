@@ -435,7 +435,7 @@ describe("CopyToCampaignDialog — unenabled library sources", () => {
     await flushPromises();
 
     expect(bodyText()).toContain("Tome of Heroes is not enabled in the target campaign");
-    expect(bodyText()).toContain("enable it there and the reference resolves");
+    expect(bodyText()).toContain("Enable it there and the reference resolves");
     expect(bodyText()).not.toContain("stay behind");
     expect(bodyText()).not.toContain("left out");
     wrapper.unmount();

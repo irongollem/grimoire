@@ -3,7 +3,7 @@
     <!-- Export -->
     <section class="space-y-3">
       <div>
-        <h3 class="font-cinzel text-sm font-semibold text-foreground">Export Campaign</h3>
+        <h3 class="text-heading-sm font-semibold text-foreground">Export Campaign</h3>
         <p class="text-body text-muted-foreground italic mt-1">
           Downloads a <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">.grimoire-backup</code> file
           containing all campaign data: party, NPCs, locations, quests, encounters, notes, and more.
@@ -45,7 +45,7 @@
     <!-- Markdown export -->
     <section class="space-y-3">
       <div>
-        <h3 class="font-cinzel text-sm font-semibold text-foreground">Export as Markdown</h3>
+        <h3 class="text-heading-sm font-semibold text-foreground">Export as Markdown</h3>
         <p class="text-body text-muted-foreground italic mt-1">
           Downloads a <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">.zip</code> of readable
           <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">.md</code> files, one per party member, NPC,
@@ -71,7 +71,7 @@
 
     <!-- Info about import -->
     <section class="space-y-2">
-      <h3 class="font-cinzel text-sm font-semibold text-foreground">Import a Campaign</h3>
+      <h3 class="text-heading-sm font-semibold text-foreground">Import a Campaign</h3>
       <p class="text-body text-muted-foreground italic">
         To import a <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">.grimoire-backup</code> file,
         use the <strong>Import from backup</strong> option in the campaign switcher (top of the left sidebar).

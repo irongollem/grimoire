@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <p class="text-caption text-muted-foreground italic">
       In-app bug reports and feature requests. The GitHub issue carries no
-      reporter and no screenshot — both are here (#633, #634). Screenshots are
+      reporter and no screenshot; both are here (#633, #634). Screenshots are
       kept 90 days, reports 365.
     </p>
 

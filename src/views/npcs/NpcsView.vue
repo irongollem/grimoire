@@ -3,7 +3,7 @@
   <ListPageLayout
     v-if="showList && !isMobile"
     title="NPC Tracker"
-    description="The denizens of your realm — allies, enemies, and unknowns"
+    description="The denizens of your realm: allies, enemies, and unknowns"
   >
     <template #title-suffix>
       <ManualHelpLink page="npc-tracker-overview" />
@@ -246,14 +246,14 @@
         <div class="flex items-center gap-2">
           <button
             type="button"
-            class="h-11 flex-1 rounded-xl border border-border bg-card font-cinzel text-sm font-semibold tracking-wider text-muted-foreground"
+            class="h-11 flex-1 rounded-xl border border-border bg-card text-heading-sm font-semibold text-muted-foreground"
             @click="clearFilters"
           >
             Clear all
           </button>
           <button
             type="button"
-            class="h-11 flex-1 rounded-xl bg-primary font-cinzel text-sm font-semibold tracking-wider text-primary-foreground"
+            class="h-11 flex-1 rounded-xl bg-primary text-heading-sm font-semibold text-primary-foreground"
             @click="filtersOpen = false"
           >
             Show {{ matchCount }}

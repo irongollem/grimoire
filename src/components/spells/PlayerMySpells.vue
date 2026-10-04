@@ -20,7 +20,7 @@
       class="rounded-lg border border-border bg-card px-5 py-8 text-center space-y-2"
     >
       <component :is="emptyIcon" class="h-8 w-8 mx-auto text-muted-foreground/60" />
-      <p class="font-cinzel text-sm font-semibold text-foreground">{{ emptyTitle }}</p>
+      <p class="text-heading-sm font-semibold text-foreground">{{ emptyTitle }}</p>
       <p class="text-body text-muted-foreground max-w-sm mx-auto">{{ emptyBody }}</p>
     </div>
 
@@ -36,7 +36,7 @@
         class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2 mb-2"
       >
         <span class="text-label-lg text-muted-foreground">Spells Prepared</span>
-        <span class="font-cinzel text-sm font-bold tracking-wider" :class="preparedCounterClass">
+        <span class="text-heading-sm font-bold" :class="preparedCounterClass">
           {{ preparedNonCantrips }} / {{ maxPrepared }}
         </span>
       </div>
@@ -137,7 +137,7 @@
             <span
               v-if="entry.always_prepared"
               class="shrink-0 text-label text-ink-success/80 border border-tone-success/30 rounded px-2 py-0.5"
-              title="Granted by your subclass — always prepared, doesn't count toward your prepared limit"
+              title="Granted by your subclass: always prepared, doesn't count toward your prepared limit"
             >Granted</span>
 
             <!-- Spell attack roll (multiclass-aware via source class) -->
@@ -183,7 +183,7 @@
               size="xs"
               tone="arcane"
               emphasis="soft"
-              :tooltip="`After the roll, spend ${option.sp_cost} SP — ${option.description}`"
+              :tooltip="`After the roll, spend ${option.sp_cost} SP: ${option.description}`"
               :label="option.name.replace(' Spell', '')"
               @click.stop="applyReactiveMetamagic(entry, option.name)"
             />
@@ -262,7 +262,7 @@
               emphasis="soft"
               size="xs"
               :disabled="isCasting"
-              tooltip="Cast as a ritual — takes 10 minutes longer and spends no spell slot"
+              tooltip="Cast as a ritual: takes 10 minutes longer and spends no spell slot"
               label="Ritual"
               @click="castRitual(entry)"
             />
@@ -484,7 +484,7 @@ async function rollSpellAttack(entry: CharacterSpellEntry, override: RollMode | 
   await promptRoll({
     counts: { 20: 1 },
     modifier: atk,
-    label: `${entry.spell.name} — Spell Attack${modeTag}`,
+    label: `${entry.spell.name}: Spell Attack${modeTag}`,
     mode,
   });
 }
@@ -642,7 +642,7 @@ function castButtonTitle(entry: CharacterSpellEntry): string {
   const available = availableSlotsForSpell(entry.spell.level, props.spellSlots);
   if (available.length === 0) return "No suitable slots remaining";
   const lowest = available[0].level;
-  return `Cast — spend one ${SLOT_LEVEL_LABELS[lowest - 1]}-level slot`;
+  return `Cast: spend one ${SLOT_LEVEL_LABELS[lowest - 1]}-level slot`;
 }
 
 // ── Upcast picker ──────────────────────────────────────────────────────────────
@@ -691,7 +691,7 @@ async function rollSpellDamage(entry: CharacterSpellEntry, castLevel: number, da
     }
     const resolvedType = damageTypeOverride || dmg.type;
     const typeLabel = resolvedType ? ` ${resolvedType}` : "";
-    let label = `${spell.name} — ${diceSrc}${typeLabel} damage`;
+    let label = `${spell.name}: ${diceSrc}${typeLabel} damage`;
     if (spell.attack_type === "save" && spell.save_effect === "half") {
       label += ` (half on ${spell.save_attribute ?? "save"})`;
     }
@@ -717,7 +717,7 @@ async function rollSpellHealing(entry: CharacterSpellEntry, castLevel: number) {
     toast.error(`Cannot roll unsupported healing expression: ${diceSrc}`);
     return;
   }
-  const label = `${spell.name} — ${diceSrc} healing`;
+  const label = `${spell.name}: ${diceSrc} healing`;
   const counts = parsedToCounts(parsed.terms);
   if (Object.keys(counts).length === 0) {
     const { total, breakdown } = rollParsed(parsed);
@@ -779,9 +779,9 @@ async function castSpell(
     const dc  = saveDcFor(entry);
     if (castLevel > 0 && atk !== null
       && (spell.attack_type === "ranged_spell" || spell.attack_type === "melee_spell")) {
-      text += ` — Atk ${signedNum(atk)}`;
+      text += ` · Atk ${signedNum(atk)}`;
     } else if (castLevel > 0 && dc !== null && spell.attack_type === "save") {
-      text += ` — DC ${dc} ${spell.save_attribute ?? ""}`;
+      text += ` · DC ${dc} ${spell.save_attribute ?? ""}`;
     }
     await sendFlavorMessage(text, "spell").catch((e) => reportChatFailure(e, "announce the cast in the chat"));
     if (concentrationState) {

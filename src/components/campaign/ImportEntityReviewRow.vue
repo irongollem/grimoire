@@ -16,7 +16,7 @@
         @click="toggleExpanded"
       >
         <IconChevronDown class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform" :class="isExpanded ? 'rotate-180' : ''" />
-        <span class="truncate font-cinzel text-sm font-bold text-foreground">{{ heading }}</span>
+        <span class="truncate text-heading-xs font-bold text-foreground">{{ heading }}</span>
         <AppButton
           v-if="confidence === 'partial'"
           as="span"
@@ -24,7 +24,7 @@
           tone="caution"
           size="xs"
           label="Partial"
-          tooltip="The extractor may not have captured every field for this entry — check it over."
+          tooltip="The extractor may not have captured every field for this entry. Check it over."
         />
         <span v-if="page !== null" class="shrink-0 text-caption text-muted-foreground">Page {{ page }}</span>
       </AppButton>
@@ -154,7 +154,7 @@
                 />
 
                 <p v-else-if="row.field.kind === 'summary'" class="text-caption italic text-muted-foreground">
-                  {{ row.field.summary }} — review after import
+                  {{ row.field.summary }}, review after import
                 </p>
 
                 <AppInput
@@ -356,7 +356,7 @@ function summarize(value: unknown): string {
           : null,
       )
       .filter((n): n is string => n !== null);
-    return names.length ? `${value.length} — ${names.join(", ")}` : `${value.length} entries`;
+    return names.length ? `${value.length} · ${names.join(", ")}` : `${value.length} entries`;
   }
   if (value !== null && typeof value === "object") {
     const keys = Object.keys(value as Record<string, unknown>);

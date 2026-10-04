@@ -29,7 +29,7 @@ export function waitForImageJob(
     rejectWhen: (row) => (row.status === "failed" ? (row.error ?? "Image generation failed") : null),
     timeoutMs,
     timeoutMessage:
-      "This image is taking longer than expected. It may still finish and appear in your gallery shortly — if it doesn't, the job will be marked failed automatically and you can try again.",
+      "This image is taking longer than expected. It may still finish and appear in your gallery shortly. If it doesn't, the job will be marked failed automatically and you can try again.",
     pollIntervalMs: opts.pollIntervalMs,
   }).then((row) => row.image_url as string);
 }

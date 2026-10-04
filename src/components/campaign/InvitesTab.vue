@@ -2,7 +2,7 @@
   <div class="space-y-6 max-w-3xl">
     <!-- Create new invite -->
     <div class="rounded-lg border border-border bg-card p-5 space-y-4">
-      <h3 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">
+      <h3 class="text-heading-sm font-semibold text-foreground">
         New Invite Link
       </h3>
 
@@ -66,7 +66,7 @@
       >
         <div class="flex items-start justify-between gap-2">
           <div class="space-y-0.5 min-w-0">
-            <p v-if="invite.label" class="font-cinzel text-sm font-semibold text-foreground">
+            <p v-if="invite.label" class="text-heading-sm font-semibold text-foreground">
               {{ invite.label }}
             </p>
             <p class="text-caption text-muted-foreground italic space-x-3">

@@ -14,7 +14,7 @@ export const LICENSES: Record<string, LicenseDescriptor> = {
     shortName: "OGL 1.0a",
     url: "https://opengamingfoundation.org/ogl.html",
     summary:
-      "The Open Game License 1.0a lets us reuse and adapt Open Game Content — game mechanics, not a publisher's proprietary characters, stories, or trademarks — provided we distribute a full copy of the license and keep its copyright notice updated with the title and copyright holder of every source we copy from.",
+      "The Open Game License 1.0a lets us reuse and adapt Open Game Content (game mechanics, not a publisher's proprietary characters, stories, or trademarks), provided we distribute a full copy of the license and keep its copyright notice updated with the title and copyright holder of every source we copy from.",
     reproducesFullText: true,
     requiredNotice: null,
   },

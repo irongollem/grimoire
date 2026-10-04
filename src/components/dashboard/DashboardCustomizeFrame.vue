@@ -24,10 +24,10 @@
       v-if="slotIsEmpty"
       class="flex min-h-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/70 bg-muted/10 px-4 py-6 text-center"
     >
-      <p class="font-cinzel text-sm font-semibold text-muted-foreground">{{ widget.title }}</p>
+      <p class="text-heading-sm font-semibold text-muted-foreground">{{ widget.title }}</p>
       <p class="text-caption text-muted-foreground/80 italic">{{ widget.description }}</p>
       <p v-if="widget.selfHiding" class="text-caption text-muted-foreground/60 italic">
-        Empty right now — it appears on its own once it has something to show.
+        Empty right now. It appears on its own once it has something to show.
       </p>
     </div>
 
@@ -40,7 +40,7 @@
         :icon="IconDrag"
         :class="['dashboard-customize-grip cursor-grab active:cursor-grabbing', ICON_TOUCH_TARGET]"
         aria-label="Drag to reorder"
-        tooltip="Drag to reorder — arrow keys also move this widget"
+        tooltip="Drag to reorder; arrow keys also move this widget"
         @keydown="onGripKeydown"
       />
       <!--
@@ -54,7 +54,7 @@
           variant="ghost"
           size="icon-xs"
           :icon="IconChevronLeft"
-          :aria-label="`Narrower — currently ${widthLabel}`"
+          :aria-label="`Narrower, currently ${widthLabel}`"
           tooltip="Narrower"
           @click="emit('cycle-width', entry.key, -1)"
         />
@@ -63,7 +63,7 @@
           variant="ghost"
           size="icon-xs"
           :icon="IconChevronRight"
-          :aria-label="`Wider — currently ${widthLabel}`"
+          :aria-label="`Wider, currently ${widthLabel}`"
           tooltip="Wider"
           @click="emit('cycle-width', entry.key, 1)"
         />
@@ -74,7 +74,7 @@
           variant="ghost"
           size="icon-xs"
           :icon="IconChevronDown"
-          :aria-label="`Shorter — currently ${heightLabel} of 4`"
+          :aria-label="`Shorter, currently ${heightLabel} of 4`"
           tooltip="Shorter"
           @click="emit('cycle-height', entry.key, -1)"
         />
@@ -83,7 +83,7 @@
           variant="ghost"
           size="icon-xs"
           :icon="IconChevronUp"
-          :aria-label="`Taller — currently ${heightLabel} of 4`"
+          :aria-label="`Taller, currently ${heightLabel} of 4`"
           tooltip="Taller"
           @click="emit('cycle-height', entry.key, 1)"
         />
@@ -104,7 +104,7 @@
         size="icon-xs"
         :icon="IconClose"
         aria-label="Remove from dashboard"
-        tooltip="Move to the shelf — nothing is deleted"
+        tooltip="Move to the shelf. Nothing is deleted"
         @click="emit('remove', entry.key)"
       />
     </div>

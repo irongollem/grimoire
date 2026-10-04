@@ -5,7 +5,7 @@
     action-label="All notes →"
     :loading="notes === undefined"
     :empty="notes !== undefined && latest === undefined"
-    empty-text="No session notes yet — write one and the last one shows here."
+    empty-text="No session notes yet. Write one and the last one shows here."
     max-height="none"
   >
     <RouterLink
@@ -15,7 +15,7 @@
     >
       <div class="flex items-baseline justify-between gap-2">
         <p
-          class="font-cinzel text-sm font-semibold text-foreground transition-colors group-hover:text-primary line-clamp-1"
+          class="text-heading-xs font-semibold text-foreground transition-colors group-hover:text-primary line-clamp-1"
         >
           {{ title }}
         </p>

@@ -82,7 +82,7 @@
         >
           All claimed
           <span v-if="meta.claims?.length">
-            — by {{ meta.claims!.map(c => c.name).join(', ') }}
+           by {{ meta.claims!.map(c => c.name).join(', ') }}
           </span>
         </div>
         <!-- Still available -->

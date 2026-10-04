@@ -1,7 +1,7 @@
 <template>
   <PageHeader
     :title="isNew ? 'New Class' : (form.class_name || 'Custom Class')"
-    description="Design your custom class — features, proficiencies, and level progression"
+    description="Design your custom class: features, proficiencies, and level progression"
   >
     <template v-if="isNew || isEditing" #actions>
       <AppButton

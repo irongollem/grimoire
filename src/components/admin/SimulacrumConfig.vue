@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-4 space-y-3">
     <div>
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Simulacrum</h2>
+      <h2 class="text-heading-sm font-semibold text-foreground">Simulacrum</h2>
       <p class="text-caption text-muted-foreground italic mt-0.5">
         Feature flag for the portrait → 3D mini pipeline. "Teaser" ships the entry point + demand
         gate before the Meshy subscription exists; "Live" is the real pipeline (requires the Meshy
@@ -30,12 +30,12 @@
         >
           <span class="font-cinzel text-xs font-semibold tracking-wide text-foreground">{{ opt.label }}</span>
           <span class="text-caption-sm text-muted-foreground">
-            {{ opt.value === 'live' && !meshyKeySet ? 'Locked — add the Meshy platform key first.' : opt.description }}
+            {{ opt.value === 'live' && !meshyKeySet ? 'Locked: add the Meshy platform key first.' : opt.description }}
           </span>
         </button>
       </div>
       <p v-if="query.data.value?.mode === 'live' && !meshyKeySet" class="text-caption text-destructive">
-        Mode is Live but the Meshy key is missing — sculpts will fail until a key is added.
+        Mode is Live but the Meshy key is missing; sculpts will fail until a key is added.
       </p>
 
       <div class="flex items-center gap-2">
@@ -58,7 +58,7 @@
           adventurer{{ interestCount.data.value === 1 ? '' : 's' }} await the ritual
         </p>
         <p class="text-caption-sm text-muted-foreground italic mt-0.5">
-          Users who clicked "Notify me" on the teaser — the signal for buying the Meshy subscription.
+          Users who clicked "Notify me" on the teaser: the signal for buying the Meshy subscription.
         </p>
       </div>
     </template>
@@ -91,7 +91,7 @@ function onKeyCleared() {
 const MODE_OPTIONS: { value: SimulacrumMode; label: string; description: string }[] = [
   { value: "hidden", label: "Hidden", description: "No entry points anywhere. Default." },
   { value: "teaser", label: "Teaser", description: "Entry points visible; wizard shows the demand gate." },
-  { value: "live", label: "Live", description: "Real pipeline — requires the Meshy platform key." },
+  { value: "live", label: "Live", description: "Real pipeline; requires the Meshy platform key." },
 ];
 
 const localMode = ref<SimulacrumMode>("hidden");

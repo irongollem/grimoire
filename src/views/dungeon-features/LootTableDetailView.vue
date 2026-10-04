@@ -66,7 +66,7 @@
 
           <!-- Read-only entry list -->
           <div class="space-y-1.5">
-            <h3 class="font-cinzel text-sm font-bold text-foreground">Entries</h3>
+            <h3 class="text-heading-sm font-bold text-foreground">Entries</h3>
             <div v-if="!table.entries.length" class="rounded-md border border-dashed border-border px-4 py-6 text-center text-body text-muted-foreground italic">
               No entries yet.
             </div>

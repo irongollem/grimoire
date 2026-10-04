@@ -83,7 +83,7 @@
 
     <LibraryTilePackRunProgress v-if="run && expanded" :pack="pack" :run="run" />
     <p v-else-if="run && run.status === 'completed'" class="text-caption text-muted-foreground">
-      Generation complete — {{ run.completed_jobs }}/{{ run.total_jobs }} tiles.
+      Generation complete: {{ run.completed_jobs }}/{{ run.total_jobs }} tiles.
     </p>
   </article>
 </template>

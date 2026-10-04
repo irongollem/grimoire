@@ -143,7 +143,7 @@
           tone="arcane"
           emphasis="soft"
           size="xs"
-          :tooltip="`Concentrating on ${member.concentration.spellName} — click to drop`"
+          :tooltip="`Concentrating on ${member.concentration.spellName}. Click to drop`"
           @click="dropConcentration"
         >✦ Conc: {{ member.concentration.spellName }} <span class="text-muted-foreground">×</span></AppButton>
       </div>

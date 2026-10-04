@@ -41,7 +41,7 @@
           </div>
           <div class="px-3 py-2 flex items-start gap-2">
             <div class="flex-1 min-w-0">
-              <p class="font-cinzel text-sm font-bold text-foreground">{{ sp.name }}</p>
+              <p class="text-heading-sm font-bold text-foreground">{{ sp.name }}</p>
               <p v-if="sp.traits?.length" class="text-caption text-muted-foreground mt-0.5 line-clamp-1">
                 {{ sp.traits.slice(0, 3).map((t) => t.name).join(' · ') }}
               </p>
@@ -77,7 +77,7 @@
       </div>
 
       <p v-if="f.species_id" class="text-label-lg text-primary/70 text-center">
-        ✓ {{ selectedSpecies?.name }} selected{{ f.subrace ? ` — ${f.subrace}` : '' }}
+        ✓ {{ selectedSpecies?.name }} selected{{ f.subrace ? `, ${f.subrace}` : '' }}
       </p>
     </div>
   </div>

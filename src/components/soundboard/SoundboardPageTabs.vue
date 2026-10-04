@@ -87,7 +87,7 @@
           emphasis="strong"
           size="sm"
           :label="page.name"
-          :tooltip="page.name + ' — double-click to rename'"
+          :tooltip="page.name + ' (double-click to rename)'"
           :class="[
             activePageId === page.id ? '' : 'border-transparent hover:border-border',
             dropRing(page.id),
@@ -116,7 +116,7 @@
       variant="subtle"
       size="sm"
       :icon="IconAdd"
-      :tooltip="canCreatePage ? 'Add page' : 'Pro feature — upgrade to create multiple soundboard pages'"
+      :tooltip="canCreatePage ? 'Add page' : 'Pro feature: upgrade to create multiple soundboard pages'"
       class="shrink-0 border-dashed"
       @click="addPage"
     >

@@ -82,7 +82,7 @@
           <!-- Header row -->
           <div class="flex items-start justify-between gap-2">
             <h3
-              class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1"
+              class="text-heading-xs font-bold text-foreground leading-tight line-clamp-2 flex-1"
             >
               {{ doc.title }}
             </h3>

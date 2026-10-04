@@ -18,7 +18,7 @@
           size="body"
           weight="normal"
         >
-          <option value="">— none selected —</option>
+          <option value="">None selected</option>
           <option v-for="o in ATTACK_TYPES" :key="o.value" :value="o.value">
             {{ o.label }}
           </option>

@@ -78,7 +78,7 @@
           <!-- Entry list (read-only) -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <h3 class="font-cinzel text-sm font-bold text-foreground">Entries ({{ table.entries.length }})</h3>
+              <h3 class="text-heading-sm font-bold text-foreground">Entries ({{ table.entries.length }})</h3>
               <span class="text-label text-muted-foreground">{{ table.dice }}</span>
             </div>
 
@@ -123,7 +123,7 @@
 
           <!-- Placed In -->
           <div class="space-y-1.5">
-            <h3 class="font-cinzel text-sm font-bold text-foreground">Placed In</h3>
+            <h3 class="text-heading-sm font-bold text-foreground">Placed In</h3>
             <EntityPlacements kind="roll_table" :entity-id="table.id" />
           </div>
 
@@ -141,7 +141,7 @@
                 required
                 size="heading"
                 tone="card"
-                placeholder="Forest Road — Daytime"
+                placeholder="Forest Road: Daytime"
               />
             </div>
             <div class="space-y-1.5">
@@ -165,7 +165,7 @@
           <!-- Entries -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <h2 class="font-cinzel text-sm font-bold text-foreground">Entries ({{ form.entries.length }})</h2>
+              <h2 class="text-heading-sm font-bold text-foreground">Entries ({{ form.entries.length }})</h2>
               <AppButton
                 variant="subtle"
                 size="sm"
@@ -274,7 +274,7 @@
       <!-- ── Right: roll panel ────────────────────────────────────────────── -->
       <div class="self-start">
         <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
-          <h3 class="font-cinzel text-sm font-bold tracking-wider text-foreground">Roll {{ form.dice }}</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">Roll {{ form.dice }}</h3>
           <AppButton
             variant="primary"
             size="md"

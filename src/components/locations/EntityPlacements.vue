@@ -26,7 +26,7 @@
         </template>
         <PlacementNoteInput
           :model-value="p.note"
-          placeholder="Note — what it's doing in this room…"
+          placeholder="Note: what it's doing in this room…"
           @commit="(value) => onNoteCommit(p, value)"
         />
       </PlacementRow>

@@ -34,11 +34,11 @@
             />
           </div>
           <div class="min-w-0 flex-1">
-            <p class="font-cinzel text-sm font-semibold text-foreground truncate leading-tight">{{ member.name }}</p>
+            <p class="text-heading-xs font-semibold text-foreground truncate leading-tight">{{ member.name }}</p>
             <p class="text-caption text-muted-foreground italic truncate leading-tight">{{ memberSubtitle(member, speciesNameOf(member)) }}</p>
           </div>
           <div class="text-right shrink-0">
-            <span class="font-cinzel text-sm font-bold" :class="hpColor(member.current_hp, member.max_hp)">{{ member.current_hp }}</span>
+            <span class="text-heading-sm font-bold" :class="hpColor(member.current_hp, member.max_hp)">{{ member.current_hp }}</span>
             <span class="text-caption text-muted-foreground">/{{ member.max_hp }}</span>
           </div>
         </div>

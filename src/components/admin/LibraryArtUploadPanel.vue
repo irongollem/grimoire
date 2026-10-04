@@ -76,7 +76,7 @@ function onDrop(event: DragEvent) {
 
     <template v-if="uploading">
       <BannerLoader class="h-10" />
-      <p class="font-cinzel text-sm text-primary tracking-wide">
+      <p class="text-heading-sm text-primary">
         Converting {{ progressDone }}&thinsp;/&thinsp;{{ progressTotal }}…
       </p>
       <p class="text-caption text-muted-foreground italic">
@@ -85,7 +85,7 @@ function onDrop(event: DragEvent) {
     </template>
     <template v-else>
       <ImagePlusIcon class="h-8 w-8 text-muted-foreground" />
-      <p class="font-cinzel text-sm text-foreground tracking-wide">
+      <p class="text-heading-sm text-foreground">
         Drop images here or tap to pick
       </p>
       <p class="text-caption text-muted-foreground italic text-center">

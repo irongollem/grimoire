@@ -9,7 +9,7 @@
     <EntityCombobox
       :model-value="parentIdStr"
       :options="parentOptions"
-      placeholder="— None (top-level) —"
+      placeholder="None (top-level)"
       @update:model-value="$emit('update:parentId', $event || null)"
     >
       <template #option="{ opt }">

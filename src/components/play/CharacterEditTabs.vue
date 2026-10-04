@@ -102,7 +102,7 @@
               <option value="unarmored:dex+wis">Unarmored Defense (Monk)</option>
               <option value="mage_armor">Mage Armor</option>
               <option value="natural">Natural Armor</option>
-              <option value="natural_dex">Natural Armor (base + Dex) — Lizardfolk, Draconic Resilience</option>
+              <option value="natural_dex">Natural Armor (base + Dex) · Lizardfolk, Draconic Resilience</option>
             </AppSelect>
             <!-- Editable number: manual mode, or armor mode with nothing derivable equipped -->
             <AppInput v-if="!acFormulaType || (acFormulaType === 'armor' && armorDerivedAc === null)" v-model.number="f.ac" type="number" min="1" tone="filled" size="body" class="w-20" />
@@ -113,7 +113,7 @@
               <AppInput v-if="acFormulaType === 'natural' || acFormulaType === 'natural_dex'" v-model.number="naturalBase" type="number" min="1" tone="filled" size="body" class="w-20" placeholder="Base AC" />
             </template>
           </div>
-          <p class="text-caption text-muted-foreground italic mt-1">Without shield — an equipped shield adds its bonus automatically. “Equipped armor” derives base AC from the armor in the paper doll, so it updates when you swap armor.</p>
+          <p class="text-caption text-muted-foreground italic mt-1">Without shield, an equipped shield adds its bonus automatically. “Equipped armor” derives base AC from the armor in the paper doll, so it updates when you swap armor.</p>
         </div>
         <label class="block"><span class="field-label">Speed (ft)</span><AppInput v-model.number="f.speed" type="number" min="0" step="5" tone="filled" size="body" /></label>
         <label class="block"><span class="field-label">Initiative Bonus</span><AppInput v-model.number="f.initiative_bonus" type="number" tone="filled" size="body" placeholder="extra on top of DEX (e.g. Alert +5)" /></label>
@@ -301,14 +301,14 @@ watch([armorDerivedAc, acFormulaType], () => {
 const acFormulaLabel = computed(() => {
   const fm = f.ac_formula;
   if (!fm) return "";
-  if (fm === "armor")             return armorDerivedAc.value === null ? "No armor equipped — enter AC manually" : armorAcLabel.value;
+  if (fm === "armor")             return armorDerivedAc.value === null ? "No armor equipped: enter AC manually" : armorAcLabel.value;
   if (fm === "unarmored:dex+con") return `10 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}) + CON (${mod(f.con) >= 0 ? "+" : ""}${mod(f.con)})`;
   if (fm === "unarmored:dex+wis") return `10 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}) + WIS (${mod(f.wis) >= 0 ? "+" : ""}${mod(f.wis)})`;
   if (fm === "mage_armor")        return `13 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)})`;
   if (fm.startsWith("natural:")) {
     return fm.endsWith("+dex")
-      ? `Natural Armor — base + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}):`
-      : "Natural Armor — base:";
+      ? `Natural Armor · base + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}):`
+      : "Natural Armor · base:";
   }
   return "";
 });

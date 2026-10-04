@@ -13,13 +13,13 @@
     >
       <IconGenerate class="h-4 w-4 text-ink-success shrink-0" />
       <p class="text-body text-ink-success">
-        Credits added to your account — thanks for your purchase!
+        Credits added to your account. Thanks for your purchase!
       </p>
     </div>
 
     <!-- Current plan card -->
     <div class="rounded-xl border bg-card p-6 space-y-4">
-      <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+      <h2 class="text-heading-sm font-bold text-foreground">
         Current plan
       </h2>
 
@@ -66,7 +66,7 @@
           v-else-if="subscription?.status === 'past_due'"
           class="text-body text-destructive italic"
         >
-          Payment failed — update your payment method to restore access.
+          Payment failed. Update your payment method to restore access.
         </p>
         <p
           v-else-if="subscription?.status === 'canceled'"
@@ -256,8 +256,8 @@
             : !activeProPrice
               ? 'Pricing unavailable'
               : annual
-                ? `Upgrade — ${activeProPrice}/year`
-                : `Upgrade — ${activeProPrice}/month`
+                ? `Upgrade · ${activeProPrice}/year`
+                : `Upgrade · ${activeProPrice}/month`
         "
         @click="createCheckoutSession(annual ? 'year' : 'month', subConsent)"
       />
@@ -279,7 +279,7 @@
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2">
           <IconGenerate class="h-4 w-4 text-primary shrink-0" />
-          <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+          <h2 class="text-heading-sm font-bold text-foreground">
             AI credits
           </h2>
         </div>
@@ -313,7 +313,7 @@
           (use-it-or-lose-it). Purchased packs are permanent and top up whenever you need more.
         </template>
         <template v-else>
-          Credits power AI generation — portraits, scenes, stat blocks and more. Purchased packs never expire;
+          Credits power AI generation: portraits, scenes, stat blocks and more. Purchased packs never expire;
           upgrade to Pro for a monthly included allowance.
         </template>
       </p>
@@ -522,6 +522,6 @@ const proFeatures = computed(() => [
     ? `${proMonthlyCredits.value.toLocaleString()} AI credits / month`
     : "Included AI credits / month",
   "Full player portal",
-  "No player fees — ever",
+  "No player fees, ever",
 ])
 </script>

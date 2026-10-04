@@ -13,7 +13,7 @@
          plus the freeform field outgrows a short viewport, and the shell caps
          the panel at the screen rather than letting it run off. -->
     <div class="overflow-y-auto px-5 pt-5 pb-3">
-      <h2 id="ai-style-picker-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-1">✦ AI Map Style</h2>
+      <h2 id="ai-style-picker-title" class="text-heading-sm font-bold text-foreground mb-1">✦ AI Map Style</h2>
       <p class="text-body text-muted-foreground mb-4">
         <template v-if="fixedTargetLabel">
           Re-render this site's map, picture and tiles together, in an artistic style. Saving makes it the site's new picture.
@@ -119,7 +119,7 @@
       the footer off instead of letting the reader reach it.
     -->
     <div class="overflow-y-auto px-5 pt-5 pb-3">
-      <h2 id="ai-style-result-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-3">✦ Styled Result</h2>
+      <h2 id="ai-style-result-title" class="text-heading-sm font-bold text-foreground mb-3">✦ Styled Result</h2>
       <!-- Preview image -->
       <div class="mb-4 rounded-lg overflow-hidden border border-border bg-black aspect-square">
         <img

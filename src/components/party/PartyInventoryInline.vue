@@ -70,7 +70,7 @@
         size="body"
         weight="normal"
       >
-        <option value="">— party</option>
+        <option value="">Party</option>
         <option v-for="m in party" :key="m.id" :value="m.id">{{ m.name }}</option>
       </AppSelect>
       <AppInput
@@ -140,7 +140,7 @@
           class="hidden sm:block max-w-28"
           @update:model-value="(value) => updateCarrier(item, value)"
         >
-          <option value="">— party</option>
+          <option value="">Party</option>
           <option v-for="m in party" :key="m.id" :value="m.id">{{ m.name }}</option>
         </AppSelect>
         <AppButton

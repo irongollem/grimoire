@@ -50,7 +50,7 @@
             size="xs"
             class="ml-1"
             label="✦ Surprised ×"
-            tooltip="Surprised — tap to remove"
+            tooltip="Surprised, tap to remove"
             @click.stop="store.toggleSurprised(combatant.instance_id)"
           />
           <button
@@ -139,7 +139,7 @@
         v-for="cond in nonExhaustion(displayConditions)"
         :key="cond"
         class="cond-badge"
-        :title="`${cond} — tap to remove\n\n${getConditionDescription(cond, ruleset)}`"
+        :title="`${cond}, tap to remove\n\n${getConditionDescription(cond, ruleset)}`"
         @click="store.toggleCondition(combatant.instance_id, cond)"
       >{{ cond }} ×</span>
       <button
@@ -147,7 +147,7 @@
         type="button"
         class="reaction-chip"
         :class="combatant.reactionUsed ? 'reaction-used' : 'reaction-ready'"
-        :title="combatant.reactionUsed ? 'Reaction used — tap to restore' : 'Reaction available — tap to mark used'"
+        :title="combatant.reactionUsed ? 'Reaction used, tap to restore' : 'Reaction available, tap to mark used'"
         @click="store.toggleReaction(combatant.instance_id)"
       >⚡</button>
       <ConditionPicker
@@ -253,7 +253,7 @@ const hpFieldModel = computed<string | number>({
 
 /* ── Shared badge + chip styles ─────────────────────────────────────────── */
 .combatant-name {
-  @apply font-cinzel text-sm font-semibold text-foreground;
+  @apply text-heading-sm font-semibold text-foreground;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -287,7 +287,7 @@ const hpFieldModel = computed<string | number>({
 
 /* ── Shared HP styles ───────────────────────────────────────────────────── */
 .hp-btn {
-  @apply w-6 h-6 rounded bg-muted border border-border font-cinzel font-bold text-sm flex items-center justify-center hover:bg-card transition-colors;
+  @apply w-6 h-6 rounded bg-muted border border-border text-heading-sm font-bold flex items-center justify-center hover:bg-card transition-colors;
 }
 
 @keyframes damage-flash {
@@ -391,7 +391,7 @@ const hpFieldModel = computed<string | number>({
 }
 
 .mc-stat-label { @apply text-label text-muted-foreground; }
-.mc-stat-value { @apply font-cinzel text-sm font-bold text-foreground; }
+.mc-stat-value { @apply text-heading-sm font-bold text-foreground; }
 .mc-stat-sep   { @apply text-muted-foreground font-normal mx-0.5; }
 .mc-stat-temp  { @apply font-cinzel text-2xs font-bold text-ink-info; }
 

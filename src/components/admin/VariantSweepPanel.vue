@@ -60,7 +60,7 @@
 
       <template v-else>
         <p v-if="totalMissing === 0" class="text-caption text-muted-foreground italic">
-          All originals have their variants — {{ rows.length }} location{{ rows.length === 1 ? '' : 's' }} scanned, nothing to backfill.
+          All originals have their variants. {{ rows.length }} location{{ rows.length === 1 ? '' : 's' }} scanned; nothing to backfill.
         </p>
         <p v-else class="text-caption text-muted-foreground">
           {{ totalMissing }} original{{ totalMissing === 1 ? '' : 's' }} missing variants across
@@ -77,8 +77,8 @@
         class="text-caption"
         :class="backfillProgress.failed > 0 ? 'text-ink-caution' : 'text-ink-success'"
       >
-        Backfill complete — healed {{ backfillProgress.healed }} / {{ backfillProgress.total }}.
-        <template v-if="backfillProgress.failed > 0">{{ backfillProgress.failed }} failed — re-run the scan to check what's left.</template>
+        Backfill complete: healed {{ backfillProgress.healed }} / {{ backfillProgress.total }}.
+        <template v-if="backfillProgress.failed > 0">{{ backfillProgress.failed }} failed. Re-run the scan to check what's left.</template>
       </p>
     </template>
   </div>

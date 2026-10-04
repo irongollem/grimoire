@@ -44,7 +44,7 @@ export interface UploadParams {
 function validate(bucket: BucketKey, blob: Blob, contentType?: string): string {
   const cfg = BUCKETS[bucket];
   if (blob.size === 0) {
-    throw new Error(`${cfg.id}: file is empty (0 bytes) — nothing to upload`);
+    throw new Error(`${cfg.id}: file is empty (0 bytes); nothing to upload`);
   }
   if (blob.size > cfg.maxBytes) {
     throw new Error(

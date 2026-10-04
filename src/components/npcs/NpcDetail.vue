@@ -137,7 +137,7 @@
               <div class="border border-border rounded-lg p-3 space-y-2">
                 <p class="text-label-lg font-semibold text-muted-foreground">FROM TEMPLATE</p>
                 <select class="field-input" @change="applyTemplate(($event.target as HTMLSelectElement).value)">
-                  <option value="">— Custom / blank —</option>
+                  <option value="">Custom / blank</option>
                   <optgroup v-for="cat in templateCategories" :key="cat" :label="cat">
                     <option v-for="t in templatesByCategory(cat)" :key="t.id" :value="t.id">
                       {{ t.name }} (CR {{ t.stat_block.challenge_rating }})
@@ -181,7 +181,7 @@
 
             <!-- Include stat block toggle -->
             <div class="flex items-center justify-between">
-              <p class="font-cinzel text-sm font-bold text-foreground">Stat Block</p>
+              <p class="text-heading-sm font-bold text-foreground">Stat Block</p>
               <AppCheckbox v-model="hasStatBlock" label="Include stat block" />
             </div>
             <div class="gold-divider" />

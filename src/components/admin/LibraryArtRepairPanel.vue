@@ -562,7 +562,7 @@ async function discardStaged(item: StagingItem) {
           {{ stagingItems.length }} image{{
             stagingItems.length === 1 ? "" : "s"
           }}
-          waiting — pick a monster and assign
+          waiting: pick a monster and assign
         </p>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

@@ -1,6 +1,6 @@
 <template>
   <section class="space-y-3">
-    <h3 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Inventory</h3>
+    <h3 class="text-heading-sm font-semibold text-foreground">Inventory</h3>
 
     <!-- Item list -->
     <div v-if="items.length > 0" class="flex flex-col gap-1">
