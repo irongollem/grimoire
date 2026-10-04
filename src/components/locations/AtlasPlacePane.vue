@@ -126,7 +126,17 @@
         Build owns the map: on a site the workbench (#884), on any other
         place the Picture and its pins.
       -->
-      <div class="flex w-full shrink-0 items-center gap-1.5 sm:w-auto">
+      <!--
+        Below sm this is its own full-width row of 44px thumb targets
+        (`size="md"`), stretched so Reveal — whose size its own primitive owns
+        — grows to the same height as the rest. Above sm it is the compact row
+        beside the name it always was. Build is outline while browsing and
+        turns primary as "Done" while building: the loud button is the way
+        out of a mode, not the way into one, because a phone landing in Build
+        by accident and having to edit a map it only wanted to read is the
+        complaint this answers (4 Oct 2026).
+      -->
+      <div class="flex w-full shrink-0 items-stretch gap-2 sm:w-auto sm:items-center sm:gap-1.5">
         <!--
           Reveal sits beside Build/Details because revealing is not editing: it
           is the thing a DM does mid-session, and it should never cost a trip
@@ -144,28 +154,14 @@
         <AppButton
           v-if="previewAmbience"
           variant="outline"
-          size="icon-sm"
+          :size="actionSize"
           :icon="previewing ? IconStop : IconMusicNote"
+          icon-size="md"
           :active="previewing"
           :aria-label="previewing ? 'Stop ambience' : 'Play ambience'"
           :tooltip="previewTooltip"
+          class="max-sm:flex-1"
           @click="previewing ? stopPreview() : startPreview()"
-        />
-        <!--
-          Build is a state of this pane, not a trip to another page: the
-          Atlas IS the place's workbench (#884, decision 2), and sending the
-          DM away to build would reintroduce exactly the round trip this
-          epic removes. `Done` drops the flag and leaves them where they are.
-        -->
-        <AppButton
-          :variant="building ? 'outline' : 'primary'"
-          size="sm"
-          :icon="IconTool"
-          :label="building ? 'Done' : 'Build'"
-          :aria-label="building ? 'Done' : 'Build'"
-          :tooltip="building ? 'Done' : 'Build'"
-          collapse-label-on-mobile
-          @click="toggleBuild"
         />
         <!-- The site runner (#791, epic #780) — one surface to run a
              dungeon at the table, entered in place rather than by leaving
@@ -173,23 +169,46 @@
         <AppButton
           v-if="isSite"
           variant="outline"
-          size="sm"
+          :size="actionSize"
           :icon="IconPlay"
+          icon-size="md"
           label="Run"
           aria-label="Run"
           tooltip="Run"
           collapse-label-on-mobile
+          class="max-sm:flex-1"
           @click="openRun"
         />
         <AppButton
           variant="outline"
-          size="sm"
+          :size="actionSize"
           :icon="IconEdit"
+          icon-size="md"
           label="Details"
           aria-label="Details"
           tooltip="Details"
           collapse-label-on-mobile
+          class="max-sm:flex-1"
           @click="openEdit"
+        />
+        <!--
+          Build is a state of this pane, not a trip to another page: the
+          Atlas IS the place's workbench (#884, decision 2), and sending the
+          DM away to build would reintroduce exactly the round trip this
+          epic removes. `Done` drops the flag and leaves them where they are.
+          Last, and the one action that keeps its word on a phone: it is the
+          only one that changes what every control below it does.
+        -->
+        <AppButton
+          :variant="building ? 'primary' : 'outline'"
+          :size="actionSize"
+          :icon="building ? IconCheck : IconTool"
+          icon-size="md"
+          :label="building ? 'Done' : 'Build'"
+          :aria-label="building ? 'Done' : 'Build'"
+          :tooltip="building ? 'Leave Build' : 'Build: edit the map and its rooms'"
+          class="max-sm:flex-[1.6]"
+          @click="toggleBuild"
         />
       </div>
     </div>
@@ -221,7 +240,26 @@
       "not mapped", even though the toggle it would otherwise share the row
       with has nothing to switch between yet.
     -->
-    <div v-if="hasMap || isSite || building" class="relative mb-3 flex flex-wrap items-center gap-2">
+    <!--
+      The meter and the layer bar sit beside the tabs only where there is
+      room for both (xl, "beside the scale rail on the Contents/Map row", #868
+      frame 02). Narrower, they take their own line under the tabs: laid over
+      a full-width tab bar, five pills wrapped onto it and buried Overview and
+      Map underneath them on every phone (4 Oct 2026).
+    -->
+    <!--
+      On a phone the readiness meter is not shown at all (4 Oct 2026, the
+      maintainer: "it's so busy with things there"). Its five pills are a
+      prep checklist, and readiness is fixed in Build, at a desk; on a phone
+      the Map tab is already the way to the map the Mapped pill used to be.
+      A site with neither map nor Build then has nothing left in this row, so
+      the row itself hides with it.
+    -->
+    <div
+      v-if="hasMap || isSite || building"
+      class="relative mb-3 flex flex-col gap-2"
+      :class="{ 'max-sm:hidden': !(hasMap || building) }"
+    >
       <!--
         Reachable while building even with no layer yet (#884, S5; every
         place since #958) — Build on a mapless place is exactly when the DM
@@ -241,14 +279,14 @@
       <SiteReadinessMeter
         v-if="isSite && paneMode === 'places'"
         :readiness="siteReadiness"
-        :class="hasMap || building ? 'absolute right-0 top-1/2 -translate-y-1/2' : 'ml-auto'"
+        :class="['max-sm:hidden', hasMap || building ? 'xl:absolute xl:right-0 xl:top-1.5' : '']"
         @open-map="onOpenMap"
       />
       <SiteMapLayerBar
         v-if="isSite && hasMap && paneMode === 'map'"
         :counts="siteLayerCounts"
         :layers="siteImageLayers"
-        class="absolute right-0 top-1/2 -translate-y-1/2"
+        class="xl:absolute xl:right-0 xl:top-1.5"
       />
     </div>
 
@@ -347,7 +385,9 @@ import SiteReadinessMeter from "@/components/locations/SiteReadinessMeter.vue";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
 import { useAmbiencePlayback } from "@/composables/locations/useAmbiencePlayback";
+import { useBelow } from "@/composables/useBreakpoint";
 import {
+  IconCheck,
   IconChevronRight,
   IconClock,
   IconEdit,
@@ -476,6 +516,9 @@ const siteImageLayers = computed(() => {
 // the workbench, any other place's is its Picture and pins.
 const route = useRoute();
 const router = useRouter();
+// 44px thumb targets on a phone, the compact row beside the name above sm.
+const isBelowSm = useBelow("sm");
+const actionSize = computed(() => (isBelowSm.value ? "md" : "sm"));
 const building = computed(() => route.query.build === "true");
 
 function toggleBuild(): void {
@@ -511,12 +554,15 @@ function openRun(): void {
   void router.push({ query: { ...route.query, run: "true" } });
 }
 
-/** The readiness meter's Mapped pill (#884, S5) — enters Build (if not
- *  already there) and switches to Map mode, where the Layers panel lives.
- *  Never leaves Build if the DM was already in it: only `toggleBuild`'s own
- *  button should ever turn Build off. */
+/** The readiness meter's Mapped pill (#884, S5) — always lands on the Map.
+ *  A site that has a map opens it to read, in Browse: the pill is the
+ *  likeliest way a DM finds the map on a phone, and dropping them into Build
+ *  for it made viewing a map cost leaving an editor (4 Oct 2026). Only a site
+ *  with nothing to look at yet enters Build, where the Layers panel starts
+ *  one. Never leaves Build if the DM was already in it: only `toggleBuild`'s
+ *  own button should ever turn Build off. */
 function onOpenMap(): void {
-  if (!building.value) void router.push({ query: { ...route.query, build: "true" } });
+  if (!building.value && !hasMap.value) void router.push({ query: { ...route.query, build: "true" } });
   emit("update:paneMode", "map");
 }
 

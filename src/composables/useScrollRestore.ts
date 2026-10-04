@@ -1,6 +1,7 @@
 import { getCurrentInstance, onMounted, onBeforeUnmount, nextTick, type Ref } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import type { ComponentPublicInstance } from "vue";
+import { scrollParentOf } from "@/lib/scrollParent";
 
 /**
  * Persists the scroll position (and infinite-scroll page count) for a list
@@ -36,16 +37,6 @@ interface State {
 }
 
 const states = new Map<string, State>();
-
-function findScrollParent(el: Element): Element | null {
-  let node: Element | null = el.parentElement;
-  while (node && node !== document.documentElement) {
-    const { overflowY } = getComputedStyle(node);
-    if (overflowY === "auto" || overflowY === "scroll") return node;
-    node = node.parentElement;
-  }
-  return null;
-}
 
 export function useScrollRestore(
   key: string,
@@ -83,7 +74,7 @@ export function useScrollRestore(
       rawRef
         ? ("$el" in rawRef ? (rawRef.$el as Element) : rawRef)
         : (instance?.proxy?.$el as Element | null);
-    if (root) scrollEl = findScrollParent(root);
+    if (root) scrollEl = scrollParentOf(root);
 
     const saved = states.get(key);
     if (saved?.scrollTop) {

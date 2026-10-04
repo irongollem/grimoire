@@ -21,6 +21,7 @@
            width-driven — see the `barnav:`/`sidenav:` custom variants in
            src/assets/main.css. -->
       <main
+        ref="mainEl"
         class="flex flex-1 min-h-0 flex-col overflow-y-auto sidenav:pb-0"
         :class="fullscreenMobile ? '' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'"
       >
@@ -90,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from "vue";
+import { computed, defineAsyncComponent, useTemplateRef, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
@@ -147,6 +148,22 @@ const auth = useAuthStore();
 const isDm = computed(() => auth.currentRole === "dm");
 const isMobile = useIsMobile();
 const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscreenMobile);
+
+// A new page starts at its top. The router's `scrollBehavior` scrolls
+// `window`, but this shell is pinned to `h-dvh` and `<main>` is what scrolls
+// below lg, so a page used to open at whatever depth the previous one was left
+// at: the Atlas landing halfway down a place on a phone (4 Oct 2026).
+// Keyed on the top-level route record rather than the path, so a child route
+// that keeps its list mounted underneath (an NPC sheet over `/npcs`, see
+// `useDetailModal`) does not throw the list's place away. Lists that restore
+// their own depth (`useScrollRestore`) do it on mount, after this.
+const mainEl = useTemplateRef<HTMLElement>("mainEl");
+watch(
+  () => route.matched[0],
+  (record, previous) => {
+    if (record !== previous && mainEl.value) mainEl.value.scrollTop = 0;
+  },
+);
 const returnTo = computed(() => typeof route.query.returnTo === "string"
   ? safeQuestReturnTo(route.query.returnTo, "")
   : "");

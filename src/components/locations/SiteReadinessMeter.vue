@@ -18,8 +18,10 @@
       variant="tinted"
       :tone="readiness.mapped ? 'success' : 'caution'"
       emphasis="soft"
-      size="xs"
+      :size="isBelowSm ? 'sm' : 'xs'"
+      :icon="IconMap"
       label="Mapped"
+      :tooltip="readiness.mapped ? 'Open the map' : 'Add a map'"
       @click="emit('open-map')"
     />
 
@@ -47,13 +49,20 @@
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { useBelow } from "@/composables/useBreakpoint";
+import { IconMap } from "@/lib/icons";
 import type { SiteReadiness } from "@/lib/locations/siteReadiness";
 
 const { readiness } = defineProps<{ readiness: SiteReadiness }>();
 
-/** Emitted by the Mapped pill (#884, S5) — the caller enters Build and
- *  switches to Map mode, where the Layers panel lives. */
+/** Emitted by the Mapped pill (#884, S5) — the caller switches to Map mode:
+ *  in Browse when there is a map to read, in Build (where the Layers panel
+ *  starts one) when there is not. */
 const emit = defineEmits<{ "open-map": [] }>();
+
+// The one pressable pill grows to a finger target on a phone, and carries the
+// map glyph so it reads as the way to the map rather than as one more tag.
+const isBelowSm = useBelow("sm");
 
 const pills = computed(() => [
   { key: "mapped", label: "Mapped", ok: readiness.mapped },
