@@ -94,7 +94,7 @@
           tooltip="Heading 1"
           @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
         >
-          <span class="text-2xs font-cinzel font-bold leading-none">H1</span>
+          <span class="text-label font-bold leading-none">H1</span>
         </AppButton>
         <AppButton
           variant="ghost"
@@ -104,7 +104,7 @@
           tooltip="Heading 2"
           @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
         >
-          <span class="text-2xs font-cinzel font-bold leading-none">H2</span>
+          <span class="text-label font-bold leading-none">H2</span>
         </AppButton>
         <AppButton
           variant="ghost"
@@ -114,7 +114,7 @@
           tooltip="Heading 3"
           @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
         >
-          <span class="text-2xs font-cinzel font-bold leading-none">H3</span>
+          <span class="text-label font-bold leading-none">H3</span>
         </AppButton>
         <div class="w-px h-5 bg-border mx-0.5" />
         <AppButton
@@ -202,7 +202,7 @@
             tooltip="Delete column"
             @click="editor.chain().focus().deleteColumn().run()"
           >
-            <span class="text-2xs font-cinzel font-bold leading-none text-destructive">−C</span>
+            <span class="text-label font-bold leading-none text-destructive">−C</span>
           </AppButton>
           <AppButton
             variant="ghost"
@@ -211,7 +211,7 @@
             tooltip="Delete row"
             @click="editor.chain().focus().deleteRow().run()"
           >
-            <span class="text-2xs font-cinzel font-bold leading-none text-destructive">−R</span>
+            <span class="text-label font-bold leading-none text-destructive">−R</span>
           </AppButton>
           <AppButton
             variant="ghost"
@@ -251,7 +251,7 @@
             :tooltip="`Image width: ${preset.label}`"
             @click="editor.chain().focus().updateAttributes('image', { width: preset.value }).run()"
           >
-            <span class="text-2xs font-cinzel font-bold leading-none">{{ preset.label }}</span>
+            <span class="text-label font-bold leading-none">{{ preset.label }}</span>
           </AppButton>
         </template>
         <div class="w-px h-5 bg-border mx-0.5" />
@@ -329,7 +329,7 @@
         <button
           type="button"
           :disabled="isEnhancing"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-xs font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 text-label-lg font-semibold text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
           @click="onEnhance"
         >
           <BannerLoader v-if="isEnhancing" class="h-3" />

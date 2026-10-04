@@ -20,7 +20,7 @@
           @pointerdown="startDrag"
         >
           <IconMusicNote class="h-3.5 w-3.5 text-gold-400 shrink-0" />
-          <span class="font-cinzel text-xs font-semibold text-foreground flex-1 tracking-wide">Soundboard</span>
+          <span class="text-label-lg font-semibold text-foreground flex-1 ">Soundboard</span>
           <CastButton />
           <AppButton
             v-if="store.hasActiveAudio || spotifyStore.isPlaying"
@@ -55,7 +55,7 @@
                 alt=""
               />
               <div class="flex-1 min-w-0">
-                <p class="font-cinzel text-xs font-medium text-foreground truncate">
+                <p class="text-caption font-medium text-foreground truncate">
                   {{ spotifyStore.trackName }}
                 </p>
                 <p class="text-caption-sm text-muted-foreground truncate">
@@ -160,7 +160,7 @@
             <div class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gold-500/5 border border-gold-500/20">
               <IconMusicNote class="h-3.5 w-3.5 text-gold-400 shrink-0" />
               <div class="flex-1 min-w-0">
-                <p class="font-cinzel text-xs font-medium text-foreground truncate">
+                <p class="text-caption font-medium text-foreground truncate">
                   {{ store.activeMusicPlaylist.playlistName }}
                 </p>
                 <p v-if="activeMusicTrackName" class="text-caption-sm text-muted-foreground truncate">
@@ -224,7 +224,7 @@
             >
               <IconWind class="h-3.5 w-3.5 text-ink-success shrink-0" />
               <div class="flex-1 min-w-0">
-                <p class="font-cinzel text-xs font-medium text-foreground truncate">
+                <p class="text-caption font-medium text-foreground truncate">
                   {{ scene.playlistName }}
                 </p>
                 <p class="text-caption-sm text-muted-foreground">
@@ -253,7 +253,7 @@
               :key="sound.id"
               class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gold-500/5 border border-gold-500/20"
             >
-              <p class="font-cinzel text-xs font-medium text-foreground truncate flex-1 min-w-0">{{ sound.name }}</p>
+              <p class="text-caption font-medium text-foreground truncate flex-1 min-w-0">{{ sound.name }}</p>
               <!-- Volume -->
               <VolumeSlider
                 :disabled-reason="store.volumeControlNote"

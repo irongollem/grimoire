@@ -122,7 +122,7 @@ function assignTone(): ButtonTone {
             @click.stop="emit('preview-entity', opt.id)"
           >{{ opt.name }}</button>
           <span
-            class="ml-auto shrink-0 font-cinzel text-2xs text-muted-foreground tracking-wide"
+            class="ml-auto shrink-0 text-caption-sm text-muted-foreground"
             >{{ opt.source }}</span
           >
         </label>

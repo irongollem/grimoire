@@ -114,7 +114,7 @@
     <!-- WebM warning -->
     <span
       v-if="isWebM"
-      class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-cinzel text-ink-caution/80 bg-tone-caution/10 border border-tone-caution/20"
+      class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-label text-ink-caution/80 bg-tone-caution/10 border border-tone-caution/20"
       title="Encoded as WebM/Opus. Won't play in Safari. Re-upload on Firefox."
     >
       <IconWarning class="h-2.5 w-2.5 shrink-0" />

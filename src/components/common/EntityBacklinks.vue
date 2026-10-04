@@ -13,7 +13,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 transition-colors hover:border-primary/50"
       >
         <component :is="KIND_ICONS[link.kind]" class="h-3 w-3 shrink-0 text-muted-foreground" />
-        <span class="max-w-48 truncate font-cinzel text-xs text-foreground">{{ link.title }}</span>
+        <span class="max-w-48 truncate text-caption text-foreground">{{ link.title }}</span>
       </RouterLink>
     </div>
   </div>

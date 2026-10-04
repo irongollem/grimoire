@@ -12,7 +12,7 @@
       >
         {{ currentLevel.label }}
       </span>
-      <span v-else-if="tracker.type === 'points'" class="font-cinzel text-2xs text-muted-foreground">
+      <span v-else-if="tracker.type === 'points'" class="text-label text-muted-foreground">
         {{ value }} / {{ tracker.max }}
       </span>
     </div>

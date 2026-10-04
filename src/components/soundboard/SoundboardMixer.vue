@@ -32,7 +32,7 @@
         class="h-3 w-3 shrink-0 transition-transform"
         :class="open ? 'rotate-90' : ''"
       />
-      <span class="flex-1 font-cinzel text-2xs font-semibold tracking-wide">Mixer</span>
+      <span class="flex-1 text-label font-semibold ">Mixer</span>
       <span v-if="!open" class="text-2xs tabular-nums">
         {{ Math.round(store.masterVolume * 100) }}
       </span>

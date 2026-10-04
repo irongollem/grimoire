@@ -17,7 +17,7 @@
       <div v-for="row in rows" :key="row.door.id" class="flex flex-col gap-1.5 rounded-md border border-border bg-card px-3 py-2">
         <div class="flex min-w-0 items-center gap-2">
           <component :is="DOOR_KIND_ICONS[row.door.door_kind]" class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground">{{ row.title }}</span>
+          <span class="min-w-0 flex-1 truncate text-caption font-semibold text-foreground">{{ row.title }}</span>
 
           <span v-if="row.door.is_secret" class="shrink-0 rounded bg-tone-arcane/15 px-1.5 py-0.5 text-label uppercase text-ink-arcane">secret</span>
           <span v-if="row.door.starts_locked" class="shrink-0 rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">locked</span>

@@ -22,7 +22,7 @@
         <span class="text-caption text-foreground truncate">{{ entry.inv.name }}</span>
         <span
           v-if="(entry.inv.quantity ?? 1) > 1"
-          class="font-cinzel text-2xs text-muted-foreground shrink-0"
+          class="text-label text-muted-foreground shrink-0"
         >×{{ entry.inv.quantity }}</span>
         <AppButton
           variant="ghost"

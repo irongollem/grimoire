@@ -17,7 +17,7 @@
             class="h-2.5 w-2.5 shrink-0 text-muted-foreground transition-transform"
             :class="isOpen(scene.playlistId) ? 'rotate-90' : ''"
           />
-          <span class="min-w-0 flex-1 truncate font-cinzel text-2xs font-semibold tracking-wide">
+          <span class="min-w-0 flex-1 truncate text-label font-semibold ">
             {{ scene.playlistName }}
           </span>
           <!-- Collapsed summary: layer count and the average level, so a folded

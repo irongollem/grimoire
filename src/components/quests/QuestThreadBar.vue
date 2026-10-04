@@ -3,7 +3,7 @@
     class="flex flex-nowrap items-center gap-2 overflow-x-auto rounded-xl border border-border bg-card p-2 sm:flex-wrap sm:overflow-visible"
     aria-label="Threads in this quest"
   >
-    <span class="shrink-0 text-label font-bold uppercase tracking-wider text-primary max-sm:hidden">Threads in this quest</span>
+    <span class="shrink-0 text-label font-bold uppercase text-primary max-sm:hidden">Threads in this quest</span>
 
     <AppButton
       v-for="badge in badges"

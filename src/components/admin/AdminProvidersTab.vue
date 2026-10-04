@@ -192,7 +192,7 @@
               <!-- Cost fields -->
               <template v-if="m.model_type === 'text'">
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-2xs text-muted-foreground">TXT-IN $</span>
+                  <span class="text-label text-muted-foreground">TXT-IN $</span>
                   <AppInput
                     type="text" inputmode="decimal"
                     :model-value="pricingDrafts.drafts[m.model]!.input_cost_per_million_tokens"
@@ -200,10 +200,10 @@
                     class="w-16 font-mono"
                     @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'input_cost_per_million_tokens', e)"
                   />
-                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
+                  <span class="text-label text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-2xs text-muted-foreground">OUT $</span>
+                  <span class="text-label text-muted-foreground">OUT $</span>
                   <AppInput
                     type="text" inputmode="decimal"
                     :model-value="pricingDrafts.drafts[m.model]!.output_cost_per_million_tokens"
@@ -211,12 +211,12 @@
                     class="w-16 font-mono"
                     @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'output_cost_per_million_tokens', e)"
                   />
-                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
+                  <span class="text-label text-muted-foreground">/M</span>
                 </div>
               </template>
               <template v-else-if="m.model_type === 'image'">
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-2xs text-muted-foreground">TXT-IN $</span>
+                  <span class="text-label text-muted-foreground">TXT-IN $</span>
                   <AppInput
                     type="text" inputmode="decimal"
                     :model-value="pricingDrafts.drafts[m.model]!.input_cost_per_million_tokens"
@@ -224,10 +224,10 @@
                     class="w-14 font-mono"
                     @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'input_cost_per_million_tokens', e)"
                   />
-                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
+                  <span class="text-label text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-2xs text-muted-foreground">IMG-IN $</span>
+                  <span class="text-label text-muted-foreground">IMG-IN $</span>
                   <AppInput
                     type="text" inputmode="decimal"
                     :model-value="pricingDrafts.drafts[m.model]!.image_input_cost_per_million_tokens"
@@ -235,10 +235,10 @@
                     class="w-14 font-mono"
                     @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'image_input_cost_per_million_tokens', e)"
                   />
-                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
+                  <span class="text-label text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-2xs text-muted-foreground">IMG-OUT $</span>
+                  <span class="text-label text-muted-foreground">IMG-OUT $</span>
                   <AppInput
                     type="text" inputmode="decimal"
                     :model-value="pricingDrafts.drafts[m.model]!.image_output_cost_per_million_tokens"
@@ -246,13 +246,13 @@
                     class="w-14 font-mono"
                     @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'image_output_cost_per_million_tokens', e)"
                   />
-                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
+                  <span class="text-label text-muted-foreground">/M</span>
                 </div>
               </template>
               <template v-else-if="m.model_type === 'audio'">
                 <!-- audio: flat per-generation cost -->
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-2xs text-muted-foreground">PER GEN $</span>
+                  <span class="text-label text-muted-foreground">PER GEN $</span>
                   <AppInput
                     type="text" inputmode="decimal"
                     :model-value="pricingDrafts.drafts[m.model]!.cost_per_image_usd"
@@ -261,13 +261,13 @@
                     @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'cost_per_image_usd', e)"
                   />
                 </div>
-                <span class="font-cinzel text-2xs text-ink-caution/60 shrink-0">est.</span>
+                <span class="text-label text-ink-caution/60 shrink-0">est.</span>
               </template>
               <template v-else>
                 <!-- embedding: input-token-only, no completion -- see the migration's
                      note on why output cost is left null rather than zero. -->
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-2xs text-muted-foreground">IN $</span>
+                  <span class="text-label text-muted-foreground">IN $</span>
                   <AppInput
                     type="text" inputmode="decimal"
                     :model-value="pricingDrafts.drafts[m.model]!.input_cost_per_million_tokens"
@@ -275,7 +275,7 @@
                     class="w-16 font-mono"
                     @change="(e: Event) => setDecimal(pricingDrafts.drafts[m.model]!, 'input_cost_per_million_tokens', e)"
                   />
-                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
+                  <span class="text-label text-muted-foreground">/M</span>
                 </div>
               </template>
 
@@ -288,7 +288,7 @@
               </span>
 
               <!-- Last verified -->
-              <span class="font-cinzel text-2xs text-muted-foreground/40 shrink-0 text-right w-16">
+              <span class="text-caption-sm text-muted-foreground/40 shrink-0 text-right w-16">
                 {{ pricingDrafts.drafts[m.model]?.last_verified_at ? new Date(pricingDrafts.drafts[m.model]!.last_verified_at!).toLocaleDateString() : 'never' }}
               </span>
 

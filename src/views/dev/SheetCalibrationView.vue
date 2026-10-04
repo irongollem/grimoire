@@ -17,7 +17,7 @@
 <template>
   <div class="flex flex-col gap-4 p-4">
     <div class="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-label-lg">
-      <h1 class="font-cinzel text-heading font-bold">Sheet Calibration</h1>
+      <h1 class="text-heading font-bold">Sheet Calibration</h1>
 
       <label class="flex items-center gap-2">
         <span class="text-caption text-muted-foreground">Theme</span>

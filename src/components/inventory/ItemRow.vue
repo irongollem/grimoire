@@ -8,7 +8,7 @@
         type="button"
         class="text-body text-foreground truncate text-left hover:text-primary transition-colors w-full"
         @click="$emit('open-detail', item)"
-      >{{ item.name }}<span v-if="item.is_attuned" class="ml-1 font-cinzel text-2xs text-primary/70" title="Attuned">✦</span></button>
+      >{{ item.name }}<span v-if="item.is_attuned" class="ml-1 text-label text-primary/70" title="Attuned">✦</span></button>
       <p v-if="item.notes" class="text-caption text-muted-foreground italic truncate">{{ tiptapToPlainText(item.notes) }}</p>
       <p v-if="showCarrier && item.carried_by" class="text-label text-muted-foreground/60">
         {{ carrierName(item.carried_by) }}
@@ -25,7 +25,7 @@
     <!-- Weight -->
     <span
       v-if="unitWeight > 0"
-      class="font-cinzel text-2xs text-muted-foreground/50 shrink-0 whitespace-nowrap"
+      class="text-label text-muted-foreground/50 shrink-0 whitespace-nowrap"
     >{{ fmtW(unitWeight) }}<span v-if="item.quantity > 1" class="hidden sm:inline"> ({{ fmtW(totalWeight) }})</span> lb.</span>
 
     <!-- Qty -->
@@ -40,7 +40,7 @@
         :disabled="item.quantity <= 1"
         @click="$emit('adjust-qty', item, -1)"
       />
-      <span class="font-cinzel text-xs font-semibold text-foreground min-w-4 text-center">{{ item.quantity }}</span>
+      <span class="text-label-lg font-semibold text-foreground min-w-4 text-center">{{ item.quantity }}</span>
       <AppButton
         variant="outline"
         fill="muted"

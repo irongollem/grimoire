@@ -21,7 +21,7 @@
         @update:model-value="(v) => patch({ [stat.key]: Number(v) })"
       />
       <span
-        class="font-cinzel text-xs font-bold"
+        class="text-label-lg font-bold"
         :class="mod(form[stat.key]) >= 0 ? 'text-ink-success' : 'text-destructive'"
       >
         {{ mod(form[stat.key]) >= 0 ? "+" : "" }}{{ mod(form[stat.key]) }}

@@ -24,7 +24,7 @@
     <div v-if="pc.class || speciesName" class="text-caption text-muted-foreground">
       {{ [pc.class, speciesName].filter(Boolean).join(' · ') }}
     </div>
-    <div class="font-cinzel text-xs text-foreground">Level {{ pc.level }}</div>
+    <div class="text-label-lg text-foreground">Level {{ pc.level }}</div>
     <AppButton
       :to="`/party/${pc.id}`"
       variant="tinted"

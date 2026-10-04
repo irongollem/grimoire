@@ -1,9 +1,9 @@
 <template>
   <section class="rounded-lg border border-border bg-card p-4 space-y-4">
     <div class="flex items-center justify-between">
-      <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Spellcasting</h2>
+      <h2 class="text-label-lg uppercase text-muted-foreground">Spellcasting</h2>
       <label class="flex items-center gap-2 cursor-pointer">
-        <span class="font-cinzel text-xs text-muted-foreground">{{ isSpellcaster ? 'On' : 'Off' }}</span>
+        <span class="text-label-lg text-muted-foreground">{{ isSpellcaster ? 'On' : 'Off' }}</span>
         <button
           type="button"
           class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
@@ -92,15 +92,15 @@
         <table class="w-full text-center border-collapse">
           <thead>
             <tr>
-              <th class="font-cinzel text-2xs tracking-widest text-muted-foreground pb-1.5 pr-2 text-left w-8">LVL</th>
-              <th v-for="sl in 9" :key="sl" class="font-cinzel text-2xs tracking-widest text-muted-foreground pb-1.5 w-10">{{ sl }}</th>
-              <th v-if="spellsKnown !== null" class="font-cinzel text-2xs tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">KNOWN</th>
-              <th v-if="cantripsKnown !== null" class="font-cinzel text-2xs tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">CANTRIPS</th>
+              <th class="text-label text-muted-foreground pb-1.5 pr-2 text-left w-8">LVL</th>
+              <th v-for="sl in 9" :key="sl" class="text-label text-muted-foreground pb-1.5 w-10">{{ sl }}</th>
+              <th v-if="spellsKnown !== null" class="text-label text-muted-foreground pb-1.5 w-12 pl-2">KNOWN</th>
+              <th v-if="cantripsKnown !== null" class="text-label text-muted-foreground pb-1.5 w-12 pl-2">CANTRIPS</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="lvl in 20" :key="lvl" class="border-t border-border/40">
-              <td class="font-cinzel text-2xs text-primary pr-2 text-left py-0.5">{{ lvl }}</td>
+              <td class="text-label text-primary pr-2 text-left py-0.5">{{ lvl }}</td>
               <td v-for="sl in 9" :key="sl" class="py-0.5 px-0.5">
                 <AppInput
                   v-model.number="slotModel(lvl - 1, sl - 1).value"

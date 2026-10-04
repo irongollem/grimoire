@@ -14,7 +14,7 @@
       <IconPackage class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       <RouterLink
         :to="`/vault/${entry.item.id}`"
-        class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate"
+        class="text-caption font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate"
       >
         {{ entry.item.name }}
       </RouterLink>

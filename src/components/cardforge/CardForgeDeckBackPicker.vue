@@ -92,7 +92,7 @@ function select(id: string) {
   @apply flex flex-col gap-0.5 px-1 pt-1 pb-0.5;
 }
 .picker-name {
-  @apply font-cinzel text-xs font-semibold text-foreground;
+  @apply text-caption font-semibold text-foreground;
 }
 .picker-blurb {
   @apply text-caption text-muted-foreground italic line-clamp-2;
@@ -101,7 +101,7 @@ function select(id: string) {
   @apply flex justify-end pt-1;
 }
 .picker-close {
-  @apply font-cinzel text-xs font-semibold px-4 py-2 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors;
+  @apply text-label-lg font-semibold px-4 py-2 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors;
 }
 
 @media print {

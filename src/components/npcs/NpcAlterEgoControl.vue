@@ -1,6 +1,6 @@
 <template>
   <div>
-    <p class="mb-2 font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground">
+    <p class="mb-2 text-label font-semibold text-muted-foreground">
       SEEN AS
     </p>
     <SegmentedControl

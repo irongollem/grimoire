@@ -38,7 +38,7 @@
     <nav class="flex-1 overflow-y-auto px-2 py-4">
       <template v-for="group in visibleNavGroups" :key="group.label">
         <p
-          class="px-2 pt-4 pb-1 font-cinzel text-2xs font-bold tracking-widest text-muted-foreground/60 uppercase first:pt-0"
+          class="px-2 pt-4 pb-1 text-eyebrow font-bold text-muted-foreground/60 uppercase first:pt-0"
         >
           {{ group.label }}
         </p>
@@ -46,7 +46,7 @@
       </template>
       <!-- Admin link — only visible to app admins -->
       <template v-if="auth.isAppAdmin">
-        <p class="px-2 pt-4 pb-1 font-cinzel text-2xs font-bold tracking-widest text-muted-foreground/60 uppercase">
+        <p class="px-2 pt-4 pb-1 text-eyebrow font-bold text-muted-foreground/60 uppercase">
           System
         </p>
         <RouterLink
@@ -180,7 +180,7 @@
         @click="menuOpen = !menuOpen"
       >
         <div class="h-7 w-7 rounded-full bg-secondary flex items-center justify-center shrink-0">
-          <span class="font-cinzel text-xs text-foreground font-semibold">{{ userInitial }}</span>
+          <span class="text-label-lg text-foreground font-semibold">{{ userInitial }}</span>
         </div>
         <span class="flex-1 truncate text-caption text-muted-foreground text-left">{{ shownName }}</span>
         <IconSort class="h-3 w-3 text-muted-foreground/60 shrink-0" />

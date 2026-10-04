@@ -106,7 +106,7 @@ function resolvedFocalPoint() {
       v-if="dragging"
       class="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
     >
-      <span class="font-cinzel text-2xs text-primary tracking-wide">Drop to upload</span>
+      <span class="text-label text-primary">Drop to upload</span>
     </div>
 
     <!-- main row -->
@@ -142,7 +142,7 @@ function resolvedFocalPoint() {
       <div class="flex-1 min-w-0">
         <button
           type="button"
-          class="font-cinzel text-xs font-semibold text-foreground truncate block text-left hover:text-primary hover:underline transition-colors w-full"
+          class="text-caption font-semibold text-foreground truncate block text-left hover:text-primary hover:underline transition-colors w-full"
           @click.stop="emit('preview')"
         >{{ entity.name }}</button>
         <span class="text-caption-sm text-muted-foreground capitalize">{{ entity.subtitle }}</span>

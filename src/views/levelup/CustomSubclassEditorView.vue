@@ -36,7 +36,7 @@
 
       <!-- ── Section 1: Identity ────────────────────────────────────────────── -->
       <section class="rounded-lg border border-border bg-card p-4 space-y-4">
-        <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Identity</h2>
+        <h2 class="text-label-lg uppercase text-muted-foreground">Identity</h2>
 
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1.5">ARCHETYPE NAME</label>

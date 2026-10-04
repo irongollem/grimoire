@@ -119,18 +119,18 @@
           >
             <span class="text-caption text-muted-foreground shrink-0 w-28">{{ formatWhen(row.created_at) }}</span>
             <div class="flex-1 min-w-0">
-              <span class="font-cinzel text-xs font-semibold text-foreground">{{ row.reason }}</span>
+              <span class="text-caption font-semibold text-foreground">{{ row.reason }}</span>
               <span v-if="row.model" class="text-caption text-muted-foreground italic ml-1">
                 · {{ row.model }}<template v-if="row.is_byok"> · BYOK</template>
               </span>
             </div>
             <span
-              class="font-cinzel text-xs shrink-0 w-16 text-right"
+              class="text-label-lg shrink-0 w-16 text-right"
               :class="row.delta > 0 ? 'text-ink-success' : row.delta < 0 ? 'text-destructive' : 'text-muted-foreground'"
             >
               {{ row.delta > 0 ? '+' : '' }}{{ row.delta }}
             </span>
-            <span class="font-cinzel text-xs text-foreground shrink-0 w-16 text-right">{{ row.running_balance }}</span>
+            <span class="text-label-lg text-foreground shrink-0 w-16 text-right">{{ row.running_balance }}</span>
           </div>
         </div>
         <p v-else class="text-caption text-muted-foreground italic">No ledger activity yet.</p>

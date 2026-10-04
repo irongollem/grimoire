@@ -26,7 +26,7 @@
       role="dialog"
       aria-label="What sharing this handout reveals"
     >
-      <p class="text-eyebrow font-bold uppercase tracking-wider text-muted-foreground">
+      <p class="text-eyebrow font-bold uppercase text-muted-foreground">
         When shared, reveals
       </p>
 

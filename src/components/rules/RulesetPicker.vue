@@ -33,7 +33,7 @@
       class="flex-col items-start justify-start gap-1 whitespace-normal py-3 text-left"
       @click="emit('update:modelValue', option.value)"
     >
-      <span class="font-cinzel text-xs font-semibold text-foreground">{{ option.label }}</span>
+      <span class="text-caption font-semibold text-foreground">{{ option.label }}</span>
       <span class="text-caption font-normal text-muted-foreground">{{ option.description }}</span>
       <span v-if="notes?.[option.value]" class="text-caption font-normal text-ink-caution">{{ notes[option.value] }}</span>
     </AppButton>

@@ -24,7 +24,7 @@
       <span
         v-for="key in trio"
         :key="key"
-        class="px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 font-cinzel text-xs text-primary capitalize"
+        class="px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 text-label-lg text-primary capitalize"
       >{{ key }} +1</span>
     </div>
 

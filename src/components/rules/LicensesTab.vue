@@ -28,7 +28,7 @@
           <h2 class="text-heading-sm font-bold text-foreground">Sources in this Grimoire</h2>
           <div v-for="group in licenseGroups" :key="group.license.key" class="space-y-2">
             <div class="flex items-baseline gap-2">
-              <span class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-2xs text-primary whitespace-nowrap">
+              <span class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-label text-primary whitespace-nowrap">
                 {{ group.license.shortName }}
               </span>
               <span class="text-caption text-muted-foreground">{{ group.license.name }}</span>
@@ -98,7 +98,7 @@
               v-if="license.key === 'ogl-10a' && section15Lines.length"
               class="mt-3 rounded-lg border border-border bg-card p-4 space-y-3 font-fell text-sm leading-relaxed text-foreground max-w-none"
             >
-              <p class="font-cinzel text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              <p class="text-label-lg font-bold uppercase text-muted-foreground">
                 {{ OGL_1_0A_TITLE }}
               </p>
               <p>{{ OGL_1_0A_PREAMBLE }}</p>

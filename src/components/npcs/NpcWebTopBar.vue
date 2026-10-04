@@ -2,7 +2,7 @@
   <div class="shrink-0 px-4 py-3 border-b border-border bg-background flex items-center gap-3 flex-wrap">
     <RouterLink
       to="/npcs"
-      class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+      class="inline-flex items-center gap-1 text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
     >
       <IconChevronLeft class="h-3.5 w-3.5" />
       NPCs

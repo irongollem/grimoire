@@ -25,7 +25,7 @@
         :key="entry.memberId"
         class="flex flex-col gap-1.5 rounded-md border border-border/60 p-2"
       >
-        <p class="font-cinzel text-2xs font-semibold text-foreground">{{ entry.name }}</p>
+        <p class="text-caption-sm font-semibold text-foreground">{{ entry.name }}</p>
         <RuleTrackerPanel
           :tracker="resolution.rule.tracker"
           :value="entry.value"

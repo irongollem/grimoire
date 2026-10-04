@@ -323,7 +323,7 @@
         -->
         <section v-for="(group, gi) in groups" :key="group.label" class="pb-3" :class="gi === 0 && sections?.hasSubstance ? 'mt-4 border-t border-border pt-4' : ''">
           <h3
-            class="pb-1 font-cinzel text-label-lg font-semibold tracking-wide text-muted-foreground"
+            class="pb-1 text-label-lg font-semibold text-muted-foreground"
           >
             {{ group.label }}
             <span class="tabular-nums font-normal">{{ group.locations.length }}</span>

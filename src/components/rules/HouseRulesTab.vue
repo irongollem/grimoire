@@ -34,7 +34,7 @@
 
       <!-- ── Built-in optional rules (enabled by DM) ────────────────────── -->
       <template v-if="filteredBuiltIns.length">
-        <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground uppercase">
+        <p class="text-eyebrow font-semibold text-muted-foreground">
           Optional Rules (active this campaign)
         </p>
         <div class="flex flex-col gap-1">
@@ -70,7 +70,7 @@
 
       <!-- ── Custom (player-visible) rules ─────────────────────────────── -->
       <template v-if="filteredCustom.length">
-        <p v-if="filteredBuiltIns.length" class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground uppercase mt-2">
+        <p v-if="filteredBuiltIns.length" class="text-eyebrow font-semibold text-muted-foreground mt-2">
           House Rules
         </p>
         <div class="flex flex-col gap-1">

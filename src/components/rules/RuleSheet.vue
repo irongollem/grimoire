@@ -40,9 +40,9 @@
       <div class="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
         <div>
           <span class="text-label-lg font-semibold text-muted-foreground">TRACKER</span>
-          <span v-if="rule.tracker.label" class="ml-2 font-cinzel text-xs font-semibold text-foreground">{{ rule.tracker.label }}</span>
+          <span v-if="rule.tracker.label" class="ml-2 text-caption font-semibold text-foreground">{{ rule.tracker.label }}</span>
         </div>
-        <span class="font-cinzel text-2xs text-muted-foreground capitalize px-2 py-0.5 rounded bg-muted">
+        <span class="text-label text-muted-foreground capitalize px-2 py-0.5 rounded bg-muted">
           {{ rule.tracker.type }} · {{ rule.tracker.min }}–{{ rule.tracker.max }}
         </span>
       </div>
@@ -55,7 +55,7 @@
           class="flex items-center gap-2"
         >
           <span
-            class="w-6 text-center font-cinzel text-xs font-bold shrink-0"
+            class="w-6 text-center text-label-lg font-bold shrink-0"
             :class="levelColorClass(lvl.color)"
           >
             {{ lvl.value }}
@@ -76,7 +76,7 @@
           class="inline-flex items-center gap-1 px-2 py-1 rounded border border-border bg-muted text-caption text-foreground"
         >
           {{ btn.label }}
-          <span class="font-cinzel text-2xs text-muted-foreground">{{ btn.delta > 0 ? `+${btn.delta}` : btn.delta }}</span>
+          <span class="text-label text-muted-foreground">{{ btn.delta > 0 ? `+${btn.delta}` : btn.delta }}</span>
         </span>
       </div>
     </div>

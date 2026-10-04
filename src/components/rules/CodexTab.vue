@@ -37,8 +37,8 @@
           <div class="flex-1 min-w-0">
             <h2 :id="speciesHeadingId" class="text-heading font-bold text-foreground">{{ selectedSpecies.name }}</h2>
             <div class="flex flex-wrap gap-1.5 mt-1">
-              <span v-if="selectedSpecies.size" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground capitalize">{{ selectedSpecies.size }}</span>
-              <span v-if="selectedSpecies.subraces?.length" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground/60">{{ selectedSpecies.subraces.length }} variant{{ selectedSpecies.subraces.length > 1 ? "s" : "" }}</span>
+              <span v-if="selectedSpecies.size" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">{{ selectedSpecies.size }}</span>
+              <span v-if="selectedSpecies.subraces?.length" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground/60">{{ selectedSpecies.subraces.length }} variant{{ selectedSpecies.subraces.length > 1 ? "s" : "" }}</span>
             </div>
           </div>
           <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedSpecies = null" />
@@ -57,13 +57,13 @@
                     <div v-if="selectedSpecies.speed">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">SPEED</p>
                       <div class="flex flex-wrap gap-2">
-                        <span v-for="(val, mode) in selectedSpecies.speed" :key="mode" class="px-2 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground capitalize">{{ mode }} {{ val }} ft</span>
+                        <span v-for="(val, mode) in selectedSpecies.speed" :key="mode" class="px-2 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">{{ mode }} {{ val }} ft</span>
                       </div>
                     </div>
                     <div v-if="selectedSpecies.ability_score_increases && Object.keys(selectedSpecies.ability_score_increases).length">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">ABILITY SCORE INCREASES</p>
                       <div class="flex flex-wrap gap-1.5">
-                        <span v-for="(val, key) in selectedSpecies.ability_score_increases" :key="key" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-xs text-primary uppercase">{{ typeof val === "number" ? `${key} +${val}` : val }}</span>
+                        <span v-for="(val, key) in selectedSpecies.ability_score_increases" :key="key" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-label-lg text-primary uppercase">{{ typeof val === "number" ? `${key} +${val}` : val }}</span>
                       </div>
                     </div>
                     <div v-if="selectedSpecies.traits?.length">
@@ -99,7 +99,7 @@
                         <div v-for="sub in selectedSpecies.subraces" :key="sub.name" class="rounded-md border border-border overflow-hidden">
                           <AppButton variant="menu" size="md" block @click="toggle(`sp:${selectedSpecies!.id}:sr:${sub.name}`)">
                             <IconChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`) ? 'rotate-90' : ''" />
-                            <span class="font-cinzel text-xs font-semibold text-foreground">{{ sub.name }}</span>
+                            <span class="text-caption font-semibold text-foreground">{{ sub.name }}</span>
                           </AppButton>
                           <div v-if="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`)" class="px-3 pb-3 border-t border-border flex flex-col gap-2 pt-2">
                             <div v-if="sub.description" class="text-body text-muted-foreground">
@@ -184,7 +184,7 @@
                         <span
                           v-for="key in selectedBackground.asi_ability_trio"
                           :key="key"
-                          class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-xs text-primary capitalize"
+                          class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-label-lg text-primary capitalize"
                         >{{ key }}</span>
                       </div>
                     </div>
@@ -205,7 +205,7 @@
                     <div v-if="selectedBackground.skill_proficiencies?.length">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">SKILL PROFICIENCIES</p>
                       <div class="flex flex-wrap gap-1.5">
-                        <span v-for="s in selectedBackground.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-xs text-primary">{{ s }}</span>
+                        <span v-for="s in selectedBackground.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-label-lg text-primary">{{ s }}</span>
                       </div>
                     </div>
                     <div v-if="selectedBackground.tool_proficiencies?.length">
@@ -226,7 +226,7 @@
                     </div>
                     <div v-if="selectedBackground.feature_name">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">FEATURE</p>
-                      <p class="font-cinzel text-xs font-semibold text-foreground mb-1">{{ selectedBackground.feature_name }}</p>
+                      <p class="text-caption font-semibold text-foreground mb-1">{{ selectedBackground.feature_name }}</p>
                       <p v-if="selectedBackground.feature_description" class="text-body text-muted-foreground">{{ selectedBackground.feature_description }}</p>
                     </div>
                   </div>
@@ -260,8 +260,8 @@
           <div class="flex-1 min-w-0">
             <h2 :id="classHeadingId" class="text-heading font-bold text-foreground">{{ selectedClass.class_name }}</h2>
             <div class="flex flex-wrap gap-1.5 mt-1">
-              <span class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground">d{{ selectedClass.hit_die }}</span>
-              <span v-if="subclassesFor(selectedClass.class_name).length" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground/60">
+              <span class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">d{{ selectedClass.hit_die }}</span>
+              <span v-if="subclassesFor(selectedClass.class_name).length" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground/60">
                 {{ subclassesFor(selectedClass.class_name).length }} subclass{{ subclassesFor(selectedClass.class_name).length > 1 ? "es" : "" }}
               </span>
             </div>
@@ -300,7 +300,7 @@
                         <div v-for="sub in subclassesFor(selectedClass.class_name)" :key="sub.subclass_name" class="rounded-md border border-border overflow-hidden">
                           <AppButton variant="menu" size="md" block @click="toggle(`sub:${selectedClass!.class_name}:${sub.subclass_name}`)">
                             <IconChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sub:${selectedClass.class_name}:${sub.subclass_name}`) ? 'rotate-90' : ''" />
-                            <span class="font-cinzel text-xs font-semibold text-foreground">{{ sub.subclass_name }}</span>
+                            <span class="text-caption font-semibold text-foreground">{{ sub.subclass_name }}</span>
                           </AppButton>
                           <div v-if="open.has(`sub:${selectedClass.class_name}:${sub.subclass_name}`)" class="px-3 pb-3 border-t border-border pt-2">
                             <div v-if="Object.keys(sub.features ?? {}).length" class="flex flex-col gap-1">

@@ -5,7 +5,7 @@
       <PlacementRow v-for="p in placements" :key="p.id" :to="hrefOf(p)" :name="nameOf(p)">
         <template #badge>
           <span
-            class="inline-flex shrink-0 items-center gap-1 rounded bg-muted/40 px-1.5 py-0.5 font-cinzel text-2xs font-bold uppercase tracking-wide text-muted-foreground"
+            class="inline-flex shrink-0 items-center gap-1 rounded bg-muted/40 px-1.5 py-0.5 text-eyebrow font-bold text-muted-foreground"
           >
             <component :is="KIND_ICON[kindOf(p)]" class="h-3 w-3" />
             {{ LOCATION_PLACEMENT_KIND_LABELS[kindOf(p)] }}

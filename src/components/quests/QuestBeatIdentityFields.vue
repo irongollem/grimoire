@@ -3,7 +3,7 @@
     <div class="flex min-w-0 items-center gap-2 rounded-md border border-border p-2 text-caption">
       <span class="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><IconQuest class="h-3.5 w-3.5" /></span>
       <div class="min-w-0 flex-1">
-        <p class="font-cinzel text-label-lg font-bold text-foreground">Kind</p>
+        <p class="text-label-lg font-bold text-foreground">Kind</p>
         <p class="truncate text-muted-foreground">{{ QUEST_BEAT_KINDS.join(' · ') }}</p>
       </div>
       <AppSelect v-model="kind" class="w-36 shrink-0" aria-label="Kind">
@@ -14,7 +14,7 @@
     <div class="flex min-w-0 items-center gap-2 rounded-md border border-border p-2 text-caption">
       <span class="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><IconLocation class="h-3.5 w-3.5" /></span>
       <div class="min-w-0 flex-1">
-        <p class="truncate font-cinzel text-label-lg font-bold text-foreground">{{ stagedLocationName || "Not staged" }}</p>
+        <p class="truncate text-label-lg font-bold text-foreground">{{ stagedLocationName || "Not staged" }}</p>
         <p class="truncate text-muted-foreground">staged at · {{ stagedSiteCaption }}</p>
       </div>
       <EntityCombobox
@@ -34,7 +34,7 @@
     <div class="flex min-w-0 items-center gap-2 rounded-md border border-border p-2 text-caption">
       <span class="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><IconReveal class="h-3.5 w-3.5" /></span>
       <div class="min-w-0 flex-1">
-        <p class="font-cinzel text-label-lg font-bold text-foreground">Visibility · {{ QUEST_BEAT_VISIBILITY_LABELS[beat.visibility] }}</p>
+        <p class="text-label-lg font-bold text-foreground">Visibility · {{ QUEST_BEAT_VISIBILITY_LABELS[beat.visibility] }}</p>
         <p class="truncate text-muted-foreground">{{ QUEST_BEAT_VISIBILITY_CAPTIONS[beat.visibility] }}</p>
       </div>
       <AppSelect v-if="editingVisibility" v-model="visibilityInternal" class="w-36 shrink-0" aria-label="Player visibility">

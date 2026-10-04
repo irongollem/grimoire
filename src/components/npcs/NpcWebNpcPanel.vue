@@ -74,7 +74,7 @@
           @click="$emit('startEditRel', conn)"
         >
           <span
-            class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold"
+            class="shrink-0 px-1.5 py-0.5 rounded text-label font-bold"
             :style="{ backgroundColor: conn.color + '22', color: conn.color }"
           >{{ conn.typeLabel }}</span>
           <span class="font-fell text-foreground truncate flex-1 text-left">{{ conn.name }}</span>

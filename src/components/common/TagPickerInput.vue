@@ -5,7 +5,7 @@
       <span
         v-for="(tag, idx) in model"
         :key="tag"
-        class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 font-cinzel text-2xs tracking-wide text-foreground"
+        class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-label text-foreground"
       >
         {{ tag }}
         <AppButton

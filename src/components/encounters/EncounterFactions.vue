@@ -62,7 +62,7 @@
 
         <!-- Hostile to chips -->
         <div class="flex flex-wrap gap-1">
-          <span class="font-cinzel text-2xs text-muted-foreground self-center mr-1">Hostile to:</span>
+          <span class="text-label text-muted-foreground self-center mr-1">Hostile to:</span>
           <AppButton
             v-for="other in localFactions.filter((f) => f.id !== faction.id)"
             :key="other.id"

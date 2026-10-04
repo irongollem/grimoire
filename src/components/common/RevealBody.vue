@@ -26,7 +26,7 @@
     </div>
 
     <div class="px-3 pt-3">
-      <p class="mb-2 font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground">
+      <p class="mb-2 text-label font-semibold text-muted-foreground">
         VISIBLE TO
       </p>
 
@@ -45,7 +45,7 @@
     </div>
 
     <div v-if="party.length" class="flex flex-col gap-0.5 px-3 pt-2 pb-2">
-      <p class="mb-1 font-cinzel text-2xs tracking-widest text-muted-foreground">OR SPECIFIC</p>
+      <p class="mb-1 text-label text-muted-foreground">OR SPECIFIC</p>
       <RevealOption
         v-for="member in party"
         :key="member.id"

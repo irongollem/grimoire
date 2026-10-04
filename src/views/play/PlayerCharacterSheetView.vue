@@ -3,7 +3,7 @@
     <!-- No character linked -->
     <div v-if="!linkedMemberId" class="flex flex-col items-center gap-4 py-16 text-center">
       <p class="font-fell text-base text-muted-foreground italic">No character linked to your account.</p>
-      <RouterLink to="/play" class="font-cinzel text-xs text-primary hover:underline">← Back</RouterLink>
+      <RouterLink to="/play" class="text-label-lg text-primary hover:underline">← Back</RouterLink>
     </div>
 
     <div v-else-if="isLoading" class="flex justify-center py-16">
@@ -12,7 +12,7 @@
 
     <div v-else-if="!member" class="flex flex-col items-center gap-4 py-16 text-center">
       <p class="font-fell text-base text-muted-foreground italic">Character not found.</p>
-      <RouterLink to="/play" class="font-cinzel text-xs text-primary hover:underline">← Back</RouterLink>
+      <RouterLink to="/play" class="text-label-lg text-primary hover:underline">← Back</RouterLink>
     </div>
 
     <template v-else>

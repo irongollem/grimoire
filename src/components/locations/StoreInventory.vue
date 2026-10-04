@@ -33,7 +33,7 @@
             class="flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
             @click="selected = si"
           >
-            <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ si.item.name }}</span>
+            <span class="text-caption font-semibold text-foreground truncate block">{{ si.item.name }}</span>
             <span class="text-caption-sm text-muted-foreground italic">
               {{ ITEM_TYPE_LABELS[si.item.item_type] }}
               <span v-if="!si.visible" class="text-ink-caution/70"> · under the counter</span>
@@ -83,7 +83,7 @@
 
         <!-- Inline offer form -->
         <div v-if="offeringId === si.id" class="border-t border-border/60 bg-muted/20 px-3 py-2 space-y-2">
-          <p class="font-cinzel text-2xs text-ink-success/80 tracking-widest uppercase">Vendor Offer</p>
+          <p class="text-eyebrow text-ink-success/80">Vendor Offer</p>
           <AppInput
             v-model="offerDesc"
             type="text"
@@ -94,7 +94,7 @@
           <!-- Coin price inputs -->
           <div class="grid grid-cols-5 gap-1">
             <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-              <span class="font-cinzel text-2xs font-bold" :class="coin.color">{{ coin.symbol }}</span>
+              <span class="text-label font-bold" :class="coin.color">{{ coin.symbol }}</span>
               <AppInput
                 v-model.number="offerPrice[coin.key]"
                 type="number" min="0"
@@ -158,7 +158,7 @@
           block
           @mousedown.prevent="addItem(item)"
         >
-          <span class="font-cinzel text-xs font-semibold text-foreground truncate flex-1">{{ item.name }}</span>
+          <span class="text-caption font-semibold text-foreground truncate flex-1">{{ item.name }}</span>
           <span class="text-caption-sm text-muted-foreground shrink-0">{{ ITEM_TYPE_LABELS[item.item_type] }}</span>
           <span v-if="item.cost" class="text-caption-sm text-muted-foreground/70 shrink-0">{{ item.cost }}</span>
         </AppButton>

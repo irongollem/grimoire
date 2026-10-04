@@ -28,7 +28,7 @@
             : 'border-border hover:border-primary/50'"
           @click="localMode = opt.value"
         >
-          <span class="font-cinzel text-xs font-semibold tracking-wide text-foreground">{{ opt.label }}</span>
+          <span class="text-caption font-semibold text-foreground">{{ opt.label }}</span>
           <span class="text-caption-sm text-muted-foreground">
             {{ opt.value === 'live' && !meshyKeySet ? 'Locked: add the Meshy platform key first.' : opt.description }}
           </span>

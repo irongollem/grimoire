@@ -37,7 +37,7 @@
           </p>
           <p
             v-if="npc.location_id && npc.location_id !== locationId"
-            class="font-cinzel text-2xs text-muted-foreground/60 tracking-wide truncate mt-0.5"
+            class="text-caption-sm text-muted-foreground/60 truncate mt-0.5"
           >
             {{ allLocationsMap.get(npc.location_id)?.name ?? "" }}
           </p>
@@ -102,7 +102,7 @@
     >
       <RouterLink
         :to="`/party/${m.id}`"
-        class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors"
+        class="text-caption font-semibold text-foreground hover:text-primary transition-colors"
       >
         {{ m.name }}
       </RouterLink>

@@ -9,7 +9,7 @@
         :class="TRAP_TYPE_BG[trap.trap_type]"
       >{{ trap.trap_type }}</span>
       <h2 :id="headingId" class="text-heading-xs font-bold text-foreground flex-1 truncate">{{ trap.name }}</h2>
-      <span v-if="trap.cr" class="font-cinzel text-xs text-muted-foreground shrink-0">
+      <span v-if="trap.cr" class="text-label-lg text-muted-foreground shrink-0">
         CR {{ trap.cr }} · {{ crToXp(trap.cr) }} XP
       </span>
       <AppButton
@@ -140,7 +140,7 @@
       <AppButton variant="ghost" size="sm" label="Close" @click="emit('close')" />
       <RouterLink
         :to="`/traps/${trap.id}`"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 text-label-lg font-semibold text-foreground hover:border-primary/50 transition-colors"
         @click="emit('close')"
       >
         <IconEdit class="h-3.5 w-3.5" />

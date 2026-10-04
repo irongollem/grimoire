@@ -16,7 +16,7 @@
       <div v-if="entry.faction.emblem_url" class="h-4 w-4 shrink-0">
         <FocalImage :src="entry.faction.emblem_url" alt="" format="token" class="w-full h-full" />
       </div>
-      <RouterLink :to="`/factions/${entry.faction.id}`" class="font-cinzel text-2xs font-semibold text-foreground hover:text-primary transition-colors">
+      <RouterLink :to="`/factions/${entry.faction.id}`" class="text-caption-sm font-semibold text-foreground hover:text-primary transition-colors">
         {{ entry.faction.name }}
       </RouterLink>
       <AppSelect
@@ -32,7 +32,7 @@
       <!-- Status badge — shown when not Active -->
       <span
         v-if="entry.status && entry.status !== 'Active'"
-        class="font-cinzel text-2xs font-semibold italic"
+        class="text-caption-sm font-semibold italic"
         :style="{ color: NPC_FACTION_STATUS_COLORS[entry.status as NpcFactionStatus] }"
       >{{ entry.status }}</span>
     </template>

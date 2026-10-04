@@ -10,7 +10,7 @@
       >
         <template v-if="p.location" #badge>
           <span
-            class="inline-flex shrink-0 items-center rounded bg-muted/40 px-1.5 py-0.5 font-cinzel text-2xs font-bold uppercase tracking-wide text-muted-foreground"
+            class="inline-flex shrink-0 items-center rounded bg-muted/40 px-1.5 py-0.5 text-eyebrow font-bold text-muted-foreground"
           >{{ LOCATION_TYPE_LABELS[p.location.location_type] }}</span>
         </template>
         <template #actions>

@@ -4,7 +4,7 @@
       v-for="opt in OPTIONS"
       :key="opt.value"
       type="button"
-      class="rounded-full border px-3 py-1 font-cinzel text-xs tracking-wide transition-colors"
+      class="rounded-full border px-3 py-1 text-label-lg transition-colors"
       :class="model === opt.value ? ACTIVE_CLASS[opt.value] : IDLE_CLASS[opt.value]"
       @click="model = opt.value"
     >

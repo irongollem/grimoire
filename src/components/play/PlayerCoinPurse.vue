@@ -32,7 +32,7 @@
             class="flex flex-col items-center gap-1"
           >
             <span
-              class="font-cinzel text-2xs font-bold"
+              class="text-label font-bold"
               :class="coin.color"
               :title="coin.label"
             >{{ coin.symbol }}</span>
@@ -46,7 +46,7 @@
               :title="`Max: ${memberCoins[coin.key]}`"
               @input="$emit('update-drop', coin.key, Number(($event.target as HTMLInputElement).value))"
             />
-            <span class="font-cinzel text-2xs text-muted-foreground/60">/ {{ memberCoins[coin.key] }}</span>
+            <span class="text-label text-muted-foreground/60">/ {{ memberCoins[coin.key] }}</span>
           </div>
         </div>
         <div class="flex gap-2">

@@ -40,12 +40,12 @@
               meta.quantity > 1 &&
               meta.quantity_remaining! < meta.quantity
             "
-            class="font-cinzel text-2xs text-ink-caution/70 ml-1"
+            class="text-label text-ink-caution/70 ml-1"
           >({{ meta.quantity_remaining }} left)</span>
         </component>
         <span
           v-if="meta.item_rarity"
-          class="font-cinzel text-2xs text-muted-foreground capitalize tracking-wide"
+          class="text-caption-sm text-muted-foreground capitalize "
         >
           {{ meta.item_rarity }}
         </span>
@@ -87,7 +87,7 @@
         </div>
         <!-- Still available -->
         <template v-else>
-          <p class="font-cinzel text-2xs text-ink-caution/80 mt-1">
+          <p class="text-caption-sm text-ink-caution/80 mt-1">
             {{ meta.quantity_remaining }} remaining
           </p>
           <div

@@ -43,7 +43,7 @@
         <!-- Type picker -->
         <div class="space-y-1.5">
           <label
-            class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+            class="text-label-lg font-semibold text-foreground"
           >
             What kind of report?
           </label>
@@ -78,7 +78,7 @@
         <!-- Where (both types) -->
         <div class="space-y-1.5">
           <label
-            class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+            class="text-label-lg font-semibold text-foreground"
           >
             Where in the app?
             <span
@@ -100,7 +100,7 @@
         <template v-if="isBug">
           <div class="space-y-1.5">
             <label
-              class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+              class="text-label-lg font-semibold text-foreground"
             >
               What were you doing?
             </label>
@@ -115,7 +115,7 @@
 
           <div class="space-y-1.5">
             <label
-              class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+              class="text-label-lg font-semibold text-foreground"
             >
               What did you expect?
             </label>
@@ -130,7 +130,7 @@
 
           <div class="space-y-1.5">
             <label
-              class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+              class="text-label-lg font-semibold text-foreground"
             >
               What actually happened?
             </label>
@@ -148,7 +148,7 @@
         <template v-else>
           <div class="space-y-1.5">
             <label
-              class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+              class="text-label-lg font-semibold text-foreground"
             >
               What would you like to see?
             </label>
@@ -163,7 +163,7 @@
 
           <div class="space-y-1.5">
             <label
-              class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+              class="text-label-lg font-semibold text-foreground"
             >
               What problem would it solve?
             </label>
@@ -180,7 +180,7 @@
         <!-- Screenshot -->
         <div class="space-y-1.5">
           <label
-            class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+            class="text-label-lg font-semibold text-foreground"
           >
             Screenshot
             <span

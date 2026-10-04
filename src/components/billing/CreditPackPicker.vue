@@ -15,7 +15,7 @@
         :disabled="purchaseLoading || !consent"
         @click="purchasePack(pack.pack_id, consent, returnPath)"
       >
-        <span class="font-cinzel text-xs font-bold text-foreground">{{ pack.credits }} credits</span>
+        <span class="text-label-lg font-bold text-foreground">{{ pack.credits }} credits</span>
         <span class="text-caption italic text-muted-foreground">{{ formatPackPrice(pack, currency) }}</span>
         <span class="text-eyebrow text-muted-foreground/70">{{ pack.label }}</span>
       </AppButton>

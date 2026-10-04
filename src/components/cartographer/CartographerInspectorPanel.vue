@@ -241,7 +241,7 @@
           @click="$emit('update:activeTemplateShape', shape.id)"
         >
           <span class="text-base leading-none">{{ shape.icon }}</span>
-          <span class="font-cinzel text-2xs tracking-wide">{{ shape.label }}</span>
+          <span class="text-label">{{ shape.label }}</span>
         </AppButton>
       </div>
       <p class="text-caption-sm text-muted-foreground">Click center, drag to size. Walls auto-added.</p>

@@ -24,7 +24,7 @@
           <h3 class="text-heading-sm font-bold text-foreground leading-tight">{{ name }}</h3>
           <p v-if="monster" class="text-caption text-muted-foreground italic capitalize">{{ monster.size }} {{ monster.monster_type }}</p>
         </div>
-        <div v-if="monster" class="flex gap-3 font-cinzel text-xs text-muted-foreground">
+        <div v-if="monster" class="flex gap-3 text-label-lg text-muted-foreground">
           <!--
             Gated on the stat block itself, not only on `revealStats`. The two
             travel together in practice — the projection nulls one exactly when

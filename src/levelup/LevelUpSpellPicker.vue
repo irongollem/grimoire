@@ -2,7 +2,7 @@
   <WizardStepCard>
     <template #header>
       <h3 class="text-label-lg text-muted-foreground uppercase">{{ title }}</h3>
-      <span class="font-cinzel text-xs font-bold"
+      <span class="text-label-lg font-bold"
         :class="selectedIds.size === needed ? 'text-ink-success' : 'text-primary'">
         {{ selectedIds.size }} / {{ needed }}
       </span>
@@ -47,13 +47,13 @@
         @click="emit('toggle', spell.id)"
       >
         <div class="flex-1 min-w-0">
-          <p class="font-cinzel text-xs font-semibold">{{ spell.name }}</p>
+          <p class="text-caption font-semibold">{{ spell.name }}</p>
           <p class="text-caption text-muted-foreground">
             {{ isCantrip ? 'Cantrip' : `Level ${spell.level}` }} · {{ spell.school }}
           </p>
         </div>
-        <span v-if="alreadyKnownIds.has(spell.id)" class="font-cinzel text-2xs text-muted-foreground shrink-0">known</span>
-        <span v-else-if="selectedIds.has(spell.id)" class="font-cinzel text-2xs text-primary shrink-0">✓</span>
+        <span v-if="alreadyKnownIds.has(spell.id)" class="text-caption-sm text-muted-foreground shrink-0">known</span>
+        <span v-else-if="selectedIds.has(spell.id)" class="text-label text-primary shrink-0">✓</span>
       </button>
     </div>
 

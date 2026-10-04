@@ -48,8 +48,8 @@
       <div class="flex flex-col gap-1">
         <span class="text-label font-semibold text-muted-foreground">REQUIRES</span>
         <div class="flex flex-wrap gap-1">
-          <span v-if="recipe.requires_proficiency" class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20">Proficiency</span>
-          <span v-if="recipe.requires_tools" class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20">Tools</span>
+          <span v-if="recipe.requires_proficiency" class="text-label px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20">Proficiency</span>
+          <span v-if="recipe.requires_tools" class="text-label px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20">Tools</span>
           <span v-if="!recipe.requires_proficiency && !recipe.requires_tools" class="text-caption text-muted-foreground italic">None</span>
         </div>
       </div>
@@ -70,7 +70,7 @@
         <div v-if="outputs?.length" class="space-y-1.5">
           <div v-for="out in outputs" :key="out.id" class="flex items-center justify-between gap-2">
             <span class="text-body text-foreground">{{ itemById(inventoryItemRef(out))?.name ?? "Unknown item" }}</span>
-            <span class="font-cinzel text-xs text-muted-foreground shrink-0">× {{ out.quantity }}</span>
+            <span class="text-label-lg text-muted-foreground shrink-0">× {{ out.quantity }}</span>
           </div>
         </div>
         <p v-else class="text-body text-muted-foreground italic">No outputs defined.</p>
@@ -95,7 +95,7 @@
                 </span>
               </span>
             </div>
-            <span class="font-cinzel text-xs text-muted-foreground shrink-0">× {{ ing.quantity }}</span>
+            <span class="text-label-lg text-muted-foreground shrink-0">× {{ ing.quantity }}</span>
           </div>
         </div>
         <p v-else class="text-body text-muted-foreground italic">No ingredients required.</p>
@@ -110,7 +110,7 @@
       <div class="p-4 space-y-1.5">
         <div v-for="mod in modifiers" :key="mod.id" class="flex items-center justify-between gap-2">
           <span class="text-body text-foreground">{{ mod.description }}</span>
-          <span class="font-cinzel text-xs font-bold text-ink-success  shrink-0">+{{ mod.bonus }}</span>
+          <span class="text-label-lg font-bold text-ink-success  shrink-0">+{{ mod.bonus }}</span>
         </div>
       </div>
     </div>

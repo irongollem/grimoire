@@ -47,8 +47,8 @@
               :class="year % 10 === 0 ? 'w-px h-5' : 'w-px h-3'"
             />
             <span
-              class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap"
-              :class="year % 10 === 0 ? 'text-xs' : 'text-2xs'"
+              class="absolute font-semibold text-muted-foreground whitespace-nowrap"
+              :class="year % 10 === 0 ? 'text-label-lg' : 'text-label'"
               style="top: 0.875rem; left: 50%; transform: translateX(-50%)"
             >
               {{ year }}
@@ -73,8 +73,8 @@
             />
             <span
               v-if="tick.isFirst || pixelsPerYear / 12 >= 50"
-              class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap"
-              :class="tick.isFirst ? 'text-xs' : 'text-2xs'"
+              class="absolute font-semibold text-muted-foreground whitespace-nowrap"
+              :class="tick.isFirst ? 'text-label-lg' : 'text-label'"
               style="top: 1rem; left: 50%; transform: translateX(-50%)"
             >
               {{ tick.label }}
@@ -99,7 +99,7 @@
               }"
             />
             <span
-              class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap text-2xs"
+              class="absolute text-label font-semibold text-muted-foreground whitespace-nowrap "
               :style="{
                 left: fractionalYearToX(tick.frac) + 'px',
                 top: axisY + 8 + 'px',
@@ -123,7 +123,7 @@
         >
           <div class="w-0.5 h-10 bg-primary mx-auto" />
           <span
-            class="absolute font-cinzel text-xs font-bold text-primary whitespace-nowrap"
+            class="absolute text-label-lg font-bold text-primary whitespace-nowrap"
             style="top: 1.25rem; left: 50%; transform: translateX(-50%)"
           >
             ★ {{ calendar.currentYear }}
@@ -146,7 +146,7 @@
         >
           <div class="w-px h-full bg-tone-caution/70" />
           <span
-            class="absolute font-cinzel text-xs font-bold text-ink-caution whitespace-nowrap"
+            class="absolute text-label-lg font-bold text-ink-caution whitespace-nowrap"
             style="top: 0.25rem; left: 50%; transform: translateX(-50%)"
           >
             ◆ Today

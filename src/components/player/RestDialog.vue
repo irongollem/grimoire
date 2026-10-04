@@ -48,7 +48,7 @@
             class="text-label-lg font-semibold text-muted-foreground"
             >HIT DICE</span
           >
-          <span class="font-cinzel text-xs text-foreground">
+          <span class="text-label-lg text-foreground">
             {{ remainingAfterSpend }} / {{ member.level }}
             <span v-if="hitDie" class="text-muted-foreground">(d{{ hitDie }})</span>
           </span>
@@ -76,11 +76,11 @@
             <span
               v-for="(roll, i) in rolls"
               :key="i"
-              class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-elven-green/15 text-elven-green border border-elven-green/30"
+              class="text-label px-1.5 py-0.5 rounded bg-elven-green/15 text-elven-green border border-elven-green/30"
               >+{{ roll }}</span
             >
             <span
-              class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-elven-green/10 text-elven-green/80 border border-elven-green/20"
+              class="text-label px-1.5 py-0.5 rounded bg-elven-green/10 text-elven-green/80 border border-elven-green/20"
             >
               = {{ totalHealing }} hp healed
             </span>

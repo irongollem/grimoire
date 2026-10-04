@@ -46,7 +46,7 @@
             />
             <IconMore class="relative h-[1.45rem] w-[1.45rem]" />
           </span>
-          <span class="font-cinzel text-2xs leading-none">More</span>
+          <span class="text-label leading-none">More</span>
         </button>
 
         <!-- Primary tab -->
@@ -69,7 +69,7 @@
               class="relative h-[1.45rem] w-[1.45rem]"
             />
           </span>
-          <span class="font-cinzel text-2xs leading-none">{{
+          <span class="text-label leading-none">{{
             slot.tab.shortLabel ?? slot.tab.label
           }}</span>
         </button>

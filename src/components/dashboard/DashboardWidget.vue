@@ -48,7 +48,7 @@
             v-if="count !== undefined && count !== null"
             :class="
               cn(
-                'rounded border px-1.5 py-0.5 font-cinzel text-2xs',
+                'rounded border px-1.5 py-0.5 text-label ',
                 TONES[tone].count,
               )
             "

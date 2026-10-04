@@ -285,7 +285,7 @@
                  follows the DM everywhere including this page. Two panic buttons
                  for the same act is how one of them drifts. -->
             <div class="flex items-center gap-2 border-b border-border/60 px-3 py-2">
-              <h2 class="flex-1 font-cinzel text-2xs font-bold tracking-[0.16em] text-gold-500 uppercase">
+              <h2 class="flex-1 text-eyebrow font-bold text-gold-500 uppercase">
                 Mixer
               </h2>
               <AppButton

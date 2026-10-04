@@ -22,7 +22,7 @@
            and "Party is here" there mean the same thing. -->
       <span
         v-if="summary?.isLive"
-        class="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-label font-bold uppercase tracking-wider text-primary-foreground"
+        class="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-label font-bold uppercase text-primary-foreground"
       >
         <IconParty class="h-3 w-3" aria-hidden="true" />
         Party is here
@@ -31,7 +31,7 @@
            table is right now. -->
       <span
         v-else-if="summary?.runtimeStatus === 'paused'"
-        class="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-label font-semibold uppercase tracking-wider text-muted-foreground"
+        class="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-label font-semibold uppercase text-muted-foreground"
       >
         <IconParty class="h-3 w-3" aria-hidden="true" />
         Paused here
@@ -152,7 +152,7 @@
           <span
             v-for="member in visibleParty.slice(0, 4)"
             :key="member.id"
-            class="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-card bg-secondary font-cinzel text-label font-semibold text-foreground"
+            class="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-card bg-secondary text-label font-semibold text-foreground"
             :title="member.name"
           >
             <img

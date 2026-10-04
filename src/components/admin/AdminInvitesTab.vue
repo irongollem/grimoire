@@ -60,7 +60,7 @@
         <div class="flex items-start justify-between gap-2">
           <div>
             <div class="flex items-center gap-2">
-              <p v-if="invite.label" class="font-cinzel text-xs font-semibold text-foreground">
+              <p v-if="invite.label" class="text-caption font-semibold text-foreground">
                 {{ invite.label }}
               </p>
               <span
@@ -94,7 +94,7 @@
             {{ signupUrl(invite.token) }}
           </code>
           <button
-            class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-xs font-cinzel tracking-wide transition-colors"
+            class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label-lg transition-colors"
             :class="copiedId === invite.id
               ? 'bg-tone-success/20 text-ink-success'
               : 'border border-border text-foreground hover:bg-muted'"

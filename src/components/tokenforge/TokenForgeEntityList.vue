@@ -38,7 +38,7 @@
     >
       <!-- Portrait thumb -->
       <div
-        class="h-9 w-9 rounded-full shrink-0 overflow-hidden border border-border flex items-center justify-center text-xs font-cinzel font-bold"
+        class="h-9 w-9 rounded-full shrink-0 overflow-hidden border border-border flex items-center justify-center text-label-lg font-bold"
         :style="{ background: `linear-gradient(135deg, ${e.bgGradient[0]}, ${e.bgGradient[1]})` }"
       >
         <FocalImage v-if="e.imageUrl" :src="e.imageUrl" format="token" />

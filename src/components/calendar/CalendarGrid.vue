@@ -80,7 +80,7 @@
 
       <!-- Week rows -->
       <div v-for="(row, rowIdx) in gridRows" :key="rowIdx" class="mb-4">
-        <p class="cal-week-label font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-2">
+        <p class="cal-week-label text-label-lg font-semibold text-muted-foreground mb-2">
           {{ weekRowLabel(rowIdx) }}
         </p>
         <div :class="gridColsClass" :style="gridColsStyle" class="cal-week grid gap-1">
@@ -102,14 +102,14 @@
           >
             <span
               v-if="day !== null"
-              class="font-cinzel text-xs font-semibold leading-none"
+              class="text-label-lg font-semibold leading-none"
               :class="day === todayDayInView ? 'text-primary' : 'text-muted-foreground'"
             >
               {{ day }}
             </span>
             <span
               v-if="day === todayDayInView"
-              class="absolute top-0.5 right-1 font-cinzel text-2xs font-bold text-primary tracking-widest uppercase leading-none"
+              class="absolute top-0.5 right-1 text-eyebrow font-bold text-primary uppercase leading-none"
             >today</span>
             <!-- Event dots -->
             <div v-if="day !== null" class="flex flex-wrap gap-0.5 mt-auto pt-1">
@@ -159,7 +159,7 @@
 
       <!-- Events list for the month -->
       <div v-if="monthEvents.length" class="mt-6">
-        <p class="cal-week-label font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-3">
+        <p class="cal-week-label text-label-lg font-semibold text-muted-foreground mb-3">
           EVENTS THIS MONTH
         </p>
         <div class="cal-events space-y-1.5">

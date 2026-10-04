@@ -14,7 +14,7 @@
       </p>
 
       <div v-for="group in groups" :key="group.layer" class="mb-4 last:mb-0">
-        <h3 class="mb-2 font-cinzel text-2xs uppercase tracking-widest text-muted-foreground/60">
+        <h3 class="mb-2 text-eyebrow uppercase text-muted-foreground/60">
           {{ group.label }}
         </h3>
         <dl class="space-y-1.5">

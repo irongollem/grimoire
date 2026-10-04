@@ -66,7 +66,7 @@
           <!-- Slot pips for this level -->
           <template v-for="slot in slotsForLevel(group.level)" :key="spellSlotKey(slot)">
             <div class="flex items-center gap-0.5 ml-1" @click.stop>
-              <span v-if="slotPool(slot) !== 'spellcasting'" class="font-cinzel text-2xs text-ink-arcane">
+              <span v-if="slotPool(slot) !== 'spellcasting'" class="text-label text-ink-arcane">
                 {{ slotPool(slot) === 'pact' ? 'PACT' : slotPool(slot) === 'temporary' ? 'CREATED' : 'FEATURE' }}
               </span>
               <!--
@@ -87,7 +87,7 @@
                 @click="togglePip(slot, pip)"
               />
             </div>
-            <span class="font-cinzel text-2xs text-muted-foreground">
+            <span class="text-label text-muted-foreground">
               {{ slot.max - slot.used }}/{{ slot.max }}
             </span>
           </template>
@@ -197,7 +197,7 @@
               :label="entry.spell.effects?.length ? 'Resolve' : 'Healing'"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellHealing(entry, lastCastLevel(entry))"
             />
-            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 font-cinzel text-2xs text-ink-caution" title="Imported mechanics have not been reviewed; resolve from the spell text">Manual</span>
+            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 text-label text-ink-caution" title="Imported mechanics have not been reviewed; resolve from the spell text">Manual</span>
 
             <AppSelect
               v-if="eligibleMetamagic(entry).length"

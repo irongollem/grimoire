@@ -16,7 +16,7 @@
       <div class="flex items-center justify-between">
         <p class="text-label-lg font-semibold text-muted-foreground">ASSIGN SCORES</p>
         <div class="flex items-center gap-2">
-          <span class="font-cinzel text-xs text-muted-foreground">Points remaining:</span>
+          <span class="text-label-lg text-muted-foreground">Points remaining:</span>
           <span class="text-heading-sm font-bold"
             :class="pointsRemaining < 0 ? 'text-destructive' : pointsRemaining === 0 ? 'text-ink-success' : 'text-primary'">
             {{ pointsRemaining }}
@@ -48,14 +48,14 @@
             />
           </div>
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
-            class="font-cinzel text-2xs font-bold text-primary leading-none">
+            class="text-label font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
           </span>
-          <span class="font-cinzel text-xs font-bold"
+          <span class="text-label-lg font-bold"
             :class="totalMod(stat.key) >= 0 ? 'text-ink-success' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
           </span>
-          <span class="font-cinzel text-2xs text-muted-foreground">{{ POINT_BUY_COSTS[f[stat.key]] ?? 0 }} pts</span>
+          <span class="text-label text-muted-foreground">{{ POINT_BUY_COSTS[f[stat.key]] ?? 0 }} pts</span>
         </div>
       </div>
     </div>
@@ -95,10 +95,10 @@
             <option v-for="opt in availableForAbility(stat.key)" :key="opt.idx" :value="opt.idx">{{ opt.val }}</option>
           </AppSelect>
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
-            class="font-cinzel text-2xs font-bold text-primary leading-none">
+            class="text-label font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
           </span>
-          <span class="font-cinzel text-xs font-bold"
+          <span class="text-label-lg font-bold"
             :class="totalMod(stat.key) >= 0 ? 'text-ink-success' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
           </span>
@@ -123,10 +123,10 @@
             max="30"
           />
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
-            class="font-cinzel text-2xs font-bold text-primary leading-none">
+            class="text-label font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
           </span>
-          <span class="font-cinzel text-xs font-bold"
+          <span class="text-label-lg font-bold"
             :class="totalMod(stat.key) >= 0 ? 'text-ink-success' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
           </span>

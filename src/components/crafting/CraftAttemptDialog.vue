@@ -41,7 +41,7 @@
           >
             <component :is="ing.matched ? IconCheckCircle : IconCloseCircle" class="h-4 w-4 shrink-0" :class="ing.matched ? 'text-elven-green' : 'text-destructive'" />
             <div class="flex-1 min-w-0">
-              <p class="font-cinzel text-xs font-semibold text-foreground truncate" :class="{ italic: !ing.item_id }">{{ ing.itemName }}</p>
+              <p class="text-caption font-semibold text-foreground truncate" :class="{ italic: !ing.item_id }">{{ ing.itemName }}</p>
               <p class="text-caption-sm text-muted-foreground">Need {{ ing.needed }}×<span v-if="ing.matched"> · Have {{ ing.available }}×</span></p>
             </div>
             <span v-if="idx === 0" class="text-label text-primary shrink-0">PRIMARY</span>
@@ -85,7 +85,7 @@
             :class="['gap-2.5 rounded-md border px-3 py-2 hover:bg-muted/40 transition-colors', workspaceEnabled ? 'border-primary/40 bg-primary/5' : 'border-border']"
           >
             <span>{{ workspaceLabel }}</span>
-            <span class="font-cinzel text-xs text-primary font-semibold ml-auto shrink-0">+{{ workspaceBonus }}</span>
+            <span class="text-label-lg text-primary font-semibold ml-auto shrink-0">+{{ workspaceBonus }}</span>
           </AppCheckbox>
 
           <!-- Standard poor-ingredient penalty -->
@@ -95,7 +95,7 @@
             :class="['gap-2.5 rounded-md border px-3 py-2 hover:bg-muted/40 transition-colors', poorIngredientsEnabled ? 'border-destructive/40 bg-destructive/5' : 'border-border']"
           >
             <span>Poor quality ingredients</span>
-            <span class="font-cinzel text-xs text-destructive font-semibold ml-auto shrink-0">{{ POOR_INGREDIENTS_PENALTY }}</span>
+            <span class="text-label-lg text-destructive font-semibold ml-auto shrink-0">{{ POOR_INGREDIENTS_PENALTY }}</span>
           </AppCheckbox>
 
           <!-- Recipe-specific modifiers -->
@@ -108,7 +108,7 @@
             @update:model-value="toggleModifier(idx)"
           >
             <span>{{ mod.description }}</span>
-            <span class="font-cinzel text-xs text-primary font-semibold ml-auto shrink-0">+{{ mod.bonus }}</span>
+            <span class="text-label-lg text-primary font-semibold ml-auto shrink-0">+{{ mod.bonus }}</span>
           </AppCheckbox>
         </div>
       </div>

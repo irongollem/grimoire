@@ -148,7 +148,7 @@
 
         <!-- Battle music, by theme rather than by track -->
         <div class="flex flex-col gap-1.5">
-          <label class="font-cinzel text-xs font-semibold tracking-wide text-foreground">
+          <label class="text-label-lg font-semibold text-foreground">
             Battle music theme
           </label>
           <ThemeInput

@@ -6,7 +6,7 @@
         v-for="p in SOUND_PROVIDERS"
         :key="p.id"
         type="button"
-        class="px-2.5 py-1.5 font-cinzel text-xs tracking-wide border-b-2 -mb-px transition-colors"
+        class="px-2.5 py-1.5 text-label-lg border-b-2 -mb-px transition-colors"
         :class="
           p.id === provider.id
             ? 'border-gold-500 text-gold-300'

@@ -10,7 +10,7 @@
         <span class="text-eyebrow font-semibold text-muted-foreground">
           {{ entry.label }}
         </span>
-        <span class="font-cinzel text-2xs text-muted-foreground">
+        <span class="text-label text-muted-foreground">
           {{ entry.value }} / {{ entry.max }}
         </span>
       </div>

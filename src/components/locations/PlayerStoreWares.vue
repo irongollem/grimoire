@@ -14,7 +14,7 @@
         @click="selectItem(si)"
       >
         <div class="flex-1 min-w-0">
-          <p class="font-cinzel text-xs font-semibold text-foreground truncate">
+          <p class="text-caption font-semibold text-foreground truncate">
             {{ si.item?.name ?? 'Unknown item' }}
           </p>
           <p class="text-caption-sm text-muted-foreground italic">

@@ -34,7 +34,7 @@
       <template v-if="!isChild">
         <!-- Pro benefits -->
         <div class="px-5 pb-4 border-t border-border/50 pt-4">
-          <p class="font-cinzel text-xs font-semibold text-foreground tracking-wide mb-3">
+          <p class="text-label-lg font-semibold text-foreground mb-3">
             Pro DM unlocks
           </p>
           <ul class="space-y-2">

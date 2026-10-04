@@ -29,7 +29,7 @@
     -->
     <span
       v-if="totalPlaying > 0"
-      class="flex h-4 w-4 items-center justify-center rounded-full border border-gold-500/40 bg-gold-500/20 text-2xs font-cinzel text-gold-300"
+      class="flex h-4 w-4 items-center justify-center rounded-full border border-gold-500/40 bg-gold-500/20 text-label text-gold-300"
     >
       {{ totalPlaying }}
     </span>

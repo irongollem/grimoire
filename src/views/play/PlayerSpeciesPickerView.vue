@@ -76,7 +76,7 @@
             <span
               v-for="l in languagesToAdd"
               :key="l"
-              class="px-2 py-0.5 rounded-full bg-primary/10 font-cinzel text-xs text-primary"
+              class="px-2 py-0.5 rounded-full bg-primary/10 text-label-lg text-primary"
             >
               {{ l }}
             </span>
@@ -104,7 +104,7 @@
             >
               <div class="h-1.5 w-1.5 rounded-full bg-tone-caution shrink-0" />
               <span class="text-body text-foreground flex-1">{{ grant.spell_name }}</span>
-              <span class="font-cinzel text-2xs text-ink-caution">
+              <span class="text-caption-sm text-ink-caution">
                 {{ grant.uses_per_day === null ? "At will" : `${grant.uses_per_day}/day` }}
               </span>
             </div>

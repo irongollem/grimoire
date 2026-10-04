@@ -9,7 +9,7 @@
       class="flex-1 min-w-0 bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       @input="onInput"
     />
-    <span class="font-cinzel text-xs text-muted-foreground shrink-0">ft.</span>
+    <span class="text-label-lg text-muted-foreground shrink-0">ft.</span>
   </div>
 </template>
 

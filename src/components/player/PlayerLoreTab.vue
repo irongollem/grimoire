@@ -215,7 +215,7 @@
 
         <!-- Feature -->
         <div v-if="background.feature_name" class="border-t border-border pt-3 space-y-1">
-          <p class="font-cinzel text-xs font-semibold text-foreground">{{ background.feature_name }}</p>
+          <p class="text-caption font-semibold text-foreground">{{ background.feature_name }}</p>
           <RichTextViewer v-if="background.feature_description" :content="background.feature_description" />
         </div>
 
@@ -243,7 +243,7 @@
                 <RouterLink
                   v-if="isOwner && isChoicePlaceholder(l)"
                   to="/play/character/edit?tab=profs"
-                  class="px-2 py-0.5 rounded bg-primary/8 border border-primary/30 border-dashed font-cinzel text-2xs text-primary/70 hover:text-primary hover:bg-primary/15 transition-colors"
+                  class="px-2 py-0.5 rounded bg-primary/8 border border-primary/30 border-dashed text-label text-primary/70 hover:text-primary hover:bg-primary/15 transition-colors"
                   :title="'Tap to choose a language'"
                 >{{ l }}</RouterLink>
                 <span v-else class="px-2 py-0.5 rounded bg-muted border border-border text-label text-foreground">{{ l }}</span>

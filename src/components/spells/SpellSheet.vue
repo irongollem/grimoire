@@ -163,7 +163,7 @@
             <span
               v-for="k in knowers"
               :key="k.party_member_id"
-              class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground"
+              class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground"
             >
               <IconParty class="h-2.5 w-2.5 shrink-0" />
               {{ k.name }}
@@ -182,7 +182,7 @@
               v-for="c in npcCasters"
               :key="c.npc_id"
               :to="`/npcs/${c.npc_id}`"
-              class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+              class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
             >
               <IconUser class="h-2.5 w-2.5 shrink-0" />
               {{ c.name }}

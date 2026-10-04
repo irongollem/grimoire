@@ -74,7 +74,7 @@ function save() {
   @apply text-caption font-normal italic text-muted-foreground/60 ml-1;
 }
 .modal-label {
-  @apply block font-cinzel text-xs font-semibold text-muted-foreground mb-1;
+  @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }
 .modal-input {
   @apply w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring;
@@ -83,10 +83,10 @@ function save() {
   @apply flex gap-2 justify-end;
 }
 .modal-cancel {
-  @apply font-cinzel text-xs font-semibold px-4 py-2 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors;
+  @apply text-label-lg font-semibold px-4 py-2 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors;
 }
 .modal-confirm {
-  @apply font-cinzel text-xs font-semibold px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity;
+  @apply text-label-lg font-semibold px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity;
 }
 
 @media print {

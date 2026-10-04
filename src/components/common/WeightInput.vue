@@ -10,7 +10,7 @@
       placeholder="0"
       class="pr-10"
     />
-    <span class="absolute inset-y-0 right-3 flex items-center pointer-events-none font-cinzel text-xs text-muted-foreground">lbs.</span>
+    <span class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-label-lg text-muted-foreground">lbs.</span>
   </div>
 </template>
 

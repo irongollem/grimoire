@@ -87,7 +87,7 @@
               @focus="($event.target as HTMLInputElement).select()"
             />
             <span
-              class="font-cinzel text-xs font-bold"
+              class="text-label-lg font-bold"
               :class="(((sb as unknown as Record<string, number>)[stat.key] - 10) / 2 | 0) >= 0
                 ? 'text-elven-green'
                 : 'text-destructive'"

@@ -34,13 +34,13 @@
         class="flex items-center gap-1.5 rounded-full border border-border bg-muted pl-1 pr-2 py-0.5"
       >
         <div
-          class="h-6 w-6 rounded-full shrink-0 overflow-hidden border border-border flex items-center justify-center text-2xs font-cinzel font-bold"
+          class="h-6 w-6 rounded-full shrink-0 overflow-hidden border border-border flex items-center justify-center text-label font-bold"
           :style="{ background: `linear-gradient(135deg, ${qe.entity.bgGradient[0]}, ${qe.entity.bgGradient[1]})` }"
         >
           <FocalImage v-if="qe.entity.imageUrl" :src="qe.entity.imageUrl" format="token" />
           <span v-else class="text-white/60">{{ qe.entity.name.charAt(0) }}</span>
         </div>
-        <span class="font-cinzel text-xs text-foreground">{{ qe.entity.name }}</span>
+        <span class="text-caption text-foreground">{{ qe.entity.name }}</span>
         <AppButton variant="ghost" tone="danger" size="inline-xs" ariaLabel="Remove" label="✕" @click="emit('remove', qi)" />
       </div>
     </div>

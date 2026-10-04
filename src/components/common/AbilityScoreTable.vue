@@ -28,10 +28,10 @@
       >
         <span class="max-w-full truncate text-label font-bold" :class="INK">{{ ab.name }}</span>
         <span
-          class="font-cinzel text-title font-bold leading-none transition-colors group-hover:text-primary"
+          class="text-title font-bold leading-none transition-colors group-hover:text-primary"
           :class="mod(ab.key) < 0 ? 'text-destructive' : 'text-foreground'"
         >{{ fmt(mod(ab.key)) }}</span>
-        <span class="absolute -bottom-2.5 left-1/2 min-w-9 -translate-x-1/2 rounded-full border bg-card px-2 font-cinzel text-label-lg leading-snug text-foreground" :class="FRAME">{{ scores[ab.key] }}</span>
+        <span class="absolute -bottom-2.5 left-1/2 min-w-9 -translate-x-1/2 rounded-full border bg-card px-2 text-label-lg leading-snug text-foreground" :class="FRAME">{{ scores[ab.key] }}</span>
       </AppButton>
       <AppButton
         variant="menu"
@@ -46,7 +46,7 @@
         <span class="h-3 w-3 shrink-0 rounded-full border-2" :class="pipClass(ab.key)" />
         <span class="text-label text-muted-foreground">Save</span>
         <span
-          class="font-cinzel text-label-lg font-bold transition-colors group-hover:text-primary"
+          class="text-label-lg font-bold transition-colors group-hover:text-primary"
           :class="saveBonus(ab.key) < 0 ? 'text-destructive' : 'text-foreground'"
         >{{ fmt(saveBonus(ab.key)) }}</span>
       </AppButton>
@@ -78,7 +78,7 @@
           <span class="pl-2 text-label font-bold" :class="INK">{{ ab.abbr }}</span>
           <span class="px-1.5 text-center text-heading-sm font-bold text-foreground">{{ scores[ab.key] }}</span>
           <span
-            class="px-1.5 text-center font-cinzel text-xs font-bold transition-colors group-hover:text-primary"
+            class="px-1.5 text-center text-label-lg font-bold transition-colors group-hover:text-primary"
             :class="mod(ab.key) < 0 ? 'text-destructive' : 'text-foreground'"
           >{{ fmt(mod(ab.key)) }}</span>
         </AppButton>
@@ -94,7 +94,7 @@
         >
           <span class="h-2.5 w-2.5 shrink-0 rounded-full border-2" :class="pipClass(ab.key)" />
           <span
-            class="font-cinzel text-xs font-bold transition-colors group-hover:text-primary"
+            class="text-label-lg font-bold transition-colors group-hover:text-primary"
             :class="saveBonus(ab.key) < 0 ? 'text-destructive' : 'text-foreground'"
           >{{ fmt(saveBonus(ab.key)) }}</span>
         </AppButton>

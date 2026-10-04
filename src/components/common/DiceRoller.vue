@@ -339,11 +339,11 @@ function clearAll() {
   @apply flex items-center gap-1;
 }
 .count-btn {
-  @apply w-5 h-5 rounded bg-muted border border-border font-cinzel text-xs flex items-center justify-center hover:bg-card transition-colors leading-none;
+  @apply w-5 h-5 rounded bg-muted border border-border text-label-lg flex items-center justify-center hover:bg-card transition-colors leading-none;
   touch-action: manipulation;
 }
 .count-val {
-  @apply font-cinzel text-xs font-bold text-foreground w-4 text-center;
+  @apply text-label-lg font-bold text-foreground w-4 text-center;
 }
 
 .modifier-row {
@@ -376,13 +376,13 @@ function clearAll() {
   @apply flex flex-wrap items-center justify-center gap-1 mt-0.5;
 }
 .result-die {
-  @apply font-cinzel text-xs font-semibold bg-muted rounded px-1.5 py-0.5 text-foreground;
+  @apply text-label-lg font-semibold bg-muted rounded px-1.5 py-0.5 text-foreground;
 }
 .result-die-dropped {
   @apply line-through text-muted-foreground opacity-50;
 }
 .result-mod {
-  @apply font-cinzel text-xs font-semibold text-primary;
+  @apply text-label-lg font-semibold text-primary;
 }
 
 /* Transitions */

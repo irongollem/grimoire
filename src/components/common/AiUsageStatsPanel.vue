@@ -39,17 +39,17 @@
           class="flex items-center gap-2 rounded-md bg-muted/20 px-2.5 py-1.5"
         >
           <div class="flex-1 min-w-0">
-            <span class="font-cinzel text-xs font-semibold text-foreground">{{ stat.label }}</span>
+            <span class="text-caption font-semibold text-foreground">{{ stat.label }}</span>
             <span class="text-caption text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
           </div>
           <span class="text-caption text-muted-foreground shrink-0 w-10 text-right">{{ currency === 'credits' ? stat.charged_count : stat.count }}×</span>
           <template v-if="currency === 'credits'">
-            <span class="font-cinzel text-xs text-foreground shrink-0 w-20 text-right">{{ Math.round(stat.credits) }} cr</span>
-            <span class="font-cinzel text-xs text-muted-foreground shrink-0 w-20 text-right">{{ stat.avg_credits.toFixed(1) }} cr</span>
+            <span class="text-label-lg text-foreground shrink-0 w-20 text-right">{{ Math.round(stat.credits) }} cr</span>
+            <span class="text-label-lg text-muted-foreground shrink-0 w-20 text-right">{{ stat.avg_credits.toFixed(1) }} cr</span>
           </template>
           <template v-else>
-            <span class="font-cinzel text-xs text-foreground shrink-0 w-20 text-right">${{ stat.estimated_cost_usd.toFixed(3) }}</span>
-            <span class="font-cinzel text-xs text-muted-foreground shrink-0 w-20 text-right">${{ stat.avg_cost_usd.toFixed(4) }}</span>
+            <span class="text-label-lg text-foreground shrink-0 w-20 text-right">${{ stat.estimated_cost_usd.toFixed(3) }}</span>
+            <span class="text-label-lg text-muted-foreground shrink-0 w-20 text-right">${{ stat.avg_cost_usd.toFixed(4) }}</span>
           </template>
         </div>
       </div>

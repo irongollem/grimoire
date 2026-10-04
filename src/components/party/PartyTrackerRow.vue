@@ -84,7 +84,7 @@
           />
           <span
             v-else
-            class="inline-flex items-center gap-0.5 font-cinzel text-2xs text-muted-foreground/40 italic"
+            class="inline-flex items-center gap-0.5 text-caption-sm text-muted-foreground/40 italic"
           >
             <IconLocation class="h-2.5 w-2.5 shrink-0" />
             Location unknown
@@ -170,7 +170,7 @@
         </div>
 
         <!-- Key stats grid -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 font-cinzel text-xs">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 text-label-lg">
           <span class="flex items-baseline justify-between gap-1 min-w-0">
             <span class="text-muted-foreground truncate">AC</span>
             <span class="font-bold text-foreground shrink-0">{{ displayAc }}</span>
@@ -211,7 +211,7 @@
 
         <!-- Saving throw proficiencies -->
         <div v-if="member.saving_throw_proficiencies.length" class="flex flex-wrap gap-1">
-          <span class="font-cinzel text-2xs text-muted-foreground mr-1 self-center">SAVES:</span>
+          <span class="text-label text-muted-foreground mr-1 self-center">SAVES:</span>
           <span
             v-for="save in member.saving_throw_proficiencies"
             :key="save"

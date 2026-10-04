@@ -10,7 +10,7 @@
 
     <div v-else-if="!partyMembers?.length" class="flex flex-col items-center gap-4 py-16 text-center">
       <p class="font-fell text-base text-muted-foreground italic">No characters in the party yet.</p>
-      <RouterLink to="/party" class="font-cinzel text-xs text-primary hover:underline">
+      <RouterLink to="/party" class="text-label-lg text-primary hover:underline">
         ← Go to the Party
       </RouterLink>
     </div>

@@ -12,7 +12,7 @@
         <span
           v-for="key in source.license_keys"
           :key="key"
-          class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-2xs text-primary whitespace-nowrap"
+          class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-label text-primary whitespace-nowrap"
         >
           {{ shortName(key) }}
         </span>
@@ -23,7 +23,7 @@
       <span
         v-for="c in entryCounts"
         :key="c.label"
-        class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground"
+        class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
       >
         {{ c.count.toLocaleString() }} {{ c.label }}
       </span>

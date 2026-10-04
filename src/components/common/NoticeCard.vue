@@ -4,7 +4,7 @@
     role="status"
   >
     <div class="flex flex-col gap-1">
-      <span class="font-cinzel text-label-lg font-semibold text-foreground">{{ title }}</span>
+      <span class="text-label-lg font-semibold text-foreground">{{ title }}</span>
       <p class="text-caption text-muted-foreground"><slot /></p>
     </div>
     <div v-if="$slots.actions" class="flex flex-wrap items-center gap-2">

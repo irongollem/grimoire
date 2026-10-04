@@ -22,7 +22,7 @@
     </div>
 
     <div v-for="group in groups" :key="group.characterId" class="space-y-2" data-testid="approval-group">
-      <h3 class="font-cinzel text-xs font-semibold text-foreground">{{ group.heading }}</h3>
+      <h3 class="text-label-lg font-semibold text-foreground">{{ group.heading }}</h3>
       <ul class="space-y-2">
         <li
           v-for="review in group.reviews"

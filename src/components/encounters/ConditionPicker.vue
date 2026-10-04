@@ -68,7 +68,7 @@ defineExpose({ close });
 }
 
 .picker-trigger {
-  @apply w-5 h-5 rounded-full border border-dashed border-border text-muted-foreground font-cinzel text-xs flex items-center justify-center hover:border-primary hover:text-primary transition-colors;
+  @apply w-5 h-5 rounded-full border border-dashed border-border text-muted-foreground text-label-lg flex items-center justify-center hover:border-primary hover:text-primary transition-colors;
 }
 
 .picker-trigger-open {
@@ -91,7 +91,7 @@ defineExpose({ close });
 }
 
 .picker-chip {
-  @apply font-cinzel text-2xs font-semibold px-1.5 py-1 rounded border transition-colors text-center cursor-pointer;
+  @apply text-label font-semibold px-1.5 py-1 rounded border transition-colors text-center cursor-pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

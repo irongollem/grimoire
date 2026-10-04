@@ -37,11 +37,11 @@
         v-roll-mode="(mode: RollMode | null) => takeHideAction(mode)"
       >
         <IconHide class="h-3.5 w-3.5 text-muted-foreground" />
-        <span class="font-cinzel text-xs text-foreground">Hide</span>
-        <span class="font-cinzel text-xs" :class="stealthBonus >= 0 ? 'text-elven-green' : 'text-destructive'">
+        <span class="text-label-lg text-foreground">Hide</span>
+        <span class="text-label-lg " :class="stealthBonus >= 0 ? 'text-elven-green' : 'text-destructive'">
           {{ signedNum(stealthBonus) }}
         </span>
-        <span v-if="checkBadgeLabel" class="font-cinzel text-2xs text-ink-caution">{{ checkBadgeLabel }}</span>
+        <span v-if="checkBadgeLabel" class="text-label text-ink-caution">{{ checkBadgeLabel }}</span>
       </AppButton>
       <AppButton
         v-else
@@ -78,11 +78,11 @@
                   v-roll-mode="(mode: RollMode | null) => rollBeastAttack(action.name, parseBeastAttackBonus(action.description)!, mode)"
                 >
                   <IconSword class="h-3 w-3 text-muted-foreground" />
-                  <span class="font-cinzel text-xs text-foreground">Attack</span>
-                  <span class="font-cinzel text-xs" :class="parseBeastAttackBonus(action.description)! >= 0 ? 'text-elven-green' : 'text-destructive'">
+                  <span class="text-label-lg text-foreground">Attack</span>
+                  <span class="text-label-lg " :class="parseBeastAttackBonus(action.description)! >= 0 ? 'text-elven-green' : 'text-destructive'">
                     {{ signedNum(parseBeastAttackBonus(action.description)!) }}
                   </span>
-                  <span v-if="attackBadgeLabel" class="font-cinzel text-2xs text-ink-caution">{{ attackBadgeLabel }}</span>
+                  <span v-if="attackBadgeLabel" class="text-label text-ink-caution">{{ attackBadgeLabel }}</span>
                 </AppButton>
               </div>
               <p class="text-caption text-muted-foreground leading-relaxed">{{ action.description }}</p>
@@ -130,8 +130,8 @@
               v-roll-mode="(mode: RollMode | null) => rollWeaponAttack(inv, item, mode)"
             >
               <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-              <span class="font-cinzel text-xs text-foreground">Attack</span>
-              <span class="font-cinzel text-xs" :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
+              <span class="text-label-lg text-foreground">Attack</span>
+              <span class="text-label-lg " :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(weaponAttackMod(item)) }}
               </span>
               <span v-if="attackBadgeLabel" class="text-label text-ink-caution">{{ attackBadgeLabel }}</span>
@@ -146,11 +146,11 @@
               v-roll-mode="(mode: RollMode | null) => rollThrowAttack(inv, item, mode)"
             >
               <IconSend class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-              <span class="font-cinzel text-xs text-foreground">Throw</span>
-              <span class="font-cinzel text-xs" :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
+              <span class="text-label-lg text-foreground">Throw</span>
+              <span class="text-label-lg " :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(weaponAttackMod(item)) }}
               </span>
-              <span class="font-cinzel text-xs text-muted-foreground">× {{ inv.quantity }}</span>
+              <span class="text-label-lg text-muted-foreground">× {{ inv.quantity }}</span>
             </AppButton>
             <AppButton
               variant="subtle"
@@ -160,16 +160,16 @@
               @click="rollWeaponDamage(inv, item)"
             >
               <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-ink-caution transition-colors" />
-              <span class="font-cinzel text-xs text-foreground">{{ weaponDamageExpr(item) }}</span>
-              <span class="font-cinzel text-xs text-muted-foreground">{{ item?.damage_rolls?.[0]?.type ?? 'bludgeoning' }}</span>
+              <span class="text-label-lg text-foreground">{{ weaponDamageExpr(item) }}</span>
+              <span class="text-label-lg text-muted-foreground">{{ item?.damage_rolls?.[0]?.type ?? 'bludgeoning' }}</span>
             </AppButton>
             <span
               v-if="weaponAmmoById[inv.id]?.needsAmmo && weaponAmmoById[inv.id]?.hasAmmo"
-              class="font-cinzel text-xs text-muted-foreground self-center"
+              class="text-label-lg text-muted-foreground self-center"
             >🏹 × {{ weaponAmmoById[inv.id].remaining }}</span>
             <span
               v-else-if="weaponAmmoById[inv.id]?.needsAmmo"
-              class="font-cinzel text-xs text-destructive self-center"
+              class="text-label-lg text-destructive self-center"
             >no ammo</span>
           </div>
         </div>
@@ -200,13 +200,13 @@
               v-roll-mode="(mode: RollMode | null) => rollUnarmedAttack(mode)"
             >
               <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-              <span class="font-cinzel text-xs text-foreground">Attack</span>
-              <span class="font-cinzel text-xs" :class="unarmedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
+              <span class="text-label-lg text-foreground">Attack</span>
+              <span class="text-label-lg " :class="unarmedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(unarmedAttackMod) }}
               </span>
               <span v-if="attackBadgeLabel" class="text-label text-ink-caution">{{ attackBadgeLabel }}</span>
             </AppButton>
-            <span class="font-cinzel text-xs text-muted-foreground">{{ unarmedDamage }} bludgeoning</span>
+            <span class="text-label-lg text-muted-foreground">{{ unarmedDamage }} bludgeoning</span>
           </div>
         </div>
         <div class="px-4 py-3">
@@ -223,8 +223,8 @@
               v-roll-mode="(mode: RollMode | null) => rollImprovisedAttack(mode)"
             >
               <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-              <span class="font-cinzel text-xs text-foreground">Attack</span>
-              <span class="font-cinzel text-xs" :class="improvisedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
+              <span class="text-label-lg text-foreground">Attack</span>
+              <span class="text-label-lg " :class="improvisedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(improvisedAttackMod) }}
               </span>
               <span v-if="attackBadgeLabel" class="text-label text-ink-caution">{{ attackBadgeLabel }}</span>
@@ -237,8 +237,8 @@
               @click="rollImprovisedDamage"
             >
               <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-ink-caution transition-colors" />
-              <span class="font-cinzel text-xs text-foreground">1d4</span>
-              <span class="font-cinzel text-xs text-muted-foreground">{{ signedNum(improvisedAttackMod) }}</span>
+              <span class="text-label-lg text-foreground">1d4</span>
+              <span class="text-label-lg text-muted-foreground">{{ signedNum(improvisedAttackMod) }}</span>
             </AppButton>
           </div>
         </div>

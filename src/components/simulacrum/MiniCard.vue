@@ -35,7 +35,7 @@
 
     <!-- Body -->
     <div class="flex flex-col gap-1.5 p-2.5">
-      <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ mini.label ?? 'Untitled mini' }}</p>
+      <p class="text-caption font-semibold text-foreground truncate">{{ mini.label ?? 'Untitled mini' }}</p>
       <p class="text-caption-sm text-muted-foreground/70">{{ new Date(mini.created_at).toLocaleDateString() }}</p>
 
       <div class="flex flex-wrap items-center gap-1 pt-1">

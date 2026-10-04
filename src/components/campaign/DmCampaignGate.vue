@@ -2,7 +2,7 @@
   <div v-if="blocking" class="flex flex-1 items-center justify-center px-4 py-10">
     <div class="w-full max-w-lg rounded-lg border border-border bg-card px-6 py-8 text-center">
       <IconDM class="mx-auto mb-3 h-10 w-10 text-primary" aria-hidden="true" />
-      <h2 class="font-cinzel text-heading-lg font-semibold text-foreground mb-2">
+      <h2 class="text-heading-lg font-semibold text-foreground mb-2">
         Start your campaign
       </h2>
       <p class="text-body text-muted-foreground leading-snug">

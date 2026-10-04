@@ -54,7 +54,7 @@
             <span
               v-for="(die, index) in display.dice"
               :key="index"
-              class="rounded bg-muted px-1.5 py-0.5 font-cinzel text-xs font-semibold text-foreground"
+              class="rounded bg-muted px-1.5 py-0.5 text-label-lg font-semibold text-foreground"
               :class="die.dropped && 'text-muted-foreground line-through opacity-50'"
               >{{ die.val }}</span
             >

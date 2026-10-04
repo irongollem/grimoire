@@ -14,7 +14,7 @@
         No hints yet. Add tiered hints from subtle to obvious.
       </p>
       <div v-for="(hint, i) in sortedHints" :key="hint.order" class="flex items-start gap-2">
-        <span class="shrink-0 mt-1.5 font-cinzel text-2xs font-bold text-muted-foreground w-6 text-right">{{ hint.order }}</span>
+        <span class="shrink-0 mt-1.5 text-label font-bold text-muted-foreground w-6 text-right">{{ hint.order }}</span>
         <RichTextEditor
           :model-value="hint.text"
           :placeholder="`Hint ${hint.order}…`"

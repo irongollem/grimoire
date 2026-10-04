@@ -93,7 +93,7 @@
                 class="flex items-start gap-3 rounded-md border border-border bg-card px-3 py-2"
               >
                 <!-- Range badge -->
-                <span class="shrink-0 font-cinzel text-xs font-bold text-primary/80 bg-primary/10 rounded px-2 py-0.5 min-w-12 text-center">
+                <span class="shrink-0 text-label-lg font-bold text-primary/80 bg-primary/10 rounded px-2 py-0.5 min-w-12 text-center">
                   {{ entry.min === entry.max ? entry.min : `${entry.min}–${entry.max}` }}
                 </span>
                 <div class="flex-1 min-w-0 flex flex-col gap-1">

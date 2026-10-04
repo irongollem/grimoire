@@ -12,7 +12,7 @@
       <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain flex flex-col gap-4 px-5 py-4">
         <!-- Raw facts input -->
         <div class="flex flex-col gap-1">
-          <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Raw session facts</label>
+          <label class="text-label-lg text-muted-foreground">Raw session facts</label>
           <MentionTextarea
             v-model="rawText"
             :rows="8"
@@ -30,7 +30,7 @@
 
         <!-- Tone selector -->
         <div class="flex flex-col gap-1 shrink-0">
-          <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Tone</label>
+          <label class="text-label-lg text-muted-foreground">Tone</label>
           <SegmentedControl v-model="tone" :options="TONES" size="sm" gap="loose" wrap />
         </div>
 
@@ -77,7 +77,7 @@
       <!-- Preview -->
       <div class="min-h-0 flex-1 flex flex-col gap-3 px-5 py-4">
         <div class="flex items-center justify-between shrink-0">
-          <span class="font-cinzel text-xs text-muted-foreground tracking-wide">Preview</span>
+          <span class="text-label-lg text-muted-foreground">Preview</span>
           <AppButton variant="subtle" size="xs" label="← Edit facts" @click="step = 'facts'" />
         </div>
 
@@ -91,11 +91,11 @@
         <div class="shrink-0 flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3">
           <div class="flex flex-wrap items-end gap-3">
             <label class="flex-1 min-w-48 flex flex-col gap-1">
-              <span class="font-cinzel text-xs text-muted-foreground tracking-wide">Note title</span>
+              <span class="text-label-lg text-muted-foreground">Note title</span>
               <AppInput v-model="titleField" tone="card" size="sm" placeholder="Note title…" />
             </label>
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-xs text-muted-foreground tracking-wide">Session #</span>
+              <span class="text-label-lg text-muted-foreground">Session #</span>
               <AppInput
                 v-model.number="sessionField"
                 type="number"
@@ -119,7 +119,7 @@
             <AppButton variant="subtle" size="xs" label="Use" @click="applySuggestion" />
           </div>
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-xs text-muted-foreground tracking-wide">Suggested tags</span>
+            <span class="text-label-lg text-muted-foreground">Suggested tags</span>
             <TagInput v-model="suggestedTags" placeholder="Add tag..." />
           </label>
         </div>

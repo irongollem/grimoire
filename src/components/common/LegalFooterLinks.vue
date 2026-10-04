@@ -6,7 +6,7 @@
       :href="legalUrl(link.doc)"
       target="_blank"
       rel="noopener noreferrer"
-      class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wide"
+      class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
     >
       {{ link.label }}
     </a>
@@ -15,7 +15,7 @@
          the marketing site. -->
     <RouterLink
       to="/rules?tab=licenses"
-      class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wide"
+      class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
     >
       Licenses
     </RouterLink>

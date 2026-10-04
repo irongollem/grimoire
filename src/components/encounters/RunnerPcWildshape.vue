@@ -52,7 +52,7 @@
         <button
           ref="triggerRef"
           type="button"
-          class="font-cinzel text-2xs px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+          class="text-label px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
           @click="showWildshapePicker = !showWildshapePicker"
         >{{ showWildshapePicker ? 'Cancel' : '🐺 Choose Form' }}</button>
       </div>
@@ -316,11 +316,11 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .wildshape-banner-label {
-  @apply font-cinzel text-xs font-semibold text-ink-caution;
+  @apply text-label-lg font-semibold text-ink-caution;
 }
 
 .wildshape-revert-btn {
-  @apply font-cinzel text-2xs px-2 py-1 rounded border border-tone-caution/40 text-ink-caution hover:bg-tone-caution/10 transition-colors shrink-0;
+  @apply text-label px-2 py-1 rounded border border-tone-caution/40 text-ink-caution hover:bg-tone-caution/10 transition-colors shrink-0;
 }
 
 .wildshape-popover {
@@ -337,7 +337,7 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .wildshape-pin-toggle {
-  @apply w-full font-cinzel text-2xs px-2 py-1.5 mt-0.5 rounded border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors;
+  @apply w-full text-label px-2 py-1.5 mt-0.5 rounded border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors;
 }
 
 .pick-pin {
@@ -349,11 +349,11 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .pick-cr {
-  @apply font-cinzel text-2xs text-muted-foreground shrink-0;
+  @apply text-label text-muted-foreground shrink-0;
 }
 
 .pick-ac {
-  @apply font-cinzel text-2xs text-muted-foreground shrink-0;
+  @apply text-label text-muted-foreground shrink-0;
 }
 
 .pick-speed {

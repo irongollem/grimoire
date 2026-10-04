@@ -8,7 +8,7 @@
     <div ref="dialogRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain flex flex-col gap-4 px-5 py-4">
       <!-- Scene prompt -->
       <div class="flex flex-col gap-1">
-        <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Scene prompt</label>
+        <label class="text-label-lg text-muted-foreground">Scene prompt</label>
         <MentionTextarea
           v-model="scenePrompt"
           :rows="6"
@@ -27,7 +27,7 @@
 
       <!-- Resolved entities -->
       <div v-if="scenePrompt.trim()" class="flex flex-col gap-1.5">
-        <span class="font-cinzel text-xs text-muted-foreground tracking-wide">Resolved characters</span>
+        <span class="text-label-lg text-muted-foreground">Resolved characters</span>
         <div v-if="resolvedEntities.length > 0" class="flex flex-wrap gap-1.5">
           <span
             v-for="e in resolvedEntities"
@@ -48,7 +48,7 @@
 
       <!-- Shape picker -->
       <div class="flex flex-col gap-1">
-        <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Shape</label>
+        <label class="text-label-lg text-muted-foreground">Shape</label>
         <div class="flex gap-1.5">
           <AppButton
             v-for="s in SHAPES"
@@ -58,7 +58,7 @@
             :active="size === s.value"
             @click="size = s.value"
           >
-            <span class="font-cinzel text-xs">{{ s.label }}</span>
+            <span class="text-label-lg ">{{ s.label }}</span>
             <span class="text-caption-sm opacity-60">{{ byok ? 'BYOK' : `${shapeCost(s.value)} cr` }}</span>
           </AppButton>
         </div>

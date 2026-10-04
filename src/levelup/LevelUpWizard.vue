@@ -2,7 +2,7 @@
   <div class="space-y-6 max-w-lg mx-auto">
     <!-- Header -->
     <div class="text-center space-y-1">
-      <p class="font-cinzel text-xs text-primary tracking-widest uppercase">Level Up</p>
+      <p class="text-label-lg text-primary uppercase">Level Up</p>
       <h2 class="text-title font-bold text-foreground">
         {{ member.name }}
         <span class="text-muted-foreground">→ Level {{ nextLevel }}</span>
@@ -11,13 +11,13 @@
       <!-- Multi-level progress indicator -->
       <div v-if="targetLevel && targetLevel > nextLevel" class="flex items-center justify-center gap-1 mt-2 flex-wrap">
         <template v-for="lvl in (targetLevel - member.level)" :key="lvl">
-          <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded"
+          <span class="text-label px-1.5 py-0.5 rounded"
             :class="lvl === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'">
             {{ member.level + lvl }}
           </span>
           <span v-if="lvl < (targetLevel - member.level)" class="text-muted-foreground/40 text-xs">→</span>
         </template>
-        <span class="font-cinzel text-2xs text-muted-foreground ml-1">({{ nextLevel - member.level }} of {{ targetLevel - member.level }})</span>
+        <span class="text-label text-muted-foreground ml-1">({{ nextLevel - member.level }} of {{ targetLevel - member.level }})</span>
       </div>
     </div>
 

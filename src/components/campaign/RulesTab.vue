@@ -28,10 +28,10 @@
         />
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
-            <span class="font-cinzel text-xs font-semibold text-foreground">Allow both editions</span>
+            <span class="text-label-lg font-semibold text-foreground">Allow both editions</span>
             <span
               v-if="allowsMixed"
-              class="font-cinzel text-2xs tracking-widest text-ink-success/80 uppercase"
+              class="text-eyebrow text-ink-success/80 uppercase"
             >active</span>
           </div>
           <p class="text-caption text-muted-foreground mt-0.5">
@@ -72,10 +72,10 @@
         <!-- Rule info -->
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
-            <span class="font-cinzel text-xs font-semibold text-foreground">{{ def.name }}</span>
+            <span class="text-caption font-semibold text-foreground">{{ def.name }}</span>
             <span
               v-if="isEnabled(def.key)"
-              class="font-cinzel text-2xs tracking-widest text-ink-success/80 uppercase"
+              class="text-eyebrow text-ink-success/80 uppercase"
             >active</span>
           </div>
           <p class="text-caption text-muted-foreground mt-0.5">{{ def.summary }}</p>

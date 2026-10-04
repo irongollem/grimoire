@@ -26,7 +26,7 @@
               {{ plan.name }}
             </h2>
             <span
-              class="font-cinzel text-2xs tracking-widest text-muted-foreground uppercase"
+              class="text-eyebrow text-muted-foreground uppercase"
             >
               {{ plan.id }}
             </span>
@@ -158,7 +158,7 @@
         >
           <div class="flex items-center justify-between">
             <h3
-              class="font-cinzel text-xs font-semibold tracking-wide text-foreground capitalize"
+              class="text-caption font-semibold text-foreground capitalize"
             >
               {{ plan.name }}
             </h3>

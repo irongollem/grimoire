@@ -7,7 +7,7 @@
       <template v-if="!isFailed">
         <IconGenerate class="pending-image-icon animate-pulse" />
         <div class="pending-image-body">
-          <p class="font-cinzel text-xs font-semibold tracking-wide text-primary">
+          <p class="text-caption font-semibold text-primary">
             Generating scene illustration…
           </p>
           <p class="pending-image-prompt text-caption text-muted-foreground">{{ truncatedPrompt }}</p>

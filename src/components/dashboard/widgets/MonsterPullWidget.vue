@@ -54,7 +54,7 @@
                scale lives in monsterDisplay.ts precisely so it is reused here
                rather than re-invented as a seventh tone. -->
           <span
-            class="shrink-0 rounded px-1.5 py-0.5 text-center font-cinzel text-label font-bold text-white"
+            class="shrink-0 rounded px-1.5 py-0.5 text-center text-label font-bold text-white"
             :class="crBg(current.stat_block.challenge_rating)"
           >
             {{ crLabel(current.stat_block.challenge_rating) }}

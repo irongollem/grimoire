@@ -17,7 +17,7 @@
             <h2 class="text-heading-sm font-semibold text-foreground">
               {{ prompt.label }}
             </h2>
-            <span class="font-cinzel text-2xs tracking-widest text-muted-foreground uppercase">
+            <span class="text-eyebrow text-muted-foreground uppercase">
               {{ prompt.generator_type }}
             </span>
           </div>

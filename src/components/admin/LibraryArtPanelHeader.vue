@@ -27,12 +27,12 @@ const emit = defineEmits<{ toggle: [] }>();
       </p>
     </div>
     <div class="flex items-center gap-2 shrink-0">
-      <div v-if="total > 0" class="font-cinzel text-xs text-muted-foreground tabular-nums">
+      <div v-if="total > 0" class="text-label-lg text-muted-foreground tabular-nums">
         {{ withArtCount }}&thinsp;/&thinsp;{{ total }}
       </div>
       <div
         v-if="stagingCount > 0"
-        class="font-cinzel text-2xs text-primary tabular-nums"
+        class="text-label text-primary tabular-nums"
       >
         {{ stagingCount }} staged
       </div>

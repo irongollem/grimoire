@@ -117,7 +117,7 @@
               @update:model-value="toggleType(type.key)"
             >
               <span>{{ type.label }}</span>
-              <span class="font-cinzel text-xs font-semibold text-muted-foreground shrink-0">
+              <span class="text-label-lg font-semibold text-muted-foreground shrink-0">
                 {{ preview.entityCounts[type.key] ?? 0 }}
               </span>
             </AppCheckbox>

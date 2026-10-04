@@ -18,7 +18,7 @@
           :href="legalUrl('privacy')"
           target="_blank"
           rel="noopener noreferrer"
-          class="font-cinzel text-2xs text-muted-foreground hover:text-foreground tracking-wide transition-colors"
+          class="text-label text-muted-foreground hover:text-foreground transition-colors"
         >
           Privacy Policy
         </a>
@@ -27,7 +27,7 @@
           :href="legalUrl('terms')"
           target="_blank"
           rel="noopener noreferrer"
-          class="font-cinzel text-2xs text-muted-foreground hover:text-foreground tracking-wide transition-colors"
+          class="text-label text-muted-foreground hover:text-foreground transition-colors"
         >
           Terms of Service
         </a>

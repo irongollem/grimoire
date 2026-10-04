@@ -52,7 +52,7 @@
           <p class="text-caption text-muted-foreground italic">
             <template v-if="wildshape">🐺 {{ member.name }}</template>
             <template v-else>{{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}</template>
-            <span v-if="!wildshape && memberTotalLevel" class="font-cinzel text-2xs text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
+            <span v-if="!wildshape && memberTotalLevel" class="text-label text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
           </p>
           <!-- XP progress -->
           <div v-if="xpLevellingEnabled && !wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
@@ -62,7 +62,7 @@
                 :class="readyToLevelUp ? 'bg-primary' : 'bg-primary/50'"
                 :style="{ width: `${xpPct}%` }" />
             </div>
-            <span class="font-cinzel text-2xs text-muted-foreground">
+            <span class="text-label text-muted-foreground">
               {{ member.experience_points ?? 0 }}<template v-if="xpToNext !== null"> / {{ xpToNext }}</template>
             </span>
             <!-- DM: emit event (player /play/* routes aren't accessible to DMs) -->
@@ -212,7 +212,7 @@
         <dt class="text-center text-label leading-tight text-muted-foreground">
           <span class="sm:hidden">{{ cs.short }}</span><span class="max-sm:hidden">{{ cs.label }}</span>
         </dt>
-        <dd class="relative flex h-12 w-full items-center justify-center font-cinzel text-heading font-bold leading-none text-foreground sm:w-16">
+        <dd class="relative flex h-12 w-full items-center justify-center text-heading font-bold leading-none text-foreground sm:w-16">
           <svg
             v-if="cs.shield"
             viewBox="0 0 40 48"

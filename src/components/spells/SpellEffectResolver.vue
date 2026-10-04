@@ -9,12 +9,12 @@
 
     <div v-if="spell" class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
       <div v-if="spell.mechanics_reviewed === false || !castEffects.length" class="rounded border border-tone-caution/30 bg-tone-caution/10 p-3">
-        <p class="font-cinzel text-xs font-semibold text-ink-caution">Manual resolution required</p>
+        <p class="text-caption font-semibold text-ink-caution">Manual resolution required</p>
         <p class="text-body text-muted-foreground">This imported spell has not been mechanically reviewed, so Grimoire will not present its partial data as authoritative automation.</p>
       </div>
 
       <template v-else>
-        <label class="block font-cinzel text-xs text-muted-foreground">
+        <label class="block text-label-lg text-muted-foreground">
           Targets
           <AppInput v-model.number="targetCount" type="number" min="1" max="20" size="body-xs" :block="false" class="ml-2 w-16" />
         </label>

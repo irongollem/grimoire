@@ -32,7 +32,7 @@
 
       <template v-else>
         <div v-for="section in manualSections" :key="section.id" class="mb-1">
-          <p class="px-2.5 py-1 font-cinzel text-2xs font-bold tracking-widest text-muted-foreground uppercase">
+          <p class="px-2.5 py-1 text-eyebrow font-bold text-muted-foreground">
             {{ section.title }}
           </p>
           <AppButton
@@ -67,7 +67,7 @@
           @click="showContents"
         />
         <div>
-          <p class="font-cinzel text-2xs font-bold tracking-widest text-muted-foreground uppercase mb-1">
+          <p class="text-eyebrow font-bold text-muted-foreground mb-1">
             {{ selectedSection?.title }}
           </p>
           <h2 class="text-heading-lg font-bold text-foreground">{{ selectedPage.title }}</h2>

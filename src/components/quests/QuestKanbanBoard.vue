@@ -25,7 +25,7 @@
           <component :is="group.icon" class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <h2
             :id="`quest-group-${group.key}`"
-            class="font-cinzel text-label-lg font-bold uppercase tracking-widest text-foreground"
+            class="text-label-lg font-bold uppercase text-foreground"
           >
             {{ group.heading }}
           </h2>

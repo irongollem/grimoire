@@ -5,7 +5,7 @@
     A tiny uppercase Cinzel label sits above the value (Crimson Pro body).
   -->
   <div v-if="value" class="flex flex-col gap-0.5 px-3 py-2.5">
-    <span class="font-cinzel text-2xs font-bold uppercase tracking-widest text-muted-foreground">
+    <span class="text-eyebrow font-bold text-muted-foreground">
       {{ label }}
     </span>
     <span class="text-body leading-snug text-foreground">

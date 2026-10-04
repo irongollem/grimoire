@@ -246,7 +246,7 @@
           v-for="h in holders"
           :key="`${h.type}-${h.id}`"
           :to="h.to"
-          class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+          class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
           <IconUser v-if="h.type === 'npc'" class="h-2.5 w-2.5 shrink-0" />
           <IconParty v-else-if="h.type === 'party_member'" class="h-2.5 w-2.5 shrink-0" />
@@ -266,7 +266,7 @@
           v-for="table in containedIn"
           :key="table.id"
           :to="`/loot-tables/${table.id}`"
-          class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+          class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
           <IconPackage class="h-2.5 w-2.5 shrink-0" />{{ table.name }}
         </RouterLink>

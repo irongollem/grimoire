@@ -8,7 +8,7 @@
     <ol class="space-y-3">
       <li v-for="(beat, i) in beats" :key="beat.key" class="space-y-1.5 border-l-2 border-border/60 pl-3">
         <div class="flex flex-wrap items-center gap-1.5">
-          <span class="font-cinzel text-2xs text-primary shrink-0">{{ i + 1 }}.</span>
+          <span class="text-label text-primary shrink-0">{{ i + 1 }}.</span>
           <span class="font-semibold text-body text-foreground">{{ beat.title }}</span>
           <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ beat.kind }}</span>
           <span

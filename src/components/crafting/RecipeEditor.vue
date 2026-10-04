@@ -180,7 +180,7 @@
             :block="false"
             class="flex-1"
           />
-          <span class="font-cinzel text-xs text-muted-foreground">+</span>
+          <span class="text-label-lg text-muted-foreground">+</span>
           <AppInput
             v-model.number="mod.bonus"
             type="number"

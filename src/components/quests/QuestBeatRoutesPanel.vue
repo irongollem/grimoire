@@ -26,7 +26,7 @@
           </span>
           <span v-if="route.site && route.site.roomCount > 0" class="ml-auto text-label text-ink-info">site · {{ route.site.roomLabel }}</span>
         </div>
-        <h4 class="mt-1 font-cinzel text-label-lg font-bold text-foreground">{{ route.targetTitle }}</h4>
+        <h4 class="mt-1 text-label-lg font-bold text-foreground">{{ route.targetTitle }}</h4>
         <p class="text-muted-foreground">{{ route.caption }}</p>
         <div class="mt-1 flex justify-end">
           <AppButton :to="editRouteTo(route.edge.id)" label="Edit route" size="xs" variant="subtle" />

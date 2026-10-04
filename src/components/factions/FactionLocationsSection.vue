@@ -12,7 +12,7 @@
   >
     <template #entry="{ entry }">
       <IconLocation class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      <RouterLink :to="placeRoute(entry.location.id)" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
+      <RouterLink :to="placeRoute(entry.location.id)" class="text-caption font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
         {{ entry.location.name }}
       </RouterLink>
       <span class="text-label text-muted-foreground shrink-0">{{ LOCATION_TYPE_LABELS[entry.location.location_type] }}</span>

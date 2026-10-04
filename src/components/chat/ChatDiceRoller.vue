@@ -16,7 +16,7 @@
     <div v-if="totalDice > 0" class="flex flex-wrap gap-2">
       <div v-for="d in ALL_DICE" :key="d" class="flex items-center gap-1">
         <template v-if="(diceCounts[d] ?? 0) > 0">
-          <span class="font-cinzel text-2xs text-muted-foreground">d{{ d }}:</span>
+          <span class="text-label text-muted-foreground">d{{ d }}:</span>
           <AppButton
             variant="ghost"
             fill="muted"
@@ -26,7 +26,7 @@
             :aria-label="`Decrease d${d} count`"
             @click="decrement(d)"
           />
-          <span class="font-cinzel text-xs font-bold text-foreground w-4 text-center">{{ diceCounts[d] }}</span>
+          <span class="text-label-lg font-bold text-foreground w-4 text-center">{{ diceCounts[d] }}</span>
           <AppButton
             variant="ghost"
             fill="muted"
@@ -40,7 +40,7 @@
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <span class="font-cinzel text-2xs text-muted-foreground">Mod:</span>
+      <span class="text-label text-muted-foreground">Mod:</span>
       <AppButton
         variant="ghost"
         fill="muted"

@@ -155,7 +155,7 @@
         >
           <IconUserRound class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ m.name }}</p>
+            <p class="text-caption font-semibold text-foreground truncate">{{ m.name }}</p>
             <p v-if="m.factionName" class="text-caption-sm text-muted-foreground italic truncate">
               {{ m.factionName }}
             </p>

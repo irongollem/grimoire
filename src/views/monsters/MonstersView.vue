@@ -125,7 +125,7 @@
           <IconFilter class="size-5" />
           <span
             v-if="activeFilterCount"
-            class="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 font-cinzel text-2xs font-bold text-primary-foreground"
+            class="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-label font-bold text-primary-foreground"
           >
             {{ activeFilterCount }}
           </span>

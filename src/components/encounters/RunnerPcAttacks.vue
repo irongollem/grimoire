@@ -19,7 +19,7 @@
         >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
         <span
           v-else-if="atk.damageFixed"
-          class="font-cinzel text-2xs text-muted-foreground whitespace-nowrap self-center"
+          class="text-label text-muted-foreground whitespace-nowrap self-center"
         >{{ atk.damageFixed }}</span>
       </div>
     </div>
@@ -50,7 +50,7 @@
               @click.stop="emit('roll-damage', atk.damageDice, atk.name)"
             >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
             <span
-              class="font-cinzel text-2xs whitespace-nowrap self-center"
+              class="text-label whitespace-nowrap self-center"
               :class="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) > 0 ? 'text-muted-foreground' : 'text-destructive'"
             >⚡ {{ weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) }}</span>
           </template>
@@ -71,11 +71,11 @@
             >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
             <span
               v-if="availableAmmoFor(atk.ammoTag)"
-              class="font-cinzel text-2xs text-muted-foreground whitespace-nowrap self-center"
+              class="text-label text-muted-foreground whitespace-nowrap self-center"
             >× {{ ammoRemainingCount(availableAmmoFor(atk.ammoTag)) }}</span>
             <span
               v-else
-              class="font-cinzel text-2xs text-destructive whitespace-nowrap self-center"
+              class="text-label text-destructive whitespace-nowrap self-center"
             >no ammo</span>
           </template>
         </div>
@@ -105,7 +105,7 @@
             class="trait-roll-btn trait-dmg-btn"
             @click.stop="emit('roll-damage', atk.damageDice, atk.name)"
           >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
-          <span class="font-cinzel text-2xs text-muted-foreground whitespace-nowrap self-center">× {{ throwCountFor(atk.weaponInvId) }}</span>
+          <span class="text-label text-muted-foreground whitespace-nowrap self-center">× {{ throwCountFor(atk.weaponInvId) }}</span>
         </div>
       </div>
       <span class="detail-trait-desc">Thrown attack. The weapon lands on the ground, recoverable from chat.</span>
@@ -154,7 +154,7 @@
           >🎲 {{ actionDiceLabel(atk.damage) }}</button>
           <span
             v-if="atk.damage_type"
-            class="font-cinzel text-2xs text-muted-foreground whitespace-nowrap self-center"
+            class="text-label text-muted-foreground whitespace-nowrap self-center"
           >{{ atk.damage_type }}</span>
         </div>
       </div>
@@ -421,7 +421,7 @@ function actionDiceLabel(desc: string): string {
 }
 
 .detail-trait-header strong {
-  @apply font-cinzel text-2xs font-bold text-foreground;
+  @apply text-label font-bold text-foreground;
 }
 
 .trait-roll-bar {

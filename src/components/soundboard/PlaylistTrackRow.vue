@@ -10,7 +10,7 @@
       </span>
 
       <!-- Track name -->
-      <span class="min-w-0 flex-1 truncate font-cinzel text-xs text-foreground">{{ sound.name }}</span>
+      <span class="min-w-0 flex-1 truncate text-caption text-foreground">{{ sound.name }}</span>
 
       <!-- Category chip -->
       <span class="shrink-0 rounded border px-1.5 py-0.5 text-caption-sm" :class="categoryChipClass">

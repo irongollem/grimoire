@@ -29,7 +29,7 @@
           />
           <RouterLink
             :to="hrefOf(row)"
-            class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
+            class="min-w-0 flex-1 truncate text-caption font-semibold text-foreground transition-colors hover:text-primary"
           >{{ row.name }}</RouterLink>
           <span v-if="row.kind === 'encounter' && row.is_finished" class="shrink-0 text-label text-muted-foreground">Done</span>
           <!-- The whole point of this panel: a row still homed on the parent

@@ -16,7 +16,7 @@
     <div class="px-3 py-2.5">
       <p
         v-if="meta.label"
-        class="font-cinzel text-xs font-semibold text-foreground mb-1"
+        class="text-label-lg font-semibold text-foreground mb-1"
       >{{ meta.label }}</p>
       <div class="flex flex-wrap gap-2 mb-1">
         <span

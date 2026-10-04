@@ -29,8 +29,8 @@
             v-if="powerfulBuild"
             class="text-eyebrow text-ink-caution/70"
           >Powerful Build</span>
-          <span class="font-cinzel text-2xs text-foreground">{{ formatWeightLb(totalCarriedWeight) }}</span>
-          <span class="font-cinzel text-2xs text-muted-foreground/40">/</span>
+          <span class="text-label text-foreground">{{ formatWeightLb(totalCarriedWeight) }}</span>
+          <span class="text-label text-muted-foreground/40">/</span>
 
           <!-- editable capacity -->
           <form
@@ -93,11 +93,11 @@
         <!-- threshold labels -->
         <div class="relative h-3.5 mt-0.5" aria-hidden="true">
           <span
-            class="absolute font-cinzel text-2xs text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
+            class="absolute text-label text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
             :style="{ left: encumberedMarkerPct + '%' }"
           >{{ formatWeightLb(encumberedThreshold) }}</span>
           <span
-            class="absolute font-cinzel text-2xs text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
+            class="absolute text-label text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
             :style="{ left: heavyMarkerPct + '%' }"
           >{{ formatWeightLb(heavyThreshold) }}</span>
         </div>

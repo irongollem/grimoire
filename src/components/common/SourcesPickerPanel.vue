@@ -8,7 +8,7 @@
       class="absolute right-0 top-full mt-1 z-50 w-80 rounded-md border border-border bg-popover shadow-lg"
     >
       <div class="p-3 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-foreground">{{ title }}</p>
+        <p class="text-label-lg font-semibold text-foreground">{{ title }}</p>
         <p class="text-caption text-muted-foreground mt-0.5 italic">
           {{ description }}
         </p>
@@ -34,7 +34,7 @@
         >
           <span class="min-w-0 flex-1 truncate">{{ row.title }}</span>
           <span v-if="row.locked" class="text-caption italic text-muted-foreground shrink-0">always on</span>
-          <span v-else-if="row.count !== null" class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ row.count.toLocaleString() }}</span>
+          <span v-else-if="row.count !== null" class="text-label text-muted-foreground shrink-0">{{ row.count.toLocaleString() }}</span>
         </AppCheckbox>
       </div>
       <div class="p-2 border-t border-border">
@@ -74,7 +74,7 @@
       >
         <span class="min-w-0 flex-1 truncate">{{ row.title }}</span>
         <span v-if="row.locked" class="shrink-0 text-caption italic text-muted-foreground">always on</span>
-        <span v-else-if="row.count !== null" class="shrink-0 font-cinzel text-2xs text-muted-foreground">{{ row.count.toLocaleString() }}</span>
+        <span v-else-if="row.count !== null" class="shrink-0 text-label text-muted-foreground">{{ row.count.toLocaleString() }}</span>
       </AppCheckbox>
     </div>
     <RouterLink

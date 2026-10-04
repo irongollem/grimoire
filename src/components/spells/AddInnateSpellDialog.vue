@@ -30,7 +30,7 @@
         <div v-if="selectedSpell" class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-tone-arcane/10 border border-tone-arcane/30">
           <div class="h-2 w-2 rounded-full shrink-0" :class="SCHOOL_BG[selectedSpell.school]" />
           <span class="text-body text-foreground flex-1">{{ selectedSpell.name }}</span>
-          <span class="font-cinzel text-2xs text-muted-foreground">{{ selectedSpell.level === 0 ? 'Cantrip' : `Lvl ${selectedSpell.level}` }}</span>
+          <span class="text-label text-muted-foreground">{{ selectedSpell.level === 0 ? 'Cantrip' : `Lvl ${selectedSpell.level}` }}</span>
           <AppButton variant="ghost" size="inline-xs" label="×" @click="clearSpell" />
         </div>
 
@@ -50,7 +50,7 @@
           >
             <div class="h-2 w-2 rounded-full shrink-0" :class="SCHOOL_BG[spell.school]" />
             <span class="text-body text-foreground flex-1 truncate">{{ spell.name }}</span>
-            <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ spell.level === 0 ? 'C' : spell.level }}</span>
+            <span class="text-label text-muted-foreground shrink-0">{{ spell.level === 0 ? 'C' : spell.level }}</span>
           </AppButton>
         </div>
         <p v-else-if="spellSearch.length >= 2 && !isSearching" class="text-caption text-muted-foreground italic px-1">No spells found</p>

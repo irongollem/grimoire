@@ -9,7 +9,7 @@
           >
             {{ quest.title || "Untitled Quest" }}
           </RouterLink>
-          <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-2 py-0.5 text-label font-bold uppercase tracking-wider text-primary-foreground">
+          <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-2 py-0.5 text-label font-bold uppercase text-primary-foreground">
             <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-foreground" aria-hidden="true" />
             In session
           </span>
@@ -21,15 +21,15 @@
 
       <dl class="grid shrink-0 grid-cols-2 gap-x-5 gap-y-1 text-right sm:grid-cols-1">
         <div>
-          <dt class="text-label uppercase tracking-wide text-muted-foreground">Beats</dt>
+          <dt class="text-label uppercase text-muted-foreground">Beats</dt>
           <dd class="text-heading-sm font-bold text-foreground">{{ visitedBeatCount }} / {{ summary.beatSegments.length }}</dd>
         </div>
         <div>
-          <dt class="text-label uppercase tracking-wide text-muted-foreground">Threads</dt>
+          <dt class="text-label uppercase text-muted-foreground">Threads</dt>
           <dd class="text-heading-sm font-bold text-foreground">{{ summary.liveThreadCount }} live</dd>
         </div>
         <div v-if="summary.objectivesTotal > 0">
-          <dt class="text-label uppercase tracking-wide text-muted-foreground">Objectives</dt>
+          <dt class="text-label uppercase text-muted-foreground">Objectives</dt>
           <dd class="text-heading-sm font-bold text-foreground">{{ summary.objectivesDone }} / {{ summary.objectivesTotal }}</dd>
         </div>
       </dl>

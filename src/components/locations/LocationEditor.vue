@@ -200,7 +200,7 @@
     <template v-if="STORE_LOCATION_TYPES.has(locationType)">
       <!-- Owner NPC — used as the sender name on vendor offer messages -->
       <div class="flex items-center gap-3">
-        <span class="font-cinzel text-xs text-foreground shrink-0"
+        <span class="text-label-lg text-foreground shrink-0"
           >Proprietor</span
         >
         <EntityCombobox

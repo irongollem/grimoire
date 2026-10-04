@@ -19,7 +19,7 @@
         {{ todayLabel }}
       </span>
 
-      <span v-if="characterName && route.path !== '/play'" class="font-cinzel text-xs text-foreground hidden sm:inline">
+      <span v-if="characterName && route.path !== '/play'" class="text-caption text-foreground hidden sm:inline">
         {{ characterName }}
       </span>
 
@@ -310,7 +310,7 @@
                   :class="c.id === campaign.activeCampaignId ? 'bg-primary' : 'bg-muted-foreground/30'" />
               </template>
               <div class="flex-1 min-w-0">
-                <p class="font-cinzel text-xs font-semibold truncate">{{ c.name }}</p>
+                <p class="text-caption font-semibold truncate">{{ c.name }}</p>
                 <p class="text-caption text-muted-foreground italic truncate">{{ c.setting }}</p>
               </div>
             </AppButton>
@@ -323,7 +323,7 @@
           <div class="border-t border-border pt-3">
             <AppButton variant="menu" size="md" block @click="startCreateCampaign">
               <template #icon><IconAdd class="h-4 w-4 text-muted-foreground shrink-0" /></template>
-              <span class="font-cinzel text-xs font-semibold text-muted-foreground">New Campaign</span>
+              <span class="text-label-lg font-semibold text-muted-foreground">New Campaign</span>
             </AppButton>
           </div>
         </div>

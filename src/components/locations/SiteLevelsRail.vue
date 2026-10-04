@@ -1,6 +1,6 @@
 <template>
   <div class="flex w-full flex-col gap-1.5 lg:w-40 lg:shrink-0" role="list" aria-label="Levels">
-    <h3 class="font-cinzel text-label-lg font-semibold tracking-wide text-muted-foreground">Levels</h3>
+    <h3 class="text-label-lg font-semibold text-muted-foreground">Levels</h3>
     <AppButton
       v-for="(level, i) in levels"
       :key="level.id"
@@ -25,7 +25,7 @@
         <IconAdd v-else class="h-3.5 w-3.5 text-muted-foreground/50" aria-hidden="true" />
       </div>
       <div class="min-w-0 flex-1">
-        <p class="truncate text-left font-cinzel text-xs font-semibold text-foreground">{{ i + 1 }} · {{ level.name }}</p>
+        <p class="truncate text-left text-caption font-semibold text-foreground">{{ i + 1 }} · {{ level.name }}</p>
         <p class="truncate text-left text-caption-sm text-muted-foreground">{{ subtitle(level) }}</p>
       </div>
     </AppButton>

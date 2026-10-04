@@ -11,13 +11,13 @@
       >
         <div class="h-2 w-2 rounded-full shrink-0" :class="grant.spell_id ? 'bg-tone-arcane' : 'bg-tone-caution'" />
         <span class="text-body text-foreground flex-1 truncate">{{ grant.spell_name }}</span>
-        <span v-if="grant.subrace" class="font-cinzel text-2xs text-ink-info shrink-0">{{ grant.subrace }}</span>
-        <span v-if="!grant.spell_id" class="font-cinzel text-2xs text-ink-caution shrink-0">player picks</span>
-        <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
+        <span v-if="grant.subrace" class="text-caption-sm text-ink-info shrink-0">{{ grant.subrace }}</span>
+        <span v-if="!grant.spell_id" class="text-caption-sm text-ink-caution shrink-0">player picks</span>
+        <span class="text-label text-muted-foreground shrink-0">
           {{ grant.uses_per_day === null ? "At will" : `${grant.uses_per_day}/day` }}
           <template v-if="grant.uses_per_day !== null"> · {{ grant.resets_on === 'short_rest' ? 'SR' : 'LR' }}</template>
         </span>
-        <span v-if="grant.min_level > 1" class="font-cinzel text-2xs text-ink-caution shrink-0">Lvl {{ grant.min_level }}+</span>
+        <span v-if="grant.min_level > 1" class="text-label text-ink-caution shrink-0">Lvl {{ grant.min_level }}+</span>
         <AppButton variant="ghost" tone="danger" size="inline-xs" label="✕" class="shrink-0" @click="emit('remove', i)" />
       </div>
     </div>
@@ -38,7 +38,7 @@
         <div v-if="grantForm.spell" class="flex items-center gap-2 px-2 py-1.5 rounded bg-tone-arcane/10 border border-tone-arcane/30">
           <div class="h-2 w-2 rounded-full bg-tone-arcane shrink-0" />
           <span class="text-body flex-1 truncate">{{ grantForm.spell.name }}</span>
-          <span class="font-cinzel text-2xs text-muted-foreground">{{ grantForm.spell.level === 0 ? 'Cantrip' : `Lvl ${grantForm.spell.level}` }}</span>
+          <span class="text-label text-muted-foreground">{{ grantForm.spell.level === 0 ? 'Cantrip' : `Lvl ${grantForm.spell.level}` }}</span>
           <AppButton variant="ghost" size="inline-xs" label="×" @click="grantForm.spell = null; grantForm.spellSearch = ''" />
         </div>
         <div v-else class="relative">
@@ -61,7 +61,7 @@
               @click="grantForm.spell = spell; grantForm.spellSearch = ''"
             >
               <span class="text-body text-foreground flex-1 truncate">{{ spell.name }}</span>
-              <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ spell.level === 0 ? 'C' : spell.level }}</span>
+              <span class="text-label text-muted-foreground shrink-0">{{ spell.level === 0 ? 'C' : spell.level }}</span>
             </button>
           </div>
         </div>
@@ -112,7 +112,7 @@
               label="−"
               @click="grantForm.usesCount = Math.max(1, grantForm.usesCount - 1); grantForm.usesPerDay = grantForm.usesCount"
             />
-            <span class="flex-1 text-center font-cinzel text-xs font-semibold">{{ grantForm.usesCount }}</span>
+            <span class="flex-1 text-center text-label-lg font-semibold">{{ grantForm.usesCount }}</span>
             <AppButton
               variant="ghost"
               size="sm"

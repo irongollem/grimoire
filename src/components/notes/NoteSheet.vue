@@ -14,7 +14,7 @@
       />
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 text-label-lg font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="handleDelete"
       >
         <IconDelete class="h-3.5 w-3.5" />Delete

@@ -15,7 +15,7 @@
     </div>
 
     <!-- XP breakdown -->
-    <div class="flex flex-col gap-1.5 font-cinzel text-xs">
+    <div class="flex flex-col gap-1.5 text-label-lg ">
       <div class="flex justify-between">
         <span class="text-muted-foreground">Enemy XP</span>
         <span class="font-bold text-foreground">{{ props.difficulty.rawXp.toLocaleString() }}</span>
@@ -57,7 +57,7 @@
         PARTY THRESHOLDS
       </div>
       <div v-for="tier in props.thresholdTiers" :key="tier.label" class="flex items-center gap-2">
-        <span class="font-cinzel text-2xs w-14 shrink-0" :style="{ color: tier.color }">
+        <span class="text-label w-14 shrink-0" :style="{ color: tier.color }">
           {{ tier.label }}
         </span>
         <div class="flex-1 h-2 rounded-full bg-muted overflow-hidden relative">
@@ -72,7 +72,7 @@
             :style="{ left: `${markerPct}%` }"
           />
         </div>
-        <span class="font-cinzel text-2xs text-muted-foreground w-12 text-right shrink-0">
+        <span class="text-label text-muted-foreground w-12 text-right shrink-0">
           {{ tier.value.toLocaleString() }}
         </span>
       </div>
@@ -86,7 +86,7 @@
       <div
         v-for="entry in props.enemyEntries"
         :key="entry.id"
-        class="flex items-center justify-between font-cinzel text-xs"
+        class="flex items-center justify-between text-label-lg "
       >
         <span class="text-foreground line-clamp-1 flex-1">
           {{ entry.name }}{{ entry.count > 1 ? ` ×${entry.count}` : "" }}

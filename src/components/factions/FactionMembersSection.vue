@@ -17,7 +17,7 @@
         @remove="removeMember(m)"
       >
         <template #name>
-          <RouterLink :to="`/npcs/${m.npc.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors truncate block">
+          <RouterLink :to="`/npcs/${m.npc.id}`" class="text-caption font-semibold text-foreground hover:text-primary transition-colors truncate block">
             {{ m.npc.name }}
           </RouterLink>
         </template>
@@ -58,7 +58,7 @@
           @remove="removeMember(m)"
         >
           <template #name>
-            <RouterLink :to="`/npcs/${m.npc.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors truncate block">
+            <RouterLink :to="`/npcs/${m.npc.id}`" class="text-caption font-semibold text-foreground hover:text-primary transition-colors truncate block">
               {{ m.npc.name }}
             </RouterLink>
           </template>

@@ -223,7 +223,7 @@ function close() {
   @apply text-heading font-bold text-foreground;
 }
 .modal-label {
-  @apply block font-cinzel text-xs font-semibold text-muted-foreground mb-1;
+  @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }
 .optional {
   @apply font-fell font-normal italic text-muted-foreground/60;
@@ -238,7 +238,7 @@ function close() {
   @apply flex items-baseline justify-between;
 }
 .picker-count {
-  @apply font-cinzel text-xs font-semibold text-primary;
+  @apply text-label-lg font-semibold text-primary;
 }
 .picker-list {
   @apply flex-1 overflow-y-auto flex flex-col gap-0.5 min-h-0 rounded-md border border-border p-1;
@@ -256,7 +256,7 @@ function close() {
   @apply flex flex-col min-w-0;
 }
 .picker-name {
-  @apply font-cinzel text-xs font-semibold text-foreground truncate;
+  @apply text-caption font-semibold text-foreground truncate;
 }
 .picker-sub {
   @apply text-caption text-muted-foreground truncate capitalize;
@@ -265,9 +265,9 @@ function close() {
   @apply flex gap-2 justify-end;
 }
 .modal-cancel {
-  @apply font-cinzel text-xs font-semibold px-4 py-2 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors;
+  @apply text-label-lg font-semibold px-4 py-2 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors;
 }
 .modal-confirm {
-  @apply font-cinzel text-xs font-semibold px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity;
+  @apply text-label-lg font-semibold px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity;
 }
 </style>

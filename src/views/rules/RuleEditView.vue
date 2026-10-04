@@ -170,7 +170,7 @@
               <!-- Level header row: value, label, color, delete -->
               <div class="flex items-center gap-2">
                 <div class="flex flex-col items-center gap-0.5 shrink-0">
-                  <span class="font-cinzel text-2xs text-muted-foreground">VAL</span>
+                  <span class="text-label text-muted-foreground">VAL</span>
                   <AppInput
                     :model-value="String(lvl.value)"
                     :model-modifiers="{ lazy: true }"
@@ -276,7 +276,7 @@
                       <option :value="null">Ability</option>
                       <option v-for="ab in SAVE_ABILITIES" :key="ab.value" :value="ab.value">{{ ab.label }}</option>
                     </AppSelect>
-                    <span class="font-cinzel text-2xs text-muted-foreground shrink-0">DC</span>
+                    <span class="text-label text-muted-foreground shrink-0">DC</span>
                     <AppInput
                       :model-value="fx.dcBase ?? null"
                       type="number"

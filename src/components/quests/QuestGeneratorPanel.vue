@@ -71,7 +71,7 @@
               :key="beat.key"
               class="flex items-baseline gap-2 text-caption text-muted-foreground"
             >
-              <span class="font-cinzel text-2xs text-primary shrink-0">{{ bi + 1 }}.</span>
+              <span class="text-label text-primary shrink-0">{{ bi + 1 }}.</span>
               <span class="flex-1">{{ beat.title }}</span>
               <span class="text-caption-sm text-muted-foreground/50 uppercase shrink-0">{{ beat.kind }}</span>
             </li>
@@ -107,7 +107,7 @@
             @click="createFromHook(hook, i)"
           />
           <template v-else>
-            <span class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-ink-success">
+            <span class="inline-flex items-center gap-1 text-label-lg font-semibold text-ink-success">
               <IconCheckCircle class="h-3.5 w-3.5" />
               Created
             </span>

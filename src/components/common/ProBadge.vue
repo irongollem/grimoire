@@ -14,7 +14,7 @@
   be clipped by anything the control itself is not already clipped by.
 -->
 <template>
-  <span class="shrink-0 rounded bg-tone-caution px-1 font-cinzel text-2xs leading-4 text-on-caution">
+  <span class="shrink-0 rounded bg-tone-caution px-1 text-label leading-4 text-on-caution">
     PRO
   </span>
 </template>

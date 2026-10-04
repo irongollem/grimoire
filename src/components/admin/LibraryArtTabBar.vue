@@ -10,7 +10,7 @@ const emit = defineEmits<{ "update:activeTab": ["library" | "staging"] }>();
 <template>
   <div class="flex gap-1 border-b border-border pb-0.5">
     <button
-      class="px-3 py-1.5 font-cinzel text-xs tracking-wide rounded-t transition-colors"
+      class="px-3 py-1.5 text-label-lg rounded-t transition-colors"
       :class="
         activeTab === 'library'
           ? 'bg-muted text-foreground'
@@ -21,7 +21,7 @@ const emit = defineEmits<{ "update:activeTab": ["library" | "staging"] }>();
       Library
     </button>
     <button
-      class="relative px-3 py-1.5 font-cinzel text-xs tracking-wide rounded-t transition-colors"
+      class="relative px-3 py-1.5 text-label-lg rounded-t transition-colors"
       :class="
         activeTab === 'staging'
           ? 'bg-muted text-foreground'

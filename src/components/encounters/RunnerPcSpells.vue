@@ -207,7 +207,7 @@ const emit = defineEmits<{
 }
 
 .spell-level-badge {
-  @apply font-cinzel text-2xs font-bold text-muted-foreground bg-muted rounded px-1 shrink-0;
+  @apply text-label font-bold text-muted-foreground bg-muted rounded px-1 shrink-0;
 }
 
 .spell-rolls {

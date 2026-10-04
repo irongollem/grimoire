@@ -130,13 +130,13 @@
                     : 'border-border'"
                 >
                   <div class="flex-1 min-w-0">
-                    <span class="font-cinzel text-xs font-semibold text-foreground">{{ entry.party_member.name }}</span>
+                    <span class="text-caption font-semibold text-foreground">{{ entry.party_member.name }}</span>
                     <span v-if="speciesNameOf(entry.party_member) || entry.party_member.class" class="text-caption text-muted-foreground italic ml-2">
                       {{ [speciesNameOf(entry.party_member), entry.party_member.class].filter(Boolean).join(' · ') }}
                     </span>
                     <span v-if="entry.party_member.id === myMemberId" class="text-label text-ink-success ml-2">(You)</span>
                   </div>
-                  <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ entry.role ?? 'Member' }}</span>
+                  <span class="text-caption-sm text-muted-foreground shrink-0">{{ entry.role ?? 'Member' }}</span>
                 </div>
                 <!-- NPC members (shared with player) -->
                 <div
@@ -145,12 +145,12 @@
                   class="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2"
                 >
                   <div class="flex-1 min-w-0">
-                    <span class="font-cinzel text-xs font-semibold text-foreground">{{ getNpcDisplayName(entry.npc) ?? '???' }}</span>
+                    <span class="text-caption font-semibold text-foreground">{{ getNpcDisplayName(entry.npc) ?? '???' }}</span>
                     <span v-if="entry.npc.race || entry.npc.occupation" class="text-caption text-muted-foreground italic ml-2">
                       {{ [entry.npc.race, entry.npc.occupation].filter(Boolean).join(' · ') }}
                     </span>
                   </div>
-                  <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ entry.role ?? 'Member' }}</span>
+                  <span class="text-caption-sm text-muted-foreground shrink-0">{{ entry.role ?? 'Member' }}</span>
                 </div>
               </div>
             </div>

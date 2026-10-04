@@ -28,7 +28,7 @@
           <span class="text-label-lg font-bold text-foreground">
             {{ group.label }}
           </span>
-          <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-tone-arcane/15 text-ink-arcane border border-tone-arcane/20">
+          <span class="text-label px-1.5 py-0.5 rounded bg-tone-arcane/15 text-ink-arcane border border-tone-arcane/20">
             {{ SOURCE_TYPE_LABELS[group.entries[0].source_type] ?? group.entries[0].source_type }}
           </span>
           <span class="ml-auto text-label text-muted-foreground">
@@ -74,11 +74,11 @@
             <!-- Attack / save info -->
             <span
               v-if="entry.spell.level > 0 && attackBonusFor(entry) !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
-              class="shrink-0 font-cinzel text-2xs text-muted-foreground"
+              class="shrink-0 text-label text-muted-foreground"
             >Atk {{ signedNum(attackBonusFor(entry)!) }}</span>
             <span
               v-else-if="entry.spell.level > 0 && saveDcFor(entry) !== null && entry.spell.attack_type === 'save'"
-              class="shrink-0 font-cinzel text-2xs text-muted-foreground"
+              class="shrink-0 text-label text-muted-foreground"
             >DC {{ saveDcFor(entry) }}</span>
 
             <AppButton
@@ -101,7 +101,7 @@
               :label="entry.spell.effects?.length ? 'Resolve' : 'Healing'"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : rollInnateHealing(entry)"
             />
-            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 font-cinzel text-2xs text-ink-caution">Manual</span>
+            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 text-label text-ink-caution">Manual</span>
 
             <!-- Use tracking: pips or "At will" -->
             <template v-if="entry.uses_per_day !== null">
@@ -115,7 +115,7 @@
                     : 'border-muted-foreground/30'"
                 />
               </div>
-              <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
+              <span class="text-label text-muted-foreground shrink-0">
                 {{ entry.uses_remaining ?? 0 }}/{{ entry.uses_per_day }}
               </span>
             </template>

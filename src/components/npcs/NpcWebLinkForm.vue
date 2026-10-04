@@ -7,9 +7,9 @@
 
     <!-- The two nodes -->
     <div class="flex items-center gap-2">
-      <span class="flex-1 min-w-0 px-2 py-1.5 rounded-md bg-muted font-cinzel text-xs font-semibold text-foreground truncate text-center">{{ labelA }}</span>
+      <span class="flex-1 min-w-0 px-2 py-1.5 rounded-md bg-muted text-caption font-semibold text-foreground truncate text-center">{{ labelA }}</span>
       <IconLinkAlt class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      <span class="flex-1 min-w-0 px-2 py-1.5 rounded-md bg-muted font-cinzel text-xs font-semibold text-foreground truncate text-center">{{ labelB }}</span>
+      <span class="flex-1 min-w-0 px-2 py-1.5 rounded-md bg-muted text-caption font-semibold text-foreground truncate text-center">{{ labelB }}</span>
     </div>
 
     <!-- Relationship type -->

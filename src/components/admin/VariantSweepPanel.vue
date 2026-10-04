@@ -46,7 +46,7 @@
             <span class="text-caption text-muted-foreground shrink-0 w-20 text-right">{{ row.originals }}</span>
             <span class="text-caption text-muted-foreground shrink-0 w-20 text-right">{{ row.complete }}</span>
             <span
-              class="font-cinzel text-xs shrink-0 w-20 text-right"
+              class="text-label-lg shrink-0 w-20 text-right"
               :class="row.missingCount > 0 ? 'text-ink-caution' : 'text-muted-foreground'"
             >{{ row.missingCount }}</span>
           </template>

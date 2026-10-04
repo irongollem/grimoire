@@ -2,7 +2,7 @@
   <!-- Theme override -->
   <SettingsSection title="Appearance" description="Your DM sets the campaign theme. Override it here if you prefer a different look.">
     <div class="flex items-center justify-between">
-      <p class="font-cinzel text-xs text-foreground tracking-wide">Theme</p>
+      <p class="text-label-lg text-foreground ">Theme</p>
       <!-- The selected option used to be a solid bg-primary fill — one of the
            four rival "selected" treatments SegmentedControl exists to retire
            in favour of AppButton's gold `active` tint. -->
@@ -34,7 +34,7 @@
   <SettingsSection title="Screen" description="Useful during long sessions on a tablet.">
     <div class="flex items-center justify-between">
       <div>
-        <p class="font-cinzel text-xs text-foreground tracking-wide">Keep screen awake</p>
+        <p class="text-label-lg text-foreground ">Keep screen awake</p>
         <p class="text-caption text-muted-foreground italic">
           <template v-if="wakeLockSupported">Prevents your device from sleeping while this page is open.</template>
           <template v-else>Not supported on this browser. Try Chrome or Safari 16.4+.</template>
@@ -57,7 +57,7 @@
   <SettingsSection title="App" description="If something looks stuck or out of date, a full reload fixes it.">
     <button
       type="button"
-      class="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
+      class="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 text-label-lg font-semibold text-foreground hover:border-primary/50 transition-colors"
       @click="reloadApp"
     >
       <IconReset class="h-3.5 w-3.5" />

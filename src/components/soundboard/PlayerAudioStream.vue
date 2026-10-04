@@ -9,7 +9,7 @@
     <IconWind v-else class="h-4 w-4 shrink-0 text-gold-400" />
 
     <div class="min-w-0 flex-1">
-      <p class="truncate font-cinzel text-xs text-foreground">
+      <p class="truncate text-caption text-foreground">
         {{ trackName ?? "The DM is sharing audio" }}
       </p>
       <p v-if="subtitle" class="truncate text-caption-sm text-muted-foreground">
@@ -26,7 +26,7 @@
     <button
       v-if="!joined"
       type="button"
-      class="h-11 shrink-0 rounded-md bg-gold-500 px-4 font-cinzel text-xs font-bold tracking-wide text-navy-950 transition-colors hover:bg-gold-400"
+      class="h-11 shrink-0 rounded-md bg-gold-500 px-4 text-label-lg font-bold text-navy-950 transition-colors hover:bg-gold-400"
       @click="join"
     >
       Join audio

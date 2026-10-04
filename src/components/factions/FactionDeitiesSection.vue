@@ -15,7 +15,7 @@
       <IconSun class="h-3 w-3 text-muted-foreground shrink-0" />
       <RouterLink
         :to="`/deities/${entry.deity.id}`"
-        class="font-cinzel text-2xs font-semibold text-foreground hover:text-primary transition-colors"
+        class="text-caption-sm font-semibold text-foreground hover:text-primary transition-colors"
       >{{ entry.deity.name }}</RouterLink>
       <span v-if="entry.deity.titles" class="text-caption-sm text-muted-foreground italic">
         {{ entry.deity.titles }}

@@ -5,7 +5,7 @@
     <span
       v-for="curse in curses"
       :key="curse"
-      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-tone-arcane/15 border border-tone-arcane/30 font-cinzel text-2xs text-ink-arcane cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors"
+      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-tone-arcane/15 border border-tone-arcane/30 text-label text-ink-arcane cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors"
       title="Click to remove"
       @click="emit('remove-curse', curse)"
     >{{ curse }} ×</span>

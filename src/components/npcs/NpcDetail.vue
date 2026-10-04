@@ -44,11 +44,11 @@
       class="mb-4 space-y-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3"
     >
       <div>
-        <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground mb-2">PARTY NOTES</p>
+        <p class="text-label font-semibold text-muted-foreground mb-2">PARTY NOTES</p>
         <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Notes visible to the whole party…" />
       </div>
       <div>
-        <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground mb-2">PC CONNECTION NOTES</p>
+        <p class="text-label font-semibold text-muted-foreground mb-2">PC CONNECTION NOTES</p>
         <p class="text-caption text-muted-foreground/60 italic mb-2">Per-player notes visible only to the relevant PC.</p>
         <NpcPcNotesSection :npc-id="npc.id" />
       </div>

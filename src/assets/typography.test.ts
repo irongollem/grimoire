@@ -97,25 +97,35 @@ describe("user-facing copy", () => {
 });
 
 /**
- * Cinzel at a heading size is a role, never a hand-rolled class pair (#967).
+ * Cinzel at a set size is a role, never a hand-rolled class pair (#967).
  *
- * The #552 heading tiers (`text-heading-sm` … `text-display`, defined in
- * typography.css) already carry the font, and deliberately no tracking. A
- * conventions review in October 2026 caught new headings copying
+ * The #552 roles in typography.css already carry the font: the heading tiers
+ * (`text-heading-xs` … `text-display`) with no tracking, and the label family
+ * (`text-eyebrow`, `text-label`, `text-label-lg`) with theirs. A conventions
+ * review in October 2026 caught new headings copying
  * `font-cinzel text-sm font-semibold tracking-wide` from a neighbour, and a
- * count found 440 such pairs across the app. Weight and colour still vary per
- * site and stay separate classes; only the font plus size is the role's.
+ * count then found about 1,100 such pairs across the app. Weight and colour
+ * still vary per site and stay separate classes; the font plus size is the
+ * role's.
  *
- * The 2xs/xs sizes are the label family (`text-eyebrow`, `text-label`,
- * `text-label-lg`), which bundles tracking, so a plain `font-cinzel text-xs` is
- * not a 1:1 match for any of them and is not policed here.
+ * It matters beyond tidiness. Vellum, the default theme, repaints the roles
+ * (headings in Alegreya, labels in Source Sans 3) and keeps Cinzel for display
+ * only, so a hand-rolled pair silently opts a site out of the redesign. Small
+ * Cinzel text is therefore a label role or a caption role, decided by what the
+ * text is: a label or value, or a name or sentence.
+ *
+ * `font-cinzel` beside a role is caught too: it is redundant in every theme
+ * and reads as though the role did not set the font.
  */
-const HEADING_SIZE = /^text-(sm|base|lg|xl|2xl|3xl)$/;
+const SIZE = /^text-(2xs|xs|sm|base|lg|xl|2xl|3xl)$/;
+const LABEL_ROLE = /^text-(eyebrow|label|label-lg)$/;
+const ROLE = /^text-(eyebrow|label|label-lg|heading-xs|heading-sm|heading|heading-lg|title|display)$/;
 
 /**
  * The control primitives' own size recipes. Their `lg` step sets Cinzel on a
- * button or field label, which is a control, not a heading, and the recipe lives
- * exactly once, in the variant table, which is what a role would buy anyway.
+ * button or field label, and the recipe lives exactly once, in the variant
+ * table, which is what a role would buy anyway. Vellum restyles these through
+ * `[data-size]` attributes rather than the class.
  */
 const CONTROL_RECIPES = new Set([
   "src/components/common/appButtonVariants.ts",
@@ -130,8 +140,8 @@ function trackedSources(): string[] {
     .filter((f) => existsSync(path.join(REPO_ROOT, f)));
 }
 
-describe("Cinzel headings", () => {
-  it("use a heading role rather than font-cinzel plus a size", () => {
+describe("Cinzel text", () => {
+  it("uses a typography role rather than font-cinzel plus a size", () => {
     const violations: string[] = [];
 
     for (const file of trackedSources()) {
@@ -150,8 +160,14 @@ describe("Cinzel headings", () => {
         if (apply) lists.push(apply[1]);
         for (const list of lists) {
           const tokens = list.split(/\s+/);
-          if (tokens.includes("font-cinzel") && tokens.some((t) => HEADING_SIZE.test(t))) {
+          if (tokens.includes("font-cinzel") && tokens.some((t) => SIZE.test(t) || ROLE.test(t))) {
             violations.push(`${file}:${i + 1}  ${list.trim().slice(0, 80)}`);
+          }
+          // The label roles own their letter-spacing. A `tracking-*` beside one
+          // sits in the same layer, so which wins depends on stylesheet order
+          // in the legacy themes, and Vellum ignores it outright.
+          if (tokens.some((t) => LABEL_ROLE.test(t)) && tokens.some((t) => t.startsWith("tracking-"))) {
+            violations.push(`${file}:${i + 1}  tracking on a label role: ${list.trim().slice(0, 70)}`);
           }
         }
       });

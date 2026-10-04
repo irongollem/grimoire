@@ -31,7 +31,7 @@
         <!-- Qty controls -->
         <div class="flex items-center gap-1 shrink-0">
           <AppButton variant="ghost" fill="muted" size="icon-xs" :icon="IconMinus" icon-size="xs" aria-label="Decrease quantity" @click="decrementItem(item.id)" />
-          <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ qty }}</span>
+          <span class="text-label-lg font-bold text-foreground w-5 text-center">{{ qty }}</span>
           <AppButton variant="ghost" fill="muted" size="icon-xs" :icon="IconAdd" icon-size="xs" aria-label="Increase quantity" @click="incrementItem(item.id)" />
         </div>
 

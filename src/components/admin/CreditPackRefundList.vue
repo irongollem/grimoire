@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-2 border-t border-border pt-4">
     <div>
-      <h3 class="font-cinzel text-xs font-semibold tracking-wide text-foreground">Credit Pack Refunds</h3>
+      <h3 class="text-label-lg font-semibold text-foreground">Credit Pack Refunds</h3>
       <p class="text-caption-sm text-muted-foreground italic mt-0.5">
         Per-pack eligibility (FIFO). Refunding issues the Stripe refund and claws back the credits.
       </p>
@@ -23,7 +23,7 @@
       >
         <div class="flex items-center gap-3">
           <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-xs font-semibold text-foreground">{{ lot.credits }} credits</p>
+            <p class="text-label-lg font-semibold text-foreground">{{ lot.credits }} credits</p>
             <p class="text-caption-sm text-muted-foreground">
               {{ formatDate(lot.purchasedAt) }} ·
               <span v-if="!lot.alreadyRefunded">{{ lot.remaining }}/{{ lot.credits }} unspent</span>

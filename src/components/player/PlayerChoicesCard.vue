@@ -8,7 +8,7 @@
       <span
         v-for="entry in backgroundAsiBonuses"
         :key="entry.key"
-        class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 font-cinzel text-xs text-primary"
+        class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-label-lg text-primary"
       >{{ entry.label }} +{{ entry.delta }}</span>
     </div>
   </div>

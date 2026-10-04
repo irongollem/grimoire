@@ -80,7 +80,7 @@
         <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
           <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
           <AppInput v-model.number="f[stat.key]" type="number" min="1" max="30" tone="filled" size="body" align="center" class="px-1" />
-          <span class="font-cinzel text-xs font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-ink-success' : 'text-destructive'">
+          <span class="text-label-lg font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-ink-success' : 'text-destructive'">
             {{ mod(f[stat.key]) >= 0 ? "+" : "" }}{{ mod(f[stat.key]) }}
           </span>
         </label>
@@ -148,7 +148,7 @@
           @update:model-value="toggleSave(save.key)"
         >
           <span>{{ save.label }}</span>
-          <span class="ml-2 font-cinzel text-2xs text-muted-foreground">{{ saveBonus(save.key) }}</span>
+          <span class="ml-2 text-label text-muted-foreground">{{ saveBonus(save.key) }}</span>
         </AppCheckbox>
       </div>
       <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-2">Skills</p>
@@ -162,7 +162,7 @@
             @update:model-value="(v) => setSkillProf(skill.key, v)"
           />
           <span class="text-caption text-foreground flex-1">{{ skill.label }}</span>
-          <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ skillBonus(skill.key, skill.ability) }}</span>
+          <span class="text-label text-muted-foreground shrink-0">{{ skillBonus(skill.key, skill.ability) }}</span>
         </div>
       </div>
       <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-4">Tool Proficiencies</p>

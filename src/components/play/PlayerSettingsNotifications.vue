@@ -34,7 +34,7 @@
   <SettingsSection title="Dice" description="Choose where rolls come from.">
     <div class="flex items-center justify-between">
       <div>
-        <p class="font-cinzel text-xs text-foreground tracking-wide">Dice source</p>
+        <p class="text-label-lg text-foreground">Dice source</p>
         <p class="text-caption text-muted-foreground italic">Physical mode prompts you to enter the result of dice you rolled yourself.</p>
       </div>
       <div class="flex items-center gap-1 shrink-0 ml-3">

@@ -81,7 +81,7 @@
     </div>
 
     <!-- Linked calendar event indicator -->
-    <div v-if="linkedCalendarEventId" class="flex items-center gap-2 font-cinzel text-xs text-primary">
+    <div v-if="linkedCalendarEventId" class="flex items-center gap-2 text-caption text-primary">
       <IconCalendarDays class="h-3 w-3" />
       Calendar event linked
     </div>

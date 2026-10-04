@@ -120,7 +120,7 @@
           <template v-for="kind in IMPORT_ENTITY_KINDS" :key="kind">
             <template v-if="(completeView.importedCounts?.[kind] ?? 0) > 0">
               <span class="text-caption text-muted-foreground">{{ KIND_LABELS[kind] }}</span>
-              <span class="font-cinzel text-xs font-semibold text-foreground text-right">
+              <span class="text-label-lg font-semibold text-foreground text-right">
                 {{ completeView.importedCounts?.[kind] }}
               </span>
             </template>

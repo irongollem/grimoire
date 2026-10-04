@@ -14,7 +14,7 @@
     </span>
     <span
       v-if="chain.runtime_status === 'paused'"
-      class="mt-0.5 shrink-0 text-label uppercase tracking-wide text-muted-foreground"
+      class="mt-0.5 shrink-0 text-label uppercase text-muted-foreground"
     >Paused</span>
   </RouterLink>
 </template>

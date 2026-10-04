@@ -16,7 +16,7 @@
     <div class="overflow-y-auto flex-1 px-5 py-4 space-y-4">
       <!-- Name -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Name</label>
+        <label class="text-label-lg font-semibold text-foreground ">Name</label>
         <AppInput
           v-model="meta.name"
           tone="filled"
@@ -56,7 +56,7 @@
 
       <!-- Themes -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Themes</label>
+        <label class="text-label-lg font-semibold text-foreground ">Themes</label>
         <TagInput v-model="meta.tags" placeholder="battle, tavern…" />
         <p class="text-caption text-muted-foreground italic">
           <template v-if="meta.playlist_type === 'music'">
@@ -75,7 +75,7 @@
       <!-- Track list -->
       <div class="space-y-1.5">
         <div class="flex items-center justify-between">
-          <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">
+          <label class="text-label-lg font-semibold text-foreground ">
             {{ noun.entriesLabel }}
             <span class="font-fell font-normal text-muted-foreground ml-1">({{ trackList.length }})</span>
           </label>
@@ -108,7 +108,7 @@
 
       <!-- Add sound -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Add Sound</label>
+        <label class="text-label-lg font-semibold text-foreground ">Add Sound</label>
         <EntityCombobox
           v-model="addSoundId"
           :options="addableSounds"

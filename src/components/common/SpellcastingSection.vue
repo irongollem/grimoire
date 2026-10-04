@@ -132,7 +132,7 @@
                     block
                     @mousedown.prevent="addSpell(i, spell.id)"
                   >
-                    <span class="font-cinzel text-2xs text-muted-foreground w-16 shrink-0">{{ levelLabel(spell.level) }}</span>
+                    <span class="text-label text-muted-foreground w-16 shrink-0">{{ levelLabel(spell.level) }}</span>
                     {{ spell.name }}
                   </AppButton>
                 </li>

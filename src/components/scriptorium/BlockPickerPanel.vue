@@ -7,7 +7,7 @@
       <!-- Registry groups -->
       <section v-for="group in visibleGroups" :key="group">
         <h3
-          class="font-cinzel text-2xs font-semibold tracking-widest uppercase text-muted-foreground mb-2"
+          class="text-eyebrow font-semibold text-muted-foreground mb-2"
         >
           {{ group }}
         </h3>
@@ -37,7 +37,7 @@
             </template>
             <div class="min-w-0">
               <p
-                class="font-cinzel text-xs font-semibold text-foreground leading-tight"
+                class="text-caption font-semibold text-foreground leading-tight"
               >
                 {{ entry.label }}
               </p>
@@ -54,7 +54,7 @@
       <!-- Images — hardcoded section because actions trigger external state -->
       <section>
         <h3
-          class="font-cinzel text-2xs font-semibold tracking-widest uppercase text-muted-foreground mb-2"
+          class="text-eyebrow font-semibold text-muted-foreground mb-2"
         >
           Images
         </h3>
@@ -76,7 +76,7 @@
             </template>
             <div class="min-w-0">
               <p
-                class="font-cinzel text-xs font-semibold text-foreground leading-tight"
+                class="text-caption font-semibold text-foreground leading-tight"
               >
                 From URL…
               </p>
@@ -105,7 +105,7 @@
             </template>
             <div class="min-w-0">
               <p
-                class="font-cinzel text-xs font-semibold text-foreground leading-tight"
+                class="text-caption font-semibold text-foreground leading-tight"
               >
                 From library…
               </p>
@@ -134,7 +134,7 @@
             </template>
             <div class="min-w-0">
               <p
-                class="font-cinzel text-xs font-semibold text-foreground leading-tight"
+                class="text-caption font-semibold text-foreground leading-tight"
               >
                 Browse photos…
               </p>

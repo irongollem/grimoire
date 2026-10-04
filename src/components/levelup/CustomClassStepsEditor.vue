@@ -1,7 +1,7 @@
 <template>
   <section class="rounded-lg border border-border bg-card p-4 space-y-4">
     <div class="flex items-center justify-between">
-      <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Wizard Steps</h2>
+      <h2 class="text-label-lg uppercase text-muted-foreground">Wizard Steps</h2>
       <AppButton variant="outline" size="xs" label="Add step" :icon="IconAdd" icon-size="xs" @click="addStep" />
     </div>
     <p class="text-body text-muted-foreground">

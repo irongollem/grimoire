@@ -39,7 +39,7 @@
         {{ monster.size }} {{ monster.monster_type }}
       </p>
 
-      <div class="flex gap-3 font-cinzel text-xs text-muted-foreground">
+      <div class="flex gap-3 text-label-lg text-muted-foreground">
         <span><span class="font-bold text-foreground">AC</span> {{ monster.stat_block.armor_class }}</span>
         <span>
           <span class="font-bold text-foreground">HP</span>

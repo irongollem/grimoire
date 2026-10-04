@@ -140,7 +140,7 @@
               >{{ domain }}</span>
               <span
                 v-if="deity.domains.length > 3"
-                class="rounded bg-muted px-1.5 py-0.5 font-cinzel text-2xs text-muted-foreground"
+                class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
               >+{{ deity.domains.length - 3 }}</span>
             </div>
           </template>

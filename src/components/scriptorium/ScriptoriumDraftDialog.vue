@@ -11,18 +11,18 @@
 
     <div class="flex-1 space-y-4 overflow-y-auto px-5 py-4">
       <div class="space-y-1.5">
-        <span class="font-cinzel text-xs font-semibold tracking-wide text-foreground">Kind</span>
+        <span class="text-label-lg font-semibold text-foreground">Kind</span>
         <SegmentedControl v-model="kind" :options="KIND_OPTIONS" block wrap />
         <p class="text-caption text-muted-foreground">{{ KIND_HINTS[kind] }}</p>
       </div>
 
       <div v-if="kind === 'handout'" class="space-y-1.5">
-        <span class="font-cinzel text-xs font-semibold tracking-wide text-foreground">About</span>
+        <span class="text-label-lg font-semibold text-foreground">About</span>
         <SegmentedControl v-model="handoutSubject" :options="HANDOUT_SUBJECT_OPTIONS" block />
       </div>
 
       <div class="space-y-1.5">
-        <span class="font-cinzel text-xs font-semibold tracking-wide text-foreground">{{ subjectLabel }}</span>
+        <span class="text-label-lg font-semibold text-foreground">{{ subjectLabel }}</span>
         <EntityCombobox v-model="subjectId" :options="subjectOptions" :placeholder="`Search ${subjectLabel.toLowerCase()}…`" />
         <p v-if="subjectOptions.length === 0" class="text-caption text-muted-foreground italic">
           Nothing to write about yet. Add one in your campaign first.
@@ -30,7 +30,7 @@
       </div>
 
       <div class="space-y-1.5">
-        <span class="font-cinzel text-xs font-semibold tracking-wide text-foreground">Written for</span>
+        <span class="text-label-lg font-semibold text-foreground">Written for</span>
         <SegmentedControl v-model="audience" :options="AUDIENCE_OPTIONS" block />
         <p class="text-caption text-muted-foreground">
           {{ audience === "players"
@@ -40,7 +40,7 @@
       </div>
 
       <div class="space-y-1.5">
-        <label for="scriptorium-draft-steer" class="font-cinzel text-xs font-semibold tracking-wide text-foreground">
+        <label for="scriptorium-draft-steer" class="text-label-lg font-semibold text-foreground">
           Steer
           <span class="ml-1 font-fell normal-case tracking-normal text-muted-foreground/60">(optional)</span>
         </label>

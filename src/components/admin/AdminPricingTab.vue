@@ -155,31 +155,31 @@
               <!-- No suggestion yet (< 20 charges) — show raw cost as informational -->
               <span
                 v-else-if="calibrationHints[gen.generation_type].suggested_cost === null"
-                class="font-cinzel text-2xs text-muted-foreground/50 tracking-wide whitespace-nowrap"
+                class="text-label text-muted-foreground/50 whitespace-nowrap"
                 :title="`${calibrationHints[gen.generation_type].sample_size} charges (need 20 for a suggestion)`"
               >~${{ (calibrationHints[gen.generation_type].cost_per_charge_usd_cents / 100).toFixed(4) }}</span>
               <!-- Below cost — every call loses money. Its own case, not a matter of degree. -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'loss'"
-                class="font-cinzel text-2xs text-destructive tracking-wide whitespace-nowrap font-semibold"
+                class="text-label text-destructive whitespace-nowrap font-semibold"
                 :title="calibrationTitle(calibrationHints[gen.generation_type], 'Below cost: every call loses money')"
               >⚠ ↑ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
               <!-- Fair — within the threshold of the target margin. -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'ok'"
-                class="font-cinzel text-2xs text-ink-success tracking-wide"
+                class="text-label text-ink-success"
                 :title="calibrationTitle(calibrationHints[gen.generation_type], 'On target')"
               >✓</span>
               <!-- Thinner than intended, but still above cost. -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'under'"
-                class="font-cinzel text-2xs text-ink-caution tracking-wide whitespace-nowrap"
+                class="text-label text-ink-caution whitespace-nowrap"
                 :title="calibrationTitle(calibrationHints[gen.generation_type], 'Under target margin')"
               >↑ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
               <!-- Above the target margin — the fairness half of the warning. -->
               <span
                 v-else
-                class="font-cinzel text-2xs text-ink-info tracking-wide whitespace-nowrap"
+                class="text-label text-ink-info whitespace-nowrap"
                 :title="calibrationTitle(calibrationHints[gen.generation_type], 'Above target margin')"
               >↓ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
             </td>

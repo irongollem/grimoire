@@ -13,7 +13,7 @@
     <div class="rounded-lg border border-border bg-card p-4">
       <div class="flex items-center justify-between gap-4">
         <div>
-          <p class="font-cinzel text-xs font-semibold tracking-wide text-foreground">AI Assistant</p>
+          <p class="text-caption font-semibold text-foreground">AI Assistant</p>
           <p class="text-caption text-muted-foreground italic mt-0.5">
             When disabled, every AI generation control across the campaign is replaced with an "AI is off" notice. Players who prefer a fully hand-crafted experience won't see any AI UI to generate with.
           </p>
@@ -75,7 +75,7 @@
 
         <div v-for="p in providerDefs" :key="p.id" class="flex flex-col gap-1">
           <div class="flex items-center justify-between">
-            <label class="font-cinzel text-xs text-muted-foreground tracking-wide">
+            <label class="text-label-lg text-muted-foreground">
               {{ p.label }}
               <span v-if="clearedKeys[p.id]" class="ml-1.5 text-caption-sm normal-case tracking-normal text-ink-caution ">(will be removed on save)</span>
               <span v-else-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 text-caption-sm normal-case tracking-normal text-primary/80">(key on file; leave blank to keep)</span>
@@ -131,7 +131,7 @@
 
         <!-- Text generation -->
         <div class="flex flex-col gap-1">
-          <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Text generation</label>
+          <label class="text-label-lg text-muted-foreground">Text generation</label>
           <p class="text-caption text-muted-foreground italic">Used for NPCs, monsters, items, spells, and puzzles.</p>
           <!-- BYOK: picker based on entered keys -->
           <AppSelect
@@ -163,7 +163,7 @@
 
         <!-- Image generation -->
         <div class="flex flex-col gap-1">
-          <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Image generation</label>
+          <label class="text-label-lg text-muted-foreground">Image generation</label>
           <p class="text-caption text-muted-foreground italic">
             Used for portrait and artwork generation.
           </p>

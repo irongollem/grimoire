@@ -122,7 +122,7 @@ function onImgError(e: Event) {
   @apply size-9 rounded-md object-cover bg-muted border border-border;
 }
 .set-thumb-more {
-  @apply flex size-9 items-center justify-center rounded-md border border-border bg-muted font-cinzel text-xs font-semibold text-muted-foreground;
+  @apply flex size-9 items-center justify-center rounded-md border border-border bg-muted text-label-lg font-semibold text-muted-foreground;
 }
 .set-empty {
   @apply text-body text-muted-foreground italic;

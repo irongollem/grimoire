@@ -12,7 +12,7 @@
         <div class="rounded-xl border border-border bg-card p-4">
           <div class="flex items-start justify-between gap-3">
             <div>
-              <h2 class="font-cinzel text-heading-sm text-foreground">Available packs</h2>
+              <h2 class="text-heading-sm text-foreground">Available packs</h2>
               <p class="mt-1 text-body text-muted-foreground">Your packs and read-only packs shared through the active campaign.</p>
             </div>
             <span class="text-caption text-muted-foreground">{{ campaignPacks.length }} pack(s)</span>
@@ -54,12 +54,12 @@
         <!-- Uploading your own pack stays Pro; generating one (right) is open to
              every plan with credits. -->
         <div v-if="!isPro" class="rounded-xl border border-border bg-card p-4">
-          <h2 class="font-cinzel text-heading-sm text-foreground">Upload a pack</h2>
+          <h2 class="text-heading-sm text-foreground">Upload a pack</h2>
           <p class="mt-1 text-body text-muted-foreground">Uploading a pack you made yourself is a Pro feature.</p>
           <AppButton class="mt-3" variant="outline" size="sm" label="View plans" @click="router.push('/billing')" />
         </div>
         <div v-else class="rounded-xl border border-border bg-card p-4">
-          <h2 class="font-cinzel text-heading-sm text-foreground">Upload a pack</h2>
+          <h2 class="text-heading-sm text-foreground">Upload a pack</h2>
           <p class="mt-1 text-body text-muted-foreground">Choose a zip or a folder containing manifest.json and exact 128×128 WebP assets.</p>
           <div class="mt-4 flex flex-wrap gap-3">
             <label class="cursor-pointer rounded-md border border-border bg-muted px-3 py-2 text-label text-foreground hover:bg-muted/70">
@@ -79,7 +79,7 @@
            whole column is hidden, not disabled, when the campaign's AI is off. -->
       <section v-if="isAiEnabled" class="space-y-4">
         <div class="rounded-xl border border-border bg-card p-4">
-          <h2 class="font-cinzel text-heading-sm text-foreground">Generate a complete pack</h2>
+          <h2 class="text-heading-sm text-foreground">Generate a complete pack</h2>
           <p class="mt-1 text-body text-muted-foreground">GPT Image 2 low generates three reusable proof assets first. Approve the family, then the remaining schema jobs continue.</p>
           <div class="mt-4 space-y-3">
             <label class="block">
@@ -102,7 +102,7 @@
         </div>
 
         <div v-if="runList.length" class="rounded-xl border border-border bg-card p-4">
-          <h2 class="font-cinzel text-heading-sm text-foreground">Generation runs</h2>
+          <h2 class="text-heading-sm text-foreground">Generation runs</h2>
           <div class="mt-4 space-y-4">
             <article v-for="run in runList" :key="run.id" class="rounded-lg border border-border bg-background/40 p-3">
               <div class="flex items-start justify-between gap-3">

@@ -42,22 +42,22 @@
             <!-- Proficiencies summary -->
             <div class="mt-1.5 flex flex-wrap gap-1">
               <span v-for="sk in bg.skill_proficiencies" :key="sk"
-                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-2xs text-primary">
+                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-label text-primary">
                 {{ sk }}
               </span>
               <span v-for="t in bg.tool_proficiencies" :key="t"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground">
+                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">
                 {{ t }}
               </span>
               <span v-if="bg.languages?.length"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground">
+                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">
                 {{ bg.languages.length === 1 ? bg.languages[0] : `${bg.languages.length} languages` }}
               </span>
             </div>
             <p v-if="bg.feature_name" class="text-caption text-muted-foreground mt-1.5 italic line-clamp-1">
               {{ bg.feature_name }}
             </p>
-            <p v-if="bg.source_title" class="font-cinzel text-2xs text-muted-foreground/50 mt-1">
+            <p v-if="bg.source_title" class="text-caption-sm text-muted-foreground/50 mt-1">
               {{ bg.source_title }}
             </p>
           </div>

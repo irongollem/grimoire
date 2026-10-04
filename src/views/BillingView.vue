@@ -124,7 +124,7 @@
 
       <div>
         <p
-          class="font-cinzel text-xs font-semibold tracking-[0.2em] text-ink-caution uppercase mb-1"
+          class="text-label-lg font-semibold text-ink-caution uppercase mb-1"
         >
           Upgrade to Pro
         </p>
@@ -285,7 +285,7 @@
         </div>
         <div v-if="creditsLoading" class="flex items-center gap-1.5 text-muted-foreground">
           <BannerLoader class="h-3.5" />
-          <span class="font-cinzel text-xs">Loading…</span>
+          <span class="text-label-lg">Loading…</span>
         </div>
         <span v-else class="text-heading font-bold text-primary">
           {{ formattedBalance }}

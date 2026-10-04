@@ -5,9 +5,9 @@
   <button
     v-if="!editing"
     type="button"
-    class="rounded text-2xs transition-colors"
+    class="rounded text-label transition-colors"
     :class="isTrimmed
-      ? 'flex items-center gap-1 px-1.5 py-0.5 font-cinzel tracking-wide text-gold-400 bg-gold-500/10 border border-gold-500/20 hover:bg-gold-500/20'
+      ? 'flex items-center gap-1 px-1.5 py-0.5 text-gold-400 bg-gold-500/10 border border-gold-500/20 hover:bg-gold-500/20'
       : 'italic text-muted-foreground/40 [@media(hover:hover)]:text-muted-foreground/0 [@media(hover:hover)]:group-hover:text-muted-foreground/40 hover:text-muted-foreground!'"
     :title="isTrimmed ? `Trim ${committedLabel}. Click to adjust` : 'Correct this sound\'s loudness'"
     @click="startEdit"
@@ -22,7 +22,7 @@
     v-else
     class="absolute inset-x-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1.5 rounded border border-gold-500/40 bg-background px-2 py-1.5 shadow-lg"
   >
-    <span class="shrink-0 font-cinzel text-2xs tracking-wide text-muted-foreground">Trim</span>
+    <span class="shrink-0 text-label text-muted-foreground">Trim</span>
     <input
       ref="rangeInput"
       type="range"

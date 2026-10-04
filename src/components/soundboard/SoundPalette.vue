@@ -39,7 +39,7 @@
         <template v-for="(row, index) in rows" :key="row.key">
           <div
             v-if="index === 0 || rows[index - 1].kind !== row.kind"
-            class="border-b border-border/50 bg-secondary/30 px-4 py-1.5 font-cinzel text-2xs uppercase tracking-widest text-muted-foreground/60"
+            class="border-b border-border/50 bg-secondary/30 px-4 py-1.5 text-eyebrow uppercase text-muted-foreground/60"
           >
             {{ row.kind === "playlist" ? "Playlists & scenes" : "Sounds" }}
           </div>

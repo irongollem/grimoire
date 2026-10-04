@@ -1,7 +1,7 @@
 <template>
   <section class="mx-auto w-full max-w-2xl space-y-5 rounded-xl border border-border bg-card p-5" aria-labelledby="new-flow-heading">
     <div>
-      <p class="text-label font-bold uppercase tracking-wider text-primary">New quest</p>
+      <p class="text-label font-bold uppercase text-primary">New quest</p>
       <h2 id="new-flow-heading" class="text-heading font-bold text-foreground">
         {{ startMode === "paste" ? "Paste a page from your book" : "Name the quest and what it is about" }}
       </h2>

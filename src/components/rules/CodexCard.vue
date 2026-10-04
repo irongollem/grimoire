@@ -27,8 +27,8 @@
         <p v-if="meta" class="text-label text-muted-foreground mt-0.5 truncate">{{ meta }}</p>
       </div>
       <div v-if="badge || count" class="shrink-0 flex flex-col items-end gap-0.5">
-        <span v-if="badge" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground capitalize">{{ badge }}</span>
-        <span v-if="count" class="font-cinzel text-2xs text-muted-foreground/60">{{ count }}</span>
+        <span v-if="badge" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">{{ badge }}</span>
+        <span v-if="count" class="text-label text-muted-foreground/60">{{ count }}</span>
       </div>
     </div>
   </button>

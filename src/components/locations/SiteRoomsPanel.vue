@@ -15,7 +15,7 @@
       v-if="site && building"
       class="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2"
     >
-      <span class="min-w-0 shrink-0 truncate font-cinzel text-xs font-semibold text-foreground">{{ site.name }}</span>
+      <span class="min-w-0 shrink-0 truncate text-caption font-semibold text-foreground">{{ site.name }}</span>
       <RoomAmbienceCell
         :location-id="site.id"
         :own-theme="site.audio_theme"
@@ -62,7 +62,7 @@
           />
           <span
             v-else
-            class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground"
+            class="min-w-0 flex-1 truncate text-caption font-semibold text-foreground"
           >{{ space.name }}</span>
 
           <!-- Read-only cleared/looted markers (#787, epic #780) — a play

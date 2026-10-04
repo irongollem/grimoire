@@ -35,7 +35,7 @@
             }}
           </span>
         </div>
-        <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
+        <span class="text-label text-muted-foreground shrink-0">
           Lv {{ memberLevelDisplay(member.id, member.level) }}
         </span>
         <AppSelect
@@ -80,7 +80,7 @@
               {{ comp.companion_type.replace('_', ' ') }}
             </span>
           </div>
-          <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
+          <span class="text-label text-muted-foreground shrink-0">
             {{ comp.current_hp }}/{{ comp.max_hp }} HP
           </span>
           <AppSelect

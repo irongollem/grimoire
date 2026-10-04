@@ -31,7 +31,7 @@
         :style="{ backgroundColor: LOCATION_TYPE_COLORS[row.loc.location_type] }"
       />
       <span
-        class="min-w-0 flex-1 truncate text-left font-cinzel text-label-lg"
+        class="min-w-0 flex-1 truncate text-left text-label-lg"
         :class="[
           selected ? 'text-foreground font-bold' : 'text-foreground/90',
           outOfEra && 'opacity-50',

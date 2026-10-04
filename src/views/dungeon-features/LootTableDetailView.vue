@@ -82,7 +82,7 @@
                   <span class="text-body text-foreground flex-1 truncate">
                     {{ itemsById.get(entry.item_id ?? '')?.name ?? entry.item_id ?? '—' }}
                   </span>
-                  <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
+                  <span class="text-label text-muted-foreground shrink-0">
                     {{ entry.dice ?? entry.fixed_qty ?? 1 }}×
                   </span>
                 </template>
@@ -90,7 +90,7 @@
                   <span class="text-body text-foreground flex-1 truncate">
                     {{ entry.currency_label || 'Currency' }}
                   </span>
-                  <span class="font-cinzel text-2xs text-ink-caution shrink-0">
+                  <span class="text-label text-ink-caution shrink-0">
                     {{ formatCoinParts(entry.pp ?? 0, entry.gp ?? 0, entry.ep ?? 0, entry.sp ?? 0, entry.cp ?? 0).join(', ') || '—' }}
                   </span>
                 </template>
@@ -98,7 +98,7 @@
                   <span class="text-body text-foreground flex-1 truncate">
                     Random {{ entry.rarity ? ITEM_RARITY_LABELS[entry.rarity as keyof typeof ITEM_RARITY_LABELS] : '' }}{{ entry.item_type_filter ? ` ${ITEM_TYPE_LABELS[entry.item_type_filter as keyof typeof ITEM_TYPE_LABELS]}` : '' }}
                   </span>
-                  <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
+                  <span class="text-label text-muted-foreground shrink-0">
                     {{ entry.dice ?? entry.fixed_qty ?? 1 }}×
                   </span>
                 </template>
@@ -195,7 +195,7 @@
             <span
               v-for="mid in form.monster_ids"
               :key="mid"
-              class="inline-flex items-center gap-1 font-cinzel text-2xs bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+              class="inline-flex items-center gap-1 text-label bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
             >
               <IconMonster class="h-2.5 w-2.5 shrink-0" />{{ monstersById.get(mid)?.name ?? mid }}
               <AppButton

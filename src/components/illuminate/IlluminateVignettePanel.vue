@@ -9,7 +9,7 @@
         :class="open ? 'rotate-90' : ''"
       />
       <span
-        class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
+        class="flex-1 text-label-lg font-bold uppercase transition-colors"
         :class="enabled ? 'text-foreground' : 'text-muted-foreground'"
       >Vignette</span>
       <ToggleSwitch

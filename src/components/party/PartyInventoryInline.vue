@@ -39,7 +39,7 @@
             @keydown.escape="showItemDropdown = false"
           >
             <span class="truncate">{{ item.name }}</span>
-            <span class="font-cinzel text-2xs text-muted-foreground shrink-0 capitalize">{{ item.rarity }}</span>
+            <span class="text-caption-sm text-muted-foreground shrink-0 capitalize">{{ item.rarity }}</span>
           </AppButton>
           <div v-if="newItem.name.trim()" class="border-t border-border">
             <AppButton
@@ -122,14 +122,14 @@
             <p v-else class="text-body text-foreground leading-tight truncate">{{ item.name }}</p>
             <span
               v-if="catalogFor(item)"
-              class="hidden sm:inline font-cinzel text-2xs text-muted-foreground/60 shrink-0"
+              class="hidden sm:inline text-caption-sm text-muted-foreground/60 shrink-0"
             >{{ ITEM_TYPE_LABELS[catalogFor(item)!.item_type] }}</span>
           </div>
           <p v-if="item.notes" class="text-caption text-muted-foreground italic truncate">{{ item.notes }}</p>
         </div>
         <div class="flex items-center gap-1 shrink-0">
           <button type="button" class="count-btn-sm" @click="changeQty(item, -1)">−</button>
-          <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ item.quantity }}</span>
+          <span class="text-label-lg font-bold text-foreground w-5 text-center">{{ item.quantity }}</span>
           <button type="button" class="count-btn-sm" @click="changeQty(item, 1)">+</button>
         </div>
         <AppSelect
@@ -367,6 +367,6 @@ async function dropNewItemToChat() {
 <style scoped>
 @reference "@/assets/main.css";
 .count-btn-sm {
-  @apply w-5 h-5 rounded bg-muted border border-border font-cinzel text-xs flex items-center justify-center hover:bg-card transition-colors leading-none;
+ @apply w-5 h-5 rounded bg-muted border border-border text-label-lg flex items-center justify-center hover:bg-card transition-colors leading-none;
 }
 </style>

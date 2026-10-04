@@ -11,7 +11,7 @@
     >
       <template #option="{ opt }">
         <span class="flex-1 truncate">{{ opt.name }}</span>
-        <span class="text-xs text-muted-foreground shrink-0 font-cinzel">{{ LOCATION_TYPE_LABELS[opt.location_type as LocationType] }}</span>
+        <span class="text-muted-foreground shrink-0 text-label-lg">{{ LOCATION_TYPE_LABELS[opt.location_type as LocationType] }}</span>
       </template>
     </EntityCombobox>
   </div>
@@ -25,7 +25,7 @@
       <label
         v-for="m in party"
         :key="m.id"
-        class="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 cursor-pointer transition-colors text-xs font-cinzel font-semibold"
+        class="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 cursor-pointer transition-colors text-label-lg font-semibold"
         :class="travelPartyMemberIds.includes(m.id)
           ? 'border-primary bg-primary/10 text-foreground'
           : 'border-border bg-muted text-muted-foreground hover:border-primary/50'"

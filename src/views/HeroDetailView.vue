@@ -4,7 +4,7 @@
       <RouterLink
         v-if="isAppAdmin"
         :to="`/hall-of-heroes/${hero.id}/edit`"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
       >
         <IconEdit class="h-3.5 w-3.5" />
         Edit

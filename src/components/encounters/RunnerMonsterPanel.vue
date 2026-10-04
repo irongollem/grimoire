@@ -207,7 +207,7 @@ const traitSections = computed(() => {
 }
 
 .detail-check-btn em {
-  @apply font-cinzel text-xs font-bold not-italic text-foreground shrink-0 ml-1;
+  @apply text-label-lg font-bold not-italic text-foreground shrink-0 ml-1;
 }
 
 .detail-section-label {

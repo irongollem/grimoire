@@ -18,7 +18,7 @@
           <span class="sr-only">{{ attachment.is_required ? (attachment.target_exists ? 'Required, present' : 'Required, missing, prep gap') : 'Optional' }}</span>
         </span>
         <div class="min-w-0 flex-1">
-          <p class="truncate font-cinzel text-label-lg font-bold text-foreground">{{ attachment.label }}</p>
+          <p class="truncate text-label-lg font-bold text-foreground">{{ attachment.label }}</p>
           <p class="truncate text-muted-foreground">{{ attachment.compact_detail || (attachment.is_required ? '' : 'Optional fallback, kept out of the prep-gap count') }}</p>
         </div>
         <AppButton

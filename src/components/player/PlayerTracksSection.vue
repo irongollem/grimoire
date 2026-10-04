@@ -1,6 +1,6 @@
 <template>
   <div v-if="activeTrackers.length" class="space-y-2">
-    <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground uppercase">Tracks</p>
+    <p class="text-eyebrow font-semibold text-muted-foreground ">Tracks</p>
     <div class="flex flex-col gap-2">
       <div v-for="t in activeTrackers" :key="t.key">
         <RuleTrackerPanel

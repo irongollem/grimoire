@@ -69,7 +69,7 @@
           </div>
         </div>
         <div class="flex-1 min-w-0">
-          <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Has a leap day</span>
+          <span class="text-label-lg font-semibold text-foreground ">Has a leap day</span>
           <p class="text-caption text-muted-foreground mt-0.5">
             Every fourth year a festival day marked "Leap only" appears once more.
           </p>
@@ -91,7 +91,7 @@
           :key="i"
           class="grid grid-cols-12 gap-2 items-center rounded-md border border-border bg-muted/40 px-2 py-1.5"
         >
-          <span class="col-span-1 text-center font-cinzel text-xs text-muted-foreground">{{ i + 1 }}</span>
+          <span class="col-span-1 text-center text-label-lg text-muted-foreground">{{ i + 1 }}</span>
           <AppInput v-model="m.name" tone="card" size="body" placeholder="Month name" class="col-span-5" />
           <AppInput
             v-model="monthAliasModel(m).value"

@@ -4,7 +4,7 @@
     <div class="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-4">
       <div class="flex items-center gap-1.5">
         <span class="text-label text-muted-foreground">Uses</span>
-        <span v-if="wildshapeMaxUses === null" class="font-cinzel text-2xs text-muted-foreground">Unlimited</span>
+        <span v-if="wildshapeMaxUses === null" class="text-label text-muted-foreground">Unlimited</span>
         <template v-else>
           <div class="flex gap-1">
             <span
@@ -14,7 +14,7 @@
               :class="i <= wildshapesUsed ? 'border-primary bg-primary/80' : 'border-muted-foreground/30'"
             />
           </div>
-          <span class="font-cinzel text-2xs text-muted-foreground">{{ wildshapesUsed }}/{{ wildshapeMaxUses }}</span>
+          <span class="text-label text-muted-foreground">{{ wildshapesUsed }}/{{ wildshapeMaxUses }}</span>
         </template>
       </div>
       <span class="text-caption-sm text-muted-foreground italic">{{ wildshapeFacts }}</span>
@@ -76,7 +76,7 @@
     <div v-if="!activeWildshape || showWildshapePicker" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="flex items-center justify-between gap-3 px-4 py-2.5">
         <div class="min-w-0">
-          <p class="font-cinzel text-xs font-semibold">Choose Beast Form</p>
+          <p class="text-label-lg font-semibold">Choose Beast Form</p>
           <p v-if="!activeWildshape && !canWildshape" class="text-caption-sm text-muted-foreground italic">
             {{ wildshapeMaxUses !== 0 ? "No uses left. Rest to regain them." : "Wild Shape unlocks at druid level 2." }}
           </p>
@@ -110,7 +110,7 @@
               :disabled="!m.stat_block"
               @click="previewBeast = m"
             >
-              <span class="font-cinzel text-xs font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
+              <span class="text-caption font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
               <template v-if="m.stat_block">
                 <span class="text-caption-sm text-muted-foreground shrink-0">CR {{ m.stat_block.challenge_rating }}</span>
                 <span v-if="formCost(m.id) > 1" class="text-caption-sm text-muted-foreground shrink-0">{{ formCost(m.id) }} uses</span>

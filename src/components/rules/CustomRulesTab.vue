@@ -15,7 +15,7 @@
 
     <!-- ── Active built-in optional rules ──────────────────────────────── -->
     <div v-if="enabledBuiltIns.length" class="mb-6 space-y-2">
-      <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground uppercase">Active Optional Rules</p>
+      <p class="text-eyebrow font-semibold text-muted-foreground">Active Optional Rules</p>
       <!-- One sheet with dividers rather than a stack of separate boxes. -->
       <div class="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
         <div

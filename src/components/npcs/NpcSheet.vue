@@ -31,7 +31,7 @@
         app has exactly one of it.
       -->
       <div v-if="hasDisguise" class="pt-1 border-t border-border/50">
-        <p class="font-cinzel text-2xs tracking-widest text-muted-foreground mb-1.5">ALTER EGO</p>
+        <p class="text-label text-muted-foreground mb-1.5">ALTER EGO</p>
         <p class="text-caption text-muted-foreground italic">
           {{ npc.is_revealed ? `True form revealed` : `Disguised as ${npc.disguise_name || 'unknown'}` }}
         </p>

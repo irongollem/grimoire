@@ -4,7 +4,7 @@
     style="background: #a09a90"
   >
     <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+      <p class="text-label-lg font-semibold text-muted-foreground uppercase">
         Preview: {{ themeInfo.label }}
       </p>
       <div class="flex items-center gap-2">

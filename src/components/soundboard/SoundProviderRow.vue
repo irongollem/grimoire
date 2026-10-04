@@ -24,7 +24,7 @@
     <!-- Info -->
     <div class="flex-1 min-w-0">
       <div class="flex items-center gap-1.5">
-        <p class="font-cinzel text-xs text-foreground truncate">{{ hit.name }}</p>
+        <p class="text-caption text-foreground truncate">{{ hit.name }}</p>
         <span
           class="shrink-0 px-1 py-0.5 rounded text-caption-sm tracking-wide"
           :class="

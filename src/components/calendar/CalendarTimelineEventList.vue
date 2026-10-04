@@ -1,6 +1,6 @@
 <template>
   <div v-if="events.length" class="mt-6">
-    <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-3">
+    <p class="text-label-lg font-semibold text-muted-foreground mb-3">
       EVENTS IN VIEW
     </p>
     <div class="space-y-1.5">

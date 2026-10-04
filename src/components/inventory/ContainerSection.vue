@@ -10,7 +10,7 @@
       <button class="flex items-center gap-1.5 flex-1 text-left" @click="open = !open">
         <IconChevronRight class="h-3 w-3 text-muted-foreground transition-transform" :class="open ? 'rotate-90' : ''" />
         <span class="text-label-lg font-semibold text-foreground">{{ label }}</span>
-        <span class="font-cinzel text-2xs text-muted-foreground/60 ml-1">
+        <span class="text-label text-muted-foreground/60 ml-1">
           ({{ items.length }}<template v-if="weight != null"> · {{ formatWeightLb(weight) }}</template>)
         </span>
       </button>
@@ -26,7 +26,7 @@
       <AppButton variant="ghost" size="inline-xs" label="+ Add" @click="showAdd = !showAdd" />
       <button
         v-if="removable"
-        class="font-cinzel text-2xs text-destructive/60 hover:text-destructive transition-colors ml-1"
+        class="text-label text-destructive/60 hover:text-destructive transition-colors ml-1"
         @click="$emit('remove-container')"
       >Remove</button>
     </div>

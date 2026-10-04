@@ -37,7 +37,7 @@
     >
       <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
     </AppSelect>
-    <span v-else class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ role ?? 'Member' }}</span>
+    <span v-else class="text-caption-sm text-muted-foreground shrink-0">{{ role ?? 'Member' }}</span>
 
     <!-- Status -->
     <AppSelect

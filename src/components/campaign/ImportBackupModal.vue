@@ -58,7 +58,7 @@
               <span class="text-caption text-muted-foreground capitalize">
                 {{ formatKey(key) }}
               </span>
-              <span class="font-cinzel text-xs font-semibold text-foreground text-right">
+              <span class="text-label-lg font-semibold text-foreground text-right">
                 {{ count }}
               </span>
             </template>

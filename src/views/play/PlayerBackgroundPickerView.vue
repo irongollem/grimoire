@@ -73,7 +73,7 @@
             <span
               v-for="p in propsToApply"
               :key="p"
-              class="px-2 py-0.5 rounded-full bg-primary/10 font-cinzel text-xs text-primary"
+              class="px-2 py-0.5 rounded-full bg-primary/10 text-label-lg text-primary"
             >
               {{ p }}
             </span>
@@ -88,7 +88,7 @@
           v-if="pendingRemovals"
           class="rounded-md border border-tone-caution/30 bg-tone-caution/10 p-3 space-y-2"
         >
-          <p class="font-cinzel text-xs font-semibold text-ink-caution ">
+          <p class="text-caption font-semibold text-ink-caution ">
             Remove {{ pendingRemovals.prevBgName }}'s proficiencies that don't carry over?
           </p>
           <ul class="text-caption text-muted-foreground list-disc pl-4 space-y-0.5">

@@ -34,7 +34,7 @@
             <span class="text-caption text-muted-foreground italic flex-1">
               {{ (msg.metadata as RollMetadata).label }}
             </span>
-            <span class="font-cinzel text-xs text-muted-foreground">
+            <span class="text-caption text-muted-foreground">
               {{ formatTime(msg.created_at) }}
             </span>
           </div>
@@ -88,7 +88,7 @@
             <span class="text-label text-primary">
               {{ msg.sender_name ?? "Unknown" }}
             </span>
-            <span class="font-cinzel text-2xs text-muted-foreground">
+            <span class="text-caption-sm text-muted-foreground">
               {{ formatTime(msg.created_at) }}
             </span>
           </div>

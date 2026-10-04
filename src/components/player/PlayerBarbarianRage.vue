@@ -18,7 +18,7 @@
     <!-- Active rage -->
     <div v-if="localActive" class="px-4 py-3 space-y-2">
       <div class="rounded-md bg-tone-danger/10 border border-tone-danger/30 px-3 py-2 space-y-1">
-        <p class="font-cinzel text-xs font-semibold text-destructive">Raging</p>
+        <p class="text-caption font-semibold text-destructive">Raging</p>
         <p class="text-body text-foreground">+{{ rageBonus }} melee damage (STR-based)</p>
         <p class="text-body text-muted-foreground">Resistance: bludgeoning, piercing, slashing</p>
         <p class="text-body text-muted-foreground">Advantage on STR checks and saving throws</p>

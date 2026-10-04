@@ -144,7 +144,7 @@
               <!-- Name + level -->
               <div class="flex-1 min-w-0">
                 <span class="text-body text-foreground">{{ spell.name }}</span>
-                <span class="font-cinzel text-2xs text-muted-foreground ml-1.5">{{ spell.level === 0 ? 'Cantrip' : `Lvl ${spell.level}` }}</span>
+                <span class="text-label text-muted-foreground ml-1.5">{{ spell.level === 0 ? 'Cantrip' : `Lvl ${spell.level}` }}</span>
               </div>
               <!-- Cast button -->
               <AppButton
@@ -291,10 +291,10 @@
             @click="openSell"
           />
           <div v-else class="space-y-2">
-            <p class="font-cinzel text-2xs text-ink-caution/80 tracking-widest uppercase">List for Sale</p>
+            <p class="text-eyebrow text-ink-caution/80 ">List for Sale</p>
             <div class="grid grid-cols-5 gap-1">
               <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-                <span class="font-cinzel text-2xs font-bold" :class="coin.color">{{ coin.symbol }}</span>
+                <span class="text-label font-bold" :class="coin.color">{{ coin.symbol }}</span>
                 <AppInput
                   v-model.number="sellPrice[coin.key]"
                   type="number" min="0"

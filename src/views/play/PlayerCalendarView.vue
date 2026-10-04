@@ -4,7 +4,7 @@
     <div class="rounded-lg border border-border bg-card px-5 py-4 flex flex-wrap items-center gap-4">
       <IconCalendarDays class="h-8 w-8 text-primary shrink-0" />
       <div>
-        <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-0.5">
+        <p class="text-label-lg font-semibold text-muted-foreground uppercase mb-0.5">
           Current In-Game Date
         </p>
         <p class="text-heading-lg font-bold text-foreground">
@@ -21,7 +21,7 @@
     <template v-else>
       <!-- Chronicle timeline (primary) -->
       <div>
-        <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-3">
+        <p class="text-label-lg font-semibold text-muted-foreground mb-3">
           CHRONICLE
         </p>
         <CalendarTimeline
@@ -32,7 +32,7 @@
 
       <!-- Month grid -->
       <div>
-        <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-3">
+        <p class="text-label-lg font-semibold text-muted-foreground mb-3">
           CALENDAR
         </p>
         <CalendarGrid

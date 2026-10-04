@@ -90,7 +90,7 @@
           <div class="flex items-start justify-between gap-2">
             <div>
               <div class="flex items-center gap-2">
-                <p v-if="invite.label" class="font-cinzel text-xs font-semibold text-foreground">
+                <p v-if="invite.label" class="text-caption font-semibold text-foreground">
                   {{ invite.label }}
                 </p>
                 <AppButton
@@ -180,11 +180,11 @@
               class="flex items-center gap-2 rounded-md bg-muted/20 px-2.5 py-1.5"
             >
               <div class="flex-1 min-w-0">
-                <span class="font-cinzel text-xs font-semibold text-foreground">{{ stat.model }}</span>
+                <span class="text-caption font-semibold text-foreground">{{ stat.model }}</span>
                 <span class="text-caption text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
               </div>
               <span class="text-caption text-muted-foreground shrink-0">{{ stat.count }}×</span>
-              <span class="font-cinzel text-xs text-foreground shrink-0 w-16 text-right">
+              <span class="text-label-lg text-foreground shrink-0 w-16 text-right">
                 ${{ stat.estimated_cost_usd.toFixed(3) }}
               </span>
             </div>

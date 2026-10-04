@@ -3,10 +3,10 @@
     <div class="flex items-center justify-between">
       <span class="text-eyebrow font-semibold text-muted-foreground">{{ label }}</span>
       <div class="flex items-center gap-2">
-        <span v-if="isSet" class="font-cinzel text-2xs tracking-widest text-ink-success uppercase">
+        <span v-if="isSet" class="text-eyebrow text-ink-success uppercase">
           Set · {{ updatedAtLabel }}
         </span>
-        <span v-else class="font-cinzel text-2xs tracking-widest text-muted-foreground/60 uppercase">Not configured</span>
+        <span v-else class="text-eyebrow text-muted-foreground/60 uppercase">Not configured</span>
         <AppButton
           v-if="isSet"
           variant="destructive"

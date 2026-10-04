@@ -11,7 +11,7 @@
       <div class="flex min-w-0 items-center gap-2 rounded-md border border-border p-2 text-caption">
         <span class="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><IconDungeon class="h-3.5 w-3.5" /></span>
         <div class="min-w-0 flex-1">
-          <p class="truncate font-cinzel text-label-lg font-bold text-foreground">{{ site.name }}</p>
+          <p class="truncate text-label-lg font-bold text-foreground">{{ site.name }}</p>
           <p class="text-muted-foreground">{{ siteMetaCaption }}</p>
         </div>
         <AppButton :to="placeRoute(site.id)" label="Open in Atlas" size="xs" variant="subtle" />
@@ -62,7 +62,7 @@
     <div v-else class="mt-2 flex min-w-0 items-center gap-2 rounded-md border border-dashed border-border p-2 text-caption">
       <span class="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><IconDungeon class="h-3.5 w-3.5" /></span>
       <div class="min-w-0 flex-1">
-        <p class="font-cinzel text-label-lg font-bold text-foreground">This beat can become a crawl</p>
+        <p class="text-label-lg font-bold text-foreground">This beat can become a crawl</p>
         <p class="text-muted-foreground">Stage it at a location that is a site with a floor plan and Run gains the room surface</p>
       </div>
       <AppButton label="Choose site" size="xs" :loading="staging" @click="choosingSite = true" />

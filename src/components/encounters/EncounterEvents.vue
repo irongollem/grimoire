@@ -38,7 +38,7 @@
               />
               <div v-if="editEventData.triggerType === 'combatant_hp_pct'" class="flex items-center gap-2">
                 <AppInput v-model.number="editEventData.pct" type="number" size="body" tone="card" :block="false" min="1" max="99" class="w-20" />
-                <span class="font-cinzel text-xs text-muted-foreground">% HP or below</span>
+                <span class="text-caption text-muted-foreground">% HP or below</span>
               </div>
             </template>
           </div>
@@ -95,10 +95,10 @@
         <!-- Summary row -->
         <div v-else class="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-2">
           <div class="flex-1 min-w-0">
-            <div class="font-cinzel text-xs font-semibold text-foreground truncate">{{ event.name }}</div>
+            <div class="text-caption font-semibold text-foreground truncate">{{ event.name }}</div>
             <div class="text-caption text-muted-foreground mt-0.5 truncate">{{ eventSummary(event) }}</div>
           </div>
-          <span v-if="!event.fire_once" class="shrink-0 font-cinzel text-2xs px-1 py-0.5 rounded bg-primary/10 text-primary" title="Repeating">∞</span>
+          <span v-if="!event.fire_once" class="shrink-0 text-label px-1 py-0.5 rounded bg-primary/10 text-primary" title="Repeating">∞</span>
           <AppButton
             variant="ghost"
             size="inline-xs"
@@ -139,7 +139,7 @@
             />
             <div v-if="newEvent.triggerType === 'combatant_hp_pct'" class="flex items-center gap-2">
               <AppInput v-model.number="newEvent.pct" type="number" size="body" tone="card" :block="false" min="1" max="99" class="w-20" />
-              <span class="font-cinzel text-xs text-muted-foreground">% HP or below</span>
+              <span class="text-caption text-muted-foreground">% HP or below</span>
             </div>
           </template>
         </div>

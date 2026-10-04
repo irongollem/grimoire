@@ -124,7 +124,7 @@
             <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--primary'] }" />
             <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--card'] }" />
           </div>
-          <span class="flex-1 font-cinzel text-xs font-semibold text-foreground tracking-wide">{{ theme.label }}</span>
+          <span class="flex-1 text-caption font-semibold text-foreground">{{ theme.label }}</span>
           <IconCheck v-if="form.theme === theme.id" class="h-3.5 w-3.5 text-primary shrink-0" />
         </AppButton>
       </div>
@@ -145,7 +145,7 @@
           @click="form.health_visibility = opt.value"
         >
           <div class="flex-1 min-w-0">
-            <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">{{ opt.label }}</span>
+            <span class="text-caption font-semibold text-foreground">{{ opt.label }}</span>
             <p class="text-caption text-muted-foreground mt-0.5">{{ opt.desc }}</p>
           </div>
           <IconCheck v-if="form.health_visibility === opt.value" class="h-3.5 w-3.5 text-primary shrink-0" />
@@ -158,7 +158,7 @@
       <label class="flex items-start gap-3 cursor-pointer">
         <ToggleSwitch v-model="form.immersive_rolls" size="lg" aria-label="Immersive Rolls" class="shrink-0 mt-0.5" />
         <div class="flex-1 min-w-0">
-          <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Immersive Rolls</span>
+          <span class="text-caption font-semibold text-foreground">Immersive Rolls</span>
           <p class="text-caption text-muted-foreground mt-0.5">
             Stealth, knowledge and insight checks show only flavor text in chat. Full result whispered to DM only. The player does not see their dice outcome.
           </p>
@@ -174,7 +174,7 @@
       <label class="flex items-start gap-3 cursor-pointer">
         <ToggleSwitch v-model="form.battle_map_show_tokens" size="lg" aria-label="Show VTT tokens to players" class="shrink-0 mt-0.5" />
         <div class="flex-1 min-w-0">
-          <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Show VTT tokens to players</span>
+          <span class="text-caption font-semibold text-foreground">Show VTT tokens to players</span>
           <p class="text-caption text-muted-foreground mt-0.5">
             When off, the player battle map shows only the map and fog of war; no character or monster tokens. Use for in-person sessions where combat happens with physical minis or theater of the mind. The DM's view is unaffected.
           </p>

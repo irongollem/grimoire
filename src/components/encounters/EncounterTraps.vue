@@ -30,7 +30,7 @@
           :label="trap.name"
           @click="previewTrap = trap"
         />
-        <span v-if="trap.cr" class="font-cinzel text-2xs text-muted-foreground shrink-0">
+        <span v-if="trap.cr" class="text-label text-muted-foreground shrink-0">
           CR {{ trap.cr }} · {{ crToXp(trap.cr) * qty }} XP
         </span>
 
@@ -45,7 +45,7 @@
             aria-label="Decrease trap quantity"
             @click="decrement(trap.id)"
           />
-          <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ qty }}</span>
+          <span class="text-label-lg font-bold text-foreground w-5 text-center">{{ qty }}</span>
           <AppButton
             variant="ghost"
             fill="muted"

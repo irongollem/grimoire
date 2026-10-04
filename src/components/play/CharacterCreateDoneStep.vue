@@ -29,7 +29,7 @@
         <div v-for="stat in ABILITY_STATS" :key="stat.key" class="text-center">
           <p class="text-label text-muted-foreground">{{ stat.label }}</p>
           <p class="text-heading-sm font-bold">{{ displayScore(stat.key) }}</p>
-          <p class="font-cinzel text-2xs"
+          <p class="text-label"
             :class="totalMod(stat.key) >= 0 ? 'text-ink-success' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
           </p>
@@ -41,25 +41,25 @@
         <div class="rounded-md bg-muted/40 p-2 text-center">
           <p class="text-label text-muted-foreground">MAX HP</p>
           <p class="text-heading font-bold text-foreground">{{ derivedHp ?? '—' }}</p>
-          <p v-if="selectedClass" class="font-cinzel text-2xs text-muted-foreground">d{{ selectedClass.hit_die }} + CON</p>
-          <p v-else class="font-cinzel text-2xs text-muted-foreground">pick a class</p>
+          <p v-if="selectedClass" class="text-caption-sm text-muted-foreground">d{{ selectedClass.hit_die }} + CON</p>
+          <p v-else class="text-caption-sm text-muted-foreground">pick a class</p>
         </div>
         <div class="rounded-md bg-muted/40 p-2 text-center">
           <p class="text-label text-muted-foreground">ARMOR CLASS</p>
           <p class="text-heading font-bold text-foreground">{{ derivedAc }}</p>
-          <p class="font-cinzel text-2xs text-muted-foreground">10 + DEX</p>
+          <p class="text-caption-sm text-muted-foreground">10 + DEX</p>
         </div>
         <div class="rounded-md bg-muted/40 p-2 text-center">
           <p class="text-label text-muted-foreground">SPEED</p>
           <p class="text-heading font-bold text-foreground">{{ derivedSpeed }} ft</p>
-          <p class="font-cinzel text-2xs text-muted-foreground">{{ selectedSpecies?.name ?? 'base' }}</p>
+          <p class="text-caption-sm text-muted-foreground">{{ selectedSpecies?.name ?? 'base' }}</p>
         </div>
         <div class="rounded-md bg-muted/40 p-2 text-center">
           <p class="text-label text-muted-foreground">INITIATIVE</p>
           <p class="text-heading font-bold text-foreground">
             {{ derivedInitiative >= 0 ? '+' : '' }}{{ derivedInitiative }}
           </p>
-          <p class="font-cinzel text-2xs text-muted-foreground">DEX mod</p>
+          <p class="text-caption-sm text-muted-foreground">DEX mod</p>
         </div>
       </div>
 
@@ -80,7 +80,7 @@
         <p class="text-label text-muted-foreground mb-1.5">SPELL SLOTS</p>
         <div class="flex flex-wrap gap-1.5">
           <span v-for="(max, idx) in spellSlotMaxes" v-show="max > 0" :key="idx"
-            class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-2xs text-primary">
+            class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-label text-primary">
             {{ SLOT_LEVEL_LABELS[idx] }}: {{ max }}
           </span>
         </div>

@@ -4,7 +4,7 @@
       <slot name="badge" />
       <RouterLink
         :to="to"
-        class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
+        class="min-w-0 flex-1 truncate text-caption font-semibold text-foreground transition-colors hover:text-primary"
       >{{ name }}</RouterLink>
       <slot name="actions" />
     </div>

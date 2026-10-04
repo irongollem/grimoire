@@ -4,7 +4,7 @@
       class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-muted text-2xs font-bold text-muted-foreground"
       aria-hidden="true"
     >1</span>
-    <span class="font-cinzel text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Floor plan</span>
+    <span class="text-eyebrow font-semibold text-muted-foreground">Floor plan</span>
 
     <!-- Mapped links into the Layers panel (#884, S5) — the one pill among
          the five that names something the DM fixes by choosing a layer,

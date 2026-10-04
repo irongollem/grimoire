@@ -28,7 +28,7 @@
         <button
           v-for="tab in tabs"
           :key="tab.id"
-          class="shrink-0 px-3 py-2.5 font-cinzel text-xs tracking-wide border-b-2 transition-colors whitespace-nowrap"
+          class="shrink-0 px-3 py-2.5 text-label-lg border-b-2 transition-colors whitespace-nowrap"
           :class="
             tab.id === 'danger'
               ? activeTab === 'danger'

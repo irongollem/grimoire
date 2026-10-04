@@ -68,7 +68,7 @@
     <template v-else-if="activeTab === 'forms'">
       <div class="flex items-start gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3">
         <div class="flex-1 min-w-0">
-          <p class="font-cinzel text-xs font-semibold text-foreground">
+          <p class="text-caption font-semibold text-foreground">
             {{ member?.['class'] }} · Level {{ member?.level }}
           </p>
           <p v-if="isDruid" class="text-caption text-muted-foreground italic mt-0.5">
@@ -208,7 +208,7 @@
             -->
             <span
               v-if="lightbox?.monster"
-              class="absolute bottom-2 left-2 px-2 py-0.5 rounded font-cinzel text-2xs font-bold text-white"
+              class="absolute bottom-2 left-2 px-2 py-0.5 rounded text-label font-bold text-white"
               :class="crBg(lightbox.monster.stat_block?.challenge_rating)"
             >CR {{ crText(lightbox.monster.stat_block?.challenge_rating) }}</span>
             <!-- Both bottom corners are taken (CR left, mini badge right), so the chip stacks above the CR one. -->
@@ -255,7 +255,7 @@
                 <p class="text-label text-muted-foreground mb-2">{{ section.label.toUpperCase() }}</p>
                 <div v-for="t in section.traits" :key="t.name" class="mb-3 last:mb-0">
                   <div class="flex items-start gap-2 flex-wrap">
-                    <p class="font-cinzel text-xs font-semibold text-foreground shrink-0">{{ t.name }}.</p>
+                    <p class="text-caption font-semibold text-foreground shrink-0">{{ t.name }}.</p>
                     <div class="flex gap-1.5 flex-wrap">
                       <AppButton
                         v-if="parseAttackBonus(t.description) !== null"

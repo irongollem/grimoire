@@ -92,7 +92,7 @@
 
           <!-- Stats row -->
           <div
-            class="flex gap-4 mt-auto font-cinzel text-xs text-muted-foreground"
+            class="flex gap-4 mt-auto text-label-lg text-muted-foreground"
           >
             <span class="flex items-center gap-1">
               <IconMonster class="h-3 w-3" />

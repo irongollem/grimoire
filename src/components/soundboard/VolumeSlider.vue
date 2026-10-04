@@ -2,7 +2,7 @@
   <div class="flex items-center gap-2 min-w-0">
     <span
       v-if="label"
-      class="font-cinzel text-2xs tracking-wide shrink-0"
+      class="text-label shrink-0"
       :class="muted ? 'text-muted-foreground/50' : 'text-muted-foreground'"
     >
       {{ label }}

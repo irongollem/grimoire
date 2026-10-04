@@ -21,7 +21,7 @@
         />
         <span class="flex-1 truncate">{{ opt.name }}</span>
         <span
-          class="text-xs text-muted-foreground shrink-0 font-cinzel"
+          class="text-caption text-muted-foreground shrink-0"
           >{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span
         >
       </template>
@@ -59,7 +59,7 @@
           }"
         />
         <span
-          class="font-cinzel text-xs font-semibold text-foreground truncate"
+          class="text-caption font-semibold text-foreground truncate"
           >{{ child.name }}</span
         >
       </AppButton>
@@ -98,7 +98,7 @@
               }"
             />
             <span
-              class="font-cinzel text-xs text-foreground truncate flex-1"
+              class="text-caption text-foreground truncate flex-1"
               >{{ opt.name }}</span
             >
             <span
@@ -114,7 +114,7 @@
             @mousedown.prevent="$emit('create-child', childSearch.trim())"
           >
             <IconAdd class="h-3 w-3 shrink-0 text-primary" />
-            <span class="font-cinzel text-xs truncate flex-1 text-primary">
+            <span class="text-caption truncate flex-1 text-primary">
               {{
                 childSearch.trim()
                   ? `Create "${childSearch.trim()}"`
@@ -153,7 +153,7 @@
           class="h-1.5 w-1.5 rounded-full shrink-0"
           :style="{ backgroundColor: LOCATION_TYPE_COLORS[relatedLocationMap.get(relId)!.location_type] }"
         />
-        <span class="font-cinzel text-xs font-semibold text-foreground truncate">
+        <span class="text-caption font-semibold text-foreground truncate">
           {{ relatedLocationMap.get(relId)?.name ?? relId }}
         </span>
         <IconClose class="h-2.5 w-2.5 text-muted-foreground group-hover:text-destructive shrink-0" />
@@ -187,7 +187,7 @@
               class="h-1.5 w-1.5 rounded-full shrink-0"
               :style="{ backgroundColor: LOCATION_TYPE_COLORS[opt.location_type] }"
             />
-            <span class="font-cinzel text-xs text-foreground truncate flex-1">{{ opt.name }}</span>
+            <span class="text-caption text-foreground truncate flex-1">{{ opt.name }}</span>
             <span class="text-caption-sm text-muted-foreground shrink-0">{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span>
           </AppButton>
         </div>

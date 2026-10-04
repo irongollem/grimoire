@@ -18,7 +18,7 @@
         :class="playlist.playlist_type === 'music' ? 'text-gold-400' : 'text-ink-success'"
       />
       <div class="flex-1 min-w-0">
-        <p class="font-cinzel text-xs font-semibold text-foreground leading-snug truncate">
+        <p class="text-caption font-semibold text-foreground leading-snug truncate">
           {{ playlist.name }}
         </p>
         <p class="text-caption-sm text-muted-foreground mt-0.5">

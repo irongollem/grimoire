@@ -15,13 +15,13 @@
         :href="group.license_url"
         target="_blank"
         rel="noopener noreferrer"
-        class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-2xs text-primary whitespace-nowrap shrink-0 hover:bg-primary/20 transition-colors"
+        class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-label text-primary whitespace-nowrap shrink-0 hover:bg-primary/20 transition-colors"
       >
         {{ group.license }}
       </a>
       <span
         v-else
-        class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-2xs text-primary whitespace-nowrap shrink-0"
+        class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-label text-primary whitespace-nowrap shrink-0"
       >
         {{ group.license }}
       </span>

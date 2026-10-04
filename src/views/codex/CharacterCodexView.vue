@@ -61,7 +61,7 @@
               class="absolute right-0 top-full mt-1 z-50 min-w-64 max-h-80 overflow-y-auto rounded-md border border-border bg-popover shadow-lg"
             >
               <div class="p-3 border-b border-border">
-                <p class="font-cinzel text-xs font-semibold text-foreground">Import Sources</p>
+                <p class="text-label-lg font-semibold text-foreground">Import Sources</p>
                 <p class="text-caption text-muted-foreground mt-0.5">Leave all unchecked to import everything.</p>
               </div>
               <div v-if="docsLoading" class="p-3 flex items-center justify-center">

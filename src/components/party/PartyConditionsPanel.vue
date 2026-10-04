@@ -8,7 +8,7 @@
     <span
       v-for="cond in nonExhaustionConditions"
       :key="cond"
-      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/30 font-cinzel text-2xs font-semibold text-destructive"
+      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/30 text-label font-semibold text-destructive"
       :title="getConditionDescription(cond, ruleset)"
     >
       {{ cond }}
@@ -18,7 +18,7 @@
     <span
       v-for="curse in member.curses"
       :key="curse"
-      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tone-arcane/10 border border-tone-arcane/30 font-cinzel text-2xs font-semibold text-ink-arcane"
+      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tone-arcane/10 border border-tone-arcane/30 text-label font-semibold text-ink-arcane"
     >
       Cursed: {{ curse }}
       <AppButton variant="link" tone="arcane" size="inline-xs" label="×" @click="removeCurse(curse)" />

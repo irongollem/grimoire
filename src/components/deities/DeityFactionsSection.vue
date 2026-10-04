@@ -18,7 +18,7 @@
       <IconShield v-else class="h-3 w-3 text-muted-foreground shrink-0" />
       <RouterLink
         :to="`/factions/${entry.faction.id}`"
-        class="font-cinzel text-2xs font-semibold text-foreground hover:text-primary transition-colors"
+        class="text-caption-sm font-semibold text-foreground hover:text-primary transition-colors"
       >{{ entry.faction.name }}</RouterLink>
       <span v-if="entry.faction.faction_type" class="text-caption-sm text-muted-foreground italic">{{ entry.faction.faction_type }}</span>
     </template>

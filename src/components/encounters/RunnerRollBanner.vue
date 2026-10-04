@@ -63,13 +63,13 @@ const rollResultClass = computed(() => {
   @apply flex items-center gap-1 flex-wrap;
 }
 .roll-die {
-  @apply font-cinzel text-xs font-bold text-foreground bg-muted rounded px-1.5 py-0.5;
+  @apply text-label-lg font-bold text-foreground bg-muted rounded px-1.5 py-0.5;
 }
 .roll-die-drop {
   @apply line-through opacity-40;
 }
 .roll-mod {
-  @apply font-cinzel text-xs text-primary font-semibold;
+  @apply text-label-lg text-primary font-semibold;
 }
 
 .roll-fade-enter-active,

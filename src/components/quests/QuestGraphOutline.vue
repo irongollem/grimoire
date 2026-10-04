@@ -25,7 +25,7 @@
         <span v-else-if="reach(beat.id) === 'stranded'" class="h-3.5 w-3.5 shrink-0 rounded border-[0.09375rem] border-border" aria-hidden="true" />
         <span v-else class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <button class="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" @click="emit('command', { type: 'open', beatId: beat.id })">
-          <span class="block truncate font-cinzel text-label-lg font-bold text-foreground">{{ beat.title || "Untitled beat" }}</span>
+          <span class="block truncate text-label-lg font-bold text-foreground">{{ beat.title || "Untitled beat" }}</span>
           <span class="mt-0.5 block truncate text-caption text-muted-foreground">{{ rowCaption(beat.id) || `${beat.kind} · ${beat.visibility}` }}</span>
         </button>
         <AppButton v-if="editable && selectedBeatId && selectedBeatId !== beat.id" label="Link" size="xs" variant="subtle" @click="emit('command', { type: 'link', sourceBeatId: selectedBeatId, targetBeatId: beat.id })" />

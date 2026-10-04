@@ -36,7 +36,7 @@
 
       <!-- ── Section 1: Identity ────────────────────────────────────────────── -->
       <section class="rounded-lg border border-border bg-card p-4 space-y-4">
-        <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Identity</h2>
+        <h2 class="text-label-lg uppercase text-muted-foreground">Identity</h2>
 
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1.5">CLASS NAME</label>
@@ -110,14 +110,14 @@
 
       <!-- ── Section 4: ASI levels ──────────────────────────────────────────── -->
       <section class="rounded-lg border border-border bg-card p-4 space-y-4">
-        <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Ability Score Increase Levels</h2>
+        <h2 class="text-label-lg uppercase text-muted-foreground">Ability Score Increase Levels</h2>
         <p class="text-body text-muted-foreground">Levels at which this class gains an Ability Score Improvement.</p>
 
         <div class="flex flex-wrap gap-1.5">
           <span
             v-for="lvl in form.asi_levels"
             :key="lvl"
-            class="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 font-cinzel text-xs text-primary"
+            class="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-label-lg text-primary"
           >
             {{ lvl }}
             <AppButton

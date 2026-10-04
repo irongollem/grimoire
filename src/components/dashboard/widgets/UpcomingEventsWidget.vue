@@ -63,7 +63,7 @@
              travel note would just be noise. -->
         <span
           v-if="item.event.event_type === 'deadline'"
-          class="shrink-0 font-cinzel text-label uppercase tracking-wide"
+          class="shrink-0 text-label uppercase"
           :class="item.daysUntil <= 1 ? 'text-tone-caution' : 'text-muted-foreground'"
         >
           {{ formatDaysUntil(item.daysUntil) }}

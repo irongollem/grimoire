@@ -14,7 +14,7 @@
           <component :is="ICON_COMPONENTS[row.icon]" class="h-3.5 w-3.5" />
         </span>
         <div class="min-w-0 flex-1">
-          <p class="truncate font-cinzel text-label-lg font-bold text-foreground">{{ row.summary }}</p>
+          <p class="truncate text-label-lg font-bold text-foreground">{{ row.summary }}</p>
           <p class="truncate text-muted-foreground">{{ row.caption }}</p>
         </div>
         <span

@@ -32,7 +32,7 @@
         <template v-if="showNumericHp">
           <div class="flex items-center justify-between mb-0.5">
             <span class="text-label text-muted-foreground">HP</span>
-            <span class="font-cinzel text-2xs" :class="hpColor">{{ companion.current_hp }} / {{ companion.max_hp }}</span>
+            <span class="text-label" :class="hpColor">{{ companion.current_hp }} / {{ companion.max_hp }}</span>
           </div>
           <div class="h-1.5 rounded-full bg-muted overflow-hidden">
             <div
@@ -50,7 +50,7 @@
       <div class="flex items-center gap-2 flex-wrap">
         <span class="flex items-center gap-1">
           <IconShield class="h-3 w-3 text-muted-foreground shrink-0" />
-          <span class="font-cinzel text-xs font-bold text-foreground">{{ companion.ac }}</span>
+          <span class="text-label-lg font-bold text-foreground">{{ companion.ac }}</span>
         </span>
         <span
           v-for="cond in (companion.conditions ?? []).slice(0, 2)"

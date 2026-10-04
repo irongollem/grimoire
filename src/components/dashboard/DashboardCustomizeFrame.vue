@@ -58,7 +58,7 @@
           tooltip="Narrower"
           @click="emit('cycle-width', entry.key, -1)"
         />
-        <span class="px-0.5 font-cinzel text-2xs text-muted-foreground">{{ widthLabel }}</span>
+        <span class="px-0.5 text-label text-muted-foreground">{{ widthLabel }}</span>
         <AppButton
           variant="ghost"
           size="icon-xs"
@@ -78,7 +78,7 @@
           tooltip="Shorter"
           @click="emit('cycle-height', entry.key, -1)"
         />
-        <span class="px-0.5 font-cinzel text-2xs text-muted-foreground">{{ heightLabel }}</span>
+        <span class="px-0.5 text-label text-muted-foreground">{{ heightLabel }}</span>
         <AppButton
           variant="ghost"
           size="icon-xs"

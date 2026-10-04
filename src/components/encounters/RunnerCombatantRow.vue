@@ -252,7 +252,7 @@ function toggleDetail() {
 }
 
 .avatar-initials {
-  @apply w-full h-full flex items-center justify-center font-cinzel text-xs font-bold;
+  @apply w-full h-full flex items-center justify-center text-label-lg font-bold;
 }
 
 .reveal-btn {
@@ -268,7 +268,7 @@ function toggleDetail() {
 }
 
 .type-badge {
-  @apply font-cinzel text-2xs font-bold px-1.5 py-0.5 rounded uppercase;
+  @apply text-eyebrow font-bold px-1.5 py-0.5 rounded uppercase;
 }
 .type-badge.player  { @apply bg-primary/20 text-primary; }
 .type-badge.monster { @apply bg-muted text-muted-foreground; }
@@ -284,15 +284,15 @@ function toggleDetail() {
 }
 
 .cond-badge {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold bg-tone-caution/20 text-ink-caution  border border-tone-caution/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
+  @apply inline-flex items-center px-1.5 py-0.5 rounded text-label font-semibold bg-tone-caution/20 text-ink-caution  border border-tone-caution/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
 }
 
 .conc-chip {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold bg-tone-arcane/20 text-ink-arcane  border border-tone-arcane/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
+  @apply inline-flex items-center px-1.5 py-0.5 rounded text-label font-semibold bg-tone-arcane/20 text-ink-arcane  border border-tone-arcane/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
 }
 
 .reaction-chip {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold border transition-colors cursor-pointer;
+  @apply inline-flex items-center px-1.5 py-0.5 rounded text-label font-semibold border transition-colors cursor-pointer;
 }
 .reaction-ready { @apply bg-tone-info/10 text-ink-info border-tone-info/30 hover:bg-tone-info/20; }
 .reaction-used  { @apply bg-muted text-muted-foreground/40 border-border line-through hover:bg-tone-danger/10 hover:text-destructive hover:border-tone-danger/30; }
@@ -390,7 +390,7 @@ function toggleDetail() {
   @apply flex items-center justify-center gap-1 relative;
 }
 
-.hp-max { @apply font-cinzel text-xs text-muted-foreground; }
+.hp-max { @apply text-label-lg text-muted-foreground; }
 
 .ac-cell  { @apply flex items-center justify-center; }
 .ac-value { @apply text-heading-sm font-bold text-foreground text-center; }

@@ -77,7 +77,7 @@
       <span class="text-label-lg font-semibold text-destructive">
         ⚔ {{ legendary.name.toUpperCase() }} · LEGENDARY ACTIONS
       </span>
-      <span class="font-cinzel text-2xs text-muted-foreground">
+      <span class="text-label text-muted-foreground">
         {{ legendary.legendary_actions_remaining }} / {{ legendary.legendary_action_cap }} remaining
       </span>
     </div>

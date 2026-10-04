@@ -1,7 +1,7 @@
 <template>
   <section class="rounded-lg border border-border bg-card p-4 space-y-4">
     <div class="flex items-center justify-between">
-      <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Resource Pools</h2>
+      <h2 class="text-label-lg uppercase text-muted-foreground">Resource Pools</h2>
       <AppButton variant="outline" size="xs" label="Add resource" :icon="IconAdd" icon-size="xs" @click="addResource" />
     </div>
     <p class="text-body text-muted-foreground">
@@ -73,7 +73,7 @@
         <label class="block text-eyebrow text-muted-foreground mb-1.5">VALUES PER LEVEL (1–20)</label>
         <div class="grid grid-cols-5 gap-1.5">
           <div v-for="n in 20" :key="n" class="space-y-0.5">
-            <span class="block font-cinzel text-2xs text-muted-foreground text-center">{{ n }}</span>
+            <span class="block text-label text-muted-foreground text-center">{{ n }}</span>
             <input :value="(res.table_values ?? [])[n - 1] ?? ''" type="number" min="0"
               class="w-full bg-muted/40 border border-border rounded px-1.5 py-1 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
               @input="setTableValue(i, n - 1, ($event.target as HTMLInputElement).valueAsNumber)" />

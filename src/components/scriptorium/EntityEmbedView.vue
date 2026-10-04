@@ -350,7 +350,7 @@ async function detach() {
 }
 
 .sc-entity-embed-badge {
-  @apply text-eyebrow font-bold uppercase tracking-wider text-primary;
+  @apply text-eyebrow font-bold text-primary;
 }
 
 .sc-entity-embed-actions {

@@ -484,7 +484,7 @@ async function discardStaged(item: StagingItem) {
         <button
           v-for="src in sources"
           :key="src"
-          class="px-2.5 py-1 rounded font-cinzel text-xs tracking-wide border transition-colors"
+          class="px-2.5 py-1 rounded text-label-lg border transition-colors"
           :class="
             selectedSource === src
               ? 'bg-primary text-primary-foreground border-primary'
@@ -558,7 +558,7 @@ async function discardStaged(item: StagingItem) {
       </div>
 
       <template v-else-if="stagingItems && stagingItems.length > 0">
-        <p class="font-cinzel text-xs text-muted-foreground tracking-wide">
+        <p class="text-label-lg text-muted-foreground">
           {{ stagingItems.length }} image{{
             stagingItems.length === 1 ? "" : "s"
           }}

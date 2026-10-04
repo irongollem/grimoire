@@ -379,7 +379,7 @@
         />
         <AppCheckbox v-model="checkboxValue" label-layout="row" class="max-w-64 rounded px-2 py-1 hover:bg-accent">
           <span class="min-w-0 flex-1 truncate">label-layout="row": slot with trailing meta</span>
-          <span class="font-cinzel text-2xs text-muted-foreground shrink-0">42</span>
+          <span class="text-label text-muted-foreground shrink-0">42</span>
         </AppCheckbox>
         <div class="flex flex-wrap items-center gap-4">
           <AppCheckbox
@@ -541,7 +541,7 @@ import { FIELD_SIZES, FIELD_TONES } from "@/components/common/fieldVariants";
 const LOADER_HEIGHTS = ["h-3", "h-3.5", "h-4", "h-5", "h-6", "h-8", "h-10", "h-14", "h-26"] as const;
 
 const SWITCH_ROWS = [
-  { size: "md", label: "GENERATE PORTRAIT ART", labelClass: "font-cinzel text-xs font-bold tracking-widest uppercase text-foreground", note: "IlluminateDofPanel: a panel option row" },
+  { size: "md", label: "GENERATE PORTRAIT ART", labelClass: "text-label-lg font-bold uppercase text-foreground", note: "IlluminateDofPanel: a panel option row" },
   { size: "lg", label: "Keep screen awake", labelClass: "text-heading-sm text-foreground", note: "PlayerSettingsAppearance: a settings row with a description" },
 ] as const satisfies readonly { size: (typeof SWITCH_SIZES)[number]; label: string; labelClass: string; note: string }[];
 

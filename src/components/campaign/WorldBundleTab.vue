@@ -218,7 +218,7 @@
             <span class="text-caption text-muted-foreground">
               {{ typeDef(type)?.label }}
             </span>
-            <span class="font-cinzel text-xs font-semibold text-foreground text-right">
+            <span class="text-label-lg font-semibold text-foreground text-right">
               {{ entitySelections[type]?.size ?? 0 }}
             </span>
           </template>

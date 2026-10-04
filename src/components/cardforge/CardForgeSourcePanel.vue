@@ -98,7 +98,7 @@ function selectAll() {
   @apply grid grid-cols-2 gap-px rounded-md overflow-hidden border border-border bg-border shrink-0;
 }
 .src-tab {
-  @apply flex min-w-0 items-center justify-center gap-1.5 font-cinzel text-xs font-semibold px-2 py-1.5 text-muted-foreground bg-card transition-colors;
+  @apply flex min-w-0 items-center justify-center gap-1.5 text-label-lg font-semibold px-2 py-1.5 text-muted-foreground bg-card transition-colors;
 }
 .src-tab.active {
   @apply bg-primary/20 text-primary;
@@ -106,16 +106,16 @@ function selectAll() {
 /* Inline, not absolutely positioned: as an overlay it printed on top of the
    label the moment a tab's text filled its width. */
 .tab-count {
-  @apply inline-flex shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-cinzel text-2xs font-bold px-1.5 leading-4;
+  @apply inline-flex shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-label font-bold px-1.5 leading-4;
 }
 .loot-banner {
   @apply flex items-center justify-between px-3 py-2 rounded-md border border-border bg-primary/10 shrink-0;
 }
 .loot-banner-title {
-  @apply font-cinzel text-xs font-bold text-primary;
+  @apply text-label-lg font-bold text-primary;
 }
 .loot-banner-count {
-  @apply font-cinzel text-xs font-semibold text-muted-foreground;
+  @apply text-label-lg font-semibold text-muted-foreground;
 }
 .search-input {
   @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
@@ -124,10 +124,10 @@ function selectAll() {
   @apply flex items-center gap-2 shrink-0;
 }
 .selection-count {
-  @apply font-cinzel text-xs text-muted-foreground flex-1;
+  @apply text-label-lg text-muted-foreground flex-1;
 }
 .sel-action {
-  @apply font-cinzel text-xs font-semibold text-primary hover:opacity-80;
+  @apply text-label-lg font-semibold text-primary hover:opacity-80;
 }
 .entity-list {
   @apply flex-1 overflow-y-auto flex flex-col gap-0.5 min-h-0;
@@ -139,7 +139,7 @@ function selectAll() {
   @apply flex flex-col min-w-0;
 }
 .entity-name {
-  @apply font-cinzel text-xs font-semibold text-foreground truncate;
+  @apply text-caption font-semibold text-foreground truncate;
 }
 .entity-sub {
   @apply text-caption text-muted-foreground truncate capitalize;

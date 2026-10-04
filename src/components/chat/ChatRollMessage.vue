@@ -7,7 +7,7 @@
     <!-- DM-only badge -->
     <div class="flex items-center gap-1 mb-1.5">
       <IconHide class="h-3 w-3 text-ink-arcane  shrink-0" />
-      <span class="font-cinzel text-2xs text-ink-arcane  tracking-widest">HIDDEN ROLL</span>
+      <span class="text-eyebrow text-ink-arcane  ">HIDDEN ROLL</span>
     </div>
     <!-- Sender row -->
     <p class="text-label text-foreground/60 mb-1">
@@ -49,20 +49,20 @@
                 : 'text-ink-arcane '
           "
         >{{ roll.total ?? "?" }}</span>
-        <span v-if="roll.isCrit" class="font-cinzel text-2xs text-ink-caution tracking-widest mt-0.5">CRIT</span>
-        <span v-else-if="roll.isFumble" class="font-cinzel text-2xs text-destructive tracking-widest mt-0.5">FAIL</span>
+        <span v-if="roll.isCrit" class="text-eyebrow text-ink-caution mt-0.5">CRIT</span>
+        <span v-else-if="roll.isFumble" class="text-eyebrow text-destructive mt-0.5">FAIL</span>
       </div>
       <div class="flex-1 min-w-0">
         <div v-if="roll.breakdown?.length" class="flex flex-wrap gap-1 mb-1">
           <span
             v-for="(d, i) in roll.breakdown"
             :key="i"
-            class="font-cinzel text-2xs px-1.5 py-0.5 rounded"
+            class="text-label px-1.5 py-0.5 rounded"
             :class="d.dropped ? 'line-through text-muted-foreground/30 bg-muted/30' : 'bg-tone-arcane/20 text-ink-arcane '"
           >{{ d.val }}</span>
           <span
             v-if="roll.modifier !== 0"
-            class="font-cinzel text-2xs text-ink-arcane  px-1"
+            class="text-label text-ink-arcane  px-1"
           >{{ roll.modifier > 0 ? `+${roll.modifier}` : roll.modifier }}</span>
         </div>
         <p class="text-caption-sm text-muted-foreground/50">{{ timeLabel }}</p>
@@ -113,11 +113,11 @@
         >{{ roll.total ?? "?" }}</span>
         <span
           v-if="roll.isCrit"
-          class="font-cinzel text-2xs text-ink-caution tracking-widest mt-0.5"
+          class="text-eyebrow text-ink-caution mt-0.5"
         >CRIT</span>
         <span
           v-else-if="roll.isFumble"
-          class="font-cinzel text-2xs text-destructive tracking-widest mt-0.5"
+          class="text-eyebrow text-destructive mt-0.5"
         >FAIL</span>
       </div>
       <!-- Breakdown + meta -->
@@ -129,7 +129,7 @@
           <span
             v-for="(d, i) in roll.breakdown"
             :key="i"
-            class="font-cinzel text-2xs px-1.5 py-0.5 rounded"
+            class="text-label px-1.5 py-0.5 rounded"
             :class="
               d.dropped
                 ? 'line-through text-muted-foreground/30 bg-muted/30'
@@ -138,7 +138,7 @@
           >{{ d.val }}</span>
           <span
             v-if="roll.modifier !== 0"
-            class="font-cinzel text-2xs text-primary px-1"
+            class="text-label text-primary px-1"
           >
             {{
               roll.modifier > 0

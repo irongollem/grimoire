@@ -68,7 +68,7 @@
             class="h-2 w-2 rounded-full shrink-0"
             :style="{ backgroundColor: LOCATION_TYPE_COLORS[rel.location_type] }"
           />
-          <span class="font-cinzel text-xs text-foreground truncate max-w-40">{{ rel.name }}</span>
+          <span class="text-caption text-foreground truncate max-w-40">{{ rel.name }}</span>
         </RouterLink>
       </div>
     </section>
@@ -157,7 +157,7 @@
             >{{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}</p>
             <p
               v-if="npc.location_id && npc.location_id !== location.id"
-              class="mt-0.5 truncate font-cinzel text-2xs tracking-wide text-muted-foreground/60"
+              class="mt-0.5 truncate text-caption-sm text-muted-foreground/60"
             >{{ locationNameOf(npc.location_id) }}</p>
           </div>
           <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
@@ -199,7 +199,7 @@
           :to="`/party/${m.id}`"
           class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 transition-colors hover:border-primary/50"
         >
-          <span class="font-cinzel text-xs font-semibold text-foreground">{{ m.name }}</span>
+          <span class="text-caption font-semibold text-foreground">{{ m.name }}</span>
           <span v-if="m.class" class="text-caption-sm text-muted-foreground italic">{{ m.class }}</span>
         </RouterLink>
       </div>

@@ -14,7 +14,7 @@
     :form="form"
   >
     <template #what>
-      <p class="mb-2 font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground">
+      <p class="mb-2 text-eyebrow font-semibold text-muted-foreground">
         THEY ALSO SEE
       </p>
       <div class="flex flex-col gap-1">

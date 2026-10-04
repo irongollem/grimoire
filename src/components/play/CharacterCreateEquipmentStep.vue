@@ -18,7 +18,7 @@
             ? 'border-primary ring-1 ring-primary bg-primary/5'
             : 'border-border bg-card hover:border-primary/40'"
           @click="classEquipmentChoice = key">
-          <p class="font-cinzel text-xs font-semibold text-foreground">
+          <p class="text-caption font-semibold text-foreground">
             {{ key === 'a' ? 'Choice A' : 'Choice B' }}
             <span class="font-fell font-normal text-muted-foreground ml-1">· {{ classEquipmentPack[key].label }}</span>
           </p>

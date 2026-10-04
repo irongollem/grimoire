@@ -140,7 +140,7 @@
               <button
                 type="button"
                 :disabled="isEnhancing"
-                class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-xs font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                class="flex items-center gap-1.5 px-2.5 py-1.5 text-label-lg font-semibold text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                 @click="onEnhance"
               >
                 <BannerLoader v-if="isEnhancing" class="h-3" />

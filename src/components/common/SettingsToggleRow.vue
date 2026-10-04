@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-center justify-between">
     <div>
-      <p class="font-cinzel text-xs text-foreground tracking-wide">{{ label }}</p>
+      <p class="text-label-lg text-foreground">{{ label }}</p>
       <p class="text-caption text-muted-foreground italic">{{ description }}</p>
     </div>
     <ToggleSwitch

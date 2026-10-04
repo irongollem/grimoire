@@ -9,11 +9,11 @@
     max-height="none"
   >
     <div v-if="next" class="px-4 py-3">
-      <p class="font-cinzel text-heading-sm font-semibold text-foreground">{{ next.title }}</p>
+      <p class="text-heading-sm font-semibold text-foreground">{{ next.title }}</p>
       <p class="text-body text-muted-foreground">{{ formatted }}</p>
       <!-- The deadline is the point of this widget: prep gaps matter *because*
            Thursday is coming, and a countdown says that better than a date. -->
-      <p class="mt-1 font-cinzel text-label uppercase tracking-wide" :class="daysAway <= 1 ? 'text-tone-caution' : 'text-primary'">
+      <p class="mt-1 text-label uppercase" :class="daysAway <= 1 ? 'text-tone-caution' : 'text-primary'">
         {{ countdown }}
       </p>
     </div>

@@ -1,6 +1,6 @@
 <template>
   <section class="rounded-lg border border-border bg-card p-4 space-y-4">
-    <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Features per Level</h2>
+    <h2 class="text-label-lg uppercase text-muted-foreground">Features per Level</h2>
     <p class="text-body text-muted-foreground">
       Select features from the
       <RouterLink to="/features" class="text-primary hover:underline">Abilities compendium</RouterLink>

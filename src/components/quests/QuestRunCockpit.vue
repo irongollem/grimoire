@@ -2,7 +2,7 @@
   <section class="space-y-3" aria-label="Quest Run mode">
     <header class="flex flex-wrap items-center gap-2">
       <div>
-        <p class="text-label font-bold uppercase tracking-wider text-primary">Session cockpit</p>
+        <p class="text-label font-bold uppercase text-primary">Session cockpit</p>
         <p class="text-caption text-muted-foreground">Stay in the story; supporting material opens with a return path.</p>
       </div>
       <div class="ml-auto flex gap-2">

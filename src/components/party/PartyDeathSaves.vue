@@ -2,7 +2,7 @@
   <div class="flex items-center gap-3 p-2 rounded bg-destructive/10 border border-destructive/20">
     <span class="text-label font-bold text-destructive">DEATH SAVES</span>
     <div class="flex items-center gap-1">
-      <span class="font-cinzel text-2xs text-ink-success">✓</span>
+      <span class="text-label text-ink-success">✓</span>
       <div class="flex gap-1">
         <button
           v-for="i in 3"
@@ -15,7 +15,7 @@
       </div>
     </div>
     <div class="flex items-center gap-1">
-      <span class="font-cinzel text-2xs text-destructive">✗</span>
+      <span class="text-label text-destructive">✗</span>
       <div class="flex gap-1">
         <button
           v-for="i in 3"

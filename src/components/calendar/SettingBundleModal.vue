@@ -22,7 +22,7 @@
         <div class="rounded-lg border border-border bg-muted/30 px-4 py-3 flex flex-col gap-1.5">
           <div class="flex items-center justify-between">
             <span class="text-heading-sm font-bold text-foreground">{{ bundle.name }}</span>
-            <span class="font-cinzel text-xs text-muted-foreground">{{ bundle.events.length }} events</span>
+            <span class="text-caption text-muted-foreground">{{ bundle.events.length }} events</span>
           </div>
           <p class="text-body text-muted-foreground">{{ bundle.description }}</p>
         </div>
@@ -50,7 +50,7 @@
 
         <!-- Event preview list -->
         <div class="flex flex-col gap-1">
-          <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-1">EVENTS INCLUDED</p>
+          <p class="text-label-lg font-semibold text-muted-foreground mb-1">EVENTS INCLUDED</p>
           <div
             v-for="(event, i) in bundle.events"
             :key="i"
@@ -62,8 +62,8 @@
             />
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-cinzel text-xs font-semibold text-foreground">{{ event.title }}</span>
-                <span class="font-cinzel text-2xs text-muted-foreground">{{ event.harptos_year }} DR</span>
+                <span class="text-caption font-semibold text-foreground">{{ event.title }}</span>
+                <span class="text-caption-sm text-muted-foreground">{{ event.harptos_year }} DR</span>
               </div>
               <p class="text-caption text-muted-foreground mt-0.5 line-clamp-2">
                 {{ event.description }}

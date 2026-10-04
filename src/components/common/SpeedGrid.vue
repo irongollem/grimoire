@@ -37,7 +37,7 @@
           @focus="($event.target as HTMLInputElement).select()"
           @update:model-value="setSpeed('fly', $event)"
         />
-        <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-2xs text-muted-foreground">ft.</span>
+        <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none text-label text-muted-foreground">ft.</span>
       </div>
 
       <!-- Other speeds -->
@@ -57,7 +57,7 @@
           @update:model-value="setSpeed(sp.key, $event)"
           @focus="($event.target as HTMLInputElement).select()"
         />
-        <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-2xs text-muted-foreground">ft.</span>
+        <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none text-label text-muted-foreground">ft.</span>
       </div>
     </div>
   </div>

@@ -82,7 +82,7 @@
           </div>
           <template v-else>
             <template v-for="group in mobileGroups" :key="group.type">
-              <div class="px-4 py-2 font-cinzel text-2xs tracking-widest text-muted-foreground/60 uppercase bg-secondary/30 border-b border-t border-border/50">
+              <div class="px-4 py-2 text-eyebrow text-muted-foreground/60 uppercase bg-secondary/30 border-b border-t border-border/50">
                 {{ group.label }}
               </div>
               <AppButton

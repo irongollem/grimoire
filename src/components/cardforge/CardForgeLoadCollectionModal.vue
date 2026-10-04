@@ -80,7 +80,7 @@ function formatDate(iso: string) {
   @apply flex gap-2 justify-end;
 }
 .modal-cancel {
-  @apply font-cinzel text-xs font-semibold px-4 py-2 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors;
+  @apply text-label-lg font-semibold px-4 py-2 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors;
 }
 .library-list {
   @apply flex flex-col gap-2 max-h-80 overflow-y-auto;
@@ -101,7 +101,7 @@ function formatDate(iso: string) {
   @apply flex gap-1;
 }
 .lib-load-btn {
-  @apply font-cinzel text-xs font-semibold px-2 py-1 rounded bg-primary/20 text-primary hover:bg-primary/30 transition-colors;
+  @apply text-label-lg font-semibold px-2 py-1 rounded bg-primary/20 text-primary hover:bg-primary/30 transition-colors;
 }
 .lib-del-btn {
   @apply text-heading-sm font-bold px-2 py-1 rounded text-muted-foreground hover:text-destructive transition-colors;

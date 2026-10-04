@@ -17,7 +17,7 @@
         @remove="removeMember(m)"
       >
         <template #name>
-          <span class="font-cinzel text-xs font-semibold text-foreground truncate block">
+          <span class="text-caption font-semibold text-foreground truncate block">
             {{ m.party_member.name }}
           </span>
         </template>
@@ -58,7 +58,7 @@
           @remove="removeMember(m)"
         >
           <template #name>
-            <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ m.party_member.name }}</span>
+            <span class="text-caption font-semibold text-foreground truncate block">{{ m.party_member.name }}</span>
           </template>
           <template #subtitle>
             <p v-if="speciesNameOf(m.party_member) || m.party_member.class" class="text-caption text-muted-foreground italic truncate">

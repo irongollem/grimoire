@@ -8,7 +8,7 @@
         class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
         :class="open ? 'rotate-90' : ''"
       />
-      <span class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase text-foreground">Brush</span>
+      <span class="flex-1 text-label-lg font-bold uppercase text-foreground">Brush</span>
       <span v-if="hasStrokes" class="text-label text-primary mr-2">strokes</span>
     </div>
 

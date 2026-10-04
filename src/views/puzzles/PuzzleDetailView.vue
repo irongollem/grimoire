@@ -128,7 +128,7 @@
               :key="hint.order"
               class="flex items-start gap-3 px-4 py-3"
             >
-              <span class="shrink-0 font-cinzel text-2xs font-bold text-muted-foreground/60 w-4 mt-0.5">{{ hint.order }}</span>
+              <span class="shrink-0 text-label font-bold text-muted-foreground/60 w-4 mt-0.5">{{ hint.order }}</span>
               <div class="flex-1 min-w-0">
                 <RichTextViewer :content="hint.text" />
               </div>

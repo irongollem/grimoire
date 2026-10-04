@@ -8,7 +8,7 @@
     >
       <!-- View mode: toolbar-style header with name + actions -->
       <div v-if="editingId !== note.id" class="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
-        <span class="font-cinzel text-xs font-semibold text-foreground">{{ memberName(note.party_member_id) }}</span>
+        <span class="text-caption font-semibold text-foreground">{{ memberName(note.party_member_id) }}</span>
         <div class="flex items-center gap-3">
           <AppButton variant="ghost" size="inline-xs" label="Edit" @click="startEdit(note)" />
           <AppButton variant="ghost" tone="danger" size="inline-xs" label="Delete" @click="remove(note.id)" />

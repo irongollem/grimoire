@@ -4,7 +4,7 @@
 
       <!-- Game Day -->
       <div class="flex flex-col gap-1.5">
-        <p class="font-cinzel text-2xs text-muted-foreground tracking-widest uppercase">Game Day</p>
+        <p class="text-eyebrow text-muted-foreground uppercase">Game Day</p>
         <template v-if="!editingDate">
           <p class="text-heading-sm font-semibold text-foreground">{{ todayFormatted }}</p>
           <div class="flex items-center gap-1.5">
@@ -79,7 +79,7 @@
 
       <!-- Current Location -->
       <div class="flex flex-col gap-1.5">
-        <p class="font-cinzel text-2xs text-muted-foreground tracking-widest uppercase">Current Location</p>
+        <p class="text-eyebrow text-muted-foreground uppercase">Current Location</p>
         <EntityCombobox
           v-model="currentLocationId"
           :options="locationOptions"

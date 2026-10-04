@@ -18,7 +18,7 @@
   -->
   <RevealControl :adapter="adapter" :entity-name="puzzle.name" :form="form">
     <template #what>
-      <p class="mb-2 font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground">
+      <p class="mb-2 text-label font-semibold text-muted-foreground">
         HINTS GIVEN
       </p>
       <div v-if="hints.length" class="flex flex-col gap-1">

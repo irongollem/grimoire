@@ -27,7 +27,7 @@
     <div class="flex flex-col gap-4">
       <div v-for="group in groups" :key="group.label">
         <p
-          class="px-1 pb-2 font-cinzel text-2xs font-bold uppercase tracking-widest text-muted-foreground/60"
+          class="px-1 pb-2 text-eyebrow font-bold uppercase text-muted-foreground/60"
         >
           {{ group.label }}
         </p>
@@ -46,7 +46,7 @@
             @click="navigate(item)"
           >
             <component :is="item.icon" class="h-5 w-5 shrink-0" />
-            <span class="font-cinzel text-2xs leading-tight">{{ item.label }}</span>
+            <span class="text-label leading-tight">{{ item.label }}</span>
             <!-- Gold dot: pinned to the bar for the active mode -->
             <span
               v-if="barRoutes.includes(item.to)"

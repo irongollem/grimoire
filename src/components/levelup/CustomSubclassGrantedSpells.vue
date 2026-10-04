@@ -1,6 +1,6 @@
 <template>
   <section class="rounded-lg border border-border bg-card p-4 space-y-4">
-    <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Granted Spells per Level</h2>
+    <h2 class="text-label-lg uppercase text-muted-foreground">Granted Spells per Level</h2>
     <p class="text-body text-muted-foreground">
       Spells the subclass grants automatically: always prepared, and they don't count toward the
       prepared-spell limit (oath / domain / circle spells). Pick from the SRD or your

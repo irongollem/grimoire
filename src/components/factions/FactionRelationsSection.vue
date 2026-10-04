@@ -11,7 +11,7 @@
           class="shrink-0 h-2 w-2 rounded-full"
           :style="{ backgroundColor: meta(rel.relation_type).color }"
         />
-        <RouterLink :to="`/factions/${rel.target_faction.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
+        <RouterLink :to="`/factions/${rel.target_faction.id}`" class="text-caption font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
           {{ rel.target_faction.name }}
         </RouterLink>
         <span class="text-label shrink-0" :style="{ color: meta(rel.relation_type).color }">
@@ -49,7 +49,7 @@
           class="shrink-0 h-2 w-2 rounded-full"
           :style="{ backgroundColor: meta(rel.relation_type).color }"
         />
-        <RouterLink :to="`/factions/${rel.source_faction.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
+        <RouterLink :to="`/factions/${rel.source_faction.id}`" class="text-caption font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
           {{ rel.source_faction.name }}
         </RouterLink>
         <span class="text-label shrink-0 italic text-muted-foreground">views us as</span>

@@ -95,7 +95,7 @@
             {{ inviteUrl(invite.token) }}
           </code>
           <button
-            class="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-cinzel tracking-wide transition-colors"
+            class="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded text-label-lg transition-colors"
             :class="copiedId === invite.id
               ? 'bg-elven-green/20 text-elven-green'
               : 'bg-card border border-border text-foreground hover:bg-muted'"

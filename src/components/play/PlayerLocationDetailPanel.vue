@@ -82,7 +82,7 @@
           @click="$emit('open-npc', npc)"
         >
           <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ getNpcDisplayName(npc) ?? "???" }}</p>
+            <p class="text-caption font-semibold text-foreground truncate">{{ getNpcDisplayName(npc) ?? "???" }}</p>
             <p v-if="npc.occupation || npc.race" class="text-caption text-muted-foreground italic truncate">
               {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
             </p>

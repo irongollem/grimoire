@@ -28,19 +28,19 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2 w-full max-w-2xl text-left">
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-          <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Identity</p>
+          <p class="text-eyebrow text-primary">Identity</p>
           <p class="text-caption text-muted-foreground">
             Hit die, primary ability, saving throws, armor &amp; weapon proficiencies, and subclass-granting level.
           </p>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-          <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Feature Progression</p>
+          <p class="text-eyebrow text-primary">Feature Progression</p>
           <p class="text-caption text-muted-foreground">
             Link abilities from the compendium to each level, define Ability Score Increase levels, and add wizard steps for player choices.
           </p>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-          <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Resource Pools</p>
+          <p class="text-eyebrow text-primary">Resource Pools</p>
           <p class="text-caption text-muted-foreground">
             Tracked uses that appear on the character sheet: Grit Points, Ki, Superiority Dice, etc.
           </p>
@@ -81,7 +81,7 @@
 
     <!-- SRD Classes (always shown unless search hides them all) -->
     <div v-if="filteredSystem.length > 0" class="px-4 md:px-6 mt-6 mb-4">
-      <h3 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground mb-2">
+      <h3 class="text-label-lg uppercase text-muted-foreground mb-2">
         Reference classes · read only · duplicate to customise
       </h3>
       <div class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">

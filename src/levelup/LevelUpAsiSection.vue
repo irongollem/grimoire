@@ -66,7 +66,7 @@
             @click="emit('update:featId', featId === f.id ? '' : f.id)"
           >
             <div class="flex flex-col items-start gap-0.5">
-              <span class="font-cinzel text-xs font-semibold">{{ f.name }}</span>
+              <span class="text-caption font-semibold">{{ f.name }}</span>
               <span v-if="f.description" class="text-caption text-muted-foreground line-clamp-1">{{ f.description }}</span>
             </div>
           </AppButton>

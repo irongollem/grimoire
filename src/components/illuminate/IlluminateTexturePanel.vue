@@ -9,7 +9,7 @@
         :class="open ? 'rotate-90' : ''"
       />
       <span
-        class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
+        class="flex-1 text-label-lg font-bold uppercase transition-colors"
         :class="enabled && hasImage ? 'text-foreground' : 'text-muted-foreground'"
       >Texture Overlay</span>
       <ToggleSwitch v-model="switchModel" aria-label="Texture overlay" @click.stop />

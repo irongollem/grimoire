@@ -21,7 +21,7 @@
            deityLookup.ts for the decision on when a header earns its keep. -->
       <p
         v-if="group.pantheonLabel"
-        class="px-3 pt-2 pb-1 font-cinzel text-2xs uppercase tracking-widest text-muted-foreground"
+        class="px-3 pt-2 pb-1 text-eyebrow uppercase text-muted-foreground"
       >
         {{ group.pantheonLabel }}
       </p>

@@ -521,7 +521,7 @@ async function handleEndCombat() {
 }
 
 .back-link {
-  @apply font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors;
+  @apply text-label-lg text-muted-foreground hover:text-foreground transition-colors;
 }
 
 .round-controls {
@@ -529,11 +529,11 @@ async function handleEndCombat() {
 }
 
 .prev-btn {
-  @apply px-3 py-1.5 rounded-md border border-border text-foreground font-cinzel text-xs font-semibold hover:bg-muted transition-colors disabled:opacity-40;
+  @apply px-3 py-1.5 rounded-md border border-border text-foreground text-label-lg font-semibold hover:bg-muted transition-colors disabled:opacity-40;
 }
 
 .next-btn {
-  @apply px-4 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold hover:opacity-90 disabled:opacity-40;
+  @apply px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 disabled:opacity-40;
 }
 
 .round-label {
@@ -558,31 +558,31 @@ async function handleEndCombat() {
 }
 
 .roll-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity;
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity;
 }
 
 .abandon-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground font-cinzel text-xs font-semibold hover:bg-muted transition-colors;
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground text-label-lg font-semibold hover:bg-muted transition-colors;
 }
 
 .map-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground font-cinzel text-xs font-semibold hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:text-muted-foreground;
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground text-label-lg font-semibold hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:text-muted-foreground;
 }
 
 .map-btn-secondary {
-  @apply inline-flex items-center justify-center px-2 py-1.5 rounded-md border border-border text-muted-foreground font-cinzel text-xs font-semibold hover:border-primary hover:text-primary transition-colors;
+  @apply inline-flex items-center justify-center px-2 py-1.5 rounded-md border border-border text-muted-foreground text-label-lg font-semibold hover:border-primary hover:text-primary transition-colors;
 }
 
 .end-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-destructive/40 text-destructive font-cinzel text-xs font-semibold hover:bg-destructive/10 transition-colors;
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-destructive/40 text-destructive text-label-lg font-semibold hover:bg-destructive/10 transition-colors;
 }
 
 .start-combat-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-tone-success text-on-success font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity;
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-tone-success text-on-success text-label-lg font-semibold hover:opacity-90 transition-opacity;
 }
 
 .go-live-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground font-cinzel text-xs font-semibold hover:border-primary hover:text-primary transition-colors disabled:opacity-50;
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground text-label-lg font-semibold hover:border-primary hover:text-primary transition-colors disabled:opacity-50;
 }
 .live-active {
   @apply border-tone-success/50 text-ink-success bg-tone-success/10 hover:border-tone-success hover:text-ink-success;

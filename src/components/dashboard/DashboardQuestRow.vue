@@ -26,7 +26,7 @@
     </span>
     <span
       v-if="STAGES[row.stage].badge"
-      class="mt-0.5 shrink-0 text-label uppercase tracking-wide"
+      class="mt-0.5 shrink-0 text-label uppercase"
       :class="STAGES[row.stage].badgeClass"
     >{{ STAGES[row.stage].badge }}</span>
   </RouterLink>

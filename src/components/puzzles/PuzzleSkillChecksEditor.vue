@@ -19,7 +19,7 @@
         >
           <option v-for="s in PUZZLE_SKILLS" :key="s" :value="s">{{ s }}</option>
         </AppSelect>
-        <span class="font-cinzel text-xs text-muted-foreground shrink-0">DC</span>
+        <span class="text-label-lg text-muted-foreground shrink-0">DC</span>
         <AppInput
           v-model.number="check.dc"
           type="number"

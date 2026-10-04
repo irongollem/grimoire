@@ -53,11 +53,11 @@
           class="min-w-0 flex-1 gap-2.5 p-0"
           @click="onRowClick(room)"
         >
-          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded font-cinzel text-label font-bold" :class="numberClass(room)">
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded text-label font-bold" :class="numberClass(room)">
             {{ indexOf(room) + 1 }}
           </span>
           <span class="min-w-0 flex-1">
-            <span class="block truncate font-cinzel text-label font-bold text-foreground">{{ room.name }}</span>
+            <span class="block truncate text-label font-bold text-foreground">{{ room.name }}</span>
             <span class="block truncate text-caption text-muted-foreground" :class="unwrittenIds.has(room.id) ? 'italic' : ''">{{ captionFor(room) }}</span>
           </span>
         </AppButton>

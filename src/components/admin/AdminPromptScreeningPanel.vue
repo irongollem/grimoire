@@ -102,7 +102,7 @@
             >
               <p class="text-eyebrow text-muted-foreground">{{ stat.label }}</p>
               <p
-                class="text-heading-sm font-cinzel"
+                class="text-heading-sm"
                 :class="stat.headline && stat.value > 0 ? 'text-tone-danger' : 'text-foreground'"
               >{{ stat.value }}</p>
             </div>

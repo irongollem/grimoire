@@ -34,7 +34,7 @@
           <div class="flex flex-col gap-1">
             <div v-for="spell in selectedSpells" :key="spell.id" class="flex items-center justify-between gap-2">
               <span class="text-caption text-foreground">{{ spell.name }}</span>
-              <span class="font-cinzel text-2xs text-muted-foreground">{{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }}</span>
+              <span class="text-label text-muted-foreground">{{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }}</span>
             </div>
           </div>
         </div>
@@ -248,7 +248,7 @@
               class="rounded py-0.5 px-1 hover:bg-muted"
             >
               <span class="truncate">{{ spell.name }}</span>
-              <span class="font-cinzel text-2xs text-muted-foreground ml-auto shrink-0">
+              <span class="text-caption-sm text-muted-foreground ml-auto shrink-0">
                 {{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }} · {{ spell.school }}
               </span>
             </AppCheckbox>

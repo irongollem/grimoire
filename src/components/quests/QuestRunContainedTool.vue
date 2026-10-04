@@ -3,7 +3,7 @@
       <section aria-label="Contained quest tool">
         <header class="flex items-start gap-2">
           <div class="min-w-0 flex-1">
-            <p class="text-label font-bold uppercase tracking-wider text-primary">{{ adapter.label }} · contained {{ adapter.runAction }}</p>
+            <p class="text-label font-bold uppercase text-primary">{{ adapter.label }} · contained {{ adapter.runAction }}</p>
             <h2 class="truncate text-heading font-bold text-foreground">{{ attachment.label }}</h2>
             <p v-if="attachment.compact_detail" class="text-caption text-muted-foreground">{{ attachment.compact_detail }}</p>
           </div>

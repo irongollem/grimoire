@@ -61,7 +61,7 @@
           <div class="min-w-0 flex-1">
             <RouterLink
               :to="placeRoute(space.id)"
-              class="block truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
+              class="block truncate text-caption font-semibold text-foreground transition-colors hover:text-primary"
             ><template v-if="boundRegionBySpace.get(space.id)">{{ i + 1 }}. </template>{{ space.name }}</RouterLink>
             <!-- Frame 03 "7. The Drowned Stair — Nested site · click to descend
                  [L2]" — a nested site's second line names what clicking it on
@@ -85,7 +85,7 @@
           <template v-if="boundRegionBySpace.get(space.id)">
             <span
               v-if="nestedSiteIndexBySpace.get(space.id)"
-              class="shrink-0 rounded bg-muted/40 px-1.5 py-0.5 font-cinzel text-2xs font-bold text-muted-foreground"
+              class="shrink-0 rounded bg-muted/40 px-1.5 py-0.5 text-label font-bold text-muted-foreground"
               :title="`Nested site · level ${nestedSiteIndexBySpace.get(space.id)}`"
             >
               L{{ nestedSiteIndexBySpace.get(space.id) }}

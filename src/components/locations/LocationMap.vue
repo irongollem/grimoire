@@ -163,7 +163,7 @@
         class="flex items-center gap-2 px-3 py-2 rounded-md bg-primary/10 border border-primary/30"
       >
         <IconLocation class="h-3.5 w-3.5 text-primary shrink-0" />
-        <span class="font-cinzel text-xs text-primary flex-1">
+        <span class="text-caption text-primary flex-1">
           Click the map to place
           <strong>{{ placingChildName }}</strong>
         </span>
@@ -190,7 +190,7 @@
             class="h-2 w-2 rounded-full shrink-0"
             :style="{ backgroundColor: LOCATION_TYPE_COLORS[child.location_type] }"
           />
-          <span class="font-cinzel text-xs text-foreground">{{ child.name }}</span>
+          <span class="text-caption text-foreground">{{ child.name }}</span>
           <span
             v-if="child.parent_chain?.length"
             class="text-caption-sm text-muted-foreground italic"

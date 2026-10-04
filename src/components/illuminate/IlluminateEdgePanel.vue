@@ -8,7 +8,7 @@
         class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
         :class="open ? 'rotate-90' : ''"
       />
-      <span class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase text-foreground">
+      <span class="flex-1 text-label-lg font-bold uppercase text-foreground">
         Edge Treatment
       </span>
       <span
@@ -32,7 +32,7 @@
             :class="edgeOpen[edge] ? 'rotate-90' : ''"
           />
           <span
-            class="flex-1 font-cinzel text-2xs font-semibold tracking-widest uppercase transition-colors"
+            class="flex-1 text-eyebrow font-semibold transition-colors"
             :class="opts[edge].enabled ? 'text-foreground' : 'text-muted-foreground'"
           >{{ edge }}</span>
           <ToggleSwitch

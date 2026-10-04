@@ -2,7 +2,7 @@
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="flex items-center justify-between gap-3 px-4 py-2.5">
       <div class="min-w-0">
-        <p class="font-cinzel text-xs font-semibold">Known forms · {{ known.length }} of {{ cap }}</p>
+        <p class="text-label-lg font-semibold">Known forms · {{ known.length }} of {{ cap }}</p>
         <p v-if="atCap && replaced" class="text-caption-sm text-muted-foreground italic">
           You can replace a form again after a long rest.
         </p>
@@ -22,7 +22,7 @@
 
     <ul v-if="known.length" class="divide-y divide-border border-t border-border">
       <li v-for="entry in entries" :key="entry.id" class="flex items-center gap-2 px-4 py-1.5">
-        <span class="font-cinzel text-xs font-semibold flex-1 min-w-0 truncate" :class="entry.monster ? '' : 'italic text-muted-foreground'">
+        <span class="text-caption font-semibold flex-1 min-w-0 truncate" :class="entry.monster ? '' : 'italic text-muted-foreground'">
           {{ entry.monster?.name ?? "Unknown form" }}
         </span>
         <span v-if="entry.monster?.stat_block" class="text-caption-sm text-muted-foreground shrink-0">
@@ -77,7 +77,7 @@
               :disabled="saving"
               @click="choose(m)"
             >
-              <span class="font-cinzel text-xs font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
+              <span class="text-caption font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
               <span class="text-caption-sm text-muted-foreground shrink-0">CR {{ m.stat_block?.challenge_rating }}</span>
             </AppButton>
           </div>

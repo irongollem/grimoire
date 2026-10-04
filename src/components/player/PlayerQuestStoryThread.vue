@@ -16,7 +16,7 @@
         class="flex flex-col gap-3 p-3 sm:p-4"
         :class="[columnIndex > 0 && 'border-t md:border-l md:border-t-0 border-border', !column.isPrimary && column.tone.bg]"
       >
-        <h4 class="flex items-center gap-1.5 text-label-lg font-semibold uppercase tracking-wide" :class="column.tone.text">
+        <h4 class="flex items-center gap-1.5 text-label-lg font-semibold uppercase" :class="column.tone.text">
           <IconNavigate class="h-3 w-3 shrink-0" aria-hidden="true" />
           {{ column.eyebrow }}
         </h4>

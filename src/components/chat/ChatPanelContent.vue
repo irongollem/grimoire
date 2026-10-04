@@ -175,7 +175,7 @@
         v-if="vendorOpen && auth.isDM"
         class="shrink-0 border-t border-border bg-muted/20 px-3 py-2 space-y-2"
       >
-        <p class="font-cinzel text-2xs text-muted-foreground tracking-widest uppercase">Vendor Offer</p>
+        <p class="text-eyebrow text-muted-foreground uppercase">Vendor Offer</p>
         <AppInput
           v-model="vendorDesc"
           type="text"
@@ -213,14 +213,14 @@
               @click="vendorItemQuery = it.name; vendorItemId = it.id; vendorShowItems = false"
             >
               <span class="truncate">{{ it.name }}</span>
-              <span class="font-cinzel text-2xs text-muted-foreground shrink-0 capitalize">{{ it.item_type }}</span>
+              <span class="text-caption-sm text-muted-foreground shrink-0 capitalize">{{ it.item_type }}</span>
             </AppButton>
           </div>
           <div v-if="vendorShowItems" class="fixed inset-0 z-10" @click="vendorShowItems = false" />
         </div>
         <div class="grid grid-cols-5 gap-1">
           <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-            <span class="font-cinzel text-2xs font-bold" :class="coin.color">{{ coin.symbol }}</span>
+            <span class="text-label font-bold" :class="coin.color">{{ coin.symbol }}</span>
             <AppInput
               v-model.number="vendorPrice[coin.key]"
               type="number"

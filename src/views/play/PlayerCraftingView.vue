@@ -137,7 +137,7 @@
               <span class="text-caption text-foreground flex-1 truncate" :class="{ italic: !inventoryItemRef(ing) }">
                 {{ ingredientLabel(ing) }}
               </span>
-              <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
+              <span class="text-label text-muted-foreground shrink-0">
                 {{ ownedCount(ing) }}/{{ ing.quantity }}
               </span>
             </div>

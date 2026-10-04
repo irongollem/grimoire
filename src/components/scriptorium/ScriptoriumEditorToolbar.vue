@@ -49,7 +49,7 @@
         :active="editor.isActive('heading', { level: 1 })"
         @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
       >
-        <span class="text-2xs font-cinzel font-bold leading-none">H1</span>
+        <span class=" text-label font-bold leading-none">H1</span>
       </AppButton>
       <AppButton
         variant="ghost"
@@ -58,7 +58,7 @@
         :active="editor.isActive('heading', { level: 2 })"
         @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
       >
-        <span class="text-2xs font-cinzel font-bold leading-none">H2</span>
+        <span class=" text-label font-bold leading-none">H2</span>
       </AppButton>
       <AppButton
         variant="ghost"
@@ -67,7 +67,7 @@
         :active="editor.isActive('heading', { level: 3 })"
         @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
       >
-        <span class="text-2xs font-cinzel font-bold leading-none">H3</span>
+        <span class=" text-label font-bold leading-none">H3</span>
       </AppButton>
 
       <div class="w-px h-5 bg-border mx-0.5" />
@@ -158,7 +158,7 @@
           :active="editor.getAttributes('image').width === String(size.w)"
           @click="editor.chain().focus().updateAttributes('image', { width: String(size.w) }).run()"
         >
-          <span class="font-cinzel text-2xs font-bold leading-none">{{ size.label }}</span>
+          <span class="text-label font-bold leading-none">{{ size.label }}</span>
         </AppButton>
         <div class="w-px h-5 bg-border mx-0.5" />
         <AppButton
@@ -224,14 +224,14 @@
             :active="editor.getAttributes('image').gutterBleed === true"
             @click="editor.chain().focus().updateAttributes('image', { gutterBleed: !editor.getAttributes('image').gutterBleed }).run()"
           >
-            <span class="font-cinzel text-2xs font-bold leading-none">⇔</span>
+            <span class="text-label font-bold leading-none">⇔</span>
           </AppButton>
         </template>
         <!-- Absolute position inputs (absolute mode only) -->
         <template v-if="editor.getAttributes('image').layoutMode === 'absolute'">
           <div class="w-px h-5 bg-border mx-0.5" />
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-2xs text-muted-foreground">T</span>
+            <span class="text-label text-muted-foreground">T</span>
             <AppInput
               v-model.lazy="posTopModel"
               type="number"
@@ -245,7 +245,7 @@
             />
           </label>
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-2xs text-muted-foreground">L</span>
+            <span class="text-label text-muted-foreground">L</span>
             <AppInput
               v-model.lazy="posLeftModel"
               type="number"
@@ -259,7 +259,7 @@
             />
           </label>
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-2xs text-muted-foreground">R</span>
+            <span class="text-label text-muted-foreground">R</span>
             <AppInput
               v-model.lazy="posRightModel"
               type="number"
@@ -273,7 +273,7 @@
             />
           </label>
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-2xs text-muted-foreground">B</span>
+            <span class="text-label text-muted-foreground">B</span>
             <AppInput
               v-model.lazy="posBottomModel"
               type="number"

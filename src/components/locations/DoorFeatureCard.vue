@@ -3,7 +3,7 @@
     <div class="flex items-center gap-2">
       <RouterLink
         :to="`/dungeon-features/${feature.id}`"
-        class="min-w-0 flex-1 truncate font-cinzel text-label-lg font-bold text-foreground transition-colors hover:text-primary"
+        class="min-w-0 flex-1 truncate text-label-lg font-bold text-foreground transition-colors hover:text-primary"
       >{{ feature.name }}</RouterLink>
     </div>
     <p class="text-caption text-muted-foreground">

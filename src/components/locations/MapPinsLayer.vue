@@ -50,14 +50,14 @@
         />
         <span
           v-else
-          class="font-cinzel font-bold text-white text-2xs leading-none select-none pointer-events-none"
+          class="font-bold text-white text-label leading-none select-none pointer-events-none"
         >
           {{ pin.child_name.charAt(0).toUpperCase() }}
         </span>
       </div>
 
       <!-- Name -->
-      <span class="font-cinzel text-xs font-semibold text-foreground max-w-48 truncate">
+      <span class="text-caption font-semibold text-foreground max-w-48 truncate">
         {{ pin.child_name }}
       </span>
 

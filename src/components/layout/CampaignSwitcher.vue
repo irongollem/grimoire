@@ -19,7 +19,7 @@
         </div>
         <div class="flex-1 min-w-0">
           <p
-            class="font-cinzel text-xs font-bold text-foreground leading-tight flex items-center gap-1.5 min-w-0"
+            class="text-caption font-bold text-foreground leading-tight flex items-center gap-1.5 min-w-0"
           >
             <span class="truncate">{{
               activeCampaign?.name ??
@@ -99,7 +99,7 @@
               />
               <div class="flex-1 min-w-0">
                 <p
-                  class="font-cinzel text-xs font-semibold text-foreground flex items-center gap-1.5 min-w-0"
+                  class="text-caption font-semibold text-foreground flex items-center gap-1.5 min-w-0"
                 >
                   <span class="truncate">{{ c.name }}</span>
                   <AppButton
@@ -165,7 +165,7 @@
               class="flex items-center gap-2 px-3 py-1.5"
             >
               <span class="flex-1 min-w-0">
-                <p class="font-cinzel text-2xs text-muted-foreground/60 truncate">{{ c.name }}</p>
+                <p class="text-caption-sm text-muted-foreground/60 truncate">{{ c.name }}</p>
               </span>
               <button
                 class="text-label text-primary/70 hover:text-primary transition-colors disabled:opacity-40 shrink-0"
@@ -188,7 +188,7 @@
             @click="claimForActive"
           >
             <IconDownload class="h-3.5 w-3.5 text-muted-foreground" />
-            <span class="font-cinzel text-xs text-muted-foreground">
+            <span class="text-label-lg text-muted-foreground">
               {{ isClaiming ? "Claiming…" : "Claim unclaimed data" }}
             </span>
           </AppButton>
@@ -199,7 +199,7 @@
             @click="startCreate"
           >
             <IconAdd class="h-3.5 w-3.5 text-muted-foreground" />
-            <span class="font-cinzel text-xs text-muted-foreground"
+            <span class="text-label-lg text-muted-foreground"
               >New Campaign</span
             >
           </AppButton>
@@ -214,7 +214,7 @@
             @click="showImport = true; open = false"
           >
             <IconUploadCloud class="h-3.5 w-3.5 text-muted-foreground" />
-            <span class="font-cinzel text-xs text-muted-foreground">Import from backup</span>
+            <span class="text-label-lg text-muted-foreground">Import from backup</span>
           </AppButton>
         </div>
       </div>

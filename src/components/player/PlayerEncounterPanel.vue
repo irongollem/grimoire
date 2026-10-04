@@ -73,7 +73,7 @@
             v-if="isInLobby && myCompanions.length > 0"
             class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 px-3 py-2.5 space-y-2"
           >
-            <span class="text-label-lg font-semibold text-ink-caution/80 tracking-wider">YOUR COMPANIONS</span>
+            <span class="text-label-lg font-semibold text-ink-caution/80">YOUR COMPANIONS</span>
             <div
               v-for="companion in myCompanions"
               :key="companion.id"
@@ -126,7 +126,7 @@
 
             <div class="round-header-compact rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 flex items-center gap-1.5 min-w-0">
               <span class="text-heading-sm font-bold text-primary shrink-0">{{ liveState.current_round }}:</span>
-              <span class="font-cinzel text-xs font-semibold text-foreground truncate">
+              <span class="text-caption font-semibold text-foreground truncate">
                 {{
                   activeCombatant
                     ? (activeCombatant.type === "monster" && (activeCombatant.reveal_state ?? "hidden") === "hidden"

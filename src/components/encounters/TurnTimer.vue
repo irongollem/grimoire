@@ -59,7 +59,7 @@ const stateClass = computed(() => {
 @reference "@/assets/main.css";
 
 .turn-timer {
-  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-muted-foreground;
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-card text-label-lg font-semibold text-muted-foreground;
 }
 
 .turn-timer.is-warning {
