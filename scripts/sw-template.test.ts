@@ -167,7 +167,11 @@ function loadWorker(options: {
     },
     caches: {
       open: async (name: string) => open(name),
-      match: async (req: Request | string) => {
+      // Like the real CacheStorage.match: with a cacheName it looks in that one
+      // cache, and a cache that does not exist answers undefined without being
+      // created.
+      match: async (req: Request | string, opts?: { cacheName?: string }) => {
+        if (opts?.cacheName) return stores.get(opts.cacheName)?.get(keyOf(req));
         for (const store of stores.values()) {
           const hit = store.get(keyOf(req));
           if (hit) return hit;
@@ -314,6 +318,45 @@ describe("service-worker navigation", () => {
 
     expect(await result!.text()).toBe("fresh");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("prefers its own deploy's shell over another cache's", async () => {
+    const { runFetch } = loadWorker({
+      seed: { "grimoire-other": { "/index.html": "other" }, "grimoire-test": { "/index.html": "own" } },
+    });
+
+    const { result } = await runFetch("/campaigns/abc", "navigate");
+
+    expect(await result!.text()).toBe("own");
+  });
+
+  // The 4 Oct 2026 report: right after a deploy, a full load (the deploy's own
+  // navigation reload) reached the retired worker after the new one's activate
+  // had swept its cache, found no shell, and a failed network fetch answered
+  // Response.error(), the browser's "can't be reached" page.
+  it("takes the new deploy's shell when activate swept its own cache mid-request", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError("aborted");
+    });
+    const { runFetch, stores } = loadWorker({
+      seed: { "grimoire-next": { "/index.html": "next shell" } },
+      fetchMock,
+    });
+
+    const { result } = await runFetch("/admin?tab=content", "navigate");
+
+    expect(await result!.text()).toBe("next shell");
+    expect(fetchMock).not.toHaveBeenCalled();
+    // Nor does looking for it bring an empty copy of the swept cache back.
+    expect(stores.has("grimoire-test")).toBe(false);
+  });
+
+  it("does not recreate a swept precache when looking up a shell asset", async () => {
+    const { runFetch, stores } = loadWorker({});
+
+    await runFetch("/assets/app-DXiZtau7.js");
+
+    expect(stores.has("grimoire-test")).toBe(false);
   });
 
   it("returns an error response when no shell is cached and the network throws", async () => {

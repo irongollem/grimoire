@@ -58,8 +58,8 @@ async function fetchMessages(campaignId: string, expectedGeneration = generation
   if (expectedGeneration !== generation || campaignId !== subscribedCampaignId) return;
   const fetchId = ++latestFetchId;
   loading.value = true;
-  // Safety net: if navigator.locks contention (e.g. iOS resume + auth refresh)
-  // causes getSession() to hang, clear the spinner after 8s instead of forever.
+  // Safety net: a request frozen by iOS only fails at its 30s deadline
+  // (requestDeadline.ts); clear the spinner after 8s rather than wait for it.
   const bail = setTimeout(() => {
     if (fetchId === latestFetchId && expectedGeneration === generation) loading.value = false;
   }, 8_000);
@@ -88,7 +88,7 @@ async function fetchMessages(campaignId: string, expectedGeneration = generation
       mergeMessages(page);
     }
   } catch {
-    // AbortError (auth lock steal) or network error — just leave current messages
+    // Network error or deadline — just leave current messages
   } finally {
     clearTimeout(bail);
     if (fetchId === latestFetchId && expectedGeneration === generation) loading.value = false;

@@ -172,7 +172,7 @@ sequenceDiagram
     participant A as swAutoUpdate.ts
     participant R as staleChunkRecovery.ts
 
-    B->>SW: precache manifest + cache name (content hash)
+    B->>SW: precache manifest + cache name (hash of shell + worker text)
     Note over SW: install = ATOMIC app shell:<br/>every JS/CSS must cache with valid<br/>Content-Type or old worker survives
     A->>SW: registration.update() every 5 min + on foreground
     A->>A: new build took control → the page is never reloaded,<br/>visible or backgrounded (iOS freezes a backgrounded boot)
@@ -234,7 +234,8 @@ failure that must keep reaching Sentry.
 
 Fetch policy: same-origin GET only; navigations are answered with the cached
 `index.html` and no network request (the network is used only when no shell is
-cached), so a cold start never waits on a waking radio for a document it
+cached anywhere: a worker whose cache the next deploy's activate swept mid-request
+takes the new deploy's shell rather than answering `Response.error()`), so a cold start never waits on a waking radio for a document it
 already has. The first load after a deploy therefore boots the previous build,
 which the update check then replaces; assets cache-first. **Supabase and provider calls are
 never cached** (cross-origin passes through), so the SW can be ruled out of

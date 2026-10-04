@@ -129,10 +129,27 @@ function swPlugin(assetCdnOrigin: string): Plugin {
       );
       const mutable = walkPublic(path.resolve(import.meta.dirname, "public")).sort();
 
-      // Hash the filename list + sizes so any shell change bumps the cache
-      // name, forcing clients to refetch it on the next deploy. Runtime-cached
-      // assets are content-hashed (immutable) or revalidated in the
-      // background, so neither needs to participate in this.
+      // replaceAll — the template's doc comment mentions the placeholder
+      // tokens before the code uses them, so first-occurrence replace would
+      // rewrite the comment and leave the real const declarations untouched.
+      const body = template
+        .replaceAll("__PRECACHE__",         JSON.stringify(files))
+        .replaceAll("__MUTABLE__",          JSON.stringify(mutable))
+        // "" when no CDN is configured — the template's own doc comment says
+        // the runtime rule built on this token must be inert in that case.
+        .replaceAll("__ASSET_CDN_ORIGIN__", JSON.stringify(assetCdnOrigin));
+
+      // The cache name is a hash of the shell's filenames and sizes AND of the
+      // worker's own text, so a deploy that changes either gets a cache of its
+      // own. Runtime-cached assets are content-hashed (immutable) or revalidated
+      // in the background, so neither needs to participate in this.
+      //
+      // The worker text is not optional. A sw.js that differs only in its code,
+      // the public/ list or the CDN origin is still a new worker to the browser,
+      // and with a shell-only hash it installed into the very cache the live
+      // worker serves from; a failed critical fetch then ran the install's
+      // `caches.delete(CACHE_NAME)` on that live cache, leaving every
+      // navigation without a shell. Copy-forward keeps the extra installs cheap.
       const hasher = createHash("sha256");
       let shellBytes = 0;
       for (const f of files) {
@@ -141,6 +158,7 @@ function swPlugin(assetCdnOrigin: string): Plugin {
         hasher.update(f);
         hasher.update(String(size));
       }
+      hasher.update(body);
       const cacheName = "grimoire-" + hasher.digest("hex").slice(0, 8);
 
       if (shellBytes > SHELL_BUDGET_BYTES) {
@@ -152,16 +170,7 @@ function swPlugin(assetCdnOrigin: string): Plugin {
         );
       }
 
-      // replaceAll — the template's doc comment mentions the placeholder
-      // tokens before the code uses them, so first-occurrence replace would
-      // rewrite the comment and leave the real const declarations untouched.
-      const sw = template
-        .replaceAll("__PRECACHE__",         JSON.stringify(files))
-        .replaceAll("__MUTABLE__",          JSON.stringify(mutable))
-        .replaceAll("__CACHE_NAME__",       cacheName)
-        // "" when no CDN is configured — the template's own doc comment says
-        // the runtime rule built on this token must be inert in that case.
-        .replaceAll("__ASSET_CDN_ORIGIN__", JSON.stringify(assetCdnOrigin));
+      const sw = body.replaceAll("__CACHE_NAME__", cacheName);
       writeFileSync(path.join(distDir, "sw.js"), sw);
 
       this.info?.(

@@ -353,12 +353,12 @@ export const useAuthStore = defineStore("auth", () => {
   /**
    * Applies an auth-js event to the store.
    *
-   * IMPORTANT: auth-js invokes its listeners *inside* the exclusive auth lock it
-   * holds during getSession() / token refresh. Calling supabase.from() here (even
-   * indirectly via loadMembership) would queue behind that same lock: deadlock,
-   * and every DB query hangs with no network activity. So synchronous state is
-   * updated at once and the DB call is scheduled with setTimeout, to run after
-   * the lock is released.
+   * IMPORTANT: auth-js awaits its listeners before it settles the refresh in
+   * flight. A supabase.from() call here (even indirectly via loadMembership)
+   * that needs a token can end up waiting on that same refresh, which is waiting
+   * on this listener: deadlock, and the query hangs with no network activity. So
+   * synchronous state is updated at once and the DB call is scheduled with
+   * setTimeout, to run after the listener has returned.
    */
   function applyAuthEvent(event: AuthChangeEvent, newSession: Session | null): void {
     if (newSession?.user) resetIdentityFor(newSession.user.id);
@@ -448,8 +448,8 @@ export const useAuthStore = defineStore("auth", () => {
         initialized.value = true;
 
         // Unsubscribe any previous listener before registering a new one.
-        // Without this, every HMR hot-reload stacks up another listener and
-        // causes concurrent getSession() calls that fight over navigator.locks.
+        // Without this, every HMR hot-reload stacks up another listener, each
+        // applying every auth event again.
         authListener?.unsubscribe();
         const {
           data: { subscription },
@@ -465,8 +465,8 @@ export const useAuthStore = defineStore("auth", () => {
         });
         authListener = subscription;
       } catch (err) {
-        // Clear initPromise so callers can retry (e.g. after an AbortError from
-        // navigator.locks contention during HMR or multi-tab lock stealing).
+        // Clear initPromise so callers can retry (e.g. after a failed network
+        // read during boot).
         initPromise = null;
         throw err;
       }

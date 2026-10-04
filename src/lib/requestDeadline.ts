@@ -5,10 +5,9 @@
  * iOS suspends a home-screen app within seconds of it leaving the screen, and a
  * request in flight at that moment can stay pending after the app comes back:
  * no response, no error, ever. auth-js has no timeout of its own, and every
- * auth operation runs one at a time through the client's lock (`singleTabLock`
- * in `supabase.ts`), which also has none. So a token refresh caught by the
- * freeze held that lock for good, every query waits on `getSession()` behind
- * it, and the app sat on its splash until it was killed.
+ * `getSession()` that finds the token expired waits on the refresh already in
+ * flight. So a token refresh caught by the freeze never settled, every query
+ * waited behind it, and the app sat on its splash until it was killed.
  *
  * A deadline turns that hang into a network error, which every caller already
  * handles: auth-js classifies a failed fetch as retryable, keeps the session

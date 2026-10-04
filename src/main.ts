@@ -126,9 +126,10 @@ onSessionLost(
 // keeps ticking while the tab is visible; when it finally succeeds this is the
 // event that says so, and those queries need re-running.
 //
-// Deferred by a tick because this callback is invoked *inside* the exclusive auth
-// lock — refetching from here would re-enter it and deadlock every query in the
-// app. Same hazard, and same remedy, as the note in `stores/auth.ts`.
+// Deferred by a tick because auth-js awaits this callback before it settles the
+// refresh in flight: a query sent from here that routes through a refresh waits
+// on the very refresh that is waiting on it. Same hazard, and same remedy, as the
+// note in `stores/auth.ts`.
 supabase.auth.onAuthStateChange((event) => {
   if (event !== "TOKEN_REFRESHED") return;
   if (!consumeRefusedRead()) return;
@@ -144,7 +145,7 @@ supabase.auth.onAuthStateChange((event) => {
 // Gated on the identity actually changing, because auth-js re-emits SIGNED_IN
 // for a session it already had (tab focus, a restored session) and refetching
 // the whole app on each of those would be a storm for nothing. Deferred by a
-// tick for the same reason as the handler above: this runs inside the auth lock.
+// tick for the same reason as the handler above: auth-js awaits this listener.
 const identityChanged = createIdentityChangeGate();
 // Pruning is not tied to the cache reset: the reset is skipped on a cold
 // load's INITIAL_SESSION (see the gate), but another account's library copy

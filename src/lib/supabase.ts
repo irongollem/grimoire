@@ -14,29 +14,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// Replace navigator.locks (the default) with a simple in-process promise queue.
-//
-// The browser's navigator.locks API has a hardcoded 5000ms orphan-recovery
-// timeout: if any holder is suspended (device sleep, tab background) for >5s
-// the lock is forcibly stolen, and every waiting operation gets AbortError.
-// With many concurrent supabase.from() calls (each needs the auth token), a
-// single device wake can produce 40+ AbortErrors and put chat into an 8s
-// loading loop via the bail timer.
-//
-// The in-process queue serialises auth operations within this tab just as
-// reliably, but purely via Promise chaining — no browser API, no timeout.
-// Cross-tab token refresh is still safe: autoRefreshToken is the only writer,
-// and each tab has its own GoTrueClient with its own queue, so two tabs
-// refreshing simultaneously would use different refresh tokens (different
-// users) or, for the rare same-user-two-tabs case, one would get a 400 and
-// fall back to a new login — no worse than the current AbortError outcome.
-const _lockQueues: Record<string, Promise<unknown>> = {};
-const singleTabLock = <R>(name: string, _timeout: number, fn: () => Promise<R>): Promise<R> => {
-  const prev = _lockQueues[name] ?? Promise.resolve();
-  const current = prev.then(() => fn(), () => fn());
-  _lockQueues[name] = current.then(() => {}, () => {});
-  return current;
-};
+// No `lock` option, on purpose. auth-js has coordinated refreshes without one
+// since 2.107 (in-tab single-flight on `refreshingDeferred`, cross-tab races
+// settled by the server), and the option is deprecated. The in-process queue
+// that used to sit here (April 2026) existed to escape `navigator.locks`' 5 s
+// orphan steal, which put chat into AbortError storms on every device wake; the
+// lockless default uses no lock at all, so it has neither that problem nor the
+// queue's own (a refresh frozen by iOS held the queue, and every query behind it,
+// for good). Do not reintroduce one.
 
 // Set by main.ts once the query client and auth store exist. Held as a mutable
 // ref because the fetch wrapper is baked into the client at construction, long
@@ -92,15 +77,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     // recording this; it had decayed to an empty function the router guard still
     // awaited, so the rule now lives next to the setting it constrains.
     autoRefreshToken: true,
-    lock: singleTabLock,
     // The key supabase-js would derive anyway, named so readStoredSession can
     // read it. See persistedSession.ts before changing it.
     storageKey: AUTH_STORAGE_KEY,
   },
   global: {
     fetch: createAuthAwareFetch(
-      // A request frozen by iOS never answers, and a token refresh among them
-      // would hold singleTabLock above for good; see requestDeadline.ts.
+      // A request frozen by iOS never answers; see requestDeadline.ts.
       withRequestDeadline((input, init) => globalThis.fetch(input, init)),
       () => sessionLostHandler?.(),
       {
@@ -123,15 +106,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // It closes all active channels which fires CLOSED on their subscribe callbacks,
 // which then schedule a new subscribe() → removeChannel() → CLOSED → loop.
 
-// ── Lock-free user cache ────────────────────────────────────────────────────────
-// supabase.auth.getSession() acquires an exclusive navigator.lock on every call.
-// Every DB query internally calls getSession() (via _getAccessToken), and so does
-// the original getCurrentUser(). With many concurrent queries they all serialise
-// through that lock — causing apparent hangs with no network activity.
-//
-// Fix: auth.ts calls setCachedUser() whenever the session changes (onAuthStateChange
-// + initialize). getCurrentUser() then reads the in-memory value synchronously —
-// no lock, no Promise, no network.
+// ── Synchronous user cache ───────────────────────────────────────────────────────
+// supabase.auth.getSession() is async and may wait on a refresh in flight. Callers
+// that only need "who is signed in" (authAwareFetch on every request, the query
+// persistence key) must answer synchronously, so auth.ts calls setCachedUser()
+// whenever the session changes (onAuthStateChange + initialize) and
+// getCurrentUser() reads the in-memory value: no Promise, no network.
 let _cachedUser: User | null = null;
 
 export function setCachedUser(user: User | null): void {
@@ -139,7 +119,7 @@ export function setCachedUser(user: User | null): void {
 }
 
 /**
- * Returns the current user from in-memory cache — no navigator.lock, no network.
+ * Returns the current user from in-memory cache — no Promise, no network.
  * Updated by the auth store on every session change.
  */
 export function getCurrentUser(): User | null {

@@ -67,7 +67,10 @@
 //                   waits on a radio for a document it already has. Freshness
 //                   comes from the update check installing a new worker and
 //                   cache, so the first load after a deploy boots the previous
-//                   build. Only with no cached shell does it hit the network.
+//                   build. With no shell in its own cache (a worker the next
+//                   deploy just retired, whose cache activate swept while this
+//                   request was in flight) it takes any deploy's shell, and
+//                   only with none anywhere does it hit the network.
 //                 • a precached shell asset → cache-first.
 //                 • any other static asset → runtime-cached on first use:
 //                   cache-first when the filename carries a content hash
@@ -90,8 +93,8 @@
 // every visitor, forever — the lazy-cache win this story exists to deliver
 // would quietly undo itself with no error anywhere in the build.
 //
-// The old vite-plugin-pwa also ran `clients.claim()` and `skipWaiting()`,
-// Preserved. `controllerchange` no longer reloads the page by itself: the page
+// The old vite-plugin-pwa also ran `clients.claim()` and `skipWaiting()`; both
+// are preserved. `controllerchange` no longer reloads the page by itself: the page
 // adopts the new build on its next navigation (see src/lib/swAutoUpdate.ts).
 
 const CACHE_NAME = "__CACHE_NAME__";
@@ -308,19 +311,29 @@ self.addEventListener("fetch", (event) => {
   // installs a new worker and a new cache; it does not reach them through this
   // request. The install is atomic, so the cached /index.html always matches
   // the cached JS/CSS it references. The cost is that the first load after a
-  // deploy boots the previous build, which the update flow then replaces. With
-  // no cached shell (first ever visit, or the cache was evicted) the request
-  // goes to the network instead.
+  // deploy boots the previous build, which the update flow then replaces.
+  //
+  // Read with `caches.match(…, { cacheName })`, never `caches.open`: open
+  // recreates a cache that no longer exists. A deploy's activate sweeps the
+  // retired worker's cache while that worker may still be answering a
+  // navigation, and the page lands here exactly then, because a deploy is what
+  // sends it to a full load (swAutoUpdate). Its own shell gone, it takes the new
+  // deploy's, which is complete by construction (activate runs only after a
+  // full install). Network only with no shell anywhere (first ever visit, or the
+  // storage was evicted), and if that fails too the one shell left to try is
+  // the same lookup again, in case a cache landed in the meantime: answering
+  // `Response.error()` is the browser's "site can't be reached" page.
   if (req.mode === "navigate") {
     event.respondWith(
       (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match("/index.html");
+        const shell = async () =>
+          (await caches.match("/index.html", { cacheName: CACHE_NAME })) ?? (await caches.match("/index.html"));
+        const cached = await shell();
         if (cached) return cached;
         try {
           return await fetch(req);
         } catch {
-          return Response.error();
+          return (await shell()) ?? Response.error();
         }
       })(),
     );
@@ -332,10 +345,11 @@ self.addEventListener("fetch", (event) => {
   // as the HTML loading it is fresh. Anything outside the shell — a lazy
   // route's chunk, a sheet plate, a deck back — falls through to the runtime
   // cache, which fills in on first real use.
+  // `caches.match` with a cacheName, not `caches.open`, for the reason given
+  // on the navigation branch above.
   event.respondWith(
     (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const hit = await cache.match(req);
+      const hit = await caches.match(req, { cacheName: CACHE_NAME });
       if (hit) return hit;
       return serveFromRuntime(event, req, url.pathname);
     })(),
