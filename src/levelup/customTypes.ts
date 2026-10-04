@@ -2,6 +2,7 @@
 // These live alongside the SRD class types in src/levelup/ to keep the domain self-contained.
 
 import type { VersionedContentMetadata } from "@/types/content.types";
+import type { AiProvenance } from "@/ai/provenance";
 
 export type CasterType = "prepared" | "known" | "spellbook" | "none";
 /** Ability scores that can feed max-prepared calculations. */
@@ -59,6 +60,8 @@ export interface CustomSubclass extends VersionedContentMetadata {
   resources: CustomResource[];
   /** Extra HP gained per level in this class, on top of the hit die roll (e.g. Draconic Resilience = 1). */
   hp_per_level: number | null;
+  /** Set when the row came from the AI generator; flipped by `markEdited` on a content edit. */
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }
@@ -119,6 +122,9 @@ export interface CustomClass extends VersionedContentMetadata {
 
   steps: CustomStep[];
   resources: CustomResource[];
+
+  /** Set when the row came from the AI generator; flipped by `markEdited` on a content edit. */
+  ai_provenance?: AiProvenance | null;
 
   created_at: string;
   updated_at: string;

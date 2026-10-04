@@ -1,3 +1,4 @@
+import type { AiProvenance } from "@/ai/provenance";
 /** The six ability scores, spelled out — matches how Open5e ships its `ability_score` benefit text. */
 export const ABILITY_SCORE_KEYS = [
   "strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma",
@@ -61,6 +62,7 @@ export interface Background extends VersionedContentMetadata {
   open5e_import?: boolean;
   image_url: string | null;
   focal_point: { x: number; y: number } | null;
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

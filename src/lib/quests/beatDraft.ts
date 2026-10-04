@@ -1,3 +1,4 @@
+import { markEdited, type AiProvenance } from "@/ai/provenance";
 import type { QuestBeat, QuestBeatUpdate } from "@/types/quest.types";
 
 /**
@@ -17,6 +18,15 @@ export interface QuestBeatDraft {
   rumor_text: string;
   reveal_text: string;
   improv_reviewed: boolean;
+  /** Provenance of the AI-filled prose, null for a beat the DM wrote. */
+  ai_provenance: AiProvenance | null;
+  /** The title and prose the provenance describes. Once the live text drifts
+   *  from it the DM has edited the AI's work, and the save flips `edited`. */
+  ai_content: string;
+}
+
+function contentSignature(parts: { title: string; dm_content: string | null; read_aloud: string | null }): string {
+  return JSON.stringify([parts.title.trim(), parts.dm_content || null, parts.read_aloud || null]);
 }
 
 export function questBeatToDraft(beat: QuestBeat): QuestBeatDraft {
@@ -28,6 +38,8 @@ export function questBeatToDraft(beat: QuestBeat): QuestBeatDraft {
     rumor_text: beat.rumor_text ?? "",
     reveal_text: beat.reveal_text ?? "",
     improv_reviewed: !!beat.improv_reviewed_at,
+    ai_provenance: beat.ai_provenance ?? null,
+    ai_content: contentSignature(beat),
   };
 }
 
@@ -50,9 +62,30 @@ export function questBeatDraftToUpdate(draft: QuestBeatDraft, savedReviewedAt: s
     improv_reviewed_at: draft.improv_reviewed
       ? savedReviewedAt ?? new Date().toISOString()
       : null,
+    ai_provenance: draft.ai_content === contentSignature(draft)
+      ? draft.ai_provenance
+      : markEdited(draft.ai_provenance),
   };
 }
 
+/**
+ * Write an AI fill into the draft the way a keystroke would, so autosave
+ * persists it. Only the fields in `fill` change; the provenance is stamped
+ * against the resulting text, so it stays unedited until the DM touches it.
+ */
+export function applyBeatFill(
+  draft: QuestBeatDraft,
+  fill: { title?: string; dm_content?: string; read_aloud?: string },
+  provenance: AiProvenance | null,
+): void {
+  if (fill.title !== undefined) draft.title = fill.title;
+  if (fill.dm_content !== undefined) draft.dm_content = fill.dm_content;
+  if (fill.read_aloud !== undefined) draft.read_aloud = fill.read_aloud;
+  draft.ai_provenance = provenance;
+  draft.ai_content = contentSignature(draft);
+}
+
 export function questBeatDraftsEqual(a: QuestBeatDraft, b: QuestBeatDraft) {
-  return (Object.keys(a) as Array<keyof QuestBeatDraft>).every((key) => a[key] === b[key]);
+  return (Object.keys(a) as Array<keyof QuestBeatDraft>).every((key) =>
+    key === "ai_provenance" ? JSON.stringify(a[key]) === JSON.stringify(b[key]) : a[key] === b[key]);
 }

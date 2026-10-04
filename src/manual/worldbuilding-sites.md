@@ -67,6 +67,12 @@ The **Rooms** panel (headed **Grounds** on a Wilds site) lists every room as a n
 
 Rows show **Cleared**/**Looted** markers read-only whenever those facts have been asserted, even in Browse.
 
+### Filling an unwritten room
+
+A room with no description shows **Unwritten** and a **Fill** button, in the site runner and the quest handoff as well as here. Fill opens an editor in place: write the room yourself, or, when AI is on for the campaign, type an optional steer ("a flooded shrine", "a guard post") and click **Roll it with AI**. The AI reads the site, the level the room is on, the rooms it connects to and the ways out you have recorded, and writes a short passage to read aloud (shown as a quote), a paragraph about the room for you, and a few things worth noting. It never invents exits you have not drawn, and secret doors stay out of the read-aloud.
+
+The result lands in the editor, not in the room: change anything you like, then click **Save**. Rolling costs credits, shown next to the button.
+
 ## Ways out
 
 Every room has a **Ways out** section listing its doors. A site-wide view of the whole door graph is also available higher up the page. In Build:

@@ -36,9 +36,12 @@ vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   useBelow: () => ref(mocks.belowLg),
 }));
+// Fill with AI is off here (no campaign AI), so the page builds no fill context.
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ isAiEnabled: false }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuest: () => ({ data: { get value() { return mocks.quest; } }, isLoading: ref(false) }),
+  useQuestObjectives: () => ({ data: ref([]) }),
 }));
 vi.mock("@/composables/quests/useQuestThreads", () => ({
   useQuestThreads: () => ({ data: { get value() { return mocks.threads; } } }),

@@ -1,148 +1,54 @@
 <template>
-  <Transition name="fade">
-    <div
-      v-if="ui.spellGeneratorOpen"
-      class="fixed inset-0 bg-black/60 z-40"
-      @click="ui.spellGeneratorOpen = false"
-    />
-  </Transition>
-
-  <Transition name="slide-right">
-    <aside
-      v-if="ui.spellGeneratorOpen"
-      class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
-    >
-      <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="text-heading-sm font-semibold text-foreground">Spell Generator</h2>
-        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" :icon="IconClose" icon-size="lg" @click="ui.spellGeneratorOpen = false" />
-      </div>
-
-      <!-- Body -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-5">
-        <!-- Concept -->
+  <GeneratorPanelShell
+    v-model:open="ui.spellGeneratorOpen"
+    v-model:concept="concept"
+    v-model:generate-image="generateImage"
+    title="Spell Generator"
+    concept-placeholder="A storm of luminous moths that swarm a target, biting and dazzling them with flashes of bioluminescence…"
+    :credits="textCreditCost"
+    :byok="textIsByok"
+    :is-generating="isGenerating"
+    :error="genError"
+    blank-to="/spells/new"
+    blank-label="New Blank Spell"
+    image-toggle-label="Generate spell-effect art"
+    @generate="generateAndCreate"
+  >
+    <template #constraints>
+      <div class="grid grid-cols-2 gap-2">
         <div>
-          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
-            CONCEPT
-            <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(AI will use this)</span>
-          </label>
-          <textarea
-            v-model="concept"
-            rows="4"
-            placeholder="A storm of luminous moths that swarm a target, biting and dazzling them with flashes of bioluminescence…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-          />
+          <label class="block text-caption text-muted-foreground mb-1">Level</label>
+          <AppSelect v-model="constraints.level" tone="filled" size="body" weight="normal" block>
+            <option value="">Any</option>
+            <option value="0">Cantrip</option>
+            <option v-for="n in 9" :key="n" :value="String(n)">{{ n }}{{ levelSuffix(n) }}</option>
+          </AppSelect>
         </div>
-
-        <div class="gold-divider" />
-
-        <!-- Constraints -->
-        <div class="space-y-3">
-          <p class="text-label-lg font-semibold text-muted-foreground">
-            CONSTRAINTS
-            <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional)</span>
-          </p>
-
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-caption text-muted-foreground mb-1">Level</label>
-              <AppSelect v-model="constraints.level" tone="filled" size="body" weight="normal" block>
-                <option value="">Any</option>
-                <option value="0">Cantrip</option>
-                <option v-for="n in 9" :key="n" :value="String(n)">{{ n }}{{ levelSuffix(n) }}</option>
-              </AppSelect>
-            </div>
-            <div>
-              <label class="block text-caption text-muted-foreground mb-1">School</label>
-              <AppSelect v-model="constraints.school" tone="filled" size="body" weight="normal" block class="capitalize">
-                <option value="">Any</option>
-                <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
-              </AppSelect>
-            </div>
-          </div>
-        </div>
-
-        <!-- Image generation toggle -->
-        <div v-if="isAiEnabled" class="flex items-center justify-between">
-          <span class="text-caption text-muted-foreground">Generate spell-effect art</span>
-          <ToggleSwitch v-model="generateImage" aria-label="Generate spell-effect art" />
-        </div>
-
-        <!-- No API key nudge (pro users only) -->
-        <!-- Generating state -->
-        <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
-          <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
-          <AppButton
-            variant="ghost"
-            size="inline-caption"
-            class="mt-1 underline underline-offset-2"
-            label="Continue in background"
-            @click="ui.spellGeneratorOpen = false"
-          />
-        </div>
-
-        <!-- Error -->
-        <div
-          v-else-if="genError"
-          class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
-        >
-          <p class="text-caption text-destructive">{{ genError }}</p>
+        <div>
+          <label class="block text-caption text-muted-foreground mb-1">School</label>
+          <AppSelect v-model="constraints.school" tone="filled" size="body" weight="normal" block class="capitalize">
+            <option value="">Any</option>
+            <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
+          </AppSelect>
         </div>
       </div>
-
-      <!-- Footer -->
-      <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
-        <GenerationCostBadge
-          v-if="isAiEnabled"
-          :credits="textCreditCost"
-          :byok="textIsByok"
-          class="self-center"
-        />
-        <AppButton
-          v-if="isAiEnabled"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim()"
-          :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          :label="isGenerating ? 'Generating…' : 'Generate with AI'"
-          @click="generateAndCreate"
-        />
-        <AiOffNotice v-else />
-        <AppButton
-          to="/spells/new"
-          :variant="!isAiEnabled ? 'primary' : 'outline'"
-          size="md"
-          block
-          label="New Blank Spell"
-          @click="ui.spellGeneratorOpen = false"
-        />
-      </div>
-    </aside>
-  </Transition>
+    </template>
+  </GeneratorPanelShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateSpell } from "@/composables/spells/useSpells";
 import { useSpellGeneration } from "@/ai/useSpellGeneration";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
-import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
-import { currentLoadingQuote } from "@/ai/aiGenerationState";
-import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { spellInsertFromAi } from "@/ai/spellAiAdapter";
 import { SPELL_SCHOOLS, type SpellSchool } from "@/types/spell.types";
 
@@ -158,8 +64,6 @@ const {
   clearCompleted,
   generate,
 } = useSpellGeneration();
-
-const isAiEnabled = computed(() => campaign.isAiEnabled);
 
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
@@ -214,25 +118,3 @@ async function generateAndCreate() {
   }
 }
 </script>
-
-<style scoped>
-.gold-divider {
-  border-top: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
-}
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-.slide-right-enter-active,
-.slide-right-leave-active {
-  transition: transform 0.25s ease;
-}
-.slide-right-enter-from,
-.slide-right-leave-to {
-  transform: translateX(100%);
-}
-</style>

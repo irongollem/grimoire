@@ -66,7 +66,9 @@ async function deleteNote(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export function useNotes() {
+/** `enabled` defers the fetch for a surface that is mounted before it is used
+ *  (the Scriptorium draft dialog lives in the always-mounted generator cluster). */
+export function useNotes(enabled: () => boolean = () => true) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   return useQuery({
@@ -75,7 +77,7 @@ export function useNotes() {
       if (!campaignId) throw new Error("useNotes fetched without a campaign");
       return fetchNotes(campaignId);
     },
-    enabled: () => !!activeCampaignId.value,
+    enabled: () => !!activeCampaignId.value && enabled(),
   });
 }
 

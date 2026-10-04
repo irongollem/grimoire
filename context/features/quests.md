@@ -1117,6 +1117,16 @@ condition form first).
 `QuestRulesPanel.vue`, mounted on the overview inside `QuestOverviewLifecycle`
 exactly where the old panel was.
 
+### Fill with AI on the beat page (#910)
+
+`QuestBeatFillBar.vue`, mounted at the top of `QuestBeatFields.vue`, proposes the beat's **title, read-aloud and DM lead** from the quest around it. It shows only when AI is enabled; steer box, cost badge and button. State: `src/ai/useQuestBeatFill.ts` (label "Beat"). `generate-entity-text` with `generator: "quest_beat"`, ledger reason `quest_beat_generation`.
+
+*Grounding* (`buildBeatFillConstraints`, `src/lib/quests/beatFill.ts`): the quest's title and summary; this beat's kind, current title and an excerpt of its notes; the place it is staged at; the story thread when the quest runs more than one; up to three beats that come before and three it leads to (title plus a 160 character excerpt of each lead, so the fill continues the flow rather than restating it); and the open (dormant or pending) objectives. Every line is clipped to 400 characters and there are at most 12, because either overrun is a 400 from the server. `normalizeBeatFill` accepts a result with read-aloud or DM lead; a title alone is not a fill.
+
+*It writes into the beat page's draft, not the database.* `applyBeatFill` (`beatDraft.ts`) sets the fields the fill returned and keeps the rest, then the beat autosaves like any edit. If the beat already has read-aloud or lead text, the DM is asked "Replace the existing text?" **before** the spend, so declining costs nothing.
+
+*Provenance signature:* the draft carries `ai_provenance` plus `ai_content`, a signature of title, lead and read-aloud at the moment the fill landed (`contentSignature`). `questBeatDraftToUpdate` keeps the provenance as generated while the live text still matches that signature and stores `markEdited()` once the DM changes any of the three; edits to unrelated fields (such as how it plays) do not flip it, and a refetched row compares equal by value so it is not seen as a change.
+
 ### The run cockpit (frame `04 Run`)
 
 `QuestRunCockpit.vue` runs **one thread at a time**: the route names which one

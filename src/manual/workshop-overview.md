@@ -41,6 +41,14 @@ Each recipe has a **Crafting DC** that the player rolls against using the discip
 
 **Crafting time** is listed in minutes, hours, or days and represents active work, not passive waiting.
 
+## Generating a recipe with AI
+
+When AI is enabled for your campaign, the **Generate** button beside **New Recipe** builds a whole recipe from a short concept: the name, discipline, DC, crafting time, flavour text, two to five tag-based ingredients, up to two conditional modifiers, and the item it produces. Describe what you want ("a smoky draught that lets the drinker breathe fire once") and, if you like, pick a discipline or an output item you already have. Leave the output empty and the AI invents one.
+
+Nothing is saved straight away. After generating, the panel lists what it is about to create: the recipe, and either **Uses** an item you already own or from the shared library (matched by exact name), or **Creates a new item** if there is no match. Choose **Create** to save it and open the recipe, or **Back** to change your concept and try again.
+
+The recipe is grounded in your campaign setting and your ruleset, and its DC and time are scaled to the output's rarity. It costs credits, shown on the button, and you can edit anything afterwards. Ingredients are tags, so any matching item in a player's inventory will do; see the tag reference below.
+
 ## Ingredient matching
 
 Recipes use **tag-based ingredients** by default: any item in the player's inventory that carries all the required tags satisfies the slot. A recipe can also require one **specific** item instead. See [Crafting: Ingredient Tags](#crafting-ingredient-tags) for the full tag reference; every built-in starter recipe uses tag-based ingredients exclusively.

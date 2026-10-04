@@ -8,15 +8,22 @@ import {
   removeByPublicUrl,
   isBucketUrl,
   type BucketKey,
+  type BucketId,
 } from "@/lib/storage";
 
-/** Map a bucket ID string (e.g. "asset-images") to its BucketKey ("assetImages").
- *  Falls back to "assetImages" for unknown ids so legacy callers keep working. */
-function resolveBucketKey(bucketId: string): BucketKey {
+/** Map a bucket id ("asset-images") to its BucketKey ("assetImages").
+ *
+ *  This used to fall back to "assetImages" for an id it did not know, "so
+ *  legacy callers keep working". What it kept working was two silent bugs: the
+ *  dungeon feature editor named a bucket that is not in the registry and the
+ *  faction editor passed a key ("factionImages") where an id belongs, and both
+ *  wrote into asset-images without anyone knowing. The parameter is typed now,
+ *  so a wrong id fails the build; the throw covers anything that slips past. */
+function resolveBucketKey(bucketId: BucketId): BucketKey {
   for (const [key, cfg] of Object.entries(BUCKETS)) {
     if (cfg.id === bucketId) return key as BucketKey;
   }
-  return "assetImages";
+  throw new Error(`Unknown storage bucket "${bucketId}"`);
 }
 
 /**
@@ -24,7 +31,7 @@ function resolveBucketKey(bucketId: string): BucketKey {
  * Silently no-ops on null/undefined/external URLs that don't match the bucket.
  * Ignores storage errors (e.g. file not found, permission denied for shared images).
  */
-export async function removeStorageImages(bucket: string, ...urls: (string | null | undefined)[]): Promise<void> {
+export async function removeStorageImages(bucket: BucketId, ...urls: (string | null | undefined)[]): Promise<void> {
   await removeByPublicUrl(resolveBucketKey(bucket), ...urls);
 }
 
@@ -81,7 +88,7 @@ export function cleanupRemovedRichTextImages(
  * The file is stored at: {bucket}/{user_id}/{uuid}.webp
  * All images are converted to WebP before upload (max 1920px, 85% quality).
  */
-export function useImageUpload(bucket: string) {
+export function useImageUpload(bucket: BucketId) {
   const auth = useAuthStore();
   const isUploading = ref(false);
   const uploadError = ref<string | null>(null);

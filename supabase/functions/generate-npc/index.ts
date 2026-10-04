@@ -35,6 +35,7 @@ import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
+import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -128,14 +129,10 @@ serve(withCors(async (req: Request) => {
     promptRows?.find((r) => r.generator_type === `ruleset_context_${ruleset}`)?.content ?? null;
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
-  if (campaign.user_id !== user.id) {
-    const { data: membership } = await admin
-      .from("campaign_members")
-      .select("role")
-      .eq("campaign_id", campaign_id)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (!membership) return new Response("Forbidden", { status: 403 });
+  // DMs only: no player surface calls this, and it spends the campaign's
+  // credits or the owner's own provider key (see _shared/campaignAccess.ts).
+  if (!(await isCampaignDm(admin, campaign, user.id))) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   // ── Decrypt API keys ────────────────────────────────────────────────────────

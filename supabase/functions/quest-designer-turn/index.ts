@@ -35,6 +35,7 @@ import {
   sanitizeQuestDesignOutput,
 } from "../_shared/questDesigner.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 /**
  * Quest Designer, per-exchange turn (#873): a conversational, multi-turn beat
@@ -113,11 +114,10 @@ serve(withCors(async (req: Request) => {
   if (!campaign) return new Response("Campaign not found", { status: 404 });
   if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
 
-  if (campaign.user_id !== user.id) {
-    const { data: membership } = await admin
-      .from("campaign_members").select("role")
-      .eq("campaign_id", campaign_id).eq("user_id", user.id).maybeSingle();
-    if (!membership) return new Response("Forbidden", { status: 403 });
+  // DMs only: this reads DM-only campaign content with the service role (see
+  // _shared/campaignAccess.ts for why a player member must not get through).
+  if (!(await isCampaignDm(admin, campaign, user.id))) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   // Ruleset-aware generation (#564) — anything other than "2024" resolves to "2014".

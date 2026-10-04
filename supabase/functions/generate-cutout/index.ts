@@ -39,6 +39,7 @@ import { generationRefusal } from "../_shared/accountGate.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { validateCutoutRequest, PICTURE_COLUMN, TABLE_HAS_CAMPAIGN_ID } from "./validateCutoutRequest.ts";
 
 // Cutouts print beside the picture at the same portrait size (#917).
@@ -104,11 +105,10 @@ serve(withCors(async (req: Request) => {
     .eq("id", campaignId)
     .maybeSingle();
   if (!campaign) return jsonError("not_found", 404);
-  if (campaign.user_id !== user.id) {
-    const { data: membership } = await admin
-      .from("campaign_members").select("role")
-      .eq("campaign_id", campaignId).eq("user_id", user.id).maybeSingle();
-    if (!membership) return jsonError("forbidden", 403);
+  // DMs only: no player surface calls this, and it spends the campaign's
+  // credits or the owner's own provider key (see _shared/campaignAccess.ts).
+  if (!(await isCampaignDm(admin, campaign, user.id))) {
+    return jsonError("forbidden", 403);
   }
   if (campaign.ai_enabled !== true) return jsonError("ai_disabled", 403);
 

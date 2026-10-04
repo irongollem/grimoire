@@ -40,7 +40,7 @@
               :focal-point="form.image_focal_point"
               aspect="square"
               show-focal-point
-              bucket="dungeon-feature-images"
+              bucket="asset-images"
               @update:model-value="form.image_url = $event"
               @update:focal-point="form.image_focal_point = $event"
             />
@@ -171,6 +171,8 @@ import {
   FEATURE_GLYPH_LABELS,
 } from "@/types/dungeonFeature.types";
 import type { DungeonFeature, DungeonFeatureTrigger, FeatureGlyph } from "@/types/dungeonFeature.types";
+import { markEdited } from "@/ai/provenance";
+import type { AiProvenance } from "@/ai/provenance";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
@@ -210,6 +212,7 @@ const blankForm = () => ({
   image_focal_point: null as { x: number; y: number } | null,
   tags: [] as string[],
   notes: null as string | null,
+  ai_provenance: null as AiProvenance | null,
 });
 
 const form = ref(blankForm());
@@ -240,6 +243,7 @@ watch(
         notes: f.notes
           ? typeof f.notes === "string" ? f.notes : JSON.stringify(f.notes)
           : null,
+        ai_provenance: f.ai_provenance ?? null,
       });
   },
   { immediate: true },
@@ -249,6 +253,23 @@ async function save() {
   if (!form.value.name.trim()) return;
   saving.value = true;
   try {
+    // Material edit detection (#606): the image, tags and scope do not count.
+    const f = props.feature;
+    const text = (v: string | null) => v ?? "";
+    if (f && (
+      form.value.name.trim() !== f.name ||
+      form.value.feature_type !== f.feature_type ||
+      text(form.value.description) !== text(f.description) ||
+      text(form.value.contents_description) !== text(f.contents_description) ||
+      text(form.value.notes) !== text(f.notes) ||
+      form.value.trigger_type !== f.trigger_type ||
+      text(form.value.trigger_description) !== text(f.trigger_description) ||
+      form.value.perception_dc !== f.perception_dc ||
+      form.value.investigation_dc !== f.investigation_dc ||
+      form.value.arcana_dc !== f.arcana_dc
+    )) {
+      form.value.ai_provenance = markEdited(form.value.ai_provenance);
+    }
     if (props.isNew) {
       await createMut.mutateAsync({ ...form.value });
     } else {

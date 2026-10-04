@@ -1,167 +1,65 @@
 <template>
-  <Transition name="fade">
-    <div
-      v-if="ui.locationGeneratorOpen"
-      class="fixed inset-0 bg-black/60 z-40"
-      @click="ui.locationGeneratorOpen = false"
-    />
-  </Transition>
-
-  <Transition name="slide-right">
-    <aside
-      v-if="ui.locationGeneratorOpen"
-      class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
-    >
-      <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="text-heading-sm font-semibold text-foreground">Location Generator</h2>
-        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" :icon="IconClose" icon-size="lg" @click="ui.locationGeneratorOpen = false" />
-      </div>
-
-      <!-- Body -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-5">
-        <!-- Concept -->
+  <GeneratorPanelShell
+    v-model:open="ui.locationGeneratorOpen"
+    v-model:concept="concept"
+    v-model:generate-image="generateImage"
+    title="Location Generator"
+    concept-placeholder="A crumbling dwarven forge district deep beneath the mountain, long abandoned after a cave-in sealed the lower tunnels and the forgemasters never returned…"
+    :credits="effectiveCreditCost"
+    :byok="fullyByok"
+    :is-generating="isGenerating"
+    :error="genError"
+    blank-to="/locations/new"
+    blank-label="New Blank Location"
+    image-toggle-label="Generate location art"
+    @generate="generateAndCreate"
+  >
+    <template #constraints>
+      <div class="space-y-2">
         <div>
-          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
-            CONCEPT
-            <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(AI will use this)</span>
-          </label>
-          <textarea
-            v-model="concept"
-            rows="4"
-            :maxlength="CONCEPT_LIMIT"
-            placeholder="A crumbling dwarven forge district deep beneath the mountain, long abandoned after a cave-in sealed the lower tunnels and the forgemasters never returned…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-          />
-          <div class="flex justify-end mt-1">
-            <span
-              class="text-caption"
-              :class="concept.length >= CONCEPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
-            >{{ concept.length }} / {{ CONCEPT_LIMIT }}</span>
-          </div>
+          <label class="block text-caption text-muted-foreground mb-1">Location Type</label>
+          <AppSelect v-model="constraints.location_type" tone="filled" size="body" weight="normal" block>
+            <option value="">Any</option>
+            <option v-for="[value, label] in TYPE_OPTIONS" :key="value" :value="value">{{ label }}</option>
+          </AppSelect>
         </div>
-
-        <div class="gold-divider" />
-
-        <!-- Constraints -->
-        <div class="space-y-3">
-          <p class="text-label-lg font-semibold text-muted-foreground">
-            CONSTRAINTS
-            <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional)</span>
-          </p>
-
-          <div class="space-y-2">
-            <div>
-              <label class="block text-caption text-muted-foreground mb-1">Location Type</label>
-              <AppSelect v-model="constraints.location_type" tone="filled" size="body" weight="normal" block>
-                <option value="">Any</option>
-                <option v-for="[value, label] in TYPE_OPTIONS" :key="value" :value="value">{{ label }}</option>
-              </AppSelect>
-            </div>
-            <div>
-              <label class="block text-caption text-muted-foreground mb-1">Parent Location</label>
-              <EntityCombobox
-                v-model="parentLocationId"
-                :options="locationOptions"
-                placeholder="Search locations…"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Image toggles -->
-        <div v-if="isAiEnabled" class="space-y-2.5">
-          <div class="flex items-center justify-between">
-            <span class="text-caption text-muted-foreground">Generate location art</span>
-            <ToggleSwitch v-model="generateImage" aria-label="Generate location art" />
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-caption text-muted-foreground">Generate map sketch</span>
-            <ToggleSwitch v-model="generateMap" aria-label="Generate map sketch" />
-          </div>
-        </div>
-
-        <!-- No API key nudge -->
-        <!-- Generating state -->
-        <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
-          <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
-          <AppButton
-            variant="ghost"
-            size="inline-caption"
-            class="mt-1 underline underline-offset-2"
-            label="Continue in background"
-            @click="ui.locationGeneratorOpen = false"
+        <div>
+          <label class="block text-caption text-muted-foreground mb-1">Parent Location</label>
+          <EntityCombobox
+            v-model="parentLocationId"
+            :options="locationOptions"
+            placeholder="Search locations…"
           />
         </div>
-
-        <!-- Error -->
-        <div
-          v-else-if="genError"
-          class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
-        >
-          <p class="text-caption text-destructive">{{ genError }}</p>
-        </div>
       </div>
+    </template>
 
-      <!-- Footer -->
-      <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
-        <GenerationCostBadge
-          v-if="isAiEnabled"
-          :credits="effectiveCreditCost"
-          :byok="fullyByok"
-          class="self-center"
-        />
-        <AppButton
-          v-if="isAiEnabled"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim()"
-          :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          :label="isGenerating ? 'Generating…' : 'Generate with AI'"
-          @click="generateAndCreate"
-        />
-        <AiOffNotice v-else />
-        <AppButton
-          to="/locations/new"
-          :variant="!isAiEnabled ? 'primary' : 'outline'"
-          size="md"
-          block
-          label="New Blank Location"
-          @click="ui.locationGeneratorOpen = false"
-        />
+    <template #extra>
+      <div v-if="isAiEnabled" class="flex items-center justify-between">
+        <span class="text-caption text-muted-foreground">Generate map sketch</span>
+        <ToggleSwitch v-model="generateMap" aria-label="Generate map sketch" />
       </div>
-    </aside>
-  </Transition>
+    </template>
+  </GeneratorPanelShell>
 
   <PaywallModal v-model="showQuotaPaywall" resource="locations" />
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
-import { AI_PROMPT_LIMIT } from "@/ai/utils";
-
-const CONCEPT_LIMIT = AI_PROMPT_LIMIT;
 import { useRouter } from "vue-router";
-import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateLocation, useLocationTree } from "@/composables/locations/useLocations";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useToast } from "@/composables/useToast";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useLocationGeneration } from "@/ai/useLocationGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
-import { currentLoadingQuote } from "@/ai/aiGenerationState";
-import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { LocationType } from "@/types/location.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";

@@ -43,6 +43,14 @@ You can build connections without leaving the graph:
 
 A **Shift+click another node to link** hint appears at the bottom of the screen once you've selected a first node.
 
+## Suggesting connections with AI
+
+If AI is turned on for your campaign, the **NPC Connections** section on an NPC's page has a **Suggest** button. Press it, add a steer if you like (for example "someone with a grudge against the guild"), and the assistant proposes three to six connections for that NPC.
+
+It reads the NPC's details, the ties they already have, and the other NPCs and factions in your campaign, so every suggestion points at someone who really exists in your world. Each one shows the relationship type (or the role in a faction) and a short note with a hook you can use at the table.
+
+Nothing is saved until you say so. **Accept** adds the connection, or adds the NPC to the faction, and **Dismiss** throws the suggestion away. **Dismiss all** clears the list. Suggestions cost credits, and the cost is shown beside the button.
+
 ## Relationship types
 
 Connections use a 15-type taxonomy. Storing a type from one NPC's side automatically reads as its inverse from the other side, so you only ever set it once:

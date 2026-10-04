@@ -1,177 +1,73 @@
 <template>
-  <Transition name="fade">
-    <div
-      v-if="ui.factionGeneratorOpen"
-      class="fixed inset-0 bg-black/60 z-40"
-      @click="ui.factionGeneratorOpen = false"
-    />
-  </Transition>
-
-  <Transition name="slide-right">
-    <aside
-      v-if="ui.factionGeneratorOpen"
-      class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
-    >
-      <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="text-heading-sm font-semibold text-foreground">Faction Generator</h2>
-        <AppButton variant="ghost" size="inline-xs" icon-size="lg" :icon="IconClose" tooltip="Close" aria-label="Close" @click="ui.factionGeneratorOpen = false" />
-      </div>
-
-      <!-- Body -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-5">
-        <!-- Concept -->
+  <GeneratorPanelShell
+    v-model:open="ui.factionGeneratorOpen"
+    v-model:concept="concept"
+    v-model:generate-image="generateImage"
+    title="Faction Generator"
+    concept-placeholder="A shadowy thieves' guild operating beneath the city's merchant quarter, secretly manipulating trade routes and bribing officials to maintain their monopoly on smuggled goods…"
+    :credits="textCreditCost"
+    :byok="textIsByok"
+    :is-generating="isGenerating"
+    :error="genError"
+    blank-to="/factions/new"
+    blank-label="New Blank Faction"
+    image-toggle-label="Generate faction emblem"
+    @generate="generateAndCreate"
+  >
+    <template #constraints>
+      <div class="grid grid-cols-2 gap-2">
         <div>
-          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
-            CONCEPT
-            <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(AI will use this)</span>
-          </label>
-          <textarea
-            v-model="concept"
-            rows="4"
-            :maxlength="CONCEPT_LIMIT"
-            placeholder="A shadowy thieves' guild operating beneath the city's merchant quarter, secretly manipulating trade routes and bribing officials to maintain their monopoly on smuggled goods…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-          />
-          <div class="flex justify-end mt-1">
-            <span
-              class="text-caption"
-              :class="concept.length >= CONCEPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
-            >{{ concept.length }} / {{ CONCEPT_LIMIT }}</span>
-          </div>
+          <label class="block text-caption text-muted-foreground mb-1">Type</label>
+          <AppSelect v-model="constraints.faction_type" tone="filled" size="body" weight="normal" block>
+            <option value="">Any</option>
+            <option v-for="t in FACTION_TYPES" :key="t" :value="t">{{ t }}</option>
+          </AppSelect>
         </div>
-
-        <div class="gold-divider" />
-
-        <!-- Constraints -->
-        <div class="space-y-3">
-          <p class="text-label-lg font-semibold text-muted-foreground">
-            CONSTRAINTS
-            <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional)</span>
-          </p>
-
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-caption text-muted-foreground mb-1">Type</label>
-              <AppSelect v-model="constraints.faction_type" tone="filled" size="body" weight="normal" block>
-                <option value="">Any</option>
-                <option v-for="t in FACTION_TYPES" :key="t" :value="t">{{ t }}</option>
-              </AppSelect>
-            </div>
-            <div>
-              <label class="block text-caption text-muted-foreground mb-1">Alignment</label>
-              <AppSelect v-model="constraints.alignment" tone="filled" size="body" weight="normal" block>
-                <option value="">Any</option>
-                <option v-for="a in FACTION_ALIGNMENTS" :key="a" :value="a">{{ a }}</option>
-              </AppSelect>
-            </div>
-          </div>
-          <div>
-            <label class="block text-caption text-muted-foreground mb-1">Leader (NPC)</label>
-            <EntityCombobox
-              v-model="leaderNpcId"
-              :options="npcOptions"
-              placeholder="Search NPCs…"
-            />
-          </div>
-          <div>
-            <label class="block text-caption text-muted-foreground mb-1">Headquarters</label>
-            <EntityCombobox
-              v-model="headquartersLocationId"
-              :options="locationOptions"
-              placeholder="Search locations…"
-            />
-          </div>
-        </div>
-
-        <!-- Image generation toggle -->
-        <div v-if="isAiEnabled" class="flex items-center justify-between">
-          <span class="text-caption text-muted-foreground">Generate faction emblem</span>
-          <ToggleSwitch v-model="generateImage" aria-label="Generate faction emblem" />
-        </div>
-
-        <!-- No API key nudge -->
-        <!-- Generating state -->
-        <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
-          <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
-          <AppButton
-            variant="ghost"
-            size="inline-caption"
-            class="mt-1 underline underline-offset-2"
-            label="Continue in background"
-            @click="ui.factionGeneratorOpen = false"
-          />
-        </div>
-
-        <!-- Error -->
-        <div
-          v-else-if="genError"
-          class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
-        >
-          <p class="text-caption text-destructive">{{ genError }}</p>
+        <div>
+          <label class="block text-caption text-muted-foreground mb-1">Alignment</label>
+          <AppSelect v-model="constraints.alignment" tone="filled" size="body" weight="normal" block>
+            <option value="">Any</option>
+            <option v-for="a in FACTION_ALIGNMENTS" :key="a" :value="a">{{ a }}</option>
+          </AppSelect>
         </div>
       </div>
-
-      <!-- Footer -->
-      <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
-        <GenerationCostBadge
-          v-if="isAiEnabled"
-          :credits="textCreditCost"
-          :byok="textIsByok"
-          class="self-center"
-        />
-        <AppButton
-          v-if="isAiEnabled"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim()"
-          :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          :label="isGenerating ? 'Generating…' : 'Generate with AI'"
-          @click="generateAndCreate"
-        />
-        <AiOffNotice v-else />
-        <AppButton
-          to="/factions/new"
-          :variant="!isAiEnabled ? 'primary' : 'outline'"
-          size="md"
-          block
-          label="New Blank Faction"
-          @click="ui.factionGeneratorOpen = false"
+      <div>
+        <label class="block text-caption text-muted-foreground mb-1">Leader (NPC)</label>
+        <EntityCombobox
+          v-model="leaderNpcId"
+          :options="npcOptions"
+          placeholder="Search NPCs…"
         />
       </div>
-    </aside>
-  </Transition>
+      <div>
+        <label class="block text-caption text-muted-foreground mb-1">Headquarters</label>
+        <EntityCombobox
+          v-model="headquartersLocationId"
+          :options="locationOptions"
+          placeholder="Search locations…"
+        />
+      </div>
+    </template>
+  </GeneratorPanelShell>
 
   <PaywallModal v-model="showQuotaPaywall" resource="factions" />
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
-import { AI_PROMPT_LIMIT } from "@/ai/utils";
-
-const CONCEPT_LIMIT = AI_PROMPT_LIMIT;
 import { useRouter } from "vue-router";
-import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateFaction, useAddFactionNpc, useAddFactionLocation } from "@/composables/factions/useFactions";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useFactionGeneration } from "@/ai/useFactionGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
-import { currentLoadingQuote } from "@/ai/aiGenerationState";
-import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { FACTION_TYPES, FACTION_ALIGNMENTS } from "@/types/faction.types";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useLocationTree } from "@/composables/locations/useLocations";
@@ -189,8 +85,6 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const panelOpen           = () => ui.factionGeneratorOpen;
 const { data: npcs }      = useNpcs(panelOpen);
 const { locationOptions } = useLocationTree(panelOpen);
-
-const isAiEnabled = computed(() => campaign.isAiEnabled);
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("factions");
 

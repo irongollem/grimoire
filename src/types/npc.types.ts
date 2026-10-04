@@ -1,4 +1,5 @@
 import type { AiProvenance } from "@/ai/provenance";
+import type { SuggestedRelationshipType } from "@edge-shared/npcRelationshipSuggestions.ts";
 
 export type NpcStatus = "alive" | "dead" | "missing" | "unknown";
 export type NpcRelationship =
@@ -18,30 +19,8 @@ export const NPC_RELATIONSHIP_LABELS: Record<NpcRelationship, string> = {
   unknown:      "Unknown",
 };
 
-export type NpcRelationshipType =
-  // ── Familial ─────────────────────────────────────────────────────────────
-  | "family"          // any blood-kinship not better described by `sibling`
-                      // (parent/child, aunt/uncle, cousin, grandparent, etc.)
-  | "sibling"         // blood sibling specifically — kept distinct from
-                      // `family` so the parent/child vs sibling-of distinction
-                      // survives in the data
-  | "chosen_family"   // non-blood deep bond carried with family-strength
-                      // (adopted, matched-pair foundlings, anchored-companion)
-  // ── Affinitive ───────────────────────────────────────────────────────────
-  | "friend"
-  | "ally"
-  | "rival"
-  | "enemy"
-  | "lover"
-  // ── Hierarchical ─────────────────────────────────────────────────────────
-  | "mentor"
-  | "apprentice"
-  | "subordinate"
-  | "superior"
-  // ── Acquaintance / former ────────────────────────────────────────────────
-  | "contact"
-  | "former_ally"
-  | "former_enemy";
+// Derived from the edge-function list so the suggester and the UI cannot drift.
+export type NpcRelationshipType = SuggestedRelationshipType;
 
 export const NPC_RELATIONSHIP_TYPE_LABELS: Record<NpcRelationshipType, string> = {
   family:        "Family",
@@ -147,6 +126,7 @@ export interface NpcRelation {
   related_npc_id: string;
   relationship_type: NpcRelationshipType;
   notes: string | null;
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

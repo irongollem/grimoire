@@ -23,6 +23,7 @@ import {
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
+import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 /**
  * At-the-table NPC dialogue suggester (#336).
@@ -166,11 +167,10 @@ serve(withCors(async (req: Request) => {
   if (!campaign) return new Response("Campaign not found", { status: 404 });
   if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
 
-  if (campaign.user_id !== user.id) {
-    const { data: membership } = await admin
-      .from("campaign_members").select("role")
-      .eq("campaign_id", campaign_id).eq("user_id", user.id).maybeSingle();
-    if (!membership) return new Response("Forbidden", { status: 403 });
+  // DMs only: this reads DM-only campaign content with the service role (see
+  // _shared/campaignAccess.ts for why a player member must not get through).
+  if (!(await isCampaignDm(admin, campaign, user.id))) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   // The membership check above authorizes the campaign; this second check stops

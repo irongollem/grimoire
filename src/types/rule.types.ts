@@ -1,4 +1,5 @@
 import type { VersionedContentMetadata } from "@/types/content.types";
+import type { AiProvenance } from "@/ai/provenance";
 
 // ── SRD rules (shared, read-only from client) ─────────────────────────────────
 
@@ -96,6 +97,7 @@ export interface Rule extends VersionedContentMetadata {
   tags: string[];
   is_player_visible: boolean;
   tracker: TrackerDef | null;
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

@@ -468,6 +468,8 @@ export interface QuestBeat {
   canvas_y: number;
   is_improvised: boolean;
   improv_reviewed_at: string | null;
+  /** Set by "Fill with AI" on the beat page; flipped to `edited` once the DM changes the filled text. */
+  ai_provenance?: AiProvenance | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

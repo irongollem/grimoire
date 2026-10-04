@@ -106,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+import type { BucketId } from "@/lib/storage";
 import { ref, computed, useId } from "vue";
 import { IconAddImage } from '@/lib/icons';
 import { useImageUpload } from "@/composables/useImageUpload";
@@ -119,7 +120,7 @@ const {
   showFocalPoint = false,
   placeholder = "Drop image or click to upload",
 } = defineProps<{
-  bucket: string;
+  bucket: BucketId;
   aspect?: "portrait" | "landscape" | "square" | "auto";
   showFocalPoint?: boolean;
   placeholder?: string;

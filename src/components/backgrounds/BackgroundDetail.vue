@@ -169,6 +169,8 @@ import {
 import type { AbilityScoreKey, Background, BackgroundInsert } from "@/types/background.types";
 import { ABILITY_SCORE_KEYS } from "@/types/background.types";
 import { parseOriginFeatText } from "@/rules/backgroundAsi";
+import { markEdited } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 
 const props = defineProps<{
   background: Background | null;
@@ -250,6 +252,25 @@ async function save() {
     // field on every save — the text field stays the single source of truth for
     // custom/homebrew backgrounds, origin_feat is derived for feat lookup.
     form.value.origin_feat = parseOriginFeatText(form.value.feat_grant_name);
+    // Material edit detection (#606): tags, art and source are carve-outs.
+    const prior = props.background;
+    if (prior?.ai_provenance) {
+      const f = form.value;
+      const contentChanged =
+        f.name !== prior.name ||
+        !deepEqual(f.description, prior.description) ||
+        !deepEqual(f.skill_proficiencies, prior.skill_proficiencies) ||
+        !deepEqual(f.tool_proficiencies, prior.tool_proficiencies) ||
+        !deepEqual(f.languages, prior.languages) ||
+        !deepEqual(f.equipment, prior.equipment) ||
+        f.feature_name !== prior.feature_name ||
+        !deepEqual(f.feature_description, prior.feature_description) ||
+        f.feat_grant_name !== prior.feat_grant_name ||
+        !deepEqual(f.feat_grant_description, prior.feat_grant_description) ||
+        !deepEqual(f.asi_ability_trio, prior.asi_ability_trio) ||
+        !deepEqual(f.suggested_characteristics, prior.suggested_characteristics);
+      if (contentChanged) f.ai_provenance = markEdited(prior.ai_provenance);
+    }
     if (props.background) {
       await updateBg({ id: props.background.id, update: form.value });
     } else {

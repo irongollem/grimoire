@@ -22,6 +22,7 @@ import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, type TextResult } from "../_shared/textGen.ts";
+import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 // Entity portraits always render portrait-orientation.
 const ENTITY_IMAGE_SIZE = "1024x1536";
@@ -81,11 +82,10 @@ serve(withCors(async (req: Request) => {
   if (!campaign) return new Response("Campaign not found", { status: 404 });
   if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
 
-  if (campaign.user_id !== user.id) {
-    const { data: membership } = await admin
-      .from("campaign_members").select("role")
-      .eq("campaign_id", campaign_id).eq("user_id", user.id).maybeSingle();
-    if (!membership) return new Response("Forbidden", { status: 403 });
+  // DMs only: no player surface calls this, and it spends the campaign's
+  // credits or the owner's own provider key (see _shared/campaignAccess.ts).
+  if (!(await isCampaignDm(admin, campaign, user.id))) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   const { data: imageBaseRow } = await admin

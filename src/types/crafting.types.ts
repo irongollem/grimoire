@@ -1,3 +1,5 @@
+import type { AiProvenance } from "@/ai/provenance";
+
 export type CraftingDiscipline =
   | "alchemy"
   | "smithing"
@@ -28,6 +30,8 @@ export interface CraftingRecipe {
   requires_proficiency: boolean;
   requires_tools: boolean;
   player_visible_to: string[];
+  /** Set when the recipe came from the generator; flipped by markEdited on a material edit. */
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

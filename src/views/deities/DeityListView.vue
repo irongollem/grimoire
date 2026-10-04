@@ -23,6 +23,12 @@
         to="/pantheons"
       />
       <ListActionButton
+        v-if="campaign.isAiEnabled"
+        :icon="IconGenerate"
+        label="Generate"
+        @click="ui.deityGeneratorOpen = true"
+      />
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Deity"
@@ -151,7 +157,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { IconAdd, IconFire, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
+import { IconAdd, IconFire, IconGenerate, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities, useUpdateDeity } from "@/composables/deities/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
 import { useUiStore } from "@/stores/ui";

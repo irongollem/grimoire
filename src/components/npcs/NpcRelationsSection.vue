@@ -4,17 +4,75 @@
       <div class="text-heading-sm font-bold text-foreground">
         NPC Connections
       </div>
-      <AppButton
-        variant="outline"
-        fill="muted"
-        size="sm"
-        :icon="IconAdd"
-        icon-size="xs"
-        label="Add"
-        @click="showForm = true"
-      />
+      <div class="flex items-center gap-2">
+        <AppButton
+          v-if="isAiEnabled"
+          variant="outline"
+          fill="muted"
+          size="sm"
+          :icon="IconGenerate"
+          icon-size="xs"
+          :loading="isSuggesting"
+          :disabled="isAnyAiGenerating"
+          :tooltip="isAnyAiGenerating && !isSuggesting ? 'Another generation is already in progress' : undefined"
+          label="Suggest"
+          @click="showSteer = !showSteer"
+        />
+        <AppButton
+          variant="outline"
+          fill="muted"
+          size="sm"
+          :icon="IconAdd"
+          icon-size="xs"
+          label="Add"
+          @click="showForm = true"
+        />
+      </div>
     </div>
     <div class="gold-divider mb-3" />
+
+    <!-- AI suggestion steer -->
+    <div
+      v-if="isAiEnabled && showSteer"
+      class="border border-border rounded-lg p-3 space-y-3 mb-4 bg-muted/30"
+    >
+      <div>
+        <label class="field-label"
+          >Steer
+          <span class="font-fell font-normal normal-case text-muted-foreground">(optional)</span></label
+        >
+        <AppInput
+          v-model="steer"
+          tone="filled"
+          size="body"
+          :maxlength="AI_PROMPT_LIMIT_SHORT"
+          placeholder="e.g. someone with a grudge against the guild"
+        />
+      </div>
+      <div class="flex items-center justify-end gap-2">
+        <GenerationCostBadge :credits="suggestCost" :byok="textIsByok" />
+        <AppButton variant="subtle" size="sm" label="Cancel" @click="showSteer = false" />
+        <AppButton
+          variant="primary"
+          size="sm"
+          :icon="IconGenerate"
+          icon-size="xs"
+          :loading="isSuggesting"
+          :disabled="isAnyAiGenerating"
+          label="Suggest connections"
+          @click="runSuggest"
+        />
+      </div>
+    </div>
+    <p v-if="suggestError" class="text-caption text-destructive mb-3">{{ suggestError }}</p>
+    <NpcRelationSuggestions
+      v-if="suggestions.length > 0"
+      :suggestions="suggestions"
+      :pending="isAccepting"
+      @accept="acceptSuggestion"
+      @dismiss="dismiss"
+      @dismiss-all="dismissAll"
+    />
 
     <!-- Add form -->
     <div
@@ -123,17 +181,32 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconClose } from '@/lib/icons';
+import { IconAdd, IconClose, IconGenerate } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import NpcRelationSuggestions from "@/components/npcs/NpcRelationSuggestions.vue";
 import {
   useNpcRelations,
   useCreateNpcRelation,
   useDeleteNpcRelation,
 } from "@/composables/factions/useNpcRelations";
+import { useAddFactionNpc, useAllFactions } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useCampaignStore } from "@/stores/campaign";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useGenerationGate } from "@/composables/ai/useGenerationGate";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useToast } from "@/composables/useToast";
+import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
+import {
+  useNpcRelationshipSuggestions,
+  type ResolvedSuggestion,
+} from "@/ai/useNpcRelationshipSuggestions";
+import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
 import {
   NPC_RELATIONSHIP_TYPE_LABELS,
   NPC_RELATIONSHIP_TYPE_VAR,
@@ -217,6 +290,74 @@ async function addRelation() {
 
 async function removeRelation(id: string) {
   await deleteRelation(id);
+}
+
+// ── AI suggestions ──────────────────────────────────────────────────────────
+const campaign = useCampaignStore();
+const toast = useToast();
+const isAiEnabled = computed(() => campaign.isAiEnabled);
+const { data: allFactions } = useAllFactions();
+const { mutateAsync: addFactionNpc } = useAddFactionNpc();
+const { suggest, forNpc } = useNpcRelationshipSuggestions();
+// Bound to this NPC: another NPC's Suggest run never shows up or accepts here.
+const {
+  isGenerating: isSuggesting,
+  error: suggestError,
+  suggestions,
+  provenance,
+  dismiss,
+  dismissAll,
+} = forNpc(() => props.npcId);
+
+const { canSpend } = useGenerationGate();
+const { costOf } = useAiCredits();
+const { textMultiplierFor } = useProviderConfig();
+const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
+const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const suggestCost = computed(() =>
+  wholeCredits(costOf("npc_relationship_suggestion") * textMultiplierFor(textProvider.value)),
+);
+
+const showSteer = ref(false);
+const steer = ref("");
+const isAccepting = ref(false);
+
+async function runSuggest() {
+  if (!canSpend(suggestCost.value, textIsByok.value)) return;
+  const ok = await suggest(props.npcId, steer.value, {
+    npcs: otherNpcs.value,
+    factions: allFactions.value ?? [],
+  });
+  if (ok) {
+    showSteer.value = false;
+    steer.value = "";
+  }
+}
+
+async function acceptSuggestion(s: ResolvedSuggestion) {
+  isAccepting.value = true;
+  try {
+    if (s.kind === "npc") {
+      await createRelation({
+        npc_id: props.npcId,
+        related_npc_id: s.target_id,
+        relationship_type: s.relationship_type,
+        notes: s.notes || null,
+        ai_provenance: provenance.value,
+      });
+    } else {
+      await addFactionNpc({
+        faction_id: s.target_id,
+        npc_id: props.npcId,
+        role: s.role || undefined,
+      });
+    }
+    dismiss(s);
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : "Could not save that connection.");
+  } finally {
+    isAccepting.value = false;
+  }
 }
 </script>
 

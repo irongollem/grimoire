@@ -12,7 +12,12 @@ import type { RulesetKey } from "@/types/ruleset.types";
  * one JSON text call keyed by its `ai_system_prompts` row; the art is a
  * separate step through `generateImage`, which has its own server path.
  */
-export type EntityTextGenerator = "spell" | "monster" | "item" | "faction";
+export type EntityTextGenerator =
+  | "spell" | "monster" | "item" | "faction"
+  // Epic #910
+  | "feature" | "deity" | "species" | "background"
+  | "custom_class" | "custom_subclass" | "class_feature"
+  | "custom_rule" | "recipe" | "calendar_event" | "room" | "quest_beat";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 

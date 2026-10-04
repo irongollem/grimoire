@@ -120,6 +120,20 @@ The `tocBlock` node renders as an empty `<nav>` outside the paginated book (only
 
 The `is_published` flag is a DM-only status badge (green, in the list) for tracking done versus draft. It does not currently share the document with players or change any access. Documents are owner-only: `scriptorium_documents` RLS is scoped to `user_id`, and the row also carries a `demo_source` marker (set only by the demo-campaign copy machinery, never by the client) that exempts demo copies from the document quota.
 
+### Draft with AI (#910)
+
+**Entry point:** a **Draft with AI** button in the Scriptorium template gallery (`TemplateGallery.vue`) and the Scriptorium view (`ScriptoriumView.vue`), both setting `ui.scriptoriumDraftOpen`. `ScriptoriumDraftDialog.vue` is mounted globally in `AiGeneratorPanels.vue`, so a draft started in the background can be reopened from the AI badge on any page (state in `src/ai/useScriptoriumDraft.ts`).
+
+**The DM picks** a kind (`handout`, `faction_dossier`, `session_recap`), a subject (an NPC, location, faction or session note; `KIND_SUBJECTS` fixes which kinds take which subjects), an audience (`players` or `dm`) and a steer.
+
+**Server path only:** `supabase/functions/draft-scriptorium-document/index.ts`, pure helpers in `supabase/functions/_shared/scriptoriumDraft.ts`. Order: auth, account gate, request validation (unknown values are rejected, never defaulted), campaign and `ai_enabled` check, **DM-role gate via `isCampaignDm`**, prompt rows (`scriptorium_draft` plus the edition's `ruleset_context_<ruleset>`), rate limit, `reserveCredits`, fetch, model, parse, `recordGeneration` (refund on failure). Ledger reason `scriptorium_draft`, 2 credits because the output is a multi-page document.
+
+**Every read is filtered by `campaign_id`.** A subject id from the client is only ever looked up inside the campaign, so it cannot name another campaign's row. The context blocks cover the subject and what hangs off it (a faction's members and locations, an NPC's relations, a session's other notes).
+
+**The audience rule decides what the model may see.** For `players` a block carries only what the players could already see in the app: an NPC's name, race, occupation and appearance, a location's description only when shared, notes and related entities only when shared with at least one player. A `dm` draft gets everything the row holds. This is enforced in the builders, in one tested place, not inline in the handler.
+
+**Output is a whitelist, not trusted HTML.** The model returns `{ title, html }`; `sanitizeDraftHtml` keeps only `ALLOWED_TAGS` with every attribute stripped (comments removed), and no title or empty HTML is a failed draft. The client converts it with `htmlToScriptoriumJson` and creates a `scriptorium_documents` row (`doc_type: "custom"`, quota-gated through `useGenerationGate("scriptorium_documents")`) carrying `ai_provenance`, then navigates to `/scriptorium/:id`.
+
 ### Quota
 
 Document creation is quota-gated (`scriptorium_documents` in `check_quota`/`check_all_quotas`); hitting the limit triggers `PaywallModal`.
@@ -218,6 +232,14 @@ Frame color is driven by entity type: each card uses a CSS `--fc` custom propert
 Live card preview grid on screen (screen-sized rendering, separate from print size). Scrollable preview area shows all selected cards as front faces.
 
 ---
+
+### Paint portrait for entities with no art (#910)
+
+A card or token whose entity has no picture can have one painted from where it is being made. `PaintPortraitButton.vue` is presentation only (label, cost badge, error); the caller owns the logic. `src/ai/useMissingPortrait.ts` does the work for five kinds (`npc`, `party`, `monster`, `item`, `spell`): it generates the entity's own portrait with the **same image kind and bucket the entity's detail editor uses** (`KIND_CONFIG`: for example `npc_portrait` in `npc-portraits`), then saves the URL onto the entity through its own update mutation, with a centred focal point. So the card, the token and the detail page all gain the picture at once, the Gallery files it under the right tab, and provenance is recorded per stored image like any other (#935). Text-only generation, so the likeness gate (reference images only) does not apply, as in `EntityImageBlock`. Entity facts come from `src/ai/entityImageContext.ts`, kept in step with the editors' `aiContext` so a portrait painted here describes the same entity.
+
+One paint runs at a time across every surface (`paintingId` is module state): a second would spend credits while the first renders. A failed paint is a message on the card, not a thrown error.
+
+Card Forge: `useCardPortraitPainter` (`src/composables/cardforge/`) wraps four painters and decides eligibility (`hasNoArt`): an NPC without a portrait, a monster without art that is not shared, an item or spell without art whose id is a uuid. **Library (shared) monsters, spells and items are read-only, so only the DM's own rows offer it**; their ids are slugs, the DM's are uuids. Shown in `CardForgePreviewGrid.vue`; The Mint's tokens tab (`TokenForgeView.vue`) uses `useMissingPortrait` directly for NPC, party member and monster tokens, one painter per kind sharing the one-at-a-time lock.
 
 ## The Mint (VTT Token Creator)
 
@@ -401,6 +423,16 @@ The shape to understand before touching it: most of what we host is **not** WotC
 - **Audio** (`get_audio_licenses()`, migration `20260729000003`, `AudioLicenseCard.vue`) — the tab also covers the soundboard's shipped catalogue: 802 sounds, of which **82 are CC-BY and legally require credit**. Grouped by `(license, source)` rather than modelled into `content_sources`, because audio attribution is per-sound and each `sound_library` row already stores a ready-to-display credit line. `attributions` is **null, never `[]`**, for CC0 groups — no credit required is a different state from credits gone missing, and the card says so in words. Per-sound credit still travels onto the DM's board via `SoundCard.vue`; this is the consolidated notice.
 
 Several `source_document_key` values are stale pre-v2 Open5e slugs (`cc`, `menagerie`, `dmag`, `blackflag`, `taldorei`…) that no longer match upstream keys (`ccdx`, `a5e-mm`, `deepm`, `bfrd`, `tdcs`). `LEGACY_DOCUMENT_KEY_ALIASES` in `src/lib/library/open5eApi.ts` maps between them — any data-driven backfill that skips it matches nothing.
+
+### AI house rule generator (#910)
+
+The Reliquary's Custom Rules tab has a **Generate** action (`RulesView.vue`, `ui.customRuleGeneratorOpen`) opening `CustomRuleGeneratorPanel.vue` (state in `src/ai/useCustomRuleGeneration.ts`). Constraints: category and an "Allow a tracker" toggle. `generate-entity-text` with `generator: "custom_rule"`, ledger reason `custom_rule_generation`.
+
+`normalizeCustomRule` (`src/lib/rules/customRuleAi.ts`) turns the answer into a `rules` row. The category must be in `RULE_CATEGORIES`; no title or no effect text means no rule. The body is assembled as a Tiptap document: summary, then Trigger, Effect and Exceptions as headed sections.
+
+**Tracker validation is strict, and a failing tracker costs only the tracker.** `normalizeTracker` returns null on any structural fault (min not below max, a start outside the range, an unknown type, a level outside the range or out of order, an effect of an unknown type or missing its value, exhaustion outside 1-6, a save without a valid ability and DC, buttons or triggers it cannot read), so a half-valid tracker never reaches the player sheet, and the rule text still lands without it. With the toggle off the tracker is always null.
+
+**Writes:** `createRule` with `is_player_visible: false` (a generated rule is never published to players unprompted), the tracker, and `ai_provenance`. Then it navigates to `/rules/:id`.
 
 ### Player View
 

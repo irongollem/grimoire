@@ -228,6 +228,8 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import type { Species, SpeciesSize } from "@/types/species.types";
+import { markEdited } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 
 const props = defineProps<{ species?: Species | null }>();
 
@@ -411,7 +413,25 @@ async function save() {
       avg_weight: form.avg_weight.trim() || null,
       granted_spells: form.grantedSpells,
       campaign_id: form.campaign_id,
+      ai_provenance: props.species?.ai_provenance ?? null,
     };
+
+    // Material edit detection (#606): tags, art, notes, scope and source are
+    // carve-outs; any change to the entry's actual content flips `edited`.
+    const prior = props.species;
+    if (prior?.ai_provenance) {
+      const contentChanged =
+        payload.name !== prior.name ||
+        !deepEqual(payload.description, prior.description) ||
+        payload.size !== prior.size ||
+        !deepEqual(payload.speed, prior.speed) ||
+        !deepEqual(payload.ability_score_increases, prior.ability_score_increases) ||
+        !deepEqual(payload.traits, prior.traits) ||
+        !deepEqual(payload.languages, prior.languages) ||
+        !deepEqual(payload.subraces, prior.subraces) ||
+        !deepEqual(payload.granted_spells, prior.granted_spells);
+      if (contentChanged) payload.ai_provenance = markEdited(prior.ai_provenance);
+    }
 
     if (props.species) {
       await updateSpecies({ id: props.species.id, update: payload });

@@ -1,75 +1,46 @@
 <template>
-  <Transition name="fade">
-    <div
-      v-if="ui.npcGeneratorOpen"
-      class="fixed inset-0 bg-black/60 z-40"
-      @click="handleClose"
+  <GeneratorPanelFrame :open="ui.npcGeneratorOpen" title="NPC Generator" @close="handleClose">
+    <NpcGeneratorForm
+      v-model:concept="concept"
+      :quick-form="quickForm"
+      @update:quick-form="onUpdateQuickForm"
+      v-model:generate-alter-ego="generateAlterEgo"
+      v-model:generate-image="generateImage"
+      :is-ai-enabled="isAiEnabled"
+      :is-generating="isGenerating"
+      :gen-error="genError"
+      @dismiss-to-background="dismissToBackground"
     />
-  </Transition>
 
-  <Transition name="slide-right">
-    <aside
-      v-if="ui.npcGeneratorOpen"
-      class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
-    >
-      <!-- Header -->
-      <div
-        class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0"
-      >
-        <h2 class="text-heading-sm font-semibold text-foreground">
-          NPC Generator
-        </h2>
-        <AppButton variant="ghost" size="inline-xs" icon-size="lg" :icon="IconClose" tooltip="Close" aria-label="Close" @click="handleClose" />
-      </div>
-
-      <!-- Body -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-5">
-        <NpcGeneratorForm
-          v-model:concept="concept"
-          :quick-form="quickForm"
-          @update:quick-form="onUpdateQuickForm"
-          v-model:generate-alter-ego="generateAlterEgo"
-          v-model:generate-image="generateImage"
-          :is-ai-enabled="isAiEnabled"
-          :is-generating="isGenerating"
-          :gen-error="genError"
-          @dismiss-to-background="dismissToBackground"
-        />
-      </div>
-
-      <!-- Footer -->
-      <div
-        class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0"
-      >
-        <GenerationCostBadge
-          v-if="isAiEnabled"
-          :credits="effectiveCreditCost"
-          :byok="isFullyByok"
-          class="self-center"
-        />
-        <AppButton
-          v-if="isAiEnabled"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim()"
-          :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          :label="isGenerating ? 'Generating…' : 'Generate with AI'"
-          @click="generateAndCreate"
-        />
-        <AiOffNotice v-else />
-        <AppButton
-          variant="primary"
-          size="md"
-          block
-          :disabled="isCreating"
-          :label="isCreating ? 'Creating…' : 'Quick Create NPC'"
-          @click="quickCreate"
-        />
-      </div>
-    </aside>
-  </Transition>
+    <template #footer>
+      <GenerationCostBadge
+        v-if="isAiEnabled"
+        :credits="effectiveCreditCost"
+        :byok="isFullyByok"
+        class="self-center"
+      />
+      <AppButton
+        v-if="isAiEnabled"
+        variant="primary"
+        size="md"
+        block
+        :icon="IconGenerate"
+        :disabled="isAnyAiGenerating || !concept.trim()"
+        :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
+        :label="isGenerating ? 'Generating…' : 'Generate with AI'"
+        @click="generateAndCreate"
+      />
+      <AiOffNotice v-else />
+      <AppButton
+        variant="primary"
+        size="md"
+        block
+        :disabled="isCreating"
+        :label="isCreating ? 'Creating…' : 'Quick Create NPC'"
+        @click="quickCreate"
+      />
+    </template>
+  </GeneratorPanelFrame>
 
   <PaywallModal v-model="showQuotaPaywall" resource="npcs" />
 </template>
@@ -77,7 +48,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { IconClose, IconGenerate } from "@/lib/icons";
+import { IconGenerate } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCreateNpc } from "@/composables/npcs/useNpcs";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
@@ -91,6 +62,7 @@ import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
 import AppButton from "@/components/common/AppButton.vue";
+import GeneratorPanelFrame from "@/components/common/GeneratorPanelFrame.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -372,22 +344,3 @@ async function quickCreate() {
   router.push(`/npcs/${created.id}`);
 }
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-.slide-right-enter-active,
-.slide-right-leave-active {
-  transition: transform 0.25s ease;
-}
-.slide-right-enter-from,
-.slide-right-leave-to {
-  transform: translateX(100%);
-}
-</style>

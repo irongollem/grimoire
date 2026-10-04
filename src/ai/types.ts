@@ -257,15 +257,20 @@ export interface QuestSpineBeatResult {
   dm_content: string;
   /**
    * The passage a DM reads out at the table, plain text, distinct from the
-   * `dm_content` guidance around it. Optional because the two producers differ
+   * `dm_content` guidance around it. Optional because the three producers differ
    * in what they can honestly supply, not because there are two shapes:
    *
-   * - The **generator** leaves it empty. Invented prose has no boxed text, and
-   *   asking a model to write some produces read-aloud copy for a scene the DM
-   *   has not yet agreed to.
+   * - The **whole-quest generator** leaves it empty. Invented prose has no
+   *   boxed text, and asking a model to write some produces read-aloud copy
+   *   for a scene the DM has not yet agreed to.
    * - The **importer** (#829) fills it, because a published adventure marks its
    *   boxed text explicitly — D&D Beyond emits `<aside class="read-aloud-text">`
    *   — so this is transcription rather than invention.
+   * - The **per-beat fill** (`quest_beat`, "Fill with AI" on the beat page)
+   *   writes it. The generator's reasoning does not carry over: that was about
+   *   whole-quest generation inventing scenes nobody asked for, and a fill is
+   *   one scene the DM has explicitly asked the model to write, grounded in
+   *   the beats on either side of it.
    *
    * Adding it here rather than to an importer-only beat type is deliberate:
    * `quest_beats.read_aloud` is one column with one meaning, and a second beat

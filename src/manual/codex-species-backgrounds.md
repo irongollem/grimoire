@@ -33,6 +33,12 @@ Click **New Species**. Fields, left to right:
 - **Spell Grants**: spells a character of this species knows automatically. Either pick a specific spell (optionally scoped to one subrace), or check **Player chooses spell** for a free pick (e.g. a High Elf's bonus cantrip). Each grant can be limited to a minimum character level and a uses-per-day allowance that resets on a short or long rest, leave uses per day blank for an at-will spell.
 - **DM Notes**: private rich text, never shown to players.
 
+### Generating with AI
+
+With AI turned on for your campaign, click **Generate** on the Species tab and describe the people you have in mind: where they live, what they are known for, what sets them apart. Optionally pick a size and choose whether to paint a portrait. Grimoire drafts a full species and opens it for you to edit, with size, speed, traits, languages and, for 2014 rules, ability score increases and subraces already filled in.
+
+The draft follows your campaign's ruleset. A 2014 species carries its own ability score increases and may have subraces. A 2024 species has neither: its bonuses come from the background, and any lineages appear as traits. It is grounded in your campaign setting, costs credits (the cost is shown on the button), and needs AI enabled in Campaign Settings. Treat it as a starting point: read the traits and adjust anything that does not fit your table.
+
 ### Importing species
 
 Click **Import from Open5e** in the toolbar. Pick a source and import. The importer deduplicates by identity: existing entries are updated, new ones inserted, and your own art and edits on existing species are preserved.
@@ -64,6 +70,12 @@ Click **New Background**. Fields:
 - **Feat grant** *(2024 PHB, optional)*: a feat name and a summary of what it grants. Grimoire tries to match the name against an imported feat (via **Sync from Open5e** on the Abilities tab) so a character taking this background can resolve the full text automatically; an unresolved name still saves, it just won't link to a feature entry yet.
 - **Ability score trio** *(2024 PHB, optional)*: click exactly three of the six abilities. This is the set a 2024-ruleset character can spend their background ASI on; leave it empty for a background that grants no 2024 ASI. Picking one or two and leaving it there is an invalid half-state: pick a third or clear back to zero.
 - **Suggested characteristics**: rich text: personality traits, ideals, bonds, and flaws to inspire players.
+
+### Generating with AI
+
+With AI turned on for your campaign, click **Generate** on the Backgrounds tab and describe the background: what the character did before adventuring. You can also pick a skill the background should lean on. Grimoire drafts a complete background and opens it for you to edit.
+
+The draft follows your campaign's ruleset. A 2014 background gets two skills, tools or languages, starting equipment and a signature feature. A 2024 background gets two skills, one tool, starting equipment, an origin feat and an ability score trio. Skills, tools and languages are always checked against the standard lists. It is grounded in your campaign setting, costs credits (the cost is shown on the button), and needs AI enabled in Campaign Settings. Backgrounds are text only, so there is no portrait option.
 
 ### Importing backgrounds
 

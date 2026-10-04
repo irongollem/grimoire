@@ -1,4 +1,5 @@
 import type { VersionedContentMetadata } from "@/types/content.types";
+import type { AiProvenance } from "@/ai/provenance";
 
 export type SpeciesSize = "tiny" | "small" | "medium" | "large";
 
@@ -55,6 +56,7 @@ export interface Species extends VersionedContentMetadata {
   is_shapeshifter: boolean;
   natural_armor_ac?: number | null;
   granted_spells: SpeciesSpellGrant[];
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

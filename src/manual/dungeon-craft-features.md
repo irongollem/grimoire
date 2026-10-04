@@ -48,6 +48,14 @@ Click **New Feature** and fill in:
 - **Tags**, **Image**, **DM Notes**.
 - **Scope**: **General: all campaigns** or a specific campaign; new features default to your active campaign.
 
+## Generating a feature with AI
+
+On the Features tab, click **Generate** to have the AI design a whole feature from a few words. Describe what you have in mind, for example a bookcase that swings aside when the wrong tome is pulled. You can also pick a **Feature type** and a **Trigger**, or leave both on **Any**.
+
+The AI fills in the name, type, description, how it is triggered, the Perception, Investigation and Arcana DCs, a map glyph, what is found inside, your DM notes on how to run it, and tags. It grounds the result in your campaign's setting and rules edition. Leave **Generate an illustration** on if you want a picture too.
+
+Generating costs credits, shown on the panel before you start, and needs AI to be switched on for the campaign. When it finishes you land on the new feature, ready to edit. The Generate button only appears when AI is on; **New Blank Feature** in the panel gives you an empty one instead.
+
 ## Placing a feature in your world
 
 A feature's own page has a **Placed In** panel showing every room it's dropped into across your Atlas sites, with an editable note and a picker to add a new placement: the same feature template (e.g. a stock "false-bottomed chest") can sit in several rooms. See [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon) for the room-side view.

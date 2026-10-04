@@ -1,4 +1,5 @@
 import type { VersionedContentMetadata } from "@/types/content.types";
+import type { AiProvenance } from "@/ai/provenance";
 
 export const FEATURE_TYPES = [
   "passive",
@@ -29,6 +30,8 @@ export interface ClassFeature extends VersionedContentMetadata {
   prerequisite: string | null;
   tags: string[];
   open5e_import: boolean;
+  /** Set when the row came from the AI generator; flipped by `markEdited` on a content edit. */
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

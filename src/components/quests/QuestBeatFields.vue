@@ -1,5 +1,13 @@
 <template>
   <section class="space-y-4" aria-label="Beat editor fields">
+    <QuestBeatFillBar
+      v-if="fillContext"
+      :quest-id="beat.quest_id"
+      :context="fillContext"
+      :has-text="hasFillableText"
+      @filled="applyFill"
+    />
+
     <label class="block space-y-1 text-caption font-semibold text-foreground">
       Title
       <AppInput
@@ -56,17 +64,25 @@
 import { computed, reactive, ref, watch } from "vue";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useAutosave } from "@/composables/useAutosave";
-import { questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
+import { applyBeatFill, questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
+import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
+import type { BeatFillContext } from "@/lib/quests/beatFill";
+import type { QuestBeatFilled } from "@/ai/useQuestBeatFill";
 import type { QuestBeat } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import QuestBeatFillBar from "@/components/quests/QuestBeatFillBar.vue";
 import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 
-const { beat } = defineProps<{ beat: QuestBeat }>();
+// `fillContext` is the quest's flow around this beat, supplied by the page that
+// already holds it; absent when AI is off for the campaign, which is what hides
+// the fill control.
+const { beat, fillContext } = defineProps<{ beat: QuestBeat; fillContext?: BeatFillContext }>();
 const emit = defineEmits<{ saved: [beat: QuestBeat] }>();
 const updateBeat = useUpdateQuestBeat();
 // QuestBeatDetailView is DM-only (the player equivalent, PlayerQuestDetailView
@@ -108,6 +124,23 @@ watch(() => beat, (nextBeat) => {
   version.value = nextBeat.updated_at;
   reset(questBeatToDraft(nextBeat));
 }, { deep: true });
+
+const hasText = (value: string) => !!tiptapToPlainText(value).trim();
+const hasFillableText = computed(() => hasText(draft.dm_content) || hasText(draft.read_aloud));
+// A title the DM never chose: blank, or the placeholder the flow shows for one.
+const PLACEHOLDER_TITLES = ["untitled beat", "new beat"];
+
+// Writing into the draft is exactly what typing does, so autosave persists the
+// fill, and the provenance is stamped against the text it describes.
+function applyFill({ fill, provenance, overwrite }: QuestBeatFilled & { overwrite: boolean }) {
+  const title = draft.title.trim();
+  const isPlaceholder = !title || PLACEHOLDER_TITLES.includes(title.toLowerCase());
+  applyBeatFill(draft, {
+    title: fill.title && isPlaceholder ? fill.title : undefined,
+    read_aloud: fill.readAloud && (overwrite || !hasText(draft.read_aloud)) ? toTiptapJson(fill.readAloud) : undefined,
+    dm_content: fill.dmContent && (overwrite || !hasText(draft.dm_content)) ? toTiptapJson(fill.dmContent) : undefined,
+  }, provenance);
+}
 
 function reloadSavedBeat() {
   version.value = beat.updated_at;

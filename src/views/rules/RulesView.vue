@@ -18,14 +18,20 @@
           </p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <RouterLink
-            v-if="activeTab === 'custom'"
-            to="/rules/new"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wide hover:bg-primary/90 transition-colors"
-          >
-            <IconAdd class="h-3.5 w-3.5" />
-            New Rule
-          </RouterLink>
+          <template v-if="activeTab === 'custom'">
+            <ListActionButton
+              v-if="campaignStore.isAiEnabled"
+              :icon="IconGenerate"
+              label="Generate"
+              @click="ui.customRuleGeneratorOpen = true"
+            />
+            <ListActionButton
+              variant="primary"
+              :icon="IconAdd"
+              label="New Rule"
+              to="/rules/new"
+            />
+          </template>
         </div>
       </div>
       <div class="gold-divider mt-3" />
@@ -53,8 +59,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
-import { RouterLink } from "vue-router";
+import { IconAdd, IconGenerate, IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
+import ListActionButton from "@/components/common/ListActionButton.vue";
+import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import TabBar from "@/components/common/TabBar.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ScreenTab from "@/components/rules/ScreenTab.vue";
@@ -74,6 +82,8 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 const route = useRoute();
+const ui = useUiStore();
+const campaignStore = useCampaignStore();
 const router = useRouter();
 
 const VALID_TABS = new Set<string>(TABS.map((t) => t.id));

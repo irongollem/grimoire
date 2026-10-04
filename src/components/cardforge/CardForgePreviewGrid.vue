@@ -10,9 +10,8 @@
       </p>
     </div>
     <div v-else class="card-preview-grid">
+      <div v-for="subject in selectedSubjects" :key="cardKey(subject)" class="preview-card-slot">
       <div
-        v-for="subject in selectedSubjects"
-        :key="cardKey(subject)"
         class="preview-card-wrapper"
         :class="{ tarot: store.cardSize === 'tarot' }"
         :style="tiltStyle(cardKey(subject))"
@@ -63,6 +62,17 @@
           </template>
         </Transition>
       </div>
+      <!-- Outside the flip wrapper so a click here never turns the card. -->
+      <PaintPortraitButton
+        v-if="paintable(subject)"
+        :loading="isPainting(subject)"
+        :disabled="isPaintingAny"
+        :cost="cost"
+        :byok="byok"
+        :error="errorFor(subject)"
+        @paint="paint(subject)"
+      />
+      </div>
     </div>
   </main>
 </template>
@@ -75,6 +85,8 @@ import CardTarotFront from "@/components/cardforge/CardTarotFront.vue";
 import CardTarotBack from "@/components/cardforge/CardTarotBack.vue";
 import LootFront from "@/components/cardforge/styles/loot/LootFront.vue";
 import LootBack from "@/components/cardforge/styles/loot/LootBack.vue";
+import PaintPortraitButton from "@/components/common/PaintPortraitButton.vue";
+import { useCardPortraitPainter } from "@/composables/cardforge/useCardPortraitPainter";
 import { cardSubjectId, type CardSubject } from "@/types/card.types";
 import { useCardForgeStore } from "@/stores/cardForge";
 import { useCardForgeData } from "@/composables/cardforge/useCardForgeData";
@@ -86,6 +98,8 @@ function cardKey(s: CardSubject) {
   // A downtime archetype is keyed by `key`, not `id` — `cardSubjectId` owns that.
   return s.kind + cardSubjectId(s);
 }
+
+const { paintable, paint, isPainting, isPaintingAny, cost, byok, errorFor } = useCardPortraitPainter();
 
 const flipped = ref(new Set<string>());
 function toggleFlip(key: string) {
@@ -136,6 +150,9 @@ function tiltStyle(key: string): Record<string, string> {
 }
 .card-preview-grid {
   @apply flex flex-wrap gap-4 p-6 content-start;
+}
+.preview-card-slot {
+  @apply flex flex-col items-center gap-2;
 }
 .preview-card-wrapper {
   cursor: pointer;

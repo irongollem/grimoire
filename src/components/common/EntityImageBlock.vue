@@ -91,6 +91,7 @@
 </template>
 
 <script setup lang="ts">
+import type { BucketId } from "@/lib/storage";
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
@@ -130,7 +131,7 @@ const {
 } = defineProps<{
   modelValue: string | null | undefined;
   focalPoint?: { x: number; y: number } | null;
-  bucket: string;
+  bucket: BucketId;
   showFocalPoint?: boolean;
   folderPrefix?: string;
   disabled?: boolean;

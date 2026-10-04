@@ -90,7 +90,7 @@
                  two live copies of the same beat would diverge the instant one is
                  typed into, and could race each other's mutation against the same
                  row. -->
-            <QuestBeatFields v-if="belowLg" :key="beat.id" :beat="beat" />
+            <QuestBeatFields v-if="belowLg" :key="beat.id" :beat="beat" :fill-context="fillContext" />
           </QuestFoldRow>
           <p v-if="fieldsSaveError" role="alert" class="mt-1 text-caption text-destructive">{{ fieldsSaveError }}</p>
         </section>
@@ -155,7 +155,7 @@
             </div>
 
             <div class="mt-3">
-              <QuestBeatFields v-if="!belowLg" :key="beat.id" :beat="beat" />
+              <QuestBeatFields v-if="!belowLg" :key="beat.id" :beat="beat" :fill-context="fillContext" />
             </div>
             <p v-if="fieldsSaveError" role="alert" class="mt-1 text-caption text-destructive">{{ fieldsSaveError }}</p>
           </section>
@@ -220,7 +220,9 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from "vue";
 import { useRoute } from "vue-router";
-import { useQuest } from "@/composables/quests/useQuests";
+import { useQuest, useQuestObjectives } from "@/composables/quests/useQuests";
+import { useCampaignStore } from "@/stores/campaign";
+import type { BeatFillContext } from "@/lib/quests/beatFill";
 import {
   useQuestBeat,
   useQuestBeatAttachmentSummaries,
@@ -277,6 +279,8 @@ const lootQuery = useLootPlacements({ questId });
 const consequencesQuery = useQuestConsequences(questId);
 const liveQuestsQuery = useCampaignLiveQuests();
 const threadsQuery = useQuestThreads(questId);
+const objectivesQuery = useQuestObjectives(questId);
+const campaign = useCampaignStore();
 const { locationOptions } = useLocationTree();
 const updateBeat = useUpdateQuestBeat();
 
@@ -368,6 +372,31 @@ async function saveBeatField(update: QuestBeatUpdate) {
     fieldsSaveError.value = caught instanceof Error ? caught.message : "Could not save this change";
   }
 }
+
+// ── Fill with AI: the quest's flow around this beat ─────────────────────────
+
+// Absent when AI is off for the campaign, which is what hides the control in
+// `QuestBeatFields`. Built from queries this page already runs.
+const fillContext = computed<BeatFillContext | undefined>(() => {
+  const current = beat.value;
+  if (!campaign.isAiEnabled || !current || !quest.value) return undefined;
+  const beats = beatsQuery.data.value ?? [];
+  const edges = edgesQuery.data.value ?? [];
+  const byId = new Map(beats.map((row) => [row.id, row]));
+  const neighbours = (edgeList: typeof edges, pick: (edge: (typeof edges)[number]) => string) =>
+    edgeList.flatMap((edge) => byId.get(pick(edge)) ?? []);
+  const incomingEdges = edges.filter((edge) => edge.target_beat_id === current.id);
+  const threads = threadsQuery.data.value ?? [];
+  return {
+    quest: quest.value,
+    beat: current,
+    incoming: neighbours(incomingEdges, (edge) => edge.source_beat_id),
+    outgoing: neighbours(outgoingEdges.value, (edge) => edge.target_beat_id),
+    objectives: objectivesQuery.data.value ?? [],
+    stagedAt: stagedLocationName.value || null,
+    threadLabel: threads.length > 1 ? (incomingEdges.find((edge) => edge.thread_label)?.thread_label ?? null) : null,
+  };
+});
 
 // ── Prep gaps ──────────────────────────────────────────────────────────────
 

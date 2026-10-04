@@ -1,3 +1,5 @@
+import type { AiProvenance } from "@/ai/provenance";
+
 export const CLERIC_DOMAINS = [
   "Arcana",
   "Death",
@@ -78,6 +80,8 @@ export interface Deity {
   dm_notes: string | null;    // Tiptap JSON
   tags: string[];
   player_visible_to: string[];
+  /** Set when the deity was AI-generated; `edited` flips on a material edit. */
+  ai_provenance?: AiProvenance | null;
   /**
    * Setting key that seeded this row via Populate Setting; null when the user
    * made it. Content we ship does not count against free-tier quotas — see

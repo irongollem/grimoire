@@ -35,6 +35,20 @@ Pantheons and deities are Grimoire's two thin, sibling world-building modules fo
 5. Set who it's **Visible to Players**, and add **Tags**.
 6. On the right: **Name**, **Titles & Epithets** (e.g. "The Morninglord, Lord of Dawn"), any **Alternate Names** the deity is known by in different cultures, the **Cleric Domains** it grants (click to toggle any number of the standard domains), a **Portfolio** line (what it governs: war, harvest, death…), **Lore & Description** (rich text, player-facing once revealed), and **DM Secrets**: a second rich-text field for hidden truths and true motivations that never gets shared, even when the deity itself is revealed.
 
+## Generating with AI
+
+If AI is switched on for your campaign, the deity list has a **Generate** button next to **New Deity**. Describe the god in a sentence or two (a weary goddess of crossroads, say), and Grimoire writes a complete deity: name, titles, alternate names, alignment, one to three cleric domains, portfolio, a holy symbol description, lore for your players, and DM secrets with ideas for bringing the god into play.
+
+You can steer it before you generate:
+
+- **Pantheon**: pick one and the new god is written to fit it. Grimoire tells the model the names and portfolios of the deities already in that pantheon, so it does not duplicate them. Leave it on **Any** for a free-standing deity.
+- **Alignment** and **Primary domain**: pin either one, or leave them on **Any**.
+- **Generate a portrait**: also paints the divine form and adds it to your Gallery.
+
+It grounds in your campaign setting and your ruleset, so a 2024 campaign draws its domains from the 2024 cleric list. Generating costs credits, shown on the button, and the new deity opens ready to edit.
+
+Any deity you already have can get a portrait too: open it and use **Generate with AI** under **Divine Form**. It paints from the name, titles, alignment, domains, portfolio and symbol on the form, including edits you have not saved yet.
+
 ## Browsing and filtering
 
 The deity grid filters by free-text search (name, titles, portfolio, alternate names, tags), **Domain**, and **Pantheon**: all three live in the same session-persisted filter state as every other list in the app, with a **Clear** button once any is active.

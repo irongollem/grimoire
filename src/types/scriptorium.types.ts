@@ -1,3 +1,5 @@
+import type { AiProvenance } from "@/ai/provenance";
+
 export type ScriptoriumDocType =
   | "custom"
   | "spell"
@@ -65,6 +67,8 @@ export interface ScriptoriumDocument {
   /** Page-furniture decorations (Phase D). JSONB column, defaults to [].
    * Optional until the column + editor wiring land (foundation-only for now). */
   page_furniture?: PageFurnitureItem[];
+  /** Set when the Scriptorium AI drafted the body (epic #910); `markEdited` on a body save. */
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }
