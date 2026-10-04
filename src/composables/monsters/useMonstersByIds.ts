@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { libraryMonsterRow } from "@/lib/library/libraryMonsterRow";
+import { LIBRARY_MONSTER_COLUMNS } from "@/composables/monsters/useMonsters";
 import type { Monster } from "@/types/monster.types";
 
 /** Under the "monsters" root so an edit's `invalidateQueries({ queryKey: ["monsters"] })` reaches it. */
@@ -23,7 +24,7 @@ async function fetchByIds(libraryIds: readonly string[], customIds: readonly str
   const [libraryRows, customRows] = await Promise.all([
     Promise.all(
       chunks(libraryIds).map(async (ids) => {
-        const { data, error } = await supabase.from("library_monsters").select("*").in("id", ids);
+        const { data, error } = await supabase.from("library_monsters").select(LIBRARY_MONSTER_COLUMNS).in("id", ids);
         if (error) throw error;
         return data.map(libraryMonsterRow);
       }),
