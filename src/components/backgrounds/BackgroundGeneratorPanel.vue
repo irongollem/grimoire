@@ -29,6 +29,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 import { useCreateBackground } from "@/composables/rules/useBackgrounds";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -42,6 +43,7 @@ import { wholeCredits } from "@edge-shared/credit-math.ts";
 const ui = useUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
+const toast = useToast();
 const { mutateAsync: createBackground } = useCreateBackground();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useBackgroundGeneration();
 
@@ -69,7 +71,15 @@ async function generateAndCreate() {
   });
   if (!draft) return;
 
-  const background = await createBackground(draft);
+  // The generation is already paid for: a failed save must say so, and the
+  // panel stays open so the DM can retry.
+  let background;
+  try {
+    background = await createBackground(draft);
+  } catch (e) {
+    toast.error(toast.fromError(e));
+    return;
+  }
 
   completedEntityId.value = background.id;
   ui.backgroundGeneratorOpen = false;

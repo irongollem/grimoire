@@ -11,6 +11,7 @@ import {
   parseDraftOutput,
   sanitizeDraftHtml,
   sessionNoteAllowed,
+  subjectRefusal,
   validateDraftRequest,
   type DraftFaction,
   type DraftLocation,
@@ -22,6 +23,8 @@ const npc: DraftNpc = {
   id: "n1", name: "Mara Voss", race: "Human", occupation: "Harbourmaster",
   appearance: "Weathered, grey braid", personality: "Cold and exact", backstory: "Secretly sells maps",
   player_visible_to: ["p1"],
+  player_visible_fields: ["name", "race", "occupation"],
+  disguise_name: null, disguise_portrait_url: null, is_revealed: false, location_id: null,
 };
 const faction = (id: string, name: string, shared: boolean): DraftFaction => ({
   id, name, faction_type: "Guild", alignment: "Neutral", description: "A trading guild",
@@ -61,7 +64,8 @@ describe("validateDraftRequest", () => {
 describe("context blocks", () => {
   it("withholds NPC secrets and hidden factions from players", () => {
     const text = buildNpcBlock(npc, [faction("f1", "Tide Guild", true), faction("f2", "Black Ledger", false)], "players");
-    expect(text).toContain("Weathered");
+    expect(text).toContain("Harbourmaster");
+    expect(text).not.toContain("Weathered");
     expect(text).toContain("Tide Guild");
     expect(text).not.toContain("Secretly");
     expect(text).not.toContain("Cold and exact");
@@ -81,7 +85,8 @@ describe("context blocks", () => {
     const hidden: DraftNpc = { ...npc, id: "n2", name: "Hidden Spy", player_visible_to: [] };
     const text = buildFactionBlock(
       faction("f1", "Tide Guild", true),
-      [{ npc, role: "Leader", status: "active" }, { npc: hidden, role: "Spy", status: "active" }],
+      [{ npc, role: "Leader", status: "active", locationSharesNpcs: false },
+        { npc: hidden, role: "Spy", status: "active", locationSharesNpcs: false }],
       [{ location: loc(true), notes: "secret vault" }],
       [{ target: faction("f2", "Black Ledger", false), relation_type: "enemy", notes: null }],
       "players",
@@ -91,6 +96,47 @@ describe("context blocks", () => {
     expect(text).toContain("Saltgate");
     expect(text).not.toContain("secret vault");
     expect(text).not.toContain("Black Ledger");
+  });
+  it("shows a disguised NPC under its disguise to players, never the true name or backstory", () => {
+    const disguised: DraftNpc = { ...npc, disguise_name: "Old Tobias", is_revealed: false };
+    const text = buildNpcBlock(disguised, [], "players");
+    expect(text).toContain("Old Tobias");
+    expect(text).not.toContain("Mara Voss");
+    expect(text).not.toContain("Secretly");
+    const faction1 = buildFactionBlock(
+      faction("f1", "Tide Guild", true),
+      [{ npc: disguised, role: "Leader", status: "active", locationSharesNpcs: false }],
+      [], [], "players",
+    );
+    expect(faction1).toContain("Old Tobias");
+    expect(faction1).not.toContain("Mara Voss");
+    // Once revealed, the true name shows; a DM draft always does.
+    expect(buildNpcBlock({ ...disguised, is_revealed: true }, [], "players")).toContain("Mara Voss");
+    expect(buildNpcBlock(disguised, [], "dm")).toContain("Mara Voss");
+  });
+  it("hides fields the projection does not share, and an unshared name", () => {
+    const text = buildNpcBlock({ ...npc, player_visible_fields: ["occupation"] }, [], "players");
+    expect(text).not.toContain("Mara Voss");
+    expect(text).not.toContain("Human");
+    expect(text).toContain("Harbourmaster");
+  });
+  it("lists a member shared only through its location, and drops an unshared one", () => {
+    const viaLocation: DraftNpc = { ...npc, id: "n3", name: "Via Location", player_visible_to: [] };
+    const text = buildFactionBlock(
+      faction("f1", "Tide Guild", true),
+      [{ npc: viaLocation, role: null, status: null, locationSharesNpcs: true }],
+      [], [], "players",
+    );
+    expect(text).toContain("Via Location");
+  });
+  it("refuses an unshared subject for players, never for the DM", () => {
+    const unshared = { player_visible_to: [] };
+    for (const t of ["npc", "location", "faction"] as const) {
+      expect(subjectRefusal("players", t, unshared)).toContain("isn't shared with your players yet");
+      expect(subjectRefusal("dm", t, unshared)).toBeNull();
+      expect(subjectRefusal("players", t, { player_visible_to: ["p1"] })).toBeNull();
+    }
+    expect(subjectRefusal("players", "npc", unshared, true)).toBeNull();
   });
   it("keeps only shared session notes for players", () => {
     const text = buildSessionBlock(note("a", true), [note("b", false), note("c", true)], "players");

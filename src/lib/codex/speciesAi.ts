@@ -88,12 +88,14 @@ export function sanitizeSpeed(raw: unknown): SpeciesSpeed | null {
 
 /**
  * 2014 species ability score increases: a map of the six abilities to +1/+2.
- * A free-text `description` (for "+1 to two others of your choice" riders) is
- * kept because the editor already understands that shape.
+ * With a free-text rider ("+1 to two others of your choice") the result is a
+ * single `{ description }` that carries the numbers as text first, because the
+ * editor shows only the description and would drop beside-it numbers on save.
  */
 export function sanitizeAbilityIncreases(raw: unknown): Record<string, number | string> | null {
   if (!isRecord(raw)) return null;
-  const out: Record<string, number | string> = {};
+  const out: Record<string, number> = {};
+  let rider = "";
   for (const [k, v] of Object.entries(raw)) {
     const ability = ABILITY_ALIASES[k.toLowerCase()];
     if (ability && typeof v === "number" && Number.isFinite(v)) {
@@ -102,10 +104,15 @@ export function sanitizeAbilityIncreases(raw: unknown): Record<string, number | 
       // total is not capped: a 2014 human takes +1 to all six).
       if (n >= 1 && n <= 2) out[ability] = n;
     } else if (k === "description" && typeof v === "string" && v.trim()) {
-      out.description = v.trim();
+      rider = v.trim();
     }
   }
-  return Object.keys(out).length ? out : null;
+  if (!rider) return Object.keys(out).length ? out : null;
+  // The editor shows only `description` when one is present and re-parses it on
+  // save, so numbers kept beside a rider would be dropped. Fold them into the
+  // text in the editor's own "+2 CHA" form, which reads like a DM wrote it.
+  const numeric = Object.entries(out).map(([k, v]) => `+${v} ${k.toUpperCase()}`);
+  return { description: [...numeric, rider].join(", ") };
 }
 
 function sanitizeTraits(raw: unknown, max: number): SpeciesTrait[] {

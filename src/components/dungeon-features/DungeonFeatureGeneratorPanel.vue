@@ -40,6 +40,7 @@ import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 import { useCreateDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
@@ -55,6 +56,7 @@ import { wholeCredits } from "@edge-shared/credit-math.ts";
 const ui       = useUiStore();
 const router   = useRouter();
 const campaign = useCampaignStore();
+const toast = useToast();
 const { mutateAsync: createFeature } = useCreateDungeonFeature();
 const { logImageGeneration } = useImageGenerationLog();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useDungeonFeatureGeneration();
@@ -103,26 +105,34 @@ async function generateAndCreate() {
 
   if (!result) return;
 
-  const feature = await createFeature({
-    // Scoped to the campaign it was generated for; widened from the editor's
-    // Scope control if the DM wants it everywhere.
-    campaign_id:          campaign.activeCampaignId,
-    name:                 result.name,
-    feature_type:         result.feature_type,
-    description:          prose(result.description),
-    perception_dc:        result.perception_dc,
-    investigation_dc:     result.investigation_dc,
-    arcana_dc:            result.arcana_dc,
-    trigger_type:         result.trigger_type,
-    trigger_description:  result.trigger_description,
-    feature_glyph:        result.feature_glyph,
-    contents_description: prose(result.contents_description),
-    image_url:            result.image_url,
-    image_focal_point:    null,
-    tags:                 result.tags,
-    notes:                prose(result.notes),
-    ai_provenance:        result.ai_provenance ?? null,
-  });
+  // The generation is already paid for: a failed save must say so, and the
+  // panel stays open so the DM can retry.
+  let feature;
+  try {
+    feature = await createFeature({
+      // Scoped to the campaign it was generated for; widened from the editor's
+      // Scope control if the DM wants it everywhere.
+      campaign_id:          campaign.activeCampaignId,
+      name:                 result.name,
+      feature_type:         result.feature_type,
+      description:          prose(result.description),
+      perception_dc:        result.perception_dc,
+      investigation_dc:     result.investigation_dc,
+      arcana_dc:            result.arcana_dc,
+      trigger_type:         result.trigger_type,
+      trigger_description:  result.trigger_description,
+      feature_glyph:        result.feature_glyph,
+      contents_description: prose(result.contents_description),
+      image_url:            result.image_url,
+      image_focal_point:    null,
+      tags:                 result.tags,
+      notes:                prose(result.notes),
+      ai_provenance:        result.ai_provenance ?? null,
+    });
+  } catch (e) {
+    toast.error(toast.fromError(e));
+    return;
+  }
 
   // Log the generated illustration to the Gallery, linked back to the feature.
   if (result.image_url) {

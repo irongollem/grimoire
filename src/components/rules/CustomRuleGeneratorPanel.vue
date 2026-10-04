@@ -33,6 +33,7 @@ import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 import { useCreateRule } from "@/composables/rules/useRules";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -47,6 +48,7 @@ import { wholeCredits } from "@edge-shared/credit-math.ts";
 const ui = useUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
+const toast = useToast();
 const { mutateAsync: createRule } = useCreateRule();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useCustomRuleGeneration();
 
@@ -75,15 +77,23 @@ async function generateAndCreate() {
   });
   if (!result) return;
 
-  const rule = await createRule({
-    title: result.title,
-    category: result.category,
-    content: result.content,
-    tags: result.tags,
-    is_player_visible: false,
-    tracker: result.tracker,
-    ai_provenance: result.ai_provenance,
-  });
+  // The generation is already paid for: a failed save must say so, and the
+  // panel stays open so the DM can retry.
+  let rule;
+  try {
+    rule = await createRule({
+      title: result.title,
+      category: result.category,
+      content: result.content,
+      tags: result.tags,
+      is_player_visible: false,
+      tracker: result.tracker,
+      ai_provenance: result.ai_provenance,
+    });
+  } catch (e) {
+    toast.error(toast.fromError(e));
+    return;
+  }
 
   completedEntityId.value = rule.id;
   ui.customRuleGeneratorOpen = false;

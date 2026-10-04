@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type { RelationshipSuggestion } from "@edge-shared/npcRelationshipSuggestions.ts";
@@ -43,8 +43,25 @@ export function resolveSuggestionTargets(
 
 // Module-level singleton state, like the other generators.
 const _state = createAiGenerationState();
-const _suggestions = ref<ResolvedSuggestion[]>([]);
-const _provenance = ref<AiProvenance | null>(null);
+
+/** What one NPC's Suggest run produced. Keyed by the NPC it was generated for. */
+interface NpcSuggestionResult {
+  suggestions: ResolvedSuggestion[];
+  provenance: AiProvenance | null;
+}
+const _results = ref<Record<string, NpcSuggestionResult>>({});
+/** The NPC a request is in flight for, and the NPC the last error belongs to. */
+const _generatingFor = ref<string | null>(null);
+const _errorFor = ref<string | null>(null);
+
+/** Test seam: drop every stored result and in-flight marker. */
+export function resetNpcRelationshipSuggestions() {
+  _results.value = {};
+  _generatingFor.value = null;
+  _errorFor.value = null;
+  _state.isGenerating.value = false;
+  _state.error.value = null;
+}
 
 // Not registered with registerAiGenerator(): it produces no entity to navigate
 // to, so the floating badge has nothing to offer. It still respects
@@ -71,8 +88,10 @@ export function useNpcRelationshipSuggestions() {
     if (isAnyAiGenerating.value) return false;
     _state.isGenerating.value = true;
     _state.error.value = null;
-    _suggestions.value = [];
-    _provenance.value = null;
+    _errorFor.value = npcId;
+    _generatingFor.value = npcId;
+    const { [npcId]: _dropped, ...others } = _results.value;
+    _results.value = others;
     startAiQuotes();
 
     try {
@@ -100,33 +119,58 @@ export function useNpcRelationshipSuggestions() {
       if (resolved.length === 0) {
         throw new Error("No usable suggestions. Try again.");
       }
-      _suggestions.value = resolved;
-      _provenance.value = result.ai_provenance;
+      // Stored under the NPC it was asked for, so a reply that lands after the
+      // DM has moved to another NPC stays attached to its own.
+      _results.value = {
+        ..._results.value,
+        [npcId]: { suggestions: resolved, provenance: result.ai_provenance },
+      };
       return true;
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Suggestion failed";
       return false;
     } finally {
       _state.isGenerating.value = false;
+      _generatingFor.value = null;
       stopAiQuotes();
     }
   }
 
-  function dismiss(suggestion: ResolvedSuggestion) {
-    _suggestions.value = _suggestions.value.filter((s) => s !== suggestion);
-  }
+  /**
+   * The suggestions view for ONE NPC (a getter, so it follows a reused component's prop). Any other NPC sees an empty list, no
+   * provenance, no error and no in-flight state, so a result can never be shown
+   * on, or accepted into, an NPC it was not generated for.
+   */
+  function forNpc(npcId: () => string) {
+    const mine = () => _results.value[npcId()];
+    const suggestions = computed(() => mine()?.suggestions ?? []);
+    const provenance = computed(() => mine()?.provenance ?? null);
+    const isGenerating = computed(() => _generatingFor.value === npcId());
+    const error = computed(() => (_errorFor.value === npcId() ? _state.error.value : null));
 
-  function dismissAll() {
-    _suggestions.value = [];
-    _state.error.value = null;
+    function dismiss(suggestion: ResolvedSuggestion) {
+      const current = mine();
+      if (!current) return;
+      _results.value = {
+        ..._results.value,
+        [npcId()]: {
+          ...current,
+          suggestions: current.suggestions.filter((s) => s !== suggestion),
+        },
+      };
+    }
+
+    function dismissAll() {
+      const { [npcId()]: _dropped, ...others } = _results.value;
+      _results.value = others;
+      if (_errorFor.value === npcId()) _state.error.value = null;
+    }
+
+    return { suggestions, provenance, isGenerating, error, dismiss, dismissAll };
   }
 
   return {
-    ..._state,
-    suggestions: _suggestions,
-    provenance: _provenance,
     suggest,
-    dismiss,
-    dismissAll,
+    forNpc,
   };
 }

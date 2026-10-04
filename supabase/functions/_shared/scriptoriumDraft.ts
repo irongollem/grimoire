@@ -119,6 +119,12 @@ export interface DraftNpc {
   personality: string | null;
   backstory: string | null;
   player_visible_to: string[] | null;
+  /** Which fields a player may see (name, race, occupation, ...). */
+  player_visible_fields: string[] | null;
+  disguise_name: string | null;
+  disguise_portrait_url: string | null;
+  is_revealed: boolean | null;
+  location_id: string | null;
 }
 
 export interface DraftFaction {
@@ -148,27 +154,111 @@ export interface DraftNote {
   player_visible_to: string[] | null;
 }
 
-export interface FactionMember { npc: DraftNpc; role: string | null; status: string | null }
+export interface FactionMember {
+  npc: DraftNpc;
+  role: string | null;
+  status: string | null;
+  /** The NPC's own location is shared with players AND has "share linked NPCs" on. */
+  locationSharesNpcs: boolean;
+}
 export interface FactionHolding { location: DraftLocation; notes: string | null }
 export interface FactionRelationRow { target: DraftFaction; relation_type: string; notes: string | null }
 
+/**
+ * The player projection (`get_player_visible_npcs`, latest definition in
+ * 20260927164240): an NPC is visible when it is shared with at least one player
+ * itself, or when its own location is shared with players with "share linked
+ * NPCs" on. The caller works out the second part (`locationSharesNpcs`).
+ */
+export function npcVisibleToPlayers(npc: DraftNpc, locationSharesNpcs: boolean): boolean {
+  return sharedWithPlayers(npc.player_visible_to) || locationSharesNpcs;
+}
+
+/** An NPC wearing a disguise that has not been revealed (the projection's `concealed`). */
+function npcConcealed(npc: DraftNpc): boolean {
+  return (!!npc.disguise_name || !!npc.disguise_portrait_url) && npc.is_revealed !== true;
+}
+
+export interface NpcPlayerView {
+  name: string | null;
+  race: string | null;
+  occupation: string | null;
+}
+
+/**
+ * What a player's projection of this NPC exposes, and nothing else: name only
+ * when the `name` field is shared (the disguise name while concealed, never the
+ * true one), race and occupation only when their fields are shared. Appearance,
+ * personality, backstory and notes are DM-only in the projection.
+ */
+export function npcPlayerView(npc: DraftNpc): NpcPlayerView {
+  const fields = npc.player_visible_fields ?? [];
+  const name = !fields.includes("name")
+    ? null
+    : npcConcealed(npc) && npc.disguise_name ? npc.disguise_name : npc.name;
+  return {
+    name,
+    race: fields.includes("race") ? npc.race : null,
+    occupation: fields.includes("occupation") ? npc.occupation : null,
+  };
+}
+
+const UNNAMED_NPC = "An unnamed figure";
+
 /** Name and role of an NPC, never more: used where an NPC is only mentioned. */
-function npcLabel(m: FactionMember): string {
-  const bits = [m.npc.occupation, m.role].filter((b): b is string => !!b && b.trim().length > 0);
-  return bits.length ? `${m.npc.name} (${bits.join(", ")})` : m.npc.name;
+function npcLabel(m: FactionMember, audience: DraftAudience): string {
+  if (audience === "dm") {
+    const bits = [m.npc.occupation, m.role].filter((b): b is string => !!b && b.trim().length > 0);
+    return bits.length ? `${m.npc.name} (${bits.join(", ")})` : m.npc.name;
+  }
+  const view = npcPlayerView(m.npc);
+  const bits = [view.occupation, m.role].filter((b): b is string => !!b && b.trim().length > 0);
+  const name = view.name ?? UNNAMED_NPC;
+  return bits.length ? `${name} (${bits.join(", ")})` : name;
 }
 
 export function buildNpcBlock(npc: DraftNpc, factions: DraftFaction[], audience: DraftAudience): string {
   const visibleFactions = audience === "dm" ? factions : factions.filter((f) => sharedWithPlayers(f.player_visible_to));
+  const belongs = visibleFactions.length ? `Belongs to: ${visibleFactions.map((f) => f.name).join(", ")}` : null;
+  if (audience === "dm") {
+    return present([
+      `NPC: ${npc.name}`,
+      line("Race", npc.race, 200),
+      line("Occupation", npc.occupation, 200),
+      line("Appearance", npc.appearance),
+      line("Personality", npc.personality),
+      line("Backstory", npc.backstory),
+      belongs,
+    ]).join("\n");
+  }
+  const view = npcPlayerView(npc);
   return present([
-    `NPC: ${npc.name}`,
-    line("Race", npc.race, 200),
-    line("Occupation", npc.occupation, 200),
-    line("Appearance", npc.appearance),
-    audience === "dm" ? line("Personality", npc.personality) : null,
-    audience === "dm" ? line("Backstory", npc.backstory) : null,
-    visibleFactions.length ? `Belongs to: ${visibleFactions.map((f) => f.name).join(", ")}` : null,
+    `NPC: ${view.name ?? UNNAMED_NPC}`,
+    line("Race", view.race, 200),
+    line("Occupation", view.occupation, 200),
+    belongs,
   ]).join("\n");
+}
+
+/**
+ * Whether a players draft may be written about this subject at all. Returns the
+ * refusal message, or `null` when allowed. Always `null` for a DM draft. A
+ * location or faction is visible when shared with at least one player (the
+ * projections' `player_visible_to` rule); an NPC per `npcVisibleToPlayers`.
+ */
+export function subjectRefusal(
+  audience: DraftAudience,
+  subjectType: "npc" | "location" | "faction",
+  row: { player_visible_to: string[] | null },
+  locationSharesNpcs = false,
+): string | null {
+  if (audience === "dm") return null;
+  const shared = subjectType === "npc"
+    ? npcVisibleToPlayers(row as DraftNpc, locationSharesNpcs)
+    : sharedWithPlayers(row.player_visible_to);
+  if (shared) return null;
+  const noun = subjectType === "npc" ? "NPC" : subjectType === "location" ? "location" : "faction";
+  return `This ${noun} isn't shared with your players yet; draft it for the DM or share it first.`;
 }
 
 export function buildLocationBlock(
@@ -176,6 +266,8 @@ export function buildLocationBlock(
   parentName: string | null,
   audience: DraftAudience,
 ): string {
+  // The parent is named to players only when the caller found it shared; the
+  // caller passes null for an unshared parent.
   const describe = audience === "dm" || loc.is_description_shared === true;
   return present([
     `Location: ${loc.name}`,
@@ -193,7 +285,7 @@ export function buildFactionBlock(
   audience: DraftAudience,
 ): string {
   const dm = audience === "dm";
-  const shownMembers = dm ? members : members.filter((m) => sharedWithPlayers(m.npc.player_visible_to));
+  const shownMembers = dm ? members : members.filter((m) => npcVisibleToPlayers(m.npc, m.locationSharesNpcs));
   const shownHoldings = dm ? holdings : holdings.filter((h) => sharedWithPlayers(h.location.player_visible_to));
   const shownRelations = dm ? relations : relations.filter((r) => sharedWithPlayers(r.target.player_visible_to));
 
@@ -202,7 +294,7 @@ export function buildFactionBlock(
     line("Type", faction.faction_type, 100),
     dm ? line("Alignment", faction.alignment, 100) : null,
     line("Description", faction.description),
-    shownMembers.length ? `Members:\n${shownMembers.map((m) => `- ${npcLabel(m)}`).join("\n")}` : null,
+    shownMembers.length ? `Members:\n${shownMembers.map((m) => `- ${npcLabel(m, audience)}`).join("\n")}` : null,
     shownHoldings.length
       ? `Holdings:\n${shownHoldings
         .map((h) => `- ${h.location.name}${dm && h.notes ? `: ${clip(h.notes, 200)}` : ""}`)

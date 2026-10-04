@@ -33,6 +33,7 @@ import {
   buildSessionBlock,
   parseDraftOutput,
   sessionNoteAllowed,
+  subjectRefusal,
   validateDraftRequest,
   type DraftFaction,
   type DraftLocation,
@@ -70,7 +71,8 @@ const REASON = "scriptorium_draft";
 // ~1k tokens of the other generators.
 const MAX_TOKENS = 4000;
 
-const NPC_COLUMNS = "id, name, race, occupation, appearance, personality, backstory, player_visible_to";
+const NPC_COLUMNS =
+  "id, name, race, occupation, appearance, personality, backstory, player_visible_to, player_visible_fields, disguise_name, disguise_portrait_url, is_revealed, location_id";
 const FACTION_COLUMNS = "id, name, faction_type, alignment, description, player_visible_to";
 const LOCATION_COLUMNS = "id, name, location_type, description, is_description_shared, player_visible_to, parent_id";
 const NOTE_COLUMNS = "id, title, content, session_num, session_real_date, player_visible_to";
@@ -87,6 +89,24 @@ function buildCampaignContext(setting: string | null | undefined): string {
   return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
 }
 
+/**
+ * Of these NPCs' own locations, the ids that share their linked NPCs with
+ * players (`is_npcs_shared` and shared with at least one player): the second
+ * route by which the player projection shows an NPC.
+ */
+async function npcSharingLocationIds(campaignId: string, npcs: DraftNpc[]): Promise<Set<string>> {
+  const ids = [...new Set(npcs.map((n) => n.location_id).filter((id): id is string => !!id))];
+  if (!ids.length) return new Set();
+  const { data, error } = await admin.from("locations").select("id, is_npcs_shared, player_visible_to")
+    .in("id", ids).eq("campaign_id", campaignId);
+  if (error) throw new Error(error.message);
+  return new Set(
+    (data ?? [])
+      .filter((l) => l.is_npcs_shared === true && ((l.player_visible_to as string[] | null)?.length ?? 0) > 0)
+      .map((l) => l.id as string),
+  );
+}
+
 /** Reads the subject and its neighbours, all inside `campaignId`, and returns the context block. */
 async function gatherContext(req: DraftRequest): Promise<string> {
   const { campaignId, subjectId, audience } = req;
@@ -96,6 +116,11 @@ async function gatherContext(req: DraftRequest): Promise<string> {
       .eq("id", subjectId).eq("campaign_id", campaignId).maybeSingle();
     if (npcErr) throw new Error(npcErr.message);
     if (!npc) throw new DraftError(404, "NPC not found in this campaign");
+    const sharing = audience === "players" ? await npcSharingLocationIds(campaignId, [npc as DraftNpc]) : new Set<string>();
+    const npcRefusal = subjectRefusal(
+      audience, "npc", npc as DraftNpc, !!npc.location_id && sharing.has(npc.location_id as string),
+    );
+    if (npcRefusal) throw new DraftError(422, npcRefusal);
     const { data: links, error: linksErr } = await admin.from("faction_npcs").select("faction_id").eq("npc_id", subjectId);
     if (linksErr) throw new Error(linksErr.message);
     const factionIds = (links ?? []).map((l) => l.faction_id as string);
@@ -111,12 +136,17 @@ async function gatherContext(req: DraftRequest): Promise<string> {
       .eq("id", subjectId).eq("campaign_id", campaignId).maybeSingle();
     if (locErr) throw new Error(locErr.message);
     if (!loc) throw new DraftError(404, "Location not found in this campaign");
+    const locRefusal = subjectRefusal(audience, "location", loc as DraftLocation);
+    if (locRefusal) throw new DraftError(422, locRefusal);
     let parentName: string | null = null;
     if (loc.parent_id) {
-      const { data: parent, error: parentErr } = await admin.from("locations").select("name")
+      const { data: parent, error: parentErr } = await admin.from("locations").select("name, player_visible_to")
         .eq("id", loc.parent_id).eq("campaign_id", campaignId).maybeSingle();
       if (parentErr) throw new Error(parentErr.message);
-      parentName = parent?.name ?? null;
+      // A players draft names the parent only when the parent is shared too.
+      parentName = parent && (audience === "dm" || ((parent.player_visible_to as string[] | null)?.length ?? 0) > 0)
+        ? parent.name
+        : null;
     }
     return assembleContext([buildLocationBlock(loc as DraftLocation, parentName, audience)]);
   }
@@ -126,6 +156,8 @@ async function gatherContext(req: DraftRequest): Promise<string> {
       .eq("id", subjectId).eq("campaign_id", campaignId).maybeSingle();
     if (factionErr) throw new Error(factionErr.message);
     if (!faction) throw new DraftError(404, "Faction not found in this campaign");
+    const factionRefusal = subjectRefusal(audience, "faction", faction as DraftFaction);
+    if (factionRefusal) throw new DraftError(422, factionRefusal);
 
     const [npcLinks, locLinks, relLinks] = await Promise.all([
       admin.from("faction_npcs").select("npc_id, role, status").eq("faction_id", subjectId),
@@ -151,10 +183,20 @@ async function gatherContext(req: DraftRequest): Promise<string> {
     const locById = new Map(((locations.data ?? []) as DraftLocation[]).map((l) => [l.id, l]));
     const factionById = new Map(((targets.data ?? []) as DraftFaction[]).map((f) => [f.id, f]));
 
+    const sharing = audience === "players"
+      ? await npcSharingLocationIds(campaignId, [...npcById.values()])
+      : new Set<string>();
     const members: FactionMember[] = [];
     for (const l of npcLinks.data ?? []) {
       const n = npcById.get(l.npc_id as string);
-      if (n) members.push({ npc: n, role: l.role as string | null, status: l.status as string | null });
+      if (n) {
+        members.push({
+          npc: n,
+          role: l.role as string | null,
+          status: l.status as string | null,
+          locationSharesNpcs: !!n.location_id && sharing.has(n.location_id),
+        });
+      }
     }
     const holdings: FactionHolding[] = [];
     for (const l of locLinks.data ?? []) {

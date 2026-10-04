@@ -72,8 +72,12 @@ describe("sanitizers", () => {
     expect(sanitizeSpeed({ walk: 32 })).toEqual({ walk: 30 });
     expect(sanitizeSpeed(null)).toBeNull();
   });
-  it("keeps a description rider", () => {
-    expect(sanitizeAbilityIncreases({ cha: 2, description: " +1 to two others " })).toEqual({ cha: 2, description: "+1 to two others" });
+  it("folds numeric bonuses into the text when a rider is present, so the editor keeps them", () => {
+    expect(sanitizeAbilityIncreases({ cha: 2, description: " +1 to two others " })).toEqual({
+      description: "+2 CHA, +1 to two others",
+    });
+    expect(sanitizeAbilityIncreases({ description: "+1 to two others" })).toEqual({ description: "+1 to two others" });
+    expect(sanitizeAbilityIncreases({ dex: 2, wis: 1 })).toEqual({ dex: 2, wis: 1 });
     expect(sanitizeAbilityIncreases({})).toBeNull();
   });
 });

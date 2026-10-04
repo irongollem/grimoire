@@ -8,12 +8,19 @@ const mocks = vi.hoisted(() => ({
   generate: vi.fn(),
   push: vi.fn(),
   logImage: vi.fn(),
+  toastError: vi.fn(),
   ui: { dungeonFeatureGeneratorOpen: true },
 }));
 
 vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
   useRouter: () => ({ push: mocks.push }),
+}));
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({
+    error: mocks.toastError,
+    fromError: (e: unknown) => (e instanceof Error ? e.message : "failed"),
+  }),
 }));
 vi.mock("@/stores/ui", () => ({ useUiStore: () => mocks.ui }));
 vi.mock("@/stores/campaign", () => ({
@@ -84,6 +91,7 @@ describe("DungeonFeatureGeneratorPanel", () => {
     mocks.generate.mockReset();
     mocks.push.mockReset();
     mocks.logImage.mockReset();
+    mocks.toastError.mockReset();
     mocks.ui.dungeonFeatureGeneratorOpen = true;
   });
 
@@ -123,5 +131,19 @@ describe("DungeonFeatureGeneratorPanel", () => {
 
     expect(mocks.createFeature).not.toHaveBeenCalled();
     expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("toasts a failed save, keeps the panel open and does not navigate", async () => {
+    mocks.generate.mockResolvedValue(generated);
+    mocks.createFeature.mockRejectedValue(new Error("insert failed"));
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A bookcase that swings aside.");
+
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith("insert failed"));
+
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.logImage).not.toHaveBeenCalled();
+    expect(mocks.ui.dungeonFeatureGeneratorOpen).toBe(true);
   });
 });

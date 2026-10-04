@@ -50,6 +50,7 @@ import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 import { useCreateDeity, useAllDeities, useAllPantheons } from "@/composables/deities/useDeities";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -67,6 +68,7 @@ import { wholeCredits } from "@edge-shared/credit-math.ts";
 const ui       = useUiStore();
 const router   = useRouter();
 const campaign = useCampaignStore();
+const toast = useToast();
 const { mutateAsync: createDeity } = useCreateDeity();
 const { logImageGeneration } = useImageGenerationLog();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useDeityGeneration();
@@ -139,7 +141,8 @@ async function generateAndCreate() {
     });
   } catch (e) {
     if (gateQuotaError(e)) return;
-    throw e;
+    toast.error(toast.fromError(e));
+    return;
   }
 
   // Log the portrait to the Gallery, linked back to the new deity.

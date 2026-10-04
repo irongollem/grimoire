@@ -298,15 +298,16 @@ const toast = useToast();
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { data: allFactions } = useAllFactions();
 const { mutateAsync: addFactionNpc } = useAddFactionNpc();
+const { suggest, forNpc } = useNpcRelationshipSuggestions();
+// Bound to this NPC: another NPC's Suggest run never shows up or accepts here.
 const {
   isGenerating: isSuggesting,
   error: suggestError,
   suggestions,
   provenance,
-  suggest,
   dismiss,
   dismissAll,
-} = useNpcRelationshipSuggestions();
+} = forNpc(() => props.npcId);
 
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();

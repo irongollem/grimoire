@@ -31,6 +31,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 import { useCreateSpecies } from "@/composables/rules/useSpecies";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -45,6 +46,7 @@ import { wholeCredits } from "@edge-shared/credit-math.ts";
 const ui = useUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
+const toast = useToast();
 const { mutateAsync: createSpecies } = useCreateSpecies();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useSpeciesGeneration();
 
@@ -74,7 +76,15 @@ async function generateAndCreate() {
   });
   if (!draft) return;
 
-  const species = await createSpecies(draft);
+  // The generation is already paid for: a failed save must say so, and the
+  // panel stays open so the DM can retry.
+  let species;
+  try {
+    species = await createSpecies(draft);
+  } catch (e) {
+    toast.error(toast.fromError(e));
+    return;
+  }
 
   completedEntityId.value = species.id;
   ui.speciesGeneratorOpen = false;
