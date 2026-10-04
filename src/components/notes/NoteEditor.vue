@@ -146,9 +146,9 @@
 
   <ChroniclerGenerateDialog
     :visible="showChroniclerGenerate"
-    :initial-prompt="illustrationPrompt"
+    :initial-prompt="illustrationTarget?.prompt"
     :note-id="props.note?.id"
-    @close="showChroniclerGenerate = false; illustrationPrompt = ''"
+    @close="showChroniclerGenerate = false; illustrationTarget = null"
     @started="onChroniclerStarted"
   />
 
@@ -205,6 +205,7 @@ import {
 import type { Note, NoteCategory, NoteSessionDates } from "@/types/notes.types";
 import type { ChronicleInsert } from "@/types/chronicler.types";
 import type { CalendarEvent } from "@/types/calendar.types";
+import type { IllustrationTarget } from "@/lib/tiptap/IllustrationSuggestion";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { normalizeTag } from "@/lib/tags";
 import { useCampaignStore } from "@/stores/campaign";
@@ -337,7 +338,10 @@ function openChroniclerWrite() {
 }
 
 function onChroniclerStarted(job: { jobId: string; prompt: string; size: string }) {
-  rteRef.value?.insertPendingImageAtCursor(job);
+  rteRef.value?.insertPendingImage(job, illustrationTarget.value);
+  // The dialog stays open to queue more scenes; only the first one takes the
+  // suggestion's place, the rest go to the cursor like any other generation.
+  illustrationTarget.value = null;
 }
 
 function onChroniclerSelect(url: string) {
@@ -377,12 +381,12 @@ function onChroniclerWrite(chronicle: ChronicleInsert) {
   }
 }
 
-const illustrationPrompt = ref("");
+const illustrationTarget = ref<IllustrationTarget | null>(null);
 
-function onIllustrationClick(prompt: string) {
+function onIllustrationClick(target: IllustrationTarget) {
   // The chip renders inert while AI is off; this guards a stray trigger.
   if (!campaignStore.isAiEnabled) return;
-  illustrationPrompt.value = prompt;
+  illustrationTarget.value = target;
   showChroniclerGenerate.value = true;
 }
 

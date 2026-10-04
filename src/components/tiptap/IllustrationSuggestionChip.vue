@@ -40,7 +40,9 @@ const truncated  = computed(() => {
 function handleClick() {
   if (!canGenerate.value) return;
   const options = props.extension.options as IllustrationSuggestionOptions;
-  options.onPromptClick?.(prompt.value);
+  const pos = props.getPos();
+  if (typeof pos !== "number") return;
+  options.onPromptClick?.({ pos, prompt: prompt.value });
 }
 </script>
 

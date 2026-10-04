@@ -428,7 +428,8 @@ import { CalendarEventRef } from "@/lib/tiptap/CalendarEventRef";
 import type { CalendarEventRefAttrs } from "@/lib/tiptap/CalendarEventRef";
 import { createEntityMentionExtension } from "@/lib/tiptap/EntityMention";
 import type { EntityMentionItem, EntityMentionAttrs, EntityType } from "@/lib/tiptap/EntityMention";
-import { IllustrationSuggestion } from "@/lib/tiptap/IllustrationSuggestion";
+import { IllustrationSuggestion, findIllustrationSuggestion } from "@/lib/tiptap/IllustrationSuggestion";
+import type { IllustrationTarget } from "@/lib/tiptap/IllustrationSuggestion";
 import { PendingImage } from "@/lib/tiptap/PendingImage";
 import { AiGenerated } from "@/lib/tiptap/AiGenerated";
 import { usePendingImageResolver } from "@/composables/usePendingImageResolver";
@@ -474,7 +475,7 @@ const {
 const emit = defineEmits<{
   "update:modelValue": [value: string];
   "insert-calendar-event": [];
-  "illustration-click": [prompt: string];
+  "illustration-click": [target: IllustrationTarget];
 }>();
 
 // ── Entity mention suggestion state ──────────────────────────────────────────
@@ -637,7 +638,7 @@ const editor = useEditor({
     ...(allowCalendarEvents ? [CalendarEventRef] : []),
     entityMentionExtension,
     IllustrationSuggestion.configure({
-      onPromptClick: (prompt) => emit("illustration-click", prompt),
+      onPromptClick: (target) => emit("illustration-click", target),
     }),
     PendingImage,
     AiGenerated,
@@ -750,13 +751,26 @@ defineExpose({
     if (!e) return;
     e.chain().focus().insertContentAt(insertionPos(e, cursorPlaced.value), { type: "image", attrs: { src } }).run();
   },
-  insertPendingImageAtCursor(attrs: { jobId: string; prompt: string; size: string }): void {
+  /** Insert a "generating…" placeholder. Started from a suggestion chip, it
+   *  takes the chip's place, since the chip already marks where the Chronicler
+   *  meant the picture to go; otherwise (or if the chip has since been
+   *  deleted) it lands at the cursor. */
+  insertPendingImage(attrs: { jobId: string; prompt: string; size: string }, replacing?: IllustrationTarget | null): void {
     const e = editor.value;
     if (!e) return;
+    const pending = { type: "pendingImage", attrs: { ...attrs, status: "pending", startedAt: Date.now() } };
+    const suggestion = replacing ? findIllustrationSuggestion(e.state.doc, replacing) : null;
+    if (suggestion) {
+      e.chain()
+        .insertContentAt({ from: suggestion.pos, to: suggestion.pos + suggestion.node.nodeSize }, pending)
+        .run();
+      pendingImageResolver.scan();
+      return;
+    }
     e.chain()
       .focus()
       .insertContentAt(insertionPos(e, cursorPlaced.value), [
-        { type: "pendingImage", attrs: { ...attrs, status: "pending", startedAt: Date.now() } },
+        pending,
         { type: "paragraph" },
       ])
       .run();

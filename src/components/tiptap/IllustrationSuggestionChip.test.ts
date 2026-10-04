@@ -10,6 +10,7 @@ vi.mock("@tiptap/vue-3", () => ({
     editor: { type: Object, required: true },
     node: { type: Object, required: true },
     extension: { type: Object, required: true },
+    getPos: { type: Function, required: true },
   },
   NodeViewWrapper: defineComponent({ setup: (_, { slots }) => () => h("div", slots.default?.()) }),
 }));
@@ -20,18 +21,19 @@ function mountChip(onPromptClick = vi.fn()) {
       editor: { isEditable: true },
       node: { attrs: { prompt: "A ruined tower at dusk" } },
       extension: { options: { onPromptClick } },
+      getPos: () => 12,
     } as never,
   });
   return { wrapper, onPromptClick };
 }
 
 describe("IllustrationSuggestionChip", () => {
-  it("offers to generate and fires the click when AI is on", async () => {
+  it("offers to generate and reports which chip was clicked when AI is on", async () => {
     campaignMock.isAiEnabled = true;
     const { wrapper, onPromptClick } = mountChip();
     expect(wrapper.find("button").classes()).toContain("illus-chip--editor");
     await wrapper.find("button").trigger("click");
-    expect(onPromptClick).toHaveBeenCalledWith("A ruined tower at dusk");
+    expect(onPromptClick).toHaveBeenCalledWith({ pos: 12, prompt: "A ruined tower at dusk" });
   });
 
   it("is an inert plain suggestion when AI is off", async () => {
