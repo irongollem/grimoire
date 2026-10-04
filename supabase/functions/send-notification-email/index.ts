@@ -1,17 +1,21 @@
 /**
- * Player email notifications — "your DM shared a session note with you" and
- * "a new session date was proposed".
+ * Player email: "a new session date was proposed", and nothing else.
  *
- * Invoked fire-and-forget from the app right after the DM action
- * (NoteEditor / SchedulingTab), NOT from a DB trigger: campaign backup
- * restore inserts straight into `notes` / `session_proposals`, and a trigger
- * would re-email every player about years-old content on every restore.
+ * Email is for planning between sessions, never for play. Notes and handouts
+ * are shared mostly during a session, with everyone at the table, and reach the
+ * player in the app (journal unread dots, campaign announcements). The note and
+ * handout emails were removed on 4 Oct 2026 for that reason; do not add one for
+ * anything that happens at the table.
  *
- * Trust boundary: the client only names WHICH rows changed. Recipients are
- * re-derived here from DB state (player_visible_to ∩ the claimed ids →
- * campaign_members → auth.users.email) with the caller verified as a DM of
- * that campaign — player emails never reach the browser, and a caller can't
- * email anyone the row itself doesn't grant.
+ * Invoked fire-and-forget from the app right after the DM proposes a date
+ * (SchedulingTab), NOT from a DB trigger: campaign backup restore inserts
+ * straight into `session_proposals`, and a trigger would re-email every player
+ * about years-old proposals on every restore.
+ *
+ * Trust boundary: the client only names WHICH proposal was created.
+ * Recipients are re-derived here from DB state (campaign_members →
+ * auth.users.email) with the caller verified as a DM of that campaign: player
+ * emails never reach the browser.
  *
  * Provider: Resend. Until the RESEND_API_KEY function secret is set this
  * no-ops with { configured: false } — safe to deploy before the account
@@ -34,8 +38,6 @@ import { buildSessionInvite, type IcsSessionEvent } from "../_shared/ics.ts";
 import { isoDate } from "../_shared/childAccount.ts";
 import { resendApiKey, sendEmail, type OutgoingEmail } from "../_shared/resend.ts";
 import {
-  handoutSharedEmail,
-  noteSharedEmail,
   proposalCreatedEmail,
   type RsvpLinks,
 } from "./emails.ts";
@@ -78,20 +80,17 @@ async function campaignName(campaignId: string): Promise<string> {
 }
 
 /** Drop recipients whose notification_preferences row turns this email off. */
-async function filterByPreference(
-  userIds: string[],
-  column: "email_shared_notes" | "email_session_proposals",
-): Promise<string[]> {
+async function filterByPreference(userIds: string[]): Promise<string[]> {
   if (!userIds.length) return [];
   const { data, error } = await admin
     .from("notification_preferences")
-    .select(`user_id, ${column}`)
+    .select("user_id, email_session_proposals")
     .in("user_id", userIds);
   if (error) throw error;
   const optedOut = new Set(
     (data ?? [])
-      .filter((row) => (row as Record<string, unknown>)[column] === false)
-      .map((row) => (row as { user_id: string }).user_id),
+      .filter((row) => row.email_session_proposals === false)
+      .map((row) => row.user_id as string),
   );
   // No row = defaults = opted in.
   return userIds.filter((id) => !optedOut.has(id));
@@ -176,9 +175,6 @@ serve(withCors(async (req: Request) => {
 
   let body: {
     type?: string;
-    note_id?: string;
-    document_id?: string;
-    added_party_member_ids?: unknown;
     proposal_id?: string;
   };
   try {
@@ -192,7 +188,6 @@ serve(withCors(async (req: Request) => {
   let campaignId: string;
   let members: MemberRow[];
   let recipientIds: string[];
-  let prefColumn: "email_shared_notes" | "email_session_proposals";
   // Per recipient rather than per campaign: a proposal email carries that one
   // player's RSVP token, so no two are the same message.
   let buildMail: (
@@ -204,80 +199,7 @@ serve(withCors(async (req: Request) => {
   // will never be mailed. Only the proposal branch has anything to prepare.
   let prepare: (optedIn: string[]) => Promise<void> = async () => {};
 
-  if (body.type === "note_shared") {
-    if (!body.note_id || !Array.isArray(body.added_party_member_ids)) {
-      return json({ error: "note_shared needs { note_id, added_party_member_ids }" }, 400);
-    }
-    const { data: note, error } = await admin
-      .from("notes")
-      .select("id, title, campaign_id, player_visible_to")
-      .eq("id", body.note_id)
-      .maybeSingle();
-    if (error) throw error;
-    if (!note?.campaign_id) return json({ error: "Note not found" }, 404);
-    campaignId = note.campaign_id as string;
-
-    members = await fetchMembers(campaignId);
-    if (!members.some((m) => m.user_id === user.id && m.role === "dm")) {
-      return new Response("Forbidden", { status: 403 });
-    }
-
-    // Only ids the note actually grants visibility to — the client's "added"
-    // list is an optimization hint, never an authority.
-    const visible = new Set((note.player_visible_to as string[] | null) ?? []);
-    const added = new Set(
-      (body.added_party_member_ids as unknown[]).filter(
-        (id): id is string => typeof id === "string" && visible.has(id),
-      ),
-    );
-    recipientIds = members
-      .filter((m) => m.party_member_id && added.has(m.party_member_id) && m.user_id !== user.id)
-      .map((m) => m.user_id);
-    prefColumn = "email_shared_notes";
-    const noteTitle = (note.title as string) || "Untitled Note";
-    const noteId = note.id as string;
-    buildMail = (campaign, dmName, recipient) => ({
-      to: recipient.email,
-      content: noteSharedEmail({ campaignName: campaign, dmName, noteTitle, noteId }),
-    });
-  } else if (body.type === "handout_shared") {
-    if (!body.document_id || !Array.isArray(body.added_party_member_ids)) {
-      return json({ error: "handout_shared needs { document_id, added_party_member_ids }" }, 400);
-    }
-    const { data: doc, error } = await admin
-      .from("scriptorium_documents")
-      .select("id, title, campaign_id, player_visible_to")
-      .eq("id", body.document_id)
-      .maybeSingle();
-    if (error) throw error;
-    if (!doc?.campaign_id) return json({ error: "Handout not found" }, 404);
-    campaignId = doc.campaign_id as string;
-
-    members = await fetchMembers(campaignId);
-    if (!members.some((m) => m.user_id === user.id && m.role === "dm")) {
-      return new Response("Forbidden", { status: 403 });
-    }
-
-    // Only ids the handout actually grants visibility to, as for notes: the
-    // client's "added" list is a hint, never an authority.
-    const visible = new Set((doc.player_visible_to as string[] | null) ?? []);
-    const added = new Set(
-      (body.added_party_member_ids as unknown[]).filter(
-        (id): id is string => typeof id === "string" && visible.has(id),
-      ),
-    );
-    recipientIds = members
-      .filter((m) => m.party_member_id && added.has(m.party_member_id) && m.user_id !== user.id)
-      .map((m) => m.user_id);
-    // Same switch as a shared note: both are "the DM handed me a document".
-    prefColumn = "email_shared_notes";
-    const handoutTitle = (doc.title as string) || "Untitled handout";
-    const documentId = doc.id as string;
-    buildMail = (campaign, dmName, recipient) => ({
-      to: recipient.email,
-      content: handoutSharedEmail({ campaignName: campaign, dmName, handoutTitle, documentId }),
-    });
-  } else if (body.type === "proposal_created") {
+  if (body.type === "proposal_created") {
     if (!body.proposal_id) return json({ error: "proposal_created needs { proposal_id }" }, 400);
     const { data: proposal, error } = await admin
       .from("session_proposals")
@@ -297,7 +219,6 @@ serve(withCors(async (req: Request) => {
     recipientIds = members
       .filter((m) => m.role === "player" && m.user_id !== user.id)
       .map((m) => m.user_id);
-    prefColumn = "email_session_proposals";
 
     const proposalId = proposal.id as string;
     const proposalTitle = (proposal.title as string) || "Session";
@@ -377,7 +298,7 @@ serve(withCors(async (req: Request) => {
   // Never a child account, before anything else touches the id list — see
   // filterOutChildAccounts for why this runs ahead of the RSVP token mint too.
   recipientIds = await filterOutChildAccounts([...new Set(recipientIds)]);
-  const optedIn = await filterByPreference(recipientIds, prefColumn);
+  const optedIn = await filterByPreference(recipientIds);
   if (!optedIn.length) return json({ sent: 0 });
 
   const apiKey = resendApiKey();

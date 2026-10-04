@@ -3,7 +3,6 @@ import { refDebounced } from "@vueuse/core";
 import { useQuery } from "@tanstack/vue-query";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import { notifyHandoutShared } from "@/composables/campaign/useEmailNotify";
 import { previewHandoutShare, useShareHandout } from "@/composables/scriptorium/useScriptorium";
 import type { HandoutShareResult, ScriptoriumDocument } from "@/types/scriptorium.types";
 
@@ -32,11 +31,10 @@ export function useHandoutSharing() {
   const { confirm } = useConfirm();
   const toast = useToast();
 
-  /** Sets the recipients, applies the reveals, then emails the newly added. */
-  async function share(documentId: string, partyMemberIds: string[]): Promise<HandoutShareResult> {
-    const result = await mutateAsync({ id: documentId, partyMemberIds });
-    notifyHandoutShared(documentId, result.added);
-    return result;
+  /** Sets the recipients and applies the reveals. No email: a handout is given
+   *  at the table, and players see it arrive in their journal. */
+  function share(documentId: string, partyMemberIds: string[]): Promise<HandoutShareResult> {
+    return mutateAsync({ id: documentId, partyMemberIds });
   }
 
   /** Asks first, then withdraws the handout from everyone. Never un-reveals entries. */

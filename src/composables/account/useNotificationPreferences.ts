@@ -5,7 +5,6 @@ import { useToast } from "@/composables/useToast";
 const QUERY_KEY = "notification_preferences";
 
 export interface NotificationPreferences {
-  email_shared_notes: boolean;
   email_session_proposals: boolean;
 }
 
@@ -15,7 +14,6 @@ export interface NotificationPreferences {
  * backfilling for existing accounts.
  */
 export const NOTIFICATION_PREFERENCE_DEFAULTS: NotificationPreferences = {
-  email_shared_notes: true,
   email_session_proposals: true,
 };
 
@@ -23,7 +21,7 @@ async function fetchPreferences(): Promise<NotificationPreferences> {
   const user = getCurrentUser();
   const { data, error } = await supabase
     .from("notification_preferences")
-    .select("email_shared_notes, email_session_proposals")
+    .select("email_session_proposals")
     .eq("user_id", user!.id)
     .maybeSingle();
   if (error) throw error;
@@ -39,7 +37,7 @@ async function upsertPreferences(
   const { data, error } = await supabase
     .from("notification_preferences")
     .upsert({ user_id: user!.id, ...next }, { onConflict: "user_id" })
-    .select("email_shared_notes, email_session_proposals")
+    .select("email_session_proposals")
     .single();
   if (error) throw error;
   return data as NotificationPreferences;

@@ -3,7 +3,7 @@
  * vitest can cover it (see vitest.config.ts include of supabase/functions).
  *
  * Every string that came from a user (titles, names) is HTML-escaped: these
- * land in HTML email bodies, and a note titled `<img onerror=…>` must render
+ * land in HTML email bodies, and a campaign named `<img onerror=…>` must render
  * as text, not execute in a webmail client.
  */
 
@@ -61,55 +61,6 @@ function layout(campaignName: string, bodyHtml: string, ctaLabel: string, ctaPat
 const OPT_OUT_TEXT =
   "You receive these emails because you are a member of this campaign in Grimoire. " +
   `Turn them off under Settings → Notifications: ${APP_ORIGIN}/play/settings`;
-
-export function noteSharedEmail(args: {
-  campaignName: string;
-  dmName: string;
-  noteTitle: string;
-  noteId: string;
-}): EmailContent {
-  const { campaignName, dmName, noteTitle, noteId } = args;
-  // Deep link straight to the note: PlayerJournalView expands + scrolls to
-  // the card named by the `note` query param on its DM Notes tab.
-  const notePath = `/play/journal?tab=dm-notes&note=${encodeURIComponent(noteId)}`;
-  return {
-    subject: `${dmName} shared a session note with you: ${campaignName}`,
-    html: layout(
-      campaignName,
-      `<p style="font-size: 1rem; line-height: 1.6;">
-    <strong>${escapeHtml(dmName)}</strong> shared the note
-    <strong>“${escapeHtml(noteTitle)}”</strong> with you.
-  </p>`,
-      "Read the note",
-      notePath,
-    ),
-    text: `${dmName} shared the note "${noteTitle}" with you.\n\nRead it: ${APP_ORIGIN}${notePath}\n\n${OPT_OUT_TEXT}`,
-  };
-}
-
-export function handoutSharedEmail(args: {
-  campaignName: string;
-  dmName: string;
-  handoutTitle: string;
-  documentId: string;
-}): EmailContent {
-  const { campaignName, dmName, handoutTitle, documentId } = args;
-  // Deep link to the handout on the player's Journal handouts tab.
-  const handoutPath = `/play/journal?tab=handouts&handout=${encodeURIComponent(documentId)}`;
-  return {
-    subject: `${dmName} gave you a handout: ${campaignName}`,
-    html: layout(
-      campaignName,
-      `<p style="font-size: 1rem; line-height: 1.6;">
-    <strong>${escapeHtml(dmName)}</strong> gave you the handout
-    <strong>“${escapeHtml(handoutTitle)}”</strong>.
-  </p>`,
-      "Read the handout",
-      handoutPath,
-    ),
-    text: `${dmName} gave you the handout "${handoutTitle}".\n\nRead it: ${APP_ORIGIN}${handoutPath}\n\n${OPT_OUT_TEXT}`,
-  };
-}
 
 /**
  * The two one-click links, when the recipient has an RSVP token. They are the

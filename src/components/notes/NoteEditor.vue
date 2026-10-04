@@ -209,7 +209,6 @@ import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { normalizeTag } from "@/lib/tags";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
-import { notifyNoteShared } from "@/composables/campaign/useEmailNotify";
 import { storeToRefs } from "pinia";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
@@ -482,10 +481,6 @@ async function save() {
   const wasShared = (props.note?.player_visible_to?.length ?? 0) > 0;
   const nowShared = draft.playerVisibleTo.length > 0;
   const justShared = nowShared && !wasShared;
-  // Per-player diff, unlike the boolean above: adding a player to an
-  // already-shared note must still email that player.
-  const previouslyVisibleTo = new Set(props.note?.player_visible_to ?? []);
-  const newlyVisibleTo = draft.playerVisibleTo.filter((id) => !previouslyVisibleTo.has(id));
   try {
     if (props.note) {
       // Material edit detection (#606): only AI-authored values count —
@@ -515,7 +510,6 @@ async function save() {
           `📜 Note shared: "${draft.title.trim()}"`,
           { entity_type: "note", entity_id: props.note.id },
         );
-      notifyNoteShared(props.note.id, newlyVisibleTo);
       allowLeave();
       router.push("/notes");
     } else {
@@ -527,7 +521,6 @@ async function save() {
           `📜 Note shared: "${created.title}"`,
           { entity_type: "note", entity_id: created.id },
         );
-      notifyNoteShared(created.id, newlyVisibleTo);
       allowLeave();
       router.replace(`/notes/${created.id}`);
     }

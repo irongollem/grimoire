@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/composables/campaign/useEmailNotify", () => ({ notifyHandoutShared: vi.fn() }));
 vi.mock("@/composables/scriptorium/useScriptorium", () => ({
   previewHandoutShare: vi.fn(),
   useShareHandout: vi.fn(),

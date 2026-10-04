@@ -384,7 +384,6 @@ A handout is a `scriptorium_documents` row whose `player_visible_to` holds the p
 
 - **Cards** show title, doc-type label, last-updated date and an `EntityNewDot`. Unread uses `useReadItems("handout")`: new when `updated_at` is later than the read mark, so a DM edit relights the dot.
 - **Reader** is `ScriptoriumReader` with `audience="player"` (linked entities render from player projections only), `back-to="/play/journal?tab=handouts"`, constrained to a single readable column at `md` and up. Opening it marks the handout read, and a change while open re-marks it. `PlayerLayout` does not read `meta.fullscreenMobile`, so the view cancels the layout padding itself on phones.
-- **Deep link** `/play/journal?tab=handouts&handout=<id>` (the share email) navigates to the reader and drops the param.
 
 ### Reliquary (Rules Reference)
 

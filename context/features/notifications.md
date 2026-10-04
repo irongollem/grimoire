@@ -1,33 +1,33 @@
 # Email Notifications
 
-Players get an email when their DM publishes something for them. Two events
-exist today:
+Email is for **planning between sessions, never for play.** One event exists:
 
-| Event                | Fires when…                                                        | Recipients                                              |
-| -------------------- | ------------------------------------------------------------------ | ------------------------------------------------------- |
-| **Note shared**      | A note's `player_visible_to` gains party members (create or edit)  | Only the players **newly added** to `player_visible_to` |
-| **Session proposed** | A DM adds a date in the Scheduling tab (`session_proposals` insert) | All `campaign_members` with `role = 'player'`           |
+| Event                | Fires when…                                                         | Recipients                                    |
+| -------------------- | ------------------------------------------------------------------- | --------------------------------------------- |
+| **Session proposed** | A DM adds a date in the Scheduling tab (`session_proposals` insert) | All `campaign_members` with `role = 'player'` |
 
-Both are **opt-out**: a missing `notification_preferences` row means every
-email type is ON, and players toggle them off under **`/play/settings` →
-Email Notifications** (`PlayerSettingsNotifications.vue`).
+Anything shared during play (a note, a handout, a reveal) reaches players in
+the app instead: journal unread dots, live sync, the campaign announcement.
+A shared-note email existed until 4 Oct 2026, and #970 briefly added a handout
+email beside it; both were removed because a DM shares those mostly mid-session,
+with everyone at the table, where an email per share is noise. Do not add an
+email for anything that happens at the table.
+
+The proposal email is **opt-out**: a missing `notification_preferences` row
+means it is ON, and players toggle it off under **`/play/settings` → Email
+Notifications** (`PlayerSettingsNotifications.vue`).
 
 ## Architecture — why client-invoked, not a DB trigger
 
 The DM's action fires a **fire-and-forget** `supabase.functions.invoke` from
-the browser (`src/composables/campaign/useEmailNotify.ts`, same pattern as
-`queueNoteEmbedding`):
+the browser (`notifyProposalCreated` in `src/composables/campaign/useEmailNotify.ts`):
+`SchedulingTab.vue` `addProposal()` sends the created proposal id, and also
+posts the 📅 in-app `sendCampaignAnnouncement` chat message.
 
-- `NoteEditor.vue` `save()` — diffs old vs new `player_visible_to` and sends
-  the **added** party-member ids (NOT the `justShared` boolean, which misses
-  adding a second player to an already-shared note).
-- `SchedulingTab.vue` `addProposal()` — sends the created proposal id, and
-  also posts the 📅 in-app `sendCampaignAnnouncement` chat message.
-
-A `notes`/`session_proposals` AFTER-trigger was considered and rejected on
-purpose: **campaign backup restore** (`useCampaignBackup.ts`) inserts straight
-into both tables, and a trigger would mass-email every player about years-old
-content on every restore. Losing coverage of non-UI write paths (MCP, REST) is
+A `session_proposals` AFTER-trigger was considered and rejected on purpose:
+**campaign backup restore** (`useCampaignBackup.ts`) inserts straight into the
+table, and a trigger would mass-email every player about years-old proposals on
+every restore. Losing coverage of non-UI write paths (MCP, REST) is
 the accepted cost — do not "fix" this by adding a trigger.
 
 ## The edge function — `send-notification-email`
@@ -36,10 +36,9 @@ the accepted cost — do not "fix" this by adding a trigger.
 *pointer*, never an authority:
 
 1. Verifies the caller's JWT (`getUser()`), then that the caller is a
-   `role = 'dm'` member of the row's campaign.
-2. Re-derives recipients from DB state: for notes, the claimed "added" ids are
-   intersected with the row's actual `player_visible_to`, then mapped
-   `party_member_id → campaign_members.user_id`; the caller is always excluded.
+   `role = 'dm'` member of the proposal's campaign.
+2. Re-derives recipients from DB state (the campaign's players); the caller is
+   always excluded.
 3. **Drops active child accounts** (`filterOutChildAccounts`, #919) before
    anything else touches the id list. A young player's account has no email
    of its own (see [young-players.md](young-players.md)), and this also stops
@@ -53,11 +52,7 @@ the accepted cost — do not "fix" this by adding a trigger.
    HTML-escaped in `emails.ts` (pure module, vitest-covered).
 
 A proposal email is **composed per recipient**, not once for the party, because
-each carries that player's own RSVP token — see below. The note email is still
-one message repeated.
-
-Emails contain the note/session **title only**, never note content — no
-TipTap-JSON rendering server-side, and nothing sensitive in inboxes.
+each carries that player's own RSVP token — see below.
 
 ## Answering a session proposal from the email itself
 
@@ -116,12 +111,7 @@ worse than none, because the player believes they have answered. Without
 `INBOUND_EMAIL_SECRET` the inbound function refuses everything with 503 rather
 than accepting unauthenticated mail. The one-click links work either way.
 
-Note emails **deep-link the exact note**:
-`/play/journal?tab=dm-notes&note=<id>`. `PlayerJournalView.vue` watches the
-`note` query param on the DM Notes tab, expands that card, scrolls to it
-(`dm-note-<id>` element ids in `PlayerJournalDmNotesTab.vue`), marks it read,
-and then drops the param. Proposal emails link `/play/settings` (the RSVP
-toggles).
+Proposal emails link `/play/settings` (the RSVP toggles).
 
 ## Configuration (production)
 
@@ -154,7 +144,8 @@ no Supabase-provided API for application email, hence Resend.
 ## DB
 
 - `notification_preferences` (migration `20260805000002`): `user_id` PK →
-  `auth.users`, `email_shared_notes`, `email_session_proposals`, both
-  `default true`. RLS: own-row only, all four verbs. Rows are created lazily
+  `auth.users`, `email_session_proposals` `default true`. Its
+  `email_shared_notes` column was dropped by `20261004173539` with the note
+  email. RLS: own-row only, all four verbs. Rows are created lazily
   on first toggle (`useNotificationPreferences.ts`), so existing accounts need
   no backfill.

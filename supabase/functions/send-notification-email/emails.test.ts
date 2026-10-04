@@ -2,8 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   escapeHtml,
   formatProposalDate,
-  handoutSharedEmail,
-  noteSharedEmail,
   proposalCreatedEmail,
 } from "./emails";
 
@@ -27,64 +25,6 @@ describe("formatProposalDate", () => {
     expect(formatProposalDate("2026-08-05", "19:30")).toBe(
       "Wednesday, August 5, 2026 at 19:30",
     );
-  });
-});
-
-describe("noteSharedEmail", () => {
-  const email = noteSharedEmail({
-    campaignName: "Curse of <Strahd>",
-    dmName: "Jeffrey & co",
-    noteTitle: 'Session 12: "The Amber Temple"',
-    noteId: "11111111-2222-3333-4444-555555555555",
-  });
-
-  it("names the DM and note in the subject", () => {
-    expect(email.subject).toBe(
-      "Jeffrey & co shared a session note with you: Curse of <Strahd>",
-    );
-  });
-
-  it("escapes user content in the HTML body", () => {
-    expect(email.html).toContain("Curse of &lt;Strahd&gt;");
-    expect(email.html).toContain("Jeffrey &amp; co");
-    expect(email.html).toContain("&quot;The Amber Temple&quot;");
-    expect(email.html).not.toContain("<Strahd>");
-  });
-
-  it("deep-links the exact note on the DM Notes tab, plus the opt-out settings page", () => {
-    const deepLink =
-      "https://app.dungeongrimoire.com/play/journal?tab=dm-notes&note=11111111-2222-3333-4444-555555555555";
-    expect(email.html).toContain(deepLink);
-    expect(email.text).toContain(deepLink);
-    expect(email.text).toContain("https://app.dungeongrimoire.com/play/settings");
-  });
-});
-
-describe("handoutSharedEmail", () => {
-  const email = handoutSharedEmail({
-    campaignName: "Curse of <Strahd>",
-    dmName: "Jeffrey & co",
-    handoutTitle: 'The "Tithe" Ledger',
-    documentId: "11111111-2222-3333-4444-555555555555",
-  });
-
-  it("names the DM in the subject", () => {
-    expect(email.subject).toBe("Jeffrey & co gave you a handout: Curse of <Strahd>");
-  });
-
-  it("escapes user content in the HTML body", () => {
-    expect(email.html).toContain("Curse of &lt;Strahd&gt;");
-    expect(email.html).toContain("Jeffrey &amp; co");
-    expect(email.html).toContain("&quot;Tithe&quot;");
-    expect(email.html).not.toContain("<Strahd>");
-  });
-
-  it("deep-links the handout on the handouts tab, plus the opt-out settings page", () => {
-    const deepLink =
-      "https://app.dungeongrimoire.com/play/journal?tab=handouts&handout=11111111-2222-3333-4444-555555555555";
-    expect(email.html).toContain(deepLink);
-    expect(email.text).toContain(deepLink);
-    expect(email.text).toContain("https://app.dungeongrimoire.com/play/settings");
   });
 });
 

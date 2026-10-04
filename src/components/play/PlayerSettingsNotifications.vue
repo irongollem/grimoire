@@ -1,14 +1,8 @@
 <template>
   <!-- Email notifications — a young player's account has no email of its own
        (#919), so there is nothing here to toggle. -->
-  <SettingsSection v-if="!isChild" title="Email Notifications" description="Emails when your DM publishes something for you.">
+  <SettingsSection v-if="!isChild" title="Email Notifications" description="Emails about planning the next session. Anything shared during play shows up in the app instead.">
     <div class="space-y-4">
-      <SettingsToggleRow
-        label="Shared session notes"
-        description="Get an email when your DM shares a note with you."
-        :model-value="prefs.email_shared_notes"
-        @update:model-value="setPref('email_shared_notes', $event)"
-      />
       <SettingsToggleRow
         label="Session date proposals"
         description="Get an email when your DM proposes a new session date."

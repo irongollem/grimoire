@@ -229,7 +229,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, watch, nextTick } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLocation, IconLock, IconMessage, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
 import TabBar from "@/components/common/TabBar.vue";
@@ -427,40 +427,6 @@ const TABS = computed(() => [
   { id: "dm-notes"  as const, label: "DM Notes",      count: dmNotes.value.length },
   { id: "handouts"  as const, label: "Handouts",      count: handouts.value?.length ?? 0 },
 ]);
-
-// Deep link from note-share emails: /play/journal?tab=dm-notes&note=<id>
-// expands that note and scrolls to it. Watches dmNotes too because on a cold
-// load the target card doesn't exist until the notes query resolves. The
-// param is dropped afterwards so collapse/refresh behaves normally.
-watch(
-  [() => route.query.note, dmNotes],
-  async ([noteId]) => {
-    if (typeof noteId !== "string" || activeTab.value !== "dm-notes") return;
-    if (!dmNotes.value.some((n) => n.id === noteId)) return;
-    markRead({ entityType: "note", entityId: noteId });
-    selectedNote.value = noteId;
-    await nextTick();
-    document.getElementById(`dm-note-${noteId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    void router.replace({ query: { tab: "dm-notes" } });
-  },
-  { immediate: true },
-);
-
-// Deep link from handout-share emails: /play/journal?tab=handouts&handout=<id>
-// opens that handout in the reader, then drops the param so Back from the
-// reader lands on the plain tab instead of bouncing straight forward again.
-watch(
-  () => route.query.handout,
-  (handoutId) => {
-    if (typeof handoutId !== "string" || activeTab.value !== "handouts") return;
-    // Replace only the query, then push the reader on top: replacing the whole
-    // entry with the reader would leave no Handouts tab for Back to return to.
-    void router
-      .replace({ query: { tab: "handouts" } })
-      .then(() => router.push({ name: "play-handout", params: { id: handoutId } }));
-  },
-  { immediate: true },
-);
 
 // Statuses that render in a Quest Log group — the badge counts exactly these.
 const QUEST_LOG_STATUSES: readonly string[] = ["active", "completed", "failed"];
