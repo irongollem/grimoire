@@ -122,6 +122,22 @@ export type PlayerVisibleMonster = Omit<Monster, "stat_block"> & {
 export type MonsterInsert = Omit<Monster, "id" | "user_id" | "created_at" | "updated_at">;
 export type MonsterUpdate = Partial<MonsterInsert>;
 
+/** A monster as a picker or a name lookup needs it: no stat block, no
+ *  description. Read through `useMonsterIndex`; it is not a `Monster`, and the
+ *  compiler should say so to anything that reaches for `stat_block`. */
+export interface MonsterIndexEntry {
+  id: string;
+  name: string;
+  monster_type: MonsterType;
+  size: MonsterSize;
+  /** Lifted from `stat_block.challenge_rating`; null when a stat block carries none. */
+  challenge_rating: string | null;
+  source: string | null;
+  image_url: string | null;
+  is_shared: boolean;
+  campaign_id: string | null;
+}
+
 export interface DiscoveredMonster {
   id: string;
   campaign_id: string;

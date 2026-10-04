@@ -39,6 +39,12 @@ export const STATIC_CONTENT_PREFIXES: readonly (readonly string[])[] = [
   ["library-spells"],
   ["library-items"],
   ["library-species"],
+  // The slim picker indexes (#972): the same shared rows as the lists above,
+  // id + name + facets only. Their own prefixes, never `library-monsters` &c.,
+  // because `useResolvedMonster` seeds full rows from that prefix.
+  ["library-monster-index"],
+  ["library-item-index"],
+  ["library-spell-index"],
   ["library_rules"],
   ["system_classes"],
   ["classRitualPolicies"],

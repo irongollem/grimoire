@@ -101,6 +101,28 @@ export async function fetchLibraryMonsterArtEntry(entryId: string): Promise<Libr
 }
 
 /**
+ * Several monsters' art in one round trip: the canonical + own-override merge of
+ * {@link fetchLibraryMonsterArtEntry} for a set of `entry_id`s, so a screen that
+ * shows a handful of stored monsters does not download every monster's art. The
+ * own-override read names the caller explicitly, like the single-entry read.
+ */
+export async function fetchLibraryMonsterArtEntries(entryIds: readonly string[]): Promise<LibraryArtMap> {
+  if (entryIds.length === 0) return {};
+  const user = getCurrentUser();
+  const ids = [...entryIds];
+  const [canonicalRes, ownRes] = await Promise.all([
+    supabase.from("library_monster_art_canonical").select(ART_COLUMNS).in("entry_id", ids),
+    user
+      ? supabase.from("library_monster_art").select(ART_COLUMNS).in("entry_id", ids).eq("user_id", user.id)
+      : Promise.resolve({ data: [] as LibraryArtRow[], error: null }),
+  ]);
+  if (canonicalRes.error) throw canonicalRes.error;
+  if (ownRes.error) throw ownRes.error;
+
+  return mergeLibraryMonsterArtLayers(canonicalRes.data, ownRes.data);
+}
+
+/**
  * Applies a merged art-layer entry onto a shared (library) monster row, per
  * field — an art field the entry leaves null falls back to the row's own
  * value rather than blanking it. Pure so it's usable both by

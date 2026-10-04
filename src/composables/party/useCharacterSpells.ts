@@ -8,7 +8,7 @@ import type {
   InnateResetsOn,
 } from "@/types/spell.types";
 import type { Species } from "@/types/species.types";
-import { isUuid } from "@/lib/library/contentIdentity";
+import { fetchSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import { useToast } from "@/composables/useToast";
 
 export interface SpellKnower {
@@ -67,27 +67,7 @@ export function useCharacterSpellsWithDetails(
 
       const rows = data as Omit<CharacterSpellEntry, "spell">[];
       const allIds = [...new Set(rows.map((r) => r.spell_id).filter(Boolean))];
-      const customIds = allIds.filter(isUuid);
-
-      const [libraryRes, customRes] = await Promise.all([
-        allIds.length > 0
-          ? supabase.from("library_spells").select("*").in("id", allIds)
-          : Promise.resolve({ data: [] }),
-        customIds.length > 0
-          ? supabase.from("spells").select("*").in("id", customIds)
-          : Promise.resolve({ data: [] }),
-      ]);
-      if ("error" in libraryRes && libraryRes.error) throw libraryRes.error;
-      if ("error" in customRes && customRes.error) throw customRes.error;
-
-      const spellMap = new Map<string, CharacterSpellEntry["spell"]>();
-      for (const s of libraryRes.data ?? [])
-        spellMap.set(s.id, {
-          ...s,
-          user_id: "",
-        } as CharacterSpellEntry["spell"]);
-      for (const s of customRes.data ?? [])
-        spellMap.set(s.id, s as CharacterSpellEntry["spell"]);
+      const spellMap = await fetchSpellsByIds(allIds);
 
       return rows.map((r) => ({
         ...r,

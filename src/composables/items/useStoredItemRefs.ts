@@ -3,7 +3,8 @@ import type { MaybeRefOrGetter, Ref } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { isUuid } from "@/lib/library/contentIdentity";
-import { useItems, normalizeLibraryItem } from "@/composables/items/useItems";
+import { normalizeLibraryItem } from "@/composables/items/useItems";
+import { useItemsByIds } from "@/composables/items/useItemsByIds";
 import type { Item } from "@/types/item.types";
 
 /** Library ids in `ids` that `known` cannot resolve, sorted so the query key is stable. */
@@ -29,13 +30,16 @@ export function missingLibraryIds(ids: readonly (string | null)[], known: Readon
 export function useStoredItemRefs(
   ids: MaybeRefOrGetter<readonly (string | null)[]>,
   /** The list the caller already holds: an item hook's `resolvable`, never its
-   *  browse `data`. Defaults to the DM's {@link useItems}; player surfaces pass
-   *  their own gated projection. Either way, library ids the list lacks are still
-   *  fetched: shared content is public, so naming it hides nothing, and a
-   *  player's vault-item gate is unaffected (uuids are never fetched). */
+   *  browse `data`. Without one, exactly the named ids are read ({@link useItemsByIds}),
+   *  never the whole catalogue (#972). Player surfaces pass their own gated
+   *  projection. With a source, library ids the list lacks are still fetched:
+   *  shared content is public, so naming it hides nothing, and a player's
+   *  vault-item gate is unaffected (uuids are never fetched). */
   source?: Ref<Item[] | undefined>,
 ) {
-  const items = source ?? useItems().resolvable;
+  // Called unconditionally (a composable); with a source it is disabled and sends nothing.
+  const byIds = useItemsByIds(ids, () => ({ enabled: source === undefined }));
+  const items = source ?? computed<Item[]>(() => [...byIds.data.value.values()]);
 
   const known = computed(() => new Set((items.value ?? []).map((i) => i.id)));
   const missing = computed(() => missingLibraryIds(toValue(ids), known.value));
@@ -47,7 +51,8 @@ export function useStoredItemRefs(
       if (error) throw error;
       return (data ?? []).map(normalizeLibraryItem);
     },
-    enabled: () => items.value !== undefined && missing.value.length > 0,
+    // The DM path already read every named id (library ones included) by id.
+    enabled: () => source !== undefined && items.value !== undefined && missing.value.length > 0,
     staleTime: Infinity,
   });
 

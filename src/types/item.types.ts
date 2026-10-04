@@ -2,6 +2,7 @@ import type { DamageRoll } from "@/lib/dice/dice";
 import type { VersionedContentMetadata } from "@/types/content.types";
 import { OPEN5E_SOURCE_LABELS } from "@/types/spell.types";
 import type { AiProvenance } from "@/ai/provenance";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 // Prefer the stored title from the DB; fall back to our hardcoded map, then the raw slug.
 export function itemSourceLabel(
@@ -238,6 +239,28 @@ export interface Item extends VersionedContentMetadata {
   content_updated_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * The slim row a picker needs to list and filter items (#972): identity, the
+ * type/rarity facets, art, and what `mergeLibraryWithCustom` needs to let an own
+ * row shadow its library twin. Everything else is read by id once a row is
+ * chosen. See `useItemIndex`.
+ */
+export interface ItemIndexEntry {
+  id: string;
+  name: string;
+  item_type: ItemType;
+  rarity: ItemRarity;
+  source: string | null;
+  source_document_key: string | null;
+  source_record_key: string | null;
+  image_url: string | null;
+  /** True for a `library_items` row, false for one of the DM's own. */
+  is_shared: boolean;
+  /** Always null for a library row. */
+  campaign_id: string | null;
+  ruleset: RulesetKey | null;
 }
 
 export type ItemInsert = Omit<

@@ -627,3 +627,17 @@ export const SCHOOL_VAR: Record<SpellSchool, string> = {
   necromancy:       "var(--school-necromancy)",
   transmutation:    "var(--school-transmutation)",
 };
+
+/** The slim row a spell picker or lookup needs: enough to list, group and look a
+ *  spell up, none of the prose. Library and custom spells share the shape;
+ *  `is_shared` says which table it came from (library rows have no campaign). */
+export interface SpellIndexEntry {
+  id: string;
+  name: string;
+  level: number;
+  school: SpellSchool;
+  source: string | null;
+  classes: string[];
+  is_shared: boolean;
+  campaign_id: string | null;
+}
