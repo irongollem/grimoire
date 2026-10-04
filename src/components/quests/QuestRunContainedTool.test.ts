@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   promptRoll: vi.fn(),
 }));
 
+vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { value: [{ id: "pm-1" }, { id: "pm-2" }] } }) }));
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpc: () => ({ data: mocks.npc }) }));
 vi.mock("@/composables/factions/useFactions", () => ({ useFaction: () => ({ data: mocks.faction }) }));
@@ -256,7 +257,7 @@ describe("QuestRunContainedTool", () => {
   });
 
   it("renders an attached Scriptorium handout body", () => {
-    mocks.handout.value = { title: "The prophecy", doc_type: "handout", word_count: 42, is_published: false, content: "handout-body" };
+    mocks.handout.value = { title: "The prophecy", doc_type: "handout", word_count: 42, is_published: false, content: "handout-body", player_visible_to: [] };
     const wrapper = shallowMount(QuestRunContainedTool, {
       props: { attachment: attachment("handout", { ref_id: "handout-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
@@ -265,5 +266,17 @@ describe("QuestRunContainedTool", () => {
     expect(wrapper.text()).toContain("handout · 42 words · draft");
     expect(mocks.handoutId.value).toBe("handout-1");
     expect(mocks.noteId.value).toBe("");
+  });
+
+  it("offers Give to players through the shared share control, starting on the whole party", () => {
+    mocks.handout.value = { title: "The prophecy", doc_type: "handout", word_count: 42, is_published: false, content: "handout-body", player_visible_to: [] };
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: { attachment: attachment("handout", { ref_id: "handout-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
+      global,
+    });
+    const control = wrapper.findComponent({ name: "HandoutShareControl" });
+    expect(control.props("form")).toBe("phone");
+    expect(control.props("handout")).toEqual(mocks.handout.value);
+    expect(control.props("initialRecipients")).toEqual(["pm-1", "pm-2"]);
   });
 });

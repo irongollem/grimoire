@@ -152,7 +152,10 @@ begin
   loop
     v_type := v_attrs ->> 'entityType';
     v_reveal := case when jsonb_typeof(v_attrs -> 'reveal') = 'object' then v_attrs -> 'reveal' end;
-    v_off := coalesce((v_reveal ->> 'off')::boolean, false);
+    -- jsonb comparisons, never ::boolean casts: a malformed value in the
+    -- document must reveal less, not abort a quest's Advance mid-transition.
+    v_off := v_reveal -> 'off' = 'true'::jsonb;
+    v_off := coalesce(v_off, false);
     -- A library monster's id is text; anything else is a uuid or nothing.
     -- (private.try_uuid exists but is closed to clients, and this runs as one.)
     begin
@@ -177,7 +180,7 @@ begin
          where f in ('name', 'portrait', 'race', 'occupation', 'location');
       else
         v_fields := array['name']
-          || case when coalesce((v_attrs ->> 'showArt')::boolean, true) then array['portrait'] else '{}'::text[] end;
+          || case when v_attrs -> 'showArt' is distinct from 'false'::jsonb then array['portrait'] else '{}'::text[] end;
       end if;
 
       -- No fields is no reveal (effectiveEmbedReveal says the same): sharing
@@ -221,7 +224,7 @@ begin
         end if;
         continue;
       end if;
-      v_flag := coalesce((v_reveal ->> 'description')::boolean, false);
+      v_flag := coalesce(v_reveal -> 'description' = 'true'::jsonb, false);
       if not (r_loc.player_visible_to @> p_members) or (v_flag and not r_loc.is_description_shared) then
         v_revealed := v_revealed || jsonb_build_object(
           'type', v_type, 'id', r_loc.id, 'name', r_loc.name, 'description', v_flag);
@@ -297,7 +300,7 @@ begin
         continue;
       end if;
 
-      v_flag := coalesce((v_reveal ->> 'stats')::boolean, false);
+      v_flag := coalesce(v_reveal -> 'stats' = 'true'::jsonb, false);
       -- visible_to null means the whole table already knows it.
       if r_disc.id is null
          or not (r_disc.visible_to is null or r_disc.visible_to @> p_members)
@@ -335,6 +338,7 @@ $$;
 
 -- `private` hides these from PostgREST; the DM's share_handout (invoker) still
 -- has to be allowed to call them.
+revoke execute on function private.apply_handout_reveals(uuid, text, uuid[], boolean) from public, anon;
 grant execute on function private.apply_handout_reveals(uuid, text, uuid[], boolean) to authenticated, service_role;
 
 -- Sets who holds the handout (the full set, as the audience control emits it)

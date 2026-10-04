@@ -68,6 +68,7 @@ const EFFECT_VERBS: Record<QuestConsequenceAction, string> = {
   grant_knowledge: "grants knowledge",
   owe_favor: "owes a favor",
   award_milestone: "awards a milestone",
+  give_handout: "gives a handout",
 };
 
 /** What a branch card shows for one line of "taking this route also does

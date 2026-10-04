@@ -11,7 +11,7 @@ import { describeQuestConsequenceAction, type QuestConsequenceLabelResolver } fr
  */
 
 export type PayoffTone = "destructive" | "caution" | "info" | "arcane" | "primary" | "muted";
-export type PayoffIcon = "invite" | "hand" | "scrollText" | "quest" | "coins" | "package" | "check" | "calendar" | "send" | "award";
+export type PayoffIcon = "invite" | "hand" | "scrollText" | "quest" | "coins" | "package" | "check" | "calendar" | "send" | "award" | "document";
 
 export interface PayoffRow {
   /** The `quest_consequences.id` or `loot_placements.id` this row renders. */
@@ -49,6 +49,7 @@ const CONSEQUENCE_STYLE: Record<QuestConsequenceAction, { tone: PayoffTone; icon
   grant_knowledge: { tone: "info", icon: "scrollText" },
   owe_favor: { tone: "caution", icon: "hand" },
   award_milestone: { tone: "muted", icon: "award" },
+  give_handout: { tone: "info", icon: "document" },
 };
 
 function beatTitle(beats: readonly QuestBeat[], id: string): string {
@@ -90,6 +91,8 @@ export interface DerivePayoffRowsInput {
    *  Omitted, an unlock row still summarizes as the bare "Unlock a quest". */
   questLabel?: QuestConsequenceLabelResolver["questLabel"];
   beatLabel?: QuestConsequenceLabelResolver["beatLabel"];
+  /** Resolves a `give_handout` row's document to its title. */
+  documentLabel?: QuestConsequenceLabelResolver["documentLabel"];
 }
 
 /**
@@ -109,7 +112,7 @@ export function derivePayoffRows(input: DerivePayoffRowsInput): PayoffRow[] {
         source: "consequence",
         tone: style.tone,
         icon: style.icon,
-        summary: describeQuestConsequenceAction(row, input.objectiveLabel, { questLabel: input.questLabel, beatLabel: input.beatLabel }),
+        summary: describeQuestConsequenceAction(row, input.objectiveLabel, { questLabel: input.questLabel, beatLabel: input.beatLabel, documentLabel: input.documentLabel }),
         caption: consequenceCaption(row, input.outgoingEdges, input.beats),
         chip: "auto",
       };

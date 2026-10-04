@@ -651,6 +651,24 @@ event.
 | `grant_knowledge` (#850)                                     | world action | `action_payload.text`                                              |
 | `owe_favor` (#850)                                           | world action | `target_npc_id` + `action_payload.text`                            |
 | `award_milestone` (#850)                                     | world action | `action_payload.text`                                              |
+| `give_handout` (#970, `20261004110516`)                      | world action | `target_document_id` (a Scriptorium document of the quest's campaign) |
+
+`give_handout` (#970) hands a Scriptorium handout to the **whole party** and
+applies the reveals of every entry the handout links, through the same
+`share_handout` path as the Scriptorium's own "Give to players". It is the
+first verb with a document target: `target_document_id` is set exactly when
+the action is `give_handout` (`CHECK`), and a trigger refuses a document
+outside the quest's campaign, so the pickers (`useHandoutPayoff`, shared by
+`QuestPayoffPanel` and `QuestRulesPanel`) offer that campaign's own documents
+only, unlike the beat attacher, which also offers account-wide ones. `action_payload` is `{}`.
+It performs at once when `after_days = 0`, can be delayed or held like any
+verb, and undo withdraws only the recipients it added. The beat payoff list
+adds it as the "Handout" quick-add; the Advance dialog reads "The party
+receives <title>". The runtime RPC's payoff and held payloads must carry
+`target_document_id` and the title as `target_document` for the Advance dialog
+to name it. In the cockpit, an attached handout's contained view has a "Give to
+players" button, which is the Scriptorium's own `HandoutShareControl`
+starting on the whole party (`initialRecipients`), not a second share flow.
 
 The three #850 verbs join the family exactly like `shift_npc_relationship` and
 `unlock_quest` did: same table, same `after_days` delay, same event log, same

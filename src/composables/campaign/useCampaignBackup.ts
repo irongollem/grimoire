@@ -928,6 +928,8 @@ export async function executeImport(
         // carried the beat graph and there would be nothing to point them at.
         target_npc_id: r(qc.target_npc_id, idMap),
         target_quest_id: r(qc.target_quest_id, idMap),
+        // Scriptorium documents are restored at step 4, so the copy exists.
+        target_document_id: r(qc.target_document_id, idMap),
         // Same reasoning as on_beat_id/on_edge_id above: entry_beat_id names a
         // beat of target_quest_id, and this backup format never carried the
         // beat graph, so there is nothing to remap it onto. Null means "the

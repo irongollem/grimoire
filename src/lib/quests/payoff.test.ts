@@ -26,7 +26,7 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
     action: "grant_knowledge",
     target_objective_id: null,
     target_npc_id: null,
-    target_quest_id: null,
+    target_quest_id: null, target_document_id: null,
     action_payload: {},
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",

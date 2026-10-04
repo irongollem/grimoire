@@ -197,6 +197,7 @@ async function add(): Promise<void> {
       target_objective_id: ruleObjectiveId.value,
       target_npc_id: null,
       target_quest_id: null,
+      target_document_id: null,
       entry_beat_id: null,
       action_payload: {},
     };

@@ -30,7 +30,9 @@
          the same palette/typography as the desktop galley; ScriptoriumReader's
          own scoped styles below undo everything that assumes a physical page. -->
     <div ref="scrollRef" class="sc-theme min-h-0 flex-1 overflow-y-auto px-4 py-4" :class="themeClass">
-      <div v-if="tocEntries.length" class="mb-4 rounded-lg border border-border bg-card p-3">
+      <!-- A contents list earns its place only with somewhere to jump to: a
+           one-heading handout (a wanted poster, a letter) reads better without. -->
+      <div v-if="tocEntries.length > 1" class="mb-4 rounded-lg border border-border bg-card p-3">
         <p class="sc-toc-heading">Contents</p>
         <ul class="reader-toc flex flex-col">
           <li v-for="entry in tocEntries" :key="entry.blockId">
@@ -100,7 +102,9 @@ function goBack() {
 }
 
 const themeClass = computed(() => (doc.theme === "phb2014" ? "theme-phb2014" : "theme-onednd2024"));
-const docTypeLabel = computed(() => DOC_TYPES[doc.doc_type].label);
+// The doc type is the DM's own filing ("Custom", "Adventure Module"); to a
+// player the document is simply something the DM handed them.
+const docTypeLabel = computed(() => (audience === "player" ? "Handout" : DOC_TYPES[doc.doc_type].label));
 
 const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
 const { data: allDmCampaigns } = useAllDmCampaigns();

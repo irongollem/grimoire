@@ -62,6 +62,7 @@ export function ledgerVerbOf(action: QuestConsequenceAction): LedgerVerb | null 
     case "grant_knowledge":
     case "owe_favor":
     case "award_milestone":
+    case "give_handout":
       return null;
     default: {
       const unhandled: never = action;

@@ -146,11 +146,14 @@ import {
   describeWithheld,
 } from "@/lib/scriptorium/handoutShareSummary";
 
-const { open, handout, proposed = null } = defineProps<{
+const { open, handout, proposed = null, initialRecipients = null } = defineProps<{
   open: boolean;
   handout: ShareableHandout;
   /** Recipients the caller already chose; null opens on the picker. */
   proposed?: string[] | null;
+  /** Who the picker starts with when nobody has the handout yet (the quest
+   *  cockpit starts on the whole party). Ignored once it has recipients. */
+  initialRecipients?: string[] | null;
 }>();
 
 const emit = defineEmits<{ close: [] }>();
@@ -171,7 +174,8 @@ watch(
   (isOpen) => {
     if (!isOpen) return;
     submitError.value = "";
-    recipients.value = [...(proposed ?? handout.player_visible_to)];
+    const existing = handout.player_visible_to;
+    recipients.value = [...(proposed ?? (existing.length ? existing : (initialRecipients ?? [])))];
     cameFromPick.value = proposed === null;
     step.value = proposed === null ? "pick" : "confirm";
   },

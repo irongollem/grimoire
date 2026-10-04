@@ -50,9 +50,17 @@ vi.mock("@/composables/locations/useLocations", () => ({
   ] } }),
 }));
 
+vi.mock("@/composables/scriptorium/useScriptorium", () => ({
+  useScriptoriumDocuments: () => ({ data: { value: [
+    { id: "doc-map", title: "The smuggler's map", campaign_id: "camp-1" },
+    { id: "doc-shared", title: "A letter from nowhere", campaign_id: null },
+    { id: "doc-elsewhere", title: "Another table's note", campaign_id: "other-campaign" },
+  ] } }),
+}));
+
 function mountPanel() {
   return mount(QuestRulesPanel, {
-    props: { questId: "quest-1" },
+    props: { questId: "quest-1", campaignId: "camp-1" },
     global: { stubs: { EntityCombobox: true } },
   });
 }
@@ -76,7 +84,7 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
     action: "complete",
     target_objective_id: null,
     target_npc_id: null,
-    target_quest_id: null,
+    target_quest_id: null, target_document_id: null,
     action_payload: {},
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
@@ -132,7 +140,7 @@ describe("QuestRulesPanel", () => {
       action: "create_calendar_event",
       target_objective_id: null,
       target_npc_id: null,
-      target_quest_id: null,
+      target_quest_id: null, target_document_id: null,
       entry_beat_id: null,
       action_payload: { title: "The cult reveals itself", event_type: "quest" },
     });
@@ -289,6 +297,32 @@ describe("QuestRulesPanel", () => {
       ];
       const wrapper = mountPanel();
       expect(wrapper.findAll("ul li")[0]!.text()).toContain('Unlock "The stolen cauldron" · enters at "The cauldron surfaces"');
+    });
+  });
+
+  describe("give_handout", () => {
+    it("offers only this campaign's own documents and writes the document id", async () => {
+      const wrapper = mountPanel();
+      await wrapper.findAll("select")[1]!.setValue("give_handout");
+      const box = comboboxes(wrapper)[0]!;
+      expect((box.props("options") as Array<{ id: string }>).map((o) => o.id)).toEqual(["doc-map"]);
+      box.vm.$emit("update:modelValue", "doc-map");
+      await flushPromises();
+      await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+      await flushPromises();
+
+      expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+        action: "give_handout",
+        target_document_id: "doc-map",
+        target_quest_id: null,
+        action_payload: {},
+      }));
+    });
+
+    it("names the handout in an existing rule", () => {
+      mocks.rows = [consequence({ id: "c-give", on_quest_settled: true, action: "give_handout", target_document_id: "doc-map" })];
+      const wrapper = mountPanel();
+      expect(wrapper.findAll("ul li")[0]!.text()).toContain('Gives a handout: "The smuggler\'s map"');
     });
   });
 });

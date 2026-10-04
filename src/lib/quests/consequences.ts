@@ -23,6 +23,7 @@ export const QUEST_CONSEQUENCE_ACTION_LABELS: Record<QuestConsequenceAction, str
   grant_knowledge: "Grant knowledge",
   owe_favor: "Owe a favor",
   award_milestone: "Award a milestone",
+  give_handout: "Gives a handout",
 };
 
 export function isLedgerConsequenceAction(action: QuestConsequenceAction): boolean {
@@ -37,6 +38,8 @@ export function isLedgerConsequenceAction(action: QuestConsequenceAction): boole
 export interface QuestConsequenceLabelResolver {
   questLabel?: (id: string | null) => string;
   beatLabel?: (id: string | null) => string;
+  /** `give_handout` only: the Scriptorium document's title. */
+  documentLabel?: (id: string | null) => string | null;
 }
 
 /**
@@ -57,7 +60,7 @@ export interface QuestConsequenceLabelResolver {
  */
 export function describeQuestConsequenceAction(
   row: Pick<QuestConsequence, "action" | "target_objective_id" | "action_payload">
-    & Partial<Pick<QuestConsequence, "target_quest_id" | "entry_beat_id">>,
+    & Partial<Pick<QuestConsequence, "target_quest_id" | "entry_beat_id" | "target_document_id">>,
   objectiveLabel: (id: string | null) => string,
   resolver?: QuestConsequenceLabelResolver,
 ): string {
@@ -74,6 +77,10 @@ export function describeQuestConsequenceAction(
     const beatTitle = entryBeatId && resolver.beatLabel ? resolver.beatLabel(entryBeatId) : "";
     const suffix = beatTitle ? ` · enters at "${beatTitle}"` : "";
     return `Unlock "${questTitle}"${suffix}`;
+  }
+  if (row.action === "give_handout" && resolver?.documentLabel) {
+    const title = resolver.documentLabel(row.target_document_id ?? null);
+    if (title) return `${QUEST_CONSEQUENCE_ACTION_LABELS.give_handout}: "${title}"`;
   }
   return describeWorldConsequenceAction(row.action, row.action_payload);
 }
@@ -139,6 +146,7 @@ export function describeWorldConsequenceAction(
       return `Milestone: "${payload.text || UNKNOWN_PAYLOAD_FIELD}"`;
     }
     case "unlock_quest":
+    case "give_handout":
     case "raise":
     case "reveal":
     case "complete":

@@ -100,7 +100,7 @@
       </div>
     </section>
 
-    <QuestRulesPanel :quest-id="quest.id" />
+    <QuestRulesPanel :quest-id="quest.id" :campaign-id="quest.campaign_id" />
     <QuestBackfillPanel :quest="quest" />
     <QuestSidebarPanels
       :is-new="false"

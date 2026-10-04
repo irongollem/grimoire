@@ -84,5 +84,7 @@ describe("describeQuestRouteEffect", () => {
       .toBe("Then owes a favor");
     expect(describeQuestRouteEffect({ action: "award_milestone", objective: null, after_days: 0 }))
       .toBe("Then awards a milestone");
+    expect(describeQuestRouteEffect({ action: "give_handout", objective: null, after_days: 0 }))
+      .toBe("Then gives a handout");
   });
 });

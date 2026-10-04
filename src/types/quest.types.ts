@@ -126,7 +126,8 @@ export type QuestConsequenceAction =
   | "unlock_quest"
   | "grant_knowledge"
   | "owe_favor"
-  | "award_milestone";
+  | "award_milestone"
+  | "give_handout";
 
 export const QUEST_CONSEQUENCE_LEDGER_ACTIONS: readonly QuestConsequenceAction[] = ["raise", "reveal", "complete", "fail"];
 export const QUEST_CONSEQUENCE_WORLD_ACTIONS: readonly QuestConsequenceAction[] = [
@@ -137,6 +138,7 @@ export const QUEST_CONSEQUENCE_WORLD_ACTIONS: readonly QuestConsequenceAction[] 
   "grant_knowledge",
   "owe_favor",
   "award_milestone",
+  "give_handout",
 ];
 
 /**
@@ -274,6 +276,10 @@ export interface QuestConsequence {
    * something unrelated, so belonging stays an authoring choice made separately.
    */
   target_quest_id: string | null;
+  /** The Scriptorium document a `give_handout` rule hands to the whole party
+   *  (migration `20261004110516`). Set exactly when the action is that one,
+   *  and always a document of the quest's own campaign. */
+  target_document_id: string | null;
   /**
    * unlock_quest only: the beat of `target_quest_id` the party comes in at
    * through this bridge (migration `20260909194207`). Composite FK onto the
@@ -338,6 +344,7 @@ export interface QuestConsequenceEvent {
   target_npc_id: string | null;
   previous_relationship: NpcRelationship | null;
   target_quest_id: string | null;
+  target_document_id: string | null;
   previous_quest_status: QuestStatus | null;
   undone_at: string | null;
   seq: number;
@@ -660,6 +667,9 @@ export interface QuestRoutePayoff {
   target_npc: string | null;
   target_quest_id: string | null;
   target_quest: string | null;
+  target_document_id: string | null;
+  /** The handout's title, resolved by the runtime RPC like `target_quest`. */
+  target_document: string | null;
   action_payload: QuestConsequenceActionPayload;
   after_days: number;
   on_edge: boolean;
@@ -744,6 +754,7 @@ export interface QuestHeldPayoff {
   target_objective_id: string | null;
   target_npc_id: string | null;
   target_quest_id: string | null;
+  target_document_id: string | null;
   action_payload: QuestConsequenceActionPayload;
   after_days: number;
   held_at: string;

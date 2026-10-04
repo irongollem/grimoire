@@ -73,7 +73,7 @@ export function noteSharedEmail(args: {
   // the card named by the `note` query param on its DM Notes tab.
   const notePath = `/play/journal?tab=dm-notes&note=${encodeURIComponent(noteId)}`;
   return {
-    subject: `${dmName} shared a session note with you — ${campaignName}`,
+    subject: `${dmName} shared a session note with you: ${campaignName}`,
     html: layout(
       campaignName,
       `<p style="font-size: 1rem; line-height: 1.6;">
@@ -97,7 +97,7 @@ export function handoutSharedEmail(args: {
   // Deep link to the handout on the player's Journal handouts tab.
   const handoutPath = `/play/journal?tab=handouts&handout=${encodeURIComponent(documentId)}`;
   return {
-    subject: `${dmName} gave you a handout — ${campaignName}`,
+    subject: `${dmName} gave you a handout: ${campaignName}`,
     html: layout(
       campaignName,
       `<p style="font-size: 1rem; line-height: 1.6;">
@@ -143,10 +143,10 @@ export function proposalCreatedEmail(args: {
   const rsvp = args.rsvp ?? null;
   const when = formatProposalDate(proposedDate, proposedTime);
   const ask = rsvp
-    ? "Answer straight from this email — or accept the invitation attached, and your calendar app will tell us for you."
+    ? "Answer straight from this email, or accept the invitation attached and your calendar app will tell us for you."
     : "Let your DM know whether you can make it.";
   return {
-    subject: `New session date proposed — ${campaignName}`,
+    subject: `New session date proposed: ${campaignName}`,
     html: layout(
       campaignName,
       `<p style="font-size: 1rem; line-height: 1.6;">

@@ -195,6 +195,7 @@ export async function writeQuestSpine(
           // wrote firing on a beat they did not review.
           target_npc_id: null,
           target_quest_id: null,
+          target_document_id: null,
           action_payload: {},
         }),
       ),

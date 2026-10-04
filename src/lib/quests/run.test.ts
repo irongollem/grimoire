@@ -182,7 +182,7 @@ describe("objectiveThreadHint", () => {
   const consequence = (overrides: Partial<QuestConsequence> = {}): QuestConsequence => ({
     id: "c1", quest_id: "q1", on_beat_id: "beat-b", on_edge_id: null, on_objective_id: null,
     on_objective_status: null, on_quest_settled: false, entry_beat_id: null, after_days: 0, action: "raise",
-    target_objective_id: "o1", target_npc_id: null, target_quest_id: null, action_payload: {},
+    target_objective_id: "o1", target_npc_id: null, target_quest_id: null, target_document_id: null, action_payload: {},
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,
   } as QuestConsequence);
@@ -205,7 +205,7 @@ describe("objectiveThreadHint", () => {
 describe("summarizeRoutePayoff", () => {
   const payoff = (overrides: Partial<QuestRoutePayoff> = {}): QuestRoutePayoff => ({
     consequence_id: "c1", action: "reveal", target_objective_id: "o1", target_objective: "Testify before the Guild",
-    target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null,
+    target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null, target_document_id: null, target_document: null,
     action_payload: {}, after_days: 0, on_edge: true,
     ...overrides,
   });
@@ -227,7 +227,7 @@ describe("describeHeldPayoff", () => {
   it("names the action a held event will perform", () => {
     const held: QuestHeldPayoff = {
       event_id: "e1", consequence_id: "c1", action: "shift_npc_relationship", target_objective_id: null,
-      target_npc_id: "npc-1", target_quest_id: null, action_payload: {}, after_days: 0,
+      target_npc_id: "npc-1", target_quest_id: null, target_document_id: null, action_payload: {}, after_days: 0,
       held_at: "2026-01-01T00:00:00Z", beat_id: "beat-1", beat_title: "Confront Ser Vallis",
     };
     expect(describeHeldPayoff(held)).toBe("Shifts an NPC's disposition");

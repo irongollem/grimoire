@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(13);
 
 -- A quest gives the party a handout: `give_handout` (#970, 20261004110516).
 --
@@ -33,6 +33,13 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name, p
   ('97100000-0000-4000-8000-000000000010', '97100000-0000-4000-8000-000000000003', 'player', 'P2', '97100000-0000-4000-8000-000000000031')
 on conflict (campaign_id, user_id) do update set role = excluded.role, party_member_id = excluded.party_member_id;
 
+-- A co-DM seated at the same table, with a private draft of their own.
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data) values
+  ('97100000-0000-4000-8000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'gh-codm@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
+insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id) values
+  ('97100000-0000-4000-8000-000000000010', '97100000-0000-4000-8000-000000000004', 'dm', 'Co-DM', null)
+on conflict (campaign_id, user_id) do update set role = excluded.role;
+
 insert into public.npcs (id, user_id, campaign_id, name, player_visible_to, player_visible_fields) values
   ('97100000-0000-4000-8000-000000000020', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000010',
    'The widow', '{}'::uuid[], '{}'::text[]);
@@ -44,7 +51,8 @@ insert into public.scriptorium_documents (id, user_id, campaign_id, title, conte
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'npc', 'entityId', '97100000-0000-4000-8000-000000000020', 'showArt', true, 'reveal', null))
    ))::text,
    array['97100000-0000-4000-8000-000000000030']::uuid[]),
-  ('97100000-0000-4000-8000-000000000081', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000011', 'Another table''s note', '{"type":"doc"}', '{}'::uuid[]);
+  ('97100000-0000-4000-8000-000000000081', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000011', 'Another table''s note', '{"type":"doc"}', '{}'::uuid[]),
+  ('97100000-0000-4000-8000-000000000082', '97100000-0000-4000-8000-000000000004', '97100000-0000-4000-8000-000000000010', 'Co-DM''s private draft', '{"type":"doc"}', '{}'::uuid[]);
 
 insert into public.quests (id, user_id, campaign_id, title)
 values ('97100000-0000-4000-8000-000000000040', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000010', 'The petition');
@@ -66,6 +74,12 @@ select throws_ok(
   '23514', null, 'a rule cannot give another campaign''s document');
 
 select throws_ok(
+  $$ insert into public.quest_consequences (quest_id, on_edge_id, action, target_document_id)
+     values ('97100000-0000-4000-8000-000000000040', '97100000-0000-4000-8000-000000000050',
+             'give_handout', '97100000-0000-4000-8000-000000000082') $$,
+  '23514', null, 'nor a co-DM''s private draft at the same table');
+
+select throws_ok(
   $$ insert into public.quest_consequences (quest_id, on_edge_id, action)
      values ('97100000-0000-4000-8000-000000000040', '97100000-0000-4000-8000-000000000050', 'give_handout') $$,
   '23514', null, 'give_handout names its handout');
@@ -82,6 +96,15 @@ select lives_ok($$
     (select id from public.quest_threads where quest_id = '97100000-0000-4000-8000-000000000040' and label = 'Main'),
     'start', 0, '97100000-0000-4000-8000-000000000041')
 $$, 'the quest starts at the door');
+
+select is(
+  (select jsonb_path_query_first(
+     public.get_quest_runtime_context(
+       '97100000-0000-4000-8000-000000000010', '97100000-0000-4000-8000-000000000040',
+       (select id from public.quest_threads where quest_id = '97100000-0000-4000-8000-000000000040' and label = 'Main')),
+     '$.outgoing[*].payoff[*] ? (@.action == "give_handout").target_document')),
+  to_jsonb('The widow''s letter'::text),
+  'the Advance dialog''s route names the handout it gives');
 
 select lives_ok($$
   select public.transition_quest_runtime(

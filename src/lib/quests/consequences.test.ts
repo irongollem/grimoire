@@ -86,6 +86,15 @@ describe("describeQuestConsequenceAction", () => {
     )).toBe('Milestone: "Renown among the dockworkers"');
   });
 
+  it("names a given handout by its title, and falls back to the bare verb", () => {
+    const give = row({ action: "give_handout", target_objective_id: null });
+    const resolver = { documentLabel: (id: string | null) => (id === "doc-1" ? "The smuggler's map" : "") };
+    expect(describeQuestConsequenceAction({ ...give, target_document_id: "doc-1" }, objectiveLabel, resolver))
+      .toBe('Gives a handout: "The smuggler\'s map"');
+    expect(describeQuestConsequenceAction({ ...give, target_document_id: "gone" }, objectiveLabel, resolver)).toBe("Gives a handout");
+    expect(describeQuestConsequenceAction(give, objectiveLabel)).toBe("Gives a handout");
+  });
+
   it("marks a missing text field on a payoff verb rather than rendering an empty one", () => {
     expect(describeQuestConsequenceAction(
       row({ action: "grant_knowledge", target_objective_id: null, action_payload: {} }),

@@ -26,7 +26,7 @@
     </ul>
     <p v-else class="text-caption italic text-muted-foreground">Nothing this beat gives yet.</p>
 
-    <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+    <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
       <AppButton
         v-for="option in QUICK_ADD_OPTIONS"
         :key="option.kind"
@@ -91,6 +91,11 @@
               <p v-else class="text-caption italic text-muted-foreground">This quest has no beats yet — it will open at whichever beat is written first.</p>
             </template>
           </template>
+          <template v-else-if="activeQuickAdd === 'handout'">
+            <EntityCombobox v-if="handoutOptions.length" v-model="targetDocumentId" :options="handoutOptions" placeholder="Which handout…" />
+            <p v-else class="text-caption italic text-muted-foreground">No handouts in this campaign yet. Write one in the Scriptorium first.</p>
+            <p v-if="handoutOptions.length" class="text-caption text-muted-foreground">The whole party receives it.</p>
+          </template>
           <template v-else-if="activeQuickAdd === 'favor'">
             <EntityCombobox v-if="npcOptions.length" v-model="targetNpcId" :options="npcOptions" placeholder="Which NPC…" />
             <p v-else class="text-caption italic text-muted-foreground">No NPCs in this campaign yet.</p>
@@ -126,6 +131,7 @@ import { useUnlockEntryPicker } from "@/composables/quests/useUnlockEntryPicker"
 import { useItems } from "@/composables/items/useItems";
 import { itemRefColumns } from "@/lib/itemRef";
 import { isUuid } from "@/lib/library/contentIdentity";
+import { useHandoutPayoff } from "@/composables/quests/useHandoutPayoff";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { drawerTransition } from "@/lib/motion";
 import { derivePayoffRows, type PayoffIcon, type PayoffRow, type PayoffTone } from "@/lib/quests/payoff";
@@ -133,7 +139,7 @@ import { type QuestBeat, type QuestBeatEdge, type QuestConsequence, type QuestCo
 import { DEFAULT_RELATIONSHIP_SHIFT_KEY, RELATIONSHIP_SHIFT_OPTIONS, relationshipShiftPayload } from "@/lib/quests/consequences";
 import { EVENT_TYPE_COLORS, type CalendarEventType } from "@/types/calendar.types";
 import {
-  IconAward, IconCalendar, IconCheck, IconCoins, IconHand, IconInvite, IconPackage, IconQuest, IconScrollText, IconSend,
+  IconAward, IconCalendar, IconCheck, IconCoins, IconDocument, IconHand, IconInvite, IconPackage, IconQuest, IconScrollText, IconSend,
 } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -153,7 +159,7 @@ const { beat, edges, beats, consequences, loot } = defineProps<{
 
 const ICON_COMPONENTS: Record<PayoffIcon, Component> = {
   invite: IconInvite, hand: IconHand, scrollText: IconScrollText, quest: IconQuest, coins: IconCoins,
-  package: IconPackage, check: IconCheck, calendar: IconCalendar, send: IconSend, award: IconAward,
+  package: IconPackage, check: IconCheck, calendar: IconCalendar, send: IconSend, award: IconAward, document: IconDocument,
 };
 const TONE_ICON_BOX: Record<PayoffTone, string> = {
   destructive: "bg-destructive/15 text-destructive",
@@ -170,6 +176,7 @@ function objectiveLabel(id: string | null): string {
   if (!id) return "";
   return objectives.value?.find((objective) => objective.id === id)?.description ?? "Objective removed";
 }
+const { handoutOptions, documentLabel } = useHandoutPayoff(() => beat.campaign_id);
 const rows = computed<PayoffRow[]>(() => derivePayoffRows({
   beatId: beat.id,
   consequences,
@@ -179,6 +186,7 @@ const rows = computed<PayoffRow[]>(() => derivePayoffRows({
   objectiveLabel,
   questLabel: unlockQuestLabel,
   beatLabel: unlockBeatLabel,
+  documentLabel,
 }));
 
 function beatTitle(id: string): string {
@@ -203,7 +211,7 @@ async function remove(row: PayoffRow) {
 
 // ── Quick adds ───────────────────────────────────────────────────────────────
 
-type QuickAddKind = "item" | "riches" | "influence" | "knowledge" | "quest" | "favor" | "milestone" | "event";
+type QuickAddKind = "item" | "riches" | "influence" | "knowledge" | "quest" | "favor" | "milestone" | "event" | "handout";
 const QUICK_ADD_OPTIONS: Array<{ kind: QuickAddKind; label: string; icon: Component }> = [
   { kind: "item", label: "Item", icon: IconPackage },
   { kind: "riches", label: "Riches", icon: IconCoins },
@@ -213,6 +221,7 @@ const QUICK_ADD_OPTIONS: Array<{ kind: QuickAddKind; label: string; icon: Compon
   { kind: "favor", label: "Favour", icon: IconHand },
   { kind: "milestone", label: "Milestone", icon: IconAward },
   { kind: "event", label: "Event", icon: IconCalendar },
+  { kind: "handout", label: "Handout", icon: IconDocument },
 ];
 
 const activeQuickAdd = ref<QuickAddKind | null>(null);
@@ -240,6 +249,7 @@ const afterDays = ref(0);
 const targetNpcId = ref("");
 const relationshipShiftKey = ref(DEFAULT_RELATIONSHIP_SHIFT_KEY);
 const targetQuestId = ref("");
+const targetDocumentId = ref("");
 const knowledgeText = ref("");
 const favorText = ref("");
 const milestoneText = ref("");
@@ -270,7 +280,7 @@ function resetQuickAddFields() {
   itemId.value = ""; label.value = ""; quantity.value = 1;
   for (const coin of COINS) currency[coin] = 0;
   conditionEdgeId.value = ""; afterDays.value = 0;
-  targetNpcId.value = ""; relationshipShiftKey.value = DEFAULT_RELATIONSHIP_SHIFT_KEY; targetQuestId.value = ""; resetEntryBeatPicker();
+  targetNpcId.value = ""; relationshipShiftKey.value = DEFAULT_RELATIONSHIP_SHIFT_KEY; targetQuestId.value = ""; targetDocumentId.value = ""; resetEntryBeatPicker();
   knowledgeText.value = ""; favorText.value = ""; milestoneText.value = "";
   calendarTitle.value = ""; calendarType.value = "quest";
   error.value = "";
@@ -298,6 +308,7 @@ const canAdd = computed(() => {
     case "favor": return !!targetNpcId.value && !!favorText.value.trim();
     case "milestone": return !!milestoneText.value.trim();
     case "event": return !!calendarTitle.value.trim();
+    case "handout": return !!targetDocumentId.value;
     default: return false;
   }
 });
@@ -322,7 +333,7 @@ async function submit() {
         sort_order: loot.length,
       });
     } else {
-      const action = { influence: "shift_npc_relationship", knowledge: "grant_knowledge", quest: "unlock_quest", favor: "owe_favor", milestone: "award_milestone", event: "create_calendar_event" }[activeQuickAdd.value] as QuestConsequenceInsert["action"];
+      const action = { influence: "shift_npc_relationship", knowledge: "grant_knowledge", quest: "unlock_quest", favor: "owe_favor", milestone: "award_milestone", event: "create_calendar_event", handout: "give_handout" }[activeQuickAdd.value] as QuestConsequenceInsert["action"];
       const payload: QuestConsequenceActionPayload = activeQuickAdd.value === "influence"
         ? relationshipShiftPayload(relationshipShiftKey.value)!
         : activeQuickAdd.value === "knowledge"
@@ -348,6 +359,7 @@ async function submit() {
         target_objective_id: null,
         target_npc_id: activeQuickAdd.value === "influence" || activeQuickAdd.value === "favor" ? targetNpcId.value : null,
         target_quest_id: activeQuickAdd.value === "quest" ? targetQuestId.value : null,
+        target_document_id: activeQuickAdd.value === "handout" ? targetDocumentId.value : null,
         entry_beat_id: activeQuickAdd.value === "quest" ? resolveEntryBeatId() : null,
         action_payload: payload,
       };

@@ -49,8 +49,8 @@ function buildContext(): QuestRuntimeContext {
         edge_id: "edge-1", quest_id: "quest-1", beat_id: "beat-target", beat_title: "Testify before the Guild", beat_kind: "social",
         gate: null, effects: [], route_kind: "choice", thread_label: null, converge_mode: "any", site: null,
         payoff: [
-          { consequence_id: "c1", action: "shift_npc_relationship", target_objective_id: null, target_objective: null, target_npc_id: "npc-1", target_npc: "Ashmouth Guild", target_quest_id: null, target_quest: null, action_payload: { step: -1 }, after_days: 0, on_edge: true },
-          { consequence_id: "c2", action: "owe_favor", target_objective_id: null, target_objective: null, target_npc_id: "npc-2", target_npc: "Ser Vallis", target_quest_id: null, target_quest: null, action_payload: { text: "Ser Vallis owes the party" }, after_days: 0, on_edge: false },
+          { consequence_id: "c1", action: "shift_npc_relationship", target_objective_id: null, target_objective: null, target_npc_id: "npc-1", target_npc: "Ashmouth Guild", target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, action_payload: { step: -1 }, after_days: 0, on_edge: true },
+          { consequence_id: "c2", action: "owe_favor", target_objective_id: null, target_objective: null, target_npc_id: "npc-2", target_npc: "Ser Vallis", target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, action_payload: { text: "Ser Vallis owes the party" }, after_days: 0, on_edge: false },
         ],
         loot: [{ id: "l1", kind: "currency", label: "80 gp, skimmed", quantity: 80, item_id: null }],
       },

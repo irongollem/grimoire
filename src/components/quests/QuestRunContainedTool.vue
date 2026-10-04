@@ -96,6 +96,12 @@
               <p class="text-caption text-muted-foreground">{{ handoutRecord.doc_type }} · {{ handoutRecord.word_count }} words · {{ handoutRecord.is_published ? 'published' : 'draft' }}</p>
               <ScriptoriumDocumentView v-if="handoutRecord.content" class="mt-2" :document="handoutRecord" />
               <p v-else class="mt-2 text-caption italic text-muted-foreground">This handout has no body yet.</p>
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <HandoutShareControl form="phone" :handout="handoutRecord" :initial-recipients="wholeParty" />
+                <p v-if="handoutRecord.player_visible_to.length" class="text-caption text-muted-foreground">
+                  Players already have this. Give it again to change who does.
+                </p>
+              </div>
             </template>
             <p v-else class="text-caption text-tone-caution">The attached handout could not be loaded.</p>
           </div>
@@ -123,6 +129,7 @@ import { useFaction } from "@/composables/factions/useFactions";
 import { useItems } from "@/composables/items/useItems";
 import { useResolvedMonster } from "@/composables/monsters/useMonsters";
 import { useNote } from "@/composables/notes/useNotes";
+import { useParty } from "@/composables/party/useParty";
 import { useScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { usePlaylists, usePlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
@@ -139,6 +146,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import HandoutShareControl from "@/components/scriptorium/HandoutShareControl.vue";
 import ScriptoriumDocumentView from "@/components/scriptorium/ScriptoriumDocumentView.vue";
 
 const EncounterRunSurface = defineAsyncComponent(() => import("@/components/encounters/EncounterRunSurface.vue"));
@@ -162,6 +170,9 @@ const factionRecord = computed(() => faction.value ?? null);
 const monster = computed(() => monsterQuery.data.value?.monster ?? null);
 const noteRecord = computed(() => noteQuery.data.value ?? null);
 const handoutRecord = computed(() => handoutQuery.data.value ?? null);
+// "Give to players" starts on the whole party, the way a `give_handout` payoff gives it.
+const { data: partyData } = useParty();
+const wholeParty = computed(() => (partyData.value ?? []).map((member) => member.id));
 // A stored attachment resolves in `resolvable`; the edition and books only narrow what a picker offers (#961).
 const { resolvable: items } = useItems(() => ({ enabled: props.attachment.attachment_type === "item" }));
 const item = computed(() => props.attachment.attachment_type === "item" ? items.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);

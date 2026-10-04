@@ -61,6 +61,7 @@ const RICH_CONTENT = JSON.stringify({
     { type: "coverPage", attrs: { variant: "front", title: "The Sunken Temple", subtitle: "A one-shot" } },
     { type: "tocBlock" },
     { type: "heading", attrs: { level: 1, blockId: "h1" }, content: [{ type: "text", text: "Chapter One" }] },
+    { type: "heading", attrs: { level: 2, blockId: "h2" }, content: [{ type: "text", text: "The Flooded Nave" }] },
     {
       type: "descriptiveBlock",
       content: [{ type: "paragraph", content: [{ type: "text", text: "The air is damp and cold." }] }],
@@ -126,6 +127,26 @@ describe("ScriptoriumReader", () => {
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
+  it("shows no contents list for a handout with a single heading", async () => {
+    const content = JSON.stringify({
+      type: "doc",
+      content: [
+        { type: "heading", attrs: { level: 1, blockId: "h1" }, content: [{ type: "text", text: "WANTED" }] },
+        { type: "paragraph", content: [{ type: "text", text: "A reward of 200 gp." }] },
+      ],
+    });
+    const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc({ content }) } });
+    await flushEditor();
+    expect(wrapper.text()).not.toContain("Contents");
+  });
+
+  it("names the document a Handout, not by its doc type, for a player", () => {
+    const wrapper = mount(ScriptoriumReader, {
+      props: { document: makeDoc({ campaign_id: "camp-1", player_visible_to: ["member-1"] }), audience: "player" },
+    });
+    expect(wrapper.find("header").text()).toContain("Handout");
+  });
+
   it("shows the unreadable-content state, with no TOC, for invalid content", () => {
     const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc({ content: "not json" }) } });
     expect(wrapper.text()).toContain("This document could not be read");
@@ -153,6 +174,7 @@ describe("ScriptoriumReader", () => {
       type: "doc",
       content: [
         { type: "heading", attrs: { level: 1, blockId: "h1" }, content: [{ type: "text", text: "Chapter One" }] },
+        { type: "heading", attrs: { level: 1, blockId: "h2" }, content: [{ type: "text", text: "Chapter Two" }] },
         { type: "entityEmbed", attrs: { entityType: "monster", entityId: "srd_owlbear", blockId: "e1" } },
       ],
     });

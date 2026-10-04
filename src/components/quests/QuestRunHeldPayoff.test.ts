@@ -21,7 +21,7 @@ const currencyLoot: LootPlacement = {
 
 const heldEvent: QuestHeldPayoff = {
   event_id: "ev-1", consequence_id: "cq-1", action: "shift_npc_relationship", target_objective_id: null,
-  target_npc_id: "npc-1", target_quest_id: null, action_payload: {}, after_days: 0,
+  target_npc_id: "npc-1", target_quest_id: null, target_document_id: null, action_payload: {}, after_days: 0,
   held_at: "2026-01-01T00:00:00Z", beat_id: "beat-1", beat_title: "Confront Ser Vallis",
 };
 

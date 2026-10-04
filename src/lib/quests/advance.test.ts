@@ -40,6 +40,8 @@ function payoff(overrides: Partial<QuestRoutePayoff> & { consequence_id: string 
     target_npc: null,
     target_quest_id: null,
     target_quest: null,
+    target_document_id: null,
+    target_document: null,
     action_payload: {},
     after_days: 0,
     on_edge: true,

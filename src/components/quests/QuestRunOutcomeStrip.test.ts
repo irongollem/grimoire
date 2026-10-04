@@ -99,7 +99,7 @@ describe("QuestRunOutcomeStrip", () => {
     const payoffChoice = {
       ...outgoing[0]!,
       gate: { ...closedGate, is_open: true },
-      payoff: [{ consequence_id: "c1", action: "reveal" as const, target_objective_id: "o1", target_objective: "Testify before the Guild", target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null, action_payload: {}, after_days: 0, on_edge: true }],
+      payoff: [{ consequence_id: "c1", action: "reveal" as const, target_objective_id: "o1", target_objective: "Testify before the Guild", target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, action_payload: {}, after_days: 0, on_edge: true }],
     };
     const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [payoffChoice] } });
     expect(wrapper.text()).toContain("reveal · Testify before the Guild");

@@ -42,6 +42,13 @@ vi.mock("@/composables/npcs/useNpcs", () => ({
 vi.mock("@/composables/items/useItems", () => ({
   useItems: () => ({ data: { value: [{ id: "item-1", name: "Tally-stick", user_id: "dm", campaign_id: "campaign-1" }] } }),
 }));
+vi.mock("@/composables/scriptorium/useScriptorium", () => ({
+  useScriptoriumDocuments: () => ({ data: { value: [
+    { id: "doc-map", title: "The smuggler's map", campaign_id: "campaign-1" },
+    { id: "doc-shared", title: "A letter from nowhere", campaign_id: null },
+    { id: "doc-elsewhere", title: "Another table's note", campaign_id: "other-campaign" },
+  ] } }),
+}));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "dm" } }) }));
 
 const beat = { id: "beat-fork", quest_id: "quest-1", campaign_id: "campaign-1", title: "Confront Ser Vallis" } as QuestBeat;
@@ -57,7 +64,7 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
   return {
     quest_id: "quest-1", on_beat_id: null, on_edge_id: null, on_objective_id: null, on_objective_status: null,
     on_quest_settled: false, on_location_id: null, on_location_fact: null, entry_beat_id: null, after_days: 0, action: "grant_knowledge", target_objective_id: null,
-    target_npc_id: null, target_quest_id: null, action_payload: {},
+    target_npc_id: null, target_quest_id: null, target_document_id: null, action_payload: {},
     created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
   };
@@ -273,6 +280,26 @@ describe("QuestPayoffPanel", () => {
 
       expect(wrapper.findAllComponents({ name: "EntityCombobox" })).toHaveLength(1);
       expect(wrapper.text()).toContain("This quest has no beats yet — it will open at whichever beat is written first.");
+    });
+  });
+
+  describe("give_handout", () => {
+    it("adds a Handout payoff naming one of the campaign's own documents", async () => {
+      const wrapper = mountPanel();
+      await wrapper.findAll("button").find((button) => button.text() === "Handout")!.trigger("click");
+      const box = wrapper.findComponent({ name: "EntityCombobox" });
+      expect((box.props("options") as Array<{ id: string }>).map((o) => o.id)).toEqual(["doc-map"]);
+      box.vm.$emit("update:modelValue", "doc-map");
+      await flushPromises();
+      await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+      await flushPromises();
+
+      expect(mocks.createConsequence).toHaveBeenCalledWith(expect.objectContaining({
+        action: "give_handout",
+        on_beat_id: "beat-fork",
+        target_document_id: "doc-map",
+        action_payload: {},
+      }));
     });
   });
 });

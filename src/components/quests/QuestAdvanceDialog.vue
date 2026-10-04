@@ -198,7 +198,7 @@
             </span>
             <span class="min-w-0 flex-1">
               <span class="block text-body font-semibold text-foreground">{{ describePayoff(entry) }}</span>
-              <span class="block text-caption text-muted-foreground">{{ payoffHint(entry.action) }}</span>
+              <span class="block text-caption text-muted-foreground">{{ payoffHint(entry) }}</span>
             </span>
             <span
               v-if="!firedConsequenceIds.includes(entry.consequence_id)"
@@ -297,6 +297,7 @@ import {
   IconCheck,
   IconClose,
   IconCoins,
+  IconDocument,
   IconHand,
   IconInvite,
   IconLayers,
@@ -431,7 +432,9 @@ const canSubmit = computed(() =>
 );
 
 function describePayoff(entry: QuestRoutePayoff): string {
-  return describeQuestConsequenceAction(entry, () => entry.target_objective ?? entry.target_npc ?? entry.target_quest ?? "Objective removed");
+  return describeQuestConsequenceAction(entry, () => entry.target_objective ?? entry.target_npc ?? entry.target_quest ?? "Objective removed", {
+    documentLabel: () => entry.target_document,
+  });
 }
 
 // Icon and tone per payoff action (design frame `05 Advance`): a fixed shape
@@ -450,6 +453,7 @@ const PAYOFF_ICON: Record<QuestConsequenceAction, Component> = {
   grant_knowledge: IconScrollText,
   owe_favor: IconHand,
   award_milestone: IconAward,
+  give_handout: IconDocument,
 };
 function payoffIcon(action: QuestConsequenceAction): Component {
   return PAYOFF_ICON[action];
@@ -468,6 +472,7 @@ const PAYOFF_TONE: Record<QuestConsequenceAction, PayoffTone> = {
   grant_knowledge: "info",
   owe_favor: "caution",
   award_milestone: "gold",
+  give_handout: "info",
 };
 const TONE_CLASSES: Record<PayoffTone, { bg: string; text: string }> = {
   success: { bg: "bg-tone-success/15", text: "text-ink-success" },
@@ -499,9 +504,13 @@ const PAYOFF_HINT: Record<QuestConsequenceAction, string> = {
   owe_favor: "pinned to the NPC's page",
   unlock_quest: "unlock_quest · hold it back for the finale",
   award_milestone: "award_milestone · character sheet",
+  give_handout: "give_handout · player journal",
 };
-function payoffHint(action: QuestConsequenceAction): string {
-  return PAYOFF_HINT[action];
+function payoffHint(entry: QuestRoutePayoff): string {
+  if (entry.action === "give_handout") {
+    return entry.target_document ? `The party receives ${entry.target_document}` : "The party receives a handout";
+  }
+  return PAYOFF_HINT[entry.action];
 }
 
 function cancel() {

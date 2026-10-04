@@ -38,7 +38,7 @@
     @click="openPicker"
   />
 
-  <HandoutShareDialog :open="dialogOpen" :handout="handout" :proposed="proposed" @close="closeDialog" />
+  <HandoutShareDialog :open="dialogOpen" :handout="handout" :proposed="proposed" :initial-recipients="initialRecipients" @close="closeDialog" />
 </template>
 
 <script setup lang="ts">
@@ -56,12 +56,14 @@ import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import { IconHide, IconShare } from "@/lib/icons";
 
-const { handout, form, activeCampaignName = null } = defineProps<{
+const { handout, form, activeCampaignName = null, initialRecipients = null } = defineProps<{
   handout: ShareableHandout;
   /** `toolbar` is the desktop editor's audience control; `phone` is the reader's button. */
   form: "toolbar" | "phone";
   /** Offered as the destination when the document has no campaign yet. */
   activeCampaignName?: string | null;
+  /** Passed to the dialog: who the picker starts with while nobody has the handout. */
+  initialRecipients?: string[] | null;
 }>();
 
 const emit = defineEmits<{ moveToCampaign: [] }>();
@@ -99,6 +101,9 @@ async function onAudienceChange(next: string[]) {
   }
   proposed.value = next;
   dialogOpen.value = true;
+  // Close the picker's own popover behind the dialog: left open it floats,
+  // unblurred, above the dialog's backdrop. The dialog lists the choice.
+  resetKey.value++;
 }
 
 function openPicker() {

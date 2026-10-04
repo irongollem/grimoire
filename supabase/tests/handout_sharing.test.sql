@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(29);
 
 -- A DM shares a Scriptorium handout with players (#970, 20261004105821).
 --
@@ -146,6 +146,17 @@ select throws_ok(
   $$ select public.share_handout('97000000-0000-4000-8000-000000000082',
                                  array['97000000-0000-4000-8000-000000000030']::uuid[]) $$,
   '22023', null, 'an account-wide document cannot be shared');
+
+update public.scriptorium_documents
+   set content = jsonb_build_object('type', 'doc', 'content', jsonb_build_array(
+     jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object(
+       'entityType', 'location', 'entityId', '97000000-0000-4000-8000-000000000060',
+       'showArt', 'sometimes', 'reveal', jsonb_build_object('off', 'maybe', 'description', 'yes')))))::text
+ where id = '97000000-0000-4000-8000-000000000081';
+select lives_ok(
+  $$ select public.share_handout('97000000-0000-4000-8000-000000000081',
+                                 array['97000000-0000-4000-8000-000000000030']::uuid[], true) $$,
+  'malformed reveal values in a document reveal less, they never abort the share');
 
 -- ── As Nessa, who holds it ─────────────────────────────────────────────────
 

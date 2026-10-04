@@ -96,6 +96,10 @@
         <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">No NPCs in this campaign yet.</p>
         <AppInput v-if="npcOptions.length" v-model="favorText" size="body-xs" placeholder="What do they owe the party…" class="sm:col-span-2" />
       </template>
+      <template v-else-if="action === 'give_handout'">
+        <EntityCombobox v-if="handoutOptions.length" v-model="targetDocumentId" class="min-w-0 sm:col-span-2" :options="handoutOptions" placeholder="Which handout…" />
+        <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">No handouts in this campaign yet. Write one in the Scriptorium first.</p>
+      </template>
       <template v-else-if="action === 'award_milestone'">
         <AppInput v-model="milestoneText" size="body-xs" placeholder="What did the party earn…" class="sm:col-span-2" />
       </template>
@@ -121,6 +125,7 @@ import {
 } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
 import { useUnlockEntryPicker } from "@/composables/quests/useUnlockEntryPicker";
+import { useHandoutPayoff } from "@/composables/quests/useHandoutPayoff";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
@@ -166,7 +171,7 @@ import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
  * `quest_objective_effects` used to split that in half by scope; one table,
  * one editor now.
  */
-const { questId } = defineProps<{ questId: string }>();
+const { questId, campaignId } = defineProps<{ questId: string; campaignId: string | null }>();
 
 const CALENDAR_EVENT_TYPES = Object.keys(EVENT_TYPE_COLORS) as CalendarEventType[];
 
@@ -189,6 +194,7 @@ const ACTION_TONES: Record<QuestConsequenceAction, string> = {
   grant_knowledge: "text-tone-info",
   owe_favor: "text-tone-info",
   award_milestone: "text-primary",
+  give_handout: "text-tone-info",
 };
 
 const isLedgerAction = isLedgerConsequenceAction;
@@ -249,6 +255,7 @@ const broadcastMessage = ref("");
 const targetNpcId = ref("");
 const relationshipShiftKey = ref(DEFAULT_RELATIONSHIP_SHIFT_KEY);
 const targetQuestId = ref("");
+const targetDocumentId = ref("");
 const knowledgeText = ref("");
 const favorText = ref("");
 const milestoneText = ref("");
@@ -271,6 +278,8 @@ const unlockableQuestOptions = computed(() =>
     .filter((quest) => quest.id !== questId)
     .map((quest) => ({ id: quest.id, name: quest.title })),
 );
+
+const { handoutOptions, documentLabel } = useHandoutPayoff(() => campaignId);
 
 // "Enters at" (#871) — see useUnlockEntryPicker for the shared mechanism.
 const {
@@ -305,6 +314,7 @@ const canAdd = computed(() => {
   if (action.value === "grant_knowledge") return !!knowledgeText.value.trim();
   if (action.value === "owe_favor") return !!targetNpcId.value && !!favorText.value.trim();
   if (action.value === "award_milestone") return !!milestoneText.value.trim();
+  if (action.value === "give_handout") return !!targetDocumentId.value;
   return !!broadcastMessage.value.trim();
 });
 
@@ -321,7 +331,7 @@ function delaySuffix(row: QuestConsequence): string {
 }
 
 function actionSummary(row: QuestConsequence): string {
-  return describeQuestConsequenceAction(row, objectiveLabel, { questLabel: unlockQuestLabel, beatLabel: unlockBeatLabel });
+  return describeQuestConsequenceAction(row, objectiveLabel, { questLabel: unlockQuestLabel, beatLabel: unlockBeatLabel, documentLabel });
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────────
@@ -338,6 +348,7 @@ function resetForm() {
   targetNpcId.value = "";
   relationshipShiftKey.value = DEFAULT_RELATIONSHIP_SHIFT_KEY;
   targetQuestId.value = "";
+  targetDocumentId.value = "";
   resetEntryBeatPicker();
   knowledgeText.value = "";
   favorText.value = "";
@@ -376,6 +387,7 @@ async function add() {
       target_objective_id: isLedgerAction(action.value) ? targetObjectiveId.value : null,
       target_npc_id: action.value === "shift_npc_relationship" || action.value === "owe_favor" ? targetNpcId.value : null,
       target_quest_id: action.value === "unlock_quest" ? targetQuestId.value : null,
+      target_document_id: action.value === "give_handout" ? targetDocumentId.value : null,
       entry_beat_id: action.value === "unlock_quest" ? resolveEntryBeatId() : null,
       action_payload: payload,
     };

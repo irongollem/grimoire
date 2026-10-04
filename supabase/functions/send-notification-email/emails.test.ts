@@ -40,7 +40,7 @@ describe("noteSharedEmail", () => {
 
   it("names the DM and note in the subject", () => {
     expect(email.subject).toBe(
-      "Jeffrey & co shared a session note with you — Curse of <Strahd>",
+      "Jeffrey & co shared a session note with you: Curse of <Strahd>",
     );
   });
 
@@ -69,7 +69,7 @@ describe("handoutSharedEmail", () => {
   });
 
   it("names the DM in the subject", () => {
-    expect(email.subject).toBe("Jeffrey & co gave you a handout — Curse of <Strahd>");
+    expect(email.subject).toBe("Jeffrey & co gave you a handout: Curse of <Strahd>");
   });
 
   it("escapes user content in the HTML body", () => {
