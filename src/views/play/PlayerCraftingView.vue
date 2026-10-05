@@ -1,5 +1,5 @@
 <template>
-  <PageHeader title="Crafting" description="Your known recipes and craft attempts">
+  <PageHeader flush title="Workshop" description="Your known recipes and craft attempts">
 
     <div v-if="!member" class="text-body text-muted-foreground italic">
       No linked character found.

@@ -1,7 +1,6 @@
 <template>
   <div>
-    <h1 class="text-heading-lg font-bold text-foreground mb-1">Atlas</h1>
-    <p class="text-body text-muted-foreground italic mb-4">Maps shared by your DM.</p>
+    <PageHeader flush title="Atlas" description="Maps shared by your DM." />
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -158,6 +157,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconNavAtlas } from '@/lib/icons';

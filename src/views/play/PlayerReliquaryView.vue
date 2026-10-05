@@ -1,8 +1,6 @@
 <template>
   <div class="flex flex-col gap-4">
-    <div class="flex items-center justify-between">
-      <h1 class="text-heading-lg font-bold text-foreground">Reliquary</h1>
-    </div>
+    <PageHeader flush title="Reliquary" description="Rules, references and the codex." />
 
     <!-- Tab bar -->
     <TabBar :tabs="tabs" v-model="activeTab" wrapper-class="overflow-x-auto" />
@@ -16,6 +14,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';

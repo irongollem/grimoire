@@ -1,5 +1,5 @@
 <template>
-  <PageHeader title="Settings" description="Your profile for this campaign">
+  <PageHeader flush title="Settings" description="Your profile for this campaign">
     <div class="max-w-lg space-y-8">
       <PlayerSettingsDisplayName />
       <PlayerSettingsInstall />

@@ -2,6 +2,7 @@
   <div class="space-y-4 pb-8">
     <PickerCharacterNotFound v-if="notFound" />
     <template v-else>
+    <PageHeader flush title="Spellbook" description="Your spells, slots and what you have prepared." />
     <RulesetReviewBanner
       v-if="rulesetReviewClasses.length"
       link-to="/codex/classes"
@@ -184,6 +185,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import PickerCharacterNotFound from "@/components/play/PickerCharacterNotFound.vue";
 import { ref, computed, watch } from "vue";
 import { useRoute } from "vue-router";

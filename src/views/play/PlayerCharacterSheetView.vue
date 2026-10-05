@@ -1,5 +1,6 @@
 <template>
   <div class="space-y-4 pb-8">
+    <PageHeader flush title="Character Sheet" description="Print or save your sheet as a PDF." />
     <!-- No character linked -->
     <div v-if="!linkedMemberId" class="flex flex-col items-center gap-4 py-16 text-center">
       <p class="font-fell text-base text-muted-foreground italic">No character linked to your account.</p>
@@ -40,6 +41,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
@@ -69,11 +71,11 @@ const { data: partyMembers, isLoading } = useParty();
 const member = computed(() =>
   partyMembers.value?.find((m) => m.id === linkedMemberId.value) ?? null,
 );
-// The background map below lists the character's edition, not the table's (useRuleset.ts).
+// Anything below that reads through useRuleset reads the character's edition, not the table's (useRuleset.ts).
 provideCharacterRuleset(() => member.value);
 const { data: inventoryItems } = usePartyInventory();
 const { data: speciesById } = useSpeciesByIds(() => [member.value?.species_id]);
-const backgroundMap = useBackgroundNameMap();
+const backgroundMap = useBackgroundNameMap(() => [member.value?.background_id]);
 
 const inventory = computed(() =>
   (inventoryItems.value ?? []).filter((i) => i.carried_by === linkedMemberId.value),

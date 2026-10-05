@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import DowntimeActivityCard from "@/components/downtime/DowntimeActivityCard.vue";
@@ -190,13 +191,12 @@ watch(myOutcomes, (list) => {
     hint="Ask your DM to enable it in Campaign Settings → Rules."
   />
 
-  <div v-else class="mx-auto max-w-3xl px-4 py-6">
-    <header>
-      <h1 class="text-title font-semibold">The Interlude</h1>
-      <p class="mt-1 text-sm text-muted-foreground">
-        What your character does between the dungeon and the next session.
-      </p>
-    </header>
+  <div v-else class="mx-auto max-w-3xl">
+    <PageHeader
+      flush
+      title="The Interlude"
+      description="What your character does between the dungeon and the next session."
+    />
 
     <p v-if="!hasCharacter" class="mt-6 text-sm text-muted-foreground">
       You don't play a character in this campaign yet.

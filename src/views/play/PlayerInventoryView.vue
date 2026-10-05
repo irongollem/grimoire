@@ -1,5 +1,6 @@
 <template>
   <div class="space-y-6 pb-8">
+    <PageHeader flush title="Inventory" description="What you carry, and what the party shares." />
     <!-- ═══ TOP ROW: Paper doll + Coin purse ═══ -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <PlayerPaperDoll
@@ -122,6 +123,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, nextTick } from "vue";
+import PageHeader from "@/components/common/PageHeader.vue";
 import { useRoute } from "vue-router";
 import { COINS, type CoinKey } from "@/rules/currency";
 import {

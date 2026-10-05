@@ -1,12 +1,8 @@
 <template>
   <div class="max-w-2xl mx-auto space-y-6">
 
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-heading-lg font-bold text-foreground">Champions</h1>
-        <p class="text-body text-muted-foreground italic mt-0.5">Your characters in this campaign</p>
-      </div>
+    <PageHeader flush title="Champions" description="Your characters in this campaign">
+      <template #actions>
       <AppButton
         variant="primary"
         size="sm"
@@ -14,7 +10,8 @@
         :icon="IconAdd"
         label="New Character"
       />
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- Loading -->
     <div v-if="isPending" class="flex justify-center py-12">
@@ -193,6 +190,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';

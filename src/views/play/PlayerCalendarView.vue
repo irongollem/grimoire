@@ -1,5 +1,7 @@
 <template>
   <div class="space-y-6">
+    <PageHeader flush title="Calendar" description="The in-game date and what is coming up." />
+
     <!-- Current date hero -->
     <div class="rounded-lg border border-border bg-card px-5 py-4 flex flex-wrap items-center gap-4">
       <IconCalendarDays class="h-8 w-8 text-primary shrink-0" />
@@ -45,6 +47,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import { computed } from "vue";
 import { IconCalendarDays } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";

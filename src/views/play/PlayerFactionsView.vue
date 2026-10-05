@@ -1,7 +1,6 @@
 <template>
   <div>
-    <h1 class="text-heading-lg font-bold text-foreground mb-1">Factions</h1>
-    <p class="text-body text-muted-foreground italic mb-6">Organizations and powers at play in the world.</p>
+    <PageHeader flush title="Factions" description="Organizations and powers at play in the world." />
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -165,6 +164,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed } from "vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { IconClose, IconShield } from '@/lib/icons';

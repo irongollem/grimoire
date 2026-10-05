@@ -1,9 +1,8 @@
 <template>
   <div class="space-y-4">
     <!-- Header -->
-    <div class="flex items-center justify-between gap-2">
-      <h2 class="text-heading-lg font-bold text-foreground">Adventure Journal</h2>
-      <div class="flex items-center gap-2">
+    <PageHeader flush title="Journal" description="Your notes, quests and handouts from the adventure.">
+      <template #actions>
         <AppButton
           v-if="ui.journalHasActiveFilters && (activeTab === 'mine' || activeTab === 'party')"
           variant="subtle"
@@ -25,8 +24,8 @@
           label="New Entry"
           @click="openNew"
         />
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- New entry form -->
     <div v-if="showForm" class="rounded-lg border border-primary/30 bg-card overflow-hidden shadow-sm">
@@ -227,6 +226,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";

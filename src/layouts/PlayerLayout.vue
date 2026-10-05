@@ -4,14 +4,23 @@
          (meta.fullscreenMobile, e.g. a handout in the reader) brings its own
          header and back button, as it does under DefaultLayout. -->
     <header v-if="!fullscreenMobile" class="h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
-      <div class="flex items-center gap-2 shrink-0">
+      <!-- Phones name the page here (as the DM top bar does), so a player always
+           sees where they are; the brand mark stays on Adventurer's Rest and
+           from md up, where each page draws its own heading. -->
+      <h1
+        v-if="phoneTitle"
+        class="md:hidden min-w-0 flex-1 truncate text-heading font-semibold text-gold-500"
+      >
+        {{ phoneTitle }}
+      </h1>
+      <div class="flex items-center gap-2 shrink-0" :class="phoneTitle ? 'hidden md:flex' : ''">
         <BrandLogo class="h-7 w-auto" />
         <span class="text-caption text-muted-foreground italic hidden sm:inline">
           · {{ campaignName }}
         </span>
       </div>
 
-      <div class="flex-1" />
+      <div class="flex-1" :class="phoneTitle ? 'hidden md:block' : ''" />
 
       <!-- In-game today date -->
       <span class="hidden md:inline-flex items-center gap-1 text-body text-muted-foreground italic shrink-0">
@@ -49,8 +58,13 @@
         tone="success"
         emphasis="soft"
         size="sm"
-        class="md:hidden"
+        class="md:hidden relative"
       >
+        <span
+          v-if="needsRoll"
+          class="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-destructive"
+          aria-label="Roll your initiative"
+        />
         <span class="relative flex h-2 w-2 shrink-0">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tone-success opacity-75" />
           <span class="relative inline-flex rounded-full h-2 w-2 bg-tone-success" />
@@ -141,8 +155,12 @@
         >
           <IconEncounter class="h-4 w-4 text-ink-success shrink-0 mt-0.5" />
           <div class="flex-1 min-w-0">
-            <p class="text-label-lg font-semibold text-ink-success">Encounter Started!</p>
-            <p class="text-body text-foreground mt-0.5">Your DM has started a live encounter. Tap to join.</p>
+            <p class="text-label-lg font-semibold text-ink-success">
+              {{ needsRoll ? "Roll your initiative" : "Encounter Started!" }}
+            </p>
+            <p class="text-body text-foreground mt-0.5">
+              {{ needsRoll ? "Your DM has started a live encounter. Tap to roll." : "Your DM has started a live encounter. Tap to join." }}
+            </p>
           </div>
           <AppButton
             variant="ghost"
@@ -303,6 +321,7 @@ import { IconBug, IconCalendarDays, IconClose, IconEncounter, IconLogOut, IconMe
 import { useCalendarStore } from "@/stores/calendar";
 import AppButton from "@/components/common/AppButton.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
+import { useNeedsInitiativeRoll } from "@/composables/encounters/useNeedsInitiativeRoll";
 import { usePlayerEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { usePlayerSessionState, formatSessionElapsed } from "@/composables/campaign/useCampaignSession";
 import { prefersReducedMotion } from "@/lib/motion";
@@ -388,6 +407,10 @@ const sessionSince = computed(() => {
   return elapsed ? `Running for ${elapsed}` : "The table is sitting";
 });
 const anyRunning = computed(() => playerLiveState.value?.is_running === true);
+const needsRoll = useNeedsInitiativeRoll(
+  () => playerLiveState.value?.combatants_live,
+  () => auth.linkedPartyMemberId,
+);
 const encounterLiveToast = ref(false);
 const showEncounterPanel = ref(false);
 const encounterPanelWidth = ref(288); // w-72 default
@@ -438,6 +461,11 @@ watch([runningLoaded, anyRunning], ([loaded, isRunning], oldVals) => {
   }
 }, { immediate: true });
 
+// Adventurer's Rest keeps the wordmark: it is the front door, not a page in a campaign.
+const phoneTitle = computed(() => {
+  const title = route.meta.title;
+  return typeof title === "string" && route.name !== "play-home" ? title : null;
+});
 const campaignName = computed(() => campaign.activeCampaign?.name ?? "Campaign");
 
 const calendarStore = useCalendarStore();

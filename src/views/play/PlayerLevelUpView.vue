@@ -1,5 +1,6 @@
 <template>
   <div class="pb-8 space-y-6">
+    <PageHeader flush title="Level Up" description="Choose what your character gains." />
     <div v-if="!member" class="text-center py-16">
       <p class="text-body text-muted-foreground italic">No character linked.</p>
     </div>
@@ -20,6 +21,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";

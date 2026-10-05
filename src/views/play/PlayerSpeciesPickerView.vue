@@ -3,13 +3,8 @@
     <PickerCharacterNotFound v-if="notFound" />
     <template v-else>
     <!-- Header row -->
-    <div class="flex items-start justify-between gap-4">
-      <div>
-        <h1 class="text-heading-lg font-bold text-foreground">Choose a Species</h1>
-        <p v-if="headerDescription" class="text-body text-muted-foreground italic mt-1">
-          {{ headerDescription }}
-        </p>
-      </div>
+    <PageHeader flush title="Choose Species" :description="headerDescription ?? undefined">
+      <template #actions>
       <AppButton
         to="/play"
         variant="subtle"
@@ -17,7 +12,8 @@
         class="shrink-0"
         label="← Back"
       />
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- Filter bar -->
     <ListFilterBar
@@ -133,6 +129,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import PickerCharacterNotFound from "@/components/play/PickerCharacterNotFound.vue";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
@@ -177,7 +174,7 @@ const currentSpeciesId = computed(() => me.value?.species_id ?? "");
 const headerDescription = computed(() => {
   if (!me.value) return null;
   return me.value.species_id
-    ? `${me.value.name}: click a species card to change`
+    ? `${me.value.name}: tap a species card to change`
     : `${me.value.name}: no species selected`;
 });
 

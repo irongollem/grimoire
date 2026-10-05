@@ -1,10 +1,8 @@
 <template>
   <div class="space-y-8">
 
-    <!-- ── The Party ───────────────────────────────────────────────────────── -->
-    <section>
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-heading font-bold text-foreground">The Party</h2>
+    <PageHeader flush title="Party" description="The heroes and companions travelling with you.">
+      <template #actions>
         <AppButton
           v-if="viewerMemberId"
           variant="subtle"
@@ -13,7 +11,11 @@
           label="Add companion"
           @click="openCompanionForm(null)"
         />
-      </div>
+      </template>
+    </PageHeader>
+
+    <!-- ── The Party ───────────────────────────────────────────────────────── -->
+    <section>
 
       <div v-if="partyLoading" class="flex justify-center py-8">
         <LoadingSpinner />
@@ -156,6 +158,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconSearch, IconAdd } from "@/lib/icons";

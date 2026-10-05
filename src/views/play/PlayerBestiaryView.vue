@@ -1,7 +1,11 @@
 <template>
   <div class="space-y-4 pb-8">
-    <!-- Tabs — only show Forms tab if the character qualifies -->
+    <PageHeader flush title="Bestiary" description="Creatures your party has met." />
+    <!-- Tabs: only when there is a second one (Forms, for a character who
+         qualifies). A lone "Bestiary" chip under the Bestiary title read as a
+         second title. -->
     <SegmentedControl
+      v-if="visibleTabOptions.length > 1"
       :model-value="activeTab"
       :options="visibleTabOptions"
       size="md"
@@ -299,6 +303,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed, useId } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { IconClose, IconPin, IconSearch } from '@/lib/icons';

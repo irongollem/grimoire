@@ -152,7 +152,7 @@ export const routes: RouteRecordRaw[] = [
     path: "/play/inventory",
     name: "play-inventory",
     component: () => import("@/views/play/PlayerInventoryView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Party Inventory" },
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Inventory" },
   },
   {
     path: "/play/background",
