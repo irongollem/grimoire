@@ -4,7 +4,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(12);
 
 -- npc_reveals records the first moment each party member could see each NPC
--- (20261005182106), so the player's People list can sort by "Recently
+-- (20261005220422), so the player's People list can sort by "Recently
 -- revealed". Both ways an NPC reaches a member are covered (shared directly,
 -- shared through its location), plus the two things that must not happen: a
 -- later share moving the moment, and anyone reading a row that is not theirs.

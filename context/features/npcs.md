@@ -497,7 +497,7 @@ A `SortControl` in the filter bar picks the order, with a direction toggle; the 
 
 Every order ends on the name, so ties are stable.
 
-`npc_reveals` (migration `20261005182106`) holds one row per (NPC, party member): the first moment that member could see the NPC, whether it was shared with them directly or through its location's "share linked NPCs". Triggers on `npcs` and `locations` are its only writers; `on conflict do nothing` keeps the first moment, so unsharing and sharing again does not move it. A player reads only their own rows, the DM the whole campaign's (for preview). Reveals that existed before the table were backfilled with the NPC's `created_at`, the closest evidence left. `useSharedNpcs` reads the reveals with the projection and sets `revealed_at` on each `PlayerNpc`; both refresh on `npcs_player` and `locations_player`.
+`npc_reveals` (migration `20261005220422`) holds one row per (NPC, party member): the first moment that member could see the NPC, whether it was shared with them directly or through its location's "share linked NPCs". Triggers on `npcs` and `locations` are its only writers; `on conflict do nothing` keeps the first moment, so unsharing and sharing again does not move it. A player reads only their own rows, the DM the whole campaign's (for preview). Reveals that existed before the table were backfilled with the NPC's `created_at`, the closest evidence left. `useSharedNpcs` reads the reveals with the projection and sets `revealed_at` on each `PlayerNpc`; both refresh on `npcs_player` and `locations_player`.
 
 Filters (state in `useUiStore`):
 
