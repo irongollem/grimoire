@@ -51,12 +51,12 @@
 
       <label class="flex flex-col gap-1">
         <span class="text-label font-semibold text-muted-foreground">Quest giver</span>
-        <EntityCombobox v-model="draft.giverNpcId" :options="npcs ?? []" placeholder="Search NPCs…" />
+        <EntityCombobox v-model="draft.giverNpcId" :options="npcs ?? []" :selected-label="giver?.name ?? null" placeholder="Search NPCs…" @open="npcListWanted = true" />
       </label>
 
       <label class="flex flex-col gap-1">
         <span class="text-label font-semibold text-muted-foreground">Primary location</span>
-        <EntityCombobox v-model="draft.locationId" :options="locations ?? []" placeholder="Search locations…" />
+        <EntityCombobox v-model="draft.locationId" :options="locations ?? []" :selected-label="primaryLocation?.name ?? null" placeholder="Search locations…" @open="locationListWanted = true" />
       </label>
 
       <label class="flex flex-col gap-1 sm:col-span-2">
@@ -89,8 +89,8 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
-import { useAllLocations } from "@/composables/locations/useLocations";
-import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
+import { useNpc, useNpcs } from "@/composables/npcs/useNpcs";
 import { useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { useAllQuests, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useAutosave } from "@/composables/useAutosave";
@@ -113,8 +113,13 @@ interface MetadataDraft {
 
 const props = defineProps<{ quest: Quest }>();
 const campaign = useCampaignStore();
-const { data: npcs } = useNpcs();
-const { data: locations } = useAllLocations();
+// The campaign's NPC and place lists are read when a picker is first opened,
+// not at mount: the closed field only needs the one selected name, which the
+// single-row reads below give (and live sync keeps current).
+const npcListWanted = ref(false);
+const locationListWanted = ref(false);
+const { data: npcs } = useNpcs(() => npcListWanted.value);
+const { data: locations } = useAllLocations(() => locationListWanted.value);
 const { data: allQuests } = useAllQuests();
 const { data: beats } = useQuestBeats(computed(() => props.quest.id));
 const { mutateAsync: updateQuest } = useUpdateQuest();
@@ -144,6 +149,9 @@ const { draft, changes, commit, reset: resetDraft, conflicts } = useRecordDraft(
   identity: (quest: Quest) => quest.id,
   toDraft: (quest: Quest | null) => questToDraft(quest ?? shown.value),
 });
+
+const { data: giver } = useNpc(computed(() => draft.giverNpcId));
+const { data: primaryLocation } = useLocation(() => draft.locationId || null);
 
 const CONFLICT_LABELS: Record<keyof MetadataDraft, string> = {
   title: "Title",

@@ -13,7 +13,9 @@ import type { Quest, QuestObjective } from "@/types/quest.types";
 // object's own entries instead of the array inside it.
 const mocks = vi.hoisted(() => ({
   objectives: [] as QuestObjective[],
-  subQuests: [] as Array<{ id: string; title: string; status: string }>,
+  subQuests: [] as Array<{ id: string; title: string; status: string; parent_quest_id: string | null }>,
+  fetchNpc: vi.fn(),
+  fetchLocation: vi.fn(),
   notes: [] as Array<{ id: string; content: string | null; is_private: boolean; updated_at: string }>,
   assertStatus: vi.fn(),
   createObjective: vi.fn(),
@@ -27,14 +29,14 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/notes/useEntityNotes", () => ({ useEntityNotes: () => ({ data: ref(mocks.notes) }) }));
-vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/npcs/useNpcs", () => ({ useFetchNpc: () => mocks.fetchNpc }));
+vi.mock("@/composables/locations/useLocations", () => ({ useFetchLocation: () => mocks.fetchLocation }));
 vi.mock("@/composables/scriptorium/useScriptorium", () => ({
   useCreateScriptoriumDocument: () => ({ mutateAsync: mocks.createScriptoriumDocument }),
 }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: () => ({ data: ref(mocks.objectives) }),
-  useSubQuests: () => ({ data: ref(mocks.subQuests) }),
+  useAllQuests: () => ({ data: ref(mocks.subQuests) }),
   useAssertQuestObjectiveStatus: () => ({ mutateAsync: mocks.assertStatus }),
   useCreateObjective: () => ({ mutateAsync: mocks.createObjective }),
   useUpdateObjective: () => ({ mutateAsync: mocks.updateObjective }),
@@ -95,6 +97,8 @@ describe("QuestOverviewLifecycle", () => {
     mocks.deleteObjective.mockReset();
     mocks.deleteQuest.mockReset();
     mocks.createScriptoriumDocument.mockReset();
+    mocks.fetchNpc.mockReset();
+    mocks.fetchLocation.mockReset();
     mocks.confirm.mockReset();
     mocks.push.mockReset();
   });
@@ -163,12 +167,33 @@ describe("QuestOverviewLifecycle", () => {
     expect(mocks.push).toHaveBeenCalledWith("/scriptorium/doc-1");
   });
 
+  it("reads the giver and place as single rows at click time, and only when the quest has them", async () => {
+    mocks.createScriptoriumDocument.mockResolvedValue({ id: "doc-1" });
+    const wrapper = mountLifecycle();
+    const send = () => wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Send to Scriptorium")!.trigger("click");
+    await send();
+    await flushPromises();
+    expect(mocks.fetchNpc).not.toHaveBeenCalled();
+    expect(mocks.fetchLocation).not.toHaveBeenCalled();
+
+    const linked = { ...quest, giver_npc_id: "npc-1", location_id: "loc-1" } as Quest;
+    mocks.fetchNpc.mockResolvedValue({ id: "npc-1", name: "Oarus" });
+    mocks.fetchLocation.mockResolvedValue({ id: "loc-1", name: "The Docks" });
+    await wrapper.setProps({ quest: linked });
+    await send();
+    await flushPromises();
+    expect(mocks.fetchNpc).toHaveBeenCalledWith("npc-1");
+    expect(mocks.fetchLocation).toHaveBeenCalledWith("loc-1");
+    expect(mocks.createScriptoriumDocument).toHaveBeenCalledTimes(2);
+  });
+
   it("passes quest-level facets (sub-quests, shared notes, calendar) to their own panels rather than editing them inline", () => {
-    mocks.subQuests = [{ id: "sub-1", title: "The docks lead", status: "active" }];
+    const sub = { id: "sub-1", title: "The docks lead", status: "active", parent_quest_id: "quest-1" };
+    mocks.subQuests = [sub, { id: "other", title: "Elsewhere", status: "active", parent_quest_id: "quest-9" }, { id: "root", title: "Root", status: "active", parent_quest_id: null }];
     mocks.notes = [{ id: "note-1", content: "We should ask the harbormaster.", is_private: false, updated_at: "2026-01-01" }];
     const wrapper = mountLifecycle();
     const sidebar = wrapper.findComponent({ name: "QuestSidebarPanels" });
-    expect(sidebar.props("subQuests")).toEqual(mocks.subQuests);
+    expect(sidebar.props("subQuests")).toEqual([sub]);
     expect(sidebar.props("sharedNotes")).toHaveLength(1);
     expect(wrapper.findComponent({ name: "EntityCalendarSection" }).props("entityId")).toBe("quest-1");
   });

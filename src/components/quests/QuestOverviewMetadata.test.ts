@@ -14,8 +14,14 @@ const mocks = vi.hoisted(() => ({
   activeCampaignId: "campaign-1" as string | null,
 }));
 
-vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { value: mocks.npcs } }) }));
-vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: { value: mocks.locations } }) }));
+vi.mock("@/composables/npcs/useNpcs", () => ({
+  useNpcs: (enabled?: () => boolean) => ({ data: { value: enabled?.() ? mocks.npcs : undefined } }),
+  useNpc: (id: { value: string }) => ({ data: { value: mocks.npcs.find((n) => n.id === id.value) } }),
+}));
+vi.mock("@/composables/locations/useLocations", () => ({
+  useAllLocations: (enabled?: () => boolean) => ({ data: { value: enabled?.() ? mocks.locations : undefined } }),
+  useLocation: (id: () => string | null) => ({ data: { value: mocks.locations.find((l) => l.id === id()) } }),
+}));
 vi.mock("@/composables/quests/useQuestFlow", () => ({ useQuestBeats: () => ({ data: { value: mocks.beats } }) }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useAllQuests: () => ({ data: { value: mocks.allQuests } }),

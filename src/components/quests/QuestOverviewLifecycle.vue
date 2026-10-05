@@ -130,15 +130,15 @@ import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.v
 import { IconAdd, IconClose, IconHide, IconReveal } from "@/lib/icons";
 import { useConfirm } from "@/composables/useConfirm";
 import { useEntityNotes } from "@/composables/notes/useEntityNotes";
-import { useAllLocations } from "@/composables/locations/useLocations";
-import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useFetchLocation } from "@/composables/locations/useLocations";
+import { useFetchNpc } from "@/composables/npcs/useNpcs";
 import {
   useAssertQuestObjectiveStatus,
   useCreateObjective,
   useDeleteObjective,
   useDeleteQuest,
   useQuestObjectives,
-  useSubQuests,
+  useAllQuests,
   useUpdateObjective,
 } from "@/composables/quests/useQuests";
 import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
@@ -156,10 +156,16 @@ const router = useRouter();
 const { confirm } = useConfirm();
 const questId = computed(() => props.quest.id);
 const { data: objectives } = useQuestObjectives(questId);
-const { data: subQuests } = useSubQuests(questId);
+// Sub-quests come from the campaign quest list this screen already holds, not
+// a read of their own; the list is newest-edited first, which is the order the
+// sidebar shows.
+const { data: allQuests } = useAllQuests();
+const subQuests = computed(() => (allQuests.value ?? []).filter((q) => q.parent_quest_id === props.quest.id));
 const { data: notes } = useEntityNotes("quest", questId);
-const { data: npcs } = useNpcs();
-const { data: locations } = useAllLocations();
+// The giver and place names are needed once, at click time, so they are read as
+// single rows then rather than loading every NPC and place at mount.
+const fetchNpc = useFetchNpc();
+const fetchLocation = useFetchLocation();
 const sharedNotes = computed(() => (notes.value ?? []).filter((note) => !note.is_private));
 const { mutateAsync: createObjective } = useCreateObjective();
 const { mutateAsync: assertObjectiveStatus } = useAssertQuestObjectiveStatus();
@@ -232,8 +238,10 @@ async function removeQuest() {
 async function sendToScriptorium() {
   sendingToScriptorium.value = true;
   try {
-    const giverName = (npcs.value ?? []).find((npc) => npc.id === props.quest.giver_npc_id)?.name ?? null;
-    const locationName = (locations.value ?? []).find((location) => location.id === props.quest.location_id)?.name ?? null;
+    const [giverName, locationName] = await Promise.all([
+      props.quest.giver_npc_id ? fetchNpc(props.quest.giver_npc_id).then((npc) => npc.name) : null,
+      props.quest.location_id ? fetchLocation(props.quest.location_id).then((location) => location.name) : null,
+    ]);
     const importData = formatQuestForScriptorium(
       props.quest,
       objectives.value ?? [],

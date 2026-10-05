@@ -35,7 +35,7 @@
       <template v-else-if="conditionKind === 'location'">
         <!-- Any location, not just sites — a district or a room can be
              cleared too (design frame 15). -->
-        <EntityCombobox v-model="conditionLocationId" class="min-w-0" :options="locationOptions" placeholder="Which place…">
+        <EntityCombobox v-model="conditionLocationId" class="min-w-0" :options="locationOptions" placeholder="Which place…" @open="locationListWanted = true">
           <template #option="{ opt }">
             <span :style="{ paddingLeft: `${opt.depth * 0.75}rem` }">{{ opt.name }}</span>
           </template>
@@ -72,9 +72,9 @@
         </AppSelect>
       </template>
       <template v-else-if="action === 'shift_npc_relationship'">
-        <EntityCombobox v-if="npcOptions.length" v-model="targetNpcId" class="min-w-0 sm:col-span-2" :options="npcOptions" placeholder="Which NPC…" />
+        <EntityCombobox v-if="npcPickerShown" v-model="targetNpcId" class="min-w-0 sm:col-span-2" :options="npcOptions" placeholder="Which NPC…" @open="npcListWanted = true" />
         <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">No NPCs in this campaign yet.</p>
-        <AppSelect v-if="npcOptions.length" v-model="relationshipShiftKey" class="min-w-0 sm:col-span-2" aria-label="What happens to their stance">
+        <AppSelect v-if="npcPickerShown" v-model="relationshipShiftKey" class="min-w-0 sm:col-span-2" aria-label="What happens to their stance">
           <option v-for="option in RELATIONSHIP_SHIFT_OPTIONS" :key="option.key" :value="option.key">{{ option.label }}</option>
         </AppSelect>
       </template>
@@ -92,9 +92,9 @@
         <AppInput v-model="knowledgeText" size="body-xs" placeholder="What do the players learn…" class="sm:col-span-2" />
       </template>
       <template v-else-if="action === 'owe_favor'">
-        <EntityCombobox v-if="npcOptions.length" v-model="targetNpcId" class="min-w-0 sm:col-span-2" :options="npcOptions" placeholder="Which NPC…" />
+        <EntityCombobox v-if="npcPickerShown" v-model="targetNpcId" class="min-w-0 sm:col-span-2" :options="npcOptions" placeholder="Which NPC…" @open="npcListWanted = true" />
         <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">No NPCs in this campaign yet.</p>
-        <AppInput v-if="npcOptions.length" v-model="favorText" size="body-xs" placeholder="What do they owe the party…" class="sm:col-span-2" />
+        <AppInput v-if="npcPickerShown" v-model="favorText" size="body-xs" placeholder="What do they owe the party…" class="sm:col-span-2" />
       </template>
       <template v-else-if="action === 'give_handout'">
         <EntityCombobox v-if="handoutOptions.length" v-model="targetDocumentId" class="min-w-0 sm:col-span-2" :options="handoutOptions" placeholder="Which handout…" />
@@ -123,11 +123,11 @@ import {
   useDeleteQuestConsequence,
   useQuestConsequences,
 } from "@/composables/quests/useQuestFlow";
-import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
+import { useAllQuests, useQuestObjectives } from "@/composables/quests/useQuests";
 import { useUnlockEntryPicker } from "@/composables/quests/useUnlockEntryPicker";
 import { useHandoutPayoff } from "@/composables/quests/useHandoutPayoff";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useLocationTree } from "@/composables/locations/useLocations";
+import { useLocationNames, useLocationTree } from "@/composables/locations/useLocations";
 import { QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
 import {
   QUEST_CONSEQUENCE_LEDGER_ACTIONS,
@@ -206,7 +206,11 @@ const { data: objectives } = useQuestObjectives(computed(() => questId));
 const consequencesQuery = useQuestConsequences(computed(() => questId));
 const createConsequence = useCreateQuestConsequence();
 const deleteConsequence = useDeleteQuestConsequence();
-const { locationOptions: locationTreeOptions } = useLocationTree();
+// The place list is read when the condition's place picker is first opened:
+// rows name their place from single-row reads (below), so nothing here needs
+// every place at mount.
+const locationListWanted = ref(false);
+const { locationOptions: locationTreeOptions } = useLocationTree(() => locationListWanted.value);
 // Any location, not just sites — a district or a room can be cleared too
 // (design frame 15). Wrapped in its own computed, like every other option
 // list here, rather than binding the composable's ref straight to the
@@ -230,10 +234,13 @@ function objectiveLabel(id: string | null): string {
 
 // A location fact's `on_location_id` cascades on delete (the migration's own
 // FK), so "removed" is not a real state here the way it is for an objective —
-// only ever a loading gap before `locationOptions` has fetched.
+// only ever a loading gap before the place's row has been read.
+const locationNames = useLocationNames(() => [...new Set(
+  rows.value.flatMap((row) => (row.on_location_id ? [row.on_location_id] : [])),
+)]);
 function locationLabel(id: string | null): string {
   if (!id) return "";
-  return locationOptions.value.find((location) => location.id === id)?.name ?? "Unknown place";
+  return locationNames.value.get(id) ?? "Unknown place";
 }
 
 // ── Condition form ───────────────────────────────────────────────────────────
@@ -263,19 +270,26 @@ const adding = ref(false);
 const removingId = ref("");
 const error = ref("");
 
-const { data: npcs } = useNpcs();
+// Existing rows describe their NPC target from the consequence payload, so the
+// NPC list is needed only by the add form's picker and is read when it opens.
+const npcListWanted = ref(false);
+const { data: npcs } = useNpcs(() => npcListWanted.value);
 const npcOptions = computed(() =>
   (npcs.value ?? []).map((npc) => ({ id: npc.id, name: npc.name })),
 );
+// Until the list has been asked for, the picker shows (and asks on open); the
+// "no NPCs" note belongs only to a list that loaded empty.
+const npcPickerShown = computed(() => npcs.value === undefined || npcOptions.value.length > 0);
 
 // Only `undiscovered` quests, because that is the only rung an unlock moves —
 // promoting anything else would be a rule that silently never fires. The quest
 // being edited is excluded too: `quest_consequences_no_self_unlock` refuses it,
 // and offering an option the database rejects is worse than not offering it.
-const { data: undiscoveredQuests } = useQuests("undiscovered");
+// Derived from the campaign quest list rather than a status read of its own.
+const { data: allQuests } = useAllQuests();
 const unlockableQuestOptions = computed(() =>
-  (undiscoveredQuests.value ?? [])
-    .filter((quest) => quest.id !== questId)
+  (allQuests.value ?? [])
+    .filter((quest) => quest.status === "undiscovered" && quest.id !== questId)
     .map((quest) => ({ id: quest.id, name: quest.title })),
 );
 

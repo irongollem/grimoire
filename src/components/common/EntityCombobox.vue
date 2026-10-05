@@ -6,13 +6,13 @@
         ref="inputEl"
         v-model="query"
         type="text"
-        :placeholder="selectedLabel || placeholder"
+        :placeholder="shownLabel || placeholder"
         :class="cn(
           fieldVariants({ tone: 'card', size: 'body', control: 'input' }),
           // pr-14 clears the overlaid clear button and chevron; w-full is the
           // layout the caller asks for. Everything else is the shared recipe.
           'w-full pr-14',
-          selectedLabel && !query ? 'placeholder:text-foreground' : '',
+          shownLabel && !query ? 'placeholder:text-foreground' : '',
         )"
         @focus="onFocus"
         @click="onFocus"
@@ -67,9 +67,17 @@ import { fieldVariants } from "./fieldVariants";
 import { IconChevronDown } from '@/lib/icons';
 
 const selectedId = defineModel<string>({ required: true });
-const { options, placeholder = "Search…", dropdownHeight = "sm" } = defineProps<{
+const { options, placeholder = "Search…", dropdownHeight = "sm", selectedLabel: labelHint = null } = defineProps<{
   options: T[];
   placeholder?: string;
+  /**
+   * The closed field's text for the selected id when `options` does not hold it
+   * yet. A caller that loads its list only once the dropdown opens resolves the
+   * one selected name from a single-row read and passes it here; once `options`
+   * contains the id, the option's own name wins, so existing callers are
+   * untouched.
+   */
+  selectedLabel?: string | null;
   /**
    * How tall the dropdown may grow.
    *
@@ -95,14 +103,21 @@ const DROPDOWN_HEIGHTS = {
   lg: { class: "max-h-96", px: 396 },
 } as const;
 
+const emit = defineEmits<{
+  /** The dropdown opened (every time), so a caller can start loading `options`. */
+  open: [];
+}>();
+
 const inputEl = ref<HTMLInputElement | null>(null);
 const query   = ref("");
 const open    = ref(false);
 const dropdownStyle = ref<Record<string, string>>({});
 
-const selectedLabel = computed(() =>
-  selectedId.value ? (options.find(o => o.id === selectedId.value)?.name ?? "") : ""
-);
+const shownLabel = computed(() => {
+  if (!selectedId.value) return "";
+  const found = options.find(o => o.id === selectedId.value)?.name;
+  return found ?? labelHint ?? "";
+});
 
 const filtered = computed(() => {
   const q = query.value.toLowerCase().trim();
@@ -158,6 +173,7 @@ function onBlur() {
 
 watch(open, (val) => {
   if (val) {
+    emit("open");
     nextTick(updatePosition);
     window.addEventListener("scroll", updatePosition, true);
   } else {

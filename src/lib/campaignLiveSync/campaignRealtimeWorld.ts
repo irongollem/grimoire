@@ -135,11 +135,9 @@ function applyQuests(queryClient: QueryClient, change: Change, context: Context)
       include: (key) => (
         (key.length === 2 && isString(key[1]) && key[1] !== "player-one")
         || (key.length === 3 && key[1] === context.campaignId && (key[2] === "all" || isString(key[2]) && QUEST_STATUSES.has(key[2])))
-        || (key.length === 3 && key[1] === "sub" && isString(key[2]))
       ),
       matches: (key, row) => {
         if (key.length === 2) return key[1] === row.id;
-        if (key[1] === "sub") return key[2] === row.parent_quest_id;
         return row.campaign_id === context.campaignId && (key[2] === "all" || key[2] === row.status);
       },
       compare: compareNewest,

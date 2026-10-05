@@ -35,6 +35,11 @@ vi.mock("@/composables/quests/useQuests", () => ({
     { id: "quest-sequel", title: "The stolen cauldron", status: "undiscovered", entry_beat_id: "beat-rumor" },
     { id: "quest-empty", title: "The empty ledger", status: "undiscovered", entry_beat_id: null },
   ] } }),
+  // The shared unlock picker reads the campaign list and filters it itself.
+  useAllQuests: () => ({ data: { value: [
+    { id: "quest-sequel", title: "The stolen cauldron", status: "undiscovered", entry_beat_id: "beat-rumor" },
+    { id: "quest-empty", title: "The empty ledger", status: "undiscovered", entry_beat_id: null },
+  ] } }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({
   useNpcs: () => ({ data: { value: [{ id: "npc-1", name: "Oarus Masthew" }] } }),

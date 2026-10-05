@@ -181,6 +181,17 @@ export function useNpc(id: string | Ref<string>) {
 }
 
 /**
+ * Reads one NPC in full on demand, through the `useNpc` cache entry, for an
+ * action that needs the row once (a click handler) rather than a screen that
+ * shows it.
+ */
+export function useFetchNpc() {
+  const queryClient = useQueryClient();
+  return (id: string): Promise<Npc> =>
+    queryClient.fetchQuery({ queryKey: [QUERY_KEY, id] as const, queryFn: () => fetchNpc(id) });
+}
+
+/**
  * Queue this NPC for semantic-search embedding (#600) so retrieval can find it
  * without waiting for the next admin backfill.
  *

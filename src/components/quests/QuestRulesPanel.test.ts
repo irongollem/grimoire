@@ -34,16 +34,18 @@ vi.mock("@/composables/quests/useQuests", () => ({
   ] } }),
   // #836: only `undiscovered` quests can be unlocked, and the quest being
   // edited is excluded — the database refuses a self-unlock.
-  useQuests: () => ({ data: { value: [
+  useAllQuests: () => ({ data: { value: [
     { id: "quest-1", title: "This very quest", status: "undiscovered" },
     { id: "quest-sequel", title: "The stolen cauldron", status: "undiscovered", entry_beat_id: "beat-rumor" },
     { id: "quest-empty", title: "The empty ledger", status: "undiscovered", entry_beat_id: null },
+    { id: "quest-live", title: "Already running", status: "active", entry_beat_id: null },
   ] } }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({
   useNpcs: () => ({ data: { value: [{ id: "npc-1", name: "Oarus Masthew" }] } }),
 }));
 vi.mock("@/composables/locations/useLocations", () => ({
+  useLocationNames: () => ({ value: new Map([["loc-crypt", "The Sunken Crypt"], ["loc-vault", "The Inner Vault"]]) }),
   useLocationTree: () => ({ locationOptions: { value: [
     { id: "loc-crypt", name: "The Sunken Crypt", depth: 0 },
     { id: "loc-vault", name: "The Inner Vault", depth: 1 },

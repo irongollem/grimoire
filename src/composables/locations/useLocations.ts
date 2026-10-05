@@ -1,6 +1,6 @@
 import { computed, isRef, ref, toValue, type MaybeRefOrGetter } from "vue";
 import type { Ref } from "vue";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import { useQueries, useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -326,6 +326,29 @@ export function useLocation(id: MaybeRefOrGetter<string | null>) {
       return fetchLocation(locationId);
     },
     enabled: () => !!toValue(id),
+  });
+}
+
+/**
+ * Names of a few named places, each through the same `["locations", id]` entry
+ * `useLocation` uses (so live sync keeps them current), for a screen that
+ * labels rows by place and needs no list of every place. A name is absent
+ * until its row has loaded.
+ */
+export function useLocationNames(ids: MaybeRefOrGetter<string[]>) {
+  const results = useQueries({
+    queries: computed(() => toValue(ids).map((id) => ({
+      queryKey: [QUERY_KEY, id] as const,
+      queryFn: () => fetchLocation(id),
+    }))),
+  });
+  return computed(() => {
+    const names = new Map<string, string>();
+    toValue(ids).forEach((id, index) => {
+      const name = results.value[index]?.data?.name;
+      if (name) names.set(id, name);
+    });
+    return names;
   });
 }
 

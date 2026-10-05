@@ -46,16 +46,6 @@ async function fetchQuests(campaignId: string, status?: QuestStatus): Promise<Qu
   return data as Quest[];
 }
 
-async function fetchSubQuests(parentId: string): Promise<Quest[]> {
-  const { data, error } = await supabase
-    .from("quests")
-    .select("*")
-    .eq("parent_quest_id", parentId)
-    .order("updated_at", { ascending: false });
-  if (error) throw error;
-  return data as Quest[];
-}
-
 async function fetchQuest(id: string): Promise<Quest> {
   const { data, error } = await supabase.from("quests").select("*").eq("id", id).single();
   if (error) throw error;
@@ -251,15 +241,6 @@ export function useAllQuests() {
       return fetchQuests(cid);
     },
     enabled: () => !!campaignId.value,
-  });
-}
-
-export function useSubQuests(parentId: string | Ref<string>) {
-  const idRef = isRef(parentId) ? parentId : ref(parentId);
-  return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, "sub", idRef.value] as const),
-    queryFn: ({ queryKey: [, , parentId] }) => fetchSubQuests(parentId),
-    enabled: () => !!idRef.value,
   });
 }
 

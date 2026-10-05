@@ -1,6 +1,6 @@
 import { computed, ref, watch, type ComputedRef, type Ref } from "vue";
 import { useQuestBeats } from "@/composables/quests/useQuestFlow";
-import { useQuests } from "@/composables/quests/useQuests";
+import { useAllQuests } from "@/composables/quests/useQuests";
 import type { Quest } from "@/types/quest.types";
 
 /**
@@ -36,12 +36,13 @@ export function useUnlockEntryPicker(input: {
 
   // Only `undiscovered` quests are ever a legal unlock target — the database's
   // own no-self-unlock/rung rule — so that is the pool `targetQuest` resolves
-  // against, distinct from `allQuests` below.
-  const { data: undiscoveredQuests } = useQuests("undiscovered");
-  const { data: allQuests } = useQuests();
+  // against, distinct from `allQuests` below. Filtered from the campaign list
+  // rather than read by status, so the picker costs no request of its own.
+  const { data: allQuests } = useAllQuests();
+  const undiscoveredQuests = computed(() => (allQuests.value ?? []).filter((quest) => quest.status === "undiscovered"));
 
   const entryBeatId = ref("");
-  const targetQuest = computed(() => (undiscoveredQuests.value ?? []).find((quest) => quest.id === targetQuestId.value));
+  const targetQuest = computed(() => undiscoveredQuests.value.find((quest) => quest.id === targetQuestId.value));
   const beatQueryTargetId = computed(() => targetQuestId.value || fallbackTargetQuestId());
   const { data: beatQueryTargetBeats } = useQuestBeats(beatQueryTargetId);
   const entryBeatOptions = computed(() => (targetQuestId.value ? (beatQueryTargetBeats.value ?? []) : [])
