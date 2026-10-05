@@ -28,7 +28,7 @@ export interface ItemRefColumns {
 }
 
 /**
- * The id to look up in the merged item list (`useItems` / `useStoredItemRefs`
+ * The id to look up in the merged item list (`useItemIndex` / `useStoredItemRefs`
  * return vault rows keyed by uuid and library rows keyed by text in one array,
  * so a single `find` resolves either once handed the right id).
  *

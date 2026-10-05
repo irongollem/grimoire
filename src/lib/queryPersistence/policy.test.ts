@@ -7,7 +7,7 @@ describe("isStaticContent", () => {
   });
 
   it("matches a longer key that starts with a prefix", () => {
-    expect(isStaticContent(["library-monsters", ["srd"], "2024"])).toBe(true);
+    expect(isStaticContent(["library-monster-index", ["srd"], "2024"])).toBe(true);
     expect(isStaticContent(["library_rules", "2014"])).toBe(true);
   });
 
@@ -15,14 +15,15 @@ describe("isStaticContent", () => {
     expect(isStaticContent(["monsters"])).toBe(false);
     expect(isStaticContent(["plans"])).toBe(false);
     expect(isStaticContent(["library-monster-art"])).toBe(false);
+    expect(isStaticContent(["library-monsters", "srd_owlbear"])).toBe(false);
   });
 
   it("does not match a root that merely shares a string prefix", () => {
-    expect(isStaticContent(["library-monsters-x"])).toBe(false);
+    expect(isStaticContent(["library-monster-index-x"])).toBe(false);
   });
 
   it("does not match when the prefix is not first", () => {
-    expect(isStaticContent(["x", "library-monsters"])).toBe(false);
+    expect(isStaticContent(["x", "library-monster-index"])).toBe(false);
   });
 
   it("does not match an empty key", () => {

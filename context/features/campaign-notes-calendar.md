@@ -185,7 +185,7 @@ The result rows are `AppButton variant="menu" size="body" block` using its defau
 
 **Cursedness is not on the inventory row.** `PartyInventoryItem` has no `is_cursed`; it lives on the linked `items` row as a non-null `curse_description`, joined by `item_id` — so an inventory entry with no `item_id` (a custom-named line) can never be cursed. The filter is "linked item has a curse description AND `curse_revealed === false`".
 
-This is DM-private by construction: it reads `usePartyInventory()`/`useItems()` (the owner-scoped DM reads), never `get_player_visible_items`, and the dashboard sits outside the `/play` router fence. `ItemDetailPanel` — the only place `curse_revealed` is toggled — already gates its curse block on `canIdentify || inv?.curse_revealed`.
+This is DM-private by construction: it reads `usePartyInventory()` and the by-id item reads (the owner-scoped DM reads), never `get_player_visible_items`, and the dashboard sits outside the `/play` router fence. `ItemDetailPanel` — the only place `curse_revealed` is toggled — already gates its curse block on `canIdentify || inv?.curse_revealed`.
 
 **Ambience (`SoundboardScenesWidget.vue`)** — jumps to a named soundboard page. `selfHiding: true`; a campaign with no named pages has nothing to jump to and the soundboard already opens on "All".
 
@@ -205,7 +205,7 @@ It shares `useRunningEncounters()` with `LiveEncounterBanner`, so mounting both 
 
 Two states, and **not** "stale". A staleness rule would have to invent a number of days, and `updated_at` says nothing about whether the shelves are bare — a village smith restocked once a year is not a problem. What is checkable: `empty` (a store-type location with no stock at all) and `hidden` (stock exists but not one row is `visible`). The second is the one worth surfacing, because from the players' side it is indistinguishable from an empty shop — so it is exactly the shop the DM believes is finished.
 
-**Recently discovered monsters (`RecentMonstersWidget.vue`)** — the mirror of Recent NPCs, full-width, self-hiding. Discoveries reference **either** a DM-created `monsters` row or a shared `library_monsters` one (`monster_id` / `library_monster_id`); `useAllMonsters()` already merges both into one bestiary keyed by id, and `/monsters/:id` resolves either shape, so nothing branches on which table a row came from. A discovery with no timestamp is **dropped rather than coerced to epoch zero**: there is no honest position for an unknown time in a newest-first list.
+**Recently discovered monsters (`RecentMonstersWidget.vue`)** — the mirror of Recent NPCs, full-width, self-hiding. Discoveries reference **either** a DM-created `monsters` row or a shared `library_monsters` one (`monster_id` / `library_monster_id`); `useMonsterIndex()` already merges both into one list keyed by id, and `/monsters/:id` resolves either shape, so nothing branches on which table a row came from. A discovery with no timestamp is **dropped rather than coerced to epoch zero**: there is no honest position for an unknown time in a newest-first list.
 
 **Monster quick-pull (`MonsterPullWidget.vue`)** — a random monster for an improvised encounter, by CR band and creature type. The pick goes through `rollParsed` from `@/lib/dice/roller`, never `Math.random()`, so the selection is a die roll like every other in the app and the pure module takes a plain index (which is what makes it testable).
 

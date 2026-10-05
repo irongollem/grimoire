@@ -29,19 +29,18 @@
  * and refetched in the background).
  *
  * Deliberately not on the list: `["plans"]` and `["library-art-defaults"]`
- * (admin-editable and cheap to refetch), `["library-monster-art"]` and
+ * (admin-editable and cheap to refetch), `["library-monsters"]` and
+ * `["library-spells"]` (one full row per key, read by id: not expensive enough
+ * to matter, and the art repair panel edits them), `["library-monster-art"]` and
  * `["library-spell-art"]` (they mix the caller's own art rows with canonical
  * ones), `["mention-monster-name"]` (it reads the user's own monsters for some
  * ids), and every user-owned or campaign-owned query.
  */
 export const STATIC_CONTENT_PREFIXES: readonly (readonly string[])[] = [
-  ["library-monsters"],
-  ["library-spells"],
-  ["library-items"],
   ["library-species"],
-  // The slim picker indexes (#972): the same shared rows as the lists above,
-  // id + name + facets only. Their own prefixes, never `library-monsters` &c.,
-  // because `useResolvedMonster` seeds full rows from that prefix.
+  // The slim picker indexes (#972): every enabled library monster, item and
+  // spell as id + name + facets. Their own prefixes, apart from
+  // `library-monsters` and `library-spells`, which hold single full rows.
   ["library-monster-index"],
   ["library-item-index"],
   ["library-spell-index"],
@@ -56,7 +55,6 @@ export const STATIC_CONTENT_PREFIXES: readonly (readonly string[])[] = [
   ["available-library-spell-sources"],
   ["available-library-item-sources"],
   ["available-library-species-sources"],
-  ["open5e-documents"],
   ["open5e-background-documents"],
   ["sound_library_credits"],
 ];

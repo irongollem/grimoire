@@ -13,14 +13,14 @@ import { parseExpression, maxExpression } from "@/lib/dice/dice";
  * `unresolved` entry so the panel can show the DM exactly what the model
  * wrote and what happened to it.
  *
- * The vault pool passed in is the MERGED catalogue from `useItems` — the DM's
+ * The vault pool passed in is the MERGED item list (`useItemIndex`) — the DM's
  * own items plus the library items their enabled sources make visible — so a
  * name can resolve to a shared row whose id is a text slug. Such an id is kept
  * as a reference to the library row (the writer splits it with
  * `itemRefColumns`); nothing is cloned into an owned row.
  */
 
-/** Minimal item shape this module needs — `useItems` rows satisfy it. */
+/** Minimal item shape this module needs — an item index row satisfies it. */
 export interface LootItemPoolRow {
   id: string;
   name: string;

@@ -212,9 +212,6 @@ export function useAvailableLibraryItemSources() {
 function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: [ENABLED_KEY] });
   queryClient.invalidateQueries({ queryKey: [USER_ENABLED_KEY] });
-  queryClient.invalidateQueries({ queryKey: ["library-monsters"] });
-  queryClient.invalidateQueries({ queryKey: ["library-spells"] });
-  queryClient.invalidateQueries({ queryKey: ["library-items"] });
   queryClient.invalidateQueries({ queryKey: ["library-species"] });
   // The catalogue pages and pickers built from the enabled books (#972).
   queryClient.invalidateQueries({ queryKey: ["monsters", "browse"] });

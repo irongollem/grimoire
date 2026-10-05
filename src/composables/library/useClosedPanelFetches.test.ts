@@ -39,8 +39,7 @@ vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ dmPreviewMode: false }) }))
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ isAppAdmin: false }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ show: vi.fn() }) }));
 
-import { useItems, usePlayerItemProjection } from "@/composables/items/useItems";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerItemProjection } from "@/composables/items/useItems";
 
 function run(setup: () => unknown) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -61,19 +60,6 @@ beforeEach(() => {
 });
 
 describe("closed panels fetch nothing (#972)", () => {
-  it("useItems with enabled false sends no request, art defaults included", async () => {
-    run(() => useItems(() => ({ enabled: false })));
-    await flushPromises();
-    expect(mocks.tables).toEqual([]);
-    expect(mocks.rpcs).toEqual([]);
-  });
-
-  it("useItems reads the art defaults once it is enabled", async () => {
-    run(() => useItems(() => ({ enabled: true })));
-    await flushPromises();
-    expect(mocks.tables).toContain("library_art_defaults");
-  });
-
   it("usePlayerItemProjection with enabled false sends no request", async () => {
     run(() => usePlayerItemProjection(() => ({ enabled: false })));
     await flushPromises();
@@ -86,19 +72,5 @@ describe("closed panels fetch nothing (#972)", () => {
     await flushPromises();
     expect(mocks.rpcs).toEqual(["get_player_visible_items"]);
     expect(mocks.tables).not.toContain("library_items");
-  });
-
-  it("useAllMonsters with enabled false reads neither bestiary list nor the art map", async () => {
-    run(() => useAllMonsters(() => ({ enabled: false })));
-    await flushPromises();
-    expect(mocks.tables).toEqual([]);
-  });
-
-  it("useAllMonsters reads the lists and the art map by default", async () => {
-    run(() => useAllMonsters());
-    await flushPromises();
-    expect(mocks.tables).toEqual(
-      expect.arrayContaining(["monsters", "library_monsters", "library_monster_art_canonical", "library_monster_art"]),
-    );
   });
 });

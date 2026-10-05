@@ -1,14 +1,14 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
 import { writeCanonicalLibraryArt, MONSTER_CANONICAL_ART, type CanonicalArtEdit } from "./writeCanonicalLibraryArt";
 import type { Monster } from "@/types/monster.types";
 
 const QUERY_KEY = "library-monster-art";
-/** Exported alongside LIBRARY_MONSTER_ART_QUERY_KEY so a second query on the
- *  same key (useEntityEmbedData.ts) applies the same staleness window rather
- *  than immediately refetching under a shorter default. */
+/** Exported so a second query on the same art keys (useEntityEmbedData.ts)
+ *  applies the same staleness window rather than immediately refetching under
+ *  a shorter default. */
 export const LIBRARY_MONSTER_ART_STALE_TIME = 1000 * 60 * 30; // 30 minutes — art changes rarely
 
 export interface LibraryArtEntry {
@@ -64,26 +64,10 @@ export function mergeLibraryMonsterArtLayers(
   return map;
 }
 
-/** Exported so `useEntityEmbedData.ts` can run the identical query (same key,
- *  same fetcher) rather than re-deriving the merge — see
- *  LIBRARY_MONSTER_ART_QUERY_KEY's own doc. */
-export async function fetchLibraryMonsterArt(): Promise<LibraryArtMap> {
-  // library_monster_art_canonical: unowned, readable by any signed-in user.
-  // library_monster_art: this user's own private overrides only (RLS).
-  const [canonicalRes, ownRes] = await Promise.all([
-    supabase.from("library_monster_art_canonical").select(ART_COLUMNS),
-    supabase.from("library_monster_art").select(ART_COLUMNS),
-  ]);
-  if (canonicalRes.error) throw canonicalRes.error;
-  if (ownRes.error) throw ownRes.error;
-
-  return mergeLibraryMonsterArtLayers(canonicalRes.data, ownRes.data);
-}
-
 /**
- * One monster's art: the same canonical + own-override merge as the whole map,
- * for a single `entry_id` (#972). A detail page reads one row, so it must not
- * download every monster's art to find it. The own-override read names the
+ * One monster's art: the canonical + own-override merge for a single
+ * `entry_id` (#972). A detail page reads one row, so it must not download
+ * every monster's art to find it. The own-override read names the
  * caller explicitly — RLS bounds it, it does not filter it.
  */
 export async function fetchLibraryMonsterArtEntry(entryId: string): Promise<LibraryArtEntry | null> {
@@ -159,6 +143,18 @@ export function withLibraryArtAll<T extends Pick<Monster, "id" | "image_url" | "
 }
 
 
+/** Every cache that holds a monster's art or the library row it was synced into. */
+function invalidateMonsterArtReaders(queryClient: QueryClient): Promise<unknown> {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    queryClient.invalidateQueries({ queryKey: ["library-monster-index"] }),
+    queryClient.invalidateQueries({ queryKey: ["library-monsters"] }),
+    queryClient.invalidateQueries({ queryKey: ["monsters", "browse"] }),
+    queryClient.invalidateQueries({ queryKey: ["monsters", "by-ids"] }),
+    queryClient.invalidateQueries({ queryKey: ["resolved-monster"] }),
+  ]);
+}
+
 async function upsertOwnLibraryMonsterArt(entry: CanonicalArtEdit): Promise<void> {
   const user = getCurrentUser();
   const { error } = await supabase
@@ -167,22 +163,8 @@ async function upsertOwnLibraryMonsterArt(entry: CanonicalArtEdit): Promise<void
   if (error) throw error;
 }
 
-/** The exact query key `useLibraryMonsterArt` uses, so another composable can
- *  read the same merged art map via TanStack's cache instead of duplicating
- *  the fetch (`useEntityEmbedData.ts`'s embed lookup for shared monsters). */
-export const LIBRARY_MONSTER_ART_QUERY_KEY = [QUERY_KEY] as const;
-
-export function useLibraryMonsterArt(enabled: MaybeRefOrGetter<boolean> = true) {
-  return useQuery({
-    queryKey: LIBRARY_MONSTER_ART_QUERY_KEY,
-    queryFn: fetchLibraryMonsterArt,
-    staleTime: LIBRARY_MONSTER_ART_STALE_TIME,
-    enabled: () => toValue(enabled),
-  });
-}
-
-/** One monster's merged art. Keyed under the whole map's key, so the
- *  `["library-monster-art"]` prefix invalidation after an art write reaches it. */
+/** One monster's merged art. Keyed under `["library-monster-art"]`, so the
+ *  prefix invalidation after an art write reaches it. */
 export function useLibraryMonsterArtEntry(entryId: MaybeRefOrGetter<string>, enabled: MaybeRefOrGetter<boolean> = true) {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, "entry", toValue(entryId)] as const),
@@ -201,13 +183,9 @@ export function useUpsertLibraryMonsterArt() {
       else await upsertOwnLibraryMonsterArt(entry);
     },
     onSuccess: async () => {
-      // An admin write also changes library_monsters rows, which the lists cache.
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-        queryClient.invalidateQueries({ queryKey: ["library-monsters"] }),
-        // The Monsters page's cards carry the merged art (browse_monsters, #972).
-        queryClient.invalidateQueries({ queryKey: ["monsters", "browse"] }),
-      ]);
+      // An admin write also changes library_monsters rows, which every read
+      // below carries or merges art into.
+      await invalidateMonsterArtReaders(queryClient);
     },
   });
 }
@@ -221,10 +199,6 @@ export function useSyncLibraryMonsterArt() {
       if (error) throw error;
       return data as number;
     },
-    onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["library-monsters"] }),
-        queryClient.invalidateQueries({ queryKey: ["monsters", "browse"] }),
-      ]),
+    onSuccess: () => invalidateMonsterArtReaders(queryClient),
   });
 }

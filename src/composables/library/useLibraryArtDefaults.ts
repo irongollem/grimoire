@@ -150,6 +150,9 @@ export function useSyncLibrarySpellArt() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["library-spells"] });
+      queryClient.invalidateQueries({ queryKey: ["library-spell-index"] });
+      queryClient.invalidateQueries({ queryKey: ["spells", "browse"] });
+      queryClient.invalidateQueries({ queryKey: ["spells", "by-ids"] });
     },
   });
 }
@@ -163,7 +166,12 @@ export function useSyncLibraryItemArt() {
       return data as number;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["library-items"] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["library-item-index"] });
+      queryClient.invalidateQueries({ queryKey: ["items", "browse"] });
+      queryClient.invalidateQueries({ queryKey: ["items", "by-ids"] });
+      queryClient.invalidateQueries({ queryKey: ["resolved-library-items"] });
+      queryClient.invalidateQueries({ queryKey: ["resolved-item"] });
     },
   });
 }

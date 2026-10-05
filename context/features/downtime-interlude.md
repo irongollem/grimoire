@@ -58,7 +58,7 @@ Tests: `downtimeDeck.test.ts` (21), `downtimeBalance.test.ts` (7), `downtimeEffe
 - `previewDraw(activityKey, backs)` binds `Math.random` at the edge
 
 `src/composables/downtime/useDowntimeRewardName.ts` — the **DM-side** reward-name
-lookup (`useNpcs`/`useItems`/`useNotes`), shared by `DowntimeBoardView`'s
+lookup (`useNpcs`/`useItemsByIds`/`useNotes`), shared by `DowntimeBoardView`'s
 resolved feed and `DeckBacksPanel`'s prepped pile. It exists because those two
 surfaces had each hand-written the same switch and only one of them was right;
 see "Naming the reward" below before writing a third copy.

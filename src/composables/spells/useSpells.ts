@@ -2,68 +2,14 @@ import { computed, ref, isRef } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { fetchAllRows } from "@/lib/fetchAllRows";
 import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
-import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
-import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { isUuid } from "@/lib/library/contentIdentity";
-import { useRuleset } from "@/composables/rules/useRuleset";
-import type { RulesetKey } from "@/types/ruleset.types";
 
 const LIBRARY_QUERY_KEY = "library-spells";
 
 const QUERY_KEY = "spells";
-
-export interface SpellSource {
-  slug: string;
-  title: string | null;
-}
-
-async function fetchDistinctSources(): Promise<SpellSource[]> {
-  const all: { source: string; source_title: string | null }[] = [];
-  const PAGE = 1000;
-  let offset = 0;
-  while (true) {
-    const { data, error } = await supabase
-      .from("spells")
-      .select("source, source_title")
-      .not("source", "is", null)
-      .range(offset, offset + PAGE - 1);
-    if (error) throw error;
-    all.push(...(data as { source: string; source_title: string | null }[]));
-    if ((data ?? []).length < PAGE) break;
-    offset += PAGE;
-  }
-  // Deduplicate by slug, preferring a non-null title
-  const map = new Map<string, string | null>();
-  for (const r of all) {
-    if (!map.has(r.source) || r.source_title) map.set(r.source, r.source_title);
-  }
-  return [...map.entries()]
-    .map(([slug, title]) => ({ slug, title }))
-    .sort((a, b) => (a.title ?? a.slug).localeCompare(b.title ?? b.slug));
-}
-
-async function fetchSpells(): Promise<Spell[]> {
-  const all: Spell[] = [];
-  const PAGE = 1000;
-  let offset = 0;
-  while (true) {
-    const { data, error } = await supabase
-      .from("spells")
-      .select("*")
-      .order("level", { ascending: true })
-      .order("name", { ascending: true })
-      .range(offset, offset + PAGE - 1);
-    if (error) throw error;
-    all.push(...(data as Spell[]));
-    if ((data ?? []).length < PAGE) break;
-    offset += PAGE;
-  }
-  return all;
-}
 
 async function fetchSpell(id: string): Promise<Spell> {
   const { data, error } = await supabase.from("spells").select("*").eq("id", id).single();
@@ -97,89 +43,6 @@ async function deleteSpell(spell: Spell): Promise<void> {
   const { error } = await supabase.from("spells").delete().eq("id", spell.id);
   if (error) throw error;
   await removeStorageImages("asset-images", spell.image_url);
-}
-
-const SOURCES_KEY = "spell-sources";
-
-export function useSpellSources() {
-  return useQuery({ queryKey: [SOURCES_KEY], queryFn: fetchDistinctSources, staleTime: Infinity });
-}
-
-const OPEN5E_DOCS_KEY = "open5e-documents";
-
-export function useOpen5eDocuments(enabled: Ref<boolean>) {
-  return useQuery({
-    queryKey: [OPEN5E_DOCS_KEY],
-    queryFn: async () => {
-      const { fetchOpen5eDocuments } = await import("@/lib/library/open5eSpellImport");
-      return fetchOpen5eDocuments();
-    },
-    staleTime: Infinity,
-    enabled,
-  });
-}
-
-export function useSpells() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchSpells, staleTime: Infinity });
-}
-
-async function fetchLibrarySpells(enabledSlugs: string[], ruleset: RulesetKey): Promise<Spell[]> {
-  if (enabledSlugs.length === 0) return [];
-  const rows = await fetchAllRows((from, to) =>
-    supabase
-      .from("library_spells")
-      .select("*")
-      .in("source", enabledSlugs)
-      .eq("ruleset", ruleset)
-      .order("level", { ascending: true })
-      .order("name", { ascending: true })
-      .order("id", { ascending: true })
-      .range(from, to),
-  );
-  return rows.map((row) => ({ ...row, user_id: "" })) as Spell[];
-}
-
-/** Returns SRD spells filtered by the campaign's enabled sources + the user's
- *  custom spells, sorted by level then name.
- *
- *  Dedupe rule: if a user-created spell has the same name as an SRD row,
- *  the user row wins — preserving any edits or custom art. */
-export function useAllSpells() {
-  const customQuery  = useSpells();
-  const campaign     = useCampaignStore();
-  const { ruleset }  = useRuleset();
-  const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
-
-  const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
-    queryFn: ({ queryKey: [, slugs, activeRuleset] }) => {
-      if (slugs === null) throw new Error("useAllSpells fetched without enabled sources");
-      return fetchLibrarySpells(slugs, activeRuleset);
-    },
-    enabled: () => enabledSlugs.value !== null,
-    staleTime: Infinity,
-  });
-
-  const data = computed<Spell[]>(() => {
-    // Open5e imports in the spells table are legacy — those now come from library_spells.
-    // Only surface truly custom-created spells from the user's table. Campaign-only
-    // spells (campaign_id set) are hidden outside their owning campaign.
-    const activeCampaignId = campaign.activeCampaignId;
-    const custom = (customQuery.data.value ?? []).filter(
-      (s) => !s.open5e_import
-        && (!s.ruleset || s.ruleset === ruleset.value)
-        && (!s.campaign_id || s.campaign_id === activeCampaignId),
-    );
-    const srd    = libraryQuery.data.value ?? [];
-    return [...srd, ...custom]
-      .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
-  });
-
-  const isLoading = computed(
-    () => customQuery.isLoading.value || sourcesLoading.value || libraryQuery.isLoading.value,
-  );
-
-  return { data, isLoading };
 }
 
 export function useSpell(id: string | Ref<string>) {

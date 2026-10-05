@@ -202,7 +202,7 @@ const { ruleset } = useTableRuleset();
 // ── Wild Shape ─────────────────────────────────────────────────────────────────
 // The tab itself lives in PlayerWildShapeTab; the sheet keeps what the other tabs
 // and the header need: the active form, its monster, and who is a druid.
-// Resolved by id through `usePlayerMonstersByIds`, not `useAllMonsters`: a player
+// Resolved by id through `usePlayerMonstersByIds`, not the DM's bestiary: a player
 // cannot read the `monsters` table at all (see PlayerWildShapeTab). Only the
 // active form is asked for.
 

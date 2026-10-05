@@ -2,23 +2,14 @@ import { reportHandledError } from "@/lib/observability/sentry";
 import { computed, isRef } from "vue";
 import type { Ref, ComputedRef } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { fetchAllRows } from "@/lib/fetchAllRows";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
-import { useLibraryArtDefaults, type ArtDefaultsMap } from "@/composables/library/useLibraryArtDefaults";
-import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
-import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 import { isUuid } from "@/lib/library/contentIdentity";
-import { mergeLibraryWithCustom } from "@/lib/library/libraryShadow";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
-import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "items";
-const LIBRARY_QUERY_KEY = "library-items";
 const UNIQUE_VIOLATION = "23505";
 
 async function fetchItems(): Promise<Item[]> {
@@ -100,120 +91,6 @@ export function normalizeLibraryItem(row: Record<string, unknown>): Item {
   } as unknown as Item;
 }
 
-async function fetchLibraryItems(enabledSlugs: string[], ruleset: RulesetKey): Promise<Item[]> {
-  // Edition-neutral grimoire-bundled gear is always visible; enabled campaign
-  // sources add to it. Array-form `.in()` (not a string-interpolated
-  // `.or(...in.(...))`) keeps slug values from ever being parsed as PostgREST
-  // filter syntax, and a single-element list handles the no-enabled-sources case.
-  const rows = await fetchAllRows((from, to) =>
-    supabase
-      .from("library_items")
-      .select("*")
-      .in("source_document_key", ["grimoire-bundled", ...enabledSlugs])
-      .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
-      .order("name", { ascending: true })
-      .order("id", { ascending: true })
-      .range(from, to),
-  );
-  return rows.map(normalizeLibraryItem);
-}
-
-
-/**
- * The two lists every item hook returns, built from the same rows.
- *
- * `browse` is what may be **added**: custom rows of the table's edition in the
- * active campaign scope, plus the library rows the enabled books offer.
- * `resolvable` is what an item already **held** may be looked up in (#961):
- * `browse` plus every custom row those filters dropped. A character who picked
- * up a vault item before the campaign switched edition still holds it, and its
- * weight, charges and description must not vanish with the switch. Library rows
- * the narrowed fetch lacks are not here (they were never fetched); pass
- * `resolvable` to {@link useStoredItemRefs}, which fetches those by id.
- */
-export function buildCatalogue(
-  custom: Item[],
-  library: Item[],
-  defaults: ArtDefaultsMap | undefined,
-  ruleset: RulesetKey,
-  activeCampaignId: string | null,
-  includeAllScopes: boolean | undefined,
-): { browse: Item[]; resolvable: Item[] } {
-  // library_items rows are already server-filtered by ruleset — this edition
-  // filter is only load-bearing for the custom side.
-  const editionFiltered = custom.filter((item) => !item.ruleset || item.ruleset === ruleset);
-  const scopeFiltered = includeAllScopes
-    ? editionFiltered
-    : editionFiltered.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId);
-  const withArt = (item: Item): Item => {
-    if (!defaults || item.image_url || !item.source) return item;
-    const d = defaults[`item:${item.name.toLowerCase()}`];
-    if (!d?.image_url) return item;
-    return { ...item, image_url: d.image_url, image_focal_point: d.image_focal_point };
-  };
-  const browse = mergeLibraryWithCustom(library, scopeFiltered).map(withArt);
-  const offered = new Set(browse.map((i) => i.id));
-  const dropped = custom.filter((i) => !offered.has(i.id)).map(withArt);
-  return { browse, resolvable: dropped.length ? [...browse, ...dropped] : browse };
-}
-
-export interface UseItemsOptions {
-  /** When true, return all items regardless of campaign scope. Default false: filtered to general + active campaign. */
-  includeAllScopes?: boolean;
-  /** Set false to hold the fetch back — for callers mounted permanently (e.g. the
-   *  chat widget) that only need the catalogue once their panel is actually open.
-   *  The full item catalogue plus the SRD item table is multiple MB; pulling it on
-   *  every page load for a closed panel is pure egress. Defaults to true. */
-  enabled?: boolean;
-}
-
-export function useItems(getOptions?: () => UseItemsOptions) {
-  const isEnabled = () => getOptions?.().enabled !== false;
-  const itemsQuery = useQuery({
-    queryKey: [QUERY_KEY],
-    queryFn: fetchItems,
-    staleTime: Infinity,
-    enabled: isEnabled,
-  });
-  const artDefaults = useLibraryArtDefaults(isEnabled);
-  const { activeCampaignId } = storeToRefs(useCampaignStore());
-  const { ruleset } = useTableRuleset();
-  const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
-
-  const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
-    queryFn: ({ queryKey: [, slugs, rs] }) => {
-      if (slugs === null) throw new Error("useItems library fetch ran without enabled sources");
-      return fetchLibraryItems(slugs, rs);
-    },
-    enabled: () => isEnabled() && enabledSlugs.value !== null,
-    staleTime: Infinity,
-  });
-
-  const catalogue = computed(() => {
-    const items = itemsQuery.data.value;
-    if (!items) return undefined;
-    return buildCatalogue(
-      items,
-      libraryQuery.data.value ?? [],
-      artDefaults.data.value,
-      ruleset.value,
-      activeCampaignId.value,
-      getOptions?.().includeAllScopes,
-    );
-  });
-  /** What a picker may offer. Never resolve a held item in this; see `resolvable`. */
-  const data = computed(() => catalogue.value?.browse);
-  /** What a held item resolves in (#961). See {@link buildCatalogue}. */
-  const resolvable = computed(() => catalogue.value?.resolvable);
-
-  const isLoading = computed(
-    () => itemsQuery.isLoading.value || sourcesLoading.value || libraryQuery.isLoading.value,
-  );
-
-  return { ...itemsQuery, data, resolvable, isLoading };
-}
-
 /** The player-visible custom items (their vault + shared store items) via the
  *  get_player_visible_items SECURITY DEFINER projection (migration
  *  20260711000014), with `dm_notes` nulled. Players have no direct base-table
@@ -230,8 +107,7 @@ export function usePlayerItemProjection(getOptions?: () => { enabled?: boolean }
 
   // Real player → gated projection. DM preview → the DM's own rows (the DM
   // isn't a campaign_member, so the projection returns nothing; the DM owns the
-  // rows and needs them to resolve inventory item details). Shares the base
-  // `[QUERY_KEY]` cache with useItems. Never the library: a held library id is
+  // rows and needs them to resolve inventory item details). Never the library: a held library id is
   // read by id through `useStoredItemRefs`, and a picker reads `useItemIndex` (#972).
   const projectionQuery = useQuery({
     queryKey: [QUERY_KEY, "player-visible"],

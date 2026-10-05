@@ -270,3 +270,5 @@ Three properties the helper encodes, all load-bearing:
 - **A cleared campaign wins over cached source rows**, which may still be in hand after leaving one.
 
 `resolveLibrarySlugs` holds the decision without Vue or the store, and `useEnabledSources.test.ts` pins all three.
+
+**Library monsters, items and spells are never loaded as whole lists (#972).** A page that lists them reads one server page at a time (`browse_monsters`, `browse_items`, `browse_spells` through `useMonsterBrowse`, `useItemBrowse`, `useSpellBrowse`). A picker or name lookup reads the slim index (`useMonsterIndex`, `useItemIndex`, `useSpellIndex`: id, name and facets only, disk-cached under `library-*-index`). Anything holding a stored id reads those rows by id (`useMonstersByIds`, `useItemsByIds`, `useSpellsByIds`, `useStoredItemRefs`), and a player reads the projection plus by-id reads. `["library-monsters", id]` and `["library-spells", id]` hold single full rows only. An art or source change invalidates the index, browse, by-id and resolved keys together.

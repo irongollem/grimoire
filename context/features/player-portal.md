@@ -340,7 +340,7 @@ Hosts `LevelUpWizard` (from `src/levelup/`) which guides the player through gain
 
 ### Where the spell pickers get their spells
 
-`useLevelUpSpellCandidates` (`src/levelup/`) reads `useAllSpells()` — the same merged source as the Spellbook: the campaign's enabled library sources plus the player's own custom spells. It must never query the `spells` table directly. That table holds only user-authored spells, and the wizard did exactly that until #736: both pickers rendered "No spells found for this class" while `canConfirm` still demanded N picks, so **Confirm could never enable** and the character could not be levelled at all.
+`useLevelUpSpellCandidates` (`src/levelup/`) reads `useSpellIndex()` — the same merged source as the Spellbook: the campaign's enabled library sources plus the player's own custom spells. It must never query the `spells` table directly. That table holds only user-authored spells, and the wizard did exactly that until #736: both pickers rendered "No spells found for this class" while `canConfirm` still demanded N picks, so **Confirm could never enable** and the character could not be levelled at all.
 
 **Why it survived to production, which is the reusable lesson here.** On 17 Aug 2026 the `spells` table held 12 rows in the entire production database, and **all 12 belonged to the admin account** — covering Wizard, Warlock, Sorcerer, Druid, Paladin, Ranger, Artificer and Arcane Trickster, cantrips included. RLS scopes the table per user, so the one account anybody would naturally test level-up on was the only account where that picker was ever populated. The flow worked perfectly in testing and was broken for every real user. When testing anything that reads a user-scoped table, the admin account is the least representative fixture available: it has years of hand-made content no new user has.
 
@@ -350,7 +350,7 @@ That failure mode is the thing to protect. `apply_level_up` (migration `20260720
 - **`available` vs. the rendered list.** `pickSpellCandidates` reports how many spells existed *before* the search box narrowed them, so "no match for your search" is never confused with "no library at all".
 - **`LevelUpSpellsUnavailable`.** When a required picker has zero candidates, the wizard explains that a spell source must be enabled (Reliquary → Sources) instead of leaving a permanently disabled Confirm button.
 
-Related: a player in standalone mode (no campaign — #730) has no `campaign_enabled_sources` rows, so `useAllSpells` falls back to the `srd-2014` baseline. That fallback now lives in the shared `useLibrarySourceSlugs()` — see index.md § "Reading shared library content" (#737). Without it the level-up hits the same dead end from the other direction.
+Related: a player in standalone mode (no campaign — #730) has no `campaign_enabled_sources` rows, so `useSpellIndex` falls back to the `srd-2014` baseline. That fallback now lives in the shared `useLibrarySourceSlugs()` — see index.md § "Reading shared library content" (#737). Without it the level-up hits the same dead end from the other direction.
 
 Also includes a `DeLevelPanel` that lets players undo a level if character classes exist, for correction purposes.
 

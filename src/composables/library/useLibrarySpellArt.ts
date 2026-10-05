@@ -41,19 +41,6 @@ export function mergeLibrarySpellArtLayers(
   return map;
 }
 
-async function fetchLibrarySpellArt(): Promise<LibrarySpellArtMap> {
-  // library_spell_art_canonical: unowned, readable by any signed-in user.
-  // library_spell_art: this user's own private overrides only (RLS).
-  const [canonicalRes, ownRes] = await Promise.all([
-    supabase.from("library_spell_art_canonical").select("entry_id, image_url, portrait_focal_point"),
-    supabase.from("library_spell_art").select("entry_id, image_url, portrait_focal_point"),
-  ]);
-  if (canonicalRes.error) throw canonicalRes.error;
-  if (ownRes.error) throw ownRes.error;
-
-  return mergeLibrarySpellArtLayers(canonicalRes.data, ownRes.data);
-}
-
 /** One spell's merged art, for a detail page that reads a single row (#972). */
 async function fetchLibrarySpellArtEntry(entryId: string): Promise<LibrarySpellArtEntry | null> {
   const user = getCurrentUser();
@@ -84,15 +71,6 @@ async function upsertOwnLibrarySpellArt(entry: SpellArtEdit): Promise<void> {
   if (error) throw error;
 }
 
-export function useLibrarySpellArt(enabled: MaybeRefOrGetter<boolean> = true) {
-  return useQuery({
-    queryKey: [QUERY_KEY],
-    queryFn: fetchLibrarySpellArt,
-    staleTime: 1000 * 60 * 30,
-    enabled: () => toValue(enabled),
-  });
-}
-
 /** One spell's merged art. Keyed under `["library-spell-art"]`, so the prefix
  *  invalidation after an art write reaches it. */
 export function useLibrarySpellArtEntry(entryId: MaybeRefOrGetter<string>, enabled: MaybeRefOrGetter<boolean> = true) {
@@ -113,10 +91,14 @@ export function useUpsertLibrarySpellArt() {
       else await upsertOwnLibrarySpellArt(entry);
     },
     onSuccess: async () => {
-      // An admin write also changes library_spells rows, which the lists cache.
+      // An admin write also changes library_spells rows, which the index and
+      // the server browse carry art on.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+        queryClient.invalidateQueries({ queryKey: ["library-spell-index"] }),
         queryClient.invalidateQueries({ queryKey: ["library-spells"] }),
+        queryClient.invalidateQueries({ queryKey: ["spells", "browse"] }),
+        queryClient.invalidateQueries({ queryKey: ["spells", "by-ids"] }),
       ]);
     },
   });

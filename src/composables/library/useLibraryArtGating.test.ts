@@ -3,7 +3,7 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
-// #972: the art maps are full-table reads, so a hook mounted behind a closed
+// #972: the art defaults are a full-table read, so a hook mounted behind a closed
 // panel must send nothing, and a detail page must read its own row only.
 
 interface Read {
@@ -39,8 +39,8 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import { useLibraryArtDefaults } from "./useLibraryArtDefaults";
-import { useLibraryMonsterArt, useLibraryMonsterArtEntry } from "./useLibraryMonsterArt";
-import { useLibrarySpellArt, useLibrarySpellArtEntry } from "./useLibrarySpellArt";
+import { useLibraryMonsterArtEntry } from "./useLibraryMonsterArt";
+import { useLibrarySpellArtEntry } from "./useLibrarySpellArt";
 
 function run<T>(setup: () => T): T {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -62,31 +62,17 @@ beforeEach(() => {
   mocks.rows = {};
 });
 
-describe("art maps held back while disabled", () => {
-  it("sends no request for any of the three maps when enabled is false", async () => {
-    run(() => {
-      useLibraryArtDefaults(false);
-      useLibraryMonsterArt(() => false);
-      useLibrarySpellArt(ref(false));
-    });
+describe("art defaults held back while disabled", () => {
+  it("sends no request when enabled is false", async () => {
+    run(() => useLibraryArtDefaults(false));
     await flushPromises();
     expect(mocks.reads).toEqual([]);
   });
 
-  it("fetches each map when enabled (the default)", async () => {
-    run(() => {
-      useLibraryArtDefaults();
-      useLibraryMonsterArt();
-      useLibrarySpellArt();
-    });
+  it("fetches when enabled (the default)", async () => {
+    run(() => useLibraryArtDefaults());
     await flushPromises();
-    expect(mocks.reads.map((r) => r.table).sort()).toEqual([
-      "library_art_defaults",
-      "library_monster_art",
-      "library_monster_art_canonical",
-      "library_spell_art",
-      "library_spell_art_canonical",
-    ]);
+    expect(mocks.reads.map((r) => r.table)).toEqual(["library_art_defaults"]);
   });
 
   it("starts fetching once the gate opens", async () => {

@@ -114,7 +114,7 @@ export function planAdvance(input: PlanAdvanceInput): PlanAdvanceResult {
  * caller's `expectedVersion` no longer matches the row — another device
  * moved this thread first. Supabase-js surfaces the raised SQLSTATE on
  * `.code`, the same shape every other code-keyed check in this codebase
- * reads (`useCampaignMembers.ts:181`, `useItems.ts:396`).
+ * reads (`useCampaignMembers.ts:181`, `useItems.ts`).
  */
 export function isVersionConflictError(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "40001";

@@ -189,7 +189,7 @@ export function useNpc(id: string | Ref<string>) {
  *
  * Returns `Promise<void>`, resolving once the invocation has settled and any
  * error already reported — mirrors `queueItemEmbedding`/
- * `queueMonsterEmbedding` (useItems.ts:324, useMonsters.ts:358) for the same
+ * `queueMonsterEmbedding` (useItems.ts, useMonsters.ts) for the same
  * reason theirs does: a bulk caller (useCopyToCampaign's
  * `queueEmbeddingsInGroups`, #885) needs to bound how many are in flight,
  * which only works if it can await one settling. Single-row callers below

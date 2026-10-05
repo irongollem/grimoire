@@ -3,40 +3,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
-import { useLibraryMonsterArt, useLibraryMonsterArtEntry, withLibraryArt, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
-import { allowedCampaignScoped } from "@/lib/campaignContentGating";
+import { useLibraryMonsterArtEntry, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
 import { useToast } from "@/composables/useToast";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { isUuid } from "@/lib/library/contentIdentity";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
-import type { RulesetKey } from "@/types/ruleset.types";
 import { libraryMonsterRow } from "@/lib/library/libraryMonsterRow";
 
 
 const QUERY_KEY = "monsters";
-const SOURCES_KEY = "monster-sources";
-const OPEN5E_DOCS_KEY = "open5e-monster-documents";
-
-async function fetchMonsters(): Promise<Monster[]> {
-  const all: Monster[] = [];
-  const PAGE = 1000;
-  let offset = 0;
-  while (true) {
-    const { data, error } = await supabase
-      .from("monsters")
-      .select("*")
-      .order("name", { ascending: true })
-      .range(offset, offset + PAGE - 1);
-    if (error) throw error;
-    all.push(...(data as Monster[]));
-    if ((data ?? []).length < PAGE) break;
-    offset += PAGE;
-  }
-  return all;
-}
 
 async function fetchMonster(id: string): Promise<Monster> {
   const { data, error } = await supabase.from("monsters").select("*").eq("id", id).single();
@@ -80,10 +56,10 @@ const LIBRARY_QUERY_KEY = "library-monsters";
 /**
  * Every `library_monsters` column a library row is read with, which is every
  * column except `description`. The lore runs to several hundred words a
- * creature, and a bestiary list (disk-cached, #972) has no use for 3,541 of
- * them; it is read one creature at a time by `useLibraryMonsterDescription`.
- * One list for every library read, so a row seeded from the list cache and a
- * row fetched by id have the same shape (`useResolvedMonster` relies on that).
+ * creature, and no list or picker has use for 3,541 of them; it is read one
+ * creature at a time by `useLibraryMonsterDescription`. One column list for
+ * every library read, so a row fetched by id and a row from a server browse
+ * have the same shape.
  * A column added to the table is invisible to the app until it is added here.
  */
 export const LIBRARY_MONSTER_COLUMNS = [
@@ -102,8 +78,8 @@ async function fetchLibraryMonsterDescription(id: string): Promise<string | null
 }
 
 /** A library monster's lore (Tiptap JSON), or null when it has none. Its own
- *  key prefix on purpose: `useResolvedMonster` treats everything under
- *  `library-monsters` as a whole `Monster` row. */
+ *  key prefix on purpose: everything under `library-monsters` is a whole
+ *  `Monster` row. */
 export function useLibraryMonsterDescription(id: () => string | null) {
   return useQuery({
     queryKey: computed(() => [LIBRARY_DESCRIPTION_QUERY_KEY, id()] as const),
@@ -114,98 +90,6 @@ export function useLibraryMonsterDescription(id: () => string | null) {
     enabled: () => id() !== null,
     staleTime: Infinity,
   });
-}
-
-async function fetchLibraryMonsters(enabledSlugs: string[], ruleset: RulesetKey): Promise<Monster[]> {
-  if (enabledSlugs.length === 0) return [];
-  const { data, error } = await supabase
-    .from("library_monsters")
-    .select(LIBRARY_MONSTER_COLUMNS)
-    .in("source", enabledSlugs)
-    .eq("ruleset", ruleset)
-    .order("name", { ascending: true });
-  if (error) throw error;
-  // Shared rows belong to no user and no campaign — which campaigns may see
-  // them is decided by enabled sources, not by this column.
-  return (data ?? []).map(libraryMonsterRow);
-}
-
-export interface UseMonstersOptions {
-  /** When true, return every custom monster regardless of campaign scope.
-   *  Required by any caller that resolves an ALREADY-STORED monster id —
-   *  an encounter's combatants, a quest ref, a wildshape form. Those
-   *  references outlive the scoping decision, and a scoped-away monster must
-   *  still resolve or the combatant silently disappears mid-fight (#597).
-   *  Default false: scoped to general + active campaign, for browsing and
-   *  picking. */
-  includeAllScopes?: boolean;
-  /** Set false to hold every fetch behind {@link useAllMonsters} back (both
-   *  monster lists and the art map) — for a caller mounted permanently behind
-   *  a closed panel. Defaults to true. */
-  enabled?: boolean;
-}
-
-/** The unfiltered cache every list below derives from. Private: a caller that
- *  wants all scopes says so with `includeAllScopes`, which reads as a decision
- *  at the call site where the reviewer needs it. */
-function useMonstersQuery(enabled: () => boolean = () => true) {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchMonsters, staleTime: Infinity, enabled });
-}
-
-/** The DM's own custom monsters only — no library rows. See
- *  {@link useAllMonsters} for the merged bestiary. */
-export function useMonsters(getOptions?: () => UseMonstersOptions) {
-  const query = useMonstersQuery();
-  const { activeCampaignId } = storeToRefs(useCampaignStore());
-  const data = computed(() => {
-    const monsters = query.data.value;
-    if (!monsters || getOptions?.().includeAllScopes) return monsters;
-    return allowedCampaignScoped(monsters, activeCampaignId.value);
-  });
-  return { ...query, data };
-}
-
-/** Returns SRD monsters filtered by the campaign's enabled sources + the user's
- *  custom monsters, sorted by name.
- *
- *  Dedupe rule: if a user-owned monster has the same name as an SRD row,
- *  the user row wins — preserving any edits or custom art. */
-export function useAllMonsters(getOptions?: () => UseMonstersOptions) {
-  const isEnabled = () => getOptions?.().enabled !== false;
-  const customQuery  = useMonstersQuery(isEnabled);
-  const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
-  const { ruleset } = useTableRuleset();
-  const { activeCampaignId } = storeToRefs(useCampaignStore());
-  const { data: artMap } = useLibraryMonsterArt(isEnabled);
-
-  const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value] as const),
-    queryFn: ({ queryKey: [, slugs, rs] }) => {
-      if (slugs === null) throw new Error("useAllMonsters fetched without enabled sources");
-      return fetchLibraryMonsters(slugs, rs);
-    },
-    enabled: () => isEnabled() && enabledSlugs.value !== null,
-    staleTime: Infinity,
-  });
-
-  const data = computed<Monster[]>(() => {
-    // Open5e imports in the monsters table are legacy — those now come from library_monsters.
-    // Only surface truly custom-created monsters from the user's table.
-    const custom  = (customQuery.data.value ?? []).filter((m) =>
-      !m.open5e_import && (!m.ruleset || m.ruleset === ruleset.value),
-    );
-    const scoped  = getOptions?.().includeAllScopes
-      ? custom
-      : allowedCampaignScoped(custom, activeCampaignId.value);
-    const srd     = withLibraryArtAll(libraryQuery.data.value ?? [], artMap.value);
-    return [...srd, ...scoped]
-      .sort((a, b) => a.name.localeCompare(b.name));
-  });
-
-  const isLoading = computed(
-    () => customQuery.isLoading.value || sourcesLoading.value || libraryQuery.isLoading.value,
-  );
-  return { data, isLoading };
 }
 
 /** Custom monsters this player may see in a campaign, via the SECURITY DEFINER
@@ -271,42 +155,10 @@ export async function fetchResolvedMonster(monsterId: string): Promise<ResolvedM
 
 /** Resolve an opaque monster ID against explicit shared/custom stores. */
 export function useResolvedMonster(id: Ref<string>) {
-  const queryClient = useQueryClient();
-
-  /**
-   * This monster's row inside a bestiary list that has already been fetched.
-   *
-   * Searched in the same order the fetch resolves it — library first, then the
-   * DM's own — and normalised the same way, so a seeded value is
-   * indistinguishable from a fetched one. The two caches are read separately
-   * because `useAllMonsters` merges them in a computed rather than storing the
-   * merged list, and the library key carries the enabled slugs and ruleset, so
-   * it has to be matched by prefix.
-   */
-  const fromCache = () => {
-    const library = queryClient
-      .getQueriesData<Monster[]>({ queryKey: [LIBRARY_QUERY_KEY] })
-      .flatMap(([, rows]) => rows ?? [])
-      .find((m) => m.id === id.value);
-    if (library) {
-      return { monster: libraryMonsterRow(library), isShared: true };
-    }
-    const custom = queryClient
-      .getQueryData<Monster[]>([QUERY_KEY])
-      ?.find((m) => m.id === id.value);
-    return custom ? { monster: custom, isShared: false } : undefined;
-  };
-
   return useQuery({
     queryKey: computed(() => [RESOLVED_MONSTER_QUERY_KEY, id.value] as const),
     queryFn: ({ queryKey: [, monsterId] }) => fetchResolvedMonster(monsterId),
     enabled: () => !!id.value,
-    // Every caller reaches a monster *from* a list that already holds the whole
-    // row. Starting empty spends the first moment showing a spinner over data
-    // that is on screen behind it — barely noticeable on a page that has
-    // navigated away, glaring in a modal that opens on top of the very card it
-    // is enlarging.
-    initialData: fromCache,
   });
 }
 
@@ -468,42 +320,3 @@ export function useCloneLibraryMonster() {
     },
   });
 }
-
-// ── Open5e runtime import ────────────────────────────────────────────────────
-
-/** Distinct source slugs across the user's imported monsters — feeds the Source filter dropdown. */
-export function useMonsterSources() {
-  return useQuery({
-    queryKey: [SOURCES_KEY],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("monsters")
-        .select("source, source_title")
-        .eq("open5e_import", true);
-      if (error) throw error;
-      const seen = new Map<string, { slug: string; title: string }>();
-      for (const row of (data ?? []) as Array<{ source: string | null; source_title: string | null }>) {
-        if (row.source && !seen.has(row.source)) {
-          seen.set(row.source, { slug: row.source, title: row.source_title ?? row.source });
-        }
-      }
-      return Array.from(seen.values()).sort((a, b) => a.title.localeCompare(b.title));
-    },
-    staleTime: Infinity,
-  });
-}
-
-/** Open5e documents (SRD, Tome of Beasts, Creature Codex, …). Shared endpoint
- *  with spells but keyed separately so each section's enabled state is local. */
-export function useOpen5eMonsterDocuments(enabled: Ref<boolean>) {
-  return useQuery({
-    queryKey: [OPEN5E_DOCS_KEY],
-    queryFn: async () => {
-      const { fetchOpen5eDocuments } = await import("@/lib/library/open5eMonsterImport");
-      return fetchOpen5eDocuments();
-    },
-    staleTime: Infinity,
-    enabled,
-  });
-}
-

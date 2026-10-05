@@ -263,7 +263,7 @@ const STALE_AFTER_APPROVAL = [
   CONTENT_REVIEWS_KEY, "party", "my-characters", "character-pool", "campaign-members", "my-memberships",
   "character_classes", "character_spells", "enabled-sources", "campaigns",
   "species", "backgrounds", "custom_classes", "custom_subclasses", "spells", "class_features",
-  "library-species", "library-spells",
+  "library-species", "library-spell-index",
 ] as const;
 
 /**

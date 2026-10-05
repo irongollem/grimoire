@@ -110,7 +110,7 @@
  *
  * No props: nothing here is per-instance configuration in the
  * `configurable: true` sense — there is no saved reference to resolve, only
- * a live filter over whatever `useAllMonsters` returns right now.
+ * a live filter over whatever the monster index holds right now.
  */
 import { computed, ref, watch } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";

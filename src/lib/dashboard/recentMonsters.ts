@@ -9,7 +9,7 @@
  * shared row in `library_monsters` (a stable slug id, e.g. `"srd_aboleth"`;
  * see `useDiscoveredMonsters.ts` and `useCloneLibraryMonster`). Both land in
  * the same `/monsters/:id` route and the same `monsters` prop here, because
- * `useAllMonsters()` already merges custom and library rows into one bestiary
+ * `useMonsterIndex()` already merges custom and library rows into one list
  * keyed by `id` — this module does not need to know which table a row came
  * from, only that it has one.
  */

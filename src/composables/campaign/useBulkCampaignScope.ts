@@ -78,8 +78,8 @@ export type BulkScopeTable =
 
 /**
  * Each table's list-query key. Eight of the ten owning composables keep their
- * key module-private (`const QUERY_KEY = "<table>"` — `useItems.ts:24`,
- * `useMonsters.ts:19`, `useSpecies.ts:14`, `useSpells.ts:17`, `useTraps.ts:12`,
+ * key module-private (`const QUERY_KEY = "<table>"` — `useItems.ts`,
+ * `useMonsters.ts`, `useSpecies.ts:14`, `useSpells.ts`, `useTraps.ts:12`,
  * `usePuzzles.ts:13`, `useLootTables.ts:7`, `useRollTables.ts:8`); `useNpcs.ts:13`
  * follows the same `const QUERY_KEY = "npcs"` shape, while `useFactions.ts`
  * inlines the literal `"factions"` at every call site instead of naming a

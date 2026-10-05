@@ -142,10 +142,19 @@ const STAMP_TABLE = {
 } as const;
 
 /** Every query a focal point change can make stale, per kind. */
-const INVALIDATE: Record<FocalKind, string[]> = {
-  monster: ["library-monster-art", "library-monsters"],
-  spell: ["library-spell-art", "library-spells"],
-  item: ["library-art-defaults", "library-items"],
+const INVALIDATE: Record<FocalKind, readonly (readonly string[])[]> = {
+  monster: [
+    ["library-monster-art"], ["library-monster-index"], ["library-monsters"],
+    ["monsters", "browse"], ["monsters", "by-ids"], ["resolved-monster"],
+  ],
+  spell: [
+    ["library-spell-art"], ["library-spell-index"], ["library-spells"],
+    ["spells", "browse"], ["spells", "by-ids"],
+  ],
+  item: [
+    ["library-art-defaults"], ["library-item-index"], ["items", "browse"], ["items", "by-ids"],
+    ["resolved-library-items"], ["resolved-item"],
+  ],
 };
 
 /** Marks every art row of the picture as seen by a person. */
@@ -207,7 +216,7 @@ export function useLibraryFocalQueue(kind: MaybeRefOrGetter<FocalKind>) {
    * The queue is patched in the cache rather than refetched: a refetch re-reads
    * both library tables (thousands of rows) after every key press, which would
    * make "accept and move on" the slowest thing in the panel. The library art
-   * and list queries do refetch, lazily, because other screens read them.
+   * and catalogue queries do refetch, lazily, because other screens read them.
    */
   function applySaved(entry: FocalQueueEntry, point: FocalPointValue | null) {
     queryClient.setQueryData<FocalQueueEntry[]>([FOCAL_QUEUE_QUERY_KEY, entry.kind], (current) => {
@@ -221,7 +230,7 @@ export function useLibraryFocalQueue(kind: MaybeRefOrGetter<FocalKind>) {
         ),
       );
     });
-    for (const key of INVALIDATE[entry.kind]) void queryClient.invalidateQueries({ queryKey: [key] });
+    for (const queryKey of INVALIDATE[entry.kind]) void queryClient.invalidateQueries({ queryKey: [...queryKey] });
   }
 
   const setFocalPoint = useMutation({

@@ -25,7 +25,7 @@
  *     the same list share one fetch, not one each — plus a plain per-id
  *     query for a monster name (`["mention-monster-name", id]`), checking
  *     both the user's `monsters` table and the shared `library_monsters`
- *     table. Never `useAllMonsters`, which would pull the whole library.
+ *     table. Never the whole library.
  */
 import { computed, type ComputedRef } from "vue";
 import { useQuery } from "@tanstack/vue-query";

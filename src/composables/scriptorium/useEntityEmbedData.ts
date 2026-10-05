@@ -157,7 +157,7 @@ export function useEntityEmbedData(
   const questIdsFn = idsOfType("quest");
   const npcIdsFromRefs = idsOfType("npc");
 
-  // The Bestiary's own fetch and key (useMonsters.ts), so the cache entry has
+  // The Bestiary's own fetch and key (`fetchResolvedMonster` in useMonsters.ts), so the cache entry has
   // one shape whichever side fills it first.
   const monsters = useRowsById(monsterIds, RESOLVED_MONSTER_QUERY_KEY, fetchResolvedMonster);
   // The art of just the embedded library monsters, under the same
