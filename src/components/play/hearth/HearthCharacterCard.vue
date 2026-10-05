@@ -28,20 +28,20 @@
         <div>
           <div class="flex items-baseline justify-between gap-2">
             <span class="text-eyebrow text-muted-foreground">Hit points</span>
-            <span class="text-heading-sm font-bold tabular-nums" :class="hpColor">
-              {{ currentHp }}
-              <span class="text-caption font-normal text-muted-foreground">/ {{ maxHp }}</span>
+            <span class="text-heading-sm font-bold tabular-nums" :class="hp.textClass">
+              {{ hp.current }}
+              <span class="text-caption font-normal text-muted-foreground">/ {{ hp.max }}</span>
             </span>
           </div>
           <div
             class="mt-1 h-1.5 overflow-hidden rounded-full bg-muted"
             role="meter"
             aria-label="Hit points"
-            :aria-valuenow="currentHp"
+            :aria-valuenow="hp.current"
             aria-valuemin="0"
-            :aria-valuemax="maxHp"
+            :aria-valuemax="hp.max"
           >
-            <div class="h-full rounded-full" :class="hpBarColor" :style="{ width: `${hpWidth}%` }" />
+            <div class="h-full rounded-full" :class="hp.barClass" :style="{ width: `${hp.pct}%` }" />
           </div>
         </div>
 
@@ -91,17 +91,12 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { IconChevronRight } from "@/lib/icons";
-import { useHpDisplay } from "@/composables/play/useHpDisplay";
-import { useArmorClass } from "@/composables/party/useArmorClass";
+import { useMemberVitals } from "@/composables/party/useMemberVitals";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
-import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { characterSummary } from "@/lib/partyMemberDisplay";
-import { walkingSpeed } from "@/lib/movement";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { getExhaustionLevel } from "@/rules/conditions";
-import { memberInitiativeModifier } from "@/rules/initiative";
-import { passiveScore } from "@/rules/skillCheck";
 import type { PartyMember } from "@/types/party.types";
 
 /**
@@ -115,18 +110,10 @@ const { member } = defineProps<{ member: PartyMember }>();
 const memberId = computed(() => member.id);
 const { data: classes } = useCharacterClasses(memberId);
 const { data: species } = useAllSpecies();
-const { acFor } = useArmorClass();
-
-const wildshape = computed(() => member.wildshape_state ?? null);
-const { data: formMonsters } = usePlayerMonstersByIds(() => [wildshape.value?.monster_id]);
-const beast = computed(() => (wildshape.value ? (formMonsters.value.get(wildshape.value.monster_id) ?? null) : null));
-
-const currentHp = computed(() => wildshape.value?.beast_hp ?? member.current_hp);
-const maxHp = computed(() => wildshape.value?.beast_max_hp ?? member.max_hp);
-const { hpColor, hpBarColor } = useHpDisplay(currentHp, maxHp);
+const { wildshape, beastMonster, armorClass, initiative, speed, passivePerception, hp } = useMemberVitals(() => member);
 
 const displayName = computed(() => wildshape.value?.beast_name ?? member.name);
-const portrait = computed(() => formPortrait(member, wildshape.value, beast.value?.image_url));
+const portrait = computed(() => formPortrait(member, wildshape.value, beastMonster.value?.image_url));
 
 const summary = computed(() =>
   characterSummary({
@@ -135,14 +122,6 @@ const summary = computed(() =>
     classes: classes.value,
     fallbackLevel: member.level,
   }),
-);
-
-const armorClass = computed(() => wildshape.value?.beast_ac ?? acFor(member));
-const speed = computed(() => (wildshape.value ? walkingSpeed(beast.value?.stat_block?.speed) : null) ?? member.speed);
-const initiative = computed(() => memberInitiativeModifier(member));
-const passivePerception = computed(() => passiveScore(member, "perception"));
-const hpWidth = computed(() =>
-  maxHp.value > 0 ? Math.min(100, Math.max(0, (currentHp.value / maxHp.value) * 100)) : 0,
 );
 
 const exhaustion = computed(() => getExhaustionLevel(member.conditions));

@@ -12,4 +12,8 @@ describe("memberInitiativeModifier", () => {
     expect(memberInitiativeModifier({ dex: 9, initiative_bonus: 0 })).toBe(-1);
     expect(memberInitiativeModifier({ dex: 8, initiative_bonus: 1 })).toBe(0);
   });
+  it("uses a supplied DEX in place of the character's, as in a Wild Shape form", () => {
+    expect(memberInitiativeModifier({ dex: 8, initiative_bonus: 0 }, 14)).toBe(2);
+    expect(memberInitiativeModifier({ dex: 18, initiative_bonus: 5 }, 10)).toBe(5);
+  });
 });

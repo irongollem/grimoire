@@ -39,7 +39,34 @@ import { useAllLocations, useSharedLocations } from "@/composables/locations/use
 import { useAllFactions, usePlayerVisibleFactions } from "@/composables/factions/useFactions";
 import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
+import { useCompanions } from "@/composables/encounters/useCompanions";
+import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import type { EntityType } from "@/lib/tiptap/EntityMention";
+
+/**
+ * What a name can be asked for: every mention kind, plus the two things a player
+ * writes a note on that are never mentioned in rich text. Those two are not
+ * `EntityType`s because the @mention picker must not offer them.
+ */
+export type MentionNameType = EntityType | "companion" | "quest";
+
+/**
+ * The name type for an `entity_notes.entity_type` value, or null for one this
+ * resolver does not know (which then reads as an unknown name, "???").
+ */
+export function mentionTypeForNote(entityType: string): MentionNameType | null {
+  switch (entityType) {
+    case "party_member": return "player";
+    case "npc":
+    case "location":
+    case "faction":
+    case "monster":
+    case "companion":
+    case "quest":
+      return entityType;
+    default: return null;
+  }
+}
 
 function nameOf(rows: ReadonlyArray<{ id: string; name: string | null }> | undefined, id: string): string | null {
   return rows?.find((r) => r.id === id)?.name ?? null;
@@ -124,12 +151,24 @@ function usePlayerMonsterName(id: string): ComputedRef<string | null> {
   return computed(() => (discovered.value ? (monsters.value.get(id)?.name ?? null) : null));
 }
 
+function useCompanionName(id: string): ComputedRef<string | null> {
+  const { data } = useCompanions();
+  return computed(() => nameOf(data.value, id));
+}
+
+function useQuestName(id: string): ComputedRef<string | null> {
+  // Only quests this player may see come back, so a hidden quest stays "???".
+  const { data } = usePlayerVisibleQuests();
+  return computed(() => data.value?.find((q) => q.id === id)?.title ?? null);
+}
+
 /**
  * `null` means this viewer does not know this entity's name. `entityType`
  * and `id` are read once, at the point a chip calls this — a mention node's
  * attrs don't change after insertion, so there's nothing to react to there.
+ * A null `entityType` (an unmapped note type) resolves to null without reading anything.
  */
-export function useMentionName(entityType: EntityType, id: string): ComputedRef<string | null> {
+export function useMentionName(entityType: MentionNameType | null, id: string): ComputedRef<string | null> {
   const route = useRoute();
   const isPlayer = isPlayerArea(route.path);
 
@@ -146,6 +185,10 @@ export function useMentionName(entityType: EntityType, id: string): ComputedRef<
       return isPlayer ? usePlayerFactionName(id) : useDmFactionName(id);
     case "monster":
       return isPlayer ? usePlayerMonsterName(id) : useDmMonsterName(id);
+    case "companion":
+      return useCompanionName(id);
+    case "quest":
+      return useQuestName(id);
     default:
       return computed(() => null);
   }

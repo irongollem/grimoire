@@ -1,32 +1,32 @@
-import { computed, type ComputedRef } from "vue";
+import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import type { RouteLocationRaw } from "vue-router";
 import { toPlainText } from "@/ai/utils";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { useParty } from "@/composables/party/useParty";
-import { useCompanions } from "@/composables/encounters/useCompanions";
-import { useSharedNpcs } from "@/composables/npcs/useNpcs";
-import { useSharedLocations } from "@/composables/locations/useLocations";
-import { usePlayerVisibleFactions } from "@/composables/factions/useFactions";
-import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
+import { mentionTypeForNote, type MentionNameType } from "./useMentionName";
 import { isBlankNote } from "./useMyEntityNote";
 import { useMyJournalEntries, type PlayerJournalEntry } from "./usePlayerJournal";
 import type { EntityNote } from "@/types/faction.types";
 
-export interface RecentNote {
+interface RecentNoteBase {
   id: string;
-  source: "entity" | "journal";
-  label: string;
   excerpt: string;
   visibility: "private" | "party" | "dm";
   updatedAt: string;
   to: RouteLocationRaw | null;
 }
 
-/** Resolves an entity's player-safe name, or null when this player does not know it. */
-export type NameOf = (entityType: string, entityId: string) => string | null;
+/**
+ * An entity note names its subject by type and id, not by a resolved name: each
+ * row resolves its own (`useMentionName`), so a list of three notes reads only
+ * the one source each needs rather than every campaign-wide list. `type` is
+ * null for an `entity_type` the resolver does not know.
+ */
+export type RecentNote =
+  | (RecentNoteBase & { source: "entity"; entity: { type: MentionNameType | null; id: string } })
+  | (RecentNoteBase & { source: "journal"; label: string });
 
 const EXCERPT_LENGTH = 120;
 
@@ -48,12 +48,11 @@ function dateLabel(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
-/** "On <name>", with "???" when the viewer does not know the entity: the same fallback the mention chip draws, never a stored or true name. */
-export function entityNoteToRecent(n: EntityNote, nameOf: NameOf): RecentNote {
+export function entityNoteToRecent(n: EntityNote): RecentNote {
   return {
     id: n.id,
     source: "entity",
-    label: `On ${nameOf(n.entity_type, n.entity_id) ?? "???"}`,
+    entity: { type: mentionTypeForNote(n.entity_type), id: n.entity_id },
     excerpt: excerptOf(n.content),
     visibility: visibilityOf(n),
     updatedAt: n.updated_at,
@@ -78,11 +77,10 @@ export function journalEntryToRecent(e: PlayerJournalEntry): RecentNote {
 export function mergeRecentNotes(
   entityNotes: readonly EntityNote[],
   journal: readonly PlayerJournalEntry[],
-  nameOf: NameOf,
   limit: number,
 ): RecentNote[] {
   return [
-    ...entityNotes.filter((n) => !isBlankNote(n.content)).map((n) => entityNoteToRecent(n, nameOf)),
+    ...entityNotes.filter((n) => !isBlankNote(n.content)).map((n) => entityNoteToRecent(n)),
     ...journal.filter((e) => !isBlankNote(e.content)).map(journalEntryToRecent),
   ]
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
@@ -102,33 +100,6 @@ async function fetchRecentEntityNotes(campaignId: string, userId: string, limit:
     .limit(limit * OVERFETCH);
   if (error) throw error;
   return data as EntityNote[];
-}
-
-/** Player-safe name lookup over the same projections the mention chip reads. */
-function useNoteNameOf(): ComputedRef<NameOf> {
-  const { data: party } = useParty();
-  const { data: companions } = useCompanions();
-  const { data: npcs } = useSharedNpcs();
-  const { data: locations } = useSharedLocations();
-  const { data: factions } = usePlayerVisibleFactions();
-  const { data: quests } = usePlayerVisibleQuests();
-  return computed<NameOf>(() => {
-    const find = (rows: ReadonlyArray<{ id: string; name?: string | null; title?: string }> | undefined, id: string) => {
-      const row = rows?.find((r) => r.id === id);
-      return row ? (row.name ?? row.title ?? null) : null;
-    };
-    return (type, id) => {
-      switch (type) {
-        case "party_member": return find(party.value, id);
-        case "companion": return find(companions.value, id);
-        case "npc": return find(npcs.value, id);
-        case "location": return find(locations.value, id);
-        case "faction": return find(factions.value, id);
-        case "quest": return find(quests.value, id);
-        default: return null;
-      }
-    };
-  });
 }
 
 /**
@@ -152,10 +123,9 @@ export function useMyRecentNotes(limit = 3) {
     enabled: () => !!campaignId.value && !!userId.value,
   });
   const journalQuery = useMyJournalEntries();
-  const nameOf = useNoteNameOf();
 
   const notes = computed(() =>
-    mergeRecentNotes(entityQuery.data.value ?? [], journalQuery.data.value ?? [], nameOf.value, limit),
+    mergeRecentNotes(entityQuery.data.value ?? [], journalQuery.data.value ?? [], limit),
   );
   const isLoading = computed(() => entityQuery.isLoading.value || journalQuery.isLoading.value);
   return { notes, isLoading };

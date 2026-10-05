@@ -48,7 +48,8 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { usePlayerCalendarEventsRange } from "@/composables/calendar/useCalendarEvents";
-import { upcomingEvents, weekContainingToday } from "@/lib/hearth/calendarWeek";
+import { nextUpcomingEvents } from "@/lib/calendar/upcoming";
+import { weekContainingToday } from "@/lib/hearth/calendarWeek";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 
@@ -75,7 +76,7 @@ const week = computed(() =>
   events.value ? weekContainingToday(calendar.adapter, today.value, events.value) : null,
 );
 const upcoming = computed(() =>
-  events.value ? upcomingEvents(events.value, calendar.adapter, today.value, 2) : [],
+  events.value ? nextUpcomingEvents(events.value, calendar.adapter, today.value, { limit: 2 }) : [],
 );
 
 const dayLabel = computed(() => {

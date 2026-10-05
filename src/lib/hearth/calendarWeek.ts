@@ -1,9 +1,9 @@
-import { nextUpcomingEvents, type CalendarToday, type UpcomingCalendarEvent } from "@/lib/calendar/upcoming";
+import type { CalendarToday } from "@/lib/calendar/upcoming";
 import type { CalendarAdapter, CalendarEvent } from "@/types/calendar.types";
 
 /**
  * The calendar strip on the player Hearth: the week (or tenday) row holding the
- * campaign's in-world today, plus the next few events. The row rule is
+ * campaign's in-world today. The next events come from `nextUpcomingEvents`. The row rule is
  * `CalendarGrid.vue`'s `gridRows`, mirrored on purpose: cells are laid out
  * from `weekdayOffset` (0 when the adapter has none), rows are `weekSize`
  * wide, and the row is clipped to the month so a Gregorian month that starts
@@ -76,21 +76,4 @@ export function weekContainingToday(
     });
   }
   return { label: rowLabel(adapter, rowIdx), days };
-}
-
-/**
- * The next `limit` events on or after `today`, soonest first, with the exact
- * in-world day count. Delegates to `nextUpcomingEvents`, so the choices are
- * its: a festival-day event is placed on its intercalary day, and an event
- * with neither a festival name nor both a month and a day cannot be placed and
- * is left out rather than sorted arbitrarily. A multi-day event that has
- * already started but not ended is not "upcoming" and is dropped.
- */
-export function upcomingEvents(
-  events: readonly CalendarEvent[],
-  adapter: CalendarAdapter,
-  today: CalendarToday,
-  limit: number,
-): UpcomingCalendarEvent[] {
-  return nextUpcomingEvents(events, adapter, today, { limit });
 }

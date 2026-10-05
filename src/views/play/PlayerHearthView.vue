@@ -14,6 +14,18 @@
       Select a character above to preview their Hearth.
     </p>
 
+    <!-- Not settled yet: a returning player must not see the welcome page flash
+         before their own Hearth, nor the between-sessions page before the table. -->
+    <BannerLoader v-else-if="isSettling" class="mx-auto my-12 h-8" />
+
+    <p
+      v-else-if="memberId && partyFailed"
+      class="py-12 text-center text-body italic text-muted-foreground"
+      role="alert"
+    >
+      Your character did not load. Reload to try again.
+    </p>
+
     <HearthFirstVisit v-else-if="!member" />
 
     <!-- At the table. DOM order is the phone's reading order; from lg the
@@ -56,6 +68,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import HearthChecks from "@/components/play/hearth/HearthChecks.vue";
 import HearthCharacterCard from "@/components/play/hearth/HearthCharacterCard.vue";
 import HearthDateStrip from "@/components/play/hearth/HearthDateStrip.vue";
@@ -94,13 +107,20 @@ const campaignName = computed(() => campaign.activeCampaign?.name ?? "Hearth");
 
 // Resolved exactly as the character sheet does, so preview mode shows the
 // previewed player's Hearth.
-const { data: party } = useParty();
+const { data: party, isError: partyFailed } = useParty();
 const memberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
 const member = computed<PartyMember | null>(() =>
   memberId.value && party.value ? (party.value.find((m) => m.id === memberId.value) ?? null) : null,
 );
 
-const { data: session } = usePlayerSessionState(() => campaign.activeCampaignId);
+const { data: session, isError: sessionFailed } = usePlayerSessionState(() => campaign.activeCampaignId);
+// Settled means answered: first visit is only true of a loaded party with no
+// character in it, and the table view only of a loaded session state.
+const isSettling = computed(
+  () =>
+    (!!memberId.value && !party.value && !partyFailed.value) ||
+    (!!member.value && !!campaign.activeCampaignId && !session.value && !sessionFailed.value),
+);
 const isRunning = computed(() => session.value?.isRunning === true);
 const startedAt = computed(() => session.value?.startedAt ?? null);
 </script>

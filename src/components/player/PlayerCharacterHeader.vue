@@ -269,6 +269,8 @@ const props = defineProps<{
   /** The beast's speed string while wild-shaped; its walking speed replaces the character's. */
   beastSpeed?: string | null;
   hidePlayerActions?: boolean;
+  /** DEX in effect: the Wild Shape form's while shaped. Defaults to the character's own. */
+  effectiveDex?: number;
 }>();
 const portrait = computed(() => formPortrait(props.member, props.wildshape));
 const emit = defineEmits<{ (e: "level-up"): void }>();
@@ -396,7 +398,7 @@ const displayAc    = computed(() => props.wildshape?.beast_ac     ?? acFor(props
 
 // Initiative = DEX mod + initiative_bonus (feat/special extras like Alert).
 const initiativeDisplay = computed(() => {
-  const total = memberInitiativeModifier(props.member);
+  const total = memberInitiativeModifier(props.member, props.effectiveDex);
   return total >= 0 ? `+${total}` : `${total}`;
 });
 

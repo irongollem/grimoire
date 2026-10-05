@@ -8,6 +8,8 @@ const state = vi.hoisted(() => ({
   dmPreviewMode: false,
   dmPreviewPartyMemberId: null as string | null,
   isRunning: false,
+  partyLoaded: true,
+  sessionLoaded: true,
 }));
 
 vi.mock("@/stores/auth", () => ({
@@ -20,11 +22,19 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ activeCampaignId: "campaign-1", activeCampaign: { name: "The Southern Road" } }),
 }));
 vi.mock("@/composables/party/useParty", () => ({
-  useParty: () => ({ data: ref([{ id: "pm-1", name: "Wren Ashdown" }]) }),
+  useParty: () => ({
+    data: ref(state.partyLoaded ? [{ id: "pm-1", name: "Wren Ashdown" }] : undefined),
+    isError: ref(false),
+  }),
 }));
 vi.mock("@/composables/campaign/useCampaignSession", () => ({
   usePlayerSessionState: () => ({
-    data: ref({ isRunning: state.isRunning, startedAt: state.isRunning ? "2026-10-05T19:00:00Z" : null }),
+    data: ref(
+      state.sessionLoaded
+        ? { isRunning: state.isRunning, startedAt: state.isRunning ? "2026-10-05T19:00:00Z" : null }
+        : undefined,
+    ),
+    isError: ref(false),
   }),
 }));
 
@@ -61,6 +71,22 @@ describe("PlayerHearthView", () => {
     state.dmPreviewMode = false;
     state.dmPreviewPartyMemberId = null;
     state.isRunning = false;
+    state.partyLoaded = true;
+    state.sessionLoaded = true;
+  });
+
+  it("shows a loader, not the first-visit page, while a linked player's party is still loading", () => {
+    state.linkedPartyMemberId = "pm-1";
+    state.partyLoaded = false;
+    const wrapper = mountView();
+    expect(sections(wrapper)).toEqual([]);
+    expect(wrapper.text()).not.toContain("Select a character");
+  });
+
+  it("holds the between-sessions page back until the session state has loaded", () => {
+    state.linkedPartyMemberId = "pm-1";
+    state.sessionLoaded = false;
+    expect(sections(mountView())).toEqual([]);
   });
 
   it("names the campaign", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarAdapter, CalendarEvent } from "@/types/calendar.types";
-import { upcomingEvents, weekContainingToday } from "./calendarWeek";
+import { weekContainingToday } from "./calendarWeek";
 
 const TENDAY: CalendarAdapter = {
   id: "t",
@@ -98,20 +98,5 @@ describe("weekContainingToday", () => {
 
   it("is null for a month the adapter lacks", () => {
     expect(weekContainingToday(TENDAY, { year: 1000, month: 9, day: 1 }, [])).toBeNull();
-  });
-});
-
-describe("upcomingEvents", () => {
-  it("returns the next N, soonest first, skipping past and unplaceable events", () => {
-    const events = [
-      ev({ title: "past", harptos_day: 1 }),
-      ev({ title: "later", harptos_month: 2, harptos_day: 3 }),
-      ev({ title: "soon", harptos_day: 12 }),
-      ev({ title: "no date", harptos_month: null, harptos_day: null }),
-      ev({ title: "festival", harptos_month: null, harptos_day: null, festival_day: "Founding Day" }),
-    ];
-    const out = upcomingEvents(events, TENDAY, { year: 1000, month: 1, day: 5 }, 2);
-    expect(out.map((o) => o.event.title)).toEqual(["soon", "festival"]);
-    expect(out[0].daysUntil).toBe(7);
   });
 });

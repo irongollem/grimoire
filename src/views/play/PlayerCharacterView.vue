@@ -38,6 +38,7 @@
           :member="member"
           :wildshape="activeWildshape ?? undefined"
           :beast-speed="beastMonster?.stat_block?.speed"
+          :effective-dex="effectiveScores.dex"
           :hide-player-actions="hidePlayerActions"
           @level-up="emit('level-up')"
         >

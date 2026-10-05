@@ -40,3 +40,13 @@ export function findSessionNote<T extends NoteCandidate>(
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   return matches[0] ?? null;
 }
+
+/**
+ * Whether the pad may open for typing. Before the journal has loaded, a typed
+ * note has no existing entry to continue and would create a second one; with no
+ * session start, `findSessionNote` can never find the entry again, so every
+ * remount would create another.
+ */
+export function canEditSessionNote(journalLoaded: boolean, startedAt: string | null): boolean {
+  return journalLoaded && startedAt !== null;
+}

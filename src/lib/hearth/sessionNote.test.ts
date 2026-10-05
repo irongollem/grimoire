@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findSessionNote, sessionNoteTitle } from "./sessionNote";
+import { canEditSessionNote, findSessionNote, sessionNoteTitle } from "./sessionNote";
 
 const entry = (title: string | null, category: string, created_at: string) => ({
   category: category as "session",
@@ -40,5 +40,14 @@ describe("findSessionNote", () => {
         started,
       ),
     ).toBeNull();
+  });
+});
+
+describe("canEditSessionNote", () => {
+  it("opens only once the journal has loaded and the session start is known", () => {
+    expect(canEditSessionNote(true, "2026-10-05T19:00:00Z")).toBe(true);
+    expect(canEditSessionNote(false, "2026-10-05T19:00:00Z")).toBe(false);
+    expect(canEditSessionNote(true, null)).toBe(false);
+    expect(canEditSessionNote(false, null)).toBe(false);
   });
 });

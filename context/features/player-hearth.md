@@ -48,21 +48,29 @@ changing a section's composition.
 
 | Section | Source |
 | --- | --- |
-| In the realm | campaign `today*`, `useCalendarStore().adapter`, `usePlayerCalendarEventsRange`, `weekContainingToday` / `upcomingEvents` (`src/lib/hearth/calendarWeek.ts`, mirrors `CalendarGrid`'s row rule) |
-| Character | `useParty()` member (preview-aware, as the sheet resolves it), `characterSummary` (`src/lib/partyMemberDisplay.ts`), `acFor`, `memberInitiativeModifier` (`src/rules/initiative.ts`), `passiveScore` (`src/rules/skillCheck.ts`) |
-| Next session | `useSessionProposals`, `useAllSessionAvailability`, `useUpsertAvailability`, `pickNextSession` and friends (`src/lib/calendar/nextSession.ts`, shared with the DM's Next session widget) |
+| In the realm | campaign `today*`, `useCalendarStore().adapter`, `usePlayerCalendarEventsRange`, `weekContainingToday` (`src/lib/hearth/calendarWeek.ts`, mirrors `CalendarGrid`'s row rule), `nextUpcomingEvents` (`src/lib/calendar/upcoming.ts`) for the next two |
+| Character | `useParty()` member (preview-aware, as the sheet resolves it), `characterSummary` (`src/lib/partyMemberDisplay.ts`), and the numbers from `useMemberVitals` (`src/composables/party/`, shared with Vitals): AC, initiative (the Wild Shape form's DEX while shaped), speed, passive, hit points |
+| Next session | in DM preview the RSVP is disabled ("The player answers here."); `useSessionProposals`, `useAllSessionAvailability`, `useUpsertAvailability`, `pickNextSession` and friends (`src/lib/calendar/nextSession.ts`, shared with the DM's Next session widget) |
 | New for you | `usePlayerUnread().items`: the same lists and the same `isNew` checks as the Journal tab's dot, so the list and the dot cannot disagree |
 | Your quests / Right now | `currentBeatsByQuest` (`src/lib/hearth/currentBeats.ts`) over `usePlayerVisibleQuests` + `usePlayerQuestBeats`: the beats a live thread cursor stands on (`is_current`) |
-| Your notes | `useMyRecentNotes` (`src/composables/notes/`): the player's own `entity_notes` (scoped by `user_id` and `campaign_id` in the query) merged with `useMyJournalEntries`; names through player-safe projections only, "???" when unknown |
+| Your notes | `useMyRecentNotes` (`src/composables/notes/`): the player's own `entity_notes` (scoped by `user_id` and `campaign_id` in the query) merged with `useMyJournalEntries`; each entity note's label resolves its own subject through `useMentionName` (`HearthNoteLabel`), so only the source a note's type needs is read, "???" when unknown. In DM preview a notice replaces the list and no query runs (the notes are the player's own) |
 | Live band | session start time, a confirmed proposal dated today for the title, and `combatTurnLine` (`src/lib/hearth/turnLine.ts`) over the shared `liveState` |
-| Vitals | `PlayerHpControls` and `PlayerConditions`, the sheet's own controls |
+| Vitals | `useMemberVitals`, `PlayerHpControls` and `PlayerConditions`, the sheet's own controls |
 | Spellcasting | `member.concentration` + `useConcentration`, `PlayerSpellSlotStrip` + `useSpellSlotWrite` |
 | Checks | `useCharacterRolls` (`src/composables/party/`) + `SkillRollList` + `AbilityScoreTable layout="sheet"`: the character sheet's own paths; pure scores and saves in `src/rules/characterChecks.ts` |
 | Waiting for you | unread handouts + `openTableItems(messages, me, startedAt)` |
-| Session notes | one `player_journal_entries` row per session (category `session`), found again by `findSessionNote` (`src/lib/hearth/sessionNote.ts`), saved by `useAutosave` |
+| Session notes | one `player_journal_entries` row per session (category `session`), found again by `findSessionNote` (`src/lib/hearth/sessionNote.ts`), saved by `useAutosave`. The pad stays shut until the journal has loaded and the session has a start (`canEditSessionNote`), or an early keystroke would create a second entry; in DM preview a notice replaces it |
 
 ## Traps
 
+- **Settled before shown.** `PlayerHearthView` shows a loader until the party
+  (for a linked player) and the session state have answered. First visit is
+  only true of a loaded party without the character; judging it from an empty
+  `data` flashed the welcome page at every returning player.
+- **Preview never touches the player's private rows.** Session notes and Your
+  notes are the player's own (RLS), so in DM preview they are replaced by a
+  notice and their components are not mounted (a composable cannot be skipped
+  once its component runs).
 - **Never subscribe to the encounter again.** `usePlayerEncounterLive`'s
   realtime channel is module-level and `PlayerLayout` keeps it open. A second
   caller's unmount closes it for everyone; the live band reads the exported

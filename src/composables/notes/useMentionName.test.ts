@@ -68,9 +68,19 @@ vi.mock("@tanstack/vue-query", () => ({
   }),
 }));
 
+const companionsData = ref<Array<{ id: string; name: string }>>([]);
+vi.mock("@/composables/encounters/useCompanions", () => ({
+  useCompanions: () => ({ data: companionsData }),
+}));
+
+const questsData = ref<Array<{ id: string; title: string }>>([]);
+vi.mock("@/composables/quests/useQuests", () => ({
+  usePlayerVisibleQuests: () => ({ data: questsData }),
+}));
+
 vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 
-import { monsterNameTable, useMentionName } from "./useMentionName";
+import { mentionTypeForNote, monsterNameTable, useMentionName } from "./useMentionName";
 
 function run<T>(fn: () => T): T {
   const scope = effectScope();
@@ -164,5 +174,31 @@ describe("monsterNameTable", () => {
   it("looks a uuid up in the DM's monsters and a text id in the library", () => {
     expect(monsterNameTable("0f8a2c4e-1b3d-4e5f-8a9b-0c1d2e3f4a5b")).toBe("monsters");
     expect(monsterNameTable("srd_owlbear")).toBe("library_monsters");
+  });
+});
+
+describe("useMentionName — note-only types", () => {
+  it("resolves a companion and a player-visible quest, and null for one the player cannot see", () => {
+    route.path = "/play";
+    companionsData.value = [{ id: "co-1", name: "Biscuit" }];
+    questsData.value = [{ id: "q-1", title: "The Flooded Mine" }];
+    expect(run(() => useMentionName("companion", "co-1")).value).toBe("Biscuit");
+    expect(run(() => useMentionName("quest", "q-1")).value).toBe("The Flooded Mine");
+    expect(run(() => useMentionName("quest", "q-hidden")).value).toBeNull();
+  });
+
+  it("resolves an unmapped note type to null without reading anything", () => {
+    route.path = "/play";
+    expect(run(() => useMentionName(null, "x")).value).toBeNull();
+  });
+});
+
+describe("mentionTypeForNote", () => {
+  it("maps entity_notes literals onto mention types", () => {
+    expect(mentionTypeForNote("party_member")).toBe("player");
+    expect(mentionTypeForNote("npc")).toBe("npc");
+    expect(mentionTypeForNote("quest")).toBe("quest");
+    expect(mentionTypeForNote("companion")).toBe("companion");
+    expect(mentionTypeForNote("dragon")).toBeNull();
   });
 });
