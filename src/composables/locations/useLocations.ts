@@ -149,6 +149,29 @@ async function createLocation(loc: LocationInsert): Promise<Location> {
   return data as Location;
 }
 
+/**
+ * Inserts many places in ONE request, with ids the caller minted so everything
+ * that points at them (regions, doors, placements) can be built before a
+ * single round trip (#972). Plain function, not a mutation: no invalidation
+ * and no embed here, because the caller owns both and does each once for the
+ * whole set. A quota trigger firing on any row rejects the whole statement
+ * with the same `quota_exceeded` message `isQuotaExceeded` already reads.
+ * Rows in one statement must not parent each other (the parent guard looks
+ * the parent up), so a site goes in first and its rooms in a second call.
+ */
+export async function insertLocations(rows: readonly (LocationInsert & { id: string })[]): Promise<void> {
+  if (!rows.length) return;
+  const user = getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+  // `defaultToNull: false`, as for regions, doors and placements: rows built for
+  // different rooms need not carry the same keys, and a missing key must keep
+  // its column default rather than be sent as an explicit null.
+  const { error } = await supabase
+    .from("locations")
+    .insert(rows.map((row) => ({ ...row, user_id: user.id })), { defaultToNull: false });
+  if (error) throw error;
+}
+
 async function updateLocation(id: string, update: LocationUpdate): Promise<Location> {
   const { data, error } = await supabase
     .from("locations")

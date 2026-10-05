@@ -31,26 +31,31 @@ import {
   type PublishPlan,
   type SpaceRef,
 } from "@/lib/locations/publish";
-import type { DerivedStructure } from "@/cartographer/structure.types";
+import type { DerivedSpace, DerivedStructure } from "@/cartographer/structure.types";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
-import type { Location } from "@/types/location.types";
+import type { Location, LocationInsert } from "@/types/location.types";
+import type { LocationDoorInsert, LocationDoorUpdate } from "@/types/locationDoor.types";
+import type { LocationMapRegionInsert, LocationMapRegionUpdate } from "@/types/locationMapRegion.types";
+import type { LocationPlacementInsert, LocationPlacementUpdate } from "@/types/locationPlacement.types";
 import {
   useAllLocations,
   useLocations,
   useLocation,
-  useCreateLocation,
   useUpdateLocation,
   useUpdateLocationDrawing,
+  insertLocations,
 } from "@/composables/locations/useLocations";
 import {
   useLocationMapRegions,
-  useCreateLocationMapRegion,
-  useUpdateLocationMapRegion,
+  insertLocationMapRegions,
+  updateLocationMapRegions,
+  reconcileSiteDoorEndpoints,
 } from "@/composables/locations/useLocationMapRegions";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
-import { useCreateLocationDoor, useUpdateLocationDoor } from "@/composables/locations/useLocationDoors";
+import { insertLocationDoors, updateLocationDoors } from "@/composables/locations/useLocationDoors";
 import { useSitePlacements } from "@/composables/locations/useSitePlacements";
-import { useCreateLocationPlacement, useUpdateEntityPlacement } from "@/composables/locations/useLocationPlacements";
+import { insertLocationPlacements, updateLocationPlacements } from "@/composables/locations/useLocationPlacements";
+import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 import { usePublishedSites } from "@/composables/cartographer/usePublishedSites";
 import type { LocationPlacement } from "@/types/locationPlacement.types";
 
@@ -96,6 +101,23 @@ function findReanchorCellKey(
     return roomOf(l.spaceKey) === placement.location_id;
   });
   return link?.cellKey ?? null;
+}
+
+/** The region row that binds a derived space to its room — the same row for a
+ *  freshly created room and for an existing room being bound. */
+function spaceRegionRow(
+  siteId: string,
+  roomId: string,
+  space: DerivedSpace,
+): LocationMapRegionInsert {
+  return {
+    site_location_id: siteId,
+    space_location_id: roomId,
+    cells: space.cells,
+    cell_signature: space.signature,
+    region_role: "space",
+    derived_from: space.nameSource === "annotation" ? "annotation" : "floodfill",
+  };
 }
 
 /**
@@ -217,14 +239,6 @@ export function useMapPublish(opts: {
   // ── Mutations ─────────────────────────────────────────────────────────
   const updateLocationDrawing = useUpdateLocationDrawing();
   const updateLocation = useUpdateLocation();
-  const createLocation = useCreateLocation();
-  const createRegion = useCreateLocationMapRegion();
-  const updateRegion = useUpdateLocationMapRegion();
-  const createDoor = useCreateLocationDoor();
-  const updateDoor = useUpdateLocationDoor();
-  const createPlacement = useCreateLocationPlacement();
-  const updatePlacement = useUpdateEntityPlacement();
-
   function resolveWayEndpoint(id: string, spaceKeyToLocationId: ReadonlyMap<string, string>): string {
     if (!isCreatedRef(id)) return id;
     const key = createdRefKey(id);
@@ -240,6 +254,17 @@ export function useMapPublish(opts: {
     return real;
   }
 
+  function invalidatePublished(): Promise<unknown> {
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["location-map-regions"] }),
+      queryClient.invalidateQueries({ queryKey: ["location-doors"] }),
+      queryClient.invalidateQueries({ queryKey: ["site-doors"] }),
+      queryClient.invalidateQueries({ queryKey: ["location-placements"] }),
+      queryClient.invalidateQueries({ queryKey: ["locations"] }),
+      queryClient.invalidateQueries({ queryKey: ["published-sites"] }),
+    ]);
+  }
+
   async function publish(): Promise<void> {
     if (publishing.value) return;
     const map = opts.map();
@@ -249,6 +274,7 @@ export function useMapPublish(opts: {
     publishing.value = true;
     error.value = null;
     quotaExceeded.value = false;
+    let wrote = false;
     try {
       // (a) Bake the Drawing — transparent, so the Picture beneath shows
       // through wherever nothing is painted — and write it + its own
@@ -260,6 +286,7 @@ export function useMapPublish(opts: {
       const url = await uploadToBucket({ bucket: "locationImages", blob, userId: user.id, contentType: "image/webp" });
       if (!url) throw new Error("Upload failed");
       const dims = computeBakedDimensions(map);
+      wrote = true;
       await updateLocationDrawing.mutateAsync({
         id: targetSiteId.value,
         mapLayerUrl: url,
@@ -274,10 +301,19 @@ export function useMapPublish(opts: {
       });
       // (b) Spaces — create rooms + bind fresh regions; reshape existing ones;
       // clear an orphan's geometry without touching the room it still names.
+      // Room ids are minted here, so every region, way and placement below
+      // can name its room before any row exists, and each table is written
+      // in one request (#972). Table order still matters: the guards on
+      // regions, doors and placements look their rooms up.
       const spaceKeyToLocationId = new Map<string, string>();
+      const roomRows: (LocationInsert & { id: string })[] = [];
+      const regionRows: LocationMapRegionInsert[] = [];
+      const regionUpdates: { id: string; update: LocationMapRegionUpdate }[] = [];
       for (const change of currentPlan.spaces) {
         if (change.kind === "create") {
-          const room = await createLocation.mutateAsync({
+          const roomId = crypto.randomUUID();
+          roomRows.push({
+            id: roomId,
             name: change.proposedName,
             // The created space follows the site's own nature — see
             // `childSpaceType`'s docstring for the rule (#886). Same rule as
@@ -307,43 +343,42 @@ export function useMapPublish(opts: {
             era_start: null,
             era_end: null,
           });
-          spaceKeyToLocationId.set(change.space.key, room.id);
-          await createRegion.mutateAsync({
-            site_location_id: targetSiteId.value,
-            space_location_id: room.id,
-            cells: change.space.cells,
-            cell_signature: change.space.signature,
-            region_role: "space",
-            derived_from: change.space.nameSource === "annotation" ? "annotation" : "floodfill",
-          });
+          spaceKeyToLocationId.set(change.space.key, roomId);
+          regionRows.push(spaceRegionRow(targetSiteId.value, roomId, change.space));
         } else if (change.kind === "bind") {
           spaceKeyToLocationId.set(change.space.key, change.spaceId);
-          await createRegion.mutateAsync({
-            site_location_id: targetSiteId.value,
-            space_location_id: change.spaceId,
-            cells: change.space.cells,
-            cell_signature: change.space.signature,
-            region_role: "space",
-            derived_from: change.space.nameSource === "annotation" ? "annotation" : "floodfill",
-          });
+          regionRows.push(spaceRegionRow(targetSiteId.value, change.spaceId, change.space));
         } else if (change.kind === "update") {
           spaceKeyToLocationId.set(change.space.key, change.region.space_location_id!);
-          await updateRegion.mutateAsync({
+          regionUpdates.push({
             id: change.region.id,
             update: { cells: change.space.cells, cell_signature: change.space.signature },
           });
         } else if (change.kind === "skip" || change.kind === "held") {
           spaceKeyToLocationId.set(change.space.key, change.region.space_location_id!);
         } else if (change.kind === "orphan") {
-          await updateRegion.mutateAsync({ id: change.region.id, update: { cells: [], cell_signature: null } });
+          regionUpdates.push({ id: change.region.id, update: { cells: [], cell_signature: null } });
         }
+      }
+
+      await insertLocations(roomRows);
+      // The rooms are committed from here on, whatever happens next, so they
+      // are queued for embedding now rather than after the last write.
+      queueEmbeddingsInBackground("location", roomRows.map((row) => row.id));
+      await Promise.all([insertLocationMapRegions(regionRows), updateLocationMapRegions(regionUpdates)]);
+      // Door endpoints derive from the regions, so re-derive once for the
+      // whole batch instead of after every region (the hooks did).
+      if (regionRows.length > 0 || regionUpdates.length > 0) {
+        await reconcileSiteDoorEndpoints(targetSiteId.value);
       }
 
       // (c) Ways — doors, arches and newly-resolved stairs. Held and skipped
       // rows, and stairs still unresolved, write nothing.
+      const doorRows: LocationDoorInsert[] = [];
+      const doorUpdates: { id: string; update: LocationDoorUpdate }[] = [];
       for (const change of currentPlan.ways) {
         if (change.kind === "create") {
-          await createDoor.mutateAsync({
+          doorRows.push({
             from_location_id: resolveWayEndpoint(change.fromSpaceId, spaceKeyToLocationId),
             to_location_id: resolveWayEndpoint(change.toSpaceId, spaceKeyToLocationId),
             door_kind: change.way.kind,
@@ -351,11 +386,11 @@ export function useMapPublish(opts: {
             derived_from: "publish",
           });
         } else if (change.kind === "update") {
-          await updateDoor.mutateAsync({ id: change.door.id, update: { door_kind: change.after, derived_from: "publish" } });
+          doorUpdates.push({ id: change.door.id, update: { door_kind: change.after, derived_from: "publish" } });
         } else if (change.kind === "create-stair") {
           // A stair is never re-matched by edge key on a later publish — it
           // has none — so this is a one-time write, same as a hand-made door.
-          await createDoor.mutateAsync({
+          doorRows.push({
             from_location_id: resolveWayEndpoint(change.fromSpaceId, spaceKeyToLocationId),
             to_location_id: resolveWayEndpoint(change.toSpaceId, spaceKeyToLocationId),
             door_kind: "stair",
@@ -364,14 +399,16 @@ export function useMapPublish(opts: {
           });
         }
       }
+      await Promise.all([insertLocationDoors(doorRows), updateLocationDoors(doorUpdates)]);
 
       // (d) Placements — new trap/feature links, and re-anchors to whichever
       // room now holds their cell.
+      const placementRows: LocationPlacementInsert[] = [];
+      const placementUpdates: { id: string; update: LocationPlacementUpdate }[] = [];
       for (const change of currentPlan.placements) {
         if (change.kind === "create") {
-          const locationId = resolveSpaceRef(change.spaceRef, spaceKeyToLocationId);
-          await createPlacement.mutateAsync({
-            location_id: locationId,
+          placementRows.push({
+            location_id: resolveSpaceRef(change.spaceRef, spaceKeyToLocationId),
             ...(change.target.kind === "trap"
               ? { trap_id: change.target.id }
               : { dungeon_feature_id: change.target.id }),
@@ -382,12 +419,13 @@ export function useMapPublish(opts: {
           const cellKey =
             change.placement.source_cell_key ??
             findReanchorCellKey(change.placement, opts.structure(), spaceKeyToLocationId, targetSiteId.value);
-          await updatePlacement.mutateAsync({
+          placementUpdates.push({
             id: change.placement.id,
             update: { location_id: locationId, source_cell_key: cellKey },
           });
         }
       }
+      await Promise.all([insertLocationPlacements(placementRows), updateLocationPlacements(placementUpdates)]);
 
       // (e) Only now does the site claim this rev. Writing it with the bake
       // said "published rev N" before the rooms, ways and placements behind
@@ -400,18 +438,15 @@ export function useMapPublish(opts: {
       // #884 review pass.
       await updateLocation.mutateAsync({ id: targetSiteId.value, update: { map_published_rev: map.rev } });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["location-map-regions"] }),
-        queryClient.invalidateQueries({ queryKey: ["location-doors"] }),
-        queryClient.invalidateQueries({ queryKey: ["site-doors"] }),
-        queryClient.invalidateQueries({ queryKey: ["location-placements"] }),
-        queryClient.invalidateQueries({ queryKey: ["locations"] }),
-        queryClient.invalidateQueries({ queryKey: ["published-sites"] }),
-      ]);
+      await invalidatePublished();
 
       open.value = false;
       stairTargets.value = {};
     } catch (e) {
+      // The bulk writers bypass the hooks that used to refresh as each row
+      // landed, so a partial publish must refresh here or the screen would
+      // keep showing the world from before it.
+      if (wrote) await invalidatePublished();
       if (isQuotaExceeded(e)) {
         quotaExceeded.value = true;
       } else {

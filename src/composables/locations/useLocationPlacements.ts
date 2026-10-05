@@ -126,6 +126,29 @@ async function createLocationPlacement(insert: LocationPlacementInsert): Promise
   return data as LocationPlacement;
 }
 
+/** Many placements in ONE request (#972); see `insertLocationMapRegions` for
+ *  why `defaultToNull` is off. No invalidation: the caller does it once. */
+export async function insertLocationPlacements(rows: readonly LocationPlacementInsert[]): Promise<void> {
+  if (!rows.length) return;
+  const user = getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+  const { error } = await supabase
+    .from("location_placements")
+    .insert(rows.map((row) => ({ ...row, user_id: user.id })), { defaultToNull: false });
+  if (error) throw error;
+}
+
+/** Several existing placements with their own values: one UPDATE each in
+ *  parallel, without the hook's per-row invalidation. */
+export async function updateLocationPlacements(
+  updates: readonly { id: string; update: LocationPlacementUpdate }[],
+): Promise<void> {
+  const results = await Promise.all(
+    updates.map(({ id, update }) => supabase.from("location_placements").update(update).eq("id", id)),
+  );
+  for (const { error } of results) if (error) throw error;
+}
+
 async function updateLocationPlacement(id: string, update: LocationPlacementUpdate): Promise<LocationPlacement> {
   const { data, error } = await supabase
     .from("location_placements")

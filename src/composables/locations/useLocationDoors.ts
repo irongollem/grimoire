@@ -58,6 +58,29 @@ async function createLocationDoor(insert: LocationDoorInsert): Promise<LocationD
   return data as LocationDoor;
 }
 
+/** Many doors in ONE request (#972); see `insertLocationMapRegions` for why
+ *  `defaultToNull` is off. No invalidation: the caller does it once. */
+export async function insertLocationDoors(rows: readonly LocationDoorInsert[]): Promise<void> {
+  if (!rows.length) return;
+  const user = getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+  const { error } = await supabase
+    .from("location_doors")
+    .insert(rows.map((row) => ({ ...row, user_id: user.id })), { defaultToNull: false });
+  if (error) throw error;
+}
+
+/** Several existing doors with their own values: one UPDATE each in parallel,
+ *  without the hook's per-row invalidation. */
+export async function updateLocationDoors(
+  updates: readonly { id: string; update: LocationDoorUpdate }[],
+): Promise<void> {
+  const results = await Promise.all(
+    updates.map(({ id, update }) => supabase.from("location_doors").update(update).eq("id", id)),
+  );
+  for (const { error } of results) if (error) throw error;
+}
+
 async function updateLocationDoor(id: string, update: LocationDoorUpdate): Promise<LocationDoor> {
   const { data, error } = await supabase
     .from("location_doors")

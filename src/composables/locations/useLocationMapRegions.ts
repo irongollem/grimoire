@@ -34,6 +34,32 @@ async function createLocationMapRegion(insert: LocationMapRegionInsert): Promise
   return data as LocationMapRegion;
 }
 
+/** Many regions in ONE request (#972). `defaultToNull: false` so a column a
+ *  row leaves out takes its column default (`region_role`, `derived_from`,
+ *  `cells`) instead of the explicit null a bulk insert would otherwise send.
+ *  No reconcile and no invalidation: the caller does each once. */
+export async function insertLocationMapRegions(rows: readonly LocationMapRegionInsert[]): Promise<void> {
+  if (!rows.length) return;
+  const user = getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+  const { error } = await supabase
+    .from("location_map_regions")
+    .insert(rows.map((row) => ({ ...row, user_id: user.id })), { defaultToNull: false });
+  if (error) throw error;
+}
+
+/** Several existing regions, each with its own values, so one UPDATE each in
+ *  parallel (a bulk form would need an RPC) but without the hook's per-row
+ *  invalidation and door reconcile. */
+export async function updateLocationMapRegions(
+  updates: readonly { id: string; update: LocationMapRegionUpdate }[],
+): Promise<void> {
+  const results = await Promise.all(
+    updates.map(({ id, update }) => supabase.from("location_map_regions").update(update).eq("id", id)),
+  );
+  for (const { error } of results) if (error) throw error;
+}
+
 async function updateLocationMapRegion(id: string, update: LocationMapRegionUpdate): Promise<LocationMapRegion> {
   const { data, error } = await supabase
     .from("location_map_regions")
