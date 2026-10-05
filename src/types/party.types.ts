@@ -82,7 +82,7 @@ export interface LevelChoiceEntry {
   new_class_profs?: string[];
   /**
    * What the level chose, exactly enough to take it back. Every level has one:
-   * history written before #976 was converted by migration 20261005144119.
+   * history written before #976 was converted by migration 20261005181020.
    */
   record: LevelChoiceRecord;
   skills: Record<string, LevelSkillChange>;

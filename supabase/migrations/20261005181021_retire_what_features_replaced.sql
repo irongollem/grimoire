@@ -6,12 +6,12 @@
 -- Keeping them would leave two places to define Rage's uses, and the next
 -- writer would pick the wrong one.
 --
---   class_features.feature_type        -> mechanics.activation   (20261005133607)
---   *.resources on class definitions   -> a feature's mechanics.uses       (20261005142531)
---   *.steps on class definitions       -> a feature's mechanics.choices    (20261005142531)
+--   class_features.feature_type        -> mechanics.activation   (20261005181018)
+--   *.resources on class definitions   -> a feature's mechanics.uses       (20261005181019)
+--   *.steps on class definitions       -> a feature's mechanics.choices    (20261005181019)
 --   *.asi_levels                       -> the Ability Score Improvement feature at those levels
---   party_members.rage_active          -> class_choices.rage_active, ended by every rest (20261005142531)
---   class_feature_options              -> a feature that `replaces` another (20261005144119)
+--   party_members.rage_active          -> class_choices.rage_active, ended by every rest (20261005181019)
+--   class_feature_options              -> a feature that `replaces` another (20261005181020)
 --
 -- The three generator prompts asked the model for `feature_type`; they now ask
 -- for `activation` (and, for one ability, its `mechanics`), which is what the

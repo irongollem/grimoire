@@ -1,5 +1,5 @@
 -- Epic #976 wave 4: level-up carries every book choice, and refuses a feat the
--- character cannot take (20261005144119).
+-- character cannot take (20261005181020).
 --
 --   apply_level_up   writes skill_proficiencies and weapon_masteries; every feat
 --                    ADDED to class_choices.feats (new list minus old, counted)

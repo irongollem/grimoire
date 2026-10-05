@@ -77,8 +77,8 @@ select is((select count(*)::int from public.class_features
             where mechanics ? 'uses' and (mechanics -> 'uses' ->> 'key') !~ '^[a-z][a-z0-9_]*$'), 0,
   'every pool a feature holds is stored under a plain snake_case key');
 
--- 20261005142531 copied a raging member's flag into class_choices; the cleanup
--- (20261005152831) then drops the column, so only its absence is left to check.
+-- 20261005181019 copied a raging member's flag into class_choices; the cleanup
+-- (20261005181021) then drops the column, so only its absence is left to check.
 select hasnt_column('public', 'party_members', 'rage_active',
   'Rage lives in class_choices like every other toggle, not in a column of its own');
 
