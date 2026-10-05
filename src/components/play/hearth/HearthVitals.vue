@@ -52,12 +52,11 @@ import RollToast, { type RollResult } from "@/components/common/RollToast.vue";
 import { hpTextClass } from "@/components/player/hpDisplay";
 import { useHpDisplay } from "@/composables/play/useHpDisplay";
 import { useArmorClass } from "@/composables/party/useArmorClass";
-import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
+import { useWildshapeForm } from "@/composables/party/useWildshapeForm";
 import { walkingSpeed } from "@/lib/movement";
 import { memberInitiativeModifier } from "@/rules/initiative";
 import { passiveScore } from "@/rules/skillCheck";
 import type { PartyMember } from "@/types/party.types";
-import type { WildshapeState } from "@/types/encounter.types";
 
 /**
  * Hit points, the four numbers read at the table, and conditions. Damage, heal
@@ -69,15 +68,11 @@ const { member } = defineProps<{ member: PartyMember }>();
 const { acFor } = useArmorClass();
 const lastRoll = ref<RollResult | null>(null);
 
-const wildshape = computed(() => (member.wildshape_state as WildshapeState | null) ?? null);
+const { activeWildshape: wildshape, beastMonster } = useWildshapeForm(() => member);
 // A 2024 form keeps the character's own hit points (beast_hp is null).
 const hp = computed(() => wildshape.value?.beast_hp ?? member.current_hp);
 const maxHp = computed(() => wildshape.value?.beast_max_hp ?? member.max_hp);
-const { data: formMonsters } = usePlayerMonstersByIds(() => [wildshape.value?.monster_id]);
-const beastSpeed = computed(() => {
-  const form = wildshape.value;
-  return form ? (formMonsters.value.get(form.monster_id)?.stat_block?.speed ?? null) : null;
-});
+const beastSpeed = computed(() => beastMonster.value?.stat_block?.speed ?? null);
 const hpColor = computed(() => hpTextClass(hp.value, maxHp.value));
 const { hpBarColor: barColor } = useHpDisplay(hp, maxHp);
 const hpPct = computed(() => (maxHp.value === 0 ? 0 : Math.max(0, Math.min(100, (hp.value / maxHp.value) * 100))));

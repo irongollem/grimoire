@@ -26,9 +26,17 @@ changing a section's composition.
 - **Tablets are landscape first.** From `lg` (64rem) the sections form three
   columns. The columns are grouped so that their DOM order is also the phone's
   reading order (between: [date, character] [next session, new for you]
-  [quests, notes]; at the table: [vitals, spellcasting] [waiting] [right now,
-  session notes]). Do not reorder with CSS `order`: focus and screen-reader
+  [quests, notes]; at the table: [vitals, spellcasting] [checks] [waiting, right
+  now, session notes]). Do not reorder with CSS `order`: focus and screen-reader
   order would stop matching the screen.
+- **Checks and saves only.** The Checks section rolls the six abilities, their
+  saves and the eighteen skills. Attacks stay on the encounter page and spells
+  on the Spellbook. There is ONE roll implementation, shared with the sheet:
+  `useCharacterRolls` (Wild Shape scores via `useWildshapeForm`, conditions,
+  Exhaustion, roll modes, the toast), `SkillRollList` (immersive whispered
+  rolls, the young-player exception) and `AbilityScoreTable`, whose six-across
+  layout answers its container's width so it stays three by two in the column.
+  Do not copy any of it into a Hearth component.
 - **Loot stays in chat.** Players love the drop race. "Waiting for you" only
   points at an open drop, chest or offer from this session (`openTableItems`,
   `src/lib/hearth/waitingItems.ts`) and opens the chat at it
@@ -49,6 +57,7 @@ changing a section's composition.
 | Live band | session start time, a confirmed proposal dated today for the title, and `combatTurnLine` (`src/lib/hearth/turnLine.ts`) over the shared `liveState` |
 | Vitals | `PlayerHpControls` and `PlayerConditions`, the sheet's own controls |
 | Spellcasting | `member.concentration` + `useConcentration`, `PlayerSpellSlotStrip` + `useSpellSlotWrite` |
+| Checks | `useCharacterRolls` (`src/composables/party/`) + `SkillRollList` + `AbilityScoreTable layout="sheet"`: the character sheet's own paths; pure scores and saves in `src/rules/characterChecks.ts` |
 | Waiting for you | unread handouts + `openTableItems(messages, me, startedAt)` |
 | Session notes | one `player_journal_entries` row per session (category `session`), found again by `findSessionNote` (`src/lib/hearth/sessionNote.ts`), saved by `useAutosave` |
 

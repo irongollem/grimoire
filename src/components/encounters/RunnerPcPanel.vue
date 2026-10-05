@@ -112,6 +112,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
 import type { RollResult } from "@/lib/dice/dice";
+import type { SaveEntry } from "@/rules/characterChecks";
 import RunnerPcAttacks from "@/components/encounters/RunnerPcAttacks.vue";
 import RunnerPcConditions from "@/components/encounters/RunnerPcConditions.vue";
 import RunnerPcWildshape from "@/components/encounters/RunnerPcWildshape.vue";
@@ -223,7 +224,7 @@ function saveBonus(key: SaveKey): number {
   return profs.includes(key) ? base + profBonus.value : base;
 }
 
-const playerSaves = computed<Record<string, import("@/components/common/AbilityScoreTable.vue").SaveEntry>>(() =>
+const playerSaves = computed<Record<string, SaveEntry>>(() =>
   Object.fromEntries(
     ABILITY_KEYS.map((s) => [
       s.key,

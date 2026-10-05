@@ -39,6 +39,7 @@ const SECTIONS = [
   "HearthLiveBanner",
   "HearthVitals",
   "HearthSpellcasting",
+  "HearthChecks",
   "HearthWaiting",
   "HearthRightNow",
   "HearthQuickNote",
@@ -81,8 +82,16 @@ describe("PlayerHearthView", () => {
     state.linkedPartyMemberId = "pm-1";
     state.isRunning = true;
     expect(sections(mountView()).sort()).toEqual(
-      ["HearthLiveBanner", "HearthQuickNote", "HearthRightNow", "HearthSpellcasting", "HearthVitals", "HearthWaiting"].sort(),
+      ["HearthChecks", "HearthLiveBanner", "HearthQuickNote", "HearthRightNow", "HearthSpellcasting", "HearthVitals", "HearthWaiting"].sort(),
     );
+  });
+
+  it("reads at the table as vitals, spellcasting, checks, then waiting, right now, session notes", () => {
+    state.linkedPartyMemberId = "pm-1";
+    state.isRunning = true;
+    expect(sections(mountView())).toEqual([
+      "HearthLiveBanner", "HearthVitals", "HearthSpellcasting", "HearthChecks", "HearthWaiting", "HearthRightNow", "HearthQuickNote",
+    ]);
   });
 
   it("keeps a character-less player on the first-visit page even while a session runs", () => {

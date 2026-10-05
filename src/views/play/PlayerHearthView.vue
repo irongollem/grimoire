@@ -17,8 +17,8 @@
     <HearthFirstVisit v-else-if="!member" />
 
     <!-- At the table. DOM order is the phone's reading order; from lg the
-         three wrappers are columns: [vitals, spellcasting] [waiting]
-         [right now, session note]. -->
+         three wrappers are columns: [vitals, spellcasting] [checks]
+         [waiting, right now, session note]. -->
     <div v-else-if="isRunning" class="hearth-stack hearth-live">
       <HearthLiveBanner :started-at="startedAt" :member-id="member.id" />
       <div class="hearth-col">
@@ -26,9 +26,10 @@
         <HearthSpellcasting :member="member" />
       </div>
       <div class="hearth-col">
-        <HearthWaiting :started-at="startedAt" />
+        <HearthChecks :member="member" />
       </div>
       <div class="hearth-col">
+        <HearthWaiting :started-at="startedAt" />
         <HearthRightNow />
         <HearthQuickNote :started-at="startedAt" />
       </div>
@@ -55,6 +56,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import HearthChecks from "@/components/play/hearth/HearthChecks.vue";
 import HearthCharacterCard from "@/components/play/hearth/HearthCharacterCard.vue";
 import HearthDateStrip from "@/components/play/hearth/HearthDateStrip.vue";
 import HearthFirstVisit from "@/components/play/hearth/HearthFirstVisit.vue";

@@ -76,6 +76,7 @@
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import type { SaveEntry } from "@/rules/characterChecks";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import RunnerTraitSection from "@/components/encounters/RunnerTraitSection.vue";
 import RunnerLegendaryActions from "@/components/encounters/RunnerLegendaryActions.vue";
@@ -124,7 +125,7 @@ const monsterScores = computed(() => {
   };
 });
 
-const monsterSaves = computed<Record<string, import("@/components/common/AbilityScoreTable.vue").SaveEntry>>(() => {
+const monsterSaves = computed<Record<string, SaveEntry>>(() => {
   const sb = monster.stat_block;
   const parsed = sb?.saving_throws ? parseSaveString(sb.saving_throws) : {};
   return Object.fromEntries(

@@ -13,8 +13,11 @@
   <!-- ── Sheet: the 2024 character sheet's ability boxes ──────────────────
        A framed box per ability: name, the modifier large (it is what you add
        to the d20), the score in an oval on the bottom edge, and the save under
-       it. Six across from sm up, three by two on a phone. -->
-  <div v-if="layout === 'sheet'" data-ability-sheet class="grid grid-cols-3 gap-x-2 gap-y-3 border-t border-border p-3 sm:grid-cols-6 sm:gap-x-3">
+       it. Six across once the table itself is 36rem wide, three by two below that:
+       it answers its own width (a container query), not the viewport's, so the
+       same sheet fits a full-width card and a narrow Hearth column. -->
+  <div v-if="layout === 'sheet'" class="@container">
+  <div data-ability-sheet class="grid grid-cols-3 gap-x-2 gap-y-3 border-t border-border p-3 @xl:grid-cols-6 @xl:gap-x-3">
     <div v-for="ab in ABILITIES" :key="ab.key" class="flex min-w-0 flex-col" :style="{ '--ab': ab.color }">
       <AppButton
         variant="menu"
@@ -51,6 +54,7 @@
         >{{ fmt(saveBonus(ab.key)) }}</span>
       </AppButton>
     </div>
+  </div>
   </div>
 
   <!-- ── Stat block: two groups of three, as in the 2024 Monster Manual ─── -->
@@ -106,6 +110,7 @@
 <script setup lang="ts">
 import AppButton from "@/components/common/AppButton.vue";
 import type { RollMode } from "@/lib/dice/roller";
+import type { SaveEntry } from "@/rules/characterChecks";
 
 const ABILITIES = [
   { key: "str", abbr: "STR", name: "Strength", color: "#ef4444" },
@@ -125,11 +130,6 @@ const INK = "text-[color:color-mix(in_oklab,var(--ab)_70%,var(--foreground))]";
 type AbilityKey = (typeof ABILITIES)[number]["key"];
 
 const ABILITY_GROUPS = [ABILITIES.slice(0, 3), ABILITIES.slice(3)];
-
-export interface SaveEntry {
-  bonus: number;
-  proficient: boolean;
-}
 
 const {
   scores,

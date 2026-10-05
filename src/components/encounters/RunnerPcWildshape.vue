@@ -122,6 +122,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import type { SaveEntry } from "@/rules/characterChecks";
 import RunnerTraitSection from "@/components/encounters/RunnerTraitSection.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -256,7 +257,7 @@ const wildshapeScores = computed(() => {
   };
 });
 
-const wildshapeSaves = computed<Record<string, import("@/components/common/AbilityScoreTable.vue").SaveEntry>>(() => {
+const wildshapeSaves = computed<Record<string, SaveEntry>>(() => {
   const sb = wildshapeMonster.value?.stat_block;
   const parsed = sb?.saving_throws ? parseSaveString(sb.saving_throws) : {};
   return Object.fromEntries(

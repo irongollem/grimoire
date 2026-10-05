@@ -69,6 +69,7 @@ A few surfaces aren't tabs at all. They're reached from inside another page: **C
 - An oxblood band says the session is live and for how long. In a fight it adds the round and where they stand ("You're up after the Bandit Captain"; a monster you've hidden is never named) with a **Join the fight** button.
 - **Vitals**: big hit points with the same damage, heal and temp controls as the sheet, and AC, initiative, speed and passive Perception.
 - **Spellcasting**: what they're concentrating on and their slots, tap to spend. Hidden for characters without either.
+- **Checks**: your six abilities, a Save button under each, and all eighteen skills. Tap one to roll it, or hold it to roll with advantage or disadvantage. It rolls exactly as the character sheet does, so Wild Shape, conditions and exhaustion are already counted. Attacks stay on the encounter page and spells on the Spellbook.
 - **Waiting for you**: handouts you've just shared, and any loot drop, chest or offer from this session that is still up for grabs. Loot is still claimed in chat, race and all: **To the drop** opens the chat at that drop.
 - **Right now**: the quest step the party is on.
 - **Session notes**: a note for this session that saves itself as they type, private unless they tick **Share with DM**.
