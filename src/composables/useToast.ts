@@ -90,6 +90,16 @@ export function useToast() {
   function fromError(e: unknown, fallback = "Something went wrong."): string {
     if (e instanceof Error && e.message) return e.message;
     if (typeof e === "string" && e) return e;
+    // PostgREST errors are plain objects ({ message, code, details, hint }), not
+    // Error instances, so they all used to collapse to the fallback, including
+    // the sentences our own functions RAISE for a person to read ("Cleric spell
+    // limit of 10 reached"). Those carry a P0 code; a constraint or RLS failure
+    // ("duplicate key value violates…") is not written for a player, and keeps
+    // the fallback.
+    if (typeof e === "object" && e !== null && "message" in e && "code" in e) {
+      const { message, code } = e;
+      if (typeof message === "string" && message && typeof code === "string" && code.startsWith("P0")) return message;
+    }
     return fallback;
   }
 

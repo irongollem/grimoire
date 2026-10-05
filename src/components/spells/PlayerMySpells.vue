@@ -447,7 +447,11 @@ async function togglePip(target: SpellSlotEntry, pip: number) {
     const newUsed = s.used >= pip ? pip - 1 : pip;
     return { ...s, used: newUsed };
   });
-  await updateMember({ id: props.partyMemberId, update: { spell_slots: updated } });
+  try {
+    await updateMember({ id: props.partyMemberId, update: { spell_slots: updated } });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't update your spell slots."));
+  }
 }
 
 // ── Multiclass-aware stat lookup ───────────────────────────────────────────────

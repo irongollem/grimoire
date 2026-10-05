@@ -136,6 +136,7 @@ import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { usePlayerItemPicker } from "@/composables/items/usePlayerItemPicker";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useToast } from "@/composables/useToast";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useInventorySlots } from "@/composables/items/useInventorySlots";
 import { useInventoryMutations } from "@/composables/items/useInventoryMutations";
@@ -168,6 +169,7 @@ const { items: allItems } = useStoredItemRefs(
 );
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const { sendCurrencyDrop } = useCampaignMessages();
+const toast = useToast();
 const { reportChatFailure } = useChatSendFailure();
 
 /**
@@ -432,9 +434,13 @@ const memberCoins = computed((): Record<CoinKey, number> => ({
   cp: member.value?.cp ?? 0,
 }));
 
-function setCurrency(key: CoinKey, value: number) {
+async function setCurrency(key: CoinKey, value: number) {
   if (!member.value) return;
-  void updatePartyMember({ id: member.value.id, update: { [key]: value } });
+  try {
+    await updatePartyMember({ id: member.value.id, update: { [key]: value } });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't update your coins."));
+  }
 }
 
 // ── Coin drop form ─────────────────────────────────────────────────────────────

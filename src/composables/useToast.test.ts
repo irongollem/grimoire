@@ -9,6 +9,33 @@ describe("useToast", () => {
   // test in this file pushed.
   const { toasts, error, success, info, dismiss } = useToast();
 
+  describe("fromError", () => {
+    const { fromError } = useToast();
+
+    it("reads an Error's message and a bare string", () => {
+      expect(fromError(new Error("boom"))).toBe("boom");
+      expect(fromError("plain")).toBe("plain");
+    });
+
+    it("reads the sentence a database function raised, without details or hint", () => {
+      const postgrest = { message: "Cleric spell limit of 10 reached", code: "P0001", details: "row 42", hint: null };
+      expect(fromError(postgrest, "fallback")).toBe("Cleric spell limit of 10 reached");
+    });
+
+    it("keeps the fallback for a constraint or permission failure, which is not written for a player", () => {
+      expect(fromError({ message: "duplicate key value violates unique constraint \"x\"", code: "23505" }, "fallback")).toBe("fallback");
+      expect(fromError({ message: "new row violates row-level security policy", code: "42501" }, "fallback")).toBe("fallback");
+    });
+
+    it("falls back for unknowns and objects without a usable message", () => {
+      expect(fromError(null, "fallback")).toBe("fallback");
+      expect(fromError(undefined)).toBe("Something went wrong.");
+      expect(fromError({ code: "x" }, "fallback")).toBe("fallback");
+      expect(fromError({ message: "", code: "P0001" }, "fallback")).toBe("fallback");
+      expect(fromError({ message: 42, code: "P0001" }, "fallback")).toBe("fallback");
+    });
+  });
+
   beforeEach(() => {
     toasts.value = [];
   });

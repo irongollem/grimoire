@@ -340,6 +340,7 @@ import ItemStatBlock from "@/components/inventory/ItemStatBlock.vue";
 import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import { useUpdateInventoryItem } from "@/composables/items/usePartyInventory";
+import { useToast } from "@/composables/useToast";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
@@ -417,7 +418,17 @@ function confirmSell() {
 // Reset sell form when panel closes
 watch(() => props.inv, () => { sellOpen.value = false; });
 
-const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
+const { mutateAsync: updateInventoryItemRaw } = useUpdateInventoryItem();
+const toast = useToast();
+
+/** Save an inventory edit; a rejected write becomes a toast instead of an unhandled rejection. */
+async function updateInventoryItem(args: Parameters<typeof updateInventoryItemRaw>[0]) {
+  try {
+    await updateInventoryItemRaw(args);
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't save that change."));
+  }
+}
 const isUpdating = ref(false);
 
 const isTogglingCurse = ref(false);

@@ -50,12 +50,13 @@ const local = ref(props.value);
 watch(() => props.value, (v) => { local.value = v; });
 
 function adjust(delta: number) {
-  local.value = Math.max(0, local.value + delta);
+  local.value = Math.max(0, Math.trunc(local.value || 0) + delta);
   commit();
 }
 
 function commit() {
-  const v = Math.max(0, local.value || 0);
+  // Coins are integer columns: commit whole coins only.
+  const v = Math.max(0, Math.trunc(Number(local.value) || 0));
   local.value = v;
   emit("commit", v);
 }

@@ -283,6 +283,16 @@ const { candidate, clear: clearReplacement } = useSpellReplacement();
 const { ruleset } = useRuleset();
 const toast = useToast();
 
+/** Add a spell, surfacing a rejected write (e.g. "Cleric spell limit of 10 reached") as a toast. */
+async function learnSpell(spellId: string, isPrepared: boolean) {
+  if (!playerMemberId || !sourceClassId) return;
+  try {
+    await addSpell({ partyMemberId: playerMemberId, spellId, isPrepared, sourceClassId });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't add that spell."));
+  }
+}
+
 async function handleLearn(spell: Pick<SpellBrowseRow, "id" | "level">) {
   if (!playerMemberId || !sourceClassId) return;
   const policy = officialRulesPolicy
@@ -292,12 +302,7 @@ async function handleLearn(spell: Pick<SpellBrowseRow, "id" | "level">) {
     if (spell.level === 0) {
       const limit = policyValueAtLevel(policy.cantrips, sourceClassLevel ?? 1);
       if (limit !== null && (knownCantripCount ?? 0) < limit) {
-        await addSpell({
-          partyMemberId: playerMemberId,
-          spellId: spell.id,
-          isPrepared: true,
-          sourceClassId: sourceClassId,
-        });
+        await learnSpell(spell.id, true);
         return;
       }
       toast.info("Your revised cantrip choices are full; change them during level up.");
@@ -310,12 +315,7 @@ async function handleLearn(spell: Pick<SpellBrowseRow, "id" | "level">) {
     if (!candidate.value && policy.changeCount !== null) {
       const limit = policyValueAtLevel(policy.prepared, sourceClassLevel ?? 1);
       if (limit !== null && (preparedSpellCount ?? 0) < limit) {
-        await addSpell({
-          partyMemberId: playerMemberId,
-          spellId: spell.id,
-          isPrepared: true,
-          sourceClassId: sourceClassId,
-        });
+        await learnSpell(spell.id, true);
         return;
       }
       toast.info("Choose the prepared spell to replace first.");
@@ -334,12 +334,7 @@ async function handleLearn(spell: Pick<SpellBrowseRow, "id" | "level">) {
     }
     return;
   }
-  await addSpell({
-    partyMemberId: playerMemberId,
-    spellId: spell.id,
-    isPrepared: casterType === "prepared",
-    sourceClassId: sourceClassId,
-  });
+  await learnSpell(spell.id, casterType === "prepared");
 }
 
 function handleKnownClick(spell: Pick<SpellBrowseRow, "id">) {
