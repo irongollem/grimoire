@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
-import { SYNC_TABLES, SIGNAL_KEYS } from "./useCampaignLiveSync";
-import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
+import { SYNC_TABLES, SIGNAL_KEYS, QUEST_RUNTIME_SYNC_KEYS } from "./useCampaignLiveSync";
+import { BEATS_KEY, QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
 import { THREADS_KEY } from "@/composables/quests/useQuestThreads";
 
 /**
@@ -49,7 +49,9 @@ describe("live sync registries", () => {
   it("refreshes every quest runtime view from any of the runtime tables", () => {
     // One transition writes all three tables and the run context joins them, so
     // any one ringing must reach every view: the job four 5s polls did before.
-    const expected = [...QUEST_RUNTIME_QUERY_KEYS, THREADS_KEY].sort();
+    // Plus the player's beat projection: a reveal is a visit, not a beat edit.
+    const expected = [...QUEST_RUNTIME_SYNC_KEYS].sort();
+    expect(expected).toEqual([...QUEST_RUNTIME_QUERY_KEYS, THREADS_KEY, BEATS_KEY].sort());
     for (const table of ["quest_runtime_state", "quest_threads", "quest_beat_transitions"]) {
       expect([...(SIGNAL_KEYS.get(table) ?? [])].sort(), table).toEqual(expected);
     }
@@ -61,5 +63,12 @@ describe("live sync registries", () => {
     // lists "Unknown item" — the bug that started this (#811).
     expect(SIGNAL_KEYS.get("store_items")).toEqual(["store-items", "items"]);
     expect(SIGNAL_KEYS.get("party_inventory")).toEqual(["party-inventory", "items"]);
+  });
+
+  it("refreshes only player roots for the player-only signals", () => {
+    expect(SIGNAL_KEYS.get("locations_player")).toEqual(["locations"]);
+    expect(SIGNAL_KEYS.get("quests_player")).toEqual(["quests"]);
+    expect(SIGNAL_KEYS.get("quest_beats_player")).toEqual([BEATS_KEY]);
+    expect(SIGNAL_KEYS.get("quest_objectives_player")).toEqual(["quest_objectives"]);
   });
 });

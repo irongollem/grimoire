@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(7);
+select plan(8);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
@@ -22,7 +22,14 @@ select plan(7);
 --               rows some members may not read rings a name of its own on
 --               insert and update, so only those members' projections refresh:
 --               `npcs` rings `npcs_player` (20260928233302), because players
---               read NPCs only through get_player_visible_npcs.
+--               read NPCs only through get_player_visible_npcs. Places,
+--               quests, quest beats and quest objectives ring the same way
+--               (player_live_sync_for_places_and_quests): players read them
+--               through projections or owner-only policies, so no row event
+--               reaches them. quest_beats and quest_objectives are not
+--               published and also ring `<table>_player` on delete;
+--               quest_objectives has no campaign_id and rings through its
+--               parent quest (signal_quest_child_change).
 --
 -- Both lists mirror the client registry, and campaignSyncTables.test.ts reads
 -- this file and fails when they differ: SYNC_TABLES plus party_inventory for
@@ -48,7 +55,11 @@ insert into live_sync_doorbell (name) values
 
 create temporary table live_sync_named_signal (name text primary key, source text not null) on commit drop;
 insert into live_sync_named_signal (name, source) values
-  ('npcs_player', 'npcs');
+  ('npcs_player', 'npcs'),
+  ('locations_player', 'locations'),
+  ('quests_player', 'quests'),
+  ('quest_beats_player', 'quest_beats'),
+  ('quest_objectives_player', 'quest_objectives');
 
 -- The tables whose statement-level triggers ring the doorbell for an event.
 -- By function and event rather than trigger name: a renamed table keeps the
@@ -63,7 +74,8 @@ language sql stable as $$
        and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
                         'public.signal_store_item_change()'::regprocedure,
                         'public.signal_ruleset_review_change()'::regprocedure,
-                        'public.signal_handout_change()'::regprocedure)
+                        'public.signal_handout_change()'::regprocedure,
+                        'public.signal_quest_child_change()'::regprocedure)
        and (g.tgtype & p_event_bit) <> 0)
 $$;
 
@@ -108,7 +120,8 @@ language sql stable as $$
     select 1 from pg_trigger g
      where g.tgrelid = format('public.%I', p_table)::regclass
        and not g.tgisinternal
-       and g.tgfoid = 'public.signal_campaign_change()'::regprocedure
+       and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
+                        'public.signal_quest_child_change()'::regprocedure)
        and g.tgnargs = 1
        and split_part(encode(g.tgargs, 'escape'), '\000', 1) = p_signal
        and (g.tgtype & p_event_bit) <> 0)
@@ -120,6 +133,16 @@ select is(
     where not (pg_temp.rings_named(t.source, t.name, 4) and pg_temp.rings_named(t.source, t.name, 16))),
   '',
   'every named signal rings from its source table on insert and update');
+
+-- The two named signals whose table is not subscribed have no table-name
+-- delete signal, so they ring their own name on delete as well.
+select is(
+  (select coalesce(string_agg(t.name, ', ' order by t.name), '')
+     from live_sync_named_signal t
+    where t.source in ('quest_beats', 'quest_objectives')
+      and not pg_temp.rings_named(t.source, t.name, 8)),
+  '',
+  'unsubscribed named signals also ring from their source on delete');
 
 -- The reason `npcs_player` exists: a player reads NPCs through the projection
 -- only, so no policy may hand them the row (20260928233302).
@@ -138,9 +161,10 @@ select is(
   (select coalesce(string_agg(p.tablename::text, ', ' order by p.tablename), '')
      from pg_publication_tables p
     where p.pubname = 'supabase_realtime' and p.schemaname = 'public'
-      and p.tablename in ('quest_runtime_state', 'quest_threads', 'quest_beat_transitions')),
+      and p.tablename in ('quest_runtime_state', 'quest_threads', 'quest_beat_transitions',
+                          'quest_beats', 'quest_objectives')),
   '',
-  'the quest runtime rings the doorbell and is never published as rows');
+  'the quest runtime, beats and objectives ring the doorbell and are never published as rows');
 
 select * from finish();
 rollback;

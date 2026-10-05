@@ -11,10 +11,11 @@ import {
 } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
 import { adoptCampaignSession, refetchCampaignSession } from "@/composables/campaign/useCampaignSession";
-import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
+import { BEATS_KEY, QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
 import { PLAYER_NPCS_KEY } from "@/composables/npcs/useNpcs";
 import { PLAYER_HANDOUTS_KEY } from "@/composables/scriptorium/usePlayerHandouts";
 import { BACKLINKS_KEY } from "@/composables/notes/useEntityBacklinks";
+import { OBJECTIVES_KEY } from "@/composables/quests/useQuests";
 import { THREADS_KEY } from "@/composables/quests/useQuestThreads";
 import type { CampaignSessionState } from "@/types/session.types";
 import { useAuthStore } from "@/stores/auth";
@@ -94,8 +95,20 @@ export const SYNC_TABLES = [
 ] as const;
 
 /** One transition writes a cursor, a log row and sometimes a thread, and the
- *  run context joins all three — so any of them refreshes every runtime view. */
-const QUEST_RUNTIME_SYNC_KEYS = [...QUEST_RUNTIME_QUERY_KEYS, THREADS_KEY] as const;
+ *  run context joins all three — so any of them refreshes every runtime view.
+ *  `BEATS_KEY` is there for the players: a beat is revealed by a visit in the
+ *  transition log, not by an edit to the beat row, so no `quest_beats_player`
+ *  signal rings when the DM advances; the player's "Story so far" would stay
+ *  stale. (Objectives need no entry: achieving one updates its own row, which
+ *  rings `quest_objectives_player`.) */
+export const QUEST_RUNTIME_SYNC_KEYS = [...QUEST_RUNTIME_QUERY_KEYS, THREADS_KEY, BEATS_KEY] as const;
+
+/** Signals that exist only to refresh a player's projections (20261005 player
+ *  live sync). The DM already holds the row events for these tables or reads
+ *  them through caches an autosave must not refetch, so the DM skips them. */
+const PLAYER_ONLY_SIGNALS = new Set([
+  "locations_player", "quests_player", "quest_beats_player", "quest_objectives_player",
+]);
 
 /**
  * Which query keys a `campaign_sync` doorbell refreshes, keyed by the table that
@@ -127,6 +140,14 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // and has only preview caches under this root, so the rows they already
   // received are not refetched. A delete still rings as `npcs`.
   ["npcs_player", [PLAYER_NPCS_KEY]],
+  // Places, quests, beats and objectives are read by players through
+  // projections and owner-only policies, so a row event never reaches them;
+  // the doorbell tells them to re-read. The roots below also hold the DM's
+  // caches, which is why PLAYER_ONLY_SIGNALS makes the DM skip these.
+  ["locations_player", ["locations"]],
+  ["quests_player", ["quests"]],
+  ["quest_beats_player", [BEATS_KEY]],
+  ["quest_objectives_player", [OBJECTIVES_KEY]],
   // Not in SYNC_TABLES — it has exact-row handlers below instead of a registry
   // entry. `items` as well: an item leaving the party's inventory leaves the
   // player-visible projection with it.
@@ -264,6 +285,7 @@ export function useCampaignLiveSync() {
                 const changed = (payload.new as { changed_table?: string } | null)?.changed_table;
                 const keys = changed ? SIGNAL_KEYS.get(changed) : undefined;
                 if (!keys) return;
+                if (changed && auth.isDM && PLAYER_ONLY_SIGNALS.has(changed)) return;
                 for (const key of keys) invalidate(key)();
               })
               // Party-inventory events have the exact query shape, so apply every
