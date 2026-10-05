@@ -57,6 +57,16 @@ const errorMsg = ref<string | null>(null);
 const resultMessage = ref<BackfillResult | null>(null);
 const currentTarget = ref<EmbedTarget | null>(null);
 const processedThisTarget = ref(0);
+/**
+ * What a failed or stopped run leaves behind. Semantic search filters on the
+ * embedding model, never on whether the text changed: after a model switch a
+ * row not yet redone is left out, after a text change it keeps matching on its
+ * previous vector. The old wording claimed every waiting row was skipped.
+ */
+const WAITING_ROWS_NOTE =
+  "The provider config is already saved. Until you retry, rows embedded with a different model are left out " +
+  "of semantic search, and rows whose text changed keep matching on their previous embedding.";
+
 const remainingThisTarget = ref<number | null>(null);
 const totalProcessed = ref(0);
 
@@ -111,15 +121,10 @@ async function runBackfill(): Promise<void> {
         const { data, error } = await invokeBatch(target, BATCH_LIMIT);
         if (error) {
           // The config change (if any) that led here is already committed --
-          // it is not rolled back by a backfill failure. Un-re-embedded rows
-          // are simply ineligible for semantic search (they fall back to the
-          // compact candidate list, exactly like a row that was never
-          // embedded) until the backfill is retried, so this is degraded but
-          // safe, not broken.
+          // it is not rolled back by a backfill failure. Degraded but safe,
+          // not broken: see WAITING_ROWS_NOTE for what waiting rows do.
           errorMsg.value =
-            `Failed on ${EMBED_TARGET_LABELS[target]}: ${await extractErrorMessage(error)}. ` +
-            "The provider config is already saved -- rows not yet re-embedded are simply skipped by " +
-            "semantic search until you retry.";
+            `Failed on ${EMBED_TARGET_LABELS[target]}: ${await extractErrorMessage(error)}. ${WAITING_ROWS_NOTE}`;
           return;
         }
         const res = data as EmbedBatchResponse;
@@ -133,8 +138,7 @@ async function runBackfill(): Promise<void> {
           errorMsg.value =
             `No progress on ${EMBED_TARGET_LABELS[target]} (0 processed, ${res.remaining} still remaining). ` +
             "Check that exactly one embedding provider is enabled above with a platform key configured, then " +
-            "try again. The provider config is already saved -- un-re-embedded rows are simply skipped by " +
-            "semantic search in the meantime.";
+            `try again. ${WAITING_ROWS_NOTE}`;
           return;
         }
 
@@ -152,16 +156,12 @@ async function runBackfill(): Promise<void> {
           kind: "stopped",
           text:
             `Stopped after ${totalProcessed.value} row${totalProcessed.value === 1 ? "" : "s"} re-embedded. ` +
-            "The provider config is already saved -- rows not yet re-embedded are simply skipped by semantic " +
-            "search (falling back to the compact candidate list) until you resume. Safe to resume any time -- " +
-            "click Re-embed again.",
+            `${WAITING_ROWS_NOTE} Safe to resume any time: click Re-embed again.`,
         }
       : { kind: "success", text: `Done -- ${totalProcessed.value} row${totalProcessed.value === 1 ? "" : "s"} re-embedded across all ${EMBED_TARGETS.length} tables.` };
   } catch (err) {
     errorMsg.value =
-      (err instanceof Error ? err.message : "Backfill failed.") +
-      " The provider config is already saved -- rows not yet re-embedded are simply skipped by semantic " +
-      "search until the backfill is retried.";
+      `${err instanceof Error ? err.message : "Backfill failed."} ${WAITING_ROWS_NOTE}`;
   } finally {
     isRunning.value = false;
     currentTarget.value = null;

@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { chunkRows, upsertEmbeddingsInChunks } from "./embeddingUpsert.ts";
 
-function fakeClient(failOnCall?: number) {
+const TIMEOUT = { message: "canceling statement due to statement timeout" };
+
+/** Fails the calls listed in `failOnCalls` (1-based). */
+function fakeClient(failOnCalls: number[] = []) {
   const calls: Array<{ table: string; rows: number; onConflict: string }> = [];
   return {
     calls,
     from: (table: string) => ({
       upsert: (rows: Record<string, unknown>[], { onConflict }: { onConflict: string }) => {
         calls.push({ table, rows: rows.length, onConflict });
-        return Promise.resolve({ error: calls.length === failOnCall ? { message: "canceling statement due to statement timeout" } : null });
+        return Promise.resolve({ error: failOnCalls.includes(calls.length) ? TIMEOUT : null });
       },
     }),
   };
@@ -32,11 +35,20 @@ describe("upsertEmbeddingsInChunks", () => {
     expect(client.calls.every((c) => c.onConflict === "library_monster_id")).toBe(true);
   });
 
-  it("stops at the first failing chunk and reports what was stored before it", async () => {
-    const client = fakeClient(3);
+  it("retries a chunk that timed out one row at a time and carries on", async () => {
+    const client = fakeClient([3]);
     const result = await upsertEmbeddingsInChunks(client, "library_monster_embeddings", rows(100), "library_monster_id");
-    expect(result.stored).toBe(40);
+    expect(result).toEqual({ stored: 100, error: null });
+    // Two chunks, the failed third, its twenty single rows, then the last two chunks.
+    expect(client.calls.map((c) => c.rows)).toEqual([20, 20, 20, ...Array<number>(20).fill(1), 20, 20]);
+  });
+
+  it("stops when a single row still fails, reporting what was stored before it", async () => {
+    // Call 3 is the third chunk; calls 4.. are its rows, and the sixth of those fails.
+    const client = fakeClient([3, 9]);
+    const result = await upsertEmbeddingsInChunks(client, "library_monster_embeddings", rows(100), "library_monster_id");
+    expect(result.stored).toBe(45);
     expect(result.error?.message).toMatch(/statement timeout/);
-    expect(client.calls).toHaveLength(3);
+    expect(client.calls).toHaveLength(9);
   });
 });

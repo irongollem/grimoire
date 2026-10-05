@@ -9,9 +9,13 @@
  * very first 100-row upsert and stored nothing. The first fill had worked at
  * the same batch size only because it inserted into an empty table.
  *
- * Twenty rows a statement stays well inside the limit. A failed chunk leaves
- * the chunks before it stored; their new `source_hash` makes the next batch
- * call skip them, so a retry picks up where this one stopped.
+ * Twenty rows a statement stays well inside the limit most of the time, but
+ * not always: the same re-embed still timed out on a 20-row chunk after 1,200
+ * rows, with the table's replaced vectors waiting on an HNSW vacuum. So a
+ * chunk that fails is retried one row per statement before the batch gives
+ * up; a single row cannot plausibly take eight seconds. Whatever was stored
+ * before a failure stays stored, and its new `source_hash` makes the next
+ * batch call skip it, so a retry picks up where this one stopped.
  */
 export const EMBEDDING_UPSERT_CHUNK = 20;
 
@@ -30,7 +34,7 @@ export function chunkRows<T>(rows: readonly T[], size: number): T[][] {
   return chunks;
 }
 
-/** Upserts `rows` chunk by chunk; the first failure stops the run and is returned with how many rows were stored before it. */
+/** Upserts `rows` chunk by chunk, a failed chunk row by row; a row that still fails stops the run and is returned with how many rows were stored before it. */
 export async function upsertEmbeddingsInChunks(
   client: UpsertClient,
   table: string,
@@ -41,8 +45,16 @@ export async function upsertEmbeddingsInChunks(
   let stored = 0;
   for (const chunk of chunkRows(rows, size)) {
     const { error } = await client.from(table).upsert(chunk, { onConflict });
-    if (error) return { stored, error };
-    stored += chunk.length;
+    if (!error) {
+      stored += chunk.length;
+      continue;
+    }
+    if (chunk.length === 1) return { stored, error };
+    for (const row of chunk) {
+      const single = await client.from(table).upsert([row], { onConflict });
+      if (single.error) return { stored, error: single.error };
+      stored += 1;
+    }
   }
   return { stored, error: null };
 }
