@@ -157,7 +157,7 @@ async function announceAttach(name: string, partyMemberId: string, table: string
     toast.info(benchedMessage(name, table, waiting));
   } catch (e) {
     if (plain) toast.success(plain);
-    toast.error(toast.fromError(e));
+    toast.error(toast.fromError(e, "Couldn't check whether the character was benched."));
   }
 }
 
@@ -201,7 +201,7 @@ async function detachCharacter() {
   try {
     await detachChar(character.id);
   } catch (e) {
-    toast.error(toast.fromError(e));
+    toast.error(toast.fromError(e, "Couldn't detach the character."));
   }
 }
 
@@ -210,7 +210,7 @@ async function cloneCharacter() {
     await cloneChar(character.id);
     toast.success(`${character.name} was cloned.`);
   } catch (e) {
-    toast.error(toast.fromError(e));
+    toast.error(toast.fromError(e, "Couldn't clone the character."));
   }
 }
 
@@ -239,7 +239,7 @@ async function attachTo(c: Campaign) {
     // The table's setting may have changed since the list loaded.
     const refused = parseRulesetBounce(e);
     if (refused) openBounce(c, refused.campaignRuleset);
-    else toast.error(toast.fromError(e));
+    else toast.error(toast.fromError(e, "Couldn't attach the character."));
   }
 }
 
@@ -276,7 +276,7 @@ async function deleteCharacter() {
   try {
     await deleteChar(character.id);
   } catch (e) {
-    toast.error(toast.fromError(e));
+    toast.error(toast.fromError(e, "Couldn't delete the character."));
   }
 }
 </script>

@@ -172,6 +172,7 @@ import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import { useUpdateCompanion, useDeleteCompanion } from "@/composables/encounters/useCompanions";
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 import {
   CONDITIONS,
   getExhaustionLevel,
@@ -199,6 +200,7 @@ const isOwner = computed(() =>
 const { mutateAsync: updateCompanion } = useUpdateCompanion();
 const { mutateAsync: deleteCompanionMutation } = useDeleteCompanion();
 const { confirm } = useConfirm();
+const toast = useToast();
 
 const hpAmount        = ref(1);
 const addingCondition = ref(false);
@@ -233,7 +235,12 @@ async function damage() {
   const amount = hpAmount.value;
   if (!amount || amount < 1) return;
   const newHp = Math.max(0, companion.current_hp - amount);
-  await updateCompanion({ id: companion.id, update: { current_hp: newHp } });
+  try {
+    await updateCompanion({ id: companion.id, update: { current_hp: newHp } });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't update hit points."));
+    return;
+  }
   hpAmount.value = 1;
 }
 
@@ -242,17 +249,27 @@ async function heal() {
   const amount = hpAmount.value;
   if (!amount || amount < 1) return;
   const newHp = Math.min(companion.max_hp, companion.current_hp + amount);
-  await updateCompanion({ id: companion.id, update: { current_hp: newHp } });
+  try {
+    await updateCompanion({ id: companion.id, update: { current_hp: newHp } });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't update hit points."));
+    return;
+  }
   hpAmount.value = 1;
 }
 
 async function addCondition() {
   if (!companion || !newCondition.value) return;
   if (newCondition.value === "Exhaustion") {
-    await setExhaustion(1);
+    if (!await setExhaustion(1)) return;
   } else {
     const updated = [...companion.conditions, newCondition.value];
-    await updateCompanion({ id: companion.id, update: { conditions: updated } });
+    try {
+      await updateCompanion({ id: companion.id, update: { conditions: updated } });
+    } catch (error) {
+      toast.error(toast.fromError(error, "Couldn't add that condition."));
+      return;
+    }
   }
   newCondition.value = "";
   addingCondition.value = false;
@@ -261,18 +278,33 @@ async function addCondition() {
 async function removeCondition(cond: string) {
   if (!companion) return;
   const updated = companion.conditions.filter((c) => c !== cond);
-  await updateCompanion({ id: companion.id, update: { conditions: updated } });
+  try {
+    await updateCompanion({ id: companion.id, update: { conditions: updated } });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't remove that condition."));
+  }
 }
 
-async function setExhaustion(level: number) {
-  if (!companion) return;
+/** Resolves true when the write landed, so a caller can skip its follow-up on failure. */
+async function setExhaustion(level: number): Promise<boolean> {
+  if (!companion) return false;
   const updated = setExhaustionLevel(companion.conditions, level);
-  await updateCompanion({ id: companion.id, update: { conditions: updated } });
+  try {
+    await updateCompanion({ id: companion.id, update: { conditions: updated } });
+    return true;
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't change exhaustion."));
+    return false;
+  }
 }
 
 async function setCombatReady(ready: boolean) {
   if (!companion) return;
-  await updateCompanion({ id: companion.id, update: { combat_ready: ready } });
+  try {
+    await updateCompanion({ id: companion.id, update: { combat_ready: ready } });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't change combat readiness."));
+  }
 }
 
 function handleEdit() {
@@ -283,7 +315,12 @@ function handleEdit() {
 async function handleDelete() {
   if (!companion) return;
   if (!await confirm(`Remove "${companion.name || "this companion"}"?`)) return;
-  await deleteCompanionMutation(companion);
+  try {
+    await deleteCompanionMutation(companion);
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't remove the companion."));
+    return;
+  }
   emit("close");
 }
 </script>

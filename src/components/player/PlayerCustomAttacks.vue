@@ -140,6 +140,7 @@ import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { validateCustomAttack, customAttackDamageExpression } from "@/rules/customAttack";
 import { signedNum } from "@/rules/weaponAttack";
 import type { PartyMember, CustomAttack } from "@/types/party.types";
+import { useToast } from "@/composables/useToast";
 
 const { member, attackDisadvantage, attackPenalty } = defineProps<{
   member: PartyMember;
@@ -157,6 +158,7 @@ const { promptRoll } = usePromptedRoll();
 const { sendRoll } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
+const toast = useToast();
 
 // Local optimistic array — mirrors the weapon_masteries pattern in PlayerCombatTab,
 // avoiding a flash back to the stale value before refetch.
@@ -252,9 +254,18 @@ function cancelForm() {
   formError.value = null;
 }
 
-async function persist(next: CustomAttack[]) {
+/** Resolves true when the write landed; on failure the optimistic list is rolled back. */
+async function persist(next: CustomAttack[]): Promise<boolean> {
+  const previous = localAttacks.value;
   localAttacks.value = next; // optimistic
-  await updateMember({ id: member.id, update: { custom_attacks: next } });
+  try {
+    await updateMember({ id: member.id, update: { custom_attacks: next } });
+    return true;
+  } catch (error) {
+    localAttacks.value = previous;
+    toast.error(toast.fromError(error, "Couldn't save your custom attacks."));
+    return false;
+  }
 }
 
 function parsedFormAttackBonus(): number | null {
@@ -281,7 +292,7 @@ async function confirmForm() {
     const next = editingId.value
       ? localAttacks.value.map((a) => (a.id === editingId.value ? { ...draft, id: a.id } : a))
       : [...localAttacks.value, { ...draft, id: crypto.randomUUID() }];
-    await persist(next);
+    if (!await persist(next)) return;
     showForm.value = false;
     editingId.value = null;
   } finally {

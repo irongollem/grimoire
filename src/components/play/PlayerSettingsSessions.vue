@@ -73,6 +73,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useSessionProposals, useAllSessionAvailability, useUpsertAvailability } from "@/composables/calendar/useScheduling";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import type { SessionProposal } from "@/types/scheduling.types";
+import { useToast } from "@/composables/useToast";
 
 const auth = useAuthStore();
 const campaign = useCampaignStore();
@@ -80,6 +81,7 @@ const campaign = useCampaignStore();
 const { data: proposals } = useSessionProposals();
 const { data: allAvailability } = useAllSessionAvailability();
 const { mutateAsync: upsertAvailability } = useUpsertAvailability();
+const toast = useToast();
 
 const today = useLocalToday();
 
@@ -103,11 +105,15 @@ function myAvailability(proposalId: string): boolean | null {
 
 async function setAvailability(proposal: SessionProposal, available: boolean) {
   if (!campaign.activeCampaignId) return;
-  await upsertAvailability({
-    session_proposal_id: proposal.id,
-    campaign_id: campaign.activeCampaignId,
-    available,
-  });
+  try {
+    await upsertAvailability({
+      session_proposal_id: proposal.id,
+      campaign_id: campaign.activeCampaignId,
+      available,
+    });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't save your availability."));
+  }
 }
 
 function formatSessionDate(date: string, time: string | null): string {

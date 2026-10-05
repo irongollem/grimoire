@@ -242,6 +242,7 @@ import EncounterCombatantLightbox from "@/components/player/EncounterCombatantLi
 import TurnTimer from "@/components/encounters/TurnTimer.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { useToast } from "@/composables/useToast";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { primaryImage } from "@/lib/locations/mapStack";
 
@@ -319,6 +320,7 @@ const isInLobby = computed(() => (liveState.value?.current_round ?? 1) === 0);
 // instead of waiting on the query invalidation round-trip.
 const { data: companions } = useCompanions();
 const { mutateAsync: updateCompanion } = useUpdateCompanion();
+const toast = useToast();
 const companionOverrides = ref<Record<string, boolean>>({});
 
 const myCompanions = computed(() =>
@@ -334,8 +336,9 @@ async function toggleCompanionCombatReady(companion: Companion) {
   companionOverrides.value[companion.id] = next;
   try {
     await updateCompanion({ id: companion.id, update: { combat_ready: next } });
-  } catch {
+  } catch (error) {
     companionOverrides.value[companion.id] = !next;
+    toast.error(toast.fromError(error, "Couldn't change combat readiness."));
   }
 }
 
@@ -384,10 +387,15 @@ async function rollMyInitiative() {
     });
     if (!result) return; // physical-dice prompt cancelled
     myRolledInitiative.value = result.total;
-    await updateMyMember({
-      id: member.party_member_id,
-      update: { current_initiative: result.total },
-    });
+    try {
+      await updateMyMember({
+        id: member.party_member_id,
+        update: { current_initiative: result.total },
+      });
+    } catch (error) {
+      myRolledInitiative.value = null;
+      toast.error(toast.fromError(error, "Couldn't save your initiative."));
+    }
   } finally {
     rollingInitiative.value = false;
   }

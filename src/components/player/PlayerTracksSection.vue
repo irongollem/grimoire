@@ -37,6 +37,7 @@ import { useParty } from "@/composables/party/useParty";
 import { listOptionalRules } from "@/rules/optionalRules";
 import { trackerInitialValue } from "@/lib/rules/trackerValue";
 import type { TrackerDef, TrackerState, DmButton } from "@/types/rule.types";
+import { useToast } from "@/composables/useToast";
 
 const props = defineProps<{
   memberId: string;
@@ -48,6 +49,7 @@ const { data: campaignRules } = useOptionalRules();
 const { data: trackerStates } = useTrackerStates();
 const { data: party } = useParty();
 const applyDelta = useApplyTrackerDelta();
+const toast = useToast();
 const applying = ref(false);
 
 const abilityScores = computed(() => {
@@ -128,6 +130,8 @@ async function applyButton(t: TrackerEntry, btn: DmButton) {
       max:           t.def.max,
       start:         t.def.start,
     });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't update the tracker."));
   } finally {
     applying.value = false;
   }
