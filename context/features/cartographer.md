@@ -1287,7 +1287,7 @@ The migration file is in place but **not yet applied to the remote Supabase proj
 | [src/cartographer/commandStack.test.ts](../../src/cartographer/commandStack.test.ts) | TDD: undo/redo stack |
 | [src/cartographer/floodFill.ts](../../src/cartographer/floodFill.ts) | `floodFill` + `boundaryEdges` |
 | [src/cartographer/floodFill.test.ts](../../src/cartographer/floodFill.test.ts) | TDD: flood-fill + boundary-edge |
-| [vitest.config.ts](../../vitest.config.ts) | Vitest + happy-dom test config |
+| [vitest.config.ts](../../vitest.config.ts) | Vitest config: happy-dom for component/view/composable tests, plain Node elsewhere |
 
 ### Wood Interior pack (post-M2)
 

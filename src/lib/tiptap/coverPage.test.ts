@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
 import { generateHTML } from "@tiptap/core";
 import { buildFront, buildBack } from "./coverPage";

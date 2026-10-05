@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi } from "vitest";
 import { createMemoryHistory, createRouter, isNavigationFailure, NavigationFailureType } from "vue-router";
 import { createReloadCoordinator, installNavigationReload } from "@/lib/swAutoUpdate";

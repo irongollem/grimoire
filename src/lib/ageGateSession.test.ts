@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from "vitest";
 import { clearAgeGateChoice, rememberUnder16, wasAnsweredUnder16 } from "./ageGateSession";
 

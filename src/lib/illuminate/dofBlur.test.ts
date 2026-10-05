@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi } from "vitest";
 import { applyDofBlur, DEFAULT_DOF_BLUR, type DofBlurOptions } from "@/lib/illuminate/dofBlur";
 

@@ -7,6 +7,31 @@ import { defineConfig } from "vitest/config";
 import vue from "@vitejs/plugin-vue";
 import path from "node:path";
 
+// supabase/functions/**: edge functions are Deno, but their PURE logic modules
+// (no Deno/https imports — e.g. _shared/credit-math.ts) are unit-tested here.
+// infra/**: the Cloudflare Worker is plain JS with no build step and no
+// staging environment — a mistake in it is a site-wide broken-asset event,
+// so it is unit-tested here against fakes for the R2 binding and the origin.
+const TEST_FILES = [
+  "src/**/*.{test,spec}.ts",
+  "scripts/**/*.{test,spec}.ts",
+  // `.mjs` as well, for tooling that must run on bare `node` with no
+  // install step — `scripts/migration-rebase` runs in CI before setup-node
+  // and inside a git hook, so it cannot be TypeScript needing a loader.
+  "scripts/**/*.{test,spec}.mjs",
+  "supabase/functions/**/*.{test,spec}.ts",
+  "infra/**/*.{test,spec}.js",
+  // api/**: Vercel functions on the app's origin (see api/_rsvpRelay.ts).
+  "api/**/*.{test,spec}.ts",
+];
+
+// The folders whose tests mount components or drive composables. See `projects`.
+const DOM_TEST_FILES = [
+  "src/components/**/*.{test,spec}.ts",
+  "src/views/**/*.{test,spec}.ts",
+  "src/composables/**/*.{test,spec}.ts",
+];
+
 export default defineConfig({
   plugins: [
     vue({
@@ -46,32 +71,48 @@ export default defineConfig({
       VITE_SUPABASE_URL: "http://localhost:54321",
       VITE_SUPABASE_ANON_KEY: "test-anon-key",
     },
-    // happy-dom gives DOM globals when we mount components or touch canvas.
-    // For pure-function tests it costs ~nothing.
-    environment: "happy-dom",
     // Removes Web Animations from the test DOM — see the file for why.
     setupFiles: ["./vitest.setup.ts"],
-    // supabase/functions/**: edge functions are Deno, but their PURE logic modules
-    // (no Deno/https imports — e.g. _shared/credit-math.ts) are unit-tested here.
-    // infra/**: the Cloudflare Worker is plain JS with no build step and no
-    // staging environment — a mistake in it is a site-wide broken-asset event,
-    // so it is unit-tested here against fakes for the R2 binding and the origin.
-    include: [
-      "src/**/*.{test,spec}.ts",
-      "scripts/**/*.{test,spec}.ts",
-      // `.mjs` as well, for tooling that must run on bare `node` with no
-      // install step — `scripts/migration-rebase` runs in CI before setup-node
-      // and inside a git hook, so it cannot be TypeScript needing a loader.
-      "scripts/**/*.{test,spec}.mjs",
-      "supabase/functions/**/*.{test,spec}.ts",
-      "infra/**/*.{test,spec}.js",
-      // api/**: Vercel functions on the app's origin (see api/_rsvpRelay.ts).
-      "api/**/*.{test,spec}.ts",
-    ],
     exclude: ["node_modules", "dist", ".vercel"],
     // Explicit imports from "vitest" — no `globals: true` so TypeScript
     // doesn't need `"vitest/globals"` in tsconfig types.
     globals: false,
     clearMocks: true,
+    // Two environments, chosen by folder. A DOM is not free: happy-dom costs
+    // about a third of a second to build, once per test file, and under one
+    // environment for everything the suite built 877 of them for ~290 files
+    // that touch the DOM (311s of worker time, 43% of the run).
+    //
+    // Vue-side folders, where tests mount components or run composables that
+    // reach for `window`, get happy-dom. Everything else (rules, lib, cartographer,
+    // edge-function logic, scripts) runs in plain Node. A logic test that does
+    // need a DOM opts in on its first line with `// @vitest-environment happy-dom`
+    // (or `jsdom`, as the Scriptorium layout tests do); without it the file fails
+    // loudly with "document is not defined", never silently.
+    //
+    // `isolate: false` and `pool: 'vmThreads'` would also build fewer DOMs, but
+    // the first shares module state and `vi.mock` registrations across files,
+    // and the second swaps in per-file V8 contexts with known leaks and
+    // cross-realm `instanceof` failures. Not building a DOM at all is the fix
+    // that changes nothing else.
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "dom",
+          environment: "happy-dom",
+          include: DOM_TEST_FILES,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "node",
+          environment: "node",
+          include: TEST_FILES,
+          exclude: DOM_TEST_FILES,
+        },
+      },
+    ],
   },
 });

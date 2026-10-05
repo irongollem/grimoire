@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
 import { expandTocPlaceholder, fillPagedTocPages, renderTocHtml, tocColumnCount } from "./pagedToc";
 

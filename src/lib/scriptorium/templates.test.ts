@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
 import { generateJSON } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";

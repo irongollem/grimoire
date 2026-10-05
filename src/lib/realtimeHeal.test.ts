@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, afterEach } from "vitest";
 
 import { createRealtimeHeal, type RealtimeHeal } from "@/lib/realtimeHeal";

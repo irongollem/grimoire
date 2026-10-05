@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi } from "vitest";
 import { applyVignette, DEFAULT_VIGNETTE, type VignetteOptions } from "@/lib/illuminate/vignette";
 

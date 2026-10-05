@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /*
  * Table-driven parseHTML/renderHTML round-trip coverage for every Scriptorium
  * node that had none (#915 story 2 test-gap pass). One file rather than one
