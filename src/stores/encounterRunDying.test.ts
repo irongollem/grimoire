@@ -52,6 +52,15 @@ describe("runner adjustHp for a player combatant", () => {
     expect(store.combatants[0]!.conditions).not.toContain("Unconscious");
   });
 
+  it("an ordinary hit on a conscious player writes HP only, not the runner's copy of their conditions", () => {
+    const store = setup({ ...player(10), conditions: ["Prone"] });
+    store.adjustHp("p-1", -3);
+    const patch = persist.mock.calls[0]![1] as Record<string, unknown>;
+    expect(patch).toMatchObject({ current_hp: 7 });
+    expect(patch).not.toHaveProperty("conditions");
+    expect(patch).not.toHaveProperty("death_save_failures");
+  });
+
   it("monsters just floor at 0", () => {
     const m = { ...player(5), type: "monster" as const, party_member_id: undefined };
     const store = setup(m);

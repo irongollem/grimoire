@@ -291,10 +291,29 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     return c.type === "player" && !!c.party_member_id;
   }
 
-  /** Adopt the result of a dying-rules calculation onto a player combatant. */
-  function adoptDying(c: RunCombatant, saves: { successes: number; failures: number }, conditions: string[]) {
+  /**
+   * Adopt the result of a dying-rules calculation onto a player combatant, and
+   * return only what it changed, for the write. An ordinary hit on a conscious
+   * PC changes neither, and writing the runner's copy back anyway would undo a
+   * condition the player toggled on their own sheet a moment earlier.
+   */
+  function adoptDying(
+    c: RunCombatant,
+    saves: { successes: number; failures: number },
+    conditions: string[],
+  ): PartyMemberUpdate {
+    const patch: PartyMemberUpdate = {};
+    if (saves.successes !== c.death_saves.successes || saves.failures !== c.death_saves.failures) {
+      patch.death_save_successes = saves.successes;
+      patch.death_save_failures = saves.failures;
+    }
+    const had = new Set(c.conditions);
+    if (conditions.length !== had.size || conditions.some((name) => !had.has(name))) {
+      patch.conditions = conditions;
+    }
     c.death_saves = { ...saves };
     c.conditions = conditions;
+    return patch;
   }
 
   /** Returns the dying outcome for a player combatant (so the caller can say what happened), else null. */
@@ -315,12 +334,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         c.hp = out.current_hp;
         if (out.reverted) revertWildshape(instanceId);
         else if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
-        dyingPatch = {
-          death_save_successes: out.saves.successes,
-          death_save_failures: out.saves.failures,
-          conditions: out.conditions,
-        };
-        adoptDying(c, out.saves, out.conditions);
+        dyingPatch = adoptDying(c, out.saves, out.conditions);
         outcome = out.outcome;
       } else {
         const out = applyDamage(pools, -delta);
@@ -335,12 +349,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
       if (out.outcome !== "healing-refused-dead") {
         c.hp = out.current_hp;
         if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
-        dyingPatch = {
-          death_save_successes: out.saves.successes,
-          death_save_failures: out.saves.failures,
-          conditions: out.conditions,
-        };
-        adoptDying(c, out.saves, out.conditions);
+        dyingPatch = adoptDying(c, out.saves, out.conditions);
       }
     } else {
       const out = applyHealing(pools, delta);
@@ -426,12 +435,10 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         // character down, and any HP above 0 stands them up with clean saves.
         if (c.hp <= 0 && before > 0) {
           const conditions = c.conditions.includes(UNCONSCIOUS) ? c.conditions : [...c.conditions, UNCONSCIOUS];
-          adoptDying(c, { successes: 0, failures: 0 }, conditions);
-          dyingPatch = { death_save_successes: 0, death_save_failures: 0, conditions };
+          dyingPatch = adoptDying(c, { successes: 0, failures: 0 }, conditions);
         } else if (c.hp > 0 && before <= 0) {
           const conditions = c.conditions.filter((x) => x !== UNCONSCIOUS);
-          adoptDying(c, { successes: 0, failures: 0 }, conditions);
-          dyingPatch = { death_save_successes: 0, death_save_failures: 0, conditions };
+          dyingPatch = adoptDying(c, { successes: 0, failures: 0 }, conditions);
         }
       }
     }

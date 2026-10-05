@@ -35,7 +35,9 @@ vi.mock("@/lib/supabase", () => ({
           return { data: null, error: Object.assign(new Error("Edge Function returned a non-2xx status code"), { context }) };
         }
         if (ids.some((id) => mocks.failIds.has(id))) return { data: null, error: new Error("embed failed") };
-        return { data: { ok: true }, error: null };
+        // The many-mode reply: per-id, as the server sends it. Counting is
+        // done from these lists, so a bare `{ ok: true }` would count nothing.
+        return { data: { embedded: ids, unchanged: [], forbidden: [], notFound: [] }, error: null };
       }),
     },
   },

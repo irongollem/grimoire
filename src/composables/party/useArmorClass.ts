@@ -5,7 +5,7 @@ import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useAuthStore } from "@/stores/auth";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
-import { calculateAc, wornGearByMember, type AcBreakdown, type AcMember } from "@/rules/armorClass";
+import { calculateAc, previousAc, wornGearByMember, type AcBreakdown, type AcMember } from "@/rules/armorClass";
 
 /**
  * Reactive Armour Class, per party member.
@@ -47,6 +47,11 @@ function useArmorClassImpl() {
     return acBreakdownFor(member).total;
   }
 
+  /** The AC the sheet showed before it was calculated; see `previousAc`. */
+  function previousAcFor(member: AcMember & { ac: number }): number {
+    return previousAc(member, gearByMember.value[member.id] ?? []);
+  }
+
   /**
    * True once the gear is known. Until then every AC reads as if nothing were worn,
    * so anything that compares the calculated AC against something (the one-time
@@ -60,7 +65,7 @@ function useArmorClassImpl() {
       (auth.isDM || projection.value !== undefined),
   );
 
-  return { acFor, acBreakdownFor, isReady };
+  return { acFor, acBreakdownFor, previousAcFor, isReady };
 }
 
 /** Shared across all instances (see composable docstring above). */

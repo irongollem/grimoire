@@ -10,6 +10,7 @@
 -- active character again) instead of refusing: the second tap leaves the player
 -- exactly where the first one did, with no error to read mid-game. A different
 -- player still gets their own copy. Authorization stays first and unchanged.
+-- The original is read FOR UPDATE, which serialises concurrent assumes of it.
 
 alter table public.party_members
   add column if not exists assumed_from_id uuid references public.party_members(id) on delete set null;
@@ -32,8 +33,11 @@ declare
   v_new_item_id   uuid;
   v_item_map      jsonb := '{}'::jsonb;
 begin
-  -- Load the original character
-  select * into v_original from party_members where id = p_original_id;
+  -- Load the original character, locked: two taps arrive as two concurrent
+  -- calls, and without the lock neither sees the other's uncommitted copy, so
+  -- both pass the "already assumed" check below and both make one. The lock
+  -- makes the second wait for the first to commit, then find its copy.
+  select * into v_original from party_members where id = p_original_id for update;
   if not found then
     raise exception 'Character not found';
   end if;

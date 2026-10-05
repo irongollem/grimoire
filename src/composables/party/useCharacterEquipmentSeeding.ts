@@ -6,6 +6,8 @@ import { parseEquipmentList, type CharacterFormState } from "@/rules/characterCr
 import type { BundleItemEntry } from "@/types/item.types";
 import type { PartyInventoryInsert, PartyInventoryItem } from "@/types/inventory.types";
 import { itemRefColumns } from "@/lib/itemRef";
+import { likeLiteral, orFilterValue } from "@/lib/postgrestFilter";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { subclassGrantedSpellRows } from "@/levelup/subclassGrantedSpells";
 
 /** Vault item data needed for equipment seeding. */
@@ -128,7 +130,7 @@ export function parseStartingEquipmentPlan(value: unknown): StartingEquipmentPla
 /** Look up vault items by name (case-insensitive). Returns Map<lowercaseName, VaultEntry>. */
 async function lookupVaultItems(names: string[]): Promise<Map<string, VaultEntry>> {
   if (names.length === 0) return new Map();
-  const filter = names.map(n => `name.ilike.${n}`).join(",");
+  const filter = names.map((n) => `name.ilike.${orFilterValue(likeLiteral(n))}`).join(",");
   const { data, error } = await supabase.from("items").select("id, name, bundle_items").or(filter);
   if (error) throw error;
   const map = new Map<string, VaultEntry>();
@@ -245,6 +247,18 @@ async function writeGrantedSpells(spellIds: string[], characterId: string): Prom
 }
 
 /**
+ * The character reached its table and only its starting equipment did not. A
+ * caller must not treat this as a failed attach: the character is seated, and
+ * the marker is back on it for the next replay.
+ */
+export class StartingEquipmentError extends Error {
+  constructor(cause: unknown) {
+    super("The character joined the table, but its starting equipment couldn't be added.", { cause });
+    this.name = "StartingEquipmentError";
+  }
+}
+
+/**
  * Grants a character the starting equipment it was made with, into a campaign's
  * inventory, exactly once. The one function behind every way a character comes
  * to sit at a table: creating it on a roster, attaching it from the pool and
@@ -286,10 +300,19 @@ export async function replayStartingGrants(
   try {
     await writePlan(plan, characterId, campaignId, written);
   } catch (writeError) {
-    const { data: current } = await supabase
+    // Put the marker back on top of the choices as they are NOW. A failed read
+    // must not become an empty object here: writing `{ starting_grants }` alone
+    // would wipe every other choice the character holds.
+    const { data: current, error: rereadError } = await supabase
       .from("party_members").select("class_choices").eq("id", characterId).single();
-    const restored = { ...((current?.class_choices ?? {}) as Record<string, unknown>), starting_grants: marker };
-    await supabase.from("party_members").update({ class_choices: restored }).eq("id", characterId);
+    if (rereadError) {
+      reportHandledError(rereadError, "replayStartingGrants.restoreMarker", { characterId });
+    } else {
+      const restored = { ...((current.class_choices ?? {}) as Record<string, unknown>), starting_grants: marker };
+      const { error: restoreError } = await supabase
+        .from("party_members").update({ class_choices: restored }).eq("id", characterId);
+      if (restoreError) reportHandledError(restoreError, "replayStartingGrants.restoreMarker", { characterId });
+    }
     // Rows that did land before the failure would be granted twice on the
     // retry, so exactly those go (sub-items first: they point at their pack).
     if (written.length > 0) await supabase.from("party_inventory").delete().in("id", written);

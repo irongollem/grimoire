@@ -66,4 +66,18 @@ describe("useSetQuestBeatPositions", () => {
     expect(invalidate).toHaveBeenCalledTimes(1);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: key });
   });
+
+  it("a failed earlier save keeps a later save's optimistic move", async () => {
+    const options = useSetQuestBeatPositions() as unknown as Options;
+    const key = ["quest_beats", "q1"];
+    client.setQueryData(key, [beat("a", 0, 0), beat("b", 0, 0)]);
+
+    const first = { questId: "q1", positions: [{ id: "a", x: 10, y: 10 }] };
+    const firstContext = await options.onMutate(first);
+    const second = { questId: "q1", positions: [{ id: "b", x: 20, y: 20 }] };
+    await options.onMutate(second);
+
+    options.onError(new Error("x"), first, firstContext);
+    expect(client.getQueryData(key)).toEqual([beat("a", 0, 0), beat("b", 20, 20)]);
+  });
 });

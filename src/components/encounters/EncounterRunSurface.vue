@@ -32,7 +32,10 @@ const { data: encounter } = useEncounter(id);
 
 const { data: party } = useParty();
 const { data: companions } = useCompanions();
-const { acFor } = useArmorClass();
+// A player's AC is snapshotted into the run (and so into combatants_live) when
+// the store is built, so that waits for the gear: before it loads, everyone is
+// 10 + Dex.
+const { acFor, isReady: acReady } = useArmorClass();
 const { data: npcs } = useNpcs();
 const { data: allTraps } = useTraps(() => ({ includeAllScopes: true }));
 const store = useEncounterRunStore();
@@ -82,12 +85,12 @@ watch(fieldMonsterMap, (map) => {
   }
 });
 
-const isReady = computed(() => !!encounter.value && !monstersLoading.value && !!party.value && !!companions.value && !!npcs.value && !!allTraps.value);
+const isReady = computed(() => !!encounter.value && !monstersLoading.value && !!party.value && !!companions.value && !!npcs.value && !!allTraps.value && acReady.value);
 
 watch(
-  [encounter, monsterMap, monstersLoading, party, companions, npcs, allTraps, liveState, liveStateLoaded],
+  [encounter, monsterMap, monstersLoading, party, companions, npcs, allTraps, liveState, liveStateLoaded, acReady],
   ([enc, monsterRows, loadingMonsters, par, _comps, npcList, traps]) => {
-    if (!enc || loadingMonsters || !par || !npcList || !traps || !liveStateLoaded.value) return;
+    if (!enc || loadingMonsters || !par || !npcList || !traps || !liveStateLoaded.value || !acReady.value) return;
     const mons = [...monsterRows.values()];
     const live = liveState.value;
     if (live?.encounter_id === enc.id && live?.is_running) {

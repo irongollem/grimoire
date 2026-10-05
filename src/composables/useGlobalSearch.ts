@@ -2,6 +2,7 @@ import { computed, type Ref } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { orFilterValue } from "@/lib/postgrestFilter";
 import { useCampaignStore } from "@/stores/campaign";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { reportHandledError } from "@/lib/observability/sentry";
@@ -44,7 +45,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
       ? supabase.from("notes").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)
       : Promise.resolve({ data: [] as { id: string; title: string }[], error: null }),
     campaignId
-      ? supabase.from("npcs").select("id, name, disguise_name").eq("campaign_id", campaignId).or(`name.ilike.${q},disguise_name.ilike.${q}`).limit(LIMIT)
+      ? supabase.from("npcs").select("id, name, disguise_name").eq("campaign_id", campaignId).or(`name.ilike.${orFilterValue(q)},disguise_name.ilike.${orFilterValue(q)}`).limit(LIMIT)
       : Promise.resolve({ data: [] as { id: string; name: string; disguise_name: string | null }[], error: null }),
     supabase.from("monsters").select("id, name").ilike("name", q).not("open5e_import", "eq", true).limit(LIMIT),
     supabase.from("library_monsters").select("id, name").ilike("name", q).limit(LIMIT),

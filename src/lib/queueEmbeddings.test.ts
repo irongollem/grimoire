@@ -71,7 +71,13 @@ describe("queueEmbeddings", () => {
 
   it("treats a skipped (child account) answer as nothing embedded", async () => {
     mocks.invoke.mockResolvedValue(ok({ skipped: "child_account" }));
-    expect(await queueEmbeddings("npc", ids(3))).toEqual({ embedded: 0, processed: 3, failed: 0, rateLimited: false });
+    expect(await queueEmbeddings("npc", ids(3))).toEqual({ embedded: 0, processed: 0, failed: 3, rateLimited: false });
+  });
+
+  it("does not count ids the server refused as handled", async () => {
+    mocks.invoke.mockResolvedValue(ok({ embedded: ["id0"], unchanged: ["id1"], forbidden: ["id2", "id3"], notFound: ["id4"] }));
+    expect(await queueEmbeddings("npc", ids(5))).toEqual({ embedded: 1, processed: 2, failed: 3, rateLimited: false });
+    expect(mocks.report).not.toHaveBeenCalled();
   });
 
   it("reports progress per chunk", async () => {

@@ -343,8 +343,9 @@ async function handleGoLive() {
   goingLive.value = true;
   try {
     // Opening the lobby: wipe last session's rolls first, so the only initiative
-    // the runner ever ingests is one made for this encounter.
-    await clearPartyInitiatives();
+    // the runner ever ingests is one made for this encounter. Going live again
+    // once combat has started is resuming it, and those rolls are the turn order.
+    if (!store.started) await clearPartyInitiatives();
     const { startedSession } = await goLive({ round: store.round, activeIndex: store.activeIndex, combatants: store.combatants });
     // Going live starts the session when there isn't one, because a DM hitting
     // Run is at the table. Said out loud rather than done quietly: the session

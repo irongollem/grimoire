@@ -522,8 +522,23 @@ export function useSetQuestBeatPositions() {
       }
       return { key, previous };
     },
-    onError: (_error, _input, context) => {
-      if (context?.previous !== undefined) queryClient.setQueryData(context.key, context.previous);
+    // Drags flush on a debounce, so two saves can be in flight at once, and the
+    // later one's snapshot already holds the earlier one's move. Restoring a
+    // whole snapshot would wipe whichever optimistic move came after it, so a
+    // failed save undoes only its own beats, and only those still standing
+    // where it put them.
+    onError: (_error, input, context) => {
+      if (!context?.previous) return;
+      const before = new Map(context.previous.map((beat) => [beat.id, beat]));
+      const mine = new Map(input.positions.map((position) => [position.id, position]));
+      queryClient.setQueryData<QuestBeat[]>(context.key, (current) =>
+        current?.map((beat) => {
+          const position = mine.get(beat.id);
+          const was = before.get(beat.id);
+          if (!position || !was || beat.canvas_x !== position.x || beat.canvas_y !== position.y) return beat;
+          return { ...beat, canvas_x: was.canvas_x, canvas_y: was.canvas_y };
+        }),
+      );
     },
     onSettled: (_data, _error, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });

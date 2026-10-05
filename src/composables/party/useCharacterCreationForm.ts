@@ -26,6 +26,7 @@ import { applySpeciesSpellGrants } from "@/composables/party/useCharacterSpells"
 import type { PartyMember, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { abilityBonusesForChoice } from "@/rules/backgroundAsi";
 import {
   ABILITY_STATS, POINT_BUY_COSTS, POINT_BUY_TOTAL,
@@ -33,7 +34,7 @@ import {
   saveKeysFromNames,
 } from "@/rules/characterCreation";
 import {
-  useCharacterEquipmentSeeding, buildStartingEquipmentPlan, replayStartingGrants,
+  useCharacterEquipmentSeeding, buildStartingEquipmentPlan, replayStartingGrants, StartingEquipmentError,
 } from "@/composables/party/useCharacterEquipmentSeeding";
 import { useCharacterBackgroundSelection } from "@/composables/party/useCharacterBackgroundSelection";
 
@@ -794,6 +795,9 @@ export function useCharacterCreationForm() {
       // stays in the pool.
       let landedCampaignId = created.campaign_id;
       let attachedNow = false;
+      // The character is made and seated whatever happens to its equipment, so
+      // an equipment failure is reported after the rollback window, never inside it.
+      let equipmentError: unknown = null;
       try {
         // Every choice the character has is written BEFORE it is attached: the
         // table reviews them at attach time (#943), and a review that only saw
@@ -835,8 +839,15 @@ export function useCharacterCreationForm() {
               landedCampaignId = joinCampaignId;
               attachedNow = true;
             } catch (attachErr) {
-              if (!parseRulesetBounce(attachErr)) throw attachErr;
-              restsInPool = true;
+              if (attachErr instanceof StartingEquipmentError) {
+                landedCampaignId = joinCampaignId;
+                attachedNow = true;
+                equipmentError = attachErr;
+              } else if (parseRulesetBounce(attachErr)) {
+                restsInPool = true;
+              } else {
+                throw attachErr;
+              }
             }
           }
           if (restsInPool) {
@@ -846,17 +857,28 @@ export function useCharacterCreationForm() {
           }
         }
 
-        // A roster character created by a DM is already at its table, so its
-        // starting equipment goes in now. A player's character gets it when it
-        // is attached (above, inside attachCharacter), or later, whenever it
-        // first joins a table; until then the loadout waits on the character.
-        if (created.campaign_id) {
-          await replayStartingGrants(created.id, created.campaign_id, queryClient);
-        }
       } catch (seedErr) {
         await supabase.from("party_inventory").delete().eq("carried_by", created.id);
         await supabase.from("party_members").delete().eq("id", created.id);
         throw seedErr;
+      }
+
+      // A roster character created by a DM is already at its table, so its
+      // starting equipment goes in now. A player's character gets it when it
+      // is attached (above, inside attachCharacter), or later, whenever it
+      // first joins a table; until then the loadout waits on the character.
+      // Outside the rollback: a failed grant puts its marker back and removes
+      // its own rows, and is no reason to delete a character that exists.
+      if (created.campaign_id) {
+        try {
+          await replayStartingGrants(created.id, created.campaign_id, queryClient);
+        } catch (replayErr) {
+          equipmentError = replayErr;
+        }
+      }
+      if (equipmentError) {
+        reportHandledError(equipmentError, "createCharacter.startingEquipment", { characterId: created.id });
+        useToast().error(`${f.name.trim()} is made, but its starting equipment couldn't be added.`);
       }
 
       // The review ran inside the attach: a character the table did not approve

@@ -138,7 +138,7 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 - Wild Shape stays outside it: callers keep `wildshape_state?.beast_ac ?? acFor(member)`, and a shaped character gets the beast's AC with nothing added.
 - `useArmorClass` exposes `isReady`; until the gear has loaded every character looks unarmoured, so anything comparing against the calculation must wait for it.
 
-**`party_members.ac` is "the number a player saw before calculation".** It is nullable with no default (`20261005085834`), and nothing writes it: new and edited characters leave it null, the DM form and the player editor show the live breakdown and a formula choice instead of a raw field, the runner snapshots the calculated value (`buildRunCombatants`), the PDF prints it, and the MCP overview drops a gear-blind number rather than contradict the sheet. The only reader is `AcCalculatedNotice` on the player sheet: where the stored number differs from the calculated one it says once, with the working, "now worked out from your gear: 11 (was 17). Equip your armour and shield to bring it back", and "Got it" sets it to null; where the two already agree it clears silently. **Drop the column once no row holds a value.** `ac_formula = 'armor'` meant "derive from equipped armour", which is now the only behaviour, so the migration nulled it.
+**`party_members.ac` is "the number a player saw before calculation".** It is nullable with no default (`20261005085834`), and nothing writes it: new and edited characters leave it null, the DM form and the player editor show the live breakdown and a formula choice instead of a raw field, the runner snapshots the calculated value (`buildRunCombatants`), the PDF prints it, and the MCP overview drops a gear-blind number rather than contradict the sheet. The only reader is `AcCalculatedNotice` on the player sheet. It compares the calculated AC with what the old sheet *showed*, which was not the stored number alone: that was a base, with every equipped shield added on top and armour replacing an unarmoured formula (`previousAc` in `src/rules/armorClass.ts` restates that retired display, and goes with the column). Where the two differ it says once, with the working, "now worked out from your gear: 11 (was 17). Equip your armour and shield to bring it back", and "Got it" sets it to null; where the two already agree it clears silently. **Drop the column once no row holds a value.** `ac_formula = 'armor'` meant "derive from equipped armour", which is now the only behaviour, so the migration nulled it, together with the stored number of every such character wearing armour (their sheet showed the armour's AC, never the stored one).
 
 ### Proficiencies Tab
 
@@ -467,7 +467,9 @@ deleting their account. Three things are deliberately not a claim:
   takes their own copy through `assume_character()`, which is idempotent per
   player: the copy records where it came from in `party_members.assumed_from_id`
   and a second call by the same player returns their existing copy instead of
-  minting another (a double tap on a slow phone used to). Another player still
+  minting another (a double tap on a slow phone used to). The original is read
+  `for update`, so two taps arriving as concurrent calls queue rather than both
+  passing the "already assumed" check. Another player still
   gets their own. The UI says "Play this character", confirms what will happen,
   and drops an original you already play from your list.
 - A character in another campaign. A DM's seat write used to skip every check on

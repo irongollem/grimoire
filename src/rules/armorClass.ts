@@ -381,12 +381,42 @@ export function calculateAc(member: AcMember, gear: WornGear[]): AcBreakdown {
     parts.push({ label: g.item.name, value: rule.bonus });
   }
 
-  if (!armor) notes.push("Nothing is equipped in your Body slot.");
+  // Only worth saying when the plain 10 + Dex base is all the character has: a
+  // Monk, Barbarian, Mage Armor or natural armour is unarmoured on purpose, and
+  // putting armour on would lower their AC or switch the feature off.
+  if (!armor && candidates.length === 1) notes.push("Nothing is equipped in your Body slot.");
   if (!shieldGear && strayShield) {
     notes.push("Your shield only counts in the Off hand slot.");
   }
 
   return { total: total(parts), parts, notes };
+}
+
+/**
+ * The AC the sheet showed before it was calculated, for the one-time notice that
+ * compares the two (AcCalculatedNotice). Not a rule: it is the retired display,
+ * kept only to read `party_members.ac` honestly, and goes with that column.
+ *
+ * The stored number was a base. Unarmoured formulas gave way to armour equipped
+ * in any slot, natural armour took the higher of the two, and every equipped
+ * shield added its bonus wherever it sat. (`ac_formula = 'armor'` was cleared by
+ * migration 20261005085834, along with the stored number wherever armour was on.)
+ */
+export function previousAc(member: AcMember & { ac: number }, gear: WornGear[]): number {
+  let armor: ParsedArmor | null = null;
+  for (const g of gear) {
+    if (g.item.item_type !== "armor") continue;
+    const parsed = parseArmorClass(g.item.armor_class);
+    if (parsed && (!armor || parsed.base > armor.base)) armor = parsed;
+  }
+  const formula = member.ac_formula ?? "";
+  let base = member.ac;
+  if (armor && (formula.startsWith("unarmored:") || formula === "mage_armor")) base = armorAcFor(armor, member.dex);
+  else if (armor && formula.startsWith("natural:")) base = Math.max(member.ac, armorAcFor(armor, member.dex));
+  const shields = gear
+    .filter((g) => g.item.item_type === "shield")
+    .reduce((sum, g) => sum + parseShieldAcBonus(g.item.armor_class), 0);
+  return base + shields;
 }
 
 /** The breakdown as one line for a tooltip: "Chain Mail 16, Dexterity +0, Shield +2". */

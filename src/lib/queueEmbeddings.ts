@@ -30,9 +30,13 @@ export type EmbedManyEntity = "npc" | "faction" | "location" | "note" | "item" |
 export interface QueueEmbeddingsResult {
   /** Ids the server embedded. */
   embedded: number;
-  /** Ids in chunks the server answered, embedded or already current. */
+  /** Ids the server answered for: embedded, or already current. */
   processed: number;
-  /** Ids whose chunk failed outright (network, provider, storage). */
+  /**
+   * Ids that did not get a vector: their chunk failed outright (network,
+   * provider, storage), or the server refused them one by one (a row the caller
+   * does not own, a row that is gone, a child account's whole request).
+   */
   failed: number;
   /** True when the daily allowance stopped the run; later chunks were not sent. */
   rateLimited: boolean;
@@ -41,6 +45,10 @@ export interface QueueEmbeddingsResult {
 interface ManyResponse {
   embedded?: string[];
   unchanged?: string[];
+  forbidden?: string[];
+  notFound?: string[];
+  /** A child account is answered `{ skipped }` with nothing embedded. */
+  skipped?: string;
 }
 
 /** Which function and body shape embeds a chunk of this entity. */
@@ -70,9 +78,18 @@ export async function queueEmbeddings(
         }
         throw new Error(payload?.error ?? error.message);
       }
-      // A child account is answered `{ skipped }` with nothing embedded.
-      result.embedded += (data as ManyResponse | null)?.embedded?.length ?? 0;
-      result.processed += chunk.length;
+      // Counted from what the server says it did, never from what was sent: a
+      // 2xx can still refuse every id in it.
+      const reply = (data ?? {}) as ManyResponse;
+      if (reply.skipped) {
+        result.failed += chunk.length;
+      } else {
+        const embedded = reply.embedded?.length ?? 0;
+        const handledHere = embedded + (reply.unchanged?.length ?? 0);
+        result.embedded += embedded;
+        result.processed += handledHere;
+        result.failed += chunk.length - handledHere;
+      }
     } catch (e) {
       result.failed += chunk.length;
       reportHandledError(e, "queueEmbeddings", { entity, count: chunk.length });

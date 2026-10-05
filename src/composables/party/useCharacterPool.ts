@@ -2,7 +2,7 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
-import { replayStartingGrants } from "@/composables/party/useCharacterEquipmentSeeding";
+import { replayStartingGrants, StartingEquipmentError } from "@/composables/party/useCharacterEquipmentSeeding";
 import type { PartyMember } from "@/types/party.types";
 
 // #730: the player's durable character pool — every character they own,
@@ -85,13 +85,14 @@ export function useAttachCharacter() {
       // The starting equipment the character was made with waits for a table to
       // put it in (#973); this is the first moment it has one. A failure here
       // leaves the character attached (its marker is put back, so the next
-      // attach retries), and the caches are refreshed so the lists say so.
+      // attach retries), and the caches are refreshed so the lists say so. It
+      // is thrown as its own type so no caller mistakes it for a failed attach.
       try {
         await replayStartingGrants(input.partyMemberId, input.campaignId, queryClient);
       } catch (equipmentError) {
         invalidateCharacterCaches(queryClient);
         void auth.refreshMembership(input.campaignId);
-        throw equipmentError;
+        throw new StartingEquipmentError(equipmentError);
       }
     },
     onSuccess: (_data, input) => {

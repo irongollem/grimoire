@@ -110,6 +110,7 @@ import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useAttachCharacter, useDetachCharacter, useCloneCharacter, useDeletePoolCharacter } from "@/composables/party/useCharacterPool";
+import { StartingEquipmentError } from "@/composables/party/useCharacterEquipmentSeeding";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/OverflowMenu.vue";
@@ -256,6 +257,12 @@ async function attachTo(c: Campaign) {
     await attachChar({ partyMemberId: character.id, campaignId: c.id });
     await announceAttach(character.name, character.id, c.name);
   } catch (e) {
+    // Attached: only the equipment is missing, and the toast says so.
+    if (e instanceof StartingEquipmentError) {
+      toast.error(e.message);
+      await announceAttach(character.name, character.id, c.name);
+      return;
+    }
     // The table's setting may have changed since the list loaded.
     const refused = parseRulesetBounce(e);
     if (refused) openBounce(c, refused.campaignRuleset);
@@ -265,7 +272,13 @@ async function attachTo(c: Campaign) {
 
 async function bringToBounceTable(partyMemberId: string) {
   if (!bounce.value) throw new Error("No table to join.");
-  await attachChar({ partyMemberId, campaignId: bounce.value.campaignId });
+  try {
+    await attachChar({ partyMemberId, campaignId: bounce.value.campaignId });
+  } catch (e) {
+    // The copy did join; the dialog must not say it could not.
+    if (!(e instanceof StartingEquipmentError)) throw e;
+    toast.error(e.message);
+  }
 }
 
 function chooseAnotherTable() {

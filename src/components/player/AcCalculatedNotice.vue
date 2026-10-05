@@ -1,7 +1,7 @@
 <template>
   <CautionNotice v-if="visible" class="flex flex-col gap-3" data-testid="ac-calculated-notice">
     <p>
-      Your Armor Class is now worked out from your gear: {{ breakdown.total }} (was {{ member.ac }}).
+      Your Armor Class is now worked out from your gear: {{ breakdown.total }} (was {{ previous }}).
       Equip your armor and shield to bring it back.
     </p>
     <AcBreakdownList :breakdown="breakdown" />
@@ -33,14 +33,20 @@ import type { PartyMember } from "@/types/party.types";
 const { member } = defineProps<{ member: PartyMember }>();
 
 const toast = useToast();
-const { acBreakdownFor, isReady } = useArmorClass();
+const { acBreakdownFor, previousAcFor, isReady } = useArmorClass();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 
 const breakdown = computed(() => acBreakdownFor(member));
+/**
+ * What the sheet used to show: the stored number was only its base, with any
+ * equipped shield added on top, so comparing the stored number alone would
+ * flag every shield user with a difference that is not there.
+ */
+const previous = computed(() => (member.ac === null ? null : previousAcFor({ ...member, ac: member.ac })));
 const clearing = ref(false);
 
 /** Only once the gear is known: before that every character looks unarmored and the numbers always differ. */
-const visible = computed(() => isReady.value && member.ac !== null && member.ac !== breakdown.value.total);
+const visible = computed(() => isReady.value && previous.value !== null && previous.value !== breakdown.value.total);
 
 async function clear() {
   if (clearing.value) return;
@@ -55,7 +61,7 @@ async function clear() {
 }
 
 watch(
-  () => isReady.value && member.ac !== null && member.ac === breakdown.value.total,
+  () => isReady.value && previous.value !== null && previous.value === breakdown.value.total,
   (agrees) => {
     if (!agrees) return;
     void clear();
