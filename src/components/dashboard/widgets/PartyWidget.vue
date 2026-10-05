@@ -81,6 +81,7 @@
 import { computed } from "vue";
 import { IconMind, IconNavParty, IconReveal } from "@/lib/icons";
 import { useParty } from "@/composables/party/useParty";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { describeAc } from "@/rules/armorClass";
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
@@ -99,11 +100,6 @@ import type { PartyMember } from "@/types/party.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { formPortrait } from "@/lib/wildshapePortrait";
 
-/** A wild-shaped member wears the beast's face, as everywhere else. */
-function portraitProps(member: PartyMember) {
-  const { src, focalPoint, alt, shaped } = formPortrait(member, member.wildshape_state);
-  return { src, focalPoint, alt, placeholder: placeholderUrl(shaped ? "monster" : "character") };
-}
 
 /** The numbers that change during play — HP, conditions, inspiration — plus
  *  who is actually at the table, from campaign presence. */
@@ -115,6 +111,21 @@ const acOf = (m: PartyMember) => m.wildshape_state?.beast_ac ?? acFor(m);
 const acTitle = (m: PartyMember) =>
   m.wildshape_state ? `Wild Shape: ${m.wildshape_state.beast_name}` : describeAc(acBreakdownFor(m));
 const { data: party, isError: partyIsError, refetch: refetchParty } = useParty();
+
+/** A wild-shaped member wears the beast's face, as everywhere else — the
+ *  beast's picture as it reads now (art tables merged), not only the copy the
+ *  form took when it was assumed, which is null for a library beast whose
+ *  picture lives in the art tables. */
+const { data: shapedBeasts } = useMonstersByIds(
+  () => (party.value ?? []).map((m) => m.wildshape_state?.monster_id),
+  { withArt: true },
+);
+function portraitProps(member: PartyMember) {
+  const form = member.wildshape_state;
+  const live = form ? shapedBeasts.value.get(form.monster_id)?.image_url : null;
+  const { src, focalPoint, alt, shaped } = formPortrait(member, form, live);
+  return { src, focalPoint, alt, placeholder: placeholderUrl(shaped ? "monster" : "character") };
+}
 // `isLoading` (isPending && isFetching) reports false while disabled or between
 // fetches, so a query with no active campaign yet reads as "not loading" with
 // undefined data — the trap behind the original bug. `!data` is the honest

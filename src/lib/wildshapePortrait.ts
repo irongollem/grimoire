@@ -31,7 +31,12 @@ export interface FormPortrait {
 export function formPortrait(
   subject: { name: string; portrait_url?: string | null; portrait_focal_point?: FocalPoint | null },
   form: WildshapeState | null | undefined,
+  /** The beast's picture as it reads now, art tables merged, when the caller
+   *  has the beast to hand. Preferred over `beast_image_url`, which is a copy
+   *  taken when the form was assumed: a form assumed without the library art
+   *  merged copied null, and a picture changed since is stale. */
+  beastImageUrl?: string | null,
 ): FormPortrait {
-  if (form) return { src: form.beast_image_url, focalPoint: null, alt: form.beast_name, shaped: true };
+  if (form) return { src: beastImageUrl ?? form.beast_image_url, focalPoint: null, alt: form.beast_name, shaped: true };
   return { src: subject.portrait_url ?? null, focalPoint: subject.portrait_focal_point ?? null, alt: subject.name, shaped: false };
 }
