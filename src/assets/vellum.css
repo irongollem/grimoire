@@ -111,6 +111,66 @@
 :root[data-theme^="vellum"] [data-size="md"] { padding-inline: 1rem; }
 :root[data-theme^="vellum"] [data-size="lg"] { padding-inline: 1.25rem; font-family: "Cinzel", Georgia, serif; }
 
+/* ── Checkboxes ───────────────────────────────────────────────────────────
+   AppCheckbox is a native input (free keyboard, label and screen-reader
+   behaviour), and a native box is the browser's own rounded widget: the one
+   control on the page that did not look like this book. Here the box is a
+   square of paper with the ink control edge, and ticking it draws a quill
+   stroke in oxblood ink that starts inside and sweeps out past the top
+   corner, the way a hand ticks a list. `--live-ink` is the text-safe oxblood,
+   so the tick reads in Lamplight too. The amber accent keeps its meaning
+   (DM-private, see checkboxVariants) by form as well as hue: an ochre edge
+   and an ochre tick. The sr-only travel chip in EventModalTravelFields draws
+   its own state and is left alone.
+
+   The tick is the mask's 32-unit square; the box is its 13-unit square at
+   (3, 15), hence the 246% size and the -23% / -115% offsets. */
+:root[data-theme^="vellum"] input[type="checkbox"]:not(.sr-only) {
+  appearance: none;
+  position: relative;
+  overflow: visible;
+  margin: 0;
+  background-color: var(--card);
+  border: 1px solid var(--input);
+  border-radius: 0.125rem;
+  box-shadow: inset 0 1px 0 rgb(43 32 25 / 0.08);
+  cursor: inherit;
+  --vl-tick: var(--live-ink);
+}
+:root[data-theme^="vellum"] input[type="checkbox"]:not(.sr-only)::before {
+  content: "";
+  position: absolute;
+  left: -23%;
+  top: -115%;
+  width: 246%;
+  height: 246%;
+  background-color: var(--vl-tick);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4.6 20.4c1.5-1.1 3.1-.7 4.2.9l2.1 3.2C15.2 15.4 21 7.6 29.4 1.6c.6-.4 1.2.3.8.9C23.1 9.9 17 18.6 12.6 29.2c-.5 1.2-2.1 1.3-2.8.2l-5.5-7.6c-.4-.5-.2-1.1.3-1.4z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4.6 20.4c1.5-1.1 3.1-.7 4.2.9l2.1 3.2C15.2 15.4 21 7.6 29.4 1.6c.6-.4 1.2.3.8.9C23.1 9.9 17 18.6 12.6 29.2c-.5 1.2-2.1 1.3-2.8.2l-5.5-7.6c-.4-.5-.2-1.1.3-1.4z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+  pointer-events: none;
+  visibility: hidden;
+}
+:root[data-theme^="vellum"] input[type="checkbox"]:not(.sr-only):checked::before { visibility: visible; }
+/* Indeterminate is a short ink bar inside the box, not a tick. */
+:root[data-theme^="vellum"] input[type="checkbox"]:not(.sr-only):indeterminate::before {
+  visibility: visible;
+  inset: 42% 18%;
+  width: auto;
+  height: auto;
+  -webkit-mask: none;
+  mask: none;
+  border-radius: 9999px;
+}
+:root[data-theme^="vellum"] input[type="checkbox"].accent-tone-caution:not(.sr-only) { --vl-tick: var(--tone-caution); }
+:root[data-theme^="vellum"] input[type="checkbox"].accent-tone-caution:not(.sr-only):is(:checked, :indeterminate) {
+  border-color: var(--tone-caution);
+  box-shadow: inset 0 0 0 1px var(--tone-caution);
+}
+:root[data-theme^="vellum"] input[type="checkbox"]:not(.sr-only):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 /* Toned buttons: colour as a pigment accent, never a pastel wash. Soft and
    outline become an ink label on the card with a small diamond in the tone;
    icon-only buttons keep the tone as their icon colour instead. */
