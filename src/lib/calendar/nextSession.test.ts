@@ -22,6 +22,9 @@ describe("pickNextSession", () => {
 describe("sessionTimeRange", () => {
   it("adds the duration", () => {
     expect(sessionTimeRange({ proposed_time: "19:30", duration_minutes: 210 })).toBe("19:30 to 23:00");
+    // What the database actually returns for a `time` column.
+    expect(sessionTimeRange({ proposed_time: "19:30:00", duration_minutes: 210 })).toBe("19:30 to 23:00");
+    expect(sessionTimeRange({ proposed_time: "19:30:00", duration_minutes: 0 })).toBe("19:30");
   });
   it("wraps past midnight", () => {
     expect(sessionTimeRange({ proposed_time: "22:00", duration_minutes: 180 })).toBe("22:00 to 01:00");

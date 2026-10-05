@@ -28,10 +28,12 @@ export function sessionTimeRange(
   if (!p.proposed_time) return null;
   const [h, m] = p.proposed_time.split(":").map(Number);
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  // Postgres `time` arrives as "19:30:00"; the clock reads "19:30".
+  const start = `${pad(h)}:${pad(m)}`;
   const duration = p.duration_minutes;
-  if (!duration || duration <= 0) return p.proposed_time;
+  if (!duration || duration <= 0) return start;
   const end = (h * 60 + m + duration) % 1440;
-  return `${p.proposed_time} to ${pad(Math.floor(end / 60))}:${pad(end % 60)}`;
+  return `${start} to ${pad(Math.floor(end / 60))}:${pad(end % 60)}`;
 }
 
 function dayNumber(date: string): number {
