@@ -97,6 +97,8 @@ export interface PartyMember {
   user_id: string;
   owner_user_id: string | null;
   is_dm_managed: boolean;
+  /** The DM-offered character this one was copied from by "Play this character"; null otherwise. */
+  assumed_from_id?: string | null;
   campaign_id: string | null;
   /** This character's own edition; changes only through `convert_party_member_ruleset`. */
   ruleset: RulesetKey;
@@ -198,7 +200,7 @@ export interface ConcentrationState {
  * primary `character_classes` row, so a client write is silently overwritten and
  * neither is accepted here. They stay on `PartyMember` for reading.
  */
-export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "created_at" | "updated_at" | "level_choices" | "ruleset" | "class" | "subclass"> & {
+export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "assumed_from_id" | "created_at" | "updated_at" | "level_choices" | "ruleset" | "class" | "subclass"> & {
   owner_user_id?: string | null;
   level_choices?: LevelChoices;
   ruleset: RulesetKey;

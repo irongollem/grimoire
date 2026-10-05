@@ -79,52 +79,43 @@
                 <CharacterApprovalNotice :member="char" class="mt-1.5" />
               </div>
 
-              <!-- Actions -->
-              <div class="flex items-center gap-2 mt-2">
+              <!-- Actions: the primaries at touch size, Clone and Leave tucked into a menu so they are never a stray tap apart. -->
+              <div class="flex flex-wrap items-center gap-2 mt-2">
                 <AppButton
                   v-if="!isActive(char)"
                   variant="subtle"
-                  size="sm"
+                  size="md"
+                  class="whitespace-nowrap"
                   :disabled="settingActive === char.id || isWaiting(char)"
                   @click="setActive(char.id)"
                 >
-                  {{ settingActive === char.id ? 'Switching…' : 'Set Active' }}
+                  {{ settingActive === char.id ? 'Switching…' : 'Set active' }}
                 </AppButton>
-                <span v-if="!isActive(char) && isWaiting(char)" class="text-caption text-muted-foreground italic">
-                  Waiting for the DM's approval
-                </span>
+                <AppButton
+                  v-if="isActive(char) && char.level > 0"
+                  variant="primary"
+                  size="md"
+                  class="whitespace-nowrap"
+                  :to="{ name: 'play-character-levelup', query: { memberId: char.id } }"
+                  label="Level up"
+                />
                 <AppButton
                   variant="subtle"
-                  size="sm"
+                  size="md"
+                  class="whitespace-nowrap"
                   :to="{ name: 'play-character-edit', query: { memberId: char.id } }"
                   label="Edit"
                 />
-                <AppButton
-                  v-if="isActive(char) && char.level > 0"
-                  variant="subtle"
-                  size="sm"
-                  :to="{ name: 'play-character-levelup', query: { memberId: char.id } }"
-                  label="Level Up"
+                <OverflowMenu
+                  v-if="!ui.dmPreviewMode"
+                  :label="`More actions for ${char.name}`"
+                  :items="menuItems(char)"
+                  @select="(key) => onMenu(key, char)"
                 />
-                <AppButton
-                  v-if="!ui.dmPreviewMode"
-                  variant="subtle"
-                  size="xs"
-                  :disabled="cloning === char.id"
-                  @click="cloneChar(char)"
-                >
-                  {{ cloning === char.id ? 'Cloning…' : 'Clone' }}
-                </AppButton>
-                <AppButton
-                  v-if="!ui.dmPreviewMode"
-                  variant="destructive"
-                  size="xs"
-                  :disabled="detaching === char.id"
-                  @click="detach(char)"
-                >
-                  {{ detaching === char.id ? 'Leaving…' : 'Leave campaign' }}
-                </AppButton>
               </div>
+              <p v-if="!isActive(char) && isWaiting(char)" class="text-caption text-muted-foreground italic mt-1.5">
+                Waiting for the DM's approval
+              </p>
             </div>
           </div>
 
@@ -168,11 +159,11 @@
               <div class="flex items-center gap-2 mt-2">
                 <AppButton
                   variant="primary"
-                  size="sm"
+                  size="md"
                   :disabled="assuming === char.id"
-                  @click="assume(char.id)"
+                  @click="assume(char)"
                 >
-                  {{ assuming === char.id ? 'Assuming…' : 'Assume this character' }}
+                  {{ assuming === char.id ? 'Taking on…' : 'Play this character' }}
                 </AppButton>
               </div>
             </div>
@@ -206,6 +197,8 @@ import CharacterApprovalNotice from '@/components/play/CharacterApprovalNotice.v
 import { isApprovalWait, useCampaignPendingContentReviews } from '@/composables/party/useCharacterContentReviews';
 import { useUiStore } from '@/stores/ui';
 import AppButton from '@/components/common/AppButton.vue';
+import OverflowMenu, { type OverflowMenuEntry } from '@/components/common/OverflowMenu.vue';
+import { useToast } from '@/composables/useToast';
 import FocalImage from '@/components/common/FocalImage.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import type { PartyMember } from '@/types/party.types';
@@ -216,7 +209,12 @@ const ui   = useUiStore();
 const { activeCampaign } = storeToRefs(useCampaignStore());
 const { data: myChars,        isPending: myPending }  = useMyCharacters();
 const { data: allChars,       isPending: allPending }  = useParty();
-const { data: offeredCharacters } = useOfferedCharacters();
+const { data: allOffered } = useOfferedCharacters();
+// An original the player already took a copy of is not offered to them again.
+const offeredCharacters = computed(() => {
+  const taken = new Set((myChars.value ?? []).map((c) => c.assumed_from_id));
+  return (allOffered.value ?? []).filter((c) => !taken.has(c.id));
+});
 const characters = computed(() => ui.dmPreviewMode ? allChars.value  : myChars.value);
 const speciesNameOf = useSpeciesNames(() => [...(characters.value ?? []), ...(offeredCharacters.value ?? [])]);
 const isPending  = computed(() => ui.dmPreviewMode ? allPending.value : myPending.value);
@@ -265,13 +263,20 @@ async function setActive(id: string) {
   }
 }
 
-async function assume(id: string) {
-  assuming.value = id;
+async function assume(char: PartyMember) {
+  const ok = await confirm(
+    `You'll play ${char.name} from now on. You get your own copy, so the DM's original stays as it is. `
+      + 'Your current character stays on this page, and you can switch back any time.',
+    { title: `Play ${char.name}?`, confirmLabel: 'Play this character', danger: false },
+  );
+  if (!ok) return;
+  assuming.value = char.id;
   assumeError.value = '';
   try {
-    await assumeChar(id);
+    await assumeChar(char.id);
+    toast.success(`You're now playing ${char.name}.`);
   } catch (e) {
-    assumeError.value = e instanceof Error ? e.message : 'Failed to assume character.';
+    assumeError.value = toast.fromError(e, "Couldn't take on this character.");
   } finally {
     assuming.value = null;
   }
@@ -281,6 +286,7 @@ async function assume(id: string) {
 // back to the pool (progression intact); cloning copies it there for another
 // table. Both land on the pool page, which is where the result is visible.
 const router = useRouter();
+const toast = useToast();
 const { confirm } = useConfirm();
 const { mutateAsync: detachChar } = useDetachCharacter();
 const { mutateAsync: cloneCharMut } = useCloneCharacter();
@@ -305,14 +311,26 @@ async function detach(char: PartyMember) {
   }
 }
 
+function menuItems(char: PartyMember): OverflowMenuEntry[] {
+  return [
+    { key: 'clone', label: cloning.value === char.id ? 'Copying…' : 'Copy to my pool', disabled: cloning.value === char.id },
+    { key: 'leave', label: detaching.value === char.id ? 'Leaving…' : 'Leave campaign', danger: true, disabled: detaching.value === char.id },
+  ];
+}
+
+function onMenu(key: string, char: PartyMember) {
+  if (key === 'clone') void cloneChar(char);
+  else if (key === 'leave') void detach(char);
+}
+
 async function cloneChar(char: PartyMember) {
   cloning.value = char.id;
   setActiveError.value = '';
   try {
     await cloneCharMut(char.id);
-    router.push({ name: 'play-home' });
+    toast.success(`A copy of ${char.name} is in your pool at Adventurer's Rest.`);
   } catch (e) {
-    setActiveError.value = e instanceof Error ? e.message : 'Failed to clone the character.';
+    toast.error(toast.fromError(e, "Couldn't copy the character."));
   } finally {
     cloning.value = null;
   }

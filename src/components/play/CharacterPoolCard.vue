@@ -47,15 +47,14 @@
         <!-- Actions -->
         <div class="flex flex-wrap items-center gap-1.5 mt-2">
           <template v-if="attachedCampaign">
-            <AppButton variant="primary" size="xs" label="Continue" @click="continueCharacter" />
-            <AppButton variant="subtle" size="xs" label="Detach" :loading="detaching" @click="detachCharacter" />
-            <AppButton variant="subtle" size="xs" label="Clone" :loading="cloning" @click="cloneCharacter" />
+            <AppButton variant="primary" size="md" label="Continue" @click="continueCharacter" />
+            <OverflowMenu :label="`More actions for ${character.name}`" :items="menuItems" @select="onMenu" />
           </template>
           <template v-else>
             <div ref="attachRoot" class="relative">
               <AppButton
                 variant="primary"
-                size="xs"
+                size="md"
                 label="Attach"
                 @click="showAttachPicker = !showAttachPicker"
               />
@@ -79,9 +78,7 @@
                 />
               </div>
             </div>
-            <AppButton variant="subtle" size="xs" label="Edit" @click="editCharacter" />
-            <AppButton variant="subtle" size="xs" label="Clone" :loading="cloning" @click="cloneCharacter" />
-            <AppButton variant="destructive" size="xs" label="Delete" :loading="deleting" @click="deleteCharacter" />
+            <OverflowMenu :label="`More actions for ${character.name}`" :items="menuItems" @select="onMenu" />
           </template>
         </div>
       </div>
@@ -115,6 +112,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useAttachCharacter, useDetachCharacter, useCloneCharacter, useDeletePoolCharacter } from "@/composables/party/useCharacterPool";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/OverflowMenu.vue";
 import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
 import { benchedMessage, useBenchedAfterAttach } from "@/composables/party/useBenchedAfterAttach";
 import { isRulesetAdmissible, parseRulesetBounce, rulesetRules, rulesetYear } from "@/composables/party/useCharacterRuleset";
@@ -159,6 +157,28 @@ async function announceAttach(name: string, partyMemberId: string, table: string
     if (plain) toast.success(plain);
     toast.error(toast.fromError(e, "Couldn't check whether the character was benched."));
   }
+}
+
+// One clear primary on the card; everything else lives in the menu, with the
+// destructive entry last.
+const menuItems = computed<OverflowMenuEntry[]>(() =>
+  attachedCampaign
+    ? [
+        { key: "detach", label: detaching.value ? "Detaching…" : "Detach", disabled: detaching.value },
+        { key: "clone", label: cloning.value ? "Copying…" : "Make a copy", disabled: cloning.value },
+      ]
+    : [
+        { key: "edit", label: "Edit" },
+        { key: "clone", label: cloning.value ? "Copying…" : "Make a copy", disabled: cloning.value },
+        { key: "delete", label: deleting.value ? "Deleting…" : "Delete", danger: true, disabled: deleting.value },
+      ],
+);
+
+function onMenu(key: string) {
+  if (key === "detach") void detachCharacter();
+  else if (key === "clone") void cloneCharacter();
+  else if (key === "edit") editCharacter();
+  else if (key === "delete") void deleteCharacter();
 }
 
 const initial = computed(() => character.name.trim().charAt(0).toUpperCase() || "?");
@@ -208,7 +228,7 @@ async function detachCharacter() {
 async function cloneCharacter() {
   try {
     await cloneChar(character.id);
-    toast.success(`${character.name} was cloned.`);
+    toast.success(`A copy of ${character.name} is in your pool.`);
   } catch (e) {
     toast.error(toast.fromError(e, "Couldn't clone the character."));
   }

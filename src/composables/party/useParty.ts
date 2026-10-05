@@ -356,7 +356,10 @@ export function useSetActiveCharacter() {
       if (error) throw error;
     },
     onSuccess: async () => {
-      await auth.refreshMembership();
+      // Name the campaign: without one the reload takes the player's OLDEST
+      // membership, which for someone at two tables is the wrong table, and the
+      // page stops showing which character is active.
+      await auth.refreshMembership(auth.membership?.campaign_id);
       void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY] });
     },
@@ -431,7 +434,7 @@ export function useAssumeCharacter() {
       return data as string;
     },
     onSuccess: async () => {
-      await auth.refreshMembership();
+      await auth.refreshMembership(auth.membership?.campaign_id);
       void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       void queryClient.invalidateQueries({ queryKey: [OFFERED_KEY] });
       void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY] });
