@@ -21,6 +21,9 @@
     <!-- Variant Sweep (#619) -->
     <VariantSweepPanel />
 
+    <!-- Official classes, subclasses, features and feats (#976) -->
+    <OfficialClassContentPanel />
+
     <!-- Library art defaults -->
     <LibraryArtPublishPanel />
 
@@ -106,6 +109,7 @@ import LibraryArtRepairPanel from "@/components/admin/LibraryArtRepairPanel.vue"
 import VariantSweepPanel from "@/components/admin/VariantSweepPanel.vue";
 import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vue";
 import LibraryTilePackPanel from "@/components/admin/LibraryTilePackPanel.vue";
+import OfficialClassContentPanel from "@/components/admin/OfficialClassContentPanel.vue";
 import { useAdminPlaceholderFocalPoints } from "@/composables/admin/useAdminPlaceholderFocalPoints";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

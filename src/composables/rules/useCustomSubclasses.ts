@@ -6,8 +6,6 @@ import type {
   CustomSubclassInsert,
   CustomSubclassUpdate,
 } from "@/levelup/customTypes";
-import { fetchOpen5eSubclasses, subclassToInsert, subclassImportUpdateFields } from "@/lib/library/open5eClassImport";
-import { classFeatureIdentity, collectFeatures, ensureClassFeatures } from "@/lib/library/classFeatureSync";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
@@ -140,70 +138,6 @@ export function useUpdateCustomSubclass() {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
     },
-  });
-}
-
-export interface SubclassImportResult { inserted: number; updated: number }
-
-export function useImportOpen5eSubclasses() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<SubclassImportResult> => {
-      const user = getCurrentUser();
-
-      const previews = await fetchOpen5eSubclasses();
-
-      // Ensure all referenced class features exist, creating missing ones automatically
-      const featureIdentityToId = await ensureClassFeatures(collectFeatures(previews));
-
-      // Resolve features for every preview
-      function resolveFeatures(p: typeof previews[number]): Record<string, string[]> {
-        const features: Record<string, string[]> = {};
-        for (const [level, records] of Object.entries(p.featureRecordsByLevel)) {
-          const uuids = records
-            .map(record => featureIdentityToId.get(classFeatureIdentity(record)))
-            .filter((id): id is string => !!id);
-          if (uuids.length) features[level] = uuids;
-        }
-        return features;
-      }
-
-      const { data: existing } = await supabase
-        .from("custom_subclasses")
-        .select("id, source_document_key, source_record_key")
-        .eq("user_id", user!.id)
-        .not("source_document_key", "is", null)
-        .not("source_record_key", "is", null);
-
-      const existingMap = new Map(
-        (existing ?? []).map(r => [`${r.source_document_key}::${r.source_record_key}`, r.id]),
-      );
-      const identity = (p: typeof previews[number]) => `${p.sourceDocumentKey}::${p.sourceRecordKey}`;
-
-      const toInsert = previews.filter(p => !existingMap.has(identity(p)));
-      const toUpdate = previews.filter(p => existingMap.has(identity(p)));
-
-      if (toInsert.length > 0) {
-        const rows = toInsert.map(p => ({ ...subclassToInsert(p), features: resolveFeatures(p), user_id: user!.id }));
-        const { error } = await supabase.from("custom_subclasses").insert(rows);
-        if (error) throw error;
-      }
-
-      // Refresh only upstream identity/shell content — never granted_spells,
-      // steps, resources, or hp_per_level, which the DM configures by hand
-      // after import. See subclassImportUpdateFields's doc comment.
-      for (const p of toUpdate) {
-        const id = existingMap.get(identity(p))!;
-        const { error } = await supabase
-          .from("custom_subclasses")
-          .update({ ...subclassImportUpdateFields(subclassToInsert(p)), features: resolveFeatures(p) })
-          .eq("id", id);
-        if (error) throw error;
-      }
-
-      return { inserted: toInsert.length, updated: toUpdate.length };
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
 

@@ -1,13 +1,18 @@
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import type { AiProvenance } from "@/ai/provenance";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { FEATURE_TYPES, type ClassFeatureInsert, type FeatureType } from "@/types/feature.types";
+import type { ClassFeatureInsert } from "@/types/feature.types";
+import { parseMechanics } from "@/rules/features/mechanics";
+import { ACTIVATIONS, type Activation, type FeatureMechanics } from "@/rules/features/mechanics.types";
 
 /** What `generate-entity-text` returns for the `class_feature` generator (untrusted). */
 export interface FeatureAiResult {
   name?: unknown;
   description?: unknown;
-  feature_type?: unknown;
+  /** How it is used: action, bonus_action, reaction or special. Passive is the absence of one. */
+  activation?: unknown;
+  /** Optional full `FeatureMechanics` (uses, riders, choices, ...); validated, never trusted. */
+  mechanics?: unknown;
   prerequisite?: unknown;
   tags?: unknown;
   ai_provenance?: AiProvenance;
@@ -19,9 +24,20 @@ export interface FeatureDraftContext {
 }
 
 /** A feature written for a class or subclass: which level grants it, and the row to create. */
-export interface LevelledFeatureDraft {
+export interface NewFeatureDraft {
   level: number;
   insert: ClassFeatureInsert;
+}
+
+/**
+ * What a class or subclass grants at a level: a row the generation writes, or an
+ * existing one it points at (the official Ability Score Improvement).
+ */
+export type LevelledFeatureDraft = NewFeatureDraft | ExistingFeatureDraft;
+
+export interface ExistingFeatureDraft {
+  level: number;
+  existingId: string;
 }
 
 const MAX_TAGS = 6;
@@ -59,10 +75,22 @@ export function stringList(v: unknown, max: number, maxLength = 80): string[] {
   return out;
 }
 
-/** Unknown or missing feature types read as a passive feature. */
-export function featureTypeFrom(raw: unknown): FeatureType {
+/** "Bonus Action" and "bonus_action" both read as the bonus action; anything else is passive (no activation). */
+export function activationFrom(raw: unknown): Activation | null {
   const key = text(raw).toLowerCase().replace(/[\s-]+/g, "_");
-  return FEATURE_TYPES.find((t) => t === key) ?? "passive";
+  return ACTIVATIONS.find((a) => a === key) ?? null;
+}
+
+/**
+ * The model's mechanics, kept only as far as `parseMechanics` accepts them. A
+ * generation never fails over a half-formed part: that part is left out and the
+ * rules text still carries it. The stated `activation` wins over one inside `mechanics`.
+ */
+export function mechanicsFromAi(ai: Pick<FeatureAiResult, "activation" | "mechanics">): FeatureMechanics {
+  const raw: Record<string, unknown> = isRecord(ai.mechanics) ? { ...ai.mechanics } : {};
+  const activation = activationFrom(ai.activation);
+  if (activation) raw.activation = activation;
+  return parseMechanics(raw).mechanics;
 }
 
 /** One feature row, or null when the model gave no usable name and rules text. */
@@ -73,7 +101,6 @@ export function featureInsertFromAi(ai: FeatureAiResult, ctx: FeatureDraftContex
   return {
     name,
     description: toTiptapJson(description),
-    feature_type: featureTypeFrom(ai.feature_type),
     source: "Grimoire:AI",
     prerequisite: textOrNull(ai.prerequisite),
     tags: stringList(ai.tags, MAX_TAGS, 40).map((t) => t.toLowerCase()),
@@ -81,6 +108,8 @@ export function featureInsertFromAi(ai: FeatureAiResult, ctx: FeatureDraftContex
     ruleset: ctx.ruleset,
     campaign_id: ctx.campaignId,
     ai_provenance: ai.ai_provenance ?? null,
+    kind: "feature",
+    mechanics: mechanicsFromAi(ai),
   };
 }
 
@@ -92,7 +121,7 @@ export interface LevelledFeatureOptions {
 }
 
 /**
- * The `features: [{level, name, feature_type, description}]` list of a class or
+ * The `features: [{level, name, activation, description, mechanics?}]` list of a class or
  * subclass. Levels outside 1-20 (or outside `allowedLevels`) are dropped, a
  * feature repeated at a level is dropped, and the result is ordered by level so
  * the created rows read in the order the character gains them.
@@ -102,10 +131,10 @@ export function levelledFeaturesFromAi(
   provenance: AiProvenance | undefined,
   ctx: FeatureDraftContext,
   opts: LevelledFeatureOptions,
-): LevelledFeatureDraft[] {
+): NewFeatureDraft[] {
   if (!Array.isArray(raw)) return [];
   const perLevel = new Map<number, Set<string>>();
-  const out: LevelledFeatureDraft[] = [];
+  const out: NewFeatureDraft[] = [];
   for (const item of raw) {
     if (!isRecord(item)) continue;
     const level = wholeNumber(item.level);

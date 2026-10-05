@@ -75,6 +75,20 @@ registerOptionalRule({
   defaultEnabled: false,
 });
 
+// ── Feats (2014) ──────────────────────────────────────────────────────────────
+registerOptionalRule({
+  key: "feats_2014",
+  name: "Feats (2014)",
+  summary:
+    "Let 2014 characters take a feat in place of an Ability Score Improvement when they level up. The 2014 Player's Handbook makes feats an optional rule.",
+  description:
+    "In the 2014 Player's Handbook, feats are an *optional* rule: whenever a class grants an Ability Score Improvement, the player may take a feat instead.\n\n" +
+    "With this rule enabled, a 2014 character's **Level Up** offers a feat as the third choice next to +2 to one ability and +1 to two. Turn it off if your table plays without feats.\n\n" +
+    "It only affects 2014 characters. In the 2024 rules feats are part of the core game and are always available.",
+  dmOnly: false,
+  defaultEnabled: true,
+});
+
 // ── Experience Points (XP levelling) ──────────────────────────────────────────
 registerOptionalRule({
   key: "xp_levelling",

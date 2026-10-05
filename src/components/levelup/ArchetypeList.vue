@@ -12,7 +12,7 @@
       <p class="text-heading-sm font-semibold text-foreground">No archetypes yet</p>
       <p class="text-body text-muted-foreground max-w-sm">
         Archetypes let you define custom subclasses for any of the 13 SRD classes: add features
-        per level, choices shown in the level-up wizard, and tracked resource pools.
+        per level, and give each feature its uses and the choices it asks for.
       </p>
     </div>
 
@@ -44,17 +44,10 @@
         </p>
       </div>
       <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-        <p class="text-eyebrow text-primary">Wizard Steps</p>
+        <p class="text-eyebrow text-primary">Uses and choices</p>
         <p class="text-caption text-muted-foreground">
-          Choices shown to the player during level-up, e.g. pick a fighting style or a bonus spell.
-          Results are saved in class_choices.
-        </p>
-      </div>
-      <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-        <p class="text-eyebrow text-primary">Resource Pools</p>
-        <p class="text-caption text-muted-foreground">
-          Tracked uses that appear on the character sheet, e.g. Rage uses, Ki points, Channel
-          Divinity. Set how they scale and which rest recharges them.
+          Each feature carries its own: uses that appear on the character sheet and recharge on a
+          rest, and the choices level-up asks for when it is gained.
         </p>
       </div>
     </div>
@@ -83,13 +76,11 @@
             <p class="text-heading-xs font-semibold text-foreground truncate">{{ sc.subclass_name }}</p>
             <p v-if="sc.description" class="text-caption text-muted-foreground mt-0.5 line-clamp-2">{{ toPlainText(sc.description) }}</p>
             <p class="text-caption text-muted-foreground mt-0.5">
-              <template v-if="featureLevelCount(sc) === 0 && sc.steps.length === 0 && sc.resources.length === 0">
+              <template v-if="featureLevelCount(sc) === 0">
                 <span class="italic">No features defined</span>
               </template>
               <template v-else>
                 {{ featureLevelCount(sc) }} feature level{{ featureLevelCount(sc) !== 1 ? 's' : '' }}
-                <span v-if="sc.steps.length > 0"> · {{ sc.steps.length }} wizard step{{ sc.steps.length !== 1 ? 's' : '' }}</span>
-                <span v-if="sc.resources.length > 0"> · {{ sc.resources.length }} resource pool{{ sc.resources.length !== 1 ? 's' : '' }}</span>
               </template>
               <span v-if="sc.source" class="ml-1 text-primary/60"> · {{ sc.source }}</span>
               <span v-if="sc.campaign_id" class="ml-1 text-primary/70"> · campaign only</span>
@@ -109,7 +100,7 @@ import { IconAdd, IconChevronRight, IconPopulate } from '@/lib/icons';
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { useUiStore } from "@/stores/ui";
-import { useAllCustomSubclasses, useCreateCustomSubclass, useImportOpen5eSubclasses } from "@/composables/rules/useCustomSubclasses";
+import { useAllCustomSubclasses, useCreateCustomSubclass } from "@/composables/rules/useCustomSubclasses";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 import { useCreateFeature } from "@/composables/rules/useFeatures";
 import { toPlainText } from "@/ai/utils";
@@ -119,9 +110,6 @@ const ui = useUiStore();
 const { data: all, isLoading } = useAllCustomSubclasses();
 const { mutateAsync: create } = useCreateCustomSubclass();
 const { mutateAsync: createFeature } = useCreateFeature();
-
-// Not exposed as a prop — the parent Codex view owns the import button
-useImportOpen5eSubclasses(); // keep query warm
 
 const { data: systemClasses } = useAllSystemClasses();
 const { data: customClasses } = useAllCustomClasses();
@@ -143,9 +131,9 @@ async function createExample() {
   try {
     const source = "Example Subclass";
     const [featureA, featureB, featureC] = await Promise.all([
-      createFeature({ name: "Example Feature (Passive)", feature_type: "passive", source, tags: ["example"], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
-      createFeature({ name: "Example Feature (Active)", feature_type: "active", source, tags: ["example"], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
-      createFeature({ name: "Example Feature (Reaction)", feature_type: "reaction", source, tags: ["example"], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
+      createFeature({ name: "Example Feature (Passive)", mechanics: {}, source, tags: ["example"], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
+      createFeature({ name: "Example Feature (Active)", mechanics: { activation: "action", uses: { key: "example_uses", label: "Example Uses", amount: { kind: "fixed", value: 3 }, recharge: "long", pool: false } }, source, tags: ["example"], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
+      createFeature({ name: "Example Feature (Reaction)", mechanics: { activation: "reaction" }, source, tags: ["example"], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
     ]);
     await create({
       class_name: "Fighter",
@@ -155,13 +143,6 @@ async function createExample() {
       campaign_id: null,
       features: { "3": [featureA.id], "7": [featureB.id], "10": [featureC.id] },
       granted_spells: {},
-      steps: [{
-        level: 3, type: "select", step_type: "text_pick", key: "example_choice",
-        label: "Example Wizard Step",
-        description: "This is a choice shown to the player during level-up.",
-        options: ["Option A", "Option B", "Option C"], count: 1,
-      }],
-      resources: [{ key: "example_uses", label: "Example Uses", rest: "long", scaling: "fixed", fixed_value: 3 }],
       hp_per_level: null,
     });
   } finally {

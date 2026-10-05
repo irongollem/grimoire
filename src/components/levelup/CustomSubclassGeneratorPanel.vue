@@ -35,9 +35,7 @@
           <li>
             <span class="font-semibold">Archetype: {{ pending.base.subclass_name }}</span>
             <span class="block text-caption text-muted-foreground">
-              A {{ pending.base.class_name }} archetype<template v-if="pending.base.resources.length">,
-                {{ pending.base.resources.length }}
-                {{ pending.base.resources.length === 1 ? "resource" : "resources" }}</template>
+              A {{ pending.base.class_name }} archetype
             </span>
           </li>
           <li>
@@ -164,7 +162,7 @@ async function createAll() {
   try {
     // Abilities first, then the archetype that points at them. A failed write
     // removes the abilities already created, so nothing is left orphaned.
-    const created = await createWithFeatures(draft.features.map((f) => f.insert), {
+    const created = await createWithFeatures(draft.features, {
       createFeature,
       deleteFeature,
       createParent: (ids) => createSubclass(subclassWithFeatureIds(draft, ids)),

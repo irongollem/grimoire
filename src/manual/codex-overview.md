@@ -20,9 +20,9 @@ The **Character Codex** (**Compendium → Character Codex** in the sidebar, `/co
 | Ability | An individual feature, feat, or option that classes/archetypes/species reference |
 | Campaign scope | Whether a piece of custom content appears in one campaign or all of yours |
 
-## The five tabs
+## The six tabs
 
-The Codex has five tabs (**Species**, **Backgrounds**, **Classes**, **Archetypes** and **Abilities**) and each has its own address, so you can bookmark the one you use most.
+The Codex has six tabs (**Species**, **Backgrounds**, **Classes**, **Archetypes**, **Abilities** and **Feats**) and each has its own address, so you can bookmark the one you use most.
 
 | Tab | What it contains |
 | --- | --- |
@@ -30,7 +30,8 @@ The Codex has five tabs (**Species**, **Backgrounds**, **Classes**, **Archetypes
 | Backgrounds | Character backgrounds with proficiencies and features |
 | Classes | SRD classes (read-only) and custom classes you design |
 | Archetypes | Subclasses: SRD and custom |
-| Abilities | Individual features, feats, fighting styles, invocations, and similar options |
+| Abilities | Individual class and subclass features, fighting styles, invocations, and similar options, with what each one does in the app |
+| Feats | Feats a character can take, with their category, prerequisites and any ability score increase |
 
 ## How they connect
 
@@ -41,15 +42,14 @@ The Codex has five tabs (**Species**, **Backgrounds**, **Classes**, **Archetypes
 
 ## Importing shared content
 
-Each tab has its own **Import from Open5e** / **Sync from Open5e** button that pulls in ready-made options from Open5e's open-licence library:
+Species and Backgrounds have an import button that pulls in ready-made options from Open5e's open-licence library:
 
 1. **Species**: click **Import from Open5e** to open the import panel, pick a source, and import.
 2. **Backgrounds**: click **Sync from Open5e** (or open the sources picker next to it to limit which sourcebooks are pulled in). The button reports how many entries were added and updated.
-3. **Classes**: click **Import from Open5e** to sync the SRD classes into the read-only classes list.
-4. **Archetypes**: click **Import from Open5e** to import SRD subclasses; their features are linked automatically.
-5. **Abilities**: click **Sync from Open5e** to import features, feats, fighting styles, and similar options, and to backfill descriptions on any built-in entries that are still name-only.
 
-All of these are idempotent: safe to re-run without duplicating entries, and a re-import never overwrites fields you filled in by hand (notes, custom art, hand-tuned mechanics).
+Classes, Archetypes and Abilities need no import. The official classes, their subclasses, every class feature (at each level it is gained) and the feats of the open-licensed books come with the app and are the same for every account.
+
+The imports above are idempotent: safe to re-run without duplicating entries, and a re-import never overwrites fields you filled in by hand (notes, custom art, hand-tuned mechanics).
 
 ## Custom content scope
 
@@ -83,6 +83,7 @@ Character creation and levelling themselves happen outside the Codex, in the pla
 - [Creating Custom Classes](#creating-custom-classes)
 - [Species and Backgrounds](#species-and-backgrounds)
 - [Abilities Compendium](#abilities-compendium)
+- [Feats Compendium](#feats-compendium)
 - [Hall of Heroes](#hall-of-heroes)
 - [Character Sheet Export](#character-sheet-export)
 - [Party Tracker](#party-tracker)

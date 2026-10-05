@@ -87,7 +87,11 @@ insert into public.party_members (id, user_id, owner_user_id, campaign_id, name,
   ('94400000-0000-4000-8000-0000000000e2', '94400000-0000-4000-8000-000000000002', '94400000-0000-4000-8000-000000000002',
    null, 'p2 homebrew', 'Hexer', 4, '2014', '94400000-0000-4000-8000-000000000061', null,
    '{"feats": ["94400000-0000-4000-8000-000000000071"]}'::jsonb,
-   '{"4": {"asi": {"feat_id": "94400000-0000-4000-8000-000000000071"}}}'::jsonb),
+   -- The record a level-up writes since #976: the feat is in the level's record and its choice.
+   '{"4": {"class_name": "Hexer", "class_definition_id": "94400000-0000-4000-8000-000000000081", "is_new_class": false, "hp_gained": 5,
+           "record": {"choices": {"ability_score_improvement": {"added": ["94400000-0000-4000-8000-000000000071"], "removed": []}},
+                      "abilityIncreases": {}, "feats": ["94400000-0000-4000-8000-000000000071"], "swaps": {}},
+           "skills": {}, "masteries": {"added": [], "removed": []}}}'::jsonb),
   ('94400000-0000-4000-8000-0000000000e3', '94400000-0000-4000-8000-000000000002', '94400000-0000-4000-8000-000000000002',
    null, 'p3 foreign spell', 'Wizard', 1, '2014', 'test_srd_elf', null, '{}'::jsonb, '{}'::jsonb),
   ('94400000-0000-4000-8000-0000000000e4', '94400000-0000-4000-8000-000000000004', '94400000-0000-4000-8000-000000000004',
@@ -324,9 +328,11 @@ select is(public.approve_character_content(pg_temp.flag_id('e2', 'feat')), 0, 't
 reset role;
 select is((select count(*)::int from public.class_features where provenance ->> 'adopted_from' = '94400000-0000-4000-8000-000000000071'), 1,
   'the feature was copied once, though the class and the feat both pointed at it');
-select is((select ((pg_temp.pm('e2')).class_choices -> 'feats' ->> 0) = ((pg_temp.pm('e2')).level_choices -> '4' -> 'asi' ->> 'feat_id')
+select is((select ((pg_temp.pm('e2')).class_choices -> 'feats' ->> 0) = ((pg_temp.pm('e2')).level_choices -> '4' -> 'record' -> 'feats' ->> 0)
+      and ((pg_temp.pm('e2')).class_choices -> 'feats' ->> 0)
+          = ((pg_temp.pm('e2')).level_choices -> '4' -> 'record' -> 'choices' -> 'ability_score_improvement' -> 'added' ->> 0)
       and ((pg_temp.pm('e2')).class_choices -> 'feats' ->> 0) <> '94400000-0000-4000-8000-000000000071'),
-  true, 'and both places the character records the feat point at the copy');
+  true, 'and every place the character records the feat points at the copy');
 select is(pg_temp.flags('e2'), 'none', 'the character has nothing waiting');
 
 -- ── What a row says about itself decides nothing ─────────────────────────────

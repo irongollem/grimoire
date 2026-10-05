@@ -160,7 +160,7 @@ import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { fetchLibraryMonsterArtEntry, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
 import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
-import { useClassFeatureGroups } from "@/composables/party/useClassFeatureGroups";
+import { useClassDefinitionLookup } from "@/composables/party/useClassDefinitionLookup";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { usePinnedForms } from "@/composables/play/usePinnedForms";
 import { useWildShapeExchange } from "@/composables/play/useWildShapeExchange";
@@ -316,7 +316,7 @@ async function doRevertWildshape() {
 // ── Spell slots (Combat Wild Shape, Wild Resurgence) ──────────────────────────
 // Same derivation as the Features tab, so the slots offered here are the ones
 // the character sees there; the server spends from them when none are stored.
-const { characterClasses, classDefinitionFor } = useClassFeatureGroups(computed(() => member));
+const { characterClasses, classDefinitionFor } = useClassDefinitionLookup(computed(() => member));
 const effectiveSlots = computed<SpellSlotEntry[]>(() =>
   deriveEffectiveSpellSlots(member, characterClasses.value ?? [], ruleset.value, classDefinitionFor),
 );

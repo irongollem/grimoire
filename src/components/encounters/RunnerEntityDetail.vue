@@ -58,7 +58,9 @@
       :monsters="props.monsters"
       @roll-check="performCheck"
       @roll-attack="rollAttack"
+      :chat-silent="chatMode === 'silent'"
       @roll-damage="rollActionDamage"
+      @damage-rolled="onPcDamageRolled"
       @roll-spell="rollSpellDamage"
       @roll-spell-save="announceSpellSave"
     />
@@ -286,8 +288,13 @@ async function postRollToChat(result: RollResult, senderName: string) {
   );
 }
 
-function rollAttack(attackBonus: number, actionName: string, onResolved?: (rolled: boolean) => void) {
-  void performCheck(attackBonus, actionName + " Attack").then((r) => onResolved?.(!!r));
+function rollAttack(attackBonus: number, actionName: string, onResolved?: (rolled: boolean, crit?: boolean) => void) {
+  void performCheck(attackBonus, actionName + " Attack").then((r) => onResolved?.(!!r, r?.isCrit));
+}
+
+/** A PC's damage from the rider panel has already been rolled and posted; the banner just shows it. */
+function onPcDamageRolled(r: RollResult) {
+  lastCheck.value = { total: r.total, label: r.label, modifier: r.modifier, d20: r.breakdown[0]?.val ?? r.total, isCrit: false, isFumble: false };
 }
 
 function parsedTermsToCounts(terms: { count: number; sides: number }[]): Partial<Record<DieSize, number>> {

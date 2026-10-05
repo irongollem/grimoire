@@ -105,48 +105,12 @@
       <CustomClassFeaturesPerLevel
         :features="form.features"
         :all-feature-options="allFeatureOptions"
+        :ruleset="existing?.ruleset ?? null"
+        asi-helper
         @update:features="form.features = $event"
       />
 
-      <!-- ── Section 4: ASI levels ──────────────────────────────────────────── -->
-      <section class="rounded-lg border border-border bg-card p-4 space-y-4">
-        <h2 class="text-label-lg uppercase text-muted-foreground">Ability Score Increase Levels</h2>
-        <p class="text-body text-muted-foreground">Levels at which this class gains an Ability Score Improvement.</p>
-
-        <div class="flex flex-wrap gap-1.5">
-          <span
-            v-for="lvl in form.asi_levels"
-            :key="lvl"
-            class="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-label-lg text-primary"
-          >
-            {{ lvl }}
-            <AppButton
-              variant="ghost"
-              tone="danger"
-              size="inline-xs"
-              class="ml-0.5 leading-none text-primary/60"
-              @click="removeAsi(lvl)"
-            >×</AppButton>
-          </span>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <AppSelect v-model="addAsiLevel" size="sm">
-            <option value="" disabled>Level…</option>
-            <option v-for="n in 20" :key="n" :value="n" :disabled="form.asi_levels.includes(n)">{{ n }}</option>
-          </AppSelect>
-          <AppButton
-            variant="outline"
-            size="sm"
-            label="Add Ability Score Increase level"
-            :icon="IconAdd"
-            :disabled="!addAsiLevel"
-            @click="addAsi"
-          />
-        </div>
-      </section>
-
-      <!-- ── Section 5: Spellcasting ─────────────────────────────────────────── -->
+      <!-- ── Section 4: Spellcasting ─────────────────────────────────────────── -->
       <CustomClassSpellSlots
         :is-spellcaster="form.isSpellcaster"
         :spell-slots="form.spell_slots"
@@ -165,19 +129,6 @@
         @update:prepared-ability="form.prepared_ability = $event"
         @update:prepared-divisor="form.prepared_divisor = $event"
       />
-
-      <!-- ── Section 6: Wizard steps ────────────────────────────────────────── -->
-      <CustomClassStepsEditor
-        :steps="form.steps"
-        :all-feature-options="allFeatureOptions"
-        @update:steps="form.steps = $event"
-      />
-
-      <!-- ── Section 7: Resource pools ─────────────────────────────────────── -->
-      <CustomClassResources
-        :resources="form.resources"
-        @update:resources="form.resources = $event"
-      />
     </div>
   </PageHeader>
 </template>
@@ -191,17 +142,15 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import { IconAdd, IconDelete, IconSave } from '@/lib/icons';
+import { IconDelete, IconSave } from '@/lib/icons';
 import { useCustomClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/rules/useCustomClasses";
 import CustomClassSheet from "@/components/levelup/CustomClassSheet.vue";
 import CustomClassProficienciesPanel from "@/components/levelup/CustomClassProficienciesPanel.vue";
 import CustomClassFeaturesPerLevel from "@/components/levelup/CustomClassFeaturesPerLevel.vue";
 import CustomClassSpellSlots from "@/components/levelup/CustomClassSpellSlots.vue";
-import CustomClassStepsEditor from "@/components/levelup/CustomClassStepsEditor.vue";
-import CustomClassResources from "@/components/levelup/CustomClassResources.vue";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
-import type { CustomStep, CustomResource, HitDie, CasterType, PreparedAbility } from "@/levelup/customTypes";
+import type { HitDie, CasterType, PreparedAbility } from "@/levelup/customTypes";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 
@@ -248,7 +197,6 @@ interface FormState {
   weapon_proficiencies: string[];
   subclass_level: number;
   features: Record<string, string[]>;
-  asi_levels: number[];
   isSpellcaster: boolean;
   spell_slots: number[][];
   spells_known: number[] | null;
@@ -257,8 +205,6 @@ interface FormState {
   caster_type: CasterType;
   prepared_ability: PreparedAbility | null;
   prepared_divisor: number | null;
-  steps: CustomStep[];
-  resources: CustomResource[];
 }
 
 const form = ref<FormState>({
@@ -270,7 +216,6 @@ const form = ref<FormState>({
   weapon_proficiencies: [],
   subclass_level: 3,
   features: {},
-  asi_levels: [4, 8, 12, 16, 19],
   isSpellcaster: false,
   spell_slots: emptySlotGrid(),
   spells_known: null,
@@ -279,8 +224,6 @@ const form = ref<FormState>({
   caster_type: "none",
   prepared_ability: "wis",
   prepared_divisor: 1,
-  steps: [],
-  resources: [],
 });
 
 // Same default flip as items/spells/species/locations (#596): a new custom
@@ -312,7 +255,6 @@ watch(existing, (val) => {
     weapon_proficiencies: raw.weapon_proficiencies,
     subclass_level: raw.subclass_level,
     features: raw.features,
-    asi_levels: [...raw.asi_levels].sort((a, b) => a - b),
     isSpellcaster: rawSlots !== null,
     spell_slots: slotGrid,
     spells_known: (raw.spells_known as number[] | null) ?? null,
@@ -321,25 +263,9 @@ watch(existing, (val) => {
     caster_type: (raw.caster_type as CasterType) !== "none" ? (raw.caster_type as CasterType) : rawSlots !== null ? "prepared" : "none",
     prepared_ability: raw.prepared_ability ?? "wis",
     prepared_divisor: raw.prepared_divisor ?? 1,
-    steps: raw.steps.map((s) => ({ ...s, step_type: s.step_type ?? "text_pick" })),
-    resources: raw.resources,
   };
   campaignScope.value = raw.campaign_id ?? "all";
 }, { immediate: true });
-
-// ── ASI section ───────────────────────────────────────────────────────────────
-
-const addAsiLevel = ref<number | "">("");
-
-function addAsi() {
-  if (!addAsiLevel.value || form.value.asi_levels.includes(Number(addAsiLevel.value))) return;
-  form.value.asi_levels = [...form.value.asi_levels, Number(addAsiLevel.value)].sort((a, b) => a - b);
-  addAsiLevel.value = "";
-}
-
-function removeAsi(level: number) {
-  form.value.asi_levels = form.value.asi_levels.filter(l => l !== level);
-}
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
 
@@ -360,7 +286,6 @@ async function save() {
     weapon_proficiencies: form.value.weapon_proficiencies,
     subclass_level: form.value.subclass_level,
     features: form.value.features,
-    asi_levels: form.value.asi_levels,
     spell_slots: form.value.isSpellcaster ? form.value.spell_slots : null,
     spells_known: form.value.isSpellcaster ? (form.value.spells_known ?? null) : null,
     cantrips_known: form.value.isSpellcaster ? (form.value.cantrips_known ?? null) : null,
@@ -368,8 +293,6 @@ async function save() {
     caster_type: form.value.isSpellcaster ? form.value.caster_type : "none",
     prepared_ability: form.value.isSpellcaster && form.value.caster_type !== "known" ? form.value.prepared_ability : null,
     prepared_divisor: form.value.isSpellcaster && form.value.caster_type !== "known" ? form.value.prepared_divisor : null,
-    steps: form.value.steps,
-    resources: form.value.resources,
   };
   // Material edit detection: any change to the class's rules content means a
   // human has now authored part of an AI-generated class. Campaign scope is a

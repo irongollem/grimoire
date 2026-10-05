@@ -109,6 +109,7 @@ insert into definer_registry (name, kind, reason) values
   ('set_character_spell_prepared', 'refuses', null),
   ('set_demo_offered', 'refuses', null),
   ('spend_downtime_draw', 'refuses', null),
+  ('spend_feature_spell_slot', 'refuses', null),
   ('take_spellcasting_rest', 'refuses', null),
   ('transfer_campaign_ownership', 'refuses', null),
   ('transition_quest_runtime', 'refuses', null),

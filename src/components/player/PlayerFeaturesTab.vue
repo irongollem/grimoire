@@ -19,37 +19,6 @@
       :monster="wildshapeMonster"
     />
 
-    <!-- ── Rest buttons (hidden when header already provides them) ────────── -->
-    <div v-if="showRestButtons" class="flex gap-2">
-      <AppButton
-        variant="tinted"
-        tone="caution"
-        emphasis="soft"
-        size="md"
-        class="flex-1"
-        label="Short Rest"
-        @click="shortRest"
-      />
-      <AppButton
-        variant="tinted"
-        tone="info"
-        emphasis="soft"
-        size="md"
-        class="flex-1"
-        label="Long Rest"
-        @click="longRest"
-      />
-    </div>
-
-    <!-- ── Resource pools ─────────────────────────────────────────────────── -->
-    <PlayerResourcePools
-      v-if="displayedResources.length > 0"
-      :resources="displayedResources"
-      @spend="spendResource"
-      @restore="restoreResource"
-      @spend-amount="confirmVariableSpend"
-    />
-
     <PlayerFlexibleCasting
       v-if="sorceryResource && sorceryResource.max > 0"
       :party-member-id="member.id"
@@ -63,35 +32,21 @@
       :level="classLevel('Sorcerer', true)"
     />
 
-    <!-- ── Class features (one card per class, grouped for multiclass) ──────── -->
-    <template v-if="featureDataPending">
-      <div
-        v-for="n in 2"
-        :key="n"
-        class="rounded-lg border border-border bg-card overflow-hidden animate-pulse"
-      >
-        <div class="px-4 py-2.5 border-b border-border">
-          <div class="h-3 w-32 rounded bg-muted" />
-        </div>
-        <div class="divide-y divide-border">
-          <div v-for="i in 4" :key="i" class="px-4 py-2.5 flex items-center gap-3">
-            <div class="h-2.5 w-8 rounded bg-muted shrink-0" />
-            <div class="h-2.5 rounded bg-muted" :style="`width: ${50 + i * 12}%`" />
-          </div>
-        </div>
-      </div>
-    </template>
-    <template v-else>
-      <PlayerClassFeaturesList
-        v-for="group in classFeatureGroups"
-        :key="group.class_name"
-        :group="group"
-        @navigate-spells="router.push('/play/spells')"
-      />
-    </template>
+    <!-- ── Class features and feats: one card per feature, grouped by class ── -->
+    <CharacterFeaturesPanel
+      :granted="granted"
+      :pools="pools"
+      :remaining="remaining"
+      :class-choices="member.class_choices"
+      :pending="isPending"
+      :error="error"
+      :readonly="!canWrite"
+      @spend="spendFromPool"
+      @restore="restoreToPool"
+      @navigate-spells="router.push('/play/spells')"
+    />
 
     <!-- ── Spell choices ─────────────────────────────────────────────────── -->
-    <PlayerSpellChoices :member="member" :steps="spellPickSteps" />
 
     <!-- ── Racial / Subrace traits ───────────────────────────────────────────── -->
     <PlayerRacialTraits v-if="racialTraitGroups.length" :groups="racialTraitGroups" />
@@ -104,13 +59,11 @@
       :is-owner="isOwner"
     />
 
-    <!-- ── Class choices, background ASI & background feat (2024 PHB) ───────── -->
+    <!-- ── Class choices & background ASI (2024 PHB); the origin feat is a feat, shown with the others ───────── -->
     <PlayerChoicesCard
       :class-choices="member.class_choices"
-      :exclude-keys="spellPickStepKeys"
+      :exclude-keys="choiceKeysShownElsewhere"
       :background-asi-bonuses="backgroundAsiBonuses"
-      :background-origin-feat="backgroundOriginFeat"
-      :background-feat="backgroundFeat"
     />
 
     <!-- ── Metamagic ─────────────────────────────────────────────────────── -->
@@ -127,20 +80,6 @@
       :items="invocationItems"
     />
 
-    <!-- ── Divine Smite (Paladin) ───────────────────────────────────────────── -->
-    <PlayerDivineSmiteCard v-if="isPaladin" />
-
-    <!-- ── Rage (Barbarian) ──────────────────────────────────────────────────── -->
-    <PlayerBarbarianRage
-      v-if="isBarbarian"
-      ref="rageRef"
-      :member="member"
-      :barbarian-level="classLevel('Barbarian')"
-      :rage-uses-current="rageResource?.current ?? 0"
-      :rage-uses-max="rageResource?.max ?? 0"
-      @spend-use="spendResource('rage_uses')"
-    />
-
     <!-- ── Ki Abilities (Monk) ─────────────────────────────────────────────────── -->
     <PlayerExpandableList
       v-if="isMonk && kiItems.length > 0"
@@ -153,11 +92,6 @@
       v-if="isBattleMaster"
       :known-maneuvers="knownManeuvers"
       :available-to-learn="availableManeuversToLearn"
-      :superiority-dice-size="superiorityDiceSize"
-      :superiority-dice-current="superiorityDiceResource?.current ?? 0"
-      :superiority-dice-max="superiorityDiceResource?.max ?? 0"
-      @spend-superiority-die="spendResource('superiority_dice')"
-      @restore-superiority-die="restoreResource('superiority_dice')"
       @learn-maneuver="learnManeuver"
     />
 
@@ -182,46 +116,50 @@
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "@/composables/useToast";
-import AppButton from "@/components/common/AppButton.vue";
 import { rulesetRules } from "@/composables/party/useCharacterRuleset";
 import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
 import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
-import PlayerResourcePools from "./PlayerResourcePools.vue";
 import PlayerFlexibleCasting from "./PlayerFlexibleCasting.vue";
 import PlayerSorcererFeatures from "./PlayerSorcererFeatures.vue";
-import PlayerClassFeaturesList from "./PlayerClassFeaturesList.vue";
 import PlayerBattleMasterManeuvers from "./PlayerBattleMasterManeuvers.vue";
 import PlayerArtificerInfusions from "./PlayerArtificerInfusions.vue";
-import PlayerBarbarianRage from "./PlayerBarbarianRage.vue";
-import PlayerSpellChoices from "./PlayerSpellChoices.vue";
 import PlayerRacialTraits from "./PlayerRacialTraits.vue";
 import type { TraitGroup } from "./PlayerRacialTraits.vue";
 import PlayerExpandableList from "./PlayerExpandableList.vue";
 import type { ExpandableItem } from "./PlayerExpandableList.vue";
 import PlayerProficienciesCard from "./PlayerProficienciesCard.vue";
 import PlayerChoicesCard from "./PlayerChoicesCard.vue";
-import PlayerDivineSmiteCard from "./PlayerDivineSmiteCard.vue";
+import CharacterFeaturesPanel from "@/components/features/CharacterFeaturesPanel.vue";
 import { useMetamagicOptions } from "@/composables/party/useMetamagic";
 import type { MetamagicOption } from "@/rules/metamagic";
 import { ELDRITCH_INVOCATIONS_MAP } from "@/data/eldritchInvocations";
+import type { EldritchInvocation } from "@/data/eldritchInvocations";
 import { MONK_KI_ABILITIES } from "@/data/monkKiAbilities";
 import { BATTLE_MASTER_MANEUVERS, BATTLE_MASTER_MANEUVERS_MAP } from "@/data/battleMasterManeuvers";
+import type { BattleManeuver } from "@/data/battleMasterManeuvers";
 import { useArtificerState } from "@/composables/party/useArtificerState";
-import { useClassFeatureGroups } from "@/composables/party/useClassFeatureGroups";
-import type { CustomStep } from "@/levelup/customTypes";
-import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/party/useParty";
+import { useClassDefinitionLookup } from "@/composables/party/useClassDefinitionLookup";
+import { useCharacterFeatures } from "@/composables/features/useCharacterFeatures";
+import { useFeatureUses } from "@/composables/features/useFeatureUses";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
-import { useConfirm } from "@/composables/useConfirm";
 import type { PartyMember, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import type { PlayerVisibleMonster } from "@/types/monster.types";
-import type { ResourceRow } from "./PlayerResourcePools.vue";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import { useBackground } from "@/composables/rules/useBackgrounds";
 import { abilityBonusesForChoice, parseBackgroundAsiChoice } from "@/rules/backgroundAsi";
 import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/play/useRulesetReviews";
 
-const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: PlayerVisibleMonster; isOwner?: boolean }>();
+// `canManage` is the page's write signal: the character's owner, or the DM
+// managing it (the same signal the Wild Shape tab gets). Only then does the tab
+// spend uses or reconcile pools; anyone else reads.
+const props = defineProps<{
+  member: PartyMember;
+  wildshapeMonster?: PlayerVisibleMonster;
+  isOwner?: boolean;
+  canManage?: boolean;
+}>();
 
 const router = useRouter();
 const { ruleset } = useRuleset();
@@ -229,12 +167,11 @@ const toast = useToast();
 
 const memberRef = computed(() => props.member);
 const memberIdRef = computed(() => props.member.id);
+const canWrite = computed(() => props.canManage === true);
 
 const { data: linkedBackground } = useBackground(computed(() => props.member.background_id ?? ""));
 
 const { mutate: updateMember } = useUpdatePartyMember();
-const { mutateAsync: takeSpellcastingRest } = useTakeSpellcastingRest();
-const { confirm } = useConfirm();
 const { data: allSpecies } = useAllSpecies();
 const linkedSpecies = computed(() =>
   (allSpecies.value ?? []).find((s) => s.id === props.member.species_id) ?? null,
@@ -245,31 +182,48 @@ const linkedSubrace = computed(() =>
     : null,
 );
 
-// ── Multiclass feature grouping ───────────────────────────────────────────────
+// ── Features, pools and uses ──────────────────────────────────────────────────
 
-const {
-  characterClasses,
-  classFeatureGroups,
-  featureDataPending,
-  classDefinitionFor,
-  subclassDefinitionFor,
-} = useClassFeatureGroups(memberRef);
+const { characterClasses, classDefinitionFor } = useClassDefinitionLookup(memberRef);
+const { granted, pools, isPending, complete, error } = useCharacterFeatures(memberRef);
+const { remaining, spend, restore, reconcile, needsReconcile, isSaving } = useFeatureUses(memberRef, pools);
 
-// ── Local optimistic state ────────────────────────────────────────────────────
+// Pools are derived from the features, so while those are still loading the
+// pool list is empty and "reconciling" would delete every stored pool. Wait for
+// a settled, error-free read in which every class and subclass definition
+// resolved (`complete`), and only write when this viewer may.
+watch(
+  [needsReconcile, isPending, complete, error, canWrite, isSaving],
+  () => {
+    if (!canWrite.value || isPending.value || !complete.value || error.value || isSaving.value || !needsReconcile.value) return;
+    reconcile().catch((e: unknown) => toast.error(toast.fromError(e, "Couldn't update feature uses.")));
+  },
+  { immediate: true },
+);
 
-const localResources = ref<ResourceRow[]>([]);
-
-function syncFromProps() {
-  localResources.value = Object.entries(props.member.class_resources ?? {}).map(([key, res]) => ({
-    key,
-    label: key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-    current: res.current,
-    max: res.max,
-    rest: res.rest,
-  }));
+async function spendFromPool(key: string, amount: number) {
+  try {
+    await spend({ key, amount });
+  } catch (e) {
+    toast.error(toast.fromError(e, "Couldn't spend that."));
+  }
 }
 
-watch(() => [props.member.id, props.member.updated_at], syncFromProps, { immediate: true });
+async function restoreToPool(key: string, amount: number) {
+  try {
+    await restore(key, amount);
+  } catch (e) {
+    toast.error(toast.fromError(e, "Couldn't restore that."));
+  }
+}
+
+/** The pool as the bespoke sorcery card wants it (current / max). */
+const sorceryResource = computed(() => {
+  const pool = pools.value.find(p => p.key === "sorcery_points");
+  const left = remaining("sorcery_points");
+  if (!pool || pool.max === "unlimited" || typeof left !== "number") return null;
+  return { current: left, max: pool.max };
+});
 
 // Spell slots — single source of truth: TanStack Query cache via props.member.spell_slots.
 // Falls back to multiclass or per-class defaults when DB has no stored slots yet.
@@ -282,100 +236,15 @@ const effectiveSlots = computed((): SpellSlotEntry[] =>
   ),
 );
 
-// ── Persist helpers ───────────────────────────────────────────────────────────
-
-function persistResources() {
-  const class_resources = Object.fromEntries(
-    localResources.value.map(r => [r.key, { current: r.current, max: r.max, rest: r.rest }]),
-  );
-  updateMember({ id: props.member.id, update: { class_resources } });
-}
-
-// ── Resource controls ─────────────────────────────────────────────────────────
-
-function spendResource(key: string) {
-  const r = localResources.value.find(r => r.key === key);
-  if (!r || r.current <= 0) return;
-  r.current--;
-  persistResources();
-}
-
-function restoreResource(key: string) {
-  const r = localResources.value.find(r => r.key === key);
-  if (!r || r.current >= r.max) return;
-  r.current++;
-  persistResources();
-}
-
-function confirmVariableSpend(key: string, amount: number) {
-  const r = localResources.value.find(r => r.key === key);
-  if (!r) return;
-  r.current = Math.max(0, r.current - Math.min(Math.max(1, amount), r.current));
-  persistResources();
-}
-
-// ── Rest ──────────────────────────────────────────────────────────────────────
-
-async function shortRest() {
-  await takeSpellcastingRest({ partyMemberId: props.member.id, rest: "short" });
-}
-
-async function longRest() {
-  const ok = await confirm(
-    "Take a long rest? This will restore all resources and spell slots.",
-    { title: "Long Rest", confirmLabel: "Rest", danger: false },
-  );
-  if (!ok) return;
-
-  await takeSpellcastingRest({ partyMemberId: props.member.id, rest: "long" });
-  rageRef.value?.deactivate();
-  if (props.member.rage_active) {
-    updateMember({ id: props.member.id, update: { rage_active: false } });
-  }
-}
-
-// ── Spell pick steps ──────────────────────────────────────────────────────────
-
-/** Every custom class + subclass level-up step defined for this character. */
-const allCustomSteps = computed((): CustomStep[] =>
-  (characterClasses.value ?? []).flatMap(row => [
-    ...(classDefinitionFor(row)?.steps ?? []),
-    ...(subclassDefinitionFor(row)?.steps ?? []),
-  ]) as CustomStep[],
-);
-
-/** All spell_pick steps at levels the character has reached (drives the picker). */
-const spellPickSteps = computed((): CustomStep[] =>
-  allCustomSteps.value.filter(s => s.step_type === "spell_pick" && s.level <= props.member.level),
-);
-
 /**
- * Keys of every spell_pick step — these render in PlayerSpellChoices, so the
- * generic Choices card excludes them to avoid showing the same pick twice
- * (as a raw stored value at that).
+ * Keys a feature card already lists under its own name, so the generic Choices
+ * card does not show the same pick twice.
  */
-const spellPickStepKeys = computed(() =>
-  allCustomSteps.value.filter(s => s.step_type === "spell_pick").map(s => s.key),
+const choiceKeysShownElsewhere = computed(() =>
+  granted.value.flatMap(g => (g.mechanics.choices ?? []).map(c => c.key)),
 );
 
-// ── Background ASI & feat (2024 PHB), fed to PlayerChoicesCard ────────────────
-
-/** Background feat name from class_choices (set when a 2024 PHB background is picked). */
-const backgroundFeat = computed(() => {
-  const raw = props.member.class_choices?.background_feat;
-  return raw && typeof raw === "string" ? raw : null;
-});
-
-/**
- * Structured Origin feat for the resolved-link display. Prefers the linked
- * background's current origin_feat (picks up edits made after this member
- * chose it); falls back to re-parsing the stored raw name so the badge still
- * renders correctly for a member whose background was since deleted.
- */
-const backgroundOriginFeat = computed(() => {
-  if (linkedBackground.value?.origin_feat) return linkedBackground.value.origin_feat;
-  return backgroundFeat.value ? { name: backgroundFeat.value, variant: null } : null;
-});
+// ── Background ASI (2024 PHB), fed to PlayerChoicesCard ────────────────
 
 /** Ability-score deltas from the member's stored 2024 background ASI choice, for display only. */
 const backgroundAsiBonuses = computed(() => {
@@ -419,7 +288,7 @@ const knownMetamagic = computed(() => {
 const knownInvocations = computed(() => {
   const raw = props.member.class_choices?.eldritch_invocations;
   const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
-  return names.map(n => ELDRITCH_INVOCATIONS_MAP.get(n)).filter(Boolean) as import("@/data/eldritchInvocations").EldritchInvocation[];
+  return names.map(n => ELDRITCH_INVOCATIONS_MAP.get(n)).filter((inv): inv is EldritchInvocation => !!inv);
 });
 
 // ── Racial trait groups (for PlayerRacialTraits) ───────────────────────────────
@@ -456,28 +325,13 @@ const invocationItems = computed<ExpandableItem[]>(() =>
   })),
 );
 
-// ── Paladin ───────────────────────────────────────────────────────────────────
-
-const isPaladin = computed(() =>
-  (characterClasses.value ?? []).some(cc => cc.class_name === "Paladin"),
-);
-
-// ── Class detection ─────────────────────────────────────────────────────────────
-
-const isBarbarian = computed(() =>
-  (characterClasses.value ?? []).some(cc => cc.class_name === "Barbarian"),
-);
+// ── Class detection (for the bespoke cards below) ─────────────────────────────
 
 const isMonk = computed(() =>
   (characterClasses.value ?? []).some(cc => cc.class_name === "Monk"),
 );
 
-const isFighter = computed(() =>
-  (characterClasses.value ?? []).some(cc => cc.class_name === "Fighter"),
-);
-
 const isBattleMaster = computed(() => {
-  if (!isFighter.value) return false;
   const subclass = (characterClasses.value ?? []).find(cc => cc.class_name === "Fighter")?.subclass_name;
   return !!subclass && subclass.toLowerCase().includes("battle master");
 });
@@ -487,12 +341,6 @@ function classLevel(className: string, officialOnly = false): number {
     cc.class_name === className && (!officialOnly || cc.class_definition_kind !== "custom"),
   )?.levels ?? 0;
 }
-
-// ── Barbarian rage ────────────────────────────────────────────────────────────
-
-const rageResource = computed(() => localResources.value.find(r => r.key === "rage_uses") ?? null);
-const sorceryResource = computed(() => localResources.value.find(r => r.key === "sorcery_points") ?? null);
-const rageRef = ref<InstanceType<typeof PlayerBarbarianRage> | null>(null);
 
 // ── Monk ki ───────────────────────────────────────────────────────────────────
 
@@ -509,20 +357,12 @@ const kiItems = computed<ExpandableItem[]>(() => {
 });
 
 // ── Battle Master maneuvers ───────────────────────────────────────────────────
-
-const superiorityDiceResource = computed(() => localResources.value.find(r => r.key === "superiority_dice") ?? null);
-
-const superiorityDiceSize = computed(() => {
-  const lvl = classLevel("Fighter");
-  if (lvl >= 18) return "d12";
-  if (lvl >= 10) return "d10";
-  return "d8";
-});
+// The superiority dice are a pool now, shown on the Combat Superiority card.
 
 const knownManeuvers = computed(() => {
   const raw = props.member.class_choices?.battle_master_maneuvers;
   const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
-  return names.map(n => BATTLE_MASTER_MANEUVERS_MAP.get(n)).filter(Boolean) as import("@/data/battleMasterManeuvers").BattleManeuver[];
+  return names.map(n => BATTLE_MASTER_MANEUVERS_MAP.get(n)).filter((m): m is BattleManeuver => !!m);
 });
 
 // Battle Master maneuvers known scale with Fighter level: 3 at L3, 5 at L7,
@@ -549,16 +389,6 @@ function learnManeuver(name: string) {
   updateMember({ id: props.member.id, update: { class_choices: { ...props.member.class_choices, battle_master_maneuvers: [...existing, name] } } });
 }
 
-// ── Resources display ─────────────────────────────────────────────────────────
-
-const displayedResources = computed(() =>
-  localResources.value.filter(r => {
-    if (r.key === "infusion_slots" && isArtificer.value) return false;
-    if (r.key === "superiority_dice" && isBattleMaster.value) return false;
-    return true;
-  }),
-);
-
 // ── Infusions (Artificer) ─────────────────────────────────────────────────────
 
 const {
@@ -566,7 +396,6 @@ const {
   artificerLevel,
   memberInventoryItems,
   knownInfusions,
-  infusionSlotsMax,
   localActiveInfusions,
   availableInfusionsToLearn,
   learnInfusion,
@@ -574,4 +403,10 @@ const {
   removeActiveInfusionByName,
   saveInfusionText,
 } = useArtificerState(memberRef, characterClasses);
+
+/** How many infusions can be active: the size of the `infusion_slots` pool the features grant. */
+const infusionSlotsMax = computed(() => {
+  const pool = pools.value.find(p => p.key === "infusion_slots");
+  return pool && pool.max !== "unlimited" ? pool.max : 0;
+});
 </script>

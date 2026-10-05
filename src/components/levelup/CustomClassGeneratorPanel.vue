@@ -45,18 +45,17 @@
               subclass at level {{ pending.base.subclass_level }}
             </span>
             <span class="block text-caption text-muted-foreground">
-              {{ CASTER_PROGRESSION_LABELS[pending.progression] }}<template v-if="pending.base.resources.length">,
-                {{ pending.base.resources.length }}
-                {{ pending.base.resources.length === 1 ? "resource" : "resources" }}</template>
+              {{ CASTER_PROGRESSION_LABELS[pending.progression] }}
             </span>
           </li>
           <li>
             <span class="font-semibold">
-              {{ pending.features.length }} {{ pending.features.length === 1 ? "ability" : "abilities" }}
+              {{ newFeatureCount }} {{ newFeatureCount === 1 ? "ability" : "abilities" }}
             </span>
             <span class="block text-caption text-muted-foreground">{{ bandSummary }}</span>
           </li>
         </ul>
+        <p v-for="w in pending.warnings" :key="w" class="text-caption text-muted-foreground">{{ w }}</p>
         <div class="flex gap-2">
           <AppButton
             variant="primary"
@@ -135,6 +134,9 @@ const casterProgression = ref<CasterProgression | "">("");
 const pending = ref<ClassDraft | null>(null);
 const creating = ref(false);
 
+/** Abilities that will be created; the shared Ability Score Improvement is pointed at, not made. */
+const newFeatureCount = computed(() => (pending.value?.features ?? []).filter((f) => "insert" in f).length);
+
 const bandSummary = computed(() =>
   featureCountsByBand(pending.value?.features ?? [])
     .filter((b) => b.count > 0)
@@ -166,7 +168,7 @@ async function createAll() {
   try {
     // Abilities first, then the class that points at them. A failed write
     // removes the abilities already created, so nothing is left orphaned.
-    const created = await createWithFeatures(draft.features.map((f) => f.insert), {
+    const created = await createWithFeatures(draft.features, {
       createFeature,
       deleteFeature,
       createParent: (ids) => createClass(classWithFeatureIds(draft, ids)),

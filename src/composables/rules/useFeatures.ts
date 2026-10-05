@@ -5,8 +5,6 @@ import type { ClassFeature, ClassFeatureInsert, ClassFeatureUpdate } from "@/typ
 import { useRuleset } from "@/composables/rules/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
-export type ImportResult = { inserted: number; updated: number };
-
 const QUERY_KEY = "class_features";
 
 async function fetchAll(ruleset: RulesetKey): Promise<ClassFeature[]> {
@@ -14,6 +12,17 @@ async function fetchAll(ruleset: RulesetKey): Promise<ClassFeature[]> {
     .from("class_features")
     .select("*")
     .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return data as ClassFeature[];
+}
+
+/** Every feat the caller can read, in every edition: the Codex Feats tab filters by edition itself. */
+async function fetchAllFeats(): Promise<ClassFeature[]> {
+  const { data, error } = await supabase
+    .from("class_features")
+    .select("*")
+    .eq("kind", "feat")
     .order("name", { ascending: true });
   if (error) throw error;
   return data as ClassFeature[];
@@ -62,6 +71,15 @@ export function useAllFeatures() {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, ruleset.value] as const),
     queryFn: ({ queryKey: [, rs] }) => fetchAll(rs),
+    staleTime: Infinity,
+  });
+}
+
+/** The Codex Feats tab. Not scoped to the table's ruleset, so its edition filter has both to choose from. */
+export function useAllFeats() {
+  return useQuery({
+    queryKey: [QUERY_KEY, "feats"] as const,
+    queryFn: fetchAllFeats,
     staleTime: Infinity,
   });
 }
@@ -121,124 +139,6 @@ export function useDeleteFeature() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteFeature,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  });
-}
-
-export function useImportOpen5eFeatures() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<ImportResult> => {
-      const { fetchOpen5eFeats } = await import("@/lib/library/open5eFeatImport");
-      const feats = await fetchOpen5eFeats();
-      const user = getCurrentUser();
-
-      if (!user) throw new Error("Not authenticated");
-      type ExistingRow = { id: string; source_document_key: string; source_record_key: string };
-      const { data: existingData, error: existingError } = await supabase
-        .from("class_features")
-        .select("id, source_document_key, source_record_key")
-        .eq("user_id", user.id)
-        .eq("open5e_import", true)
-        .not("source_document_key", "is", null)
-        .not("source_record_key", "is", null);
-      if (existingError) throw existingError;
-      const existing = (existingData ?? []) as ExistingRow[];
-      const byIdentity = new Map(existing.map(row => [
-        `${row.source_document_key}::${row.source_record_key}`,
-        row,
-      ]));
-      const existingFor = (feat: ClassFeatureInsert) =>
-        byIdentity.get(`${feat.source_document_key}::${feat.source_record_key}`);
-
-      const toInsert = feats.filter((feat) => !existingFor(feat));
-      const INSERT_BATCH = 100;
-      for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
-        const batch = toInsert.slice(i, i + INSERT_BATCH).map((f) => ({ ...f, user_id: user.id }));
-        const { error } = await supabase.from("class_features").insert(batch);
-        if (error) throw error;
-      }
-
-      // Update existing rows — refresh prerequisite, feature_type, and description
-      // from Open5e; never touch user-edited tags, source override, or campaign_id.
-      const toUpdate = feats.filter((feature) => !!existingFor(feature));
-      const UPDATE_CONCURRENCY = 25;
-      for (let i = 0; i < toUpdate.length; i += UPDATE_CONCURRENCY) {
-        await Promise.all(
-          toUpdate.slice(i, i + UPDATE_CONCURRENCY).map((f) =>
-            supabase
-              .from("class_features")
-              .update({
-                prerequisite: f.prerequisite,
-                feature_type: f.feature_type,
-                name: f.name,
-                description: f.description,
-                source: f.source,
-                ruleset: f.ruleset,
-                conceptual_key: f.conceptual_key,
-                source_document_key: f.source_document_key,
-                source_record_key: f.source_record_key,
-                source_revision: f.source_revision,
-                source_license: f.source_license,
-                provenance: f.provenance,
-              })
-              .eq("id", existingFor(f)!.id),
-          ),
-        );
-      }
-
-      return { inserted: toInsert.length, updated: toUpdate.length };
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  });
-}
-
-/**
- * Backfills descriptions on system (user_id = null) class features by fetching
- * them from the Open5e v2 API. Only updates rows that currently have no description.
- * Requires the class_features_system_desc_policy migration to be applied first.
- */
-export function useBackfillSystemFeatureDescriptions() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<{ updated: number }> => {
-      const { fetchClassFeatureDescriptions } = await import("@/lib/library/open5eClassImport");
-      const descMap = await fetchClassFeatureDescriptions();
-
-      // Fetch all system features that currently have no description
-      const names = [...descMap.keys()];
-      type SystemFeatureRow = { id: string; name: string };
-      const rows: SystemFeatureRow[] = [];
-      const CHUNK = 200;
-      for (let i = 0; i < names.length; i += CHUNK) {
-        const { data } = await supabase
-          .from("class_features")
-          .select("id, name")
-          .is("user_id", null)
-          .is("description", null)
-          .in("name", names.slice(i, i + CHUNK));
-        rows.push(...((data ?? []) as SystemFeatureRow[]));
-      }
-
-      // Update each missing description in batches
-      const CONCURRENCY = 25;
-      let updated = 0;
-      for (let i = 0; i < rows.length; i += CONCURRENCY) {
-        await Promise.all(
-          rows.slice(i, i + CONCURRENCY).map((row) => {
-            const desc = descMap.get(row.name);
-            if (!desc) return Promise.resolve();
-            updated++;
-            return supabase
-              .from("class_features")
-              .update({ description: desc })
-              .eq("id", row.id);
-          }),
-        );
-      }
-
-      return { updated };
-    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

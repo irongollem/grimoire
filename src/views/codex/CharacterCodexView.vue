@@ -10,7 +10,7 @@
     sync the tab ref to it on mount + watch, and each tab click pushes a
     new route so deep links like `/codex/backgrounds` work directly.
   -->
-  <ListPageLayout title="Character Codex" description="Species, backgrounds, classes & archetypes for your players">
+  <ListPageLayout title="Character Codex" description="Species, backgrounds, classes, archetypes, abilities & feats for your players">
     <template #title-suffix>
       <ManualHelpLink :page="manualPage" />
     </template>
@@ -66,13 +66,6 @@
         <!-- Classes tab -->
         <template v-if="activeTab === 'classes'">
           <ListActionButton
-            :icon="IconDownload"
-            :loading="classImportMutation.isPending.value"
-            :label="classImportLabel"
-            :disabled="classImportMutation.isPending.value"
-            @click="handleClassImport"
-          />
-          <ListActionButton
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
@@ -89,13 +82,6 @@
 
         <!-- Archetypes tab -->
         <template v-if="activeTab === 'archetypes'">
-          <ListActionButton
-            :icon="IconDownload"
-            :loading="archetypeImportMutation.isPending.value"
-            :label="archetypeImportLabel"
-            :disabled="archetypeImportMutation.isPending.value"
-            @click="handleArchetypeImport"
-          />
           <ListActionButton
             v-if="isAiEnabled"
             :icon="IconGenerate"
@@ -114,13 +100,6 @@
         <!-- Abilities tab -->
         <template v-if="activeTab === 'abilities'">
           <ListActionButton
-            :icon="IconDownload"
-            :loading="abilityImporting"
-            :label="abilityImportLabel"
-            :disabled="abilityImporting"
-            @click="handleAbilityImport"
-          />
-          <ListActionButton
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
@@ -132,6 +111,17 @@
             label="New Ability"
             mobile-label="Ability"
             to="/features/new"
+          />
+        </template>
+
+        <!-- Feats tab -->
+        <template v-if="activeTab === 'feats'">
+          <ListActionButton
+            variant="primary"
+            :icon="IconAdd"
+            label="New Feat"
+            mobile-label="Feat"
+            to="/feats/new"
           />
         </template>
       </template>
@@ -188,9 +178,26 @@
         @clear="ui.resetFeaturesFilters()"
       >
         <ListSearchInput v-model="ui.featuresSearch" placeholder="Search abilities…" />
-        <ListFilterSelect v-model="ui.featuresFilterType">
-          <option value="all">All types</option>
-          <option v-for="t in FEATURE_TYPES" :key="t" :value="t">{{ FEATURE_TYPE_LABELS[t] }}</option>
+        <ListFilterSelect v-model="ui.featuresFilterActivation">
+          <option value="all">All activations</option>
+          <option value="passive">Passive</option>
+          <option v-for="a in ACTIVATIONS" :key="a" :value="a">{{ ACTIVATION_LABELS[a] }}</option>
+        </ListFilterSelect>
+      </ListFilterBar>
+      <ListFilterBar
+        v-else-if="activeTab === 'feats'"
+        :has-active-filters="ui.featsHasActiveFilters"
+        @clear="ui.resetFeatsFilters()"
+      >
+        <ListSearchInput v-model="ui.featsSearch" placeholder="Search feats…" />
+        <ListFilterSelect v-model="ui.featsFilterCategory">
+          <option value="all">All categories</option>
+          <option v-for="c in FEAT_CATEGORIES" :key="c" :value="c">{{ FEAT_CATEGORY_LABELS[c] }}</option>
+        </ListFilterSelect>
+        <ListFilterSelect v-model="ui.featsFilterEdition">
+          <option value="all">Both editions</option>
+          <option value="2014">2014</option>
+          <option value="2024">2024</option>
         </ListFilterSelect>
       </ListFilterBar>
     </template>
@@ -203,6 +210,7 @@
     <ClassList v-else-if="activeTab === 'classes'" />
     <ArchetypeList v-else-if="activeTab === 'archetypes'" ref="archetypeListRef" />
     <AbilityList v-else-if="activeTab === 'abilities'" />
+    <FeatList v-else-if="activeTab === 'feats'" />
 
     <!-- Species import panel -->
     <SpeciesOpen5ePanel v-if="activeTab === 'species'" />
@@ -210,10 +218,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { computed, ref, watch, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { IconAdd, IconBookUser, IconGenerate, IconCheck, IconDownload, IconLevel, IconLightning, IconPopulate, IconSpecies } from '@/lib/icons';
+import { IconAdd, IconBookUser, IconGenerate, IconAward, IconCheck, IconDownload, IconLevel, IconLightning, IconPopulate, IconSpecies } from '@/lib/icons';
 import TabBar from "@/components/common/TabBar.vue";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -229,15 +237,14 @@ import { BACKGROUND_SOURCE_OPTIONS } from "@/components/backgrounds/backgroundSo
 import ClassList from "@/components/levelup/ClassList.vue";
 import ArchetypeList from "@/components/levelup/ArchetypeList.vue";
 import AbilityList from "@/components/features/AbilityList.vue";
+import FeatList from "@/components/feats/FeatList.vue";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useImportOpen5eClasses, useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
-import { useImportOpen5eSubclasses } from "@/composables/rules/useCustomSubclasses";
-import { useImportOpen5eFeatures, useBackfillSystemFeatureDescriptions } from "@/composables/rules/useFeatures";
-import type { ImportResult } from "@/composables/rules/useFeatures";
-import { FEATURE_TYPES, FEATURE_TYPE_LABELS } from "@/types/feature.types";
+import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
+import { ACTIVATIONS, FEAT_CATEGORIES } from "@/rules/features/mechanics.types";
+import { ACTIVATION_LABELS, FEAT_CATEGORY_LABELS } from "@/types/feature.types";
 
-type TabId = "species" | "backgrounds" | "classes" | "archetypes" | "abilities";
+type TabId = "species" | "backgrounds" | "classes" | "archetypes" | "abilities" | "feats";
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof IconSpecies }> = [
   { id: "species",     label: "Species",     icon: IconSpecies },
@@ -245,6 +252,7 @@ const TABS: Array<{ id: TabId; label: string; icon: typeof IconSpecies }> = [
   { id: "classes",     label: "Classes",     icon: IconPopulate },
   { id: "archetypes",  label: "Archetypes",  icon: IconLevel },
   { id: "abilities",   label: "Abilities",   icon: IconLightning },
+  { id: "feats",       label: "Feats",       icon: IconAward },
 ];
 
 const SIZE_OPTIONS = [
@@ -273,12 +281,13 @@ const MANUAL_PAGE_BY_TAB: Record<TabId, string> = {
   classes: "creating-custom-classes",
   archetypes: "creating-custom-classes",
   abilities: "abilities-compendium",
+  feats: "feats-compendium",
 };
 const manualPage = computed(() => MANUAL_PAGE_BY_TAB[activeTab.value]);
 
 function tabFromRoute(): TabId {
   const p = (route.params.tab as string | undefined) ?? ui.codexActiveTab;
-  return (["species", "backgrounds", "classes", "archetypes", "abilities"] as TabId[]).includes(p as TabId)
+  return (["species", "backgrounds", "classes", "archetypes", "abilities", "feats"] as TabId[]).includes(p as TabId)
     ? (p as TabId)
     : "species";
 }
@@ -301,112 +310,4 @@ const archetypeClassNames = computed(() => {
 });
 const archetypeListRef = ref<InstanceType<typeof ArchetypeList> | null>(null);
 const speciesListRef = ref<InstanceType<typeof SpeciesList> | null>(null);
-
-// ── Classes: import ───────────────────────────────────────────────────────────
-const classImportMutation = useImportOpen5eClasses();
-const classImportStatus = ref<"idle" | "done">("idle");
-const classImportError = ref<string | null>(null);
-let classResetTimer: ReturnType<typeof setTimeout> | null = null;
-onBeforeUnmount(() => { if (classResetTimer) clearTimeout(classResetTimer); });
-
-const classImportLabel = computed(() => {
-  if (classImportMutation.isPending.value) return "Importing…";
-  if (classImportError.value) return "Import failed";
-  if (classImportStatus.value === "done") {
-    const r = classImportMutation.data.value;
-    if (!r || (r.inserted === 0 && r.updated === 0)) return "Already up to date";
-    const parts: string[] = [];
-    if (r.inserted > 0) parts.push(`${r.inserted} added`);
-    if (r.updated > 0) parts.push(`${r.updated} updated`);
-    return parts.join(", ");
-  }
-  return "Import from Open5e";
-});
-
-async function handleClassImport() {
-  classImportStatus.value = "idle";
-  classImportError.value = null;
-  try {
-    await classImportMutation.mutateAsync();
-    classImportStatus.value = "done";
-  } catch (e) {
-    classImportError.value = e instanceof Error ? e.message : String(e);
-  }
-  classResetTimer = setTimeout(() => { classImportStatus.value = "idle"; classImportError.value = null; }, 8000);
-}
-
-// ── Abilities: import + description backfill ──────────────────────────────────
-const abilityImportMutation = useImportOpen5eFeatures();
-const descBackfillMutation = useBackfillSystemFeatureDescriptions();
-const abilityImporting = ref(false);
-const abilityImportStatus = ref<"idle" | "done">("idle");
-const abilityImportResult = ref<ImportResult>({ inserted: 0, updated: 0 });
-const descFilled = ref(0);
-const abilityImportError = ref<string | null>(null);
-let abilityResetTimer: ReturnType<typeof setTimeout> | null = null;
-onBeforeUnmount(() => { if (abilityResetTimer) clearTimeout(abilityResetTimer); });
-
-const abilityImportLabel = computed(() => {
-  if (abilityImporting.value) return "Syncing…";
-  if (abilityImportError.value) return `Error: ${abilityImportError.value}`;
-  if (abilityImportStatus.value === "done") {
-    const { inserted, updated } = abilityImportResult.value;
-    const parts: string[] = [];
-    if (inserted > 0) parts.push(`${inserted} added`);
-    if (updated > 0) parts.push(`${updated} updated`);
-    if (descFilled.value > 0) parts.push(`${descFilled.value} descriptions filled`);
-    return parts.length ? parts.join(", ") : "Already up to date";
-  }
-  return "Sync from Open5e";
-});
-
-async function handleAbilityImport() {
-  abilityImportStatus.value = "idle";
-  abilityImportError.value = null;
-  abilityImporting.value = true;
-  try {
-    abilityImportResult.value = await abilityImportMutation.mutateAsync();
-    const backfill = await descBackfillMutation.mutateAsync();
-    descFilled.value = backfill.updated;
-    abilityImportStatus.value = "done";
-  } catch (e) {
-    abilityImportError.value = e instanceof Error ? e.message : String(e);
-  } finally {
-    abilityImporting.value = false;
-  }
-  abilityResetTimer = setTimeout(() => { abilityImportStatus.value = "idle"; abilityImportError.value = null; }, 8000);
-}
-
-// ── Archetypes: import ────────────────────────────────────────────────────────
-const archetypeImportMutation = useImportOpen5eSubclasses();
-const archetypeImportStatus = ref<"idle" | "done">("idle");
-const archetypeImportError = ref<string | null>(null);
-let archetypeResetTimer: ReturnType<typeof setTimeout> | null = null;
-onBeforeUnmount(() => { if (archetypeResetTimer) clearTimeout(archetypeResetTimer); });
-
-const archetypeImportLabel = computed(() => {
-  if (archetypeImportMutation.isPending.value) return "Importing…";
-  if (archetypeImportError.value) return "Import failed";
-  if (archetypeImportStatus.value === "done") {
-    const r = archetypeImportMutation.data.value;
-    if (!r || (r.inserted === 0 && r.updated === 0)) return "Already up to date";
-    const parts: string[] = [];
-    if (r.inserted > 0) parts.push(`${r.inserted} added`);
-    if (r.updated > 0) parts.push(`${r.updated} updated`);
-    return parts.join(", ");
-  }
-  return "Import from Open5e";
-});
-
-async function handleArchetypeImport() {
-  archetypeImportStatus.value = "idle";
-  archetypeImportError.value = null;
-  try {
-    await archetypeImportMutation.mutateAsync();
-    archetypeImportStatus.value = "done";
-  } catch (e) {
-    archetypeImportError.value = e instanceof Error ? e.message : String(e);
-  }
-  archetypeResetTimer = setTimeout(() => { archetypeImportStatus.value = "idle"; archetypeImportError.value = null; }, 8000);
-}
 </script>

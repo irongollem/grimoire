@@ -10,6 +10,8 @@ import {
   type ClassAiResult,
   type ClassDraft,
 } from "@/lib/codex/classAi";
+import { useAllFeatures } from "@/composables/rules/useFeatures";
+import { findOfficialAsiFeature } from "@/lib/codex/asiFeature";
 import type { HitDie } from "@/levelup/customTypes";
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -33,6 +35,7 @@ export interface CustomClassGenerationOptions {
 
 export function useCustomClassGeneration() {
   const { ruleset } = useTableRuleset();
+  const { data: allFeatures, refetch: loadFeatures } = useAllFeatures();
 
   /**
    * Returns a class draft (class row plus the feature rows it points at), shaped
@@ -67,7 +70,14 @@ export function useCustomClassGeneration() {
         ...(options?.hitDie ? { hit_die: options.hitDie } : {}),
         ...(options?.casterProgression ? { caster_progression: options.casterProgression } : {}),
       };
-      const draft = classDraftFromAi(ai, { ruleset: ruleset.value, campaignId: context.campaignId });
+      // The class grants the official Ability Score Improvement at its ASI levels; the
+      // compendium may not be loaded yet when a DM opens the panel straight away.
+      const features = allFeatures.value ?? (await loadFeatures()).data ?? [];
+      const draft = classDraftFromAi(ai, {
+        ruleset: ruleset.value,
+        campaignId: context.campaignId,
+        asiFeatureId: findOfficialAsiFeature(features, ruleset.value)?.id ?? null,
+      });
       if (draft.problems.length) {
         throw new Error(`The model did not return a playable class (${draft.problems[0]}) Try again.`);
       }

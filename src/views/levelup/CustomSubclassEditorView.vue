@@ -1,7 +1,7 @@
 <template>
   <PageHeader
     :title="isNew ? 'New Archetype' : (form.subclass_name || 'Custom Archetype')"
-    description="Define a subclass: features, resources, and progression for your custom class"
+    description="Define a subclass: features and progression for your custom class"
   >
     <template v-if="isNew || isEditing" #actions>
       <AppButton
@@ -89,19 +89,6 @@
         :all-spell-options="allSpellOptions"
         @update:granted-spells="form.granted_spells = $event"
       />
-
-      <!-- ── Section 4: Wizard steps ────────────────────────────────────────── -->
-      <CustomClassStepsEditor
-        :steps="form.steps"
-        :all-feature-options="allFeatureOptions"
-        @update:steps="form.steps = $event"
-      />
-
-      <!-- ── Section 5: Resource pools ─────────────────────────────────────── -->
-      <CustomClassResources
-        :resources="form.resources"
-        @update:resources="form.resources = $event"
-      />
     </div>
   </PageHeader>
 </template>
@@ -120,8 +107,6 @@ import { useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, us
 import CustomSubclassSheet from "@/components/levelup/CustomSubclassSheet.vue";
 import CustomClassFeaturesPerLevel from "@/components/levelup/CustomClassFeaturesPerLevel.vue";
 import CustomSubclassGrantedSpells from "@/components/levelup/CustomSubclassGrantedSpells.vue";
-import CustomClassStepsEditor from "@/components/levelup/CustomClassStepsEditor.vue";
-import CustomClassResources from "@/components/levelup/CustomClassResources.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { toPlainText } from "@/ai/utils";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
@@ -129,7 +114,6 @@ import { useSpellIndex } from "@/composables/spells/useSpellIndex";
 import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
-import type { CustomStep, CustomResource } from "@/levelup/customTypes";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 const route = useRoute();
@@ -174,8 +158,6 @@ interface FormState {
   description: string;
   features: Record<string, string[]>;
   granted_spells: Record<string, string[]>;
-  steps: CustomStep[];
-  resources: CustomResource[];
   hp_per_level: number | null;
 }
 
@@ -185,8 +167,6 @@ const form = ref<FormState>({
   description: "",
   features: {},
   granted_spells: {},
-  steps: [],
-  resources: [],
   hp_per_level: null,
 });
 
@@ -216,11 +196,6 @@ watch(existing, (val) => {
     description: raw.description ?? "",
     features: raw.features,
     granted_spells: raw.granted_spells ?? {},
-    steps: raw.steps.map((s) => ({
-      ...s,
-      step_type: s.step_type ?? "text_pick",
-    })),
-    resources: raw.resources,
     hp_per_level: raw.hp_per_level ?? null,
   };
   campaignScope.value = raw.campaign_id ?? "all";
@@ -243,8 +218,6 @@ async function save() {
     description: toPlainText(form.value.description).trim() ? form.value.description : null,
     features: form.value.features,
     granted_spells: form.value.granted_spells,
-    steps: form.value.steps,
-    resources: form.value.resources,
     hp_per_level: form.value.hp_per_level,
   };
   // Material edit detection: any change to the archetype's rules content means

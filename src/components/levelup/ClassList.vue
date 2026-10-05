@@ -13,7 +13,7 @@
         <p class="text-heading-sm font-semibold text-foreground">No custom classes yet</p>
         <p class="text-body text-muted-foreground max-w-sm">
           Custom classes let you define entirely new primary classes: hit die, saving throws,
-          feature progressions, and wizard steps, for use in the level-up wizard.
+          and feature progressions, for use in the level-up wizard.
           Duplicate any SRD class below to use it as a starting point.
         </p>
       </div>
@@ -36,13 +36,13 @@
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
           <p class="text-eyebrow text-primary">Feature Progression</p>
           <p class="text-caption text-muted-foreground">
-            Link abilities from the compendium to each level, define Ability Score Increase levels, and add wizard steps for player choices.
+            Link abilities from the compendium to each level. An ability carries its own uses, choices and scaling, and Ability Score Improvement is an ability too.
           </p>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-          <p class="text-eyebrow text-primary">Resource Pools</p>
+          <p class="text-eyebrow text-primary">Uses</p>
           <p class="text-caption text-muted-foreground">
-            Tracked uses that appear on the character sheet: Grit Points, Ki, Superiority Dice, etc.
+            A pool like Grit Points, Ki or Superiority Dice is the uses of the feature that grants it.
           </p>
         </div>
       </div>
@@ -69,7 +69,6 @@
               d{{ cls.hit_die }}
               <span v-if="cls.saving_throws.length > 0"> · {{ cls.saving_throws.join(', ') }} saves</span>
               <span v-if="featureLevelCount(cls) > 0"> · {{ featureLevelCount(cls) }} feature level{{ featureLevelCount(cls) !== 1 ? 's' : '' }}</span>
-              <span v-if="cls.resources.length > 0"> · {{ cls.resources.length }} resource pool{{ cls.resources.length !== 1 ? 's' : '' }}</span>
               <span v-if="cls.source" class="ml-1 text-primary/60"> · {{ cls.source }}</span>
               <span v-if="cls.campaign_id" class="ml-1 text-primary/70"> · campaign only</span>
             </p>
@@ -96,7 +95,6 @@
               d{{ cls.hit_die }}
               <span v-if="cls.saving_throws.length > 0"> · {{ cls.saving_throws.join(', ') }} saves</span>
               <span v-if="cls.spell_slots"> · spellcaster</span>
-              <span v-if="cls.resources.length > 0"> · {{ cls.resources.map(r => r.label).join(', ') }}</span>
             </p>
           </div>
           <button
@@ -163,7 +161,6 @@ async function duplicate(cls: SystemClass) {
       weapon_proficiencies: cls.weapon_proficiencies,
       subclass_level: cls.subclass_level,
       features: cls.features,
-      asi_levels: cls.asi_levels,
       spell_slots: cls.spell_slots,
       spells_known: cls.spells_known,
       cantrips_known: cls.cantrips_known,
@@ -171,8 +168,6 @@ async function duplicate(cls: SystemClass) {
       caster_type: cls.caster_type,
       prepared_ability: cls.prepared_ability,
       prepared_divisor: cls.prepared_divisor,
-      steps: cls.steps,
-      resources: cls.resources,
       source: null,
     });
     router.push(`/levelup/classes/${created.id}`);

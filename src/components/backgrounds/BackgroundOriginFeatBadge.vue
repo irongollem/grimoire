@@ -17,10 +17,8 @@
           class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
         >{{ originFeat.variant }}</span>
       </div>
-      <p v-if="!resolved?.feature" class="text-caption text-ink-caution  italic">
-        Not yet imported. Import SRD feats from
-        <RouterLink to="/codex/abilities" class="underline font-semibold">Codex → Abilities</RouterLink>
-        to link this grant to its full text.
+      <p v-if="allFeatures && !resolved?.feature" class="text-caption text-ink-caution italic">
+        {{ unresolvedOriginFeatMessage(originFeat.name) }}
       </p>
       <!-- Optional supplementary content — e.g. a background's own feat_grant_description. -->
       <slot />
@@ -32,11 +30,13 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
-import { resolveOriginFeat } from "@/rules/backgroundAsi";
+import { useRuleset } from "@/composables/rules/useRuleset";
+import { resolveOriginFeat, unresolvedOriginFeatMessage } from "@/rules/backgroundAsi";
 import type { BackgroundOriginFeat } from "@/types/background.types";
 
 const { originFeat } = defineProps<{ originFeat: BackgroundOriginFeat | null }>();
 
 const { data: allFeatures } = useAllFeatures();
-const resolved = computed(() => resolveOriginFeat(originFeat, allFeatures.value ?? []));
+const { ruleset } = useRuleset();
+const resolved = computed(() => resolveOriginFeat(originFeat, allFeatures.value ?? [], ruleset.value));
 </script>

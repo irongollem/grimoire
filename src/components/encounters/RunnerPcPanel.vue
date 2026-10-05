@@ -49,13 +49,20 @@
       </button>
     </div>
 
+    <!-- Feature actions. The campaign DM may write the character (party_members_player_update), so the buttons stay on. -->
+    <div class="detail-divider" />
+    <FeatureActionsCard :member="member" />
+
     <!-- Attacks (melee + ranged + ammo) -->
     <RunnerPcAttacks
       :member="member"
       :prof-bonus="profBonus"
       :ability-mod="abilityMod"
+      :sender-name="combatant.name"
+      :silent="chatSilent"
       @roll-attack="(bonus, name, onResolved) => emit('roll-attack', bonus, name, onResolved)"
       @roll-damage="(desc, name) => emit('roll-damage', desc, name)"
+      @damage-rolled="(result) => emit('damage-rolled', result)"
     />
 
     <!-- Curses -->
@@ -103,6 +110,8 @@
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
+import type { RollResult } from "@/lib/dice/dice";
 import RunnerPcAttacks from "@/components/encounters/RunnerPcAttacks.vue";
 import RunnerPcConditions from "@/components/encounters/RunnerPcConditions.vue";
 import RunnerPcWildshape from "@/components/encounters/RunnerPcWildshape.vue";
@@ -127,18 +136,21 @@ import { fetchLibraryMonsterArtEntry, withLibraryArt } from "@/composables/libra
 import { pickSpellcastingStats } from "@/types/multiclass.types";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
 
-const { combatant, member, monsters } = defineProps<{
+const { combatant, member, monsters, chatSilent = false } = defineProps<{
   combatant: RunCombatant;
   member: PartyMember;
   monsters: Monster[];
+  /** The runner's "don't post to chat" mode, for damage rolled from the rider panel. */
+  chatSilent?: boolean;
 }>();
 
 const portrait = computed(() => formPortrait(combatant, combatant.wildshape));
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];
-  "roll-attack": [bonus: number, name: string, onResolved?: (rolled: boolean) => void];
+  "roll-attack": [bonus: number, name: string, onResolved?: (rolled: boolean, crit?: boolean) => void];
   "roll-damage": [desc: string, name: string];
+  "damage-rolled": [result: RollResult];
   "roll-spell": [spell: Spell];
   "roll-spell-save": [spell: Spell, dc: number];
 }>();

@@ -5,7 +5,8 @@ import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { captureImageGenerationContext } from "./useImageGeneration";
 import { featureInsertFromAi, type FeatureAiResult } from "@/lib/codex/featureAi";
-import type { ClassFeatureInsert, FeatureType } from "@/types/feature.types";
+import type { ClassFeatureInsert } from "@/types/feature.types";
+import type { Activation } from "@/rules/features/mechanics.types";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -22,7 +23,8 @@ registerAiGenerator({
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface ClassFeatureGenerationOptions {
-  featureType?: FeatureType;
+  /** How the ability is used; absent lets the model decide, and passive is the lack of one. */
+  activation?: Activation;
   /** Free text: the class or species this ability is for. */
   forWhom?: string;
 }
@@ -43,7 +45,7 @@ export function useClassFeatureGeneration() {
     try {
       const context = captureImageGenerationContext();
       const constraints: string[] = [];
-      if (options?.featureType) constraints.push(`Feature type: ${options.featureType}`);
+      if (options?.activation) constraints.push(`Activation: ${options.activation}`);
       const forWhom = options?.forWhom?.trim();
       if (forWhom) constraints.push(`For: ${forWhom.slice(0, 200)}`);
 
@@ -56,7 +58,7 @@ export function useClassFeatureGeneration() {
         constraints,
       });
       const insert = featureInsertFromAi(
-        { ...raw, ...(options?.featureType ? { feature_type: options.featureType } : {}) },
+        { ...raw, ...(options?.activation ? { activation: options.activation } : {}) },
         { ruleset: ruleset.value, campaignId: context.campaignId },
       );
       if (!insert) throw new Error("The model did not return a usable ability. Try again.");

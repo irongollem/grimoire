@@ -1,9 +1,11 @@
-import { ref, computed, type ComputedRef, type Ref } from "vue";
+import { ref, computed, watch, type ComputedRef, type Ref } from "vue";
 import { parseBackgroundSkills, type SkillKey } from "@/rules/backgroundSkills";
 import {
-  isValidAsiChoice, parseBackgroundAsiChoice,
+  isValidAsiChoice, originFeatOf, parseBackgroundAsiChoice, resolveOriginFeat, withOriginFeat,
   type BackgroundAsiChoice,
 } from "@/rules/backgroundAsi";
+import type { ClassFeature } from "@/types/feature.types";
+import type { RulesetKey } from "@/types/ruleset.types";
 import type { CharacterFormState } from "@/rules/characterCreation";
 import type { Background } from "@/types/background.types";
 
@@ -11,6 +13,11 @@ interface BackgroundSelectionDeps {
   allBackgrounds: Ref<Background[] | undefined>;
   selectedBg: ComputedRef<Background | null>;
   is2024: ComputedRef<boolean>;
+  ruleset: Ref<RulesetKey>;
+  /** Readable feats of the character's edition; undefined while they load. */
+  features: Ref<ClassFeature[] | undefined>;
+  /** A new character follows its background live; a saved one changes only when the player picks. */
+  isEditMode: ComputedRef<boolean>;
 }
 
 /**
@@ -21,7 +28,7 @@ interface BackgroundSelectionDeps {
  */
 export function useCharacterBackgroundSelection(
   f: CharacterFormState,
-  { allBackgrounds, selectedBg, is2024 }: BackgroundSelectionDeps,
+  { allBackgrounds, selectedBg, is2024, ruleset, features, isEditMode }: BackgroundSelectionDeps,
 ) {
   // Exact record of the proficiencies the *currently selected* background
   // granted. Used to undo them when the player switches background — otherwise
@@ -35,6 +42,38 @@ export function useCharacterBackgroundSelection(
   // one of …" clause (vs. the unconditional fixed grants). Drives the picker's
   // selected state and enforces the choice's pick count.
   const bgChosenSkills = ref<SkillKey[]>([]);
+
+  /** The origin feat the selected background grants (2024 only), looked up in this edition's feats. */
+  const originFeat = computed(() =>
+    is2024.value ? resolveOriginFeat(originFeatOf(selectedBg.value), features.value ?? [], ruleset.value) : null);
+
+  /**
+   * A granted origin feat that is not among this table's books. It blocks the
+   * step: saving only its name would give the sheet a feat it cannot show or
+   * ask the choices of. False while the feats are still loading.
+   */
+  const originFeatUnresolved = computed(() =>
+    features.value !== undefined && originFeat.value !== null && originFeat.value.feature === null);
+
+  /**
+   * Makes `class_choices` hold the origin feat of `bg` (id, variant, and the
+   * entry in `feats`) and nothing of the previous background's. Waits for the
+   * feats to load, since an id cannot be resolved before then.
+   */
+  function syncOriginFeat(bg: Background | null) {
+    if (features.value === undefined) return;
+    const resolved = is2024.value ? resolveOriginFeat(originFeatOf(bg), features.value, ruleset.value) : null;
+    const next = resolved?.feature ? { featId: resolved.feature.id, variant: resolved.originFeat.variant } : null;
+    const choices = f.class_choices as Record<string, unknown>;
+    const storedId = typeof choices.origin_feat_id === "string" ? choices.origin_feat_id : null;
+    const storedVariant = typeof choices.origin_feat_variant === "string" ? choices.origin_feat_variant : null;
+    if ((next?.featId ?? null) === storedId && (next?.variant ?? null) === storedVariant) return;
+    f.class_choices = withOriginFeat(choices, next);
+  }
+  // The feats and the edition arrive after the background may already be picked.
+  watch([features, ruleset, selectedBg], () => {
+    if (!isEditMode.value) syncOriginFeat(selectedBg.value);
+  });
 
   function onBackgroundSelect(id: string) {
     const bg = (allBackgrounds.value ?? []).find(b => b.id === id);
@@ -70,6 +109,7 @@ export function useCharacterBackgroundSelection(
     }
 
     f.background_id = id || null;
+    syncOriginFeat(bg ?? null);
     if (!bg) return;
 
     // Only auto-grant the background's FIXED skills. Choice skills ("either A
@@ -94,20 +134,6 @@ export function useCharacterBackgroundSelection(
         f.languages.push(lang);
         bgGrantedLanguages.value.push(lang);
       }
-    }
-    // 2024 PHB: record background feat grant in class_choices so it surfaces
-    // in the character's features tab. background_feat stays the raw display
-    // name — the origin feat itself is resolved live at display time (see
-    // PlayerFeaturesTab.vue's backgroundOriginFeat), so no id needs storing.
-    if (bg.feat_grant_name) {
-      f.class_choices = {
-        ...f.class_choices,
-        background_feat: bg.feat_grant_name,
-      };
-    } else {
-      const { background_feat: _removed, ...rest } = f.class_choices as Record<string, unknown>;
-      void _removed;
-      f.class_choices = rest;
     }
   }
 
@@ -183,7 +209,7 @@ export function useCharacterBackgroundSelection(
 
   return {
     bgGrantedSkills, bgGrantedTools, bgGrantedLanguages, bgChosenSkills,
-    onBackgroundSelect,
+    onBackgroundSelect, originFeat, originFeatUnresolved,
     backgroundAsiChoice, backgroundAsiIncomplete,
     bgSkillChoices, bgChoiceLimit, bgFreeSkills, toggleBgSkillChoice,
   };

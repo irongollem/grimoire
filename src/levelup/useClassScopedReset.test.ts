@@ -8,8 +8,8 @@ function setup(initialIdentity: string) {
   const subclassInput = ref("Beast Master");
   const selectedSpellIds = ref(new Set(["srd_hunters_mark"]));
   const selectedCantripIds = ref(new Set(["srd_light"]));
-  const stepValues = ref<Record<string, string>>({ favored_enemy: "Orcs" });
-  const stepMultiValues = ref<Record<string, string[]>>({ expertise: ["Stealth", "Perception"] });
+  const choiceValues = ref<Record<string, unknown>>({ "feat-1:favored_enemy": { picks: ["Orcs"] } });
+  const swapPicks = ref<Record<string, string>>({ favored_enemy: "favored-foe" });
 
   const scope = effectScope();
   scope.run(() => {
@@ -18,14 +18,14 @@ function setup(initialIdentity: string) {
       subclassInput,
       selectedSpellIds,
       selectedCantripIds,
-      stepValues,
-      stepMultiValues,
+      choiceValues,
+      swapPicks,
     });
   });
 
   return {
     identity, subclassDefinitionId, subclassInput,
-    selectedSpellIds, selectedCantripIds, stepValues, stepMultiValues,
+    selectedSpellIds, selectedCantripIds, choiceValues, swapPicks,
     stop: () => scope.stop(),
   };
 }
@@ -44,8 +44,8 @@ describe("useClassScopedReset", () => {
     expect(state.subclassInput.value).toBe("");
     expect(state.selectedSpellIds.value.size).toBe(0);
     expect(state.selectedCantripIds.value.size).toBe(0);
-    expect(state.stepValues.value).toEqual({});
-    expect(state.stepMultiValues.value).toEqual({});
+    expect(state.choiceValues.value).toEqual({});
+    expect(state.swapPicks.value).toEqual({});
     state.stop();
   });
 
@@ -66,7 +66,7 @@ describe("useClassScopedReset", () => {
     expect(state.subclassDefinitionId.value).toBe("sub-def-1");
     expect(state.subclassInput.value).toBe("Beast Master");
     expect(state.selectedSpellIds.value.has("srd_hunters_mark")).toBe(true);
-    expect(state.stepValues.value).toEqual({ favored_enemy: "Orcs" });
+    expect(state.choiceValues.value).toEqual({ "feat-1:favored_enemy": { picks: ["Orcs"] } });
     state.stop();
   });
 });

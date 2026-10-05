@@ -8,34 +8,6 @@ export type CasterType = "prepared" | "known" | "spellbook" | "none";
 /** Ability scores that can feed max-prepared calculations. */
 export type PreparedAbility = "wis" | "int" | "cha";
 
-export type ResourceScaling = "fixed" | "per_level" | "table";
-
-export interface CustomResource {
-  key: string;
-  label: string;
-  rest: "short" | "long";
-  scaling: ResourceScaling;
-  /** Used when scaling === "fixed" */
-  fixed_value?: number;
-  /** Used when scaling === "table"; length 20, index = level - 1 */
-  table_values?: number[];
-}
-
-export type StepType = "feature_pick" | "spell_pick" | "text_pick";
-
-export interface CustomStep {
-  level: number;
-  type: "select" | "append";
-  /** Determines what the options represent and how they're presented in the editor */
-  step_type: StepType;
-  key: string;
-  label: string;
-  description?: string;
-  /** UUIDs for feature_pick, spell UUIDs for spell_pick, plain strings for text_pick */
-  options: string[];
-  count?: number;
-}
-
 /** Feature UUIDs grouped by level: { "3": ["<uuid>", "<uuid>"], "7": ["<uuid>"] } */
 export type CustomFeatures = Record<string, string[]>;
 
@@ -56,8 +28,6 @@ export interface CustomSubclass extends VersionedContentMetadata {
    * prepared-spell limit.
    */
   granted_spells: CustomFeatures;
-  steps: CustomStep[];
-  resources: CustomResource[];
   /** Extra HP gained per level in this class, on top of the hit die roll (e.g. Draconic Resilience = 1). */
   hp_per_level: number | null;
   /** Set when the row came from the AI generator; flipped by `markEdited` on a content edit. */
@@ -88,9 +58,6 @@ export interface CustomClass extends VersionedContentMetadata {
   /** Feature UUIDs grouped by level: { "1": ["<uuid>"], "3": ["<uuid>"] } */
   features: CustomFeatures;
 
-  /** Levels that grant an ASI, default [4,8,12,16,19] */
-  asi_levels: number[];
-
   /**
    * Spell slot table: 20-element outer array (index = class level - 1).
    * Each inner array has exactly 9 numbers: slot counts for spell levels 1–9.
@@ -120,8 +87,6 @@ export interface CustomClass extends VersionedContentMetadata {
   /** Divisor for level in max-prepared formula: 1 = full caster, 2 = half-caster. null for known/none. */
   prepared_divisor: number | null;
 
-  steps: CustomStep[];
-  resources: CustomResource[];
 
   /** Set when the row came from the AI generator; flipped by `markEdited` on a content edit. */
   ai_provenance?: AiProvenance | null;
@@ -144,7 +109,6 @@ export interface SystemClass extends VersionedContentMetadata {
   weapon_proficiencies: string[];
   subclass_level: number;
   features: CustomFeatures;
-  asi_levels: number[];
   spell_slots: number[][] | null;
   spells_known: number[] | null;
   cantrips_known: number[] | null;
@@ -152,8 +116,6 @@ export interface SystemClass extends VersionedContentMetadata {
   caster_type: CasterType;
   prepared_ability: PreparedAbility | null;
   prepared_divisor: number | null;
-  steps: CustomStep[];
-  resources: CustomResource[];
   created_at: string;
   updated_at: string;
 }

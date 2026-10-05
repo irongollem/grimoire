@@ -9,21 +9,18 @@
         <button
           type="button"
           class="trait-roll-btn trait-atk-btn"
-          @click.stop="emit('roll-attack', atk.attackBonus, atk.name, onAttackResolved)"
+          @click.stop="emit('roll-attack', atk.attackBonus, atk.name, resolvedFor(atk.key))"
         >⚔ {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
         <button
-          v-if="atk.damageDice"
+          v-if="atk.damageDice || atk.shape?.kind === 'unarmed'"
           type="button"
           class="trait-roll-btn trait-dmg-btn"
-          @click.stop="emit('roll-damage', atk.damageDice, atk.name)"
-        >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
-        <span
-          v-else-if="atk.damageFixed"
-          class="text-label text-muted-foreground whitespace-nowrap self-center"
-        >{{ atk.damageFixed }}</span>
+          @click.stop="toggleDamage(atk.key)"
+        >🎲 {{ atk.damageDice ? actionDiceLabel(atk.damageDice) : atk.damageFixed }}</button>
       </div>
     </div>
     <span class="detail-trait-desc">{{ atk.description }}</span>
+    <DamageRiderPicker v-if="damageOpenFor === atk.key && atk.shape" v-bind="pickerProps(atk)" />
   </div>
 
   <!-- Ranged Attacks -->
@@ -47,7 +44,7 @@
               v-if="atk.damageDice"
               type="button"
               class="trait-roll-btn trait-dmg-btn"
-              @click.stop="emit('roll-damage', atk.damageDice, atk.name)"
+              @click.stop="toggleDamage(atk.weaponInvId)"
             >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
             <span
               class="text-label whitespace-nowrap self-center"
@@ -67,7 +64,7 @@
               v-if="atk.damageDice"
               type="button"
               class="trait-roll-btn trait-dmg-btn"
-              @click.stop="emit('roll-damage', atk.damageDice, atk.name)"
+              @click.stop="toggleDamage(atk.weaponInvId)"
             >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
             <span
               v-if="availableAmmoFor(atk.ammoTag)"
@@ -81,6 +78,7 @@
         </div>
       </div>
       <span class="detail-trait-desc">{{ atk.description }}</span>
+      <DamageRiderPicker v-if="damageOpenFor === atk.weaponInvId" v-bind="pickerProps(atk)" />
     </div>
   </template>
 
@@ -103,33 +101,13 @@
             v-if="atk.damageDice"
             type="button"
             class="trait-roll-btn trait-dmg-btn"
-            @click.stop="emit('roll-damage', atk.damageDice, atk.name)"
+            @click.stop="toggleDamage(atk.weaponInvId)"
           >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
           <span class="text-label text-muted-foreground whitespace-nowrap self-center">× {{ throwCountFor(atk.weaponInvId) }}</span>
         </div>
       </div>
       <span class="detail-trait-desc">Thrown attack. The weapon lands on the ground, recoverable from chat.</span>
-    </div>
-  </template>
-
-  <!-- Class Features -->
-  <template v-if="sneakAttackDice">
-    <div class="detail-divider" />
-    <p class="detail-section-label">Class Features</p>
-    <div class="detail-trait">
-      <div class="detail-trait-header">
-        <strong>Sneak Attack.</strong>
-        <div class="trait-roll-bar">
-          <button
-            type="button"
-            class="trait-roll-btn trait-dmg-btn"
-            @click.stop="emit('roll-damage', sneakAttackDice, 'Sneak Attack')"
-          >🎲 {{ sneakAttackDice }}</button>
-        </div>
-      </div>
-      <span class="detail-trait-desc">
-        Once per turn, deal extra damage when attacking with a finesse or ranged weapon and you have advantage on the attack, or an ally is within 5 ft. of the target.
-      </span>
+      <DamageRiderPicker v-if="damageOpenFor === atk.weaponInvId" v-bind="pickerProps(atk)" />
     </div>
   </template>
 
@@ -164,7 +142,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import type { PartyMember } from "@/types/party.types";
 import type { Item } from "@/types/item.types";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
@@ -173,21 +151,29 @@ import { inventoryItemRef } from "@/lib/itemRef";
 import { useAmmoConsumption } from "@/composables/encounters/useAmmoConsumption";
 import { useThrownWeapon } from "@/composables/encounters/useThrownWeapon";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
-import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { weaponAmmoTag, weaponUsesChargesAsAmmo, type WeaponAmmoTag } from "@/rules/ammunition";
 import { isThrownWeapon } from "@/rules/thrownWeapon";
-import { weaponAttackMod, weaponAbilityMod } from "@/rules/weaponAttack";
+import { weaponAttackMod, weaponAbilityMod, weaponDamageType } from "@/rules/weaponAttack";
 import { parseExpression } from "@/lib/dice/dice";
+import type { RollResult } from "@/lib/dice/dice";
+import { isRangedWeaponItem } from "@/rules/ammunition";
+import type { AttackShape } from "@/rules/features/resolve";
+import DamageRiderPicker from "@/components/features/DamageRiderPicker.vue";
 
-const { member, profBonus, abilityMod } = defineProps<{
+const { member, profBonus, abilityMod, senderName, silent = false } = defineProps<{
   member: PartyMember;
   profBonus: number;
   abilityMod: (score: number) => number;
+  /** Who the rolled damage is posted as in the chat. */
+  senderName?: string;
+  /** The runner's "don't post to chat" mode. */
+  silent?: boolean;
 }>();
 
 const emit = defineEmits<{
-  "roll-attack": [bonus: number, name: string, onResolved?: (rolled: boolean) => void];
+  "roll-attack": [bonus: number, name: string, onResolved?: (rolled: boolean, crit?: boolean) => void];
   "roll-damage": [desc: string, name: string];
+  "damage-rolled": [result: RollResult];
 }>();
 
 // ── Composables ───────────────────────────────────────────────────────────────
@@ -236,9 +222,56 @@ function onAttackResolved(rolled: boolean) {
   if (rolled) void clearHidden();
 }
 
+// ── Damage with riders (#976) ─────────────────────────────────────────────────
+// A weapon's damage opens the rider panel (Sneak Attack, Rage…) instead of
+// rolling at once; the panel starts with Critical ticked when the last attack
+// with that weapon was a natural 20.
+const damageOpenFor = ref<string | null>(null);
+const lastCrit = ref<Record<string, boolean>>({});
+
+function toggleDamage(key: string) {
+  damageOpenFor.value = damageOpenFor.value === key ? null : key;
+}
+
+/** The attack-roll callback for a row: clears Hidden and remembers a crit. */
+function resolvedFor(key: string) {
+  return (rolled: boolean, crit?: boolean) => {
+    onAttackResolved(rolled);
+    if (rolled) lastCrit.value = { ...lastCrit.value, [key]: crit === true };
+  };
+}
+
+interface PickerAttack {
+  key: string;
+  name: string;
+  baseDice: string | null;
+  modifier: number;
+  shape: AttackShape | null;
+  damageType: string;
+}
+
+function pickerProps(atk: PickerAttack) {
+  return {
+    member,
+    attack: atk.shape as AttackShape,
+    base: atk.shape?.kind === "unarmed" ? undefined : (atk.baseDice ?? "1d4"),
+    modifier: atk.shape?.kind === "unarmed" ? undefined : atk.modifier,
+    label: `${atk.name} · Damage (${atk.damageType})`,
+    defaultCritical: lastCrit.value[atk.key] === true,
+    senderName,
+    silent,
+    onRolled: (result: RollResult) => {
+      lastCrit.value = { ...lastCrit.value, [atk.key]: false };
+      damageOpenFor.value = null;
+      emit("damage-rolled", result);
+    },
+    onCancel: () => { damageOpenFor.value = null; },
+  };
+}
+
 // ── Attack interfaces & computeds ─────────────────────────────────────────────
 
-interface MeleeAttack {
+interface MeleeAttack extends PickerAttack {
   name: string;
   attackBonus: number;
   damageDice: string | null;
@@ -246,7 +279,7 @@ interface MeleeAttack {
   description: string;
 }
 
-interface RangedAttack {
+interface RangedAttack extends PickerAttack {
   name: string;
   attackBonus: number;
   damageDice: string | null;
@@ -262,8 +295,40 @@ const meleeAttacks = computed<MeleeAttack[]>(() => {
   const bestMod = Math.max(strMod, dexMod);
   const unarmedDmg = 1 + strMod;
   const impDice = `1d4${bestMod >= 0 ? "+" : ""}${bestMod}`;
+  const scores = { str: member.str, dex: member.dex, proficiencyBonus: prof };
+  // Equipped melee weapons, built like the ranged and thrown rows below from the shared weapon math.
+  const weapons = memberInventory.value
+    .filter((inv) => ["main_hand", "off_hand"].includes(inv.slot ?? ""))
+    .flatMap((inv): MeleeAttack[] => {
+      const item = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
+      if (!item || item.item_type !== "weapon" || isRangedWeaponItem(item) || weaponUsesChargesAsAmmo(item)) return [];
+      const dmgMod = weaponAbilityMod(item, scores);
+      const base = item.damage_rolls?.[0]?.dice ?? "1d4";
+      const damageDice = `${base}${dmgMod >= 0 ? "+" : ""}${dmgMod}`;
+      const props = item.properties;
+      const usesStrength = props.includes("finesse") ? strMod >= dexMod : true;
+      return [{
+        key: `melee:${inv.id}`,
+        baseDice: base,
+        modifier: dmgMod,
+        shape: { kind: "weapon", melee: true, ranged: false, finesse: props.includes("finesse"), usesStrength },
+        damageType: weaponDamageType(item),
+        name: inv.name,
+        attackBonus: weaponAttackMod(item, scores),
+        damageDice,
+        damageFixed: null,
+        description: `Melee attack. Hit: ${damageDice} ${weaponDamageType(item)} damage.`,
+      }];
+    });
   return [
+    ...weapons,
     {
+      key: "unarmed",
+      baseDice: null,
+      modifier: 0,
+      // The picker works out the damage itself (1 + Strength, or the Martial Arts die).
+      shape: { kind: "unarmed" },
+      damageType: "bludgeoning",
       name: "Unarmed Strike",
       attackBonus: strMod + prof,
       damageDice: null,
@@ -271,6 +336,11 @@ const meleeAttacks = computed<MeleeAttack[]>(() => {
       description: `Melee attack. Proficient. Hit: ${unarmedDmg} bludgeoning damage.`,
     },
     {
+      key: "improvised",
+      baseDice: "1d4",
+      modifier: bestMod,
+      shape: { kind: "weapon", melee: true, finesse: false, ranged: false, usesStrength: strMod >= dexMod },
+      damageType: "damage",
       name: "Improvised Weapon",
       attackBonus: bestMod,
       damageDice: impDice,
@@ -303,6 +373,15 @@ const rangedAttacks = computed<RangedAttack[]>(() => {
       }
       const rangeStr = item.weapon_range ? ` (${item.weapon_range})` : "";
       return [{
+        key: inv.id,
+        baseDice: item.damage_rolls?.[0]?.dice ?? null,
+        modifier: dmgMod,
+        shape: {
+          kind: "weapon", melee: false, ranged: true,
+          finesse: item.properties.includes("finesse"),
+          usesStrength: usesStr,
+        },
+        damageType: item.damage_rolls?.[0]?.type ?? "damage",
         name: item.name,
         attackBonus: atkMod,
         damageDice,
@@ -314,8 +393,9 @@ const rangedAttacks = computed<RangedAttack[]>(() => {
 });
 
 function fireRangedAttack(atk: RangedAttack) {
-  emit("roll-attack", atk.attackBonus, atk.name, (rolled) => {
-    onAttackResolved(rolled);
+  const remember = resolvedFor(atk.weaponInvId);
+  emit("roll-attack", atk.attackBonus, atk.name, (rolled, crit) => {
+    remember(rolled, crit);
     if (!rolled) return; // cancelled physical-dice prompt spends nothing
     if (atk.ammoTag) {
       consumeAmmo(atk.ammoTag);
@@ -333,7 +413,7 @@ function fireRangedAttack(atk: RangedAttack) {
 // the player combat tab exactly; throwing drops one to the ground (recoverable)
 // and shrinks the equipped stack.
 
-interface ThrownAttack {
+interface ThrownAttack extends PickerAttack {
   name: string;
   attackBonus: number;
   damageDice: string | null;
@@ -350,7 +430,18 @@ const thrownAttacks = computed<ThrownAttack[]>(() => {
       const dmgMod = weaponAbilityMod(item, scores);
       const base = item?.damage_rolls?.[0]?.dice ?? "1d4";
       const damageDice = `${base}${dmgMod >= 0 ? "+" : ""}${dmgMod}`;
+      const ranged = item !== null && isRangedWeaponItem(item);
+      const props = item?.properties ?? [];
+      const strMod = abilityMod(member.str);
+      const dexMod = abilityMod(member.dex);
+      // Mirrors weaponAbilityMod: ammunition is Dexterity, finesse takes the better score.
+      const usesStrength = props.includes("ammunition") ? false : props.includes("finesse") || item === null ? strMod >= dexMod : true;
       return [{
+        key: inv.id,
+        baseDice: base,
+        modifier: dmgMod,
+        shape: { kind: "weapon", melee: !ranged, ranged, finesse: props.includes("finesse"), usesStrength },
+        damageType: weaponDamageType(item),
         name: inv.name,
         attackBonus: weaponAttackMod(item, scores),
         damageDice,
@@ -364,8 +455,9 @@ function throwCountFor(weaponInvId: string): number {
 }
 
 function fireThrownAttack(atk: ThrownAttack) {
-  emit("roll-attack", atk.attackBonus, atk.name, (rolled) => {
-    onAttackResolved(rolled);
+  const remember = resolvedFor(atk.weaponInvId);
+  emit("roll-attack", atk.attackBonus, atk.name, (rolled, crit) => {
+    remember(rolled, crit);
     if (!rolled) return; // cancelled physical-dice prompt throws nothing
     const inv = memberInventory.value.find((i) => i.id === atk.weaponInvId);
     if (!inv) return;
@@ -373,17 +465,6 @@ function fireThrownAttack(atk: ThrownAttack) {
     void throwWeapon(inv, item, member.name);
   });
 }
-
-// ── Class features ────────────────────────────────────────────────────────────
-
-// Rogue Sneak Attack: ceil(rogue level/2) d6, read from the Rogue class row so a
-// multiclass character scales on Rogue levels, not total level.
-const { data: characterClasses } = useCharacterClasses(computed(() => member.id));
-const sneakAttackDice = computed<string | null>(() => {
-  const rogue = (characterClasses.value ?? []).find((row) => row.class_name.toLowerCase().startsWith("rogue"));
-  if (!rogue) return null;
-  return `${Math.ceil(rogue.levels / 2)}d6`;
-});
 
 // ── Dice label helper ─────────────────────────────────────────────────────────
 

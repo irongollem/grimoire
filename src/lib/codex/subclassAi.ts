@@ -3,7 +3,7 @@ import { publishedSubclassFeatureLevels } from "@/rules/subclassFeatureLevels";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { CustomSubclassInsert } from "@/levelup/customTypes";
-import { sanitizeResources } from "./classAi";
+import { sanitizeResources, withResourceFeatures } from "./resourceFeatures";
 import {
   featureIdsByLevel,
   levelledFeaturesFromAi,
@@ -75,11 +75,17 @@ export function validateSubclassProgression(
 /** Turn the model's subclass JSON into a row shaped for the parent class's subclass levels. */
 export function subclassDraftFromAi(ai: SubclassAiResult, ctx: SubclassDraftContext): SubclassDraft {
   const allowedLevels = subclassFeatureLevels(ctx);
-  const features = levelledFeaturesFromAi(
+  const written = levelledFeaturesFromAi(
     ai.features,
     ai.ai_provenance,
     ctx,
     { allowedLevels, maxPerLevel: MAX_FEATURES_PER_LEVEL, maxTotal: MAX_FEATURES },
+  );
+  // A resource is a feature's uses, not a row of its own on the archetype.
+  const features = withResourceFeatures(
+    written,
+    sanitizeResources(ai.resources),
+    { ruleset: ctx.ruleset, campaignId: ctx.campaignId, provenance: ai.ai_provenance, allowedLevels },
   );
   const description = text(ai.description);
   const hp = wholeNumber(ai.hp_per_level);
@@ -93,8 +99,6 @@ export function subclassDraftFromAi(ai: SubclassAiResult, ctx: SubclassDraftCont
     description: description ? toTiptapJson(description) : null,
     features: featureIdsByLevel(features, features.map((_, i) => `pending-${i}`)),
     granted_spells: {},
-    steps: [],
-    resources: sanitizeResources(ai.resources),
     hp_per_level: hp !== null && hp >= 1 && hp <= 2 ? hp : null,
     ai_provenance: ai.ai_provenance ?? null,
   };

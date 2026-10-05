@@ -17,10 +17,10 @@
   >
     <template #constraints>
       <div>
-        <label class="block text-caption text-muted-foreground mb-1">Type</label>
-        <AppSelect v-model="featureType" tone="filled" size="body" weight="normal" block>
+        <label class="block text-caption text-muted-foreground mb-1">How it is used</label>
+        <AppSelect v-model="activation" tone="filled" size="body" weight="normal" block>
           <option value="">Any</option>
-          <option v-for="t in FEATURE_TYPES" :key="t" :value="t">{{ FEATURE_TYPE_LABELS[t] }}</option>
+          <option v-for="a in ACTIVATIONS" :key="a" :value="a">{{ ACTIVATION_LABELS[a] }}</option>
         </AppSelect>
       </div>
       <div>
@@ -46,7 +46,8 @@ import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useClassFeatureGeneration } from "@/ai/useClassFeatureGeneration";
-import { FEATURE_TYPES, FEATURE_TYPE_LABELS, type FeatureType } from "@/types/feature.types";
+import { ACTIVATIONS, type Activation } from "@/rules/features/mechanics.types";
+import { ACTIVATION_LABELS } from "@/types/feature.types";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui = useUiStore();
@@ -70,7 +71,7 @@ type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
 const retained = useRetainedGeneration<Generated>();
 
 const concept = ref("");
-const featureType = ref<FeatureType | "">("");
+const activation = ref<Activation | "">("");
 const forWhom = ref("");
 
 async function onGenerate() {
@@ -88,7 +89,7 @@ async function generateAndCreate() {
   clearCompleted();
 
   const draft = await generate(concept.value.trim(), {
-    featureType: featureType.value || undefined,
+    activation: activation.value || undefined,
     forWhom: forWhom.value,
   });
   if (!draft) return;

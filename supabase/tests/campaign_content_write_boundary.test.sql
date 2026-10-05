@@ -123,7 +123,7 @@ select is(
       and with_check is not null
       and with_check not like '%campaign_id%'
       and tablename in (
-        'calendar_events','class_feature_options','class_features','crafting_recipes',
+        'calendar_events','class_features','crafting_recipes',
         'custom_classes','custom_subclasses','encounters','factions','items','locations',
         'loot_tables','monsters','npc_inventory','npc_relationships','npc_sets','npcs',
         'puzzle_rooms','quests','roll_tables','rules',
@@ -140,7 +140,7 @@ select is(
 select is(
   (select coalesce(string_agg(t.name, ', ' order by t.name), '')
      from unnest(array[
-        'calendar_events', 'class_feature_options', 'class_features', 'crafting_recipes',
+        'calendar_events', 'class_features', 'crafting_recipes',
         'custom_classes', 'custom_subclasses', 'encounters', 'factions',
         'items', 'locations', 'loot_tables', 'monsters',
         'npc_inventory', 'npc_relationships', 'npc_sets', 'npcs',

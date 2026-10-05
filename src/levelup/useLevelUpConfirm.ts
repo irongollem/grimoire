@@ -4,8 +4,9 @@ import { useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
-import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef } from "./types";
+import type { StoredClassResources } from "@/rules/features/characterFeatures";
 import { buildLevelUpPayload } from "./buildLevelUpPayload";
+import type { ResolvedPicks } from "./levelPicks";
 
 export interface ConfirmOptions {
   member: PartyMember;
@@ -18,28 +19,21 @@ export interface ConfirmOptions {
   hpGain: ComputedRef<number>;
   newHitDiceCount: ComputedRef<number>;
   postLevelupSpellSlots: ComputedRef<SpellSlotEntry[]>;
-  grantsAsi: ComputedRef<boolean>;
   needsSubclassChoice: ComputedRef<boolean>;
-  classDefs: ComputedRef<ClassResourceDef[]>;
-  levelInChosenClass: ComputedRef<number>;
-  classSteps: ComputedRef<ClassStep[]>;
+  /** What the level's choices resolved to, and the class_resources once they land. */
+  picks: ComputedRef<ResolvedPicks>;
+  classResources: ComputedRef<StoredClassResources>;
   isAddingNewClass: ComputedRef<boolean>;
   newClassProficiencyGrants: ComputedRef<string[]>;
   memberClass: ComputedRef<string>;
-  chosenExistingEntry: ComputedRef<{ id: string; levels: number; subclass_name?: string | null; is_primary?: boolean } | null>;
+  chosenExistingEntry: ComputedRef<{ id: string; levels: number; class_definition_id: string; subclass_name?: string | null; is_primary?: boolean } | null>;
   existingClassOptions: ComputedRef<{ id: string; class_name: string; levels: number; is_primary?: boolean }[]>;
 
   // Mutable state (refs)
   hpMode: Ref<"average" | "roll" | "max">;
   rolledHp: Ref<number | null>;
-  asiMode: Ref<AsiMode>;
-  asiPrimary: Ref<AbilityKey | "">;
-  asiSecondary: Ref<AbilityKey | "">;
-  featId: Ref<string>;
   subclassInput: Ref<string>;
   subclassDefinitionId: ComputedRef<string | null>;
-  stepValues: Ref<Record<string, string>>;
-  stepMultiValues: Ref<Record<string, string[]>>;
   selectedSpellIds: Ref<Set<string>>;
   selectedCantripIds: Ref<Set<string>>;
   newClassName: Readonly<Ref<string>>;
@@ -49,6 +43,12 @@ export interface ConfirmOptions {
   grantedSpellsForThisLevel: ComputedRef<string[]>;
   /** All spell ids the character already has — granted spells skip these. */
   existingSpellIds: ComputedRef<Set<string>>;
+}
+
+function errorMessage(e: unknown, fallback: string): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "object" && e !== null && "message" in e && typeof e.message === "string") return e.message;
+  return fallback;
 }
 
 export function useLevelUpConfirm(opts: ConfirmOptions) {
@@ -63,12 +63,11 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
     const {
       member, targetLevel, backRoute,
       nextLevel, newProfBonus, hpGain, newHitDiceCount,
-      postLevelupSpellSlots, grantsAsi, needsSubclassChoice,
-      classDefs, levelInChosenClass, classSteps, isAddingNewClass,
+      postLevelupSpellSlots, needsSubclassChoice, picks, classResources,
+      isAddingNewClass,
       newClassProficiencyGrants, memberClass, chosenExistingEntry,
       existingClassOptions,
-      asiMode, asiPrimary, asiSecondary, featId,
-      subclassInput, subclassDefinitionId, stepValues, stepMultiValues,
+      subclassInput, subclassDefinitionId,
       selectedSpellIds, selectedCantripIds, newClassName,
       newClassDefinitionId, newClassDefinitionKind,
       grantedSpellsForThisLevel, existingSpellIds,
@@ -95,24 +94,16 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
         hpGain: hpGain.value,
         newHitDiceCount: newHitDiceCount.value,
         postLevelupSpellSlots: postLevelupSpellSlots.value,
-        grantsAsi: grantsAsi.value,
         needsSubclassChoice: needsSubclassChoice.value,
-        classDefs: classDefs.value,
-        levelInChosenClass: levelInChosenClass.value,
-        classSteps: classSteps.value,
+        picks: picks.value,
+        classResources: classResources.value,
         isAddingNewClass: isAddingNewClass.value,
         newClassProficiencyGrants: newClassProficiencyGrants.value,
         memberClass: memberClass.value,
         chosenExistingEntry: chosenExistingEntry.value,
         existingClassOptions: existingClassOptions.value,
-        asiMode: asiMode.value,
-        asiPrimary: asiPrimary.value,
-        asiSecondary: asiSecondary.value,
-        featId: featId.value,
         subclassInput: subclassInput.value,
         subclassDefinitionId: subclassDefinitionId.value,
-        stepValues: stepValues.value,
-        stepMultiValues: stepMultiValues.value,
         selectedSpellIds: selectedSpellIds.value,
         selectedCantripIds: selectedCantripIds.value,
         newClassName: newClassName.value,
@@ -157,7 +148,9 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
         void router.push(backRoute ?? "/play");
       }
     } catch (e) {
-      error.value = e instanceof Error ? e.message : "Failed to apply level up.";
+      // A PostgREST error is a plain object with a message, not an Error: the server's own words
+      // ("... is not a feat this character can take") are the ones worth showing.
+      error.value = errorMessage(e, "Failed to apply level up.");
     } finally {
       isPending.value = false;
     }

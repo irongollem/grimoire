@@ -4,25 +4,23 @@
     <!-- No history warning (subtle) -->
     <div v-if="!lastChoice" class="flex items-center gap-2 pt-2">
       <span class="text-eyebrow text-ink-caution/70">No level history</span>
-      <span class="text-caption text-muted-foreground">The choices made at earlier levels were not recorded, so this character cannot be levelled down.</span>
+      <span class="text-caption text-muted-foreground">This character started at this level, so there is no level to take back.</span>
     </div>
 
     <template v-else>
       <!-- Confirmation details (shown above the action row when active) -->
-      <div v-if="showConfirmation && targetEntry" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
+      <div v-if="showConfirmation" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
         <p class="text-eyebrow text-muted-foreground">Reversing level {{ member.level }} · {{ lastChoice.class_name }}</p>
 
         <div class="space-y-1">
           <p class="text-caption text-foreground">
-            HP: <span class="text-destructive">−{{ lastChoice.hp_gained }}</span>
-            <span class="text-muted-foreground ml-1">({{ member.max_hp }} → {{ Math.max(1, member.max_hp - lastChoice.hp_gained) }})</span>
+            HP: <span class="text-destructive">−{{ member.max_hp - newMaxHp }}</span>
+            <span class="text-muted-foreground ml-1">({{ member.max_hp }} → {{ newMaxHp }})</span>
           </p>
           <p v-if="profWillDrop" class="text-caption text-foreground">
-            Proficiency bonus: +{{ currentProfBonus }} → +{{ newProfBonus }}
+            Proficiency bonus: +{{ member.proficiency_bonus }} → +{{ newProfBonus }}
           </p>
-          <p v-if="lastChoice.asi" class="text-caption text-foreground">
-            {{ asiDescription }} reverted
-          </p>
+          <p v-for="line in revertedLines" :key="line" class="text-caption text-foreground">{{ line }}</p>
           <p v-if="lastChoice.subclass" class="text-caption text-foreground">
             Subclass "{{ lastChoice.subclass }}" cleared
           </p>
@@ -30,20 +28,11 @@
             {{ lastChoice.class_name }} class entry removed
           </p>
           <p class="text-caption text-muted-foreground italic">
-            Spell slots and class resources recalculated from class table.
+            Spell slots and class resources are recalculated for the lower level.
           </p>
         </div>
 
-        <div
-          v-if="manualReviewItems.length > 0"
-          class="rounded-md bg-tone-caution/10 border border-tone-caution/30 px-3 py-2 space-y-1"
-        >
-          <p class="text-eyebrow text-ink-caution">REVIEW MANUALLY</p>
-          <ul class="space-y-0.5">
-            <li v-for="item in manualReviewItems" :key="item" class="text-caption text-ink-caution">• {{ item }}</li>
-          </ul>
-        </div>
-
+        <p v-if="notReadyReason" class="text-caption text-muted-foreground">{{ notReadyReason }}…</p>
         <p v-if="error" class="text-caption text-destructive">{{ error }}</p>
       </div>
 
@@ -68,7 +57,7 @@
             tone="danger"
             emphasis="solid"
             size="sm"
-            :disabled="isPending"
+            :disabled="isPending || !payload"
             :label="isPending ? 'Applying…' : `Confirm: remove level ${member.level}`"
             @click="confirmDeLevel"
           />
@@ -79,16 +68,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useQueryClient } from '@tanstack/vue-query';
-import AppButton from '@/components/common/AppButton.vue';
-import { supabase } from '@/lib/supabase';
-import { useCustomClassByName, useAllSystemClasses } from '@/composables/rules/useCustomClasses';
-import { getMulticlassSpellSlots } from '@/types/spell.types';
-import type { PartyMember, LevelChoiceEntry, SpellSlotEntry } from '@/types/party.types';
-import type { CharacterClass } from '@/types/multiclass.types';
-import type { CustomResource } from '@/levelup/customTypes';
-import { provideCharacterRuleset, useRuleset } from '@/composables/rules/useRuleset';
+import { ref, computed, toRef } from "vue";
+import { useQueryClient } from "@tanstack/vue-query";
+import AppButton from "@/components/common/AppButton.vue";
+import { supabase } from "@/lib/supabase";
+import { SKILLS } from "@/types/party.types";
+import type { PartyMember } from "@/types/party.types";
+import type { CharacterClass } from "@/types/multiclass.types";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
+import { buildDeLevelPayload, proficiencyBonusAt } from "@/levelup/buildDeLevelPayload";
+import { useDeLevel } from "@/levelup/useDeLevel";
 
 const props = defineProps<{
   member: PartyMember;
@@ -97,217 +86,94 @@ const props = defineProps<{
 
 const showConfirmation = ref(false);
 const isPending = ref(false);
-const error = ref('');
+const error = ref("");
 
 provideCharacterRuleset(() => props.member);
 const queryClient = useQueryClient();
-const { ruleset } = useRuleset();
 
-// The level_choices entry for the current total level (if it exists)
-const lastChoice = computed<LevelChoiceEntry | null>(() => {
-  const choices = props.member.level_choices ?? {};
-  return choices[props.member.level] ?? null;
+const { entry: lastChoice, classRow, ruleset, classSlotTable, classResources, isLoading, notReadyReason, featuresById } =
+  useDeLevel(() => props.member, toRef(props, "characterClasses"));
+
+// Everything the de-level writes, built the moment it is shown so the preview and the write cannot differ.
+const payload = computed(() => {
+  if (!lastChoice.value || !classRow.value || isLoading.value) return null;
+  return buildDeLevelPayload({
+    member: props.member,
+    entry: lastChoice.value,
+    classRow: classRow.value,
+    characterClasses: props.characterClasses,
+    ruleset: ruleset.value,
+    classSlotTable: classSlotTable.value,
+    classResources: classResources.value,
+  });
 });
 
-const activeClassName = computed(() => lastChoice.value?.class_name ?? '');
-
-// The character_classes row for the active class
-const targetEntry = computed<CharacterClass | null>(() =>
-  props.characterClasses.find(c => c.class_name === activeClassName.value) ?? null,
-);
-
-// Load class definition for the target class (for spell slots, resources, hit die)
-const { data: customClass } = useCustomClassByName(activeClassName);
-const { data: allSystemClasses } = useAllSystemClasses();
-const systemClass = computed(() =>
-  (allSystemClasses.value ?? []).find(c => c.class_name === activeClassName.value) ?? null,
-);
-const theClass = computed(() => customClass.value ?? systemClass.value ?? null);
-
-// Proficiency bonus
-const currentProfBonus = computed(() => 2 + Math.floor((props.member.level - 1) / 4));
-const newProfBonus = computed(() => 2 + Math.floor((props.member.level - 2) / 4));
-const profWillDrop = computed(() => newProfBonus.value < currentProfBonus.value);
-
-// ASI description for display
-const asiDescription = computed(() => {
-  const asi = lastChoice.value?.asi;
-  if (!asi) return '';
-  const LABEL: Record<string, string> = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' };
-  if (asi.mode === 'feat') return 'Feat';
-  if (asi.mode === 'plus2' && asi.primary) return `${LABEL[asi.primary] ?? asi.primary} +2`;
-  if (asi.mode === 'plus1plus1')
-    return [asi.primary, asi.secondary].filter(Boolean).map(k => `${LABEL[k!] ?? k} +1`).join(', ');
-  return 'Ability Score Improvement';
+const newMaxHp = computed(() => {
+  const value = payload.value?.memberUpdate.max_hp;
+  return typeof value === "number" ? value : props.member.max_hp;
 });
+const newProfBonus = computed(() => proficiencyBonusAt(props.member.level - 1));
+const profWillDrop = computed(() => newProfBonus.value < props.member.proficiency_bonus);
 
-// Manual review items
-const manualReviewItems = computed<string[]>(() => {
-  const items: string[] = [];
-  if (!lastChoice.value) return items;
-  const c = lastChoice.value;
-  if (c.asi?.mode === 'feat') items.push('Feat from this level: remove manually');
-  if ((c.spells_learned?.length ?? 0) > 0)
-    items.push(`${c.spells_learned!.length} spell(s) from this level will be removed`);
-  if ((c.cantrips_learned?.length ?? 0) > 0)
-    items.push(`${c.cantrips_learned!.length} cantrip(s) from this level will be removed`);
-  if (c.step_choices && Object.keys(c.step_choices).length > 0)
-    items.push('Class choices (Fighting Style, Invocations, etc.): review manually');
-  return items;
+const ABILITY_NAME: Record<string, string> = {
+  str: "Strength", dex: "Dexterity", con: "Constitution", int: "Intelligence", wis: "Wisdom", cha: "Charisma",
+};
+
+/** One line per thing the level's picks gave that now goes back. */
+const revertedLines = computed<string[]>(() => {
+  const e = lastChoice.value;
+  if (!e || !e.record) return [];
+  const lines: string[] = [];
+  for (const [ability, by] of Object.entries(e.record.abilityIncreases)) lines.push(`${ABILITY_NAME[ability]} −${by}`);
+  for (const id of e.record.feats) lines.push(`Feat removed: ${featuresById.value.get(id)?.name ?? "a feat"}`);
+  for (const [key, delta] of Object.entries(e.record.choices)) {
+    const label = key.replaceAll("_", " ");
+    if (delta.added.length > 0) lines.push(`${label}: ${delta.added.join(", ")} removed`);
+    if (delta.removed.length > 0) lines.push(`${label}: ${delta.removed.join(", ")} restored`);
+  }
+  for (const [key, change] of Object.entries(e.skills ?? {})) {
+    const label = SKILLS.find((s) => s.key === key)?.label ?? key;
+    lines.push(`${label}: ${change.to} back to ${change.from ?? "none"}`);
+  }
+  if (e.masteries && e.masteries.added.length > 0) lines.push(`${e.masteries.added.length} weapon mastery removed`);
+  if (e.masteries && e.masteries.removed.length > 0) lines.push(`${e.masteries.removed.length} weapon mastery restored`);
+  const swaps = Object.keys(e.record.swaps).length;
+  if (swaps > 0) lines.push(`${swaps} optional feature swap undone`);
+  if ((e.spells_learned?.length ?? 0) > 0) lines.push(`${e.spells_learned?.length} spell(s) from this level removed`);
+  if ((e.cantrips_learned?.length ?? 0) > 0) lines.push(`${e.cantrips_learned?.length} cantrip(s) from this level removed`);
+  return lines;
 });
-
-function resourceMaxAtLevel(resource: CustomResource, level: number): number {
-  if (resource.scaling === 'fixed') return resource.fixed_value ?? 0;
-  if (resource.scaling === 'per_level') return level;
-  if (resource.scaling === 'table' && resource.table_values)
-    return resource.table_values[Math.min(level, 20) - 1] ?? 0;
-  return 0;
-}
 
 async function confirmDeLevel() {
-  const entry = targetEntry.value;
-  const choice = lastChoice.value;
-  if (!entry || !choice) return;
+  const built = payload.value;
+  if (!built) return;
 
   isPending.value = true;
-  error.value = '';
+  error.value = "";
   try {
-    const currentLevel = props.member.level;
-    const newTotalLevel = currentLevel - 1;
-    const newClassLevel = entry.levels - 1;
-
-    const memberUpdate: Record<string, unknown> = {
-      level: newTotalLevel,
-      proficiency_bonus: 2 + Math.floor((newTotalLevel - 1) / 4),
-      hit_dice_remaining: Math.max(0, (props.member.hit_dice_remaining ?? props.member.level) - 1),
-    };
-
-    // HP: reverse the base roll (hp_gained) AND, if this level's ASI bumped CON,
-    // the retroactive (ΔconMod × level) that buildLevelUpPayload added on top —
-    // level_choices only records hp_gained, so subtracting it alone left the retro
-    // chunk behind (character stuck permanently over max HP after a CON ASI).
-    const conModOf = (score: number) => Math.floor((score - 10) / 2);
-    let conReduction = 0;
-    if (choice.asi && choice.asi.mode !== 'feat') {
-      if (choice.asi.primary === 'con') conReduction += choice.asi.mode === 'plus2' ? 2 : 1;
-      if (choice.asi.mode === 'plus1plus1' && choice.asi.secondary === 'con') conReduction += 1;
-    }
-    const retroHp = conReduction > 0
-      ? (conModOf(props.member.con) - conModOf(props.member.con - conReduction)) * props.member.level
-      : 0;
-    const newMaxHp = Math.max(1, props.member.max_hp - choice.hp_gained - retroHp);
-    memberUpdate.max_hp = newMaxHp;
-    memberUpdate.current_hp = Math.min(props.member.current_hp, newMaxHp);
-
-    // ASI reversal
-    if (choice.asi && choice.asi.mode !== 'feat') {
-      if (choice.asi.primary) {
-        const k = choice.asi.primary as keyof PartyMember;
-        memberUpdate[k] = Math.max(1, (props.member[k] as number) - (choice.asi.mode === 'plus2' ? 2 : 1));
-      }
-      if (choice.asi.mode === 'plus1plus1' && choice.asi.secondary) {
-        const k = choice.asi.secondary as keyof PartyMember;
-        memberUpdate[k] = Math.max(1, (props.member[k] as number) - 1);
-      }
-    }
-
-    // Subclass
-    // `party_members.class` / `.subclass` mirror the primary class row in the
-    // database, so de-levelling only ever changes the row (clear_subclass below).
-    const subclassToClear = !!choice.subclass;
-
-    // Spell slots — recompute over the POST-de-level class list, not just the
-    // de-leveled class. A Cleric 5 / Wizard 1 removing the Wizard dip must keep
-    // the Cleric's slots (the old single-class path wiped them to []).
-    const postClasses = props.characterClasses
-      .map(c => ({ class_name: c.class_name, levels: c.id === entry.id ? newClassLevel : c.levels }))
-      .filter(c => c.levels > 0);
-    let rawSlots: SpellSlotEntry[] = [];
-    if (postClasses.length === 1 && postClasses[0].class_name === activeClassName.value && theClass.value?.spell_slots) {
-      // The single remaining class is the one just de-leveled — use its own table
-      // (handles custom-class casters that getDefaultSpellSlots doesn't cover).
-      const row = theClass.value.spell_slots[Math.min(postClasses[0].levels, 20) - 1];
-      if (row) rawSlots = (row as number[]).map((max, i) => ({ level: i + 1, max, used: 0 })).filter(s => s.max > 0);
-    } else if (postClasses.length > 0) {
-      rawSlots = getMulticlassSpellSlots(postClasses, ruleset.value);
-    }
-    memberUpdate.spell_slots = rawSlots
-      .map((s): SpellSlotEntry => ({
-        ...s,
-        // Clamp carried-over used to the new (lower) max so de-level can't leave used > max.
-        used: Math.min(s.max, props.member.spell_slots?.find(e => e.level === s.level)?.used ?? 0),
-      }))
-      .filter(s => s.max > 0);
-
-    // Class resources at newClassLevel
-    const resources: CustomResource[] = [
-      ...(systemClass.value?.resources ?? []),
-      ...(customClass.value?.resources ?? []),
-    ];
-    if (resources.length > 0) {
-      const newResources = { ...props.member.class_resources };
-      for (const r of resources) {
-        const newMax = resourceMaxAtLevel(r, newClassLevel);
-        if (newMax === 0) {
-          delete newResources[r.key];
-        } else {
-          const existing = newResources[r.key];
-          newResources[r.key] = {
-            max: newMax,
-            current: existing ? Math.min(existing.current, newMax) : newMax,
-            rest: r.rest,
-          };
-        }
-      }
-      memberUpdate.class_resources = newResources;
-    }
-
-    // Remove this level from level_choices
-    const newChoices = { ...props.member.level_choices };
-    delete newChoices[currentLevel];
-    memberUpdate.level_choices = newChoices;
-
-    // Spells to remove: learned at this level and not also at an earlier level.
-    const learnedHere = [...(choice.spells_learned ?? []), ...(choice.cantrips_learned ?? [])];
-    const earlierSpells = new Set(
-      Object.entries(props.member.level_choices ?? {})
-        .filter(([lvl]) => parseInt(lvl) < currentLevel)
-        .flatMap(([, e]) => [...(e.spells_learned ?? []), ...(e.cantrips_learned ?? [])]),
-    );
-    const spellIds = learnedHere.filter(id => !earlierSpells.has(id));
-
-    // character_classes op. A class that empties is deleted; if it was primary the
-    // next one is promoted. Removing the last row leaves the character classless.
-    let classOp: Record<string, unknown> | null = null;
-    if (newClassLevel === 0) {
-      const remaining = props.characterClasses.filter(c => c.id !== entry.id);
-      classOp = remaining.length > 0 && entry.is_primary
-        ? { op: 'delete', id: entry.id, promote_id: remaining[0].id }
-        : { op: 'delete', id: entry.id };
-    } else {
-      classOp = { op: 'update', id: entry.id, levels: newClassLevel, clear_subclass: subclassToClear };
-    }
-
     // One atomic RPC — all-or-nothing, no half-de-leveled state (mirrors apply_level_up).
-    const { error: rpcError } = await supabase.rpc('apply_de_level', {
+    const { error: rpcError } = await supabase.rpc("apply_de_level", {
       p_member_id: props.member.id,
-      p_member_update: memberUpdate,
-      p_class_op: classOp,
-      p_spell_ids: spellIds,
+      p_member_update: built.memberUpdate,
+      p_class_op: built.classOp,
+      p_spell_ids: built.spellIds,
     });
     if (rpcError) throw rpcError;
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['party'] }),
-      queryClient.invalidateQueries({ queryKey: ['my-characters'] }),
-      queryClient.invalidateQueries({ queryKey: ['character_classes', props.member.id] }),
-      queryClient.invalidateQueries({ queryKey: ['characterSpells', props.member.id] }),
-      queryClient.invalidateQueries({ queryKey: ['characterSpellsDetails', props.member.id] }),
+      queryClient.invalidateQueries({ queryKey: ["party"] }),
+      queryClient.invalidateQueries({ queryKey: ["my-characters"] }),
+      queryClient.invalidateQueries({ queryKey: ["character_classes", props.member.id] }),
+      queryClient.invalidateQueries({ queryKey: ["characterSpells", props.member.id] }),
+      queryClient.invalidateQueries({ queryKey: ["characterSpellsDetails", props.member.id] }),
     ]);
 
     showConfirmation.value = false;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to de-level.';
+    // A PostgREST error is a plain object with a message, not an Error.
+    if (e instanceof Error) error.value = e.message;
+    else if (typeof e === "object" && e !== null && "message" in e && typeof e.message === "string") error.value = e.message;
+    else error.value = "Failed to de-level.";
   } finally {
     isPending.value = false;
   }

@@ -1,6 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { buildLevelUpPayload, type BuildLevelUpPayloadInput } from "./buildLevelUpPayload";
 import type { PartyMember } from "@/types/party.types";
+import type { ResolvedPicks } from "./levelPicks";
+
+const noPicks: ResolvedPicks = {
+  record: { choices: {}, abilityIncreases: {}, feats: [], swaps: {} },
+  skills: {},
+  masteries: { added: [], removed: [] },
+};
+
+/** A level whose only choice was an ability increase, already capped by the resolver. */
+const increase = (abilityIncreases: ResolvedPicks["record"]["abilityIncreases"]): ResolvedPicks => ({
+  ...noPicks,
+  record: { ...noPicks.record, abilityIncreases },
+});
 
 function member(overrides: Partial<PartyMember> = {}): PartyMember {
   return {
@@ -12,6 +25,8 @@ function member(overrides: Partial<PartyMember> = {}): PartyMember {
     class_resources: {},
     class_choices: {},
     level_choices: {},
+    skill_proficiencies: {},
+    weapon_masteries: [],
     tool_proficiencies: [],
     ...overrides,
   } as unknown as PartyMember;
@@ -25,23 +40,15 @@ function baseInput(overrides: Partial<BuildLevelUpPayloadInput> = {}): BuildLeve
     hpGain: 6,
     newHitDiceCount: 4,
     postLevelupSpellSlots: [],
-    grantsAsi: false,
     needsSubclassChoice: false,
-    classDefs: [],
-    levelInChosenClass: 4,
-    classSteps: [],
+    picks: noPicks,
+    classResources: {},
     isAddingNewClass: false,
     newClassProficiencyGrants: [],
     memberClass: "Ranger",
-    chosenExistingEntry: { id: "cc1", levels: 3, subclass_name: "Beast Master", is_primary: true },
+    chosenExistingEntry: { id: "cc1", levels: 3, class_definition_id: "def-existing", subclass_name: "Beast Master", is_primary: true },
     existingClassOptions: [{ id: "cc1", class_name: "Ranger", levels: 3, is_primary: true }],
-    asiMode: "plus2",
-    asiPrimary: "",
-    asiSecondary: "",
-    featId: "",
     subclassInput: "",
-    stepValues: {},
-    stepMultiValues: {},
     selectedSpellIds: new Set(),
     selectedCantripIds: new Set(),
     newClassName: "",
@@ -136,20 +143,18 @@ describe("buildLevelUpPayload", () => {
     expect(classOp).toMatchObject({ subclass_name: null, subclass_definition_id: null });
   });
 
-  it("applies a +2 ASI to the chosen ability", () => {
-    const { memberUpdate } = buildLevelUpPayload(
-      baseInput({ grantsAsi: true, asiMode: "plus2", asiPrimary: "dex" }),
-    );
+  it("applies the capped ability increases and keeps them in the level's record", () => {
+    const { memberUpdate } = buildLevelUpPayload(baseInput({ picks: increase({ dex: 2 }) }));
     expect(memberUpdate.dex).toBe(14); // 12 + 2
     expect((memberUpdate.level_choices as Record<number, unknown>)[4]).toMatchObject({
-      asi: { mode: "plus2", primary: "dex" },
+      record: { abilityIncreases: { dex: 2 } },
     });
   });
 
   it("retroactively raises max HP when a CON ASI bumps the modifier", () => {
     // con 14 (+2) → 16 (+3): +1 mod × total level 4 = +4 on top of the +6 hpGain
     const { memberUpdate } = buildLevelUpPayload(
-      baseInput({ grantsAsi: true, asiMode: "plus2", asiPrimary: "con" }),
+      baseInput({ picks: increase({ con: 2 }) }),
     );
     expect(memberUpdate.con).toBe(16);
     expect(memberUpdate.max_hp).toBe(30); // 20 + 6 hpGain + 4 retro
@@ -158,7 +163,7 @@ describe("buildLevelUpPayload", () => {
 
   it("adds no retro HP for a non-CON ASI", () => {
     const { memberUpdate } = buildLevelUpPayload(
-      baseInput({ grantsAsi: true, asiMode: "plus2", asiPrimary: "dex" }),
+      baseInput({ picks: increase({ dex: 2 }) }),
     );
     expect(memberUpdate.max_hp).toBe(26); // 20 + 6, no retro
   });
@@ -169,7 +174,7 @@ describe("buildLevelUpPayload", () => {
         needsSubclassChoice: true,
         subclassInput: "Beast Master",
         subclassDefinitionId: "bm-def",
-        chosenExistingEntry: { id: "cc1", levels: 2, subclass_name: null, is_primary: true },
+        chosenExistingEntry: { id: "cc1", levels: 2, class_definition_id: "def-existing", subclass_name: null, is_primary: true },
       }),
     );
     expect(classOp).toMatchObject({ subclass_name: "Beast Master", subclass_definition_id: "bm-def" });
@@ -182,7 +187,7 @@ describe("buildLevelUpPayload", () => {
       baseInput({
         needsSubclassChoice: true,
         subclassInput: "Beast Master",
-        chosenExistingEntry: { id: "cc1", levels: 2, subclass_name: null, is_primary: true },
+        chosenExistingEntry: { id: "cc1", levels: 2, class_definition_id: "def-existing", subclass_name: null, is_primary: true },
       }),
     );
     expect(classOp).toEqual({ op: "update", id: "cc1", levels: 3 });
@@ -197,7 +202,6 @@ describe("buildLevelUpPayload", () => {
     const { classOp, memberUpdate } = buildLevelUpPayload(
       baseInput({
         nextLevel: 4,
-        levelInChosenClass: 4,
         isAddingNewClass: true,
         newClassName: "Fighter",
         newClassDefinitionId: "fighter-def",
@@ -254,6 +258,18 @@ describe("buildLevelUpPayload", () => {
     });
     // already known granted spell is skipped
     expect(spellRows.some((r) => r.spell_id === "srd_already_known")).toBe(false);
+  });
+
+  it("never writes the subclass into class_choices; the class row is its home", () => {
+    const { memberUpdate } = buildLevelUpPayload(
+      baseInput({
+        needsSubclassChoice: true,
+        subclassInput: "Beast Master",
+        subclassDefinitionId: "bm-def",
+        chosenExistingEntry: { id: "cc1", levels: 2, class_definition_id: "def-existing", subclass_name: null, is_primary: true },
+      }),
+    );
+    expect(memberUpdate.class_choices).toBeUndefined();
   });
 
   it("does not touch ability scores or class_choices on a plain level with no picks", () => {

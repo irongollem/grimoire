@@ -98,6 +98,9 @@
       <!-- Loadout shortcut -->
       <PlayerLoadout :member-id="member.id" />
 
+      <!-- Feature actions: Rage, Cunning Action, Second Wind… (#976) -->
+      <FeatureActionsCard :member="member" />
+
       <!-- Equipped weapon list -->
       <div v-if="equippedWeapons.length" class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
         <div v-for="{ inv, item } in equippedWeapons" :key="inv.id" class="px-4 py-3">
@@ -158,7 +161,8 @@
               fill="muted"
               size="md"
               class="group hover:border-tone-caution/50"
-              @click="rollWeaponDamage(inv, item)"
+              :active="damageOpenFor === inv.id"
+              @click="toggleDamage(inv.id)"
             >
               <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-ink-caution transition-colors" />
               <span class="text-label-lg text-foreground">{{ weaponDamageExpr(item) }}</span>
@@ -173,6 +177,18 @@
               class="text-label-lg text-destructive self-center"
             >no ammo</span>
           </div>
+          <DamageRiderPicker
+            v-if="damageOpenFor === inv.id"
+            class="mt-2"
+            :member="member"
+            :attack="attackShapeFor(item)"
+            :base="weaponBaseDice(item)"
+            :modifier="weaponAbilityMod(item)"
+            :label="`${inv.name} · Damage (${libWeaponDamageType(item)})`"
+            :default-critical="lastAttackCrit[inv.id] === true"
+            @rolled="onDamageRolled(inv.id, $event)"
+            @cancel="damageOpenFor = null"
+          />
         </div>
       </div>
 
@@ -207,8 +223,29 @@
               </span>
               <span v-if="attackBadgeLabel" class="text-label text-ink-caution">{{ attackBadgeLabel }}</span>
             </AppButton>
-            <span class="text-label-lg text-muted-foreground">{{ unarmedDamage }} bludgeoning</span>
+            <AppButton
+              variant="subtle"
+              fill="muted"
+              size="md"
+              class="group hover:border-tone-caution/50"
+              :active="damageOpenFor === 'unarmed'"
+              @click="toggleDamage('unarmed')"
+            >
+              <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-ink-caution transition-colors" />
+              <span class="text-label-lg text-foreground">Damage</span>
+              <span class="text-label-lg text-muted-foreground">bludgeoning</span>
+            </AppButton>
           </div>
+          <DamageRiderPicker
+            v-if="damageOpenFor === 'unarmed'"
+            class="mt-2"
+            :member="member"
+            :attack="{ kind: 'unarmed' }"
+            label="Unarmed Strike · Damage (bludgeoning)"
+            :default-critical="lastAttackCrit.unarmed === true"
+            @rolled="onDamageRolled('unarmed', $event)"
+            @cancel="damageOpenFor = null"
+          />
         </div>
         <div class="px-4 py-3">
           <div class="flex items-center justify-between mb-2">
@@ -276,6 +313,12 @@ import { useToast } from "@/composables/useToast";
 import type { DisadvantageTarget } from "@/rules/rollModeNotes";
 import PlayerLoadout from "@/components/player/PlayerLoadout.vue";
 import PlayerCustomAttacks from "@/components/player/PlayerCustomAttacks.vue";
+import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
+import DamageRiderPicker from "@/components/features/DamageRiderPicker.vue";
+import type { AttackShape } from "@/rules/features/resolve";
+import { isRangedWeaponItem } from "@/rules/ammunition";
+import { abilityMod as libAbilityMod } from "@/rules/weaponAttack";
+import type { RollResult } from "@/lib/dice/dice";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
@@ -286,9 +329,7 @@ import {
   weaponAttackMod as libWeaponAttackMod,
   weaponDamageExpr as libWeaponDamageExpr,
   weaponDamageType as libWeaponDamageType,
-  weaponDamageParsedExpression,
   unarmedAttackMod as libUnarmedAttackMod,
-  unarmedDamage as libUnarmedDamage,
   improvisedAttackMod as libImprovisedAttackMod,
 } from "@/rules/weaponAttack";
 
@@ -494,7 +535,6 @@ async function toggleMastery(item: Item | null) {
 }
 
 const unarmedAttackMod = computed(() => libUnarmedAttackMod(props.member.str, props.member.proficiency_bonus));
-const unarmedDamage = computed(() => libUnarmedDamage(props.member.str));
 const improvisedAttackMod = computed(() => libImprovisedAttackMod(props.member.str, props.member.dex));
 
 // Beast action sections shown when wildshaped
@@ -540,8 +580,8 @@ function modeTag(mode: RollMode) {
   return mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
 }
 
-/** Resolves an attack roll; returns true when it actually rolled (false if the prompt was cancelled). */
-async function rollAttackWith(mod: number, baseLabel: string, override: RollMode | null = null): Promise<boolean> {
+/** Resolves an attack roll; returns the result, or null when the prompt was cancelled. */
+async function rollAttackWith(mod: number, baseLabel: string, override: RollMode | null = null): Promise<RollResult | null> {
   // Player-picked mode (long-press/right-click) merged with condition-imposed
   // disadvantage — opposing sources cancel to normal (5e RAW).
   const mode: RollMode = combineModes(
@@ -551,18 +591,22 @@ async function rollAttackWith(mod: number, baseLabel: string, override: RollMode
   const totalMod = mod + props.attackPenalty;
   const fullLabel = `${baseLabel} · Attack` + modeTag(mode);
   const result = await promptRoll({ counts: { 20: 1 }, modifier: totalMod, label: fullLabel, mode });
-  if (!result) return false;
+  if (!result) return null;
   const kept = result.breakdown.find(d => !d.dropped)!;
   emit("roll", { label: result.label, dice: kept.val, modifier: totalMod, total: result.total });
   // Attacking gives away your position (5e RAW) — drop Hidden if it was set.
   void clearHidden();
-  return true;
+  return result;
 }
 
-function rollUnarmedAttack(override: RollMode | null = null) { return rollAttackWith(unarmedAttackMod.value, "Unarmed Strike", override); }
+async function rollUnarmedAttack(override: RollMode | null = null) {
+  const rolled = await rollAttackWith(unarmedAttackMod.value, "Unarmed Strike", override);
+  if (rolled) lastAttackCrit.value = { ...lastAttackCrit.value, unarmed: rolled.isCrit };
+}
 function rollImprovisedAttack(override: RollMode | null = null) { return rollAttackWith(improvisedAttackMod.value, "Improvised Weapon", override); }
 async function rollWeaponAttack(inv: PartyInventoryItem, item: Item | null, override: RollMode | null = null) {
   const rolled = await rollAttackWith(weaponAttackMod(item), inv.name, override);
+  if (rolled) lastAttackCrit.value = { ...lastAttackCrit.value, [inv.id]: rolled.isCrit };
   // Only deplete ammo once the attack has actually been made.
   if (!rolled || !item) return;
   if (weaponUsesChargesAsAmmo(item)) {
@@ -582,6 +626,7 @@ function weaponIsThrowable(inv: PartyInventoryItem, item: Item | null): boolean 
 async function rollThrowAttack(inv: PartyInventoryItem, item: Item | null, override: RollMode | null = null) {
   const rolled = await rollAttackWith(weaponAttackMod(item), `${inv.name} (Thrown)`, override);
   if (!rolled) return; // cancelled physical-dice prompt spends nothing
+  lastAttackCrit.value = { ...lastAttackCrit.value, [inv.id]: rolled.isCrit };
   await throwWeapon(inv, item, props.member.name);
 }
 
@@ -619,13 +664,42 @@ function rollImprovisedDamage() {
   );
 }
 
-function rollWeaponDamage(inv: PartyInventoryItem, item: Item | null) {
-  const abilMod = weaponAbilityMod(item);
-  // Custom weapon with no vault stats rolls as an improvised 1d4.
-  const parsed = weaponDamageParsedExpression(item);
-  if (!parsed) return;
-  const typeLabel = libWeaponDamageType(item);
-  const label = `${inv.name} · Damage (${typeLabel})`;
-  return rollDamageLabelled(parsed, abilMod, label);
+// ── Weapon damage ─────────────────────────────────────────────────────────────
+// Damage opens a small panel (riders from the character's features, a Critical
+// hit box) rather than rolling at once, so Sneak Attack and Rage land in the same
+// roll and a critical hit doubles every die, not just the weapon's.
+const damageOpenFor = ref<string | null>(null);
+/** Whether the last attack roll with each weapon was a natural 20, so the panel starts with Critical ticked. */
+const lastAttackCrit = ref<Record<string, boolean>>({});
+
+function toggleDamage(invId: string) {
+  damageOpenFor.value = damageOpenFor.value === invId ? null : invId;
+}
+
+function onDamageRolled(invId: string, result: RollResult) {
+  emit("roll", { label: result.label, dice: result.total - result.modifier, modifier: result.modifier, total: result.total });
+  // The next attack decides the next crit.
+  lastAttackCrit.value = { ...lastAttackCrit.value, [invId]: false };
+  damageOpenFor.value = null;
+}
+
+/** The weapon's own damage dice; a custom weapon with no vault stats rolls as an improvised 1d4. */
+function weaponBaseDice(item: Item | null): string {
+  return item?.damage_rolls?.[0]?.dice ?? "1d4";
+}
+
+/** What the features' riders need to know about the attack. */
+function attackShapeFor(item: Item | null): AttackShape {
+  const ranged = item !== null && isRangedWeaponItem(item);
+  const properties = item?.properties ?? [];
+  const finesse = properties.includes("finesse");
+  const strMod = libAbilityMod(props.member.str);
+  const dexMod = libAbilityMod(props.member.dex);
+  // Mirrors weaponAbilityMod: ammunition is Dexterity, finesse takes the better, a custom weapon the better.
+  const usesStrength = item === null ? strMod >= dexMod
+    : properties.includes("ammunition") ? false
+    : finesse ? strMod >= dexMod
+    : true;
+  return { kind: "weapon", melee: !ranged, finesse, ranged, usesStrength };
 }
 </script>
