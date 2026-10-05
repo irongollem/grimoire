@@ -80,8 +80,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useCreateLootPlacement } from "@/composables/quests/useQuestFlow";
-import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
-import { useItemIndex } from "@/composables/items/useItemIndex";
+import { useLootPool } from "@/composables/dungeon-features/useLootPool";
 import { itemRefColumns } from "@/lib/itemRef";
 import { useLootChestAtoms } from "@/composables/dungeon-features/useLootChestAtoms";
 import { useLootTables } from "@/composables/dungeon-features/useLootTables";
@@ -92,7 +91,6 @@ import {
   unresolvedReasonLabel,
   type RolledLootEntry,
   type RolledUnresolvedEntry,
-  type LootPoolItem,
 } from "@/lib/dungeon-features/lootTableRoll";
 import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import { formatCoinParts } from "@/rules/currency";
@@ -109,7 +107,6 @@ import type { LootPlacement, LootPlacementKind } from "@/types/quest.types";
 const { locationId, campaignId, loot } = defineProps<{ locationId: string; campaignId: string; loot: LootPlacement[] }>();
 
 const queryClient = useQueryClient();
-const { data: items } = useItemIndex();
 const { data: lootTables } = useLootTables();
 const createLoot = useCreateLootPlacement();
 
@@ -135,24 +132,11 @@ const chestImageUrl = ref<string | null>(null);
 const adding = ref(false);
 const error = ref("");
 
-// Library rows are offered as references; the index already holds only this account's own rows.
-const itemOptions = computed(() => (items.value ?? []).map((item) => ({ id: item.id, name: item.name })));
-
 const lootTableOptions = computed(() => (lootTables.value ?? []).map((table) => ({ id: table.id, name: table.name })));
 const selectedLootTable = computed(() => (lootTables.value ?? []).find((table) => table.id === lootTableId.value) ?? null);
-// The picker offers what the enabled books and edition allow; a loot table's stored
-// entries resolve whatever they are now, so a roll never drops one (#954, #961).
-const { items: storedItems } = useStoredItemRefs(
+const { itemsById, itemOptions } = useLootPool(
   () => (selectedLootTable.value?.entries ?? []).flatMap((e) => (e.item_id ? [e.item_id] : [])),
 );
-// A random entry rolls from every item that fits its rarity and type: the picker's
-// index (the browse membership: enabled books, edition, campaign scope), already loaded.
-const itemsById = computed(() => {
-  const map = new Map<string, LootPoolItem>();
-  for (const item of items.value ?? []) map.set(item.id, item);
-  for (const item of storedItems.value) map.set(item.id, item);
-  return map;
-});
 
 const { atoms: rolledAtoms, isLoading: atomsLoading } = useLootChestAtoms(rolledEntries);
 const rolledUnresolved = computed(() => rolledEntries.value.filter((entry): entry is RolledUnresolvedEntry => entry.type === "unresolved"));

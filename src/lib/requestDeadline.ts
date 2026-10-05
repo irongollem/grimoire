@@ -9,6 +9,10 @@
  * flight. So a token refresh caught by the freeze never settled, every query
  * waited behind it, and the app sat on its splash until it was killed.
  *
+ * The deadline covers the whole exchange, body included: headers can arrive
+ * just before the freeze, and postgrest-js then waits on `res.text()` forever.
+ * The timer runs until the body is read to the end, errors or is cancelled.
+ *
  * A deadline turns that hang into a network error, which every caller already
  * handles: auth-js classifies a failed fetch as retryable, keeps the session
  * and tries again, and TanStack Query retries a failed read.
@@ -53,8 +57,9 @@ export function deadlineError(url: string, ms: number): DOMException {
 }
 
 /**
- * Wraps `baseFetch` so a request with a deadline rejects once it passes. A
- * caller's own abort signal still works and keeps its own reason.
+ * Wraps `baseFetch` so a request with a deadline rejects once it passes, whether
+ * it is still waiting for headers or for the end of the body. A caller's own
+ * abort signal still works and keeps its own reason.
  */
 export function withRequestDeadline(
   baseFetch: typeof fetch,
@@ -71,12 +76,78 @@ export function withRequestDeadline(
     if (callerSignal?.aborted) forwardAbort();
     else callerSignal?.addEventListener("abort", forwardAbort, { once: true });
     const timer = setTimeout(() => controller.abort(deadlineError(url, ms)), ms);
-
-    try {
-      return await baseFetch(input, { ...init, signal: controller.signal });
-    } finally {
+    const settle = () => {
       clearTimeout(timer);
       callerSignal?.removeEventListener("abort", forwardAbort);
+    };
+
+    let response: Response;
+    try {
+      response = await baseFetch(input, { ...init, signal: controller.signal });
+    } catch (error) {
+      settle();
+      throw error;
     }
+    if (response.body === null) {
+      settle();
+      return response;
+    }
+    const timed = new Response(deadlineBody(response.body, controller.signal, settle), {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+    // The constructor cannot set these, and a caller may read them.
+    Object.defineProperties(timed, {
+      url: { value: response.url },
+      redirected: { value: response.redirected },
+    });
+    return timed;
   };
+}
+
+/**
+ * A pass-through of `source` that calls `settle` once it ends, errors or is
+ * cancelled, and errors with the signal's reason if it aborts first.
+ */
+function deadlineBody(
+  source: ReadableStream<Uint8Array>,
+  signal: AbortSignal,
+  settle: () => void,
+): ReadableStream<Uint8Array> {
+  const reader = source.getReader();
+  return new ReadableStream<Uint8Array>({
+    start(stream) {
+      const onAbort = () => {
+        settle();
+        stream.error(signal.reason);
+        reader.cancel(signal.reason).catch(() => undefined);
+      };
+      if (signal.aborted) onAbort();
+      else signal.addEventListener("abort", onAbort, { once: true });
+    },
+    async pull(stream) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          settle();
+          stream.close();
+        } else {
+          stream.enqueue(value);
+        }
+      } catch (error) {
+        settle();
+        // Already errored by the abort listener: the reason is the deadline's.
+        try {
+          stream.error(error);
+        } catch {
+          // nothing left to tell
+        }
+      }
+    },
+    cancel(reason) {
+      settle();
+      return reader.cancel(reason);
+    },
+  });
 }

@@ -38,6 +38,11 @@ function row(i: number): ItemBrowseRow {
   };
 }
 
+/** Only the first page carries the summary; later pages are rows alone. */
+function laterPage(from: number, count: number): ItemBrowsePage {
+  return { rows: Array.from({ length: count }, (_, i) => row(from + i)) };
+}
+
 function page(from: number, count: number, total: number): ItemBrowsePage {
   return {
     rows: Array.from({ length: count }, (_, i) => row(from + i)),
@@ -99,10 +104,21 @@ describe("useItemBrowse (#972)", () => {
     expect(result.hasNextPage.value).toBe(false);
   });
 
+  it("stops on an empty page instead of asking for the same offset again", async () => {
+    mocks.rpc
+      .mockResolvedValueOnce({ data: page(0, ITEM_BROWSE_PAGE_SIZE, 100), error: null })
+      .mockResolvedValueOnce({ data: laterPage(ITEM_BROWSE_PAGE_SIZE, 0), error: null });
+    const { result } = mountBrowse();
+    await flushPromises();
+    await result.fetchNextPage();
+    await flushPromises();
+    expect(result.hasNextPage.value).toBe(false);
+  });
+
   it("pages by offset and flattens the pages in order", async () => {
     mocks.rpc
       .mockResolvedValueOnce({ data: page(0, ITEM_BROWSE_PAGE_SIZE, 60), error: null })
-      .mockResolvedValueOnce({ data: page(ITEM_BROWSE_PAGE_SIZE, 12, 60), error: null });
+      .mockResolvedValueOnce({ data: laterPage(ITEM_BROWSE_PAGE_SIZE, 12), error: null });
     const { result } = mountBrowse();
     await flushPromises();
     expect(result.hasNextPage.value).toBe(true);
@@ -112,6 +128,7 @@ describe("useItemBrowse (#972)", () => {
     expect(mocks.rpc.mock.calls[1][1].p_offset).toBe(ITEM_BROWSE_PAGE_SIZE);
     expect(result.rows.value).toHaveLength(60);
     expect(result.rows.value[59].id).toBe("item-59");
+    expect(result.total.value).toBe(60);
     expect(result.hasNextPage.value).toBe(false);
   });
 

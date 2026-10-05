@@ -269,8 +269,7 @@ import {
   useUpdateLootTable,
   useDeleteLootTable,
 } from "@/composables/dungeon-features/useLootTables";
-import { useItemIndex } from "@/composables/items/useItemIndex";
-import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { useLootPool } from "@/composables/dungeon-features/useLootPool";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import {
@@ -286,7 +285,6 @@ import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
 } from "@/types/item.types";
-import type { LootPoolItem } from "@/lib/dungeon-features/lootTableRoll";
 import { formatCoinParts } from "@/rules/currency";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
@@ -346,23 +344,8 @@ watch(table, (t) => {
 }, { immediate: true });
 
 // ── Items (Vault) ──────────────────────────────────────────────────────────
-const itemIndex = useItemIndex();
-// The picker offers what the campaign's enabled sources allow (`itemOptions`
-// below); the entries this table already stores resolve by id even if their book
-// has since been disabled, so a roll never silently drops a library item (#954).
-const { items: storedItems } = useStoredItemRefs(
+const { itemsById, itemOptions } = useLootPool(
   () => form.value.entries.flatMap((e) => (e.item_id ? [e.item_id] : [])),
-);
-// A random entry rolls from every item that fits its rarity and type: the picker's
-// index (the browse membership: enabled books, edition, campaign scope).
-const itemsById = computed(() => {
-  const m = new Map<string, LootPoolItem>();
-  for (const it of itemIndex.data.value ?? []) m.set(it.id, it);
-  for (const it of storedItems.value) m.set(it.id, it);
-  return m;
-});
-const itemOptions = computed(() =>
-  (itemIndex.data.value ?? []).map((it) => ({ id: it.id, name: it.name })),
 );
 
 // ── Monsters ───────────────────────────────────────────────────────────────

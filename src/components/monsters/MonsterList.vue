@@ -126,14 +126,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from "vue";
+import { ref, computed, watch } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconNavBestiary } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { useUiStore } from "@/stores/ui";
-import { useScrollRestore } from "@/composables/useScrollRestore";
+import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { fetchResolvedMonster, RESOLVED_MONSTER_QUERY_KEY } from "@/composables/monsters/useMonsters";
 import { useMonsterBrowse } from "@/composables/monsters/useMonsterBrowse";
 import { useCampaignDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
@@ -205,43 +205,12 @@ function isDiscovered(monster: MonsterBrowseRow): boolean {
 // ── Paging ───────────────────────────────────────────────────────────────────
 //
 // The sentinel under the grid asks for the next server page as it nears the
-// viewport. It is re-observed after every page lands, so a page too short to
-// push the sentinel out of view keeps loading instead of stalling.
-const sentinelRef = ref<HTMLElement | null>(null);
-let observer: IntersectionObserver | null = null;
-
-function loadMore() {
-  if (hasNextPage.value && !isFetchingNextPage.value) void fetchNextPage();
-}
-
-watch(sentinelRef, (el) => {
-  observer?.disconnect();
-  if (!el) return;
-  observer = new IntersectionObserver(
-    (entries) => { if (entries[0].isIntersecting) loadMore(); },
-    { rootMargin: "200px" },
-  );
-  observer.observe(el);
+// viewport; scroll depth is restored on return from a detail.
+const { sentinelRef } = useServerInfiniteScroll({
+  scrollKey: "monsters",
+  loadedCount: () => rows.value.length,
+  ready, hasNextPage, isFetchingNextPage, fetchNextPage,
 });
-watch(() => rows.value.length, () => {
-  const el = sentinelRef.value;
-  if (!observer || !el) return;
-  observer.unobserve(el);
-  observer.observe(el);
-});
-onUnmounted(() => observer?.disconnect());
-
-// Coming back from a detail: the pages stay cached, so depth is restored by
-// loading pages until the saved count is reached, then the saved scroll
-// position lands on a list of the same height.
-const { savedCount, linkCount } = useScrollRestore("monsters");
-linkCount(computed(() => rows.value.length));
-let restoringDepth = !!savedCount;
-watch([ready, () => rows.value.length, hasNextPage], ([isReady, loaded, more]) => {
-  if (!restoringDepth || !isReady || savedCount === undefined) return;
-  if (loaded >= savedCount || !more) { restoringDepth = false; return; }
-  loadMore();
-}, { immediate: true });
 
 const lockedMonsterIds = computed(() => new Set(lockedIds.value));
 

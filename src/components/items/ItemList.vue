@@ -153,9 +153,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, type Component as VueComponent } from "vue";
+import { type Component as VueComponent } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
-import { useIntersectionObserver } from "@vueuse/core";
 import { IconCaravan, IconCircle, IconCoins, IconComponent, IconDocument, IconEdit, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconNavItemVault, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
@@ -190,7 +189,7 @@ const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
 function itemTypeIcon(type: ItemType): VueComponent {
   return ITEM_TYPE_ICONS[type] ?? IconComponent;
 }
-import { useScrollRestore } from "@/composables/useScrollRestore";
+import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { useItemBrowse } from "@/composables/items/useItemBrowse";
 import { fetchResolvedItem, resolvedItemKey } from "@/composables/items/useItems";
 import type { ItemScope } from "@/lib/items/itemScope";
@@ -262,25 +261,11 @@ function prefetchDetail(id: string) {
   });
 }
 
-const { savedCount, linkCount } = useScrollRestore("items");
-linkCount(computed(() => rows.value.length));
-
-// Returning from a detail page: load pages until the depth the DM had scrolled
-// to is back, so the restored scroll position has content under it.
-watch(
-  [() => rows.value.length, hasNextPage, isFetchingNextPage],
-  ([loaded, more, fetching]) => {
-    if (savedCount !== undefined && loaded < savedCount && more && !fetching) void fetchNextPage();
-  },
-  { immediate: true },
-);
-
-const sentinelRef = ref<HTMLElement | null>(null);
-useIntersectionObserver(
-  sentinelRef,
-  ([entry]) => {
-    if (entry?.isIntersecting && hasNextPage.value && !isFetchingNextPage.value) void fetchNextPage();
-  },
-  { rootMargin: "200px" },
-);
+// The sentinel asks for the next server page; scroll depth is restored on return
+// from a detail.
+const { sentinelRef } = useServerInfiniteScroll({
+  scrollKey: "items",
+  loadedCount: () => rows.value.length,
+  ready, hasNextPage, isFetchingNextPage, fetchNextPage,
+});
 </script>

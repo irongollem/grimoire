@@ -1,6 +1,6 @@
 import { computed, toValue } from "vue";
 import type { MaybeRefOrGetter } from "vue";
-import { useQuery } from "@tanstack/vue-query";
+import { keepPreviousData, useQuery, type QueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { normalizeLibraryItem } from "@/composables/items/useItems";
@@ -35,6 +35,44 @@ export function splitItemIds(ids: readonly (string | null)[]): { libraryIds: str
   return { libraryIds: [...library].sort(), customIds: [...custom].sort() };
 }
 
+/** The rows for these ids from `library_items` and `items`; the query function of `useItemsByIds`, also callable directly. */
+export async function fetchItemsByIds(ids: readonly (string | null)[]): Promise<Item[]> {
+  const { libraryIds, customIds } = splitItemIds(ids);
+  return fetchSplit(libraryIds, customIds);
+}
+
+async function fetchSplit(libraryIds: readonly string[], customIds: readonly string[]): Promise<Item[]> {
+  const [library, custom] = await Promise.all([
+    libraryIds.length ? readInChunks<Record<string, unknown>>("library_items", libraryIds) : [],
+    customIds.length ? readInChunks<Item>("items", customIds) : [],
+  ]);
+  return [...library.map(normalizeLibraryItem), ...custom];
+}
+
+/**
+ * One item, for a click handler that must decide on the item's real flags. The
+ * reactive map can lag (a refetch in flight, or the message naming the item only
+ * just arrived), and deciding on `undefined` mis-files services, magic items and
+ * containers. Reads through the same cache entry `useItemsByIds` would use for
+ * `[id]`, so the answer is kept. Resolves `undefined` only for an id with no row;
+ * a failed read throws rather than passing for "no such item".
+ */
+export async function resolveItemById(
+  queryClient: QueryClient,
+  known: ReadonlyMap<string, Item>,
+  id: string,
+): Promise<Item | undefined> {
+  const hit = known.get(id);
+  if (hit) return hit;
+  const { libraryIds, customIds } = splitItemIds([id]);
+  const rows = await queryClient.fetchQuery({
+    queryKey: ["items", "by-ids", libraryIds, customIds] as const,
+    queryFn: () => fetchSplit(libraryIds, customIds),
+    staleTime: Infinity,
+  });
+  return rows.find((item) => item.id === id);
+}
+
 /**
  * Read exactly the items a view names, whichever table they live in (#972).
  *
@@ -53,18 +91,23 @@ export function useItemsByIds(
 
   const query = useQuery({
     queryKey: computed(() => ["items", "by-ids", split.value.libraryIds, split.value.customIds] as const),
-    queryFn: async ({ queryKey: [, , libraryIds, customIds] }) => {
-      const [library, custom] = await Promise.all([
-        libraryIds.length ? readInChunks<Record<string, unknown>>("library_items", libraryIds) : [],
-        customIds.length ? readInChunks<Item>("items", customIds) : [],
-      ]);
-      return [...library.map(normalizeLibraryItem), ...custom];
-    },
+    queryFn: ({ queryKey: [, , libraryIds, customIds] }) => fetchSplit(libraryIds, customIds),
     enabled: () =>
       getOptions?.().enabled !== false && (split.value.libraryIds.length > 0 || split.value.customIds.length > 0),
     staleTime: Infinity,
+    // A new id in the set changes the key; keep resolved items while the new set loads.
+    placeholderData: keepPreviousData,
   });
 
-  const data = computed(() => new Map((query.data.value ?? []).map((item) => [item.id, item])));
+  const data = computed(() => {
+    const rows = query.data.value;
+    const { libraryIds, customIds } = split.value;
+    if (!rows || libraryIds.length + customIds.length === 0) return new Map<string, Item>();
+    // A placeholder is the previous key's rows: show only what is still requested.
+    const wanted = new Set([...libraryIds, ...customIds]);
+    return new Map(
+      rows.filter((item) => !query.isPlaceholderData.value || wanted.has(item.id)).map((item) => [item.id, item]),
+    );
+  });
   return { data, isLoading: query.isLoading };
 }

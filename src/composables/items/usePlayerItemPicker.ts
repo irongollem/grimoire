@@ -15,6 +15,7 @@ export function projectionIndexEntry(item: Item): ItemIndexEntry {
     name: item.name,
     item_type: item.item_type,
     subtype: item.subtype,
+    tags: item.tags,
     rarity: item.rarity,
     cost: item.cost,
     source: item.source,

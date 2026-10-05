@@ -45,7 +45,7 @@
           :key="spell.id"
           corner="top-right"
           :selected="selectedIds.has(spell.id)"
-          :selecting="selecting && !spell.is_shared"
+          :selecting="selecting && spell.is_own && !spell.is_shared"
           @toggle="emit('toggle-select', spell.id)"
         >
           <div
@@ -146,7 +146,7 @@
 
             <!-- Edit button — DM mode only, not shown for SRD spell cards -->
             <AppButton
-              v-if="!playerMemberId && !spell.is_shared"
+              v-if="!playerMemberId && spell.is_own && !spell.is_shared"
               :to="`/spells/${spell.id}?edit=true`"
               variant="ghost"
               size="xs"
@@ -208,14 +208,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, watch } from "vue";
 import { IconAddBook, IconCheck, IconClose, IconEdit, IconNavSpellbook } from '@/lib/icons';
-import { refDebounced, useIntersectionObserver } from "@vueuse/core";
 import { useQueryClient } from "@tanstack/vue-query";
 import { fetchResolvedSpell, resolvedSpellKey } from "@/composables/spells/useSpells";
 import { useSpellBrowse } from "@/composables/spells/useSpellBrowse";
 import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell } from "@/composables/party/useCharacterSpells";
-import { useScrollRestore } from "@/composables/useScrollRestore";
+import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { SCHOOL_BG, spellLevelLabel } from "@/types/spell.types";
 import type { CasterType, SpellBrowseRow } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -376,13 +375,10 @@ function isKnown(spellId: string): boolean {
   return knownSpellIds?.includes(spellId) ?? false;
 }
 
-// Debounce search so a keystroke does not ask the server each time.
-const debouncedSearch = refDebounced(computed(() => search), 200);
-
 const {
   rows, total, selectableIds, ready, hasNextPage, isFetchingNextPage, fetchNextPage, isLoading, error,
 } = useSpellBrowse(() => ({
-  search: debouncedSearch.value,
+  search,
   level: levelFilter,
   school: schoolFilter,
   class: classFilter,
@@ -410,27 +406,11 @@ function prefetchSpell(id: string) {
   });
 }
 
-// Infinite scroll: the sentinel asks the server for the next page.
-const sentinelRef = ref<HTMLElement | null>(null);
-useIntersectionObserver(
-  sentinelRef,
-  ([entry]) => {
-    if (entry?.isIntersecting && hasNextPage.value && !isFetchingNextPage.value) void fetchNextPage();
-  },
-  { rootMargin: "200px" },
-);
-
-// Scroll restore: reload pages until the depth the user left at is back.
-const { savedCount, linkCount } = useScrollRestore("spells");
-const loadedCount = computed(() => rows.value.length);
-linkCount(loadedCount);
-watch(
-  [loadedCount, hasNextPage, isFetchingNextPage],
-  () => {
-    if (savedCount && loadedCount.value < savedCount && hasNextPage.value && !isFetchingNextPage.value) {
-      void fetchNextPage();
-    }
-  },
-  { immediate: true },
-);
+// The sentinel asks for the next server page; scroll depth is restored on return
+// from a detail.
+const { sentinelRef } = useServerInfiniteScroll({
+  scrollKey: "spells",
+  loadedCount: () => rows.value.length,
+  ready, hasNextPage, isFetchingNextPage, fetchNextPage,
+});
 </script>

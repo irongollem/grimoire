@@ -27,7 +27,7 @@ vi.mock("@/composables/spells/useSpellBrowse", () => ({
     return {
       rows: ref(mocks.rows),
       total: ref(mocks.rows.length),
-      selectableIds: ref(mocks.rows.filter((r) => !r.is_shared).map((r) => r.id)),
+      selectableIds: ref(mocks.rows.filter((r) => r.is_own && !r.is_shared).map((r) => r.id)),
       ready: ref(true),
       hasNextPage: ref(false),
       isFetchingNextPage: ref(false),
@@ -79,6 +79,7 @@ function makeSpell(overrides: Partial<SpellBrowseRow> = {}): SpellBrowseRow {
     source_title: null,
     source_url: null,
     is_shared: false,
+    is_own: true,
     ...overrides,
   };
 }
@@ -171,7 +172,7 @@ describe("SpellList — bulk selection (#875)", () => {
 });
 
 describe("SpellList filters", () => {
-  it("hands every filter to the server query, search debounced to its first value", () => {
+  it("hands every filter to the server query, search passed raw (the composable settles it)", () => {
     mocks.filters = [];
     mocks.rows = [];
     mountList({ sourceFilter: "custom" });
@@ -188,5 +189,18 @@ describe("SpellList filters", () => {
     const wrapper = mountList();
     const edits = wrapper.findAllComponents(AppButton).filter((b) => b.props("tooltip") === "Edit spell");
     expect(edits).toHaveLength(1);
+  });
+
+  it("a custom spell another member owns has no Edit button and is not selectable", () => {
+    mocks.rows = [
+      makeSpell({ id: "11111111-1111-4111-8111-111111111111", name: "Homebrew Bolt" }),
+      makeSpell({ id: "33333333-3333-4333-8333-333333333333", name: "Player Spell", is_own: false }),
+    ];
+    const wrapper = mountList({ selecting: true });
+    const edits = wrapper.findAllComponents(AppButton).filter((b) => b.props("tooltip") === "Edit spell");
+    expect(edits).toHaveLength(1);
+    const cards = wrapper.findAllComponents(BulkSelectableCard);
+    expect(cards[0].props("selecting")).toBe(true);
+    expect(cards[1].props("selecting")).toBe(false);
   });
 });

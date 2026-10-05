@@ -40,7 +40,7 @@ import type { ItemIndexEntry } from "@/types/item.types";
 
 function entry(over: Partial<ItemIndexEntry>): Record<string, unknown> {
   return {
-    id: "x", name: "X", item_type: "weapon", rarity: "common", source: null,
+    id: "x", name: "X", item_type: "weapon", tags: [], rarity: "common", source: null,
     source_document_key: null, source_record_key: null, image_url: null, ruleset: null, ...over,
   };
 }

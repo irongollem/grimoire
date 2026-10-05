@@ -1,14 +1,13 @@
-import { computed, ref, watch, type MaybeRefOrGetter, toValue } from "vue";
-import { keepPreviousData, useInfiniteQuery } from "@tanstack/vue-query";
+import { computed, type MaybeRefOrGetter, toValue } from "vue";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
+import { useCatalogueBrowse, useSettledSearch } from "@/composables/library/useCatalogueBrowse";
 import type { MonsterBrowseRow } from "@/types/monster.types";
 
 export const MONSTER_BROWSE_PAGE_SIZE = 48;
-const SEARCH_DEBOUNCE_MS = 250;
 
 export interface MonsterBrowseFilters {
   search: string;
@@ -18,12 +17,17 @@ export interface MonsterBrowseFilters {
   type: string;
 }
 
-interface MonsterBrowsePage {
-  rows: MonsterBrowseRow[];
+/** What `browse_monsters` reports about the whole filtered result. Only the
+ *  first page (offset 0) carries it. */
+interface MonsterBrowseSummary {
   total: number;
   scope_total: number;
   selectable_ids: string[];
   locked_ids: string[];
+}
+
+interface MonsterBrowsePage extends Partial<MonsterBrowseSummary> {
+  rows: MonsterBrowseRow[];
 }
 
 async function fetchPage(
@@ -50,26 +54,13 @@ async function fetchPage(
   return data as unknown as MonsterBrowsePage;
 }
 
-/** The search text, settled: follows `source` after a pause so a keystroke is
- *  not a request. Clearing is immediate. */
-function useDebounced(source: () => string, ms: number) {
-  const settled = ref(source());
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  watch(source, (next) => {
-    clearTimeout(timer);
-    if (next.trim() === "") { settled.value = next; return; }
-    timer = setTimeout(() => { settled.value = next; }, ms);
-  });
-  return settled;
-}
-
 /**
  * The Bestiary page, one server page at a time (#972). Membership, order,
  * filters, counts and the quota lock live in `browse_monsters`; this only asks
  * for the next 48. Keyed under `["monsters"]` so every monster mutation
  * reaches it. The quota lock count comes from `useQuota` here, so every caller
- * shares one key. Never write these slim rows under `library-monsters` or the
- * exact `["monsters"]` key: `useResolvedMonster` seeds full rows from those.
+ * shares one key. Never write these slim rows under `library-monsters`, which
+ * holds full rows.
  */
 export function useMonsterBrowse(filters: MaybeRefOrGetter<MonsterBrowseFilters>) {
   const campaign = useCampaignStore();
@@ -81,42 +72,34 @@ export function useMonsterBrowse(filters: MaybeRefOrGetter<MonsterBrowseFilters>
     const q = quota.value;
     return !q || q.unlimited ? 0 : Math.max(0, q.current - q.limit);
   });
-  const search = useDebounced(() => toValue(filters).search.trim(), SEARCH_DEBOUNCE_MS);
+  const search = useSettledSearch(() => toValue(filters).search);
 
   const effective = computed<MonsterBrowseFilters>(() => {
     const f = toValue(filters);
     return { search: search.value, source: f.source, type: f.type };
   });
 
-  const query = useInfiniteQuery({
-    queryKey: computed(() => {
+  const browse = useCatalogueBrowse<MonsterBrowseRow, MonsterBrowsePage>({
+    queryKey: () => {
       const f = effective.value;
       return [
         "monsters", "browse", slugs.value, ruleset.value, campaign.activeCampaignId,
         f.search, f.source, f.type, lockCount.value,
       ] as const;
-    }),
-    queryFn: ({ pageParam }) => {
+    },
+    fetchPage: (offset) => {
       const s = slugs.value;
       if (s === null) throw new Error("useMonsterBrowse fetched without enabled sources");
       return fetchPage(
-        s, ruleset.value, campaign.activeCampaignId, effective.value, lockCount.value, pageParam,
+        s, ruleset.value, campaign.activeCampaignId, effective.value, lockCount.value, offset,
       );
     },
-    initialPageParam: 0,
-    getNextPageParam: (last, pages) => {
-      const loaded = pages.reduce((n, p) => n + p.rows.length, 0);
-      return loaded < last.total && last.rows.length > 0 ? loaded : undefined;
-    },
     enabled: () => slugs.value !== null,
-    placeholderData: keepPreviousData,
-    staleTime: Infinity,
   });
-
-  const first = computed(() => query.data.value?.pages[0]);
+  const { first } = browse;
 
   return {
-    rows: computed<MonsterBrowseRow[]>(() => query.data.value?.pages.flatMap((p) => p.rows) ?? []),
+    rows: browse.rows,
     /** Rows matching the filters. */
     total: computed(() => first.value?.total ?? 0),
     /** The whole scoped catalogue, filters aside. */
@@ -126,11 +109,11 @@ export function useMonsterBrowse(filters: MaybeRefOrGetter<MonsterBrowseFilters>
     /** The newest own monsters over the plan's quota. */
     lockedIds: computed<string[]>(() => first.value?.locked_ids ?? []),
     /** False while page 1 of the current filters is still loading. */
-    ready: computed(() => query.data.value !== undefined && !query.isPlaceholderData.value),
-    hasNextPage: query.hasNextPage,
-    isFetchingNextPage: query.isFetchingNextPage,
-    fetchNextPage: () => query.fetchNextPage(),
-    isLoading: computed(() => query.isLoading.value || slugs.value === null),
-    error: query.error,
+    ready: browse.ready,
+    hasNextPage: browse.hasNextPage,
+    isFetchingNextPage: browse.isFetchingNextPage,
+    fetchNextPage: browse.fetchNextPage,
+    isLoading: computed(() => browse.isLoading.value || slugs.value === null),
+    error: browse.error,
   };
 }

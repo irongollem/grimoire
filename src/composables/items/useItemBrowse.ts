@@ -1,18 +1,16 @@
 import { computed } from "vue";
-import { keepPreviousData, useInfiniteQuery } from "@tanstack/vue-query";
-import { refDebounced } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
+import { useCatalogueBrowse, useSettledSearch } from "@/composables/library/useCatalogueBrowse";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
 import type { ItemScope } from "@/lib/items/itemScope";
-import type { ItemBrowsePage } from "@/types/item.types";
+import type { ItemBrowsePage, ItemBrowseRow } from "@/types/item.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 /** Rows per page; the Vault grid asks for the next one as the sentinel scrolls into view. */
 export const ITEM_BROWSE_PAGE_SIZE = 48;
-const SEARCH_DEBOUNCE_MS = 250;
 
 export interface ItemBrowseFilters {
   search: string;
@@ -68,69 +66,50 @@ export function useItemBrowse(getFilters: () => ItemBrowseFilters) {
   const { ruleset } = useTableRuleset();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
-  const search = refDebounced(
-    computed(() => getFilters().search.trim()),
-    SEARCH_DEBOUNCE_MS,
-  );
+  const search = useSettledSearch(() => getFilters().search);
   const filters = computed<ItemBrowseFilters>(() => {
     const { type, rarity, source, scope } = getFilters();
     return { search: search.value, type, rarity, source, scope };
   });
 
-  const query = useInfiniteQuery({
-    queryKey: computed(
-      () => [
-        "items",
-        "browse",
-        slugs.value,
-        ruleset.value,
-        activeCampaignId.value,
-        filters.value.search,
-        filters.value.type,
-        filters.value.rarity,
-        filters.value.source,
-        filters.value.scope,
-      ] as const,
-    ),
-    queryFn: ({ pageParam }) => {
+  const browse = useCatalogueBrowse<ItemBrowseRow, ItemBrowsePage>({
+    queryKey: () => [
+      "items",
+      "browse",
+      slugs.value,
+      ruleset.value,
+      activeCampaignId.value,
+      filters.value.search,
+      filters.value.type,
+      filters.value.rarity,
+      filters.value.source,
+      filters.value.scope,
+    ] as const,
+    fetchPage: (offset) => {
       if (slugs.value === null) throw new Error("useItemBrowse ran without enabled sources");
       return fetchItemBrowsePage({
         slugs: slugs.value,
         ruleset: ruleset.value,
         campaignId: activeCampaignId.value,
         filters: filters.value,
-        offset: pageParam,
+        offset,
       });
     },
-    initialPageParam: 0,
-    getNextPageParam: (_last, pages) => {
-      const loaded = pages.reduce((n, p) => n + p.rows.length, 0);
-      const total = pages[0]?.total ?? 0;
-      return loaded < total ? loaded : undefined;
-    },
     enabled: () => slugs.value !== null,
-    staleTime: Infinity,
-    // A filter edit keeps the grid on screen until the new first page lands,
-    // rather than flashing the spinner on every keystroke.
-    placeholderData: keepPreviousData,
   });
-
-  const pages = computed(() => query.data.value?.pages ?? []);
-  const rows = computed(() => pages.value.flatMap((p) => p.rows));
-  const first = computed(() => pages.value[0]);
+  const { first } = browse;
 
   return {
-    rows,
+    rows: browse.rows,
     total: computed(() => first.value?.total ?? 0),
     /** Every own row matching the filters, whichever page it is on (select-all). */
     selectableIds: computed(() => first.value?.selectable_ids ?? []),
     sources: computed(() => first.value?.sources ?? []),
-    /** True once the current filters' first page is in, not a stand-in for the previous filters. */
-    ready: computed(() => first.value !== undefined && !query.isPlaceholderData.value),
-    isLoading: query.isPending,
-    error: query.error,
-    hasNextPage: query.hasNextPage,
-    isFetchingNextPage: query.isFetchingNextPage,
-    fetchNextPage: query.fetchNextPage,
+    ready: browse.ready,
+    isLoading: computed(() => browse.isLoading.value || slugs.value === null),
+    error: browse.error,
+    hasNextPage: browse.hasNextPage,
+    isFetchingNextPage: browse.isFetchingNextPage,
+    fetchNextPage: browse.fetchNextPage,
   };
 }

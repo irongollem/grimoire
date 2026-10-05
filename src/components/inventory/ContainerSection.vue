@@ -205,7 +205,11 @@ const showSuggestions = ref(false);
 const suggestions = computed((): ItemIndexEntry[] => {
   const q = addName.value.trim().toLowerCase();
   if (!q) return props.catalogue.slice(0, 6);
-  return props.catalogue.filter(it => it.name.toLowerCase().includes(q)).slice(0, 6);
+  return props.catalogue
+    .filter(it => it.name.toLowerCase().includes(q)
+      || it.subtype?.toLowerCase().includes(q)
+      || it.tags.some(tag => tag.toLowerCase().includes(q)))
+    .slice(0, 6);
 });
 
 function onInput() { addSelectedId.value = ""; showSuggestions.value = true; }

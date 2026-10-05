@@ -1,10 +1,10 @@
-import { defineComponent, h, ref, type Ref } from "vue";
+import { defineComponent, h, nextTick, ref, type Ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
 type Call = { table: string; select: string; eq: [string, unknown][]; in: [string, unknown[]][] };
-const mocks = vi.hoisted(() => ({ calls: [] as Call[], rows: {} as Record<string, Record<string, unknown>[]> }));
+const mocks = vi.hoisted(() => ({ calls: [] as Call[], rows: {} as Record<string, Record<string, unknown>[]>, gate: null as Promise<void> | null }));
 
 vi.mock("@/lib/supabase", () => {
   const builder = (table: string) => {
@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase", () => {
     const b: Promise<{ data: unknown[]; error: null }> & Record<string, unknown> = Object.assign(
       new Promise<{ data: unknown[]; error: null }>((resolve) => {
         // Resolve after the chain has been built so `in` has been recorded.
-        queueMicrotask(() => {
+        void (mocks.gate ?? Promise.resolve()).then(() => {
           const ids = new Set(call.in.flatMap(([, v]) => v));
           const rows = (mocks.rows[table] ?? []).filter((r) => ids.size === 0 || ids.has(String(r.id ?? r.entry_id)));
           resolve({ data: rows, error: null });
@@ -51,10 +51,17 @@ function run<T>(setup: () => T): T {
 
 beforeEach(() => {
   mocks.calls.length = 0;
+  mocks.gate = null;
   mocks.rows = {
-    library_monsters: [{ id: "srd_wolf", name: "Wolf", image_url: "lib.webp", portrait_focal_point: null }],
+    library_monsters: [
+      { id: "srd_wolf", name: "Wolf", image_url: "lib.webp", portrait_focal_point: null },
+      { id: "srd_bear", name: "Bear", image_url: "bear.webp", portrait_focal_point: null },
+    ],
     monsters: [{ id: UUID_A, name: "Homebrew", image_url: null }],
-    library_monster_art_canonical: [{ entry_id: "srd_wolf", image_url: "art.webp", cutout_url: null, portrait_focal_point: null }],
+    library_monster_art_canonical: [
+      { entry_id: "srd_wolf", image_url: "art.webp", cutout_url: null, portrait_focal_point: null },
+      { entry_id: "srd_bear", image_url: "bear-art.webp", cutout_url: null, portrait_focal_point: null },
+    ],
     library_monster_art: [],
   };
 });
@@ -112,5 +119,41 @@ describe("useMonstersByIds", () => {
     list.value = [UUID_A, UUID_B];
     await flushPromises();
     expect(mocks.calls.length).toBe(before);
+  });
+
+  it("keeps resolved monsters with their art, and isLoading false, while a grown id set loads", async () => {
+    const list = ref(["srd_wolf"]);
+    const { data, isLoading } = run(() => useMonstersByIds(list, { withArt: true }));
+    await flushPromises();
+    let release!: () => void;
+    mocks.gate = new Promise<void>((r) => (release = r));
+    list.value = ["srd_wolf", "srd_bear"];
+    await nextTick();
+    expect(isLoading.value).toBe(false);
+    expect([...data.value.keys()]).toEqual(["srd_wolf"]);
+    expect(data.value.get("srd_wolf")?.image_url).toBe("art.webp");
+    release();
+    await flushPromises();
+    expect([...data.value.keys()].sort()).toEqual(["srd_bear", "srd_wolf"]);
+    expect(data.value.get("srd_bear")?.image_url).toBe("bear-art.webp");
+  });
+
+  it("never shows an id that is no longer requested while a placeholder is up", async () => {
+    const list = ref(["srd_wolf", UUID_A]);
+    const { data } = run(() => useMonstersByIds(list));
+    await flushPromises();
+    mocks.gate = new Promise<void>(() => {});
+    list.value = [UUID_A, "srd_bear"];
+    await nextTick();
+    expect([...data.value.keys()]).toEqual([UUID_A]);
+  });
+
+  it("yields an empty map once every id is removed", async () => {
+    const list = ref(["srd_wolf"]);
+    const { data } = run(() => useMonstersByIds(list, { withArt: true }));
+    await flushPromises();
+    list.value = [];
+    await flushPromises();
+    expect(data.value.size).toBe(0);
   });
 });

@@ -47,12 +47,54 @@ describe("withRequestDeadline", () => {
     await outcome;
   });
 
-  it("passes an answer through untouched", async () => {
-    const response = new Response("[]", { status: 200 });
-    const base = vi.fn(() => Promise.resolve(response));
+  it("passes an answer through, status and body intact, and clears the timer", async () => {
+    const base = vi.fn(() =>
+      Promise.resolve(new Response("[1]", { status: 206, statusText: "Partial", headers: { "x-a": "b" } })),
+    );
     const fetcher = withRequestDeadline(base);
 
+    const response = await fetcher(`${API}/rest/v1/npcs`);
+    expect(response.status).toBe(206);
+    expect(response.statusText).toBe("Partial");
+    expect(response.headers.get("x-a")).toBe("b");
+    await expect(response.text()).resolves.toBe("[1]");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("returns a bodyless response as it is and clears the timer at once", async () => {
+    const response = new Response(null, { status: 204 });
+    const fetcher = withRequestDeadline(vi.fn(() => Promise.resolve(response)));
+
     await expect(fetcher(`${API}/rest/v1/npcs`)).resolves.toBe(response);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("rejects a body that never ends once the deadline passes", async () => {
+    const stalled = new ReadableStream<Uint8Array>({
+      start(stream) {
+        stream.enqueue(new TextEncoder().encode("par"));
+      },
+    });
+    const fetcher = withRequestDeadline(vi.fn(() => Promise.resolve(new Response(stalled))));
+
+    const response = await fetcher(`${API}/rest/v1/npcs`);
+    const outcome = expect(response.text()).rejects.toMatchObject({ name: "TimeoutError" });
+    await vi.advanceTimersByTimeAsync(DATA_DEADLINE_MS);
+
+    await outcome;
+  });
+
+  it("lets the caller abort mid-body, with the caller's reason", async () => {
+    const stalled = new ReadableStream<Uint8Array>({ start() {} });
+    const fetcher = withRequestDeadline(vi.fn(() => Promise.resolve(new Response(stalled))));
+    const caller = new AbortController();
+
+    const response = await fetcher(`${API}/rest/v1/npcs`, { signal: caller.signal });
+    const reason = new DOMException("superseded", "AbortError");
+    const outcome = expect(response.text()).rejects.toBe(reason);
+    caller.abort(reason);
+
+    await outcome;
     expect(vi.getTimerCount()).toBe(0);
   });
 

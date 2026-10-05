@@ -90,12 +90,14 @@ describe("useMonsterBrowse", () => {
     expect(api.lockedIds.value).toEqual(["own-2"]);
     expect(api.hasNextPage.value).toBe(true);
 
-    rpc.mockResolvedValueOnce({ data: { rows: Array.from({ length: 12 }, (_, i) => row(`b${i}`)), total: 60, scope_total: 99, selectable_ids: [], locked_ids: [] }, error: null });
+    rpc.mockResolvedValueOnce({ data: { rows: Array.from({ length: 12 }, (_, i) => row(`b${i}`)) }, error: null });
     await api.fetchNextPage();
     await flushPromises();
     expect(rpc.mock.calls[1]![1].p_offset).toBe(48);
     expect(api.rows.value).toHaveLength(60);
+    expect(api.total.value).toBe(60);
     expect(api.selectableIds.value).toEqual(["own-1"]);
+    expect(api.lockedIds.value).toEqual(["own-2"]);
     expect(api.hasNextPage.value).toBe(false);
   });
 

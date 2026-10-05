@@ -21,7 +21,7 @@ function row(id: string) {
   return {
     id, name: id, level: 1, school: "evocation", ritual: false, casting_time: "1 action",
     range: "60 feet", components: [], concentration: false, classes: [], tags: [],
-    source: null, source_title: null, source_url: null, is_shared: false,
+    source: null, source_title: null, source_url: null, is_shared: false, is_own: true,
   };
 }
 
@@ -49,7 +49,7 @@ describe("useSpellBrowse", () => {
   it("sends the filters as rpc arguments and pages by loaded count", async () => {
     mocks.rpc
       .mockResolvedValueOnce({ data: { rows: [row("a"), row("b")], total: 3, selectable_ids: ["a"] }, error: null })
-      .mockResolvedValueOnce({ data: { rows: [row("c")], total: 3, selectable_ids: ["a"] }, error: null });
+      .mockResolvedValueOnce({ data: { rows: [row("c")] }, error: null });
     const { get } = setup({ ...base, search: " fire ", level: "0", school: "evocation", class: "Wizard" });
     await flushPromises();
 
@@ -67,6 +67,8 @@ describe("useSpellBrowse", () => {
     await flushPromises();
     expect(mocks.rpc.mock.calls[1][1].p_offset).toBe(2);
     expect(get().rows.value.map((r) => r.id)).toEqual(["a", "b", "c"]);
+    expect(get().total.value).toBe(3);
+    expect(get().selectableIds.value).toEqual(["a"]);
     expect(get().hasNextPage.value).toBe(false);
   });
 

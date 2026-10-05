@@ -9,10 +9,13 @@ import { useCampaignStore } from "@/stores/campaign";
 import type { MonsterIndexEntry } from "@/types/monster.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
-/** Deliberately NOT prefixed "library-monsters": `useResolvedMonster` reads that
- *  prefix from the cache assuming full rows, and a slim row there crashed a page
- *  on `stat_block` (Sentry, 27 Sep 2026). */
+/** Deliberately NOT prefixed "library-monsters": that prefix holds full rows
+ *  (`useLibraryMonster`), and a slim row there crashed a page on `stat_block`
+ *  (Sentry, 27 Sep 2026). */
 const LIBRARY_INDEX_KEY = "library-monster-index";
+/** Shape segment of the persisted library half: an entry written by an older build
+ *  lacks the fields added since (#972), so a new shape starts a new key. */
+const INDEX_SHAPE = "v2";
 /** Under the "monsters" root so every `invalidateQueries({ queryKey: ["monsters"] })`
  *  after a create, edit or delete reaches the index too. */
 const CUSTOM_INDEX_KEY = ["monsters", "index"] as const;
@@ -50,10 +53,9 @@ async function fetchLibraryIndex(slugs: string[], ruleset: RulesetKey): Promise<
 async function fetchCustomIndex(campaignId: string | null, ruleset: RulesetKey): Promise<MonsterIndexEntry[]> {
   const user = getCurrentUser();
   if (!user) throw new Error("useMonsterIndex read custom monsters without a signed-in user");
-  // The same membership as `useAllMonsters` (open5e imports are legacy and come
-  // from library_monsters now; a row with no ruleset fits both; the DM's globals
-  // plus this campaign's own), expressed in the query so it filters rather than
-  // downloads. `open5e_import` may be null on old rows, so "not true" is spelled out.
+  // Membership: open5e imports are legacy and come from library_monsters now; a
+  // row with no ruleset fits both; the DM's globals plus this campaign's own.
+  // Expressed in the query so it filters rather than downloads. `open5e_import` may be null on old rows, so "not true" is spelled out.
   let query = supabase
     .from("monsters")
     .select(CUSTOM_INDEX_COLUMNS)
@@ -68,10 +70,9 @@ async function fetchCustomIndex(campaignId: string | null, ruleset: RulesetKey):
   return (data as CustomIndexRow[]).map((row) => ({ ...row, is_shared: false }));
 }
 
-/** The picker / name-lookup list: the same members `useAllMonsters()` returns by
- *  default (enabled library sources at the table ruleset, plus this DM's custom
- *  monsters in the active campaign and their globals), as slim index rows. Library
- *  rows first, then custom, sorted by name, no dedupe — like `useAllMonsters`.
+/** The picker / name-lookup list: enabled library sources at the table ruleset,
+ *  plus this DM's custom monsters in the active campaign and their globals, as
+ *  slim index rows. Library rows first, then custom, sorted by name, no dedupe.
  *
  *  This is for choosing and for showing a name. A stored id (encounter combatant,
  *  companion, wild shape form) resolves through `useMonstersByIds`, which applies
@@ -91,8 +92,8 @@ export function useMonsterIndex(getOptions?: () => { enabled?: boolean; sides?: 
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_INDEX_KEY, slugs.value, ruleset.value] as const),
-    queryFn: ({ queryKey: [, sourceSlugs, rs] }) => {
+    queryKey: computed(() => [LIBRARY_INDEX_KEY, INDEX_SHAPE, slugs.value, ruleset.value] as const),
+    queryFn: ({ queryKey: [, , sourceSlugs, rs] }) => {
       if (sourceSlugs === null) throw new Error("useMonsterIndex fetched without enabled sources");
       return fetchLibraryIndex(sourceSlugs, rs);
     },

@@ -219,13 +219,18 @@ export interface ItemBrowseSource {
   title: string | null;
 }
 
-/** One page of `browse_items`. `selectable_ids` and `sources` describe the whole
- *  filtered result, so every page carries the same values. */
-export interface ItemBrowsePage {
-  rows: ItemBrowseRow[];
+/** What `browse_items` reports about the whole filtered result, whichever page
+ *  a row is on. Only the first page (offset 0) carries it: the server does not
+ *  recount the catalogue for every page scrolled. */
+export interface ItemBrowseSummary {
   total: number;
   selectable_ids: string[];
   sources: ItemBrowseSource[];
+}
+
+/** One page of `browse_items`: its rows, plus the summary on the first page. */
+export interface ItemBrowsePage extends Partial<ItemBrowseSummary> {
+  rows: ItemBrowseRow[];
 }
 
 export interface Item extends VersionedContentMetadata {
@@ -289,6 +294,8 @@ export interface ItemIndexEntry {
   subtype: Item["subtype"];
   rarity: ItemRarity;
   cost: Item["cost"];
+  /** Matched by the inventory add box's search, with name and subtype. */
+  tags: string[];
   source: string | null;
   source_document_key: string | null;
   source_record_key: string | null;

@@ -210,6 +210,9 @@ export interface SpellBrowseRow {
   source_title: string | null;
   source_url: string | null;
   is_shared: boolean;
+  /** The caller owns the row. Library rows and other members' custom spells
+   *  (a player reads their DM's) are not own, so cannot be edited or re-scoped. */
+  is_own: boolean;
 }
 
 export interface Spell {

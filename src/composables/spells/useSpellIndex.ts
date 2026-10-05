@@ -8,8 +8,11 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
-// Must NOT start with "library-spells": that prefix is the full-row cache.
+// Must NOT start with "library-spells": that prefix holds full rows (`useLibrarySpell`).
 const LIBRARY_INDEX_KEY = "library-spell-index";
+/** Shape segment of the persisted library half: an entry written by an older build
+ *  lacks the fields added since (#972), so a new shape starts a new key. */
+const INDEX_SHAPE = "v2";
 
 const LIBRARY_COLUMNS = "id, name, level, school, concentration, source, classes";
 const CUSTOM_COLUMNS = "id, name, level, school, concentration, source, classes, campaign_id";
@@ -63,8 +66,7 @@ async function fetchCustomSpellIndex(campaignId: string | null, ruleset: Ruleset
   return all;
 }
 
-/** The same membership as `useAllSpells()` (enabled library sources + custom
- *  spells, sorted level then name) without the descriptions. A row opens in
+/** Enabled library sources plus custom spells, sorted level then name, without the descriptions. A row opens in
  *  full through `useSpellsByIds`. */
 export function useSpellIndex(getOptions?: () => { enabled?: boolean }) {
   const campaign = useCampaignStore();
@@ -73,8 +75,8 @@ export function useSpellIndex(getOptions?: () => { enabled?: boolean }) {
   const on = () => getOptions?.().enabled !== false;
 
   const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_INDEX_KEY, slugs.value, ruleset.value] as const),
-    queryFn: ({ queryKey: [, enabledSlugs, activeRuleset] }) => {
+    queryKey: computed(() => [LIBRARY_INDEX_KEY, INDEX_SHAPE, slugs.value, ruleset.value] as const),
+    queryFn: ({ queryKey: [, , enabledSlugs, activeRuleset] }) => {
       if (enabledSlugs === null) throw new Error("useSpellIndex fetched without enabled sources");
       return fetchLibrarySpellIndex(enabledSlugs, activeRuleset);
     },

@@ -1,10 +1,13 @@
-import { defineComponent, h } from "vue";
+import { defineComponent, h, nextTick, ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
 type Call = { table: string; column: string; values: string[] };
-const mocks = vi.hoisted(() => ({ calls: [] as Array<{ table: string; column: string; values: string[] }> }));
+const mocks = vi.hoisted(() => ({
+  calls: [] as Array<{ table: string; column: string; values: string[] }>,
+  gate: null as Promise<void> | null,
+}));
 
 vi.mock("@/lib/supabase", () => ({
   getCurrentUser: () => ({ id: "user-1" }),
@@ -13,10 +16,11 @@ vi.mock("@/lib/supabase", () => ({
       select: () => ({
         in: (column: string, values: string[]) => {
           mocks.calls.push({ table, column, values });
-          return Promise.resolve({
+          const result = {
             data: values.map((id) => ({ id, name: `${table}:${id}`, level: 1 })),
             error: null,
-          });
+          };
+          return mocks.gate ? mocks.gate.then(() => result) : Promise.resolve(result);
         },
       }),
     }),
@@ -31,6 +35,7 @@ const callsFor = (table: string): Call[] => mocks.calls.filter((c) => c.table ==
 
 beforeEach(() => {
   mocks.calls.length = 0;
+  mocks.gate = null;
 });
 
 describe("fetchSpellsByIds", () => {
@@ -63,13 +68,13 @@ describe("fetchSpellsByIds", () => {
 });
 
 describe("useSpellsByIds", () => {
-  function run(ids: string[]) {
+  function run(ids: string[] | (() => string[])) {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     let result!: ReturnType<typeof useSpellsByIds>;
     mount(
       defineComponent({
         setup() {
-          result = useSpellsByIds(() => ids);
+          result = useSpellsByIds(typeof ids === "function" ? ids : () => ids);
           return () => h("div");
         },
       }),
@@ -95,5 +100,39 @@ describe("useSpellsByIds", () => {
     expect(a.queryClient.getQueryCache().getAll()[0].queryKey).toEqual(
       b.queryClient.getQueryCache().getAll()[0].queryKey,
     );
+  });
+
+  it("keeps resolved spells, and isLoading false, while a grown id set loads", async () => {
+    const list = ref(["srd_a"]);
+    const { result } = run(() => list.value);
+    await flushPromises();
+    let release!: () => void;
+    mocks.gate = new Promise<void>((r) => (release = r));
+    list.value = ["srd_a", "srd_b"];
+    await nextTick();
+    expect(result.isLoading.value).toBe(false);
+    expect([...result.data.value.keys()]).toEqual(["srd_a"]);
+    release();
+    await flushPromises();
+    expect([...result.data.value.keys()].sort()).toEqual(["srd_a", "srd_b"]);
+  });
+
+  it("never shows an id that is no longer requested while a placeholder is up", async () => {
+    const list = ref(["srd_a", "srd_b"]);
+    const { result } = run(() => list.value);
+    await flushPromises();
+    mocks.gate = new Promise<void>(() => {});
+    list.value = ["srd_b", "srd_c"];
+    await nextTick();
+    expect([...result.data.value.keys()]).toEqual(["srd_b"]);
+  });
+
+  it("yields an empty map once every id is removed", async () => {
+    const list = ref(["srd_a"]);
+    const { result } = run(() => list.value);
+    await flushPromises();
+    list.value = [];
+    await flushPromises();
+    expect(result.data.value.size).toBe(0);
   });
 });

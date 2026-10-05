@@ -116,7 +116,7 @@ import { useToast } from "@/composables/useToast";
 import { postgrestMessage, useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
-import { useItemsByIds } from "@/composables/items/useItemsByIds";
+import { resolveItemById, useItemsByIds } from "@/composables/items/useItemsByIds";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
@@ -125,6 +125,7 @@ import type { RollResult } from "@/lib/dice/dice";
 import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
 import { toCP, fromCP } from "@/rules/currency";
 import { itemRefColumns } from "@/lib/itemRef";
+import type { Item } from "@/types/item.types";
 
 const { contained = false, hideTab = false } = defineProps<{ contained?: boolean; hideTab?: boolean }>();
 
@@ -350,6 +351,16 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
   const costCP   = toCP(meta.pp, meta.gp, meta.ep, meta.sp, meta.cp);
   if (walletCP < costCP) return; // button is already disabled; guard against race conditions
 
+  // Read the item before any money moves: its flags decide whether it is a service or
+  // arrives identified, and the reactive map can lag a refetch. A failed read aborts here.
+  let vendorVaultItem: Item | undefined;
+  try {
+    vendorVaultItem = meta.item_id ? await resolveItemById(queryClient, namedItems.value, meta.item_id) : undefined;
+  } catch (e) {
+    reportChatFailure(e, "pay for that");
+    return;
+  }
+
   const payerName = resolveClaimerName();
   try {
     await claimVendorOffer(messageId, payerName, partyMemberId);
@@ -358,7 +369,6 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
   }
 
   const { pp, gp, ep, sp, cp } = fromCP(walletCP - costCP);
-  const vendorVaultItem = meta.item_id ? namedItems.value.get(meta.item_id) : undefined;
   const isService = vendorVaultItem?.item_type === "service";
   await Promise.all([
     updatePartyMember({ id: member.id, update: { pp, gp, ep, sp, cp } }),
@@ -448,6 +458,18 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
     || (party.value ?? []).find(p => p.id === partyMemberId)?.name
     || "Someone";
 
+  // Read the item before the claim stamps the atom: the container flag comes from its
+  // tags, and the reactive map can lag a refetch. A failed read leaves the atom unclaimed.
+  let vaultItem: Item | undefined;
+  if (atom.type !== 'currency' && atom.item_id) {
+    try {
+      vaultItem = await resolveItemById(queryClient, namedItems.value, atom.item_id);
+    } catch (e) {
+      reportChatFailure(e, "claim that from the chest");
+      return;
+    }
+  }
+
   try {
     await claimLootChestAtom(messageId, atomId, claimerName);
   } catch (e) {
@@ -483,7 +505,6 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
   {
     // Flags come from the rolled atom (captured from the source item), not the
     // claimer's vault cache — same identification/container leak as item_drop.
-    const vaultItem = atom.item_id ? namedItems.value.get(atom.item_id) : undefined;
     await addInventoryItem({
       name: atom.item_name ?? "",
       quantity: 1,

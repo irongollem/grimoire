@@ -1,8 +1,8 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
-import { keepPreviousData, useInfiniteQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useRuleset } from "@/composables/rules/useRuleset";
+import { useCatalogueBrowse, useSettledSearch } from "@/composables/library/useCatalogueBrowse";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import type { SpellBrowseRow } from "@/types/spell.types";
 
@@ -18,10 +18,15 @@ export interface SpellBrowseFilters {
   source: string;
 }
 
-interface SpellBrowsePage {
-  rows: SpellBrowseRow[];
+/** What `browse_spells` reports about the whole filtered result. Only the
+ *  first page (offset 0) carries it. */
+interface SpellBrowseSummary {
   total: number;
   selectable_ids: string[];
+}
+
+interface SpellBrowsePage extends Partial<SpellBrowseSummary> {
+  rows: SpellBrowseRow[];
 }
 
 async function fetchPage(
@@ -58,45 +63,37 @@ export function useSpellBrowse(filters: MaybeRefOrGetter<SpellBrowseFilters>) {
   const { ruleset } = useRuleset();
   const { slugs } = useLibrarySourceSlugs();
 
-  const query = useInfiniteQuery({
-    queryKey: computed(() => {
-      const f = toValue(filters);
+  const search = useSettledSearch(() => toValue(filters).search);
+  const effective = computed<SpellBrowseFilters>(() => ({ ...toValue(filters), search: search.value }));
+
+  const browse = useCatalogueBrowse<SpellBrowseRow, SpellBrowsePage>({
+    queryKey: () => {
+      const f = effective.value;
       return [
         "spells", "browse", slugs.value, ruleset.value, campaign.activeCampaignId,
-        f.search.trim(), f.level, f.school, f.class, f.source,
+        f.search, f.level, f.school, f.class, f.source,
       ] as const;
-    }),
-    queryFn: ({ pageParam }) => {
+    },
+    fetchPage: (offset) => {
       const s = slugs.value;
       if (s === null) throw new Error("useSpellBrowse fetched without enabled sources");
-      return fetchPage(s, ruleset.value, campaign.activeCampaignId, toValue(filters), pageParam);
-    },
-    initialPageParam: 0,
-    getNextPageParam: (last, pages) => {
-      const loaded = pages.reduce((n, p) => n + p.rows.length, 0);
-      return loaded < last.total && last.rows.length > 0 ? loaded : undefined;
+      return fetchPage(s, ruleset.value, campaign.activeCampaignId, effective.value, offset);
     },
     enabled: () => slugs.value !== null,
-    placeholderData: keepPreviousData,
-    staleTime: Infinity,
   });
-
-  const rows = computed<SpellBrowseRow[]>(() => query.data.value?.pages.flatMap((p) => p.rows) ?? []);
-  const total = computed(() => query.data.value?.pages[0]?.total ?? 0);
-  /** Own, non-shared rows matching the filters (whole result, not just loaded). */
-  const selectableIds = computed<string[]>(() => query.data.value?.pages[0]?.selectable_ids ?? []);
-  /** False while page 1 of the current filters is still loading. */
-  const ready = computed(() => query.data.value !== undefined && !query.isPlaceholderData.value);
+  const { first } = browse;
 
   return {
-    rows,
-    total,
-    selectableIds,
-    ready,
-    hasNextPage: query.hasNextPage,
-    isFetchingNextPage: query.isFetchingNextPage,
-    fetchNextPage: () => query.fetchNextPage(),
-    isLoading: computed(() => query.isLoading.value || slugs.value === null),
-    error: query.error,
+    rows: browse.rows,
+    total: computed(() => first.value?.total ?? 0),
+    /** Own, non-shared rows matching the filters (whole result, not just loaded). */
+    selectableIds: computed<string[]>(() => first.value?.selectable_ids ?? []),
+    /** False while page 1 of the current filters is still loading. */
+    ready: browse.ready,
+    hasNextPage: browse.hasNextPage,
+    isFetchingNextPage: browse.isFetchingNextPage,
+    fetchNextPage: browse.fetchNextPage,
+    isLoading: computed(() => browse.isLoading.value || slugs.value === null),
+    error: browse.error,
   };
 }

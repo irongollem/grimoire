@@ -1,5 +1,5 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
-import { useQuery } from "@tanstack/vue-query";
+import { keepPreviousData, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import type { Spell } from "@/types/spell.types";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -59,7 +59,17 @@ export function useSpellsByIds(ids: MaybeRefOrGetter<readonly string[]>) {
     queryFn: ({ queryKey: [, , libraryIds, customIds] }) => fetchNormalised(libraryIds, customIds),
     enabled: () => key.value[2].length > 0,
     staleTime: Infinity,
+    // Adding one id changes the key; keep the rows already resolved on screen while the new set loads.
+    placeholderData: keepPreviousData,
   });
-  const data = computed(() => query.data.value ?? new Map<string, Spell>());
+  const data = computed(() => {
+    const rows = query.data.value;
+    const requested = key.value[2];
+    if (!rows || requested.length === 0) return new Map<string, Spell>();
+    // A placeholder is the previous key's rows: show only what is still requested.
+    if (!query.isPlaceholderData.value) return rows;
+    const wanted = new Set(requested);
+    return new Map([...rows].filter(([id]) => wanted.has(id)));
+  });
   return { data, isLoading: query.isLoading };
 }

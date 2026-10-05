@@ -12,16 +12,19 @@ import type { RulesetKey } from "@/types/ruleset.types";
 
 /** Prefix must not start with "library-items": that root is persisted wholesale (#972). */
 const LIBRARY_INDEX_KEY = "library-item-index";
-// `cost` and `subtype` are shown in the store's add list and Card Forge.
+/** Shape segment of the persisted library half: an entry written by an older build
+ *  lacks the fields added since (#972), so a new shape starts a new key. */
+const INDEX_SHAPE = "v2";
+// `cost` and `subtype` are shown in the store's add list and Card Forge; `tags` are matched by the inventory add box.
 const INDEX_COLUMNS =
-  "id, name, item_type, subtype, rarity, cost, source, source_document_key, source_record_key, image_url, ruleset";
+  "id, name, item_type, subtype, tags, rarity, cost, source, source_document_key, source_record_key, image_url, ruleset";
 const CUSTOM_INDEX_COLUMNS = `${INDEX_COLUMNS}, campaign_id`;
 
 type LibraryIndexRow = Omit<ItemIndexEntry, "is_shared" | "campaign_id">;
 type CustomIndexRow = Omit<ItemIndexEntry, "is_shared">;
 
 async function fetchLibraryIndex(enabledSlugs: string[], ruleset: RulesetKey): Promise<ItemIndexEntry[]> {
-  // Same membership as fetchLibraryItems: edition-neutral bundled gear plus the enabled books.
+  // Membership: edition-neutral bundled gear plus the enabled books.
   const rows = await fetchAllRows((from, to) =>
     supabase
       .from("library_items")
@@ -41,7 +44,7 @@ async function fetchCustomIndex(
   ruleset: RulesetKey,
 ): Promise<ItemIndexEntry[]> {
   // Scoped here rather than left to RLS (a ceiling, not a filter). The scope and
-  // edition filters are the ones buildCatalogue applies to the browse list.
+  // edition filters are the ones `browse_items` applies to the browse list.
   let query = supabase.from("items").select(CUSTOM_INDEX_COLUMNS).eq("user_id", userId);
   query = campaignId === null ? query.is("campaign_id", null) : query.or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
   const { data, error } = await query
@@ -52,10 +55,10 @@ async function fetchCustomIndex(
 }
 
 /**
- * What an item picker may offer, slim: the same membership as `useItems().data`
+ * What an item picker may offer, slim: the membership of the Vault page
  * (own rows of the table's edition in the active campaign scope, plus the library
- * rows the enabled books offer, an own row shadowing its library twin) without
- * loading the whole catalogue. Pick a row, then read it with `useItemsByIds`.
+ * rows the enabled books offer, an own row shadowing its library twin) as
+ * slim rows. Pick a row, then read it with `useItemsByIds`.
  *
  * Library art needs no `library_art_defaults` stamp here: `sync_library_item_art()`
  * bakes it into `library_items.image_url` server side.
@@ -67,8 +70,8 @@ export function useItemIndex(getOptions?: () => { enabled?: boolean }) {
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
 
   const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_INDEX_KEY, enabledSlugs.value, ruleset.value] as const),
-    queryFn: ({ queryKey: [, slugs, rs] }) => {
+    queryKey: computed(() => [LIBRARY_INDEX_KEY, INDEX_SHAPE, enabledSlugs.value, ruleset.value] as const),
+    queryFn: ({ queryKey: [, , slugs, rs] }) => {
       if (slugs === null) throw new Error("useItemIndex library fetch ran without enabled sources");
       return fetchLibraryIndex(slugs, rs);
     },

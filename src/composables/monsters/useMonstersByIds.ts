@@ -1,5 +1,5 @@
 import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from "vue";
-import { useQuery } from "@tanstack/vue-query";
+import { keepPreviousData, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -72,6 +72,8 @@ export function useMonstersByIds(
     queryFn: ({ queryKey: [, , libraryIds, customIds] }) => fetchByIds(libraryIds, customIds),
     enabled: hasIds,
     staleTime: Infinity,
+    // A spawn mid-fight changes the key; keep resolved monsters (and `isLoading` false) while the new set loads.
+    placeholderData: keepPreviousData,
   });
 
   const artQuery = useQuery({
@@ -79,11 +81,18 @@ export function useMonstersByIds(
     queryFn: ({ queryKey: [, , libraryIds] }) => fetchLibraryMonsterArtEntries(libraryIds),
     enabled: () => opts?.withArt === true && split.value.libraryIds.length > 0,
     staleTime: 1000 * 60 * 30,
+    // So a refetch never briefly yields art-less monsters.
+    placeholderData: keepPreviousData,
   });
 
   const data = computed(() => {
-    const monsters = monstersQuery.data.value;
-    if (!monsters) return new Map<string, Monster>();
+    const stored = monstersQuery.data.value;
+    if (!stored || !hasIds()) return new Map<string, Monster>();
+    // A placeholder is the previous key's rows: show only what is still requested.
+    const wanted = new Set([...split.value.libraryIds, ...split.value.customIds]);
+    const monsters = monstersQuery.isPlaceholderData.value
+      ? new Map([...stored].filter(([id]) => wanted.has(id)))
+      : stored;
     const art = artQuery.data.value;
     if (!opts?.withArt || !art) return monsters;
     const withArt = withLibraryArtAll(
