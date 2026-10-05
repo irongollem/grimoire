@@ -4,18 +4,22 @@
       <LoadingSpinner />
     </div>
 
+    <!-- A reader (a player choosing a background, or a non-DM in the Codex)
+         cannot add one, so pointing them at /backgrounds/new sent them to a
+         DM route. -->
+    <EmptyState
+      v-else-if="!filtered.length && !ui.backgroundsHasActiveFilters && readonly"
+      title="No backgrounds available"
+      description="Your DM hasn't added any backgrounds to this campaign yet."
+    />
+
     <EmptyState
       v-else-if="!filtered.length && !ui.backgroundsHasActiveFilters"
       title="No backgrounds yet"
-      description="Build your own or import from Open5e using the button above."
+      description="Build your own or import from Open5e."
     >
       <template #action>
-        <RouterLink
-          to="/backgrounds/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-heading-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-        >
-          Add your first background
-        </RouterLink>
+        <AppButton variant="primary" size="lg" to="/backgrounds/new" label="Add your first background" />
       </template>
     </EmptyState>
 

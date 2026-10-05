@@ -21,21 +21,17 @@
       </div>
     </div>
   </div>
-  <div v-else-if="!isLoading" class="mt-6">
-    <p class="text-body text-muted-foreground italic text-center">
-      No events in this period.
-    </p>
-  </div>
 </template>
 
 <script setup lang="ts">
 import { eventColor } from "@/types/calendar.types";
 import type { CalendarEvent } from "@/types/calendar.types";
 
-const { events, readOnly = false, isLoading = false } = defineProps<{
+// No empty state of its own: the timeline above already says the period is
+// empty, and a second line saying so below it read as a stutter.
+const { events, readOnly = false } = defineProps<{
   events: CalendarEvent[];
   readOnly?: boolean;
-  isLoading?: boolean;
   formatEventDate: (event: CalendarEvent) => string;
 }>();
 

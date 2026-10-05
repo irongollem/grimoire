@@ -282,8 +282,10 @@
           "
           class="absolute inset-0 flex items-center justify-center pointer-events-none"
         >
-          <p class="text-body text-muted-foreground italic">
-            No events in this period. Add one with the button above.
+          <!-- Centred on the axis, so it needs a ground or the line strikes through it. -->
+          <p class="rounded bg-card px-2 text-body text-muted-foreground italic">
+            <template v-if="readOnly">Nothing recorded in this period yet.</template>
+            <template v-else>No events in this period. Add one with the button above.</template>
           </p>
         </div>
       </div>
@@ -308,7 +310,6 @@
     <CalendarTimelineEventList
       :events="visibleEvents"
       :read-only="readOnly"
-      :is-loading="isLoading"
       :format-event-date="formatEventDate"
       @edit-event="emit('edit-event', $event)"
     />

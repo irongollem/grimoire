@@ -32,12 +32,7 @@
       description="Build your own or import from Open5e."
     >
       <template #action>
-        <RouterLink
-          to="/species/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-heading-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-        >
-          Add your first species
-        </RouterLink>
+        <AppButton variant="primary" size="lg" to="/species/new" label="Add your first species" />
       </template>
     </EmptyState>
 

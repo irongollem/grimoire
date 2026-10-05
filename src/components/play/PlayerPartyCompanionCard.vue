@@ -12,15 +12,20 @@
         :placeholder="placeholderUrl('companion')"
         class="group-hover:scale-105 transition-transform duration-300"
       />
-      <span
-        class="absolute top-2 right-2 text-label px-1.5 py-0.5 rounded text-white"
-        :style="{ backgroundColor: COMPANION_TYPE_COLORS[companion.companion_type] + 'CC' }"
-      >{{ COMPANION_TYPE_LABELS[companion.companion_type] }}</span>
-      <span
-        v-if="!companion.combat_ready"
-        class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded bg-black/60 text-white italic"
-        title="Not with the party right now"
-      >Elsewhere</span>
+      <!-- One stack, not two corners: on a phone-width card "Animal Companion"
+           alone spans most of the image, and a second chip pinned to the other
+           corner sat on top of it. -->
+      <div class="absolute top-2 right-2 flex flex-col items-end gap-1">
+        <span
+          class="text-label px-1.5 py-0.5 rounded text-white"
+          :style="{ backgroundColor: COMPANION_TYPE_COLORS[companion.companion_type] + 'CC' }"
+        >{{ COMPANION_TYPE_LABELS[companion.companion_type] }}</span>
+        <span
+          v-if="!companion.combat_ready"
+          class="text-label px-1.5 py-0.5 rounded bg-black/60 text-white italic"
+          title="Not with the party right now"
+        >Elsewhere</span>
+      </div>
       <AiImageBadge :src="companion.portrait_url" />
     </div>
     <div class="p-2.5 flex flex-col gap-1.5">
