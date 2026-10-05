@@ -34,7 +34,7 @@ vi.mock("@/composables/quests/useQuests", () => ({
   ] } }),
   // #836: only `undiscovered` quests can be unlocked, and the quest being
   // edited is excluded — the database refuses a self-unlock.
-  useAllQuests: () => ({ data: { value: [
+  useQuests: () => ({ data: { value: [
     { id: "quest-1", title: "This very quest", status: "undiscovered" },
     { id: "quest-sequel", title: "The stolen cauldron", status: "undiscovered", entry_beat_id: "beat-rumor" },
     { id: "quest-empty", title: "The empty ledger", status: "undiscovered", entry_beat_id: null },

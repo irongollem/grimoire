@@ -101,7 +101,7 @@
 import { computed } from "vue";
 import { IconNavQuests, IconScrollText } from '@/lib/icons';
 import {
-  useAllQuests,
+  useQuests,
   useCampaignQuestRefs,
   useUpdateQuest,
 } from "@/composables/quests/useQuests";
@@ -124,7 +124,7 @@ const ui = useUiStore();
 const search = computed(() => ui.questsSearch);
 const isKanban = computed(() => ui.questsIsKanban);
 
-const { data: allQuests, isLoading } = useAllQuests();
+const { data: allQuests, isLoading } = useQuests();
 const { data: party } = useParty(() => isKanban.value);
 const { data: campaignRefs } = useCampaignQuestRefs();
 const { data: boardSummaries } = useQuestBoardSummaries();

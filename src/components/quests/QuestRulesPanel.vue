@@ -123,7 +123,7 @@ import {
   useDeleteQuestConsequence,
   useQuestConsequences,
 } from "@/composables/quests/useQuestFlow";
-import { useAllQuests, useQuestObjectives } from "@/composables/quests/useQuests";
+import { useQuests, useQuestObjectives } from "@/composables/quests/useQuests";
 import { useUnlockEntryPicker } from "@/composables/quests/useUnlockEntryPicker";
 import { useHandoutPayoff } from "@/composables/quests/useHandoutPayoff";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -286,7 +286,7 @@ const npcPickerShown = computed(() => npcs.value === undefined || npcOptions.val
 // being edited is excluded too: `quest_consequences_no_self_unlock` refuses it,
 // and offering an option the database rejects is worse than not offering it.
 // Derived from the campaign quest list rather than a status read of its own.
-const { data: allQuests } = useAllQuests();
+const { data: allQuests } = useQuests();
 const unlockableQuestOptions = computed(() =>
   (allQuests.value ?? [])
     .filter((quest) => quest.status === "undiscovered" && quest.id !== questId)

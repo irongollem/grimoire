@@ -36,7 +36,7 @@ vi.mock("@/composables/scriptorium/useScriptorium", () => ({
 }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: () => ({ data: ref(mocks.objectives) }),
-  useAllQuests: () => ({ data: ref(mocks.subQuests) }),
+  useQuests: () => ({ data: ref(mocks.subQuests) }),
   useAssertQuestObjectiveStatus: () => ({ mutateAsync: mocks.assertStatus }),
   useCreateObjective: () => ({ mutateAsync: mocks.createObjective }),
   useUpdateObjective: () => ({ mutateAsync: mocks.updateObjective }),

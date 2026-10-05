@@ -40,7 +40,7 @@
 import AppButton from "@/components/common/AppButton.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { useAllQuests } from "@/composables/quests/useQuests";
+import { useQuests } from "@/composables/quests/useQuests";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import DashboardWidget from "../DashboardWidget.vue";
 
@@ -60,7 +60,7 @@ import DashboardWidget from "../DashboardWidget.vue";
  * Gaps sort above it: a beat that cannot run blocks the evening, an
  * undelivered reward only disappoints afterwards.
  */
-const { data: quests, isLoading: questsLoading } = useAllQuests();
+const { data: quests, isLoading: questsLoading } = useQuests();
 const { data: summaries, isLoading: summariesLoading } = useQuestBoardSummaries();
 const isLoading = computed(() => questsLoading.value || summariesLoading.value);
 

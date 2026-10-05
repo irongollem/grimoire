@@ -33,7 +33,7 @@ export function isLedgerConsequenceAction(action: QuestConsequenceAction): boole
 /** What `describeQuestConsequenceAction` needs to name an unlock's target
  *  quest and, when the bridge names one, the beat it enters at. Both callers
  *  that pass this (`QuestPayoffPanel`, `QuestRulesPanel`) already hold the
- *  data these read from — `useQuests("undiscovered")` and the target quest's
+ *  data these read from — the campaign quest list (`useQuests()`, filtered to `undiscovered`) and the target quest's
  *  own `useQuestBeats` — so the resolver is a thin adapter, not a fetch. */
 export interface QuestConsequenceLabelResolver {
   questLabel?: (id: string | null) => string;

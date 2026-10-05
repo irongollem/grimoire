@@ -110,7 +110,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAllQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/quests/useQuests";
+import { useQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/quests/useQuests";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { countQuestBoardFilters } from "@/lib/quests/board";
 
@@ -118,7 +118,7 @@ const ui = useUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { data: entityOptions } = useQuestFilterEntities();
-const { data: allQuests } = useAllQuests();
+const { data: allQuests } = useQuests();
 const { data: campaignRefs } = useCampaignQuestRefs();
 const { data: boardSummaries } = useQuestBoardSummaries();
 const filterCounts = computed(() => countQuestBoardFilters(

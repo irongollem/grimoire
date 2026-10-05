@@ -16,7 +16,6 @@ import type {
   QuestObjectiveUpdate,
   QuestRef,
   QuestRefInsert,
-  QuestStatus,
 } from "@/types/quest.types";
 
 const QUESTS_KEY     = "quests";
@@ -32,16 +31,12 @@ export interface QuestFilterEntityOption {
 
 // ── Quest fetchers ─────────────────────────────────────────────────────────────
 
-async function fetchQuests(campaignId: string, status?: QuestStatus): Promise<Quest[]> {
-  let query = supabase
+async function fetchQuests(campaignId: string): Promise<Quest[]> {
+  const { data, error } = await supabase
     .from("quests")
     .select("*")
     .eq("campaign_id", campaignId)
     .order("updated_at", { ascending: false });
-
-  if (status) query = query.eq("status", status);
-
-  const { data, error } = await query;
   if (error) throw error;
   return data as Quest[];
 }
@@ -164,14 +159,14 @@ async function deleteRef(id: string): Promise<void> {
 
 // ── Public composables ─────────────────────────────────────────────────────────
 
-export function useQuests(status?: QuestStatus) {
+export function useQuests() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, campaignId.value, status ?? "all"] as const),
+    queryKey: computed(() => [QUESTS_KEY, campaignId.value, "all"] as const),
     queryFn: ({ queryKey: [, cid] }) => {
       if (cid === null) throw new Error("useQuests fetched without a campaign");
-      return fetchQuests(cid, status);
+      return fetchQuests(cid);
     },
     enabled: () => !!campaignId.value,
   });
@@ -228,19 +223,6 @@ export function usePlayerVisibleQuest(id: string | Ref<string>) {
       return ((data ?? []) as Quest[])[0] ?? null;
     },
     enabled: () => !!idRef.value,
-  });
-}
-
-export function useAllQuests() {
-  const campaign = useCampaignStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
-  return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, campaignId.value, "all"] as const),
-    queryFn: ({ queryKey: [, cid] }) => {
-      if (cid === null) throw new Error("useAllQuests fetched without a campaign");
-      return fetchQuests(cid);
-    },
-    enabled: () => !!campaignId.value,
   });
 }
 

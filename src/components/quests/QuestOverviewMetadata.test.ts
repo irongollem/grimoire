@@ -24,7 +24,7 @@ vi.mock("@/composables/locations/useLocations", () => ({
 }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({ useQuestBeats: () => ({ data: { value: mocks.beats } }) }));
 vi.mock("@/composables/quests/useQuests", () => ({
-  useAllQuests: () => ({ data: { value: mocks.allQuests } }),
+  useQuests: () => ({ data: { value: mocks.allQuests } }),
   useUpdateQuest: () => ({ mutateAsync: mocks.updateQuest }),
 }));
 vi.mock("@/composables/campaign/useCampaignBroadcast", () => ({ sendCampaignAnnouncement: mocks.announce }));

@@ -72,14 +72,14 @@ import EncounterList from "@/components/encounters/EncounterList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAllQuests } from "@/composables/quests/useQuests";
+import { useQuests } from "@/composables/quests/useQuests";
 import { useQuota } from "@/composables/billing/useQuota";
 
 const router = useRouter();
 const ui = useUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
-const { data: quests } = useAllQuests();
+const { data: quests } = useQuests();
 const { canCreate } = useQuota("encounters");
 const showPaywall = ref(false);
 

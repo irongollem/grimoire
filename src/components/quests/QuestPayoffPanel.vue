@@ -257,9 +257,9 @@ const npcOptions = computed(() => (npcs.value ?? []).map((npc) => ({ id: npc.id,
 
 // Only `undiscovered` quests, and never the quest being edited — the same
 // no-self-unlock rule the flow's own consequence editor enforces.
-const { data: undiscoveredQuests } = useQuests("undiscovered");
-const unlockableQuestOptions = computed(() => (undiscoveredQuests.value ?? [])
-  .filter((quest) => quest.id !== beat.quest_id)
+const { data: allQuests } = useQuests();
+const unlockableQuestOptions = computed(() => (allQuests.value ?? [])
+  .filter((quest) => quest.status === "undiscovered" && quest.id !== beat.quest_id)
   .map((quest) => ({ id: quest.id, name: quest.title })));
 
 // "Enters at" (#871) — see useUnlockEntryPicker for the shared mechanism.

@@ -13,7 +13,6 @@ interface Context {
   isDM: boolean;
 }
 
-const QUEST_STATUSES = new Set(["undiscovered", "active", "completed", "failed"]);
 
 function isString(value: unknown): value is string {
   return typeof value === "string";
@@ -134,11 +133,11 @@ function applyQuests(queryClient: QueryClient, change: Change, context: Context)
       rootKey: "quests",
       include: (key) => (
         (key.length === 2 && isString(key[1]) && key[1] !== "player-one")
-        || (key.length === 3 && key[1] === context.campaignId && (key[2] === "all" || isString(key[2]) && QUEST_STATUSES.has(key[2])))
+        || (key.length === 3 && key[1] === context.campaignId && key[2] === "all")
       ),
       matches: (key, row) => {
         if (key.length === 2) return key[1] === row.id;
-        return row.campaign_id === context.campaignId && (key[2] === "all" || key[2] === row.status);
+        return row.campaign_id === context.campaignId;
       },
       compare: compareNewest,
     });

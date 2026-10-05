@@ -138,7 +138,7 @@ import {
   useDeleteObjective,
   useDeleteQuest,
   useQuestObjectives,
-  useAllQuests,
+  useQuests,
   useUpdateObjective,
 } from "@/composables/quests/useQuests";
 import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
@@ -159,7 +159,7 @@ const { data: objectives } = useQuestObjectives(questId);
 // Sub-quests come from the campaign quest list this screen already holds, not
 // a read of their own; the list is newest-edited first, which is the order the
 // sidebar shows.
-const { data: allQuests } = useAllQuests();
+const { data: allQuests } = useQuests();
 const subQuests = computed(() => (allQuests.value ?? []).filter((q) => q.parent_quest_id === props.quest.id));
 const { data: notes } = useEntityNotes("quest", questId);
 // The giver and place names are needed once, at click time, so they are read as

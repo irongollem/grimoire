@@ -39,24 +39,20 @@ describe("applyCampaignRealtimeWorld", () => {
     expect(qc.getQueryData(["notes", "newer"])).toEqual(newer);
   });
 
-  it("moves quests between status lists while invalidating, not replacing, player projections", () => {
+  it("updates the campaign quest list in place while invalidating, not replacing, player projections", () => {
     const qc = new QueryClient();
     const previous = row({ id: "quest-1", status: "undiscovered", parent_quest_id: "parent-a", notes: "secret" });
     const next = row({ ...previous, status: "active", parent_quest_id: "parent-b", notes: "still secret" });
     const playerProjection = [{ id: "quest-1", title: "Public", notes: null }];
-    qc.setQueryData(["quests", "campaign-1", "undiscovered"], [previous]);
-    qc.setQueryData(["quests", "campaign-1", "active"], []);
+    qc.setQueryData(["quests", "campaign-1", "all"], [previous]);
     qc.setQueryData(["quests", "campaign-1", "player-visible"], playerProjection);
     qc.setQueryData(["quests", "player-one", "quest-1"], playerProjection[0]);
     qc.setQueryData(["encounter_quests", "encounter-1"], [{ id: "quest-1", title: "Old" }]);
 
     expect(applyCampaignRealtimeWorld(qc, "quests", { eventType: "UPDATE", old: previous, new: next }, dm)).toBe(true);
-    expect(qc.getQueryData(["quests", "campaign-1", "undiscovered"])).toEqual([]);
-    // Neither destination list held a prior copy of this quest, so an UPDATE
-    // (which can omit an unchanged TOASTed column, e.g. `notes`) invalidates
-    // rather than splicing the payload straight in.
-    expect(qc.getQueryData(["quests", "campaign-1", "active"])).toEqual([]);
-    expect(invalidated(qc, ["quests", "campaign-1", "active"])).toBe(true);
+    // The one campaign list holds every status, so a status change replaces the
+    // row in place rather than moving it between lists.
+    expect(qc.getQueryData(["quests", "campaign-1", "all"])).toEqual([next]);
     expect(qc.getQueryData(["quests", "campaign-1", "player-visible"])).toBe(playerProjection);
     expect(qc.getQueryData(["quests", "player-one", "quest-1"])).toBe(playerProjection[0]);
     expect(invalidated(qc, ["quests", "campaign-1", "player-visible"])).toBe(true);

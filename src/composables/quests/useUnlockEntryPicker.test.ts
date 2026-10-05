@@ -8,7 +8,7 @@ const allQuestsData = ref<Quest[]>([]);
 const beatsByQuest = ref<Record<string, QuestBeat[]>>({});
 
 vi.mock("@/composables/quests/useQuests", () => ({
-  useAllQuests: () => ({ data: allQuestsData }),
+  useQuests: () => ({ data: allQuestsData }),
 }));
 // Keyed by the ref's own current value, like the real composable, so the
 // query reacts when `beatQueryTargetId` follows either the form's own

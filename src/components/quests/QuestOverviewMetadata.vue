@@ -92,7 +92,7 @@ import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroa
 import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
 import { useNpc, useNpcs } from "@/composables/npcs/useNpcs";
 import { useQuestBeats } from "@/composables/quests/useQuestFlow";
-import { useAllQuests, useUpdateQuest } from "@/composables/quests/useQuests";
+import { useQuests, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useAutosave } from "@/composables/useAutosave";
 import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
 import { useCampaignStore } from "@/stores/campaign";
@@ -120,7 +120,7 @@ const npcListWanted = ref(false);
 const locationListWanted = ref(false);
 const { data: npcs } = useNpcs(() => npcListWanted.value);
 const { data: locations } = useAllLocations(() => locationListWanted.value);
-const { data: allQuests } = useAllQuests();
+const { data: allQuests } = useQuests();
 const { data: beats } = useQuestBeats(computed(() => props.quest.id));
 const { mutateAsync: updateQuest } = useUpdateQuest();
 

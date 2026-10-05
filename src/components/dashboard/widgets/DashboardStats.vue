@@ -17,14 +17,14 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconNavAtlas, IconNavEncounters, IconNavNpcs, IconNavQuests } from "@/lib/icons";
-import { useAllQuests } from "@/composables/quests/useQuests";
+import { useQuests } from "@/composables/quests/useQuests";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useAllLocations } from "@/composables/locations/useLocations";
 
 /** Counts, not a card: the strip is a set of links that happen to carry a
  *  number, so it deliberately skips DashboardWidget's chrome. */
-const { data: allQuests } = useAllQuests();
+const { data: allQuests } = useQuests();
 const { data: npcs } = useNpcs();
 const { data: encounters } = useEncounters();
 const { data: locations } = useAllLocations();

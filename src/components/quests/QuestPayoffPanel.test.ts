@@ -31,12 +31,8 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
 }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: () => ({ data: { value: [{ id: "obj-1", description: "Keep the bridge standing" }] } }),
+  // The panel and the shared unlock picker both read the campaign list and filter it themselves.
   useQuests: () => ({ data: { value: [
-    { id: "quest-sequel", title: "The stolen cauldron", status: "undiscovered", entry_beat_id: "beat-rumor" },
-    { id: "quest-empty", title: "The empty ledger", status: "undiscovered", entry_beat_id: null },
-  ] } }),
-  // The shared unlock picker reads the campaign list and filters it itself.
-  useAllQuests: () => ({ data: { value: [
     { id: "quest-sequel", title: "The stolen cauldron", status: "undiscovered", entry_beat_id: "beat-rumor" },
     { id: "quest-empty", title: "The empty ledger", status: "undiscovered", entry_beat_id: null },
   ] } }),
