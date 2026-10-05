@@ -21,10 +21,8 @@ const mocks = vi.hoisted(() => ({
   insertResponses: [] as ({ data: { id: string }[] | null; error: Error | null } | undefined)[],
   insertCalls: [] as { table: string; rows: Record<string, unknown>[] }[],
   currentUserId: "user-1" as string | null,
-  queueItemEmbedding: vi.fn(),
+  queueEmbeddings: vi.fn(),
   queueMonsterEmbedding: vi.fn(),
-  queueNpcEmbedding: vi.fn(),
-  queueFactionEmbedding: vi.fn(),
   invalidateQuota: vi.fn(),
 }));
 
@@ -59,10 +57,8 @@ vi.mock("@/lib/supabase", () => ({
   getCurrentUser: () => (mocks.currentUserId ? { id: mocks.currentUserId } : null),
 }));
 
-vi.mock("@/composables/items/useItems", () => ({ queueItemEmbedding: mocks.queueItemEmbedding }));
+vi.mock("@/lib/queueEmbeddings", () => ({ queueEmbeddings: mocks.queueEmbeddings }));
 vi.mock("@/composables/monsters/useMonsters", () => ({ queueMonsterEmbedding: mocks.queueMonsterEmbedding }));
-vi.mock("@/composables/npcs/useNpcs", () => ({ queueNpcEmbedding: mocks.queueNpcEmbedding }));
-vi.mock("@/composables/factions/useFactions", () => ({ queueFactionEmbedding: mocks.queueFactionEmbedding }));
 vi.mock("@/composables/billing/useQuota", () => ({ useInvalidateQuota: () => mocks.invalidateQuota }));
 
 const { useCopyToCampaign, loadCopySources, planCopyFor, resolveUnenabledSources } = await import("./useCopyToCampaign");
@@ -97,10 +93,8 @@ beforeEach(() => {
   mocks.insertResponses = [];
   mocks.insertCalls = [];
   mocks.currentUserId = "user-1";
-  mocks.queueItemEmbedding.mockReset();
+  mocks.queueEmbeddings.mockReset();
   mocks.queueMonsterEmbedding.mockReset();
-  mocks.queueNpcEmbedding.mockReset();
-  mocks.queueFactionEmbedding.mockReset();
   mocks.invalidateQuota.mockReset();
 });
 
@@ -333,7 +327,7 @@ describe("useCopyToCampaign", () => {
 
     // Embeddings are queued in the background after the copy resolves — the
     // mutation never waits on them — so the assertion has to.
-    await vi.waitFor(() => expect(mocks.queueItemEmbedding).toHaveBeenCalledWith("new-item-1"));
+    await vi.waitFor(() => expect(mocks.queueEmbeddings).toHaveBeenCalledWith("item", ["new-item-1"]));
     expect(mocks.queueMonsterEmbedding).not.toHaveBeenCalled();
     unmount();
   });
@@ -345,17 +339,15 @@ describe("useCopyToCampaign", () => {
     await result.mutateAsync({ table: "monsters", payloads: [{}], linkPayloads: {}, dropped: [], needsSources: null });
 
     await vi.waitFor(() => expect(mocks.queueMonsterEmbedding).toHaveBeenCalledWith("new-monster-1"));
-    expect(mocks.queueItemEmbedding).not.toHaveBeenCalled();
+    expect(mocks.queueEmbeddings).not.toHaveBeenCalled();
     unmount();
   });
 
   it("never queues an embedding for the other six tables", async () => {
     const { result, unmount } = withQueryClient(() => useCopyToCampaign());
     await result.mutateAsync({ table: "traps", payloads: [{}], linkPayloads: {}, dropped: [], needsSources: null });
-    expect(mocks.queueItemEmbedding).not.toHaveBeenCalled();
+    expect(mocks.queueEmbeddings).not.toHaveBeenCalled();
     expect(mocks.queueMonsterEmbedding).not.toHaveBeenCalled();
-    expect(mocks.queueNpcEmbedding).not.toHaveBeenCalled();
-    expect(mocks.queueFactionEmbedding).not.toHaveBeenCalled();
     unmount();
   });
 
@@ -379,8 +371,9 @@ describe("useCopyToCampaign", () => {
       result.mutateAsync({ table: "items", payloads, linkPayloads: {}, dropped: [], needsSources: null }),
     ).rejects.toThrow("insert failed");
 
-    await vi.waitFor(() => expect(mocks.queueItemEmbedding).toHaveBeenCalledTimes(200));
-    for (const id of chunk1Ids) expect(mocks.queueItemEmbedding).toHaveBeenCalledWith(id);
+    // One batched call for the chunk, not 200 single ones.
+    await vi.waitFor(() => expect(mocks.queueEmbeddings).toHaveBeenCalledTimes(1));
+    expect(mocks.queueEmbeddings).toHaveBeenCalledWith("item", chunk1Ids);
     unmount();
   });
 
@@ -487,8 +480,8 @@ describe("useCopyToCampaign — npcs/factions batches (#885)", () => {
 
     await result.mutateAsync({ table: "npcs", payloads: [{}], linkPayloads: {}, dropped: [], needsSources: null });
 
-    await vi.waitFor(() => expect(mocks.queueNpcEmbedding).toHaveBeenCalledWith("new-npc-1"));
-    expect(mocks.queueFactionEmbedding).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(mocks.queueEmbeddings).toHaveBeenCalledWith("npc", ["new-npc-1"]));
+    expect(mocks.queueEmbeddings).toHaveBeenCalledTimes(1);
     unmount();
   });
 
@@ -498,8 +491,8 @@ describe("useCopyToCampaign — npcs/factions batches (#885)", () => {
 
     await result.mutateAsync({ table: "factions", payloads: [{}], linkPayloads: {}, dropped: [], needsSources: null });
 
-    await vi.waitFor(() => expect(mocks.queueFactionEmbedding).toHaveBeenCalledWith("new-faction-1"));
-    expect(mocks.queueNpcEmbedding).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(mocks.queueEmbeddings).toHaveBeenCalledWith("faction", ["new-faction-1"]));
+    expect(mocks.queueEmbeddings).toHaveBeenCalledTimes(1);
     unmount();
   });
 

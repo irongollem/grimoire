@@ -14,12 +14,12 @@ import type {
   CraftingOutputInsert,
   CraftingAttemptResult,
 } from "@/types/crafting.types";
-import { queueItemEmbedding } from "@/composables/items/useItems";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { inventoryItemRef } from "@/lib/itemRef";
 import type { StarterRecipeDef } from "@/data/starterRecipes";
 import { WORKSHOP_LIBRARY_EQUIVALENTS } from "@/data/workshopLibraryEquivalents";
 import { useRuleset } from "@/composables/rules/useRuleset";
+import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 
 const RECIPES_KEY    = "crafting-recipes";
 const INGREDIENTS_KEY = "crafting-ingredients";
@@ -748,14 +748,15 @@ export function useImportStarterRecipes() {
           if (error) throw error;
           (inserted ?? []).forEach((i: { id: string; name: string }) => {
             existingByName.set(i.name, i.id);
-            // These are real vault items and must be embedded like any other
-            // (#838) — a bulk insert bypasses useCreateItem, which is where the
-            // embed-on-write hook normally lives, so it has to be called here.
-            // The burst is bounded by construction: only names that resolve to
-            // neither the vault nor library_items reach this branch, which is a
-            // handful of the 162 starter outputs rather than all of them.
-            queueItemEmbedding(i.id);
           });
+          // These are real vault items and must be embedded like any other
+          // (#838) — a bulk insert bypasses useCreateItem, which is where the
+          // embed-on-write hook normally lives, so it has to be called here.
+          // The burst is bounded by construction: only names that resolve to
+          // neither the vault nor library_items reach this branch, which is a
+          // handful of the 162 starter outputs rather than all of them. One
+          // batched request for the lot (#972).
+          queueEmbeddingsInBackground("item", (inserted ?? []).map((i: { id: string }) => i.id));
         }
       }
 

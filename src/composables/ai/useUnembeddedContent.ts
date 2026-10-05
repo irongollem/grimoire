@@ -2,6 +2,7 @@ import { computed, ref } from "vue";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { functionErrorPayload } from "@edge-shared/functionError.ts";
+import { queueEmbeddings } from "@/lib/queueEmbeddings";
 import { useCampaignStore } from "@/stores/campaign";
 
 /**
@@ -75,22 +76,16 @@ async function fetchCounts(campaignId: string): Promise<UnembeddedCountRow[]> {
   return (data ?? []) as UnembeddedCountRow[];
 }
 
-/**
- * One row's embed call, routed to the edge function that owns its kind.
- * Monsters go through `embed-monsters` with `monster_id`; every other kind
- * shares `embed-content`'s registry via `entity` — same two functions as
- * `queueItemEmbedding` (useItems.ts) and `queueMonsterEmbedding`
- * (useMonsters.ts), just awaited here instead of fire-and-forget, so a
- * failure can be counted rather than silently swallowed.
- */
 /** Thrown when the daily embedding allowance is spent — see RATE_LIMITS. */
 class RateLimitedError extends Error {}
 
-async function embedRow(kind: UnembeddedKind, id: string): Promise<void> {
-  const { error } =
-    kind === "monster"
-      ? await supabase.functions.invoke("embed-monsters", { body: { mode: "single", monster_id: id } })
-      : await supabase.functions.invoke("embed-content", { body: { mode: "single", entity: kind, id } });
+/**
+ * One monster's embed call, awaited rather than fire-and-forget so a failure
+ * can be counted. Monsters go through `embed-monsters`, which has no batched
+ * mode; every other kind uses `queueEmbeddings` (embed-content `many`).
+ */
+async function embedMonster(id: string): Promise<void> {
+  const { error } = await supabase.functions.invoke("embed-monsters", { body: { mode: "single", monster_id: id } });
 
   // A 429 is not a failure of this row — it is the account's daily ceiling,
   // and every remaining row would hit it too. Distinguished so the loop can
@@ -129,13 +124,13 @@ export function useUnembeddedContent() {
   const total = computed(() => counts.value.reduce((sum, row) => sum + row.missing, 0));
 
   /**
-   * Index every row this campaign is missing, one edge-function call at a
-   * time. Sequential, not `Promise.all` — this is N provider calls (one text
-   * embedding request per row), and firing them all at once would stampede
-   * whichever provider is configured with everything a large transfer left
-   * unembedded in one burst. A failed row is recorded and the loop
-   * continues: with N independent network calls, "indexed 34, 2 failed" is
-   * the normal outcome, not an exceptional one worth aborting the rest over.
+   * Index every row this campaign is missing. Everything but monsters goes
+   * in batched `many` requests (up to 100 rows each), strictly one request at
+   * a time so the provider is never stampeded; monsters, which have no
+   * batched endpoint, go one call per row, also sequentially. A failed
+   * request (or monster) is recorded and the run continues: "indexed 34, 2
+   * failed" is the normal outcome of many network calls, not a reason to
+   * abort the rest. A failed batch counts every row in it as failed.
    */
   async function indexAll(): Promise<IndexAllResult> {
     if (isRunning.value) return { indexed: 0, failed: 0, remaining: 0 };
@@ -162,13 +157,35 @@ export function useUnembeddedContent() {
       // outcomes need three counters.
       let indexed = 0;
       let failed = 0;
+      let stopped = false;
+      // Everything but monsters goes through the batched many mode, one kind
+      // at a time and up to 100 rows per request (#972), so progress moves a
+      // chunk at a time.
+      for (const row of fresh) {
+        if (stopped) break;
+        if (row.kind === "monster") continue;
+        const base = progressDone.value;
+        const outcome = await queueEmbeddings(row.kind, row.ids, (handled) => {
+          progressDone.value = base + handled;
+        });
+        // `processed` includes rows the server found already current (another
+        // path embedded them meanwhile): neither a failure nor remaining.
+        indexed += outcome.processed;
+        failed += outcome.failed;
+        // The ceiling applies to the account, not the row: the chunk it
+        // rejected and everything after stay unindexed, and nothing more is sent.
+        if (outcome.rateLimited) stopped = true;
+        progressDone.value = base + outcome.processed + outcome.failed;
+      }
+      // Monsters embed through `embed-monsters`, which has no batched mode:
+      // one call per row, strictly sequential.
       for (const job of jobs) {
+        if (stopped) break;
+        if (job.kind !== "monster") continue;
         try {
-          await embedRow(job.kind, job.id);
+          await embedMonster(job.id);
           indexed += 1;
         } catch (e) {
-          // The ceiling applies to the account, not the row, so continuing
-          // would just spend the rest of the list on certain rejections.
           if (e instanceof RateLimitedError) break;
           failed += 1;
         } finally {

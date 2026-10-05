@@ -8,6 +8,7 @@ import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { buildFactionEmbedText, buildItemEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
 import { upsertEmbeddingsInChunks } from "../_shared/embeddingUpsert.ts";
+import { authorizeRows, campaignIdsToCheck, parseManyIds, type OwnedRow } from "../_shared/embedMany.ts";
 import {
   EmbeddingProviderConfigError,
   isEmbeddingStale,
@@ -38,6 +39,11 @@ import {
  *   mode: "single" — embed-on-write for one of the caller's own npcs,
  *                    factions, locations, notes or items, called
  *                    fire-and-forget after create/save.
+ *   mode: "many"   — the same for up to 100 of the caller's own rows in ONE
+ *                    provider call (#972), for bulk creates and the
+ *                    "index everything" button. Authorized per row; a foreign
+ *                    id is reported, not fatal. The rate limit is charged one
+ *                    unit per stale row, atomically (check_rate_limit p_cost).
  *
  * NOT CHARGED, BUT RECORDED: same accounting story as embed-monsters —
  * embedding is infrastructure for retrieval, not a user-facing generation in
@@ -393,6 +399,54 @@ async function handleBatch(body: { entity?: unknown; limit?: unknown }, adminUse
   return json({ processed: candidates.length, skipped, remaining });
 }
 
+/** Shared front door of the per-user modes: bearer token -> verified user,
+ * suspended accounts refused, child accounts skipped with a 200 (see below). */
+async function authenticateWriter(req: Request): Promise<{ id: string } | Response> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return json({ error: "Unauthorized" }, 401);
+
+  const caller = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } },
+  );
+  const { data: { user }, error: authError } = await caller.auth.getUser();
+  if (authError || !user) return json({ error: "Unauthorized" }, 401);
+
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
+
+  // The per-user modes run fire-and-forget after a save, so a child is skipped with
+  // a 200 rather than refused: a 403 would surface as nothing the child could
+  // act on, and a child never queries retrieval anyway. A failed lookup is
+  // refused, though, not waved through: embedding is free, so no credit or Pro
+  // check further down would stop a child's text reaching the provider.
+  let child = false;
+  try {
+    child = await isChildAccount(admin, user.id);
+  } catch (e) {
+    console.error("embed-content: child-account check failed:", e);
+    return json({ error: "account_check_failed" }, 503);
+  }
+  if (child) return json({ skipped: "child_account" }, 200);
+
+  return user;
+}
+
+/** Of `campaignIds`, the ones `userId` owns or is a `dm` member of. Two reads
+ * for the whole set, whatever its size. */
+async function dmCampaignIds(campaignIds: string[], userId: string): Promise<Set<string>> {
+  const [owned, members] = await Promise.all([
+    admin.from("campaigns").select("id").in("id", campaignIds).eq("user_id", userId),
+    admin.from("campaign_members").select("campaign_id").in("campaign_id", campaignIds).eq("user_id", userId).eq("role", "dm"),
+  ]);
+  if (owned.error) throw new Error(`Failed to read campaigns: ${owned.error.message}`);
+  if (members.error) throw new Error(`Failed to read campaign_members: ${members.error.message}`);
+  const ids = new Set<string>();
+  for (const r of owned.data ?? []) ids.add(r.id as string);
+  for (const r of members.data ?? []) ids.add(r.campaign_id as string);
+  return ids;
+}
+
 // ── Single mode ───────────────────────────────────────────────────────────
 
 async function handleSingle(req: Request, body: { entity?: unknown; id?: unknown }): Promise<Response> {
@@ -408,32 +462,9 @@ async function handleSingle(req: Request, body: { entity?: unknown; id?: unknown
   const id = body.id;
   if (typeof id !== "string" || !id) return json({ error: "Missing id" }, 400);
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json({ error: "Unauthorized" }, 401);
-
-  const caller = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await caller.auth.getUser();
-  if (authError || !user) return json({ error: "Unauthorized" }, 401);
-
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
-
-  // Single mode runs fire-and-forget after a save, so a child is skipped with
-  // a 200 rather than refused: a 403 would surface as nothing the child could
-  // act on, and a child never queries retrieval anyway. A failed lookup is
-  // refused, though, not waved through: embedding is free, so no credit or Pro
-  // check further down would stop a child's text reaching the provider.
-  let child = false;
-  try {
-    child = await isChildAccount(admin, user.id);
-  } catch (e) {
-    console.error("embed-content: child-account check failed:", e);
-    return json({ error: "account_check_failed" }, 503);
-  }
-  if (child) return json({ skipped: "child_account" }, 200);
+  const gate = await authenticateWriter(req);
+  if (gate instanceof Response) return gate;
+  const user = gate;
 
   const config = ENTITIES[entity];
   const { data: rowData, error: rowError } = await admin
@@ -461,12 +492,7 @@ async function handleSingle(req: Request, body: { entity?: unknown; id?: unknown
   // before allowing that row into the campaign's embedding corpus. Global
   // notes remain private to their owner and need no campaign-role check.
   if (entity === "note" && typeof row.campaign_id === "string") {
-    const campaignId = row.campaign_id;
-    const [{ data: ownedCampaign }, { data: dmMembership }] = await Promise.all([
-      admin.from("campaigns").select("id").eq("id", campaignId).eq("user_id", user.id).maybeSingle(),
-      admin.from("campaign_members").select("id").eq("campaign_id", campaignId).eq("user_id", user.id).eq("role", "dm").maybeSingle(),
-    ]);
-    if (!ownedCampaign && !dmMembership) return json({ error: "Forbidden" }, 403);
+    if (!(await dmCampaignIds([row.campaign_id], user.id)).has(row.campaign_id)) return json({ error: "Forbidden" }, 403);
   }
 
   const provider = await resolvePlatformProvider();
@@ -536,6 +562,119 @@ async function handleSingle(req: Request, body: { entity?: unknown; id?: unknown
   return json({ embedded: true, entity, id, source_hash: hash });
 }
 
+// ── Many mode ─────────────────────────────────────────────────────────────
+
+async function handleMany(req: Request, body: { entity?: unknown; ids?: unknown }): Promise<Response> {
+  const entity = body.entity;
+  if (!isEntityKind(entity)) return invalidEntityResponse();
+  const config = ENTITIES[entity];
+  if (config.supportsSingle === false) {
+    return json({ error: `Entity '${entity}' is batch-only -- it has no per-user write path` }, 400);
+  }
+  const parsed = parseManyIds(body.ids);
+  if ("error" in parsed) return json({ error: parsed.error }, parsed.status);
+  const { ids } = parsed;
+
+  const gate = await authenticateWriter(req);
+  if (gate instanceof Response) return gate;
+  const user = gate;
+
+  const { data: rowData, error: rowError } = await admin.from(config.table).select(config.select).in("id", ids);
+  if (rowError) {
+    console.error(`embed-content many lookup failed (${config.table}):`, rowError.message);
+    return json({ error: `Failed to load ${entity} rows` }, 500);
+  }
+  const rows = (rowData ?? []) as unknown as (Record<string, unknown> & OwnedRow)[];
+
+  // Per row, never per batch: ownership is the whole authorization story (see
+  // handleSingle), and notes inside a campaign also need DM access, resolved
+  // once per distinct campaign rather than once per row.
+  // Only notes carry the campaign rule (as in handleSingle); every other
+  // entity passes null, so no campaign column can forbid its rows.
+  let dmCampaigns: Set<string> | null = null;
+  try {
+    if (entity === "note") {
+      const campaignIds = campaignIdsToCheck(rows, user.id);
+      dmCampaigns = campaignIds.length > 0 ? await dmCampaignIds(campaignIds, user.id) : new Set();
+    }
+  } catch (e) {
+    console.error("embed-content many campaign check failed:", e);
+    return json({ error: "Failed to check campaign access" }, 500);
+  }
+  const { allowed, forbidden, notFound } = authorizeRows(ids, rows, user.id, dmCampaigns);
+  const result = { embedded: [] as string[], unchanged: [] as string[], forbidden, notFound };
+  if (allowed.length === 0) return json(result);
+
+  const provider = await resolvePlatformProvider();
+  if (provider instanceof Response) return provider;
+
+  const { data: storedData, error: storedError } = await admin
+    .from(config.sideTable)
+    .select(`${config.idColumn}, source_hash, embedding_model`)
+    .in(config.idColumn, allowed.map((r) => r.id));
+  if (storedError) {
+    console.error(`embed-content many stored-meta lookup failed (${config.sideTable}):`, storedError.message);
+    return json({ error: "Failed to load existing embeddings" }, 500);
+  }
+  const storedById = new Map<string, StoredEmbeddingRow>();
+  for (const s of (storedData ?? []) as Record<string, unknown>[]) {
+    storedById.set(s[config.idColumn] as string, {
+      source_hash: s.source_hash as string,
+      embedding_model: s.embedding_model as string,
+    });
+  }
+
+  const stale: Candidate[] = [];
+  for (const row of allowed) {
+    const text = config.build(row);
+    const hash = await entityEmbedHash(text);
+    if (isEmbeddingStale(storedById.get(row.id) ?? null, { sourceHash: hash, model: provider.model })) {
+      stale.push({ id: row.id, text, hash });
+    } else {
+      result.unchanged.push(row.id);
+    }
+  }
+  // Nothing stale: no rate-limit spend, same as single mode's short-circuit.
+  if (stale.length === 0) return json(result);
+
+  // One unit per embedding actually bought, charged whole: a batch that does
+  // not fit is refused rather than partly done, so the client can stop.
+  if (!(await checkRateLimit(admin, user.id, "entity_embedding", stale.length))) {
+    return json({ error: "rate_limited", entity }, 429);
+  }
+
+  let vectors: number[][];
+  let usage: EmbeddingUsage;
+  try {
+    ({ vectors, usage } = await provider.embed(stale.map((c) => c.text)));
+  } catch (e) {
+    console.error("embed-content many embed failed:", e);
+    return json({ error: e instanceof Error ? e.message : "Embedding failed" }, 502);
+  }
+
+  // ONE ledger row with the summed tokens, as batch mode records it.
+  await recordFreeGeneration(admin, user.id, "entity_embedding", {
+    model: provider.model,
+    provider: usage.provider,
+    input_tokens: usage.input_tokens,
+  });
+
+  const upsertRows = stale.map((c, i) => ({
+    [config.idColumn]: c.id,
+    embedding: toVectorLiteral(vectors[i]),
+    embedding_model: provider.model,
+    source_hash: c.hash,
+  }));
+  const { stored, error: upsertError } = await upsertEmbeddingsInChunks(admin, config.sideTable, upsertRows, config.idColumn);
+  // Whatever was stored before a failure stays stored, and is reported.
+  result.embedded = stale.slice(0, stored).map((c) => c.id);
+  if (upsertError) {
+    console.error(`embed-content many upsert failed (${config.sideTable}):`, upsertError.message);
+    return json({ error: "Failed to store embeddings", ...result }, 500);
+  }
+  return json(result);
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────
 
 serve(withCors(async (req: Request) => {
@@ -544,7 +683,7 @@ serve(withCors(async (req: Request) => {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return json({ error: "Unauthorized" }, 401);
 
-  let body: { mode?: unknown; entity?: unknown; id?: unknown; limit?: unknown };
+  let body: { mode?: unknown; entity?: unknown; id?: unknown; ids?: unknown; limit?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -562,5 +701,9 @@ serve(withCors(async (req: Request) => {
     return handleSingle(req, body);
   }
 
-  return json({ error: "Invalid mode -- must be 'batch' or 'single'" }, 400);
+  if (body.mode === "many") {
+    return handleMany(req, body);
+  }
+
+  return json({ error: "Invalid mode -- must be 'batch', 'single' or 'many'" }, 400);
 }));

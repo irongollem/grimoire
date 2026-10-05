@@ -12,6 +12,7 @@ import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
 import { matchSettingRowIds, stampSettingSource, PLANAR_SOURCE } from "@/lib/populateSetting/settingContent";
 import { persistReorder, toReorderEntries } from "@/lib/reorder";
 import { isInteriorType } from "@/lib/locations/tiers";
+import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 
 /** A location enriched with the chain of vague-container names we traversed
  *  to reach it, starting with the outermost region and ending with the
@@ -684,11 +685,11 @@ export function usePopulatePlanarLocations() {
         .select("id, name");
       if (insertError) throw insertError;
 
-      // Bulk insert bypasses useCreateLocation()'s mutation hook, so each new
-      // row needs its own embed call here -- otherwise these locations stay
+      // Bulk insert bypasses useCreateLocation()'s mutation hook, so the new
+      // rows need an embed call here (one batched request, #972) -- otherwise these locations stay
       // unretrievable until the next admin backfill (mirrors
       // useCloneLibraryMonster's comment in useMonsters.ts).
-      for (const row of inserted ?? []) queueLocationEmbedding(row.id);
+      queueEmbeddingsInBackground("location", (inserted ?? []).map((row) => row.id));
 
       const nameToId = new Map(existingNameToId);
       for (const loc of inserted ?? []) {
@@ -785,11 +786,11 @@ export function usePopulateLocations() {
         .select("id, name");
       if (insertError) throw insertError;
 
-      // Bulk insert bypasses useCreateLocation()'s mutation hook, so each new
-      // row needs its own embed call here -- otherwise these locations stay
+      // Bulk insert bypasses useCreateLocation()'s mutation hook, so the new
+      // rows need an embed call here (one batched request, #972) -- otherwise these locations stay
       // unretrievable until the next admin backfill (mirrors
       // useCloneLibraryMonster's comment in useMonsters.ts).
-      for (const row of inserted ?? []) queueLocationEmbedding(row.id);
+      queueEmbeddingsInBackground("location", (inserted ?? []).map((row) => row.id));
 
       // Pass 2 — resolve parent_id links by name
       // Build full name→id map: existing rows + just-inserted rows

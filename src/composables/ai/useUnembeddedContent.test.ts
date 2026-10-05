@@ -26,15 +26,15 @@ vi.mock("@/lib/supabase", () => ({
     functions: {
       invoke: vi.fn(async (fn: string, opts: { body: Record<string, unknown> }) => {
         mocks.invokeCalls.push({ fn, body: opts.body });
-        const id = (opts.body.id ?? opts.body.monster_id) as string;
+        const ids = (opts.body.ids as string[] | undefined) ?? [(opts.body.id ?? opts.body.monster_id) as string];
         // The shape supabase-js really gives a non-2xx: `data` null, the body
         // unread on `error.context`. Mocked as `data: { error }` this test once
         // passed while the real 429 was never recognised.
-        if (mocks.rateLimitIds.has(id)) {
+        if (ids.some((id) => mocks.rateLimitIds.has(id))) {
           const context = new Response(JSON.stringify({ error: "rate_limited" }), { status: 429 });
           return { data: null, error: Object.assign(new Error("Edge Function returned a non-2xx status code"), { context }) };
         }
-        if (mocks.failIds.has(id)) return { data: null, error: new Error("embed failed") };
+        if (ids.some((id) => mocks.failIds.has(id))) return { data: null, error: new Error("embed failed") };
         return { data: { ok: true }, error: null };
       }),
     },
@@ -93,18 +93,20 @@ describe("useUnembeddedContent", () => {
   // The spec is explicit: a failed row must not abort the run. With N
   // independent network calls, "indexed 2, 1 failed" is the normal shape of
   // a partial success, not an error state that should stop the remaining rows.
-  it("keeps going past a failed row and reports the partial result", async () => {
-    mocks.countsData = [{ kind: "item", missing: 3, ids: ["i1", "i2", "i3"] }];
+  it("keeps going past a failed batch and reports the partial result", async () => {
+    // 150 items = two requests (100 + 50); the first contains the failing id.
+    const items = Array.from({ length: 150 }, (_, i) => `i${i}`);
+    mocks.countsData = [{ kind: "item", missing: 150, ids: items }];
     mocks.failIds = new Set(["i2"]);
     const { api } = open();
     await flushPromises();
 
     const result = await api().indexAll();
 
-    expect(result).toEqual({ indexed: 2, failed: 1, remaining: 0 });
-    // All three were attempted -- the failure on i2 did not short-circuit i3.
-    expect(mocks.invokeCalls.map((c) => c.body.id)).toEqual(["i1", "i2", "i3"]);
-    expect(api().progress.value).toEqual({ done: 3, total: 3 });
+    expect(result).toEqual({ indexed: 50, failed: 100, remaining: 0 });
+    // Both batches were attempted -- the failure in the first did not stop the second.
+    expect(mocks.invokeCalls.map((c) => (c.body.ids as string[]).length)).toEqual([100, 50]);
+    expect(api().progress.value).toEqual({ done: 150, total: 150 });
     expect(api().isRunning.value).toBe(false);
   });
 
@@ -125,11 +127,11 @@ describe("useUnembeddedContent", () => {
     });
     expect(mocks.invokeCalls).toContainEqual({
       fn: "embed-content",
-      body: { mode: "single", entity: "item", id: "i1" },
+      body: { mode: "many", entity: "item", ids: ["i1"] },
     });
     expect(mocks.invokeCalls).toContainEqual({
       fn: "embed-content",
-      body: { mode: "single", entity: "npc", id: "n1" },
+      body: { mode: "many", entity: "npc", ids: ["n1"] },
     });
   });
 
@@ -153,17 +155,30 @@ describe("useUnembeddedContent", () => {
   // thousand failures would be both slower and a lie: nothing is lost, the
   // rows stay listed, and tomorrow's run finishes them.
   it("stops at the daily ceiling instead of failing every remaining row", async () => {
-    mocks.countsData = [{ kind: "item", missing: 3, ids: ["i1", "i2", "i3"] }];
-    mocks.rateLimitIds = new Set(["i2"]);
+    const items = Array.from({ length: 250 }, (_, i) => `i${i}`);
+    mocks.countsData = [{ kind: "item", missing: 250, ids: items }];
+    // The second request (ids 100..199) is the one the ceiling rejects.
+    mocks.rateLimitIds = new Set(["i150"]);
     const { api } = open();
     await flushPromises();
 
     const result = await api().indexAll();
 
-    // i2 was rejected and i3 never tried — both are still unindexed, so
-    // `remaining` is 2, not 1. The rejected row is not "done".
-    expect(result).toEqual({ indexed: 1, failed: 0, remaining: 2 });
-    // i3 was never attempted — that is the whole point of stopping.
-    expect(mocks.invokeCalls.map((c) => c.body.id)).toEqual(["i1", "i2"]);
+    // The first 100 went through; the rejected chunk and the one after it
+    // are still unindexed, so `remaining` is 150.
+    expect(result).toEqual({ indexed: 100, failed: 0, remaining: 150 });
+    // The third request was never sent -- that is the whole point of stopping.
+    expect(mocks.invokeCalls).toHaveLength(2);
+  });
+
+  it("embeds monsters one call per row, after the batched kinds", async () => {
+    mocks.countsData = [{ kind: "monster", missing: 2, ids: ["m1", "m2"] }];
+    const { api } = open();
+    await flushPromises();
+
+    const result = await api().indexAll();
+
+    expect(result).toEqual({ indexed: 2, failed: 0, remaining: 0 });
+    expect(mocks.invokeCalls.map((c) => c.fn)).toEqual(["embed-monsters", "embed-monsters"]);
   });
 });

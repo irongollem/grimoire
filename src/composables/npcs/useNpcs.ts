@@ -9,6 +9,7 @@ import { useToast } from "@/composables/useToast";
 import { getSetting } from "@/settings/index";
 import type { Npc, NpcInsert, NpcUpdate, PlayerNpc } from "@/types/npc.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
+import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 
 const QUERY_KEY = "npcs";
 
@@ -204,10 +205,9 @@ export function useFetchNpc() {
  * Returns `Promise<void>`, resolving once the invocation has settled and any
  * error already reported — mirrors `queueItemEmbedding`/
  * `queueMonsterEmbedding` (useItems.ts, useMonsters.ts) for the same
- * reason theirs does: a bulk caller (useCopyToCampaign's
- * `queueEmbeddingsInGroups`, #885) needs to bound how many are in flight,
- * which only works if it can await one settling. Single-row callers below
- * keep ignoring the return value.
+ * reason theirs does. Bulk callers use `queueEmbeddings`
+ * (lib/queueEmbeddings.ts) instead; single-row callers below ignore the
+ * return value.
  */
 export function queueNpcEmbedding(id: string): Promise<void> {
   return supabase.functions
@@ -449,11 +449,11 @@ export function usePopulateSettingNpcs() {
         .select("id");
       if (insertError) throw insertError;
 
-      // Bulk insert bypasses useCreateNpc()'s mutation hook, so each new row
-      // needs its own embed call here -- otherwise these NPCs stay
+      // Bulk insert bypasses useCreateNpc()'s mutation hook, so the new rows
+      // need an embed call here (one batched request, #972) -- otherwise these NPCs stay
       // unretrievable until the next admin backfill (mirrors
       // useCloneLibraryMonster's comment in useMonsters.ts).
-      for (const row of inserted ?? []) queueNpcEmbedding(row.id);
+      queueEmbeddingsInBackground("npc", (inserted ?? []).map((row) => row.id));
 
       return (inserted ?? []).length;
     },

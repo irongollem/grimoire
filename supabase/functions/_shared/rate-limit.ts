@@ -78,6 +78,8 @@ export async function checkRateLimit(
   admin: SupabaseClient,
   userId: string,
   key: RateLimitKey,
+  /** Units this call spends. A batch spends one per item and is refused whole if it does not fit (migration 20261005075217). */
+  cost = 1,
 ): Promise<boolean> {
   const { action, limit, windowSeconds } = RATE_LIMITS[key];
   const { data, error } = await admin.rpc("check_rate_limit", {
@@ -85,6 +87,7 @@ export async function checkRateLimit(
     p_action: action,
     p_limit: limit,
     p_window_seconds: windowSeconds,
+    p_cost: cost,
   });
   if (error) {
     console.error(`check_rate_limit(${action}) failed — rejecting request:`, error);

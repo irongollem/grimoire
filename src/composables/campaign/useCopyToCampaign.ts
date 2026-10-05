@@ -1,10 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useInvalidateQuota } from "@/composables/billing/useQuota";
-import { queueItemEmbedding } from "@/composables/items/useItems";
+import { queueEmbeddings, type EmbedManyEntity } from "@/lib/queueEmbeddings";
 import { queueMonsterEmbedding } from "@/composables/monsters/useMonsters";
-import { queueNpcEmbedding } from "@/composables/npcs/useNpcs";
-import { queueFactionEmbedding } from "@/composables/factions/useFactions";
 import { chunkArray } from "@/lib/utils";
 import { BULK_SCOPE_QUERY_KEY, type BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
 import {
@@ -57,8 +55,8 @@ import {
  *  referenced-row lookup nor the insert itself trips a request-line limit. */
 const CHUNK_SIZE = 200;
 
-/** How many `queueItemEmbedding`/`queueMonsterEmbedding` calls to fire before
- *  yielding to the next group — see `queueEmbeddingsInGroups` below. */
+/** How many `queueMonsterEmbedding` calls to fire before yielding to the next
+ *  group — see `queueMonsterEmbeddingsInGroups` below. */
 const EMBED_GROUP_SIZE = 10;
 
 export interface LoadCopySourcesInput {
@@ -368,27 +366,32 @@ export async function resolveUnenabledSources(
 }
 
 /**
- * Queues the embed call for each id, at most `EMBED_GROUP_SIZE` in flight: a
- * group is started only once every call in the previous group has settled.
- * `queueItemEmbedding`/`queueMonsterEmbedding` report their own failures and
- * resolve either way, so a rejected embed never stops the rest of the queue.
- * Without this a 150-row copy opened 150 edge-function invocations at once.
+ * Monsters only: `embed-monsters` has no batched mode, so each copied monster
+ * is one call, at most `EMBED_GROUP_SIZE` in flight (a group starts once the
+ * previous one has settled). `queueMonsterEmbedding` reports its own failures
+ * and resolves either way, so one rejection never stops the queue. Every other
+ * embeddable table goes through `queueEmbeddings`, one request per 100 rows.
  */
-async function queueEmbeddingsInGroups(
-  ids: readonly string[],
-  queue: (id: string) => Promise<void>,
-): Promise<void> {
+async function queueMonsterEmbeddingsInGroups(ids: readonly string[]): Promise<void> {
   for (const group of chunkArray(ids, EMBED_GROUP_SIZE)) {
-    await Promise.all(group.map((id) => queue(id)));
+    await Promise.all(group.map((id) => queueMonsterEmbedding(id)));
   }
 }
+
+/** The `embed-content` kind for each copied table that has an embedding corpus
+ *  there; monsters are the odd one out (see above). */
+const EMBED_ENTITY_FOR_TABLE: Partial<Record<BulkScopeTable, EmbedManyEntity>> = {
+  items: "item",
+  npcs: "npc",
+  factions: "faction",
+};
 
 async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaignResult> {
   const { table, payloads, linkPayloads, dropped, needsSources } = input;
 
   const insertedIds: string[] = [];
   // One background chain for the whole copy, so the in-flight bound holds
-  // across chunks too. Never awaited by the copy itself: the rows exist once
+  // across chunks too (a monster group, or one many-mode request at a time). Never awaited by the copy itself: the rows exist once
   // the inserts commit, and making the DM wait on ~20 sequential embed groups
   // would turn a two-second copy into a minute for no feedback they can use.
   let embedding: Promise<void> = Promise.resolve();
@@ -403,16 +406,19 @@ async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaig
     insertedIds.push(...chunkIds);
 
     // Bulk insert bypasses the owning composable's create-mutation hook, so
-    // each new row needs its own embed call — otherwise these rows stay
-    // unretrievable until the next admin backfill (mirrors useNpcs.ts:409 and
-    // useLocations.ts:513). Queued right after THIS chunk's insert succeeds,
+    // the new rows need an embed call — otherwise they stay unretrievable
+    // until the next admin backfill (mirrors useNpcs.ts and
+    // useLocations.ts). One batched request per 100 rows (#972). Queued right after THIS chunk's insert succeeds,
     // not after the whole loop, so a later chunk's failure cannot leave an
     // earlier chunk's rows unembedded. Four of the ten bulk-scope tables have
     // an embedding corpus.
-    if (table === "items") embedding = embedding.then(() => queueEmbeddingsInGroups(chunkIds, queueItemEmbedding));
-    if (table === "monsters") embedding = embedding.then(() => queueEmbeddingsInGroups(chunkIds, queueMonsterEmbedding));
-    if (table === "npcs") embedding = embedding.then(() => queueEmbeddingsInGroups(chunkIds, queueNpcEmbedding));
-    if (table === "factions") embedding = embedding.then(() => queueEmbeddingsInGroups(chunkIds, queueFactionEmbedding));
+    const entity = EMBED_ENTITY_FOR_TABLE[table];
+    if (entity) {
+      embedding = embedding.then(async () => {
+        await queueEmbeddings(entity, chunkIds);
+      });
+    }
+    if (table === "monsters") embedding = embedding.then(() => queueMonsterEmbeddingsInGroups(chunkIds));
   }
   void embedding;
 

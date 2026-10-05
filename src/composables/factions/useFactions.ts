@@ -22,6 +22,7 @@ import type { Item } from "@/types/item.types";
 import type { Deity } from "@/types/deity.types";
 import { normalizeLibraryItem } from "@/composables/items/useItems";
 import type { ItemRefColumns } from "@/lib/itemRef";
+import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 
 // ── Factions CRUD ──────────────────────────────────────────────────────────────
 
@@ -91,15 +92,9 @@ export function usePlayerVisibleFactions() {
  * short-circuits when the embed text's hash is unchanged, so a save that
  * touched an unrelated field costs no API call at all.
  *
- * Exported and `Promise<void>`-returning (#885): a copy-to-campaign batch
- * bulk-inserts factions directly, bypassing `useCreateFaction`'s own
- * `onSuccess` — see `copyToCampaign()` in useCopyToCampaign.ts, which calls
- * this once per newly inserted faction via `queueEmbeddingsInGroups`, the
- * same bulk path `queueItemEmbedding`/`queueMonsterEmbedding`/
- * `queueNpcEmbedding` already support. That path needs to await one
- * settling to bound how many are in flight, so this can no longer be a bare
- * `void`-returning fire-and-forget the way it was when only single-row
- * callers below used it — they keep ignoring the return value.
+ * Exported and `Promise<void>`-returning, like its siblings. Bulk inserts
+ * (bulk create, copy-to-campaign) go through `queueEmbeddings`
+ * (lib/queueEmbeddings.ts) instead, one batched request per 100 rows (#972).
  */
 export function queueFactionEmbedding(id: string): Promise<void> {
   return supabase.functions
@@ -916,11 +911,11 @@ export function usePopulateFactions() {
         .select("id");
       if (insertError) throw insertError;
 
-      // Bulk insert bypasses useCreateFaction()'s mutation hook, so each new
-      // row needs its own embed call here -- otherwise these factions stay
+      // Bulk insert bypasses useCreateFaction()'s mutation hook, so the new
+      // rows need an embed call here (one batched request, #972) -- otherwise these factions stay
       // unretrievable until the next admin backfill (mirrors
       // useCloneLibraryMonster's comment in useMonsters.ts).
-      for (const row of inserted ?? []) queueFactionEmbedding(row.id);
+      queueEmbeddingsInBackground("faction", (inserted ?? []).map((row) => row.id));
 
       return (inserted ?? []).length;
     },
