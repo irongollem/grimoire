@@ -108,6 +108,7 @@
 import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { IconMessage } from '@/lib/icons';
 import { railTransition } from "@/lib/motion";
+import { isUnreadArrival } from "@/components/chat/chatUnread";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
@@ -249,12 +250,14 @@ watch(npcs, (list) => {
   if (npc) ui.setDmTalkAsNpc(npc.id, npc.name);
 });
 
-watch(messages, (msgs, prev) => {
-  if (!ui.chatOpen && msgs.length > (prev?.length ?? 0)) {
-    const newest = msgs[msgs.length - 1];
-    if (newest?.user_id !== auth.user?.id) ui.chatHasUnread = true;
-  }
-});
+// `messages` is mutated in place (push + sort), so watching the array never
+// fires for a live INSERT. Watch the newest message instead.
+watch(
+  () => messages.value[messages.value.length - 1] ?? null,
+  (next, prev) => {
+    if (!ui.chatOpen && isUnreadArrival(prev ?? null, next, auth.user?.id)) ui.chatHasUnread = true;
+  },
+);
 
 watch(() => ui.chatFocusRequest, () => {
   if (ui.chatFocusMessageId) void ensureMessage(ui.chatFocusMessageId).catch(() => { /* chat keeps its current window */ });
