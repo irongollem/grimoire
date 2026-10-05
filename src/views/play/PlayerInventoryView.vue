@@ -123,8 +123,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, nextTick } from "vue";
 import PageHeader from "@/components/common/PageHeader.vue";
+import { ref, computed, reactive, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { COINS, type CoinKey } from "@/rules/currency";
 import {
