@@ -12,7 +12,7 @@
         <RouterLink
           :to="`/party/${member.id}`"
           :aria-label="`Open ${member.name}`"
-          class="block h-31.25 bg-muted overflow-hidden"
+          class="card-plate card-plate-edge block h-31.25 bg-muted overflow-hidden"
         >
           <FocalImage
             :src="portrait.src"
@@ -357,10 +357,12 @@ const unreadJournalCount = computed(() =>
 );
 // Resolves a companion's stored source_monster_id (same reason as PartyTracker)
 // and the wild shape beast, both stored ids, by id and unscoped.
-const { data: storedMonsters } = useMonstersByIds(() => [
-  member.wildshape_state?.monster_id,
-  ...companions.map((c) => c.source_monster_id),
-]);
+// With the art tables merged, so the beast's face below is the picture the
+// bestiary shows, not the bare library row's (often empty) `image_url`.
+const { data: storedMonsters } = useMonstersByIds(
+  () => [member.wildshape_state?.monster_id, ...companions.map((c) => c.source_monster_id)],
+  { withArt: true },
+);
 const { data: allNpcs } = useNpcs();
 
 const hpInput = ref(0);
@@ -371,7 +373,10 @@ function getHpAmount(): number {
 
 // While wildshaped the tracker reads (and damages) the beast's pool — otherwise
 // the DM would hit Damage and watch nothing move.
-const portrait = computed(() => formPortrait(member, member.wildshape_state));
+const portrait = computed(() => {
+  const form = member.wildshape_state;
+  return formPortrait(member, form, form ? storedMonsters.value.get(form.monster_id)?.image_url : null);
+});
 // A wild-shaped member moves at the beast's walking speed.
 const displaySpeed = computed(() => {
   const form = member.wildshape_state;

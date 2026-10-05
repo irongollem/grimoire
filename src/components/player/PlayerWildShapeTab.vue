@@ -158,6 +158,7 @@ import PlayerWildShapeSlotTrade from "@/components/player/PlayerWildShapeSlotTra
 import WildshapePreviewLightbox from "@/components/play/WildshapePreviewLightbox.vue";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
+import { fetchLibraryMonsterArtEntry, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
 import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { useClassFeatureGroups } from "@/composables/party/useClassFeatureGroups";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
@@ -276,9 +277,21 @@ const formCost = (id: string) => availableForms.value.find((f) => f.monster.id =
 const canTakePreview = computed(() => (previewBeast.value ? canSpend(formCost(previewBeast.value.id)) : false));
 
 async function handleWildshape(monster: PlayerVisibleMonster) {
+  // A library beast's picture usually lives in the art tables, not on its row,
+  // so merge it before the form copies it — the runner already did, and a form
+  // taken here without it showed every viewer the placeholder (5 Oct 2026).
+  let beast = monster;
+  if (monster.is_shared) {
+    try {
+      beast = withLibraryArt(monster, (await fetchLibraryMonsterArtEntry(monster.id)) ?? undefined);
+    } catch (error) {
+      toast.error(toast.fromError(error));
+      return;
+    }
+  }
   // Null when the DM has not revealed this beast's stats (no hit point pool or
   // AC to assume; the picker disables such a row) or it is not a legal form.
-  const entry = wildshapeStateFor(monster, rules.value);
+  const entry = wildshapeStateFor(beast, rules.value);
   if (!entry || !canSpend(entry.usesCost)) return;
   const update: PartyMemberUpdate = {
     wildshape_state: entry.form,
