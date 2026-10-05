@@ -54,6 +54,9 @@
     <p v-if="blockedByAsiChoice" class="text-caption text-ink-caution  italic text-right">
       Finish the ability score choice above, or clear it, before continuing.
     </p>
+    <p v-else-if="blockedBySubclass" class="text-caption text-ink-caution italic text-right">
+      Choose your subclass above before continuing.
+    </p>
     <div class="flex items-center justify-between pt-2 border-t border-border">
       <!-- Back / Cancel -->
       <AppButton v-if="wizardStep > 0" variant="subtle" size="md" label="← Back" @click="wizardStep--" />
@@ -61,7 +64,7 @@
 
       <!-- Next / Skip (hidden on Done step) -->
       <div v-if="wizardStep < activeSteps.length - 1" class="flex items-center gap-2">
-        <AppButton v-if="currentStepId !== 'edition'" variant="ghost" size="md" label="Skip" :disabled="blockedByAsiChoice" @click="wizardStep++" />
+        <AppButton v-if="currentStepId !== 'edition'" variant="ghost" size="md" label="Skip" :disabled="blockedByAsiChoice || blockedBySubclass" @click="wizardStep++" />
         <AppButton
           variant="primary"
           size="md"
@@ -80,6 +83,8 @@ import { inject, computed, ref, watch, onMounted, nextTick } from "vue";
 import { CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
 import { editionStepBlocked } from "@/composables/party/characterCreationEdition";
 import { WIZARD_STEPS, WIZARD_STEPS_EDIT } from "@/rules/characterCreation";
+import { useConfirm } from "@/composables/useConfirm";
+import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
 import { prefersReducedMotion } from "@/lib/motion";
 import AppButton from "@/components/common/AppButton.vue";
 import CharacterCreateEditionStep from "@/components/play/CharacterCreateEditionStep.vue";
@@ -91,7 +96,22 @@ import CharacterCreateEquipmentStep from "@/components/play/CharacterCreateEquip
 import CharacterCreateDoneStep from "@/components/play/CharacterCreateDoneStep.vue";
 
 const form = inject(CHARACTER_FORM_KEY)!;
-const { router, f, wizardStep, isEditMode, isDmCreate, backRoute, backgroundAsiIncomplete, chosenRuleset, landingCampaign } = form;
+const {
+  router, f, wizardStep, isEditMode, isDmCreate, backRoute, backgroundAsiIncomplete, chosenRuleset, landingCampaign,
+  blockedBySubclassChoice, finished,
+} = form;
+const confirm = useConfirm();
+
+// Everything made so far lives only in this form: one tap on the bottom nav, a
+// back gesture or Cancel would throw it away. Past the first step, or once a name
+// is typed, leaving asks first; a character that has been saved does not.
+useUnsavedGuard({
+  isDirty: () => !isEditMode.value && !finished.value && (wizardStep.value > 0 || !!f.name.trim()),
+  ask: () => confirm.confirm("Your character isn't saved yet. Leave and lose what you've entered?", {
+    title: "Leave character creation?",
+    confirmLabel: "Leave",
+  }),
+});
 
 const activeSteps = computed(() => isEditMode.value ? WIZARD_STEPS_EDIT : WIZARD_STEPS);
 const currentStepId = computed(() => activeSteps.value[wizardStep.value]?.id ?? "done");
@@ -99,10 +119,13 @@ const currentStepId = computed(() => activeSteps.value[wizardStep.value]?.id ?? 
 // A half-made 2024 background ASI choice blocks leaving the background step —
 // it must be finished or explicitly cleared (empty is a valid skip).
 const blockedByAsiChoice = computed(() => currentStepId.value === "background" && backgroundAsiIncomplete.value);
+// A class that picks its subclass at level 1 must be answered before leaving the
+// class step, the same way the level-up wizard will not move on without it.
+const blockedBySubclass = computed(() => currentStepId.value === "class" && blockedBySubclassChoice.value);
 
 // Each step says what it needs before Next: an edition the table can take, a name.
 const nextBlocked = computed(() => {
-  if (blockedByAsiChoice.value) return true;
+  if (blockedByAsiChoice.value || blockedBySubclass.value) return true;
   if (currentStepId.value === "edition") {
     return editionStepBlocked({ chosen: chosenRuleset.value, landing: landingCampaign.value, isDmCreate: isDmCreate.value });
   }

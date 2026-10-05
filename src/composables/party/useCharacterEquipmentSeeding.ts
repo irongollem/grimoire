@@ -1,7 +1,8 @@
 import { ref, computed } from "vue";
-import { supabase } from "@/lib/supabase";
-import { CLASS_EQUIPMENT } from "@/data/classEquipment";
-import type { CharacterFormState } from "@/rules/characterCreation";
+import type { QueryClient } from "@tanstack/vue-query";
+import { supabase, getCurrentUser } from "@/lib/supabase";
+import { CLASS_EQUIPMENT, type EquipmentEntry } from "@/data/classEquipment";
+import { parseEquipmentList, type CharacterFormState } from "@/rules/characterCreation";
 import type { BundleItemEntry } from "@/types/item.types";
 import type { PartyInventoryInsert, PartyInventoryItem } from "@/types/inventory.types";
 import { itemRefColumns } from "@/lib/itemRef";
@@ -9,26 +10,272 @@ import { itemRefColumns } from "@/lib/itemRef";
 /** Vault item data needed for equipment seeding. */
 export interface VaultEntry { id: string; bundle_items: BundleItemEntry[] | null }
 
-type AddInventoryItem = (item: Omit<PartyInventoryInsert, "campaign_id">) => Promise<PartyInventoryItem>;
-type AddInventoryItems = (items: Omit<PartyInventoryInsert, "campaign_id">[]) => Promise<void>;
+type InventoryRow = Omit<PartyInventoryInsert, "campaign_id">;
 
-interface EquipmentSeedingDeps {
-  addInventoryItem: AddInventoryItem;
-  addInventoryItems: AddInventoryItems;
+// ── Row builders (pure) ──────────────────────────────────────────────────────
+
+/** party_inventory insert row for a single plain (non-container) equipment entry. */
+function buildPlainEquipmentRow(
+  name: string,
+  quantity: number,
+  itemId: string | null,
+  carrierId: string,
+): InventoryRow {
+  return {
+    ...itemRefColumns(itemId), name, quantity,
+    carried_by: carrierId, location: "backpack",
+    slot: null, is_container: false, container_id: null,
+    is_attuned: false, is_equipped: false, notes: null,
+    current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+  };
 }
 
 /**
- * Class starting-equipment state and seeding logic for the character creation
- * wizard: which of the class's two starting bundles to grant, whether to
- * import it (and the background's) into inventory on creation, and the
- * vault-lookup + insert logic that turns a bundle/list into party_inventory
- * rows (see save() in useCharacterCreationForm, which is the sole caller of
- * seedEquipmentEntry/lookupVaultItems).
+ * Splits a class-equipment bundle's entries into plain rows ready for one
+ * batched insert, and "pack" entries whose contents need the pack's own
+ * generated id first (so they stay one-at-a-time). Exported for testing.
  */
-export function useCharacterEquipmentSeeding(
-  f: CharacterFormState,
-  { addInventoryItem, addInventoryItems }: EquipmentSeedingDeps,
-) {
+export function partitionBundleEntries(
+  entries: EquipmentEntry[],
+  vaultMap: Map<string, VaultEntry>,
+  carrierId: string,
+): { plainRows: InventoryRow[]; packEntries: EquipmentEntry[] } {
+  const plainRows: InventoryRow[] = [];
+  const packEntries: EquipmentEntry[] = [];
+  for (const entry of entries) {
+    const vault = vaultMap.get(entry.name.toLowerCase()) ?? null;
+    if (vault?.bundle_items?.length) {
+      packEntries.push(entry);
+    } else {
+      plainRows.push(buildPlainEquipmentRow(entry.name, entry.quantity ?? 1, vault?.id ?? null, carrierId));
+    }
+  }
+  return { plainRows, packEntries };
+}
+
+/** party_inventory insert rows for a background's free-text equipment list. */
+export function buildBackgroundEquipmentRows(equipmentText: string, carrierId: string): InventoryRow[] {
+  return parseEquipmentList(equipmentText).map((name) => buildPlainEquipmentRow(name, 1, null, carrierId));
+}
+
+// ── The loadout a character is made with, kept until it can be granted ───────
+
+/**
+ * What the wizard's equipment choices amount to, in the shape the seeding needs
+ * to replay them. It rides on `party_members.class_choices.starting_equipment`
+ * from creation until the character joins a campaign, because inventory rows
+ * need a campaign (`party_inventory.campaign_id` is NOT NULL) and a character
+ * resting in the pool has none. Replaying removes it, so it is granted once.
+ */
+export interface StartingEquipmentPlan {
+  /** The class whose bundle is granted; null when the player left it out. */
+  class_name: string | null;
+  /** Which of the class's two bundles. */
+  class_choice: "a" | "b" | null;
+  /** The background's items, already split into names. */
+  background_items: string[];
+}
+
+export function buildStartingEquipmentPlan(input: {
+  className: string;
+  classChoice: "a" | "b";
+  importClass: boolean;
+  backgroundText: string | null;
+  importBackground: boolean;
+}): StartingEquipmentPlan | null {
+  const classPart = input.importClass && CLASS_EQUIPMENT[input.className] ? input.className : null;
+  const backgroundItems = input.importBackground && input.backgroundText
+    ? parseEquipmentList(input.backgroundText)
+    : [];
+  if (!classPart && backgroundItems.length === 0) return null;
+  return {
+    class_name: classPart,
+    class_choice: classPart ? input.classChoice : null,
+    background_items: backgroundItems,
+  };
+}
+
+/** Reads the stored plan back, refusing anything that is not the shape written. */
+export function parseStartingEquipmentPlan(value: unknown): StartingEquipmentPlan | null {
+  if (typeof value !== "object" || value === null) return null;
+  const v = value as Record<string, unknown>;
+  const className = typeof v.class_name === "string" ? v.class_name : null;
+  const choice = v.class_choice === "a" || v.class_choice === "b" ? v.class_choice : null;
+  const items = Array.isArray(v.background_items)
+    ? v.background_items.filter((i): i is string => typeof i === "string")
+    : [];
+  if (!className && items.length === 0) return null;
+  return { class_name: className, class_choice: className ? choice : null, background_items: items };
+}
+
+// ── Writing the rows ─────────────────────────────────────────────────────────
+
+/** Look up vault items by name (case-insensitive). Returns Map<lowercaseName, VaultEntry>. */
+async function lookupVaultItems(names: string[]): Promise<Map<string, VaultEntry>> {
+  if (names.length === 0) return new Map();
+  const filter = names.map(n => `name.ilike.${n}`).join(",");
+  const { data, error } = await supabase.from("items").select("id, name, bundle_items").or(filter);
+  if (error) throw error;
+  const map = new Map<string, VaultEntry>();
+  for (const row of data ?? []) {
+    map.set((row.name as string).toLowerCase(), {
+      id: row.id as string,
+      bundle_items: row.bundle_items as BundleItemEntry[] | null,
+    });
+  }
+  return map;
+}
+
+/** The ids of rows written so far, so a failed replay removes exactly its own. */
+type Written = string[];
+
+async function insertRows(rows: InventoryRow[], campaignId: string, written: Written): Promise<void> {
+  if (rows.length === 0) return;
+  const user = getCurrentUser();
+  if (!user) throw new Error("You must be signed in to add equipment.");
+  const { data, error } = await supabase
+    .from("party_inventory")
+    .insert(rows.map((r) => ({ ...r, campaign_id: campaignId, user_id: user.id })))
+    .select("id");
+  if (error) throw error;
+  written.push(...(data ?? []).map((r) => r.id as string));
+}
+
+/**
+ * Seed one pack entry. The pack itself becomes an is_container=true row and
+ * each sub-item is inserted with container_id pointing to it.
+ */
+async function insertPack(
+  entry: EquipmentEntry,
+  vault: VaultEntry,
+  carrierId: string,
+  campaignId: string,
+  written: Written,
+): Promise<void> {
+  const user = getCurrentUser();
+  if (!user) throw new Error("You must be signed in to add equipment.");
+  const packRow: InventoryRow = {
+    ...itemRefColumns(vault.id), name: entry.name, quantity: entry.quantity ?? 1,
+    carried_by: carrierId, location: "backpack",
+    slot: null, is_container: true, container_id: null,
+    is_attuned: false, is_equipped: false, notes: null,
+    current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+  };
+  const { data, error } = await supabase
+    .from("party_inventory")
+    .insert({ ...packRow, campaign_id: campaignId, user_id: user.id })
+    .select()
+    .single();
+  if (error) throw error;
+  const packId = (data as PartyInventoryItem).id;
+  written.push(packId);
+  const bundleItems = vault.bundle_items ?? [];
+  const subMap = await lookupVaultItems([...new Set(bundleItems.map(b => b.name))]);
+  await insertRows(
+    bundleItems.map((sub) => ({
+      ...itemRefColumns(subMap.get(sub.name.toLowerCase())?.id ?? null), name: sub.name, quantity: sub.quantity ?? 1,
+      carried_by: carrierId, location: "container" as const,
+      slot: null, is_container: false, container_id: packId,
+      is_attuned: false, is_equipped: false, notes: null,
+      current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+    })),
+    campaignId,
+    written,
+  );
+}
+
+async function writePlan(
+  plan: StartingEquipmentPlan,
+  characterId: string,
+  campaignId: string,
+  written: Written,
+): Promise<void> {
+  const plainRows: InventoryRow[] = [];
+  let packEntries: EquipmentEntry[] = [];
+  let vaultMap = new Map<string, VaultEntry>();
+
+  const classPack = plan.class_name ? CLASS_EQUIPMENT[plan.class_name] : undefined;
+  if (classPack && plan.class_choice) {
+    const bundle = plan.class_choice === "a" ? classPack.a : classPack.b;
+    vaultMap = await lookupVaultItems([...new Set(bundle.items.map(e => e.name))]);
+    const split = partitionBundleEntries(bundle.items, vaultMap, characterId);
+    plainRows.push(...split.plainRows);
+    packEntries = split.packEntries;
+  }
+  plainRows.push(...plan.background_items.map((name) => buildPlainEquipmentRow(name, 1, null, characterId)));
+
+  await insertRows(plainRows, campaignId, written);
+  for (const entry of packEntries) {
+    const vault = vaultMap.get(entry.name.toLowerCase());
+    if (vault) await insertPack(entry, vault, characterId, campaignId, written);
+  }
+}
+
+/**
+ * Grants a character the starting equipment it was made with, into a campaign's
+ * inventory, exactly once. The one function behind every way a character comes
+ * to sit at a table: creating it on a roster, attaching it from the pool and
+ * joining by invite with it.
+ *
+ * The marker is claimed (removed) BEFORE anything is written, with a filter that
+ * only matches while the marker is still there, so two callers racing over the
+ * same character cannot both seed it. A failed write puts the marker back and
+ * throws, so the next attach tries again rather than losing the loadout.
+ *
+ * @returns whether anything was granted
+ */
+export async function replayStartingEquipment(
+  characterId: string,
+  campaignId: string,
+  queryClient: QueryClient,
+): Promise<boolean> {
+  const { data: row, error: readError } = await supabase
+    .from("party_members")
+    .select("class_choices")
+    .eq("id", characterId)
+    .single();
+  if (readError) throw readError;
+  const choices = (row.class_choices ?? {}) as Record<string, unknown>;
+  const plan = parseStartingEquipmentPlan(choices.starting_equipment);
+  if (!plan) return false;
+
+  const { starting_equipment: marker, ...rest } = choices;
+  const { data: claimed, error: claimError } = await supabase
+    .from("party_members")
+    .update({ class_choices: rest })
+    .eq("id", characterId)
+    .not("class_choices->starting_equipment", "is", null)
+    .select("id");
+  if (claimError) throw claimError;
+  if (!claimed || claimed.length === 0) return false; // another caller took it
+
+  const written: Written = [];
+  try {
+    await writePlan(plan, characterId, campaignId, written);
+  } catch (writeError) {
+    const { data: current } = await supabase
+      .from("party_members").select("class_choices").eq("id", characterId).single();
+    const restored = { ...((current?.class_choices ?? {}) as Record<string, unknown>), starting_equipment: marker };
+    await supabase.from("party_members").update({ class_choices: restored }).eq("id", characterId);
+    // Rows that did land before the failure would be granted twice on the
+    // retry, so exactly those go (sub-items first: they point at their pack).
+    if (written.length > 0) await supabase.from("party_inventory").delete().in("id", written);
+    throw writeError;
+  }
+  void queryClient.invalidateQueries({ queryKey: ["party-inventory"] });
+  void queryClient.invalidateQueries({ queryKey: ["character-pool"] });
+  return true;
+}
+
+// ── The wizard's equipment state ─────────────────────────────────────────────
+
+/**
+ * Class starting-equipment state for the character creation wizard: which of
+ * the class's two starting bundles to grant, and whether to import it (and the
+ * background's) on creation. The loadout itself is written by
+ * `replayStartingEquipment` once the character sits in a campaign.
+ */
+export function useCharacterEquipmentSeeding(f: CharacterFormState) {
   // Whether to import the chosen background's equipment text into inventory
   // on creation. Defaults to true so new characters don't end up empty-handed;
   // the player can untick it on the Background step.
@@ -41,73 +288,8 @@ export function useCharacterEquipmentSeeding(
   /** The two equipment bundles for the currently chosen class (null if class has no data). */
   const classEquipmentPack = computed(() => f.class ? (CLASS_EQUIPMENT[f.class] ?? null) : null);
 
-  /** Look up vault items by name (case-insensitive). Returns Map<lowercaseName, VaultEntry>. */
-  async function lookupVaultItems(names: string[]): Promise<Map<string, VaultEntry>> {
-    if (names.length === 0) return new Map();
-    const filter = names.map(n => `name.ilike.${n}`).join(",");
-    const { data } = await supabase.from("items").select("id, name, bundle_items").or(filter);
-    const map = new Map<string, VaultEntry>();
-    for (const row of data ?? []) {
-      map.set((row.name as string).toLowerCase(), {
-        id: row.id as string,
-        bundle_items: row.bundle_items as BundleItemEntry[] | null,
-      });
-    }
-    return map;
-  }
-
-  /**
-   * Seed one equipment entry into party_inventory.
-   * If the vault item is a pack (has bundle_items), the pack itself becomes an
-   * is_container=true row and each sub-item is inserted with container_id pointing to it.
-   */
-  async function seedEquipmentEntry(
-    entry: { name: string; quantity?: number },
-    vaultMap: Map<string, VaultEntry>,
-    carrierId: string,
-  ): Promise<void> {
-    const vault = vaultMap.get(entry.name.toLowerCase()) ?? null;
-    const bundleItems = vault?.bundle_items;
-
-    if (bundleItems && bundleItems.length > 0) {
-      // Pack: insert the pack itself as a container
-      const packRow = await addInventoryItem({
-        ...itemRefColumns(vault!.id), name: entry.name, quantity: entry.quantity ?? 1,
-        carried_by: carrierId, location: "backpack",
-        slot: null, is_container: true, container_id: null,
-        is_attuned: false, is_equipped: false, notes: null,
-        current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
-      });
-      // Look up the sub-items and batch-insert them inside the pack
-      const subNames = [...new Set(bundleItems.map(b => b.name))];
-      const subMap = await lookupVaultItems(subNames);
-      await addInventoryItems(
-        bundleItems.map((sub) => {
-          const subVault = subMap.get(sub.name.toLowerCase()) ?? null;
-          return {
-            ...itemRefColumns(subVault?.id ?? null), name: sub.name, quantity: sub.quantity ?? 1,
-            carried_by: carrierId, location: "container" as const,
-            slot: null, is_container: false, container_id: packRow.id,
-            is_attuned: false, is_equipped: false, notes: null,
-            current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
-          };
-        }),
-      );
-    } else {
-      // Plain item
-      await addInventoryItem({
-        ...itemRefColumns(vault?.id ?? null), name: entry.name, quantity: entry.quantity ?? 1,
-        carried_by: carrierId, location: "backpack",
-        slot: null, is_container: false, container_id: null,
-        is_attuned: false, is_equipped: false, notes: null,
-        current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
-      });
-    }
-  }
-
   return {
     importBackgroundEquipment,
     classEquipmentChoice, importClassEquipment, classEquipmentPack,
-    lookupVaultItems, seedEquipmentEntry,
   };
 }

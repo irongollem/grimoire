@@ -266,6 +266,7 @@ import { wasAnsweredUnder16 } from "@/lib/ageGateSession";
 import AppButton from "@/components/common/AppButton.vue";
 import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
 import { parseRulesetBounce, rulesetYear } from "@/composables/party/useCharacterRuleset";
+import { replayStartingEquipment } from "@/composables/party/useCharacterEquipmentSeeding";
 import type { PartyMember } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import AppInput from "@/components/common/AppInput.vue";
@@ -398,6 +399,16 @@ async function finishJoin(result: JoinResult, partyMemberId?: string) {
     return;
   }
   const campaignId = result.campaignId;
+  // The character arrives with the starting equipment it was made with; the
+  // table is where it goes (#973). The join already succeeded, so a failure here
+  // is said out loud and the player carries on (the equipment waits for a retry).
+  if (partyMemberId) {
+    try {
+      await replayStartingEquipment(partyMemberId, campaignId, queryClient);
+    } catch (err) {
+      toast.error(toast.fromError(err, "You joined, but your starting equipment couldn't be added."));
+    }
+  }
   // Preserve the current DM campaign in its per-mode slot before activating
   // the joined campaign. When already in player mode, the explicit cache
   // invalidation still exposes the newly-created membership immediately.

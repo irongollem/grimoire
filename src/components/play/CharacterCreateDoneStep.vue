@@ -3,7 +3,7 @@
     <p class="text-body text-muted-foreground italic">
       {{ isEditMode
         ? 'Review your changes before saving.'
-        : 'All set! Stats are derived from your choices, no magic numbers.' }}
+        : 'All set. Your scores, hit points and armor come from the choices you made.' }}
     </p>
 
     <!-- Summary card -->
@@ -18,7 +18,7 @@
           <p class="text-heading-sm font-bold text-foreground">{{ f.name || '—' }}</p>
           <p class="text-caption text-muted-foreground">
             Level {{ isEditMode ? f.level : 1 }}
-            {{ [selectedSpecies?.name, f.class].filter(Boolean).join(' ') }}
+            {{ [selectedSpecies?.name, f.class].filter(Boolean).join(' ') }}{{ f.subclass ? ` (${f.subclass})` : '' }}
             {{ f.subrace ? `(${f.subrace})` : '' }}
           </p>
         </div>
@@ -95,6 +95,10 @@
       </p>
     </div>
 
+    <p v-if="startingEquipmentDeferred" class="text-body text-muted-foreground">
+      Your starting equipment is added when {{ f.name.trim() || 'this character' }} joins a table.
+    </p>
+
     <!-- Save actions -->
     <div v-if="!isEditMode" class="flex flex-col sm:flex-row items-stretch gap-3">
       <AppButton
@@ -139,7 +143,7 @@ import type { CharacterCreationForm } from "@/composables/party/useCharacterCrea
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 
 const {
-  f, isEditMode, saving,
+  f, isEditMode, saving, startingEquipmentDeferred,
   portraitUrl, focalPoint, spellSlotMaxes,
   selectedSpecies, selectedBg, selectedClass,
   selectedSubrace, asiMode,

@@ -40,8 +40,16 @@
       </button>
     </div>
 
-    <p v-if="f.class" class="text-label-lg text-primary/70 text-center">
-      ✓ {{ f.class }} selected, subclass unlocked through levelling
+    <!-- Subclass: asked now when this class chooses at level 1, otherwise says when -->
+    <LevelUpSubclassPicker
+      v-if="f.class && subclassDueAtStart"
+      v-model="f.subclass"
+      v-model:selected-id="subclassId"
+      :next-level="1"
+      :class-name="f.class"
+      :subclass-options="subclassOptions" />
+    <p v-else-if="f.class && subclassLevel" class="text-body text-muted-foreground">
+      You choose your subclass at level {{ subclassLevel }}.
     </p>
 
     <!-- Proficiencies (collapsible) -->
@@ -197,6 +205,7 @@ import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import { CLASS_SKILL_CHOICES, FALLBACK_SKILL_DATA } from "@/data/classSkillChoices";
 import type { SkillKey } from "@/data/classSkillChoices";
+import LevelUpSubclassPicker from "@/levelup/LevelUpSubclassPicker.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
@@ -205,7 +214,8 @@ import type { CharacterCreationForm } from "@/composables/party/useCharacterCrea
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 
 const {
-  f, mergedClasses, selectedClassKey, onClassSelect, setSkillProf, skillBonus, toggleSave, saveBonus,
+  f, subclassId, subclassLevel, subclassDueAtStart, subclassOptions,
+  mergedClasses, selectedClassKey, onClassSelect, setSkillProf, skillBonus, toggleSave, saveBonus,
   bgSkillChoices, bgChosenSkills, bgChoiceLimit, bgFreeSkills, toggleBgSkillChoice,
 } = form;
 

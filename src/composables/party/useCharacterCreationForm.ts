@@ -7,11 +7,12 @@ import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composab
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
 import { benchedMessage, useBenchedAfterAttach } from "@/composables/party/useBenchedAfterAttach";
 import { useAddCharacterClass, useCharacterClasses } from "@/composables/party/useCharacterClasses";
-import { useAddInventoryItem, useAddInventoryItems } from "@/composables/items/usePartyInventory";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useAttachCharacter } from "@/composables/party/useCharacterPool";
 import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/rules/useCustomClasses";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
+import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
+import { subclassChoiceDue } from "@/levelup/subclassChoice";
 import { useBackgrounds } from "@/composables/rules/useBackgrounds";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCharacterCreationEdition } from "@/composables/party/useCharacterCreationEdition";
@@ -22,43 +23,18 @@ import { applySpeciesSpellGrants } from "@/composables/party/useCharacterSpells"
 import type { SpeciesSpellGrant } from "@/types/species.types";
 import { computeAc } from "@/types/party.types";
 import type { PartyMember, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
-import type { PartyInventoryInsert } from "@/types/inventory.types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
-import { CLASS_EQUIPMENT, type EquipmentEntry } from "@/data/classEquipment";
 import { abilityBonusesForChoice } from "@/rules/backgroundAsi";
 import {
   ABILITY_STATS, POINT_BUY_COSTS, POINT_BUY_TOTAL,
   type CharacterFormState, type AbilityKey, type AsiMode, type ScoreMode,
-  parseEquipmentList, saveKeysFromNames,
+  saveKeysFromNames,
 } from "@/rules/characterCreation";
-import { useCharacterEquipmentSeeding, type VaultEntry } from "@/composables/party/useCharacterEquipmentSeeding";
+import {
+  useCharacterEquipmentSeeding, buildStartingEquipmentPlan, replayStartingEquipment,
+} from "@/composables/party/useCharacterEquipmentSeeding";
 import { useCharacterBackgroundSelection } from "@/composables/party/useCharacterBackgroundSelection";
-import { itemRefColumns } from "@/lib/itemRef";
-
-// ── Equipment-seeding row builders (pure — no I/O) ──────────────────────────
-// Extracted so the create-character hot path (save(), below) can batch these
-// into a single addInventoryItems() call instead of one insert per starting
-// item. seedEquipmentEntry (useCharacterEquipmentSeeding) still owns "pack"
-// entries (e.g. "Explorer's Pack") one at a time — a pack needs its own
-// generated id before its contents can reference it as container_id, so that
-// part can't be folded into the batch.
-
-/** party_inventory insert row for a single plain (non-container) equipment entry. */
-function buildPlainEquipmentRow(
-  name: string,
-  quantity: number,
-  itemId: string | null,
-  carrierId: string,
-): Omit<PartyInventoryInsert, "campaign_id"> {
-  return {
-    ...itemRefColumns(itemId), name, quantity,
-    carried_by: carrierId, location: "backpack",
-    slot: null, is_container: false, container_id: null,
-    is_attuned: false, is_equipped: false, notes: null,
-    current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
-  };
-}
 
 /**
  * Where a newly-created character lands: as an unclaimed row on a campaign's
@@ -87,38 +63,6 @@ export function resolveCharacterPlacement(opts: {
     campaign_id: dmRosterCreate ? opts.activeCampaignId : null,
     owner_user_id: dmRosterCreate ? null : opts.creatorId,
   };
-}
-
-/**
- * Splits a class-equipment bundle's entries into plain rows ready for one
- * batched insert, and "pack" entries whose contents need the pack's own
- * generated id first (so they stay one-at-a-time via seedEquipmentEntry).
- * Exported for testing.
- */
-export function partitionBundleEntries(
-  entries: EquipmentEntry[],
-  vaultMap: Map<string, VaultEntry>,
-  carrierId: string,
-): { plainRows: Omit<PartyInventoryInsert, "campaign_id">[]; packEntries: EquipmentEntry[] } {
-  const plainRows: Omit<PartyInventoryInsert, "campaign_id">[] = [];
-  const packEntries: EquipmentEntry[] = [];
-  for (const entry of entries) {
-    const vault = vaultMap.get(entry.name.toLowerCase()) ?? null;
-    if (vault?.bundle_items?.length) {
-      packEntries.push(entry);
-    } else {
-      plainRows.push(buildPlainEquipmentRow(entry.name, entry.quantity ?? 1, vault?.id ?? null, carrierId));
-    }
-  }
-  return { plainRows, packEntries };
-}
-
-/** party_inventory insert rows for a background's free-text equipment list. */
-export function buildBackgroundEquipmentRows(
-  equipmentText: string,
-  carrierId: string,
-): Omit<PartyInventoryInsert, "campaign_id">[] {
-  return parseEquipmentList(equipmentText).map((name) => buildPlainEquipmentRow(name, 1, null, carrierId));
 }
 
 // ── Composable ────────────────────────────────────────────────────────────────
@@ -252,11 +196,46 @@ export function useCharacterCreationForm() {
   const derivedSpeed    = computed(() => selectedSpecies.value?.speed?.walk ?? 30);
   const derivedInitiative = computed(() => mod(f.dex));
 
+  // ── Subclass at creation (#973) ───────────────────────────────────────────────
+  // A character starts at level 1, and some classes choose their subclass there
+  // (2014 Cleric, Sorcerer, Warlock). The question is due by the same rule the
+  // level-up wizard uses, and is answered from the same options.
+  const STARTING_LEVEL = 1;
+  const { data: campaignSubclasses } = useCampaignCustomSubclasses();
+  const subclassId = ref("");
+  const subclassLevel = computed(() => selectedClass.value?.subclass_level ?? null);
+  // Creating only: an edit never writes a class row (a subclass is changed where
+  // the character levels), so it neither asks nor blocks.
+  const subclassDueAtStart = computed(() =>
+    !isEditMode.value && !!selectedClass.value && subclassChoiceDue(null, STARTING_LEVEL, subclassLevel.value));
+  // The class row is written before the character is seated anywhere, and the
+  // database only accepts a subclass the character could read at that moment: a
+  // universal one, or one of the roster campaign a DM is creating into. A
+  // table's own homebrew subclass is chosen on the level-up that follows.
+  const subclassOptions = computed(() => campaignSubclasses.value
+    .filter((sc) => sc.class_name === f.class
+      && (sc.campaign_id === null || (isDmCreate.value && sc.campaign_id === campaign.activeCampaignId)))
+    .map((sc) => ({ id: sc.id, name: sc.subclass_name })));
+  const blockedBySubclassChoice = computed(() =>
+    subclassDueAtStart.value && subclassOptions.value.length > 0 && !subclassId.value);
+  // Whether the loadout will wait: the character is not going to a table that
+  // takes its edition. Mirrors the attach decision in save().
+  const startingEquipmentDeferred = computed(() => {
+    if (isEditMode.value) return false;
+    if (isDmCreate.value && campaign.activeCampaignId) return false;
+    if (!campaignToAttachAfterCreate(landingCampaign.value, isDmCreate.value)) return true;
+    const table = campaign.activeCampaign;
+    const ruleset = chosenRuleset.value;
+    return !!table && !!ruleset && !isRulesetAdmissible({ ruleset }, table);
+  });
+  function clearSubclass() {
+    subclassId.value = "";
+    f.subclass = "";
+  }
+
   const { mutateAsync: create }               = useCreatePartyMember();
   const { mutateAsync: update }               = useUpdatePartyMember();
   const { mutateAsync: addCharacterClass }    = useAddCharacterClass();
-  const { mutateAsync: addInventoryItem }      = useAddInventoryItem();
-  const { mutateAsync: addInventoryItems }     = useAddInventoryItems();
   const { mutateAsync: attachCharacter } = useAttachCharacter();
 
   // A memberId query param means either "DM managing a campaign member" (the
@@ -270,6 +249,9 @@ export function useCharacterCreationForm() {
   );
   const wizardStep = ref(0);
   const saving     = ref(false);
+  // True once a new character is fully created, so leaving the wizard stops
+  // asking whether to throw the progress away (there is none left to lose).
+  const finished   = ref(false);
   const scoreMode  = ref<ScoreMode>("pointbuy");
 
   const portraitUrl = ref(existingMember.value?.portrait_url ?? "");
@@ -374,8 +356,7 @@ export function useCharacterCreationForm() {
   const {
     importBackgroundEquipment,
     classEquipmentChoice, importClassEquipment, classEquipmentPack,
-    lookupVaultItems, seedEquipmentEntry,
-  } = useCharacterEquipmentSeeding(f, { addInventoryItem, addInventoryItems });
+  } = useCharacterEquipmentSeeding(f);
 
   const {
     bgSkillChoices, bgChosenSkills, bgChoiceLimit, bgFreeSkills,
@@ -469,7 +450,7 @@ export function useCharacterCreationForm() {
     if (!cls) return;
     selectedClassKey.value = choiceKey;
     f.class   = cls.class_name;
-    f.subclass = "";
+    clearSubclass();
     if (cls?.saving_throws?.length) {
       f.saving_throw_proficiencies = saveKeysFromNames(cls.saving_throws);
     }
@@ -490,7 +471,7 @@ export function useCharacterCreationForm() {
     onBackgroundSelect("");
     selectedClassKey.value = "";
     f.class = "";
-    f.subclass = "";
+    clearSubclass();
     f.saving_throw_proficiencies = [];
     resetSlotsToDefault();
   });
@@ -675,8 +656,23 @@ export function useCharacterCreationForm() {
         if (f.class && !pickedClass) {
           throw new Error(`${f.class} is not available in this edition. Pick a class again.`);
         }
+        const chosenSubclass = subclassDueAtStart.value
+          ? subclassOptions.value.find((o) => o.id === subclassId.value) ?? null
+          : null;
+        // The loadout the player picked travels with the character until a table
+        // can receive it: a character resting in the pool has no inventory.
+        const startingEquipment = buildStartingEquipmentPlan({
+          className: f.class,
+          classChoice: classEquipmentChoice.value,
+          importClass: importClassEquipment.value,
+          backgroundText: (allBackgrounds.value ?? []).find((b) => b.id === f.background_id)?.equipment ?? null,
+          importBackground: importBackgroundEquipment.value,
+        });
         const created = await create({
           ...basePayload,
+          class_choices: startingEquipment
+            ? { ...basePayload.class_choices, starting_equipment: startingEquipment }
+            : basePayload.class_choices,
           ruleset,
           ...resolveCharacterPlacement({
             isDmCreate: isDmCreate.value,
@@ -708,8 +704,10 @@ export function useCharacterCreationForm() {
               class_name:      f.class,
               class_definition_id: pickedClass.id,
               class_definition_kind: pickedClass.definition_kind,
-              subclass_name:   null,          // subclass comes from LevelUpWizard
-              subclass_definition_id: null,
+              // Chosen here when the class picks its subclass at level 1;
+              // otherwise null and the level-up wizard asks at the due level.
+              subclass_name:   chosenSubclass?.name ?? null,
+              subclass_definition_id: chosenSubclass?.id ?? null,
               levels:          1,
               is_primary:      true,
               hit_dice_used:   0,
@@ -746,43 +744,12 @@ export function useCharacterCreationForm() {
             }
           }
 
-          // Seed class + background starting equipment as inventory rows — only
-          // when the character actually landed in a campaign. party_inventory.campaign_id
-          // is NOT NULL, and a standalone character (#729/#730) has none to seed
-          // into; class_choices/character_classes/character_spells above are keyed
-          // on the character alone, so those still run regardless.
-          // Plain entries from both sources batch into a single insert; any
-          // "pack" entries (e.g. a class's starting Pack) still need their
-          // generated id before their contents can be inserted, so those go
-          // through seedEquipmentEntry (which itself batches the pack's
-          // sub-items) one at a time — see partitionBundleEntries above.
-          if (landedCampaignId) {
-            const plainRows: Omit<PartyInventoryInsert, "campaign_id">[] = [];
-            let packEntries: EquipmentEntry[] = [];
-            let packVaultMap: Map<string, VaultEntry> = new Map();
-
-            if (importClassEquipment.value && f.class) {
-              const classPack = CLASS_EQUIPMENT[f.class];
-              if (classPack) {
-                const bundle = classEquipmentChoice.value === "a" ? classPack.a : classPack.b;
-                const uniqueNames = [...new Set(bundle.items.map(e => e.name))];
-                packVaultMap = await lookupVaultItems(uniqueNames);
-                const split = partitionBundleEntries(bundle.items, packVaultMap, created.id);
-                plainRows.push(...split.plainRows);
-                packEntries = split.packEntries;
-              }
-            }
-
-            // Seed background starting equipment as inventory rows (text-based, no vault lookup)
-            if (importBackgroundEquipment.value && f.background_id) {
-              const bg = (allBackgrounds.value ?? []).find((b) => b.id === f.background_id);
-              plainRows.push(...buildBackgroundEquipmentRows(bg?.equipment ?? "", created.id));
-            }
-
-            if (plainRows.length > 0) await addInventoryItems(plainRows);
-            for (const entry of packEntries) {
-              await seedEquipmentEntry(entry, packVaultMap, created.id);
-            }
+          // A roster character created by a DM is already at its table, so its
+          // starting equipment goes in now. A player's character gets it when it
+          // is attached (above, inside attachCharacter), or later, whenever it
+          // first joins a table; until then the loadout waits on the character.
+          if (created.campaign_id) {
+            await replayStartingEquipment(created.id, created.campaign_id, queryClient);
           }
         } catch (seedErr) {
           await supabase.from("party_inventory").delete().eq("carried_by", created.id);
@@ -816,6 +783,7 @@ export function useCharacterCreationForm() {
         if (benchedChoices > 0) {
           useToast().info(benchedMessage(f.name.trim(), campaign.activeCampaign?.name ?? null, benchedChoices));
         }
+        finished.value = true;
         void router.push(createDestination({
           landedCampaignId, isDmCreate: isDmCreate.value, levelUp, benched: benchedChoices > 0, characterId: created.id,
         }));
@@ -837,12 +805,14 @@ export function useCharacterCreationForm() {
     // auth
     auth,
     // form state
-    f, activeTab, wizardStep, saving, scoreMode,
+    f, activeTab, wizardStep, saving, finished, scoreMode,
     // edition (new characters): chosen on the first step, never written after create
     chosenRuleset, chooseRuleset, landingCampaign,
     portraitUrl, focalPoint, spellSlotMaxes,
     importBackgroundEquipment,
-    classEquipmentChoice, importClassEquipment, classEquipmentPack,
+    classEquipmentChoice, importClassEquipment, classEquipmentPack, startingEquipmentDeferred,
+    // subclass chosen at creation, when the class picks one at level 1
+    subclassId, subclassLevel, subclassDueAtStart, subclassOptions, blockedBySubclassChoice,
     // ASI (new chars)
     asiMode, customAsi, customAsiTotal, adjustCustomAsi,
     // computed
