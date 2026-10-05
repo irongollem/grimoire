@@ -136,3 +136,9 @@ select n.id, pm.id, n.campaign_id, n.created_at
      )
    )
 on conflict do nothing;
+
+-- The demo copy classifies every campaign-scoped table (demo_campaign.test.sql).
+-- Reveals are play state: the copy's own triggers write them as its NPCs are
+-- shared, and a demo starts with nobody met.
+insert into private.demo_campaign_tables (table_name, tier, copy, reason)
+values ('npc_reveals', 1, false, 'play state: written by triggers as NPCs are shared; a demo starts with nobody met');
