@@ -38,3 +38,16 @@ export function skillCheckBonus(
   const pb = source.proficiency_bonus;
   return mod + (level === "expertise" ? pb * 2 : level === "proficient" ? pb : 0);
 }
+
+/**
+ * Passive score for a skill (passive Perception is `passiveScore(m, "perception")`):
+ * 10 plus the skill's check bonus. Same inputs as `skillCheckBonus`, so a
+ * wild-shaped character's beast scores flow through `overrideScores`.
+ */
+export function passiveScore(
+  source: SkillCheckSource,
+  skillKey: keyof SkillProficiencies,
+  overrideScores?: AbilityScores,
+): number {
+  return 10 + skillCheckBonus(source, skillKey, overrideScores);
+}

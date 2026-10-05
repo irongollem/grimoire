@@ -75,6 +75,12 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/play",
     name: "play",
+    component: () => import("@/views/play/PlayerHearthView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Hearth" },
+  },
+  {
+    path: "/play/character",
+    name: "play-character",
     component: () => import("@/views/play/PlayerCharacterView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Your Character" },
   },

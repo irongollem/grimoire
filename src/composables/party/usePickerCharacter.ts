@@ -40,7 +40,7 @@ export function resolvePickerTarget(input: PickerTargetInput): PickerTarget {
 }
 
 /**
- * Where a picker returns after a change. The active character's sheet is /play.
+ * Where a picker returns after a change. The active character's sheet is /play/character.
  * A character at the table that is not the active one has no sheet there, so it
  * goes to Champions (where its approval notice is). A pool character goes back
  * to its edit page if that is where the player came from, else to the pool.
@@ -53,7 +53,7 @@ export function pickerReturnRoute(input: {
   /** The path the player came from, if the router knows it. */
   back: string | null;
 }): RouteLocationRaw {
-  if (!input.isOtherCharacter) return "/play";
+  if (!input.isOtherCharacter) return "/play/character";
   if (input.campaignId) return { name: "play-champions" };
   if (input.back?.startsWith("/play/character/edit")) {
     return { name: "play-character-edit", query: { memberId: input.memberId } };

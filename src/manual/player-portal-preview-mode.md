@@ -11,7 +11,7 @@ Sharing settings are scattered across a dozen features, and it's easy to think s
 
 ## Entering preview mode
 
-Preview mode is entered per character, from the **Party** page (`/party`): each row in your Party Tracker has a **preview** button (tooltip "Preview player portal as this character"). Clicking it drops you straight into `/play` as that character.
+Preview mode is entered per character, from the **Party** page (`/party`): each row in your Party Tracker has a **preview** button (tooltip "Preview player portal as this character"). Clicking it drops you straight onto that character's sheet (`/play/character`); the rest of the portal, Hearth included, is one tab away.
 
 There's no separate "enter preview" toggle anywhere else: it's always tied to picking a character first.
 

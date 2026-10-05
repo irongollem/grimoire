@@ -27,6 +27,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | [simulacrum.md](simulacrum.md)                           | Simulacrum: portrait → AI mini-render → Meshy 3D sculpt (print STL / VTT GLB), teaser demand gate, /minis gallery                                |
 | [publishing-tools.md](publishing-tools.md)               | Scriptorium (document publisher), Card Forge (MTG/Tarot print), The Mint (tokens+coins), Illuminator, Reliquary                                  |
 | [player-portal.md](player-portal.md)                     | The full player experience: all /play/\* views, layout, nav, live encounter panel, DM Preview Mode                                               |
+| [player-hearth.md](player-hearth.md)                     | Hearth, the player's home at /play (#977): between sessions, at the table, first visit; what each section reads, and the decisions behind it |
 | [collaboration.md](collaboration.md)                     | Multi-user invite system, campaign members, DM/player roles, live sync, RLS security model                                                       |
 | [sessions.md](sessions.md)                               | The campaign session: starting and ending the table, what changes while it runs, the live rail, and how encounters and quest chains nest inside |
 | [soundboard.md](soundboard.md)                           | Soundboard: HTML/Web Audio engine, pages/playlists, five sound sources, Spotify/Cast/Media Session, free-tier quotas — DM-only, no player access |

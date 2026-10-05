@@ -145,7 +145,7 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
         // (or no) character after level 1.
         void router.push(`/play/character/levelup?targetLevel=${targetLevel}&memberId=${member.id}`);
       } else {
-        void router.push(backRoute ?? "/play");
+        void router.push(backRoute ?? "/play/character");
       }
     } catch (e) {
       // A PostgREST error is a plain object with a message, not an Error: the server's own words

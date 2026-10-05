@@ -41,7 +41,11 @@ export function useCreateEntityNote() {
       return data as EntityNote;
     },
     onSuccess: (_d, vars) =>
-      qc.invalidateQueries({ queryKey: ["entity-notes", vars.entity_type, vars.entity_id] }),
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ["entity-notes", vars.entity_type, vars.entity_id] }),
+        // The Hearth's "your notes" list reads across entities (useMyRecentNotes).
+        qc.invalidateQueries({ queryKey: ["my-recent-entity-notes"] }),
+      ]),
   });
 }
 
@@ -76,7 +80,11 @@ export function useUpdateEntityNote() {
       if (error) throw error;
     },
     onSuccess: (_d, vars) =>
-      qc.invalidateQueries({ queryKey: ["entity-notes", vars.entity_type, vars.entity_id] }),
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ["entity-notes", vars.entity_type, vars.entity_id] }),
+        // The Hearth's "your notes" list reads across entities (useMyRecentNotes).
+        qc.invalidateQueries({ queryKey: ["my-recent-entity-notes"] }),
+      ]),
   });
 }
 
@@ -96,6 +104,10 @@ export function useDeleteEntityNote() {
       if (error) throw error;
     },
     onSuccess: (_d, vars) =>
-      qc.invalidateQueries({ queryKey: ["entity-notes", vars.entity_type, vars.entity_id] }),
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ["entity-notes", vars.entity_type, vars.entity_id] }),
+        // The Hearth's "your notes" list reads across entities (useMyRecentNotes).
+        qc.invalidateQueries({ queryKey: ["my-recent-entity-notes"] }),
+      ]),
   });
 }

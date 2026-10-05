@@ -272,7 +272,7 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
 
 
 // ── Player composable ──────────────────────────────────────────────────────────
-export function usePlayerEncounterLive(campaignId: MaybeRefOrGetter<string>) {
+export function usePlayerEncounterLive(campaignId: MaybeRefOrGetter<string | null>) {
   let subscribedCampaignId: string | null = null;
 
   async function fetchRunning(id = subscribedCampaignId) {

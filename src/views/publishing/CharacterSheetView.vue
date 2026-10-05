@@ -133,6 +133,6 @@ const backgroundName = computed(() =>
   member.value?.background_id ? (backgroundMap.value.get(member.value.background_id) ?? null) : null,
 );
 
-/** Players go back to /play, the DM goes back to /party */
-const backRoute = computed(() => auth.isDM ? "/party" : "/play");
+/** Players go back to their sheet, the DM goes back to /party */
+const backRoute = computed(() => auth.isDM ? "/party" : "/play/character");
 </script>

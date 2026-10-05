@@ -7,7 +7,7 @@ summary: What a player's own Character, Inventory, and Spellbook tabs show, and 
 keywords: character sheet, inventory, paper doll, coin purse, containers, spells, prepared, known, level up, champions, wild shape, hide, custom attacks
 ---
 
-The **Character** tab is a player's primary screen: their sheet, always visible, with **Inventory** and **Spellbook** as its two closest companions in the nav bar. This page covers everything a player manages about their own character: nothing here needs your intervention to work, but it's worth knowing what it looks like when a player asks you about it.
+The **Character** tab is the player's full sheet, one tab along from **Hearth** (their home, see [Player Portal: Overview](#player-portal-overview)), with **Spellbook** and **Inventory** close by in the nav bar. This page covers everything a player manages about their own character: nothing here needs your intervention to work, but it's worth knowing what it looks like when a player asks you about it.
 
 ## Key ideas
 

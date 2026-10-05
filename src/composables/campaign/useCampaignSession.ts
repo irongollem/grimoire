@@ -256,12 +256,14 @@ export function formatSessionElapsed(
  * not one. The doorbell (20260928225909) names the table without the row, so a
  * start or end reaches players as it happens rather than on a poll.
  */
-export function usePlayerSessionState(campaignId: MaybeRefOrGetter<string>) {
+export function usePlayerSessionState(campaignId: MaybeRefOrGetter<string | null>) {
   return useQuery({
     queryKey: computed(() => ["player-session-state", toValue(campaignId)]),
     queryFn: async (): Promise<{ isRunning: boolean; startedAt: string | null }> => {
+      const id = toValue(campaignId);
+      if (!id) throw new Error("usePlayerSessionState fetched without a campaign");
       const { data, error } = await supabase.rpc("get_player_session_state", {
-        p_campaign_id: toValue(campaignId),
+        p_campaign_id: id,
       });
       if (error) throw error;
       const row = (data as { is_running: boolean; started_at: string | null }[] | null)?.[0];

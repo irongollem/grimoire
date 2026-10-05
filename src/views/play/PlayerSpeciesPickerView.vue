@@ -6,7 +6,7 @@
     <PageHeader flush title="Choose Species" :description="headerDescription ?? undefined">
       <template #actions>
       <AppButton
-        to="/play"
+        to="/play/character"
         variant="subtle"
         size="sm"
         class="shrink-0"

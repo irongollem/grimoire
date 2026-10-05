@@ -59,16 +59,17 @@ account plays in. The sheet used to list every campaign RLS returned and badge
 each one DM or Player, which handed the player shell a sideways route into a
 campaign the other lens owns; see the lens section of `collaboration.md`.
 
-All nav items defined in `src/lib/playerNav.ts` (`ALL_PLAYER_NAV`) — 13 tabs:
+All nav items defined in `src/lib/playerNav.ts` (`ALL_PLAYER_NAV`), 14 tabs in default order. Each item has a stable `id`, which is what a player's saved tab order stores (`usePlayerNavPrefs`, see `player-hearth.md`):
 
 | Route             | Label     | Description                                                                     |
 | ----------------- | --------- | ------------------------------------------------------------------------------- |
-| `/play`           | Character | Active character sheet — stats, skills, features, combat, wild shape            |
-| `/play/inventory` | Inventory | Paper doll, containers, coin purse, carry weight                                |
+| `/play`           | Hearth    | The player's home: between sessions, at the table and first visit. Its own doc: [player-hearth.md](player-hearth.md) (#977) |
+| `/play/character` | Character | Active character sheet — stats, skills, features, combat, wild shape            |
 | `/play/spells`    | Spellbook | Full spell management: prepared list, spellbook, innate spells, browse          |
-| `/play/party`     | People    | Party member cards + shared NPCs with filter/search                             |
-| `/play/calendar`  | Calendar  | Current in-game date; upcoming/confirmed session dates                         |
 | `/play/journal`   | Journal   | Personal adventure journal (My Journal / Party Journal / Quest Log / Puzzles / DM Notes / Handouts tabs) |
+| `/play/inventory` | Inventory | Paper doll, containers, coin purse, carry weight                                |
+| `/play/calendar`  | Calendar  | Current in-game date; upcoming/confirmed session dates                         |
+| `/play/party`     | People    | Party member cards + shared NPCs with filter/search                             |
 | `/play/crafting`  | Workshop  | DM-shared crafting recipes with ingredient inventory check (hidden when the `crafting` optional rule is off) |
 | `/play/downtime`  | Interlude | Downtime activities between sessions (hidden when the `downtime` optional rule is off) |
 | `/play/atlas`     | Atlas     | Shared locations with maps, pins, NPCs, and store wares                         |
@@ -95,9 +96,9 @@ Additional sub-routes not in the nav bar:
 
 ## Character Sheet (Player)
 
-Route: `/play` (renders `PlayerCharacterView.vue`)
+Route: `/play/character`, name `play-character` (renders `PlayerCharacterView.vue`). Until #977 this was `/play`; the landing is now Hearth, and every link that means "the sheet" (level-up, creation, the pickers, the export, DM preview) targets `play-character`.
 
-The character sheet is the player's primary view. When no character is linked, it offers a "Create Character" button or prompts the player to ask their DM.
+The character sheet is the player's full sheet, one tab from Hearth. When no character is linked, it offers a "Create Character" button or prompts the player to ask their DM.
 
 **Always-visible header section:**
 

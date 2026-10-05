@@ -28,7 +28,7 @@ vi.mock("@/composables/play/useReadItems", () => ({
   useReadItems: (type: string) => ({ isNew: (id: string) => state.newIds.has(`${type}:${id}`) }),
 }));
 
-import { anyUnread, usePlayerUnread } from "./usePlayerUnread";
+import { anyUnread, collectUnreadItems, usePlayerUnread } from "./usePlayerUnread";
 
 beforeEach(() => {
   state.quests = [];
@@ -83,5 +83,32 @@ describe("usePlayerUnread", () => {
     const { sections } = usePlayerUnread();
     expect(sections.value.puzzles).toBe(false);
     expect(sections.value.dmNotes).toBe(true);
+  });
+});
+
+describe("unread items", () => {
+  it("lists the same things the section dots count, newest first, with routes", () => {
+    state.quests = [
+      { id: "q1", title: "Quest", status: "active", updated_at: "2026-10-02" },
+      { id: "q0", title: "Hidden", status: "undiscovered", updated_at: "2026-10-09" },
+    ];
+    state.puzzles = [{ id: "p1", name: "Riddle", updated_at: "2026-10-03" }];
+    state.handouts = [{ id: "h1", title: "Map", updated_at: "2026-10-04" }];
+    state.notes = [{ id: "n1", title: "Rumour", updated_at: "2026-10-01" }];
+    state.newIds = new Set(["quest:q1", "quest:q0", "puzzle:p1", "handout:h1", "note:n1"]);
+    const { items, sections } = usePlayerUnread();
+    expect(items.value.map((i) => i.id)).toEqual(["h1", "p1", "q1", "n1"]);
+    expect(items.value[0].to).toEqual({ name: "play-handout", params: { id: "h1" } });
+    expect(items.value[2].to).toEqual({ name: "play-quest-detail", params: { id: "q1" } });
+    expect(items.value[1].to).toEqual({ name: "play-journal", query: { tab: "puzzles" } });
+    expect(items.value[3].to).toEqual({ name: "play-journal", query: { tab: "dm-notes" } });
+    expect(Object.values(sections.value).every(Boolean)).toBe(true);
+  });
+
+  it("is empty when everything is read, and tolerates undefined lists", () => {
+    const never = () => false;
+    expect(
+      collectUnreadItems({ quests: undefined, puzzles: undefined, handouts: undefined, notes: undefined, isNew: { quest: never, puzzle: never, handout: never, note: never } }),
+    ).toEqual([]);
   });
 });

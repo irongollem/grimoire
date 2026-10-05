@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { skillCheckBonus, type SkillCheckSource } from "@/rules/skillCheck";
+import { passiveScore, skillCheckBonus, type SkillCheckSource } from "@/rules/skillCheck";
 
 function source(over: Partial<SkillCheckSource> = {}): SkillCheckSource {
   return {
@@ -43,5 +43,25 @@ describe("skillCheckBonus", () => {
 
   it("treats a missing proficiency map as no proficiency", () => {
     expect(skillCheckBonus(source({ skill_proficiencies: null }), "stealth")).toBe(3);
+  });
+});
+
+describe("passiveScore", () => {
+  it("is 10 plus the check bonus", () => {
+    // WIS 14 → +2, proficient (+3).
+    expect(passiveScore(source({ skill_proficiencies: { perception: "proficient" } }), "perception")).toBe(15);
+  });
+
+  it("is 10 plus the bare modifier when untrained", () => {
+    expect(passiveScore(source(), "perception")).toBe(12);
+  });
+
+  it("doubles proficiency for expertise", () => {
+    expect(passiveScore(source({ skill_proficiencies: { perception: "expertise" } }), "perception")).toBe(18);
+  });
+
+  it("honours override scores", () => {
+    const beast = { str: 12, dex: 12, con: 12, int: 3, wis: 6, cha: 6 }; // WIS 6 → -2
+    expect(passiveScore(source(), "perception", beast)).toBe(8);
   });
 });

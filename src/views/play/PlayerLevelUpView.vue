@@ -56,5 +56,5 @@ const targetLevel = computed(() => {
 // levelling their own character also carries a memberId (their own, and it's
 // re-appended across the multi-level loop), so keying on memberId would send
 // them to the DM-only /party. DMs return to the party roster; players to /play.
-const backRoute = auth.isDM ? "/party" : "/play";
+const backRoute = auth.isDM ? "/party" : "/play/character";
 </script>

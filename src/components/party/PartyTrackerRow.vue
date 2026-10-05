@@ -298,7 +298,8 @@ import CompanionCard from "./CompanionCard.vue";
 import PartyConditionsPanel from "./PartyConditionsPanel.vue";
 import PartyDeathSaves from "./PartyDeathSaves.vue";
 import { betterTempHp, formHpPools } from "@/rules/hitPoints";
-import type { PartyMember, PartyMemberUpdate, SkillProficiencies, SkillProfLevel } from "@/types/party.types";
+import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
+import { passiveScore } from "@/rules/skillCheck";
 import type { Companion } from "@/types/companion.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
@@ -459,15 +460,6 @@ async function toggleInspiration() {
   await updateMember({ id: member.id, update: { inspiration: !member.inspiration } });
 }
 
-function mod(score: number) {
-  return Math.floor((score - 10) / 2);
-}
-
-function profAdd(profs: SkillProficiencies, key: keyof SkillProficiencies, profBonus: number) {
-  const level: SkillProfLevel = profs[key] ?? "none";
-  return level === "proficient" ? profBonus : level === "expertise" ? profBonus * 2 : 0;
-}
-
 const { acFor, acBreakdownFor } = useArmorClass();
 // Hover shows how the number is made, so a DM can see why it is what it is.
 const acTitle = computed(() =>
@@ -477,13 +469,13 @@ const displayAc = computed(
   () => member.wildshape_state?.beast_ac ?? acFor(member),
 );
 
-const passivePerception = computed(() => 10 + mod(member.wis) + profAdd(member.skill_proficiencies, "perception", member.proficiency_bonus));
-const passiveInsight = computed(() => 10 + mod(member.wis) + profAdd(member.skill_proficiencies, "insight", member.proficiency_bonus));
-const passiveInvestigation = computed(() => 10 + mod(member.int) + profAdd(member.skill_proficiencies, "investigation", member.proficiency_bonus));
-const passiveArcana = computed(() => 10 + mod(member.int) + profAdd(member.skill_proficiencies, "arcana", member.proficiency_bonus));
-const passiveHistory = computed(() => 10 + mod(member.int) + profAdd(member.skill_proficiencies, "history", member.proficiency_bonus));
-const passiveNature = computed(() => 10 + mod(member.int) + profAdd(member.skill_proficiencies, "nature", member.proficiency_bonus));
-const passiveReligion = computed(() => 10 + mod(member.int) + profAdd(member.skill_proficiencies, "religion", member.proficiency_bonus));
+const passivePerception = computed(() => passiveScore(member, "perception"));
+const passiveInsight = computed(() => passiveScore(member, "insight"));
+const passiveInvestigation = computed(() => passiveScore(member, "investigation"));
+const passiveArcana = computed(() => passiveScore(member, "arcana"));
+const passiveHistory = computed(() => passiveScore(member, "history"));
+const passiveNature = computed(() => passiveScore(member, "nature"));
+const passiveReligion = computed(() => passiveScore(member, "religion"));
 
 function hpColor(current: number, max: number) {
   const pct = current / max;
@@ -519,6 +511,6 @@ function companionSourceLink(c: Companion): string {
 
 function previewAsPlayer() {
   ui.enterDmPreview(member.id);
-  router.push({ name: "play" });
+  router.push({ name: "play-character" });
 }
 </script>

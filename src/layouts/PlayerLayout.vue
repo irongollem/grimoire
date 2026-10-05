@@ -28,7 +28,7 @@
         {{ todayLabel }}
       </span>
 
-      <span v-if="characterName && route.path !== '/play'" class="text-caption text-foreground hidden sm:inline">
+      <span v-if="characterName && route.name !== 'play' && route.name !== 'play-character'" class="text-caption text-foreground hidden sm:inline">
         {{ characterName }}
       </span>
 
@@ -397,9 +397,9 @@ const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscree
 // Keep the player encounter subscription alive for the entire session so state
 // stays in sync even when the player navigates away from the encounter page.
 const { liveState: playerLiveState, liveStateLoaded: runningLoaded } =
-  usePlayerEncounterLive(() => campaign.activeCampaignId ?? "");
+  usePlayerEncounterLive(() => campaign.activeCampaignId);
 
-const { data: playerSession } = usePlayerSessionState(() => campaign.activeCampaignId ?? "");
+const { data: playerSession } = usePlayerSessionState(() => campaign.activeCampaignId);
 const reducedMotion = prefersReducedMotion();
 const sessionLive = computed(() => playerSession.value?.isRunning === true);
 const sessionSince = computed(() => {

@@ -31,6 +31,7 @@ import { abilityBonusesForChoice, unresolvedOriginFeatMessage } from "@/rules/ba
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { levelOneWrites, scoresAfterBonuses } from "@/composables/party/creationLevelOne";
 import { useCreationLevelOne } from "@/composables/party/useCreationLevelOne";
+import { passiveScore, type SkillCheckSource } from "@/rules/skillCheck";
 import {
   ABILITY_STATS, POINT_BUY_COSTS, POINT_BUY_TOTAL,
   type CharacterFormState, type AbilityKey, type AsiMode, type ScoreMode,
@@ -318,7 +319,7 @@ export function useCharacterCreationForm() {
   // A memberId query param means either "DM managing a campaign member" (the
   // established affordance — /party is a DM route) or "owner editing their own
   // unattached character" (#729/#730); only the DM case belongs on /party.
-  const backRoute = isDmCreate.value || (auth.isDM && !!(route.query.memberId as string | undefined)) ? "/party" : "/play";
+  const backRoute = isDmCreate.value || (auth.isDM && !!(route.query.memberId as string | undefined)) ? "/party" : "/play/character";
 
   const tabParam = route.query.tab as string | undefined;
   const activeTab  = ref<"identity" | "stats" | "profs">(
@@ -699,9 +700,15 @@ export function useCharacterCreationForm() {
     return (bonus >= 0 ? "+" : "") + bonus;
   }
 
-  const passivePerception    = computed(() => { const b = mod(f.wis); const p = f.skill_proficiencies.perception    ?? "none"; return 10 + b + (p === "proficient" ? profBonus.value : p === "expertise" ? profBonus.value * 2 : 0); });
-  const passiveInsight       = computed(() => { const b = mod(f.wis); const p = f.skill_proficiencies.insight       ?? "none"; return 10 + b + (p === "proficient" ? profBonus.value : p === "expertise" ? profBonus.value * 2 : 0); });
-  const passiveInvestigation = computed(() => { const b = mod(f.int); const p = f.skill_proficiencies.investigation ?? "none"; return 10 + b + (p === "proficient" ? profBonus.value : p === "expertise" ? profBonus.value * 2 : 0); });
+  // The form scores like a member: same rules module as the sheet and the DM's tracker.
+  const skillSource = computed<SkillCheckSource>(() => ({
+    str: f.str, dex: f.dex, con: f.con, int: f.int, wis: f.wis, cha: f.cha,
+    proficiency_bonus: profBonus.value,
+    skill_proficiencies: f.skill_proficiencies,
+  }));
+  const passivePerception    = computed(() => passiveScore(skillSource.value, "perception"));
+  const passiveInsight       = computed(() => passiveScore(skillSource.value, "insight"));
+  const passiveInvestigation = computed(() => passiveScore(skillSource.value, "investigation"));
 
   // ── Save ──────────────────────────────────────────────────────────────────────
 

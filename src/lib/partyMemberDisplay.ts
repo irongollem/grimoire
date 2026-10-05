@@ -1,4 +1,6 @@
 import type { PartyMember } from "@/types/party.types";
+import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
+import type { CharacterClass } from "@/types/multiclass.types";
 
 type DisguiseFields = Pick<
   PartyMember,
@@ -51,4 +53,36 @@ export function getDisplaySubrace(
   return shouldSeeDisguise(member, viewerMemberId, viewerIsDm)
     ? (member.disguise_subrace ?? null)
     : (member.subrace ?? null);
+}
+
+/**
+ * Class part of the summary line: "Fighter 5 / Wizard 3" when multiclass,
+ * "Class · Subclass" for a single class, empty for a classless character.
+ */
+function classLabelFor(classes: readonly CharacterClass[]): string {
+  if (classes.length > 1) return formatMulticlassLabel([...classes]);
+  if (classes.length === 1) {
+    const only = classes[0];
+    return [only.class_name, only.subclass_name].filter(Boolean).join(" · ");
+  }
+  return "";
+}
+
+/**
+ * One-line character summary and total level for sheet headers and the Hearth
+ * card: `line` is "Wood Elf · Ranger · Hunter" (missing parts drop out) and
+ * `level` is the sum of class levels, or `fallbackLevel` for a classless
+ * character (its own `party_members.level`).
+ */
+export function characterSummary(input: {
+  speciesName: string | null;
+  subrace: string | null;
+  classes: readonly CharacterClass[] | null | undefined;
+  fallbackLevel: number;
+}): { level: number; line: string } {
+  const classes = input.classes ?? [];
+  return {
+    level: classes.length > 0 ? totalLevel([...classes]) : input.fallbackLevel,
+    line: [input.speciesName, input.subrace, classLabelFor(classes)].filter(Boolean).join(" · "),
+  };
 }

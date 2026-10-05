@@ -23,6 +23,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useSessionProposals } from "@/composables/calendar/useScheduling";
+import { useLocalToday } from "@/composables/calendar/useLocalToday";
+import { countdownLabel, daysUntil, pickNextSession } from "@/lib/calendar/nextSession";
 import DashboardWidget from "../DashboardWidget.vue";
 
 /** The nearest date the table has agreed on, from `session_proposals`. Distinct
@@ -30,24 +32,12 @@ import DashboardWidget from "../DashboardWidget.vue";
  *  whether you are playing right now. */
 const { data: proposals, isLoading } = useSessionProposals();
 
-const next = computed(() => {
-  const today = new Date().toISOString().slice(0, 10);
-  return (proposals.value ?? [])
-    .filter((p) => p.status !== "cancelled" && p.proposed_date >= today)
-    .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date))[0] ?? null;
-});
+const today = useLocalToday();
+const next = computed(() => pickNextSession(proposals.value ?? [], today.value));
 
-const daysAway = computed(() => {
-  if (!next.value) return 0;
-  const then = Date.parse(`${next.value.proposed_date}T00:00:00`);
-  const now = new Date();
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  return Math.round((then - midnight) / 86_400_000);
-});
+const daysAway = computed(() => (next.value ? daysUntil(next.value.proposed_date, today.value) : 0));
 
-const countdown = computed(() =>
-  daysAway.value <= 0 ? "Today" : daysAway.value === 1 ? "Tomorrow" : `In ${daysAway.value} days`,
-);
+const countdown = computed(() => countdownLabel(daysAway.value));
 
 const formatted = computed(() => {
   if (!next.value) return "";

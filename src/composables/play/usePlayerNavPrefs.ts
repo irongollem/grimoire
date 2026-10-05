@@ -1,34 +1,76 @@
 // Module-level state is intentional — singleton shared between PlayerLayout and PlayerSettingsView.
 import { ref, computed } from "vue";
-import { ALL_PLAYER_NAV } from "@/lib/playerNav";
+import { ALL_PLAYER_NAV, type PlayerNavItem } from "@/lib/playerNav";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 
-const NAV_ORDER_KEY = "grimoire_nav_order";
+const NAV_ORDER_KEY = "grimoire_nav_order_v2";
+// Pre-#977 key: stored `to` paths, where "/play" meant the character sheet.
+const LEGACY_NAV_ORDER_KEY = "grimoire_nav_order";
+const LEGACY_PATH_TO_ID: Readonly<Record<string, string>> = {
+  "/play": "character",
+  ...Object.fromEntries(
+    ALL_PLAYER_NAV.filter((item) => item.to !== "/play" && item.to !== "/play/character").map((item) => [item.to, item.id]),
+  ),
+};
 
-function loadJson<T>(key: string, fallback: T): T {
-  if (typeof localStorage === "undefined") return fallback;
-  try { return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback; }
-  catch { return fallback; }
+function readStringArray(key: string): string[] | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return null;
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : null;
+  } catch {
+    return null;
+  }
 }
 
-const navOrder = ref<string[]>(loadJson<string[]>(NAV_ORDER_KEY, []));
-
-// Pre-built index map avoids O(n) indexOf calls inside sort comparators.
-const DEFAULT_NAV_INDEX = new Map(ALL_PLAYER_NAV.map((item, i) => [item.to, i]));
-
-const sortedNav = computed(() => {
-  if (navOrder.value.length > 0) {
-    const orderMap = new Map(navOrder.value.map((to, i) => [to, i]));
-    return [...ALL_PLAYER_NAV].sort((a, b) => {
-      const ia = orderMap.get(a.to) ?? DEFAULT_NAV_INDEX.get(a.to) ?? 0;
-      const ib = orderMap.get(b.to) ?? DEFAULT_NAV_INDEX.get(b.to) ?? 0;
-      return ia - ib;
-    });
+/** Reads the saved order (ids), converting the legacy path-keyed one once. */
+export function loadNavOrder(): string[] {
+  const current = readStringArray(NAV_ORDER_KEY);
+  if (current) return current;
+  const legacy = readStringArray(LEGACY_NAV_ORDER_KEY);
+  if (!legacy) return [];
+  const ids = legacy.flatMap((path) => {
+    const id = LEGACY_PATH_TO_ID[path];
+    return id ? [id] : [];
+  });
+  if (!ids.includes("hearth")) ids.unshift("hearth");
+  try {
+    localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(ids));
+    localStorage.removeItem(LEGACY_NAV_ORDER_KEY);
+  } catch {
+    // Storage unavailable: the converted order still applies for this session.
   }
-  return [...ALL_PLAYER_NAV];
-});
+  return ids;
+}
+
+/**
+ * Applies a saved id order. Listed items come first in saved order; items the
+ * order does not mention (new tabs) keep their default relative order after the
+ * last listed item that precedes them by default, so the result is deterministic.
+ */
+export function applyNavOrder(items: readonly PlayerNavItem[], order: readonly string[]): PlayerNavItem[] {
+  if (order.length === 0) return [...items];
+  const saved = new Map(order.map((id, i) => [id, i]));
+  const result: PlayerNavItem[] = [];
+  const known = items.filter((item) => saved.has(item.id));
+  known.sort((a, b) => (saved.get(a.id) ?? 0) - (saved.get(b.id) ?? 0));
+  result.push(...known);
+  // Insert each unlisted item right after the item that precedes it by default.
+  items.forEach((item, i) => {
+    if (saved.has(item.id)) return;
+    const prev = i > 0 ? items[i - 1] : null;
+    const at = prev ? result.findIndex((r) => r.id === prev.id) : -1;
+    result.splice(at + 1, 0, item);
+  });
+  return result;
+}
+
+const navOrder = ref<string[]>(typeof localStorage === "undefined" ? [] : loadNavOrder());
+
+const sortedNav = computed(() => applyNavOrder(ALL_PLAYER_NAV, navOrder.value));
 
 export function usePlayerNavPrefs() {
   // A tab for a module the DM has switched off must not appear in the portal.
@@ -53,7 +95,11 @@ export function usePlayerNavPrefs() {
 
   function setNavOrder(order: string[]) {
     navOrder.value = order;
-    localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(order));
+    try {
+      localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(order));
+    } catch {
+      // Storage unavailable: the order holds for this session only.
+    }
   }
 
   return {

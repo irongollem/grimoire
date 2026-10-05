@@ -42,7 +42,7 @@ describe("pickerReturnRoute", () => {
   const input = { isOtherCharacter: false, campaignId: "c1", memberId: "m1", back: null };
 
   it("returns the active character to their sheet", () => {
-    expect(pickerReturnRoute(input)).toBe("/play");
+    expect(pickerReturnRoute(input)).toBe("/play/character");
   });
 
   it("returns a benched character to Champions", () => {

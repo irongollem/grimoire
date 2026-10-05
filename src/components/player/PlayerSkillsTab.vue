@@ -87,7 +87,7 @@ import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useWhisperRecipients } from "@/composables/campaign/useWhisperRecipients";
-import { skillCheckBonus } from "@/rules/skillCheck";
+import { passiveScore, skillCheckBonus } from "@/rules/skillCheck";
 import { SKILLS } from "@/types/party.types";
 import type { PartyMember, SkillProficiencies } from "@/types/party.types";
 
@@ -146,13 +146,12 @@ function skillBonusValue(skill: (typeof SKILLS)[number]) {
   return skillCheckBonus(props.member, skill.key, props.overrideScores);
 }
 
-function passiveScore(skillKey: keyof SkillProficiencies) {
-  const skill = SKILLS.find((s) => s.key === skillKey)!;
-  return 10 + skillBonusValue(skill);
+function passiveFor(skillKey: keyof SkillProficiencies) {
+  return passiveScore(props.member, skillKey, props.overrideScores);
 }
-const passivePerception   = computed(() => passiveScore("perception"));
-const passiveInsight      = computed(() => passiveScore("insight"));
-const passiveInvestigation = computed(() => passiveScore("investigation"));
+const passivePerception   = computed(() => passiveFor("perception"));
+const passiveInsight      = computed(() => passiveFor("insight"));
+const passiveInvestigation = computed(() => passiveFor("investigation"));
 
 const IMMERSIVE_SKILL_KEYS = new Set([
   "stealth", "sleight_of_hand", "arcana", "history", "nature", "religion",

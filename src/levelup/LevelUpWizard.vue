@@ -151,7 +151,7 @@
 
       <!-- Confirm / Cancel -->
       <div class="flex gap-3">
-        <AppButton variant="subtle" size="body" class="flex-1" :to="backRoute ?? '/play'" label="Cancel" />
+        <AppButton variant="subtle" size="body" class="flex-1" :to="backRoute ?? '/play/character'" label="Cancel" />
         <AppButton
           variant="primary"
           size="body"

@@ -8,7 +8,7 @@
       <!-- Mobile (< sm): 4 pinned items -->
       <RouterLink
         v-for="item in mobileNav"
-        :key="'mob-' + item.to"
+        :key="'mob-' + item.id"
         :to="item.to"
         class="sm:hidden relative flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 transition-colors"
         :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
@@ -21,7 +21,7 @@
       <!-- Tablet+ (sm+): 7 pinned items -->
       <RouterLink
         v-for="item in tabletNav"
-        :key="'tab-' + item.to"
+        :key="'tab-' + item.id"
         :to="item.to"
         class="hidden sm:flex relative flex-col items-center justify-center gap-0.5 flex-1 py-3 transition-colors"
         :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
@@ -54,7 +54,7 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { IconGridView } from '@/lib/icons';
 import { usePlayerNavPrefs } from "@/composables/play/usePlayerNavPrefs";
-import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS } from "@/lib/playerNav";
+import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS, isNavItemActive } from "@/lib/playerNav";
 
 const { showMore, unreadPaths } = defineProps<{
   showMore: boolean;
@@ -77,6 +77,6 @@ const moreUnreadMobile = computed(() => unreadPaths.some((p) => !mobileNav.value
 const moreUnreadTablet = computed(() => unreadPaths.some((p) => !tabletNav.value.some((i) => i.to === p)));
 
 function isActive(to: string): boolean {
-  return to === "/play" ? route.path === "/play" : route.path.startsWith(to);
+  return isNavItemActive(to, route.path);
 }
 </script>

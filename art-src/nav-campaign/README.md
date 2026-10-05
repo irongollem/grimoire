@@ -15,6 +15,7 @@ The generated markup lives in `src/lib/navGlyphs.generated.ts` (do not hand-edit
 - `note-lyre-library.png` — 3×1; **Soundboard** = lyre (cell 1), **Reliquary** = library (cell 2).
 - `campaign.png` — a single bold pennant (pole + bands + swallowtail flag) for the **Campaign** switcher's active-campaign icon. Standalone image, so it's traced directly (no `segment.mjs`).
 - `../interlude.png` — a single bold hourglass (sand mid-pour) for **Interlude**, which previously reused the Calendar glyph. Standalone image, traced directly and spliced in via `add-glyph.mjs`.
+- `hearth-sheet.png` — five candidate glyphs for **Hearth**, the player dashboard (#977); the campfire (cell 0 of `segment.mjs hearth-sheet.png _work/hearth 5 1`) is the one in use, traced with the standalone-image command and spliced in via `add-glyph.mjs`.
 
 ## Pipeline
 

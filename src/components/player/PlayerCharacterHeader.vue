@@ -55,8 +55,8 @@
           </div>
           <p class="text-caption text-muted-foreground italic">
             <template v-if="wildshape">🐺 {{ member.name }}</template>
-            <template v-else>{{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}</template>
-            <span v-if="!wildshape && memberTotalLevel" class="text-label text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
+            <template v-else>{{ summary.line }}</template>
+            <span v-if="!wildshape && summary.level" class="text-label text-primary not-italic ml-1">Lv {{ summary.level }}</span>
           </p>
           <p v-if="inGameDate" class="text-caption text-muted-foreground">{{ inGameDate }}</p>
           <!-- XP progress -->
@@ -228,7 +228,8 @@ import { useCalendarStore } from "@/stores/calendar";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useArmorClass } from "@/composables/party/useArmorClass";
-import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
+import { characterSummary } from "@/lib/partyMemberDisplay";
+import { memberInitiativeModifier } from "@/rules/initiative";
 import { useClassHitDice } from "@/composables/party/useClassHitDice";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
@@ -362,29 +363,16 @@ const hitDicePoolLabel = computed(() => {
   return pool.map((p) => `${p.count}d${p.die}`).join("+");
 });
 
-/**
- * Total character level. Sum of the `character_classes` rows; a classless
- * character has none, so its own `party_members.level` stands.
- */
-const memberTotalLevel = computed(() => {
-  const list = characterClasses.value ?? [];
-  return list.length > 0 ? totalLevel(list) : props.member.level;
-});
-
-/**
- * Label rendered next to the name: "Fighter 5 / Wizard 3" when multiclass,
- * the single class and subclass otherwise, nothing for a classless character.
- */
-const classLabel = computed(() => {
-  const list = characterClasses.value ?? [];
-  if (list.length > 1) return formatMulticlassLabel(list);
-  if (list.length === 1) {
-    const only = list[0];
-    const parts = [only.class_name, only.subclass_name].filter(Boolean);
-    return parts.join(" · ");
-  }
-  return "";
-});
+/** Species / class line and total level (class rows summed; a classless character keeps its own level). */
+const summary = computed(() =>
+  characterSummary({
+    speciesName: speciesName.value,
+    subrace: props.member.subrace,
+    classes: characterClasses.value,
+    fallbackLevel: props.member.level,
+  }),
+);
+const memberTotalLevel = computed(() => summary.value.level);
 
 const hitDiceRemaining = computed(() =>
   Math.min(memberTotalLevel.value, props.member.hit_dice_remaining ?? memberTotalLevel.value),
@@ -402,7 +390,7 @@ const displayAc    = computed(() => props.wildshape?.beast_ac     ?? acFor(props
 
 // Initiative = DEX mod + initiative_bonus (feat/special extras like Alert).
 const initiativeDisplay = computed(() => {
-  const total = Math.floor((props.member.dex - 10) / 2) + (props.member.initiative_bonus ?? 0);
+  const total = memberInitiativeModifier(props.member);
   return total >= 0 ? `+${total}` : `${total}`;
 });
 

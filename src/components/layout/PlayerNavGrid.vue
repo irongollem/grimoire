@@ -17,7 +17,7 @@
     <div class="grid grid-cols-4 sm:grid-cols-7 gap-1">
       <RouterLink
         v-for="item in sortedNav"
-        :key="item.to"
+        :key="item.id"
         :to="item.to"
         class="relative flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 transition-colors"
         :class="isActive(item.to)
@@ -49,6 +49,7 @@ import { IconChevronRight, IconNavCampaign, IconRefresh } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import { usePlayerNavPrefs } from "@/composables/play/usePlayerNavPrefs";
+import { isNavItemActive } from "@/lib/playerNav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 
 const { unreadPaths, campaignName, characterName } = defineProps<{
@@ -67,6 +68,6 @@ const route = useRoute();
 const { sortedNav } = usePlayerNavPrefs();
 
 function isActive(to: string): boolean {
-  return to === "/play" ? route.path === "/play" : route.path.startsWith(to);
+  return isNavItemActive(to, route.path);
 }
 </script>

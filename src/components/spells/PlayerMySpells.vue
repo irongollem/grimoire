@@ -334,9 +334,10 @@ import {
   useRemoveCharacterSpellById,
   useTogglePrepared,
 } from "@/composables/party/useCharacterSpells";
-import { useUpdatePartyMember, useParty, useCastCharacterSpell } from "@/composables/party/useParty";
+import { useParty, useCastCharacterSpell } from "@/composables/party/useParty";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
+import { useSpellSlotWrite } from "@/composables/spells/useSpellSlotWrite";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { useUiStore } from "@/stores/ui";
 import { SCHOOL_BG } from "@/types/spell.types";
@@ -357,7 +358,7 @@ import PlayerSpellSlotStrip from "@/components/spells/PlayerSpellSlotStrip.vue";
 import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
 import { countPreparedAgainstLimit } from "@/rules/preparedSpellCount";
-import { availableSlotsForSpell, canCastWithSlot, spellSlotKey, slotPool, type SpellSlotPool } from "@/rules/spellSlots";
+import { availableSlotsForSpell, canCastWithSlot, slotPool, type SpellSlotPool } from "@/rules/spellSlots";
 import { useToast } from "@/composables/useToast";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { canAutoRollSpellEffect, canCastAsRitual } from "@/rules/spellcastingPolicy";
@@ -409,7 +410,6 @@ const allEntries = computed(() =>
 );
 const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpellById();
 const { mutate: togglePreparedMutation, isPending: isToggling } = useTogglePrepared();
-const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { mutateAsync: commitCast } = useCastCharacterSpell();
 const { sendFlavorMessage, sendRoll } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
@@ -431,14 +431,10 @@ const selectedEntry = ref<CharacterSpellEntry | null>(null);
 const pendingResolution = ref<{ spell: Spell; castLevel: number; modifier: number; metamagicNames: string[]; damageType: string | null } | null>(null);
 
 // ── Slot helpers ───────────────────────────────────────────────────────────────
+const { setSlotUsed: writeSlotUsed } = useSpellSlotWrite();
 async function setSlotUsed(target: SpellSlotEntry, used: number) {
   if (!props.partyMemberId) return;
-  const updated = props.spellSlots.map((s) => (spellSlotKey(s) === spellSlotKey(target) ? { ...s, used } : s));
-  try {
-    await updateMember({ id: props.partyMemberId, update: { spell_slots: updated } });
-  } catch (error) {
-    toast.error(toast.fromError(error, "Couldn't update your spell slots."));
-  }
+  await writeSlotUsed({ id: props.partyMemberId, spell_slots: props.spellSlots }, target, used);
 }
 
 // ── Multiclass-aware stat lookup ───────────────────────────────────────────────

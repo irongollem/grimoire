@@ -73,6 +73,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useSessionProposals, useAllSessionAvailability, useUpsertAvailability } from "@/composables/calendar/useScheduling";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import type { SessionProposal } from "@/types/scheduling.types";
+import { myRsvp } from "@/lib/calendar/nextSession";
 import { useToast } from "@/composables/useToast";
 
 const auth = useAuthStore();
@@ -98,9 +99,7 @@ const proposedSessions = computed(() =>
 );
 
 function myAvailability(proposalId: string): boolean | null {
-  const row = (allAvailability.value ?? [])
-    .find(a => a.session_proposal_id === proposalId && a.user_id === auth.user?.id);
-  return row ? row.available : null;
+  return myRsvp(allAvailability.value ?? [], proposalId, auth.user?.id);
 }
 
 async function setAvailability(proposal: SessionProposal, available: boolean) {

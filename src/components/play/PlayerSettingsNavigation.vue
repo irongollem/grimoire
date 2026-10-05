@@ -3,7 +3,7 @@
     <ol ref="dragListRef" class="space-y-1">
       <li
         v-for="(item, i) in sortedNav"
-        :key="item.to"
+        :key="item.id"
         class="relative flex items-center gap-3 rounded-md border border-border px-3 py-2 bg-card select-none transition-colors"
         :class="{ 'opacity-40': draggingIdx === i }"
       >
@@ -99,7 +99,7 @@ function onHandlePointerDown(index: number, e: PointerEvent) {
   };
   activeUp = () => {
     if (draggingIdx.value !== null && overIdx.value !== null && draggingIdx.value !== overIdx.value) {
-      const current = sortedNav.value.map((item) => item.to);
+      const current = sortedNav.value.map((item) => item.id);
       const [moved] = current.splice(draggingIdx.value, 1);
       current.splice(overIdx.value, 0, moved);
       setNavOrder(current);

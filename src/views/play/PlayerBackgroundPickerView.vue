@@ -10,7 +10,7 @@
           {{ headerDescription }}
         </p>
       </div>
-      <AppButton to="/play" variant="subtle" size="sm" label="← Back" />
+      <AppButton to="/play/character" variant="subtle" size="sm" label="← Back" />
     </div>
 
     <!-- Filter bar -->
