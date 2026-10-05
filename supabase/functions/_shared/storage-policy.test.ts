@@ -57,11 +57,12 @@ describe("authorizePath — owner prefix", () => {
 });
 
 describe("authorizePath — admin-only shared prefixes", () => {
-  it("lets an admin write canonical srd/ art in the four buckets that have it", () => {
+  it("lets an admin write canonical srd/ art in the five buckets that have it", () => {
     expect(authorizePath(asAdmin("monster-images", "srd/owlbear.webp")).allowed).toBe(true);
     expect(authorizePath(asAdmin("spell-images", "srd/fireball.webp")).allowed).toBe(true);
     expect(authorizePath(asAdmin("item-images", "srd/ring.webp")).allowed).toBe(true);
     expect(authorizePath(asAdmin("background-images", "srd/acolyte.webp")).allowed).toBe(true);
+    expect(authorizePath(asAdmin("species-images", "srd/elf.webp")).allowed).toBe(true);
   });
 
   it("refuses srd/ to a non-admin — acceptance criterion on #577", () => {
@@ -69,13 +70,14 @@ describe("authorizePath — admin-only shared prefixes", () => {
     expect(authorizePath(asUser("spell-images", "srd/fireball.webp")).allowed).toBe(false);
     expect(authorizePath(asUser("item-images", "srd/ring.webp")).allowed).toBe(false);
     expect(authorizePath(asUser("background-images", "srd/acolyte.webp")).allowed).toBe(false);
+    expect(authorizePath(asUser("species-images", "srd/elf.webp")).allowed).toBe(false);
   });
 
   it("does not grant srd/ in buckets that never had an srd policy", () => {
-    // Only monster-images, spell-images, item-images and background-images have the migration; an
+    // Only monster-images, spell-images, item-images, background-images and species-images have the migration; an
     // admin writing srd/ elsewhere would create art nothing reads and nothing
     // can clean up.
-    for (const id of ["npc-portraits", "loot-images", "chronicle"]) {
+    for (const id of ["npc-portraits", "loot-images", "chronicle", "dungeon-feature-images"]) {
       expect(authorizePath(asAdmin(id, "srd/x.webp")).allowed).toBe(false);
     }
   });

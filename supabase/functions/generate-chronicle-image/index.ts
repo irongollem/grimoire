@@ -54,8 +54,8 @@ const PURPOSE_CONFIG: Record<ImagePurpose, {
   trap:           { kind: "trap",           bucket: "trap-images",     prefix: "trap",     creditType: "entity_image",       boostStyle: true },
   puzzle:         { kind: "puzzle",         bucket: "puzzle-images",   prefix: "puzzle",   creditType: "entity_image",       boostStyle: true },
   party_member:   { kind: "party_member",   bucket: "chronicle",       prefix: "party",    creditType: "entity_image",       boostStyle: true },
-  species:        { kind: "species",        bucket: "asset-images",    prefix: "species",  creditType: "entity_image",       boostStyle: true },
-  dungeon_feature: { kind: "dungeon_feature", bucket: "asset-images",  prefix: "feature",  creditType: "entity_image",       boostStyle: true },
+  species:        { kind: "species",        bucket: "species-images",  prefix: "species",  creditType: "entity_image",       boostStyle: true },
+  dungeon_feature: { kind: "dungeon_feature", bucket: "dungeon-feature-images", prefix: "feature", creditType: "entity_image", boostStyle: true },
   deity:          { kind: "deity",          bucket: "pantheon-emblems", prefix: "deity",   creditType: "entity_image",       boostStyle: true },
 };
 

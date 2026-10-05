@@ -185,7 +185,7 @@ Filterable by text search and size (Tiny / Small / Medium / Large). Each species
 
 **Open5e import panel:** Searches the Open5e API and imports individual species into the user's own table, deduplicating by source identity. (The "seed core PHB species" bulk button was retired in #303.)
 
-**Species Detail view** (`SpeciesDetailView.vue`): Toggles between a read-only `SpeciesSheet` and editable `SpeciesDetail` based on `?edit=true` query param. `DetailActions` (save/delete) live in the PageHeader `#actions` slot. Shared SRD species render read-only with a "Clone to customize" action — the clone shadows the shared row and can then be enriched (subraces, granted spells, art).
+**Species Detail view** (`SpeciesDetailView.vue`): Toggles between a read-only `SpeciesSheet` and editable `SpeciesDetail` based on `?edit=true` query param. `DetailActions` (save/delete) live in the PageHeader `#actions` slot. Shared SRD species render read-only with a "Clone to customize" action — the clone shadows the shared row and can then be enriched (subraces, granted spells, art). Species art has its own bucket, `species-images` (#978), with each user's folder and the admin-only `srd/` prefix for `library_species` art (none carried art when it was added); older art stays in `asset-images`, and a delete finds the bucket from the URL.
 
 ### Backgrounds Tab
 
