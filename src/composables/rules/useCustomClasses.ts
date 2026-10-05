@@ -2,8 +2,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { CustomClass, CustomClassInsert, CustomClassUpdate, SystemClass } from "@/levelup/customTypes";
-import { fetchOpen5eBaseClasses, baseClassToInsert, classImportUpdateFields } from "@/lib/library/open5eClassImport";
-import { classFeatureIdentity, collectFeatures, ensureClassFeatures } from "@/lib/library/classFeatureSync";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
 import { allowedSystemClasses, allowedCampaignScoped } from "@/lib/campaignContentGating";
@@ -160,69 +158,6 @@ export function useCampaignCustomClasses(enabled: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const data = computed(() => allowedCampaignScoped(all.value, campaign.activeCampaignId));
   return { data, all, isLoading };
-}
-
-export interface ClassImportResult { inserted: number; updated: number }
-
-export function useImportOpen5eClasses() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<ClassImportResult> => {
-      const user = getCurrentUser();
-
-      const [previews, existingResult] = await Promise.all([
-        fetchOpen5eBaseClasses(),
-        supabase.from("custom_classes")
-          .select("id, source_document_key, source_record_key")
-          .eq("user_id", user!.id)
-          .not("source_document_key", "is", null)
-          .not("source_record_key", "is", null),
-      ]);
-
-      // Ensure all referenced class features exist in class_features table
-      const featureIdentityToId = await ensureClassFeatures(collectFeatures(previews));
-
-      function resolveFeatures(p: typeof previews[number]): Record<string, string[]> {
-        const features: Record<string, string[]> = {};
-        for (const [level, records] of Object.entries(p.featureRecordsByLevel)) {
-          const uuids = records
-            .map(record => featureIdentityToId.get(classFeatureIdentity(record)))
-            .filter((id): id is string => !!id);
-          if (uuids.length) features[level] = uuids;
-        }
-        return features;
-      }
-
-      const existingMap = new Map((existingResult.data ?? []).map(r => [
-        `${r.source_document_key}::${r.source_record_key}`,
-        r.id,
-      ]));
-      const identity = (p: typeof previews[number]) => `${p.sourceDocumentKey}::${p.sourceRecordKey}`;
-      const toInsert = previews.filter(p => !existingMap.has(identity(p)));
-      const toUpdate = previews.filter(p => existingMap.has(identity(p)));
-
-      if (toInsert.length > 0) {
-        const rows = toInsert.map(p => ({ ...baseClassToInsert(p), features: resolveFeatures(p), user_id: user!.id }));
-        const { error } = await supabase.from("custom_classes").insert(rows);
-        if (error) throw error;
-      }
-
-      // Refresh only upstream identity/shell content — never the mechanical
-      // fields (spell slots, proficiencies, ASI levels, …) the DM fills in
-      // by hand after import. See classImportUpdateFields's doc comment.
-      for (const p of toUpdate) {
-        const id = existingMap.get(identity(p))!;
-        const { error } = await supabase
-          .from("custom_classes")
-          .update({ ...classImportUpdateFields(baseClassToInsert(p)), features: resolveFeatures(p) })
-          .eq("id", id);
-        if (error) throw error;
-      }
-
-      return { inserted: toInsert.length, updated: toUpdate.length };
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  });
 }
 
 export function useDeleteCustomClass() {

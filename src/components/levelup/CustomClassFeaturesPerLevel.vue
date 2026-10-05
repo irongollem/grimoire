@@ -4,7 +4,7 @@
     <p class="text-body text-muted-foreground">
       Select features from the
       <RouterLink to="/features" class="text-primary hover:underline">Abilities compendium</RouterLink>
-      to grant at each level. Create custom features there first if needed.
+      to grant at each level. What a feature does (its uses, choices and scaling) is set on the feature itself, so create or edit it there first if needed.
     </p>
 
     <div v-if="populatedLevels.length > 0" class="space-y-3">
@@ -54,6 +54,13 @@
         @click="addLevel"
       />
     </div>
+
+    <AddAsiAction
+      v-if="asiHelper"
+      :features="features"
+      :ruleset="ruleset"
+      @update:features="emit('update:features', $event)"
+    />
   </section>
 </template>
 
@@ -64,10 +71,16 @@ import { IconAdd } from "@/lib/icons";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import AddAsiAction from "@/components/levelup/AddAsiAction.vue";
+import type { RulesetKey } from "@/types/ruleset.types";
 
-const { features, allFeatureOptions } = defineProps<{
+const { features, allFeatureOptions, ruleset = null, asiHelper = false } = defineProps<{
   features: Record<string, string[]>;
   allFeatureOptions: { id: string; name: string }[];
+  /** The class's edition, for finding its Ability Score Improvement feature. */
+  ruleset?: RulesetKey | null;
+  /** Classes get the "Add Ability Score Improvement at levels" action; subclasses do not. */
+  asiHelper?: boolean;
 }>();
 
 const emit = defineEmits<{

@@ -1,3 +1,4 @@
+import type { LevelChoiceRecord } from "@/rules/features/levelUpChoices";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { WildshapeState } from "@/types/encounter.types";
 
@@ -56,23 +57,37 @@ export interface SpellSlotEntry {
   recovery?: "short" | "long" | "none";
 }
 
-export interface LevelChoiceASI {
-  mode: 'plus2' | 'plus1plus1' | 'feat';
-  primary?: string;
-  secondary?: string;
-  feat_id?: string;
+/** What one skill's proficiency was before a level changed it; `null` when the skill had no entry. */
+export interface LevelSkillChange {
+  from: SkillProfLevel | null;
+  to: SkillProfLevel;
 }
 
+/**
+ * Everything one level-up chose, held so a de-level can take it back exactly
+ * (#976). `record` carries the class_choices, feats, swaps and ability increases
+ * (the increases are already capped, so reverting subtracts exactly them).
+ */
 export interface LevelChoiceEntry {
   class_name: string;
+  /** The class definition the level was taken in; a de-level finds the class row by it. */
+  class_definition_id: string;
   is_new_class: boolean;
   hp_gained: number;
-  asi?: LevelChoiceASI;
+  /** Name of the subclass taken at this level, so a de-level clears it. */
   subclass?: string;
   spells_learned?: string[];
   cantrips_learned?: string[];
-  step_choices?: Record<string, string | string[]>;
+  /** Tool proficiencies a new class gave, taken back with the class. */
   new_class_profs?: string[];
+  /**
+   * What the level chose, exactly enough to take it back. Every level has one:
+   * history written before #976 was converted by migration 20261005144119.
+   */
+  record: LevelChoiceRecord;
+  skills: Record<string, LevelSkillChange>;
+  /** Item ids added to and removed from `weapon_masteries`. */
+  masteries: { added: string[]; removed: string[] };
 }
 
 export type LevelChoices = Record<number, LevelChoiceEntry>;
@@ -179,10 +194,10 @@ export interface PartyMember {
   current_location_id: string | null;
   carry_capacity_override: string | null; // expression: "*2", "+30", "-10", or bare number for absolute
   hit_dice_remaining?: number | null;
-  class_resources: Record<string, { current: number; max: number; rest: "short" | "long" }>;
+  /** Keyed by `FeatureUses.key`. `short_rest_regain` is what a short rest returns to a long-rest pool. */
+  class_resources: Record<string, { current: number; max: number; rest: "short" | "long" | "none"; short_rest_regain?: number }>;
   class_choices: Record<string, unknown>;
   active_infusions: { name: string; inv_item_id: string | null }[];
-  rage_active?: boolean;
   /** Player-defined attack buttons not derived from equipment (companion attacks, etc. — #568). */
   custom_attacks: CustomAttack[];
   level_choices: LevelChoices;

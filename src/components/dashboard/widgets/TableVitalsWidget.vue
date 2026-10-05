@@ -22,8 +22,8 @@
                hand-rolled span: these are coloured pills whose colour means
                something (arcane = concentration, caution = short rest, info =
                long rest), which is exactly what the primitive owns. The tone
-               tokens also land within a hair of the raw amber/blue this and
-               `PlayerResourcePools` used to spell out by hand. -->
+               tokens also land within a hair of the raw amber/blue this
+               used to spell out by hand. -->
           <AppButton
             v-if="row.concentration"
             as="span"

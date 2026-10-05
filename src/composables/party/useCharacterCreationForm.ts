@@ -27,7 +27,10 @@ import type { PartyMember, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/typ
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
 import { reportHandledError } from "@/lib/observability/sentry";
-import { abilityBonusesForChoice } from "@/rules/backgroundAsi";
+import { abilityBonusesForChoice, unresolvedOriginFeatMessage } from "@/rules/backgroundAsi";
+import { useAllFeatures } from "@/composables/rules/useFeatures";
+import { levelOneWrites, scoresAfterBonuses } from "@/composables/party/creationLevelOne";
+import { useCreationLevelOne } from "@/composables/party/useCreationLevelOne";
 import {
   ABILITY_STATS, POINT_BUY_COSTS, POINT_BUY_TOTAL,
   type CharacterFormState, type AbilityKey, type AsiMode, type ScoreMode,
@@ -216,7 +219,7 @@ export function useCharacterCreationForm() {
   // renders on the sheet (#566).
   const { data: campaignSpecies, all: allSpecies } = useCampaignSpecies();
   const { data: allBackgrounds } = useBackgrounds();
-  const { is2024 } = useRuleset();
+  const { is2024, ruleset } = useRuleset();
 
   /** The species the wizard may offer — gated. Full rows, not {id,name}: the
    *  picker cards render art, size and traits. */
@@ -385,7 +388,6 @@ export function useCharacterCreationForm() {
     class_choices:    m?.class_choices ?? {},
     active_infusions: m?.active_infusions ?? [],
     custom_attacks: m?.custom_attacks ?? [],
-    rage_active:      m?.rage_active ?? false,
     alignment:          m?.alignment ?? "",
     personality_traits: m?.personality_traits ?? "",
     ideals:             m?.ideals ?? "",
@@ -407,11 +409,17 @@ export function useCharacterCreationForm() {
     classEquipmentChoice, importClassEquipment, classEquipmentPack,
   } = useCharacterEquipmentSeeding(f);
 
+  const { data: allFeatures } = useAllFeatures();
   const {
     bgSkillChoices, bgChosenSkills, bgChoiceLimit, bgFreeSkills,
-    onBackgroundSelect, toggleBgSkillChoice,
+    onBackgroundSelect, toggleBgSkillChoice, originFeat, originFeatUnresolved,
     backgroundAsiChoice, backgroundAsiIncomplete,
-  } = useCharacterBackgroundSelection(f, { allBackgrounds, selectedBg, is2024 });
+  } = useCharacterBackgroundSelection(f, { allBackgrounds, selectedBg, is2024, ruleset, features: allFeatures, isEditMode });
+  /** Why a new character cannot go on: its background grants a feat this table's books lack. */
+  const originFeatMessage = computed(() =>
+    !isEditMode.value && originFeatUnresolved.value && originFeat.value
+      ? unresolvedOriginFeatMessage(originFeat.value.originFeat.name)
+      : null);
 
   // ── Point buy ────────────────────────────────────────────────────────────────
 
@@ -459,6 +467,39 @@ export function useCharacterCreationForm() {
     return Array.from({ length: 9 }, (_, i) => defaults.find((s) => s.level === i + 1)?.max ?? 0);
   }
   const spellSlotMaxes = reactive<number[]>(buildSlotMaxes());
+
+  // The scores a new character ends with, worked out once: the Done card, the
+  // level-1 choices (a pool scaling with Charisma wants the final score) and the
+  // save all read this.
+  const finalScores = computed(() => scoresAfterBonuses({
+    scores: { str: f.str, dex: f.dex, con: f.con, int: f.int, wis: f.wis, cha: f.cha },
+    asiMode: asiMode.value,
+    customAsi,
+    structured: [selectedSpecies.value?.ability_score_increases, selectedSubrace.value?.ability_score_increases],
+    background: selectedBg.value?.asi_ability_trio
+      ? abilityBonusesForChoice(backgroundAsiChoice.value, selectedBg.value.asi_ability_trio)
+      : {},
+  }));
+
+  // ── Level 1 choices (#976) ────────────────────────────────────────────────────
+  // The book's level-1 questions (Expertise, Fighting Style, Weapon Mastery, an
+  // order or an invocation) and the origin feat's own, asked by the machinery a
+  // level-up uses. Creating only: an edit has no level 1 to take.
+  const subclassPicked = computed(() => {
+    if (!subclassDueAtStart.value || !subclassId.value) return null;
+    const found = (campaignSubclasses.value ?? []).find((sc) => sc.id === subclassId.value);
+    return found ? { name: found.subclass_name, features: found.features } : null;
+  });
+  const levelOne = useCreationLevelOne({
+    f,
+    selectedClass: computed(() => (isEditMode.value ? null : selectedClass.value)),
+    pickedSubclass: subclassPicked,
+    finalScores,
+    canCastSpells: computed(() => spellSlotMaxes.some((max) => max > 0)),
+  });
+  /** A new character cannot be made until every level-1 choice is answered and the origin feat resolves. */
+  const blockedByLevelOne = computed(() =>
+    !isEditMode.value && (levelOne.isLoading.value || !levelOne.complete.value || originFeatMessage.value !== null));
   let serverDraft: CharacterEditDraft | null = null;
 
   function resetSlotsToDefault() {
@@ -675,40 +716,18 @@ export function useCharacterCreationForm() {
       initiative_bonus: f.initiative_bonus, hit_dice_remaining: f.hit_dice_remaining,
     };
 
-    // ── Apply species ASI (standard = auto-apply structured bonuses; custom = distribute freely) ─
-    const abilityKeyMap: Record<string, AbilityKey> = {
-      strength: "str", dexterity: "dex", constitution: "con",
-      intelligence: "int", wisdom: "wis", charisma: "cha",
-      str: "str", dex: "dex", con: "con", int: "int", wis: "wis", cha: "cha",
-    };
-    function applyStructuredAsi(asi: Record<string, number | string>) {
-      if ("description" in asi) return; // free-text — player set scores manually
-      for (const [key, val] of Object.entries(asi)) {
-        const fKey = abilityKeyMap[key.toLowerCase()];
-        if (fKey && typeof val === "number") f[fKey] = Math.min(20, f[fKey] + val);
-      }
-    }
-    if (asiMode.value === "bonus") {
-      if (selectedSpecies.value?.ability_score_increases)
-        applyStructuredAsi(selectedSpecies.value.ability_score_increases);
-      if (selectedSubrace.value?.ability_score_increases)
-        applyStructuredAsi(selectedSubrace.value.ability_score_increases);
-    } else if (asiMode.value === "custom") {
-      // Custom replaces ALL racial ASIs — player distributes freely
-      for (const [key, val] of Object.entries(customAsi) as [AbilityKey, number][]) {
-        if (val > 0) f[key] = Math.min(20, f[key] + val);
-      }
-    }
+    // ── Level 1 choices, captured before the form is changed below ────────────────
+    // Their answers were computed against the scores the character will have, so
+    // they are read now, while the form still holds the typed ones.
+    const picks = levelOne.resolved.value;
+    const classResources = levelOne.classResources.value;
 
-    // ── 2024 PHB background ASI (new chars only) — additive on top of species ──
-    // Applied once, here, from the choice recorded in class_choices.background_asi.
-    // An incomplete/invalid choice grants nothing rather than guessing.
-    if (selectedBg.value?.asi_ability_trio) {
-      const bonuses = abilityBonusesForChoice(backgroundAsiChoice.value, selectedBg.value.asi_ability_trio);
-      for (const [key, delta] of Object.entries(bonuses) as [AbilityKey, number][]) {
-        f[key] = Math.min(20, f[key] + delta);
-      }
-    }
+    // ── Species ASI (standard = structured bonuses; custom = distributed freely)
+    // and the 2024 background ASI, from the scores worked out once above (an
+    // incomplete background choice grants nothing rather than guessing), then
+    // whatever level 1's own picks raise.
+    const scores = finalScores.value;
+    for (const { key } of ABILITY_STATS) f[key] = scores[key] + (picks.record.abilityIncreases[key] ?? 0);
 
     // ── Derive all stats from class / species sources — no magic numbers ───
     f.level = 1;
@@ -771,11 +790,25 @@ export function useCharacterCreationForm() {
           )
           : [],
       });
+      // Level 1's picks land the way a level-up's do: class_choices, skills,
+      // masteries, the resource pools at full, and the history entry the feature
+      // card reads its picks from.
+      const levelOneColumns = levelOneWrites({
+        classChoices: basePayload.class_choices,
+        skills: basePayload.skill_proficiencies,
+        masteries: basePayload.weapon_masteries,
+        picks,
+        classResources,
+        className: f.class,
+        classDefinitionId: pickedClass?.id ?? null,
+        hpGained: hp,
+      });
       const created = await create({
         ...basePayload,
+        ...levelOneColumns,
         class_choices: startingEquipment
-          ? { ...basePayload.class_choices, starting_grants: startingEquipment }
-          : basePayload.class_choices,
+          ? { ...levelOneColumns.class_choices, starting_grants: startingEquipment }
+          : levelOneColumns.class_choices,
         ruleset,
         ...resolveCharacterPlacement({
           isDmCreate: isDmCreate.value,
@@ -952,6 +985,10 @@ export function useCharacterCreationForm() {
     bgSkillChoices, bgChosenSkills, bgChoiceLimit, bgFreeSkills,
     // background 2024 ASI choice
     backgroundAsiChoice, backgroundAsiIncomplete,
+    // the background's origin feat: null message when it resolves
+    originFeat, originFeatMessage,
+    // level 1 choices (new characters): what is owed, and whether the character may be made yet
+    levelOne, blockedByLevelOne, finalScores,
     // methods
     mod, setSkillProf, skillBonus, toggleSave, saveBonus,
     resetSlotsToDefault, onSpeciesSelect, onClassSelect, onBackgroundSelect,

@@ -67,7 +67,7 @@ Click **New Background**. Fields:
 - **Description**: rich text, the narrative hook.
 - **Starting equipment**: rich text, items plus any starting coin.
 - **Background feature**: a name and a rich-text description of the signature feature (e.g. "Shelter of the Faithful").
-- **Feat grant** *(2024 PHB, optional)*: a feat name and a summary of what it grants. Grimoire tries to match the name against an imported feat (via **Sync from Open5e** on the Abilities tab) so a character taking this background can resolve the full text automatically; an unresolved name still saves, it just won't link to a feature entry yet.
+- **Feat grant** *(2024 PHB, optional)*: a feat name and a summary of what it grants. Grimoire tries to match the name against an official feat (see the Abilities tab) so a character taking this background can resolve the full text automatically; an unresolved name still saves, it just won't link to a feature entry yet.
 - **Ability score trio** *(2024 PHB, optional)*: click exactly three of the six abilities. This is the set a 2024-ruleset character can spend their background ASI on; leave it empty for a background that grants no 2024 ASI. Picking one or two and leaving it there is an invalid half-state: pick a third or clear back to zero.
 - **Suggested characteristics**: rich text: personality traits, ideals, bonds, and flaws to inspire players.
 

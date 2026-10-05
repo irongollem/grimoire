@@ -102,6 +102,7 @@
         :member="member"
         :wildshape-monster="beastMonster ?? undefined"
         :is-owner="isOwner"
+        :can-manage="canManage"
       />
 
       <!-- Combat -->

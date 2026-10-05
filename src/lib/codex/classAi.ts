@@ -5,18 +5,19 @@ import type { RulesetKey } from "@/types/ruleset.types";
 import type {
   CasterType,
   CustomClassInsert,
-  CustomResource,
   HitDie,
   PreparedAbility,
 } from "@/levelup/customTypes";
+import { DEFAULT_ASI_LEVELS } from "./asiFeature";
+import { sanitizeResources, withResourceFeatures } from "./resourceFeatures";
 import {
-  isRecord,
   levelledFeaturesFromAi,
   stringList,
   text,
   wholeNumber,
   featureIdsByLevel,
   type LevelledFeatureDraft,
+  type NewFeatureDraft,
 } from "./featureAi";
 
 /** What `generate-entity-text` returns for the `custom_class` generator (untrusted). */
@@ -63,9 +64,6 @@ const ABILITY_ALIASES: Record<string, AbilityName> = {
   cha: "Charisma", charisma: "Charisma",
 };
 
-/** Both editions give an ability score improvement at these levels. */
-export const DEFAULT_ASI_LEVELS = [4, 8, 12, 16, 19] as const;
-
 const CASTER_TYPES = ["prepared", "known", "spellbook"] as const satisfies readonly CasterType[];
 const PREPARED_ABILITIES = ["wis", "int", "cha"] as const satisfies readonly PreparedAbility[];
 const ABILITY_TO_PREPARED: Partial<Record<AbilityName, PreparedAbility>> = {
@@ -74,7 +72,6 @@ const ABILITY_TO_PREPARED: Partial<Record<AbilityName, PreparedAbility>> = {
 
 const MAX_FEATURES_PER_LEVEL = 4;
 const MAX_FEATURES = 60;
-const MAX_RESOURCES = 6;
 const MAX_PROFICIENCIES = 12;
 
 /** Published classes are modelled on these when slots are derived from the progression. */
@@ -150,49 +147,11 @@ export function sanitizeKnownTable(raw: unknown, max: number): number[] | null {
   return out.some((n) => n > 0) ? out : null;
 }
 
-function slugKey(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
-}
-
-export function sanitizeResources(raw: unknown): CustomResource[] {
-  if (!Array.isArray(raw)) return [];
-  const out: CustomResource[] = [];
-  const keys = new Set<string>();
-  for (const item of raw) {
-    if (!isRecord(item)) continue;
-    const label = text(item.label).slice(0, 60);
-    const key = slugKey(text(item.key) || label);
-    if (!label || !key || keys.has(key)) continue;
-    const rest = text(item.rest).toLowerCase() === "short" ? "short" : "long";
-    const scaling = text(item.scaling).toLowerCase();
-    if (scaling === "per_level") {
-      out.push({ key, label, rest, scaling: "per_level" });
-    } else if (scaling === "table") {
-      // A null cell (non-numeric model output) drops the filtered list below 20,
-      // which invalidates the whole resource rather than becoming a 0.
-      const table = Array.isArray(item.table_values)
-        ? item.table_values.map(wholeNumber).filter((n): n is number => n !== null)
-        : [];
-      if (table.length !== 20 || table.some((n) => n < 0 || n > 99)) continue;
-      out.push({ key, label, rest, scaling: "table", table_values: table });
-    } else {
-      const value = wholeNumber(item.fixed_value);
-      out.push({
-        key, label, rest, scaling: "fixed",
-        fixed_value: value !== null && value >= 0 && value <= 99 ? value : 1,
-      });
-    }
-    keys.add(key);
-    if (out.length >= MAX_RESOURCES) break;
-  }
-  return out;
-}
-
 /** The slice of a class row the progression rules constrain. `features` maps level to feature ids. */
 export type ClassProgressionLike = Pick<
   CustomClassInsert,
-  | "hit_die" | "saving_throws" | "asi_levels" | "subclass_level" | "spell_slots"
-  | "spells_known" | "cantrips_known" | "caster_type" | "features" | "resources"
+  | "hit_die" | "saving_throws" | "subclass_level" | "spell_slots"
+  | "spells_known" | "cantrips_known" | "caster_type" | "features"
 >;
 
 function isTable20(v: unknown): v is number[] {
@@ -208,11 +167,6 @@ export function validateClassProgression(c: ClassProgressionLike): string[] {
   const saves = c.saving_throws;
   if (saves.length !== 2 || new Set(saves).size !== 2 || !saves.every((s) => ABILITY_NAMES.some((a) => a === s))) {
     problems.push("A class has exactly two different saving throw proficiencies.");
-  }
-
-  const asi = c.asi_levels;
-  if (!asi.every((l, i) => Number.isInteger(l) && l >= 1 && l <= 20 && (i === 0 || l > asi[i - 1]))) {
-    problems.push("Ability score improvement levels must be increasing levels between 1 and 20.");
   }
 
   if (!Number.isInteger(c.subclass_level) || c.subclass_level < 1 || c.subclass_level > 20) {
@@ -241,21 +195,18 @@ export function validateClassProgression(c: ClassProgressionLike): string[] {
   if (c.spells_known !== null && !isTable20(c.spells_known)) problems.push("Spells known must be a 20-level table.");
   if (c.cantrips_known !== null && !isTable20(c.cantrips_known)) problems.push("Cantrips known must be a 20-level table.");
 
-  const keys = new Set<string>();
-  for (const r of c.resources) {
-    if (!r.key || !r.label) problems.push("A resource needs a key and a label.");
-    if (keys.has(r.key)) problems.push(`Resource "${r.key}" appears twice.`);
-    keys.add(r.key);
-    if (r.scaling === "table" && !isTable20(r.table_values)) problems.push(`Resource "${r.key}" needs a 20-level table.`);
-    if (r.scaling === "fixed" && !Number.isInteger(r.fixed_value)) problems.push(`Resource "${r.key}" needs a fixed value.`);
-  }
-
   return problems;
 }
 
 export interface ClassDraftContext {
   ruleset: RulesetKey;
   campaignId: string | null;
+  /**
+   * The official Ability Score Improvement feature of the edition. A class
+   * grants it at its ASI levels like any other feature; null when the
+   * compendium has no such row, in which case the draft says so in `warnings`.
+   */
+  asiFeatureId?: string | null;
 }
 
 export interface ClassDraft {
@@ -265,9 +216,11 @@ export interface ClassDraft {
   progression: CasterProgression;
   /** Structural problems the normaliser could not repair. Empty when the draft can be created. */
   problems: string[];
+  /** Things left out that do not stop the class being created. */
+  warnings: string[];
 }
 
-function subclassGrantFeature(className: string, level: number, ctx: ClassDraftContext): LevelledFeatureDraft {
+function subclassGrantFeature(className: string, level: number, ctx: ClassDraftContext): NewFeatureDraft {
   const name = ctx.ruleset === "2024" ? `${className} Subclass` : "Subclass Choice";
   return {
     level,
@@ -276,7 +229,6 @@ function subclassGrantFeature(className: string, level: number, ctx: ClassDraftC
       description: toTiptapJson(
         `At level ${level}, you choose a subclass of the ${className} class. Your subclass grants you features at level ${level} and again at later levels.`,
       ),
-      feature_type: "passive",
       source: "Grimoire:AI",
       prerequisite: null,
       tags: [],
@@ -284,14 +236,16 @@ function subclassGrantFeature(className: string, level: number, ctx: ClassDraftC
       ruleset: ctx.ruleset,
       campaign_id: ctx.campaignId,
       ai_provenance: null,
+      kind: "feature",
+      mechanics: {},
     },
   };
 }
 
 /**
  * Turn the model's class JSON into a class that is structurally valid by
- * construction and shaped for the table's edition: ASI levels are the book's,
- * the 2024 subclass level is 3, and spell slots come from the published caster
+ * construction and shaped for the table's edition: the Ability Score Improvement
+ * feature sits at the book's levels, the 2024 subclass level is 3, and spell slots come from the published caster
  * tables for the chosen progression, never from numbers the model wrote.
  */
 export function classDraftFromAi(ai: ClassAiResult, ctx: ClassDraftContext): ClassDraft {
@@ -303,7 +257,7 @@ export function classDraftFromAi(ai: ClassAiResult, ctx: ClassDraftContext): Cla
   const progression = casterProgressionFrom(ai.caster_progression);
   const subclass_level = subclassLevelFor(ai.subclass_level, ctx.ruleset);
 
-  const features = levelledFeaturesFromAi(
+  const written = levelledFeaturesFromAi(
     ai.features,
     ai.ai_provenance,
     ctx,
@@ -311,10 +265,22 @@ export function classDraftFromAi(ai: ClassAiResult, ctx: ClassDraftContext): Cla
   );
   // The subclass is granted by a feature at the subclass level; add the plain
   // one when the model left that level empty so the level is never bare.
-  if (className && !features.some((f) => f.level === subclass_level)) {
-    features.push(subclassGrantFeature(className, subclass_level, ctx));
-    features.sort((a, b) => a.level - b.level);
+  if (className && !written.some((f) => f.level === subclass_level)) {
+    written.push(subclassGrantFeature(className, subclass_level, ctx));
   }
+  // A resource is a feature's uses, not a row of its own on the class.
+  const features: LevelledFeatureDraft[] = withResourceFeatures(
+    written,
+    sanitizeResources(ai.resources),
+    { ruleset: ctx.ruleset, campaignId: ctx.campaignId, provenance: ai.ai_provenance },
+  );
+  const warnings: string[] = [];
+  if (ctx.asiFeatureId) {
+    for (const level of DEFAULT_ASI_LEVELS) features.push({ level, existingId: ctx.asiFeatureId });
+  } else {
+    warnings.push("Ability Score Improvement was not added: the official feature is missing from the Abilities compendium.");
+  }
+  features.sort((a, b) => a.level - b.level);
 
   const casts = progression !== "none";
   const casterTypeRaw = text(ai.caster_type).toLowerCase();
@@ -341,7 +307,6 @@ export function classDraftFromAi(ai: ClassAiResult, ctx: ClassDraftContext): Cla
     weapon_proficiencies: stringList(ai.weapon_proficiencies, MAX_PROFICIENCIES, 60),
     subclass_level,
     features: featureIdsByLevel(features, features.map((_, i) => `pending-${i}`)),
-    asi_levels: [...DEFAULT_ASI_LEVELS],
     spell_slots: slotGridFor(progression, ctx.ruleset),
     spells_known: casts && caster_type === "known" ? sanitizeKnownTable(ai.spells_known, 30) : null,
     cantrips_known: casts ? sanitizeKnownTable(ai.cantrips_known, 6) : null,
@@ -349,14 +314,12 @@ export function classDraftFromAi(ai: ClassAiResult, ctx: ClassDraftContext): Cla
     caster_type,
     prepared_ability,
     prepared_divisor: prepared_ability && casts ? PREPARED_DIVISOR[progression] : null,
-    steps: [],
-    resources: sanitizeResources(ai.resources),
     ai_provenance: ai.ai_provenance ?? null,
   };
 
   const problems = validateClassProgression(base);
   if (!className) problems.unshift("The class has no name.");
-  return { base, features, progression, problems };
+  return { base, features, progression, problems, warnings };
 }
 
 /** The class row with its `features` pointing at the created feature rows, in draft order. */

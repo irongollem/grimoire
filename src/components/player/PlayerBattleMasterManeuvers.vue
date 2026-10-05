@@ -1,29 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card overflow-hidden">
-    <div class="px-4 py-2.5 border-b border-border flex items-center justify-between">
+    <div class="px-4 py-2.5 border-b border-border">
       <p class="text-label-lg font-semibold text-muted-foreground">Battle Master Maneuvers</p>
-      <div class="flex items-center gap-2">
-        <span class="text-label rounded px-1.5 py-0.5 bg-muted/50 text-muted-foreground border border-border">{{ superiorityDiceSize }}</span>
-      </div>
-    </div>
-    <!-- Superiority dice track -->
-    <div class="flex items-center gap-2 px-4 py-2 border-b border-border">
-      <span class="text-body text-muted-foreground flex-1">Superiority Dice</span>
-      <AppButton
-        variant="subtle"
-        size="icon-xs"
-        :disabled="superiorityDiceCurrent <= 0"
-        @click="emit('spend-superiority-die')"
-      >−</AppButton>
-      <span class="text-heading-sm text-foreground w-10 text-center">
-        {{ superiorityDiceCurrent }} / {{ superiorityDiceMax }}
-      </span>
-      <AppButton
-        variant="subtle"
-        size="icon-xs"
-        :disabled="superiorityDiceCurrent >= superiorityDiceMax"
-        @click="emit('restore-superiority-die')"
-      >+</AppButton>
     </div>
     <!-- Known maneuvers -->
     <div class="divide-y divide-border">
@@ -92,23 +70,12 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import type { BattleManeuver } from "@/data/battleMasterManeuvers";
 
-const {
-  knownManeuvers,
-  availableToLearn,
-  superiorityDiceSize,
-  superiorityDiceCurrent,
-  superiorityDiceMax,
-} = defineProps<{
+const { knownManeuvers, availableToLearn } = defineProps<{
   knownManeuvers: BattleManeuver[];
   availableToLearn: BattleManeuver[];
-  superiorityDiceSize: string;
-  superiorityDiceCurrent: number;
-  superiorityDiceMax: number;
 }>();
 
 const emit = defineEmits<{
-  "spend-superiority-die": [];
-  "restore-superiority-die": [];
   "learn-maneuver": [name: string];
 }>();
 

@@ -48,21 +48,9 @@
 
         <!-- Origin feat grant (2024 PHB) -->
         <BackgroundOriginFeatBadge
-          v-if="is2024 && pendingBg?.origin_feat"
-          :origin-feat="pendingBg.origin_feat"
+          v-if="is2024 && resolvedOriginFeat"
+          :origin-feat="resolvedOriginFeat.originFeat"
         />
-
-        <!-- Feat grant (legacy free-text display, kept for backgrounds without a structured origin_feat) -->
-        <div v-else-if="pendingBg?.feat_grant_name"
-          class="rounded-md border border-tone-caution/30 bg-tone-caution/5 p-3 space-y-1">
-          <div class="flex items-center gap-2">
-            <p class="text-eyebrow font-semibold text-ink-caution ">
-              FEAT GRANT
-            </p>
-            <span class="text-eyebrow text-ink-caution/60 ">2024 PHB</span>
-          </div>
-          <p class="text-heading-sm font-bold text-foreground">{{ pendingBg.feat_grant_name }}</p>
-        </div>
 
         <!-- Proficiencies granted by the new background -->
         <div v-if="propsToApply.length > 0">
@@ -121,6 +109,9 @@
         <p v-if="asiChoiceIncomplete" class="text-caption text-ink-caution  italic mb-2">
           Finish the ability score choice above, or clear it, before confirming.
         </p>
+        <p v-if="originFeatUnresolved && resolvedOriginFeat" class="text-caption text-ink-caution italic mb-2">
+          {{ unresolvedOriginFeatMessage(resolvedOriginFeat.originFeat.name) }} Pick another background.
+        </p>
         <div class="flex gap-3">
           <AppButton variant="subtle" size="md" class="flex-1" label="Cancel" @click="cancel" />
           <AppButton
@@ -128,7 +119,7 @@
             size="md"
             class="flex-1"
             :label="saving ? 'Saving…' : 'Confirm & Apply'"
-            :disabled="saving || asiChoiceIncomplete"
+            :disabled="saving || asiChoiceIncomplete || originFeatUnresolved"
             @click="confirm"
           />
         </div>
@@ -148,6 +139,7 @@ import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useBackground } from "@/composables/rules/useBackgrounds";
 import { BACKGROUND_SOURCE_OPTIONS } from "@/components/backgrounds/backgroundSourceOptions";
 import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
+import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/play/useRulesetReviews";
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
@@ -166,7 +158,8 @@ import {
   type BgRemovalState,
 } from "@/rules/backgroundProficiencies";
 import {
-  abilityBonusesForChoice, isValidAsiChoice, parseBackgroundAsiChoice,
+  abilityBonusesForChoice, isValidAsiChoice, originFeatOf, parseBackgroundAsiChoice,
+  resolveOriginFeat, unresolvedOriginFeatMessage, withOriginFeat,
   type BackgroundAsiChoice,
 } from "@/rules/backgroundAsi";
 import { SKILLS } from "@/types/party.types";
@@ -185,7 +178,7 @@ const { mutateAsync: update } = useUpdatePartyMember();
 const { resolvedMemberId, member: me, notFound, afterChangeRoute } = usePickerCharacter();
 // Backgrounds are build rules: the list shown is the character's edition (useRuleset.ts).
 provideCharacterRuleset(() => me.value);
-const { is2024 } = useRuleset();
+const { is2024, ruleset } = useRuleset();
 const { data: rulesetReviews } = useRulesetReviews(resolvedMemberId);
 const { mutateAsync: acknowledgeRulesetReviews } = useAcknowledgeRulesetReviews();
 
@@ -242,6 +235,17 @@ const asiChoiceIncomplete = computed(() => {
     && !isValidAsiChoice(pendingAsiChoice.value, pendingBg.value.asi_ability_trio);
 });
 
+// The origin feat the pending background grants, among the character's edition's feats.
+// A feat that resolves to nothing blocks the change rather than saving a bare name.
+const { data: allFeatures } = useAllFeatures();
+const resolvedOriginFeat = computed(() =>
+  is2024.value
+    ? resolveOriginFeat(originFeatOf(pendingBg.value), allFeatures.value ?? [], ruleset.value)
+    : null,
+);
+const originFeatUnresolved = computed(() =>
+  resolvedOriginFeat.value !== null && resolvedOriginFeat.value.feature === null && allFeatures.value !== undefined);
+
 function onSelect(bg: Background) {
   pendingBg.value = bg;
   removeOld.value = false;
@@ -261,7 +265,7 @@ function cancel() {
 }
 
 async function confirm() {
-  if (!me.value || !pendingBg.value || asiChoiceIncomplete.value) return;
+  if (!me.value || !pendingBg.value || asiChoiceIncomplete.value || originFeatUnresolved.value) return;
   const memberId = me.value.id;
   const hadReviewFlag = (rulesetReviews.value ?? []).some((r) => r.flag_type === "background");
   saving.value = true;
@@ -275,15 +279,15 @@ async function confirm() {
     if (removeOld.value && pendingRemovals.value) {
       removeBackgroundProfs(form, pendingRemovals.value);
     }
-    // Update class_choices.background_feat / background_asi to reflect the newly
-    // selected background. background_feat stays the raw display name (unchanged
-    // semantics) — the origin feat itself is resolved live at display time.
-    const existingChoices = { ...me.value.class_choices } as Record<string, unknown>;
-    if (pendingBg.value.feat_grant_name) {
-      existingChoices.background_feat = pendingBg.value.feat_grant_name;
-    } else {
-      delete existingChoices.background_feat;
-    }
+    // The new background's origin feat replaces the old one in `feats`, with its
+    // variant; background_asi follows below. A background of another edition
+    // grants none, so the old one only comes out.
+    const existingChoices = withOriginFeat(
+      me.value.class_choices,
+      resolvedOriginFeat.value?.feature
+        ? { featId: resolvedOriginFeat.value.feature.id, variant: resolvedOriginFeat.value.originFeat.variant }
+        : null,
+    );
     // A half-made ASI choice never persists — the Confirm button is disabled
     // for that state, so anything left here is either complete or empty (skip).
     if (is2024.value && pendingBg.value.asi_ability_trio

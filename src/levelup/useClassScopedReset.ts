@@ -10,10 +10,10 @@ export interface ClassScopedSelectionRefs {
   selectedSpellIds: Ref<Set<string>>;
   /** Cantrip ids picked to fill this level's known-cantrip gain. */
   selectedCantripIds: Ref<Set<string>>;
-  /** Single-value answers to this level's class-specific steps. */
-  stepValues: Ref<Record<string, string>>;
-  /** Multi-value answers to this level's class-specific steps. */
-  stepMultiValues: Ref<Record<string, string[]>>;
+  /** Answers to this level's feature choices, by due key. */
+  choiceValues: Ref<Record<string, unknown>>;
+  /** Tasha's swaps taken this level. */
+  swapPicks: Ref<Record<string, string>>;
 }
 
 /**
@@ -22,7 +22,7 @@ export interface ClassScopedSelectionRefs {
  * to class B still carries A's subclassDefinitionId alongside B's freshly
  * typed subclass name — buildLevelUpPayload sends both together, and the
  * server's class-name-mismatch trigger (migration 20260720000030) rejects
- * the level-up outright. Spell/cantrip picks and class-step answers are
+ * the level-up outright. Spell/cantrip picks, choice answers and swaps are
  * equally class-scoped (they come from the class being leveled) so they are
  * cleared for the same reason, not just for tidiness.
  *
@@ -39,7 +39,7 @@ export function useClassScopedReset(
     refs.subclassInput.value = "";
     refs.selectedSpellIds.value = new Set();
     refs.selectedCantripIds.value = new Set();
-    refs.stepValues.value = {};
-    refs.stepMultiValues.value = {};
+    refs.choiceValues.value = {};
+    refs.swapPicks.value = {};
   });
 }

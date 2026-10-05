@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { subclassDraftFromAi, subclassFeatureLevels, subclassWithFeatureIds } from "./subclassAi";
 
-const f = (level: number, name: string) => ({ level, name, feature_type: "passive", description: `${name} text` });
+const f = (level: number, name: string) => ({ level, name, activation: "", description: `${name} text` });
 
 for (const ruleset of ["2014", "2024"] as const) {
   describe(`subclassDraftFromAi (${ruleset})`, () => {
@@ -39,6 +39,22 @@ for (const ruleset of ["2014", "2024"] as const) {
     it("reports a missing name or an empty grant level", () => {
       const draft = subclassDraftFromAi({ subclass_name: "", features: [f(6, "B")] }, ctx);
       expect(draft.problems).toHaveLength(2);
+    });
+
+    it("turns a resource into a feature with uses, on a level the archetype grants", () => {
+      const draft = subclassDraftFromAi(
+        {
+          subclass_name: "Ashblade",
+          features: [f(3, "A"), f(7, "B")],
+          resources: [{ label: "Ash Charges", rest: "short", scaling: "fixed", fixed_value: 2 }],
+        },
+        ctx,
+      );
+      expect(draft.problems).toEqual([]);
+      const charges = draft.features.find((x) => "insert" in x && x.insert.name === "Ash Charges");
+      expect(charges?.level).toBe(3);
+      expect(charges && "insert" in charges ? charges.insert.mechanics?.uses : null).toMatchObject({ key: "ash_charges", recharge: "short" });
+      expect(draft.base).not.toHaveProperty("resources");
     });
 
     it("drops an implausible hp_per_level", () => {

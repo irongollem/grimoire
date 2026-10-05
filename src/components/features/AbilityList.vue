@@ -8,13 +8,7 @@
     title="No abilities yet"
     description="Add class features, special abilities, and passive traits here. Custom subclasses and classes can then reference them by name."
   >
-    <RouterLink
-      to="/features/new"
-      class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-    >
-      <IconAdd class="h-3.5 w-3.5" />
-      New Ability
-    </RouterLink>
+    <AppButton to="/features/new" variant="primary" size="md" :icon="IconAdd" label="New Ability" />
   </EmptyState>
 
   <EmptyState
@@ -24,52 +18,42 @@
   />
 
   <div v-else class="divide-y divide-border">
-    <RouterLink
-      v-for="feat in filtered"
-      :key="feat.id"
-      :to="`/features/${feat.id}`"
-      class="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
-    >
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 flex-wrap">
-          <p class="text-heading-xs font-semibold text-foreground truncate">{{ feat.name }}</p>
-          <span class="shrink-0 rounded px-1.5 py-0.5 text-eyebrow bg-muted text-muted-foreground">
-            {{ FEATURE_TYPE_LABELS[feat.feature_type] }}
-          </span>
-          <span v-if="feat.source" class="text-caption text-muted-foreground">{{ feat.source }}</span>
-        </div>
-        <div v-if="feat.tags.length" class="flex flex-wrap gap-1 mt-1">
-          <span
-            v-for="tag in feat.tags.slice(0, 4)"
-            :key="tag"
-            class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-          >{{ tag }}</span>
-        </div>
-      </div>
-      <IconChevronRight class="h-4 w-4 text-muted-foreground shrink-0" />
-    </RouterLink>
+    <FeatureListRow v-for="feat in filtered" :key="feat.id" :feature="feat" :to="`/features/${feat.id}`">
+      <template #badges>
+        <AppButton
+          as="span"
+          variant="tinted"
+          tone="neutral"
+          emphasis="soft"
+          size="xs"
+          :label="feat.mechanics.activation ? ACTIVATION_LABELS[feat.mechanics.activation] : 'Passive'"
+        />
+      </template>
+    </FeatureListRow>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { RouterLink } from "vue-router";
-import { IconAdd, IconChevronRight } from '@/lib/icons';
+import { IconAdd } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import FeatureListRow from "@/components/features/FeatureListRow.vue";
 import { useUiStore } from "@/stores/ui";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
-import { FEATURE_TYPE_LABELS } from "@/types/feature.types";
+import { ACTIVATION_LABELS } from "@/types/feature.types";
 
 const ui = useUiStore();
 const { data: all, isLoading } = useAllFeatures();
 
+/** Abilities are the granted features; the feats have their own tab. */
 const filtered = computed(() => {
-  const items = all.value ?? [];
   const search = ui.featuresSearch.toLowerCase();
-  const type = ui.featuresFilterType;
-  return items.filter(f => {
-    if (type !== "all" && f.feature_type !== type) return false;
+  const activation = ui.featuresFilterActivation;
+  return (all.value ?? []).filter(f => {
+    if (f.kind !== "feature") return false;
+    if (activation === "passive" ? !!f.mechanics.activation : activation !== "all" && f.mechanics.activation !== activation) return false;
     if (search && !f.name.toLowerCase().includes(search) && !f.tags.some(t => t.toLowerCase().includes(search))) return false;
     return true;
   });

@@ -6,7 +6,7 @@
  * NOT surface in the read-only Choices list:
  *
  *  1. Keys with a dedicated player-facing card, or applied elsewhere on the
- *     sheet (metamagic, invocations, maneuvers, background feat/ASI). Showing
+ *     sheet (metamagic, invocations, maneuvers, origin feat, background ASI). Showing
  *     them here would duplicate those cards.
  *
  *  2. Turn-scoped combat bookkeeping written by the spellcasting engine. By DB
@@ -22,7 +22,8 @@ const DEDICATED_OR_APPLIED_KEYS = new Set([
   "infusions_known",
   "eldritch_invocations",
   "battle_master_maneuvers",
-  "background_feat",
+  "origin_feat_id",
+  "origin_feat_variant",
   "background_asi",
 ]);
 

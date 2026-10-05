@@ -51,20 +51,19 @@
       <!-- Features gained -->
       <LevelUpFeaturesGained
         v-if="memberClass"
-        :features="customFeaturesForLevel"
-        :expanded-features="wizardExpandedFeatures"
+        :gained="gained"
+        :scaling="scaling"
+        :pools="pools"
         :has-class-data="!!(systemClass || customClass)"
-        :next-level="nextLevel"
+        :class-level="levelInChosenClass"
         :class-name="memberClass"
         :cantrips-known-gain="cantripsKnownGain"
         :cantrips-known-total="cantripsKnownTotal"
         :spells-known-gain="spellsKnownGain"
         :spells-known-total="spellsKnownTotal"
-        :resource-notices="resourceNotices"
         :prof-bonus-bumped="newProfBonus !== member.proficiency_bonus"
         :new-prof-bonus="newProfBonus"
         :spell-slot-summary="newSpellSlotSummary"
-        @toggle-feature="toggleWizardFeature"
       />
 
       <!-- Hit Points -->
@@ -84,20 +83,6 @@
       />
       <p v-else-if="memberClass" class="text-caption text-muted-foreground italic">Loading the class's hit die…</p>
 
-      <!-- ASI / Feat picker -->
-      <LevelUpAsiSection
-        v-if="grantsAsi"
-        v-model:asi-mode="asiMode"
-        v-model:asi-primary="asiPrimary"
-        v-model:asi-secondary="asiSecondary"
-        :asi-preview="asiPreview"
-        v-model:feat-search="featSearch"
-        v-model:feat-id="featId"
-        :filtered-feats="filteredFeats"
-        :selected-feat-name="selectedFeatName"
-        :selected-feat-description="selectedFeatDescription"
-      />
-
       <!-- Subclass choice -->
       <LevelUpSubclassPicker
         v-if="needsSubclassChoice"
@@ -108,14 +93,17 @@
         @update:model-value="subclassInput = $event"
       />
 
-      <!-- Class-specific steps -->
-      <LevelUpClassSteps
-        :steps="classSteps"
-        :single-values="stepValues"
-        :multi-values="stepMultiValues"
-        :existing-choices="member.class_choices"
-        @update:single-values="stepValues = $event"
-        @update:multi-values="stepMultiValues = $event"
+      <!-- Everything the new features ask for: ability scores or a feat, invocations, expertise, swaps -->
+      <LevelUpChoices
+        v-if="memberClass"
+        v-model:values="choiceValues"
+        v-model:swaps="swapPicks"
+        v-model:complete="choicesComplete"
+        :due="due"
+        :swap-offers="swapOffers"
+        :context="optionContext"
+        :feats-by-id="featuresById"
+        :feats-allowed="featsAllowed"
       />
 
       <!-- Spell picker (known casters gaining spells) -->
@@ -163,55 +151,43 @@
 
       <!-- Confirm / Cancel -->
       <div class="flex gap-3">
-        <RouterLink :to="backRoute ?? '/play'"
-          class="flex-1 rounded-md border border-border px-4 py-2 text-label-lg text-muted-foreground text-center hover:text-foreground hover:border-primary/40 transition-colors">
-          Cancel
-        </RouterLink>
-        <button
-          class="flex-1 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+        <AppButton variant="subtle" size="body" class="flex-1" :to="backRoute ?? '/play'" label="Cancel" />
+        <AppButton
+          variant="primary"
+          size="body"
+          class="flex-1"
           :disabled="isPending || !canConfirm"
-          @click="confirm">
-          {{ isPending ? "Applying…" : `Confirm Level ${nextLevel}` }}
-        </button>
+          :label="isPending ? 'Applying…' : `Confirm Level ${nextLevel}`"
+          @click="confirm"
+        />
       </div>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import { RouterLink } from "vue-router";
+import { ref, computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import LevelUpChoices from "@/components/features/LevelUpChoices.vue";
+import type { ChoiceValue } from "@/components/features/choiceValue";
 import LevelUpClassPicker from "./LevelUpClassPicker.vue";
 import LevelUpFeaturesGained from "./LevelUpFeaturesGained.vue";
 import LevelUpHitPoints from "./LevelUpHitPoints.vue";
-import LevelUpAsiSection from "./LevelUpAsiSection.vue";
 import LevelUpSubclassPicker from "./LevelUpSubclassPicker.vue";
 import { subclassChoiceDue } from "./subclassChoice";
 import LevelUpSpellPicker from "./LevelUpSpellPicker.vue";
 import LevelUpSpellsUnavailable from "./LevelUpSpellsUnavailable.vue";
-import LevelUpClassSteps from "./LevelUpClassSteps.vue";
 import { useLevelUpConfirm } from "./useLevelUpConfirm";
-import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
-import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/rules/useCustomClasses";
-import {
-  useCharacterClasses,
-  useMulticlassPrereqs,
-} from "@/composables/party/useCharacterClasses";
-import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
-import { meetsMulticlassPrereq } from "@/types/multiclass.types";
-import type { CharacterClass } from "@/types/multiclass.types";
+import { isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useLevelUpSpellSlots } from "./useLevelUpSpellSlots";
 import { useClassScopedReset } from "./useClassScopedReset";
-import type { DieSize } from "@/lib/dice/dice";
-import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import { useAllFeatures, useFeaturesByIds } from "@/composables/rules/useFeatures";
+import { useLevelUpClassSelection } from "./useLevelUpClassSelection";
+import { useLevelUpHitPoints } from "./useLevelUpHitPoints";
+import { useLevelUpFeatures } from "./useLevelUpFeatures";
+import { armorTrainingOf } from "./armorTraining";
 import { useCharacterSpells } from "@/composables/party/useCharacterSpells";
 import { useLevelUpSpellCandidates } from "./useLevelUpSpellCandidates";
 import type { PartyMember } from "@/types/party.types";
-import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef, FeatureEntry } from "./types";
-import { mapFeatureIds } from "./types";
-import { filterFeats } from "./featOptions";
-import type { CustomResource } from "@/levelup/customTypes";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 
 const props = defineProps<{
@@ -223,203 +199,29 @@ const props = defineProps<{
 provideCharacterRuleset(() => props.member);
 const { ruleset } = useRuleset();
 
-// ── Multiclass state ───────────────────────────────────────────────────────────
-const memberIdRef = computed(() => props.member.id);
-const { data: characterClasses } = useCharacterClasses(memberIdRef);
-const { data: multiclassPrereqs } = useMulticlassPrereqs();
-// Ungated lists resolve the classes the character already has — a class the DM
-// disables mid-campaign must never block levelling what's already on the sheet.
-// Only the *new class* picker below obeys the campaign gate (#566).
-const { data: campaignCustomClasses, all: allCustomClasses } = useCampaignCustomClasses();
-const { data: campaignSystemClasses, all: allSystemClasses } = useCampaignSystemClasses();
+const {
+  existingClassOptions, chosenClassSelector, newClassChoiceKey, isAddingNewClass, newClassName,
+  newClassDefinition, newClassDefinitionId, newClassDefinitionKind, chosenExistingEntry, memberClass,
+  levelInChosenClass, exactClassDefinition, customClass, systemClass, subclassDefinitionId, customSubclass,
+  allCustomSubclasses, campaignCustomSubclasses, newClassCandidates, ignoreMulticlassPrereqs, newClassPrereq,
+  newClassProficiencyGrants, classRows, campaignRulesData,
+} = useLevelUpClassSelection(() => props.member);
 
-const memberClassEntries = computed<CharacterClass[]>(() => characterClasses.value ?? []);
-
-const existingClassOptions = computed(() => memberClassEntries.value);
-
-/** User's choice for this level-up: either an existing class entry or "__new__" */
-const chosenClassSelector = ref<string>("");
-
-/** When adding a new class, which class is being taken. */
-const newClassChoiceKey = ref<string>("");
-
-// Seed the picker on mount / when member classes load. Must be a watch — a
-// lazy computed that is never read in the template would never run, leaving
-// chosenClassSelector "" and silently skipping the character_classes update
-// on confirm. A character with no class rows is classless: it levels up by
-// adding its first class, so the picker starts on "a new class". That has to
-// wait for the load (`undefined`), or every character would start there.
-watch(
-  characterClasses,
-  (rows) => {
-    if (chosenClassSelector.value || rows === undefined) return;
-    const primary = rows.find(c => c.is_primary) ?? rows[0];
-    chosenClassSelector.value = primary ? primary.id : "__new__";
-  },
-  { immediate: true },
-);
-
-const isAddingNewClass = computed(() => chosenClassSelector.value === "__new__");
-
-const newClassDefinition = computed(() => {
-  const [kind, id] = newClassChoiceKey.value.split(":");
-  if (kind === "system") return (allSystemClasses.value ?? []).find(c => c.id === id)
-    ? { kind: "system" as const, value: (allSystemClasses.value ?? []).find(c => c.id === id)! } : null;
-  if (kind === "custom") return (allCustomClasses.value ?? []).find(c => c.id === id)
-    ? { kind: "custom" as const, value: (allCustomClasses.value ?? []).find(c => c.id === id)! } : null;
-  return null;
-});
-const newClassName = computed(() => newClassDefinition.value?.value.class_name ?? "");
-const newClassDefinitionId = computed(() => newClassDefinition.value?.value.id ?? null);
-const newClassDefinitionKind = computed(() => newClassDefinition.value?.kind ?? null);
-
-const chosenExistingEntry = computed<CharacterClass | null>(() => {
-  if (isAddingNewClass.value) return null;
-  return existingClassOptions.value.find(c => c.id === chosenClassSelector.value) ?? null;
-});
-
-/** The class name for this level-up — existing-class name or newly-picked class. */
-const memberClass = computed(() => {
-  if (isAddingNewClass.value) return newClassName.value;
-  return chosenExistingEntry.value?.class_name ?? "";
-});
-
-/** Per-chosen-class level: the level *inside the chosen class* after this bump. */
-const levelInChosenClass = computed(() => {
-  if (isAddingNewClass.value) {
-    // A classless character's first class carries every level it has banked
-    // (apply_level_up wants the member's new total); a further class starts at 1.
-    return existingClassOptions.value.length === 0 ? props.member.level + 1 : 1;
-  }
-  if (chosenExistingEntry.value) return chosenExistingEntry.value.levels + 1;
-  return 1;
-});
-
-// Every class row is pinned to its definition, so the class resolves by id and
-// kind alone, never by name (a custom class may share an official one's name).
-const exactClassDefinition = computed(() => {
-  if (isAddingNewClass.value) return newClassDefinition.value;
-  const entry = chosenExistingEntry.value;
-  if (!entry) return null;
-  if (entry.class_definition_kind === "system") {
-    const value = (allSystemClasses.value ?? []).find(c => c.id === entry.class_definition_id);
-    return value ? { kind: "system" as const, value } : null;
-  }
-  const value = (allCustomClasses.value ?? []).find(c => c.id === entry.class_definition_id);
-  return value ? { kind: "custom" as const, value } : null;
-});
-const customClass = computed(() =>
-  exactClassDefinition.value?.kind === "custom" ? exactClassDefinition.value.value : null);
-const systemClass = computed(() =>
-  exactClassDefinition.value?.kind === "system" ? exactClassDefinition.value.value : undefined);
-const { data: allFeatures }   = useAllFeatures();
-const { data: campaignCustomSubclasses, all: allCustomSubclasses } = useCampaignCustomSubclasses();
-const subclassDefinitionId = ref("");
-const customSubclass = computed(() => {
-  const id = subclassDefinitionId.value || chosenExistingEntry.value?.subclass_definition_id;
-  return id ? (allCustomSubclasses.value ?? []).find(subclass => subclass.id === id) ?? null : null;
-});
-
-// Classes the character doesn't already have — candidates for a new level.
-const newClassCandidates = computed(() => {
-  const existing = new Set(existingClassOptions.value.map(c => `${c.class_definition_kind}:${c.class_definition_id}`));
-  return [
-    ...campaignSystemClasses.value.map(c => ({ key: `system:${c.id}`, label: `${c.class_name} (official)` })),
-    ...campaignCustomClasses.value.map(c => ({ key: `custom:${c.id}`,
-      label: `${c.class_name} (${c.source_document_key ? "imported" : "custom"})` })),
-  ].filter(candidate => !existing.has(candidate.key))
-    .sort((a, b) => a.label.localeCompare(b.label));
-});
-
-const { data: campaignRulesData } = useOptionalRules();
-const ignoreMulticlassPrereqs = computed<boolean>(() =>
-  isRuleEffectivelyEnabled(campaignRulesData.value, "ignore_multiclass_prereqs"),
-);
-
-/** Prereq check for the currently-selected new class. */
-const newClassPrereq = computed(() => {
-  // A character's first class is not a multiclass, so no prerequisite applies.
-  if (!isAddingNewClass.value || !newClassName.value || existingClassOptions.value.length === 0) return { ok: true as const };
-  const prereq = (multiclassPrereqs.value ?? []).find(p => p.class_name === newClassName.value);
-  if (!prereq) return { ok: true as const };
-  return meetsMulticlassPrereq(prereq, {
-    str: props.member.str, dex: props.member.dex, con: props.member.con,
-    int: props.member.int, wis: props.member.wis, cha: props.member.cha,
-  });
-});
-
-const newClassProficiencyGrants = computed<string[]>(() => {
-  if (!isAddingNewClass.value || !newClassName.value || existingClassOptions.value.length === 0) return [];
-  const prereq = (multiclassPrereqs.value ?? []).find(p => p.class_name === newClassName.value);
-  return prereq?.gained_proficiencies ?? [];
-});
-
-// ── Derived ────────────────────────────────────────────────────────────────────
 // `nextLevel` is the character's new TOTAL level — used for proficiency bonus.
-// `levelInChosenClass` (defined above) is the new level IN THE CLASS BEING
-// LEVELLED — used for features, ASI checks, subclass gates, hit die, and
-// class-specific spell/cantrip tables.
-const nextLevel    = computed(() => props.member.level + 1);
+// `levelInChosenClass` is the new level IN THE CLASS BEING LEVELLED — used for
+// features, subclass gates, hit die, and class-specific spell/cantrip tables.
+const nextLevel = computed(() => props.member.level + 1);
 const newProfBonus = computed(() => 2 + Math.floor((nextLevel.value - 1) / 4));
 
 // ── Hit points + hit dice ──────────────────────────────────────────────────────
-// The die comes from the definition the class is pinned to and nowhere else.
-// Null while that definition is still loading: the step waits (and Confirm stays
-// disabled) rather than compute hit points with a guessed die.
 const hitDie = computed<number | null>(() => (customClass.value ?? systemClass.value)?.hit_die ?? null);
-const conMod = computed(() => Math.floor((props.member.con - 10) / 2));
-const hpAverageValue = computed(() => (hitDie.value === null ? null : Math.ceil(hitDie.value / 2) + 1));
-
-type HpMode = "average" | "roll" | "max";
-const hpMode = ref<HpMode>("average");
-const rolledHp = ref<number | null>(null);
-
-function setHpMode(mode: HpMode) {
-  if (hpMode.value === mode) return;
-  hpMode.value = mode;
-  // Clear any locked roll so switching to "roll" re-exposes the button.
-  rolledHp.value = null;
-}
-
-const { promptRoll } = usePromptedRoll();
-
-async function rollHp() {
-  if (rolledHp.value !== null || hitDie.value === null) return;
-  const r = await promptRoll({
-    counts: { [hitDie.value as DieSize]: 1 },
-    modifier: 0,
-    label: `Hit Die (1d${hitDie.value})`,
-    silent: true,
-  });
-  if (r) rolledHp.value = r.total;
-}
-
 const subclassHpBonus = computed(() => customSubclass.value?.hp_per_level ?? 0);
+const {
+  conMod, hpAverageValue, hpMode, rolledHp, setHpMode, rollHp, hpGain, currentHitDice, newHitDiceCount,
+} = useLevelUpHitPoints({ member: () => props.member, hitDie, subclassHpBonus, nextLevel });
 
-/** HP gained at this level-up. Minimum 1 per 5e guidance (no negative levels). */
-const hpGain = computed(() => {
-  // No die yet: nothing to gain. canConfirm refuses to apply until it resolves.
-  if (hitDie.value === null || hpAverageValue.value === null) return 0;
-  const bonus = subclassHpBonus.value;
-  if (hpMode.value === "roll") {
-    if (rolledHp.value === null) return 0;
-    return Math.max(1, rolledHp.value + conMod.value + bonus);
-  }
-  if (hpMode.value === "max") return Math.max(1, hitDie.value + conMod.value + bonus);
-  return Math.max(1, hpAverageValue.value + conMod.value + bonus);
-});
-
-const currentHitDice = computed(() =>
-  Math.min(props.member.level, props.member.hit_dice_remaining ?? props.member.level),
-);
-const newHitDiceCount = computed(() => Math.min(nextLevel.value, currentHitDice.value + 1));
-
-const grantsAsi = computed(() =>
-  systemClass.value?.asi_levels.includes(levelInChosenClass.value) ||
-  customClass.value?.asi_levels.includes(levelInChosenClass.value) ||
-  false,
-);
-
+// ── Subclass ───────────────────────────────────────────────────────────────────
+const subclassInput = ref("");
 const needsSubclassChoice = computed(() =>
   subclassChoiceDue(
     chosenExistingEntry.value,
@@ -427,29 +229,27 @@ const needsSubclassChoice = computed(() =>
     systemClass.value?.subclass_level ?? customClass.value?.subclass_level,
   ),
 );
-
-const subclassOptions = computed(() => campaignCustomSubclasses.value
-  .filter(subclass => subclass.class_name === memberClass.value)
-  .map(subclass => ({
-    id: subclass.id,
-    name: subclass.subclass_name,
-  })));
+const subclassOptions = computed(() =>
+  campaignCustomSubclasses.value
+    .filter((subclass) => subclass.class_name === memberClass.value)
+    .map((subclass) => ({ id: subclass.id, name: subclass.subclass_name })),
+);
+/** The subclass picked at this level, so the features it grants are counted from the first level it has. */
+const pickedSubclass = computed(() => {
+  if (!needsSubclassChoice.value || !subclassDefinitionId.value) return null;
+  const found = (allCustomSubclasses.value ?? []).find((s) => s.id === subclassDefinitionId.value);
+  return found ? { name: found.subclass_name, features: found.features } : null;
+});
 
 // ── Spell slot computation (multiclass-aware) ──────────────────────────────────
 const {
-  prevLevelInChosenClass,
-  postLevelupSpellSlots,
-  newSpellSlotSummary,
-  spellsKnownGain,
-  spellsKnownTotal,
-  cantripsKnownGain,
-  cantripsKnownTotal,
-  maxCastableLevel,
+  postLevelupSpellSlots, newSpellSlotSummary, spellsKnownGain, spellsKnownTotal,
+  cantripsKnownGain, cantripsKnownTotal, maxCastableLevel,
 } = useLevelUpSpellSlots({
   customClass: computed(() => customClass.value ?? null),
   systemClass,
   levelInChosenClass,
-  memberClassEntries,
+  memberClassEntries: existingClassOptions,
   isAddingNewClass,
   newClassName,
   chosenExistingEntry,
@@ -461,116 +261,49 @@ const {
   definitionKind: computed(() => exactClassDefinition.value?.kind ?? "system"),
 });
 
-const wizardExpandedFeatures = ref(new Set<string>());
-function toggleWizardFeature(name: string) {
-  if (wizardExpandedFeatures.value.has(name)) wizardExpandedFeatures.value.delete(name);
-  else wizardExpandedFeatures.value.add(name);
-  wizardExpandedFeatures.value = new Set(wizardExpandedFeatures.value);
-}
-
-// The ids this level grants. A subclass's features need not be in the
-// edition-scoped catalogue (a legacy custom subclass, or one from the other
-// edition), so whatever it leaves unresolved is fetched by id.
-const featureIdsForLevel = computed<string[]>(() => {
-  // Features are indexed per-class-level, not per-total-level.
-  const lvlKey = levelInChosenClass.value.toString();
-  return customSubclass.value?.features[lvlKey] ?? customClass.value?.features[lvlKey] ?? systemClass.value?.features[lvlKey] ?? [];
-});
-const catalogueFeatureIds = computed(() => new Set((allFeatures.value ?? []).map(f => f.id)));
-const missingFeatureIds = computed(() =>
-  featureIdsForLevel.value.filter(id => !catalogueFeatureIds.value.has(id)));
-const { data: fetchedFeatures } = useFeaturesByIds(missingFeatureIds);
-const featureObjectMap = computed(() =>
-  new Map([...(allFeatures.value ?? []), ...(fetchedFeatures.value ?? [])].map(f => [f.id, f])));
-
-const customFeaturesForLevel = computed<FeatureEntry[]>(() =>
-  mapFeatureIds(featureIdsForLevel.value, featureObjectMap.value));
-
-function resourceDefsFrom(resources: CustomResource[]): ClassResourceDef[] {
-  return resources.map(r => ({
-    key: r.key,
-    label: r.label,
-    rest: r.rest,
-    maxAtLevel: (level: number) => {
-      if (r.scaling === "fixed") return r.fixed_value ?? 0;
-      if (r.scaling === "per_level") return level;
-      if (r.scaling === "table" && r.table_values) return r.table_values[Math.min(level, 20) - 1] ?? 0;
-      return 0;
-    },
-  }));
-}
-
-const classDefs = computed<ClassResourceDef[]>(() => {
-  const all = [
-    ...resourceDefsFrom(systemClass.value?.resources ?? []),
-    ...resourceDefsFrom(customClass.value?.resources ?? []),
-    ...resourceDefsFrom(customSubclass.value?.resources ?? []),
-  ];
-  const seenKeys = new Set<string>();
-  return all.filter(d => { if (seenKeys.has(d.key)) return false; seenKeys.add(d.key); return true; });
-});
-
-const resourceNotices = computed(() =>
-  classDefs.value.flatMap(def => {
-    const newMax = def.maxAtLevel(levelInChosenClass.value);
-    const oldMax = def.maxAtLevel(prevLevelInChosenClass.value);
-    if (newMax === oldMax) return [];
-    return [{ key: def.key, label: def.label, oldMax, newMax }];
-  }),
+// ── Features, choices and resources (#976) ─────────────────────────────────────
+const choiceValues = ref<Record<string, ChoiceValue>>({});
+const swapPicks = ref<Record<string, string>>({});
+const choicesComplete = ref(true);
+const featsAllowed = computed(
+  () => ruleset.value === "2024" || isRuleEffectivelyEnabled(campaignRulesData.value, "feats_2014"),
 );
 
-// ── ASI ────────────────────────────────────────────────────────────────────────
-const ABILITY_LABEL: Record<AbilityKey, string> = {
-  str: "Strength", dex: "Dexterity", con: "Constitution",
-  int: "Intelligence", wis: "Wisdom", cha: "Charisma",
-};
-
-const asiMode      = ref<AsiMode>("plus2");
-const asiPrimary   = ref<AbilityKey | "">("");
-const asiSecondary = ref<AbilityKey | "">("");
-
-const asiPreview = computed(() => {
-  const lines: string[] = [];
-  if (asiPrimary.value) {
-    const cur = props.member[asiPrimary.value as keyof PartyMember] as number;
-    lines.push(`${ABILITY_LABEL[asiPrimary.value]} ${cur} → ${cur + (asiMode.value === "plus2" ? 2 : 1)}`);
-  }
-  if (asiMode.value === "plus1plus1" && asiSecondary.value && asiSecondary.value !== asiPrimary.value) {
-    const cur = props.member[asiSecondary.value as keyof PartyMember] as number;
-    lines.push(`${ABILITY_LABEL[asiSecondary.value]} ${cur} → ${cur + 1}`);
-  }
-  return lines;
+// Armor training comes from the first class: multiclassing grants only some of a second class's.
+const armorTraining = computed(() => {
+  const first = classRows.value.at(0);
+  const list = first ? first.armorProficiencies : (customClass.value ?? systemClass.value)?.armor_proficiencies;
+  return armorTrainingOf(list === undefined ? [] : list);
+});
+const weaponProficiencies = computed(() => {
+  const list = (customClass.value ?? systemClass.value)?.weapon_proficiencies;
+  return list === undefined ? [] : list;
 });
 
-// ── Feat picker ────────────────────────────────────────────────────────────────
-const featSearch = ref("");
-const featId     = ref("");
-// Feats come from the same edition-scoped catalogue as class features; only the
-// feat rows are offered here.
-const filteredFeats = computed(() => filterFeats(allFeatures.value ?? [], featSearch.value));
-const selectedFeat = computed(() => allFeatures.value?.find(f => f.id === featId.value) ?? null);
-const selectedFeatName = computed(() => selectedFeat.value?.name ?? "");
-const selectedFeatDescription = computed(() => selectedFeat.value?.description ?? null);
-
-// ── Subclass ───────────────────────────────────────────────────────────────────
-const subclassInput = ref("");
-
-// ── Class-specific steps ───────────────────────────────────────────────────────
-const classSteps = computed<ClassStep[]>(() => {
-  function stepsAt(steps: { level: number; step_type: string; type: "select" | "append"; key: string; label: string; description?: string; options: string[]; count?: number }[]): ClassStep[] {
-    return steps
-      .filter(s => s.level === levelInChosenClass.value)
-      .map(({ level: _l, step_type: _st, ...rest }) => rest);
-  }
-  return [
-    ...stepsAt(systemClass.value?.steps ?? []),
-    ...stepsAt(customClass.value?.steps ?? []),
-    ...stepsAt(customSubclass.value?.steps ?? []),
-  ];
+const {
+  featuresById, isLoading: featuresLoading, gained, scaling, pools, due, swapOffers, optionContext, resolved, classResources,
+} = useLevelUpFeatures({
+  member: () => props.member,
+  ruleset,
+  rows: classRows,
+  chosenRowId: computed(() => chosenExistingEntry.value?.id ?? null),
+  newClass: computed(() =>
+    isAddingNewClass.value && newClassDefinition.value
+      ? { className: newClassName.value, classFeatures: newClassDefinition.value.value.features, startLevels: levelInChosenClass.value }
+      : null,
+  ),
+  pickedSubclass,
+  className: memberClass,
+  classLevel: levelInChosenClass,
+  nextLevel,
+  newProfBonus,
+  weaponProficiencies,
+  canCastSpells: computed(() => postLevelupSpellSlots.value.length > 0),
+  armorProficiencies: armorTraining,
+  tashasOn: computed(() => isRuleEffectivelyEnabled(campaignRulesData.value, "tashas_optional_features")),
+  values: choiceValues,
+  swapPicks,
 });
-
-const stepValues = ref<Record<string, string>>({});
-const stepMultiValues = ref<Record<string, string[]>>({});
 
 // ── Spell + cantrip candidates ─────────────────────────────────────────────────
 // Sourced from the Spellbook's merged library (enabled campaign sources + the
@@ -579,12 +312,7 @@ const stepMultiValues = ref<Record<string, string[]>>({});
 const spellSearch = ref("");
 const cantripSearch = ref("");
 const { spellCandidates, cantripCandidates, isLoading: spellsLoading } =
-  useLevelUpSpellCandidates({
-    className: memberClass,
-    maxCastableLevel,
-    spellSearch,
-    cantripSearch,
-  });
+  useLevelUpSpellCandidates({ className: memberClass, maxCastableLevel, spellSearch, cantripSearch });
 
 // Worded without "campaign" on purpose — a standalone player (#730) has none.
 function classFallbackNotice(candidates: { usedClassFallback: boolean }): string | undefined {
@@ -600,35 +328,25 @@ const blockedOnEmptySpellLibrary = computed(() => {
 });
 
 const { data: characterSpells } = useCharacterSpells(computed(() => props.member.id));
-const alreadyKnownIds = computed(() => new Set((characterSpells.value ?? []).map(s => s.spell_id)));
+const alreadyKnownIds = computed(() => new Set((characterSpells.value ?? []).map((s) => s.spell_id)));
 
+function togglePick(selected: typeof selectedSpellIds, id: string, limit: number) {
+  if (alreadyKnownIds.value.has(id)) return;
+  if (selected.value.has(id)) {
+    const next = new Set(selected.value);
+    next.delete(id);
+    selected.value = next;
+  } else if (selected.value.size < limit) {
+    selected.value = new Set([...selected.value, id]);
+  }
+}
 const selectedSpellIds = ref(new Set<string>());
-function toggleSpell(id: string) {
-  if (alreadyKnownIds.value.has(id)) return;
-  if (selectedSpellIds.value.has(id)) {
-    const next = new Set(selectedSpellIds.value);
-    next.delete(id);
-    selectedSpellIds.value = next;
-  } else if (selectedSpellIds.value.size < spellsKnownGain.value) {
-    selectedSpellIds.value = new Set([...selectedSpellIds.value, id]);
-  }
-}
-
-// ── Cantrip picker ─────────────────────────────────────────────────────────────
 const selectedCantripIds = ref(new Set<string>());
-function toggleCantrip(id: string) {
-  if (alreadyKnownIds.value.has(id)) return;
-  if (selectedCantripIds.value.has(id)) {
-    const next = new Set(selectedCantripIds.value);
-    next.delete(id);
-    selectedCantripIds.value = next;
-  } else if (selectedCantripIds.value.size < cantripsKnownGain.value) {
-    selectedCantripIds.value = new Set([...selectedCantripIds.value, id]);
-  }
-}
+const toggleSpell = (id: string) => togglePick(selectedSpellIds, id, spellsKnownGain.value);
+const toggleCantrip = (id: string) => togglePick(selectedCantripIds, id, cantripsKnownGain.value);
 
-// Reset every per-class selection (subclass pin, spell/cantrip picks, class
-// steps) whenever the chosen class changes — otherwise a stale
+// Reset every per-class selection (subclass pin, spell/cantrip picks, feature
+// choices) whenever the chosen class changes — otherwise a stale
 // subclassDefinitionId from the previous class can travel alongside the new
 // class's subclass name, and the server's class-name-mismatch trigger
 // (migration 20260720000030) rejects the level-up.
@@ -636,7 +354,7 @@ const classIdentityKey = computed(() =>
   isAddingNewClass.value ? `new:${newClassChoiceKey.value}` : `existing:${chosenClassSelector.value}`,
 );
 useClassScopedReset(classIdentityKey, {
-  subclassDefinitionId, subclassInput, selectedSpellIds, selectedCantripIds, stepValues, stepMultiValues,
+  subclassDefinitionId, subclassInput, selectedSpellIds, selectedCantripIds, choiceValues, swapPicks,
 });
 
 // ── Validation ─────────────────────────────────────────────────────────────────
@@ -647,22 +365,12 @@ const canConfirm = computed(() => {
   if (isAddingNewClass.value && !ignoreMulticlassPrereqs.value && !newClassPrereq.value.ok) return false;
   if (hitDie.value === null) return false;
   if (hpMode.value === "roll" && rolledHp.value === null) return false;
-  if (grantsAsi.value) {
-    if (asiMode.value === "plus2" && !asiPrimary.value) return false;
-    if (asiMode.value === "plus1plus1" && (!asiPrimary.value || !asiSecondary.value || asiSecondary.value === asiPrimary.value)) return false;
-    if (asiMode.value === "feat" && !featId.value) return false;
-  }
+  // The features are still loading: the picks owed are not known yet.
+  if (featuresLoading.value) return false;
+  if (!choicesComplete.value) return false;
   // With no subclass defined for this class there is nothing to pick; the
   // level-up goes on and the character is asked again next time.
   if (needsSubclassChoice.value && subclassOptions.value.length > 0 && !subclassDefinitionId.value) return false;
-  for (const step of classSteps.value) {
-    const count = step.count ?? 1;
-    if (count > 1) {
-      if ((stepMultiValues.value[step.key] ?? []).filter(Boolean).length < count) return false;
-    } else {
-      if (!stepValues.value[step.key]) return false;
-    }
-  }
   if (selectedSpellIds.value.size !== spellsKnownGain.value) return false;
   if (selectedCantripIds.value.size !== cantripsKnownGain.value) return false;
   return true;
@@ -685,11 +393,9 @@ const { confirm, error, isPending } = useLevelUpConfirm({
   hpGain,
   newHitDiceCount,
   postLevelupSpellSlots,
-  grantsAsi,
   needsSubclassChoice,
-  classDefs,
-  levelInChosenClass,
-  classSteps,
+  picks: resolved,
+  classResources,
   isAddingNewClass,
   newClassProficiencyGrants,
   memberClass,
@@ -697,14 +403,8 @@ const { confirm, error, isPending } = useLevelUpConfirm({
   existingClassOptions,
   hpMode,
   rolledHp,
-  asiMode,
-  asiPrimary,
-  asiSecondary,
-  featId,
   subclassInput,
   subclassDefinitionId: computed(() => subclassDefinitionId.value || null),
-  stepValues,
-  stepMultiValues,
   selectedSpellIds,
   selectedCantripIds,
   newClassName,

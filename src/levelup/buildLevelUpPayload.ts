@@ -6,15 +6,24 @@
 // because nothing is written until the RPC runs, and the RPC is all-or-nothing.
 
 import { ELDRITCH_INVOCATIONS_MAP } from "@/data/eldritchInvocations";
+import type { AbilityKey } from "@/rules/characterCreation";
+import {
+  classResourcesChanged,
+  type StoredClassResources,
+} from "@/rules/features/characterFeatures";
+import {
+  applyAbilityScoreIncreases,
+  applyLevelChoices,
+  type LevelChoiceRecord,
+} from "@/rules/features/levelUpChoices";
 import type {
   PartyMember,
   SpellSlotEntry,
   LevelChoiceEntry,
-  LevelChoiceASI,
   LevelChoices,
 } from "@/types/party.types";
+import { applyMasteryChanges, applySkillChanges, type ResolvedPicks } from "./levelPicks";
 import { subclassGrantedSpellRows } from "./subclassGrantedSpells";
-import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef } from "./types";
 
 /** One character_spells row to insert (matches apply_level_up's p_spell_rows). */
 export interface SpellRow {
@@ -59,7 +68,13 @@ export interface LevelUpPayload {
   spellRows: SpellRow[];
 }
 
-type ClassEntryRef = { id: string; levels: number; subclass_name?: string | null; is_primary?: boolean };
+type ClassEntryRef = {
+  id: string;
+  levels: number;
+  class_definition_id: string;
+  subclass_name?: string | null;
+  is_primary?: boolean;
+};
 
 export interface BuildLevelUpPayloadInput {
   member: PartyMember;
@@ -68,24 +83,18 @@ export interface BuildLevelUpPayloadInput {
   hpGain: number;
   newHitDiceCount: number;
   postLevelupSpellSlots: SpellSlotEntry[];
-  grantsAsi: boolean;
   needsSubclassChoice: boolean;
-  classDefs: ClassResourceDef[];
-  levelInChosenClass: number;
-  classSteps: ClassStep[];
   isAddingNewClass: boolean;
   newClassProficiencyGrants: string[];
   memberClass: string;
   chosenExistingEntry: ClassEntryRef | null;
   existingClassOptions: { id: string; class_name: string; levels: number; is_primary?: boolean }[];
-  asiMode: AsiMode;
-  asiPrimary: AbilityKey | "";
-  asiSecondary: AbilityKey | "";
-  featId: string;
+  /** Everything the level's choices resolved to; see `resolveLevelPicks`. */
+  picks: ResolvedPicks;
+  /** The `class_resources` the character holds once the level lands, from the projected pools. */
+  classResources: StoredClassResources;
   subclassInput: string;
   subclassDefinitionId: string | null;
-  stepValues: Record<string, string>;
-  stepMultiValues: Record<string, string[]>;
   selectedSpellIds: Set<string>;
   selectedCantripIds: Set<string>;
   newClassName: string;
@@ -97,14 +106,23 @@ export interface BuildLevelUpPayloadInput {
   existingSpellIds: Set<string>;
 }
 
+const ABILITIES: AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
+
+function isEmptyRecord(record: LevelChoiceRecord): boolean {
+  return (
+    Object.keys(record.choices).length === 0 &&
+    record.feats.length === 0 &&
+    Object.keys(record.swaps).length === 0
+  );
+}
+
 export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPayload {
   const {
     member, nextLevel, newProfBonus, hpGain, newHitDiceCount,
-    postLevelupSpellSlots, grantsAsi, needsSubclassChoice,
-    classDefs, levelInChosenClass, classSteps, isAddingNewClass,
-    newClassProficiencyGrants, memberClass, chosenExistingEntry, existingClassOptions,
-    asiMode, asiPrimary, asiSecondary, featId,
-    subclassInput, subclassDefinitionId, stepValues, stepMultiValues,
+    postLevelupSpellSlots, needsSubclassChoice,
+    isAddingNewClass, newClassProficiencyGrants, memberClass,
+    chosenExistingEntry, existingClassOptions, picks, classResources,
+    subclassInput, subclassDefinitionId,
     selectedSpellIds, selectedCantripIds, newClassName,
     newClassDefinitionId, newClassDefinitionKind,
     grantedSpellsForThisLevel, existingSpellIds,
@@ -127,130 +145,72 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
     }));
   }
 
-  // ASI ability bumps.
-  if (grantsAsi) {
-    if (asiMode === "plus2" && asiPrimary) {
-      update[asiPrimary] = (member[asiPrimary as keyof PartyMember] as number) + 2;
-    } else if (asiMode === "plus1plus1") {
-      if (asiPrimary) update[asiPrimary] = (member[asiPrimary as keyof PartyMember] as number) + 1;
-      if (asiSecondary) update[asiSecondary] = (member[asiSecondary as keyof PartyMember] as number) + 1;
-    }
-  }
+  // Ability increases arrive already capped (an Ability Score Improvement stops at 20,
+  // a feat at its own maximum), so applying them here and subtracting them on a
+  // de-level are exact inverses.
+  const scoresBefore: Record<AbilityKey, number> = {
+    str: member.str, dex: member.dex, con: member.con, int: member.int, wis: member.wis, cha: member.cha,
+  };
+  const scoresAfter = applyAbilityScoreIncreases(scoresBefore, picks.record.abilityIncreases);
+  for (const ability of ABILITIES) if (scoresAfter[ability] !== scoresBefore[ability]) update[ability] = scoresAfter[ability];
 
   // A CON increase retroactively raises max HP by the CON-mod delta × total level
   // (5e), not just this level's roll — otherwise the character stays permanently
-  // under-HP'd after a CON ASI. update.con is set above only when CON was bumped.
-  if (typeof update.con === "number" && update.con !== member.con) {
+  // under-HP'd after a CON increase.
+  if (scoresAfter.con !== scoresBefore.con) {
     const conMod = (score: number) => Math.floor((score - 10) / 2);
-    const retroHp = (conMod(update.con) - conMod(member.con)) * nextLevel;
+    const retroHp = (conMod(scoresAfter.con) - conMod(scoresBefore.con)) * nextLevel;
     update.max_hp = (update.max_hp as number) + retroHp;
     update.current_hp = (update.current_hp as number) + retroHp;
   }
 
-  // Class resources.
-  if (classDefs.length > 0) {
-    const newResources = { ...member.class_resources };
-    for (const def of classDefs) {
-      const newMax = def.maxAtLevel(levelInChosenClass);
-      const existing = newResources[def.key];
-      newResources[def.key] = {
-        max: newMax,
-        current: existing ? Math.min(existing.current, newMax) : newMax,
-        rest: def.rest,
-      };
-    }
-    update.class_resources = newResources;
-  }
+  if (classResourcesChanged(member.class_resources, classResources)) update.class_resources = classResources;
 
-  // Subclass + class_choices.
-  const newChoices: Record<string, unknown> = { ...member.class_choices };
   // A subclass is its definition: a name with no definition id cannot be
-  // stored, so it stays out of class_choices and level_choices as well as the row.
+  // stored, so it stays out of level_choices as well as the class row. The pick
+  // itself lives on `character_classes` and nowhere in `class_choices`.
   const subclass = subclassDefinitionId ? subclassInput.trim() : "";
-  const leveledEntryIsPrimary =
-    chosenExistingEntry?.is_primary ?? (isAddingNewClass && existingClassOptions.length === 0);
-
-  // `party_members.subclass` is the database's mirror of the primary class row,
-  // so it is never written here; only the choices record keeps the pick.
-  if (needsSubclassChoice && subclass && leveledEntryIsPrimary) {
-    newChoices.subclass = subclass;
-  }
 
   // Multiclass proficiency grants.
+  let newProfsGranted: string[] = [];
   if (isAddingNewClass && newClassProficiencyGrants.length > 0) {
     const existingProfs = member.tool_proficiencies ?? [];
     update.tool_proficiencies = Array.from(new Set([...existingProfs, ...newClassProficiencyGrants]));
+    // Only the grants the character did not already hold are recorded, so a de-level takes back exactly these.
+    newProfsGranted = newClassProficiencyGrants.filter((p) => !existingProfs.includes(p));
   }
 
-  // Feat choice.
-  if (grantsAsi && asiMode === "feat" && featId) {
-    const existing = Array.isArray(newChoices.feats) ? (newChoices.feats as string[]) : [];
-    newChoices.feats = [...existing, featId];
+  // The level's picks: class_choices, Expertise and new skills, Weapon Mastery.
+  if (!isEmptyRecord(picks.record)) update.class_choices = applyLevelChoices(member.class_choices, picks.record);
+  if (Object.keys(picks.skills).length > 0) {
+    update.skill_proficiencies = applySkillChanges(member.skill_proficiencies, picks.skills, "apply");
   }
-
-  // Class-specific step values.
-  for (const step of classSteps) {
-    const count = step.count ?? 1;
-    if (count > 1) {
-      const picks = (stepMultiValues[step.key] ?? []).filter(Boolean);
-      if (picks.length === 0) continue;
-      if (step.type === "append") {
-        const existing = Array.isArray(newChoices[step.key]) ? (newChoices[step.key] as string[]) : [];
-        newChoices[step.key] = [...existing, ...picks];
-      } else {
-        newChoices[step.key] = picks;
-      }
-    } else {
-      const val = stepValues[step.key];
-      if (!val) continue;
-      if (step.type === "append") {
-        const existing = Array.isArray(newChoices[step.key]) ? (newChoices[step.key] as string[]) : [];
-        newChoices[step.key] = [...existing, val];
-      } else {
-        newChoices[step.key] = val;
-      }
-    }
-  }
-
-  if (
-    Object.keys(newChoices).length > Object.keys(member.class_choices).length ||
-    classSteps.length > 0 ||
-    (needsSubclassChoice && subclass) ||
-    (grantsAsi && asiMode === "feat" && featId)
-  ) {
-    update.class_choices = newChoices;
+  if (picks.masteries.added.length > 0 || picks.masteries.removed.length > 0) {
+    update.weapon_masteries = applyMasteryChanges(member.weapon_masteries, picks.masteries, "apply");
   }
 
   // Level choices (for de-leveling) — always recorded, folded into the same
   // atomic member update so it can never be skipped by a mid-sequence failure.
+  // The definition the level was taken in, so a de-level finds the same class row by id and not by name.
+  // A new class must resolve to a definition first: that error is the one a player can act on.
+  if (isAddingNewClass && (!newClassName || !newClassDefinitionId || !newClassDefinitionKind)) {
+    throw new Error("Pick the class to take a level in before confirming.");
+  }
+  const levelDefinitionId = isAddingNewClass ? newClassDefinitionId : chosenExistingEntry?.class_definition_id;
+  if (!levelDefinitionId) throw new Error("buildLevelUpPayload: the level has no class definition");
   const choiceEntry: LevelChoiceEntry = {
     class_name: memberClass,
+    class_definition_id: levelDefinitionId,
     is_new_class: isAddingNewClass,
     hp_gained: hpGain,
+    record: picks.record,
+    skills: picks.skills,
+    masteries: picks.masteries,
   };
-  if (grantsAsi) {
-    const asi: LevelChoiceASI = { mode: asiMode };
-    if (asiPrimary) asi.primary = asiPrimary;
-    if (asiMode === "plus1plus1" && asiSecondary) asi.secondary = asiSecondary;
-    if (asiMode === "feat" && featId) asi.feat_id = featId;
-    choiceEntry.asi = asi;
-  }
   if (needsSubclassChoice && subclass) choiceEntry.subclass = subclass;
   if (selectedSpellIds.size > 0) choiceEntry.spells_learned = [...selectedSpellIds];
   if (selectedCantripIds.size > 0) choiceEntry.cantrips_learned = [...selectedCantripIds];
-  const allStepChoices: Record<string, string | string[]> = {};
-  for (const step of classSteps) {
-    if ((step.count ?? 1) > 1) {
-      const picks = (stepMultiValues[step.key] ?? []).filter(Boolean);
-      if (picks.length) allStepChoices[step.key] = picks;
-    } else if (stepValues[step.key]) {
-      allStepChoices[step.key] = stepValues[step.key];
-    }
-  }
-  if (Object.keys(allStepChoices).length) choiceEntry.step_choices = allStepChoices;
-  if (isAddingNewClass && newClassProficiencyGrants.length > 0) {
-    choiceEntry.new_class_profs = newClassProficiencyGrants;
-  }
+  if (newProfsGranted.length > 0) choiceEntry.new_class_profs = newProfsGranted;
   const level_choices: LevelChoices = { ...member.level_choices, [nextLevel]: choiceEntry };
   update.level_choices = level_choices;
 
@@ -294,30 +254,23 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
   for (const spell_id of selectedCantripIds) spellRows.push({ spell_id, is_prepared: false });
   // Subclass-granted spells — always prepared, excluded from the prepared limit.
   spellRows.push(...subclassGrantedSpellRows(grantedSpellsForThisLevel, existingSpellIds));
-  // Auto-granted spells from Eldritch Invocations just picked.
-  for (const step of classSteps) {
-    if (step.key !== "eldritch_invocations") continue;
-    const count = step.count ?? 1;
-    const picks =
-      count > 1
-        ? (stepMultiValues[step.key] ?? []).filter(Boolean)
-        : stepValues[step.key]
-          ? [stepValues[step.key]]
-          : [];
-    for (const name of picks) {
-      const inv = ELDRITCH_INVOCATIONS_MAP.get(name);
-      if (!inv?.grants_spell) continue;
-      const usesPerDay = inv.spell_uses_per_day ?? null;
-      spellRows.push({
-        spell_id: inv.grants_spell,
-        is_prepared: false,
-        source_type: "feat",
-        source_label: `Invocation: ${name}`,
-        uses_per_day: usesPerDay,
-        uses_remaining: usesPerDay,
-        resets_on: usesPerDay !== null ? "long_rest" : null,
-      });
-    }
+  // Auto-granted spells from Eldritch Invocations just picked (a replacement counts: it is added too).
+  const invocationsTaken = Object.hasOwn(picks.record.choices, "eldritch_invocations")
+    ? picks.record.choices.eldritch_invocations.added
+    : [];
+  for (const name of invocationsTaken) {
+    const inv = ELDRITCH_INVOCATIONS_MAP.get(name);
+    if (!inv?.grants_spell) continue;
+    const usesPerDay = inv.spell_uses_per_day ?? null;
+    spellRows.push({
+      spell_id: inv.grants_spell,
+      is_prepared: false,
+      source_type: "feat",
+      source_label: `Invocation: ${name}`,
+      uses_per_day: usesPerDay,
+      uses_remaining: usesPerDay,
+      resets_on: usesPerDay !== null ? "long_rest" : null,
+    });
   }
 
   return { memberUpdate: update, classOp, spellRows };

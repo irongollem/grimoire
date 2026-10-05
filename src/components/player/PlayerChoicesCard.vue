@@ -13,17 +13,6 @@
     </div>
   </div>
 
-  <BackgroundOriginFeatBadge v-if="backgroundOriginFeat" :origin-feat="backgroundOriginFeat" />
-  <div v-else-if="backgroundFeat" class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 overflow-hidden">
-    <div class="px-4 py-2.5 border-b border-tone-caution/20 bg-tone-caution/10 flex items-center gap-2">
-      <p class="text-label-lg font-semibold text-ink-caution ">Background Feat</p>
-      <span class="text-eyebrow text-ink-caution/60 ">2024 PHB</span>
-    </div>
-    <div class="px-4 py-3">
-      <p class="text-heading-sm font-bold text-foreground">{{ backgroundFeat }}</p>
-    </div>
-  </div>
-
   <div v-if="choiceEntries.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="px-4 py-2.5 border-b border-border">
       <p class="text-label-lg font-semibold text-muted-foreground">Choices</p>
@@ -51,18 +40,14 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { isInternalChoiceKey } from "@/lib/classChoices";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
-import type { BackgroundOriginFeat } from "@/types/background.types";
 import type { SaveKey } from "@/types/party.types";
 
-const { classChoices, backgroundAsiBonuses, backgroundOriginFeat, backgroundFeat, excludeKeys = [] } = defineProps<{
+const { classChoices, backgroundAsiBonuses, excludeKeys = [] } = defineProps<{
   classChoices: Record<string, unknown>;
   backgroundAsiBonuses: { key: SaveKey; label: string; delta: number }[];
-  backgroundOriginFeat: BackgroundOriginFeat | null;
-  backgroundFeat: string | null;
-  /** Keys owned by another card (e.g. spell_pick steps shown in Spell Choices) — hidden here to avoid duplication. */
+  /** Keys another card already shows (a feature card lists its own choices), hidden here to avoid duplication. */
   excludeKeys?: string[];
 }>();
 
@@ -107,7 +92,8 @@ const CHOICE_LABELS: Record<string, string> = {
 };
 
 const choiceEntries = computed(() => {
-  const excluded = new Set(excludeKeys);
+  // Feats have their own section on the Features tab.
+  const excluded = new Set([...excludeKeys, "feats"]);
   return Object.entries(classChoices)
     .filter(([key, v]) =>
       !isInternalChoiceKey(key) && !excluded.has(key) &&

@@ -443,15 +443,33 @@ export const useUiStore = defineStore("ui", () => {
 
   // Class Features (Abilities) UI state
   const featuresSearch = ref("");
-  const featuresFilterType = ref("all");
+  /** "all", "passive" (no activation) or a `mechanics.activation` value. */
+  const featuresFilterActivation = ref("all");
 
   const featuresHasActiveFilters = computed(
-    () => featuresSearch.value !== "" || featuresFilterType.value !== "all",
+    () => featuresSearch.value !== "" || featuresFilterActivation.value !== "all",
   );
 
   function resetFeaturesFilters() {
     featuresSearch.value = "";
-    featuresFilterType.value = "all";
+    featuresFilterActivation.value = "all";
+  }
+
+  // Feats (Codex) UI state
+  const featsSearch = ref("");
+  /** "all" or a `FeatCategory`. */
+  const featsFilterCategory = ref("all");
+  /** "all", "2014" or "2024". */
+  const featsFilterEdition = ref("all");
+
+  const featsHasActiveFilters = computed(
+    () => featsSearch.value !== "" || featsFilterCategory.value !== "all" || featsFilterEdition.value !== "all",
+  );
+
+  function resetFeatsFilters() {
+    featsSearch.value = "";
+    featsFilterCategory.value = "all";
+    featsFilterEdition.value = "all";
   }
 
   // Archetypes (Custom Subclasses) UI state
@@ -490,7 +508,7 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // Character Codex — active tab in the consolidated player-options page.
-  const codexActiveTab = ref<"species" | "backgrounds" | "classes" | "archetypes" | "abilities">("species");
+  const codexActiveTab = ref<"species" | "backgrounds" | "classes" | "archetypes" | "abilities" | "feats">("species");
 
   // Soundboard UI state
   const soundboardFilterCategory = ref<SoundCategory | "all">("all");
@@ -1363,9 +1381,14 @@ export const useUiStore = defineStore("ui", () => {
 
     // Class Features (Abilities)
     featuresSearch,
-    featuresFilterType,
+    featuresFilterActivation,
     featuresHasActiveFilters,
     resetFeaturesFilters,
+    featsSearch,
+    featsFilterCategory,
+    featsFilterEdition,
+    featsHasActiveFilters,
+    resetFeatsFilters,
 
     // Archetypes (Custom Subclasses)
     archetypesSearch,

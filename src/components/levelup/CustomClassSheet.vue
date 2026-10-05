@@ -94,20 +94,6 @@
       </div>
     </div>
 
-    <!-- ASI levels card -->
-    <div v-if="cls.asi_levels.length" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="text-label-lg font-semibold text-muted-foreground">Ability Score Increase Levels</span>
-      </div>
-      <div class="p-4 flex flex-wrap gap-1">
-        <span
-          v-for="lvl in cls.asi_levels"
-          :key="lvl"
-          class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
-        >{{ lvl }}</span>
-      </div>
-    </div>
-
     <!-- Spellcasting card -->
     <div v-if="cls.spell_slots !== null" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
@@ -123,40 +109,6 @@
         <span class="text-label text-muted-foreground italic text-caption self-center">
           Spell slot table defined
         </span>
-      </div>
-    </div>
-
-    <!-- Steps card -->
-    <div v-if="cls.steps?.length" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="text-label-lg font-semibold text-muted-foreground">Wizard Steps</span>
-      </div>
-      <div class="p-4 flex flex-col gap-2">
-        <div v-for="step in cls.steps" :key="step.key" class="flex items-center gap-3">
-          <span class="text-label-lg text-primary w-6 shrink-0">{{ step.level }}</span>
-          <span class="text-body text-foreground flex-1">{{ step.label || step.key }}</span>
-          <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5 shrink-0">
-            ×{{ step.count ?? 1 }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Resources card -->
-    <div v-if="cls.resources?.length" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="text-label-lg font-semibold text-muted-foreground">Resource Pools</span>
-      </div>
-      <div class="p-4 flex flex-col gap-2">
-        <div v-for="res in cls.resources" :key="res.key" class="flex items-center gap-2">
-          <span class="text-body text-foreground flex-1">{{ res.label || res.key }}</span>
-          <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
-            {{ res.rest === 'short' ? 'Short rest' : 'Long rest' }}
-          </span>
-          <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
-            {{ res.scaling }}
-          </span>
-        </div>
       </div>
     </div>
   </div>

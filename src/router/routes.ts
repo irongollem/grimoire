@@ -618,7 +618,7 @@ export const routes: RouteRecordRaw[] = [
     redirect: "/codex/species",
   },
   {
-    path: "/codex/:tab(species|backgrounds|classes|archetypes|abilities)",
+    path: "/codex/:tab(species|backgrounds|classes|archetypes|abilities|feats)",
     name: "codex",
     component: () => import("@/views/codex/CharacterCodexView.vue"),
     meta: { requiresAuth: true, playerReadable: true, title: "Character Codex" },
@@ -650,6 +650,14 @@ export const routes: RouteRecordRaw[] = [
     name: "feature-detail",
     component: () => import("@/views/features/FeatureDetailView.vue"),
     meta: { requiresAuth: true, title: "Ability" },
+  },
+
+  { path: "/feats", redirect: "/codex/feats" },
+  {
+    path: "/feats/new",
+    name: "feat-new",
+    component: () => import("@/views/features/FeatureDetailView.vue"),
+    meta: { requiresAuth: true, title: "New Feat" },
   },
 
   { path: "/levelup/custom", redirect: "/codex/archetypes" },

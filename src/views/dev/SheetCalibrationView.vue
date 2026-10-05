@@ -388,7 +388,6 @@ const sampleMember: PartyMember = {
   class_choices: {},
   active_infusions: [],
   custom_attacks: [],
-  rage_active: false,
   level_choices: {},
   concentration: null,
   wildshape_state: null,

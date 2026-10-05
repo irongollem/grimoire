@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { mapOpen5eV2Feat } from "@/lib/library/open5eFeatImport";
 import { mapOpen5eV2Monster } from "@/lib/library/open5eMonsterImport";
 import { mapOpen5eV2Armor, mapOpen5eV2MagicItem, mapOpen5eV2Weapon } from "@/lib/library/open5eImport";
 
@@ -13,17 +12,6 @@ const revisedDocument = {
 };
 
 describe("Open5e V2 rules content", () => {
-  it("preserves native feat identity and edition", () => {
-    const feat = mapOpen5eV2Feat({
-      key: "srd-2024_alert", name: "Alert", desc: "Act quickly.", prerequisite: "",
-      benefits: [{ desc: "Add your proficiency bonus." }], document: revisedDocument,
-    });
-    expect(feat).toMatchObject({
-      ruleset: "2024", conceptual_key: "alert", source_document_key: "srd-2024",
-      source_record_key: "srd-2024_alert", source_revision: "System Reference Document 5.2",
-    });
-  });
-
   it("maps V2 creature actions and source identity", () => {
     const monster = mapOpen5eV2Monster({
       key: "srd-2024_mage", name: "Mage", document: revisedDocument,

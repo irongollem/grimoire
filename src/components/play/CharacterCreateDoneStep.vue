@@ -87,6 +87,30 @@
       </div>
     </div>
 
+    <!-- Level 1 choices: the class's own questions and the origin feat's, asked as a level-up asks them -->
+    <template v-if="!isEditMode">
+      <p v-if="levelOne.isLoading.value" class="text-body text-muted-foreground italic">
+        Reading your class features…
+      </p>
+      <LevelUpChoices
+        v-model:values="choiceValues"
+        v-model:swaps="swapPicks"
+        v-model:complete="choicesComplete"
+        :due="levelOne.due.value"
+        :swap-offers="levelOne.swapOffers.value"
+        :context="levelOne.optionContext.value"
+        :feats-by-id="levelOne.featuresById.value"
+        :feats-allowed="levelOne.featsAllowed.value"
+      />
+      <p v-if="levelOne.due.value.length > 0" class="text-caption text-muted-foreground">
+        Choices for later levels are made as you level up.
+      </p>
+    </template>
+
+    <p v-if="originFeatMessage" class="text-body text-ink-caution">
+      {{ originFeatMessage }} Pick another background to go on.
+    </p>
+
     <!-- Warning: no class selected -->
     <div v-if="!f.class" class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 p-3 flex items-start gap-2">
       <span class="text-ink-caution shrink-0 mt-0.5">⚡</span>
@@ -105,7 +129,7 @@
         variant="primary"
         size="lg"
         class="flex-1"
-        :disabled="!f.name.trim() || saving"
+        :disabled="!f.name.trim() || saving || blockedByLevelOne"
         :label="saving ? 'Creating…' : 'Begin My Adventure'"
         @click="save(false)"
       />
@@ -115,7 +139,7 @@
         emphasis="outline"
         size="lg"
         class="flex-1"
-        :disabled="!f.name.trim() || saving"
+        :disabled="!f.name.trim() || saving || blockedByLevelOne"
         label="Begin + Level Up to 2"
         @click="save(true)"
       />
@@ -137,6 +161,7 @@
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import LevelUpChoices from "@/components/features/LevelUpChoices.vue";
 import { ABILITY_STATS, SLOT_LEVEL_LABELS, type AbilityKey } from "@/rules/characterCreation";
 import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 
@@ -148,8 +173,10 @@ const {
   selectedSpecies, selectedBg, selectedClass,
   selectedSubrace, asiMode,
   derivedHp, derivedAc, derivedSpeed, derivedInitiative,
-  mod, save,
+  mod, save, levelOne, blockedByLevelOne, originFeatMessage,
 } = form;
+// Top-level refs, so v-model reaches them in the template.
+const { values: choiceValues, swapPicks, complete: choicesComplete } = levelOne;
 
 // Reuse the same ASI logic to compute displayed scores on the summary card.
 function isStructuredAsi(asi: Record<string, number | string> | null | undefined): boolean {

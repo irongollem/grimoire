@@ -4,20 +4,20 @@ import {
   classWithFeatureIds,
   featureCountsByBand,
   sanitizeKnownTable,
-  sanitizeResources,
   slotGridFor,
   validateClassProgression,
   type ClassAiResult,
 } from "./classAi";
+import { sanitizeResources } from "./resourceFeatures";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 function features(extra: { level: number; name: string }[] = []) {
   return [
-    { level: 1, name: "Ember Sense", feature_type: "passive", description: "You sense warmth." },
-    { level: 2, name: "Spark", feature_type: "bonus_action", description: "You spark." },
-    { level: 3, name: "Cinder Path", feature_type: "passive", description: "Pick a path." },
-    { level: 20, name: "Phoenix", feature_type: "active", description: "You rise again." },
-    ...extra.map((e) => ({ ...e, feature_type: "passive", description: "text" })),
+    { level: 1, name: "Ember Sense", activation: "", description: "You sense warmth." },
+    { level: 2, name: "Spark", activation: "bonus_action", description: "You spark." },
+    { level: 3, name: "Cinder Path", activation: "", description: "Pick a path." },
+    { level: 20, name: "Phoenix", activation: "action", description: "You rise again." },
+    ...extra.map((e) => ({ ...e, activation: "", description: "text" })),
   ];
 }
 
@@ -39,14 +39,18 @@ function ai(over: Partial<ClassAiResult> = {}): ClassAiResult {
 
 for (const ruleset of ["2014", "2024"] as RulesetKey[]) {
   describe(`classDraftFromAi (${ruleset})`, () => {
-    const ctx = { ruleset, campaignId: "camp" };
+    const ctx = { ruleset, campaignId: "camp", asiFeatureId: "official-asi" };
 
     it("produces a progression with zero problems", () => {
       const draft = classDraftFromAi(ai(), ctx);
       expect(draft.problems).toEqual([]);
       expect(validateClassProgression(draft.base)).toEqual([]);
       expect(draft.base.saving_throws).toEqual(["Strength", "Constitution"]);
-      expect(draft.base.asi_levels).toEqual([4, 8, 12, 16, 19]);
+      expect(draft.warnings).toEqual([]);
+      // The Ability Score Improvement is the shared official row, at the book's levels.
+      const asi = draft.features.filter((f) => "existingId" in f);
+      expect(asi.map((f) => f.level)).toEqual([4, 8, 12, 16, 19]);
+      expect(asi.every((f) => "existingId" in f && f.existingId === "official-asi")).toBe(true);
       expect(draft.base.ruleset).toBe(ruleset);
       expect(draft.base.campaign_id).toBe("camp");
       expect(draft.base.armor_proficiencies).toEqual(["Light armor", "Medium armor"]);
@@ -108,8 +112,14 @@ for (const ruleset of ["2014", "2024"] as RulesetKey[]) {
       );
       expect(draft.base.hit_die).toBe(8);
       expect(draft.features.every((f) => f.level >= 1 && f.level <= 20)).toBe(true);
-      expect(draft.base.resources).toHaveLength(1);
-      expect(draft.base.resources[0]).toMatchObject({ key: "bolts", rest: "short", scaling: "table" });
+      // Only the valid resource survives, and it is a feature with uses rather than a class column.
+      const bolts = draft.features.find((f) => "insert" in f && f.insert.name === "Bolts");
+      expect(bolts && "insert" in bolts ? bolts.insert.mechanics?.uses : null).toMatchObject({
+        key: "bolts",
+        recharge: "short",
+        amount: { kind: "by_level", values: { "1": 2 } },
+      });
+      expect(draft.features.some((f) => "insert" in f && f.insert.name === "A")).toBe(false);
       expect(draft.problems).toEqual([]);
     });
 
@@ -120,7 +130,7 @@ for (const ruleset of ["2014", "2024"] as RulesetKey[]) {
         ai({ resources: [{ label: "Bolts", scaling: "table", table_values: cells }] }),
         ctx,
       );
-      expect(draft.base.resources).toHaveLength(0);
+      expect(draft.features.some((f) => "insert" in f && f.insert.name === "Bolts")).toBe(false);
     });
 
     it("adds a real subclass-grant feature when the subclass level is bare", () => {
@@ -130,11 +140,12 @@ for (const ruleset of ["2014", "2024"] as RulesetKey[]) {
       );
       expect(draft.problems).toEqual([]);
       expect(draft.base.features["3"]).toHaveLength(1);
-      expect(draft.features.find((f) => f.level === 3)?.insert.description).toContain("subclass");
+      const grant = draft.features.find((f) => f.level === 3);
+      expect(grant && "insert" in grant ? grant.insert.description : null).toContain("subclass");
     });
 
     it("reports what it cannot repair", () => {
-      const noLevelOne = classDraftFromAi(ai({ features: features().filter((f) => f.level !== 1) }), ctx);
+      const noLevelOne = classDraftFromAi(ai({ features: features().filter((f) => f.level !== 1), resources: [] }), ctx);
       expect(noLevelOne.problems.join(" ")).toContain("level 1");
       const oneSave = classDraftFromAi(ai({ saving_throws: ["str"] }), ctx);
       expect(oneSave.problems.join(" ")).toContain("saving throw");
@@ -151,7 +162,7 @@ for (const ruleset of ["2014", "2024"] as RulesetKey[]) {
       const draft = classDraftFromAi(ai(), ctx);
       const ids = draft.features.map((_, i) => `id${i}`);
       const row = classWithFeatureIds(draft, ids);
-      expect(row.features["1"]).toEqual(["id0"]);
+      expect(row.features["1"]).toEqual(["id0", "id1"]);
       expect(Object.values(row.features).flat()).toEqual(ids);
       expect(validateClassProgression(row)).toEqual([]);
     });
@@ -176,12 +187,10 @@ describe("validateClassProgression", () => {
   const valid = classDraftFromAi(ai(), { ruleset: "2024", campaignId: null }).base;
   it("flags each structural fault", () => {
     expect(validateClassProgression({ ...valid, hit_die: 9 as never }).length).toBeGreaterThan(0);
-    expect(validateClassProgression({ ...valid, asi_levels: [8, 4] }).length).toBeGreaterThan(0);
     expect(validateClassProgression({ ...valid, spell_slots: [[1]] }).length).toBeGreaterThan(0);
     expect(validateClassProgression({ ...valid, caster_type: "none" }).length).toBeGreaterThan(0);
     expect(validateClassProgression({ ...valid, cantrips_known: [1, 2] }).length).toBeGreaterThan(0);
     expect(validateClassProgression({ ...valid, features: { ...valid.features, "21": ["x"] } }).length).toBeGreaterThan(0);
-    expect(validateClassProgression({ ...valid, resources: [{ key: "t", label: "T", rest: "long", scaling: "table" }] }).length).toBeGreaterThan(0);
   });
 });
 
@@ -200,9 +209,16 @@ describe("helpers", () => {
     expect(sanitizeResources([{ label: "X" }, { label: "x" }])).toHaveLength(1);
   });
 
+  it("warns, without blocking, when the official ASI feature is missing", () => {
+    const draft = classDraftFromAi(ai(), { ruleset: "2024", campaignId: null });
+    expect(draft.problems).toEqual([]);
+    expect(draft.warnings.join(" ")).toContain("Ability Score Improvement");
+    expect(draft.features.some((f) => "existingId" in f)).toBe(false);
+  });
+
   it("featureCountsByBand counts by level range", () => {
     const draft = classDraftFromAi(ai(), { ruleset: "2024", campaignId: null });
     const counts = featureCountsByBand(draft.features);
-    expect(counts.map((c) => c.count)).toEqual([3, 0, 0, 1]);
+    expect(counts.map((c) => c.count)).toEqual([4, 0, 0, 1]);
   });
 });

@@ -19,7 +19,8 @@ describe("isInternalChoiceKey", () => {
       "infusions_known",
       "eldritch_invocations",
       "battle_master_maneuvers",
-      "background_feat",
+      "origin_feat_id",
+      "origin_feat_variant",
       "background_asi",
     ]) {
       expect(isInternalChoiceKey(key)).toBe(true);

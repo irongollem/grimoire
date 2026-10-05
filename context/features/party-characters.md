@@ -5,7 +5,7 @@
 Party & character management in Grimoire spans three interconnected feature areas:
 
 1. **Party Tracker** (`/party`) — the DM's live combat dashboard for all party members
-2. **Character Codex** (`/codex/*`) — the DM's compendium of character options (species, backgrounds, classes, archetypes, abilities)
+2. **Character Codex** (`/codex/*`) — the DM's compendium of character options (species, backgrounds, classes, archetypes, abilities, feats)
 3. **Hall of Heroes** (`/hall-of-heroes`) — a cross-campaign library of reusable iconic characters
 4. **Player Portal** (`/play/*`) — players' own interface for creating, editing, levelling, and viewing their characters and party
 
@@ -161,7 +161,7 @@ There is no Location tab or free-text equipment fields on this form. A member's 
 
 **Route:** `/codex/:tab` — `CharacterCodexView.vue`
 
-The Character Codex is the DM-facing compendium for all character creation options. It uses a tabbed layout at `/codex/species`, `/codex/backgrounds`, `/codex/classes`, `/codex/archetypes`, and `/codex/abilities`. Tab state is stored in `useUiStore.codexActiveTab` and synced to the URL so deep links work. DMs see create/import buttons; players (if they access this route) see read-only lists.
+The Character Codex is the DM-facing compendium for all character creation options. It uses a tabbed layout at `/codex/species`, `/codex/backgrounds`, `/codex/classes`, `/codex/archetypes`, `/codex/abilities` and `/codex/feats`. Tab state is stored in `useUiStore.codexActiveTab` and synced to the URL so deep links work. DMs see create/import buttons; players (if they access this route) see read-only lists.
 
 ### Species Tab
 
@@ -206,46 +206,47 @@ Filterable by search and source (Custom / Library). **Backgrounds live in the sh
 
 ### Classes Tab
 
-Lists both imported SRD classes (`system_classes` table, read-only) and custom classes (`custom_classes` table, editable). Filtered by text search with filter state in `useUiStore`.
+Lists both the official classes (`system_classes` plus the official non-SRD rows in `custom_classes`, read-only for everyone but the admin) and custom classes (`custom_classes`, editable). Filtered by text search with filter state in `useUiStore`.
 
-**"Import from Open5e"** button pulls the Black Flag SRD class list into `system_classes`, deduplicating by slug.
+There is no per-account "Import from Open5e" button on this tab any more. Official classes, subclasses, features and feats are one shared set that the admin writes from **Admin → Content → Import from Open5e** (see [Class features, subclass features and feats (#976)](#class-features-subclass-features-and-feats-976)).
 
-**Custom Class Editor** (`CustomClassEditorView.vue`) — full-featured class designer:
+**Custom Class Editor** (`CustomClassEditorView.vue`): the class designer. A class is its identity, proficiencies, spellcasting and a list of features per level. Everything a class *does* (uses, scaling, choices, Ability Score Improvement) lives on those features, not on the class:
 
 1. **Identity** — class name, hit die (d6/d8/d10/d12), primary ability, subclass-granting level, campaign scope (a dropdown of the DM's own campaigns, plus "All my campaigns") — new classes default to the active campaign rather than "all my campaigns" (#596); editing an existing class keeps whatever scope it already has
 2. **Proficiencies** — saving throw checkboxes (STR/DEX/CON/INT/WIS/CHA), armor proficiency tags, weapon proficiency tags
-3. **Features per Level** — assign any ability from the Abilities compendium to any level 1–20 via entity combobox chips
-4. **Ability Score Increase Levels** — configure which levels grant ASI (defaults: 4, 8, 12, 16, 19)
-5. **Spellcasting** — toggle on/off; if on: caster type (prepared/spellbook/known), slot recovery (long/short rest), spells-known table toggle, cantrips-known table toggle, prepared ability (WIS/INT/CHA), prepared spell scaling (full level or half level), and a full 20×9 spell slot grid
-6. **Wizard Steps** — define prompted choices shown to the player during level-up (e.g. "Choose Fighting Style at level 1"); each step has: level, type (pick-one or accumulate), options source (Abilities compendium / Spellbook / Custom text), key, label, description, option list
-7. **Resource Pools** — tracked pools shown on the character sheet; each pool has: key, label, recharges-on (short/long rest), scaling (fixed value / per class level / custom 20-value table)
+3. **Features per Level**: assign any ability from the Abilities compendium to any level 1–20 via entity combobox chips. The Ability Score Improvement is just the official "Ability Score Improvement" feature placed at levels 4, 8, 12, 16 and 19 (the AI generator does this for you); a resource pool is a feature whose mechanics have `uses`; a prompted choice (Fighting Style, Expertise) is a feature whose mechanics have a `choices` entry
+4. **Spellcasting** — toggle on/off; if on: caster type (prepared/spellbook/known), slot recovery (long/short rest), spells-known table toggle, cantrips-known table toggle, prepared ability (WIS/INT/CHA), prepared spell scaling (full level or half level), and a full 20×9 spell slot grid
+
+The old "Ability Score Increase Levels", "Wizard Steps" and "Resource Pools" sections are gone, and so are the `asi_levels`, `steps` and `resources` columns (migration `20261005152831`). Migration `20261005142531` turned every homebrew resource and step into a feature of its own, owned like the definition it came from.
 
 ### Archetypes Tab
 
-Filterable by text search and by class name. Lists both SRD-imported and custom subclasses. Class name filter dropdown is built from the union of `system_classes` and `custom_classes`.
-
-**"Import from Open5e"** button imports Black Flag SRD subclasses.
+Filterable by text search and by class name. Lists both official and custom subclasses. Class name filter dropdown is built from the union of `system_classes` and `custom_classes`. Official subclasses (`user_id` null) are read-only except for the admin; like the official classes they are written by the admin import, not by a per-account button.
 
 **Custom Archetype Editor** (`CustomSubclassEditorView.vue`) — same structure as Custom Class Editor but scoped to a base class:
 
-- Base class selector (all known class names, SRD + custom)
+- Base class selector (all known class names, official + custom)
 - Description (plain text flavour)
-- Features per Level
-- Wizard Steps
-- Resource Pools
+- Features per Level, and the granted spells per level
 - Campaign scope — same default-to-active-campaign flip as the Custom Class Editor (#596)
+
+Resources and wizard steps are not part of an archetype any more either: give a subclass feature `uses` or `choices` in its mechanics.
 
 ### Abilities Tab
 
-The Abilities compendium is the shared library of named features used by both classes and archetypes. Filterable by search and type.
+The Abilities compendium is the shared library of named class and subclass features (`class_features` rows with `kind = 'feature'`), used by both classes and archetypes. Filterable by search. It lists the official features every account reads (marked as official, read-only unless you are the admin) and the DM's own.
 
-**Feature types** (from `FEATURE_TYPES`): class feature, species trait, background feature, feat, fighting style, metamagic, maneuver, invocation, infusion, other.
+A feature no longer has a `feature_type`. What it is and how it is used is in `mechanics` (activation, uses, scaling, damage riders, toggle, sub-actions, choices, replaces). `FeatureDetail` and `FeatureSheet` show it through `MechanicsSummary`, and the editor gains a **Mechanics** section (`MechanicsEditor.vue` in `src/components/features/mechanics/`, with sub-forms for uses, riders, toggle, sub-actions and choices). It is the same shape the SRD catalogue writes onto official rows, and every write goes through the `parseMechanics` validator, so a DM edits homebrew mechanics with the same fields the official rows use. The old "Feature types" list (class feature, species trait, fighting style, metamagic, ...) and `FEATURE_TYPES` no longer exist.
 
-**"Sync from Open5e"** runs two operations: first imports Open5e features (`useImportOpen5eFeatures`), then backfills descriptions for any system features that lack them (`useBackfillSystemFeatureDescriptions`). The button label reports `N added`, `M updated`, and `K descriptions filled`.
+There is no "Sync from Open5e" button here. The admin import is the only writer of official features.
 
-Features are linked to classes/archetypes by UUID reference stored in the `features` JSONB column of `custom_classes` / `custom_subclasses`.
+Features are linked to classes/archetypes by UUID reference stored in the `features` JSONB column of `custom_classes` / `custom_subclasses` and `system_classes`: a map of class level to feature ids, and one feature id may appear at several levels.
 
 A custom feature (`FeatureDetail`) carries the same campaign-scope dropdown as classes/archetypes, with the same #596 default: a new feature defaults to the active campaign rather than "all my campaigns"; editing an existing one leaves its stored scope alone. `ArchetypeList`'s "Load example" seed features are the one deliberate exception — those three sample features are meant to be usable from every campaign and pass `campaign_id: null` explicitly, same as `ClassList`'s "Duplicate" fork of a system class.
+
+### Feats Tab
+
+Feats are `class_features` rows with `kind = 'feat'` (`FeatList` in `src/components/feats/`, editor `FeatFields`, filters by category and edition kept in `useUiStore` as `featsSearch`, `featsFilterCategory`, `featsFilterEdition`). The feat editor has the Abilities fields plus **category** (2024 Origin, General, Fighting Style, Epic Boon; 2014 feats have none), **prerequisites** (structured and enforced at level-up, with the book's wording kept in `prerequisite`), **repeatable** and **ability increase** (the half-feat's +1, or the 2024 Ability Score Improvement feat's +2 that may split). New feats are created at `/feats/new`.
 
 ---
 
@@ -257,11 +258,11 @@ Five generators plus the shared helpers (species, background, class, archetype, 
 
 **Background** (`backgroundAi.ts`, `backgroundInsertFromAi`): 2014 gets two skills, two proficiencies from tools and languages **combined** (a tool and a language, two languages, two tools) and a named feature, with no feat and no ability trio. 2024 gets two skills, **one tool and no languages** (the 2024 rules choose languages at character creation), an origin feat (`parseOriginFeatText` turns the feat text into the structured `origin_feat` field) and a three-ability trio (`sanitizeAbilityTrio`: exactly three distinct abilities, else null), with no feature.
 
-**Class** (`classAi.ts`, `classDraftFromAi`): structurally valid by construction. Hit die snaps to d6-d12; ASI levels are the book's `4, 8, 12, 16, 19`; the 2024 subclass level is always 3 and 2014 accepts 1-3. **Spell slots are computed, never taken from the model**: the caster progression (none, full, half, third, pact) selects a published class (Wizard, Paladin, Eldritch Knight, Warlock) and `slotGridFor` reads its 20x9 table through `getDefaultSpellSlots` for the edition. Known and prepared tables are accepted only as 20-entry non-decreasing whole numbers, resources are validated, and if the model left the subclass level empty a plain grant feature is added so that level is never bare. `validateClassProgression` is the structural check (two distinct saves, increasing ASI levels, a level 1 feature, something at the subclass level, a 20x9 slot grid that agrees with the caster type, valid resource tables).
+**Class** (`classAi.ts`, `classDraftFromAi`): structurally valid by construction. Hit die snaps to d6-d12; the official Ability Score Improvement feature is granted at the book's levels `4, 8, 12, 16, 19` (`asiFeature.ts`; there is no `asi_levels` list); the 2024 subclass level is always 3 and 2014 accepts 1-3. **Spell slots are computed, never taken from the model**: the caster progression (none, full, half, third, pact) selects a published class (Wizard, Paladin, Eldritch Knight, Warlock) and `slotGridFor` reads its 20x9 table through `getDefaultSpellSlots` for the edition. Known and prepared tables are accepted only as 20-entry non-decreasing whole numbers, a model-written resource is not stored as a resource but becomes the `mechanics.uses` of a feature of its own (`resourceFeatures.ts`), and if the model left the subclass level empty a plain grant feature is added so that level is never bare. `validateClassProgression` is the structural check (two distinct saves, increasing ASI levels, a level 1 feature, something at the subclass level, a 20x9 slot grid that agrees with the caster type).
 
 **Archetype** (`subclassAi.ts`, `src/rules/subclassFeatureLevels.ts`): the parent class is chosen from the existing classes. A Player's Handbook class gets the **book's own subclass feature levels per edition** (for example 2014 fighter 3/7/10/15/18, rogue 3/9/13/17, cleric 1/2/6/8/17; 2024 moves every grant to level 3 and keeps most later steps, cleric 3/6/17). A homebrew parent has no book, so it gets its grant level then 6, 10 and 14. `levelledFeaturesFromAi` (`featureAi.ts`) drops features outside the allowed levels or repeated at a level and orders the rest.
 
-**Ability** (`featureAi.ts`, `featureInsertFromAi`): one `class_features` row; an unknown feature type reads as passive, no usable name and rules text yields null. Created directly, then the panel navigates to `/features/:id`.
+**Ability** (`featureAi.ts`, `featureInsertFromAi`): one `class_features` row; an unknown `activation` reads as passive (the model no longer writes a `feature_type`), the model may also propose `mechanics`, which are kept only as far as `parseMechanics` accepts them, no usable name and rules text yields null. Created directly, then the panel navigates to `/features/:id`.
 
 **Class and archetype are a confirm step, not a straight write.** A class is one class row plus all its feature rows, so the panel shows what will be created first (`featureCountsByBand`, features counted by level band) and **Create** runs `createWithFeatures` (`featureBatch.ts`): feature rows first, then the parent row holding their ids (`classWithFeatureIds`, `subclassWithFeatureIds`); if any write fails, the feature rows already created are deleted and the original error is rethrown, so nothing is orphaned. Nothing is written before the DM confirms. After create the panel goes to `/levelup/classes/:id` or `/levelup/custom/:id`.
 
@@ -631,8 +632,8 @@ and nothing is copied into their own rows.
 a table takes: library content from a book the DM enabled and has not blocked,
 the official classes the DM has not blocked, and content a DM of that table
 owns. Everything a seated character points at is checked: species, background,
-class, subclass, spells and feats (feats are ids inside `class_choices.feats`
-and `level_choices[n].asi.feat_id`). Not checked: a disguise species and items.
+class, subclass, spells and feats (feats are ids inside `class_choices.feats`,
+the 2024 origin feat among them, and `level_choices[n].asi.feat_id`). Not checked: a disguise species and items.
 
 **Who owns a row decides everything; what a row says about itself decides
 nothing.** Provenance keys (`source_document_key`, `source_record_key`) are
@@ -777,7 +778,7 @@ This view switches between two modes based on whether a `memberId` query param i
 
 Both are provided the shared `useCharacterCreationForm` composable via `provide(CHARACTER_FORM_KEY, form)`.
 
-**2024 background step (#558)** — for a background with `asi_ability_trio` set, `CharacterCreateBackgroundStep.vue` renders `BackgroundAsiPicker.vue`: the player picks either +2/+1 split across two of the trio's abilities or +1/+1/+1 across all three. The choice is stored in `class_choices.background_asi` (via the `backgroundAsiChoice` computed in `useCharacterCreationForm`) and applied to the character's ability scores the same way species ASI is — once, at the point the choice is made. If the background also grants an `origin_feat`, `BackgroundOriginFeatBadge.vue` shows it and resolves it to a full-text `class_features` row by `conceptual_key` when one has been imported; unresolved feats still save their raw name (`class_choices.background_feat`) — a feat grant is never silently dropped just because the matching feature hasn't been imported yet.
+**2024 background step (#558)** — for a background with `asi_ability_trio` set, `CharacterCreateBackgroundStep.vue` renders `BackgroundAsiPicker.vue`: the player picks either +2/+1 split across two of the trio's abilities or +1/+1/+1 across all three. The choice is stored in `class_choices.background_asi` (via the `backgroundAsiChoice` computed in `useCharacterCreationForm`) and applied to the character's ability scores the same way species ASI is — once, at the point the choice is made. If the background also grants an `origin_feat`, the origin feat is a real `kind = 'feat'` row: the wizard stores its id in `class_choices.origin_feat_id` (and in `class_choices.feats`, like any other feat) and, for a feat with a variant such as Magic Initiate (Wizard), the variant in `class_choices.origin_feat_variant`. `class_choices.background_feat` (the old raw name) is retired; migration `20261005144119` converted the existing ones. `src/rules/backgroundAsi.ts` (`ORIGIN_FEAT_KEYS`) owns reading and swapping those keys when the background changes. The feat's own choices (2024 Skilled) are asked at creation.
 
 **Conversion reviews** — converting a character to the other edition (`convert_party_member_ruleset`, or the converted copy a bounce offers) can invalidate or newly require a choice: a background ASI/Origin-feat pick, a class or subclass with no counterpart, or a spell with no safe counterpart. Each case is a row in `ruleset_reviews` (`flag_type`: `'class' | 'subclass' | 'spell' | 'background'`, plus `character_class_id`/`character_spell_id` when applicable), written by the conversion and keyed on the character alone: the table has no `campaign_id` since #943, so a campaign-less copy can carry reviews. Clients read it via `useRulesetReviews(memberId)`. `PlayerFeaturesTab` (background) and `PlayerSpellsView` (class/subclass and spell) show the shared `RulesetReviewBanner` when a matching row exists. Acknowledging calls `acknowledge_ruleset_reviews(p_party_member_id, p_flag_types)` via `useAcknowledgeRulesetReviews()`, which deletes the matching rows. A conversion suspends the spell count limit for its own statement: it keeps every choice the player made, and the other edition's limit may be lower, so the limit applies again at the next spell change rather than refusing the conversion.
 
@@ -828,11 +829,17 @@ The primary player-facing character sheet. Also used by the DM via `PartyMemberV
 | Tab        | Component           | Contents                                                                                                                                                                                                                                                                          |
 | ---------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Skills     | `PlayerSkillsTab`   | Full skill list with proficiency/expertise indicators, passive scores, clickable roll buttons                                                                                                                                                                                     |
-| Features   | `PlayerFeaturesTab` | Class features and species traits from the character's class/archetype data; expandable descriptions via `RichTextViewer`. Multiclass grouping lives in `useClassFeatureGroups`; `PlayerProficienciesCard`, `PlayerChoicesCard`, `PlayerDivineSmiteCard` are extracted sub-cards. |
-| Combat     | `PlayerCombatTab`   | Attack entries, spell slots, resource pools; attack rolls with advantage/disadvantage from conditions                                                                                                                                                                             |
+| Features   | `PlayerFeaturesTab` | Class and subclass features from `CharacterFeaturesPanel` (one card per feature, see below), the feats section, and species traits; `PlayerProficienciesCard` and `PlayerChoicesCard` are extracted sub-cards. |
+| Combat     | `PlayerCombatTab`   | Attack entries with damage riders, the Actions card, spell slots; attack rolls with advantage/disadvantage from conditions                                                                                                                                                                             |
 | Wild Shape | inline              | Druid-only; usage pips (2/day at level 2+), CR limit display, Circle of Moon label; beast picker showing discovered + DM-pinned beasts filtered by CR/level/type restrictions                                                                                                     |
 
 Wild Shape tab is only shown for Druid characters (detected by class name containing "druid") or when a wildshape is already active.
+
+**Features tab (#976).** `CharacterFeaturesPanel` (`src/components/features/`) lists each feature **once**, grouped under the class or subclass that granted it (`CharacterFeatureGroup`, headed "Rogue 5" with the subclass beneath). A card (`CharacterFeatureCard`) shows the level the feature was gained (and a list of levels when the table grants it again, as an Ability Score Improvement is), its current scaling value in the title ("Sneak Attack · 3d6"), the full text, an activation badge (Action, Bonus Action, Reaction, Special) and its uses inline (`FeatureUsesControl`: pips for a count, an amount box for a pool such as Lay on Hands, and the toggle for Rage). Feats get their own section (`CharacterFeatsCard`) and say where they came from ("Level 4", "Origin", with the variant for an origin feat). `useCharacterFeatures` fetches and derives; `useFeatureUses` is the single place that spends and restores uses and switches toggles. Wild Shape, the 2024 Sorcerer cards, Artificer infusions, the maneuver list and the Ki/Focus list stay as their own cards; their dice and points are the feature's uses. `PlayerBarbarianRage`, `PlayerDivineSmiteCard` and the `lay_on_hands` special case are gone: the generic pieces replace them.
+
+**Combat tab Actions and damage riders (#976).** `FeatureActionsCard` lists what the character can do, grouped Action / Bonus Action / Reaction (plus Special), built from the same granted features, including sub-actions such as Cunning Action's Dash, Disengage and Hide. A **Use** button spends the feature's cost from its pool and says "No Ki left" when the pool is empty; a toggle (Rage) switches on, paying its cost, and off. The same card is shown in the encounter runner's PC panel (`RunnerPcPanel`), which replaces the old hard-coded Sneak Attack. A weapon's damage roll opens `DamageRiderPicker`, which offers the riders that apply to that attack as checkboxes ("+ Sneak Attack 3d6", "+ Rage 2"); ticking one adds its dice (a flat scaling value such as Rage damage is added as a modifier) and spends its cost (a use, or a spell slot for 2014 Divine Smite, whose dice grow with the slot). Riders are never ticked for you: the player knows the target and the app does not. A critical hit doubles every die, riders' dice included, and a feature's damage is marked as damage (`src/rules/features/damageRoll.ts`). Both `PlayerCombatTab` and `RunnerPcAttacks` use the picker.
+
+**Rage and rests.** Rage is a toggle, so it lives in `class_choices.rage_active` like every other toggle (the `party_members.rage_active` column is gone), and the rest function ends any `<toggle>_active` key on **every** rest, short or long. The header's rest buttons used to leave Rage on because only a dead inline button cleared it.
 
 **Weapon mastery (#557, 2024 campaigns only)** — an equipped weapon row in `PlayerCombatTab` shows its mastery property (from `items.mastery`, definitions in `src/data/weaponMastery.ts` — see `items-spells-crafting.md`) when the item has one, and the player toggles whether that mastery is currently active for their character; active masteries are tracked in `party_members.weapon_masteries`.
 
@@ -850,13 +857,76 @@ Wild Shape tab is only shown for Druid characters (detected by class name contai
 
 ### Level Up (`/play/levelup` — `PlayerLevelUpView.vue`)
 
-Wraps `LevelUpWizard` with a target level (from query param or current level + 1) and the player's linked member. Also includes `DeLevelPanel` for correcting level mistakes if character classes are present.
+Wraps `LevelUpWizard` with a target level (from query param or current level + 1) and the player's linked member. Also includes `DeLevelPanel` for correcting level mistakes if character classes are present. De-level reverses a level exactly from the record that level kept in `level_choices[n].record`: the picks, the feats, the ability increases (capped amounts, subtracted as stored) and any Tasha's swaps. It finds the class by its definition id, not by name, and the panel lists what it will undo before confirming.
 
-The `LevelUpWizard` (at `src/levelup/LevelUpWizard.vue`) walks through class-defined wizard steps at the relevant level (choose fighting style, pick spells, pick features, etc.) and commits the result to the `character_classes` table. Features unlocked at the new level are displayed with expandable descriptions.
+The `LevelUpWizard` (at `src/levelup/LevelUpWizard.vue`) asks for every choice the book grants at the new level, then commits the result to the `character_classes` table. A choice belongs to the feature that grants it (`mechanics.choices`), so the wizard asks what the character's granted features say is due (`choicesDue` in `src/rules/features/levelUpChoices.ts`): the Ability Score Improvement (2014: +2/+1/+1 or, behind the `feats_2014` rule, a feat; 2024: a General feat, with an Epic Boon at 19), Expertise, Fighting Style, invocations, maneuvers, metamagic, Weapon Mastery, Favored Enemy and the rest, picked in `ChoicePicker` and gathered by `LevelUpChoices`. The class and subclass feature lists are merged, so a class's own features still show at a level where the subclass grants one. Features unlocked at the new level are displayed with expandable descriptions. There are no per-class `steps` any more. See [Class features, subclass features and feats (#976)](#class-features-subclass-features-and-feats-976) for how choices, swaps and de-level fit together.
 
 Spell and cantrip choices come from `useLevelUpSpellCandidates`, which reads the merged Spellbook library — see [player-portal.md](player-portal.md) § "Where the spell pickers get their spells" for why it must not query the `spells` table, and for the three guards that keep an empty picker from producing a level-up that can never be confirmed (#736).
 
 ---
+
+## Class features, subclass features and feats (#976)
+
+Epic #976 gave class features, subclass features and feats one design. Before it, official Open5e content was a private per-account copy, a feature could say nothing about what it did, and the sheet, the roller and level-up each hard-coded Rage, Sneak Attack, Divine Smite and the rest by name. Now a feature is a row that says what it does, and every surface reads that one description.
+
+### Official and homebrew rows
+
+`class_features`, `custom_subclasses` and `custom_classes` hold two kinds of row:
+
+- **Official** rows have `user_id` null. Every account reads them, and only the admin writes them (the import is the only writer). They carry their book in `source_document_key` / `source_record_key`.
+- **Homebrew** rows belong to an account and, optionally, a campaign, as before.
+
+Approval follows the book, like library content: an official row is approved when the table has its book enabled and benched with reason `source` when it has not (`private.assess_content`, migration `20261005133607`). Grimoire's own chassis rows (`grimoire-system`) belong to no book a table can switch off, so they are always approved. There is no per-account "Sync from Open5e" for classes, subclasses, features or feats any more.
+
+`class_features.kind` says what a row is: `feature` (granted by a class or subclass at a level) or `feat` (chosen, at level-up or from a background). They share one table because a feat is a feature obtained a different way, with the same text, provenance, scoping, approval and mechanics. Feat-only columns, which a `feature` must leave empty (a check constraint holds this): `feat_category` (`origin`, `general`, `fighting_style`, `epic_boon`; 2014 feats have none), `prerequisites` (structured jsonb, enforced; `prerequisite` stays as the book's wording), `repeatable` and `ability_increase` (the half-feat's +1, or the 2024 Ability Score Improvement feat's +2).
+
+### `mechanics`
+
+`class_features.mechanics` is one jsonb object, shaped by `src/rules/features/mechanics.types.ts` and validated by `parseMechanics` in `mechanics.ts` (the jsonb is untrusted, so every reader goes through it). Text never lives here: the rules wording is the row's `description`. Absent means "does not do that". The parts:
+
+- `activation`: `action`, `bonus_action`, `reaction` or `special`. Absent is a passive feature. It replaces the old `feature_type` (the column and `FEATURE_TYPES` are gone; `legendary` was a monster concept).
+- `uses`: a count or a **pool**. `key` (the name the spent count is stored under), `label`, `amount` (fixed, proficiency bonus, ability modifier plus a bonus with a minimum, class level times n, by-level, or unlimited from a level), `recharge` (`short`, `long`, `turn`, `dawn`; it can change from a level, as a 2014 Bard's Bardic Inspiration does at 5), `short_rest_regain` (uses a short rest gives back to a long-rest pool, as 2024 Rage does) and `pool` (spent in chosen amounts, such as Lay on Hands, Ki or Sorcery Points).
+- `spends`: what using the feature itself costs from a pool (Cutting Words spends Bardic Inspiration). A key the character has no pool for makes the thing unusable, never free.
+- `scaling`: a labelled value by level (Sneak Attack "3d6", Rage Damage "+2", Martial Arts "d8").
+- `riders`: damage the player may add to a damage roll. Dice are the feature's scaling value, a fixed expression, or dice that grow with the spell slot spent. Each says what it applies to (weapon, melee weapon, melee Strength attack, finesse or ranged, unarmed, spell), whether it is once per turn, an optional `requires_toggle` (Rage damage needs Rage) and an optional cost (a use, or a spell slot).
+- `toggle`: a state that ends by itself on a rest (Rage), with an optional cost to switch on.
+- `actions`: named sub-actions listed under their own activation (Cunning Action's Dash, Disengage, Hide).
+- `choices`: what the feature asks the player to pick (see Choices below).
+- `replaces`: an optional feature that may be taken instead of another (Tasha's), named by the other feature's `conceptual_key`.
+
+**Levels are levels in the class that grants the feature**, not the character's total level, because that is how every class table in both editions is written. A feat has no granting class, so its levels are the character's total level. A level between two listed values reads the nearest listed level at or below it (`ByLevel` in the types, `valueAtLevel` in `resolve.ts`).
+
+### The SRD catalogues and the admin import
+
+Official mechanics come from code, not from Open5e: `src/rules/features/catalogue/srd2014.ts` (SRD 5.1) and `srd2024.ts` (SRD 5.2) map Open5e **record keys** to a `FeatureMechanics`. They hold mechanics only, never rules text. A purely passive feature (Evasion, Extra Attack) is absent on purpose. Each file's header lists what the contract cannot say yet: Magical Secrets and Mystic Arcanum (spell choices), Colossus Slayer's "target below its maximum" and Divine Smite's extra die against fiends (the player ticks the rider), Brutal Strike and Cunning Strike options, Frenzy's extra dice, Skilled's tool choice, and the Battle Master's superiority dice and maneuvers (not in the SRD).
+
+The **admin import** applies them. `planOfficialClassContent` in `src/lib/library/officialClassContent.ts` is pure: given what Open5e served and what the database holds, it plans the inserts and updates, and `useOfficialClassContentImport` carries them out, driven by `OfficialClassContentPanel` in Admin → Content ("Import from Open5e"). It reads every open-licensed, redistributable book, writes each feature at **every** level it is gained (the old importer kept one), turns the class-table columns into `scaling`, parses feat category and prerequisites, applies the catalogue for the row's record key, and writes each class's per-level feature map onto its `system_classes` row. It is safe to re-run: rows are matched by book and record, and it never deletes.
+
+**After the migrations apply, the admin presses "Import from Open5e" once.** The migrations adopted the existing import in place (its rows became official and kept their ids, so no character or class reference moved) but they cannot write multi-level grant maps, scaling or mechanics, which come from Open5e and the catalogues. Until the button is pressed the adopted rows have the old single-level maps and empty mechanics.
+
+### How a character's features are derived
+
+Nothing about a character's features is stored on the character except its picks. `grantedFeatures` (`characterFeatures.ts`) derives them: for each of the character's classes it reads the class and subclass per-level maps up to the character's level in that class, and emits **one `GrantedFeature` per feature per granting class**, with every class level at which the table lists it (`levelsGained`). Then it adds the feats from `class_choices.feats` (the first occurrence of `class_choices.origin_feat_id` is marked as the background's origin feat, the rest are placed at the level whose `level_choices` entry mentions them). A feature that `replaces` another is never granted by default; it arrives only through a swap (below). `useCharacterFeatures` fetches the rows (`featureIdsNeeded` lists the ids, swap replacements included) and hands the result to the Features tab, the Actions card and the runner.
+
+### Pools
+
+A character's `class_resources` is runtime state keyed by `FeatureUses.key`. Its definitions come from the features the character has, never from a class-level list. `resourcePools` makes one pool per key; a key two features share (Channel Divinity from Cleric and Paladin) is **one pool at the larger maximum**, which is the multiclassing rule that gaining the feature again gives no extra uses. `classResourcesFor` reconciles the stored object with the pools: `current` is kept and clamped to the new maximum, a new key starts full, an unlimited pool is left out (the sheet says "Unlimited"), and keys no pool produces are dropped. `useFeatureUses` writes spends, restores and toggles, and the rest RPC does the resetting (long-rest pools refill on a long rest, `short_rest_regain` returns some on a short one, any `<toggle>_active` choice ends on every rest).
+
+### Choices
+
+A choice is owned by the feature that grants it (`mechanics.choices`). Each names where the picks are stored (`class_choices[key]`), a heading, what is picked, how many, and whether one earlier pick may be swapped at a level that grants it (`replace_on_level_up`: invocations, maneuvers, 2024 Weapon Mastery).
+
+- **What is picked** (`ChoicePick`): a feat (by 2024 category, or any feat in 2014), the 2014 `asi_or_feat`, Expertise (with Thieves' Tools where the book says so), skills, a fixed option set (Fighting Style, Eldritch Invocation, Maneuver, Metamagic, Pact Boon, Favored Enemy, Favored Terrain, Weapon Mastery, Wild Shape form, Artificer infusion), or a homebrew list of names.
+- **How many** (`ChoiceCount`): `per_grant` asks for `amount` more at every level that grants the feature (ASI at 4, 8, 12; Expertise at 1 and 6). `known` gives the **total** known at a level and level-up asks for the difference (invocations, metamagic, Weapon Mastery).
+- **Recording.** Each level's picks are stored in `level_choices[n].record`: the added and removed picks per key, the feats taken, the ability increases (already capped, so reverting subtracts exactly what was added) and the swaps. `applyLevelChoices` writes them into `class_choices`; `revertLevelChoices` and `revertAbilityScoreIncreases` undo them exactly, which is how de-level works (`buildDeLevelPayload`). `apply_level_up` also checks that a chosen feat is a readable feat of the character's edition, and `apply_de_level` can write `class_choices`, skill and tool proficiencies and weapon masteries.
+- **Creation.** The creation wizard asks the level-1 choices through the same pieces (`useCreationLevelOne`, pure halves in `creationLevelOne.ts`), so a new character gets Expertise, a Fighting Style or an origin feat's own choices at once.
+- **Tasha's swaps.** With the `tashas_optional_features` optional rule on, a feature whose `mechanics.replaces` names a feature the class gained is offered in its place (`swapsOffered`). The swap is stored as `class_choices.feature_swaps` (replaced `conceptual_key` to replacement id) and `grantedFeatures` puts the replacement where the replaced feature stood, at the same levels. The old `class_feature_options` table is gone; its one row became a feature that `replaces` another.
+- **The `feats_2014` rule.** The 2014 Player's Handbook makes feats optional. The `feats_2014` optional rule (on by default, in `src/rules/optionalRules.ts`) lets a 2014 character take a feat instead of a 2014 Ability Score Improvement. It only affects 2014: in 2024 the Ability Score Improvement is itself the General feat of that name, with an Epic Boon at level 19.
+- **Prerequisites** (`prerequisites.ts`) are checked for every feat offered: character level, an ability score, spellcasting, armour training or the Fighting Style feature. Repeatable feats can be taken again. A feat's ability increase is applied (and capped at 20, or 30 for an Epic Boon).
+
+### Not expressible yet
+
+The catalogue headers list each gap. In short: spell choices and spell lists (Magical Secrets, Mystic Arcanum), per-attack options (Brutal Strike, Cunning Strike), conditions on the target (Colossus Slayer, Divine Smite against fiends) which are left to the player to tick, one feature's effect on another's numbers (Frenzy and Rage Damage, Rage's link to Intimidating Presence), a feat's tool choice, and the 2014 Battle Master and Artificer, which are in no SRD and keep their own cards or campaign-supplied text.
 
 ## Player Portal — Party View
 
@@ -987,9 +1057,9 @@ Fonts: the illustrated themes need EB Garamond + Shippori Mincho (added to the `
 - **Real-time sync:** `usePartyLive` subscribes to Supabase Postgres changes on `party_members` so DM HP edits instantly update player sheets and vice versa without page refresh.
 - **Multiclass support:** `character_classes` table tracks multiple class/level rows per character; `formatMulticlassLabel()` builds display strings like "Fighter 4 / Wizard 3"; total level from `totalLevel()`.
 - **Wild Shape as a first-class feature:** Full CR/level/type filtering, stat block preview lightbox, beast HP tracking separate from character HP, ability score override (STR/DEX/CON from beast), automatic tab visibility for Druids only.
-- **Custom class/archetype system:** DMs can build fully custom classes with per-level feature tables, custom spell slot grids, ASI scheduling, wizard step flows for player-facing choices, and resource pools — all surfacing automatically in the level-up wizard and character sheet.
-- **Open5e integration:** One-click import for species, classes, archetypes, and abilities from the Black Flag SRD. Incremental (upsert-based) so re-importing is safe and reports changes. Backgrounds are not imported per user: they come from the shared library, which an admin refreshes with `seed-library-backgrounds`.
-- **Re-import clobber protection (#560):** for species, classes, and subclasses, the update path on a re-import is narrowed to fields Open5e actually supplies (name/description/mechanics/source metadata); anything a DM only fills in by hand — notes, custom art, hand-tuned class mechanics like `spell_slots`/`resources`/`steps` — is never touched by a re-run. Full per-field breakdown per entity type in [`docs/library-reimport.md`](../../docs/library-reimport.md).
+- **Custom class/archetype system:** DMs can build fully custom classes with per-level feature tables and custom spell slot grids. Resource pools, scaling, damage riders, Ability Score Improvements and player-facing choices are all features with `mechanics`, and surface automatically in the level-up wizard and the character sheet.
+- **Open5e integration:** One-click import for species from the Black Flag SRD; official classes, subclasses, features and feats come from the admin's Open5e import (#976). Incremental (upsert-based) so re-importing is safe and reports changes. Backgrounds are not imported per user: they come from the shared library, which an admin refreshes with `seed-library-backgrounds`.
+- **Re-import clobber protection (#560):** for species, classes, and subclasses, the update path on a re-import is narrowed to fields Open5e actually supplies (name/description/mechanics/source metadata); anything a DM only fills in by hand — notes, custom art, hand-tuned class mechanics like `spell_slots` — is never touched by a re-run. Full per-field breakdown per entity type in [`docs/library-reimport.md`](../../docs/library-reimport.md).
 - **Shapeshifter disguise:** Cryptographic-grade privacy — other players see a completely different species entry with no tells. The shapeshifter and DM are the only ones who see the true form.
 - **Hall of Heroes as a template library:** App-admin-managed iconic characters that any DM can import into their campaign in one click, complete with stat block and lore.
 - **Health visibility modes:** Strategic (numeric) vs. immersive (prose labels) per campaign, preserving narrative tension.
@@ -1047,8 +1117,7 @@ Fonts: the illustrated themes need EB Garamond + Shippori Mincho (added to the `
 | `armor_proficiencies`  | text[] | Tags                                       |
 | `weapon_proficiencies` | text[] | Tags                                       |
 | `subclass_level`       | int    | Level subclass is granted                  |
-| `features`             | jsonb  | `Record<levelStr, featureId[]>`            |
-| `asi_levels`           | int[]  | Levels granting ASI                        |
+| `features`             | jsonb  | `Record<levelStr, featureId[]>`; a feature id may appear at several levels. `user_id` null = official (admin-written) |
 | `spell_slots`          | jsonb  | `number[][]` 20×9 grid or null             |
 | `spells_known`         | int[]  | Per-level known count or null              |
 | `cantrips_known`       | int[]  | Per-level cantrip count or null            |
@@ -1056,10 +1125,22 @@ Fonts: the illustrated themes need EB Garamond + Shippori Mincho (added to the `
 | `caster_type`          | text   | `"prepared"\|"spellbook"\|"known"\|"none"` |
 | `prepared_ability`     | text   | `"wis"\|"int"\|"cha"`                      |
 | `prepared_divisor`     | int    | 1 (full) or 2 (half)                       |
-| `steps`                | jsonb  | `CustomStep[]` — wizard prompts            |
-| `resources`            | jsonb  | `CustomResource[]` — tracked pools         |
 | `campaign_id`          | uuid   | null = all campaigns, set = scoped         |
 | `source`               | text   | `"open5e"` or null for custom              |
+
+### `class_features` table (key fields, #976)
+
+| Field                 | Type    | Description                                                                                                  |
+| --------------------- | ------- | ------------------------------------------------------------------------------------------------------------ |
+| `user_id`             | uuid    | null = official (admin-written, everyone reads)                                                              |
+| `kind`                | text    | `feature` or `feat`                                                                                          |
+| `mechanics`           | jsonb   | What the row does (`FeatureMechanics`); `{}` is passive and unlimited                                        |
+| `feat_category`       | text    | Feats only: `origin`, `general`, `fighting_style`, `epic_boon`                                               |
+| `prerequisites`       | jsonb   | Feats only: structured, enforced; `prerequisite` keeps the book's wording                                    |
+| `repeatable`          | boolean | Feats only                                                                                                   |
+| `ability_increase`    | jsonb   | Feats only: the half-feat's +1 or the ASI feat's +2                                                          |
+| `conceptual_key`      | text    | Stable key a swap (`mechanics.replaces`) and the origin feat lookup name                                     |
+| `source_document_key` / `source_record_key` | text | The book and Open5e record the catalogue and the import match on                       |
 
 ### `hall_of_heroes` table (key fields)
 
