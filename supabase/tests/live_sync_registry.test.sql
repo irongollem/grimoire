@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(9);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
@@ -165,6 +165,16 @@ select is(
                           'quest_beats', 'quest_objectives')),
   '',
   'the quest runtime, beats and objectives ring the doorbell and are never published as rows');
+
+-- Subscribed on channels of their own (usePartyLive, useEncounterLive), not
+-- through SYNC_TABLES, so the checks above do not cover them. Production had
+-- both only by hand until 20261005015826.
+select is(
+  (select count(*)::integer from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public'
+      and tablename in ('party_members', 'encounter_state')),
+  2,
+  'party_members and encounter_state are published for their own live channels');
 
 select * from finish();
 rollback;
