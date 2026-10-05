@@ -40,7 +40,7 @@
               :focal-point="form.image_focal_point"
               aspect="square"
               show-focal-point
-              bucket="asset-images"
+              bucket="dungeon-feature-images"
               @update:model-value="form.image_url = $event"
               @update:focal-point="form.image_focal_point = $event"
             />

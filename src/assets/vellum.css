@@ -261,7 +261,15 @@
   filter: sepia(0.18) saturate(0.92) contrast(1.02);
 }
 /* A plate that sits beside text rather than above it (the player's own
-   sheet) is already inset by its layout, so it only takes the frame. */
+   sheet) is already inset by its layout, so it only takes the frame. One
+   that does reach the torn edge from inside a nested column (the party
+   tracker's portrait, at the top of the identity column) says so with
+   `card-plate-edge`, and takes the same inset as a direct-child plate: the
+   selector above only sees direct children, so without it the picture ran
+   past the rough edge of its own sheet (5 Oct 2026). */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) .card-plate.card-plate-edge:has(img) {
+  margin: 0.7rem 0.7rem 0;
+}
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) .card-plate:has(img) {
   border-radius: 0;
   outline: 1px solid color-mix(in oklab, var(--foreground) 55%, transparent);

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, toValue, type MaybeRefOrGetter, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Background, BackgroundInsert, BackgroundUpdate } from "@/types/background.types";
-import { removeStorageImages } from "@/composables/useImageUpload";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -88,7 +88,9 @@ async function updateBackground(id: string, update: BackgroundUpdate): Promise<B
 async function deleteBackground(bg: Background): Promise<void> {
   const { error } = await supabase.from("backgrounds").delete().eq("id", bg.id);
   if (error) throw error;
-  await removeStorageImages("asset-images", bg.image_url);
+  // By URL rather than by bucket: older art sits in asset-images, newer in
+  // background-images (#978). And only when nothing else still points at it.
+  await deleteUnreferencedByPublicUrl({ urls: [bg.image_url] });
 }
 
 /**

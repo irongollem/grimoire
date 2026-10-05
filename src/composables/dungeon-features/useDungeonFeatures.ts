@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { DungeonFeature, DungeonFeatureInsert, DungeonFeatureUpdate } from "@/types/dungeonFeature.types";
-import { removeStorageImages } from "@/composables/useImageUpload";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { DUNGEON_FEATURE_TEMPLATES } from "@/data/dungeonFeatureTemplates";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
@@ -73,7 +73,7 @@ async function updateDungeonFeature(id: string, update: DungeonFeatureUpdate): P
 async function deleteDungeonFeature(feature: DungeonFeature): Promise<void> {
   const { error } = await supabase.from("dungeon_features").delete().eq("id", feature.id);
   if (error) throw error;
-  await removeStorageImages("asset-images", feature.image_url);
+  await deleteUnreferencedByPublicUrl({ urls: [feature.image_url] });
 }
 
 /** Null-means-global scoping (#800), same rule as `useMonsters`/`useTraps`:

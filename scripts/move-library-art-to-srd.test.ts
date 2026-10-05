@@ -56,6 +56,13 @@ describe("qualify", () => {
     expect(q.targetPath).toBe("srd/abc.webp");
   });
 
+  it("sends a background from asset-images to background-images/srd", () => {
+    const q = qualify(`https://cdn.example.com/asset-images/${ADMIN}/bg.webp`, "background") as Qualified;
+    expect(q.bucket).toBe("asset-images");
+    expect(q.targetBucket).toBe("background-images");
+    expect(q.targetPath).toBe("srd/bg.webp");
+  });
+
   it("sends a monster to monster-images/srd", () => {
     const q = qualify(`https://cdn.example.com/monster-images/${ADMIN}/m.webp`, "monster") as Qualified;
     expect(q.targetBucket).toBe("monster-images");
@@ -202,13 +209,19 @@ describe("encode round trip", () => {
 
 describe("updateOrder", () => {
   it("rewrites the source rows last, so an interrupted job is still a job on the next run", () => {
-    for (const kind of ["item", "monster"] as const) {
+    for (const kind of ["item", "monster", "background"] as const) {
       const order = updateOrder(kind);
       const sources = SOURCE_COLUMNS.filter((c) => c.kind === kind);
       expect(order.slice(-sources.length).map((c) => `${c.table}.${c.column}`)).toEqual(sources.map((c) => `${c.table}.${c.column}`));
-      expect(order.length).toBeGreaterThan(sources.length);
+      expect(order.length).toBeGreaterThanOrEqual(sources.length);
       expect(order.every((c) => c.kind === kind)).toBe(true);
     }
+  });
+
+  it("rewrites the shared copies of item and monster art, and only library_backgrounds for a background", () => {
+    expect(updateOrder("item").length).toBeGreaterThan(SOURCE_COLUMNS.filter((c) => c.kind === "item").length);
+    expect(updateOrder("monster").length).toBeGreaterThan(SOURCE_COLUMNS.filter((c) => c.kind === "monster").length);
+    expect(updateOrder("background").map((c) => `${c.table}.${c.column}`)).toEqual(["library_backgrounds.image_url"]);
   });
 });
 

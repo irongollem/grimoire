@@ -13,7 +13,8 @@ vi.mock("@/composables/party/useArmorClass", () => ({ useArmorClass: () => ({ ac
 vi.mock("@/composables/play/useReadItems", () => ({
   useReadItems: () => ({ isUnread: () => false, markRead: vi.fn() }),
 }));
-vi.mock("@/composables/monsters/useMonstersByIds", () => ({ useMonstersByIds: () => ({ data: { value: new Map() } }) }));
+const monsters = vi.hoisted(() => ({ byId: new Map<string, unknown>() }));
+vi.mock("@/composables/monsters/useMonstersByIds", () => ({ useMonstersByIds: () => ({ data: { value: monsters.byId } }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { value: [] } }) }));
 
 const CAMPAIGN_ID = "c1";
@@ -79,5 +80,39 @@ describe("PartyTrackerRow species name", () => {
   it("still resolves a species of the campaign's own edition", () => {
     const wrapper = mountRow(member("2014", "sp-2014"), "Species of 2014");
     expect(wrapper.text()).toContain("Species of 2014 · Wizard · Lv3");
+  });
+});
+
+// A form assumed on the player sheet copied the library row's bare
+// `image_url`, which is null for a beast whose picture lives in the art
+// tables, so a druid shaped as a Dire Wolf showed the placeholder here
+// (5 Oct 2026). The tracker now draws the beast's picture as it reads now.
+describe("PartyTrackerRow wild-shaped portrait", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    useCampaignStore().activeCampaignId = CAMPAIGN_ID;
+    monsters.byId.clear();
+  });
+
+  /** Creates a Dire Wolf form fixture with a saved portrait URL, or null to test missing art. */
+  function shaped(beast_image_url: string | null): PartyMember {
+    return {
+      ...member("2014", "sp-2014"),
+      wildshape_state: {
+        monster_id: "srd_dire-wolf", beast_name: "Dire Wolf", beast_image_url,
+        beast_hp: 37, beast_max_hp: 37, beast_ac: "14",
+      },
+    } as PartyMember;
+  }
+
+  it("draws the beast's art even when the form copied no picture", () => {
+    monsters.byId.set("srd_dire-wolf", { id: "srd_dire-wolf", image_url: "https://cdn.test/dire-wolf.webp", stat_block: {} });
+    const wrapper = mountRow(shaped(null), "Firbolg");
+    expect(wrapper.findComponent({ name: "FocalImage" }).attributes("src")).toBe("https://cdn.test/dire-wolf.webp");
+  });
+
+  it("falls back to the form's own copy until the beast resolves", () => {
+    const wrapper = mountRow(shaped("https://cdn.test/copied.webp"), "Firbolg");
+    expect(wrapper.findComponent({ name: "FocalImage" }).attributes("src")).toBe("https://cdn.test/copied.webp");
   });
 });

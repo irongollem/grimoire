@@ -311,39 +311,6 @@ export function useSharedNpcsByLocations(locationIds: Ref<string[]>) {
   });
 }
 
-// ── Player personal notes on an NPC ──────────────────────────────────────────
-
-const NOTES_KEY = "npc_player_notes";
-
-export function useNpcPlayerNotes(npcId: string) {
-  return useQuery({
-    queryKey: [NOTES_KEY, npcId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("npc_player_notes")
-        .select("notes")
-        .eq("npc_id", npcId)
-        .maybeSingle();
-      return data?.notes ?? "";
-    },
-    enabled: !!npcId,
-  });
-}
-
-export function useUpsertNpcPlayerNotes(npcId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (notes: string) => {
-      const user = getCurrentUser();
-      const { error } = await supabase
-        .from("npc_player_notes")
-        .upsert({ npc_id: npcId, user_id: user!.id, notes }, { onConflict: "npc_id,user_id" });
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [NOTES_KEY, npcId] }),
-  });
-}
-
 // ── Populate from setting ──────────────────────────────────────────────────────
 
 /** Normalise a name for fuzzy dedup: lowercase + strip punctuation/symbols. */

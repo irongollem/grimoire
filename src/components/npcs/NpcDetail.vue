@@ -45,7 +45,7 @@
     >
       <div>
         <p class="text-label font-semibold text-muted-foreground mb-2">PARTY NOTES</p>
-        <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Notes visible to the whole party…" />
+        <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Your thoughts on this character…" />
       </div>
       <div>
         <p class="text-label font-semibold text-muted-foreground mb-2">PC CONNECTION NOTES</p>

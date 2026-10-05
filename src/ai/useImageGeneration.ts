@@ -46,9 +46,8 @@ const PURPOSES: Record<ImagePurpose, PurposeConfig> = {
   trap:           { bucket: "trapImages",     size: "1024x1536", variants: true,  scene: false, labelled: false },
   puzzle:         { bucket: "puzzleImages",   size: "1024x1536", variants: true,  scene: false, labelled: false },
   party_member:   { bucket: "chronicle",      size: "1024x1536", variants: false, scene: false, labelled: true },
-  species:        { bucket: "assetImages",    size: "1024x1024", variants: false, scene: false, labelled: false },
-  // Epic #910. A feature's art has always lived in asset-images (see DungeonFeatureEditor).
-  dungeon_feature: { bucket: "assetImages",   size: "1024x1536", variants: true,  scene: false, labelled: false },
+  species:        { bucket: "speciesImages",  size: "1024x1024", variants: true,  scene: false, labelled: false },
+  dungeon_feature: { bucket: "dungeonFeatureImages", size: "1024x1536", variants: true, scene: false, labelled: false },
   deity:          { bucket: "pantheonEmblems", size: "1024x1536", variants: true,  scene: false, labelled: false },
 };
 

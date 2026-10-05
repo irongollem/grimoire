@@ -22,7 +22,7 @@
           :model-value="form.image_url || null"
           :focal-point="form.focal_point"
           show-focal-point
-          bucket="asset-images"
+          bucket="species-images"
           ai-kind="species"
           :ai-target-id="props.species?.id"
           :ai-context="aiContext"

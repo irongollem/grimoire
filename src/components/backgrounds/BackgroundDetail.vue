@@ -11,7 +11,7 @@
           :model-value="form.image_url"
           aspect="auto"
           placeholder="Portrait"
-          bucket="asset-images"
+          bucket="background-images"
           @update:model-value="form.image_url = $event"
         />
       </div>

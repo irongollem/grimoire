@@ -46,6 +46,7 @@ vi.mock("@/composables/party/useParty", () => ({
   }),
 }));
 vi.mock("@/composables/rules/useSpecies", () => ({ useSpeciesNames: () => () => null }));
+vi.mock("@/composables/monsters/useMonstersByIds", () => ({ useMonstersByIds: () => ({ data: { value: new Map() } }) }));
 vi.mock("@/composables/party/useArmorClass", () => ({
   useArmorClass: () => ({ acFor: () => 10, acBreakdownFor: () => ({ total: 10, parts: [{ label: "Base", value: 10 }], notes: [] }) }),
 }));vi.mock("@/composables/party/useCharacterClasses", () => ({

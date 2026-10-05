@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type MaybeRefOrGetter, toValue, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { removeStorageImages } from "@/composables/useImageUpload";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import type { Species, SpeciesInsert, SpeciesUpdate } from "@/types/species.types";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -56,7 +56,7 @@ async function updateSpecies(id: string, update: SpeciesUpdate): Promise<Species
 async function deleteSpecies(species: Species): Promise<void> {
   const { error } = await supabase.from("species").delete().eq("id", species.id);
   if (error) throw error;
-  await removeStorageImages("asset-images", species.image_url);
+  await deleteUnreferencedByPublicUrl({ urls: [species.image_url] });
 }
 
 async function fetchLibrarySpecies(enabledSlugs: string[], ruleset: RulesetKey): Promise<Species[]> {

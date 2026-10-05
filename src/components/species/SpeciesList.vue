@@ -175,6 +175,7 @@ import type { Species } from "@/types/species.types";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { isUuid } from "@/lib/library/contentIdentity";
+import { allowedSpecies } from "@/lib/campaignContentGating";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -194,12 +195,19 @@ const { selectMode } = defineProps<{ readonly?: boolean; selectMode?: boolean; s
 const emit = defineEmits<{ select: [species: Species] }>();
 
 const ui = useUiStore();
+const { activeCampaign, activeCampaignId } = storeToRefs(useCampaignStore());
 // Picking (select mode) obeys the campaign's blocklist; browsing the codex does
-// not — the DM still needs to open and edit a species they switched off (#566).
+// not, because the DM still needs to open and edit a species they switched off
+// (#566). Browsing still obeys exclusivity: a species scoped to another campaign
+// is that campaign's, and listing it here put the demo template's copies of a
+// species beside the originals they were copied from.
 const { data: campaignSpecies, all: allSpecies, isLoading } = useCampaignSpecies();
+const browsableSpecies = computed(() =>
+  allowedSpecies(allSpecies.value, { campaignId: activeCampaignId.value, disabledIds: undefined }),
+);
 
 const filtered = computed(() => {
-  let list = selectMode ? campaignSpecies.value : (allSpecies.value ?? []);
+  let list = selectMode ? campaignSpecies.value : browsableSpecies.value;
 
   if (ui.speciesFilterSize !== "all") {
     list = list.filter((s) => s.size === ui.speciesFilterSize);
@@ -239,7 +247,6 @@ linkCount(visibleCount);
 // (a slug id rather than a uuid, `isUuid(s.id)`) are excluded from selection —
 // the same distinction the Edit button above already uses.
 const bulk = useBulkSelection();
-const { activeCampaign } = storeToRefs(useCampaignStore());
 
 // Every row a bulk move may legally touch: passes the current filters and
 // has a real uuid (not shared/library content). Reused by "select all" and

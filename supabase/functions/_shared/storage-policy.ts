@@ -18,8 +18,10 @@
 //
 //   `{userId}/…`   every registry bucket, insert/update/delete
 //                  (`(storage.foldername(name))[1] = auth.uid()::text`)
-//   `srd/…`        monster-images + spell-images + item-images, app admins only
-//                  (migrations 20260514000003 / 20260514000004 / 20261002150137)
+//   `srd/…`        monster-images + spell-images + item-images +
+//                  background-images + species-images, app admins only
+//                  (migrations 20260514000003 / 20260514000004 / 20261002150137
+//                  / 20261005142210 / 20261005144201)
 //   `library/…`    sounds only, app admins only — the shared sound catalogue
 //                  (migration 20260728000004)
 //
@@ -104,6 +106,10 @@ export const STORAGE_WRITE_POLICY: readonly BucketWritePolicy[] = [
   image("spell-images", ["srd"]),
   image("puzzle-images"),
   image("item-images", ["srd"]),
+  image("background-images", ["srd"]),
+  image("species-images", ["srd"]),
+  // No srd/: there is no library of dungeon features, so no canonical art.
+  image("dungeon-feature-images"),
   image("monster-images", ["srd"]),
   image("trap-images"),
   image("location-images"),

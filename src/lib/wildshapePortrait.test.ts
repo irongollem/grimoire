@@ -29,4 +29,19 @@ describe("formPortrait", () => {
   it("has no focal point for a character who never set one", () => {
     expect(formPortrait({ name: "Briar", portrait_url: null }, undefined)).toEqual({ src: null, focalPoint: null, alt: "Briar", shaped: false });
   });
+
+  // A form assumed without the library art merged copied a null picture; the
+  // beast's live picture, when the caller has it, is drawn instead (5 Oct 2026).
+  it("prefers the beast's live picture to the copy the form took", () => {
+    expect(formPortrait(druid, wolf(null), "https://cdn.test/wolf-art.webp").src).toBe("https://cdn.test/wolf-art.webp");
+    expect(formPortrait(druid, wolf("https://cdn.test/old.webp"), "https://cdn.test/new.webp").src).toBe("https://cdn.test/new.webp");
+  });
+
+  it("keeps the form's copy while the live picture is not known", () => {
+    expect(formPortrait(druid, wolf("https://cdn.test/wolf.webp"), null).src).toBe("https://cdn.test/wolf.webp");
+  });
+
+  it("never lets a live picture replace the character's own portrait", () => {
+    expect(formPortrait(druid, null, "https://cdn.test/wolf-art.webp").src).toBe(druid.portrait_url);
+  });
 });

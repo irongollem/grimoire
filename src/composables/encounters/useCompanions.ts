@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Companion, CompanionInsert, CompanionUpdate } from "@/types/companion.types";
-import { removeStorageImages } from "@/composables/useImageUpload";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 
 const COMPANIONS_KEY = "companions";
 
@@ -42,7 +42,7 @@ async function updateCompanion(id: string, update: CompanionUpdate): Promise<Com
 async function deleteCompanion(companion: Companion): Promise<void> {
   const { error } = await supabase.from("companions").delete().eq("id", companion.id);
   if (error) throw error;
-  await removeStorageImages("asset-images", companion.portrait_url);
+  await deleteUnreferencedByPublicUrl({ urls: [companion.portrait_url] });
 }
 
 export function useCompanions() {

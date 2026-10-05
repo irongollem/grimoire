@@ -3,7 +3,7 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
-import { removeStorageImages } from "@/composables/useImageUpload";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { useToast } from "@/composables/useToast";
 import { isUuid } from "@/lib/library/contentIdentity";
 
@@ -42,7 +42,7 @@ async function updateSpell(id: string, update: SpellUpdate): Promise<Spell> {
 async function deleteSpell(spell: Spell): Promise<void> {
   const { error } = await supabase.from("spells").delete().eq("id", spell.id);
   if (error) throw error;
-  await removeStorageImages("asset-images", spell.image_url);
+  await deleteUnreferencedByPublicUrl({ urls: [spell.image_url] });
 }
 
 export function useSpell(id: string | Ref<string>) {
