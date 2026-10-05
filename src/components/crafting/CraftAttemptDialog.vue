@@ -37,12 +37,12 @@
             v-for="(ing, idx) in ingredientSlots"
             :key="idx"
             class="flex items-center gap-2 rounded-md border px-3 py-2"
-            :class="ing.matched ? 'border-elven-green/40 bg-elven-green/5' : 'border-destructive/40 bg-destructive/5'"
+            :class="slotMet(ing) ? 'border-elven-green/40 bg-elven-green/5' : 'border-destructive/40 bg-destructive/5'"
           >
-            <component :is="ing.matched ? IconCheckCircle : IconCloseCircle" class="h-4 w-4 shrink-0" :class="ing.matched ? 'text-elven-green' : 'text-destructive'" />
+            <component :is="slotMet(ing) ? IconCheckCircle : IconCloseCircle" class="h-4 w-4 shrink-0" :class="slotMet(ing) ? 'text-elven-green' : 'text-destructive'" />
             <div class="flex-1 min-w-0">
               <p class="text-caption font-semibold text-foreground truncate" :class="{ italic: !ing.item_id }">{{ ing.itemName }}</p>
-              <p class="text-caption-sm text-muted-foreground">Need {{ ing.needed }}×<span v-if="ing.matched"> · Have {{ ing.available }}×</span></p>
+              <p class="text-caption-sm text-muted-foreground">Need {{ ing.needed }}×<span v-if="slotMet(ing)"> · Have {{ ing.available }}×</span></p>
             </div>
             <span v-if="idx === 0" class="text-label text-primary shrink-0">PRIMARY</span>
           </div>
@@ -81,6 +81,7 @@
           <AppCheckbox
             v-if="workspaceBonus > 0"
             v-model="workspaceEnabled"
+            :disabled="!!result"
             label-layout="row"
             :class="['gap-2.5 rounded-md border px-3 py-2 hover:bg-muted/40 transition-colors', workspaceEnabled ? 'border-primary/40 bg-primary/5' : 'border-border']"
           >
@@ -91,6 +92,7 @@
           <!-- Standard poor-ingredient penalty -->
           <AppCheckbox
             v-model="poorIngredientsEnabled"
+            :disabled="!!result"
             label-layout="row"
             :class="['gap-2.5 rounded-md border px-3 py-2 hover:bg-muted/40 transition-colors', poorIngredientsEnabled ? 'border-destructive/40 bg-destructive/5' : 'border-border']"
           >
@@ -103,6 +105,7 @@
             v-for="(mod, idx) in modifiers"
             :key="idx"
             :model-value="selectedModifiers.has(idx)"
+            :disabled="!!result"
             label-layout="row"
             :class="['gap-2.5 rounded-md border px-3 py-2 hover:bg-muted/40 transition-colors', selectedModifiers.has(idx) ? 'border-primary/40 bg-primary/5' : 'border-border']"
             @update:model-value="toggleModifier(idx)"
@@ -123,7 +126,7 @@
       <p v-if="chatNotice" class="text-caption text-muted-foreground" role="status">{{ chatNotice }}</p>
 
       <!-- Roll result -->
-      <div v-if="result" class="rounded-lg border px-4 py-3 text-center"
+      <div v-if="result" ref="resultEl" class="rounded-lg border px-4 py-3 text-center scroll-mb-4"
         :class="{
           'border-elven-green/40 bg-elven-green/10': result.outcome === 'success',
           'border-border bg-muted/30': result.outcome === 'fail',
@@ -186,7 +189,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, useId } from "vue";
+import { ref, computed, nextTick, useId } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppModal from "@/components/common/AppModal.vue";
@@ -194,6 +197,7 @@ import { IconCheckCircle, IconClose, IconCloseCircle, IconDiceRoll, IconWarning 
 import { getDiscipline } from "@/lib/crafting-disciplines";
 import { useAttemptCraft } from "@/composables/crafting/useCrafting";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { revealInScrollParent } from "@/lib/motion";
 import { reportHandledError } from "@/lib/observability/sentry";
 
 import type { CraftingRecipe, CraftingOutput, CraftingModifier, CraftingAttemptResult } from "@/types/crafting.types";
@@ -216,8 +220,8 @@ const props = defineProps<{
   inventory: PartyInventoryItem[];
   /** All items from vault (for name lookup) */
   allItems: Item[];
-  /** output item_id → name, for outputs the player can't read via RLS (#521) */
-  outputNameMap?: Map<string, string>;
+  /** item_id → name for recipe outputs and ingredients the player can't read via RLS (#521) */
+  itemNameMap?: Map<string, string>;
   member: PartyMember;
   /** Whether the player has the required tool in their inventory */
   hasTools: boolean;
@@ -240,6 +244,7 @@ const { mutateAsync: attemptCraft } = useAttemptCraft();
 const { sendMessage } = useCampaignMessages();
 
 const result = ref<CraftingAttemptResult | null>(null);
+const resultEl = ref<HTMLElement | null>(null);
 const attempting = ref(false);
 const attemptError = ref<string | null>(null);
 // The craft itself worked; only the chat post failed. Kept apart from attemptError
@@ -269,7 +274,7 @@ const ingredientSlots = computed(() =>
     const ref = inventoryItemRef(req);
 
     if (ref) {
-      itemName = props.allItems.find((i) => i.id === ref)?.name ?? "Unknown item";
+      itemName = resolveItemName(ref) ?? "Unknown item";
       available = props.inventory
         .filter((inv) => inventoryItemRef(inv) === ref && !inv.is_ruined)
         .reduce((sum, inv) => sum + inv.quantity, 0);
@@ -299,6 +304,12 @@ const ingredientSlots = computed(() =>
     };
   }),
 );
+
+// Once rolled, the ingredients are spent, so "have enough" would read as a red
+// error on the very row that was just used. After the roll the slots stay calm.
+function slotMet(slot: { matched: boolean }): boolean {
+  return slot.matched || !!result.value;
+}
 
 const canAttempt = computed(() =>
   ingredientSlots.value.every((s) => s.matched) && !attempting.value,
@@ -378,14 +389,14 @@ const outcomeLabel = computed(() => {
   return "Failure";
 });
 
-function resolveOutputName(ref: string): string | undefined {
-  return props.allItems.find((i) => i.id === ref)?.name ?? props.outputNameMap?.get(ref);
+function resolveItemName(ref: string): string | undefined {
+  return props.allItems.find((i) => i.id === ref)?.name ?? props.itemNameMap?.get(ref);
 }
 
 const outputNames = computed(() =>
   props.outputs.map((o) => {
     const ref = inventoryItemRef(o);
-    const name = (ref ? resolveOutputName(ref) : undefined) ?? "item";
+    const name = (ref ? resolveItemName(ref) : undefined) ?? "item";
     return o.quantity > 1 ? `${o.quantity}× ${name}` : name;
   }),
 );
@@ -419,7 +430,7 @@ async function attempt() {
     const resolvedOutputNames: Record<string, string> = {};
     for (const o of props.outputs) {
       const ref = inventoryItemRef(o);
-      const name = ref ? resolveOutputName(ref) : undefined;
+      const name = ref ? resolveItemName(ref) : undefined;
       if (ref && name) resolvedOutputNames[ref] = name;
     }
 
@@ -450,6 +461,11 @@ async function attempt() {
     });
 
     result.value = res;
+    // The dialog body scrolls and the roll lands below the fold on a phone, so
+    // bring it into view; reduced motion is honoured inside revealInScrollParent.
+    void nextTick(() => {
+      if (resultEl.value) revealInScrollParent(resultEl.value);
+    });
 
     // Post to chat
     const modSum = modifierBonuses.value.reduce((a, b) => a + b, 0);

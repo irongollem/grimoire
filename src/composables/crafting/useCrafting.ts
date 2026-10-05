@@ -75,7 +75,7 @@ async function fetchOutputs(recipeId: string): Promise<CraftingOutput[]> {
   return data as CraftingOutput[];
 }
 
-// Names of items a recipe produces, for recipes the caller can access. A player
+// Names of items a recipe produces or consumes, for recipes the caller can access. A player
 // shared a recipe can't read its output item under RLS, so the recipe card fell
 // back to "Unknown item" and a craft inserted an empty-name row — this projection
 // exposes just id+name (not secret; the shared recipe advertises its output).
@@ -187,9 +187,10 @@ export function usePlayerCraftingRecipes() {
 }
 
 /**
- * Map of output item_id → name for every recipe the caller can access in the
- * active campaign. Lets a player resolve a craftable output's name even though
- * they can't read the output vault item under RLS (recipe cards + crafted rows).
+ * Map of item_id → name for the outputs and ingredients of every recipe the
+ * caller can access in the active campaign. Lets a player resolve a name even
+ * though they can't read the DM-owned vault item under RLS (recipe cards,
+ * ingredient rows, crafted rows).
  */
 export function useCraftableOutputItems() {
   const campaign = useCampaignStore();

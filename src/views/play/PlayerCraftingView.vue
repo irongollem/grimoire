@@ -175,7 +175,7 @@
       :modifiers="modifiersFor(attemptRecipe.id)"
       :inventory="myInventory"
       :all-items="allItems"
-      :output-name-map="craftableOutputNames"
+      :item-name-map="recipeItemNames"
       :member="member"
       :has-tools="hasTools(attemptDiscipline.tools)"
       :has-proficiency="hasProficiency(attemptDiscipline.tools)"
@@ -212,7 +212,7 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const { data: recipes } = usePlayerCraftingRecipes();
 const { data: projection } = usePlayerItemProjection();
-const { map: craftableOutputNames } = useCraftableOutputItems();
+const { map: recipeItemNames } = useCraftableOutputItems();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
 
@@ -319,11 +319,10 @@ function itemName(ref: string | null): string {
   if (!ref) return "Unknown item";
   return allItems.value.find((i) => i.id === ref)?.name
     // A recipe output the player has never held isn't in their visible items, so
-    // resolve its name from the craftable-output projection before giving up.
-    // (That projection only ever covers vault items — see useCraftableOutputItems
-    // — but a library-referenced ref already resolved above via allItems, which
-    // reads it by id.)
-    ?? craftableOutputNames.value.get(ref)
+    // resolve its name from the craftable-item projection (recipe outputs AND
+    // ingredients) before giving up. It only covers vault items; a
+    // library-referenced ref already resolved above via allItems.
+    ?? recipeItemNames.value.get(ref)
     ?? "Unknown item";
 }
 

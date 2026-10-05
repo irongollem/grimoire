@@ -20,11 +20,16 @@ insert into public.campaigns (id, user_id, name) values
   ('93660000-0000-4000-8000-0000000000c1', '93660000-0000-4000-8000-000000000001', 'Dana''s table'),
   ('93660000-0000-4000-8000-0000000000c2', '93660000-0000-4000-8000-000000000002', 'Eve''s table');
 
-insert into public.campaign_members (campaign_id, user_id, role, display_name) values
-  ('93660000-0000-4000-8000-0000000000c1', '93660000-0000-4000-8000-000000000001', 'dm', 'Dana'),
-  ('93660000-0000-4000-8000-0000000000c2', '93660000-0000-4000-8000-000000000002', 'dm', 'Eve'),
-  ('93660000-0000-4000-8000-0000000000c1', '93660000-0000-4000-8000-000000000003', 'player', 'Pat')
-on conflict (campaign_id, user_id) do update set role = excluded.role;
+-- Pat plays a character, so a recipe can be shared with Pat below.
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, is_dm_managed, ruleset)
+values ('93660000-0000-4000-8000-0000000000e3', '93660000-0000-4000-8000-000000000003',
+        '93660000-0000-4000-8000-000000000003', '93660000-0000-4000-8000-0000000000c1', 'Pat''s hero', false, '2014');
+
+insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id) values
+  ('93660000-0000-4000-8000-0000000000c1', '93660000-0000-4000-8000-000000000001', 'dm', 'Dana', null),
+  ('93660000-0000-4000-8000-0000000000c2', '93660000-0000-4000-8000-000000000002', 'dm', 'Eve', null),
+  ('93660000-0000-4000-8000-0000000000c1', '93660000-0000-4000-8000-000000000003', 'player', 'Pat', '93660000-0000-4000-8000-0000000000e3')
+on conflict (campaign_id, user_id) do update set role = excluded.role, party_member_id = excluded.party_member_id;
 
 -- Dana's ready AI job, plus her item and monster and a craftable recipe.
 insert into public.ai_generation_jobs (id, user_id, campaign_id, generator_type, status, result_json)
@@ -43,6 +48,25 @@ values ('93660000-0000-4000-8000-0000000000d1', '93660000-0000-4000-8000-0000000
         '93660000-0000-4000-8000-0000000000c1');
 insert into public.crafting_recipe_outputs (recipe_id, item_id)
 values ('93660000-0000-4000-8000-0000000000d1', '93660000-0000-4000-8000-0000000000b1');
+
+-- Ingredients are named too (20261005014521). d1 stays unshared and gains an
+-- ingredient; d2 is shared with Pat's character (seated above) and has an output and an
+-- ingredient of its own, so Pat must read exactly d2's two names.
+insert into public.items (id, user_id, campaign_id, name) values
+  ('93660000-0000-4000-8000-0000000000b3', '93660000-0000-4000-8000-000000000001',
+   '93660000-0000-4000-8000-0000000000c1', 'Zorblax Tea-Leaf'),
+  ('93660000-0000-4000-8000-0000000000b4', '93660000-0000-4000-8000-000000000001',
+   '93660000-0000-4000-8000-0000000000c1', 'Zorblax Secret Dust'),
+  ('93660000-0000-4000-8000-0000000000b5', '93660000-0000-4000-8000-000000000001',
+   '93660000-0000-4000-8000-0000000000c1', 'Zorblax Kettle');
+insert into public.crafting_recipes (id, user_id, campaign_id, player_visible_to)
+values ('93660000-0000-4000-8000-0000000000d2', '93660000-0000-4000-8000-000000000001',
+        '93660000-0000-4000-8000-0000000000c1', array['93660000-0000-4000-8000-0000000000e3'::uuid]);
+insert into public.crafting_recipe_outputs (recipe_id, item_id)
+values ('93660000-0000-4000-8000-0000000000d2', '93660000-0000-4000-8000-0000000000b5');
+insert into public.crafting_recipe_ingredients (recipe_id, item_id) values
+  ('93660000-0000-4000-8000-0000000000d1', '93660000-0000-4000-8000-0000000000b4'),
+  ('93660000-0000-4000-8000-0000000000d2', '93660000-0000-4000-8000-0000000000b3');
 
 create function pg_temp.as_user(p_n int, p_admin boolean default false) returns void language sql as $$
   select set_config('request.jwt.claims',
@@ -145,13 +169,14 @@ select is_empty(
   $$ select * from public.get_craftable_output_items('93660000-0000-4000-8000-0000000000c1') $$,
   'a stranger sees no craftable outputs');
 select pg_temp.as_user(3);
-select is_empty(
-  $$ select * from public.get_craftable_output_items('93660000-0000-4000-8000-0000000000c1') $$,
-  'a member the recipe was not shared with sees no craftable outputs');
+select is(
+  (select array_agg(name order by name) from public.get_craftable_output_items('93660000-0000-4000-8000-0000000000c1')),
+  array['Zorblax Kettle', 'Zorblax Tea-Leaf'],
+  'a member reads the output and ingredient of the recipe shared with them, and nothing of the unshared one');
 select pg_temp.as_user(1);
 select is(
   (select count(*) from public.get_craftable_output_items('93660000-0000-4000-8000-0000000000c1')),
-  1::bigint, 'the recipe owner sees the craftable output');
+  4::bigint, 'the recipe owner sees every output and ingredient');
 
 select * from finish();
 rollback;
