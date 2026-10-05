@@ -103,7 +103,10 @@ function createNext(beatId: string) {
   const beat = beats.find((candidate) => candidate.id === beatId);
   emit("command", { type: "create", sourceBeatId: beatId, x: (beat?.canvas_x ?? 0) + 320, y: beat?.canvas_y ?? 0 });
 }
-function onNodeDragStop(event: { node: { id: string; position: { x: number; y: number } } }) { emit("command", moveBeatCommand(event.node)); }
+// A drag moves every selected node, so each one is reported, not just the grabbed one.
+function onNodeDragStop(event: { nodes: { id: string; position: { x: number; y: number } }[] }) {
+  for (const node of event.nodes) emit("command", moveBeatCommand(node));
+}
 function onConnect(connection: { source: string | null; target: string | null }) {
   connectionCompleted = true;
   if (editable && connection.source && connection.target && connection.source !== connection.target) emit("command", { type: "link", sourceBeatId: connection.source, targetBeatId: connection.target });

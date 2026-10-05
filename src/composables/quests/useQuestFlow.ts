@@ -481,6 +481,56 @@ export function useUpdateQuestBeat() {
   });
 }
 
+export interface QuestBeatPosition {
+  id: string;
+  x: number;
+  y: number;
+}
+
+/** Writes every position of one drag in a single statement. The RPC is scoped to
+ * the quest and checks the caller is its DM; it returns how many beats moved. */
+export async function setQuestBeatPositions(questId: string, positions: QuestBeatPosition[]) {
+  const { data, error } = await supabase.rpc("set_quest_beat_positions", {
+    p_quest_id: questId,
+    p_positions: positions,
+  });
+  if (error) throw error;
+  return data as number;
+}
+
+/** Moving beats on the canvas changes nothing the quest board, a beat's detail
+ * or a player projection shows, so only the quest's own beat list is refetched
+ * (once, however many beats moved), unlike `useUpdateQuestBeat`. */
+export function useSetQuestBeatPositions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { questId: string; positions: QuestBeatPosition[] }) =>
+      setQuestBeatPositions(input.questId, input.positions),
+    onMutate: async (input) => {
+      const key = [BEATS_KEY, input.questId];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<QuestBeat[]>(key);
+      if (previous) {
+        const moved = new Map(input.positions.map((position) => [position.id, position]));
+        queryClient.setQueryData<QuestBeat[]>(
+          key,
+          previous.map((beat) => {
+            const position = moved.get(beat.id);
+            return position ? { ...beat, canvas_x: position.x, canvas_y: position.y } : beat;
+          }),
+        );
+      }
+      return { key, previous };
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous !== undefined) queryClient.setQueryData(context.key, context.previous);
+    },
+    onSettled: (_data, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
+    },
+  });
+}
+
 export function useDeleteQuestBeat() {
   const queryClient = useQueryClient();
   return useMutation({

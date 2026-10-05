@@ -168,7 +168,7 @@ import {
   useQuestRuntimeContext,
   useSetQuestBeatEdgeGate,
   useUpdateQuestBeatEdge,
-  useUpdateQuestBeat,
+  useSetQuestBeatPositions,
 } from "@/composables/quests/useQuestFlow";
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
@@ -235,7 +235,7 @@ const threads = computed(() => threadsQuery.data.value ?? []);
 const focusThreadId = computed(() => defaultThreadId(threads.value) ?? "");
 const runtimeContextQuery = useQuestRuntimeContext(questIdRef, focusThreadId);
 const transitionsQuery = useQuestBeatTransitionsForQuest(questIdRef);
-const updateBeat = useUpdateQuestBeat();
+const setPositions = useSetQuestBeatPositions();
 const createBeatWithRoute = useCreateQuestBeatWithRoute();
 const archiveBeat = useArchiveQuestBeat();
 const createEdge = useCreateQuestBeatEdge();
@@ -438,15 +438,15 @@ const deletionImpact = computed(() => ({
 
 const pendingMoves = new Map<string, Extract<QuestGraphCommand, { type: "move" }>>();
 async function flushPositions() {
-  const commands = [...pendingMoves.values()];
+  // Cleared before the await so a move arriving mid-flight waits for the next flush.
+  const positions = [...pendingMoves.values()].map((command) => ({ id: command.beatId, x: command.x, y: command.y }));
   pendingMoves.clear();
-  for (const command of commands) {
-    saveError.value = "";
-    try {
-      await updateBeat.mutateAsync({ id: command.beatId, questId, update: { canvas_x: command.x, canvas_y: command.y } });
-    } catch (error) {
-      saveError.value = error instanceof Error ? error.message : "Unknown save error";
-    }
+  if (positions.length === 0) return;
+  saveError.value = "";
+  try {
+    await setPositions.mutateAsync({ questId, positions });
+  } catch (error) {
+    saveError.value = error instanceof Error ? error.message : "Unknown save error";
   }
 }
 const savePositions = useDebounceFn(flushPositions, 300, { maxWait: 1000 });

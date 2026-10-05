@@ -176,3 +176,18 @@ describe("QuestFlowCanvas legend", () => {
     expect(wrapper.text()).toContain("gated / cut off");
   });
 });
+
+describe("QuestFlowCanvas drag", () => {
+  it("reports every node a drag moved, not only the grabbed one", () => {
+    const wrapper = mountCanvas();
+    const nodes = [
+      { id: "beat-a", position: { x: 10, y: 20 } },
+      { id: "beat-b", position: { x: 30, y: 40 } },
+    ];
+    wrapper.findComponent({ name: "VueFlow" }).vm.$emit("node-drag-stop", { node: nodes[0], nodes });
+    expect(wrapper.emitted("command")).toEqual([
+      [{ type: "move", beatId: "beat-a", x: 10, y: 20 }],
+      [{ type: "move", beatId: "beat-b", x: 30, y: 40 }],
+    ]);
+  });
+});
