@@ -295,7 +295,7 @@ A full equipment and item management system. Full detail documented separately i
 **Containers:**
 
 - Default Backpack and Belt sections always present
-- Custom containers: any inventory item promoted via "Add container" button becomes a collapsible section; items tagged "container" in the vault are auto-promoted on add
+- Custom containers: any inventory item promoted via "Add container" button becomes a collapsible section; items tagged "container" in the vault are auto-promoted on add, and the player can switch either way later from the `⋯` menu ("Use as a plain item" on the section header, "Use as a container" on the row). The header gives the weight including the container itself; see `items-spells-crafting.md`
 - Extradimensional containers (tagged `extradimensional`) contribute 0 weight
 - Each container section supports: add item, move item (to other container, belt, backpack, stored, or party stash), adjust quantity, split stack, drop to chat (removes from inventory + posts chat message), sell (posts offer to chat), reorder (drag-and-drop)
 - Rows show a small feather icon when the underlying vault item carries written content (`item.content !== null`), resolved against the cached player-visible items catalogue since the inventory row itself only carries the item id, not the vault item's own fields

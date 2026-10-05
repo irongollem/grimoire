@@ -58,6 +58,16 @@ export function contentItemIds(items: readonly { id: string; content: string | n
   return new Set(items.filter((it) => it.content != null).map((it) => it.id));
 }
 
+/** Ids of the items that can hold other things (a bag, a chest, a pack), for the
+ *  "Use as a container" switch on a row that is not one at the moment. */
+export function holderItemIds(
+  items: readonly { id: string; tags: readonly string[]; bundle_items?: readonly unknown[] | null }[],
+): Set<string> {
+  return new Set(
+    items.filter((it) => it.tags.includes("container") || (it.bundle_items?.length ?? 0) > 0).map((it) => it.id),
+  );
+}
+
 /** True when two rows reference the same catalogue entry — stack/ingredient matching. */
 export function sameItemRef(a: ItemRefColumns, b: ItemRefColumns): boolean {
   const left = inventoryItemRef(a);

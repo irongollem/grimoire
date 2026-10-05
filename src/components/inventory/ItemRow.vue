@@ -112,16 +112,20 @@
       />
     </div>
 
-    <div class="[@media(hover:hover)]:sm:hidden shrink-0">
+    <!-- The menu shows at every width: where the actions above are inline it holds what they cannot (moving, the container switch). -->
+    <div class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-within:opacity-100">
       <ItemRowMenu
         :item="item"
         :sellable="sellable"
         :move-targets="moveTargets"
+        :inline-actions="true"
+        :can-hold-items="canHoldItems"
         @drop-to-chat="$emit('drop-to-chat', item)"
         @split-stack="$emit('split-stack', item)"
         @sell-item="$emit('sell-item', item)"
         @remove="$emit('remove', item.id)"
         @move="(location, containerId) => $emit('move', item, location, containerId)"
+        @toggle-container="$emit('use-as-container', item)"
       />
     </div>
   </div>
@@ -145,6 +149,8 @@ const props = defineProps<{
   weightPerUnit?: number;
   /** The item this row carries is a written document. The parent holds the resolved items. */
   hasContent?: boolean;
+  /** The item can hold things (a bag, a chest): its menu offers to use it as a container. */
+  canHoldItems?: boolean;
 }>();
 
 defineEmits<{
@@ -155,6 +161,7 @@ defineEmits<{
   'sell-item': [item: PartyInventoryItem];
   'split-stack': [item: PartyInventoryItem];
   'move': [item: PartyInventoryItem, location: InventoryLocation | 'stash', containerId: string | null];
+  'use-as-container': [item: PartyInventoryItem];
 }>();
 
 function fmtW(v: number): string {

@@ -106,6 +106,28 @@ describe("ItemRow", () => {
       wrapper.unmount();
     });
 
+    it("offers to use an item that can hold things as a container", async () => {
+      const item = makeItem({ location: "backpack", carried_by: "m1" });
+      const wrapper = mount(ItemRow, {
+        props: { item, allContainers: [], canHoldItems: true },
+        attachTo: document.body,
+      });
+      await wrapper.find("[aria-haspopup='dialog']").trigger("click");
+      const use = Array.from(document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")).find(
+        (b) => b.textContent?.trim() === "Use as a container",
+      );
+      use?.click();
+      await wrapper.vm.$nextTick();
+      expect(wrapper.emitted("use-as-container")).toEqual([[item]]);
+      wrapper.unmount();
+    });
+
+    it("does not offer the container switch for an ordinary item", async () => {
+      const wrapper = await openMenu(makeItem({ location: "backpack", carried_by: "m1" }));
+      expect(menuLabels()).not.toContain("Use as a container");
+      wrapper.unmount();
+    });
+
     it("emits move with the chosen place", async () => {
       const item = makeItem({ location: "backpack", carried_by: "m1" });
       const wrapper = await openMenu(item);

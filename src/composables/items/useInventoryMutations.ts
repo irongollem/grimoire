@@ -19,6 +19,15 @@ import { fetchResolvedItem } from "@/composables/items/useItems";
 import type { Item, ItemIndexEntry } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
 
+/** How the confirm names the place a container's contents land. */
+const PLACE_NAMES: Record<InventoryLocation, string> = {
+  backpack: "your backpack",
+  belt: "your belt",
+  stored: "storage",
+  equipped: "your backpack",
+  container: "the container it is in",
+};
+
 interface UseInventoryMutationsOptions {
   resolvedMemberId: ComputedRef<string | null | undefined>;
   member: ComputedRef<PartyMember | null>;
@@ -70,6 +79,45 @@ export function useInventoryMutations({
     await updateInventoryItem({ id: item.id, update: { is_container: true } });
     showContainerPicker.value = false;
     containerPickerSearch.value = "";
+  }
+
+  /**
+   * Back to a plain item. Whatever it held goes where the container itself is,
+   * as tipping out a bag would: the backpack, the belt, storage, or the
+   * container it sits in. A worn one empties into the backpack.
+   */
+  async function makePlainItem(container: PartyInventoryItem) {
+    const contents = myItems.value.filter(
+      (i) => i.location === "container" && i.container_id === container.id,
+    );
+    const nestedIn =
+      container.location === "container" ? container.container_id : null;
+    const location: InventoryLocation =
+      container.location === "equipped" ? "backpack" : container.location;
+    if (contents.length > 0) {
+      const parent = nestedIn
+        ? myItems.value.find((i) => i.id === nestedIn)?.name
+        : null;
+      const place = parent ?? PLACE_NAMES[location];
+      const count = contents.length === 1 ? "1 item" : `${contents.length} items`;
+      if (
+        !(await confirm(
+          `Use "${container.name}" as a plain item? What it holds (${count}) moves to ${place}.`,
+        ))
+      )
+        return;
+    }
+    // Contents first: flipping the flag first would leave them pointing at a
+    // container that is no longer shown, for as long as the moves take.
+    await Promise.all(
+      contents.map((i) =>
+        updateInventoryItem({
+          id: i.id,
+          update: { location, container_id: nestedIn },
+        }),
+      ),
+    );
+    await updateInventoryItem({ id: container.id, update: { is_container: false } });
   }
 
   // ── Vault item helpers ────────────────────────────────────────────────────────
@@ -347,6 +395,7 @@ export function useInventoryMutations({
     containerPickerSearch,
     containerCandidates,
     promoteToContainer,
+    makePlainItem,
     adjustQty,
     moveItem,
     handleReorder,

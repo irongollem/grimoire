@@ -295,12 +295,14 @@ All containers are rendered as `ContainerSection` components with drag-and-drop 
 
 1. **Backpack** — always present, default location for newly added items.
 2. **Belt** — always present, a quick-access slot.
-3. **Custom containers** — inventory items that have `is_container = true`. Created by promoting an existing inventory item via the "Add container" picker. Items tagged `container` in the Vault auto-set `is_container` on add. Each custom container section shows its label (item name), total weight, and a remove button (which removes the container item row itself).
+3. **Custom containers** — inventory items that have `is_container = true`. Created by promoting an existing inventory item via the "Add container" picker. Items tagged `container` in the Vault auto-set `is_container` on add. Each custom container section shows its label (item name) and a summary: the item count, the weight **including the container itself** (its own weight is in no row, so the header is the only place a player can read it), what it weighs empty once the contents add anything, "contents weigh nothing" for an extradimensional one, and where it sits when that is not the backpack ("on belt", "stored elsewhere", "in Pack"). Its `⋯` menu (`ItemRowMenu` with `asContainer`) moves it between backpack, belt and storage, removes it, or makes it **a plain item again**.
+
+**The container switch goes both ways, at any time.** Auto-promotion on add is a guess, and sometimes a player just wants the sack in their pack. "Use as a plain item" (`makePlainItem`) tips whatever the container holds out into the place the container itself sits (the backpack, belt, storage, or the container it is nested in; a worn one empties into the backpack), asking first when it holds anything, then clears `is_container`. The plain row's menu offers "Use as a container" back for any carried item that can hold things (`holderItemIds`: tagged `container`, or a pack with bundle contents); the "Add container" picker still promotes anything else. A container is never offered the stash or another container as a destination: the first would strand its contents with the character, the second could make two containers hold each other.
 
 Within each container, items are shown as `ItemRow` rows supporting:
 
 - Quantity adjustment (+/− buttons)
-- Move to another container or location via dropdown
+- Move to another container or location via the row's `⋯` menu (shown at every width; where drop, split, sell and remove are inline, the menu holds only the move targets and the container switch)
 - "Drop to chat" — removes from inventory and posts an item-drop chat message
 - Split stack (prompts for qty, creates a second row)
 - Open detail panel

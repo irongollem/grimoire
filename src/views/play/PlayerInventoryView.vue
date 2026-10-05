@@ -76,6 +76,7 @@
       @close-container-picker="showContainerPicker = false"
       @update-container-search="(v) => { containerPickerSearch = v }"
       @promote-container="promoteToContainer"
+      @use-as-item="makePlainItem"
       @add-to-location="addToLocation"
       @move="moveItem"
       @remove="removeItem"
@@ -578,6 +579,7 @@ const {
   containerPickerSearch,
   containerCandidates,
   promoteToContainer,
+  makePlainItem,
   adjustQty,
   moveItem,
   handleReorder,

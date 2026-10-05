@@ -7,12 +7,10 @@
       @dragover="onHeaderDragOver"
       @dragleave="onHeaderDragLeave"
     >
-      <button class="flex items-center gap-1.5 flex-1 text-left" @click="open = !open">
+      <button class="flex items-center gap-x-1.5 gap-y-0.5 flex-wrap flex-1 min-w-0 text-left" @click="open = !open">
         <IconChevronRight class="h-3 w-3 text-muted-foreground transition-transform" :class="open ? 'rotate-90' : ''" />
         <span class="text-label-lg font-semibold text-foreground">{{ label }}</span>
-        <span class="text-label text-muted-foreground/60 ml-1">
-          ({{ items.length }}<template v-if="weight != null"> · {{ formatWeightLb(weight) }}</template>)
-        </span>
+        <span class="text-label text-muted-foreground/60">({{ meta }})</span>
       </button>
       <AppButton
         v-if="container"
@@ -24,11 +22,15 @@
         @click.stop="$emit('open-detail', container)"
       />
       <AppButton variant="ghost" size="inline-xs" label="+ Add" @click="showAdd = !showAdd" />
-      <button
-        v-if="removable"
-        class="text-label text-destructive/60 hover:text-destructive transition-colors ml-1"
-        @click="$emit('remove-container')"
-      >Remove</button>
+      <ItemRowMenu
+        v-if="container"
+        :item="container"
+        :as-container="true"
+        :move-targets="containerMoveTargets"
+        @remove="$emit('remove-container')"
+        @move="(location, containerId) => $emit('move', container!, location, containerId)"
+        @toggle-container="$emit('use-as-item', container!)"
+      />
     </div>
 
     <!-- Items — v-show keeps VueDraggable mounted so it's always a valid Sortable drop zone -->
@@ -78,6 +80,7 @@
           :sellable="sellable"
           :weight-per-unit="weightForItem(item)"
           :has-content="hasContent(item)"
+          :can-hold-items="canHoldItems(item)"
           @remove="(id) => $emit('remove', id)"
           @adjust-qty="(item, d) => $emit('adjust-qty', item, d)"
           @drop-to-chat="(item) => $emit('drop-to-chat', item)"
@@ -85,6 +88,7 @@
           @sell-item="(item) => $emit('sell-item', item)"
           @split-stack="(item) => $emit('split-stack', item)"
           @move="(item, loc, cid) => $emit('move', item, loc, cid)"
+          @use-as-container="(item) => $emit('use-as-container', item)"
         />
       </VueDraggable>
       <div v-if="!items.length && !showAdd" class="px-4 py-3">
@@ -102,10 +106,11 @@ import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.ty
 import type { Item, ItemIndexEntry } from "@/types/item.types";
 import { formatWeightLb, parseWeightLb } from "@/lib/utils";
 import ItemRow from "./ItemRow.vue";
+import ItemRowMenu, { type MoveTarget } from "./ItemRowMenu.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
-import { inventoryItemRef, contentItemIds } from "@/lib/itemRef";
+import { inventoryItemRef, contentItemIds, holderItemIds } from "@/lib/itemRef";
 
 const props = defineProps<{
   label: string;
@@ -119,8 +124,6 @@ const props = defineProps<{
   location: InventoryLocation;
   container?: PartyInventoryItem;
   containerId?: string;
-  isDefault?: boolean;
-  removable?: boolean;
   sellable?: boolean;
   weight?: number;
 }>();
@@ -130,6 +133,8 @@ const emit = defineEmits<{
   move: [item: PartyInventoryItem, location: InventoryLocation | 'stash', containerId: string | null];
   remove: [id: string];
   'remove-container': [];
+  'use-as-item': [container: PartyInventoryItem];
+  'use-as-container': [item: PartyInventoryItem];
   'adjust-qty': [item: PartyInventoryItem, delta: number];
   'drop-to-chat': [item: PartyInventoryItem];
   'open-detail': [item: PartyInventoryItem];
@@ -137,6 +142,73 @@ const emit = defineEmits<{
   'split-stack': [item: PartyInventoryItem];
   reorder: [items: PartyInventoryItem[]];
 }>();
+
+const vaultById = computed(() => new Map(props.allItems.map((it) => [it.id, it])));
+
+function vaultItemFor(item: PartyInventoryItem): Item | null {
+  const ref = inventoryItemRef(item);
+  return ref ? (vaultById.value.get(ref) ?? null) : null;
+}
+
+const holderRefs = computed(() => holderItemIds(props.allItems));
+
+function canHoldItems(item: PartyInventoryItem): boolean {
+  const ref = inventoryItemRef(item);
+  return !item.is_container && ref !== null && holderRefs.value.has(ref);
+}
+
+const LOCATION_HINT: Partial<Record<InventoryLocation, string>> = {
+  belt: "on belt",
+  stored: "stored elsewhere",
+  equipped: "worn",
+};
+
+/**
+ * The header's summary. A container's own weight is not a row in any list, so
+ * the header says it: the total with the contents, and what it weighs empty.
+ * A container that is not in the backpack says where it is, since the section
+ * itself does not move when the container does.
+ */
+const meta = computed((): string => {
+  const n = props.items.length;
+  const parts: string[] = [n === 0 ? "empty" : n === 1 ? "1 item" : `${n} items`];
+  const c = props.container;
+  if (props.weight != null) {
+    const own = c ? round1(weightForItem(c) * c.quantity) : 0;
+    const weightless = !!c && (vaultItemFor(c)?.tags.includes("extradimensional") ?? false);
+    if (weightless) {
+      if (own > 0) parts.push(formatWeightLb(own));
+      parts.push("contents weigh nothing");
+    } else {
+      parts.push(formatWeightLb(round1(props.weight + own)));
+      if (own > 0 && props.weight > 0) parts.push(`${formatWeightLb(own)} empty`);
+    }
+  }
+  if (c) {
+    const inside = c.location === "container" ? props.allContainers.find((p) => p.id === c.container_id) : null;
+    const hint = inside ? `in ${inside.name}` : LOCATION_HINT[c.location];
+    if (hint) parts.push(hint);
+  }
+  return parts.join(" · ");
+});
+
+/** A container moves between the places on the character. Into the stash would
+ *  strand its contents with the character, and into another container is not
+ *  offered so two can never hold each other. */
+const containerMoveTargets = computed((): MoveTarget[] => {
+  const c = props.container;
+  if (!c) return [];
+  const places: MoveTarget[] = [
+    { key: "backpack", label: "Backpack", location: "backpack", containerId: null },
+    { key: "belt", label: "Belt", location: "belt", containerId: null },
+    { key: "stored", label: "Stored elsewhere", location: "stored", containerId: null },
+  ];
+  return places.filter((t) => t.location !== c.location);
+});
+
+function round1(v: number): number {
+  return Math.round(v * 10) / 10;
+}
 
 const itemWeightMap = computed((): Map<string, number> => {
   const m = new Map<string, number>();

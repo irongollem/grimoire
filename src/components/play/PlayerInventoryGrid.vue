@@ -58,7 +58,6 @@
     <ContainerSection
       label="Backpack"
       location="backpack"
-      :is-default="true"
       :sellable="true"
       :items="backpackItems"
       :weight="backpackWeight"
@@ -75,6 +74,7 @@
       @open-detail="(item) => $emit('open-detail', item)"
       @sell-item="(item) => $emit('sell-item', item)"
       @reorder="(items) => $emit('reorder', items)"
+      @use-as-container="(inv) => $emit('promote-container', inv)"
     />
 
     <!-- Belt -->
@@ -98,6 +98,7 @@
       @open-detail="(item) => $emit('open-detail', item)"
       @sell-item="(item) => $emit('sell-item', item)"
       @reorder="(items) => $emit('reorder', items)"
+      @use-as-container="(inv) => $emit('promote-container', inv)"
     />
 
     <!-- Custom containers -->
@@ -115,18 +116,19 @@
       :all-items="allItems"
       :catalogue="catalogue"
       :resolved-member-id="resolvedMemberId ?? null"
-      :removable="true"
       class="mt-2"
       @add="(name, itemId) => $emit('add-to-location', 'container', c.id, name, itemId)"
       @move="(item, loc, cid) => $emit('move', item, loc, cid)"
       @remove="(id) => $emit('remove', id)"
       @remove-container="$emit('remove', c.id)"
+      @use-as-item="(inv) => $emit('use-as-item', inv)"
       @adjust-qty="(item, delta) => $emit('adjust-qty', item, delta)"
       @drop-to-chat="(inv) => $emit('drop-to-chat', inv)"
       @split-stack="(inv) => $emit('split-stack', inv)"
       @open-detail="(item) => $emit('open-detail', item)"
       @sell-item="(item) => $emit('sell-item', item)"
       @reorder="(items) => $emit('reorder', items)"
+      @use-as-container="(inv) => $emit('promote-container', inv)"
     />
   </div>
 
@@ -151,6 +153,7 @@
           :sellable="true"
           :weight-per-unit="weightPerUnit(item)"
           :has-content="hasContent(item)"
+          :can-hold-items="canHoldItems(item)"
           @remove="(id) => $emit('remove', id)"
           @adjust-qty="(item, delta) => $emit('adjust-qty', item, delta)"
           @drop-to-chat="(inv) => $emit('drop-to-chat', inv)"
@@ -158,6 +161,7 @@
           @open-detail="(item) => $emit('open-detail', item)"
           @sell-item="(item) => $emit('sell-item', item)"
           @move="(item, loc, cid) => $emit('move', item, loc, cid)"
+          @use-as-container="(inv) => $emit('promote-container', inv)"
         />
       </VueDraggable>
       <p v-if="!localStoredItems.length" class="px-4 py-3 text-body text-muted-foreground italic">
@@ -214,7 +218,7 @@ import ContainerSection from '@/components/inventory/ContainerSection.vue';
 import ItemRow from '@/components/inventory/ItemRow.vue';
 import AppButton from '@/components/common/AppButton.vue';
 import AppInput from '@/components/common/AppInput.vue';
-import { inventoryItemRef, contentItemIds } from '@/lib/itemRef';
+import { inventoryItemRef, contentItemIds, holderItemIds } from '@/lib/itemRef';
 
 const {
   backpackItems,
@@ -257,6 +261,13 @@ const {
 }>();
 
 const contentRefs = computed(() => contentItemIds(allItems));
+const holderRefs = computed(() => holderItemIds(allItems));
+
+/** The stash is the party's, not this character's: a stash row never becomes one of their containers. */
+function canHoldItems(inv: PartyInventoryItem): boolean {
+  const ref = inventoryItemRef(inv);
+  return !inv.is_container && inv.carried_by !== null && ref !== null && holderRefs.value.has(ref);
+}
 function hasContent(inv: PartyInventoryItem): boolean {
   const ref = inventoryItemRef(inv);
   return ref !== null && contentRefs.value.has(ref);
@@ -269,6 +280,7 @@ const emit = defineEmits<{
   'close-container-picker': [];
   'update-container-search': [value: string];
   'promote-container': [item: PartyInventoryItem];
+  'use-as-item': [container: PartyInventoryItem];
   'add-to-location': [location: InventoryLocation, containerId: string | null, name: string, itemId: string | null];
   'move': [item: PartyInventoryItem, location: InventoryLocation | 'stash', containerId: string | null];
   'remove': [id: string];

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { inventoryItemRef, itemRefColumns, sameItemRef } from "./itemRef";
+import { holderItemIds, inventoryItemRef, itemRefColumns, sameItemRef } from "./itemRef";
 
 const VAULT = "dddebe6d-10ca-4404-9df2-a6e447a6c9aa";
 const LIBRARY = "srd_grimoire_bundled_forgery_kit";
@@ -61,5 +61,17 @@ describe("sameItemRef", () => {
     // Two unlinked rows both named "a bloodied ledger" are not the same item;
     // treating null as equal would silently stack unrelated loot.
     expect(sameItemRef({ item_id: null, library_item_id: null }, { item_id: null, library_item_id: null })).toBe(false);
+  });
+});
+
+describe("holderItemIds", () => {
+  it("names the items tagged container and the packs, and nothing else", () => {
+    const ids = holderItemIds([
+      { id: "sack", tags: ["container"] },
+      { id: "pack", tags: [], bundle_items: [{ name: "Rope" }] },
+      { id: "rope", tags: ["gear"], bundle_items: [] },
+      { id: "sword", tags: [] },
+    ]);
+    expect([...ids].sort()).toEqual(["pack", "sack"]);
   });
 });
