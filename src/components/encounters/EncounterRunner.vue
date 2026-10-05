@@ -313,9 +313,25 @@ function releaseEncounterAudio() {
   releaseAudioTheme(audioSourceId.value);
 }
 
-function handleStartCombat() {
+/**
+ * Start Combat in the lobby. Players roll their own initiative on their phones,
+ * so some may not have yet: ask once, then fill in everyone still blank (monsters
+ * too) and go. `startCombat` never overwrites a roll that exists. Cancelling is
+ * "wait", and the lobby stays open for them.
+ */
+async function handleStartCombat() {
   if (store.rollingInitiative) return;
-  void store.startCombat();
+  const waiting = store.unrolledPlayers;
+  if (waiting.length > 0) {
+    const names = waiting.map((c) => c.name).join(", ");
+    const who = waiting.length === 1 ? "1 player hasn't" : `${waiting.length} players haven't`;
+    const go = await confirm(
+      `${who} rolled: ${names}. Roll for them and start now, or cancel to wait for them.`,
+      { title: "Not everyone has rolled", confirmLabel: "Roll for them", danger: false },
+    );
+    if (!go) return;
+  }
+  await store.startCombat();
   requestEncounterAudio();
 }
 
@@ -326,6 +342,9 @@ async function handleGoLive() {
   }
   goingLive.value = true;
   try {
+    // Opening the lobby: wipe last session's rolls first, so the only initiative
+    // the runner ever ingests is one made for this encounter.
+    await clearPartyInitiatives();
     const { startedSession } = await goLive({ round: store.round, activeIndex: store.activeIndex, combatants: store.combatants });
     // Going live starts the session when there isn't one, because a DM hitting
     // Run is at the table. Said out loud rather than done quietly: the session
@@ -345,6 +364,8 @@ async function handleGoLive() {
       const partyMemberIds = (partyMembers.value ?? []).map((m) => m.id);
       await autoDiscover({ monsters: monstersToDiscover, partyMemberIds });
     }
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't go live."));
   } finally {
     goingLive.value = false;
   }
@@ -363,7 +384,7 @@ watch(
 // ── Bidirectional HP sync between runner and party_members ───────────────────
 // Debounced HP writes out, Realtime ingest (HP / temp HP / player-rolled
 // initiative) in, and the store's persist handler — see useRunnerPartySync.
-const { cancelPendingHpFlush } = useRunnerPartySync(isLive);
+const { cancelPendingHpFlush, clearPartyInitiatives } = useRunnerPartySync(isLive);
 // 2024 Evergreen Wild Shape: a level 20 druid regains a use on rolling initiative with none left.
 useEvergreenWildShape();
 
@@ -450,6 +471,13 @@ async function handleAbandon() {
   if (!await confirm("Abandon this run? Party HP and conditions will NOT be updated.")) return;
   await endLive();
   releaseEncounterAudio();
+  // Abandoning keeps HP and conditions as they were, but the rolls belonged to
+  // this encounter and must not carry into the next.
+  try {
+    await clearPartyInitiatives();
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't clear the party's initiative."));
+  }
   store.reset();
   router.push(`/encounters/${encounterId.value}`);
 }
@@ -482,6 +510,8 @@ async function handleEndCombat() {
           current_hp: c.hp,
           conditions: c.conditions,
           curses: c.curses,
+          // The roll was for this fight; the next lobby starts blank.
+          current_initiative: null,
           death_save_successes: c.death_saves.successes,
           death_save_failures: c.death_saves.failures,
         },

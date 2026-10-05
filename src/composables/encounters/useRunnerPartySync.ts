@@ -8,6 +8,8 @@ import { deepEqual } from "@/lib/utils";
 import { createWriteEchoes } from "@/lib/encounters/writeEchoes";
 import type { WildshapeState } from "@/types/encounter.types";
 
+interface DeathSaves { successes: number; failures: number }
+
 /**
  * Bidirectional sync between the encounter-run store and `party_members` rows,
  * mounted by the DM's EncounterRunner:
@@ -37,6 +39,9 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
   // Forms change in quick bursts (a hit, then another), so every unechoed write
   // is kept, not just the last: see `createWriteEchoes`.
   const wildshapeEchoes = createWriteEchoes<WildshapeState | null>();
+  // Death saves are written by the runner on every hit at 0 HP, so the same
+  // out-of-order echo that bites the beast form would put a stale tally back.
+  const deathSaveEchoes = createWriteEchoes<DeathSaves>();
   let partyHpTimer: ReturnType<typeof setTimeout> | null = null;
 
   function cancelPendingHpFlush() {
@@ -76,10 +81,13 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
   store.setPersistHandler((id, update) => {
     const form = "wildshape_state" in update ? (update.wildshape_state ?? null) : undefined;
     if (form !== undefined) wildshapeEchoes.sent(id, form);
+    const saves = deathSavesOf(update.death_save_successes, update.death_save_failures);
+    if (saves) deathSaveEchoes.sent(id, saves);
     void updatePartyMember({ id, update }).catch((error: unknown) => {
       // No echo will come for a failed write. Rethrown so the failure still
       // surfaces exactly as it did before this bookkeeping existed.
       if (form !== undefined) wildshapeEchoes.failed(id, form);
+      if (saves) deathSaveEchoes.failed(id, saves);
       throw error;
     });
   });
@@ -91,6 +99,14 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     current_initiative: number | null;
     conditions: string[];
     wildshape_state: WildshapeState | null;
+    death_save_successes: number;
+    death_save_failures: number;
+  }
+
+  /** Both counts of a write, or null when the write carries neither. */
+  function deathSavesOf(successes: number | undefined, failures: number | undefined): DeathSaves | null {
+    if (successes === undefined || failures === undefined) return null;
+    return { successes, failures };
   }
 
   /**
@@ -130,11 +146,30 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
       }
     }
 
-    // Ingest player-rolled initiative (#504). The runner never writes
-    // current_initiative, so there's no echo to guard against. Only apply a
-    // fresh non-null value that differs — this keeps the player's own roll
-    // and lets "Roll Initiative" skip anyone who already rolled.
+    // Death saves a player rolled on their own sheet. Without this the runner
+    // keeps the tally from when the fight began, and end of combat writes it
+    // straight back over the character's real one. Guarded by `in` like the
+    // other columns an UPDATE payload may omit; the runner's own writes come
+    // back through the echo ledger.
+    if (combatant && "death_save_successes" in row && "death_save_failures" in row) {
+      const saves = deathSavesOf(row.death_save_successes, row.death_save_failures);
+      if (
+        saves &&
+        !deathSaveEchoes.isOwn(row.id, saves) &&
+        (combatant.death_saves.successes !== saves.successes || combatant.death_saves.failures !== saves.failures)
+      ) {
+        store.ingestDeathSaves(combatant.instance_id, saves);
+      }
+    }
+
+    // Ingest player-rolled initiative (#504). The runner never writes a roll to
+    // current_initiative (it only clears it), so there's no echo to guard
+    // against. Only apply a fresh non-null value that differs: this keeps the
+    // player's own roll and lets "Roll Initiative" skip anyone who already
+    // rolled. Only while live: a row read before the lobby opens still carries
+    // last session's roll, and `clearPartyInitiatives` blanks it as the lobby opens.
     if (
+      isLive.value &&
       combatant &&
       row.current_initiative !== null &&
       combatant.initiative !== row.current_initiative
@@ -166,14 +201,37 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
   async function resyncPartyFromDb(campaignId: string): Promise<void> {
     const { data, error } = await supabase
       .from("party_members")
-      .select("id, current_hp, temp_hp, current_initiative, conditions, wildshape_state")
+      .select("id, current_hp, temp_hp, current_initiative, conditions, wildshape_state, death_save_successes, death_save_failures")
       .eq("campaign_id", campaignId);
     if (error) throw error;
     if (campaignId !== subscribedCampaignId) return;
     // A gap may have swallowed echoes; the rows just read are the truth now.
     wildshapeEchoes.clear();
+    deathSaveEchoes.clear();
     for (const row of (data ?? []) as PartyMemberSyncRow[]) applyPartyRow(row);
   }
+
+  /**
+   * Blank every PC's initiative, in the store and on the party_members rows. A
+   * row's `current_initiative` is never cleared by anything else, so last
+   * week's roll would be ingested into this week's fight on the first resync.
+   * Called as the lobby opens, so everything the runner sees afterwards is a
+   * roll made for this encounter.
+   */
+  async function clearPartyInitiatives(): Promise<void> {
+    const ids = store.combatants
+      .filter((c) => c.type === "player" && c.party_member_id)
+      .map((c) => c.party_member_id!);
+    store.clearPlayerInitiatives();
+    await Promise.all(ids.map((id) => updatePartyMember({ id, update: { current_initiative: null } })));
+  }
+
+  // A runner reopened onto a live encounter (or one whose live state arrives
+  // after mount) reads the rolls made so far once it knows it is live.
+  watch(isLive, (live) => {
+    const campaignId = subscribedCampaignId;
+    if (live && campaignId) void resyncPartyFromDb(campaignId);
+  });
 
   onMounted(() => {
     const campaignId = campaign.activeCampaignId;
@@ -204,5 +262,5 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     partyMembersRealtime = null;
   });
 
-  return { cancelPendingHpFlush };
+  return { cancelPendingHpFlush, clearPartyInitiatives };
 }

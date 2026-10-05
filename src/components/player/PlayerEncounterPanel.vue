@@ -33,6 +33,41 @@
         </div>
 
         <template v-else>
+          <!-- Your initiative — players roll their own each encounter (#504). Until
+               they have, this is the one thing the panel asks of them, so it sits
+               first and carries the only solid button. After the roll it settles
+               into a line saying what happens next. -->
+          <div
+            v-if="myPlayer && showMyInitiative && myInitiative === null"
+            class="space-y-3 rounded-lg border border-primary bg-primary/5 px-4 py-4"
+          >
+            <div>
+              <p class="text-heading-sm font-bold text-foreground">Roll for initiative</p>
+              <p class="text-caption text-muted-foreground">d20 {{ dexModLabel }} for {{ myPlayer.name }}</p>
+            </div>
+            <AppButton
+              variant="primary"
+              size="lg"
+              block
+              :icon="IconDice"
+              icon-size="md"
+              :loading="rollingInitiative"
+              :disabled="rollingInitiative"
+              :label="rollingInitiative ? 'Rolling…' : 'Roll initiative'"
+              @click="rollMyInitiative"
+            />
+          </div>
+          <div
+            v-else-if="myPlayer && showMyInitiative"
+            class="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3"
+          >
+            <span class="text-title font-bold text-primary tabular-nums" aria-hidden="true">{{ myInitiative }}</span>
+            <p class="text-body text-foreground">
+              {{ myRolledInitiative === null ? `Your initiative is ${myInitiative}.` : `You rolled ${myInitiative}.` }}
+              Waiting for the DM to start.
+            </p>
+          </div>
+
           <!-- View battle map (tablet+ only) — phones stay on the stats panel -->
           <AppButton
             v-if="canShowBattleMap"
@@ -141,30 +176,6 @@
           <!-- Turn timer (optional rule) — a shared soft countdown for the active turn -->
           <div v-if="turnTimerSeconds !== null && !isInLobby" class="flex items-center justify-center">
             <TurnTimer :seconds="turnTimerSeconds" :reset-key="turnResetKey" />
-          </div>
-
-          <!-- Your initiative — players roll their own each encounter (#504) -->
-          <div
-            v-if="myPlayer && showMyInitiative"
-            class="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-card px-4 py-3"
-          >
-            <span class="text-label-lg font-semibold text-muted-foreground">
-              YOUR INITIATIVE
-            </span>
-            <AppButton
-              v-if="myInitiative === null"
-              variant="tinted"
-              tone="primary"
-              emphasis="soft"
-              size="lg"
-              class="font-bold"
-              :icon="IconDice"
-              icon-size="md"
-              :disabled="rollingInitiative"
-              :label="rollingInitiative ? 'Rolling…' : `Roll d20 ${dexModLabel}`"
-              @click="rollMyInitiative"
-            />
-            <span v-else class="text-title font-bold text-primary">{{ myInitiative }}</span>
           </div>
 
           <!-- Player-visible narrative events — fired events with is_player_visible=true -->
@@ -366,13 +377,20 @@ const myInitiative = computed<number | null>(
 // initiative — i.e. exactly the "prefilled + disabled" case players complained
 // about is now a live Roll button instead.
 const showMyInitiative = computed(() => isInLobby.value || myInitiative.value === null);
-const dexModLabel = computed(() => {
-  const m = myPlayer.value?.dex_mod ?? 0;
-  return m >= 0 ? `+${m}` : `${m}`;
+// Initiative = DEX mod + the member's initiative_bonus (feat/special extra). One
+// number feeds both the button's label and the roll, so they cannot disagree.
+const rollModifier = computed(() => {
+  const member = myPlayer.value;
+  if (!member) return 0;
+  return member.dex_mod + (partyMap.value.get(member.party_member_id ?? "")?.initiative_bonus ?? 0);
 });
+const dexModLabel = computed(() => (rollModifier.value >= 0 ? `+${rollModifier.value}` : `${rollModifier.value}`));
 
 // A new encounter clears the local echo so a stale value can't linger.
 watch(() => liveState.value?.encounter_id, () => { myRolledInitiative.value = null; });
+// ...and so does the encounter ending: the DM re-running the same one opens a
+// fresh lobby, and an old echo would read as a roll already made.
+watch(() => liveState.value === null, (ended) => { if (ended) myRolledInitiative.value = null; });
 
 async function rollMyInitiative() {
   const member = myPlayer.value;
@@ -381,8 +399,7 @@ async function rollMyInitiative() {
   try {
     const result = await promptRoll({
       counts: { 20: 1 },
-      // Initiative = DEX mod + the member's initiative_bonus (feat/special extra).
-      modifier: member.dex_mod + (partyMap.value.get(member.party_member_id ?? "")?.initiative_bonus ?? 0),
+      modifier: rollModifier.value,
       label: "Initiative",
     });
     if (!result) return; // physical-dice prompt cancelled

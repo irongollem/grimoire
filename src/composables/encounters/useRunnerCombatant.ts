@@ -171,6 +171,15 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
 
   const quickAmount = ref<number | null>(null);
 
+  /** "Critical hit" on the quick damage: a hit on a character at 0 HP is two
+   *  failed death saves instead of one (2014 and 2024 alike), so the toggle only
+   *  exists where it can matter, a party member who is already down. */
+  const quickCritical = ref(false);
+  const canCrit = computed(() => {
+    const c = combatant.value;
+    return c.type === "player" && !!c.party_member_id && c.hp <= 0;
+  });
+
   async function quickDamage() {
     const amt = quickAmount.value;
     if (!amt) return;
@@ -178,9 +187,10 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     const memberBefore = c.party_member_id
       ? (partyList.value?.find((m) => m.id === c.party_member_id) ?? null)
       : null;
-    const outcome = store.adjustHp(c.instance_id, -amt);
+    const outcome = store.adjustHp(c.instance_id, -amt, { critical: canCrit.value && quickCritical.value });
     showFlash(-amt);
     quickAmount.value = null;
+    quickCritical.value = false;
     const message = describeDamageOutcome(c.name, amt, outcome);
     if (message) toast.info(message);
     if (memberBefore?.concentration && amt > 0) {
@@ -290,6 +300,8 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     handleSetHp,
     handleSetMaxHp,
     quickAmount,
+    quickCritical,
+    canCrit,
     quickDamage,
     quickHeal,
     quickTemp,

@@ -156,29 +156,61 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   }
 
   /** Fills in everyone who doesn't have an initiative yet. Never overwrites a
-   *  value that's already there — a player's own roll, a monster the DM rolled
+   *  value that's already there: a player's own roll, a monster the DM rolled
    *  or typed by hand. Rolls sequentially because physical-dice mode prompts the
    *  DM once per combatant; cancelling stops the run and leaves the rest blank
-   *  so the button can be pressed again to pick up where it left off. */
-  async function rollAllInitiatives() {
-    if (rollingInitiative.value) return;
+   *  so the button can be pressed again to pick up where it left off.
+   *
+   *  Rolling is not starting: `started` is only set by `startCombat`, so the
+   *  lobby stays a lobby (round 0, re-roll buttons on every row) until the DM
+   *  says go. Returns whether everyone ended up with a value. */
+  async function rollAllInitiatives(): Promise<boolean> {
+    if (rollingInitiative.value) return false;
     rollingInitiative.value = true;
     try {
       for (const c of combatants.value) {
         if (c.initiative !== null) continue;
         const rolled = await rollOneInitiative(c);
-        if (rolled === null) return;
+        if (rolled === null) return false;
         c.initiative = rolled;
       }
-      started.value = true;
+      return true;
     } finally {
       rollingInitiative.value = false;
     }
   }
 
+  /** Player characters who have not rolled yet: the ones Start Combat asks about. */
+  const unrolledPlayers = computed(() =>
+    combatants.value.filter((c) => c.type === "player" && c.party_member_id && c.initiative === null),
+  );
+
+  /** Instance ids sharing an initiative total with someone else. The comparator
+   *  already orders a tie by modifier, so this only makes the tie visible: the
+   *  DM decides among monsters and players among their own characters, and
+   *  editing a value is how either reorders. */
+  const tiedInstanceIds = computed(() => {
+    const byTotal = new Map<number, string[]>();
+    for (const c of combatants.value) {
+      if (c.initiative === null) continue;
+      byTotal.set(c.initiative, [...(byTotal.get(c.initiative) ?? []), c.instance_id]);
+    }
+    return new Set([...byTotal.values()].filter((ids) => ids.length > 1).flat());
+  });
+
+  /** Blank every PC's initiative. A party member's `current_initiative` outlives
+   *  the encounter it was rolled for, so the runner clears it when a lobby opens;
+   *  this is the store half of that, so a stale value read before going live
+   *  does not survive into the fight. */
+  function clearPlayerInitiatives() {
+    for (const c of combatants.value) {
+      if (c.type === "player" && c.party_member_id) c.initiative = null;
+    }
+  }
+
   async function startCombat() {
     if (!started.value) await rollAllInitiatives();
-    // Combat starts even if the DM cancelled a manual-entry prompt — anyone left
+    // Combat starts even if the DM cancelled a manual-entry prompt: anyone left
     // without a value sorts to the end of the order and can be typed in there.
     started.value = true;
     activeIndex.value = 0;
@@ -740,6 +772,9 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     reshuffleInitiative,
     rollInitiative,
     rollAllInitiatives,
+    unrolledPlayers,
+    tiedInstanceIds,
+    clearPlayerInitiatives,
     setInitiativeRoller,
     startCombat,
     setInitiative,

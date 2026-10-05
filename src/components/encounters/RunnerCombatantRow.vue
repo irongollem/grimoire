@@ -47,6 +47,7 @@
       <div class="name-cell">
         <span class="combatant-name">{{ combatant.name }}</span>
         <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : combatant.npc_id ? 'NPC' : 'Monster' }}</span>
+        <RunnerRollStatus :combatant="combatant" />
         <span v-if="wildshape" class="wildshape-row-badge" title="Wildshaping">🐺 {{ wildshape.beast_name }}</span>
         <span v-if="combatant.hp === 0 && combatant.type === 'monster'" class="dead-badge">☠</span>
         <AppButton
@@ -167,6 +168,7 @@
         @keydown.enter="quickDamage"
       />
       <AppButton variant="tinted" tone="danger" emphasis="outline" size="xs" label="Dmg" @click="quickDamage" />
+      <AppCheckbox v-if="canCrit" v-model="quickCritical" size="sm" label="Critical hit" label-role="caption" />
       <AppButton variant="tinted" tone="success" emphasis="outline" size="xs" label="Heal" @click="quickHeal" />
       <AppButton variant="tinted" tone="info" emphasis="outline" size="xs" label="+Temp" @click="quickTemp" />
       <span v-if="displayTempHp" class="quick-temp-display">{{ displayTempHp }} tmp</span>
@@ -177,11 +179,13 @@
 <script setup lang="ts">
 import { IconHide, IconReveal } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import ConditionPicker from "@/components/encounters/ConditionPicker.vue";
 import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField.vue";
+import RunnerRollStatus from "@/components/encounters/RunnerRollStatus.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { getExhaustionLevel, getConditionDescription } from "@/rules/conditions";
@@ -219,6 +223,8 @@ const {
   handleSetHp,
   handleSetMaxHp,
   quickAmount,
+  quickCritical,
+  canCrit,
   quickDamage,
   quickHeal,
   quickTemp,
