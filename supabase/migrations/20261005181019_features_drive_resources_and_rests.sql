@@ -116,6 +116,24 @@ end $$;
 -- feature whose choice asks the same thing, stored under the same key, so the
 -- picks characters already made stay where they are. A step with no key or no
 -- options asked nothing and is dropped.
+-- A `feature_pick` step's options are feature ids and a `spell_pick` step's
+-- are spell ids. A custom choice would show them as text and grant nothing, so
+-- such a step is not converted silently: production has none (checked 5 Oct
+-- 2026), and if one appears this stops the migration rather than lose it.
+do $$
+begin
+  if exists (
+    select 1 from (
+      select jsonb_array_elements(case when jsonb_typeof(steps) = 'array' then steps else '[]' end) s from public.custom_classes
+      union all
+      select jsonb_array_elements(case when jsonb_typeof(steps) = 'array' then steps else '[]' end) from public.custom_subclasses
+    ) x
+     where x.s ->> 'step_type' in ('feature_pick', 'spell_pick')
+  ) then
+    raise exception 'A class step picks features or spells; convert it by hand before this migration';
+  end if;
+end $$;
+
 do $$
 declare
   v_def record;
@@ -230,6 +248,57 @@ delete from public.class_features f
    and not exists (
      select 1 from public.custom_subclasses d, jsonb_each(d.features) l, jsonb_array_elements_text(l.value) x(v)
       where x.v = f.id::text);
+
+-- ─── 2b. ASI levels become the ASI feature ───────────────────────────────────
+
+-- A class definition listed its Ability Score Improvement levels in
+-- `asi_levels`; level-up now asks for an ASI only where a feature grants one,
+-- and the column goes in this epic's cleanup. Every class that relied on the
+-- column (four homebrew classes and the official Black Flag Mechanist in
+-- production) takes the shared official ASI feature at each listed level its
+-- map does not already cover. A fresh database has no such row, so one is made.
+do $$
+declare
+  v_asi uuid;
+  v_class record;
+  v_level int;
+begin
+  select f.id into v_asi
+    from public.class_features f
+   where f.user_id is null
+     and f.mechanics -> 'choices' -> 0 ->> 'key' = 'ability_score_improvement'
+     and f.source_record_key is null
+   order by f.created_at
+   limit 1;
+  if v_asi is null then
+    insert into public.class_features (user_id, campaign_id, name, kind, source, tags, mechanics)
+    values (null, null, 'Ability Score Improvement', 'feature', 'grimoire-system', '{}',
+            '{"choices": [{"key": "ability_score_improvement", "label": "Ability Score Improvement",
+              "pick": {"kind": "asi_or_feat"}, "count": {"kind": "per_grant", "amount": 1},
+              "replace_on_level_up": false}]}'::jsonb)
+    returning id into v_asi;
+  end if;
+
+  for v_class in
+    select c.id, c.asi_levels, c.features from public.custom_classes c
+     where c.asi_levels is not null and cardinality(c.asi_levels) > 0
+  loop
+    foreach v_level in array v_class.asi_levels loop
+      continue when exists (
+        select 1
+          from jsonb_array_elements_text(
+                 case when jsonb_typeof(v_class.features -> v_level::text) = 'array'
+                      then v_class.features -> v_level::text else '[]'::jsonb end) x(v)
+          join public.class_features f on f.id::text = x.v
+         where f.mechanics -> 'choices' @> '[{"key": "ability_score_improvement"}]'
+            or f.name ilike '%ability score improvement%');
+      update public.custom_classes
+         set features = pg_temp.grant_at(features, v_level, v_asi)
+       where id = v_class.id
+      returning features into v_class.features;
+    end loop;
+  end loop;
+end $$;
 
 -- ─── 3. Rests ────────────────────────────────────────────────────────────────
 

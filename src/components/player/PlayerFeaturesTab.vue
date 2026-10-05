@@ -185,16 +185,17 @@ const linkedSubrace = computed(() =>
 // ── Features, pools and uses ──────────────────────────────────────────────────
 
 const { characterClasses, classDefinitionFor } = useClassDefinitionLookup(memberRef);
-const { granted, pools, isPending, error } = useCharacterFeatures(memberRef);
+const { granted, pools, isPending, complete, error } = useCharacterFeatures(memberRef);
 const { remaining, spend, restore, reconcile, needsReconcile, isSaving } = useFeatureUses(memberRef, pools);
 
 // Pools are derived from the features, so while those are still loading the
 // pool list is empty and "reconciling" would delete every stored pool. Wait for
-// a settled, error-free read, and only write when this viewer may.
+// a settled, error-free read in which every class and subclass definition
+// resolved (`complete`), and only write when this viewer may.
 watch(
-  [needsReconcile, isPending, error, canWrite, isSaving],
+  [needsReconcile, isPending, complete, error, canWrite, isSaving],
   () => {
-    if (!canWrite.value || isPending.value || error.value || isSaving.value || !needsReconcile.value) return;
+    if (!canWrite.value || isPending.value || !complete.value || error.value || isSaving.value || !needsReconcile.value) return;
     reconcile().catch((e: unknown) => toast.error(toast.fromError(e, "Couldn't update feature uses.")));
   },
   { immediate: true },

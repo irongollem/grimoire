@@ -183,7 +183,7 @@ describe("classResourcesFor", () => {
     { key: "ki", label: "Ki", max: 5, recharge: "short" as const, shortRestRegain: null, pool: true, sources: ["Ki"] },
   ];
 
-  it("starts a new key full, clamps current to a lowered max, and drops stale keys", () => {
+  it("starts a new key full, clamps current to a lowered max, and keeps a key no pool produces", () => {
     const next = classResourcesFor(pools, {
       rage: { current: 9, max: 9, rest: "long" },
       gone: { current: 1, max: 1, rest: "short" },
@@ -191,6 +191,7 @@ describe("classResourcesFor", () => {
     expect(next).toEqual({
       rage: { current: 3, max: 3, rest: "long", short_rest_regain: 1 },
       ki: { current: 5, max: 5, rest: "short" },
+      gone: { current: 1, max: 1, rest: "short" },
     });
   });
 

@@ -32,6 +32,7 @@
           </p>
         </div>
 
+        <p v-if="notReadyReason" class="text-caption text-muted-foreground">{{ notReadyReason }}…</p>
         <p v-if="error" class="text-caption text-destructive">{{ error }}</p>
       </div>
 
@@ -90,7 +91,7 @@ const error = ref("");
 provideCharacterRuleset(() => props.member);
 const queryClient = useQueryClient();
 
-const { entry: lastChoice, classRow, ruleset, classSlotTable, classResources, isLoading, featuresById } =
+const { entry: lastChoice, classRow, ruleset, classSlotTable, classResources, isLoading, notReadyReason, featuresById } =
   useDeLevel(() => props.member, toRef(props, "characterClasses"));
 
 // Everything the de-level writes, built the moment it is shown so the preview and the write cannot differ.

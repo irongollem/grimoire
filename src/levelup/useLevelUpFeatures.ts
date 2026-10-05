@@ -258,7 +258,8 @@ export function useLevelUpFeatures(input: LevelUpFeaturesInput) {
   return {
     projection,
     featuresById,
-    isLoading: featuresPending,
+    // A disabled query (no ids to fetch) stays pending forever in TanStack v5.
+    isLoading: computed(() => idsNeeded.value.length > 0 && featuresPending.value),
     gained,
     scaling,
     pools,

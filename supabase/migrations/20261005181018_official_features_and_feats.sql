@@ -341,11 +341,13 @@ $function$;
 -- The book a row comes from, as `content_sources.key`: the key a table enables.
 -- Open5e's own document keys differ for some books (`tdcs` is `taldorei`,
 -- `bfrd` is `blackflag`, `open5e` is `o5e`).
+-- A book the app may not redistribute has no slug here, so nothing of it is
+-- adopted: an official row is readable by every account.
 create function pg_temp.source_slug(p_document_key text) returns text
 language sql stable as $$
   select coalesce(
-    (select cs.key from public.content_sources cs where cs.open5e_key = p_document_key),
-    (select cs.key from public.content_sources cs where cs.key = p_document_key));
+    (select cs.key from public.content_sources cs where cs.open5e_key = p_document_key and cs.is_redistributable),
+    (select cs.key from public.content_sources cs where cs.key = p_document_key and cs.is_redistributable));
 $$;
 
 -- Several accounts may have imported the same entry. The earliest copy of each
@@ -412,13 +414,24 @@ select legacy.id, twin.id
        and s.class_name = legacy.class_name
        and lower(s.subclass_name) = lower(legacy.subclass_name)
        and (legacy.ruleset is null or s.ruleset = legacy.ruleset)
-     order by (s.ruleset = '2014') desc, s.created_at
+     -- An edition-less legacy row moves to the twin of its characters' edition,
+     -- which the subclass trigger requires.
+     order by (s.ruleset = (select pm.ruleset from public.character_classes cc
+                              join public.party_members pm on pm.id = cc.party_member_id
+                             where cc.subclass_definition_id = legacy.id
+                             limit 1)) desc nulls last,
+              (s.ruleset = '2014') desc, s.created_at
      limit 1) twin on true
  where legacy.source_record_key ~ '^legacy:'
    and legacy.source_document_key in (
      'Tome of Heroes', 'Open5e Originals', 'System Reference Document 5.1',
      'System Reference Document 5.2', 'Tal''dorei Campaign Setting',
      'Adventurer''s Guide', 'Black Flag SRD')
+   -- Characters of both editions on one legacy row cannot all move to one twin;
+   -- such a row keeps its owner and stays as it is.
+   and (select count(distinct pm.ruleset) from public.character_classes cc
+          join public.party_members pm on pm.id = cc.party_member_id
+         where cc.subclass_definition_id = legacy.id) <= 1
 on conflict (old_id) do nothing;
 
 -- A copy of a legacy SRD subclass kept for one campaign (20261003105148 made
@@ -536,20 +549,52 @@ update public.custom_classes c
 -- same class as the system row of that edition and name. The system row keeps
 -- its chassis (hit die, slots, ASI levels) and takes the import's feature map,
 -- which has the SRD text the hand-seeded placeholders never had.
+-- Every account's copy folds, not only the one kept as official: a second
+-- account's private SRD Rogue is the same class.
 create temp table class_fold on commit drop as
 select c.id as custom_id, sc.id as system_id
   from public.custom_classes c
   join public.system_classes sc on sc.ruleset = c.ruleset and lower(sc.class_name) = lower(c.class_name)
- where c.id in (select id from official_class)
+ where c.provenance ->> 'provider' = 'open5e-v2'
+   and c.source_record_key is not null
    and c.source_document_key in ('srd-2014', 'srd-2024');
 
+-- The system row takes the map of the copy kept as official.
 update public.system_classes sc
    set features = c.features
   from class_fold f
   join public.custom_classes c on c.id = f.custom_id
  where sc.id = f.system_id
+   and c.id in (select id from official_class)
    and jsonb_typeof(c.features) = 'object'
    and c.features <> '{}'::jsonb;
+
+-- Other accounts' copies of an official class that is not a system class
+-- (Black Flag): their characters move to the official row and the copies go.
+create temp table class_remap on commit drop as
+select dup.id as old_id, keep.id as new_id
+  from public.custom_classes dup
+  join public.custom_classes keep
+    on keep.id in (select id from official_class)
+   and keep.source_document_key = dup.source_document_key
+   and keep.source_record_key = dup.source_record_key
+   and keep.ruleset is not distinct from dup.ruleset
+ where dup.provenance ->> 'provider' = 'open5e-v2'
+   and dup.id <> keep.id
+   and dup.id not in (select id from official_class)
+   and dup.id not in (select custom_id from class_fold);
+
+insert into moved_member (party_member_id)
+select distinct cc.party_member_id
+  from public.character_classes cc
+ where cc.class_definition_kind = 'custom'
+   and cc.class_definition_id in (select old_id from class_remap);
+
+update public.character_classes cc
+   set class_definition_id = r.new_id
+  from class_remap r
+ where cc.class_definition_kind = 'custom'
+   and cc.class_definition_id = r.old_id;
 
 insert into moved_member (party_member_id)
 select distinct cc.party_member_id
@@ -568,9 +613,11 @@ update public.character_classes cc
 -- Recomputed for every moved character at the end of this migration.
 delete from public.character_content_reviews ccr
  where ccr.ref in (select old_id::text from remap)
-    or ccr.ref in (select custom_id::text from class_fold);
+    or ccr.ref in (select custom_id::text from class_fold)
+    or ccr.ref in (select old_id::text from class_remap);
 
 delete from public.custom_classes where id in (select custom_id from class_fold);
+delete from public.custom_classes where id in (select old_id from class_remap);
 delete from public.custom_subclasses where id in (select old_id from remap);
 delete from public.class_features where id in (select old_id from remap);
 

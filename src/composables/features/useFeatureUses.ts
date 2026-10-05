@@ -27,18 +27,35 @@ export function useFeatureUses(member: Ref<PartyMember>, pools: Ref<readonly Res
   watch(() => member.value.class_resources, next => { resources.value = next; });
   watch(() => member.value.class_choices, next => { choices.value = next; });
 
+  // The refs are applied before the write so quick taps build on each other; a
+  // failed write puts the previous values back, otherwise the sheet would show a
+  // spend the database never took. The error is rethrown so callers still toast.
   async function writeResources(next: StoredClassResources) {
+    const previous = resources.value;
     resources.value = next;
-    await updateMember({ id: member.value.id, update: { class_resources: next } });
+    try {
+      await updateMember({ id: member.value.id, update: { class_resources: next } });
+    } catch (e) {
+      resources.value = previous;
+      throw e;
+    }
   }
 
   async function writeChoicesAndResources(nextChoices: Record<string, unknown>, nextResources: StoredClassResources) {
+    const previousChoices = choices.value;
+    const previousResources = resources.value;
     choices.value = nextChoices;
     resources.value = nextResources;
-    await updateMember({
-      id: member.value.id,
-      update: { class_choices: nextChoices, class_resources: nextResources },
-    });
+    try {
+      await updateMember({
+        id: member.value.id,
+        update: { class_choices: nextChoices, class_resources: nextResources },
+      });
+    } catch (e) {
+      choices.value = previousChoices;
+      resources.value = previousResources;
+      throw e;
+    }
   }
 
   function remaining(key: string): Remaining {

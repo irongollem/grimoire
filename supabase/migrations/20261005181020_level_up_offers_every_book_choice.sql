@@ -28,30 +28,42 @@ do $$
 declare
   v_member record;
   v_feat uuid;
+  v_name text;
+  v_variant text;
 begin
   for v_member in
     select pm.id, pm.ruleset, pm.owner_user_id, pm.user_id, pm.campaign_id, pm.class_choices ->> 'background_feat' as feat_name
       from public.party_members pm
      where pm.class_choices ? 'background_feat'
   loop
+    -- "Magic Initiate (Cleric)": the feat is the name, the bracket is the
+    -- variant the background chose (parseOriginFeatText does the same).
+    v_name := trim(regexp_replace(v_member.feat_name, '\s*\(([^)]*)\)\s*$', ''));
+    v_variant := nullif(trim(substring(v_member.feat_name from '\(([^)]*)\)\s*$')), '');
     -- The official feat of the character's edition first, then the owner's own.
     select f.id into v_feat
       from public.class_features f
      where f.kind = 'feat'
        and (f.ruleset is null or f.ruleset = v_member.ruleset)
-       and f.conceptual_key = trim(both '_' from lower(regexp_replace(v_member.feat_name, '[^a-zA-Z0-9]+', '_', 'g')))
+       and f.conceptual_key = trim(both '_' from lower(regexp_replace(v_name, '[^a-zA-Z0-9]+', '_', 'g')))
        and (f.user_id is null or f.user_id = coalesce(v_member.owner_user_id, v_member.user_id))
      order by (f.user_id is null) desc, f.created_at
      limit 1;
     if v_feat is null then
       raise exception 'Origin feat "%" of character % matches no feat of its edition', v_member.feat_name, v_member.id;
     end if;
+    -- The origin feat goes first in the list: the sheet reads the first
+    -- occurrence of the origin id as the origin, and a repeatable feat may also
+    -- have been taken at a level.
     update public.party_members
        set class_choices = (class_choices - 'background_feat')
              || jsonb_build_object(
                   'origin_feat_id', v_feat::text,
-                  'feats', coalesce(case when jsonb_typeof(class_choices -> 'feats') = 'array'
-                                         then class_choices -> 'feats' end, '[]'::jsonb) || to_jsonb(v_feat::text))
+                  'feats', jsonb_build_array(v_feat::text)
+                           || coalesce(case when jsonb_typeof(class_choices -> 'feats') = 'array'
+                                            then class_choices -> 'feats' end, '[]'::jsonb))
+             || case when v_variant is null then '{}'::jsonb
+                     else jsonb_build_object('origin_feat_variant', v_variant) end
      where id = v_member.id;
   end loop;
 end $$;

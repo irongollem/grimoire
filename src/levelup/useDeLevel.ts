@@ -24,9 +24,9 @@ import { lowerClasses, type ClassRowInfo } from "./levelUpProjection";
  */
 export function useDeLevel(member: () => PartyMember, characterClasses: Ref<CharacterClass[]>) {
   const { ruleset } = useRuleset();
-  const { data: systemClasses } = useAllSystemClasses();
-  const { data: customClasses } = useAllCustomClasses();
-  const { data: subclasses } = useAllCustomSubclasses();
+  const { data: systemClasses, isPending: systemPending } = useAllSystemClasses();
+  const { data: customClasses, isPending: customPending } = useAllCustomClasses();
+  const { data: subclasses, isPending: subclassPending } = useAllCustomSubclasses();
 
   const recorded = computed<LevelChoiceEntry | null>(() => {
     const m = member();
@@ -97,14 +97,28 @@ export function useDeLevel(member: () => PartyMember, characterClasses: Ref<Char
     );
   });
 
+  // A de-level writes class_resources computed from definitions, so one that has
+  // not loaded (or whose row names a definition we cannot find) must hold it back.
+  const definitionsPending = computed(() => systemPending.value || customPending.value || subclassPending.value);
+  const definitionsResolved = computed(() =>
+    characterClasses.value.every((row) => {
+      const defs = row.class_definition_kind === "system" ? systemClasses.value : customClasses.value;
+      if (!(defs ?? []).some((d) => d.id === row.class_definition_id)) return false;
+      return !row.subclass_definition_id || (subclasses.value ?? []).some((d) => d.id === row.subclass_definition_id);
+    }),
+  );
+  const featuresPending = computed(() => idsNeeded.value.length > 0 && isPending.value);
+  const isLoading = computed(() => featuresPending.value || definitionsPending.value || !definitionsResolved.value);
+
   return {
     entry,
     classRow,
     ruleset,
     classSlotTable: computed(() => classDef.value?.spell_slots ?? null),
     classResources,
-    // Resources are read off the lower state's features, so wait until they are in.
-    isLoading: computed(() => idsNeeded.value.length > 0 && isPending.value),
+    // Resources are read off the lower state's definitions and features, so wait until they are in.
+    isLoading,
+    notReadyReason: computed(() => (isLoading.value ? "Loading this character's class" : null)),
     featuresById: computed(() => new Map((features.value ?? []).map((f) => [f.id, f]))),
   };
 }

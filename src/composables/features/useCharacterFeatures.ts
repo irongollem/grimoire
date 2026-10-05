@@ -95,5 +95,21 @@ export function useCharacterFeatures(member: Ref<PartyMember>) {
       subclassQuery.isPending.value || (featureIds.value.length > 0 && featuresQuery.isPending.value),
   );
 
-  return { granted, pools, actions, activeToggles, riders, isPending, error };
+  // Pools are derived from definitions, so a derivation is only trustworthy once
+  // every class row (and its subclass) resolved to one. Callers that write what
+  // they derived (the auto-reconcile) gate on this.
+  const complete = computed(() => {
+    const rows = classesQuery.data.value;
+    if (!rows) return false;
+    const resolved = rows.every((cc) => {
+      const definitions = cc.class_definition_kind === "custom" ? customQuery.data.value : systemQuery.data.value;
+      if (!(definitions ?? []).some((d) => d.id === cc.class_definition_id)) return false;
+      if (!cc.subclass_definition_id) return true;
+      return (subclassQuery.data.value ?? []).some((d) => d.id === cc.subclass_definition_id);
+    });
+    const featuresSettled = featureIds.value.length === 0 || (!featuresQuery.isPending.value && !featuresQuery.isError.value);
+    return resolved && featuresSettled;
+  });
+
+  return { granted, pools, actions, activeToggles, riders, isPending, complete, error };
 }

@@ -288,12 +288,19 @@ function restOf(recharge: Recharge): "short" | "long" {
 /**
  * The `class_resources` object the character should hold. Unlimited pools are
  * left out (the sheet shows "Unlimited"); `current` is kept, clamped to the new
- * max, and a new key starts full; keys no pool produces are dropped.
+ * max, and a new key starts full. A stored key no pool produces is KEPT as it
+ * is: the derivation may simply not see that pool (a definition that did not
+ * load, official features whose mechanics are not imported yet), and dropping it
+ * would erase the character's spent count with no way to get it back.
  */
 export function classResourcesFor(pools: ResourcePool[], stored: StoredClassResources): StoredClassResources {
-  const next: StoredClassResources = {};
+  const next: StoredClassResources = { ...stored };
   for (const pool of pools) {
-    if (pool.max === "unlimited") continue;
+    if (pool.max === "unlimited") {
+      // The sheet shows "Unlimited"; a count stored from before is no longer one.
+      delete next[pool.key];
+      continue;
+    }
     const previous = Object.hasOwn(stored, pool.key) ? stored[pool.key] : null;
     const current = previous === null ? pool.max : Math.min(Math.max(previous.current, 0), pool.max);
     next[pool.key] = {
