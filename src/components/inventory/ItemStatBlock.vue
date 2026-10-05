@@ -3,7 +3,7 @@
     class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-base"
     :style="isIdentified ? { borderColor: rarityTint } : {}"
   >
-    <div v-if="displayItemTypeLabel" class="flex justify-between">
+    <div v-if="displayItemTypeLabel && !omitSummaryRows" class="flex justify-between">
       <span class="text-muted-foreground">Type</span>
       <span class="font-bold">{{ displayItemTypeLabel }}</span>
     </div>
@@ -11,7 +11,7 @@
       <span class="text-muted-foreground">Subtype</span>
       <span>{{ item.subtype }}</span>
     </div>
-    <div v-if="item" class="flex justify-between">
+    <div v-if="item && !omitSummaryRows" class="flex justify-between">
       <span class="text-muted-foreground">Rarity</span>
       <span
         class="font-bold"
@@ -59,7 +59,7 @@
       <span class="text-muted-foreground">Arcane Focus</span>
       <span>Yes</span>
     </div>
-    <div v-if="item?.requires_attunement && isIdentified" class="flex justify-between gap-4">
+    <div v-if="item?.requires_attunement && isIdentified && !omitSummaryRows" class="flex justify-between gap-4">
       <span class="text-muted-foreground shrink-0">Attunement</span>
       <span class="text-right">{{ item.attunement_requirements || "Required" }}</span>
     </div>
@@ -69,18 +69,19 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import {
-  ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
   RARITY_SURFACE_VAR,
   RARITY_TEXT,
-  MAGIC_ONLY_ITEM_TYPES,
 } from "@/types/item.types";
 import type { Item } from "@/types/item.types";
+import { visibleTypeLabel } from "@/components/inventory/itemDetailSummary";
 import WeaponMasteryBadge from "@/components/items/WeaponMasteryBadge.vue";
 
-const { item, isIdentified } = defineProps<{
+const { item, isIdentified, omitSummaryRows = false } = defineProps<{
   item: Item | null;
   isIdentified: boolean;
+  /** Leave out type, rarity and attunement for a host that already says them in its own summary line. */
+  omitSummaryRows?: boolean;
 }>();
 
 /** Border tint from the ramp token. `color-mix` rather than an appended hex
@@ -89,11 +90,5 @@ const rarityTint = computed(() =>
   item ? `color-mix(in oklab, ${RARITY_SURFACE_VAR[item.rarity]} 40%, transparent)` : "transparent"
 );
 
-const displayItemTypeLabel = computed(() => {
-  if (!item) return !isIdentified ? ITEM_TYPE_LABELS['art_object'] : null;
-  const shouldMask = !isIdentified && item.rarity !== 'mundane';
-  if (shouldMask && item.item_type === 'potion') return ITEM_TYPE_LABELS['provision'];
-  if (shouldMask && MAGIC_ONLY_ITEM_TYPES.has(item.item_type)) return ITEM_TYPE_LABELS['art_object'];
-  return ITEM_TYPE_LABELS[item.item_type];
-});
+const displayItemTypeLabel = computed(() => visibleTypeLabel(item, isIdentified));
 </script>

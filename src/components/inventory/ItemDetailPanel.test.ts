@@ -1,6 +1,6 @@
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { reactive } from "vue";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
+import { reactive, ref } from "vue";
 import ItemDetailPanel from "./ItemDetailPanel.vue";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 
@@ -20,6 +20,14 @@ vi.mock("@/composables/play/useReadItems", () => ({
 }));
 vi.mock("@tanstack/vue-query", () => ({
   useQuery: () => ({ data: { value: [] } }),
+}));
+// The stores below are plain reactive stubs, not Pinia stores, so storeToRefs has to be handed refs.
+vi.mock("pinia", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("pinia")>()),
+  storeToRefs: (store: Record<string, unknown>) => ({
+    activeCampaignId: ref(store.activeCampaignId),
+    activeCampaign: ref(store.activeCampaign),
+  }),
 }));
 vi.mock("@/stores/auth", () => ({
   useAuthStore: () => reactive({ isDM: false, linkedPartyMemberId: "pm-1" }),
@@ -58,9 +66,9 @@ function makeInv(overrides: Partial<PartyInventoryItem> = {}): PartyInventoryIte
   };
 }
 
-function mountPanel(inv: PartyInventoryItem) {
+function mountPanel(inv: PartyInventoryItem, extra: Record<string, unknown> = {}) {
   return mount(ItemDetailPanel, {
-    props: { inv, vaultItem: null, attunedCount: 0 },
+    props: { inv, vaultItem: null, attunedCount: 0, equipOptions: [], ...extra },
     global: { stubs: { RichTextEditor: true, RichTextViewer: true } },
   });
 }
@@ -131,5 +139,92 @@ describe("ItemDetailPanel — Notes (#809)", () => {
     expect(mocks.updateItem).not.toHaveBeenCalled();
     expect(editor(wrapper).exists()).toBe(false);
     expect(wrapper.findComponent({ name: "RichTextViewer" }).props("content")).toBe("Original note");
+  });
+});
+
+// The modal teleports to <body>, so wrapper.text() is empty: read the page, and unmount each test.
+const mounted: VueWrapper[] = [];
+afterEach(() => { mounted.splice(0).forEach((w) => w.unmount()); });
+const pageText = () => document.body.textContent ?? "";
+
+function mountWith(inv: PartyInventoryItem, vaultItem: Record<string, unknown> | null, extra: Record<string, unknown> = {}) {
+  const wrapper = mount(ItemDetailPanel, {
+    props: { inv, vaultItem: vaultItem as never, attunedCount: 0, equipOptions: [], ...extra },
+    global: { stubs: { RichTextEditor: true, RichTextViewer: true, ItemDocumentSection: true } },
+  });
+  mounted.push(wrapper);
+  return wrapper;
+}
+const labels = (w: VueWrapper) => w.findAllComponents({ name: "AppButton" }).map((b) => b.props("label"));
+
+describe("ItemDetailPanel actions row", () => {
+  const sword = { id: "v1", item_type: "weapon", rarity: "mundane", tags: [], name: "Sword" };
+
+  it("shows Unequip, not Equip, for a worn item", () => {
+    const w = mountWith(makeInv({ location: "equipped", slot: "body" }), sword);
+    expect(labels(w)).toContain("Unequip");
+    expect(labels(w)).not.toContain("Equip");
+  });
+
+  it("equips straight into the only free slot", async () => {
+    const w = mountWith(makeInv({ carried_by: "pm-1", location: "backpack" }), sword, {
+      equipOptions: [{ slot: "ring", label: "Ring", free: true }],
+    });
+    await findButton(w, "Equip").trigger("click");
+    expect(w.emitted("equip")).toEqual([["ring"]]);
+  });
+
+  it("asks which slot when there is a real choice", async () => {
+    const w = mountWith(makeInv({ carried_by: "pm-1", location: "backpack" }), sword, {
+      equipOptions: [
+        { slot: "main_hand", label: "Main hand", free: true },
+        { slot: "off_hand", label: "Off hand", free: true },
+      ],
+    });
+    await findButton(w, "Equip").trigger("click");
+    expect(w.emitted("equip")).toBeUndefined();
+    await findButton(w, "Off hand").trigger("click");
+    expect(w.emitted("equip")).toEqual([["off_hand"]]);
+  });
+
+  it("disables Equip and says why when every slot is taken", () => {
+    const w = mountWith(makeInv({ location: "backpack" }), sword, {
+      equipOptions: [{ slot: "body", label: "Body", free: false }],
+    });
+    expect(findButton(w, "Equip").props("disabled")).toBe(true);
+    expect(pageText()).toContain("Your body is taken");
+  });
+
+  it("uses the last of a stack on Consume by emitting, and decrements otherwise", async () => {
+    const potion = { id: "v2", item_type: "potion", rarity: "common", tags: [], name: "Healing" };
+    const one = mountWith(makeInv({ id: "inv-9", quantity: 1 }), potion);
+    await findButton(one, "Consume").trigger("click");
+    expect(one.emitted("consume")).toEqual([["inv-9"]]);
+
+    const many = mountWith(makeInv({ id: "inv-9", quantity: 3 }), potion);
+    await findButton(many, "Consume").trigger("click");
+    await flushPromises();
+    expect(mocks.updateItem).toHaveBeenCalledWith({ id: "inv-9", update: { quantity: 2 } });
+  });
+
+  it("blocks a fourth attunement with a plain message", () => {
+    const ring = { id: "v3", item_type: "ring", rarity: "rare", tags: [], name: "Ring", requires_attunement: true };
+    const w = mountWith(makeInv({ is_attuned: false }), ring, { attunedCount: 3 });
+    expect(findButton(w, "Attune").props("disabled")).toBe(true);
+    expect(pageText()).toContain("attuned to 3 items");
+  });
+
+  it("offers no attunement while unidentified", () => {
+    const ring = { id: "v3", item_type: "ring", rarity: "rare", tags: [], name: "Ring", requires_attunement: true };
+    const w = mountWith(makeInv({ is_identified: false }), ring);
+    expect(labels(w)).not.toContain("Attune");
+    expect(pageText()).toContain("Art object");
+    expect(pageText()).not.toContain("Rare");
+  });
+
+  it("emits dropToChat", async () => {
+    const w = mountWith(makeInv(), sword);
+    await findButton(w, "Drop to chat").trigger("click");
+    expect(w.emitted("dropToChat")).toHaveLength(1);
   });
 });

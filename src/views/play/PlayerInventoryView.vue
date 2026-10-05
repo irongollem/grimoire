@@ -99,8 +99,11 @@
       :vault-item="selectedVaultItem"
       :attuned-count="attunedItems.length"
       :can-identify="auth.isDM && !ui.dmPreviewMode"
+      :equip-options="selectedEquipOptions"
       @close="selectedInv = null"
-      @unequip="unequipSelected"
+      @unequip="unequipOpenItem"
+      @equip="equipSelected"
+      @drop-to-chat="dropSelectedToChat"
       @sell="handleSell"
       @consume="handleConsume"
     />
@@ -141,8 +144,9 @@ import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useInventorySlots } from "@/composables/items/useInventorySlots";
 import { useInventoryMutations } from "@/composables/items/useInventoryMutations";
 import { inventoryItemRef } from "@/lib/itemRef";
+import { equipSlotOptions, type EquipOption } from "@/components/inventory/itemDetailSummary";
 import { inventoryItemWeight, inventoryItemWeightPerUnit } from "@/rules/inventoryWeight";
-import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { InventorySlot, PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
 import ItemDetailPanel from "@/components/inventory/ItemDetailPanel.vue";
@@ -520,6 +524,51 @@ const {
   equipToSlot,
   unequipSlot,
 } = useInventorySlots({ equippedItems, myItems, allItems, selectedInv });
+
+// Where the open item can be equipped. Only the player's own carried items, never the
+// party stash or an item already worn (that one offers Unequip instead).
+const selectedEquipOptions = computed<EquipOption[]>(() => {
+  const inv = selectedInv.value;
+  if (!inv || inv.location === "equipped" || !inv.carried_by || inv.carried_by !== resolvedMemberId.value) return [];
+  return equipSlotOptions(
+    selectedVaultItem.value,
+    (slot) => slotItem(slot) !== null,
+    (slot) => candidatesForSlot(slot).some((c) => c.id === inv.id),
+  );
+});
+
+async function unequipOpenItem() {
+  try {
+    await unequipSelected();
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't unequip that."));
+  }
+}
+
+async function equipSelected(slot: InventorySlot) {
+  const inv = selectedInv.value;
+  if (!inv) return;
+  try {
+    await equipToSlot(inv, slot);
+    selectedInv.value = null;
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't equip that."));
+  }
+}
+
+async function dropSelectedToChat() {
+  const inv = selectedInv.value;
+  if (!inv) return;
+  try {
+    await dropItemToChat(inv);
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't drop that to the chat."));
+    return;
+  }
+  // dropItemToChat asks first and removes the row only on yes: close the panel
+  // only if the item is actually gone, so a cancelled prompt leaves it open.
+  if (!(inventory.value ?? []).some((i) => i.id === inv.id)) selectedInv.value = null;
+}
 
 // ── Mutation composable ────────────────────────────────────────────────────────
 const {
