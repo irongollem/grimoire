@@ -1,5 +1,5 @@
 <template>
-  <SettingsSection title="Display Name" description="This is how your DM and party members see you in the campaign. It defaults to your email address.">
+  <SettingsSection title="Display Name" description="How your DM and the party see you at this table. Each campaign keeps its own.">
     <form class="flex gap-2" @submit.prevent="saveName">
       <AppInput
         v-model="displayName"

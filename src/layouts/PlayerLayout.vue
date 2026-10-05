@@ -201,7 +201,7 @@
         @touchstart.prevent="startEncounterResizeTouch($event)"
       />
 
-      <main class="flex-1 overflow-y-auto">
+      <main ref="mainEl" class="flex-1 overflow-y-auto">
         <div :class="fullscreenMobile ? 'h-full' : 'px-4 py-6'">
           <!-- Renders nothing unless the DM is actually sharing audio, so a
                table that plays in one room never sees it. -->
@@ -355,7 +355,7 @@
 
 <script setup lang="ts">
 import BrandLogo from "@/components/brand/BrandLogo.vue";
-import { ref, computed, watch, defineAsyncComponent } from "vue";
+import { ref, computed, watch, defineAsyncComponent, useTemplateRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconAdd, IconBug, IconCalendarDays, IconClose, IconEncounter, IconLogOut, IconMenu, IconMessage, IconPopulate, IconReveal, IconSettingsAlt } from '@/lib/icons';
@@ -562,6 +562,17 @@ async function onCampaignCreated(c: Campaign) {
 }
 
 watch(() => route.path, () => { showMore.value = false; });
+
+// A new page starts at its top, as in DefaultLayout: `<main>` is what scrolls
+// here, not `window`, so the router's `scrollBehavior` never reached it and a
+// player opening their sheet from the Adventurer's Rest landed partway down it.
+const mainEl = useTemplateRef<HTMLElement>("mainEl");
+watch(
+  () => route.matched[0],
+  (record, previous) => {
+    if (record !== previous && mainEl.value) mainEl.value.scrollTop = 0;
+  },
+);
 
 function exitPreview() {
   ui.exitDmPreview();
