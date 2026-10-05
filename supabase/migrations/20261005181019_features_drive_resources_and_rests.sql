@@ -107,7 +107,13 @@ begin
       -- A pool stored under its old label ("Mise En Place") keeps what it had.
       update public.party_members pm
          set class_resources = (pm.class_resources - (v_res ->> 'key')) || jsonb_build_object(v_key, pm.class_resources -> (v_res ->> 'key'))
-       where pm.class_resources ? (v_res ->> 'key') and (v_res ->> 'key') <> v_key;
+       where pm.class_resources ? (v_res ->> 'key') and (v_res ->> 'key') <> v_key
+         and not pm.class_resources ? v_key
+         -- Only a character that plays this class or subclass: another
+         -- character's pool may carry the same old label for something else.
+         and exists (select 1 from public.character_classes cc
+                      where cc.party_member_id = pm.id
+                        and (cc.class_definition_id = v_def.id or cc.subclass_definition_id = v_def.id));
     end loop;
   end loop;
 end $$;

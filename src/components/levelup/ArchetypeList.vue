@@ -12,7 +12,7 @@
       <p class="text-heading-sm font-semibold text-foreground">No archetypes yet</p>
       <p class="text-body text-muted-foreground max-w-sm">
         Archetypes let you define custom subclasses for any of the 13 SRD classes: add features
-        per level, choices shown in the level-up wizard, and tracked resource pools.
+        per level, and give each feature its uses and the choices it asks for.
       </p>
     </div>
 
@@ -44,17 +44,10 @@
         </p>
       </div>
       <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-        <p class="text-eyebrow text-primary">Wizard Steps</p>
+        <p class="text-eyebrow text-primary">Uses and choices</p>
         <p class="text-caption text-muted-foreground">
-          Choices shown to the player during level-up, e.g. pick a fighting style or a bonus spell.
-          Results are saved in class_choices.
-        </p>
-      </div>
-      <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-        <p class="text-eyebrow text-primary">Resource Pools</p>
-        <p class="text-caption text-muted-foreground">
-          Tracked uses that appear on the character sheet, e.g. Rage uses, Ki points, Channel
-          Divinity. Set how they scale and which rest recharges them.
+          Each feature carries its own: uses that appear on the character sheet and recharge on a
+          rest, and the choices level-up asks for when it is gained.
         </p>
       </div>
     </div>

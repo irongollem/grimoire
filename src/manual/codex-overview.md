@@ -20,7 +20,7 @@ The **Character Codex** (**Compendium → Character Codex** in the sidebar, `/co
 | Ability | An individual feature, feat, or option that classes/archetypes/species reference |
 | Campaign scope | Whether a piece of custom content appears in one campaign or all of yours |
 
-## The five tabs
+## The six tabs
 
 The Codex has six tabs (**Species**, **Backgrounds**, **Classes**, **Archetypes**, **Abilities** and **Feats**) and each has its own address, so you can bookmark the one you use most.
 

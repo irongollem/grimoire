@@ -11,8 +11,8 @@
     </div>
     <div v-else class="divide-y divide-border">
       <CharacterFeatureCard
-        v-for="g in features"
-        :key="`${g.grant.kind}-${g.feature.id}-${g.grant.kind === 'feat' ? g.grant.atLevel : ''}`"
+        v-for="(g, i) in features"
+        :key="`${g.grant.kind}-${g.feature.id}-${g.grant.kind === 'feat' ? `${g.grant.via}-${g.grant.atLevel}-${i}` : ''}`"
         :granted="g"
         :pools="pools"
         :remaining="remaining"

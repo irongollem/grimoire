@@ -498,8 +498,12 @@ export function useCharacterCreationForm() {
     canCastSpells: computed(() => spellSlotMaxes.some((max) => max > 0)),
   });
   /** A new character cannot be made until every level-1 choice is answered and the origin feat resolves. */
+  // A background's origin feat resolves only once the feats have loaded; saving
+  // before then would create the character without its origin feat.
+  const originFeatPending = computed(() => originFeat.value !== null && allFeatures.value === undefined);
   const blockedByLevelOne = computed(() =>
-    !isEditMode.value && (levelOne.isLoading.value || !levelOne.complete.value || originFeatMessage.value !== null));
+    !isEditMode.value
+      && (levelOne.isLoading.value || !levelOne.complete.value || originFeatMessage.value !== null || originFeatPending.value));
   let serverDraft: CharacterEditDraft | null = null;
 
   function resetSlotsToDefault() {

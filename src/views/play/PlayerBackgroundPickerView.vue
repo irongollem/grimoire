@@ -119,7 +119,7 @@
             size="md"
             class="flex-1"
             :label="saving ? 'Saving…' : 'Confirm & Apply'"
-            :disabled="saving || asiChoiceIncomplete || originFeatUnresolved"
+            :disabled="saving || asiChoiceIncomplete || originFeatUnresolved || originFeatPending"
             @click="confirm"
           />
         </div>
@@ -245,6 +245,9 @@ const resolvedOriginFeat = computed(() =>
 );
 const originFeatUnresolved = computed(() =>
   resolvedOriginFeat.value !== null && resolvedOriginFeat.value.feature === null && allFeatures.value !== undefined);
+// Until the feats have loaded, an origin feat cannot be resolved; confirming
+// then would store none and drop the character's current one.
+const originFeatPending = computed(() => resolvedOriginFeat.value !== null && allFeatures.value === undefined);
 
 function onSelect(bg: Background) {
   pendingBg.value = bg;
@@ -265,7 +268,7 @@ function cancel() {
 }
 
 async function confirm() {
-  if (!me.value || !pendingBg.value || asiChoiceIncomplete.value || originFeatUnresolved.value) return;
+  if (!me.value || !pendingBg.value || asiChoiceIncomplete.value || originFeatUnresolved.value || originFeatPending.value) return;
   const memberId = me.value.id;
   const hadReviewFlag = (rulesetReviews.value ?? []).some((r) => r.flag_type === "background");
   saving.value = true;

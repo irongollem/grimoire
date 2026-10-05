@@ -40,9 +40,9 @@
           </p>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-          <p class="text-eyebrow text-primary">Resource Pools</p>
+          <p class="text-eyebrow text-primary">Uses</p>
           <p class="text-caption text-muted-foreground">
-            Tracked uses that appear on the character sheet: Grit Points, Ki, Superiority Dice, etc.
+            A pool like Grit Points, Ki or Superiority Dice is the uses of the feature that grants it.
           </p>
         </div>
       </div>

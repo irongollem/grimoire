@@ -152,7 +152,10 @@ describe("level records", () => {
 
   it("round-trips from empty choices, removing the keys it created", () => {
     const empty = {};
-    expect(revertLevelChoices(applyLevelChoices(empty, record), { ...record, choices: { expertise: record.choices.expertise } })).toMatchObject({});
+    // From nothing a record can only add (there is no earlier pick to give up), so
+    // the round trip uses the additions-only part, applied and reverted alike.
+    const additions: LevelChoiceRecord = { ...record, choices: { expertise: record.choices.expertise } };
+    expect(revertLevelChoices(applyLevelChoices(empty, additions), additions)).toEqual({});
     const only: LevelChoiceRecord = { choices: {}, abilityIncreases: {}, feats: ["tough"], swaps: { k: "v" } };
     expect(revertLevelChoices(applyLevelChoices(empty, only), only)).toEqual({});
   });

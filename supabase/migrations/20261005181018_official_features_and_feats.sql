@@ -414,8 +414,15 @@ select legacy.id, twin.id
        and s.class_name = legacy.class_name
        and lower(s.subclass_name) = lower(legacy.subclass_name)
        and (legacy.ruleset is null or s.ruleset = legacy.ruleset)
-     -- An edition-less legacy row moves to the twin of its characters' edition,
-     -- which the subclass trigger requires.
+       -- The subclass trigger admits only a definition of the character's own
+       -- edition, so an edition-less legacy row with characters on it moves
+       -- only to a twin of exactly their edition.
+       and not exists (
+         select 1 from public.character_classes cc
+           join public.party_members pm on pm.id = cc.party_member_id
+          where cc.subclass_definition_id = legacy.id
+            and pm.ruleset is distinct from s.ruleset)
+     -- Without characters on it, prefer the 2014 twin.
      order by (s.ruleset = (select pm.ruleset from public.character_classes cc
                               join public.party_members pm on pm.id = cc.party_member_id
                              where cc.subclass_definition_id = legacy.id
@@ -487,9 +494,13 @@ select distinct cc.party_member_id
   from public.character_classes cc
  where cc.subclass_definition_id in (select old_id from remap);
 
+-- The name moves with the definition: the trigger requires the two to match,
+-- and a twin's name may differ in case.
 update public.character_classes cc
-   set subclass_definition_id = r.new_id
+   set subclass_definition_id = r.new_id,
+       subclass_name = s.subclass_name
   from remap r
+  join public.custom_subclasses s on s.id = r.new_id
  where cc.subclass_definition_id = r.old_id;
 
 -- A character's own choices name features by id too: feats in

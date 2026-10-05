@@ -8,6 +8,7 @@ import { classResourcesChanged, type StoredClassResources } from "@/rules/featur
 import { revertAbilityScoreIncreases, revertLevelChoices, type LevelChoiceRecord } from "@/rules/features/levelUpChoices";
 import type { CharacterClass } from "@/types/multiclass.types";
 import { getMulticlassSpellSlots } from "@/types/spell.types";
+import { reconcileSpellSlotUsage } from "@/rules/spellSlots";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { LevelChoiceEntry, PartyMember, SpellSlotEntry } from "@/types/party.types";
 import { applyMasteryChanges, applySkillChanges } from "./levelPicks";
@@ -97,13 +98,9 @@ export function buildDeLevelPayload(input: BuildDeLevelInput): DeLevelPayload {
   } else if (postClasses.length > 0) {
     rawSlots = getMulticlassSpellSlots(postClasses, input.ruleset);
   }
-  update.spell_slots = rawSlots
-    .map((s): SpellSlotEntry => ({
-      ...s,
-      // Clamp carried-over used to the new (lower) max so de-level can't leave used > max.
-      used: Math.min(s.max, member.spell_slots?.find((e) => e.level === s.level)?.used ?? 0),
-    }))
-    .filter((s) => s.max > 0);
+  // Usage carries over per level AND pool (a pact slot and a spellcasting slot
+  // can share a level), clamped to the new max; temporary and feature slots stay.
+  update.spell_slots = reconcileSpellSlotUsage(rawSlots.filter((s) => s.max > 0), member.spell_slots);
 
   const remainingChoices = { ...member.level_choices };
   delete remainingChoices[level];
