@@ -345,6 +345,8 @@ export const useUiStore = defineStore("ui", () => {
   // Ordering, not a filter: like the journal, it stays out of the active-filters check and Clear.
   const playerPeopleSortBy = ref<PlayerNpcSortField>("rating");
   const playerPeopleSortDir = ref<SortDir>("desc");
+  // A view of the same list, not a filter: stays out of the active-filters check and Clear.
+  const playerPeopleView = ref<"ledger" | "portraits">("ledger");
 
   const playerPeopleHasActiveFilters = computed(() =>
     playerPeopleSearch.value !== "" ||
@@ -1281,6 +1283,7 @@ export const useUiStore = defineStore("ui", () => {
     playerPeopleFilterLocation,
     playerPeopleSortBy,
     playerPeopleSortDir,
+    playerPeopleView,
     playerPeopleHasActiveFilters,
     resetPlayerPeopleFilters,
 

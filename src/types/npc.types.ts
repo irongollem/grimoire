@@ -213,6 +213,8 @@ export interface Npc {
   player_visible_to: string[]; // [] = hidden; uuid[] = visible to those party_member_ids
   player_visible_fields: string[]; // subset of: portrait | name | status | race | occupation | relationship | location
   ai_provenance?: AiProvenance | null;
+  /** When the disguise fell (set by a DB trigger only); null while concealed or never disguised. */
+  unmasked_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -232,7 +234,7 @@ export type PlayerNpc = Omit<Npc, "name"> & {
 
 export type NpcInsert = Omit<
   Npc,
-  "id" | "user_id" | "created_at" | "updated_at" | "location_id" | "linked_monster_id"
+  "id" | "user_id" | "created_at" | "updated_at" | "unmasked_at" | "location_id" | "linked_monster_id"
 > & { location_id?: string | null; linked_monster_id?: string | null };
 export type NpcUpdate = Partial<NpcInsert>;
 

@@ -68,6 +68,7 @@ function npc(over: Partial<Npc> = {}): Npc {
     scriptorium_doc_id: null,
     player_visible_to: [],
     player_visible_fields: [],
+    unmasked_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...over,
