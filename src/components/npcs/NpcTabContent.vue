@@ -34,6 +34,9 @@
       <EntityBacklinks :entity-id="npc.id" heading-class="text-label-lg font-bold text-muted-foreground uppercase" />
     </div>
 
+    <!-- With the party tab -->
+    <NpcPartyTab v-else-if="activeTab === 'party'" :npc="npc" />
+
     <!-- Inventory tab -->
     <div v-else-if="activeTab === 'inventory'">
       <NpcInventorySection :npc-id="npc.id" :npc-name="getNpcDisplayName(npc)" />
@@ -72,6 +75,7 @@ import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
+import NpcPartyTab from "@/components/npcs/NpcPartyTab.vue";
 import NpcRelationsTab from "@/components/npcs/NpcRelationsTab.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
 import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
@@ -82,6 +86,7 @@ defineProps<{ npc: Npc }>();
 
 const TABS = [
   { key: 'lore',      label: 'Lore' },
+  { key: 'party',     label: 'With the party' },
   { key: 'inventory', label: 'Inventory' },
   { key: 'relations', label: 'Relations' },
   { key: 'combat',    label: 'Combat' },

@@ -81,6 +81,15 @@ function invalidate(queryClient: QueryClient, predicate: (key: QueryKey) => bool
   void queryClient.invalidateQueries({ predicate: (query) => predicate(query.queryKey) });
 }
 
+/**
+ * `npc_reveals` rows are written by DB triggers in the same transaction as an
+ * `npcs` or `locations` update, and the table never travels as a payload, so the
+ * DM's "when they met" reads refetch on the row event that caused them.
+ */
+function invalidateNpcReveals(queryClient: QueryClient): void {
+  invalidate(queryClient, (key) => key[0] === "npc-reveals");
+}
+
 function invalidatePlayerQuestCaches(queryClient: QueryClient, campaignId: string, rowId: string): void {
   invalidate(queryClient, (key) => key[0] === "quests" && (
     (key[1] === campaignId && key[2] === "player-visible")
@@ -260,6 +269,7 @@ export function applyCampaignRealtimeWorld(
       break;
     case "locations":
       applyLocations(queryClient, payload, context);
+      if (context.isDM) invalidateNpcReveals(queryClient);
       invalidateGlobalSearch(queryClient);
       break;
     case "factions":
@@ -267,6 +277,7 @@ export function applyCampaignRealtimeWorld(
       break;
     case "npcs":
       applyNpcs(queryClient, payload, context);
+      if (context.isDM) invalidateNpcReveals(queryClient);
       // This is a reduced spell-caster projection rather than a raw NPC row.
       invalidate(queryClient, (key) => key[0] === "npcs" && key[1] === "spell-casters");
       invalidateGlobalSearch(queryClient);

@@ -167,4 +167,18 @@ describe("applyCampaignRealtimeWorld", () => {
     expect(invalidated(qc, ["companions", "campaign-1"])).toBe(false);
     expect(applyCampaignRealtimeWorld(qc, "calendar_events", change(companion), dm)).toBe(false);
   });
+
+  it("refetches the DM's npc-reveals reads on npc and location rows, and leaves players alone", () => {
+    for (const table of ["npcs", "locations"]) {
+      const dmClient = new QueryClient();
+      dmClient.setQueryData(["npc-reveals", "npc-1"], new Map());
+      applyCampaignRealtimeWorld(dmClient, table, change(row()), dm);
+      expect(invalidated(dmClient, ["npc-reveals", "npc-1"])).toBe(true);
+
+      const playerClient = new QueryClient();
+      playerClient.setQueryData(["npc-reveals", "npc-1"], new Map());
+      applyCampaignRealtimeWorld(playerClient, table, change(row()), player);
+      expect(invalidated(playerClient, ["npc-reveals", "npc-1"])).toBe(false);
+    }
+  });
 });

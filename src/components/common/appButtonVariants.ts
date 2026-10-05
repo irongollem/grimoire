@@ -120,9 +120,9 @@ export const buttonVariants = cva(
          * shoulder with the editor's own toolbar buttons and have to align to the
          * pixel; a `py-*` size drifts as soon as the type role changes.
          *
-         * 17 sites across 4 files (ScriptoriumEditorToolbar, ScriptoriumPreviewPane,
-         * NpcPcNotesSection, PlayerNotesWidget), one of which had already resorted to
-         * a `class="h-6.5"` override to line up.
+         * Introduced for 17 sites across 4 files, one of which had already resorted
+         * to a `class="h-6.5"` override to line up. Today: ScriptoriumEditorToolbar,
+         * ScriptoriumPreviewPane, PlayerNotesWidget and RestButtons.
          */
         toolbar: "gap-1 rounded px-2 h-6.5 text-label",
         /**

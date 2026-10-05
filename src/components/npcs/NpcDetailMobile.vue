@@ -190,6 +190,10 @@
         </div>
       </NpcAccordionSection>
 
+      <NpcAccordionSection v-model:open="openSections.party" title="With the party">
+        <NpcPartyTab :npc="npc" />
+      </NpcAccordionSection>
+
       <NpcAccordionSection v-model:open="openSections.inventory" title="Inventory">
         <NpcInventorySection :npc-id="npc.id" :npc-name="displayName" />
       </NpcAccordionSection>
@@ -306,6 +310,7 @@ import MobileSheet from "@/components/common/MobileSheet.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
+import NpcPartyTab from "@/components/npcs/NpcPartyTab.vue";
 import NpcRelationsTab from "@/components/npcs/NpcRelationsTab.vue";
 import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
 import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
@@ -380,6 +385,7 @@ const hasAnyQuickFact = computed(
 // ── Accordion state (Lore open by default) ──────────────────────────────────────
 const openSections = reactive({
   lore: true,
+  party: false,
   inventory: false,
   relations: false,
   combat: false,

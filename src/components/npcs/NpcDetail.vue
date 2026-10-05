@@ -31,7 +31,9 @@
   <form v-else id="npc-detail-form" class="max-w-full min-w-0" @submit.prevent="save">
 
     <!--
-      Notes the party can read, shown once this NPC is revealed to someone.
+      Notes the party can read, shown once this NPC is revealed to someone. What
+      each character knows individually (their connection) lives on the "With the
+      party" tab.
 
       These used to be a slot inside `RevealedFieldsPanel`, which also drew the
       "which fields do players see" checkboxes. Those checkboxes are now the
@@ -41,17 +43,10 @@
     -->
     <div
       v-if="npc?.id && form.player_visible_to.length"
-      class="mb-4 space-y-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3"
+      class="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3"
     >
-      <div>
-        <p class="text-label font-semibold text-muted-foreground mb-2">PARTY NOTES</p>
-        <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Your thoughts on this character…" />
-      </div>
-      <div>
-        <p class="text-label font-semibold text-muted-foreground mb-2">PC CONNECTION NOTES</p>
-        <p class="text-caption text-muted-foreground/60 italic mb-2">Per-player notes visible only to the relevant PC.</p>
-        <NpcPcNotesSection :npc-id="npc.id" />
-      </div>
+      <p class="text-label font-semibold text-muted-foreground mb-2">PARTY NOTES</p>
+      <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Your thoughts on this character…" />
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-[13.75rem_1fr] gap-6 lg:items-start min-w-0 max-w-full">
@@ -244,7 +239,6 @@ import { formatNpcForScriptorium } from '@/lib/scriptorium/scriptoriumImport'
 import { buildEntityEmbedDocumentContent } from '@/lib/scriptorium/entityEmbeds'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
 import NpcRelationsSection from '@/components/npcs/NpcRelationsSection.vue'
-import NpcPcNotesSection from '@/components/npcs/NpcPcNotesSection.vue'
 import NpcInventorySection from '@/components/npcs/NpcInventorySection.vue'
 import NpcLoreTab from '@/components/npcs/NpcLoreTab.vue'
 import NpcIdentitySection from '@/components/npcs/NpcIdentitySection.vue'
