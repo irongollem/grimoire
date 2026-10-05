@@ -4,7 +4,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type { PartyMember, PartyMemberInsert, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
-import { removeStorageImages } from "@/composables/useImageUpload";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { useToast } from "@/composables/useToast";
 import {
   createRealtimeChannel,
@@ -55,7 +55,7 @@ async function deletePartyMember(member: PartyMember): Promise<void> {
   if (!data?.length) {
     throw new Error("This character could not be removed. Detach claimed characters instead.");
   }
-  await removeStorageImages("asset-images", member.portrait_url);
+  await deleteUnreferencedByPublicUrl({ urls: [member.portrait_url] });
 }
 
 /** `enabled` lets permanently-mounted callers defer the fetch until their panel

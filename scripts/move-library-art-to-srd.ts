@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Moves canonical library art out of user folders and under `srd/` (#952).
+ * Moves canonical library art out of user folders and under `srd/` (#952, #978).
  *
  * ## Why
  *
@@ -12,9 +12,10 @@
  * ## What it does
  *
  * Reads the source rows (`library_art_defaults.image_url` for items,
- * `library_monster_art_canonical.image_url` and `.cutout_url` for monsters),
- * keeps those whose URL sits in a user-uuid folder of a registered image
- * bucket, and for each distinct image:
+ * `library_monster_art_canonical.image_url` and `.cutout_url` for monsters,
+ * `library_backgrounds.image_url` for backgrounds), keeps those whose URL sits
+ * in a user-uuid folder of a registered image bucket, and for each distinct
+ * image:
  *
  * 1. fetches the old original (a 404 is a dead image: listed, nothing written);
  * 2. builds the new original: a real WebP is copied byte for byte, any other
@@ -27,12 +28,15 @@
  *    so an interrupted run resumes by running again. An object already there at
  *    another size is a failure, never an overwrite: `srd/` holds live art;
  * 6. only once every object is confirmed present by HEAD, updates the shared
- *    copies (`library_items`, `library_monsters`) whose URL equals the old one
- *    exactly, and the source row last. The source row is what makes an image a
+ *    copies (`library_items`, `library_monsters`; backgrounds have none) whose
+ *    URL equals the old one exactly, and the source row last. The source row is what makes an image a
  *    job, so it must be the last thing to change: updated first, a failure
  *    before the copies would leave them stale with no job left to finish them.
  *
- * The per-user rows (`items`, `monsters`, `npcs`, ...) are never touched: the
+ * Background art moves out of `asset-images`, where backgrounds uploaded until
+ * #978 gave them `background-images`, into `background-images/srd/`.
+ *
+ * The per-user rows (`items`, `monsters`, `npcs`, `backgrounds`, ...) are never touched: the
  * old files stay where they are, so those rows keep working. **This script has
  * no delete path**: not an object, not a row.
  *
@@ -76,10 +80,14 @@ const VARIANT_QUALITY = 80;
 const PAGE = 1000;
 const CONCURRENCY = 4;
 
-export type ArtKind = "item" | "monster";
+export type ArtKind = "item" | "monster" | "background";
 
 /** The bucket each kind of canonical art lives in once moved. */
-export const TARGET_BUCKET: Readonly<Record<ArtKind, string>> = { item: "item-images", monster: "monster-images" };
+export const TARGET_BUCKET: Readonly<Record<ArtKind, string>> = {
+  item: "item-images",
+  monster: "monster-images",
+  background: "background-images",
+};
 
 interface ColumnSpec {
   table: string;
@@ -92,9 +100,13 @@ export const SOURCE_COLUMNS: readonly (ColumnSpec & { orderBy: string })[] = [
   { table: "library_art_defaults", column: "image_url", kind: "item", orderBy: "id" },
   { table: "library_monster_art_canonical", column: "image_url", kind: "monster", orderBy: "entry_id" },
   { table: "library_monster_art_canonical", column: "cutout_url", kind: "monster", orderBy: "entry_id" },
+  { table: "library_backgrounds", column: "image_url", kind: "background", orderBy: "id" },
 ];
 
-/** The shared copies of the source URLs, edited by exact old URL after the move. */
+/**
+ * The shared copies of the source URLs, edited by exact old URL after the move.
+ * Backgrounds have none: `library_backgrounds` is both the source and the only copy.
+ */
 export const SHARED_COLUMNS: readonly ColumnSpec[] = [
   { table: "library_items", column: "image_url", kind: "item" },
   { table: "library_items", column: "mundane_image_url", kind: "item" },

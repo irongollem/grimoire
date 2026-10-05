@@ -130,6 +130,16 @@ export const BUCKETS = {
     generateVariants: true,
     cdn: true,
   },
+  backgroundImages: {
+    id: "background-images",
+    maxBytes: FIVE_MB,
+    mimeTypes: IMAGE_MIMES,
+    public: true,
+    // Backgrounds uploaded into asset-images until #978, which has no
+    // variants and no srd/ prefix for the library's canonical art.
+    generateVariants: true,
+    cdn: true,
+  },
   itemImages: {
     id: "item-images",
     maxBytes: FIVE_MB,

@@ -105,7 +105,7 @@ describe("sweepTargets", () => {
 
   it("emits an srd/ target exactly for the buckets whose write policy declares it, and no others", () => {
     const srdBuckets = targets.filter((t) => t.prefix === "srd").map((t) => t.bucket).sort();
-    expect(srdBuckets).toEqual(["itemImages", "monsterImages", "spellImages"]);
+    expect(srdBuckets).toEqual(["backgroundImages", "itemImages", "monsterImages", "spellImages"]);
   });
 
   it("gives every included bucket a target for the admin's own uuid prefix", () => {

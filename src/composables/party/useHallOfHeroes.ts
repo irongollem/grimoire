@@ -5,7 +5,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { listSettings } from "@/settings/index";
 import type { HallOfHero, HallOfHeroInsert, HallOfHeroUpdate, NpcInsert } from "@/types/npc.types";
-import { removeStorageImages } from "@/composables/useImageUpload";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 
 const QUERY_KEY = "hall-of-heroes";
 
@@ -53,7 +53,7 @@ async function updateHero(id: string, update: HallOfHeroUpdate): Promise<HallOfH
 async function deleteHero(hero: HallOfHero): Promise<void> {
   const { error } = await supabase.from("hall_of_heroes").delete().eq("id", hero.id);
   if (error) throw error;
-  await removeStorageImages("asset-images", hero.portrait_url, hero.card_art_url, hero.disguise_portrait_url);
+  await deleteUnreferencedByPublicUrl({ urls: [hero.portrait_url, hero.card_art_url, hero.disguise_portrait_url] });
 }
 
 async function importHero(hero: HallOfHero, campaignId: string): Promise<void> {

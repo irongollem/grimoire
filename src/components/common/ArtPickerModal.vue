@@ -90,7 +90,7 @@ import {
   IconLibrary,
   IconUserRound, IconMonster, IconGem, IconGenerate,
   IconLocation, IconFaction, IconTrap, IconPuzzle,
-  IconNote, IconScriptorium, IconStar, IconLoot,
+  IconNote, IconScriptorium, IconStar, IconLoot, IconScrollText,
 } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { BUCKETS, variantPath, VARIANT_WIDTHS, getPublicUrl, type BucketKey, listOwnedPaths } from "@/lib/storage";
@@ -120,6 +120,7 @@ const CATEGORIES: ArtCategory[] = [
   { bucketKey: "assetImages",     label: "Document Art",    icon: IconScriptorium },
   { bucketKey: "itemImages",      label: "Item Art",        icon: IconGem         },
   { bucketKey: "spellImages",     label: "Spell Art",       icon: IconGenerate    },
+  { bucketKey: "backgroundImages", label: "Background Art", icon: IconScrollText  },
   { bucketKey: "factionImages",   label: "Faction Emblems", icon: IconFaction     },
   { bucketKey: "pantheonEmblems", label: "Pantheon Art",    icon: IconStar        },
   { bucketKey: "lootImages",      label: "Loot Art",        icon: IconLoot        },
