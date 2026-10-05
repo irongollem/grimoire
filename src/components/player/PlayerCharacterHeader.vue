@@ -6,9 +6,14 @@
     dice), then hit points with their controls, then rest and conditions. The
     parent owns the card; the ability boxes close it underneath.
   -->
-  <div class="flex flex-wrap items-start gap-3 p-3 sm:flex-nowrap sm:gap-4">
+  <!-- The layout follows the header's own width, not the screen's: the five
+       stat boxes beside the name need about 48rem, and a sheet card on a
+       640–800px screen (or in a narrow pane) is far short of that, which
+       squeezed the name and the hit point controls into a 130px column. -->
+  <div class="@container">
+  <div class="flex flex-wrap items-start gap-3 p-3 @3xl:flex-nowrap @3xl:gap-4">
     <!-- Portrait (beast image when wildshaped) -->
-    <div class="card-plate relative h-27 w-18 shrink-0 overflow-hidden rounded-md bg-muted/50 sm:h-30 sm:w-20">
+    <div class="card-plate relative h-27 w-18 shrink-0 overflow-hidden rounded-md bg-muted/50 @3xl:h-30 @3xl:w-20">
       <MiniPortraitOverlay :source="{ table: 'party_members', id: member.id }">
         <FocalImage
           v-if="portrait.src"
@@ -29,9 +34,9 @@
          rest rows take the full width beneath it (`contents` hands them to the
          card's own wrap), so the controls get a thumb's width instead of what is
          left of the portrait. -->
-    <div class="contents sm:flex sm:min-w-0 sm:flex-1 sm:flex-col sm:gap-2.5">
+    <div class="contents @3xl:flex @3xl:min-w-0 @3xl:flex-1 @3xl:flex-col @3xl:gap-2.5">
       <!-- Identity -->
-      <div class="max-sm:min-w-0 max-sm:flex-1">
+      <div class="@max-3xl:min-w-0 @max-3xl:flex-1">
         <div class="min-w-0">
           <div class="flex items-center gap-1.5">
             <h1 class="text-heading font-bold text-foreground leading-tight truncate">
@@ -94,7 +99,7 @@
       </div>
 
       <!-- Hit points: readout, meter, then the controls that change it -->
-      <div data-hp-row class="flex flex-wrap items-center gap-x-3 gap-y-1.5 max-sm:basis-full">
+      <div data-hp-row class="flex flex-wrap items-center gap-x-3 gap-y-1.5 @max-3xl:basis-full">
         <div class="flex items-baseline gap-1.5">
           <span class="text-label text-muted-foreground">Hit points</span>
           <span class="text-title font-bold leading-none" :class="hpColor">{{ displayHp }}</span>
@@ -110,7 +115,7 @@
           >+{{ member.temp_hp }} temp <span class="text-tone-info/50">×</span></AppButton>
         </div>
         <div
-          class="h-1.5 w-24 overflow-hidden rounded-full bg-muted sm:w-32"
+          class="h-1.5 w-24 overflow-hidden rounded-full bg-muted @3xl:w-32"
           role="meter"
           aria-label="Hit points"
           :aria-valuenow="displayHp"
@@ -136,7 +141,7 @@
       </div>
 
       <!-- Rest, then the conditions on the character and the picker that adds one -->
-      <div class="flex flex-wrap items-center gap-1.5 max-sm:basis-full">
+      <div class="flex flex-wrap items-center gap-1.5 @max-3xl:basis-full">
         <RestButtons :member="member" />
         <slot name="conditions" />
         <AppButton
@@ -194,13 +199,13 @@
     <!-- Reference numbers, boxed as on the 2024 sheet: Armor Class in its
          shield, the rest in small frames with the label beneath. Read at the
          table, never rolled from here. A row of five under the portrait on a
-         phone; a block beside the name from sm up. -->
-    <dl class="grid basis-full grid-cols-5 gap-1.5 sm:flex sm:basis-auto sm:shrink-0 sm:gap-2">
+         phone; a block beside the name once the header is 48rem wide. -->
+    <dl class="grid basis-full grid-cols-5 gap-1.5 @3xl:flex @3xl:basis-auto @3xl:shrink-0 @3xl:gap-2">
       <div v-for="cs in combatStats" :key="cs.label" class="flex min-w-0 flex-col-reverse items-center gap-1">
         <dt class="text-center text-label leading-tight text-muted-foreground">
-          <span class="sm:hidden">{{ cs.short }}</span><span class="max-sm:hidden">{{ cs.label }}</span>
+          <span class="@3xl:hidden">{{ cs.short }}</span><span class="@max-3xl:hidden">{{ cs.label }}</span>
         </dt>
-        <dd class="relative flex h-12 w-full items-center justify-center text-heading font-bold leading-none text-foreground sm:w-16">
+        <dd class="relative flex h-12 w-full items-center justify-center text-heading font-bold leading-none text-foreground @3xl:w-16">
           <svg
             v-if="cs.shield"
             viewBox="0 0 40 48"
@@ -216,6 +221,7 @@
         </dd>
       </div>
     </dl>
+  </div>
   </div>
 </template>
 
