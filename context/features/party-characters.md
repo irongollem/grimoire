@@ -165,7 +165,7 @@ The Character Codex is the DM-facing compendium for all character creation optio
 
 ### Species Tab
 
-Filterable by text search and size (Tiny / Small / Medium / Large). Each species entry can be viewed as a detail sheet or edited.
+Filterable by text search and size (Tiny / Small / Medium / Large). Each species entry can be viewed as a detail sheet or edited. The list shows general species and the active campaign's own; a species scoped to another campaign belongs to that campaign and is listed there (the demo template keeps its own copies of the species it uses, which used to show up beside their originals). Browsing ignores the campaign's blocklist on purpose, so a DM can still open a species they switched off.
 
 **Species fields (from `SpeciesDetail` form):**
 

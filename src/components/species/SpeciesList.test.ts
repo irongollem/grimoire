@@ -134,6 +134,24 @@ function exposed(wrapper: ReturnType<typeof mountList>): SpeciesListExposed {
   return wrapper.vm as unknown as SpeciesListExposed;
 }
 
+describe("SpeciesList — campaign scope", () => {
+  beforeEach(() => {
+    allSpecies.value = [];
+  });
+
+  it("browsing lists general species and the active campaign's, never another campaign's", () => {
+    allSpecies.value = [
+      customSpecies(1, { name: "Everywhere" }),
+      customSpecies(2, { name: "Ours", campaign_id: "camp-1" }),
+      customSpecies(3, { name: "Theirs", campaign_id: "camp-2" }),
+    ];
+    const text = mountList().text();
+    expect(text).toContain("Everywhere");
+    expect(text).toContain("Ours");
+    expect(text).not.toContain("Theirs");
+  });
+});
+
 describe("SpeciesList — bulk selection (#875)", () => {
   beforeEach(() => {
     allSpecies.value = [];
