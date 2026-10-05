@@ -1,5 +1,12 @@
 <template>
   <div class="space-y-4 pb-8">
+    <!-- Hit points follow the player down the page once the header's own row is gone. -->
+    <PlayerHpStrip
+      v-if="member"
+      :member="member"
+      :wildshape="activeWildshape ?? undefined"
+      :visible="hpRowOutOfSight"
+    />
     <!-- No character linked -->
     <div v-if="!member" class="text-center py-16 space-y-4">
       <p class="text-heading text-muted-foreground">No character linked</p>
@@ -24,7 +31,7 @@
       <CharacterApprovalNotice v-if="member.campaign_id" :member="member" />
       <!-- ── Always visible ─────────────────────────────────── -->
       <!-- One card: the header, closed underneath by the six ability boxes -->
-      <div class="rounded-lg border border-border bg-card overflow-hidden">
+      <div ref="sheetCard" class="rounded-lg border border-border bg-card overflow-hidden">
         <PlayerCharacterHeader
           :member="member"
           :wildshape="activeWildshape ?? undefined"
@@ -127,12 +134,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import type { WildshapeState } from "@/types/encounter.types";
 import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 import type { RollMode } from "@/lib/dice/roller";
 import { combineModes } from "@/lib/dice/roller";
+import { scrollParentOf } from "@/lib/scrollParent";
+import { setNextRollMode } from "@/composables/dice/useNextRollMode";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -156,6 +165,7 @@ import type { RollResult } from "@/components/common/RollToast.vue";
 import CharacterEditionNotice from "@/components/play/CharacterEditionNotice.vue";
 import CharacterApprovalNotice from "@/components/play/CharacterApprovalNotice.vue";
 import PlayerCharacterHeader from "@/components/player/PlayerCharacterHeader.vue";
+import PlayerHpStrip from "@/components/player/PlayerHpStrip.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
 import PlayerTracksSection from "@/components/player/PlayerTracksSection.vue";
 import PlayerSkillsTab from "@/components/player/PlayerSkillsTab.vue";
@@ -288,6 +298,34 @@ const checkDisadvantage = computed(() => hasCheckDisadvantage(member.value?.cond
 // 2024-only flat penalty (0 under 2014, which uses the disadvantage flags above instead).
 const exhaustionD20Penalty = computed(() => getExhaustionD20Penalty(member.value?.conditions ?? [], ruleset.value));
 
+// ── Hit points strip ──────────────────────────────────────────────────────────
+// The header's hit point row is watched against the sheet's scroller; once it has
+// scrolled off the top, the strip takes over so damage never needs a scroll back.
+const sheetCard = ref<HTMLElement | null>(null);
+const hpRowOutOfSight = ref(false);
+let hpRowObserver: IntersectionObserver | null = null;
+
+watch(sheetCard, (card) => {
+  hpRowObserver?.disconnect();
+  hpRowObserver = null;
+  const row = card?.querySelector("[data-hp-row]");
+  if (!card || !row || typeof IntersectionObserver === "undefined") return;
+  hpRowObserver = new IntersectionObserver(
+    ([entry]) => {
+      const top = entry.rootBounds?.top ?? 0;
+      hpRowOutOfSight.value = !entry.isIntersecting && entry.boundingClientRect.bottom <= top;
+    },
+    { root: scrollParentOf(card), threshold: 0 },
+  );
+  hpRowObserver.observe(row);
+}, { flush: "post" });
+
+onBeforeUnmount(() => {
+  hpRowObserver?.disconnect();
+  // A pick made on this sheet is for this sheet's next roll, not a stranger's.
+  setNextRollMode("normal");
+});
+
 // ── Roll toast (shared across all rolling children) ───────────────────────────
 const lastRoll = ref<RollResult | null>(null);
 
@@ -299,7 +337,7 @@ async function doRoll(label: string, modifier: number, mode: RollMode = "normal"
   const result = await promptRoll({ counts: { 20: 1 }, modifier, label: fullLabel, mode });
   if (!result) return;
   const kept = result.breakdown.find(d => !d.dropped)!;
-  lastRoll.value = { label: fullLabel, dice: kept.val, modifier, total: result.total };
+  lastRoll.value = { label: result.label, dice: kept.val, modifier, total: result.total };
 }
 
 function onRollAbility(_key: string, label: string, mod: number, override: RollMode | null = null) {

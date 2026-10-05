@@ -37,7 +37,7 @@
         variant="menu"
         size="body"
         block
-        class="group mt-3.5 justify-center gap-1.5 rounded-md px-1 py-1"
+        class="group mt-3.5 justify-center gap-1.5 rounded-md px-1 py-1 max-md:min-h-11"
         :class="HOVER"
         :tooltip="`Roll a ${ab.name} saving throw`"
         :aria-label="`${ab.name} saving throw ${fmt(saveBonus(ab.key))}${isProficient(ab.key) ? ', proficient' : ''}: roll a save`"

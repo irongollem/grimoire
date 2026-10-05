@@ -1,5 +1,7 @@
 <template>
   <div class="space-y-3">
+    <PlayerRollModeControl :conditions="member.conditions ?? []" :shown="CHECK_TARGETS" />
+
     <!-- Passives -->
     <div class="rounded-lg border border-border bg-card px-4 py-2.5 flex flex-wrap gap-x-6 gap-y-1">
       <span class="text-label text-muted-foreground">
@@ -23,7 +25,7 @@
             variant="menu"
             size="body"
             block
-            class="group px-4 py-2.5 gap-3 rounded-none"
+            class="group px-4 py-2.5 gap-3 rounded-none max-md:min-h-11"
             v-roll-mode="(mode: RollMode | null) => rollSkill(skill, mode)"
           >
             <span
@@ -47,7 +49,7 @@
             variant="menu"
             size="body"
             block
-            class="group px-4 py-2.5 gap-3 rounded-none"
+            class="group px-4 py-2.5 gap-3 rounded-none max-md:min-h-11"
             v-roll-mode="(mode: RollMode | null) => rollSkill(skill, mode)"
           >
             <span
@@ -74,6 +76,8 @@
 import { computed } from "vue";
 import { IconChevronRight } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import PlayerRollModeControl from "@/components/player/PlayerRollModeControl.vue";
+import type { DisadvantageTarget } from "@/rules/rollModeNotes";
 import type { RollMode } from "@/lib/dice/roller";
 import { combineModes } from "@/lib/dice/roller";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
@@ -120,6 +124,9 @@ const canWhisperDm = computed(() => {
   if (!whisperQuery.isSuccess.value) return true;
   return whisperableIds.value.has(dm);
 });
+
+/** What this tab rolls, so the roll mode control names only the conditions that matter here. */
+const CHECK_TARGETS = ["ability checks"] as const satisfies readonly DisadvantageTarget[];
 
 function signedNum(n: number) { return n >= 0 ? `+${n}` : `${n}`; }
 
@@ -206,6 +213,7 @@ async function rollSkill(skill: (typeof SKILLS)[number], override: RollMode | nu
   const result = await promptRoll({ counts: { 20: 1 }, modifier, label: fullLabel, mode });
   if (!result) return;
   const kept = result.breakdown.find(d => !d.dropped)!;
-  emit("roll", { label: fullLabel, dice: kept.val, modifier, total: result.total });
+  // The label as rolled: it carries a mode picked on the sheet's control.
+  emit("roll", { label: result.label, dice: kept.val, modifier, total: result.total });
 }
 </script>

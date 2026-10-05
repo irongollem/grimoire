@@ -4,10 +4,13 @@
     :style="{ minHeight: EDITOR_MIN_HEIGHTS[size] }"
   >
     <div
+      v-show="toolbar === 'full' || hasFocus"
       :class="[
-        'flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-card shrink-0 z-20 rte-toolbar',
-        stickyToolbar && 'sticky top-0 rte-toolbar--sticky',
+        'flex items-center gap-0.5 p-1.5 border-b border-border bg-card shrink-0 z-20 rte-toolbar',
+        toolbar === 'focus' ? 'flex-nowrap overflow-x-auto rte-toolbar--focus' : 'flex-wrap',
+        isSticky && 'sticky top-0 rte-toolbar--sticky',
       ]"
+      @mousedown="keepFocus"
     >
       <template v-if="editor">
         <AppButton
@@ -301,7 +304,7 @@
 
     <!-- Content area -->
     <div
-      :class="['p-3 lg:flex-1 lg:overflow-auto lg:min-h-0 cursor-text', stickyToolbar && 'rte-content-area--sticky']"
+      :class="['p-3 lg:flex-1 lg:overflow-auto lg:min-h-0 cursor-text', isSticky && 'rte-content-area--sticky']"
       @click="onContentAreaClick"
     >
       <EditorContent
@@ -459,6 +462,7 @@ const {
   allowCalendarEvents,
   entityMentionItems,
   stickyToolbar = true,
+  toolbar = "full",
   aiContext,
   size = "md",
 } = defineProps<{
@@ -469,8 +473,22 @@ const {
   allowCalendarEvents?: boolean;
   entityMentionItems?: EntityMentionItem[];
   stickyToolbar?: boolean;
+  /**
+   * `full` (default): the toolbar is always shown, wrapping onto as many rows as
+   * it needs. `focus`: a compact one-row toolbar that scrolls sideways and shows
+   * only while this editor has focus (so one at a time on a page of several),
+   * for a form of short fields on a phone. It is never sticky.
+   */
+  toolbar?: "full" | "focus";
   aiContext?: string;
 }>();
+
+const isSticky = computed(() => stickyToolbar && toolbar === "full");
+const hasFocus = ref(false);
+/** In `focus` mode a tap on the toolbar must not take focus off the text, or the toolbar would vanish before the tap lands. */
+function keepFocus(e: MouseEvent) {
+  if (toolbar === "focus") e.preventDefault();
+}
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
@@ -713,6 +731,10 @@ const editor = useEditor({
   },
   onFocus() {
     cursorPlaced.value = true;
+    hasFocus.value = true;
+  },
+  onBlur() {
+    hasFocus.value = false;
   },
   onTransaction({ editor: e }) {
     twoColumn.value = e.state.doc.attrs.twoColumn ?? false;
@@ -924,7 +946,7 @@ async function onEnhance() {
 <style scoped>
 @reference "@/assets/main.css";
 
-/* Keep toolbar children at natural size in the nowrap scroll row on mobile */
+/* Keep toolbar children at natural size, so a `focus` toolbar scrolls instead of squashing */
 .rte-toolbar > * {
   flex-shrink: 0;
 }
@@ -934,6 +956,15 @@ async function onEnhance() {
  * bottom border out. A sticky box is held inside its container by its MARGIN
  * box, so a bottom margin makes it release that much early; the content area
  * takes the same amount back so nothing moves in the layout. */
+/* A phone's one-row toolbar keeps the 44px floor on every button; it scrolls
+ * sideways, so the width costs nothing. */
+@media (max-width: 767px) {
+  .rte-toolbar--focus :deep(button) {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+}
+
 .rte-toolbar--sticky {
   margin-bottom: 4.5rem;
 }

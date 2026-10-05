@@ -11,6 +11,7 @@
       </div>
       <div class="p-3">
         <RichTextEditor
+          toolbar="focus"
           v-if="isOwner"
           :model-value="member.player_description ?? null"
           placeholder="Describe yourself to your party…"
@@ -35,20 +36,21 @@
         <div class="grid grid-cols-3 gap-3">
           <div>
             <label class="field-label">Age</label>
-            <input v-model="form.age" class="field-input w-full" placeholder="47…" @input="scheduleAutoSave" />
+            <AppInput v-model="form.age" tone="default" size="body" block placeholder="47…" @update:model-value="scheduleAutoSave" />
           </div>
           <div>
             <label class="field-label">Gender</label>
-            <input v-model="form.gender" class="field-input w-full" @input="scheduleAutoSave" />
+            <AppInput v-model="form.gender" tone="default" size="body" block @update:model-value="scheduleAutoSave" />
           </div>
           <div>
             <label class="field-label">Pronouns</label>
-            <input v-model="form.pronouns" class="field-input w-full" placeholder="she/her" @input="scheduleAutoSave" />
+            <AppInput v-model="form.pronouns" tone="default" size="body" block placeholder="she/her" @update:model-value="scheduleAutoSave" />
           </div>
         </div>
         <div>
           <label class="field-label">Physical Description</label>
           <RichTextEditor
+            toolbar="focus"
             :model-value="form.physical_description"
             size="sm"
             placeholder="Height, build, hair, eyes, distinguishing marks…"
@@ -82,20 +84,22 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="field-label">Alignment</label>
-            <select v-model="form.alignment" class="field-input w-full" @change="scheduleAutoSave">
+            <AppSelect v-model="form.alignment" tone="default" size="body" weight="normal" block @update:model-value="scheduleAutoSave">
               <option value="">—</option>
               <option v-for="a in ALIGNMENT_OPTIONS" :key="a" :value="a">{{ a }}</option>
-            </select>
+            </AppSelect>
           </div>
           <!-- Deity: free-text + optional campaign deity suggestions -->
           <div class="relative">
             <label class="field-label">Deity</label>
-            <input
+            <AppInput
               v-model="form.deity"
-              class="field-input w-full"
+              tone="default"
+              size="body"
+              block
               placeholder="Tyr, Mielikki…"
               autocomplete="off"
-              @input="form.deity_id = null; scheduleAutoSave()"
+              @update:model-value="form.deity_id = null; scheduleAutoSave()"
               @focus="showDeityDropdown = true"
               @blur="hideDeityDropdown"
             />
@@ -118,6 +122,7 @@
         <div>
           <label class="field-label">Personality Traits</label>
           <RichTextEditor
+            toolbar="focus"
             :model-value="form.personality_traits"
             size="sm"
             placeholder="I always have a plan…"
@@ -127,6 +132,7 @@
         <div>
           <label class="field-label">Ideals</label>
           <RichTextEditor
+            toolbar="focus"
             :model-value="form.ideals"
             size="sm"
             placeholder="What drives you…"
@@ -136,6 +142,7 @@
         <div>
           <label class="field-label">Bonds</label>
           <RichTextEditor
+            toolbar="focus"
             :model-value="form.bonds"
             size="sm"
             placeholder="Who or what do you protect…"
@@ -145,6 +152,7 @@
         <div>
           <label class="field-label">Flaws</label>
           <RichTextEditor
+            toolbar="focus"
             :model-value="form.flaws"
             size="sm"
             placeholder="Your weakness or vice…"
@@ -274,6 +282,8 @@ import { useAllDeities } from "@/composables/deities/useDeities";
 import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { PartyMember } from "@/types/party.types";
@@ -435,8 +445,5 @@ const hasPersonality = computed(() =>
 @reference "@/assets/main.css";
 .field-label {
   @apply block text-label-lg font-semibold text-muted-foreground mb-1;
-}
-.field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

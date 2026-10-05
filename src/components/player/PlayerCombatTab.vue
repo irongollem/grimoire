@@ -1,5 +1,6 @@
 <template>
   <div class="space-y-3">
+    <PlayerRollModeControl :conditions="member.conditions ?? []" :shown="ROLL_TARGETS" />
 
     <!-- ── Hide action / hidden state ────────────────────────────────────────── -->
     <!-- Take the Hide action (rolls Dexterity (Stealth) + marks the Hidden
@@ -21,8 +22,8 @@
           </p>
           <p class="text-caption text-muted-foreground leading-snug">
             {{ isHidden
-              ? "You are unseen · attacking or making noise reveals you."
-              : "Roll Dexterity (Stealth) to slip out of sight." }}
+              ? hiddenCaption
+              : hideInstruction }}
           </p>
         </div>
       </div>
@@ -30,7 +31,7 @@
         v-if="!isHidden"
         variant="subtle"
         fill="muted"
-        size="sm"
+        size="md"
         class="shrink-0"
         :disabled="hiding"
         tooltip="Take the Hide action"
@@ -48,7 +49,7 @@
         variant="tinted"
         tone="primary"
         emphasis="soft"
-        size="sm"
+        size="md"
         class="shrink-0"
         :icon="IconReveal"
         label="Reveal"
@@ -73,7 +74,7 @@
                   v-if="parseBeastAttackBonus(action.description) !== null"
                   variant="subtle"
                   fill="muted"
-                  size="sm"
+                  size="md"
                   class="shrink-0"
                   v-roll-mode="(mode: RollMode | null) => rollBeastAttack(action.name, parseBeastAttackBonus(action.description)!, mode)"
                 >
@@ -123,7 +124,7 @@
             <AppButton
               variant="subtle"
               fill="muted"
-              size="sm"
+              size="md"
               class="group disabled:hover:border-border disabled:hover:bg-transparent"
               :disabled="weaponAmmoById[inv.id]?.needsAmmo && !weaponAmmoById[inv.id]?.hasAmmo"
               :tooltip="weaponAmmoById[inv.id]?.needsAmmo && !weaponAmmoById[inv.id]?.hasAmmo ? 'No ammunition available' : undefined"
@@ -140,7 +141,7 @@
               v-if="weaponIsThrowable(inv, item)"
               variant="subtle"
               fill="muted"
-              size="sm"
+              size="md"
               class="group"
               :tooltip="`Throw ${inv.name} · lands on the ground, recoverable from chat`"
               v-roll-mode="(mode: RollMode | null) => rollThrowAttack(inv, item, mode)"
@@ -155,7 +156,7 @@
             <AppButton
               variant="subtle"
               fill="muted"
-              size="sm"
+              size="md"
               class="group hover:border-tone-caution/50"
               @click="rollWeaponDamage(inv, item)"
             >
@@ -195,7 +196,7 @@
             <AppButton
               variant="subtle"
               fill="muted"
-              size="sm"
+              size="md"
               class="group"
               v-roll-mode="(mode: RollMode | null) => rollUnarmedAttack(mode)"
             >
@@ -218,7 +219,7 @@
             <AppButton
               variant="subtle"
               fill="muted"
-              size="sm"
+              size="md"
               class="group"
               v-roll-mode="(mode: RollMode | null) => rollImprovisedAttack(mode)"
             >
@@ -232,7 +233,7 @@
             <AppButton
               variant="subtle"
               fill="muted"
-              size="sm"
+              size="md"
               class="group hover:border-tone-caution/50"
               @click="rollImprovisedDamage"
             >
@@ -269,6 +270,10 @@ import { useRuleset } from "@/composables/rules/useRuleset";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { skillCheckBonus } from "@/rules/skillCheck";
 import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
+import PlayerRollModeControl from "@/components/player/PlayerRollModeControl.vue";
+import { hideOutcome, HIDE_DC_2024 } from "@/rules/hide";
+import { useToast } from "@/composables/useToast";
+import type { DisadvantageTarget } from "@/rules/rollModeNotes";
 import PlayerLoadout from "@/components/player/PlayerLoadout.vue";
 import PlayerCustomAttacks from "@/components/player/PlayerCustomAttacks.vue";
 import type { PartyMember } from "@/types/party.types";
@@ -305,6 +310,10 @@ const { data: projection } = usePlayerItemProjection();
 const { sendRoll } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
+const toast = useToast();
+
+/** What this tab rolls, so the roll mode control names only the conditions that matter here. */
+const ROLL_TARGETS = ["attack rolls", "ability checks"] as const satisfies readonly DisadvantageTarget[];
 
 // Badge next to each Attack button: "Dis" under 2014 exhaustion/conditions,
 // or the flat numeric penalty under 2024 exhaustion (never both at once —
@@ -323,6 +332,21 @@ const attackBadgeLabel = computed(() => {
 const stealthBonus = computed(() => skillCheckBonus(props.member, "stealth"));
 const isHidden = computed(() => (props.member.conditions ?? []).includes("Hidden"));
 const hiding = ref(false);
+const characterRuleset = computed(() => props.member.ruleset);
+
+// The Stealth total of the last Hide this sheet made, shown beside "Hidden" so a
+// 2014 DM can set it against Perception. The condition itself stays plain
+// "Hidden" because other screens match it by name; the roll is also in the chat.
+const lastStealth = ref<number | null>(null);
+const hiddenCaption = computed(() => {
+  const unless = "Attacking or making noise reveals you.";
+  return lastStealth.value === null ? `You are unseen. ${unless}` : `Stealth ${lastStealth.value}. ${unless}`;
+});
+const hideInstruction = computed(() =>
+  characterRuleset.value === "2024"
+    ? `Roll Dexterity (Stealth) against DC ${HIDE_DC_2024} to slip out of sight.`
+    : "Roll Dexterity (Stealth). Your DM compares it with what others notice.",
+);
 
 // Same "Dis" / numeric-penalty badge as attacks, but for the Stealth check.
 const checkBadgeLabel = computed(() => {
@@ -358,7 +382,11 @@ async function takeHideAction(override: RollMode | null = null) {
     const result = await promptRoll({ counts: { 20: 1 }, modifier, label, mode });
     if (!result) return; // physical-dice prompt cancelled — don't mark hidden
     const kept = result.breakdown.find((d) => !d.dropped)!;
-    emit("roll", { label, dice: kept.val, modifier, total: result.total });
+    emit("roll", { label: result.label, dice: kept.val, modifier, total: result.total });
+    const outcome = hideOutcome(result.total, characterRuleset.value);
+    toast.info(outcome.message);
+    if (!outcome.hidden) return;
+    lastStealth.value = result.total;
     await markHidden();
   } finally {
     hiding.value = false;
@@ -525,7 +553,7 @@ async function rollAttackWith(mod: number, baseLabel: string, override: RollMode
   const result = await promptRoll({ counts: { 20: 1 }, modifier: totalMod, label: fullLabel, mode });
   if (!result) return false;
   const kept = result.breakdown.find(d => !d.dropped)!;
-  emit("roll", { label: fullLabel, dice: kept.val, modifier: totalMod, total: result.total });
+  emit("roll", { label: result.label, dice: kept.val, modifier: totalMod, total: result.total });
   // Attacking gives away your position (5e RAW) — drop Hidden if it was set.
   void clearHidden();
   return true;

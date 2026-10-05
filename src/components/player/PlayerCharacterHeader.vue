@@ -25,9 +25,13 @@
       </MiniPortraitOverlay>
     </div>
 
-    <div class="flex min-w-0 flex-1 flex-col gap-2.5">
+    <!-- On a phone the identity sits beside the portrait and the hit points and
+         rest rows take the full width beneath it (`contents` hands them to the
+         card's own wrap), so the controls get a thumb's width instead of what is
+         left of the portrait. -->
+    <div class="contents sm:flex sm:min-w-0 sm:flex-1 sm:flex-col sm:gap-2.5">
       <!-- Identity -->
-      <div>
+      <div class="max-sm:min-w-0 max-sm:flex-1">
         <div class="min-w-0">
           <div class="flex items-center gap-1.5">
             <h1 class="text-heading font-bold text-foreground leading-tight truncate">
@@ -39,7 +43,7 @@
               size="inline-xs"
               :active="member.inspiration"
               active-fill="none"
-              class="shrink-0"
+              class="shrink-0 max-md:-my-2.5 max-md:h-11 max-md:w-11 max-md:justify-center"
               :class="member.inspiration ? '' : 'text-muted-foreground/30 hover:text-muted-foreground/60'"
               tooltip="Inspiration"
               @click="toggleInspiration"
@@ -54,6 +58,7 @@
             <template v-else>{{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}</template>
             <span v-if="!wildshape && memberTotalLevel" class="text-label text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
           </p>
+          <p v-if="inGameDate" class="text-caption text-muted-foreground">{{ inGameDate }}</p>
           <!-- XP progress -->
           <div v-if="xpLevellingEnabled && !wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
             <span class="text-eyebrow text-muted-foreground">XP</span>
@@ -89,7 +94,7 @@
       </div>
 
       <!-- Hit points: readout, meter, then the controls that change it -->
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <div data-hp-row class="flex flex-wrap items-center gap-x-3 gap-y-1.5 max-sm:basis-full">
         <div class="flex items-baseline gap-1.5">
           <span class="text-label text-muted-foreground">Hit points</span>
           <span class="text-title font-bold leading-none" :class="hpColor">{{ displayHp }}</span>
@@ -99,7 +104,8 @@
             variant="link"
             tone="info"
             size="inline-xs"
-            tooltip="Click to clear temp HP"
+            class="max-md:min-h-11 max-md:px-1"
+            tooltip="Tap to clear temp HP"
             @click="clearTempHp"
           >+{{ member.temp_hp }} temp <span class="text-tone-info/50">×</span></AppButton>
         </div>
@@ -116,51 +122,30 @@
             <div v-if="tempHpBarPct > 0" class="h-full transition-all bg-tone-info" :style="{ width: `${tempHpBarPct}%` }" />
           </div>
         </div>
-        <div class="flex flex-wrap items-center gap-1">
-          <AppInput
-            v-model.number="hpInput"
-            type="number"
-            tone="muted"
-            size="xs"
-            align="center"
-            min="0"
-            placeholder="0"
-            aria-label="Amount"
-            class="w-10"
-            @keydown="blockInvalidChars"
-            @focus="($event.target as HTMLInputElement).select()"
-          />
-          <AppButton variant="tinted" size="xs" tone="danger" emphasis="soft" label="Damage" @click="applyDamage" />
-          <AppButton variant="tinted" size="xs" tone="success" emphasis="soft" label="Heal" @click="applyHeal" />
-          <AppButton variant="tinted" size="xs" tone="info" emphasis="soft" label="Temp" @click="applyTempHp" />
-          <!-- A hit on someone at 0 HP is a death save failure, two from a critical hit: it matters only here. -->
-          <AppCheckbox v-if="hitsDyingBody" v-model="criticalHit" size="sm" label-role="label" label="Critical hit" class="whitespace-nowrap" />
-        </div>
-        <span v-if="attackDisadvantage" class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20" title="Disadvantage on attack rolls">⚔ Dis</span>
-        <span v-if="checkDisadvantage"  class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20" title="Disadvantage on ability checks">✦ Dis</span>
+        <PlayerHpControls :member="member" :wildshape="wildshape" />
         <span v-if="exhaustionD20Penalty !== 0" class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20" title="Exhaustion penalty on every d20 Test (attack rolls, ability checks, saving throws)">{{ exhaustionD20Penalty }} d20</span>
         <AppButton
           v-if="member.concentration"
           variant="tinted"
           tone="arcane"
           emphasis="soft"
-          size="xs"
-          :tooltip="`Concentrating on ${member.concentration.spellName}. Click to drop`"
+          size="md"
+          :tooltip="`Concentrating on ${member.concentration.spellName}. Tap to drop`"
           @click="dropConcentration"
         >✦ Conc: {{ member.concentration.spellName }} <span class="text-muted-foreground">×</span></AppButton>
       </div>
 
       <!-- Rest, then the conditions on the character and the picker that adds one -->
-      <div class="flex flex-wrap items-center gap-1.5">
+      <div class="flex flex-wrap items-center gap-1.5 max-sm:basis-full">
         <RestButtons :member="member" />
         <slot name="conditions" />
         <AppButton
           ref="conditionPickerBtn"
           variant="subtle"
-          size="toolbar"
+          size="sm"
           :icon="IconAdd"
           icon-size="xs"
-          class="border-dashed"
+          class="border-dashed max-md:min-h-11"
           label="Condition"
           tooltip="Add condition"
           @click="openConditionPicker"
@@ -191,6 +176,7 @@
                   variant="menu"
                   block
                   size="sm"
+                  class="max-md:min-h-11"
                   :tone="hasCondition(cond) ? 'danger' : 'caution'"
                   :fill="hasCondition(cond) ? 'none' : 'tone'"
                   :disabled="hasCondition(cond)"
@@ -236,26 +222,23 @@
 import { ref, computed, nextTick, type ComponentPublicInstance } from "vue";
 import { IconAdd, IconStar } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
+import { useCalendarStore } from "@/stores/calendar";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { useClassHitDice } from "@/composables/party/useClassHitDice";
 import { useConcentration } from "@/composables/party/useConcentration";
-import { betterTempHp, formHpPools } from "@/rules/hitPoints";
-import { damageOutcome, describeDamageOutcome, healingOutcome } from "@/rules/dying";
-import { useToast } from "@/composables/useToast";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   CONDITIONS,
   getConditionDescription,
   getExhaustionLevel,
   setExhaustionLevel,
-  hasAttackDisadvantage,
-  hasCheckDisadvantage,
   getExhaustionD20Penalty,
 } from "@/rules/conditions";
-import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
+import type { PartyMember } from "@/types/party.types";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
 import { formPortrait } from "@/lib/wildshapePortrait";
@@ -267,7 +250,8 @@ import RestButtons from "@/components/player/RestButtons.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import { hpTextClass } from "@/components/player/hpDisplay";
+import PlayerHpControls from "@/components/player/PlayerHpControls.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 
 const props = defineProps<{
@@ -286,27 +270,20 @@ const speciesName = computed(() =>
 );
 
 const auth = useAuthStore();
+const campaignStore = useCampaignStore();
+const calendarStore = useCalendarStore();
+
+/** "Flamerule 12, 1495", on the character's own campaign only: the date the table is playing in. */
+const inGameDate = computed(() => {
+  const campaign = campaignStore.activeCampaign;
+  if (!campaign || props.member.campaign_id !== campaign.id) return null;
+  const month = calendarStore.adapter.months.find((m) => m.num === campaign.current_month);
+  const monthName = month?.name ?? month?.alias ?? `Month ${campaign.current_month}`;
+  return `${monthName} ${campaign.current_day}, ${campaign.current_year}`;
+});
 const xpLevellingEnabled = useIsRuleEnabled("xp_levelling");
 const { mutateAsync: updateMember } = useUpdatePartyMember();
-const { rollConcentrationSave, endConcentration } = useConcentration();
-
-const hpInput = ref<number | null>(null);
-
-function blockInvalidChars(e: KeyboardEvent) {
-  if (["+", "-", "e", "E", ".", ","].includes(e.key)) e.preventDefault();
-}
-
-/**
- * The amount box as whole hit points, emptying the box. Keys alone cannot keep
- * a fraction or a sign out (a paste or a phone's number pad gets past
- * `blockInvalidChars`), and "1.5" reached the database as an integer column's
- * 400: the damage was lost with no word to the player.
- */
-function takeHpAmount(): number | null {
-  const amount = Math.trunc(Number(hpInput.value));
-  hpInput.value = null;
-  return Number.isFinite(amount) && amount > 0 ? amount : null;
-}
+const { endConcentration } = useConcentration();
 
 const showConditionPicker = ref(false);
 const conditionSearch = ref("");
@@ -415,7 +392,6 @@ const hitDiceRemaining = computed(() =>
 // An equipped shield adds its bonus on top of the stored (shieldless) AC,
 // but never to a beast form — gear merges into the form while wildshaped.
 const { acFor } = useShieldAcBonus();
-const hpPools = computed(() => formHpPools(props.member, props.wildshape));
 
 const displayHp    = computed(() => props.wildshape?.beast_hp    ?? props.member.current_hp);
 const displayMaxHp = computed(() => props.wildshape?.beast_max_hp ?? props.member.max_hp);
@@ -468,13 +444,7 @@ const readyToLevelUp = computed(() => {
   const xp = props.member.experience_points ?? 0;
   return levelForXp(xp) > props.member.level;
 });
-const hpColor = computed(() => {
-  const p = hpPct.value;
-  if (p <= 0) return "text-destructive";
-  if (p < 33) return "text-destructive";
-  if (p < 66) return "text-ink-caution";
-  return "text-elven-green";
-});
+const hpColor = computed(() => hpTextClass(displayHp.value, displayMaxHp.value));
 const hpBarColor = computed(() => {
   const p = hpPct.value;
   if (p <= 0) return "bg-muted-foreground/40";
@@ -484,83 +454,8 @@ const hpBarColor = computed(() => {
 });
 
 const { ruleset } = useTableRuleset();
-const attackDisadvantage = computed(() => hasAttackDisadvantage(props.member.conditions ?? [], ruleset.value));
-const checkDisadvantage  = computed(() => hasCheckDisadvantage(props.member.conditions ?? [], ruleset.value));
 const exhaustionD20Penalty = computed(() => getExhaustionD20Penalty(props.member.conditions ?? [], ruleset.value));
 
-const toast = useToast();
-const criticalHit = ref(false);
-/** The critical-hit choice shows only for a character at 0 HP and not in a beast form. */
-const hitsDyingBody = computed(() => props.member.current_hp <= 0 && !props.wildshape);
-const dyingInput = computed(() => ({
-  pools: hpPools.value,
-  saves: { successes: props.member.death_save_successes, failures: props.member.death_save_failures },
-  conditions: props.member.conditions ?? [],
-}));
-
-async function applyDamage() {
-  const dmg = takeHpAmount();
-  if (dmg === null) return;
-  const critical = hitsDyingBody.value && criticalHit.value;
-  criticalHit.value = false;
-
-  // Temp HP, beast form and own HP, then death at 0 HP: shared with the
-  // encounter runner and DM tracker so every side agrees.
-  const out = damageOutcome(dyingInput.value, { amount: dmg, critical });
-  const update: PartyMemberUpdate = { current_hp: out.current_hp };
-  if (out.temp_hp !== props.member.temp_hp) update.temp_hp = out.temp_hp;
-  if (props.wildshape) {
-    // A 2024 form has no beast pool: it stays until the character drops to 0.
-    if (out.reverted) update.wildshape_state = null;
-    else if (out.beast_hp !== null) update.wildshape_state = { ...props.wildshape, beast_hp: out.beast_hp };
-  }
-  if (out.saves.successes !== props.member.death_save_successes) update.death_save_successes = out.saves.successes;
-  if (out.saves.failures !== props.member.death_save_failures) update.death_save_failures = out.saves.failures;
-  if (out.conditions.length !== (props.member.conditions ?? []).length) update.conditions = out.conditions;
-  await updateMember({ id: props.member.id, update });
-  const message = describeDamageOutcome(props.member.name, dmg, out.outcome);
-  if (message) toast.info(message);
-
-  if (props.member.concentration) {
-    if (out.current_hp === 0) {
-      await endConcentration(props.member, { reason: "dropped to 0 HP" });
-    } else {
-      // Damage soaked by temp HP is still damage taken, so it still forces the
-      // save (SAC ruling) — and concentration survives Wild Shape.
-      await rollConcentrationSave(props.member, dmg);
-    }
-  }
-}
-async function applyHeal() {
-  const val = takeHpAmount();
-  if (val === null) return;
-  const out = healingOutcome(dyingInput.value, val);
-  if (out.outcome === "healing-refused-dead") {
-    toast.info(`${props.member.name} is dead. Healing cannot bring them back. Only the DM can.`);
-    return;
-  }
-  if (props.wildshape && out.beast_hp !== null) {
-    await updateMember({ id: props.member.id, update: {
-      wildshape_state: { ...props.wildshape, beast_hp: out.beast_hp },
-    }});
-    return;
-  }
-  const update: PartyMemberUpdate = { current_hp: out.current_hp };
-  // Healing from 0 ends the dying condition (5e): clear the death saves and
-  // Unconscious so a later drop to 0 starts fresh.
-  if (out.outcome === "revived-by-healing") {
-    update.death_save_successes = 0;
-    update.death_save_failures = 0;
-    update.conditions = out.conditions;
-  }
-  await updateMember({ id: props.member.id, update });
-}
-async function applyTempHp() {
-  const amount = takeHpAmount();
-  if (amount === null) return;
-  // Temp HP doesn't stack — a smaller new source never replaces a bigger pool.
-  await updateMember({ id: props.member.id, update: { temp_hp: betterTempHp(props.member.temp_hp, amount) } });
-}
 async function clearTempHp() {
   await updateMember({ id: props.member.id, update: { temp_hp: 0 } });
 }

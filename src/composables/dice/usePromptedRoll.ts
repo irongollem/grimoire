@@ -5,6 +5,7 @@ import type { DieSize, RollMode, RollResult, DieResult } from "@/lib/dice/dice";
 import { useDicePrefs } from "@/composables/dice/useDicePrefs";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
+import { takeNextRollMode } from "@/composables/dice/useNextRollMode";
 
 export interface PromptedRollArgs {
   counts: Partial<Record<DieSize, number>>;
@@ -45,13 +46,24 @@ function buildLabel(
   return parts.join("+") + modeSuffix;
 }
 
+/** The label with its "(Adv)" / "(Dis)" tag swapped for the mode actually rolled. */
+function withModeTag(label: string, mode: RollMode): string {
+  const bare = label.replace(/ \((Adv|Dis)\)$/, "");
+  return mode === "advantage" ? `${bare} (Adv)` : mode === "disadvantage" ? `${bare} (Dis)` : bare;
+}
+
 export function usePromptedRoll() {
   const { diceMode } = useDicePrefs();
   const { sendRoll } = useCampaignMessages();
   const { reportChatFailure } = useChatSendFailure();
 
   async function promptRoll(args: PromptedRollArgs): Promise<RollResult | null> {
-    const mode = args.mode ?? "normal";
+    // A mode picked on the sheet applies to the next d20 roll anyone makes for
+    // the player, whichever button made it. Damage and internal rolls never take it.
+    const takesPick = (args.counts[20] ?? 0) > 0 && !args.silent && !args.isDamage;
+    const base = args.mode ?? "normal";
+    const mode = takesPick ? takeNextRollMode(base) : base;
+    const label = mode === base ? args.label : withModeTag(args.label, mode);
     let result: RollResult | null = null;
 
     const isHidden = !!args.recipientUserId;
@@ -61,7 +73,7 @@ export function usePromptedRoll() {
         pending.value = {
           counts: args.counts,
           modifier: args.modifier,
-          label: args.label,
+          label,
           mode,
           resolve,
         };
@@ -76,7 +88,7 @@ export function usePromptedRoll() {
     }
 
     if (result) {
-      if (args.label) result.label = args.label;
+      if (label) result.label = label;
       if (args.isDamage) result.isDamage = true;
       if (!args.silent) {
         // The roll happened whether or not the table hears of it, so a failed
