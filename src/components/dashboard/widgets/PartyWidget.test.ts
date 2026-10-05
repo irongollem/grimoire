@@ -46,7 +46,9 @@ vi.mock("@/composables/party/useParty", () => ({
   }),
 }));
 vi.mock("@/composables/rules/useSpecies", () => ({ useSpeciesNames: () => () => null }));
-vi.mock("@/composables/party/useCharacterClasses", () => ({
+vi.mock("@/composables/party/useArmorClass", () => ({
+  useArmorClass: () => ({ acFor: () => 10, acBreakdownFor: () => ({ total: 10, parts: [{ label: "Base", value: 10 }], notes: [] }) }),
+}));vi.mock("@/composables/party/useCharacterClasses", () => ({
   useAllCampaignCharacterClasses: () => ({ data: { value: [] } }),
 }));
 vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers: () => ({ data: { value: [] } }) }));

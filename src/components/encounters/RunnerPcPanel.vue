@@ -117,7 +117,7 @@ import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
-import { useShieldAcBonus } from "@/composables/party/useShieldAc";
+import { useArmorClass } from "@/composables/party/useArmorClass";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { wildshapeStateFor } from "@/rules/wildshape";
 import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
@@ -151,7 +151,7 @@ provideCharacterRuleset(() => member);
 const store = useEncounterRunStore();
 const { data: speciesById } = useSpeciesByIds(() => [member.species_id]);
 const speciesName = computed(() => (member.species_id ? (speciesById.value.get(member.species_id)?.name ?? null) : null));
-const { acFor } = useShieldAcBonus();
+const { acFor } = useArmorClass();
 const { ruleset } = useRuleset();
 
 const memberId = computed(() => member.id);

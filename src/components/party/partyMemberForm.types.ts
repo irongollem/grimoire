@@ -25,7 +25,7 @@ export interface AbilitiesFormSlice {
   max_hp: number;
   current_hp: number;
   temp_hp: number;
-  ac: number;
+  ac_formula: string | null;
   speed: number;
   initiative_bonus: number;
   carry_capacity_override: string | null;

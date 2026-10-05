@@ -115,7 +115,7 @@
           <div class="cs-section-title">Combat</div>
           <div class="cs-section-body">
             <div class="cs-combat-stat">
-              <div class="cs-combat-value">{{ member.ac + acBonus }}</div>
+              <div class="cs-combat-value">{{ ac }}</div>
               <div class="cs-combat-label">Armor Class</div>
             </div>
             <div class="cs-combat-stat">
@@ -304,11 +304,11 @@ import { formatHitDicePool, sheetCastingAbility, sheetHitDice, type SheetClassIn
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { SheetPageSize, SheetTheme } from "@/composables/party/useCharacterSheetPdf";
 
-// acBonus is passed in (not derived here) because this component is also
+// `ac` is passed in (not derived here) because this component is also
 // mounted via a bare createApp for PDF export, where query composables
 // have no QueryClient to attach to. The same goes for `classInput`: the class
 // rows and their pinned definitions are loaded by the caller and handed in.
-const { member, inventory, classInput, theme = "default", speciesName = null, backgroundName = null, acBonus = 0 } = defineProps<{
+const { member, inventory, classInput, theme = "default", speciesName = null, backgroundName = null, ac } = defineProps<{
   member: PartyMember;
   inventory: PartyInventoryItem[];
   classInput: SheetClassInput;
@@ -316,7 +316,8 @@ const { member, inventory, classInput, theme = "default", speciesName = null, ba
   theme?: SheetTheme;
   speciesName?: string | null;
   backgroundName?: string | null;
-  acBonus?: number;
+  /** The calculated Armour Class, from `useArmorClass().acFor`. */
+  ac: number;
 }>();
 
 const ABILITIES = [

@@ -66,18 +66,13 @@
         @update:model-value="(v) => patch({ temp_hp: Number(v) })"
       />
     </label>
-    <label class="block">
-      <span class="field-label">Armor Class</span>
-      <AppInput
-        :model-value="form.ac"
-        type="number"
-        min="1"
-        tone="filled"
-        size="body"
-        @update:model-value="(v) => patch({ ac: Number(v) })"
-      />
-      <span class="text-caption text-muted-foreground italic">Without shield, an equipped shield adds its bonus automatically.</span>
-    </label>
+    <AcFormField
+      class="col-span-2 sm:col-span-3"
+      :breakdown="acBreakdown"
+      :natural-seed="naturalSeed"
+      :model-value="form.ac_formula"
+      @update:model-value="(v) => patch({ ac_formula: v })"
+    />
     <label class="block">
       <span class="field-label">Speed (ft)</span>
       <AppInput
@@ -173,6 +168,8 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AbilitiesFormSlice } from "./partyMemberForm.types";
 import type { SkillProficiencies } from "@/types/party.types";
+import type { AcBreakdown } from "@/rules/armorClass";
+import AcFormField from "./AcFormField.vue";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
@@ -185,8 +182,12 @@ const ABILITY_STATS = [
   { key: "cha" as const, label: "CHA" },
 ];
 
-const { form, spellSlotMaxes, skillProficiencies, profBonus } = defineProps<{
+const { form, spellSlotMaxes, skillProficiencies, profBonus, acBreakdown, naturalSeed = null } = defineProps<{
   form: AbilitiesFormSlice;
+  /** The AC as the character is right now, from `useArmorClass().acBreakdownFor`. */
+  acBreakdown: AcBreakdown;
+  /** The species' natural armor AC, to seed the natural armor option. */
+  naturalSeed?: number | null;
   spellSlotMaxes: number[];
   skillProficiencies: SkillProficiencies;
   profBonus: number;

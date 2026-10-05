@@ -27,7 +27,7 @@
             :page-size="pageSize"
             :species-name="speciesName"
             :background-name="backgroundName"
-            :ac-bonus="acBonus"
+            :ac="ac"
             :items="items"
             :debug="showBoxes"
           />
@@ -40,7 +40,7 @@
             :theme="theme"
             :species-name="speciesName"
             :background-name="backgroundName"
-            :ac-bonus="acBonus"
+            :ac="ac"
           />
         </div>
       </div>
@@ -115,7 +115,7 @@ import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/us
 import type { SheetClassInput } from "@/rules/sheetClassData";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
-import { useShieldAcBonus } from "@/composables/party/useShieldAc";
+import { useArmorClass } from "@/composables/party/useArmorClass";
 import {
   useCharacterSheetPdf,
   SHEET_THEMES,
@@ -138,11 +138,10 @@ const { member, inventory, storageKey, speciesName = null, backgroundName = null
   items?: Item[];
 }>();
 
-// AC delta over the stored `ac` — equipped shield plus the armor-derivation
-// adjustment for the "armor" formula — added in both preview modes and the
-// exported PDF so the sheet matches the live party tracker.
-const { acFor } = useShieldAcBonus();
-const acBonus = computed(() => (member ? acFor(member) - member.ac : 0));
+// The calculated AC, printed in both preview modes and the exported PDF so the
+// sheet matches the live party tracker.
+const { acFor } = useArmorClass();
+const ac = computed(() => acFor(member));
 
 // The sheet's hit dice and casting ability come from the class rows and the
 // definitions they are pinned to. The sheet waits for all three to load rather
@@ -183,7 +182,7 @@ async function doExport() {
     illustratedTheme: illustratedTheme.value,
     speciesName,
     backgroundName,
-    acBonus: acBonus.value,
+    ac: ac.value,
     items,
   });
 }

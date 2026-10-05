@@ -3,7 +3,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useParty } from "@/composables/party/useParty";
 import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
 import { useConcentration } from "@/composables/party/useConcentration";
-import { useShieldAcBonus } from "@/composables/party/useShieldAc";
+import { useArmorClass } from "@/composables/party/useArmorClass";
 import {
   getExhaustionLevel,
   setExhaustionLevel,
@@ -26,7 +26,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
   const { data: partyList } = useParty();
   const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
   const { rollConcentrationSave, endConcentration } = useConcentration();
-  const { acFor } = useShieldAcBonus();
+  const { acFor } = useArmorClass();
   const toast = useToast();
 
   const partyMap = computed(

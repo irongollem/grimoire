@@ -74,6 +74,7 @@
           :member="sampleMember"
           :inventory="sampleInventory"
           :class-input="sampleClassInput"
+          :ac="SAMPLE_AC"
           :side="side"
           :theme="theme"
           :page-size="pageSize"
@@ -136,6 +137,8 @@ const THEMES = ["classic", "adventure", "gothic", "fairy", "sumie"] as const;
 const SIDES = ["front", "back"] as const;
 const PAGE_SIZES = ["A4", "Letter"] as const;
 
+// A sample Wizard 12 in 10 + Dex armour-free gear; calibration only needs a plausible number.
+const SAMPLE_AC = 17;
 const SPECIES_NAME = "High Elf";
 const BACKGROUND_NAME = "Sage";
 
@@ -312,7 +315,7 @@ const sampleMember: PartyMember = {
   max_hp: 88,
   current_hp: 61,
   temp_hp: 12,
-  ac: 17,
+  ac: null,
   ac_formula: null,
   speed: 30,
   initiative_bonus: 2,

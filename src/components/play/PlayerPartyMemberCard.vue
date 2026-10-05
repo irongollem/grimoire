@@ -73,7 +73,7 @@ import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import { useHpDisplay } from "@/composables/play/useHpDisplay";
-import { useShieldAcBonus } from "@/composables/party/useShieldAc";
+import { useArmorClass } from "@/composables/party/useArmorClass";
 import type { PartyMember } from "@/types/party.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { formPortrait } from "@/lib/wildshapePortrait";
@@ -95,7 +95,7 @@ const { hpColor, hpBarColor, immersiveHpLabel } = useHpDisplay(
   () => member.max_hp
 );
 
-const { acFor } = useShieldAcBonus();
+const { acFor } = useArmorClass();
 const displayAc = computed(
   () => member.wildshape_state?.beast_ac ?? acFor(member),
 );

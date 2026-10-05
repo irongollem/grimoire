@@ -22,7 +22,6 @@ import { campaignToAttachAfterCreate } from "@/composables/party/characterCreati
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import { applySpeciesSpellGrants } from "@/composables/party/useCharacterSpells";
 import type { SpeciesSpellGrant } from "@/types/species.types";
-import { computeAc } from "@/types/party.types";
 import type { PartyMember, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
@@ -276,7 +275,6 @@ export function useCharacterCreationForm() {
     max_hp:        m?.max_hp ?? 10,
     current_hp:    m?.current_hp ?? 10,
     temp_hp:       m?.temp_hp ?? 0,
-    ac:            m?.ac ?? 10,
     ac_formula:    (m?.ac_formula ?? null) as string | null,
     speed:         m?.speed ?? 30,
     initiative_bonus:   m?.initiative_bonus ?? 0,
@@ -343,16 +341,6 @@ export function useCharacterCreationForm() {
     focalPoint.value = member.portrait_focal_point ?? null;
     seededFromMember = true;
   });
-
-  // When a formula is active, keep f.ac in sync whenever ability scores change.
-  // Must be placed after f is defined (watch getter runs immediately on setup).
-  watch(
-    () => [f.dex, f.con, f.wis, f.ac_formula] as const,
-    () => {
-      if (!f.ac_formula) return;
-      f.ac = computeAc(f.ac_formula, f);
-    },
-  );
 
   const {
     importBackgroundEquipment,
@@ -530,7 +518,7 @@ export function useCharacterCreationForm() {
     const preSave = {
       str: f.str, dex: f.dex, con: f.con, int: f.int, wis: f.wis, cha: f.cha,
       level: f.level, proficiency_bonus: f.proficiency_bonus,
-      max_hp: f.max_hp, current_hp: f.current_hp, ac: f.ac, speed: f.speed,
+      max_hp: f.max_hp, current_hp: f.current_hp, speed: f.speed,
       initiative_bonus: f.initiative_bonus, hit_dice_remaining: f.hit_dice_remaining,
     };
 
@@ -578,7 +566,6 @@ export function useCharacterCreationForm() {
       const hp  = cls ? Math.max(1, cls.hit_die + Math.floor((f.con - 10) / 2)) : 8;
       f.max_hp     = hp;
       f.current_hp = hp;
-      f.ac         = 10 + Math.floor((f.dex - 10) / 2);       // unarmored default
       f.speed      = selectedSpecies.value?.speed?.walk ?? 30;
       // initiative_bonus is the EXTRA on top of the DEX mod (feat/special bonuses,
       // e.g. Alert), not the total — the DEX mod is added wherever initiative is

@@ -204,7 +204,7 @@ const {
   pageSize,
   speciesName = null,
   backgroundName = null,
-  acBonus = 0,
+  ac,
   items = [],
   debug = false,
   fieldsOverride = null,
@@ -218,8 +218,8 @@ const {
   pageSize: SheetPageSize;
   speciesName?: string | null;
   backgroundName?: string | null;
-  /** Shield AC bonus added to the member's base AC. */
-  acBonus?: number;
+  /** The calculated Armour Class, from `useArmorClass().acFor`. */
+  ac: number;
   /** Vault items backing equipped weapons — enables real attack-bonus/damage
    *  values; without them equipped weapons fall back to improvised 1d4. */
   items?: Item[];
@@ -247,7 +247,7 @@ const sheet = computed(() => {
 // isn't a plain artUrl() call.
 const plateUrl = computed(() => resolvePlateUrl(pageSize, sheet.value.plate, plateModules));
 
-const front = computed(() => toFront(member, inventory, classInput, speciesName, backgroundName, acBonus, items));
+const front = computed(() => toFront(member, inventory, classInput, speciesName, backgroundName, ac, items));
 const back = computed(() => toBack(member));
 const pibfBlocks = computed(() => [
   { k: "Personality", v: back.value.personality.traits },

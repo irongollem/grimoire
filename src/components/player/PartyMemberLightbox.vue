@@ -210,7 +210,7 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useSpecies, useSpeciesByIds } from "@/composables/rules/useSpecies";
-import { useShieldAcBonus } from "@/composables/party/useShieldAc";
+import { useArmorClass } from "@/composables/party/useArmorClass";
 import { getDisplayRace, getDisplaySpeciesId } from "@/lib/partyMemberDisplay";
 import type { PartyMember } from "@/types/party.types";
 import type { HealthVisibility } from "@/types/encounter.types";
@@ -233,7 +233,7 @@ const speciesName = computed(() =>
 
 const speciesModalOpen = ref(false);
 
-const { acFor } = useShieldAcBonus();
+const { acFor } = useArmorClass();
 const displayAc = computed(() => {
   if (!props.member) return 0;
   return props.member.wildshape_state?.beast_ac ?? acFor(props.member);

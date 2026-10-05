@@ -29,6 +29,8 @@
         :campaign="campaign.activeCampaign"
       />
       <CharacterApprovalNotice v-if="member.campaign_id" :member="member" />
+      <!-- The gear in view is the active table's, so only a character seated there can be compared. -->
+      <AcCalculatedNotice v-if="campaign.activeCampaign && member.campaign_id === campaign.activeCampaign.id" :member="member" />
       <!-- ── Always visible ─────────────────────────────────── -->
       <!-- One card: the header, closed underneath by the six ability boxes -->
       <div ref="sheetCard" class="rounded-lg border border-border bg-card overflow-hidden">
@@ -164,6 +166,7 @@ import RollToast from "@/components/common/RollToast.vue";
 import type { RollResult } from "@/components/common/RollToast.vue";
 import CharacterEditionNotice from "@/components/play/CharacterEditionNotice.vue";
 import CharacterApprovalNotice from "@/components/play/CharacterApprovalNotice.vue";
+import AcCalculatedNotice from "@/components/player/AcCalculatedNotice.vue";
 import PlayerCharacterHeader from "@/components/player/PlayerCharacterHeader.vue";
 import PlayerHpStrip from "@/components/player/PlayerHpStrip.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";

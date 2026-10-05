@@ -23,7 +23,9 @@ vi.mock("@/composables/party/useParty", () => ({
   useDeletePartyMember: () => ({ mutateAsync: vi.fn() }),
 }));
 vi.mock("@/composables/party/useCharacterPool", () => ({ useDetachCharacter: () => ({ mutateAsync: vi.fn() }) }));
-vi.mock("@/composables/campaign/useCampaignMembers", () => ({
+vi.mock("@/composables/party/useArmorClass", () => ({
+  useArmorClass: () => ({ acBreakdownFor: () => ({ total: 10, parts: [{ label: "Base", value: 10 }], notes: [] }) }),
+}));vi.mock("@/composables/campaign/useCampaignMembers", () => ({
   useCampaignMembers: () => ({ data: ref([]) }),
   useUpdateCampaignMember: () => ({ mutateAsync: vi.fn() }),
 }));

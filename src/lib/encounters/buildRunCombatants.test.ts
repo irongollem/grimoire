@@ -67,6 +67,7 @@ function sources(overrides: Partial<RunCombatantSources> = {}): RunCombatantSour
     companions: [],
     monsters: [monster()],
     npcs: [],
+    acFor: () => 10,
     ...overrides,
   };
 }
@@ -141,8 +142,9 @@ describe("buildRunCombatants", () => {
   it("brings a party member's beast form and portrait focus into the fight", () => {
     const form = { monster_id: "srd_wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 9, beast_max_hp: 11, beast_ac: "13" };
     const member = {
-      id: "pm-briar", name: "Briar", current_hp: 20, max_hp: 24, temp_hp: 0, ac: 14, conditions: [], curses: [],
-      death_save_successes: 0, death_save_failures: 0, dex: 12, portrait_url: null,
+      id: "pm-briar", name: "Briar", current_hp: 20, max_hp: 24, temp_hp: 0, conditions: [], curses: [],
+      death_save_successes: 0, death_save_failures: 0, dex: 12, con: 12, wis: 10, cha: 8,
+      ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {}, portrait_url: null,
       portrait_focal_point: { x: 0.5, y: 0.25 }, wildshape_state: form,
     };
     const [shaped] = buildRunCombatants(sources({
@@ -159,6 +161,21 @@ describe("buildRunCombatants", () => {
       party: [{ ...member, wildshape_state: null }],
     }));
     expect(plain?.wildshape).toBeUndefined();
+  });
+
+  it("snapshots the calculated AC, not a stored number", () => {
+    const member = {
+      id: "pm-briar", name: "Briar", current_hp: 20, max_hp: 24, temp_hp: 0, conditions: [], curses: [],
+      death_save_successes: 0, death_save_failures: 0, dex: 12, con: 12, wis: 10, cha: 8,
+      ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {},
+      portrait_url: null, portrait_focal_point: null, wildshape_state: null,
+    };
+    const [pc] = buildRunCombatants(sources({
+      encounter: { party_member_ids: ["pm-briar"], companion_ids: [], party_member_factions: {}, combatants: [] },
+      party: [member],
+      acFor: () => 18,
+    }));
+    expect(pc?.ac).toBe("18");
   });
 
   it("leaves out a party member the encounter lists but the party no longer has", () => {

@@ -10,6 +10,7 @@ import { computed, watch } from "vue";
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useParty } from "@/composables/party/useParty";
+import { useArmorClass } from "@/composables/party/useArmorClass";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
@@ -31,6 +32,7 @@ const { data: encounter } = useEncounter(id);
 
 const { data: party } = useParty();
 const { data: companions } = useCompanions();
+const { acFor } = useArmorClass();
 const { data: npcs } = useNpcs();
 const { data: allTraps } = useTraps(() => ({ includeAllScopes: true }));
 const store = useEncounterRunStore();
@@ -124,7 +126,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
   store.encounterId = enc.id;
   store.encounterName = enc.name;
   store.factions = enc.factions.length ? enc.factions : [...DEFAULT_FACTIONS];
-  const combatants = buildRunCombatants({ encounter: enc, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList });
+  const combatants = buildRunCombatants({ encounter: enc, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList, acFor });
   store.combatants = combatants;
   store.availableMonsters = mons;
   store.availableNpcs = npcList;

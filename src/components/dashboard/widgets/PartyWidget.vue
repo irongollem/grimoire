@@ -52,7 +52,7 @@
         </div>
         <!-- Quick stats -->
         <div class="flex items-center gap-1 flex-wrap">
-          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Armour Class">AC {{ member.ac }}</span>
+          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" :title="acTitle(member)">AC {{ acOf(member) }}</span>
           <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Passive Perception">
             <IconReveal class="h-2.5 w-2.5" />{{ passivePerception(member) }}
           </span>
@@ -81,6 +81,8 @@
 import { computed } from "vue";
 import { IconMind, IconNavParty, IconReveal } from "@/lib/icons";
 import { useParty } from "@/composables/party/useParty";
+import { useArmorClass } from "@/composables/party/useArmorClass";
+import { describeAc } from "@/rules/armorClass";
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
@@ -107,6 +109,11 @@ function portraitProps(member: PartyMember) {
  *  who is actually at the table, from campaign presence. */
 const auth = useAuthStore();
 const campaign = useCampaignStore();
+const { acFor, acBreakdownFor } = useArmorClass();
+/** A wild-shaped member has the beast's AC, as everywhere else. */
+const acOf = (m: PartyMember) => m.wildshape_state?.beast_ac ?? acFor(m);
+const acTitle = (m: PartyMember) =>
+  m.wildshape_state ? `Wild Shape: ${m.wildshape_state.beast_name}` : describeAc(acBreakdownFor(m));
 const { data: party, isError: partyIsError, refetch: refetchParty } = useParty();
 // `isLoading` (isPending && isFetching) reports false while disabled or between
 // fetches, so a query with no active campaign yet reads as "not loading" with

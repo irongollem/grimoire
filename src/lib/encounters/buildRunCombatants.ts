@@ -30,9 +30,11 @@ import type { Companion } from "@/types/companion.types";
  * these by construction. */
 type RunPartyMember = Pick<
   PartyMember,
-  | "id" | "name" | "current_hp" | "max_hp" | "temp_hp" | "ac" | "conditions" | "curses"
+  | "id" | "name" | "current_hp" | "max_hp" | "temp_hp" | "conditions" | "curses"
   | "death_save_successes" | "death_save_failures" | "dex" | "portrait_url" | "portrait_focal_point"
   | "wildshape_state"
+  // What the AC calculation reads (`@/rules/armorClass`).
+  | "ruleset" | "class" | "subclass" | "con" | "wis" | "cha" | "ac_formula" | "class_choices"
 >;
 
 type RunCompanionSource = Pick<
@@ -61,6 +63,8 @@ export interface RunCombatantSources {
   /** Custom + library monsters, unscoped. */
   monsters: RunMonsterSource[];
   npcs: RunNpcSource[];
+  /** A hero's calculated AC (`useArmorClass().acFor`), snapshotted into the combatant. */
+  acFor: (member: RunPartyMember) => number;
 }
 
 export function buildRunCombatants({
@@ -69,6 +73,7 @@ export function buildRunCombatants({
   companions,
   monsters,
   npcs,
+  acFor,
 }: RunCombatantSources): RunCombatant[] {
   const combatants: RunCombatant[] = [];
 
@@ -91,7 +96,7 @@ export function buildRunCombatants({
       // warlock's kills) has to come along, or the runner shows none and the
       // first HP write persists temp_hp: 0 back over it.
       temp_hp: member.temp_hp > 0 ? member.temp_hp : undefined,
-      ac: String(member.ac),
+      ac: String(acFor(member)),
       conditions: [...(member.conditions ?? [])],
       curses: [...(member.curses ?? [])],
       death_saves: {

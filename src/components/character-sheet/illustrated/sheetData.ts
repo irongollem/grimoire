@@ -61,9 +61,11 @@ export function toFront(
   // The character's class rows and the definitions they are pinned to. Casting
   // ability and hit dice come from these, never from `m.class` (a mirror label).
   classInput: SheetClassInput,
-  speciesName?: string | null,
-  backgroundName?: string | null,
-  acBonus = 0,
+  speciesName: string | null | undefined,
+  backgroundName: string | null | undefined,
+  // The calculated AC (`useArmorClass().acFor`), handed in because this module is
+  // pure and also runs in a bare createApp for PDF export, with no query client.
+  ac: number,
   // Vault items backing equipped weapons, for real atk-bonus/damage math (see
   // `attacks` below). Optional + trailing so existing callers (IllustratedSheet.vue,
   // SheetCalibrationView.vue) keep compiling unchanged; when omitted every
@@ -115,7 +117,7 @@ export function toFront(
         save: signed(am + (saveProf ? pb : 0)), saveProf,
       };
     }),
-    ac: String(m.ac + acBonus),
+    ac: String(ac),
     init: signed(m.initiative_bonus + mod(m.dex)),
     speed: String(m.speed),
     hp: { max: m.max_hp },

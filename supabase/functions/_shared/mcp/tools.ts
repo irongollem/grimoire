@@ -999,7 +999,10 @@ async function campaignOverview(ctx: ToolContext, args: Record<string, unknown>)
 
   const [campaign, party, quests, notes] = await Promise.all([
     ctx.supabase.from("campaigns").select("id, name, setting, description").eq("id", campaignId).maybeSingle(),
-    ctx.supabase.from("party_members").select("id, name, class, level, current_hp, max_hp, ac").eq("campaign_id", campaignId),
+    // No `ac`: Armour Class is calculated from worn gear in the app (src/rules/armorClass.ts)
+    // and the stored column is only a retired number. Reporting a gear-blind figure here
+    // would contradict the sheet, so the tool leaves it out rather than guess.
+    ctx.supabase.from("party_members").select("id, name, class, level, current_hp, max_hp").eq("campaign_id", campaignId),
     ctx.supabase.from("quests").select("id, title, summary, status").eq("campaign_id", campaignId).eq("status", "active"),
     ctx.supabase.from("notes").select("id, title, category, updated_at").eq("campaign_id", campaignId).order("updated_at", { ascending: false }).limit(5),
   ]);

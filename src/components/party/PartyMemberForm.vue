@@ -49,6 +49,8 @@
         <PartyMemberAbilitiesTab
           v-if="activeTab === 'stats'"
           :form="abilitiesSlice"
+          :ac-breakdown="acBreakdown"
+          :natural-seed="selectedSpecies?.natural_armor_ac ?? null"
           :spell-slot-maxes="spellSlotMaxes"
           :skill-proficiencies="form.skill_proficiencies"
           :prof-bonus="profBonus"
@@ -124,6 +126,7 @@ import {
 } from "@/composables/campaign/useCampaignMembers";
 import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/rules/useCustomClasses";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
+import { useArmorClass } from "@/composables/party/useArmorClass";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
@@ -175,6 +178,25 @@ const subraceOptions  = computed(() => selectedSpecies.value?.subraces?.map(sr =
 const selectedDisguiseSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === form.disguise_species_id) ?? null);
 const disguiseSubraceOptions  = computed(() => selectedDisguiseSpecies.value?.subraces?.map(sr => sr.name) ?? []);
 
+// The AC the hero has right now, with the form's unsaved scores and formula, so
+// the DM sees the effect of a Dexterity change before saving. Gear comes from the
+// inventory; nothing here edits it.
+const { acBreakdownFor } = useArmorClass();
+const acBreakdown = computed(() =>
+  acBreakdownFor({
+    id: props.member.id,
+    ruleset: props.member.ruleset,
+    class: props.member.class,
+    subclass: props.member.subclass,
+    class_choices: props.member.class_choices,
+    dex: form.dex,
+    con: form.con,
+    wis: form.wis,
+    cha: form.cha,
+    ac_formula: form.ac_formula,
+  }),
+);
+
 const activeTab = ref<TabId>("identity");
 
 // Only the fields these four tabs edit. Everything else on the row (conditions,
@@ -193,7 +215,7 @@ function toMemberDraft(m: PartyMember) {
     max_hp: m.max_hp,
     current_hp: m.current_hp,
     temp_hp: m.temp_hp,
-    ac: m.ac,
+    ac_formula: m.ac_formula ?? null,
     speed: m.speed,
     initiative_bonus: m.initiative_bonus,
     str: m.str,
@@ -245,7 +267,7 @@ const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
 
 const CONFLICT_LABELS: Partial<Record<keyof MemberDraft, string>> = {
   name: "Name", player_name: "Player", max_hp: "Max HP", current_hp: "Current HP", temp_hp: "Temp HP",
-  ac: "AC", speed: "Speed", initiative_bonus: "Initiative", str: "Strength", dex: "Dexterity",
+  ac_formula: "AC calculation", speed: "Speed", initiative_bonus: "Initiative", str: "Strength", dex: "Dexterity",
   con: "Constitution", int: "Intelligence", wis: "Wisdom", cha: "Charisma",
   skill_proficiencies: "Skill proficiencies", saving_throw_proficiencies: "Saving throws",
   tool_proficiencies: "Tool proficiencies", languages: "Languages",
@@ -301,7 +323,7 @@ const abilitiesSlice = computed<AbilitiesFormSlice>(() => ({
   max_hp: form.max_hp,
   current_hp: form.current_hp,
   temp_hp: form.temp_hp,
-  ac: form.ac,
+  ac_formula: form.ac_formula,
   speed: form.speed,
   initiative_bonus: form.initiative_bonus,
   carry_capacity_override: form.carry_capacity_override,
@@ -421,7 +443,7 @@ function buildPayload(d: MemberDraft): PartyMemberUpdate {
     max_hp: d.max_hp,
     current_hp: d.current_hp,
     temp_hp: d.temp_hp,
-    ac: d.ac,
+    ac_formula: d.ac_formula,
     speed: d.speed,
     initiative_bonus: d.initiative_bonus,
     str: d.str,

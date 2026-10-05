@@ -47,9 +47,8 @@ export interface SheetExportOptions {
   illustratedTheme?: IllustratedTheme;
   speciesName?: string | null;
   backgroundName?: string | null;
-  /** AC delta over the stored `ac` (equipped shield + armor-formula derivation) —
-   *  computed by the caller via useShieldAcBonus().acFor. */
-  acBonus?: number;
+  /** The calculated Armour Class, from `useArmorClass().acFor`. */
+  ac: number;
   /** Vault items backing equipped weapons — illustrated mode's attack math. */
   items?: Item[];
 }
@@ -81,9 +80,9 @@ export function useCharacterSheetPdf() {
       illustratedTheme = "classic",
       speciesName = null,
       backgroundName = null,
-      acBonus = 0,
+      ac,
       items = [],
-    }: SheetExportOptions = {},
+    }: SheetExportOptions,
   ): Promise<void> {
     isGenerating.value = true;
 
@@ -108,7 +107,7 @@ export function useCharacterSheetPdf() {
       theme: mode === "illustrated" ? illustratedTheme : theme,
       speciesName,
       backgroundName,
-      acBonus,
+      ac,
       ...(mode === "illustrated" ? { items } : {}),
     });
     app.mount(container);

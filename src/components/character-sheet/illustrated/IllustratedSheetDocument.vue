@@ -16,7 +16,7 @@
       :page-size="pageSize"
       :species-name="speciesName"
       :background-name="backgroundName"
-      :ac-bonus="acBonus"
+      :ac="ac"
       :items="items"
       :debug="debug"
     />
@@ -29,7 +29,7 @@
       :page-size="pageSize"
       :species-name="speciesName"
       :background-name="backgroundName"
-      :ac-bonus="acBonus"
+      :ac="ac"
       :debug="debug"
     />
   </div>
@@ -51,8 +51,8 @@ defineProps<{
   pageSize: SheetPageSize;
   speciesName?: string | null;
   backgroundName?: string | null;
-  /** Shield AC bonus added to the member's base AC. */
-  acBonus?: number;
+  /** The calculated Armour Class, from `useArmorClass().acFor`. */
+  ac: number;
   /** Vault items backing equipped weapons (real attack math on the front). */
   items?: Item[];
   /** Calibration aid: outline each overlay box (preview only). */

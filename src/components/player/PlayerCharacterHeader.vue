@@ -211,6 +211,7 @@
             <path d="M20 1.5 37.5 7v15.5c0 11.2-7.4 19.6-17.5 24C9.9 42.1 2.5 33.7 2.5 22.5V7Z" stroke="currentColor" stroke-width="1.5" />
           </svg>
           <span v-else class="absolute inset-0 rounded-md border border-border" aria-hidden="true" />
+          <AcBreakdownPopover v-if="cs.shield" :breakdown="acBreakdown" :beast-form="wildshape?.beast_name" />
           <span class="relative -mt-0.5">{{ cs.value }}<span v-if="cs.suffix" class="ml-0.5 text-label font-normal text-muted-foreground">{{ cs.suffix }}</span></span>
         </dd>
       </div>
@@ -226,7 +227,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
-import { useShieldAcBonus } from "@/composables/party/useShieldAc";
+import { useArmorClass } from "@/composables/party/useArmorClass";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { useClassHitDice } from "@/composables/party/useClassHitDice";
 import { useConcentration } from "@/composables/party/useConcentration";
@@ -246,6 +247,7 @@ import { walkingSpeed } from "@/lib/movement";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AcBreakdownPopover from "@/components/player/AcBreakdownPopover.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -389,12 +391,13 @@ const hitDiceRemaining = computed(() =>
 );
 
 // When wildshaped, display beast AC/HP; otherwise real member stats.
-// An equipped shield adds its bonus on top of the stored (shieldless) AC,
-// but never to a beast form — gear merges into the form while wildshaped.
-const { acFor } = useShieldAcBonus();
+// Armor Class is worked out from gear (tap the shield to see how); a beast form
+// replaces it.
+const { acFor, acBreakdownFor } = useArmorClass();
 
 const displayHp    = computed(() => props.wildshape?.beast_hp    ?? props.member.current_hp);
 const displayMaxHp = computed(() => props.wildshape?.beast_max_hp ?? props.member.max_hp);
+const acBreakdown  = computed(() => acBreakdownFor(props.member));
 const displayAc    = computed(() => props.wildshape?.beast_ac     ?? acFor(props.member));
 
 // Initiative = DEX mod + initiative_bonus (feat/special extras like Alert).

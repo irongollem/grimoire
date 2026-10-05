@@ -9,7 +9,7 @@ import type { RulesetKey } from "@/types/ruleset.types";
 
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/composables/party/useParty", () => ({ useUpdatePartyMember: () => ({ mutateAsync: vi.fn() }) }));
-vi.mock("@/composables/party/useShieldAc", () => ({ useShieldAcBonus: () => ({ acFor: () => 10 }) }));
+vi.mock("@/composables/party/useArmorClass", () => ({ useArmorClass: () => ({ acFor: () => 10, acBreakdownFor: () => ({ total: 10, parts: [{ label: "Base", value: 10 }], notes: [] }) }) }));
 vi.mock("@/composables/play/useReadItems", () => ({
   useReadItems: () => ({ isUnread: () => false, markRead: vi.fn() }),
 }));

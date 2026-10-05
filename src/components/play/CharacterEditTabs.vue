@@ -91,30 +91,12 @@
         <label class="block"><span class="field-label">Max HP</span><AppInput v-model.number="f.max_hp" type="number" min="1" tone="filled" size="body" /></label>
         <label class="block"><span class="field-label">Current HP</span><AppInput v-model.number="f.current_hp" type="number" tone="filled" size="body" /></label>
         <label class="block"><span class="field-label">Temp HP</span><AppInput v-model.number="f.temp_hp" type="number" min="0" tone="filled" size="body" /></label>
-        <!-- Armor Class — formula picker -->
-        <div class="block col-span-2 sm:col-span-3">
-          <span class="field-label">Armor Class</span>
-          <div class="flex flex-wrap gap-2 items-center">
-            <AppSelect v-model="acFormulaType" tone="filled" size="body" weight="normal">
-              <option value="">Manual</option>
-              <option value="armor">Equipped armor</option>
-              <option value="unarmored:dex+con">Unarmored Defense (Barbarian)</option>
-              <option value="unarmored:dex+wis">Unarmored Defense (Monk)</option>
-              <option value="mage_armor">Mage Armor</option>
-              <option value="natural">Natural Armor</option>
-              <option value="natural_dex">Natural Armor (base + Dex) · Lizardfolk, Draconic Resilience</option>
-            </AppSelect>
-            <!-- Editable number: manual mode, or armor mode with nothing derivable equipped -->
-            <AppInput v-if="!acFormulaType || (acFormulaType === 'armor' && armorDerivedAc === null)" v-model.number="f.ac" type="number" min="1" tone="filled" size="body" class="w-20" />
-            <!-- Formula / derived: computed read-only value + optional natural base input -->
-            <template v-else>
-              <span class="field-input w-16 text-center font-bold pointer-events-none select-none">{{ acFormulaType === 'armor' ? armorDerivedAc : f.ac }}</span>
-              <span class="text-caption text-muted-foreground italic">{{ acFormulaLabel }}</span>
-              <AppInput v-if="acFormulaType === 'natural' || acFormulaType === 'natural_dex'" v-model.number="naturalBase" type="number" min="1" tone="filled" size="body" class="w-20" placeholder="Base AC" />
-            </template>
-          </div>
-          <p class="text-caption text-muted-foreground italic mt-1">Without shield, an equipped shield adds its bonus automatically. “Equipped armor” derives base AC from the armor in the paper doll, so it updates when you swap armor.</p>
-        </div>
+        <AcFormField
+          v-model="f.ac_formula"
+          class="col-span-2 sm:col-span-3"
+          :breakdown="acBreakdown"
+          :natural-seed="naturalSeed"
+        />
         <label class="block"><span class="field-label">Speed (ft)</span><AppInput v-model.number="f.speed" type="number" min="0" step="5" tone="filled" size="body" /></label>
         <label class="block"><span class="field-label">Initiative Bonus</span><AppInput v-model.number="f.initiative_bonus" type="number" tone="filled" size="body" placeholder="extra on top of DEX (e.g. Alert +5)" /></label>
         <label class="block"><span class="field-label">Carry Capacity Override</span><AppInput v-model="f.carry_capacity_override" type="text" tone="filled" size="body" placeholder="*2, +30, 150" /></label>
@@ -186,11 +168,11 @@
 </template>
 
 <script setup lang="ts">
-import { inject, computed, watch } from "vue";
+import { inject, computed } from "vue";
 import { CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
 import { rulesetLabel } from "@/composables/party/useCharacterRuleset";
-import { useShieldAcBonus } from "@/composables/party/useShieldAc";
-import { armorAcFor } from "@/rules/armorAc";
+import { useArmorClass } from "@/composables/party/useArmorClass";
+import AcFormField from "@/components/party/AcFormField.vue";
 import type { PartyMember } from "@/types/party.types";
 import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } from "@/rules/characterCreation";
 import { SKILLS } from "@/types/party.types";
@@ -198,7 +180,6 @@ import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-list
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
@@ -209,7 +190,7 @@ const {
   router, auth, f,
   activeTab, saving,
   portraitUrl, focalPoint, spellSlotMaxes,
-  existingMember, backRoute,
+  existingMember, backRoute, chosenRuleset,
   backgroundOptions, selectedSpecies,
   passivePerception, passiveInsight, passiveInvestigation,
   mod, setSkillProf, skillBonus, toggleSave, saveBonus,
@@ -233,85 +214,28 @@ const currentBgName = computed(
   () => (backgroundOptions.value as Array<{ id: string; name: string }>).find((b) => b.id === f.background_id)?.name ?? null,
 );
 
-// ── AC formula picker ─────────────────────────────────────────────────────────
-
-/** Dropdown value: "" = manual, "natural" = natural armor, "natural_dex" =
- *  natural armor + Dex (Lizardfolk, Draconic Resilience), else the formula string. */
-const acFormulaType = computed({
-  get(): string {
-    const fm = f.ac_formula;
-    if (!fm) return "";
-    if (fm.startsWith("natural:")) return fm.endsWith("+dex") ? "natural_dex" : "natural";
-    return fm;
-  },
-  set(val: string) {
-    if (val === "") {
-      f.ac_formula = null;
-    } else if (val === "natural" || val === "natural_dex") {
-      // Seed from species natural_armor_ac if available, else 10.
-      const speciesBase = (selectedSpecies.value as { natural_armor_ac?: number | null } | null)?.natural_armor_ac ?? 10;
-      f.ac_formula = `natural:${speciesBase}${val === "natural_dex" ? "+dex" : ""}`;
-    } else {
-      f.ac_formula = val;
-    }
-  },
-});
-
-/** The base AC integer for the natural armor option (with or without +Dex). */
-const naturalBase = computed({
-  get(): number {
-    const fm = f.ac_formula;
-    if (fm?.startsWith("natural:")) {
-      const match = fm.match(/^natural:(\d+)(\+dex)?$/);
-      return match ? parseInt(match[1], 10) : 10;
-    }
-    return (selectedSpecies.value as { natural_armor_ac?: number | null } | null)?.natural_armor_ac ?? 10;
-  },
-  set(val: number) {
-    f.ac_formula = `natural:${val}${acFormulaType.value === "natural_dex" ? "+dex" : ""}`;
-  },
-});
-
-// ── Equipped-armor derivation (live preview) ──────────────────────────────────
-// Mirrors the display-time resolver so the editor shows exactly what the sheets
-// will. Keyed by the saved member id, so it only resolves in edit mode.
-const { armorFor } = useShieldAcBonus();
-const equippedArmor = computed(() => armorFor((existingMember.value as PartyMember | null)?.id));
-const armorDerivedAc = computed(() =>
-  equippedArmor.value ? armorAcFor(equippedArmor.value, f.dex) : null,
+// ── Armor Class ───────────────────────────────────────────────────────────────
+// Worked out from the form's own scores and the character's gear, so the editor
+// shows what the sheets will. Gear is keyed by the saved member id: a character
+// that does not exist yet has none.
+const { acBreakdownFor } = useArmorClass();
+const naturalSeed = computed(
+  () => (selectedSpecies.value as { natural_armor_ac?: number | null } | null)?.natural_armor_ac ?? null,
 );
-const armorAcLabel = computed(() => {
-  const a = equippedArmor.value;
-  if (!a) return "";
-  if (a.dex === "none") return `${a.base} (no DEX)`;
-  const dm = mod(f.dex);
-  const applied = a.dex === "capped" ? Math.min(dm, a.maxDex ?? 0) : dm;
-  const cap = a.dex === "capped" ? ` (max +${a.maxDex})` : "";
-  return `${a.base} + DEX (${applied >= 0 ? "+" : ""}${applied})${cap}`;
-});
-
-// Keep the stored `ac` synced to the derived value while "armor" mode is active,
-// so it stays a sensible fallback if the armor is later unequipped/unparseable.
-watch([armorDerivedAc, acFormulaType], () => {
-  if (acFormulaType.value === "armor" && armorDerivedAc.value !== null) {
-    f.ac = armorDerivedAc.value;
-  }
-});
-
-const acFormulaLabel = computed(() => {
-  const fm = f.ac_formula;
-  if (!fm) return "";
-  if (fm === "armor")             return armorDerivedAc.value === null ? "No armor equipped: enter AC manually" : armorAcLabel.value;
-  if (fm === "unarmored:dex+con") return `10 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}) + CON (${mod(f.con) >= 0 ? "+" : ""}${mod(f.con)})`;
-  if (fm === "unarmored:dex+wis") return `10 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}) + WIS (${mod(f.wis) >= 0 ? "+" : ""}${mod(f.wis)})`;
-  if (fm === "mage_armor")        return `13 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)})`;
-  if (fm.startsWith("natural:")) {
-    return fm.endsWith("+dex")
-      ? `Natural Armor · base + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}):`
-      : "Natural Armor · base:";
-  }
-  return "";
-});
+const acBreakdown = computed(() =>
+  acBreakdownFor({
+    id: (existingMember.value as PartyMember | null)?.id ?? "",
+    ruleset: (existingMember.value as PartyMember | null)?.ruleset ?? chosenRuleset.value,
+    class: f.class,
+    subclass: f.subclass,
+    class_choices: f.class_choices,
+    dex: f.dex,
+    con: f.con,
+    wis: f.wis,
+    cha: f.cha,
+    ac_formula: f.ac_formula,
+  }),
+);
 </script>
 
 <style scoped>

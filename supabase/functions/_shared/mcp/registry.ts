@@ -969,7 +969,6 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
         max_hp: { type: "number", description: "Defaults to 10." },
         current_hp: { type: "number", description: "Defaults to 10." },
         temp_hp: { type: "number" },
-        ac: { type: "number", description: "Defaults to 10." },
         speed: { type: "number", description: "In feet. Defaults to 30." },
         initiative_bonus: { type: "number" },
         proficiency_bonus: { type: "number", description: "Defaults to 2." },

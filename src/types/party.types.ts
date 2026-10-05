@@ -116,7 +116,14 @@ export interface PartyMember {
   max_hp: number;
   current_hp: number;
   temp_hp: number;
-  ac: number;
+  /**
+   * The AC this character had before Armour Class became calculated. Read only
+   * by the one-time "your AC is now worked out from your gear" notice, which
+   * clears it; null for every new or edited character. Never display it: the
+   * AC is `useArmorClass().acFor(member)`.
+   */
+  ac: number | null;
+  /** An extra AC calculation the character has; see the grammar below. */
   ac_formula?: string | null;
   speed: number;
   initiative_bonus: number;
@@ -200,50 +207,34 @@ export interface ConcentrationState {
  * primary `character_classes` row, so a client write is silently overwritten and
  * neither is accepted here. They stay on `PartyMember` for reading.
  */
-export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "assumed_from_id" | "created_at" | "updated_at" | "level_choices" | "ruleset" | "class" | "subclass"> & {
+export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "assumed_from_id" | "ac" | "created_at" | "updated_at" | "level_choices" | "ruleset" | "class" | "subclass"> & {
   owner_user_id?: string | null;
   level_choices?: LevelChoices;
   ruleset: RulesetKey;
 };
 /** `ruleset` is not client-writable: it changes only through `convert_party_member_ruleset`. */
-export type PartyMemberUpdate = Partial<Omit<PartyMemberInsert, "ruleset">>;
+export type PartyMemberUpdate = Partial<Omit<PartyMemberInsert, "ruleset">> & {
+  /** The retired stored AC can only be cleared (the one-time notice's "Got it"), never set. */
+  ac?: null;
+};
 
 // Conditions + helpers now live in `@/rules/conditions`. Re-exported here so
 // existing imports from `@/types/party.types` keep working.
 export { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/rules/conditions";
 
 // ── AC formula ───────────────────────────────────────────────────────────────
-// Encodes where a character's AC comes from. Stored in party_members.ac_formula.
-// null → manual (use ac integer as-is).
-// "armor"             → Equipped armor:               base+Dex derived live at
-//                       display from the paper doll (useShieldAc.acFor), NOT baked
-//                       here; the stored `ac` is only the fallback when no armor
-//                       is equipped, so this returns it unchanged.
-// "unarmored:dex+con" → Barbarian Unarmored Defense: 10 + DEX mod + CON mod
-// "unarmored:dex+wis" → Monk Unarmored Defense:      10 + DEX mod + WIS mod
+// Armour Class is calculated from the character and their gear (`@/rules/armorClass`),
+// never stored. `party_members.ac_formula` names an extra calculation the character
+// has on top of what their class gives automatically (Barbarian and Monk Unarmored
+// Defense, Draconic Resilience); the highest calculation they qualify for wins.
+// null                → none beyond the class's own.
+// "unarmored:dex+con" → Barbarian Unarmored Defense: 10 + DEX mod + CON mod (multiclass)
+// "unarmored:dex+wis" → Monk Unarmored Defense:      10 + DEX mod + WIS mod (multiclass, no shield)
 // "mage_armor"        → Mage Armor spell:             13 + DEX mod
 // "natural:<N>"       → Natural Armor:                fixed base AC N (e.g. "natural:15")
 // "natural:<N>+dex"   → Natural Armor + Dex:           base N + DEX mod (e.g. Lizardfolk
-//                       "natural:13+dex", Sorcerer Draconic Resilience "natural:13+dex")
-
-export function computeAc(
-  formula: string | null | undefined,
-  scores: { ac: number; dex: number; con: number; wis: number },
-): number {
-  if (!formula) return scores.ac;
-  const dexMod = Math.floor((scores.dex - 10) / 2);
-  if (formula === "armor") return scores.ac; // resolved live at display, not baked
-  if (formula === "unarmored:dex+con") return 10 + dexMod + Math.floor((scores.con - 10) / 2);
-  if (formula === "unarmored:dex+wis") return 10 + dexMod + Math.floor((scores.wis - 10) / 2);
-  if (formula === "mage_armor") return 13 + dexMod;
-  if (formula.startsWith("natural:")) {
-    const match = formula.match(/^natural:(\d+)(\+dex)?$/);
-    if (!match) return scores.ac;
-    const base = parseInt(match[1], 10);
-    return match[2] ? base + dexMod : base;
-  }
-  return scores.ac;
-}
+//                       "natural:13+dex")
+// Worn armour, a shield in the off hand and magic items are read from the inventory.
 
 // ── XP-per-level table (D&D 5e PHB) ──────────────────────────────────────────
 // Total XP required to reach each level. Index 0 → Lv 1, index 19 → Lv 20.
