@@ -1,4 +1,6 @@
 import { ref, reactive, computed, watch, type InjectionKey } from "vue";
+import { useAutosave } from "@/composables/useAutosave";
+import { changedColumns, cloneDraftValue, draftValueEqual, mergeDraft } from "@/composables/useRecordDraft";
 import { useRouter, useRoute } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useAuthStore } from "@/stores/auth";
@@ -21,7 +23,6 @@ import { isRulesetAdmissible, parseRulesetBounce, rulesetRules } from "@/composa
 import { campaignToAttachAfterCreate } from "@/composables/party/characterCreationEdition";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import { applySpeciesSpellGrants } from "@/composables/party/useCharacterSpells";
-import type { SpeciesSpellGrant } from "@/types/species.types";
 import type { PartyMember, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
@@ -63,6 +64,78 @@ export function resolveCharacterPlacement(opts: {
     campaign_id: dmRosterCreate ? opts.activeCampaignId : null,
     owner_user_id: dmRosterCreate ? null : opts.creatorId,
   };
+}
+
+// ── Editing a saved character ─────────────────────────────────────────────────
+
+/** Everything the edit form binds to, as one value the autosave can compare. */
+export interface CharacterEditDraft {
+  form: CharacterFormState;
+  portraitUrl: string;
+  focalPoint: { x: number; y: number } | null;
+  slots: number[];
+}
+
+/**
+ * The columns a character form writes. One builder for both flows, so the edit
+ * autosave compares exactly what a create would send. `class` and `subclass`
+ * stay out: they are the database's mirror of the primary class row, and a
+ * written value is overwritten.
+ */
+export function buildCharacterPayload(input: {
+  draft: CharacterEditDraft;
+  existingSlots: SpellSlotEntry[] | null | undefined;
+  playerNameFallback: string | null;
+}) {
+  const { draft, existingSlots, playerNameFallback } = input;
+  const f = draft.form;
+  // Persist the player's actual slot maxima rather than re-deriving the default
+  // table (that lost multiclass/pact slots). `used` comes from the stored row so
+  // an untouched slot level round-trips.
+  const spellSlots: SpellSlotEntry[] = draft.slots
+    .map((max, i) => {
+      const existing = existingSlots?.find((e) => e.level === i + 1);
+      return { level: i + 1, max, used: max > 0 ? (existing?.used ?? 0) : 0 };
+    })
+    .filter((s) => s.max > 0);
+  const { class: _class, subclass: _subclass, ...formFields } = f;
+  return {
+    ...formFields,
+    name:        f.name.trim(),
+    player_name: f.player_name || playerNameFallback || null,
+    subrace:     f.subrace || null,
+    notes:       f.notes || null,
+    alignment:            f.alignment || null,
+    personality_traits:   f.personality_traits || null,
+    ideals:               f.ideals || null,
+    bonds:                f.bonds || null,
+    flaws:                f.flaws || null,
+    deity:                f.deity || null,
+    deity_id:             f.deity_id || null,
+    age:                  f.age || null,
+    gender:               f.gender || null,
+    pronouns:             f.pronouns || null,
+    physical_description: f.physical_description || null,
+    portrait_url:         draft.portraitUrl || null,
+    portrait_focal_point: draft.focalPoint,
+    spell_slots:          spellSlots,
+  };
+}
+
+/**
+ * What an edit autosave writes: only the columns the player changed against the
+ * server copy. A character is edited by the DM and by combat at the same time
+ * (current HP, used slots, conditions), so writing the whole form back would
+ * revert whatever moved while the sheet was open (#946).
+ */
+export function changedEditColumns(
+  draft: CharacterEditDraft,
+  server: CharacterEditDraft,
+  build: (d: CharacterEditDraft) => ReturnType<typeof buildCharacterPayload>,
+) {
+  const { campaign_id: _c, owner_user_id: _o, ...changed } = changedColumns(build(draft), build(server)) as
+    Partial<ReturnType<typeof buildCharacterPayload>> & { campaign_id?: unknown; owner_user_id?: unknown };
+  return changed;
 }
 
 // ── Composable ────────────────────────────────────────────────────────────────
@@ -328,20 +401,6 @@ export function useCharacterCreationForm() {
 
   const f = reactive(buildFormState(existingMember.value));
 
-  // On a cold load (PWA restart / hard refresh) the party query hasn't resolved
-  // when the form is first built, so `existingMember` is null and `f` seeds to
-  // level-1 defaults — saving would then overwrite the real character. Reseed
-  // once, the first time the member resolves, but only if the form wasn't already
-  // built from a loaded member (warm load) so we never clobber in-progress edits.
-  let seededFromMember = !!existingMember.value;
-  watch(existingMember, (member) => {
-    if (!member || seededFromMember || !isEditMode.value) return;
-    Object.assign(f, buildFormState(member));
-    portraitUrl.value = member.portrait_url ?? "";
-    focalPoint.value = member.portrait_focal_point ?? null;
-    seededFromMember = true;
-  });
-
   const {
     importBackgroundEquipment,
     classEquipmentChoice, importClassEquipment, classEquipmentPack,
@@ -391,8 +450,7 @@ export function useCharacterCreationForm() {
     );
   }
 
-  function buildSlotMaxes(): number[] {
-    const em = existingMember.value;
+  function buildSlotMaxes(em: PartyMember | null | undefined = existingMember.value): number[] {
     if (em?.spell_slots?.length) {
       return Array.from({ length: 9 }, (_, i) => em.spell_slots!.find((s) => s.level === i + 1)?.max ?? 0);
     }
@@ -400,6 +458,7 @@ export function useCharacterCreationForm() {
     return Array.from({ length: 9 }, (_, i) => defaults.find((s) => s.level === i + 1)?.max ?? 0);
   }
   const spellSlotMaxes = reactive<number[]>(buildSlotMaxes());
+  let serverDraft: CharacterEditDraft | null = null;
 
   function resetSlotsToDefault() {
     const defaults = defaultSlots();
@@ -412,11 +471,105 @@ export function useCharacterCreationForm() {
     () => [memberClassRows.value, allSystemClasses.value, allCustomClasses.value] as const,
     () => {
       if (existingMember.value && !spellSlotMaxes.some((v) => v !== 0)) {
-        buildSlotMaxes().forEach((max, i) => { spellSlotMaxes[i] = max; });
+        const seeded = buildSlotMaxes();
+        seeded.forEach((max, i) => { spellSlotMaxes[i] = max; });
+        // Seeded from the member's own class rows, so it is the server's value,
+        // not an edit: the autosave must not write it back.
+        if (serverDraft && !serverDraft.slots.some((v) => v !== 0)) serverDraft.slots = [...seeded];
       }
     },
   );
   watch(() => f.class, () => { if (spellSlotMaxes.every((v) => v === 0)) resetSlotsToDefault(); });
+
+  // ── Editing: the form saves itself ────────────────────────────────────────────
+  // `serverDraft` is the character as the server last reported it, in the shape
+  // the form binds to. The autosave writes only what differs from it, and fresh
+  // server data reaches each field the player has not touched (useRecordDraft's
+  // rules, #946, over a form that is shared with the create wizard).
+  function draftOf(member: PartyMember): CharacterEditDraft {
+    return {
+      form: buildFormState(member),
+      portraitUrl: member.portrait_url ?? "",
+      focalPoint: member.portrait_focal_point ?? null,
+      slots: buildSlotMaxes(member),
+    };
+  }
+  const liveDraft = reactive({ form: f, portraitUrl, focalPoint, slots: spellSlotMaxes }) as unknown as CharacterEditDraft;
+  serverDraft = existingMember.value ? cloneDraftValue(draftOf(existingMember.value)) : null;
+
+  // On a cold load (PWA restart / hard refresh) the party query hasn't resolved
+  // when the form is first built, so `f` seeds to level-1 defaults: the first
+  // time the member resolves the form takes it whole. After that a change to the
+  // row (the DM, combat, our own echo) only reaches fields the player has not
+  // edited, so in-progress edits are never clobbered.
+  watch(existingMember, (member) => {
+    if (!member || !isEditMode.value) return;
+    const incoming = draftOf(member);
+    if (!serverDraft) {
+      Object.assign(f, incoming.form);
+      portraitUrl.value = incoming.portraitUrl;
+      focalPoint.value = incoming.focalPoint;
+      incoming.slots.forEach((max, i) => { spellSlotMaxes[i] = max; });
+    } else {
+      mergeDraft(f, serverDraft.form, incoming.form);
+      if (draftValueEqual(portraitUrl.value, serverDraft.portraitUrl)) portraitUrl.value = incoming.portraitUrl;
+      if (draftValueEqual(focalPoint.value, serverDraft.focalPoint)) focalPoint.value = incoming.focalPoint;
+      if (draftValueEqual(spellSlotMaxes, serverDraft.slots)) {
+        incoming.slots.forEach((max, i) => { spellSlotMaxes[i] = max; });
+      }
+    }
+    serverDraft = cloneDraftValue(incoming);
+  });
+  function editColumnsOf(d: CharacterEditDraft) {
+    return buildCharacterPayload({
+      draft: d,
+      existingSlots: existingMember.value?.spell_slots,
+      playerNameFallback: auth.membership?.display_name ?? null,
+    });
+  }
+
+  async function saveEdit(snapshot: CharacterEditDraft) {
+    const member = existingMember.value;
+    if (!member || !serverDraft) return;
+    const columns = changedEditColumns(snapshot, serverDraft, editColumnsOf);
+    if (Object.keys(columns).length === 0) return;
+    await update({ id: member.id, update: columns });
+    // What was sent is now the server copy; edits made during the request stay
+    // unsaved until the refetch confirms it.
+    serverDraft = cloneDraftValue(snapshot);
+    // Species spells that unlock with the character's level or subrace (an
+    // idempotent upsert); the ones that need a pick are offered inline.
+    if (selectedSpecies.value) {
+      await applySpeciesSpellGrants(
+        member.id, selectedSpecies.value, snapshot.form.level,
+        snapshot.form.subrace || member.subrace || null,
+      );
+    }
+  }
+
+  const autosave = isEditMode.value
+    ? useAutosave<CharacterEditDraft>({
+      draft: liveDraft,
+      initial: () => cloneDraftValue(liveDraft),
+      equal: draftValueEqual,
+      save: saveEdit,
+      canSave: () => !!existingMember.value && !!serverDraft && !!f.name.trim(),
+      errorMessage: "Couldn't save the character",
+    })
+    : null;
+
+  /** Species spells the character may choose for itself and has not been offered a place for yet. */
+  const freeSpeciesPicks = computed(() => (selectedSpecies.value?.granted_spells ?? []).filter(
+    (g) => g.spell_id === null && g.min_level <= f.level && (g.subrace === null || g.subrace === (f.subrace || null)),
+  ));
+
+  /** Done: write what is pending, then go back to where the player came from. */
+  async function finishEditing() {
+    await autosave?.saveNow();
+    if (autosave?.saveError.value) return; // the status line says what failed; stay so the edit is not lost
+    const cameFrom = (router.options.history.state as { back?: string | null }).back;
+    if (cameFrom) router.back(); else void router.push(backRoute);
+  }
 
   // ── Species selection ─────────────────────────────────────────────────────────
 
@@ -506,11 +659,10 @@ export function useCharacterCreationForm() {
 
   // ── Save ──────────────────────────────────────────────────────────────────────
 
+  // Creating only: a saved character is edited through `autosave` above.
   async function save(levelUp = false) {
-    if (!f.name.trim() || saving.value) return;
+    if (isEditMode.value || !f.name.trim() || saving.value) return;
     saving.value = true;
-
-    const isNew = !isEditMode.value;
 
     // Creating folds racial/background bonuses and derived stats into `f` before
     // the insert. The form is the Done card's source, so a failed save must put
@@ -522,272 +674,224 @@ export function useCharacterCreationForm() {
       initiative_bonus: f.initiative_bonus, hit_dice_remaining: f.hit_dice_remaining,
     };
 
-    if (isNew) {
-      // ── Apply species ASI (standard = auto-apply structured bonuses; custom = distribute freely) ─
-      const abilityKeyMap: Record<string, AbilityKey> = {
-        strength: "str", dexterity: "dex", constitution: "con",
-        intelligence: "int", wisdom: "wis", charisma: "cha",
-        str: "str", dex: "dex", con: "con", int: "int", wis: "wis", cha: "cha",
-      };
-      function applyStructuredAsi(asi: Record<string, number | string>) {
-        if ("description" in asi) return; // free-text — player set scores manually
-        for (const [key, val] of Object.entries(asi)) {
-          const fKey = abilityKeyMap[key.toLowerCase()];
-          if (fKey && typeof val === "number") f[fKey] = Math.min(20, f[fKey] + val);
-        }
+    // ── Apply species ASI (standard = auto-apply structured bonuses; custom = distribute freely) ─
+    const abilityKeyMap: Record<string, AbilityKey> = {
+      strength: "str", dexterity: "dex", constitution: "con",
+      intelligence: "int", wisdom: "wis", charisma: "cha",
+      str: "str", dex: "dex", con: "con", int: "int", wis: "wis", cha: "cha",
+    };
+    function applyStructuredAsi(asi: Record<string, number | string>) {
+      if ("description" in asi) return; // free-text — player set scores manually
+      for (const [key, val] of Object.entries(asi)) {
+        const fKey = abilityKeyMap[key.toLowerCase()];
+        if (fKey && typeof val === "number") f[fKey] = Math.min(20, f[fKey] + val);
       }
-      if (asiMode.value === "bonus") {
-        if (selectedSpecies.value?.ability_score_increases)
-          applyStructuredAsi(selectedSpecies.value.ability_score_increases);
-        if (selectedSubrace.value?.ability_score_increases)
-          applyStructuredAsi(selectedSubrace.value.ability_score_increases);
-      } else if (asiMode.value === "custom") {
-        // Custom replaces ALL racial ASIs — player distributes freely
-        for (const [key, val] of Object.entries(customAsi) as [AbilityKey, number][]) {
-          if (val > 0) f[key] = Math.min(20, f[key] + val);
-        }
+    }
+    if (asiMode.value === "bonus") {
+      if (selectedSpecies.value?.ability_score_increases)
+        applyStructuredAsi(selectedSpecies.value.ability_score_increases);
+      if (selectedSubrace.value?.ability_score_increases)
+        applyStructuredAsi(selectedSubrace.value.ability_score_increases);
+    } else if (asiMode.value === "custom") {
+      // Custom replaces ALL racial ASIs — player distributes freely
+      for (const [key, val] of Object.entries(customAsi) as [AbilityKey, number][]) {
+        if (val > 0) f[key] = Math.min(20, f[key] + val);
       }
-
-      // ── 2024 PHB background ASI (new chars only) — additive on top of species ──
-      // Applied once, here, from the choice recorded in class_choices.background_asi.
-      // An incomplete/invalid choice grants nothing rather than guessing.
-      if (selectedBg.value?.asi_ability_trio) {
-        const bonuses = abilityBonusesForChoice(backgroundAsiChoice.value, selectedBg.value.asi_ability_trio);
-        for (const [key, delta] of Object.entries(bonuses) as [AbilityKey, number][]) {
-          f[key] = Math.min(20, f[key] + delta);
-        }
-      }
-
-      // ── Derive all stats from class / species sources — no magic numbers ───
-      f.level = 1;
-      f.proficiency_bonus = 2;
-
-      const cls = selectedClass.value;
-      const hp  = cls ? Math.max(1, cls.hit_die + Math.floor((f.con - 10) / 2)) : 8;
-      f.max_hp     = hp;
-      f.current_hp = hp;
-      f.speed      = selectedSpecies.value?.speed?.walk ?? 30;
-      // initiative_bonus is the EXTRA on top of the DEX mod (feat/special bonuses,
-      // e.g. Alert), not the total — the DEX mod is added wherever initiative is
-      // shown/rolled. A fresh character has no such extra.
-      f.initiative_bonus  = 0;
-      f.hit_dice_remaining = 1;
     }
 
-    // ── Spell slots from the edited maxes (mirrors PartyMemberForm) ─────────
-    // Persist the player's actual spellSlotMaxes rather than re-deriving the
-    // single-class default table — that overwrite lost multiclass/pact slots and
-    // wiped a custom-class caster's slots entirely (getDefaultSpellSlots returns
-    // nothing for a custom class) on any unrelated save. spellSlotMaxes is seeded
-    // from the existing row (buildSlotMaxes), so an untouched save round-trips.
-    const spellSlots: SpellSlotEntry[] = spellSlotMaxes
-      .map((max, i) => {
-        const existing = existingMember.value?.spell_slots?.find((e) => e.level === i + 1);
-        return { level: i + 1, max, used: max > 0 ? (existing?.used ?? 0) : 0 };
-      })
-      .filter((s) => s.max > 0);
+    // ── 2024 PHB background ASI (new chars only) — additive on top of species ──
+    // Applied once, here, from the choice recorded in class_choices.background_asi.
+    // An incomplete/invalid choice grants nothing rather than guessing.
+    if (selectedBg.value?.asi_ability_trio) {
+      const bonuses = abilityBonusesForChoice(backgroundAsiChoice.value, selectedBg.value.asi_ability_trio);
+      for (const [key, delta] of Object.entries(bonuses) as [AbilityKey, number][]) {
+        f[key] = Math.min(20, f[key] + delta);
+      }
+    }
 
-    // `class` and `subclass` stay out of the payload: they are the database's
-    // mirror of the primary class row, and a written value is overwritten.
-    const { class: _class, subclass: _subclass, ...formFields } = f;
-    const basePayload = {
-      ...formFields,
-      name:        f.name.trim(),
-      player_name: f.player_name || auth.membership?.display_name || null,
-      subrace:     f.subrace || null,
-      notes:       f.notes || null,
-      alignment:            f.alignment || null,
-      personality_traits:   f.personality_traits || null,
-      ideals:               f.ideals || null,
-      bonds:                f.bonds || null,
-      flaws:                f.flaws || null,
-      deity:                f.deity || null,
-      deity_id:             f.deity_id || null,
-      age:                  f.age || null,
-      gender:               f.gender || null,
-      pronouns:             f.pronouns || null,
-      physical_description: f.physical_description || null,
-      portrait_url:         portraitUrl.value || null,
-      portrait_focal_point: focalPoint.value,
-      spell_slots:          spellSlots,
-    };
+    // ── Derive all stats from class / species sources — no magic numbers ───
+    f.level = 1;
+    f.proficiency_bonus = 2;
+
+    const cls = selectedClass.value;
+    const hp  = cls ? Math.max(1, cls.hit_die + Math.floor((f.con - 10) / 2)) : 8;
+    f.max_hp     = hp;
+    f.current_hp = hp;
+    f.speed      = selectedSpecies.value?.speed?.walk ?? 30;
+    // initiative_bonus is the EXTRA on top of the DEX mod (feat/special bonuses,
+    // e.g. Alert), not the total — the DEX mod is added wherever initiative is
+    // shown/rolled. A fresh character has no such extra.
+    f.initiative_bonus  = 0;
+    f.hit_dice_remaining = 1;
+  
+
+    const basePayload = buildCharacterPayload({
+      draft: { form: f, portraitUrl: portraitUrl.value, focalPoint: focalPoint.value, slots: spellSlotMaxes },
+      existingSlots: existingMember.value?.spell_slots,
+      playerNameFallback: auth.membership?.display_name ?? null,
+    });
 
     try {
-      if (!isNew && existingMember.value) {
-        // ── Edit flow ─────────────────────────────────────────────────────────
-        const { campaign_id: _cid, owner_user_id: _owner, ...updatePayload } = basePayload;
-        await update({ id: existingMember.value.id, update: updatePayload });
-        // Apply any newly unlocked species grants (e.g. Tiefling Darkness at level 5)
-        let freePicks: SpeciesSpellGrant[] = [];
-        if (selectedSpecies.value) {
-          freePicks = await applySpeciesSpellGrants(
-            existingMember.value.id, selectedSpecies.value, f.level,
-            f.subrace || existingMember.value.subrace || null,
-          );
-        }
-        // If free-pick grants need manual selection, land on the innate tab
-        router.push(freePicks.length > 0 ? "/play/spells?tab=innate" : "/play/champions");
-      } else {
-        // ── Create flow ───────────────────────────────────────────────────────
-        const creatorId = auth.user?.id;
-        // An unowned character is not a degraded success — no list view in the
-        // app returns one (#738). Refuse to create it rather than orphan it.
-        if (!creatorId) throw new Error("You must be signed in to create a character.");
-        // The edition step cannot be left without a choice; this is the last
-        // line against a character that has none (the database refuses it too).
-        const ruleset = chosenRuleset.value;
-        if (!ruleset) throw new Error("Choose an edition before creating the character.");
-        // A class the player picked must resolve to a definition: every class row
-        // is pinned to one, so a name that matches none is an error to show, not
-        // a row without a pin.
-        const pickedClass = f.class ? selectedClass.value : null;
-        if (f.class && !pickedClass) {
-          throw new Error(`${f.class} is not available in this edition. Pick a class again.`);
-        }
-        const chosenSubclass = subclassDueAtStart.value
-          ? subclassOptions.value.find((o) => o.id === subclassId.value) ?? null
-          : null;
-        // The loadout the player picked travels with the character until a table
-        // can receive it: a character resting in the pool has no inventory.
-        const startingEquipment = buildStartingEquipmentPlan({
-          className: f.class,
-          classChoice: classEquipmentChoice.value,
-          importClass: importClassEquipment.value,
-          backgroundText: (allBackgrounds.value ?? []).find((b) => b.id === f.background_id)?.equipment ?? null,
-          importBackground: importBackgroundEquipment.value,
-          // What a level-up to this level would grant for the chosen subclass
-          // (a 2014 Life Domain cleric's Bless and Cure Wounds), written once the
-          // character is linked to a table. A DM's roster character is never
-          // linked by this wizard, so it gets none here.
-          grantedSpellIds: chosenSubclass && !isDmCreate.value
-            ? subclassGrantedSpellIds(
-              (campaignSubclasses.value ?? []).find((sc) => sc.id === chosenSubclass.id)?.granted_spells,
-              STARTING_LEVEL,
-            )
-            : [],
-        });
-        const created = await create({
-          ...basePayload,
-          class_choices: startingEquipment
-            ? { ...basePayload.class_choices, starting_grants: startingEquipment }
-            : basePayload.class_choices,
-          ruleset,
-          ...resolveCharacterPlacement({
-            isDmCreate: isDmCreate.value,
-            activeCampaignId: campaign.activeCampaignId,
-            creatorId,
-          }),
-        });
-
-        // The shell row now exists but the character isn't usable until its
-        // class/spells/equipment are seeded. If any seeding step fails, roll the
-        // whole thing back so we don't leave an orphaned, broken half-character
-        // (which a retry would then duplicate). party_members delete cascades
-        // character_classes/character_spells and SET-NULLs the campaign_member
-        // link; seeded inventory only SET-NULLs carried_by, so delete it first.
-        // The campaign the character ends up in: a DM roster row is created
-        // there, a seated player's character is brought there, anything else
-        // stays in the pool.
-        let landedCampaignId = created.campaign_id;
-        let attachedNow = false;
-        try {
-          // Every choice the character has is written BEFORE it is attached: the
-          // table reviews them at attach time (#943), and a review that only saw
-          // species and background would seat the character and then flag it.
-
-          // Seed level 1 character_classes row
-          if (pickedClass) {
-            await addCharacterClass({
-              party_member_id: created.id,
-              class_name:      f.class,
-              class_definition_id: pickedClass.id,
-              class_definition_kind: pickedClass.definition_kind,
-              // Chosen here when the class picks its subclass at level 1;
-              // otherwise null and the level-up wizard asks at the due level.
-              subclass_name:   chosenSubclass?.name ?? null,
-              subclass_definition_id: chosenSubclass?.id ?? null,
-              levels:          1,
-              is_primary:      true,
-              hit_dice_used:   0,
-              sort_order:      0,
-            });
-          }
-
-          if (selectedSpecies.value) {
-            await applySpeciesSpellGrants(created.id, selectedSpecies.value, 1, f.subrace || null);
-          }
-
-          const joinCampaignId = campaignToAttachAfterCreate(landingCampaign.value, isDmCreate.value);
-          if (joinCampaignId) {
-            // A table that does not take this edition leaves the character in
-            // the pool, and so does a bounce on the attach itself (the DM may
-            // have changed the setting since the step was shown). Anything else
-            // failing is a real error and rolls back below.
-            const table = campaign.activeCampaign;
-            let restsInPool = !!table && !isRulesetAdmissible({ ruleset }, table);
-            if (!restsInPool) {
-              try {
-                await attachCharacter({ partyMemberId: created.id, campaignId: joinCampaignId });
-                landedCampaignId = joinCampaignId;
-                attachedNow = true;
-              } catch (attachErr) {
-                if (!parseRulesetBounce(attachErr)) throw attachErr;
-                restsInPool = true;
-              }
-            }
-            if (restsInPool) {
-              const tableName = table?.name ?? "That table";
-              const tableRules = table ? `plays the ${rulesetRules(table.ruleset)}` : "does not take this edition";
-              useToast().info(`${f.name.trim()} rests in your pool: ${tableName} ${tableRules}.`);
-            }
-          }
-
-          // A roster character created by a DM is already at its table, so its
-          // starting equipment goes in now. A player's character gets it when it
-          // is attached (above, inside attachCharacter), or later, whenever it
-          // first joins a table; until then the loadout waits on the character.
-          if (created.campaign_id) {
-            await replayStartingGrants(created.id, created.campaign_id, queryClient);
-          }
-        } catch (seedErr) {
-          await supabase.from("party_inventory").delete().eq("carried_by", created.id);
-          await supabase.from("party_members").delete().eq("id", created.id);
-          throw seedErr;
-        }
-
-        // The review ran inside the attach: a character the table did not approve
-        // is seated but benched. Reading how many choices wait happens outside the
-        // rollback above, since a failed read is no reason to delete a made character.
-        let benchedChoices = 0;
-        if (attachedNow) {
-          try {
-            benchedChoices = await waitingAfterAttach(created.id);
-          } catch (readErr) {
-            const toast = useToast();
-            toast.error(toast.fromError(readErr));
-          }
-        }
-
-        await auth.refreshMembership();
-        // Campaign-less first: a DM create with no campaign selected lands in
-        // the pool, not on a roster, so /party would be an empty list view
-        // (#738). Ordering this after the isDmCreate branch is what sent the
-        // character somewhere it could never appear.
-        if (!landedCampaignId) {
-          // Standalone create (#729/#730): no campaign to land in — the character
-          // pool is the list view / success feedback, same as any other create.
-          void queryClient.invalidateQueries({ queryKey: ["character-pool"] });
-        }
-        if (benchedChoices > 0) {
-          useToast().info(benchedMessage(f.name.trim(), campaign.activeCampaign?.name ?? null, benchedChoices));
-        }
-        finished.value = true;
-        void router.push(createDestination({
-          landedCampaignId, isDmCreate: isDmCreate.value, levelUp, benched: benchedChoices > 0, characterId: created.id,
-        }));
+      // ── Create flow ───────────────────────────────────────────────────────
+      const creatorId = auth.user?.id;
+      // An unowned character is not a degraded success — no list view in the
+      // app returns one (#738). Refuse to create it rather than orphan it.
+      if (!creatorId) throw new Error("You must be signed in to create a character.");
+      // The edition step cannot be left without a choice; this is the last
+      // line against a character that has none (the database refuses it too).
+      const ruleset = chosenRuleset.value;
+      if (!ruleset) throw new Error("Choose an edition before creating the character.");
+      // A class the player picked must resolve to a definition: every class row
+      // is pinned to one, so a name that matches none is an error to show, not
+      // a row without a pin.
+      const pickedClass = f.class ? selectedClass.value : null;
+      if (f.class && !pickedClass) {
+        throw new Error(`${f.class} is not available in this edition. Pick a class again.`);
       }
+      const chosenSubclass = subclassDueAtStart.value
+        ? subclassOptions.value.find((o) => o.id === subclassId.value) ?? null
+        : null;
+      // The loadout the player picked travels with the character until a table
+      // can receive it: a character resting in the pool has no inventory.
+      const startingEquipment = buildStartingEquipmentPlan({
+        className: f.class,
+        classChoice: classEquipmentChoice.value,
+        importClass: importClassEquipment.value,
+        backgroundText: (allBackgrounds.value ?? []).find((b) => b.id === f.background_id)?.equipment ?? null,
+        importBackground: importBackgroundEquipment.value,
+        // What a level-up to this level would grant for the chosen subclass
+        // (a 2014 Life Domain cleric's Bless and Cure Wounds), written once the
+        // character is linked to a table. A DM's roster character is never
+        // linked by this wizard, so it gets none here.
+        grantedSpellIds: chosenSubclass && !isDmCreate.value
+          ? subclassGrantedSpellIds(
+            (campaignSubclasses.value ?? []).find((sc) => sc.id === chosenSubclass.id)?.granted_spells,
+            STARTING_LEVEL,
+          )
+          : [],
+      });
+      const created = await create({
+        ...basePayload,
+        class_choices: startingEquipment
+          ? { ...basePayload.class_choices, starting_grants: startingEquipment }
+          : basePayload.class_choices,
+        ruleset,
+        ...resolveCharacterPlacement({
+          isDmCreate: isDmCreate.value,
+          activeCampaignId: campaign.activeCampaignId,
+          creatorId,
+        }),
+      });
+
+      // The shell row now exists but the character isn't usable until its
+      // class/spells/equipment are seeded. If any seeding step fails, roll the
+      // whole thing back so we don't leave an orphaned, broken half-character
+      // (which a retry would then duplicate). party_members delete cascades
+      // character_classes/character_spells and SET-NULLs the campaign_member
+      // link; seeded inventory only SET-NULLs carried_by, so delete it first.
+      // The campaign the character ends up in: a DM roster row is created
+      // there, a seated player's character is brought there, anything else
+      // stays in the pool.
+      let landedCampaignId = created.campaign_id;
+      let attachedNow = false;
+      try {
+        // Every choice the character has is written BEFORE it is attached: the
+        // table reviews them at attach time (#943), and a review that only saw
+        // species and background would seat the character and then flag it.
+
+        // Seed level 1 character_classes row
+        if (pickedClass) {
+          await addCharacterClass({
+            party_member_id: created.id,
+            class_name:      f.class,
+            class_definition_id: pickedClass.id,
+            class_definition_kind: pickedClass.definition_kind,
+            // Chosen here when the class picks its subclass at level 1;
+            // otherwise null and the level-up wizard asks at the due level.
+            subclass_name:   chosenSubclass?.name ?? null,
+            subclass_definition_id: chosenSubclass?.id ?? null,
+            levels:          1,
+            is_primary:      true,
+            hit_dice_used:   0,
+            sort_order:      0,
+          });
+        }
+
+        if (selectedSpecies.value) {
+          await applySpeciesSpellGrants(created.id, selectedSpecies.value, 1, f.subrace || null);
+        }
+
+        const joinCampaignId = campaignToAttachAfterCreate(landingCampaign.value, isDmCreate.value);
+        if (joinCampaignId) {
+          // A table that does not take this edition leaves the character in
+          // the pool, and so does a bounce on the attach itself (the DM may
+          // have changed the setting since the step was shown). Anything else
+          // failing is a real error and rolls back below.
+          const table = campaign.activeCampaign;
+          let restsInPool = !!table && !isRulesetAdmissible({ ruleset }, table);
+          if (!restsInPool) {
+            try {
+              await attachCharacter({ partyMemberId: created.id, campaignId: joinCampaignId });
+              landedCampaignId = joinCampaignId;
+              attachedNow = true;
+            } catch (attachErr) {
+              if (!parseRulesetBounce(attachErr)) throw attachErr;
+              restsInPool = true;
+            }
+          }
+          if (restsInPool) {
+            const tableName = table?.name ?? "That table";
+            const tableRules = table ? `plays the ${rulesetRules(table.ruleset)}` : "does not take this edition";
+            useToast().info(`${f.name.trim()} rests in your pool: ${tableName} ${tableRules}.`);
+          }
+        }
+
+        // A roster character created by a DM is already at its table, so its
+        // starting equipment goes in now. A player's character gets it when it
+        // is attached (above, inside attachCharacter), or later, whenever it
+        // first joins a table; until then the loadout waits on the character.
+        if (created.campaign_id) {
+          await replayStartingGrants(created.id, created.campaign_id, queryClient);
+        }
+      } catch (seedErr) {
+        await supabase.from("party_inventory").delete().eq("carried_by", created.id);
+        await supabase.from("party_members").delete().eq("id", created.id);
+        throw seedErr;
+      }
+
+      // The review ran inside the attach: a character the table did not approve
+      // is seated but benched. Reading how many choices wait happens outside the
+      // rollback above, since a failed read is no reason to delete a made character.
+      let benchedChoices = 0;
+      if (attachedNow) {
+        try {
+          benchedChoices = await waitingAfterAttach(created.id);
+        } catch (readErr) {
+          const toast = useToast();
+          toast.error(toast.fromError(readErr));
+        }
+      }
+
+      await auth.refreshMembership();
+      // Campaign-less first: a DM create with no campaign selected lands in
+      // the pool, not on a roster, so /party would be an empty list view
+      // (#738). Ordering this after the isDmCreate branch is what sent the
+      // character somewhere it could never appear.
+      if (!landedCampaignId) {
+        // Standalone create (#729/#730): no campaign to land in — the character
+        // pool is the list view / success feedback, same as any other create.
+        void queryClient.invalidateQueries({ queryKey: ["character-pool"] });
+      }
+      if (benchedChoices > 0) {
+        useToast().info(benchedMessage(f.name.trim(), campaign.activeCampaign?.name ?? null, benchedChoices));
+      }
+      finished.value = true;
+      void router.push(createDestination({
+        landedCampaignId, isDmCreate: isDmCreate.value, levelUp, benched: benchedChoices > 0, characterId: created.id,
+      }));
+    
     } catch (e) {
-      if (isNew) Object.assign(f, preSave);
+      Object.assign(f, preSave);
       // Surface the failure (incl. a rolled-back partial creation) to the user
       // instead of letting it become an unhandled rejection from the @click.
       const toast = useToast();
@@ -831,6 +935,8 @@ export function useCharacterCreationForm() {
     resetSlotsToDefault, onSpeciesSelect, onClassSelect, onBackgroundSelect,
     toggleBgSkillChoice,
     save,
+    // editing: the form saves itself (null while creating)
+    autosave, finishEditing, freeSpeciesPicks,
   };
 }
 

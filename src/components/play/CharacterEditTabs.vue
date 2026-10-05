@@ -4,7 +4,14 @@
       <h1 class="text-heading-lg font-bold text-foreground">
         Edit {{ existingMember?.name ?? "Character" }}
       </h1>
-      <p class="text-body text-muted-foreground italic mt-1">Update your hero's details below.</p>
+      <p class="text-body text-muted-foreground italic mt-1">Changes save as you make them.</p>
+      <AutosaveStatus
+        v-if="autosave"
+        :status="autosave.status.value"
+        :error="autosave.saveError.value"
+        paused-label="Autosave paused until the character has a name"
+        class="mt-1"
+      />
     </div>
 
     <div class="flex border-b border-border">
@@ -153,22 +160,20 @@
       <TagPickerInput :model-value="f.languages" :groups="LANGUAGE_GROUPS" placeholder="Search languages…" @update:model-value="f.languages = $event" />
     </div>
 
+    <p v-if="freeSpeciesPicks.length > 0" class="text-body text-muted-foreground">
+      Your species lets you choose {{ freeSpeciesPicks.length === 1 ? "a spell" : "spells" }} of your own.
+      <AppButton :to="{ path: '/play/spells', query: { tab: 'innate' } }" variant="link" size="inline" label="Choose species spells" />
+    </p>
+
     <div class="flex items-center justify-end gap-3 pt-2 border-t border-border">
-      <AppButton variant="subtle" size="md" label="Cancel" @click="router.push(backRoute)" />
-      <AppButton
-        variant="primary"
-        size="md"
-        class="min-w-28"
-        :label="saving ? 'Saving…' : 'Save Changes'"
-        :disabled="!f.name.trim() || saving"
-        @click="save()"
-      />
+      <AppButton variant="primary" size="md" class="min-w-28" label="Done" @click="finishEditing()" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { inject, computed } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
 import { CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
 import { rulesetLabel } from "@/composables/party/useCharacterRuleset";
 import { useArmorClass } from "@/composables/party/useArmorClass";
@@ -177,6 +182,7 @@ import type { PartyMember } from "@/types/party.types";
 import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } from "@/rules/characterCreation";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
+import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -187,16 +193,20 @@ import TagPickerInput from "@/components/common/TagPickerInput.vue";
 
 const form = inject(CHARACTER_FORM_KEY)!;
 const {
-  router, auth, f,
-  activeTab, saving,
+  auth, f,
+  activeTab,
   portraitUrl, focalPoint, spellSlotMaxes,
-  existingMember, backRoute, chosenRuleset,
+  existingMember, chosenRuleset,
   backgroundOptions, selectedSpecies,
   passivePerception, passiveInsight, passiveInvestigation,
   mod, setSkillProf, skillBonus, toggleSave, saveBonus,
   resetSlotsToDefault,
-  save,
+  autosave, finishEditing, freeSpeciesPicks,
 } = form;
+
+// Leaving by any route (a picker link, the tab bar, back) writes what is pending
+// first, so an edit made a moment ago is never lost to the debounce.
+onBeforeRouteLeave(async () => { await autosave?.saveNow(); });
 
 // The pickers edit the ACTIVE character unless told which one, and this page may
 // be open on a character that is not (a benched one, or one the DM is managing).

@@ -1,8 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { defineComponent, nextTick, reactive } from "vue";
+import { mount } from "@vue/test-utils";
 import {
   resolveCharacterPlacement,
   createDestination,
+  buildCharacterPayload,
+  changedEditColumns,
+  type CharacterEditDraft,
 } from "./useCharacterCreationForm";
+import { useAutosave, type UseAutosaveHandle } from "@/composables/useAutosave";
+import { cloneDraftValue, draftValueEqual } from "@/composables/useRecordDraft";
+import type { CharacterFormState } from "@/rules/characterCreation";
 
 describe("resolveCharacterPlacement", () => {
   const CREATOR = "user-1";
@@ -66,5 +74,115 @@ describe("createDestination", () => {
 
   it("sends a benched character to Champions, where its notice is, even when a level up was asked for", () => {
     expect(createDestination({ ...base, levelUp: true, benched: true })).toEqual({ name: "play-champions" });
+  });
+});
+
+describe("editing a saved character", () => {
+  const baseForm = (over: Partial<CharacterFormState> = {}): CharacterFormState => ({
+    campaign_id: "c1", name: "Chicory", player_name: "Sam", class: "Cleric", subclass: "", level: 6,
+    subrace: "", species_id: null, background_id: null, max_hp: 40, current_hp: 40, temp_hp: 0,
+    speed: 30, initiative_bonus: 0, str: 10, dex: 10, con: 10, int: 10, wis: 16, cha: 10,
+    sort_order: 0, notes: "", alignment: "", ...over,
+  } as CharacterFormState);
+  const draftOf = (form: CharacterFormState, slots = [0, 0, 0, 0, 0, 0, 0, 0, 0]): CharacterEditDraft =>
+    ({ form, portraitUrl: "", focalPoint: null, slots });
+  const build = (d: CharacterEditDraft) => buildCharacterPayload({ draft: d, existingSlots: null, playerNameFallback: null });
+
+  it("writes only the columns the player changed", () => {
+    const server = draftOf(baseForm());
+    // The DM took 12 HP off while the sheet was open: that is not our edit.
+    const mine = draftOf(baseForm({ player_name: "Samantha", wis: 18, current_hp: 40 }));
+    const columns = changedEditColumns(mine, server, build);
+    expect(columns).toEqual({ player_name: "Samantha", wis: 18 });
+  });
+
+  it("never sends the character's campaign or owner", () => {
+    const server = draftOf(baseForm());
+    const columns = changedEditColumns(draftOf(baseForm({ campaign_id: "c2", name: "Chic" })), server, build);
+    expect(columns).toEqual({ name: "Chic" });
+  });
+
+  it("sends nothing when nothing changed", () => {
+    expect(changedEditColumns(draftOf(baseForm()), draftOf(baseForm()), build)).toEqual({});
+  });
+
+  it("includes spell slots only when the maxima moved", () => {
+    const server = draftOf(baseForm());
+    const mine = draftOf(baseForm(), [4, 3, 3, 0, 0, 0, 0, 0, 0]);
+    expect(changedEditColumns(mine, server, build).spell_slots).toEqual([
+      { level: 1, max: 4, used: 0 }, { level: 2, max: 3, used: 0 }, { level: 3, max: 3, used: 0 },
+    ]);
+  });
+});
+
+describe("the edit form's autosave", () => {
+  afterEach(() => vi.useRealTimers());
+
+  function harness(save: (columns: object) => Promise<void>) {
+    const server = { value: draftOf2() };
+    const live = reactive(draftOf2());
+    let handle!: UseAutosaveHandle<CharacterEditDraft>;
+    const wrapper = mount(defineComponent({
+      setup() {
+        handle = useAutosave<CharacterEditDraft>({
+          draft: live as unknown as CharacterEditDraft,
+          initial: () => cloneDraftValue(live as unknown as CharacterEditDraft),
+          equal: draftValueEqual,
+          save: async (snapshot) => {
+            const columns = changedEditColumns(snapshot, server.value, (d) =>
+              buildCharacterPayload({ draft: d, existingSlots: null, playerNameFallback: null }));
+            if (Object.keys(columns).length === 0) return;
+            await save(columns);
+            server.value = cloneDraftValue(snapshot);
+          },
+          canSave: () => !!live.form.name.trim(),
+        });
+        return () => null;
+      },
+    }));
+    return { live, handle: () => handle, wrapper };
+  }
+  function draftOf2(): CharacterEditDraft {
+    return {
+      form: { campaign_id: "c1", name: "Chicory", player_name: "Sam", class: "Cleric", subclass: "", level: 6, wis: 16 } as CharacterFormState,
+      portraitUrl: "", focalPoint: null, slots: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    };
+  }
+
+  it("saves the edited columns after the debounce", async () => {
+    vi.useFakeTimers();
+    const save = vi.fn().mockResolvedValue(undefined);
+    const { live, handle, wrapper } = harness(save);
+    live.form.wis = 18;
+    await nextTick();
+    expect(handle().status.value).toBe("dirty");
+    await vi.advanceTimersByTimeAsync(2100);
+    expect(save).toHaveBeenCalledWith({ wis: 18 });
+    expect(handle().status.value).toBe("saved");
+    wrapper.unmount();
+  });
+
+  it("flushes a pending edit when Done is pressed, without waiting for the debounce", async () => {
+    vi.useFakeTimers();
+    const save = vi.fn().mockResolvedValue(undefined);
+    const { live, handle, wrapper } = harness(save);
+    live.form.player_name = "Samantha";
+    await nextTick();
+    expect(save).not.toHaveBeenCalled();
+    await handle().saveNow();
+    expect(save).toHaveBeenCalledWith({ player_name: "Samantha" });
+    wrapper.unmount();
+  });
+
+  it("pauses while the name is blank", async () => {
+    vi.useFakeTimers();
+    const save = vi.fn().mockResolvedValue(undefined);
+    const { live, handle, wrapper } = harness(save);
+    live.form.name = " ";
+    await nextTick();
+    await handle().saveNow();
+    expect(save).not.toHaveBeenCalled();
+    expect(handle().status.value).toBe("paused");
+    wrapper.unmount();
   });
 });
