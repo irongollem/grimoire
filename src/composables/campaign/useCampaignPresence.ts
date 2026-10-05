@@ -19,8 +19,8 @@ let refCount = 0;
 let stopWatcher: (() => void) | null = null;
 const onlineUsers = ref<PresenceUser[]>([]);
 
-function sync(channel: PresenceChannel) {
-  if (realtime?.channel !== channel) return;
+function sync(channel: PresenceChannel, handle: RealtimeChannelHandle) {
+  if (realtime !== handle) return;
   const state = channel.presenceState<PresenceUser>();
   onlineUsers.value = Object.values(state).flat();
 }
@@ -28,20 +28,21 @@ function sync(channel: PresenceChannel) {
 function connect(campaignId: string, userId: string, displayName: string | null) {
   if (realtime) return; // already connected
 
+  // Callbacks compare against this connection's own handle: one that arrives
+  // after the subscription was replaced must not re-track the old
+  // campaign/user or overwrite the new roster.
   let channel: PresenceChannel | null = null;
-  realtime = createRealtimeChannel({
+  const handle: RealtimeChannelHandle = createRealtimeChannel({
     topic: `campaign:${campaignId}`,
     bind: (nextChannel) => {
       channel = nextChannel;
       return nextChannel
-        .on("presence", { event: "sync" }, () => sync(nextChannel))
-        .on("presence", { event: "join" }, () => sync(nextChannel))
-        .on("presence", { event: "leave" }, () => sync(nextChannel));
+        .on("presence", { event: "sync" }, () => sync(nextChannel, handle))
+        .on("presence", { event: "join" }, () => sync(nextChannel, handle))
+        .on("presence", { event: "leave" }, () => sync(nextChannel, handle));
     },
     onStatus: (status) => {
-      // The channel can report SUBSCRIBED after this subscription was replaced.
-      // Do not let a stale callback re-track the old campaign/user.
-      if (status === "SUBSCRIBED" && channel && realtime?.channel === channel) {
+      if (status === "SUBSCRIBED" && channel && realtime === handle) {
         void channel.track({
           user_id: userId,
           display_name: displayName,
@@ -50,6 +51,7 @@ function connect(campaignId: string, userId: string, displayName: string | null)
       }
     },
   });
+  realtime = handle;
 }
 
 function disconnect() {

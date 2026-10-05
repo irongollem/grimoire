@@ -23,9 +23,25 @@ export interface RealtimeChannelOptions {
 }
 
 export interface RealtimeChannelHandle {
-  channel: Channel;
   reconcile: () => void;
   stop: () => void;
+}
+
+// Topics whose previous channel is still leaving. realtime-js hands back the
+// existing channel for a topic rather than a new one, and `removeChannel` only
+// drops it from that registry once the server acknowledges the leave. A
+// subscriber that stops and starts again on the same topic inside that window
+// (a layout torn down and rebuilt by App's loading screen does exactly this)
+// was given the old, already-joined channel, and the first `.on()` threw
+// "cannot add `postgres_changes` callbacks … after `subscribe()`": the player
+// was left with no live sync at all until a reload. So a new channel for a
+// topic waits for the old one to be gone.
+const leaving = new Map<string, Promise<unknown>>();
+
+/** Drop a channel whose leave was never acknowledged, so the topic is free. */
+function evict(channel: Channel): void {
+  channel.teardown();
+  supabase.realtime.channels = supabase.realtime.channels.filter((c) => c !== channel);
 }
 
 /**
@@ -36,26 +52,39 @@ export interface RealtimeChannelHandle {
 export function createRealtimeChannel(
   options: RealtimeChannelOptions,
 ): RealtimeChannelHandle {
+  const { topic } = options;
   let stopped = false;
+  let channel: Channel | null = null;
   const heal = options.reconcile
     ? createRealtimeHeal(options.reconcile, options.heal)
     : null;
-  let channel = options.bind(supabase.channel(options.topic));
 
-  channel = channel.subscribe((status, error) => {
+  const start = () => {
     if (stopped) return;
-    heal?.onStatus(status);
-    options.onStatus?.(status, error);
-  });
+    channel = options.bind(supabase.channel(topic)).subscribe((status, error) => {
+      if (stopped) return;
+      heal?.onStatus(status);
+      options.onStatus?.(status, error);
+    });
+  };
+
+  const previous = leaving.get(topic);
+  if (previous) void previous.then(start);
+  else start();
 
   return {
-    channel,
     reconcile: () => heal?.reconcile(),
     stop(): void {
       if (stopped) return;
       stopped = true;
       heal?.detach();
-      void supabase.removeChannel(channel);
+      const current = channel;
+      if (!current) return;
+      const removal: Promise<unknown> = supabase.removeChannel(current)
+        .then((status) => { if (status !== "ok") evict(current); })
+        .catch(() => evict(current))
+        .finally(() => { if (leaving.get(topic) === removal) leaving.delete(topic); });
+      leaving.set(topic, removal);
     },
   };
 }
