@@ -151,24 +151,30 @@ export function npcRelationshipCanvasColor(relationship: NpcRelationship): strin
   return resolved || "#6b7280";
 }
 
-export function isNpcConcealed(npc: Pick<Npc, "disguise_name" | "disguise_portrait_url" | "is_revealed">): boolean {
-  return !!(npc.disguise_name || npc.disguise_portrait_url) && !npc.is_revealed;
+/** `unmasked_at` set means the cover has fallen. The player projection keeps
+ *  `is_revealed` false even then (the flag never leaves the DM), and from the
+ *  moment of unmasking it hands players the cover columns so the card can
+ *  turn; reading `is_revealed` alone would put the cover back on. */
+type ConcealSource = Pick<Npc, "disguise_name" | "disguise_portrait_url" | "is_revealed"> & { unmasked_at?: string | null };
+
+export function isNpcConcealed(npc: ConcealSource): boolean {
+  return !!(npc.disguise_name || npc.disguise_portrait_url) && !npc.is_revealed && !npc.unmasked_at;
 }
 
 // `name` is non-null on a DM's own NPC (DB NOT NULL), but the player projection
 // `get_player_visible_npcs` returns null when the name isn't player-visible — so
 // the param and return are honestly nullable. Callers must handle the null
 // "no name" case (the player UI shows "???"); never coerce it to "".
-export function getNpcDisplayName(npc: { name: string | null; disguise_name: string | null; disguise_portrait_url: string | null; is_revealed: boolean }): string | null {
+export function getNpcDisplayName(npc: { name: string | null; disguise_name: string | null; disguise_portrait_url: string | null; is_revealed: boolean; unmasked_at?: string | null }): string | null {
   return isNpcConcealed(npc) && npc.disguise_name ? npc.disguise_name : npc.name;
 }
 
-export function getNpcDisplayPortrait(npc: Pick<Npc, "portrait_url" | "disguise_name" | "disguise_portrait_url" | "is_revealed">): string | null {
+export function getNpcDisplayPortrait(npc: Pick<Npc, "portrait_url" | "disguise_name" | "disguise_portrait_url" | "is_revealed"> & { unmasked_at?: string | null }): string | null {
   return isNpcConcealed(npc) && npc.disguise_portrait_url ? npc.disguise_portrait_url : npc.portrait_url;
 }
 
 export function getNpcDisplayFocalPoint(
-  npc: Pick<Npc, "portrait_focal_point" | "disguise_portrait_url" | "disguise_portrait_focal_point" | "disguise_name" | "is_revealed">,
+  npc: Pick<Npc, "portrait_focal_point" | "disguise_portrait_url" | "disguise_portrait_focal_point" | "disguise_name" | "is_revealed"> & { unmasked_at?: string | null },
 ): { x: number; y: number } | null | undefined {
   return isNpcConcealed(npc) && npc.disguise_portrait_url
     ? npc.disguise_portrait_focal_point
@@ -206,6 +212,7 @@ export function getNpcPlayerFacingName(npc: {
   disguise_name: string | null;
   disguise_portrait_url: string | null;
   is_revealed: boolean;
+  unmasked_at?: string | null;
   player_visible_fields: readonly string[];
 }): string | null {
   if (!npc.player_visible_fields.includes("name")) return null;

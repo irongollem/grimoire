@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultSortDir, PLAYER_NPC_SORT_FIELDS, sortPlayerNpcs } from "./playerNpcSort";
+import { defaultSortDir, effectivePeopleSort, PLAYER_NPC_SORT_FIELDS, sortPlayerNpcs } from "./playerNpcSort";
 import type { PlayerNpc } from "@/types/npc.types";
 
 interface Spec {
@@ -127,5 +127,18 @@ describe("defaultSortDir", () => {
       ["location", "asc"],
       ["name", "asc"],
     ]);
+  });
+});
+
+describe("effectivePeopleSort", () => {
+  it("keeps the stored field and direction while it can be applied", () => {
+    expect(effectivePeopleSort("location", "asc", true)).toEqual({ field: "location", dir: "asc" });
+    expect(effectivePeopleSort("rating", "asc", false)).toEqual({ field: "rating", dir: "asc" });
+  });
+
+  it("falls back from Place to rating with rating's own direction", () => {
+    // The stored "asc" was Place's A to Z; carried over it would put the
+    // unrated and lowest-rated NPCs first under a control reading "Your rating".
+    expect(effectivePeopleSort("location", "asc", false)).toEqual({ field: "rating", dir: "desc" });
   });
 });

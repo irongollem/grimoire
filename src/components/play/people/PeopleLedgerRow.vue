@@ -17,7 +17,7 @@
       />
       <span
         v-else-if="!portraitVisible"
-        class="people-unknown flex h-full w-full items-center justify-center font-cinzel text-heading-xs text-muted-foreground"
+        class="people-unknown flex h-full w-full items-center justify-center text-heading-xs text-muted-foreground"
         aria-hidden="true"
       >?</span>
       <span v-else class="flex h-full w-full items-center justify-center text-muted-foreground/40" aria-hidden="true">

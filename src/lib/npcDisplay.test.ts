@@ -56,6 +56,14 @@ describe("getNpcPlayerFacingName", () => {
     expect(getNpcPlayerFacingName(rowan)).toBe("Old Marek");
   });
 
+  it("gives the true name for an unmasked NPC from the player projection", () => {
+    // get_player_visible_npcs keeps is_revealed false but sets unmasked_at and
+    // hands over the fallen cover; the cover must not come back.
+    const unmasked = { ...rowan, name: "Rowan Blackthorn", unmasked_at: "2026-10-05T20:00:00Z" };
+    expect(getNpcPlayerFacingName(unmasked)).toBe("Rowan Blackthorn");
+    expect(getNpcDisplayName(unmasked)).toBe("Rowan Blackthorn");
+  });
+
   it("gives the true name once the DM reveals it", () => {
     expect(getNpcPlayerFacingName({ ...rowan, is_revealed: true })).toBe("Rowan Blackthorn");
   });

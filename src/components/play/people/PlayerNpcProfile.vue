@@ -51,6 +51,7 @@ import { formatMetDate } from "@/components/play/people/peopleParty";
 import NpcRelationshipMark from "@/components/play/people/NpcRelationshipMark.vue";
 import NpcRatingStars from "@/components/play/NpcRatingStars.vue";
 import { useMyNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
+import { useMyNpcRevealMoments } from "@/composables/npcs/useNpcReveals";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { statusWord } from "@/lib/npcs/peopleLedger";
 import type { PlayerNpc } from "@/types/npc.types";
@@ -76,7 +77,14 @@ const what = computed(() =>
 );
 const dead = computed(() => npc.status === "dead");
 const displayName = computed(() => (visible("name") ? (getNpcDisplayName(npc) ?? "???") : "???"));
-const met = computed(() => (npc.revealed_at ? formatMetDate(npc.revealed_at) : null));
+// The reveal moments are the profile's own read: the atlas, location and
+// encounter lightboxes hand it the bare projection, which no longer carries
+// them (useSharedNpcs is one request again). One cached query per viewer.
+const { data: moments } = useMyNpcRevealMoments();
+const met = computed(() => {
+  const at = moments.value?.get(npc.id);
+  return at ? formatMetDate(at) : null;
+});
 
 const npcId = computed(() => npc.id);
 const { data: pcNote, isLoading: pcNoteLoading } = useMyNpcPcNote(npcId);

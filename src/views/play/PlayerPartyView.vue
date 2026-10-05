@@ -135,6 +135,8 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/party/useParty";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
+import { useMyNpcRevealMoments } from "@/composables/npcs/useNpcReveals";
+import { withRevealMoments } from "@/lib/npcs/peopleLedger";
 import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useNewToYou, toNewToYouItem } from "@/composables/play/useNewToYou";
@@ -170,6 +172,7 @@ const viewerMemberId = computed(() =>
 const { data: members, isLoading: partyLoading } = useParty();
 const { data: companions } = useCompanions();
 const { data: allSharedNpcs, isLoading: npcsLoading } = useSharedNpcs();
+const { data: revealMoments, isLoading: revealsLoading } = useMyNpcRevealMoments();
 const { isNew: isNpcNew, data: readMap, isError: readMapError } = useReadItems("npc");
 const { mutate: markNpcRead } = useMarkRead();
 
@@ -178,13 +181,20 @@ const { mutate: markNpcRead } = useMarkRead();
 const npcs = computed(() => {
   const memberId = viewerMemberId.value;
   if (!memberId) return [];
-  return (allSharedNpcs.value ?? []).filter(
+  const visible = (allSharedNpcs.value ?? []).filter(
     (npc) => Array.isArray(npc.player_visible_to) && npc.player_visible_to.includes(memberId),
   );
+  const moments = revealMoments.value;
+  return moments ? withRevealMoments(visible, moments) : visible;
 });
 
 // ── People: new to you, then the ledger ──────────────────────────────────────
-const { ready, entries: newToYouEntries, ledger, turn } = useNewToYou(npcs, readMap);
+const { ready, entries: newToYouEntries, ledger, turn } = useNewToYou(
+  npcs,
+  // Nothing is classified until the reveal moments are in: without them every
+  // NPC would sit in the ledger for a beat and then jump into the strip.
+  () => (revealsLoading.value ? undefined : readMap.value),
+);
 const {
   getRating,
   place,

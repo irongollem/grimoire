@@ -17,6 +17,20 @@ export function defaultSortDir(field: PlayerNpcSortField): SortDir {
   }
 }
 
+/**
+ * The sort the People list actually applies. "Place" is offered only when some
+ * NPC has a visible place; a stored "location" otherwise sorts by rating, and
+ * then with rating's own direction, since the stored one was chosen for Place.
+ */
+export function effectivePeopleSort(
+  storedField: PlayerNpcSortField,
+  storedDir: SortDir,
+  hasPlaces: boolean,
+): { field: PlayerNpcSortField; dir: SortDir } {
+  if (storedField === "location" && !hasPlaces) return { field: "rating", dir: defaultSortDir("rating") };
+  return { field: storedField, dir: storedDir };
+}
+
 export interface PlayerNpcSortContext {
   getRating: (npcId: string) => number;
   /** The player-visible location name, or "" when there is none. */

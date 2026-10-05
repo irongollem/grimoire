@@ -3,7 +3,7 @@ import { useSharedLocations } from "@/composables/locations/useLocations";
 import { usePlayerNpcRatings } from "@/composables/play/usePlayerNpcRatings";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { buildPeopleGroups } from "@/lib/npcs/peopleLedger";
-import { defaultSortDir, type PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";
+import { defaultSortDir, effectivePeopleSort, type PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";
 import { useUiStore } from "@/stores/ui";
 import type { PlayerNpc } from "@/types/npc.types";
 
@@ -61,9 +61,11 @@ export function usePlayerPeople(
   const sortOptions = computed(() =>
     places.value.length ? PEOPLE_SORT_OPTIONS : PEOPLE_SORT_OPTIONS.filter((o) => o.value !== "location"),
   );
+  const effectiveSort = computed(() =>
+    effectivePeopleSort(ui.playerPeopleSortBy, ui.playerPeopleSortDir, places.value.length > 0),
+  );
   const effectiveSortBy = computed<PlayerNpcSortField>({
-    get: () =>
-      ui.playerPeopleSortBy === "location" && !places.value.length ? "rating" : ui.playerPeopleSortBy,
+    get: () => effectiveSort.value.field,
     set: (field) => {
       ui.playerPeopleSortBy = field;
     },
@@ -106,7 +108,7 @@ export function usePlayerPeople(
 
   const groups = computed(() => {
     void ratingTick.value;
-    return buildPeopleGroups(toValue(ledgerNpcs).filter(matches), effectiveSortBy.value, ui.playerPeopleSortDir, {
+    return buildPeopleGroups(toValue(ledgerNpcs).filter(matches), effectiveSortBy.value, effectiveSort.value.dir, {
       getRating,
       place,
     });

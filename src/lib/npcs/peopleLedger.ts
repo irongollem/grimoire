@@ -10,6 +10,26 @@ import type { NpcStatus, PlayerNpc } from "@/types/npc.types";
  */
 export const NEW_TO_YOU_SINCE = new Date("2026-10-06T00:00:00Z");
 
+/** The earliest `revealed_at` per NPC from a viewer's `npc_reveals` rows. */
+export function earliestRevealPerNpc(
+  rows: readonly { npc_id: string; revealed_at: string }[],
+): Map<string, string> {
+  const earliest = new Map<string, string>();
+  for (const row of rows) {
+    const seen = earliest.get(row.npc_id);
+    if (!seen || Date.parse(row.revealed_at) < Date.parse(seen)) earliest.set(row.npc_id, row.revealed_at);
+  }
+  return earliest;
+}
+
+/** The NPCs with the viewer's reveal moment set (null when they have none). */
+export function withRevealMoments(
+  npcs: readonly PlayerNpc[],
+  moments: ReadonlyMap<string, string>,
+): PlayerNpc[] {
+  return npcs.map((npc) => ({ ...npc, revealed_at: moments.get(npc.id) ?? null }));
+}
+
 export interface ClassifiedPeople {
   /** Revealed since launch and never opened: waiting to be turned. */
   faceDown: PlayerNpc[];

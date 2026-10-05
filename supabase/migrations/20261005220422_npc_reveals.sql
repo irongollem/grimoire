@@ -116,6 +116,14 @@ create trigger locations_record_npc_reveals
 revoke execute on function public.record_npc_reveals_from_npc() from public, anon, authenticated;
 revoke execute on function public.record_npc_reveals_from_location() from public, anon, authenticated;
 
+-- #892: both references stay inside the campaign (or point at a global row its
+-- owner may use), like every other campaign-scoped foreign key. The structural
+-- check in same_campaign_refs.test.sql fails any such key without this trigger.
+drop trigger if exists zz_same_campaign_refs on public.npc_reveals;
+create trigger zz_same_campaign_refs
+  before insert or update of npc_id, party_member_id, campaign_id on public.npc_reveals
+  for each row execute procedure private.enforce_same_campaign_refs('npc_id', 'npcs', 'owned', 'party_member_id', 'party_members', 'owned');
+
 -- ── Backfill ────────────────────────────────────────────────────────────────
 -- What is already shared has no recorded moment. The NPC's created_at is the
 -- best evidence left: it cannot be later than the reveal, and a DM tends to

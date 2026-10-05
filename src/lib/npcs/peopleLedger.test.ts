@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  earliestRevealPerNpc,
+  withRevealMoments,
   buildPeopleGroups,
   classifyPeople,
   NEW_TO_YOU_SINCE,
@@ -202,5 +204,25 @@ describe("buildPeopleGroups", () => {
     ]);
     const groups = buildPeopleGroups(npcs, "revealed", "desc", ctx);
     expect(groups.map((g) => g.title)).toEqual(["1 January", "31 December 2025"]);
+  });
+});
+
+describe("earliestRevealPerNpc", () => {
+  it("keeps the earliest moment per NPC regardless of row order", () => {
+    const map = earliestRevealPerNpc([
+      { npc_id: "a", revealed_at: "2026-10-05T10:00:00Z" },
+      { npc_id: "a", revealed_at: "2026-10-04T10:00:00Z" },
+      { npc_id: "b", revealed_at: "2026-10-06T10:00:00Z" },
+    ]);
+    expect(map.get("a")).toBe("2026-10-04T10:00:00Z");
+    expect(map.get("b")).toBe("2026-10-06T10:00:00Z");
+  });
+});
+
+describe("withRevealMoments", () => {
+  it("sets revealed_at from the moments, null when the viewer has none", () => {
+    const { npcs } = make([{ id: "a" }, { id: "b" }]);
+    const out = withRevealMoments(npcs, new Map([["a", "2026-10-04T10:00:00Z"]]));
+    expect(out.map((n) => n.revealed_at)).toEqual(["2026-10-04T10:00:00Z", null]);
   });
 });
