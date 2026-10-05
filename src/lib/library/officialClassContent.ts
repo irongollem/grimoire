@@ -250,6 +250,9 @@ export function mergeImportedFeature(
   const kept: string[] = [];
 
   for (const field of IMPORT_OWNED_FIELDS) {
+    // A field the plan has no opinion on (no catalogue entry for its mechanics)
+    // is left exactly as it is, baseline included.
+    if (!(field in incoming)) continue;
     const have = current[field];
     const want = incoming[field] ?? null;
     const hasBaseline = field in baseline;

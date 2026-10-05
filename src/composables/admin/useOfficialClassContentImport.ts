@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { fetchOpen5eClasses } from "@/lib/library/open5eClassImport";
 import { fetchOpen5eFeats } from "@/lib/library/open5eFeatImport";
-import { mergeImportedFeature, officialIdentity, planOfficialClassContent, unionFeatureMap } from "@/lib/library/officialClassContent";
+import { jsonEqual, mergeImportedFeature, officialIdentity, planOfficialClassContent, unionFeatureMap } from "@/lib/library/officialClassContent";
 import type {
   ContentSourceRef,
   ExistingOfficialRow,
@@ -163,7 +163,12 @@ export function useOfficialClassContentImport() {
       await inChunks(featureUpdates, async f => {
         const current = currentFeatures.get(f.existingId!);
         if (!current) throw new Error(`official class import: feature ${f.existingId} was matched but not read`);
-        const { update, kept } = mergeImportedFeature(current, { ...f.insert });
+        // Empty planned mechanics means the catalogue has no entry for this
+        // feature: not "it does nothing". Merging {} would erase an activation
+        // the migration derived, so the plan's mechanics are left out instead.
+        const incoming: Record<string, unknown> = { ...f.insert };
+        if (jsonEqual(incoming.mechanics, {})) delete incoming.mechanics;
+        const { update, kept } = mergeImportedFeature(current, incoming);
         keptEditedFields += kept.length;
         if (Object.keys(update).length === 0) {
           featuresUnchanged++;

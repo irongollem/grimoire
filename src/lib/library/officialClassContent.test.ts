@@ -332,6 +332,16 @@ describe("mergeImportedFeature", () => {
     expect(kept).toEqual([]);
   });
 
+  it("leaves a field the plan has no opinion on exactly as it is", () => {
+    // An official reaction with no catalogue entry: its derived activation must survive.
+    const current = { ...OWNED_NOW, mechanics: { activation: "reaction" }, provenance: { imported: { ...OWNED_NOW, mechanics: { activation: "reaction" } } } };
+    const { mechanics: _omitted, ...incoming } = OWNED_NEW;
+    const { update, kept } = mergeImportedFeature(current, { ...incoming, provenance: {} });
+    expect(update.mechanics).toBeUndefined();
+    expect((update.provenance as { imported: { mechanics: unknown } }).imported.mechanics).toEqual({ activation: "reaction" });
+    expect(kept).not.toContain("mechanics");
+  });
+
   it("keeps an edited description and counts it", () => {
     const current = {
       ...OWNED_NOW,
