@@ -66,6 +66,29 @@ export function useAllFeatures() {
   });
 }
 
+async function fetchByIds(ids: readonly string[]): Promise<ClassFeature[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from("class_features").select("*").in("id", [...ids]);
+  if (error) throw error;
+  return data as ClassFeature[];
+}
+
+/**
+ * Features by STORED id, with no ruleset filter: a subclass or class table
+ * references its features by id, and a reference outlives the edition scoping
+ * of `useAllFeatures` (a legacy 2014 subclass levelled by a 2024 character
+ * would otherwise resolve to nothing). Ids that match no readable row are
+ * absent from the result.
+ */
+export function useFeaturesByIds(ids: Ref<readonly string[]>) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "by-ids", [...ids.value].sort()] as const),
+    queryFn: ({ queryKey: [, , wanted] }) => fetchByIds(wanted),
+    enabled: () => ids.value.length > 0,
+    staleTime: Infinity,
+  });
+}
+
 export function useFeature(id: Ref<string>) {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, id.value] as const),

@@ -95,6 +95,7 @@
         v-model:feat-id="featId"
         :filtered-feats="filteredFeats"
         :selected-feat-name="selectedFeatName"
+        :selected-feat-description="selectedFeatDescription"
       />
 
       <!-- Subclass choice -->
@@ -203,12 +204,13 @@ import { useLevelUpSpellSlots } from "./useLevelUpSpellSlots";
 import { useClassScopedReset } from "./useClassScopedReset";
 import type { DieSize } from "@/lib/dice/dice";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import { useAllFeatures } from "@/composables/rules/useFeatures";
+import { useAllFeatures, useFeaturesByIds } from "@/composables/rules/useFeatures";
 import { useCharacterSpells } from "@/composables/party/useCharacterSpells";
 import { useLevelUpSpellCandidates } from "./useLevelUpSpellCandidates";
 import type { PartyMember } from "@/types/party.types";
 import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef, FeatureEntry } from "./types";
 import { mapFeatureIds } from "./types";
+import { filterFeats } from "./featOptions";
 import type { CustomResource } from "@/levelup/customTypes";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 
@@ -324,7 +326,7 @@ const newClassCandidates = computed(() => {
   return [
     ...campaignSystemClasses.value.map(c => ({ key: `system:${c.id}`, label: `${c.class_name} (official)` })),
     ...campaignCustomClasses.value.map(c => ({ key: `custom:${c.id}`,
-      label: `${c.class_name} (${c.source_document_key ? "imported" : "custom"}${c.source_revision ? `, ${c.source_revision}` : ""})` })),
+      label: `${c.class_name} (${c.source_document_key ? "imported" : "custom"})` })),
   ].filter(candidate => !existing.has(candidate.key))
     .sort((a, b) => a.label.localeCompare(b.label));
 });
@@ -431,7 +433,6 @@ const subclassOptions = computed(() => campaignCustomSubclasses.value
   .map(subclass => ({
     id: subclass.id,
     name: subclass.subclass_name,
-    label: `${subclass.subclass_name} (${subclass.source_document_key ? "imported" : "custom"}${subclass.source_revision ? `, ${subclass.source_revision}` : ""})`,
   })));
 
 // ── Spell slot computation (multiclass-aware) ──────────────────────────────────
@@ -467,14 +468,23 @@ function toggleWizardFeature(name: string) {
   wizardExpandedFeatures.value = new Set(wizardExpandedFeatures.value);
 }
 
-const featureObjectMap = computed(() => new Map((allFeatures.value ?? []).map(f => [f.id, f])));
-
-const customFeaturesForLevel = computed<FeatureEntry[]>(() => {
+// The ids this level grants. A subclass's features need not be in the
+// edition-scoped catalogue (a legacy custom subclass, or one from the other
+// edition), so whatever it leaves unresolved is fetched by id.
+const featureIdsForLevel = computed<string[]>(() => {
   // Features are indexed per-class-level, not per-total-level.
   const lvlKey = levelInChosenClass.value.toString();
-  const ids = customSubclass.value?.features[lvlKey] ?? customClass.value?.features[lvlKey] ?? systemClass.value?.features[lvlKey] ?? [];
-  return mapFeatureIds(ids, featureObjectMap.value);
+  return customSubclass.value?.features[lvlKey] ?? customClass.value?.features[lvlKey] ?? systemClass.value?.features[lvlKey] ?? [];
 });
+const catalogueFeatureIds = computed(() => new Set((allFeatures.value ?? []).map(f => f.id)));
+const missingFeatureIds = computed(() =>
+  featureIdsForLevel.value.filter(id => !catalogueFeatureIds.value.has(id)));
+const { data: fetchedFeatures } = useFeaturesByIds(missingFeatureIds);
+const featureObjectMap = computed(() =>
+  new Map([...(allFeatures.value ?? []), ...(fetchedFeatures.value ?? [])].map(f => [f.id, f])));
+
+const customFeaturesForLevel = computed<FeatureEntry[]>(() =>
+  mapFeatureIds(featureIdsForLevel.value, featureObjectMap.value));
 
 function resourceDefsFrom(resources: CustomResource[]): ClassResourceDef[] {
   return resources.map(r => ({
@@ -535,11 +545,12 @@ const asiPreview = computed(() => {
 // ── Feat picker ────────────────────────────────────────────────────────────────
 const featSearch = ref("");
 const featId     = ref("");
-const filteredFeats = computed(() => {
-  const term = featSearch.value.toLowerCase().trim();
-  return (allFeatures.value ?? []).filter(f => !term || f.name.toLowerCase().includes(term));
-});
-const selectedFeatName = computed(() => allFeatures.value?.find(f => f.id === featId.value)?.name ?? "");
+// Feats come from the same edition-scoped catalogue as class features; only the
+// feat rows are offered here.
+const filteredFeats = computed(() => filterFeats(allFeatures.value ?? [], featSearch.value));
+const selectedFeat = computed(() => allFeatures.value?.find(f => f.id === featId.value) ?? null);
+const selectedFeatName = computed(() => selectedFeat.value?.name ?? "");
+const selectedFeatDescription = computed(() => selectedFeat.value?.description ?? null);
 
 // ── Subclass ───────────────────────────────────────────────────────────────────
 const subclassInput = ref("");

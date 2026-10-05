@@ -41,12 +41,18 @@ export function featureDescription(e: FeatureEntry): string | null {
   return typeof e === "string" ? null : e.description;
 }
 
-/** Maps an array of feature IDs to FeatureEntry values using a pre-built feature lookup. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Maps an array of feature IDs to FeatureEntry values using a pre-built feature
+ * lookup. An id that resolves to no row is dropped, never shown: an id is not a
+ * name a player can read. A non-id string is already a feature name and stays.
+ */
 export function mapFeatureIds(ids: string[], featureMap: Map<string, ClassFeature>): FeatureEntry[] {
-  return ids.map(id => {
+  return ids.flatMap((id): FeatureEntry[] => {
     const f = featureMap.get(id);
-    if (!f) return id;
-    return f.description ? { name: f.name, description: f.description } : f.name;
+    if (!f) return UUID_RE.test(id) ? [] : [id];
+    return [f.description ? { name: f.name, description: f.description } : f.name];
   });
 }
 

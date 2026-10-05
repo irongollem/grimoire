@@ -13,7 +13,7 @@
       @update:model-value="selectSubclass"
     >
       <option value="" disabled>Select subclass…</option>
-      <option v-for="sc in subclassOptions" :key="sc.id" :value="sc.id">{{ sc.label }}</option>
+      <option v-for="sc in subclassOptions" :key="sc.id" :value="sc.id">{{ sc.name }}</option>
     </AppSelect>
     <p v-else class="text-body text-muted-foreground">
       This table has no subclasses for {{ className }} yet. One can be added in the Codex and chosen the next time this character levels up.
@@ -29,7 +29,7 @@ const props = defineProps<{
   selectedId: string;
   nextLevel: number;
   className: string;
-  subclassOptions: { id: string; name: string; label: string }[];
+  subclassOptions: { id: string; name: string }[];
 }>();
 
 // The name travels with the id so the payload builder can keep a name out of

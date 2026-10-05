@@ -67,12 +67,15 @@
           >
             <div class="flex flex-col items-start gap-0.5">
               <span class="text-caption font-semibold">{{ f.name }}</span>
-              <span v-if="f.description" class="text-caption text-muted-foreground line-clamp-1">{{ f.description }}</span>
+              <span v-if="plainText(f.description)" class="text-caption text-muted-foreground line-clamp-1">{{ plainText(f.description) }}</span>
             </div>
           </AppButton>
         </div>
-        <p v-else-if="featSearch" class="text-body text-muted-foreground italic">No matching features found.</p>
+        <p v-else-if="featSearch" class="text-body text-muted-foreground italic">No matching feats found.</p>
         <p v-if="featId" class="text-label-lg text-primary">✓ {{ selectedFeatName }}</p>
+        <div v-if="selectedFeatDescription" class="rounded-md bg-muted/30 border border-border/60 px-3 py-2">
+          <RichTextViewer :content="selectedFeatDescription" />
+        </div>
       </div>
     </template>
   </WizardStepCard>
@@ -84,12 +87,19 @@ import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { AsiMode, AbilityKey } from "./types";
 
 interface FeatOption {
   id: string;
   name: string;
   description?: string | null;
+}
+
+// Descriptions are stored as Tiptap JSON; a list row shows the flattened text.
+function plainText(description: string | null | undefined): string {
+  return tiptapToPlainText(description);
 }
 
 const ABILITY_LABEL: Record<AbilityKey, string> = {
@@ -113,6 +123,7 @@ const {
   featId,
   filteredFeats,
   selectedFeatName,
+  selectedFeatDescription,
 } = defineProps<{
   asiMode: AsiMode;
   asiPrimary: AbilityKey | "";
@@ -122,6 +133,7 @@ const {
   featId: string;
   filteredFeats: FeatOption[];
   selectedFeatName: string;
+  selectedFeatDescription: string | null;
 }>();
 
 const emit = defineEmits<{
