@@ -1,5 +1,8 @@
 import { crToNumber, type ChallengeRating } from "@/lib/monsterDisplay";
-import { MONSTER_TYPES, type Monster, type MonsterType } from "@/types/monster.types";
+import { MONSTER_TYPES, type MonsterIndexEntry, type MonsterType } from "@/types/monster.types";
+
+/** The slim index row a pull filters and draws from. */
+export type PullableMonster = Pick<MonsterIndexEntry, "id" | "name" | "size" | "monster_type" | "challenge_rating">;
 
 /**
  * Pulling a random monster for an improvised encounter (#764).
@@ -77,14 +80,14 @@ export interface MonsterPullFilters {
 
 /** The monsters one pull may draw from. CR band and type each narrow the
  *  pool independently — neither depends on the other passing first. */
-export function filterMonstersForPull(
-  monsters: readonly Monster[],
+export function filterMonstersForPull<M extends PullableMonster>(
+  monsters: readonly M[],
   filters: MonsterPullFilters,
-): Monster[] {
+): M[] {
   return monsters.filter(
     (m) =>
       (filters.type === "all" || m.monster_type === filters.type) &&
-      crBandContains(filters.crBand, m.stat_block.challenge_rating),
+      crBandContains(filters.crBand, m.challenge_rating),
   );
 }
 
@@ -100,6 +103,6 @@ export function filterMonstersForPull(
  * proving selection is index-driven (not, say, always the first match) is
  * proving it for the real pull too.
  */
-export function pickMonster(monsters: readonly Monster[], index: number): Monster | null {
+export function pickMonster<M extends PullableMonster>(monsters: readonly M[], index: number): M | null {
   return monsters[index] ?? null;
 }

@@ -122,7 +122,8 @@ import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRule
 import { wildshapeStateFor } from "@/rules/wildshape";
 import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
 import { formPortrait } from "@/lib/wildshapePortrait";
-import { useLibraryMonsterArt, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
+import { useToast } from "@/composables/useToast";
+import { fetchLibraryMonsterArtEntry, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
 import { pickSpellcastingStats } from "@/types/multiclass.types";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
 
@@ -256,10 +257,20 @@ const spellAttackBonus = computed(() => spellSaveDc.value - 8);
 
 const { isDruid, rules: wildShapeRules } = useWildshapeDruid(memberId, () => member);
 
-const { data: libraryArt } = useLibraryMonsterArt();
+const toast = useToast();
 
-function handleWildshape(monster: Monster) {
-  const beast = monster.is_shared ? withLibraryArt(monster, libraryArt.value?.[monster.id]) : monster;
+// One shared form's art, read when the DM picks it: the whole art map is never
+// needed to shape into a single beast.
+async function handleWildshape(monster: Monster) {
+  let beast = monster;
+  if (monster.is_shared) {
+    try {
+      beast = withLibraryArt(monster, (await fetchLibraryMonsterArtEntry(monster.id)) ?? undefined);
+    } catch (error) {
+      toast.error(toast.fromError(error));
+      return;
+    }
+  }
   const entry = wildshapeStateFor(beast, wildShapeRules.value);
   if (!entry) return;
   // The runner is DM-driven, so a spent druid can still be shaped (an override),

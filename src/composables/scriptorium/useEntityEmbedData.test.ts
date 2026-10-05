@@ -12,8 +12,8 @@ const mocks = vi.hoisted(() => ({
   tables: {} as Record<string, Record<string, unknown>>,
   objectivesByQuest: {} as Record<string, unknown[]>,
   // library_monster_art / library_monster_art_canonical are selected in full
-  // (no .eq() filter) by fetchLibraryMonsterArt, unlike every other table
-  // here — a separate row-list store, keyed by table name, matches that shape.
+  // by `.in("entry_id", ids)` (fetchLibraryMonsterArtEntries), unlike every
+  // other table here — a separate row-list store, keyed by table name, matches that shape.
   artRows: {} as Record<string, unknown[]>,
 }));
 
@@ -21,7 +21,9 @@ const ART_TABLES = ["library_monster_art", "library_monster_art_canonical"];
 
 function makeBuilder(table: string) {
   if (ART_TABLES.includes(table)) {
-    return { select: () => Promise.resolve({ data: mocks.artRows[table] ?? [], error: null }) };
+    // The own-override read adds `.eq("user_id", ...)` after the `.in`.
+    const result = () => Promise.resolve({ data: mocks.artRows[table] ?? [], error: null });
+    return { select: () => ({ in: () => Object.assign(result(), { eq: result }) }) };
   }
   const filters: Record<string, string> = {};
   const builder = {
@@ -51,9 +53,8 @@ vi.mock("@/lib/supabase", () => ({
     from: (table: string) => makeBuilder(table),
   },
   // useLibraryMonsterArt.ts imports this too (for its upsert/bulk mutations,
-  // neither of which this composable calls) — unused here but needed so the
-  // named import resolves.
-  getCurrentUser: () => null,
+  // neither of which this composable calls) and by the own-override art read.
+  getCurrentUser: () => ({ id: "user-1" }),
 }));
 
 import { useEntityEmbedData } from "./useEntityEmbedData";

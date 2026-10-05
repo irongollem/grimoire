@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { mentionedLocationIds, parseSceneEntities, stripMentionTokens, type SceneEntitySources } from "./sceneEntities";
+import { mentionedLocationIds, mentionedMonsterIds, type SceneMonster, parseSceneEntities, stripMentionTokens, type SceneEntitySources } from "./sceneEntities";
 import type { Npc } from "@/types/npc.types";
-import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Faction } from "@/types/faction.types";
 import type { Location } from "@/types/location.types";
@@ -16,14 +15,13 @@ function npc(overrides: Partial<Npc>): Npc {
   } as Npc;
 }
 
-function monster(overrides: Partial<Monster>): Monster {
+function monster(overrides: Partial<SceneMonster>): SceneMonster {
   return {
-    id: "mon-1",
     name: "Owlbear",
     image_url: null,
     description: null,
     ...overrides,
-  } as Monster;
+  };
 }
 
 function partyMember(overrides: Partial<PartyMember>): PartyMember {
@@ -208,5 +206,21 @@ describe("stripMentionTokens", () => {
 
   it("stops at punctuation the same way the parser's token regex does", () => {
     expect(stripMentionTokens("@Vesper, waiting.")).toBe("Vesper, waiting.");
+  });
+});
+
+describe("mentionedMonsterIds", () => {
+  const index = [
+    { id: "srd_owlbear", name: "Owlbear" },
+    { id: "srd_wolf", name: "Wolf" },
+  ];
+
+  it("returns the ids of monsters an @mention can resolve to, in index order", () => {
+    expect(mentionedMonsterIds("The @Owlbear charges.", index)).toEqual(["srd_owlbear"]);
+    expect(mentionedMonsterIds("@Wolf and @owl", index)).toEqual(["srd_owlbear", "srd_wolf"]);
+  });
+
+  it("returns nothing without a mention", () => {
+    expect(mentionedMonsterIds("An owlbear charges.", index)).toEqual([]);
   });
 });

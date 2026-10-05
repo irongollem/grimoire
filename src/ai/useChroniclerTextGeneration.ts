@@ -4,13 +4,13 @@ import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
 import { wrapUserInput, AI_PROMPT_LIMIT_CHRONICLE } from "./utils";
-import { mentionedLocationIds, parseSceneEntities, type ResolvedEntity } from "./sceneEntities";
+import { mentionedLocationIds, mentionedMonsterIds, parseSceneEntities, type ResolvedEntity } from "./sceneEntities";
 import type { Npc } from "@/types/npc.types";
-import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Faction } from "@/types/faction.types";
 import type { LocationSummary } from "@/types/location.types";
 import { fetchLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
+import { fetchMentionedMonsters } from "@/composables/monsters/useMentionedMonsters";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
@@ -73,7 +73,9 @@ export function useChroniclerTextGeneration() {
     rawText: string;
     tone: ChroniclerTone;
     npcs: Npc[] | undefined;
-    monsters: Monster[] | undefined;
+    /** The bestiary index: names to match an @mention against. The lore and
+     *  picture of the monsters it names are read here, by id. */
+    monsterIndex: readonly { id: string; name: string }[] | undefined;
     partyMembers: PartyMember[] | undefined;
     factions: Faction[] | undefined;
     locations: LocationSummary[] | undefined;
@@ -85,10 +87,17 @@ export function useChroniclerTextGeneration() {
      *  very note the recap is about to be written into (#600). */
     excludeNoteId?: string;
   }): Promise<ChroniclerTextResult> {
-    const { rawText, tone, npcs, monsters, partyMembers, factions, locations, existingTags, excludeNoteId } = params;
+    const { rawText, tone, npcs, monsterIndex, partyMembers, factions, locations, existingTags, excludeNoteId } = params;
     // The place list is slim; the descriptions of the places this recap names go
     // to the model, so read exactly those rows.
     const locationDescriptions = await fetchLocationDescriptions(mentionedLocationIds(rawText, locations ?? []));
+    // Likewise the monsters: the index has names only, so the mentioned ones are read by id.
+    const mentionedIds = mentionedMonsterIds(rawText, monsterIndex ?? []);
+    const mentionedRows = await fetchMentionedMonsters(mentionedIds);
+    const monsters = mentionedIds.flatMap((id) => {
+      const row = mentionedRows.get(id);
+      return row ? [row] : [];
+    });
     const entities = parseSceneEntities(rawText, { npcs, monsters, partyMembers, factions, locations, locationDescriptions });
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "No setting configured.";
     const campaignId = campaign.activeCampaign?.id;

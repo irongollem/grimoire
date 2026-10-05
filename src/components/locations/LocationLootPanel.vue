@@ -81,9 +81,9 @@ import { computed, reactive, ref, watch } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useCreateLootPlacement } from "@/composables/quests/useQuestFlow";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
-import { useItems } from "@/composables/items/useItems";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { itemRefColumns } from "@/lib/itemRef";
+import { useLootChestAtoms } from "@/composables/dungeon-features/useLootChestAtoms";
 import { useLootTables } from "@/composables/dungeon-features/useLootTables";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { LOCATION_STATE_QUERY_KEY } from "@/composables/locations/useLocationState";
@@ -92,6 +92,7 @@ import {
   unresolvedReasonLabel,
   type RolledLootEntry,
   type RolledUnresolvedEntry,
+  type LootPoolItem,
 } from "@/lib/dungeon-features/lootTableRoll";
 import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import { formatCoinParts } from "@/rules/currency";
@@ -104,8 +105,6 @@ import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import LootPlacementList from "@/components/quests/LootPlacementList.vue";
 import type { LootPlacement, LootPlacementKind } from "@/types/quest.types";
-import type { LootChestAtom } from "@/types/chat.types";
-import type { Item } from "@/types/item.types";
 
 const { locationId, campaignId, loot } = defineProps<{ locationId: string; campaignId: string; loot: LootPlacement[] }>();
 
@@ -146,44 +145,16 @@ const selectedLootTable = computed(() => (lootTables.value ?? []).find((table) =
 const { items: storedItems } = useStoredItemRefs(
   () => (selectedLootTable.value?.entries ?? []).flatMap((e) => (e.item_id ? [e.item_id] : [])),
 );
-// A random entry rolls from every item that fits its rarity and type, so the
-// catalogue is read only for a table that has one.
-const hasRandomEntry = computed(() => (selectedLootTable.value?.entries ?? []).some((e) => (e.type ?? "item") === "random"));
-const poolQuery = useItems(() => ({ enabled: hasRandomEntry.value }));
+// A random entry rolls from every item that fits its rarity and type: the picker's
+// index (the browse membership: enabled books, edition, campaign scope), already loaded.
 const itemsById = computed(() => {
-  const map = new Map<string, Item>();
-  for (const item of poolQuery.resolvable.value ?? []) map.set(item.id, item);
+  const map = new Map<string, LootPoolItem>();
+  for (const item of items.value ?? []) map.set(item.id, item);
   for (const item of storedItems.value) map.set(item.id, item);
   return map;
 });
 
-const rolledAtoms = computed<LootChestAtom[]>(() => {
-  const atoms: LootChestAtom[] = [];
-  for (const entry of rolledEntries.value) {
-    if (entry.type === "item") {
-      const item = itemsById.value.get(entry.item_id);
-      for (let i = 0; i < entry.qty; i++) {
-        atoms.push({
-          atom_id: crypto.randomUUID(),
-          type: "item",
-          item_id: entry.item_id,
-          item_name: entry.item_name,
-          item_image_url: entry.item_image_url ?? null,
-          item_rarity: item?.rarity ?? null,
-          item_is_container: item?.tags.includes("container") ?? false,
-        });
-      }
-    } else if (entry.type === "currency") {
-      atoms.push({
-        atom_id: crypto.randomUUID(),
-        type: "currency",
-        currency_label: entry.currency_label ?? null,
-        pp: entry.pp, gp: entry.gp, ep: entry.ep, sp: entry.sp, cp: entry.cp,
-      });
-    }
-  }
-  return atoms;
-});
+const { atoms: rolledAtoms, isLoading: atomsLoading } = useLootChestAtoms(rolledEntries);
 const rolledUnresolved = computed(() => rolledEntries.value.filter((entry): entry is RolledUnresolvedEntry => entry.type === "unresolved"));
 
 /** A fixed integer or a dice expression, resolved to a concrete claim count.
@@ -225,7 +196,7 @@ function onChestFileChange(fileEvent: Event) {
 const canAdd = computed(() => {
   if (kind.value === "item") return !!itemId.value && quantity.value > 0;
   if (kind.value === "currency") return coins.some((coin) => currency[coin] > 0);
-  return !!selectedLootTable.value && rolledAtoms.value.length > 0 && !!effectiveCap.value;
+  return !!selectedLootTable.value && !atomsLoading.value && rolledAtoms.value.length > 0 && !!effectiveCap.value;
 });
 
 function resetDraft() {

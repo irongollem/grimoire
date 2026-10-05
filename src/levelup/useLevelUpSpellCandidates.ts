@@ -1,7 +1,10 @@
 import { computed } from "vue";
 import type { ComputedRef, Ref } from "vue";
-import { useAllSpells } from "@/composables/spells/useSpells";
+import { useSpellIndex } from "@/composables/spells/useSpellIndex";
 import type { Spell } from "@/types/spell.types";
+
+/** What a picker reads of a spell: the slim index entry satisfies it, and so does a full row. */
+export type SpellCandidate = Pick<Spell, "id" | "name" | "level" | "school" | "classes">;
 
 /**
  * The spells the level-up wizard may offer for a single picker.
@@ -12,7 +15,7 @@ import type { Spell } from "@/types/spell.types";
  * whose class spell/cantrip count differs from the server-derived requirement.
  */
 export interface SpellCandidates {
-  spells: Spell[];
+  spells: SpellCandidate[];
   /**
    * How many spells this picker could offer before the search box narrowed
    * them. Zero means the level-up is unconfirmable, not that the reader
@@ -30,7 +33,7 @@ export interface SpellCandidates {
 }
 
 export function pickSpellCandidates(
-  all: Spell[],
+  all: readonly SpellCandidate[],
   opts: { className: string; search: string; isCantrip: boolean; maxCastableLevel: number },
 ): SpellCandidates {
   const inLevelRange = all.filter((spell) =>
@@ -57,8 +60,9 @@ export function pickSpellCandidates(
 /**
  * Spell and cantrip candidates for the level-up wizard's pickers.
  *
- * Reads the same merged source as the Spellbook (`useAllSpells`: the campaign's
- * enabled library sources plus the player's own custom spells). The wizard used
+ * Reads the same merged membership as the Spellbook (the campaign's enabled
+ * library sources plus the player's own custom spells), as the slim
+ * `useSpellIndex`: a picker needs no spell descriptions (#972). The wizard used
  * to query the `spells` table alone, which holds only user-authored spells —
  * effectively empty for everyone — so both pickers rendered "No spells found
  * for this class" and Confirm stayed disabled forever (#736).
@@ -69,7 +73,9 @@ export function useLevelUpSpellCandidates(opts: {
   spellSearch: Ref<string>;
   cantripSearch: Ref<string>;
 }) {
-  const { data: allSpells, isLoading } = useAllSpells();
+  const { data: spellIndex, isLoading } = useSpellIndex();
+  // Not loaded yet is an empty list here; `isLoading` tells the picker which it is.
+  const allSpells = computed(() => spellIndex.value ?? []);
 
   const spellCandidates = computed(() =>
     pickSpellCandidates(allSpells.value, {

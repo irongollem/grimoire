@@ -1,35 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { resolveGeneratedCombatants, swapCombatantVersion } from "./resolveGeneratedCombatants";
-import type { Monster } from "@/types/monster.types";
+import { resolveGeneratedCombatants, swapCombatantVersion, type ResolvableMonster } from "./resolveGeneratedCombatants";
 import type { EncounterCombatantAiResult } from "@/ai/types";
 
-function makeMonster(overrides: Partial<Monster> & { id: string; name: string }): Monster {
+function makeMonster(overrides: Partial<ResolvableMonster> & { id: string; name: string }): ResolvableMonster {
   return {
-    user_id: "",
-    campaign_id: null,
-    monster_type: "beast",
-    size: "medium",
-    alignment: "unaligned",
-    habitat: null,
+    is_shared: true,
+    challenge_rating: "1/4",
     source: null,
-    tags: [],
-    stat_block: {
-      armor_class: 10,
-      hit_points: "1d8",
-      speed: "30 ft.",
-      str: 10,
-      dex: 10,
-      con: 10,
-      int: 10,
-      wis: 10,
-      cha: 10,
-      challenge_rating: "1/4",
-    },
-    notes: null,
-    image_url: null,
-    cutout_url: null,
-    created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-01T00:00:00.000Z",
+    source_title: null,
     ...overrides,
   };
 }
@@ -108,8 +86,8 @@ describe("resolveGeneratedCombatants", () => {
   });
 
   it("prefers a user-created monster over a same-named library monster", () => {
-    const libraryGoblin = makeMonster({ id: "m-library", name: "Goblin", user_id: "" });
-    const homebrewGoblin = makeMonster({ id: "m-homebrew", name: "Goblin", user_id: "user-123" });
+    const libraryGoblin = makeMonster({ id: "m-library", name: "Goblin", is_shared: true });
+    const homebrewGoblin = makeMonster({ id: "m-homebrew", name: "Goblin", is_shared: false });
     const result = resolveGeneratedCombatants(
       [makeAiCombatant({ name: "Goblin" })],
       [libraryGoblin, homebrewGoblin],

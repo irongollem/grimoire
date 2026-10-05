@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import type { Monster } from "@/types/monster.types";
 import {
   CR_BANDS,
   CR_BAND_OPTIONS,
@@ -8,40 +7,17 @@ import {
   filterMonstersForPull,
   pickMonster,
   type MonsterPullFilters,
+  type PullableMonster,
 } from "./monsterPull";
 
-function makeMonster(overrides: Partial<Monster> & { id: string; name: string; challenge_rating?: string | null }): Monster {
-  const { challenge_rating = "1", ...rest } = overrides;
+function makeMonster(
+  overrides: Partial<PullableMonster> & { id: string; name: string },
+): PullableMonster {
   return {
-    user_id: "",
-    campaign_id: null,
     monster_type: "beast",
     size: "medium",
-    alignment: "unaligned",
-    habitat: null,
-    source: null,
-    tags: [],
-    stat_block: {
-      armor_class: 10,
-      hit_points: "1d8",
-      speed: "30 ft.",
-      str: 10,
-      dex: 10,
-      con: 10,
-      int: 10,
-      wis: 10,
-      cha: 10,
-      // Cast lets each fixture set challenge_rating (including null, to model
-      // a row missing the jsonb key) without fighting MonsterStatBlock's
-      // honestly-wrong `string` type — see monsterDisplay.ts's docstring.
-      challenge_rating: challenge_rating as string,
-    },
-    notes: null,
-    image_url: null,
-    cutout_url: null,
-    created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-01T00:00:00.000Z",
-    ...rest,
+    challenge_rating: "1",
+    ...overrides,
   };
 }
 

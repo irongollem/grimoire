@@ -168,7 +168,6 @@ import { computed } from "vue";
 import type { PartyMember } from "@/types/party.types";
 import type { Item } from "@/types/item.types";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
-import { useItems } from "@/composables/items/useItems";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { useAmmoConsumption } from "@/composables/encounters/useAmmoConsumption";
@@ -194,12 +193,8 @@ const emit = defineEmits<{
 // ── Composables ───────────────────────────────────────────────────────────────
 
 const { data: inventoryItems } = usePartyInventory();
-// Carried rows resolve in `resolvable`, not the edition-narrowed browse list (#961).
-const { resolvable } = useItems();
-const { items: vaultItems } = useStoredItemRefs(
-  () => (inventoryItems.value ?? []).map(inventoryItemRef),
-  resolvable,
-);
+// Carried rows resolve by id, not through the edition-narrowed browse list (#961).
+const { items: vaultItems } = useStoredItemRefs(() => (inventoryItems.value ?? []).map(inventoryItemRef));
 
 // ── Inventory views ───────────────────────────────────────────────────────────
 

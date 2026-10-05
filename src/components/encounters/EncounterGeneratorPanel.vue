@@ -167,18 +167,17 @@ import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useParty } from "@/composables/party/useParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import {
   resolveGeneratedCombatants,
   swapCombatantVersion,
   type GeneratedCombatantMatch,
+  type ResolvableMonster,
 } from "@/lib/encounters/resolveGeneratedCombatants";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
-import { isSharedContent } from "@/lib/library/contentIdentity";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
-import type { Monster } from "@/types/monster.types";
 import type { EncounterCombatantAiResult } from "@/ai/types";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 
@@ -213,7 +212,7 @@ const { mutateAsync: createEncounter } = useCreateEncounter();
 // generation is in flight (its result will land here even if the panel is
 // closed meanwhile), or a result is held. A closed, idle panel fetches nothing
 // (#972) — the panel is mounted on every DM page.
-const { data: monsters, isLoading: monstersLoading } = useAllMonsters(() => ({
+const { data: monsters, isLoading: monstersLoading } = useMonsterIndex(() => ({
   enabled: ui.encounterGeneratorOpen || isGenerating.value || !!result.value,
 }));
 const { data: party } = useParty();
@@ -237,7 +236,9 @@ const createError = ref<string | null>(null);
 const createdEncounterId = ref<string | null>(null);
 
 const resolved = computed(() => {
-  if (!result.value) return { matched: [] as GeneratedCombatantMatch[], unmatched: [] as EncounterCombatantAiResult[] };
+  if (!result.value || !monsters.value) {
+    return { matched: [] as GeneratedCombatantMatch[], unmatched: [] as EncounterCombatantAiResult[] };
+  }
   return resolveGeneratedCombatants(result.value.combatants, monsters.value);
 });
 
@@ -280,9 +281,9 @@ function setVersionPick(entryIndex: number, monsterId: string) {
  *  rebalanced across publishers and drive the XP budget. "???" is the repo's
  *  unknown marker: a library row missing all source metadata is a data gap
  *  worth seeing, not something to blank over. */
-function versionLabel(m: Monster): string {
-  const origin = isSharedContent(m) ? (m.source_title ?? m.source ?? "???") : "Your bestiary";
-  return `${origin} · CR ${m.stat_block.challenge_rating}`;
+function versionLabel(m: ResolvableMonster): string {
+  const origin = m.is_shared ? (m.source_title ?? m.source ?? "???") : "Your bestiary";
+  return `${origin} · CR ${m.challenge_rating}`;
 }
 
 function versionOptions(match: GeneratedCombatantMatch): { id: string; name: string }[] {

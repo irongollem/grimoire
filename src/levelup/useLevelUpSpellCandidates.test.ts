@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { pickSpellCandidates } from "./useLevelUpSpellCandidates";
-import type { Spell } from "@/types/spell.types";
+import type { SpellCandidate } from "./useLevelUpSpellCandidates";
 
-function spell(partial: Partial<Spell> & { id: string; name: string; level: number }): Spell {
+function spell(partial: Partial<SpellCandidate> & { id: string; name: string; level: number }): SpellCandidate {
   return {
     school: "evocation",
     classes: ["Wizard"],
     ...partial,
-  } as Spell;
+  };
 }
 
 const LIBRARY = [

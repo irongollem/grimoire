@@ -308,7 +308,7 @@ import { usePinnedForms, useTogglePinnedForm } from "@/composables/play/usePinne
 import { availableWildShapeForms, knownFormIds, wildShapeFormCost } from "@/rules/wildshape";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
-import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { useWildShapeCandidates } from "@/composables/monsters/useWildShapeCandidates";
 import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { useParty } from "@/composables/party/useParty";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
@@ -441,11 +441,6 @@ const filtered = computed(() => {
 
 // ── Wild Forms tab ───────────────────────────────────────────────────────────
 
-function isEligibleBeast(m: PlayerVisibleMonster): boolean {
-  if (!isDruid.value) return false;
-  return wildShapeFormCost(m, wildshapeRules.value) !== null;
-}
-
 // Pinned forms for the current party member (player view or DM preview)
 const pinnedFormMonsters = computed<FormEntry[]>(() => {
   return visiblePins.value.flatMap((pin) => {
@@ -462,14 +457,12 @@ const pinnedMonsterIds = computed(() => new Set(pinnedFormMonsters.value.map((e)
 // The ONE whole-list read on this view: the DM preview's "share all eligible"
 // has to see beasts nobody has met, so there are no ids to ask for. A player
 // never reaches it (enabled only in DM preview of a 2014 druid).
-const { data: everyMonster } = usePlayerVisibleMonsters({
-  enabled: () => ui.dmPreviewMode && isDruid.value && !is2024.value,
-});
+const { data: legalForms } = useWildShapeCandidates(() => wildshapeRules.value, () => ({
+  enabled: ui.dmPreviewMode && isDruid.value && !is2024.value,
+}));
 const unsharedEligibleBeasts = computed(() => {
   if (!isDruid.value) return [];
-  return everyMonster.value.filter(
-    (m) => isEligibleBeast(m) && !discoveredMonsterKeys.value.has(m.id),
-  );
+  return legalForms.value.filter((m) => !discoveredMonsterKeys.value.has(m.id));
 });
 
 const sharingBeasts = ref(false);

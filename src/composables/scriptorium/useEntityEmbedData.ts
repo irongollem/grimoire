@@ -37,11 +37,11 @@
 import { computed, type ComputedRef, type Ref } from "vue";
 import { useQueries, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { isUuid } from "@/lib/library/contentIdentity";
 import { formatEntityEmbedBodyHtml } from "@/lib/scriptorium/scriptoriumImport";
 import {
-  fetchLibraryMonsterArt,
+  fetchLibraryMonsterArtEntries,
   withLibraryArt,
-  LIBRARY_MONSTER_ART_QUERY_KEY,
   LIBRARY_MONSTER_ART_STALE_TIME,
 } from "@/composables/library/useLibraryMonsterArt";
 import { entityRefKey, type EntityRef, type EntityEmbedLookup } from "@/lib/scriptorium/entityEmbeds";
@@ -160,18 +160,17 @@ export function useEntityEmbedData(
   // The Bestiary's own fetch and key (useMonsters.ts), so the cache entry has
   // one shape whichever side fills it first.
   const monsters = useRowsById(monsterIds, RESOLVED_MONSTER_QUERY_KEY, fetchResolvedMonster);
-  // Shared query key/fetcher as useLibraryMonsterArt.ts, so this reads the
-  // SAME cache entry rather than re-fetching the art layers a second time —
-  // a DM viewing the Bestiary and previewing a book in the same session pays
-  // for this fetch once. Disabled when the document has no monster embeds at
-  // all, matching every other fetch here (useRowsById already skips its own
-  // query for an empty id list).
-  const hasMonsters = computed(() => monsterIds().length > 0);
+  // The art of just the embedded library monsters, under the same
+  // `library-monster-art/entries` key the by-id readers use, so an art write's
+  // prefix invalidation reaches it. A DM's own monster carries its art on its
+  // row, so only library ids (text, not uuid) are asked for. Disabled when
+  // there are none.
+  const libraryMonsterIds = computed(() => monsterIds().filter((id) => !isUuid(id)).sort());
   const libraryArt = useQuery({
-    queryKey: LIBRARY_MONSTER_ART_QUERY_KEY,
-    queryFn: fetchLibraryMonsterArt,
+    queryKey: computed(() => ["library-monster-art", "entries", libraryMonsterIds.value] as const),
+    queryFn: ({ queryKey: [, , ids] }) => fetchLibraryMonsterArtEntries(ids),
     staleTime: LIBRARY_MONSTER_ART_STALE_TIME,
-    enabled: hasMonsters,
+    enabled: () => libraryMonsterIds.value.length > 0,
   });
   const items = useRowsById(itemIdsFn, "items", fetchItemRow);
   const quests = useRowsById(questIdsFn, "quests", fetchQuestRow);

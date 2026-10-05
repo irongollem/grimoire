@@ -117,6 +117,14 @@ describe("useMonsterIndex", () => {
     ]);
   });
 
+  it('reads only the library half with sides: "library"', async () => {
+    mocks.rows.library_monsters = [entry("srd_wolf", "Wolf")];
+    const { data } = run(() => useMonsterIndex(() => ({ sides: "library" })));
+    await flushPromises();
+    expect(mocks.calls.map((c) => c.table)).toEqual(["library_monsters"]);
+    expect(data.value?.map((m) => m.id)).toEqual(["srd_wolf"]);
+  });
+
   it("sends nothing while disabled", async () => {
     const { data } = run(() => useMonsterIndex(() => ({ enabled: false })));
     await flushPromises();

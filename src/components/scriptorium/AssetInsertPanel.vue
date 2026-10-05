@@ -113,7 +113,7 @@ import { IconGenerate, IconLocation, IconMonster, IconParty } from '@/lib/icons'
 import type { Editor } from "@tiptap/core";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
-import { useSpells } from "@/composables/spells/useSpells";
+import { useSpellIndex } from "@/composables/spells/useSpellIndex";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
 import { SCHOOL_VAR, spellLevelLabel } from "@/types/spell.types";
@@ -166,7 +166,9 @@ const { data: npcs, isPending: npcsLoading } = useNpcs();
 // This tab lists the DM's own monsters only; the shared bestiary is not insertable here.
 const { data: monsterIndex, isLoading: monstersLoading } = useMonsterIndex();
 const monsters = computed(() => monsterIndex.value?.filter((m) => !m.is_shared));
-const { data: spells, isPending: spellsLoading } = useSpells();
+// Same for spells: the DM's own, from the slim index.
+const { data: spellIndex, isLoading: spellsLoading } = useSpellIndex();
+const spells = computed(() => spellIndex.value?.filter((s) => !s.is_shared));
 const { data: locations, isPending: locationsLoading } = useAllLocations();
 
 const tabsWithCount = computed(() =>

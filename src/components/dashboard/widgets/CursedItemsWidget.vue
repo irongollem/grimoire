@@ -55,7 +55,6 @@ import { RouterLink } from "vue-router";
 import { IconHide } from "@/lib/icons";
 import { useParty } from "@/composables/party/useParty";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
-import { useItems } from "@/composables/items/useItems";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { buildCursedItems } from "@/lib/dashboard/cursedItems";
@@ -66,7 +65,7 @@ import DashboardWidget from "../DashboardWidget.vue";
  * Cursed party loot the DM knows about and the players do not (#764).
  *
  * DM-private by construction, not by an extra check here: `usePartyInventory`
- * and `useItems` are the DM's own owner-scoped reads (the same ones
+ * and `useStoredItemRefs` are the DM's own owner-scoped reads (the same ones
  * `UnidentifiedWidget` and the Vault already use), never the gated
  * `usePlayerItemProjection`/`get_player_visible_items` projection the player
  * portal reads from. This widget only ever mounts on the DM dashboard
@@ -87,9 +86,8 @@ import DashboardWidget from "../DashboardWidget.vue";
  */
 const { data: inventory } = usePartyInventory();
 const { data: party } = useParty();
-// A carried curse stays one whatever the table's edition is now (#961).
-const { resolvable } = useItems();
-const { items } = useStoredItemRefs(() => (inventory.value ?? []).map(inventoryItemRef), resolvable);
+// A carried curse stays one whatever the table's edition is now (#961): read by id.
+const { items } = useStoredItemRefs(() => (inventory.value ?? []).map(inventoryItemRef));
 
 /**
  * `?? []` on all three is the same deliberate fold the template comment

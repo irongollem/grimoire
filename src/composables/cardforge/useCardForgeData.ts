@@ -1,15 +1,18 @@
 import { computed } from "vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
-import { useItems } from "@/composables/items/useItems";
-import { useAllSpells } from "@/composables/spells/useSpells";
+import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
+import { useItemIndex } from "@/composables/items/useItemIndex";
+import { useItemsByIds } from "@/composables/items/useItemsByIds";
+import { useSpellIndex } from "@/composables/spells/useSpellIndex";
+import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import { useCardForgeStore } from "@/stores/cardForge";
 import type { CardSubject } from "@/types/card.types";
 import type { Npc } from "@/types/npc.types";
-import type { Monster } from "@/types/monster.types";
-import type { Item } from "@/types/item.types";
+import type { MonsterIndexEntry } from "@/types/monster.types";
+import type { ItemIndexEntry } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
-import type { Spell } from "@/types/spell.types";
+import type { SpellIndexEntry } from "@/types/spell.types";
 import { spellLevelLabel } from "@/types/spell.types";
 import { DOWNTIME_ACTIVITIES, RISK_LABELS, getDowntimeActivity } from "@/data/downtimeActivities";
 import { DOWNTIME_SEEDS } from "@/data/downtimeSeeds";
@@ -24,9 +27,14 @@ export interface CardForgeListItem {
 export function useCardForgeData() {
   const store = useCardForgeStore();
   const { data: npcsData } = useNpcs();
-  const { data: monstersData } = useAllMonsters();
-  const { data: itemsData } = useItems();
-  const { data: spellsData } = useAllSpells();
+  // The browse list reads the slim index of the active source only; the cards to
+  // render or print read just the selected rows, by id.
+  const { data: monstersData } = useMonsterIndex(() => ({ enabled: store.source === "monsters" }));
+  const { data: itemsData } = useItemIndex(() => ({ enabled: store.source === "items" }));
+  const { data: spellsData } = useSpellIndex(() => ({ enabled: store.source === "spells" }));
+  const { data: selectedMonsters } = useMonstersByIds(() => [...store.selectedIds.monsters], { withArt: true });
+  const { data: selectedItems } = useItemsByIds(() => [...store.selectedIds.items]);
+  const { data: selectedSpells } = useSpellsByIds(() => [...store.selectedIds.spells]);
 
   const filteredList = computed<CardForgeListItem[]>(() => {
     const q = store.search.trim().toLowerCase();
@@ -47,15 +55,14 @@ export function useCardForgeData() {
     if (store.source === "monsters") {
       return (monstersData.value ?? [])
         .filter(
-          (m: Monster) =>
+          (m: MonsterIndexEntry) =>
             m.name.toLowerCase().includes(q) ||
-            m.monster_type.includes(q) ||
-            (m.habitat ?? "").toLowerCase().includes(q),
+            m.monster_type.includes(q),
         )
-        .map((m: Monster) => ({
+        .map((m: MonsterIndexEntry) => ({
           id: m.id,
           name: m.name,
-          sub: `${m.size} ${m.monster_type} · CR ${m.stat_block?.challenge_rating ?? "?"}`,
+          sub: `${m.size} ${m.monster_type} · CR ${m.challenge_rating ?? "?"}`,
         }));
     }
     if (store.source === "downtime") {
@@ -92,12 +99,12 @@ export function useCardForgeData() {
     if (store.source === "items") {
       return (itemsData.value ?? [])
         .filter(
-          (i: Item) =>
+          (i: ItemIndexEntry) =>
             i.name.toLowerCase().includes(q) ||
             (i.item_type ?? "").toLowerCase().includes(q) ||
             i.rarity.includes(q),
         )
-        .map((i: Item) => ({
+        .map((i: ItemIndexEntry) => ({
           id: i.id,
           name: i.name,
           sub: [
@@ -111,12 +118,12 @@ export function useCardForgeData() {
     }
     return (spellsData.value ?? [])
       .filter(
-        (s: Spell) =>
+        (s: SpellIndexEntry) =>
           s.name.toLowerCase().includes(q) ||
           s.school.includes(q) ||
           (s.classes ?? []).some((c: string) => c.toLowerCase().includes(q)),
       )
-      .map((s: Spell) => ({
+      .map((s: SpellIndexEntry) => ({
         id: s.id,
         name: s.name,
         sub: `${spellLevelLabel(s.level)} · ${s.school}`,
@@ -129,15 +136,18 @@ export function useCardForgeData() {
       ...(npcsData.value ?? [])
         .filter((n: Npc) => ids.npcs.has(n.id))
         .map((n: Npc) => ({ kind: "npc" as const, data: n })),
-      ...(monstersData.value ?? [])
-        .filter((m: Monster) => ids.monsters.has(m.id))
-        .map((m: Monster) => ({ kind: "monster" as const, data: m })),
-      ...(itemsData.value ?? [])
-        .filter((i: Item) => ids.items.has(i.id))
-        .map((i: Item) => ({ kind: "item" as const, data: i })),
-      ...(spellsData.value ?? [])
-        .filter((s: Spell) => ids.spells.has(s.id))
-        .map((s: Spell) => ({ kind: "spell" as const, data: s })),
+      ...[...ids.monsters].flatMap((id) => {
+        const m = selectedMonsters.value.get(id);
+        return m ? [{ kind: "monster" as const, data: m }] : [];
+      }),
+      ...[...ids.items].flatMap((id) => {
+        const i = selectedItems.value.get(id);
+        return i ? [{ kind: "item" as const, data: i }] : [];
+      }),
+      ...[...ids.spells].flatMap((id) => {
+        const s = selectedSpells.value.get(id);
+        return s ? [{ kind: "spell" as const, data: s }] : [];
+      }),
       // Activity cards are keyed by `key`, not `id` — see `cardSubjectId`.
       ...DOWNTIME_ACTIVITIES.filter((a: DowntimeActivity) =>
         ids.downtime.has(a.key),

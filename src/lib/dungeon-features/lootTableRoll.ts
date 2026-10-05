@@ -24,6 +24,9 @@ import type { Item } from "@/types/item.types";
 import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS } from "@/types/item.types";
 import type { LootEntry, LootTable } from "@/types/lootTable.types";
 
+/** What a roll reads from an item: the slim index entry satisfies it, a full row too. */
+export type LootPoolItem = Pick<Item, "id" | "name" | "image_url" | "rarity" | "item_type">;
+
 // ── Result types ──────────────────────────────────────────────────────────────
 
 interface RolledBase {
@@ -88,7 +91,7 @@ export function unresolvedReasonLabel(reason: UnresolvedReason): string {
 /** Roll the table once. `itemsById` snapshots Vault items for display. */
 export function rollLootTable(
   table: LootTable,
-  itemsById: Map<string, Item>,
+  itemsById: Map<string, LootPoolItem>,
 ): RolledLootEntry[] {
   const results: RolledLootEntry[] = [];
 

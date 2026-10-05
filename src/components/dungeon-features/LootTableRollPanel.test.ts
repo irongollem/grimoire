@@ -1,12 +1,16 @@
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { LootEntry, LootTable } from "@/types/lootTable.types";
-import type { Item } from "@/types/item.types";
+import type { LootPoolItem } from "@/lib/dungeon-features/lootTableRoll";
 import LootTableRollPanel from "./LootTableRollPanel.vue";
 
 const sendLootChest = vi.fn();
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({
   useCampaignMessages: () => ({ sendLootChest }),
+}));
+
+vi.mock("@/composables/items/useItemsByIds", () => ({
+  useItemsByIds: () => ({ data: { value: new Map() }, isLoading: { value: false } }),
 }));
 
 // LootTableDropDialog owns file upload + AppModal/Teleport plumbing that's
@@ -60,7 +64,7 @@ function mountPanel(props: Partial<InstanceType<typeof LootTableRollPanel>["$pro
   return mount(LootTableRollPanel, {
     props: {
       table: makeTable(),
-      itemsById: new Map<string, Item>(),
+      itemsById: new Map<string, LootPoolItem>(),
       entriesError: null,
       isNew: false,
       summaryDropPercent: 0,

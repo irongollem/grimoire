@@ -327,6 +327,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { mentionedLocationIds, parseSceneEntities, stripMentionTokens } from "@/ai/sceneEntities";
 import { useLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
+import { useMentionedMonsters } from "@/composables/monsters/useMentionedMonsters";
 import {
   generateMusicLocally,
   composeFallbackPrompt,
@@ -549,18 +550,20 @@ const shownGenerateError = computed(() => generateError.value || music.error.val
 // @-mentions in the description resolve against the same campaign entities
 // the Chronicler reads — their images go to Lyria, their descriptions go to
 // the structuring step (see aiMusic.ts's "Mentioned characters and places").
-const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems({ monsterRows: true });
+const { mentionItems, partyMembers, npcs, monsterIndex, locations, factions } = useEntityMentionItems();
 
 // The location list is slim (#972); a mentioned place's description is read
 // by id, only for the places the description actually names.
 const mentionedLocations = computed(() => mentionedLocationIds(generateDescription.value, locations.value ?? []));
 const { data: locationDescriptions } = useLocationDescriptions(mentionedLocations);
+// Likewise the monsters: the index has names only, so the mentioned ones are read by id.
+const mentionedMonsters = useMentionedMonsters(() => generateDescription.value, () => monsterIndex.value);
 
 const mentionedEntities = computed(() =>
   parseSceneEntities(generateDescription.value, {
     partyMembers: partyMembers.value,
     npcs: npcs.value,
-    monsters: monsters.value,
+    monsters: mentionedMonsters.value,
     locations: locations.value,
     locationDescriptions: locationDescriptions.value,
     factions: factions.value,

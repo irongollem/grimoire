@@ -55,13 +55,13 @@
                rather than re-invented as a seventh tone. -->
           <span
             class="shrink-0 rounded px-1.5 py-0.5 text-center text-label font-bold text-white"
-            :class="crBg(current.stat_block.challenge_rating)"
+            :class="crBg(current.challenge_rating)"
           >
-            {{ crLabel(current.stat_block.challenge_rating) }}
+            {{ crLabel(current.challenge_rating) }}
           </span>
         </div>
         <p class="text-caption text-muted-foreground capitalize italic">
-          {{ monsterIdentityLine(current) }}
+          {{ identityLine }}
         </p>
         <AppButton
           :to="`/monsters/${current.id}`"
@@ -117,7 +117,8 @@ import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { IconShuffle } from "@/lib/icons";
-import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { rollParsed } from "@/lib/dice/roller";
 import { capitalize } from "@/types/card.types";
 import { crBg, crLabel, monsterIdentityLine } from "@/lib/monsterDisplay";
@@ -129,13 +130,12 @@ import {
   type CrBandId,
   type MonsterPullTypeFilter,
 } from "@/lib/dashboard/monsterPull";
-import type { Monster } from "@/types/monster.types";
+import type { MonsterIndexEntry } from "@/types/monster.types";
 
-const { data: monstersData, isLoading } = useAllMonsters();
-// `useAllMonsters` already collapses "still loading" and "loaded, empty" to
-// the same `[]` internally (see its own computed) — `isLoading` above is the
-// signal this card actually needs to tell those two apart, not the data.
-const monsters = computed<Monster[]>(() => monstersData.value);
+const { data: monstersData, isLoading } = useMonsterIndex();
+// The index is undefined until a half has answered; `isLoading` is the signal
+// this card needs to tell "still loading" from "loaded, empty".
+const monsters = computed<MonsterIndexEntry[]>(() => monstersData.value ?? []);
 
 /** Defaults to "any": assuming a party level here would be a guess this
  *  widget has no data to back, and a DM who wants a narrower pull is one
@@ -147,7 +147,20 @@ const pool = computed(() =>
   filterMonstersForPull(monsters.value, { crBand: crBand.value, type: type.value }),
 );
 
-const current = ref<Monster | null>(null);
+const current = ref<MonsterIndexEntry | null>(null);
+
+// The index carries no alignment, so the pulled monster's identity line reads
+// that one row by id; the line shows size and type until it arrives.
+const { data: pulled } = useMonstersByIds(() => [current.value?.id]);
+const identityLine = computed(() =>
+  current.value
+    ? monsterIdentityLine({
+        size: current.value.size,
+        monster_type: current.value.monster_type,
+        alignment: pulled.value.get(current.value.id)?.alignment,
+      })
+    : "",
+);
 
 // A result belongs to the filter that produced it — narrowing the CR band or
 // type after a pull must not leave a CR 17 dragon sitting under "CR 0-4",

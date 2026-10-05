@@ -78,7 +78,7 @@
               @click="choose(m)"
             >
               <span class="text-caption font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
-              <span class="text-caption-sm text-muted-foreground shrink-0">CR {{ m.stat_block?.challenge_rating }}</span>
+              <span class="text-caption-sm text-muted-foreground shrink-0">CR {{ m.challenge_rating }}</span>
             </AppButton>
           </div>
         </div>
@@ -94,16 +94,14 @@ import AppInput from "@/components/common/AppInput.vue";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useToast } from "@/composables/useToast";
 import { drawerTransition } from "@/lib/motion";
-import { parseCr } from "@/lib/utils";
 import {
   forgetKnownForm,
   knownFormIds,
   learnKnownForm,
   replaceKnownForm,
-  wildShapeFormCost,
   type WildShapeRules,
 } from "@/rules/wildshape";
-import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { useWildShapeCandidates, type WildShapeCandidate } from "@/composables/monsters/useWildShapeCandidates";
 import type { PlayerVisibleMonster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -141,16 +139,12 @@ const search = ref("");
 
 // The one place a player surface needs every legal beast, so the whole-list
 // read waits until a picker is actually open (#972).
-const { data: everyMonster } = usePlayerVisibleMonsters({ enabled: () => picker.value !== null });
+const { data: legalForms } = useWildShapeCandidates(() => rules, () => ({ enabled: picker.value !== null }));
 
 const replacingName = computed(
   () => entries.value.find((e) => e.id === replacing.value)?.monster?.name ?? "this form",
 );
-const candidates = computed(() =>
-  everyMonster.value
-    .filter((m) => m.stat_block !== null && wildShapeFormCost(m, rules) !== null && !known.value.includes(m.id))
-    .sort((a, b) => parseCr(a.stat_block?.challenge_rating) - parseCr(b.stat_block?.challenge_rating)),
-);
+const candidates = computed(() => legalForms.value.filter((m) => !known.value.includes(m.id)));
 const shownCandidates = computed(() => {
   const q = search.value.trim().toLowerCase();
   return q ? candidates.value.filter((m) => m.name.toLowerCase().includes(q)) : candidates.value;
@@ -187,7 +181,7 @@ async function save(ids: string[], extra: Record<string, unknown> = {}) {
   }
 }
 
-async function choose(monster: PlayerVisibleMonster) {
+async function choose(monster: WildShapeCandidate) {
   if (picker.value === "replace" && replacing.value) {
     if (replaced.value) return;
     await save(replaceKnownForm(known.value, replacing.value, monster.id), { wild_shape_form_replaced: true });

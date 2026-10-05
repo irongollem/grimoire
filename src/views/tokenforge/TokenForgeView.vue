@@ -175,7 +175,8 @@ import type { TabItem } from "@/components/common/TabBar.vue";
 import { useParty } from "@/composables/party/useParty";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useMonsters } from "@/composables/monsters/useMonsters";
+import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
+import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { drawToken, renderMysteryBack, type TokenEntity } from "@/lib/tokenRenderer";
 import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import CoinFace from "@/components/mint/CoinFace.vue";
@@ -367,7 +368,10 @@ const { data: partyMembers } = useParty();
 // By id, not from the campaign-edition list: a character of the other edition keeps its species.
 const { data: speciesById } = useSpeciesByIds(() => (partyMembers.value ?? []).map((m) => m.species_id));
 const { data: npcs }         = useNpcs();
-const { data: allMonsters }  = useMonsters();
+// The Token Forge makes tokens for the DM's own monsters (a shared library
+// monster is read-only here), so the grid is the index's own rows.
+const { data: monsterIndex } = useMonsterIndex();
+const ownMonsters = computed(() => (monsterIndex.value ?? []).filter((m) => !m.is_shared));
 
 const partyEntities = computed<TokenEntity[]>(() =>
   (partyMembers.value ?? []).map((m) => ({
@@ -392,7 +396,7 @@ const npcEntities = computed<TokenEntity[]>(() =>
 );
 
 const monsterEntities = computed<TokenEntity[]>(() =>
-  (allMonsters.value ?? []).map((m) => ({
+  ownMonsters.value.map((m) => ({
     id:          m.id,
     name:        m.name,
     subtitle:    [m.size, m.monster_type].filter(Boolean).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" "),
@@ -418,7 +422,7 @@ const cutoutUrlById = computed(() => {
     const art = resolveTokenArt(npc);
     if (art) m.set(npc.id, art.tokenUrl);
   }
-  for (const monster of allMonsters.value ?? []) {
+  for (const monster of ownMonsters.value) {
     const art = resolveTokenArt(monster);
     if (art) m.set(monster.id, art.tokenUrl);
   }
@@ -493,9 +497,13 @@ const paintTarget = computed<TokenEntity | null>(() => {
   const entity = selected.value;
   if (!entity || sourceTab.value === "custom" || !activePainter.value.enabled.value) return null;
   if (entity.imageUrl || cutoutUrlById.value.has(entity.id)) return null;
-  if (sourceTab.value === "monster" && allMonsters.value?.find((m) => m.id === entity.id)?.is_shared) return null;
+  if (sourceTab.value === "monster" && monsterIndex.value?.find((m) => m.id === entity.id)?.is_shared) return null;
   return entity;
 });
+
+// Alignment, habitat and description are not in the index, so the paint
+// context reads the one selected monster's row.
+const { data: selectedMonster } = useMonstersByIds(() => [sourceTab.value === "monster" ? selected.value?.id : null]);
 
 function paintContext(id: string): string {
   if (sourceTab.value === "npc") {
@@ -503,7 +511,7 @@ function paintContext(id: string): string {
     return n ? npcImageContext(n) : "";
   }
   if (sourceTab.value === "monster") {
-    const m = allMonsters.value?.find((x) => x.id === id);
+    const m = selectedMonster.value.get(id);
     return m ? monsterImageContext(m) : "";
   }
   const p = partyMembers.value?.find((x) => x.id === id);

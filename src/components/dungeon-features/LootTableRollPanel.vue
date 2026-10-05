@@ -98,13 +98,14 @@ import {
   unresolvedReasonLabel,
   type RolledLootEntry,
   type RolledUnresolvedEntry,
+  type LootPoolItem,
 } from "@/lib/dungeon-features/lootTableRoll";
+import { useLootChestAtoms } from "@/composables/dungeon-features/useLootChestAtoms";
 import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import type { LootTable } from "@/types/lootTable.types";
-import type { Item } from "@/types/item.types";
-import type { LootChestAtom, LootChestMetadata } from "@/types/chat.types";
+import type { LootChestMetadata } from "@/types/chat.types";
 import AppButton from "@/components/common/AppButton.vue";
 import LootTableDropDialog from "./LootTableDropDialog.vue";
 
@@ -113,7 +114,7 @@ const { table, itemsById, entriesError, isNew, summaryDropPercent } = defineProp
    *  not-yet-created table (the "Drop chest in chat" affordance is hidden via
    *  `isNew` in that case, so rolling against an empty id never surfaces). */
   table: LootTable;
-  itemsById: Map<string, Item>;
+  itemsById: Map<string, LootPoolItem>;
   entriesError: string | null;
   isNew: boolean;
   summaryDropPercent: number;
@@ -154,35 +155,7 @@ function reroll() {
   rollClaims();
 }
 
-const dropPreviewAtoms = computed<LootChestAtom[]>(() => {
-  const atoms: LootChestAtom[] = [];
-  for (const r of dropPreview.value) {
-    if (r.type === "item") {
-      const item = itemsById.get(r.item_id);
-      for (let i = 0; i < r.qty; i++) {
-        atoms.push({
-          atom_id:        crypto.randomUUID(),
-          type:           "item",
-          item_id:        r.item_id,
-          item_name:      r.item_name,
-          item_image_url: r.item_image_url ?? null,
-          item_rarity:    item?.rarity ?? null,
-          item_is_container: item?.tags.includes("container") ?? false,
-        });
-      }
-    } else if (r.type === "currency") {
-      atoms.push({
-        atom_id:        crypto.randomUUID(),
-        type:           "currency",
-        currency_label: r.currency_label ?? null,
-        pp: r.pp, gp: r.gp, ep: r.ep, sp: r.sp, cp: r.cp,
-      });
-    }
-    // "unresolved" entries hit but produced no loot — surfaced separately (below),
-    // never turned into a claimable atom.
-  }
-  return atoms;
-});
+const { atoms: dropPreviewAtoms, isLoading: atomsLoading } = useLootChestAtoms(dropPreview);
 
 // Entries that hit but resolved to nothing — shown to the DM so they know the
 // chest under-delivers before dropping it (issue #487). Not persisted to the
@@ -192,7 +165,8 @@ const dropPreviewUnresolved = computed<RolledUnresolvedEntry[]>(() =>
 );
 
 const effectiveCap = computed<number | null>(() => {
-  if (claimsRolled.value === null) return null;
+  // Held back until the rolled items are read, so no container flag is written as false.
+  if (claimsRolled.value === null || atomsLoading.value) return null;
   return Math.min(claimsRolled.value, dropPreviewAtoms.value.length);
 });
 

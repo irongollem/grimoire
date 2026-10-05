@@ -47,10 +47,15 @@ function summarize(richText: string | null | undefined): string {
   return `${plain.slice(0, TEXT_DESCRIPTION_CHAR_CAP).trimEnd()}…`;
 }
 
+/** What a mentioned monster contributes: a name to match, lore for the model
+ *  and a picture. Read by id for the monsters the text names, never the whole
+ *  bestiary (`useMentionedMonsters`). */
+export type SceneMonster = Pick<Monster, "name" | "description" | "image_url">;
+
 export interface SceneEntitySources {
   partyMembers?: PartyMember[];
   npcs?: Npc[];
-  monsters?: Monster[];
+  monsters?: readonly SceneMonster[];
   locations?: LocationSummary[];
   /**
    * `description` by place id. The place list is slim and carries none (#972),
@@ -67,6 +72,15 @@ export interface SceneEntitySources {
 export function mentionedLocationIds(text: string, locations: readonly LocationSummary[]): string[] {
   const tokens = [...new Set([...text.matchAll(/@([A-Za-z][^\s,.'":;!?@]*)/g)].map((m) => m[1]))];
   return locations.filter((loc) => tokens.some((tok) => nameMatches(loc.name, tok))).map((loc) => loc.id);
+}
+
+/** Ids of the monsters an @mention in `text` can resolve to, to load their lore. */
+export function mentionedMonsterIds(
+  text: string,
+  monsters: readonly { id: string; name: string }[],
+): string[] {
+  const tokens = [...new Set([...text.matchAll(/@([A-Za-z][^\s,.'":;!?@]*)/g)].map((m) => m[1]))];
+  return monsters.filter((mon) => tokens.some((tok) => nameMatches(mon.name, tok))).map((mon) => mon.id);
 }
 
 export function parseSceneEntities(

@@ -227,7 +227,7 @@ const error             = ref("");
 
 const { confirm } = useConfirm();
 const { isGenerating, generate: generateChronicle } = useChroniclerTextGeneration();
-const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems({ monsterRows: true });
+const { mentionItems, partyMembers, npcs, monsterIndex, locations, factions } = useEntityMentionItems();
 const { data: notes } = useNotes();
 
 const campaign = useCampaignStore();
@@ -322,7 +322,7 @@ async function generate() {
       rawText: rawText.value,
       tone: tone.value,
       npcs: npcs.value,
-      monsters: monsters.value,
+      monsterIndex: monsterIndex.value,
       partyMembers: partyMembers.value,
       factions: factions.value,
       locations: locations.value,

@@ -108,6 +108,7 @@ import { IconGenerate } from '@/lib/icons';
 import { startChroniclerImage } from "@/ai/useChroniclerImageGeneration";
 import { mentionedLocationIds, parseSceneEntities } from "@/ai/sceneEntities";
 import { useLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
+import { useMentionedMonsters } from "@/composables/monsters/useMentionedMonsters";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
@@ -161,16 +162,17 @@ watch(() => props.visible, (v) => {
   }
 });
 
-const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems({ monsterRows: true });
+const { mentionItems, partyMembers, npcs, monsterIndex, locations, factions } = useEntityMentionItems();
 
 const mentionedLocations = computed(() => mentionedLocationIds(scenePrompt.value, locations.value ?? []));
 const { data: locationDescriptions } = useLocationDescriptions(mentionedLocations);
+const mentionedMonsters = useMentionedMonsters(() => scenePrompt.value, () => monsterIndex.value);
 
 const resolvedEntities = computed(() =>
   parseSceneEntities(scenePrompt.value, {
     partyMembers: partyMembers.value,
     npcs: npcs.value,
-    monsters: monsters.value,
+    monsters: mentionedMonsters.value,
     locations: locations.value,
     locationDescriptions: locationDescriptions.value,
     factions: factions.value,

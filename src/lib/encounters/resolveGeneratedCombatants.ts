@@ -1,5 +1,5 @@
 import type { CombatantDef } from "@/types/encounter.types";
-import type { Monster } from "@/types/monster.types";
+import type { MonsterIndexEntry } from "@/types/monster.types";
 import type { EncounterCombatantAiResult } from "@/ai/types";
 
 /**
@@ -14,10 +14,16 @@ import type { EncounterCombatantAiResult } from "@/ai/types";
  * silently dropped the moment the DM runs the encounter. Surfacing it as
  * "add manually" via `unmatched` is the honest option.
  */
+/** What the resolver reads of a monster: the slim index row, not the stat block. */
+export type ResolvableMonster = Pick<
+  MonsterIndexEntry,
+  "id" | "name" | "is_shared" | "challenge_rating" | "source" | "source_title"
+>;
+
 export interface GeneratedCombatantMatch {
   def: CombatantDef;
   /** The version `def.monster_id` points at. */
-  monster: Monster;
+  monster: ResolvableMonster;
   /** Every monster that tied at the winning match tier, in bestiary order.
    *  Length > 1 means the name was ambiguous (#601): the same creature exists
    *  in more than one enabled sourcebook — each with its own stat block,
@@ -26,7 +32,7 @@ export interface GeneratedCombatantMatch {
    *  which copy's CR the model budgeted against; the generator panel surfaces
    *  these as a version picker so the DM decides which stat block actually
    *  enters the encounter. */
-  candidates: Monster[];
+  candidates: ResolvableMonster[];
   /** Position of this entry in the AI result's combatants array. This is the
    *  ONLY identity that survives a re-resolve: the resolver runs inside a
    *  computed over the live Bestiary, so `def.id` is re-minted and matched
@@ -57,20 +63,20 @@ function normalizeMonsterName(name: string): string {
   return stripped.endsWith("s") ? stripped.slice(0, -1) : stripped;
 }
 
-function addToBucket(map: Map<string, Monster[]>, key: string, monster: Monster): void {
+function addToBucket(map: Map<string, ResolvableMonster[]>, key: string, monster: ResolvableMonster): void {
   const bucket = map.get(key);
   if (bucket) bucket.push(monster);
   else map.set(key, [monster]);
 }
 
 /** Among monsters tied at the same match tier, the DM's own homebrew
- *  (`user_id` a non-empty string) outranks a shared-library row
- *  (`user_id === ""`, per `useAllMonsters()`) — the DM's own creation should
+ *  (`is_shared` false) outranks a shared-library row
+ *  (`is_shared` true) — the DM's own creation should
  *  win over a library monster of the same name. Among equals, first in
  *  `monsters` wins; that ordering is preserved because each bucket is built
  *  by a single pass over `monsters`. */
-function pickBest(candidates: Monster[]): Monster {
-  return candidates.find((m) => m.user_id !== "") ?? candidates[0]!;
+function pickBest(candidates: ResolvableMonster[]): ResolvableMonster {
+  return candidates.find((m) => !m.is_shared) ?? candidates[0]!;
 }
 
 /** Clamps to the 1..20 range EncounterCombatants.vue's +/- control enforces.
@@ -81,7 +87,7 @@ function clampCount(count: number): number {
   return Math.min(MAX_COUNT, Math.max(MIN_COUNT, safe));
 }
 
-function buildDef(id: string, monster: Monster, role: string, count: number): CombatantDef {
+function buildDef(id: string, monster: ResolvableMonster, role: string, count: number): CombatantDef {
   return {
     id,
     monster_id: monster.id,
@@ -117,13 +123,13 @@ export function swapCombatantVersion(
 
 export function resolveGeneratedCombatants(
   aiCombatants: EncounterCombatantAiResult[],
-  monsters: Monster[],
+  monsters: ResolvableMonster[],
 ): ResolvedGeneratedCombatants {
   // Precompute all three lookup tiers once — the Bestiary can hold 3,500+
   // rows and this must not become an O(n) scan per AI entry.
-  const exactMap = new Map<string, Monster[]>();
-  const lowerMap = new Map<string, Monster[]>();
-  const normalizedMap = new Map<string, Monster[]>();
+  const exactMap = new Map<string, ResolvableMonster[]>();
+  const lowerMap = new Map<string, ResolvableMonster[]>();
+  const normalizedMap = new Map<string, ResolvableMonster[]>();
   for (const monster of monsters) {
     addToBucket(exactMap, monster.name, monster);
     addToBucket(lowerMap, monster.name.toLowerCase(), monster);

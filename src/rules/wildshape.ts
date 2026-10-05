@@ -194,10 +194,33 @@ const ELEMENTAL_FORMS = new Set(["air elemental", "earth elemental", "fire eleme
  * `Monster` still satisfies it, so every DM caller is unaffected.
  */
 export function wildShapeFormCost(monster: Pick<PlayerVisibleMonster, "name" | "monster_type" | "stat_block">, rules: WildShapeRules): number | null {
-  if (rules.elementalForms && ELEMENTAL_FORMS.has(monster.name.trim().toLowerCase())) return 2;
-  if ((monster.monster_type ?? "").toLowerCase() !== "beast") return null;
-  if (parseCr(monster.stat_block?.challenge_rating) > rules.maxCr) return null;
-  const speed = (monster.stat_block?.speed ?? "").toLowerCase();
+  return wildShapeCandidateCost(
+    {
+      name: monster.name,
+      monster_type: monster.monster_type,
+      challenge_rating: monster.stat_block?.challenge_rating,
+      speed: monster.stat_block?.speed,
+    },
+    rules,
+  );
+}
+
+/** The four fields eligibility reads, lifted out of the stat block. A monster
+ *  index row carries exactly these, so a picker can judge every beast in the
+ *  bestiary without downloading one stat block. */
+export interface WildShapeCandidateFields {
+  name: string;
+  monster_type: string | null | undefined;
+  challenge_rating: string | null | undefined;
+  speed: string | null | undefined;
+}
+
+/** {@link wildShapeFormCost} on the lifted fields; the one place the rule lives. */
+export function wildShapeCandidateCost(candidate: WildShapeCandidateFields, rules: WildShapeRules): number | null {
+  if (rules.elementalForms && ELEMENTAL_FORMS.has(candidate.name.trim().toLowerCase())) return 2;
+  if ((candidate.monster_type ?? "").toLowerCase() !== "beast") return null;
+  if (parseCr(candidate.challenge_rating) > rules.maxCr) return null;
+  const speed = (candidate.speed ?? "").toLowerCase();
   if (!rules.flyAllowed && speed.includes("fly")) return null;
   if (!rules.swimAllowed && speed.includes("swim")) return null;
   return 1;

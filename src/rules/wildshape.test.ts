@@ -6,6 +6,7 @@ import {
   knownFormIds,
   learnKnownForm,
   replaceKnownForm,
+  wildShapeCandidateCost,
   wildShapeFormCost,
   wildShapeRules,
   wildShapeRulesFor,
@@ -307,5 +308,29 @@ describe("wildShapeRulesFor", () => {
     );
     // Druid 3, Moon: CR 1, 3 x 3 temp HP, AC at least 13 + 3.
     expect(rules).toMatchObject({ maxCr: 1, tempHpOnShape: 9, acFloor: 16, maxUses: 2 });
+  });
+});
+
+describe("wildShapeCandidateCost", () => {
+  const candidate = (over: Partial<Parameters<typeof wildShapeCandidateCost>[0]> = {}) => ({
+    name: "Wolf", monster_type: "beast", challenge_rating: "1/4", speed: "40 ft.", ...over,
+  });
+
+  it("judges a beast from the lifted index fields exactly as the stat-block form does", () => {
+    const r2014 = rulesFor("2014", 8);
+    expect(wildShapeCandidateCost(candidate(), r2014)).toBe(1);
+    expect(wildShapeCandidateCost(candidate({ challenge_rating: "2" }), r2014)).toBeNull();
+    expect(wildShapeCandidateCost(candidate({ speed: "10 ft., fly 60 ft." }), rulesFor("2014", 4))).toBeNull();
+    expect(wildShapeCandidateCost(candidate({ speed: "0 ft., swim 40 ft." }), rulesFor("2014", 2))).toBeNull();
+    expect(wildShapeCandidateCost(candidate({ monster_type: "dragon" }), r2014)).toBeNull();
+  });
+
+  it("treats a missing rating or speed as 0 and no speed limit", () => {
+    expect(wildShapeCandidateCost(candidate({ challenge_rating: null, speed: null }), rulesFor("2014", 2))).toBe(1);
+  });
+
+  it("prices an elemental at 2 only under Elemental Wild Shape", () => {
+    const moon10 = rulesFor("2014", 10, true);
+    expect(wildShapeCandidateCost(candidate({ name: "Fire Elemental", monster_type: "elemental" }), moon10)).toBe(2);
   });
 });

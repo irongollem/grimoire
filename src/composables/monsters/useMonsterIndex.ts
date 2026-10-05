@@ -75,8 +75,13 @@ async function fetchCustomIndex(campaignId: string | null, ruleset: RulesetKey):
  *
  *  This is for choosing and for showing a name. A stored id (encounter combatant,
  *  companion, wild shape form) resolves through `useMonstersByIds`, which applies
- *  no scoping at all. */
-export function useMonsterIndex(getOptions?: () => { enabled?: boolean }): {
+ *  no scoping at all.
+ *
+ *  `sides: "library"` reads only the shared half. A player cannot read the
+ *  `monsters` table (owner-only RLS), so a player surface that lists the whole
+ *  bestiary takes the library half here and the custom monsters it may see from
+ *  the player projection instead. */
+export function useMonsterIndex(getOptions?: () => { enabled?: boolean; sides?: "both" | "library" }): {
   data: ComputedRef<MonsterIndexEntry[] | undefined>;
   isLoading: ComputedRef<boolean>;
 } {
@@ -98,7 +103,7 @@ export function useMonsterIndex(getOptions?: () => { enabled?: boolean }): {
   const customQuery = useQuery({
     queryKey: computed(() => [...CUSTOM_INDEX_KEY, activeCampaignId.value, ruleset.value] as const),
     queryFn: ({ queryKey: [, , campaignId, rs] }) => fetchCustomIndex(campaignId, rs),
-    enabled: () => isEnabled() && getCurrentUser() !== null,
+    enabled: () => isEnabled() && getOptions?.().sides !== "library" && getCurrentUser() !== null,
     staleTime: Infinity,
   });
 
