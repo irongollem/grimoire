@@ -12,6 +12,8 @@ import {
 import type { ConditionName } from "@/rules/conditions";
 import { applyDamage, displayTempHp as calcDisplayTempHp, formHpPools } from "@/rules/hitPoints";
 import { CONCENTRATION_BREAKING_CONDITIONS } from "@/composables/party/useConcentration";
+import { describeDamageOutcome } from "@/rules/dying";
+import { useToast } from "@/composables/useToast";
 import type { RunCombatant, RevealState } from "@/types/encounter.types";
 
 /**
@@ -25,6 +27,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
   const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
   const { rollConcentrationSave, endConcentration } = useConcentration();
   const { acFor } = useShieldAcBonus();
+  const toast = useToast();
 
   const partyMap = computed(
     () => new Map(partyList.value?.map((m) => [m.id, m]) ?? []),
@@ -175,9 +178,11 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     const memberBefore = c.party_member_id
       ? (partyList.value?.find((m) => m.id === c.party_member_id) ?? null)
       : null;
-    store.adjustHp(c.instance_id, -amt);
+    const outcome = store.adjustHp(c.instance_id, -amt);
     showFlash(-amt);
     quickAmount.value = null;
+    const message = describeDamageOutcome(c.name, amt, outcome);
+    if (message) toast.info(message);
     if (memberBefore?.concentration && amt > 0) {
       // A hit is still "taking damage" for the concentration-save prompt even
       // when temp HP fully absorbs it (5e RAW) — that check uses the raw
@@ -198,8 +203,13 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
   function quickHeal() {
     const amt = quickAmount.value;
     if (!amt) return;
-    store.adjustHp(combatant.value.instance_id, amt);
-    showFlash(amt);
+    const c = combatant.value;
+    const outcome = store.adjustHp(c.instance_id, amt);
+    if (outcome === "healing-refused-dead") {
+      toast.info(`${c.name} is dead. Healing cannot bring them back. Revive them from the party tracker.`);
+    } else {
+      showFlash(amt);
+    }
     quickAmount.value = null;
   }
 

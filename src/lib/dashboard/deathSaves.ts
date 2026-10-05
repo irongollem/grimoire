@@ -1,4 +1,5 @@
 import type { PartyMember } from "@/types/party.types";
+import { dyingStatus } from "@/rules/dying";
 
 /**
  * The "who is dying right now" reduction for the Death-Saves Alert (#764).
@@ -90,15 +91,24 @@ export function deriveDyingPartyMembers(members: readonly PartyMember[]): DyingP
     // and `=== 3` is false, so a dead one would never be marked dead. A
     // module that distrusts a type in one place and trusts it two lines
     // later is not defensive, it is inconsistent.
-    .filter(({ successes }) => successes !== 3)
+    // Stable and dead come from the shared `dyingStatus`, so this widget cannot
+    // disagree with the sheets. A missing count reads as "not stable, not dead".
     .map(({ member, successes, failures }) => ({
+      member,
+      successes,
+      failures,
+      // Counts the row does not carry leave the character "dying", never stable or dead.
+      status: successes !== null && failures !== null ? dyingStatus(member.current_hp, { successes, failures }) : "dying",
+    }))
+    .filter(({ status }) => status !== "stable")
+    .map(({ member, successes, failures, status }) => ({
       id: member.id,
       name: member.name,
       portraitUrl: member.portrait_url,
       portraitFocalPoint: member.portrait_focal_point ?? null,
       successes,
       failures,
-      isDead: failures === 3,
+      isDead: status === "dead",
     }))
     // Dead first (nothing outranks it), then by failures descending so the
     // closest-to-death living characters lead the rest of the list.

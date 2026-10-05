@@ -116,7 +116,7 @@
             <div v-if="tempHpBarPct > 0" class="h-full transition-all bg-tone-info" :style="{ width: `${tempHpBarPct}%` }" />
           </div>
         </div>
-        <div class="flex items-center gap-1">
+        <div class="flex flex-wrap items-center gap-1">
           <AppInput
             v-model.number="hpInput"
             type="number"
@@ -133,6 +133,8 @@
           <AppButton variant="tinted" size="xs" tone="danger" emphasis="soft" label="Damage" @click="applyDamage" />
           <AppButton variant="tinted" size="xs" tone="success" emphasis="soft" label="Heal" @click="applyHeal" />
           <AppButton variant="tinted" size="xs" tone="info" emphasis="soft" label="Temp" @click="applyTempHp" />
+          <!-- A hit on someone at 0 HP is a death save failure, two from a critical hit: it matters only here. -->
+          <AppCheckbox v-if="hitsDyingBody" v-model="criticalHit" size="sm" label-role="label" label="Critical hit" class="whitespace-nowrap" />
         </div>
         <span v-if="attackDisadvantage" class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20" title="Disadvantage on attack rolls">⚔ Dis</span>
         <span v-if="checkDisadvantage"  class="text-label text-ink-caution px-1.5 py-0.5 rounded bg-tone-caution/10 border border-tone-caution/20" title="Disadvantage on ability checks">✦ Dis</span>
@@ -240,7 +242,9 @@ import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { useClassHitDice } from "@/composables/party/useClassHitDice";
 import { useConcentration } from "@/composables/party/useConcentration";
-import { applyDamage as damagePools, applyHealing as healPools, betterTempHp, formHpPools } from "@/rules/hitPoints";
+import { betterTempHp, formHpPools } from "@/rules/hitPoints";
+import { damageOutcome, describeDamageOutcome, healingOutcome } from "@/rules/dying";
+import { useToast } from "@/composables/useToast";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   CONDITIONS,
@@ -263,6 +267,7 @@ import RestButtons from "@/components/player/RestButtons.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 
 const props = defineProps<{
@@ -483,13 +488,25 @@ const attackDisadvantage = computed(() => hasAttackDisadvantage(props.member.con
 const checkDisadvantage  = computed(() => hasCheckDisadvantage(props.member.conditions ?? [], ruleset.value));
 const exhaustionD20Penalty = computed(() => getExhaustionD20Penalty(props.member.conditions ?? [], ruleset.value));
 
+const toast = useToast();
+const criticalHit = ref(false);
+/** The critical-hit choice shows only for a character at 0 HP and not in a beast form. */
+const hitsDyingBody = computed(() => props.member.current_hp <= 0 && !props.wildshape);
+const dyingInput = computed(() => ({
+  pools: hpPools.value,
+  saves: { successes: props.member.death_save_successes, failures: props.member.death_save_failures },
+  conditions: props.member.conditions ?? [],
+}));
+
 async function applyDamage() {
   const dmg = takeHpAmount();
   if (dmg === null) return;
+  const critical = hitsDyingBody.value && criticalHit.value;
+  criticalHit.value = false;
 
-  // Temp HP absorbs first in either form, then the beast's HP — shared with the
-  // encounter runner so DM-side and player-side damage agree.
-  const out = damagePools(hpPools.value, dmg);
+  // Temp HP, beast form and own HP, then death at 0 HP: shared with the
+  // encounter runner and DM tracker so every side agrees.
+  const out = damageOutcome(dyingInput.value, { amount: dmg, critical });
   const update: PartyMemberUpdate = { current_hp: out.current_hp };
   if (out.temp_hp !== props.member.temp_hp) update.temp_hp = out.temp_hp;
   if (props.wildshape) {
@@ -497,11 +514,15 @@ async function applyDamage() {
     if (out.reverted) update.wildshape_state = null;
     else if (out.beast_hp !== null) update.wildshape_state = { ...props.wildshape, beast_hp: out.beast_hp };
   }
+  if (out.saves.successes !== props.member.death_save_successes) update.death_save_successes = out.saves.successes;
+  if (out.saves.failures !== props.member.death_save_failures) update.death_save_failures = out.saves.failures;
+  if (out.conditions.length !== (props.member.conditions ?? []).length) update.conditions = out.conditions;
   await updateMember({ id: props.member.id, update });
+  const message = describeDamageOutcome(props.member.name, dmg, out.outcome);
+  if (message) toast.info(message);
 
-  const newHp = out.current_hp;
   if (props.member.concentration) {
-    if (newHp === 0) {
+    if (out.current_hp === 0) {
       await endConcentration(props.member, { reason: "dropped to 0 HP" });
     } else {
       // Damage soaked by temp HP is still damage taken, so it still forces the
@@ -513,7 +534,11 @@ async function applyDamage() {
 async function applyHeal() {
   const val = takeHpAmount();
   if (val === null) return;
-  const out = healPools(hpPools.value, val);
+  const out = healingOutcome(dyingInput.value, val);
+  if (out.outcome === "healing-refused-dead") {
+    toast.info(`${props.member.name} is dead. Healing cannot bring them back. Only the DM can.`);
+    return;
+  }
   if (props.wildshape && out.beast_hp !== null) {
     await updateMember({ id: props.member.id, update: {
       wildshape_state: { ...props.wildshape, beast_hp: out.beast_hp },
@@ -521,11 +546,12 @@ async function applyHeal() {
     return;
   }
   const update: PartyMemberUpdate = { current_hp: out.current_hp };
-  // Any healing from 0 or below ends the dying condition (5e) — clear the
-  // death-save pips so a later drop to 0 starts fresh instead of with stale ones.
-  if (props.member.current_hp <= 0 && out.current_hp > 0) {
+  // Healing from 0 ends the dying condition (5e): clear the death saves and
+  // Unconscious so a later drop to 0 starts fresh.
+  if (out.outcome === "revived-by-healing") {
     update.death_save_successes = 0;
     update.death_save_failures = 0;
+    update.conditions = out.conditions;
   }
   await updateMember({ id: props.member.id, update });
 }

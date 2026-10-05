@@ -39,7 +39,15 @@
   </div>
 
   <!-- Death saves (shown only at 0 HP) -->
-  <div v-if="member.current_hp <= 0" class="basis-full mt-1 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+  <div v-if="status === 'dead'" class="basis-full mt-1 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3" role="status">
+    <p class="text-label-lg font-semibold text-destructive">Dead</p>
+    <p class="text-caption text-muted-foreground mt-1">{{ member.name }} has failed three death saves. Only your DM can bring them back.</p>
+  </div>
+  <div v-else-if="status === 'stable'" class="basis-full mt-1 rounded-lg border border-border bg-muted/30 px-4 py-3" role="status">
+    <p class="text-label-lg font-semibold text-foreground">Stable</p>
+    <p class="text-caption text-muted-foreground mt-1">{{ member.name }} is out cold at 0 HP but no longer rolling death saves. Any healing wakes them. Any damage makes them dying again.</p>
+  </div>
+  <div v-else-if="status === 'dying'" class="basis-full mt-1 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
     <p class="text-label-lg font-semibold text-destructive mb-3">Death Saving Throws</p>
     <!-- Wraps: on a phone the pips and the roll button do not fit one row, and
          the button was pushed past the card edge where a thumb could not reach
@@ -97,7 +105,8 @@ import {
 } from "@/rules/conditions";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import type { PartyMember } from "@/types/party.types";
+import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
+import { deathSaveRollOutcome, dyingStatus } from "@/rules/dying";
 
 const props = defineProps<{ member: PartyMember }>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
@@ -107,6 +116,13 @@ const { sendRoll } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
 const { ruleset } = useTableRuleset();
+
+const status = computed(() =>
+  dyingStatus(props.member.current_hp, {
+    successes: props.member.death_save_successes,
+    failures: props.member.death_save_failures,
+  }),
+);
 
 // ── Condition helpers ─────────────────────────────────────────────────────────
 
@@ -135,21 +151,20 @@ async function rollDeathSave() {
   const r = await promptRoll({ counts: { 20: 1 }, modifier: 0, label: "Death Save", silent: true });
   if (!r) return;
   const d = r.breakdown.find(b => !b.dropped)!.val;
-  let update: Partial<{ current_hp: number; death_save_successes: number; death_save_failures: number }>;
-  let outcome: string;
-
-  if (d === 20) {
-    update = { current_hp: 1, death_save_successes: 0, death_save_failures: 0 };
-    outcome = "Nat 20 · Back up at 1 HP";
-  } else if (d === 1) {
-    update = { death_save_failures: Math.min(3, props.member.death_save_failures + 2) };
-    outcome = "Nat 1 · 2 Failures";
-  } else if (d >= 10) {
-    update = { death_save_successes: Math.min(3, props.member.death_save_successes + 1) };
-    outcome = "Success";
-  } else {
-    update = { death_save_failures: Math.min(3, props.member.death_save_failures + 1) };
-    outcome = "Failure";
+  const rolled = deathSaveRollOutcome(
+    { successes: props.member.death_save_successes, failures: props.member.death_save_failures },
+    props.member.conditions ?? [],
+    d,
+  );
+  const outcome = rolled.label;
+  const update: PartyMemberUpdate = {
+    death_save_successes: rolled.saves.successes,
+    death_save_failures: rolled.saves.failures,
+  };
+  // A natural 20 brings them back up at 1 HP, awake.
+  if (rolled.current_hp !== null) {
+    update.current_hp = rolled.current_hp;
+    update.conditions = rolled.conditions;
   }
 
   await updateMember({ id: props.member.id, update });

@@ -8,6 +8,7 @@ import type { PartyMemberUpdate } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { applyDamage, applyHealing, betterTempHp, formHpPools } from "@/rules/hitPoints";
+import { damageOutcome, healingOutcome, UNCONSCIOUS, type DyingOutcome } from "@/rules/dying";
 import {
   rollInitiativeValue,
   rollAllInitiativeValues,
@@ -253,26 +254,77 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     persistPlayer(c, { wildshape_state: null });
   }
 
-  function adjustHp(instanceId: string, delta: number) {
+  /** A party member (not a companion or monster) is the only combatant that dies by the death-save rules. */
+  function usesDeathSaves(c: RunCombatant): boolean {
+    return c.type === "player" && !!c.party_member_id;
+  }
+
+  /** Adopt the result of a dying-rules calculation onto a player combatant. */
+  function adoptDying(c: RunCombatant, saves: { successes: number; failures: number }, conditions: string[]) {
+    c.death_saves = { ...saves };
+    c.conditions = conditions;
+  }
+
+  /** Returns the dying outcome for a player combatant (so the caller can say what happened), else null. */
+  function adjustHp(instanceId: string, delta: number, options?: { critical?: boolean }): DyingOutcome {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
+    if (!c) return null;
     const pools = formHpPools({ current_hp: c.hp, max_hp: c.max_hp, temp_hp: c.temp_hp ?? 0 }, c.wildshape);
+    let outcome: DyingOutcome = null;
+    let dyingPatch: PartyMemberUpdate = {};
     if (delta < 0) {
       // Temp HP absorbs first, then the beast form, then real HP (5e RAW).
-      const out = applyDamage(pools, -delta);
-      c.temp_hp = out.temp_hp || undefined;
-      c.hp = out.current_hp;
-      if (out.reverted) revertWildshape(instanceId); // clears c.wildshape
-      else if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
+      if (usesDeathSaves(c)) {
+        const out = damageOutcome(
+          { pools, saves: c.death_saves, conditions: c.conditions },
+          { amount: -delta, critical: options?.critical },
+        );
+        c.temp_hp = out.temp_hp || undefined;
+        c.hp = out.current_hp;
+        if (out.reverted) revertWildshape(instanceId);
+        else if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
+        dyingPatch = {
+          death_save_successes: out.saves.successes,
+          death_save_failures: out.saves.failures,
+          conditions: out.conditions,
+        };
+        adoptDying(c, out.saves, out.conditions);
+        outcome = out.outcome;
+      } else {
+        const out = applyDamage(pools, -delta);
+        c.temp_hp = out.temp_hp || undefined;
+        c.hp = out.current_hp;
+        if (out.reverted) revertWildshape(instanceId); // clears c.wildshape
+        else if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
+      }
+    } else if (usesDeathSaves(c)) {
+      const out = healingOutcome({ pools, saves: c.death_saves, conditions: c.conditions }, delta);
+      outcome = out.outcome;
+      if (out.outcome !== "healing-refused-dead") {
+        c.hp = out.current_hp;
+        if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
+        dyingPatch = {
+          death_save_successes: out.saves.successes,
+          death_save_failures: out.saves.failures,
+          conditions: out.conditions,
+        };
+        adoptDying(c, out.saves, out.conditions);
+      }
     } else {
       const out = applyHealing(pools, delta);
       c.hp = out.current_hp;
       if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
     }
     if (c.type === "player") {
-      persistPlayer(c, { current_hp: c.hp, temp_hp: c.temp_hp ?? 0, wildshape_state: c.wildshape ?? null });
+      persistPlayer(c, {
+        current_hp: c.hp,
+        temp_hp: c.temp_hp ?? 0,
+        wildshape_state: c.wildshape ?? null,
+        ...dyingPatch,
+      });
     }
     checkEvents();
+    return outcome;
   }
 
   function setTempHp(instanceId: string, value: number) {
@@ -311,14 +363,25 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
       c.wildshape.beast_hp = Math.min(c.wildshape.beast_max_hp, Math.max(0, value));
       if (c.wildshape.beast_hp === 0) c.wildshape = undefined;
     } else {
+      // Healing from 0 ends the dying state, wherever it was done.
+      if (c.hp <= 0 && value > 0) c.death_saves = { successes: 0, failures: 0 };
       c.hp = Math.min(c.max_hp, Math.max(0, value));
     }
     checkEvents();
   }
 
+  /** Adopt death saves rolled outside the runner (the player's own sheet), without writing back. */
+  function ingestDeathSaves(instanceId: string, saves: { successes: number; failures: number }) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    c.death_saves = { ...saves };
+  }
+
   function setHp(instanceId: string, value: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
+    const before = c.hp;
+    let dyingPatch: PartyMemberUpdate = {};
     if (c.wildshape && c.wildshape.beast_max_hp !== null) {
       c.wildshape.beast_hp = Math.min(c.wildshape.beast_max_hp, Math.max(0, value));
       if (c.wildshape.beast_hp === 0) revertWildshape(instanceId);
@@ -326,8 +389,21 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
       c.hp = Math.min(c.max_hp, Math.max(0, value));
       // A 2024 form ends when the character themself reaches 0.
       if (c.wildshape && c.hp === 0) revertWildshape(instanceId);
+      if (usesDeathSaves(c)) {
+        // The DM setting HP directly still follows the rules: reaching 0 puts the
+        // character down, and any HP above 0 stands them up with clean saves.
+        if (c.hp <= 0 && before > 0) {
+          const conditions = c.conditions.includes(UNCONSCIOUS) ? c.conditions : [...c.conditions, UNCONSCIOUS];
+          adoptDying(c, { successes: 0, failures: 0 }, conditions);
+          dyingPatch = { death_save_successes: 0, death_save_failures: 0, conditions };
+        } else if (c.hp > 0 && before <= 0) {
+          const conditions = c.conditions.filter((x) => x !== UNCONSCIOUS);
+          adoptDying(c, { successes: 0, failures: 0 }, conditions);
+          dyingPatch = { death_save_successes: 0, death_save_failures: 0, conditions };
+        }
+      }
     }
-    persistPlayer(c, { current_hp: c.hp, wildshape_state: c.wildshape ?? null });
+    persistPlayer(c, { current_hp: c.hp, wildshape_state: c.wildshape ?? null, ...dyingPatch });
     checkEvents();
   }
 
@@ -675,6 +751,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setTempHp,
     ingestTempHp,
     ingestHp,
+    ingestDeathSaves,
     toggleCondition,
     setConditions,
     ingestConditions,

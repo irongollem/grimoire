@@ -166,6 +166,8 @@
               emphasis="soft"
               @click="addTemp"
             />
+            <!-- Damage to someone at 0 HP is a death save failure, two from a critical hit. -->
+            <AppCheckbox v-if="hitsDyingBody" v-model="criticalHit" size="sm" label-role="label" label="Critical hit" />
           </div>
         </div>
 
@@ -272,6 +274,9 @@ import { useRouter } from "vue-router";
 import { IconGenerate, IconLocation, IconReveal, IconScrollText } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import { useToast } from "@/composables/useToast";
+import { damageOutcome, describeDamageOutcome, healingOutcome } from "@/rules/dying";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
@@ -291,7 +296,7 @@ import { walkingSpeed } from "@/lib/movement";
 import CompanionCard from "./CompanionCard.vue";
 import PartyConditionsPanel from "./PartyConditionsPanel.vue";
 import PartyDeathSaves from "./PartyDeathSaves.vue";
-import { applyDamage, applyHealing, betterTempHp, formHpPools } from "@/rules/hitPoints";
+import { betterTempHp, formHpPools } from "@/rules/hitPoints";
 import type { PartyMember, PartyMemberUpdate, SkillProficiencies, SkillProfLevel } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
@@ -379,25 +384,46 @@ const displayMaxHp = computed(() => member.wildshape_state?.beast_max_hp ?? memb
  *  wildshaped druid takes damage on the beast's HP here too, not their own. */
 const hpPools = computed(() => formHpPools(member, member.wildshape_state));
 
+const toast = useToast();
+const criticalHit = ref(false);
+/** The critical-hit choice shows only for a character at 0 HP and not in a beast form. */
+const hitsDyingBody = computed(() => member.current_hp <= 0 && !member.wildshape_state);
+const dyingInput = computed(() => ({
+  pools: hpPools.value,
+  saves: { successes: member.death_save_successes, failures: member.death_save_failures },
+  conditions: member.conditions ?? [],
+}));
+
 async function dealDamage() {
   const amount = getHpAmount();
   if (!amount) return;
-  // Floor at -max_hp so overkill stays visible for the instant-death rule.
-  const out = applyDamage(hpPools.value, amount, -member.max_hp);
+  const critical = hitsDyingBody.value && criticalHit.value;
+  const out = damageOutcome(dyingInput.value, { amount, critical });
   const update: PartyMemberUpdate = { current_hp: out.current_hp, temp_hp: out.temp_hp };
   if (member.wildshape_state) {
     // A 2024 form has no beast pool: it stays until the character drops to 0.
     if (out.reverted) update.wildshape_state = null;
     else if (out.beast_hp !== null) update.wildshape_state = { ...member.wildshape_state, beast_hp: out.beast_hp };
   }
+  if (out.saves.successes !== member.death_save_successes) update.death_save_successes = out.saves.successes;
+  if (out.saves.failures !== member.death_save_failures) update.death_save_failures = out.saves.failures;
+  if (out.conditions.length !== (member.conditions ?? []).length) update.conditions = out.conditions;
   await updateMember({ id: member.id, update });
   hpInput.value = 0;
+  criticalHit.value = false;
+  const message = describeDamageOutcome(member.name, amount, out.outcome);
+  if (message) toast.info(message);
 }
 
 async function heal() {
   const amount = getHpAmount();
   if (!amount) return;
-  const out = applyHealing(hpPools.value, amount);
+  const out = healingOutcome(dyingInput.value, amount);
+  if (out.outcome === "healing-refused-dead") {
+    toast.info(`${member.name} is dead. Healing cannot bring them back. Use Revive.`);
+    hpInput.value = 0;
+    return;
+  }
   if (member.wildshape_state && out.beast_hp !== null) {
     await updateMember({ id: member.id, update: {
       wildshape_state: { ...member.wildshape_state, beast_hp: out.beast_hp },
@@ -405,7 +431,14 @@ async function heal() {
     hpInput.value = 0;
     return;
   }
-  await updateMember({ id: member.id, update: { current_hp: out.current_hp, death_save_successes: 0, death_save_failures: 0 } });
+  const update: PartyMemberUpdate = { current_hp: out.current_hp };
+  // Only healing from 0 ends the dying state; healing a standing character leaves the saves alone.
+  if (out.outcome === "revived-by-healing") {
+    update.death_save_successes = 0;
+    update.death_save_failures = 0;
+    update.conditions = out.conditions;
+  }
+  await updateMember({ id: member.id, update });
   hpInput.value = 0;
 }
 
