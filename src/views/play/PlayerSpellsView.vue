@@ -52,7 +52,7 @@
       >
         {{ tab.label }}
         <span
-          v-if="tab.count != null && tab.count > 0"
+          v-if="tab.count != null && (tab.count > 0 || tab.max != null)"
           class="ml-1.5 px-1.5 py-0.5 rounded-full text-2xs"
           :class="[
             activeTab === tab.id ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground',
@@ -194,6 +194,7 @@ import { useUiStore } from "@/stores/ui";
 import { fetchSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
 import { useAssignCharacterSpellSource, useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
+import { countPreparedAgainstLimit } from "@/rules/preparedSpellCount";
 import SpellList from "@/components/spells/SpellList.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
 import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
@@ -440,7 +441,6 @@ function assignLegacySource(id: string, sourceClassId: string) {
 const classSpells  = computed(() => (characterSpells.value ?? []).filter(cs => !cs.source_type || cs.source_type === "class"));
 const innateSpells = computed(() => (characterSpellsDetails.value ?? []).filter(cs => cs.source_type && cs.source_type !== "class"));
 
-const preparedSpellIds = computed(() => classSpells.value.filter((cs) => cs.is_prepared).map((cs) => cs.spell_id));
 const browseClassSpells = computed(() => classSpells.value.filter((spell) => {
   if (browseSourceClassId.value) return spell.source_class_id === browseSourceClassId.value;
   // Legacy class spells predate source_class_id; associate them with the
@@ -462,7 +462,10 @@ const browsePreparedSpellCount = computed(() => browseClassSpellDetails.value.fi
 // Cantrips and spells are separate pools — spells_known table never includes cantrips
 const knownCount    = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell?.level > 0).length);
 const cantripCount  = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell?.level === 0).length);
-const preparedCount = computed(() => preparedSpellIds.value.length);
+// Same definition as the banner inside the Prepared tab: spells counted against the limit.
+const preparedCount = computed(() => countPreparedAgainstLimit(
+  (characterSpellsDetails.value ?? []).filter(cs => !cs.source_type || cs.source_type === "class"),
+));
 const innateCount   = computed(() => innateSpells.value.length);
 const maxKnown      = computed(() => {
   const m = member.value;
@@ -504,13 +507,13 @@ const tabs = computed(() => {
   const cls  = memberClass.value;
 
   if (type === "spellbook") return [
-    { id: "prepared" as TabId,  label: "Prepared",  count: preparedCount.value, max: null, cantrips: null, maxCantrips: null },
+    { id: "prepared" as TabId,  label: "Prepared",  count: preparedCount.value, max: maxPrepared.value, cantrips: null, maxCantrips: null },
     { id: "spellbook" as TabId, label: "Spellbook", count: knownCount.value,    max: null, cantrips: null, maxCantrips: null },
     innateTab.value,
     { id: "browse" as TabId,    label: "All Spells", count: null,               max: null, cantrips: null, maxCantrips: null },
   ];
   if (type === "prepared") return [
-    { id: "prepared" as TabId, label: "Prepared",           count: preparedCount.value, max: null, cantrips: null, maxCantrips: null },
+    { id: "prepared" as TabId, label: "Prepared",           count: preparedCount.value, max: maxPrepared.value, cantrips: null, maxCantrips: null },
     innateTab.value,
     { id: "browse" as TabId,   label: allSpellsLabel.value, count: null,               max: null, cantrips: null, maxCantrips: null },
   ];

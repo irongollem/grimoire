@@ -27,6 +27,7 @@
           <div class="flex flex-col items-center">
             <span>{{ SLOT_LEVEL_LABELS[slot.level - 1] }}</span>
             <span class="text-caption-sm font-normal opacity-70">{{ poolLabel(slot) }}</span>
+            <span class="text-caption-sm font-normal opacity-70">{{ slot.max - slot.used }} of {{ slot.max }} left</span>
             <span v-if="scaledDiceLabel(slot.level)" class="text-caption-sm font-normal mt-0.5 opacity-80">
               {{ scaledDiceLabel(slot.level) }}
             </span>

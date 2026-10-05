@@ -1,5 +1,22 @@
 <template>
   <div>
+    <PlayerSpellSlotStrip
+      v-if="partyMemberId && casterType !== 'none'"
+      :spell-slots="props.spellSlots"
+      @set-used="setSlotUsed"
+    />
+
+    <!-- Prepared count against the limit: shown from the start, even with nothing prepared -->
+    <div
+      v-if="partyMemberId && casterType !== 'none' && showPreparedCounter"
+      class="mb-2 flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2"
+    >
+      <span class="text-label-lg text-muted-foreground">Spells prepared</span>
+      <span class="text-heading-sm font-bold" :class="preparedCounterClass">
+        {{ preparedNonCantrips }} / {{ maxPrepared }}
+      </span>
+    </div>
+
     <!-- No character selected -->
     <div v-if="!partyMemberId" class="rounded-lg border border-border bg-card px-5 py-8 text-center">
       <p class="text-body text-muted-foreground italic">No character selected.</p>
@@ -30,17 +47,6 @@
         Replacing <strong>{{ replacementCandidate.spell.name }}</strong>. Choose its replacement in All Spells.
         <button class="ml-2 text-ink-arcane underline" type="button" @click="clearReplacement">Cancel</button>
       </div>
-      <!-- Prepared count vs. max banner (Wizard prepared tab) -->
-      <div
-        v-if="showPreparedCounter"
-        class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2 mb-2"
-      >
-        <span class="text-label-lg text-muted-foreground">Spells Prepared</span>
-        <span class="text-heading-sm font-bold" :class="preparedCounterClass">
-          {{ preparedNonCantrips }} / {{ maxPrepared }}
-        </span>
-      </div>
-
       <div v-for="group in levelGroups" :key="group.level" class="mb-2">
         <!-- Level header (accordion toggle) -->
         <AppButton
@@ -63,35 +69,6 @@
             {{ group.level === 0 ? "Cantrips" : SLOT_LEVEL_LABELS[group.level - 1] + " Level" }}
           </span>
 
-          <!-- Slot pips for this level -->
-          <template v-for="slot in slotsForLevel(group.level)" :key="spellSlotKey(slot)">
-            <div class="flex items-center gap-0.5 ml-1" @click.stop>
-              <span v-if="slotPool(slot) !== 'spellcasting'" class="text-label text-ink-arcane">
-                {{ slotPool(slot) === 'pact' ? 'PACT' : slotPool(slot) === 'temporary' ? 'CREATED' : 'FEATURE' }}
-              </span>
-              <!--
-                Stays native: a spell-slot pip is 14px with a 2px border, and the
-                smallest icon size is 24px with a 1px one. Converting bumps it 71%
-                and thins the ring, which on a nine-level slot table is a visible
-                layout change, not a normalization. This is the documented
-                "icon-only sizes below icon-xs" gap, not an oversight.
-              -->
-              <button
-                v-for="pip in slot.max"
-                :key="pip"
-                class="h-3.5 w-3.5 rounded-full border-2 transition-colors"
-                :class="pip <= slot.used
-                  ? 'bg-primary border-primary'
-                  : 'border-muted-foreground/40 hover:border-primary/60'"
-                :title="pip <= slot.used ? 'Recover slot' : 'Spend slot'"
-                @click="togglePip(slot, pip)"
-              />
-            </div>
-            <span class="text-label text-muted-foreground">
-              {{ slot.max - slot.used }}/{{ slot.max }}
-            </span>
-          </template>
-
           <!-- Spell count badge -->
           <span class="ml-auto text-label text-muted-foreground">
             {{ group.entries.length }}
@@ -106,8 +83,9 @@
           <div
             v-for="entry in group.entries"
             :key="entry.id"
-            class="group flex items-center gap-2 px-3 py-2.5 hover:bg-muted/30 transition-colors"
+            class="group flex flex-col gap-1.5 px-3 py-2.5 hover:bg-muted/30 transition-colors"
           >
+            <div class="flex items-center gap-2">
             <!-- School colour dot -->
             <div
               class="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -119,26 +97,88 @@
               variant="ghost"
               tone="primary"
               size="inline"
-              class="flex-1 min-w-0 justify-start truncate text-body text-foreground"
-              @click.stop="selectedSpell = entry.spell"
+              class="flex-1 min-w-32 justify-start truncate text-body text-foreground"
+              @click.stop="selectedEntry = entry"
             >{{ entry.spell.name }}</AppButton>
 
+            <!-- Cast button (castable spells) -->
+            <AppButton
+              v-if="isCastable(entry)"
+              variant="tinted"
+              tone="primary"
+              emphasis="soft"
+              size="sm"
+              class="max-md:min-h-11"
+              :icon="IconWand"
+              label="Cast"
+              :disabled="isCasting || !slotAvailable(entry.spell.level)"
+              :tooltip="castButtonTitle(entry)"
+              @click="startCast(entry)"
+            />
+
+            <AppButton
+              v-if="isRitualCastable(entry)"
+              variant="tinted"
+              tone="arcane"
+              emphasis="soft"
+              size="xs"
+              :disabled="isCasting"
+              tooltip="Cast as a ritual: takes 10 minutes longer and spends no spell slot"
+              label="Ritual"
+              @click="castRitual(entry)"
+            />
+
+            <!-- Prepare toggle (Wizard spellbook tab). Granted spells are locked. -->
+            <AppButton
+              v-if="showPrepareToggle && entry.spell.level > 0 && !entry.always_prepared"
+              :variant="entry.is_prepared ? 'tinted' : 'subtle'"
+              tone="primary"
+              size="sm"
+              class="max-md:min-h-11"
+              :icon="entry.is_prepared ? IconFire : IconCircle"
+              :label="entry.is_prepared ? 'Prepared' : 'Prepare'"
+              :disabled="isToggling"
+              :tooltip="entry.is_prepared ? 'Unprepare' : 'Prepare'"
+              @click="togglePrepare(entry)"
+            />
+
+            <!-- Cantrip always-prepared badge (Wizard spellbook only) -->
+            <span
+              v-else-if="showPrepareToggle && entry.spell.level === 0"
+              class="shrink-0 text-label text-ink-success/70 border border-tone-success/20 rounded px-2 py-0.5"
+            >Always ready</span>
+
+            <!-- Remove button — hidden for subclass-granted spells (locked) -->
+            <AppButton
+              v-if="!entry.always_prepared"
+              variant="ghost"
+              tone="danger"
+              size="icon-xs"
+              class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              :icon="IconClose"
+              :tooltip="removeTitle"
+              :disabled="isRemoving"
+              @click="handleRemove(entry)"
+            />
+            </div>
+            <!-- Badges and per-spell rolls, on their own line so the name never truncates for them -->
+            <div class="flex flex-wrap items-center gap-1.5 pl-[1.125rem] empty:hidden">
             <!-- Badges -->
             <span
               v-if="entry.spell.ritual"
-              class="shrink-0 text-eyebrow text-muted-foreground border border-border rounded px-1"
-            >R</span>
+              class="shrink-0 text-label text-muted-foreground border border-border rounded px-1.5"
+            >Ritual</span>
             <span
               v-if="entry.spell.concentration"
-              class="shrink-0 text-eyebrow text-primary/70 border border-primary/30 rounded px-1"
-            >C</span>
+              class="shrink-0 text-label text-primary/80 border border-primary/30 rounded px-1.5"
+            >Concentration</span>
 
             <!-- Subclass-granted (always prepared, doesn't count toward limit) -->
             <span
               v-if="entry.always_prepared"
               class="shrink-0 text-label text-ink-success/80 border border-tone-success/30 rounded px-2 py-0.5"
               title="Granted by your subclass: always prepared, doesn't count toward your prepared limit"
-            >Granted</span>
+            >Always prepared</span>
 
             <!-- Spell attack roll (multiclass-aware via source class) -->
             <AppButton
@@ -197,7 +237,7 @@
               :label="entry.spell.effects?.length ? 'Resolve' : 'Healing'"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellHealing(entry, lastCastLevel(entry))"
             />
-            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 text-label text-ink-caution" title="Imported mechanics have not been reviewed; resolve from the spell text">Manual</span>
+            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 text-label text-ink-caution" title="This spell's dice are not set up for auto-rolling; read the spell text and roll them yourself">Roll by hand</span>
 
             <AppSelect
               v-if="eligibleMetamagic(entry).length"
@@ -242,76 +282,29 @@
               </option>
             </AppSelect>
 
-            <!-- Cast button (castable spells) -->
-            <button
-              v-if="isCastable(entry)"
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label font-semibold transition-colors border"
-              :class="castButtonClass(entry)"
-              :disabled="isCasting"
-              :title="castButtonTitle(entry)"
-              @click="startCast(entry)"
-            >
-              <IconWand class="h-3 w-3" />
-              Cast
-            </button>
-
-            <AppButton
-              v-if="isRitualCastable(entry)"
-              variant="tinted"
-              tone="arcane"
-              emphasis="soft"
-              size="xs"
-              :disabled="isCasting"
-              tooltip="Cast as a ritual: takes 10 minutes longer and spends no spell slot"
-              label="Ritual"
-              @click="castRitual(entry)"
-            />
-
-            <!-- Prepare toggle (Wizard spellbook tab). Granted spells are locked. -->
-            <button
-              v-if="showPrepareToggle && entry.spell.level > 0 && !entry.always_prepared"
-              class="shrink-0 flex items-center gap-1 rounded px-2 py-0.5 text-label font-semibold transition-colors cursor-pointer border"
-              :class="entry.is_prepared
-                ? 'bg-primary/15 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30'
-                : 'bg-muted text-muted-foreground border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30'"
-              :disabled="isToggling"
-              :title="entry.is_prepared ? 'Unprepare' : 'Prepare'"
-              @click="togglePrepare(entry)"
-            >
-              <IconFire v-if="entry.is_prepared" class="h-3 w-3" />
-              <IconCircle v-else class="h-3 w-3" />
-              {{ entry.is_prepared ? "Prepared" : "Prepare" }}
-            </button>
-
-            <!-- Cantrip always-prepared badge (Wizard spellbook only) -->
-            <span
-              v-else-if="showPrepareToggle && entry.spell.level === 0"
-              class="shrink-0 text-label text-ink-success/70 border border-tone-success/20 rounded px-2 py-0.5"
-            >Always</span>
-
-            <!-- Remove button — hidden for subclass-granted spells (locked) -->
-            <AppButton
-              v-if="!entry.always_prepared"
-              variant="ghost"
-              tone="danger"
-              size="icon-xs"
-              class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-              :icon="IconClose"
-              :tooltip="removeTitle"
-              :disabled="isRemoving"
-              @click="handleRemove(entry)"
-            />
+            </div>
           </div>
         </div>
       </div>
 
-      <p class="text-caption text-muted-foreground italic text-center mt-2">
+      <!-- Not under the prepared counter: it counts what the limit counts, and a
+           second total that includes cantrips read as a contradiction (10 vs 9 / 10). -->
+      <p v-if="!showPreparedCounter" class="text-caption text-muted-foreground italic text-center mt-2">
         {{ footerText }}
       </p>
     </template>
 
     <!-- Spell detail modal -->
-    <PlayerSpellModal :spell="selectedSpell" @close="selectedSpell = null" />
+    <PlayerSpellModal
+      :spell="selectedEntry?.spell ?? null"
+      :can-cast="!!selectedEntry && isCastable(selectedEntry)"
+      :cast-disabled-reason="selectedEntry ? castBlockedReason(selectedEntry) : null"
+      :prepare-action="selectedEntry ? modalPrepareAction(selectedEntry) : null"
+      :busy="isCasting || isToggling"
+      @close="selectedEntry = null"
+      @cast="castFromModal"
+      @prepare="prepareFromModal"
+    />
   </div>
 
   <!-- Upcast slot picker -->
@@ -360,8 +353,10 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
+import PlayerSpellSlotStrip from "@/components/spells/PlayerSpellSlotStrip.vue";
 import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
+import { countPreparedAgainstLimit } from "@/rules/preparedSpellCount";
 import { availableSlotsForSpell, canCastWithSlot, spellSlotKey, slotPool, type SpellSlotPool } from "@/rules/spellSlots";
 import { useToast } from "@/composables/useToast";
 import { useRuleset } from "@/composables/rules/useRuleset";
@@ -432,21 +427,13 @@ const { ruleset } = useRuleset();
 const { candidate: replacementCandidate, choose: chooseReplacement, clear: clearReplacement } = useSpellReplacement();
 
 // ── Modal ──────────────────────────────────────────────────────────────────────
-const selectedSpell = ref<Spell | null>(null);
+const selectedEntry = ref<CharacterSpellEntry | null>(null);
 const pendingResolution = ref<{ spell: Spell; castLevel: number; modifier: number; metamagicNames: string[]; damageType: string | null } | null>(null);
 
 // ── Slot helpers ───────────────────────────────────────────────────────────────
-function slotsForLevel(level: number): SpellSlotEntry[] {
-  return props.spellSlots.filter((slot) => slot.level === level);
-}
-
-async function togglePip(target: SpellSlotEntry, pip: number) {
+async function setSlotUsed(target: SpellSlotEntry, used: number) {
   if (!props.partyMemberId) return;
-  const updated = props.spellSlots.map((s) => {
-    if (spellSlotKey(s) !== spellSlotKey(target)) return s;
-    const newUsed = s.used >= pip ? pip - 1 : pip;
-    return { ...s, used: newUsed };
-  });
+  const updated = props.spellSlots.map((s) => (spellSlotKey(s) === spellSlotKey(target) ? { ...s, used } : s));
   try {
     await updateMember({ id: props.partyMemberId, update: { spell_slots: updated } });
   } catch (error) {
@@ -631,14 +618,11 @@ function slotAvailable(level: number): boolean {
   return canCastWithSlot(level, props.spellSlots);
 }
 
-function castButtonClass(entry: CharacterSpellEntry): string {
-  if (entry.spell.level === 0) {
-    return "bg-muted/50 border-border text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30";
-  }
-  if (!slotAvailable(entry.spell.level)) {
-    return "bg-muted/30 border-border/50 text-muted-foreground/40 cursor-not-allowed";
-  }
-  return "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20";
+/** Why Cast is unavailable for this spell, in words the player can act on; null when it can be cast. */
+function castBlockedReason(entry: CharacterSpellEntry): string | null {
+  return slotAvailable(entry.spell.level)
+    ? null
+    : `No slot of level ${entry.spell.level} or higher is left. Tap a slot above to restore one after a rest.`;
 }
 
 function castButtonTitle(entry: CharacterSpellEntry): string {
@@ -651,6 +635,27 @@ function castButtonTitle(entry: CharacterSpellEntry): string {
 
 // ── Upcast picker ──────────────────────────────────────────────────────────────
 const pendingCastEntry = ref<CharacterSpellEntry | null>(null);
+
+function castFromModal() {
+  const entry = selectedEntry.value;
+  selectedEntry.value = null;
+  if (entry) startCast(entry);
+}
+
+/** Prepare or Unprepare for the detail modal; null where this tab cannot change it. */
+function modalPrepareAction(entry: CharacterSpellEntry): "prepare" | "unprepare" | null {
+  if (entry.spell.level === 0 || entry.always_prepared) return null;
+  if (showPrepareToggle.value) return entry.is_prepared ? "unprepare" : "prepare";
+  return props.viewMode === "prepared" ? "unprepare" : null;
+}
+
+function prepareFromModal() {
+  const entry = selectedEntry.value;
+  if (!entry) return;
+  selectedEntry.value = null;
+  if (showPrepareToggle.value) togglePrepare(entry);
+  else handleRemove(entry);
+}
 
 /** Decide whether to show the upcast picker or cast immediately. */
 function startCast(entry: CharacterSpellEntry) {
@@ -850,12 +855,12 @@ const emptyTitle = computed(() => {
 
 const emptyBody = computed(() => {
   if (props.viewMode === "prepared" && props.casterType === "spellbook")
-    return 'Open your Spellbook tab and click "Prepare" on the spells you want ready today.';
+    return 'Open your Spellbook tab and tap "Prepare" on the spells you want ready today.';
   if (props.viewMode === "prepared")
-    return `Browse "All ${props.memberClass} Spells" and click "Prepare" to add spells to today's list.`;
+    return `Browse "All ${props.memberClass} Spells" and tap "Prepare" to add spells to today's list.`;
   if (props.casterType === "spellbook")
-    return 'Browse "All Spells" and click "Add" to copy spells into your spellbook.';
-  return 'Browse "All Spells" and click "Learn" to add spells to your list.';
+    return 'Browse "All Spells" and tap "Add" to copy spells into your spellbook.';
+  return 'Browse "All Spells" and tap "Learn" to add spells to your list.';
 });
 
 // ── Remove ─────────────────────────────────────────────────────────────────────
@@ -896,9 +901,7 @@ function togglePrepare(entry: CharacterSpellEntry) {
 // ── Prepared counter ───────────────────────────────────────────────────────────
 // Always-prepared (oath/domain/subclass-granted) spells are prepared for free
 // and must NOT count against the prepared-spell limit.
-const preparedNonCantrips = computed(
-  () => displayedEntries.value.filter((e) => e.spell.level > 0 && e.is_prepared && !e.always_prepared).length,
-);
+const preparedNonCantrips = computed(() => countPreparedAgainstLimit(displayedEntries.value));
 const showPreparedCounter = computed(
   () => props.viewMode === "prepared" && props.maxPrepared !== null && props.maxPrepared !== undefined,
 );
