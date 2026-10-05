@@ -62,9 +62,9 @@ import type { BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope
  * join table's two columns ARE the membership, so either one failing drops
  * the row (rule 3).
  *
- * Four tables never travel with a copy, because they record what happened at
- * a table rather than what the table is: npc_pc_notes, npc_player_notes,
- * player_npc_ratings, npc_favors -- the same "never state or loot" line
+ * Three tables never travel with a copy, because they record what happened at
+ * a table rather than what the table is: npc_pc_notes, player_npc_ratings,
+ * npc_favors -- the same "never state or loot" line
  * cloneLevel.ts draws for a cloned level's rooms. faction_party_members never
  * travels either: a party belongs to a campaign, not to a copy of one.
  */

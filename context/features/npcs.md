@@ -580,6 +580,3 @@ AC, HP (dice expression string), Speed (string), STR/DEX/CON/INT/WIS/CHA, Challe
 
 `npc_id`, `party_member_id`, `relationship_type`, `notes` (Tiptap JSON) — one row per (NPC, party member) pair.
 
-### npc_player_notes (superseded, still present)
-
-`npc_id`, `user_id`, `notes`. The pre-`entity_notes` home of a player's NPC notes, missed by `20260730000006` when the companion and party-member equivalents were moved and dropped. Nothing in the app reads it any more (the widget uses `entity_notes`), so its rows are invisible. Production holds 8 rows, one non-blank (5 Oct 2026); moving that row into `entity_notes` and dropping the table waits on the maintainer's go-ahead, because the row belongs to a user account.

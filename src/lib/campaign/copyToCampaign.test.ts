@@ -942,7 +942,7 @@ describe("buildCopySetPlan", () => {
     const allTables = Object.values(JOIN_TABLES_FOR_ENTITY)
       .flat()
       .map((e) => e.table);
-    for (const playState of ["npc_pc_notes", "npc_player_notes", "player_npc_ratings", "npc_favors"]) {
+    for (const playState of ["npc_pc_notes", "player_npc_ratings", "npc_favors"]) {
       expect(allTables).not.toContain(playState as unknown as CopyJoinTable);
     }
   });
