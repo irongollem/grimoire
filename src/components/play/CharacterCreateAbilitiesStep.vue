@@ -67,7 +67,7 @@
           <template v-if="scoreMode === 'array'">Assign the standard array (15, 14, 13, 12, 10, 8) to your abilities.</template>
           <template v-else>4d6 drop lowest. Reroll until happy, then assign.</template>
         </p>
-        <AppButton v-if="scoreMode === 'roll'" variant="primary" size="sm" label="Reroll Pool" @click="rollAbilityScores" />
+        <AppButton v-if="scoreMode === 'roll'" variant="primary" size="sm" :label="scorePool.length === 0 ? 'Roll Ability Scores' : 'Reroll Pool'" @click="rollAbilityScores" />
       </div>
       <div class="flex items-center gap-1.5 flex-wrap rounded-md border border-border bg-card px-3 py-2">
         <span class="text-label text-muted-foreground mr-1">POOL</span>
@@ -76,7 +76,9 @@
           :class="Object.values(scoreAssignment).includes(idx)
             ? 'border-primary/30 bg-primary/10 text-primary/60 line-through'
             : 'border-border bg-muted/50 text-foreground'">{{ val }}</span>
-        <span v-if="scorePool.length === 0" class="text-caption text-muted-foreground italic">No pool loaded.</span>
+        <span v-if="scorePool.length === 0" class="text-caption text-muted-foreground italic">
+          {{ scoreMode === 'roll' ? 'Roll to fill the pool.' : 'No pool loaded.' }}
+        </span>
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div v-for="stat in ABILITY_STATS" :key="stat.key"
@@ -98,9 +100,11 @@
             class="text-label font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
           </span>
-          <span class="text-label-lg font-bold"
+          <span class="text-label-lg font-bold min-h-[1lh]"
             :class="totalMod(stat.key) >= 0 ? 'text-ink-success' : 'text-destructive'">
-            {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
+            <template v-if="scoreAssignment[stat.key] !== null">
+              {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
+            </template>
           </span>
         </div>
       </div>
@@ -336,9 +340,12 @@ function onPoolPick(abilityKey: AbilityKey, poolIdxStr: string) {
   f[abilityKey] = scorePool.value[idx] ?? 8;
 }
 
+// Each mode owns its pool: the array mode shows the standard array, the roll mode
+// starts empty until the player rolls, and the scores assigned under one mode are
+// not carried into another.
 function onScoreModeChange(mode: typeof SCORE_MODES[number]["id"]) {
+  if (mode === scoreMode.value) return;
   scoreMode.value = mode;
-  if (mode === "array" && scorePool.value.length === 0) resetPool(STANDARD_ARRAY);
-  if (mode === "roll" && scorePool.value.length === 0) rollAbilityScores();
+  resetPool(mode === "array" ? STANDARD_ARRAY : []);
 }
 </script>

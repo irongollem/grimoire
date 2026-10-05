@@ -69,6 +69,21 @@ export const SAVE_STATS = [
   { key: "cha" as SaveKey, label: "Charisma" },
 ];
 
+/**
+ * Class definitions store saving throws as full names ("Wisdom"); the sheet and
+ * every reader of `saving_throw_proficiencies` use the ability keys ("wis").
+ * Accepts either spelling, case-insensitively, and drops anything unknown.
+ */
+export function saveKeysFromNames(names: readonly string[]): SaveKey[] {
+  const keys: SaveKey[] = [];
+  for (const raw of names) {
+    const n = raw.trim().toLowerCase();
+    const hit = SAVE_STATS.find((s) => s.key === n || s.label.toLowerCase() === n);
+    if (hit && !keys.includes(hit.key)) keys.push(hit.key);
+  }
+  return keys;
+}
+
 export const PROF_LEVELS: { value: SkillProfLevel; label: string }[] = [
   { value: "none",       label: "–" },
   { value: "proficient", label: "P" },

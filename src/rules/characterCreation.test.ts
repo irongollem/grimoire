@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   roll4d6DropLowest,
   parseEquipmentList,
+  saveKeysFromNames,
   POINT_BUY_COSTS,
   POINT_BUY_TOTAL,
   STANDARD_ARRAY,
@@ -83,5 +84,14 @@ describe("point-buy cost table", () => {
 
   it("standard array has exactly 6 scores, matching the number of abilities", () => {
     expect(STANDARD_ARRAY).toHaveLength(6);
+  });
+});
+
+describe("saveKeysFromNames", () => {
+  it("maps class-definition full names to ability keys", () => {
+    expect(saveKeysFromNames(["Wisdom", "Charisma"])).toEqual(["wis", "cha"]);
+  });
+  it("is case-insensitive, accepts keys as-is, drops unknowns and duplicates", () => {
+    expect(saveKeysFromNames(["STRENGTH", "con", "Luck", "strength"])).toEqual(["str", "con"]);
   });
 });

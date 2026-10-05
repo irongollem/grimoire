@@ -30,7 +30,7 @@ import { abilityBonusesForChoice } from "@/rules/backgroundAsi";
 import {
   ABILITY_STATS, POINT_BUY_COSTS, POINT_BUY_TOTAL,
   type CharacterFormState, type AbilityKey, type AsiMode, type ScoreMode,
-  parseEquipmentList,
+  parseEquipmentList, saveKeysFromNames,
 } from "@/rules/characterCreation";
 import { useCharacterEquipmentSeeding, type VaultEntry } from "@/composables/party/useCharacterEquipmentSeeding";
 import { useCharacterBackgroundSelection } from "@/composables/party/useCharacterBackgroundSelection";
@@ -167,8 +167,13 @@ export function useCharacterCreationForm() {
   // no campaign) never appears in that campaign-scoped list, so an owner
   // editing their own unattached character falls back to myCharacters
   // (useCharacterPool), which RLS already scopes to rows the caller owns.
+  //
+  // Only the edit route has an existing member. `editMemberId` falls back to the
+  // account's linked party member, so without this guard a player who already has
+  // a character would open "Create Your Character" seeded from it (its level,
+  // scores and spell slots) instead of from a blank sheet.
   const existingMember = computed(() => {
-    if (!editMemberId.value) return null;
+    if (!isEditMode.value || !editMemberId.value) return null;
     return partyMembers.value?.find((m) => m.id === editMemberId.value)
       ?? myCharacters.value?.find((m) => m.id === editMemberId.value)
       ?? null;
@@ -466,7 +471,7 @@ export function useCharacterCreationForm() {
     f.class   = cls.class_name;
     f.subclass = "";
     if (cls?.saving_throws?.length) {
-      f.saving_throw_proficiencies = [...cls.saving_throws] as SaveKey[];
+      f.saving_throw_proficiencies = saveKeysFromNames(cls.saving_throws);
     }
     resetSlotsToDefault();
   }
@@ -536,6 +541,16 @@ export function useCharacterCreationForm() {
     saving.value = true;
 
     const isNew = !isEditMode.value;
+
+    // Creating folds racial/background bonuses and derived stats into `f` before
+    // the insert. The form is the Done card's source, so a failed save must put
+    // those fields back, or the retry would add the bonuses a second time.
+    const preSave = {
+      str: f.str, dex: f.dex, con: f.con, int: f.int, wis: f.wis, cha: f.cha,
+      level: f.level, proficiency_bonus: f.proficiency_bonus,
+      max_hp: f.max_hp, current_hp: f.current_hp, ac: f.ac, speed: f.speed,
+      initiative_bonus: f.initiative_bonus, hit_dice_remaining: f.hit_dice_remaining,
+    };
 
     if (isNew) {
       // ── Apply species ASI (standard = auto-apply structured bonuses; custom = distribute freely) ─
@@ -806,6 +821,7 @@ export function useCharacterCreationForm() {
         }));
       }
     } catch (e) {
+      if (isNew) Object.assign(f, preSave);
       // Surface the failure (incl. a rolled-back partial creation) to the user
       // instead of letting it become an unhandled rejection from the @click.
       const toast = useToast();

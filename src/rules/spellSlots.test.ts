@@ -121,3 +121,16 @@ describe("deriveEffectiveSpellSlots", () => {
   });
 });
 
+
+describe("a new level-1 caster", () => {
+  const clericTable = [[2, 0, 0, 0, 0, 0, 0, 0, 0], [3, 0, 0, 0, 0, 0, 0, 0, 0], [4, 2, 0, 0, 0, 0, 0, 0, 0]];
+  it("gets only the level-1 row of the class table, all unused", () => {
+    const slots = deriveEffectiveSpellSlots(
+      { spell_slots: null },
+      [{ class_name: "Cleric", levels: 1 }],
+      "2014",
+      () => ({ spell_slots: clericTable }),
+    );
+    expect(slots.map((s) => [s.level, s.max, s.used])).toEqual([[1, 2, 0]]);
+  });
+});

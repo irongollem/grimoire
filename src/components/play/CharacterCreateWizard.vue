@@ -6,13 +6,14 @@
       <h1 class="text-heading-lg font-bold text-foreground">
         {{ isEditMode ? 'Edit Character' : 'Create Your Character' }}
       </h1>
-      <div class="mt-3 flex items-center gap-1 overflow-x-auto pb-1">
+      <div ref="stepBar" class="mt-3 flex items-center gap-1 overflow-x-auto pb-1">
         <template v-for="(step, idx) in activeSteps" :key="step.id">
           <AppButton
             variant="ghost"
             size="xs"
             class="shrink-0"
             :active="wizardStep === idx"
+            :data-current-step="wizardStep === idx ? 'true' : undefined"
             :disabled="idx > wizardStep"
             :class="idx < wizardStep ? 'text-primary/70 hover:text-primary' : ''"
             @click="idx < wizardStep && (wizardStep = idx)"
@@ -75,10 +76,11 @@
 </template>
 
 <script setup lang="ts">
-import { inject, computed } from "vue";
+import { inject, computed, ref, watch, onMounted, nextTick } from "vue";
 import { CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
 import { editionStepBlocked } from "@/composables/party/characterCreationEdition";
 import { WIZARD_STEPS, WIZARD_STEPS_EDIT } from "@/rules/characterCreation";
+import { prefersReducedMotion } from "@/lib/motion";
 import AppButton from "@/components/common/AppButton.vue";
 import CharacterCreateEditionStep from "@/components/play/CharacterCreateEditionStep.vue";
 import CharacterCreateBasicsStep from "@/components/play/CharacterCreateBasicsStep.vue";
@@ -106,4 +108,19 @@ const nextBlocked = computed(() => {
   }
   return currentStepId.value === "basics" && !f.name.trim();
 });
+
+// The bar scrolls sideways on a phone, so the step the player is on has to be
+// brought into view whenever it changes, or from step 5 on it sits off-screen.
+const stepBar = ref<HTMLElement | null>(null);
+async function revealCurrentStep() {
+  await nextTick();
+  const el = stepBar.value?.querySelector<HTMLElement>("[data-current-step='true']");
+  el?.scrollIntoView?.({
+    inline: "center",
+    block: "nearest",
+    behavior: prefersReducedMotion() ? "auto" : "smooth",
+  });
+}
+watch(wizardStep, revealCurrentStep);
+onMounted(revealCurrentStep);
 </script>
