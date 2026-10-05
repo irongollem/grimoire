@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 import { SYNC_TABLES, SIGNAL_KEYS, QUEST_RUNTIME_SYNC_KEYS } from "./useCampaignLiveSync";
 import { BEATS_KEY, QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
+import { PLAYER_NPCS_KEY } from "@/composables/npcs/useNpcs";
 import { THREADS_KEY } from "@/composables/quests/useQuestThreads";
 
 /**
@@ -66,7 +67,7 @@ describe("live sync registries", () => {
   });
 
   it("refreshes only player roots for the player-only signals", () => {
-    expect(SIGNAL_KEYS.get("locations_player")).toEqual(["locations"]);
+    expect(SIGNAL_KEYS.get("locations_player")).toEqual(["locations", PLAYER_NPCS_KEY]);
     expect(SIGNAL_KEYS.get("quests_player")).toEqual(["quests"]);
     expect(SIGNAL_KEYS.get("quest_beats_player")).toEqual([BEATS_KEY]);
     expect(SIGNAL_KEYS.get("quest_objectives_player")).toEqual(["quest_objectives"]);

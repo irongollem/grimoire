@@ -33,11 +33,12 @@ export function planLegacyNpcRatingBackfill(
   });
 }
 
-async function fetchRatings(campaignId: string): Promise<NpcRatingRow[]> {
+async function fetchRatings(campaignId: string, userId: string): Promise<NpcRatingRow[]> {
   const { data, error } = await supabase
     .from("player_npc_ratings")
     .select("npc_id,rating")
-    .eq("campaign_id", campaignId);
+    .eq("campaign_id", campaignId)
+    .eq("user_id", userId);
   if (error) throw error;
   return data as NpcRatingRow[];
 }
@@ -53,7 +54,9 @@ export function usePlayerNpcRatings(npcs?: () => { id: string }[]) {
     queryKey,
     queryFn: ({ queryKey: [, cid] }) => {
       if (!cid) throw new Error("usePlayerNpcRatings fetched without a campaign — enabled guarantees it's set");
-      return fetchRatings(cid);
+      const user = getCurrentUser();
+      if (!user) throw new Error("usePlayerNpcRatings fetched without a signed-in user");
+      return fetchRatings(cid, user.id);
     },
     enabled: () => !!campaignId.value,
   });
@@ -137,7 +140,7 @@ export function usePlayerNpcRatings(npcs?: () => { id: string }[]) {
       if (error) return; // Keep local values intact so a later visit can retry.
 
       try {
-        const authoritative = await fetchRatings(cid);
+        const authoritative = await fetchRatings(cid, user.id);
         queryClient.setQueryData([QUERY_KEY, cid], authoritative);
         for (const row of rows) localStorage.removeItem(LEGACY_NPC_RATING_KEY + row.npc_id);
       } catch {

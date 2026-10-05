@@ -79,6 +79,11 @@
               class="pl-8"
             />
           </div>
+          <SortControl
+            v-model:sort-by="sortBy"
+            v-model:sort-dir="ui.playerPeopleSortDir"
+            :options="sortOptions"
+          />
           <AppSelect v-model="ui.playerPeopleFilterRelationship" size="body" weight="normal">
             <option value="all">All relations</option>
             <option v-for="(label, value) in NPC_RELATIONSHIP_LABELS" :key="value" :value="value">
@@ -165,6 +170,7 @@ import { IconSearch, IconAdd } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import SortControl from "@/components/common/SortControl.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AiImageBadge from "@/components/common/AiImageBadge.vue";
@@ -187,6 +193,7 @@ import CompanionForm from "@/components/party/CompanionForm.vue";
 import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
+import { defaultSortDir, sortPlayerNpcs, type PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";
 import { getDisplayRace } from "@/lib/partyMemberDisplay";
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import type { PlayerNpc } from "@/types/npc.types";
@@ -280,32 +287,38 @@ const sortedParty = computed((): PartyEntry[] => {
 
 const { getRating, ratingTick } = usePlayerNpcRatings(() => npcs.value ?? []);
 
-const sortedNpcs = computed(() => {
-  void ratingTick.value;
-  return [...(npcs.value ?? [])].sort((a, b) => {
-    // 1. Stars first (higher rating first)
-    const ra = getRating(a.id);
-    const rb = getRating(b.id);
-    if (ra !== rb) return rb - ra;
-    // 2. Location (with-location before none, then alphabetically by location name)
-    const locA = resolvedLocation(a).toLowerCase();
-    const locB = resolvedLocation(b).toLowerCase();
-    if (locA && !locB) return -1;
-    if (!locA && locB) return 1;
-    if (locA !== locB) return locA.localeCompare(locB);
-    // 3. Alphabetically by display name (nameless NPCs — name not player-visible — sort last)
-    const nameA = getNpcDisplayName(a);
-    const nameB = getNpcDisplayName(b);
-    if (nameA && nameB) return nameA.localeCompare(nameB);
-    return nameA ? -1 : nameB ? 1 : 0;
-  });
+// The projection already nulls location_id when the NPC's location is not
+// player-visible; the field check keeps every location comparison on that rule too.
+function visibleLocationName(npc: PlayerNpc): string {
+  return npc.player_visible_fields.includes("location") ? resolvedLocation(npc) : "";
+}
+
+// ── People sort ───────────────────────────────────────────────────────────────
+const sortOptions = computed(() => {
+  const all = [
+    { value: "rating", label: "Your rating" },
+    { value: "revealed", label: "Recently revealed" },
+    { value: "location", label: "Location" },
+    { value: "name", label: "Name" },
+  ] as const satisfies readonly { value: PlayerNpcSortField; label: string }[];
+  return availableLocations.value.length ? all : all.filter((o) => o.value !== "location");
 });
+// "Location" is hidden when no NPC has a visible place; a stored "location" then
+// sorts by rating without rewriting the store.
+const effectiveSortBy = computed<PlayerNpcSortField>(() =>
+  ui.playerPeopleSortBy === "location" && !availableLocations.value.length ? "rating" : ui.playerPeopleSortBy,
+);
+const sortBy = computed<PlayerNpcSortField>({
+  get: () => effectiveSortBy.value,
+  set: (field) => { ui.playerPeopleSortBy = field; },
+});
+watch(() => ui.playerPeopleSortBy, (field) => { ui.playerPeopleSortDir = defaultSortDir(field); });
 
 // ── People filter ─────────────────────────────────────────────────────────────
 const availableLocations = computed(() => {
   const seen = new Set<string>();
   const result: { id: string; name: string }[] = [];
-  for (const npc of sortedNpcs.value) {
+  for (const npc of npcs.value) {
     if (npc.player_visible_fields.includes("location") && npc.location_id && !seen.has(npc.location_id)) {
       const name = locationMap.value.get(npc.location_id);
       if (name) {
@@ -319,7 +332,7 @@ const availableLocations = computed(() => {
 
 const filteredNpcs = computed(() => {
   void ratingTick.value;
-  let list = sortedNpcs.value;
+  let list = npcs.value;
 
   const q = ui.playerPeopleSearch.trim().toLowerCase();
   if (q) {
@@ -348,7 +361,10 @@ const filteredNpcs = computed(() => {
     list = list.filter((npc) => npc.location_id === ui.playerPeopleFilterLocation);
   }
 
-  return list;
+  return sortPlayerNpcs(list, effectiveSortBy.value, ui.playerPeopleSortDir, {
+    getRating,
+    locationName: visibleLocationName,
+  });
 });
 
 // ── Party member lightbox ────────────────────────────────────────────────────

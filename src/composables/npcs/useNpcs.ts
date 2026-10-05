@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 import { useToast } from "@/composables/useToast";
 import { getSetting } from "@/settings/index";
 import type { Npc, NpcInsert, NpcUpdate, PlayerNpc } from "@/types/npc.types";
@@ -269,21 +270,46 @@ export function useSharedNpcs() {
   // In DM preview the caller is the DM (party_member_id null), so the projection
   // needs the previewed member id to know whose view to render.
   const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
+  const auth = useAuthStore();
+  // Whose reveal moments to read: the previewed member for a DM in preview, the
+  // player's own linked member otherwise. A DM outside preview has none and reads
+  // the whole campaign (earliest reveal per NPC).
+  const viewerMemberId = computed(() =>
+    ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
+  );
   return useQuery({
-    queryKey: computed(() => [PLAYER_NPCS_KEY, campaignId.value, previewMemberId.value] as const),
-    queryFn: async ({ queryKey: [, cid, previewId] }) => {
+    queryKey: computed(
+      () => [PLAYER_NPCS_KEY, campaignId.value, previewMemberId.value, viewerMemberId.value] as const,
+    ),
+    queryFn: async ({ queryKey: [, cid, previewId, memberId] }) => {
       if (!cid) throw new Error("useSharedNpcs fetched without a campaign");
       // Server-side projection: strips DM-only columns and swaps disguised NPCs
       // to their cover identity so the real one never reaches the client. See
       // migration 20260613000001 (get_player_visible_npcs).
-      const { data, error } = await supabase.rpc("get_player_visible_npcs", {
-        p_campaign_id: cid,
-        p_preview_member_id: previewId,
-      });
-      if (error) throw error;
-      return ((data ?? []) as PlayerNpc[]).sort((a, b) =>
-        (a.name ?? "").localeCompare(b.name ?? ""),
-      );
+      // RLS bounds npc_reveals but does not filter it, so a viewer with a member
+      // asks for exactly that member's rows (a DM could otherwise read every row).
+      let revealsQuery = supabase
+        .from("npc_reveals")
+        .select("npc_id,party_member_id,revealed_at")
+        .eq("campaign_id", cid);
+      if (memberId) revealsQuery = revealsQuery.eq("party_member_id", memberId);
+      const [projection, reveals] = await Promise.all([
+        supabase.rpc("get_player_visible_npcs", {
+          p_campaign_id: cid,
+          p_preview_member_id: previewId,
+        }),
+        revealsQuery,
+      ]);
+      if (projection.error) throw projection.error;
+      if (reveals.error) throw reveals.error;
+      const earliest = new Map<string, string>();
+      for (const row of (reveals.data ?? []) as { npc_id: string; revealed_at: string }[]) {
+        const seen = earliest.get(row.npc_id);
+        if (!seen || Date.parse(row.revealed_at) < Date.parse(seen)) earliest.set(row.npc_id, row.revealed_at);
+      }
+      return ((projection.data ?? []) as PlayerNpc[])
+        .map((npc) => ({ ...npc, revealed_at: earliest.get(npc.id) ?? null }))
+        .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
     },
     enabled: () => !!campaignId.value,
   });

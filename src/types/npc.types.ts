@@ -223,7 +223,12 @@ export interface Npc {
  * anything reading `useSharedNpcs`, and resolve the name through `getNpcDisplayName`
  * (falling back to "???"). Also carries `relevance` (1–5), which the RPC returns.
  */
-export type PlayerNpc = Omit<Npc, "name"> & { name: string | null; relevance?: number };
+export type PlayerNpc = Omit<Npc, "name"> & {
+  name: string | null;
+  relevance?: number;
+  /** First moment this viewer could see the NPC (`npc_reveals`); null when unknown. */
+  revealed_at?: string | null;
+};
 
 export type NpcInsert = Omit<
   Npc,

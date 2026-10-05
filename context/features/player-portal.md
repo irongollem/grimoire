@@ -158,7 +158,7 @@ Displays a card grid of all party members plus companions. The player's own char
 **People section (shared NPCs):**
 A second grid shows NPCs the DM has shared with the current party member (`player_visible_to` array includes their ID). Each NPC card shows portrait, name, relationship badge (ally/neutral/enemy/unknown), status badge, race/occupation, location.
 
-Filters: search by name/race/occupation, relationship dropdown, status dropdown, location dropdown. Sort: starred NPCs first (players can give each NPC 1–5 stars for personal relevance tracking), then by location, then alphabetically.
+Filters: search by name/race/occupation, relationship dropdown, status dropdown, location dropdown. Sort: by your rating (players give each NPC 1–5 stars for personal relevance; the default), by when the NPC was revealed to you, by location, or by name, with a direction toggle. See `context/features/npcs.md` → Sort and Filter.
 
 Clicking an NPC opens a lightbox with portrait, name (or "???" if name not shared), relationship/status/race/occupation (each conditionally shown per `player_visible_fields`), DM-supplied connection note, and player notes widget.
 

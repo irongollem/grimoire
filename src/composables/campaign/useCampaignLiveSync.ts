@@ -144,7 +144,8 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // projections and owner-only policies, so a row event never reaches them;
   // the doorbell tells them to re-read. The roots below also hold the DM's
   // caches, which is why PLAYER_ONLY_SIGNALS makes the DM skip these.
-  ["locations_player", ["locations"]],
+  // Sharing a place can share its linked NPCs, so the People projection re-reads too.
+  ["locations_player", ["locations", PLAYER_NPCS_KEY]],
   ["quests_player", ["quests"]],
   ["quest_beats_player", [BEATS_KEY]],
   ["quest_objectives_player", [OBJECTIVES_KEY]],

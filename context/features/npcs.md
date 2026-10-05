@@ -473,7 +473,7 @@ Players access shared NPCs through `/play/party` under the **"People"** section,
 
 ### What Players See
 
-Each player sees only the NPCs where their party member ID is in `player_visible_to`. The content of each card and lightbox is further restricted by `player_visible_fields` — the DM selects a subset of: Portrait, Name, Status, Species, Occupation, Relationship, Location.
+Each player sees only the NPCs where their party member ID is in `player_visible_to`, plus those living at a location that shares its linked NPCs with them (`is_npcs_shared`). The content of each card and lightbox is further restricted by `player_visible_fields` — the DM selects a subset of: Portrait, Name, Status, Species, Occupation, Relationship, Location.
 
 Fields not in `player_visible_fields` are silently omitted or replaced:
 
@@ -484,11 +484,20 @@ The alter-ego system integrates transparently: if the NPC is not yet revealed (`
 
 ### Player NPC Card (`PlayerNpcCard`)
 
-Portrait (3:4 aspect ratio), name (or "???"), status dot, species, occupation, location (if the location field is visible). A **1–5 star relevance rating** system is shown at the bottom of each card, stored per player in `player_npc_ratings`. Ratings affect sort order (higher rated NPCs appear first). Legacy `player_npc_rating:<npc-id>` browser values are uploaded for visible NPCs and removed only after the server copy is confirmed readable.
+Portrait (3:4 aspect ratio), name (or "???"), status dot, species, occupation, location (if the location field is visible). A **1–5 star relevance rating** system is shown at the bottom of each card, stored per player in `player_npc_ratings`. Rating is the default sort (see below). Legacy `player_npc_rating:<npc-id>` browser values are uploaded for visible NPCs and removed only after the server copy is confirmed readable.
 
 ### Sort and Filter (People section)
 
-Sorted by: star rating (descending) → location name → NPC display name.
+A `SortControl` in the filter bar picks the order, with a direction toggle; the choice lives in `useUiStore` (`playerPeopleSortBy` / `playerPeopleSortDir`) and is not part of Clear. The rules are `sortPlayerNpcs` in `src/lib/npcs/playerNpcSort.ts`:
+
+- **Your rating** (default, highest first): unrated is lowest.
+- **Recently revealed** (newest first): when this character first met the NPC, from `npc_reveals`. An NPC with no recorded moment sorts last in either direction.
+- **Location**: grouped by location name, NPCs without a visible location last, then rating within a place. Offered only when some NPC shows its location, and it reads only a location the player may see, so the order cannot hint at a hidden one.
+- **Name**: display name; nameless ("???") NPCs last in either direction.
+
+Every order ends on the name, so ties are stable.
+
+`npc_reveals` (migration `20261005182106`) holds one row per (NPC, party member): the first moment that member could see the NPC, whether it was shared with them directly or through its location's "share linked NPCs". Triggers on `npcs` and `locations` are its only writers; `on conflict do nothing` keeps the first moment, so unsharing and sharing again does not move it. A player reads only their own rows, the DM the whole campaign's (for preview). Reveals that existed before the table were backfilled with the NPC's `created_at`, the closest evidence left. `useSharedNpcs` reads the reveals with the projection and sets `revealed_at` on each `PlayerNpc`; both refresh on `npcs_player` and `locations_player`.
 
 Filters (state in `useUiStore`):
 

@@ -6,6 +6,7 @@ import type { CalendarEventType } from "@/types/calendar.types";
 import type { BoardMode, PadSize } from "@/types/sound.types";
 import type { JournalCategory } from "@/composables/notes/usePlayerJournal";
 import type { SortField, SortDir } from "@/lib/noteSort";
+import type { PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";
 import type { NpcStatus, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 import type { DocumentScope } from "@/lib/scriptorium/documentScope";
@@ -341,6 +342,9 @@ export const useUiStore = defineStore("ui", () => {
   const playerPeopleFilterRelationship = ref<NpcRelationship | "all">("all");
   const playerPeopleFilterStatus = ref<NpcStatus | "all">("all");
   const playerPeopleFilterLocation = ref("");
+  // Ordering, not a filter: like the journal, it stays out of the active-filters check and Clear.
+  const playerPeopleSortBy = ref<PlayerNpcSortField>("rating");
+  const playerPeopleSortDir = ref<SortDir>("desc");
 
   const playerPeopleHasActiveFilters = computed(() =>
     playerPeopleSearch.value !== "" ||
@@ -1275,6 +1279,8 @@ export const useUiStore = defineStore("ui", () => {
     playerPeopleFilterRelationship,
     playerPeopleFilterStatus,
     playerPeopleFilterLocation,
+    playerPeopleSortBy,
+    playerPeopleSortDir,
     playerPeopleHasActiveFilters,
     resetPlayerPeopleFilters,
 

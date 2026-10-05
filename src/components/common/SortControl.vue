@@ -25,14 +25,14 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup lang="ts" generic="F extends string">
 import { IconSort, IconChevronUp, IconChevronDown } from "@/lib/icons";
-import type { SortField, SortDir } from "@/lib/noteSort";
+import type { SortDir } from "@/lib/noteSort";
 
 defineProps<{
-  options: readonly { value: SortField; label: string }[];
+  options: readonly { value: F; label: string }[];
 }>();
 
-const sortBy = defineModel<SortField>("sortBy", { required: true });
+const sortBy = defineModel<F>("sortBy", { required: true });
 const sortDir = defineModel<SortDir>("sortDir", { required: true });
 </script>
