@@ -144,7 +144,7 @@ create function pg_temp.seat(p_user int) returns uuid language sql security defi
      and m.user_id = ('94400000-0000-4000-8000-00000000000' || p_user)::uuid;
 $$;
 create function pg_temp.background_of(p_suffix text) returns public.backgrounds language sql security definer as $$
-  select b.* from public.backgrounds b where b.id = (pg_temp.pm(p_suffix)).background_id;
+  select b.* from public.backgrounds b where b.id::text = (pg_temp.pm(p_suffix)).background_id;
 $$;
 -- How many rows of each kind the table's DM owns: adoption must never grow this
 -- without the DM's own approval.
@@ -198,7 +198,7 @@ select is(pg_temp.seat(2), null, 'and benched: the seat it would have taken stay
 
 -- The table has its own Acolyte, so the character is pointed at that one and
 -- nobody is asked.
-select is((pg_temp.pm('e1')).background_id, '94400000-0000-4000-8000-0000000000b9'::uuid,
+select is((pg_temp.pm('e1')).background_id, '94400000-0000-4000-8000-0000000000b9',
   'a background the table has its own copy of is re-pointed at the table''s copy, with no flag');
 
 select throws_ok($$
@@ -352,7 +352,7 @@ select is(public.approve_character_content(pg_temp.flag_id('e8', 'background')),
 select pg_temp.as_user(4);
 select lives_ok($$ select pg_temp.attach('e9', false) $$, 'a second player arrives with their own copy of the same entry');
 reset role;
-select is((pg_temp.pm('e9')).background_id, '94400000-0000-4000-8000-0000000000b4'::uuid,
+select is((pg_temp.pm('e9')).background_id, '94400000-0000-4000-8000-0000000000b4',
   'and is NOT silently pointed at the copy made from the first player''s row');
 select is(pg_temp.flags('e9'), 'background:homebrew:pending', 'their own copy is the DM''s to approve as well');
 select is((select count(*)::int from public.backgrounds
@@ -435,10 +435,10 @@ select is(public.approve_character_content(pg_temp.flag_id('e9', 'background')),
 reset role;
 select is((select jsonb_build_object('document', b.source_document_key, 'source', b.source, 'import', b.open5e_import,
                                      'was', b.provenance -> 'adopted_claims' ->> 'document')
-    from public.backgrounds b where b.id = (pg_temp.pm('e9')).background_id),
+    from public.backgrounds b where b.id::text = (pg_temp.pm('e9')).background_id),
   '{"document": null, "source": null, "import": false, "was": "srd-2014"}'::jsonb,
   'the copy does not repeat what the player''s row said about its book; that is kept only as a record');
-select is((select b.user_id::text || ' / ' || b.description from public.backgrounds b where b.id = (pg_temp.pm('e9')).background_id),
+select is((select b.user_id::text || ' / ' || b.description from public.backgrounds b where b.id::text = (pg_temp.pm('e9')).background_id),
   '94400000-0000-4000-8000-000000000001 / Oz''s Sage', 'and that character gets its own content, as the table''s copy');
 
 -- A queue the DM has to read cannot be flooded by one request.

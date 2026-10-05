@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-5 max-w-2xl">
-    <!-- Action bar -->
-    <div class="flex items-center justify-end gap-2">
+    <!-- Action bar. A library background belongs to its book: it is read, never edited or deleted. -->
+    <div v-if="!isLibrary" class="flex items-center justify-end gap-2">
       <AppButton
         variant="destructive"
         size="md"
@@ -40,12 +40,6 @@
               class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ background.source_title ?? background.source }}</span>
           </div>
-          <p
-            v-if="background.open5e_import"
-            class="text-caption text-muted-foreground italic"
-          >
-            Imported from Open5e
-          </p>
         </div>
       </div>
     </div>
@@ -270,7 +264,7 @@ import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAddItem, IconClose, IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteBackground } from "@/composables/rules/useBackgrounds";
+import { isLibraryBackground, useDeleteBackground } from "@/composables/rules/useBackgrounds";
 import { useParty } from "@/composables/party/useParty";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useCampaignStore } from "@/stores/campaign";
@@ -327,6 +321,7 @@ function extractPlainText(field: string | null | undefined): string {
   }
 }
 
+const isLibrary = computed(() => isLibraryBackground(props.background));
 const hasDescription = computed(() => hasContent(props.background.description));
 const hasEquipment = computed(() => hasContent(props.background.equipment));
 const hasSuggestedCharacteristics = computed(() => hasContent(props.background.suggested_characteristics));

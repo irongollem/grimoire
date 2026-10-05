@@ -16,7 +16,7 @@
     <EmptyState
       v-else-if="!filtered.length && !ui.backgroundsHasActiveFilters"
       title="No backgrounds yet"
-      description="Build your own or import from Open5e."
+      description="Build your own."
     >
       <template #action>
         <AppButton variant="primary" size="lg" to="/backgrounds/new" label="Add your first background" />
@@ -102,13 +102,6 @@
             >
               {{ b.source_title ?? b.source }}
             </span>
-            <span
-              v-if="b.open5e_import"
-              class="ml-auto shrink-0 text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
-              title="Imported from Open5e"
-            >
-              OPEN5E
-            </span>
           </div>
 
           <div v-if="b.tags.length" class="flex flex-wrap gap-1">
@@ -137,7 +130,7 @@
 
         <!-- Edit button (top-left on hover, same pattern as Species) -->
         <RouterLink
-          v-if="!readonly && !selectMode"
+          v-if="!readonly && !selectMode && !isLibraryBackground(b)"
           :to="`/backgrounds/${b.id}?edit=true`"
           class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit background"
@@ -163,7 +156,7 @@
 import { computed } from "vue";
 import { IconCheck, IconEdit } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
-import { useBackgrounds } from "@/composables/rules/useBackgrounds";
+import { isLibraryBackground, useBackgrounds } from "@/composables/rules/useBackgrounds";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -193,9 +186,9 @@ const filtered = computed(() => {
   let list = backgrounds.value ?? [];
 
   if (ui.backgroundsFilterSource === "custom") {
-    list = list.filter((b) => !b.open5e_import);
-  } else if (ui.backgroundsFilterSource === "open5e") {
-    list = list.filter((b) => b.open5e_import);
+    list = list.filter((b) => !isLibraryBackground(b));
+  } else if (ui.backgroundsFilterSource === "library") {
+    list = list.filter((b) => isLibraryBackground(b));
   }
 
   if (ui.backgroundsSearch.trim()) {

@@ -478,7 +478,7 @@ export const useUiStore = defineStore("ui", () => {
 
   // Backgrounds UI state
   const backgroundsSearch = ref("");
-  const backgroundsFilterSource = ref<"all" | "custom" | "open5e">("all");
+  const backgroundsFilterSource = ref<"all" | "custom" | "library">("all");
 
   const backgroundsHasActiveFilters = computed(
     () => backgroundsSearch.value !== "" || backgroundsFilterSource.value !== "all",
@@ -491,10 +491,6 @@ export const useUiStore = defineStore("ui", () => {
 
   // Character Codex — active tab in the consolidated player-options page.
   const codexActiveTab = ref<"species" | "backgrounds" | "classes" | "archetypes" | "abilities">("species");
-
-  // Character Codex — Open5e background-import source selection (doc slugs).
-  // Empty array = import from every source. Survives navigation within session.
-  const codexBackgroundImportSources = ref<string[]>([]);
 
   // Soundboard UI state
   const soundboardFilterCategory = ref<SoundCategory | "all">("all");
@@ -1390,7 +1386,6 @@ export const useUiStore = defineStore("ui", () => {
 
     // Character Codex
     codexActiveTab,
-    codexBackgroundImportSources,
 
     // Player Atlas
     atlasChildrenOpen,

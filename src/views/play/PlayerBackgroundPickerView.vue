@@ -21,7 +21,7 @@
       <ListSearchInput v-model="ui.backgroundsSearch" placeholder="Search backgrounds…" />
       <ListFilterGroup
         v-model="ui.backgroundsFilterSource"
-        :options="BG_SOURCE_OPTIONS"
+        :options="BACKGROUND_SOURCE_OPTIONS"
         aria-label="Background source filter"
       />
     </ListFilterBar>
@@ -145,7 +145,8 @@ import { useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useUiStore } from "@/stores/ui";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
-import { useBackgrounds } from "@/composables/rules/useBackgrounds";
+import { useBackground } from "@/composables/rules/useBackgrounds";
+import { BACKGROUND_SOURCE_OPTIONS } from "@/components/backgrounds/backgroundSourceOptions";
 import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/play/useRulesetReviews";
@@ -172,12 +173,6 @@ import { SKILLS } from "@/types/party.types";
 import type { SaveKey } from "@/types/party.types";
 import type { Background } from "@/types/background.types";
 
-const BG_SOURCE_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "custom", label: "Custom" },
-  { value: "open5e", label: "Open5e" },
-] as const;
-
 const router = useRouter();
 const ui = useUiStore();
 const queryClient = useQueryClient();
@@ -195,8 +190,10 @@ const { data: rulesetReviews } = useRulesetReviews(resolvedMemberId);
 const { mutateAsync: acknowledgeRulesetReviews } = useAcknowledgeRulesetReviews();
 
 const currentBgId = computed(() => me.value?.background_id ?? "");
-const { data: allBackgrounds } = useBackgrounds();
-const currentBg = computed(() => allBackgrounds.value?.find((b) => b.id === currentBgId.value) ?? null);
+// Resolved by id: the character's own background may be of another edition or book
+// than the list below offers.
+const { data: currentBgRow } = useBackground(currentBgId);
+const currentBg = computed(() => currentBgRow.value ?? null);
 
 const headerDescription = computed(() => {
   if (!me.value) return null;

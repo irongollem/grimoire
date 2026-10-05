@@ -93,6 +93,7 @@ const SLUG_LIBRARIES = [
   { table: "library_monsters", column: "id" },
   { table: "library_spells", column: "id" },
   { table: "library_species", column: "id" },
+  { table: "library_backgrounds", column: "id" },
   { table: "library_items", column: "id" },
   { table: "library_tile_packs", column: "pack_id" },
 ];

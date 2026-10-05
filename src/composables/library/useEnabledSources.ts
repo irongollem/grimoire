@@ -220,8 +220,7 @@ function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ["library-monster-index"] });
   queryClient.invalidateQueries({ queryKey: ["library-item-index"] });
   queryClient.invalidateQueries({ queryKey: ["library-spell-index"] });
-  // Backgrounds are seeded per player from the enabled books.
-  queryClient.invalidateQueries({ queryKey: ["backgrounds"] });
+  queryClient.invalidateQueries({ queryKey: ["library-backgrounds"] });
 }
 
 async function fetchAvailablePlayerBooks(): Promise<AvailableLibrarySource[]> {

@@ -24,6 +24,7 @@ export const LIBRARY_TABLES = [
   { table: "content_sources", key: "key", prune: false },
   { table: "library_rules", key: "id", prune: true },
   { table: "library_species", key: "id", prune: false },
+  { table: "library_backgrounds", key: "id", prune: false },
   { table: "library_spells", key: "id", prune: false },
   { table: "library_monsters", key: "id", prune: false },
   { table: "library_items", key: "id", prune: false },

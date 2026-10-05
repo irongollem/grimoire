@@ -75,6 +75,7 @@ export const IMAGE_REFERENCES = [
   ["library_items", ["image_url", "mundane_image_url"]],
   ["library_spells", ["image_url"]],
   ["library_species", ["image_url"]],
+  ["library_backgrounds", ["image_url"]],
   ["library_monster_art", ["image_url", "cutout_url"]],
   ["library_monster_art_canonical", ["image_url", "cutout_url"]],
   ["library_spell_art", ["image_url"]],

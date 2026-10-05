@@ -24,13 +24,6 @@
           placeholder="Background name…"
         />
 
-        <div
-          v-if="background?.open5e_import"
-          class="text-caption text-muted-foreground italic"
-        >
-          Imported from Open5e: {{ background?.source_title ?? background?.source }}. Edits stay local and won't be overwritten by re-sync unless Open5e changes the base fields.
-        </div>
-
         <!-- Proficiency chips -->
         <label class="flex flex-col gap-1">
           <span class="text-label-lg font-semibold text-muted-foreground">Skill proficiencies</span>

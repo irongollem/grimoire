@@ -76,9 +76,12 @@ duplicating).
 | Monsters (`monsters`) | **No per-user import path** — the unwired `useImportSrdMonsters` composable is gone from `src/composables/monsters/useMonsters.ts`; the supported re-import for monsters is `npm run seed-library-monsters` into the shared `library_monsters` table (see above). | — | — |
 | Spells (`spells` table, legacy) | **No per-user import path** — the unwired `useImportSrdSpells` composable is gone from `src/composables/spells/useSpells.ts`; the supported re-import for spells is `npm run seed-library-spells` into the shared `library_spells` table (see above). | — | — |
 
-Backgrounds (`backgrounds` table, `src/lib/library/open5eBackgroundImport.ts` /
-`src/composables/rules/useBackgrounds.ts`) are out of scope for this document —
-owned by a separate in-flight change.
+Backgrounds have **no per-user import path** (#973): the runtime seeding of a
+player's own rows and the Codex "Sync from Open5e" button are gone. The supported
+re-import is `npm run seed-library-backgrounds` into the shared `library_backgrounds`
+table (mapper: `src/lib/library/open5eBackgroundImport.ts`). A re-run upserts on
+`(source_document_key, source_record_key)` and never writes `image_url` or
+`focal_point`, so art an admin set is kept.
 
 ## Known upstream records worth re-checking
 

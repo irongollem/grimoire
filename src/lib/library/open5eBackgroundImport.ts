@@ -2,7 +2,6 @@ import { fetchAll, fetchAllFromDocuments, rulesetForDocument, slugifyKey } from 
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { AbilityScoreKey, BackgroundInsert } from "@/types/background.types";
 import { ABILITY_SCORE_KEYS } from "@/types/background.types";
-import type { RulesetKey } from "@/types/ruleset.types";
 import { parseOriginFeatText } from "@/rules/backgroundAsi";
 import { canonicalToolName } from "@/rules/toolProficiency";
 
@@ -22,12 +21,6 @@ interface Open5eV2Background {
   desc: string;
   benefits: Open5eBenefit[];
   document: Open5eDocumentRef;
-}
-
-export interface Open5eDocument {
-  slug: string;
-  title: string;
-  ruleset: RulesetKey | null;
 }
 
 const DOCUMENTS_URL = "https://api.open5e.com/v2/documents/";
@@ -135,17 +128,6 @@ function mapBackground(
       },
     },
   };
-}
-
-export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
-  const documents = await fetchAll<Open5eV2Document>(DOCUMENTS_URL);
-  return documents
-    .map(document => ({
-      slug: document.key,
-      title: document.display_name || document.name,
-      ruleset: rulesetForDocument(document),
-    }))
-    .sort((a, b) => a.title.localeCompare(b.title));
 }
 
 /**

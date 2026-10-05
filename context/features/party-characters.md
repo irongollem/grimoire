@@ -175,7 +175,7 @@ Filterable by text search and size (Tiny / Small / Medium / Large). Each species
 
 ### Backgrounds Tab
 
-Filterable by search and source (Custom / Open5e). Supports bulk import from Open5e with a source picker (multi-select checkboxes from live Open5e document list). Import is incremental: reports `inserted` and `updated` counts.
+Filterable by search and source (Custom / Library). **Backgrounds live in the shared library** (epic #973, migration `library_backgrounds`), the same move species made: `library_backgrounds` (text slug id from `stableSrdId`, `ruleset` NOT NULL, `(source_document_key, source_record_key)` unique, select for everyone, writes for `private.is_app_admin()`) holds the books' backgrounds, `source` and `source_document_key` are OUR book slug (`content_sources.key`: `a5e`, `taldorei`, `o5e`, `srd-2014`, ...) so enabling a book gates its backgrounds, and a user's own backgrounds stay in `backgrounds` with a uuid id. `useBackgrounds()` merges the library rows of the scope's enabled books (and edition) with the user's own through `mergeLibraryWithCustom`; `useBackground(id)` and `useBackgroundsByIds(ids)` resolve a uuid or a slug against the right table whatever the edition. Library rows are read-only everywhere (no Edit, no Delete; `?edit=true` on one opens the sheet), and there is no per-user Open5e import or runtime seeding any more: `scripts/seed-library-backgrounds.ts` (`npm run seed-library-backgrounds`, admin, `--dry-run` first) refreshes the library from Open5e v2 for every redistributable 5e-2014, 5e-2024 or A5E document and never writes art.
 
 **Background fields:**
 
@@ -186,7 +186,9 @@ Filterable by search and source (Custom / Open5e). Supports bulk import from Ope
 - Personality traits, ideals, bonds, flaws (rich text or freeform lists)
 - **2024 mechanics (#558)** — `asi_ability_trio` (the three abilities the background's ASI can be spent on) and `origin_feat` (jsonb: feat name + optional variant), added by migration `20260722000003`, parsed from the Open5e v2 background `benefits` on import. 2014 backgrounds simply have these columns null.
 
-**Background Detail view** (`BackgroundDetailView.vue`): Same edit/view toggle pattern as Species.
+**Background Detail view** (`BackgroundDetailView.vue`): Same edit/view toggle pattern as Species, for the user's own backgrounds; a library background only ever shows the read-only sheet.
+
+**`party_members.background_id` is text** and holds either a custom background uuid or a library slug (the species pattern). The old FK is replaced by `backgrounds_cleanup_references`, an AFTER DELETE trigger on `backgrounds` that clears the reference; `supabase/checks/content_integrity.sql` checks both shapes. The approval predicate (`assess_content`), `get_character_content_item`, `repoint_party_member_content`, `convert_party_member_ruleset` and `transfer_campaign_ownership` all handle a slug (a library background is shared, so an ownership transfer leaves it alone).
 
 ### Classes Tab
 
@@ -591,9 +593,9 @@ are not stored). `useLibrarySourceSlugs()` follows the character in scope
 (`useContentScope().standalone`): a character with no table reads its player's
 books, a seated one its table's. The player chooses on the pool page
 (`PlayerBooksPanel`) and from the wizard's edition step; `SourcesPickerPanel`
-takes `scope="player"`. Backgrounds have no shared library table, so a
-campaign-less player's are still seeded into their own rows from Open5e, now
-from the SRD plus their books.
+takes `scope="player"`. Backgrounds are library content like species and spells:
+a campaign-less player reads the SRDs plus their books from `library_backgrounds`,
+and nothing is copied into their own rows.
 
 **The predicate.** `private.assess_content()` is the one function that says what
 a table takes: library content from a book the DM enabled and has not blocked,
@@ -941,7 +943,7 @@ Fonts: the illustrated themes need EB Garamond + Shippori Mincho (added to the `
 - **Multiclass support:** `character_classes` table tracks multiple class/level rows per character; `formatMulticlassLabel()` builds display strings like "Fighter 4 / Wizard 3"; total level from `totalLevel()`.
 - **Wild Shape as a first-class feature:** Full CR/level/type filtering, stat block preview lightbox, beast HP tracking separate from character HP, ability score override (STR/DEX/CON from beast), automatic tab visibility for Druids only.
 - **Custom class/archetype system:** DMs can build fully custom classes with per-level feature tables, custom spell slot grids, ASI scheduling, wizard step flows for player-facing choices, and resource pools — all surfacing automatically in the level-up wizard and character sheet.
-- **Open5e integration:** One-click import for species, backgrounds, classes, archetypes, and abilities from the Black Flag SRD. Incremental (upsert-based) so re-importing is safe and reports changes.
+- **Open5e integration:** One-click import for species, classes, archetypes, and abilities from the Black Flag SRD. Incremental (upsert-based) so re-importing is safe and reports changes. Backgrounds are not imported per user: they come from the shared library, which an admin refreshes with `seed-library-backgrounds`.
 - **Re-import clobber protection (#560):** for species, classes, and subclasses, the update path on a re-import is narrowed to fields Open5e actually supplies (name/description/mechanics/source metadata); anything a DM only fills in by hand — notes, custom art, hand-tuned class mechanics like `spell_slots`/`resources`/`steps` — is never touched by a re-run. Full per-field breakdown per entity type in [`docs/library-reimport.md`](../../docs/library-reimport.md).
 - **Shapeshifter disguise:** Cryptographic-grade privacy — other players see a completely different species entry with no tells. The shapeshifter and DM are the only ones who see the true form.
 - **Hall of Heroes as a template library:** App-admin-managed iconic characters that any DM can import into their campaign in one click, complete with stat block and lore.

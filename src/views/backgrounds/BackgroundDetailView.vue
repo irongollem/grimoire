@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useBackground } from "@/composables/rules/useBackgrounds";
+import { isLibraryBackground, useBackground } from "@/composables/rules/useBackgrounds";
 import AppButton from "@/components/common/AppButton.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -30,7 +30,10 @@ const route = useRoute();
 const router = useRouter();
 
 const isNew = computed(() => route.name === "background-new");
-const isEditing = computed(() => route.query.edit === "true");
+// A library background is read-only, so a stale ?edit=true on one opens the sheet.
+const isEditing = computed(
+  () => route.query.edit === "true" && !(background.value && isLibraryBackground(background.value)),
+);
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 
 const { data: background, isLoading } = useBackground(id);

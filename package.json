@@ -42,6 +42,7 @@
     "seed-library-spells": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-spells.ts",
     "seed-library-monsters": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-monsters.ts",
     "seed-library-species": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-species.ts",
+    "seed-library-backgrounds": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-backgrounds.ts",
     "seed-library-items": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-items.ts",
     "seed-content-sources": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-content-sources.ts",
     "dev:auth": "tsx --tsconfig tsconfig.node.json scripts/dev-auth.ts",

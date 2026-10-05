@@ -1,7 +1,7 @@
 -- Content referential integrity — dangling shared-content references.
 --
 -- The shared library tables (library_monsters/library_spells/library_items/
--- library_species) are referenced from user data by TEXT ids with no FK (slugs
+-- library_species/library_backgrounds) are referenced from user data by TEXT ids with no FK (slugs
 -- can't FK a uuid column, and species refs deliberately hold either shape).
 -- Twice now an id transition remapped most-but-not-all referrers and shipped
 -- silently:
@@ -103,6 +103,16 @@ select check_name, cnt from (
     (select count(*) from campaigns c, unnest(c.disabled_species_ids) as el
        where not exists (select 1 from species s where s.id::text = el)
          and not exists (select 1 from library_species ls where ls.id = el))
+
+  -- ---- backgrounds --------------------------------------------------------
+  -- Same split as species: a slug is a library row, a uuid is a custom row (the
+  -- FK that used to guard it went with the move to text ids, #973).
+  union all select 'party_members.background_id (slug) -> library_backgrounds',
+    (select count(*) from party_members pm where pm.background_id is not null and pm.background_id !~ '^[0-9a-f]{8}-'
+       and not exists (select 1 from library_backgrounds b where b.id = pm.background_id))
+  union all select 'party_members.background_id (uuid) -> backgrounds',
+    (select count(*) from party_members pm where pm.background_id ~ '^[0-9a-f]{8}-'
+       and not exists (select 1 from backgrounds b where b.id::text = pm.background_id))
 
   -- ---- jsonb referrers ----------------------------------------------------
   -- These carry shared ids inside documents rather than columns, so no schema

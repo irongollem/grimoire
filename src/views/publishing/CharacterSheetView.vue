@@ -105,11 +105,11 @@ const member = computed(() =>
 );
 
 // The picker can switch character without a route change, so the scope follows
-// `member`. The background map below lists that character's edition (useRuleset.ts).
+// `member`. Anything below that reads through useRuleset reads that character's edition (useRuleset.ts).
 provideCharacterRuleset(() => member.value);
 const { data: inventoryItems, isLoading: inventoryLoading } = usePartyInventory();
 const { data: speciesById } = useSpeciesByIds(() => [member.value?.species_id]);
-const backgroundMap = useBackgroundNameMap();
+const backgroundMap = useBackgroundNameMap(() => [member.value?.background_id]);
 
 const isLoading = computed(() => partyLoading.value || inventoryLoading.value);
 

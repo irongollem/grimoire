@@ -48,50 +48,6 @@
 
         <!-- Backgrounds tab -->
         <template v-if="activeTab === 'backgrounds'">
-          <div ref="sourcePickerRef" class="relative shrink-0">
-            <AppButton
-              variant="subtle"
-              size="md"
-              :icon="IconSettings"
-              :tooltip="selectedSources.length === 0 ? 'All sources selected' : `${selectedSources.length} source(s) selected`"
-              @click="showSourcePicker = !showSourcePicker"
-            />
-            <div
-              v-show="showSourcePicker"
-              class="absolute right-0 top-full mt-1 z-50 min-w-64 max-h-80 overflow-y-auto rounded-md border border-border bg-popover shadow-lg"
-            >
-              <div class="p-3 border-b border-border">
-                <p class="text-label-lg font-semibold text-foreground">Import Sources</p>
-                <p class="text-caption text-muted-foreground mt-0.5">Leave all unchecked to import everything.</p>
-              </div>
-              <div v-if="docsLoading" class="p-3 flex items-center justify-center">
-                <BannerLoader class="h-6" />
-              </div>
-              <div v-else class="p-2 flex flex-col gap-0.5">
-                <AppCheckbox
-                  v-for="doc in open5eDocs"
-                  :key="doc.slug"
-                  v-model="selectedSources"
-                  :value="doc.slug"
-                  class="px-2 py-1.5 rounded hover:bg-accent transition-colors"
-                  label-layout="row"
-                >
-                  <span>{{ doc.title }}</span>
-                  <span class="text-caption text-muted-foreground ml-auto">{{ doc.slug }}</span>
-                </AppCheckbox>
-              </div>
-              <div v-if="selectedSources.length > 0" class="p-2 border-t border-border">
-                <AppButton variant="ghost" size="sm" block label="Clear selection" @click="selectedSources = []" />
-              </div>
-            </div>
-          </div>
-          <ListActionButton
-            :icon="IconDownload"
-            :loading="bgImportMutation.isPending.value"
-            :label="bgImportStatusLabel"
-            :disabled="bgImportMutation.isPending.value"
-            @click="handleBgImport"
-          />
           <ListActionButton
             v-if="isAiEnabled"
             :icon="IconGenerate"
@@ -204,7 +160,7 @@
         <ListSearchInput v-model="ui.backgroundsSearch" placeholder="Search backgrounds…" />
         <ListFilterGroup
           v-model="ui.backgroundsFilterSource"
-          :options="BG_SOURCE_OPTIONS"
+          :options="BACKGROUND_SOURCE_OPTIONS"
           aria-label="Background source filter"
         />
       </ListFilterBar>
@@ -254,18 +210,14 @@
 </template>
 
 <script setup lang="ts">
-import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { onClickOutside } from "@vueuse/core";
-import { IconAdd, IconBookUser, IconGenerate, IconCheck, IconDownload, IconLevel, IconLightning, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
+import { IconAdd, IconBookUser, IconGenerate, IconCheck, IconDownload, IconLevel, IconLightning, IconPopulate, IconSpecies } from '@/lib/icons';
 import TabBar from "@/components/common/TabBar.vue";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
@@ -273,16 +225,12 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import SpeciesList from "@/components/species/SpeciesList.vue";
 import SpeciesOpen5ePanel from "@/components/species/SpeciesOpen5ePanel.vue";
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
+import { BACKGROUND_SOURCE_OPTIONS } from "@/components/backgrounds/backgroundSourceOptions";
 import ClassList from "@/components/levelup/ClassList.vue";
 import ArchetypeList from "@/components/levelup/ArchetypeList.vue";
 import AbilityList from "@/components/features/AbilityList.vue";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import {
-  useImportBackgrounds,
-  useOpen5eBackgroundDocuments,
-  type BackgroundImportResult,
-} from "@/composables/rules/useBackgrounds";
 import { useImportOpen5eClasses, useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
 import { useImportOpen5eSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { useImportOpen5eFeatures, useBackfillSystemFeatureDescriptions } from "@/composables/rules/useFeatures";
@@ -305,12 +253,6 @@ const SIZE_OPTIONS = [
   { value: "small", label: "Small" },
   { value: "medium", label: "Medium" },
   { value: "large", label: "Large" },
-] as const;
-
-const BG_SOURCE_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "custom", label: "Custom" },
-  { value: "open5e", label: "Open5e" },
 ] as const;
 
 const ui = useUiStore();
@@ -359,52 +301,6 @@ const archetypeClassNames = computed(() => {
 });
 const archetypeListRef = ref<InstanceType<typeof ArchetypeList> | null>(null);
 const speciesListRef = ref<InstanceType<typeof SpeciesList> | null>(null);
-
-// ── Backgrounds: Open5e source picker ────────────────────────────────────────
-// Source selection lives in useUiStore so it survives navigation within a
-// session without permanently polluting localStorage.
-const selectedSources = computed({
-  get: () => ui.codexBackgroundImportSources,
-  set: (v) => { ui.codexBackgroundImportSources = v; },
-});
-const showSourcePicker = ref(false);
-const sourcePickerRef = ref<HTMLElement | null>(null);
-onClickOutside(sourcePickerRef, () => { showSourcePicker.value = false; });
-const { data: open5eDocs, isLoading: docsLoading } = useOpen5eBackgroundDocuments(showSourcePicker);
-
-// ── Backgrounds: import ──────────────────────────────────────────────────────
-const bgImportMutation = useImportBackgrounds();
-const bgImportStatus = ref<"idle" | "done" | "uptodate">("idle");
-const bgImportResult = ref<BackgroundImportResult>({ inserted: 0, updated: 0 });
-const bgImportError = ref<string | null>(null);
-let bgResetTimer: ReturnType<typeof setTimeout> | null = null;
-onBeforeUnmount(() => { if (bgResetTimer) clearTimeout(bgResetTimer); });
-
-const bgImportStatusLabel = computed(() => {
-  if (bgImportMutation.isPending.value) return "Syncing…";
-  if (bgImportError.value) return `Error: ${bgImportError.value}`;
-  if (bgImportStatus.value === "done") {
-    const { inserted, updated } = bgImportResult.value;
-    if (inserted === 0 && updated === 0) return "Already up to date";
-    const parts: string[] = [];
-    if (inserted > 0) parts.push(`${inserted} added`);
-    if (updated > 0) parts.push(`${updated} updated`);
-    return parts.join(", ");
-  }
-  return "Sync from Open5e";
-});
-
-async function handleBgImport() {
-  bgImportStatus.value = "idle";
-  bgImportError.value = null;
-  try {
-    bgImportResult.value = await bgImportMutation.mutateAsync(selectedSources.value);
-    bgImportStatus.value = "done";
-  } catch (e) {
-    bgImportError.value = e instanceof Error ? e.message : String(e);
-  }
-  bgResetTimer = setTimeout(() => { bgImportStatus.value = "idle"; bgImportError.value = null; }, 8000);
-}
 
 // ── Classes: import ───────────────────────────────────────────────────────────
 const classImportMutation = useImportOpen5eClasses();
