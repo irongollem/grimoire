@@ -20,13 +20,21 @@ insert into public.monsters (id, user_id, campaign_id, name, monster_type, size,
   -- Another account's monster: never listed.
   ('97250000-0000-4000-8000-000000000022', '97250000-0000-4000-8000-000000000002', null, 'Zz Stranger Owlkin', 'beast', 'Medium', now());
 
+-- The library rows the scope and shadowing tests stand on. The test makes its
+-- own rather than borrowing seeded ones: CI's database is built from the
+-- migrations alone, so its library tables are empty, and a fixture that copied
+-- "whichever bundled item exists" inserted nothing there.
+insert into public.library_monsters (id, name, monster_type, ruleset, conceptual_key, source, source_document_key, source_record_key) values
+  ('browse_test_owlbear', 'Zz Library Owlbear', 'monstrosity', '2014', 'zz_library_owlbear', 'srd-2014', 'srd-2014', 'browse-test-owlbear');
+insert into public.library_items (id, name, item_type, rarity, source, source_document_key, source_record_key) values
+  ('browse_test_lantern', 'Zz Library Lantern', 'gear', 'mundane', 'grimoire-bundled', 'grimoire-bundled', 'browse-test-lantern');
+
 -- An own item that is a customized copy of a library item (same identity keys).
 insert into public.items (id, user_id, campaign_id, name, item_type, rarity, source, source_document_key, source_record_key)
 select '97250000-0000-4000-8000-000000000030', '97250000-0000-4000-8000-000000000001', null, l.name || ' (mine)', l.item_type, l.rarity,
        l.source, l.source_document_key, l.source_record_key
   from public.library_items l
- where l.source_document_key = 'grimoire-bundled' and l.source_record_key is not null
- order by l.id limit 1;
+ where l.id = 'browse_test_lantern';
 
 -- A custom spell copied from a library one counts as shared.
 insert into public.spells (id, user_id, campaign_id, name, level, school, source_record_key) values
