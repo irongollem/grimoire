@@ -6,7 +6,7 @@
     <p class="text-caption text-muted-foreground italic">
       Reads every open-licensed book on Open5e and writes the one shared set every account sees,
       with each feature at every level it is gained and the SRD mechanics applied. Re-running is
-      safe: rows are matched by book and record, and nothing is deleted.
+      safe: rows are matched by book and record, nothing is deleted, and a field an admin edited is kept.
     </p>
     <AppButton
       variant="primary"
@@ -22,6 +22,10 @@
     <dl v-if="result" class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-caption text-foreground">
       <dt class="text-muted-foreground">Features and feats</dt>
       <dd>{{ result.features.inserted }} added, {{ result.features.updated }} updated</dd>
+      <template v-if="result.keptEditedFields > 0">
+        <dt class="text-muted-foreground">Edits kept</dt>
+        <dd>Kept {{ result.keptEditedFields }} fields an admin edited</dd>
+      </template>
       <dt class="text-muted-foreground">Subclasses</dt>
       <dd>{{ result.subclasses.inserted }} added, {{ result.subclasses.updated }} updated</dd>
       <dt class="text-muted-foreground">Other classes</dt>

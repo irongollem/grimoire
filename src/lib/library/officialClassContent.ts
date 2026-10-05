@@ -184,6 +184,121 @@ function featCategoryFromType(type: string | null, ruleset: RulesetKey | null): 
   return FEAT_CATEGORIES.find(c => c === slug) ?? null;
 }
 
+// ── Merging an import into an existing row ───────────────────────────────────
+
+/**
+ * The `class_features` fields the import owns. An admin may edit an official
+ * row in the Codex, so a re-import refreshes one of these only while it still
+ * holds what the import last wrote there (`provenance.imported`).
+ */
+export const IMPORT_OWNED_FIELDS = [
+  "name",
+  "description",
+  "prerequisite",
+  "mechanics",
+  "feat_category",
+  "prerequisites",
+  "repeatable",
+  "ability_increase",
+] as const;
+
+/** Structural equality for jsonb values: key order never matters, array order does. */
+export function jsonEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((v, i) => jsonEqual(v, b[i]));
+  }
+  const ao = a as Record<string, unknown>;
+  const bo = b as Record<string, unknown>;
+  const keys = Object.keys(ao);
+  return keys.length === Object.keys(bo).length && keys.every(k => k in bo && jsonEqual(ao[k], bo[k]));
+}
+
+/** A value nobody has filled in: the column default of an unedited field. */
+function isEmptyValue(value: unknown): boolean {
+  if (value === null || value === undefined || value === false) return true;
+  return typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+/** The owned fields of an incoming row: what the import records as "last written". */
+export function importedBaseline(row: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const field of IMPORT_OWNED_FIELDS) out[field] = row[field] ?? null;
+  return out;
+}
+
+/**
+ * What a re-import writes into an existing official feature. Per owned field:
+ * refreshed when the row still holds what the import last wrote (or, with no
+ * record of that, is empty); otherwise the current value stays and the field is
+ * reported in `kept`. `update` holds only the columns that actually change, so
+ * an empty one means no request is needed. `tags` is never touched.
+ */
+export function mergeImportedFeature(
+  current: Readonly<Record<string, unknown>>,
+  incoming: Readonly<Record<string, unknown>>,
+): { update: Record<string, unknown>; kept: string[] } {
+  const currentProvenance = asRecord(current.provenance);
+  const baseline = { ...asRecord(currentProvenance.imported) };
+  const update: Record<string, unknown> = {};
+  const kept: string[] = [];
+
+  for (const field of IMPORT_OWNED_FIELDS) {
+    const have = current[field];
+    const want = incoming[field] ?? null;
+    const hasBaseline = field in baseline;
+    if (jsonEqual(have, want)) {
+      baseline[field] = want;
+    } else if (hasBaseline ? jsonEqual(have, baseline[field]) : isEmptyValue(have)) {
+      update[field] = want;
+      baseline[field] = want;
+    } else {
+      kept.push(field);
+    }
+  }
+
+  // Columns the import owns outright (book, edition, keys) are refreshed as before.
+  for (const [column, value] of Object.entries(incoming)) {
+    if (column === "tags" || column === "provenance" || (IMPORT_OWNED_FIELDS as readonly string[]).includes(column)) continue;
+    update[column] = value;
+  }
+  update.provenance = { ...currentProvenance, ...asRecord(incoming.provenance), imported: baseline };
+
+  // Compare before writing: drop what the row already holds.
+  for (const column of Object.keys(update)) {
+    if (column in current && jsonEqual(current[column], update[column])) delete update[column];
+  }
+  return { update, kept };
+}
+
+/**
+ * A feature map with the incoming ids added. Anything already in the map stays,
+ * so a feature an admin attached by hand survives; new ids are appended.
+ */
+export function unionFeatureMap(
+  current: Readonly<Record<string, readonly string[]>> | null,
+  incoming: Readonly<Record<string, readonly string[]>>,
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [level, ids] of Object.entries(current ?? {})) out[level] = [...ids];
+  for (const [level, ids] of Object.entries(incoming)) {
+    const bucket = (out[level] ??= []);
+    for (const id of ids) if (!bucket.includes(id)) bucket.push(id);
+  }
+  return out;
+}
+
+/** Stamps a new row's provenance with the baseline its owned fields start from. */
+function withImportedBaseline(row: ClassFeatureInsert): ClassFeatureInsert {
+  return { ...row, provenance: { ...row.provenance, imported: importedBaseline({ ...row }) } };
+}
+
 // ── The plan ──────────────────────────────────────────────────────────────────
 
 export function planOfficialClassContent(input: OfficialClassContentInput): OfficialClassContentPlan {
@@ -261,7 +376,7 @@ export function planOfficialClassContent(input: OfficialClassContentInput): Offi
       // Every column a feat row sets, set here too: features and feats go up in
       // one batch, and PostgREST fills a column one row lacks with NULL, not its
       // default, so a missing `repeatable` broke the NOT NULL on every insert.
-      insert: {
+      insert: withImportedBaseline({
         ...row,
         kind: "feature",
         prerequisite: null,
@@ -270,7 +385,7 @@ export function planOfficialClassContent(input: OfficialClassContentInput): Offi
         repeatable: false,
         ability_increase: null,
         mechanics,
-      },
+      }),
     });
     return identity;
   }
@@ -305,7 +420,7 @@ export function planOfficialClassContent(input: OfficialClassContentInput): Offi
     features.set(identity, {
       identity,
       existingId: existingFeatures.get(identity) ?? null,
-      insert: {
+      insert: withImportedBaseline({
         ...row,
         kind: "feat",
         prerequisite: feat.prerequisite?.trim() || null,
@@ -315,7 +430,7 @@ export function planOfficialClassContent(input: OfficialClassContentInput): Offi
         repeatable: entry?.repeatable ?? false,
         ability_increase: entry ? parseFeatAbilityIncrease(entry.ability_increase) : null,
         mechanics,
-      },
+      }),
     });
   }
 

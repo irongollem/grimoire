@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { officialIdentity, planOfficialClassContent, sourceKeyForDocument, textToTiptap } from "@/lib/library/officialClassContent";
+import {
+  IMPORT_OWNED_FIELDS,
+  jsonEqual,
+  mergeImportedFeature,
+  officialIdentity,
+  planOfficialClassContent,
+  sourceKeyForDocument,
+  textToTiptap,
+  unionFeatureMap,
+} from "@/lib/library/officialClassContent";
 import type { OfficialClassContentInput } from "@/lib/library/officialClassContent";
 import type { Open5eV2Class } from "@/lib/library/open5eClassImport";
 import type { Open5eV2Feat } from "@/lib/library/open5eFeatImport";
@@ -100,6 +109,15 @@ describe("planOfficialClassContent", () => {
     expect(system.featureMap["1"]).toHaveLength(1);
     // One row, however many levels reference it; table data is not a feature.
     expect(result.features.map(f => f.insert.name).sort()).toEqual(["Ability Score Improvement", "Second Wind"]);
+  });
+
+  it("stamps a new row's provenance with the baseline of its owned fields", () => {
+    const [first] = plan({ classes: [fighter(srd2014)] }).features;
+    const provenance = first.insert.provenance as { provider: string; imported: Record<string, unknown> };
+    expect(provenance.provider).toBe("open5e-v2");
+    expect(Object.keys(provenance.imported).sort()).toEqual([...IMPORT_OWNED_FIELDS].sort());
+    expect(provenance.imported.name).toBe(first.insert.name);
+    expect(provenance.imported.description).toBe(first.insert.description);
   });
 
   it("routes an SRD base class to its system class and leaves custom_classes alone", () => {
@@ -290,5 +308,90 @@ describe("planOfficialClassContent", () => {
 describe("textToTiptap", () => {
   it("returns an empty document for empty text", () => {
     expect(JSON.parse(textToTiptap(""))).toEqual({ type: "doc", content: [] });
+  });
+});
+
+const OWNED_NOW = {
+  name: "Rage",
+  description: "old text",
+  prerequisite: null,
+  mechanics: { a: 1, b: 2 },
+  feat_category: null,
+  prerequisites: null,
+  repeatable: false,
+  ability_increase: null,
+};
+const OWNED_NEW = { ...OWNED_NOW, description: "new text", mechanics: { b: 2, a: 1 } };
+
+describe("mergeImportedFeature", () => {
+  it("refreshes an untouched field and moves its baseline", () => {
+    const current = { ...OWNED_NOW, provenance: { provider: "open5e-v2", imported: { ...OWNED_NOW } } };
+    const { update, kept } = mergeImportedFeature(current, { ...OWNED_NEW, provenance: { provider: "open5e-v2" } });
+    expect(update.description).toBe("new text");
+    expect((update.provenance as { imported: { description: string } }).imported.description).toBe("new text");
+    expect(kept).toEqual([]);
+  });
+
+  it("keeps an edited description and counts it", () => {
+    const current = {
+      ...OWNED_NOW,
+      description: "admin wrote this",
+      provenance: { imported: { ...OWNED_NOW } },
+    };
+    const { update, kept } = mergeImportedFeature(current, { ...OWNED_NEW, provenance: {} });
+    expect("description" in update).toBe(false);
+    expect(kept).toEqual(["description"]);
+    // The baseline stays "old text", and with nothing else moving it is not rewritten.
+    expect(update.provenance).toBeUndefined();
+  });
+
+  it("fills an empty field that has no baseline", () => {
+    const current = { ...OWNED_NOW, mechanics: {}, provenance: {} };
+    const { update, kept } = mergeImportedFeature(current, { ...OWNED_NEW, mechanics: { a: 1 }, provenance: {} });
+    expect(update.mechanics).toEqual({ a: 1 });
+    expect(kept).not.toContain("mechanics");
+  });
+
+  it("keeps a non-empty field that has no baseline", () => {
+    const current = { ...OWNED_NOW, provenance: {} };
+    const { update, kept } = mergeImportedFeature(current, { ...OWNED_NEW, provenance: {} });
+    expect("description" in update).toBe(false);
+    expect(kept).toContain("description");
+    expect((update.provenance as { imported: Record<string, unknown> }).imported).not.toHaveProperty("description");
+  });
+
+  it("treats repeatable false as empty", () => {
+    const current = { ...OWNED_NOW, provenance: {} };
+    const { update } = mergeImportedFeature(current, { ...OWNED_NOW, repeatable: true, provenance: {} });
+    expect(update.repeatable).toBe(true);
+  });
+
+  it("writes nothing when the row already matches, and never touches tags", () => {
+    const current = { ...OWNED_NOW, source: "x", provenance: { imported: { ...OWNED_NOW } } };
+    const { update, kept } = mergeImportedFeature(current, { ...OWNED_NOW, source: "x", tags: ["a"], provenance: {} });
+    expect(update).toEqual({});
+    expect(kept).toEqual([]);
+  });
+
+  it("owns exactly the eight documented fields", () => {
+    expect([...IMPORT_OWNED_FIELDS]).toHaveLength(8);
+  });
+});
+
+describe("jsonEqual", () => {
+  it("ignores key order but not array order", () => {
+    expect(jsonEqual({ a: 1, b: { c: [1, 2] } }, { b: { c: [1, 2] }, a: 1 })).toBe(true);
+    expect(jsonEqual([1, 2], [2, 1])).toBe(false);
+    expect(jsonEqual({ a: 1 }, { a: 1, b: 2 })).toBe(false);
+  });
+});
+
+describe("unionFeatureMap", () => {
+  it("keeps a hand-added id and adds a new level", () => {
+    const merged = unionFeatureMap({ "1": ["a", "hand"] }, { "1": ["a", "b"], "2": ["c"] });
+    expect(merged).toEqual({ "1": ["a", "hand", "b"], "2": ["c"] });
+  });
+  it("accepts a null current map", () => {
+    expect(unionFeatureMap(null, { "1": ["a"] })).toEqual({ "1": ["a"] });
   });
 });

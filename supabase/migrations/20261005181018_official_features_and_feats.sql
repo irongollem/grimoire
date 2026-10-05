@@ -496,10 +496,26 @@ begin
 end $$;
 
 -- Now nothing points at a duplicate, adopt the keepers.
+--
+-- `provenance.imported` records what the import last wrote into each field it
+-- owns. The admin import refreshes a field only while it still holds that
+-- value, so an edit made to an official row afterwards survives every later
+-- import (src/lib/library/officialClassContent.ts, mergeImportedFeature). The
+-- adopted rows start from what they hold now: their text is Open5e's as
+-- imported, and their mechanics are what step 1 derived.
 update public.class_features f
    set user_id = null,
        campaign_id = null,
-       source = pg_temp.source_slug(f.source_document_key)
+       source = pg_temp.source_slug(f.source_document_key),
+       provenance = coalesce(f.provenance, '{}'::jsonb) || jsonb_build_object('imported', jsonb_build_object(
+         'name', f.name,
+         'description', f.description,
+         'prerequisite', f.prerequisite,
+         'mechanics', f.mechanics,
+         'feat_category', f.feat_category,
+         'prerequisites', f.prerequisites,
+         'repeatable', f.repeatable,
+         'ability_increase', f.ability_increase))
  where f.id in (select id from official_feature);
 
 update public.custom_subclasses s

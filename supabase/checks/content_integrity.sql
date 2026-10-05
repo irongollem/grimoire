@@ -188,14 +188,6 @@ select check_name, cnt from (
          case when jsonb_typeof(g) = 'string' then g#>>'{}' end) as sid) x
        where x.sid is not null and x.sid !~ '^[0-9a-f]{8}-'
          and not exists (select 1 from library_spells s where s.id = x.sid))
-  union all select 'class_feature_options.granted_spells[].spell_id -> library_spells',
-    (select count(*) from class_feature_options cfo
-       cross join lateral jsonb_array_elements(
-         case when jsonb_typeof(cfo.granted_spells) = 'array' then cfo.granted_spells else '[]'::jsonb end) as g
-       cross join lateral (select coalesce(g->>'spell_id',
-         case when jsonb_typeof(g) = 'string' then g#>>'{}' end) as sid) x
-       where x.sid is not null and x.sid !~ '^[0-9a-f]{8}-'
-         and not exists (select 1 from library_spells s where s.id = x.sid))
 
   -- ---- notes --------------------------------------------------------------
   -- entity_notes.entity_id is polymorphic: a uuid for user-owned entities, a
