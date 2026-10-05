@@ -16,11 +16,12 @@
           <option value="mage_armor">Mage Armor spell</option>
           <option value="natural">Natural armor</option>
           <option value="natural_dex">Natural armor plus Dexterity (Lizardfolk)</option>
+          <option value="natural_con">Natural armor plus Constitution (Loxodon)</option>
           <option value="unarmored:dex+con">Unarmored Defense (Barbarian levels)</option>
           <option value="unarmored:dex+wis">Unarmored Defense (Monk levels)</option>
         </AppSelect>
         <AppInput
-          v-if="formulaType === 'natural' || formulaType === 'natural_dex'"
+          v-if="formulaType.startsWith('natural')"
           v-model.number="naturalBase"
           type="number"
           min="1"
@@ -50,32 +51,34 @@ const { breakdown, naturalSeed = null } = defineProps<{
   naturalSeed?: number | null;
 }>();
 
-/** `ac_formula`: null, "mage_armor", "unarmored:dex+con", "unarmored:dex+wis", "natural:N" or "natural:N+dex". */
+/** `ac_formula`: null, "mage_armor", "unarmored:dex+con", "unarmored:dex+wis", "natural:N", "natural:N+dex" or "natural:N+con". */
 const formula = defineModel<string | null | undefined>({ required: true });
 
-/** Select value: the formula itself, except that both natural forms collapse to a base-less key. */
+/** The ability a natural form adds, keyed by select value: "", "+dex" or "+con". */
+const NATURAL_RIDER: Record<string, string> = { natural: "", natural_dex: "+dex", natural_con: "+con" };
+
+/** Select value: the formula itself, except that the natural forms collapse to a base-less key. */
 const formulaType = computed({
   get(): string {
     const fm = formula.value;
     if (!fm) return "";
-    if (fm.startsWith("natural:")) return fm.endsWith("+dex") ? "natural_dex" : "natural";
+    if (fm.startsWith("natural:")) return fm.endsWith("+dex") ? "natural_dex" : fm.endsWith("+con") ? "natural_con" : "natural";
     return fm;
   },
   set(val: string) {
     if (val === "") formula.value = null;
-    else if (val === "natural" || val === "natural_dex") {
-      formula.value = `natural:${naturalSeed ?? 10}${val === "natural_dex" ? "+dex" : ""}`;
-    } else formula.value = val;
+    else if (val in NATURAL_RIDER) formula.value = `natural:${naturalSeed ?? 10}${NATURAL_RIDER[val]}`;
+    else formula.value = val;
   },
 });
 
 const naturalBase = computed({
   get(): number {
-    const match = formula.value?.match(/^natural:(\d+)(\+dex)?$/);
+    const match = formula.value?.match(/^natural:(\d+)(\+dex|\+con)?$/);
     return match ? parseInt(match[1], 10) : (naturalSeed ?? 10);
   },
   set(val: number) {
-    formula.value = `natural:${val}${formulaType.value === "natural_dex" ? "+dex" : ""}`;
+    formula.value = `natural:${val}${NATURAL_RIDER[formulaType.value]}`;
   },
 });
 </script>

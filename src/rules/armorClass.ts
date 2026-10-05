@@ -218,7 +218,7 @@ export interface AcMember {
   con: number;
   wis: number;
   cha: number;
-  /** An extra AC calculation the character has: "mage_armor", "natural:13+dex", "unarmored:dex+con", ... */
+  /** An extra AC calculation the character has: "mage_armor", "natural:13+dex", "natural:12+con", "unarmored:dex+con", ... */
   ac_formula?: string | null;
   class_choices?: Record<string, unknown> | null;
 }
@@ -306,10 +306,12 @@ function unarmouredCandidates(member: AcMember, gear: WornGear[]): Candidate[] {
 
 /** Natural armour competes with worn armour: you use whichever leaves you higher. */
 function naturalCandidate(member: AcMember): Candidate | null {
-  const match = (member.ac_formula ?? "").match(/^natural:(\d+)(\+dex)?$/);
+  const match = (member.ac_formula ?? "").match(/^natural:(\d+)(\+dex|\+con)?$/);
   if (!match) return null;
   const parts: AcPart[] = [{ label: "Natural armor", value: parseInt(match[1], 10) }];
-  if (match[2]) parts.push(dexPart(member));
+  // Lizardfolk add Dexterity; a Loxodon's thick hide adds Constitution instead.
+  if (match[2] === "+dex") parts.push(dexPart(member));
+  if (match[2] === "+con") parts.push({ label: "Constitution", value: abilityMod(member.con) });
   return { parts, allowsShield: true };
 }
 

@@ -206,6 +206,12 @@ describe("calculateAc: unarmoured calculations", () => {
     expect(calculateAc(member({ ac_formula: "natural:13+dex", dex: 14 }), []).total).toBe(15);
   });
 
+  it("Loxodon natural armour adds Constitution, not Dexterity, and takes a shield", () => {
+    const m = member({ ac_formula: "natural:12+con", dex: 16, con: 16 });
+    expect(calculateAc(m, []).total).toBe(15);
+    expect(calculateAc(m, [worn(SHIELD, "off_hand")]).total).toBe(17);
+  });
+
   it("Draconic Resilience: 13 + Dex in 2014, 10 + Dex + Cha in 2024", () => {
     const base = { class: "Sorcerer", subclass: "Draconic Bloodline", dex: 14, cha: 18 };
     expect(calculateAc(member({ ...base, ruleset: "2014" }), []).total).toBe(15);

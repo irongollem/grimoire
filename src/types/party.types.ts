@@ -234,6 +234,8 @@ export { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/rules
 // "natural:<N>"       → Natural Armor:                fixed base AC N (e.g. "natural:15")
 // "natural:<N>+dex"   → Natural Armor + Dex:           base N + DEX mod (e.g. Lizardfolk
 //                       "natural:13+dex")
+// "natural:<N>+con"   → Natural Armor + Con:           base N + CON mod (e.g. Loxodon
+//                       "natural:12+con")
 // Worn armour, a shield in the off hand and magic items are read from the inventory.
 
 // ── XP-per-level table (D&D 5e PHB) ──────────────────────────────────────────
