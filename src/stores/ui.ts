@@ -583,6 +583,8 @@ export const useUiStore = defineStore("ui", () => {
 
   // Chat panel
   const chatOpen = ref(false);
+  // Lit and cleared by CampaignChat from a per-campaign read position
+  // (chatUnread.ts); nothing else should set it.
   const chatHasUnread = ref(false);
   const chatFocusMessageId = ref<string | null>(null);
   const chatFocusRequest = ref(0);
@@ -590,6 +592,11 @@ export const useUiStore = defineStore("ui", () => {
   function toggleChat() {
     chatOpen.value = !chatOpen.value;
     if (chatOpen.value) chatHasUnread.value = false;
+  }
+
+  function openChat() {
+    chatOpen.value = true;
+    chatHasUnread.value = false;
   }
 
   function openChatAt(messageId: string) {
@@ -1281,6 +1288,7 @@ export const useUiStore = defineStore("ui", () => {
     entityListLayout,
     chatOpen,
     chatHasUnread,
+    openChat,
     chatFocusMessageId,
     chatFocusRequest,
     toggleChat,

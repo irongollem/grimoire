@@ -10,10 +10,11 @@
         v-for="item in mobileNav"
         :key="'mob-' + item.to"
         :to="item.to"
-        class="sm:hidden flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 transition-colors"
+        class="sm:hidden relative flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 transition-colors"
         :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
       >
         <component :is="item.icon" class="h-5 w-5 shrink-0" />
+        <span v-if="unreadPaths.includes(item.to)" class="absolute top-1.5 left-1/2 ml-1.5 h-2 w-2 rounded-full bg-destructive" aria-label="New" />
         <span class="text-label md:text-xs">{{ item.label }}</span>
       </RouterLink>
 
@@ -22,21 +23,25 @@
         v-for="item in tabletNav"
         :key="'tab-' + item.to"
         :to="item.to"
-        class="hidden sm:flex flex-col items-center justify-center gap-0.5 flex-1 py-3 transition-colors"
+        class="hidden sm:flex relative flex-col items-center justify-center gap-0.5 flex-1 py-3 transition-colors"
         :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
       >
         <component :is="item.icon" class="h-5 w-5 shrink-0" />
+        <span v-if="unreadPaths.includes(item.to)" class="absolute top-1.5 left-1/2 ml-1.5 h-2 w-2 rounded-full bg-destructive" aria-label="New" />
         <span class="text-label md:text-xs">{{ item.label }}</span>
       </RouterLink>
 
       <!-- More button (always) -->
       <button
         type="button"
-        class="flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 sm:py-3 transition-colors"
+        class="relative flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 sm:py-3 transition-colors"
         :class="showMore ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
         @click="emit('open-more')"
       >
         <IconGridView class="h-5 w-5 shrink-0" />
+        <!-- Something new in a section that lives behind More at this width. -->
+        <span v-if="moreUnreadMobile" class="sm:hidden absolute top-1.5 left-1/2 ml-1.5 h-2 w-2 rounded-full bg-destructive" aria-label="New" />
+        <span v-if="moreUnreadTablet" class="hidden sm:block absolute top-1.5 left-1/2 ml-1.5 h-2 w-2 rounded-full bg-destructive" aria-label="New" />
         <span class="text-label md:text-xs">More</span>
       </button>
 
@@ -51,8 +56,10 @@ import { IconGridView } from '@/lib/icons';
 import { usePlayerNavPrefs } from "@/composables/play/usePlayerNavPrefs";
 import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS } from "@/lib/playerNav";
 
-const { showMore } = defineProps<{
+const { showMore, unreadPaths } = defineProps<{
   showMore: boolean;
+  /** Nav paths with something new (usePlayerUnread). */
+  unreadPaths: readonly string[];
 }>();
 
 const emit = defineEmits<{
@@ -64,6 +71,10 @@ const { sortedNav } = usePlayerNavPrefs();
 
 const mobileNav = computed(() => sortedNav.value.slice(0, MOBILE_NAV_SLOTS));
 const tabletNav = computed(() => sortedNav.value.slice(0, TABLET_NAV_SLOTS));
+
+// The More button carries the dot for whatever is unread but not pinned at this width.
+const moreUnreadMobile = computed(() => unreadPaths.some((p) => !mobileNav.value.some((i) => i.to === p)));
+const moreUnreadTablet = computed(() => unreadPaths.some((p) => !tabletNav.value.some((i) => i.to === p)));
 
 function isActive(to: string): boolean {
   return to === "/play" ? route.path === "/play" : route.path.startsWith(to);

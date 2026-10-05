@@ -108,7 +108,8 @@
 import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { IconMessage } from '@/lib/icons';
 import { railTransition } from "@/lib/motion";
-import { isUnreadArrival } from "@/components/chat/chatUnread";
+import { loadReadMarker, resolveChatUnread, saveReadMarker, type ReadMarker } from "@/components/chat/chatUnread";
+import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
@@ -197,6 +198,7 @@ onUnmounted(() => {
 
 const ui = useUiStore();
 const auth = useAuthStore();
+const campaign = useCampaignStore();
 const { messages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
 const toast = useToast();
@@ -250,13 +252,46 @@ watch(npcs, (list) => {
   if (npc) ui.setDmTalkAsNpc(npc.id, npc.name);
 });
 
-// `messages` is mutated in place (push + sort), so watching the array never
-// fires for a live INSERT. Watch the newest message instead.
+// The dot is a read position, not a transition (chatUnread.ts). `messages` is
+// mutated in place (push + sort), so watch what the position depends on: the
+// newest message, how many there are (a refetch can add older ones without
+// changing the newest), whether the chat is on screen, and the campaign.
+const chatViewing = computed(() => ui.chatOpen);
+let markerKey: string | null = null;
+let marker: ReadMarker | null = null;
+
+function syncChatUnread() {
+  const userId = auth.user?.id;
+  const campaignId = campaign.activeCampaignId;
+  if (!userId || !campaignId) {
+    ui.chatHasUnread = false;
+    return;
+  }
+  const key = `${userId}:${campaignId}`;
+  if (key !== markerKey) {
+    markerKey = key;
+    marker = loadReadMarker(userId, campaignId);
+  }
+  const result = resolveChatUnread({
+    // Right after a campaign switch the list can still hold the old campaign's
+    // messages for a tick; reading them against the new campaign's marker would
+    // adopt the wrong newest message.
+    messages: messages.value.filter((m) => m.campaign_id === campaignId),
+    marker,
+    viewing: chatViewing.value,
+    myUserId: userId,
+  });
+  ui.chatHasUnread = result.unread;
+  if (result.marker && result.marker !== marker) {
+    marker = result.marker;
+    saveReadMarker(userId, campaignId, result.marker);
+  }
+}
+
 watch(
-  () => messages.value[messages.value.length - 1] ?? null,
-  (next, prev) => {
-    if (!ui.chatOpen && isUnreadArrival(prev ?? null, next, auth.user?.id)) ui.chatHasUnread = true;
-  },
+  () => [messages.value.at(-1)?.id, messages.value.length, chatViewing.value, campaign.activeCampaignId, auth.user?.id],
+  syncChatUnread,
+  { immediate: true },
 );
 
 watch(() => ui.chatFocusRequest, () => {

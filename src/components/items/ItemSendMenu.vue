@@ -226,7 +226,7 @@ async function dropInChat() {
       props.item.tags?.includes("container") ?? false,
     );
     open.value = false;
-    ui.chatOpen = true;
+    ui.openChat();
   } catch (e) {
     reportChatFailure(e, "drop the item to the chat");
   } finally {

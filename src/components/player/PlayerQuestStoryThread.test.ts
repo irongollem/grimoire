@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import PlayerQuestStoryThread from "./PlayerQuestStoryThread.vue";
 import type { PlayerQuestBeat } from "@/types/quest.types";
 
-const mocks = vi.hoisted(() => ({ push: vi.fn() }));
-vi.mock("vue-router", () => ({ useRouter: () => ({ push: mocks.push }) }));
+const mocks = vi.hoisted(() => ({ openChat: vi.fn() }));
+vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ openChat: mocks.openChat }) }));
 
 function beat(overrides: Partial<PlayerQuestBeat> = {}): PlayerQuestBeat {
   return {
@@ -92,7 +92,8 @@ describe("PlayerQuestStoryThread", () => {
     const claimButton = wrapper.findAll("button").find((button) => button.text().includes("Claim: the second ledger"));
     expect(claimButton).toBeTruthy();
     await claimButton!.trigger("click");
-    expect(mocks.push).toHaveBeenCalledWith("/play/chat");
+    // The claim lives in the chat, which for a player is the sheet the header opens.
+    expect(mocks.openChat).toHaveBeenCalledOnce();
   });
 
   it("never renders hidden or DM-only fields from a malformed client object", () => {

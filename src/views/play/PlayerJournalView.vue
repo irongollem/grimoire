@@ -126,7 +126,7 @@
     </div>
 
     <!-- Tab bar -->
-    <TabBar :tabs="TABS" :model-value="activeTab" @update:model-value="setTab" />
+    <TabBar :tabs="TABS" :model-value="activeTab" wrapper-class="overflow-x-auto" @update:model-value="setTab" />
 
     <!-- Tome tabs — one per document item currently in the party's inventory -->
     <PlayerJournalTomeStrip
@@ -260,6 +260,7 @@ import { useUiStore } from "@/stores/ui";
 import { storeToRefs } from "pinia";
 import { sortEntities, type SortField } from "@/lib/noteSort";
 import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
+import { QUEST_LOG_STATUSES, usePlayerUnread } from "@/composables/play/usePlayerUnread";
 import type { JournalCategory, PlayerJournalEntry, PlayerJournalEntryUpdate, JournalRefType } from "@/composables/notes/usePlayerJournal";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import type { Quest } from "@/types/quest.types";
@@ -425,14 +426,15 @@ const TABS = computed(() => [
   { id: "party"     as const, label: "Party Journal", count: sharedEntries.value?.length ?? 0 },
   // Count only quests that fall into a rendered group (see questGroups) — shared
   // `undiscovered` quests would otherwise inflate the badge past the visible list.
-  { id: "quest-log" as const, label: "Quest Log",     count: (playerQuests.value ?? []).filter((q) => QUEST_LOG_STATUSES.includes(q.status)).length },
-  { id: "puzzles"   as const, label: "Puzzles",       count: puzzles.value?.length ?? 0 },
-  { id: "dm-notes"  as const, label: "DM Notes",      count: dmNotes.value.length },
-  { id: "handouts"  as const, label: "Handouts",      count: handouts.value?.length ?? 0 },
+  { id: "quest-log" as const, label: "Quest Log",     count: (playerQuests.value ?? []).filter((q) => QUEST_LOG_STATUSES.includes(q.status)).length, dot: unread.value.quests },
+  { id: "puzzles"   as const, label: "Puzzles",       count: puzzles.value?.length ?? 0, dot: unread.value.puzzles },
+  { id: "dm-notes"  as const, label: "DM Notes",      count: dmNotes.value.length, dot: unread.value.dmNotes },
+  { id: "handouts"  as const, label: "Handouts",      count: handouts.value?.length ?? 0, dot: unread.value.handouts },
 ]);
 
-// Statuses that render in a Quest Log group — the badge counts exactly these.
-const QUEST_LOG_STATUSES: readonly string[] = ["active", "completed", "failed"];
+// A tab dot is the same rule as the card dots below it (usePlayerUnread), so a
+// tab never promises news its list does not show.
+const { sections: unread } = usePlayerUnread();
 
 const questGroups = computed<[string, Quest[]][]>(() => [
   ["Active",    (playerQuests.value ?? []).filter((q) => q.status === "active")],

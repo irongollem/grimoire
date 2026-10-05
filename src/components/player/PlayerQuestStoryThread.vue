@@ -79,7 +79,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useRouter } from "vue-router";
+import { useUiStore } from "@/stores/ui";
 import { IconLoot, IconNavigate, IconScrollText } from "@/lib/icons";
 import { prefersReducedMotion } from "@/lib/motion";
 import { groupPlayerBeatsByThread } from "@/lib/quests/playerThreads";
@@ -88,7 +88,7 @@ import type { PlayerQuestBeat } from "@/types/quest.types";
 
 const props = defineProps<{ beats: PlayerQuestBeat[] }>();
 const reducedMotion = prefersReducedMotion();
-const router = useRouter();
+const ui = useUiStore();
 
 const columns = computed(() => groupPlayerBeatsByThread(props.beats));
 
@@ -99,10 +99,8 @@ const gridStyle = computed(() => ({
 // A payoff's claimable loot links to the table's chat, where the claim button
 // actually lives (`ChatLootChestMessage.vue`/`ChatItemDropMessage.vue`) — the
 // journal only ever shows what a beat paid out, never the claiming UI itself.
-// `ChatPanelContent` already carries a `focusMessageId` prop to scroll a
-// specific drop into view; no player route wires it up yet, so this jumps to
-// the chat surface and stops there.
+// The player's chat is the sheet the header bubble opens; there is no chat page.
 function goToChat() {
-  void router.push("/play/chat");
+  ui.openChat();
 }
 </script>
