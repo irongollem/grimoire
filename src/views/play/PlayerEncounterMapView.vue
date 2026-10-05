@@ -276,6 +276,9 @@ const gridStrokeOpacity = computed(
 .map-root {
   display: flex;
   flex-direction: column;
+  /* Fills <main> through the route's `fillsMain`; without it the padded wrapper
+     had no height, the pane collapsed to its top bar, and the empty and loading
+     text sat white on the page paper. */
   height: 100%;
   min-height: 0;
   background: #0b0b10;

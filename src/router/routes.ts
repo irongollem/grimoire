@@ -188,7 +188,9 @@ export const routes: RouteRecordRaw[] = [
     path: "/play/encounter/map",
     name: "player-encounter-map",
     component: () => import("@/views/play/PlayerEncounterMapView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Battle Map" },
+    // fillsMain: the map draws its own frame edge to edge, so the player layout
+    // gives it the whole content area instead of a padded column of no height.
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Battle Map", fillsMain: true },
   },
   {
     path: "/play/factions",

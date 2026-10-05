@@ -202,7 +202,7 @@
       />
 
       <main ref="mainEl" class="flex-1 overflow-y-auto">
-        <div :class="fullscreenMobile ? 'h-full' : 'px-4 py-6'">
+        <div :class="fullscreenMobile || route.meta.fillsMain ? 'h-full' : 'px-4 py-6'">
           <!-- Renders nothing unless the DM is actually sharing audio, so a
                table that plays in one room never sees it. -->
           <PlayerAudioStream class="mb-4" />
