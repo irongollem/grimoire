@@ -428,7 +428,7 @@ Migration `20260928233906` stripped `label` from mentions already stored; `remap
 
 All note creation and editing happens here. Key integrations:
 
-1. **`RichTextEditor`** (`src/components/common/RichTextEditor.vue`) — full editor with all extensions; uses `allow-calendar-events` prop and `@insert-calendar-event` event to enable the calendar toolbar button
+1. **`RichTextEditor`** (`src/components/common/RichTextEditor.vue`) — full editor with all extensions; uses `allow-calendar-events` prop and `@insert-calendar-event` event to enable the calendar toolbar button; a `toolbar="focus"` prop (the player Lore tab) shows the toolbar only while the field has focus, as one sideways-scrolling row, and every other caller keeps the default
 
 2. **`InlineCalendarEventModal`** (`src/components/calendar/InlineCalendarEventModal.vue`) — triggered by the calendar toolbar button; on `@event-created` calls `rteRef.value?.insertCalendarEventRef(...)` to embed a `CalendarEventRef` chip in the note body
 

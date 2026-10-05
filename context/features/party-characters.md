@@ -31,13 +31,14 @@ On the player side, `PlayerCharacterHeader` reads `useIsRuleEnabled("xp_levellin
 
 - The Party Tracker itself has no roll or clear control — `current_initiative` is set from the live encounter, not from here.
 - Each player rolls their own initiative (DEX mod + `initiative_bonus`, via `usePromptedRoll`) from `PlayerEncounterPanel` when an encounter starts (#504); the write lands on their own `party_members` row (RLS lets a player update their own character), and the DM's runner ingests the value live rather than writing it itself — see "Encounter Runner" in combat-encounters.md.
+- `current_initiative` does not outlive the fight. Going live, ending and abandoning an encounter all clear it, and the runner ingests a roll only while the encounter is live. Before this a PC's roll from last week was pulled into this week's fight on the first resync.
 - Cards automatically re-sort highest to lowest once every member has a value; anyone still unrolled falls back to `sort_order`.
 
 **HP Tracking:**
 
 - Each card has a numeric input, then three action buttons: **Damage**, **Heal**, **+Temp**.
-- Damage applies to temporary HP first; overflow flows to current HP (can go negative down to `-max_hp`).
-- Healing also resets death save counters.
+- Damage applies to temporary HP first; overflow flows to current HP, which stops at 0 (there is no negative floor any more: death is explicit, see Death Saves).
+- Healing above 0 HP resets death save counters and clears Unconscious. It never revives the dead.
 - Temp HP takes the higher of existing and new value (does not stack by default).
 - A colour-coded HP bar provides instant visual triage (green → yellow → orange → red → destructive red at 0).
 
@@ -45,6 +46,9 @@ On the player side, `PlayerCharacterHeader` reads `useIsRuleEnabled("xp_levellin
 
 - Appear automatically when `current_hp <= 0`.
 - Three success pips (green) and three failure pips (red), clickable to increment. Cycling past 3 resets to 0.
+- Dying and death follow the book, identically in 2014 and 2024, and live in `src/rules/dying.ts` on top of the pool arithmetic in `hitPoints.ts`: dropping to 0 HP makes you Unconscious; damage left over after reaching 0 that is at least your HP maximum kills outright; damage at 0 HP is a death save failure (two from a critical hit); three successes make you stable, three failures make you dead; a stable creature that is hurt is dying again; healing never revives the dead.
+- **There is no dead or stable column.** `dyingStatus(currentHp, saves)` derives `alive | dying | stable | dead` from HP and the two save counters, and it is the only place that says so. The player sheet, the DM tracker, the encounter runner (`encounterRun` store, `useRunnerCombatant`) and the dashboard all ask it, so they cannot disagree.
+- Wherever damage meets a character at 0 HP (the tracker row, the player's HP controls, the runner's quick damage) a critical-hit toggle appears. The death panel shows Stable and Dead states, and only the DM can revive a dead character (`reviveOutcome`: 1 HP, saves cleared, as Revivify does). The runner picks up death saves a player rolls on their own sheet.
 
 **Conditions & Curses:**
 
@@ -120,11 +124,21 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 ### Stats Tab
 
 - **Ability Scores** (STR, DEX, CON, INT, WIS, CHA) with live modifier display
-- **Combat stats**: Max HP, Current HP, Temp HP, AC (with a "without shield" hint), Speed (ft), Initiative Bonus, Carry Capacity Override (`*2`, `+30`, `150`, or blank for STR×15)
+- **Combat stats**: Max HP, Current HP, Temp HP, Armor Class (not a field: the live breakdown from the gear plus a formula choice, see below), Speed (ft), Initiative Bonus, Carry Capacity Override (`*2`, `+30`, `150`, or blank for STR×15)
 - **Computed passives** (read-only): Passive Perception, Insight, Investigation
 - **Spell Slots (Max per Level)** — 9-level grid with a "Reset to class defaults" action
 
-**Shield & armor AC** — the stored `party_members.ac` is the armor class WITHOUT shield. Display AC resolves through `useShieldAcBonus().acFor(member)` (`src/composables/party/useShieldAc.ts`, wrapped in `createSharedComposable` so N tracker/runner rows share one set of inventory-scanning computeds; pure logic + tests in `src/rules/shieldAc.ts` and `src/rules/armorAc.ts`): base AC comes from `resolveBaseAc(ac_formula, storedAc, equippedArmor, dex)` — `"armor"` live-derives from the equipped body armor (`parseArmorClass`, base anchored to a leading integer), `"unarmored:*"`/`"mage_armor"` are replaced by armor-derived AC while body armor is equipped (RAW: those calculations only function unarmored), `"natural:*"` (fixed `natural:<N>` or Dex-based `natural:<N>+dex` — Tortle vs. Lizardfolk/Draconic Resilience) takes the higher of shell vs. worn armor, and null/manual `ac` is never overridden — then any equipped (non-ruined) shield bonus stacks on top in every mode. Wired into: PlayerCharacterHeader, PlayerPartyMemberCard, PartyMemberLightbox, PartyTrackerRow, RunnerPcPanel, useRunnerCombatant, and CharacterSheetRenderer (via `acBonus` prop — the renderer is mounted with a bare `createApp` for PDF export, so it can't use query composables). Wildshaped characters show the beast AC with no shield bonus. Both AC edit fields (CharacterEditTabs, PartyMemberAbilitiesTab) carry a "without shield" hint.
+**Armor Class is calculated, never stored (#973).** `calculateAc()` in `src/rules/armorClass.ts` works it out for both editions from the character and what is on the paper doll, and every screen reads it through `useArmorClass().acFor(member)` / `acBreakdownFor(member)` (`src/composables/party/useArmorClass.ts`, a `createSharedComposable` so N tracker/runner rows share one inventory scan; it replaced `useShieldAc`, `armorAc.ts` and `shieldAc.ts`). What counts:
+
+- Body armour counts only in the Body slot: light is base + Dex, medium base + Dex (max 2), heavy is the base alone; a magic "+N" is parsed and a few special armours come from a small table.
+- A shield counts only in the Off hand slot, and only one. (The old bolt-on counted a shield in any slot.)
+- With no body armour the base is the best unarmoured calculation the character qualifies for: 10 + Dex, Barbarian and Monk Unarmored Defense (the Monk gives up the shield), Mage Armor, natural armour, Draconic Resilience by edition. A character uses one calculation, so the highest wins.
+- Flat bonuses count while worn, and attuned where the item asks for it: Ring and Cloak of Protection, Bracers of Defense, Ioun Stone (Protection), Staff of Power, Robe of the Archmagi. The Defense fighting style counts in armour.
+- The result carries a breakdown that sums to the total, with plain notes ("Attune to Cloak of Protection to use its +1 AC"), shown by `AcBreakdownPopover` / `AcBreakdownList` on the sheet's AC shield, the DM tracker and the dashboard.
+- Wild Shape stays outside it: callers keep `wildshape_state?.beast_ac ?? acFor(member)`, and a shaped character gets the beast's AC with nothing added.
+- `useArmorClass` exposes `isReady`; until the gear has loaded every character looks unarmoured, so anything comparing against the calculation must wait for it.
+
+**`party_members.ac` is "the number a player saw before calculation".** It is nullable with no default (`20261005085834`), and nothing writes it: new and edited characters leave it null, the DM form and the player editor show the live breakdown and a formula choice instead of a raw field, the runner snapshots the calculated value (`buildRunCombatants`), the PDF prints it, and the MCP overview drops a gear-blind number rather than contradict the sheet. The only reader is `AcCalculatedNotice` on the player sheet: where the stored number differs from the calculated one it says once, with the working, "now worked out from your gear: 11 (was 17). Equip your armour and shield to bring it back", and "Got it" sets it to null; where the two already agree it clears silently. **Drop the column once no row holds a value.** `ac_formula = 'armor'` meant "derive from equipped armour", which is now the only behaviour, so the migration nulled it.
 
 ### Proficiencies Tab
 
@@ -450,7 +464,12 @@ deleting their account. Three things are deliberately not a claim:
   still gives them the sheet to edit, as it always has; it does not make the
   character theirs to keep or delete.
 - An **offered** character (`is_dm_managed`). It stays the DM's, and a player
-  takes their own copy through `assume_character()`.
+  takes their own copy through `assume_character()`, which is idempotent per
+  player: the copy records where it came from in `party_members.assumed_from_id`
+  and a second call by the same player returns their existing copy instead of
+  minting another (a double tap on a slow phone used to). Another player still
+  gets their own. The UI says "Play this character", confirms what will happen,
+  and drops an original you already play from your list.
 - A character in another campaign. A DM's seat write used to skip every check on
   the character it named, which was harmless only while a link granted nothing.
   `guard_campaign_member_self_update` now holds the DM to "same campaign" too.
@@ -475,6 +494,15 @@ character kept reading and writing it after its player had claimed it and taken
 it to their pool. Both now carry the condition delete already had (nobody owns
 it, or the creator does). At the DM's own table nothing changes: the DM reads
 and writes a seated character as the DM.
+
+**A campaign's deity stays with the campaign.** A clone drops `deity_id` (a pool copy pointing at a deity in a campaign it is not in is refused by the same trigger, and the player saw only "Failed to clone"), attach keeps it only for the table the character came from, and detach leaves it so leaving and rejoining one table keeps it (`20261005013855`).
+
+**`assumed_from_id` stays inside its campaign.** It is a foreign key between
+campaign-scoped rows, so it joins `zz_same_campaign_refs` (as `deity_id` did,
+`20261005013855`: a clone that kept a deity from the DM's campaign was refused).
+A copy that leaves the campaign, by detach or by clone into the pool, drops the
+link (`20261005090012`); otherwise it would point across campaigns and block the
+move. The link only has a job while copy and original share a table.
 
 **A copy is a whole copy.** `clone_party_member()` and `assume_character()` both
 go through `private.copy_party_member()`, which copies the sheet through jsonb
@@ -736,8 +764,14 @@ A player may have multiple characters in a campaign (e.g. a backup character). T
 
 This view switches between two modes based on whether a `memberId` query param is present (or the player already has a linked character):
 
-- **Create mode:** `CharacterCreateWizard` — a multi-step wizard that walks the player through name, species, background, class selection, ability score allocation, and equipment.
-- **Edit mode:** `CharacterEditTabs` — a tabbed form for updating an existing character (same data as the DM's `PartyMemberForm` but in the player's own portal).
+- **Create mode:** `CharacterCreateWizard` — a multi-step wizard that walks the player through name, species, background, class selection, ability score allocation, and equipment. Leaving with progress (bottom nav, back gesture, Cancel) asks first instead of throwing the wizard away. Creating stays one explicit first save followed by the usual navigation.
+- **Edit mode:** `CharacterEditTabs` — a tabbed form for updating an existing character (same data as the DM's `PartyMemberForm` but in the player's own portal). It **autosaves** (`useAutosave` + `AutosaveStatus`) and Done flushes and leaves; there is no Save/Cancel. It writes only the columns the player changed against the server copy (`changedColumns` from `useRecordDraft`), and fresh server values reach the fields the player has not touched (`mergeDraft`), because the DM and the encounter change HP, conditions and slots while the sheet is open and a whole-form save would write them back. A free species spell pick is an inline link rather than a forced navigation. Armor Class is not an editable field here, it shows the live breakdown.
+
+**Level-1 subclasses.** The Class step asks for a subclass when the class's subclass level has come (a 2014 Cleric, Sorcerer or Warlock chooses at level 1), with the level-up picker and its options, and the save writes it; otherwise it says when the choice comes. `system_classes` holds the subclass level, and in the 2024 book every class chooses at level 3 (`20261005081947`; 2024 Cleric and Warlock had read 1 and Druid and Wizard 2). A level-1 subclass brings its granted spells: `subclassGrantedSpells.ts` is the one helper behind both level-up's payload and creation (a 2014 Life Domain cleric gets Bless and Cure Wounds).
+
+**Starting equipment is deferred, not dropped.** Inventory rows need a campaign (`party_inventory.campaign_id` is NOT NULL) and a character resting in the pool has none, so the loadout the wizard chose is kept on the character as `class_choices.starting_grants` (class bundle choice, background gear, plus the subclass's granted spells) and the Done step says it is added on joining a table. Attaching or joining with the character replays it once (`useCharacterEquipmentSeeding`): the marker is claimed (removed) with a filter before anything is written, so a second caller finds nothing, and it is restored if the write fails.
+
+**Owners insert their own spells.** Writing those spell rows needed `character_spells_insert_owner` (`20261005083915`): a player could previously add spell rows only to the character active at their seat, so a pool character or a second character at a table could not be given its own. The owner of a character may insert for it, and the source, limit and review triggers still check every row; `character_spells_owner_insert.test.sql` refuses a stranger and admits the owner.
 
 Both are provided the shared `useCharacterCreationForm` composable via `provide(CHARACTER_FORM_KEY, form)`.
 
@@ -752,10 +786,19 @@ The primary player-facing character sheet. Also used by the DM via `PartyMemberV
 **Header section** (`PlayerCharacterHeader`):
 
 - Portrait as a plate inset in the paper, name, class/level, species, inspiration star
-- Armor Class (in a shield), Initiative, Speed, Proficiency, Hit Dice, boxed as on the 2024 sheet
-- Current HP / Max HP with temp HP, a colour-coded meter (green → amber → red → grey at 0) and the damage/heal/temp controls
+- Armor Class (in a shield, calculated, with a breakdown popover), Initiative, Speed, Proficiency, Hit Dice, boxed as on the 2024 sheet; `AcCalculatedNotice` sits above it for a character that still holds a pre-calculation AC
+- Current HP / Max HP with temp HP, a colour-coded meter (green → amber → red → grey at 0, and Stable / Dead states from `dyingStatus`) and the damage/heal/temp controls
 - Rest, conditions (slotted in from `PlayerConditions`) and the add-condition picker
+- The in-game date under the class line
 - The parent card closes with `AbilityScoreTable layout="sheet"`; there is no separate HP bar on any width
+
+**The sheet is built for a thumb at the table (#973).** The HP amount and Damage / Heal / Temp are the DM tracker's size on a phone, and so are skill and save rows, the condition button and the combat actions; the condition remove button, exhaustion pips and death-save pips get a 44px touch area without changing how they look. Once the header scrolls out of view a **sticky HP strip** (`PlayerHpStrip`) keeps HP and the damage and heal controls at the top of the sheet; the controls are one component (`PlayerHpControls`) used in both places, so they cannot drift.
+
+**Roll with: Normal / Advantage / Disadvantage** (`PlayerRollModeControl`, Skills and Combat tabs) sets the mode of the next roll only. The pick lives in one module-level value (`useNextRollMode`); `usePromptedRoll` folds it into the roll with `combineModes` and puts it back to Normal, so it never lingers. Disadvantage a condition imposes is said as a sentence ("Poisoned: disadvantage on attack rolls and ability checks", `src/rules/rollModeNotes.ts`) rather than as "Dis" badges players missed. Long-press stays, with a one-time tip.
+
+**Hide by edition** (`src/rules/hide.ts`): 2024 makes Hide a DC 15 Dexterity (Stealth) check and marks you Hidden only on a success; 2014 marks you Hidden and shows the Stealth total for the DM to compare against Perception, because that contest is the DM's to judge.
+
+**Lore on a phone:** each field's toolbar shows only while you type in it, as one sideways-scrolling row (`RichTextEditor toolbar="focus"`; the default toolbar is unchanged for every other caller), and the identity fields are drawn to look editable.
 
 **Ability Scores** (`AbilityScoreTable`):
 
@@ -967,11 +1010,11 @@ Fonts: the illustrated themes need EB Garamond + Shippori Mincho (added to the `
 | `level`                         | int    | Level (legacy; superseded by `character_classes` rows) |
 | `str/dex/con/int/wis/cha`       | int    | Ability scores                                         |
 | `max_hp/current_hp/temp_hp`     | int    | Hit points                                             |
-| `ac`                            | int    | Armor class WITHOUT shield — see shield AC note below  |
+| `ac`                            | int?   | Legacy: the AC a player saw before it was calculated; nullable, nothing writes it, dropped once all null (see Armor Class above) |
 | `speed`                         | int    | Speed in feet                                          |
 | `initiative_bonus`              | int    | Custom initiative modifier                             |
 | `proficiency_bonus`             | int    | Computed from level                                    |
-| `saving_throw_proficiencies`    | text[] | E.g. `["str","con"]`                                   |
+| `saving_throw_proficiencies`    | text[] | Ability keys (`["str","con"]`), never names such as "Wisdom" |
 | `skill_proficiencies`           | jsonb  | `Record<skill, "none"\|"proficient"\|"expertise">`     |
 | `conditions`                    | text[] | Active conditions (includes Exhaustion 1–6)            |
 | `curses`                        | text[] | Named curses                                           |

@@ -39,6 +39,8 @@ Each card is the shared `EntityGridCard`. The item card is deliberately the lean
 
 **Shared SRD items (#303)** — the per-user "Import SRD Items" button is retired. SRD items live in the shared `library_items` table (public read, admin write; seeded by `npm run seed-library-items` from Open5e v2 weapons/armor/magic items plus the built-in local datasets `data/gear.ts`/`provisions.ts`/`services.ts`/`ammunition.ts`, which are stamped edition-neutral so 2024 campaigns get mundane gear too, except an entry the SRD covers in one edition, which names the other; see #957 below). `browse_items` (the Vault page, one server page at a time through `useItemBrowse`) and the slim `useItemIndex` (pickers) merge shared rows (slug ids, `user_id: ""`) with the user's own; a per-user row shadows its shared counterpart by source identity — or by lowercase name for pre-versioning imports — so legacy vaults look unchanged. Shared rows are read-only in the vault ("Clone to customize" in the detail view, `useCustomizeLibraryItem`, the only path that copies one). Every picker stores a *reference* to a picked shared row (#954): stores, inventories, recipes, loot placements, beat attachments, loot tables, encounter loot, downtime deck backs and chat drops/vendor offers each hold the library id (`library_item_id`, a text column, or a text/jsonb id field), never a clone. A stored reference resolves even after the campaign disables that book (`useResolvedItem`, `useStoredItemRefs`); only pickers respect enabled sources. Per-campaign gating rides `campaign_enabled_sources` (the Vault has the same Sources panel as Monsters/Spells, backed by `get_library_item_sources`; grimoire-bundled rows are always available).
 
+**Library items carry their doll slot as a tag, and base gear carries a weight (#973).** Open5e files every worn wondrous item as "Wondrous Item" with no tags, so no cloak, boots, belt or amulet ever fitted a paper-doll slot. `src/lib/library/slotTags.ts` reads the slot from the item's name and the tag is the slot id itself ("neck", "shoulders", "feet", "hands", "waist", "head", "clothes"), so one tag means exactly one slot; rings and body armour are already covered by `item_type`. The seed script applies it, and migration `20261005081612` applied it to existing rows from the same word lists (`slotTagPatterns()`), idempotently; `useInventorySlots` matches on the tag. Open5e v2 also carries no weight for weapons and armour, so `baseGearWeights.ts` holds the PHB table (identical in both editions) and fills null weights in the importer and, by the same migration, in existing rows.
+
 **Open5e import layer (#554)** — every v2 fetch across items/spells/monsters/etc. goes through shared helpers in `src/lib/library/open5eApi.ts`: `rulesetForDocument()` maps a document's gamesystem to `2014`/`2024`/`null`, `fetchSupported5eDocumentKeys()` lists every 5e-gamesystem document (excluding non-5e gamesystems like a5e), and `fetchAllFromDocuments()` scopes a list fetch to those keys via `document__key__in`. Plain `document__key` is silently ignored on `/v2/items`, `/v2/weapons`, and `/v2/magicitems` — those endpoints otherwise return the full unfiltered cross-publisher set with no error — so `document__key__in` is the only filter used against any v2 endpoint, with a stray-document assertion (`fetchAllFromDocuments` throws if a returned record's document key isn't in the requested set) guarding against that failure mode recurring.
 
 **AI Generator** — "Generate" button opens `ItemGeneratorPanel`, an AI-assisted item creation wizard. Also stamps the active campaign onto the generated item (#596) — this path built its own insert payload rather than going through `ItemDetail`'s form, so it had kept minting general items after #597 flipped the manual editor's default.
@@ -302,7 +304,7 @@ All containers are rendered as `ContainerSection` components with drag-and-drop 
 Within each container, items are shown as `ItemRow` rows supporting:
 
 - Quantity adjustment (+/− buttons)
-- Move to another container or location via the row's `⋯` menu (shown at every width; where drop, split, sell and remove are inline, the menu holds only the move targets and the container switch)
+- Move to another container or location via the row's `⋯` menu (shown at every width). Where drop, split, sell and remove are inline, the menu holds only the move targets and the container switch; on a phone those secondary actions all move into the one menu (`ItemRowMenu`, with "Move to"), so the name has room and moving does not depend on drag
 - "Drop to chat" — removes from inventory and posts an item-drop chat message
 - Split stack (prompts for qty, creates a second row)
 - Open detail panel
@@ -318,11 +320,11 @@ Items with `carried_by === null` (shared party inventory) are shown in a read-on
 
 #### Add Item Form
 
-A sticky form at the bottom of the page: a combobox searches the full Vault by name, a quantity field, and an "Add" button. If a Vault item has `bundle_items` (pack), adding it auto-creates the pack container and expands sub-items inside it. Magic items are added as `is_identified = false` (unidentified); mundane items are added as identified.
+A sticky form at the bottom of the page: a combobox searches the full Vault by name, a quantity field, and an "Add" button. If a Vault item has `bundle_items` (pack), adding it auto-creates the pack container and expands sub-items inside it. An item the player adds themselves arrives identified, whatever its rarity (a self-added Cloak of Protection otherwise read "Art Object / Mundane" with no way to attune it); only an item the DM hands out arrives unidentified (`is_identified = false`) when it is magic. Mundane items are always identified.
 
 #### Item Detail Panel (`ItemDetailPanel`)
 
-Slides in when any item row or slot button is clicked. Shows the linked Vault item's full data (identified or unidentified depending on `is_identified` flag) plus inventory-instance data:
+Slides in when any item row or slot button is clicked. It leads with what you can do with the item (#973): the art is a thumbnail that opens the lightbox, a one-line summary (`itemDetailSummary.ts`) says what the item is, then the applicable actions as touch-sized buttons (Equip or Unequip straight into its natural slot and asking only when there is a real choice, Attune or End attunement with the three-item limit said plainly, Spend a charge, Consume, Drop to chat); rules text, notes and selling follow. Shows the linked Vault item's full data (identified or unidentified depending on `is_identified` flag) plus inventory-instance data:
 
 - Notes field (per-instance notes)
 - Attunement toggle with 3-slot guard (disabled when 3 already attuned and item is not yet attuned)
@@ -419,7 +421,7 @@ The player spell view adapts entirely to the character's caster type. The view r
 
 Tab badges show counts (and max where applicable). "Known" badge shows `N/maxKnown + Nc/maxCantrips` for known-type casters. If counts exceed max, badge turns destructive red.
 
-**Prepared tab / Known tab** — rendered by `PlayerMySpells`. Displays the character's prepared/known spells grouped by level. Each spell row shows name, school, components, and roll buttons for spell attack and damage. Spell slots are tracked per level (including multiclass-aware slot table). Clicking a spell opens a detail modal. Spells can be un-prepared/removed from this tab.
+**Prepared tab / Known tab** — rendered by `PlayerMySpells`. Displays the character's prepared/known spells grouped by level. Each spell row shows name, school, components, and roll buttons for spell attack and damage. Spell slots are tracked per level (including multiclass-aware slot table) in one strip above the list (`PlayerSpellSlotStrip`, `spellSlotPips.ts`) that shows every slot level whether or not a prepared spell sits at it, labels Pact Magic and other pools apart, and counts filled as still available. The Prepared badge and the banner count the same thing, what the preparation limit counts (`preparedSpellCount.ts`), and the limit shows from the start ("4 / 10"). Badges say Ritual and Concentration in words, and a manual roll reads "Roll by hand". Clicking a spell opens a detail modal; on a phone the player's sheet (`SpellSheet` compact mode, DM pages unchanged) leads with casting time, range, components spelled out and duration, the art is a thumbnail, and Cast and Prepare sit in its footer. The upcast picker says how many slots of each level are left. Spells can be un-prepared/removed from this tab.
 
 **Spellbook tab** (spellbook casters) — also `PlayerMySpells` in `view-mode="spellbook"`. Shows all spells learned into the character's spellbook. Spells can be prepared from here (up to the daily preparation limit).
 
@@ -517,7 +519,7 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 - Output item names (inline summary, e.g. "→ 2× Iron Ingot")
 - Lock/status badge: "LOCKED" if proficiency required and not met; "NO TOOLS" if tools required and not in inventory; "DISADV" if tools not in inventory (disadvantage penalty applies)
 - Description (rendered from Tiptap JSON)
-- Ingredients list — each line shows a green checkmark or red X, required quantity, and owned count (checked against `myInventory` including party stash)
+- Ingredients list — each line shows a green checkmark or red X, required quantity, and owned count (checked against `myInventory` including party stash). A player sees DM-made ingredients by name because `get_craftable_output_items` names the ingredients of the same visible recipes it names outputs for, under the same authorization (RLS hides the items themselves, which used to read "Unknown item")
 - "Attempt Craft" button — disabled when any hard requirement is unmet
 
 **Discipline header** (when a specific discipline is active) — shows the discipline description, the ability score used (e.g. "Uses INT (+2) + Proficiency (+3)") or a note that no proficiency bonus applies.
@@ -532,7 +534,7 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 2. **Proficiency notice** — amber warning if proficiency is missing (no proficiency bonus added).
 3. **Disadvantage notice** — amber warning if the required tool is not in inventory (roll made at disadvantage: roll twice, take lower).
 4. **Modifier checklist** — optional checkboxes for workspace bonus (discipline-defined), poor quality ingredients penalty (−2), and any recipe-specific conditional modifiers the DM added.
-5. **Roll** — clicking "Attempt Craft" rolls the check server-side (`useAttemptCraft`). Result is displayed: the d20 roll, any disadvantage second roll, total vs DC.
+5. **Roll** — clicking "Attempt Craft" rolls the check server-side (`useAttemptCraft`). Result is displayed: the d20 roll, any disadvantage second roll, total vs DC. On a phone the result scrolls into view, the modifier checklist locks once rolled, and a spent ingredient does not turn red after the roll.
 6. **Outcome** — one of three results:
    - **Success** (total ≥ DC) — green result panel
    - **Fail** (total < DC) — neutral result panel; all ingredients are consumed

@@ -406,6 +406,12 @@ Ten of the triggered tables have a *nullable* `campaign_id` (general-scope rows 
 
 A table must also actually be in the `supabase_realtime` publication for any of this to fire; subscribing to an unpublished table is silent. `live_sync_registry.test.sql` now fails on it, so add the table to that file's list along with `SYNC_TABLES`.
 
+`party_members` and `encounter_state` are subscribed by `usePartyLive` and `useEncounterLive` and are published by migration `20261005015826`; production had them in the publication by hand and no migration ever added them, so a database built from migrations (local, CI, a restore) joined both channels and heard nothing, and a DM's damage never reached a player's sheet. The registry test now holds both.
+
+**A topic's old channel must be gone before it is joined again** (`createRealtimeChannel`, `src/lib/realtimeChannel.ts`). realtime-js returns the existing channel when a topic is asked for twice, and `removeChannel` only drops it once the server acknowledges the leave. A layout torn down and rebuilt inside that window (App's loading screen does it) was handed the old, already-joined channel, the first `.on()` threw "cannot add postgres_changes callbacks after subscribe()", and the player had no live sync until a reload (about one page load in eight on a phone). The helper defers a join until the previous channel on the same topic has left and evicts one whose leave timed out; presence checks staleness by handle identity, because `handle.channel` does not exist before the join.
+
+**The request deadline passes null-body statuses through untouched** (`src/lib/requestDeadline.ts`). Browsers give a 204 an empty but non-null body stream, so rebuilding the response threw and every `/rest/v1` answer without content (deletes, updates without `.select()`, void RPCs) failed client-side after the server had done the work. Character creation lost a new character that way: the attach succeeded, the client threw, and the rollback deleted it.
+
 **`useCampaignPresence`** (`src/composables/campaign/useCampaignPresence.ts`)
 Uses Supabase Realtime Presence to track who is currently online. Each connected client broadcasts `{ user_id, display_name, online_at }`. The `MembersTab` uses `isOnline(userId)` to show a green/grey dot next to each member. This is the same channel referenced by the campaign chat system.
 
