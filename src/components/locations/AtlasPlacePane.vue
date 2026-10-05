@@ -282,9 +282,9 @@
         :class="['max-sm:hidden', hasMap || building ? 'xl:absolute xl:right-0 xl:top-1.5' : '']"
         @open-map="onOpenMap"
       />
-      <SiteMapLayerBar
+      <AtlasSiteLayerBar
         v-if="isSite && hasMap && paneMode === 'map'"
-        :counts="siteLayerCounts"
+        :location="location"
         :layers="siteImageLayers"
         class="xl:absolute xl:right-0 xl:top-1.5"
       />
@@ -380,7 +380,7 @@ import AtlasTreeRow from "@/components/locations/AtlasTreeRow.vue";
 import LocationDetailSections from "@/components/locations/LocationDetailSections.vue";
 import LocationRevealControl from "@/components/locations/LocationRevealControl.vue";
 import SiteLevelAssignment from "@/components/locations/SiteLevelAssignment.vue";
-import SiteMapLayerBar from "@/components/locations/SiteMapLayerBar.vue";
+import AtlasSiteLayerBar from "@/components/locations/AtlasSiteLayerBar.vue";
 import SiteReadinessMeter from "@/components/locations/SiteReadinessMeter.vue";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
@@ -566,10 +566,11 @@ function onOpenMap(): void {
   emit("update:paneMode", "map");
 }
 
-// ── Readiness, staleness, layer counts (#868, S6) — one composable so the
-//    meter, the source strip and the layer bar all read the same facts. ────
+// ── Readiness (#868, S6) — the meter reads the core of `useSiteStructure`;
+//    the layer bar's tallies live in `AtlasSiteLayerBar`, mounted in map mode
+//    only (#972). ────
 const siteStructureLocation = computed(() => (isSite.value ? location : null));
-const { readiness: siteReadiness, layerCounts: siteLayerCounts } = useSiteStructure(siteStructureLocation);
+const { readiness: siteReadiness } = useSiteStructure(siteStructureLocation);
 
 // ── Quests staged here (#868, frame 02) — the site itself, or any of its
 //    own interior spaces (rooms, and #886's `grounds`); not deeper levels,

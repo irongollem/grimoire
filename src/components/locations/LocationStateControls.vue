@@ -55,7 +55,8 @@ import { IconLoot, IconScan, IconShieldCheck } from "@/lib/icons";
 import { timeAgo } from "@/lib/utils";
 import { useToast } from "@/composables/useToast";
 import { useMemberByUserId } from "@/composables/campaign/useCampaignMembers";
-import { useLocationState, useAssertLocationState } from "@/composables/locations/useLocationState";
+import { useAssertLocationState } from "@/composables/locations/useLocationState";
+import { usePlaceLocationState } from "@/composables/locations/usePlaceLocationState";
 import {
   LOCATION_STATE_FACTS,
   LOCATION_STATE_FACT_LABELS,
@@ -72,7 +73,7 @@ const ICONS: Record<LocationStateFact, Component> = {
 };
 
 const locationIdRef = computed(() => locationId);
-const { stateOf } = useLocationState(locationIdRef);
+const { stateOf } = usePlaceLocationState(locationIdRef);
 const { displayNameFor } = useMemberByUserId();
 const toast = useToast();
 const { mutate: assert, isPending } = useAssertLocationState();

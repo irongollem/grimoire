@@ -205,7 +205,9 @@
       </div>
     </section>
 
-    <EntityBacklinks :entity-id="location.id" />
+    <!-- Keyed by place: the pane reuses this instance across selections, and
+         the section must wait to be scrolled to again for each new place. -->
+    <EntityBacklinks :key="location.id" :entity-id="location.id" lazy />
   </div>
 </template>
 
@@ -225,14 +227,14 @@ import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
-import { useEncountersByLocation } from "@/composables/encounters/useEncounters";
+import { useEncountersByLocations } from "@/composables/encounters/useEncounters";
+import { useLocationSubtreeIds } from "@/composables/locations/useLocationSubtree";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
-import { useNpcs, useNpcsByLocations } from "@/composables/npcs/useNpcs";
+import { useNpc, useNpcsByLocations } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignStore } from "@/stores/campaign";
 import { IconChevronRight } from "@/lib/icons";
 import { isInteriorType, isSiteType, spaceHeading } from "@/lib/locations/tiers";
-import { buildAtlasIndex, descendantsOf } from "@/lib/locations/tree";
 import { extractTiptapText } from "@/lib/utils";
 import { effectiveLocationId } from "@/lib/partyPosition";
 import { placeRoute } from "@/lib/locations/placeRoute";
@@ -264,13 +266,13 @@ const relatedLocations = computed<LocationSummary[]>(() => {
 });
 
 /** This place plus everything under it — an NPC in a town is in its region. */
-const subtreeIds = computed(() => {
-  const index = buildAtlasIndex(allLocations.value ?? []);
-  return [location.id, ...descendantsOf(index, location.id).map((l) => l.id)];
-});
+const subtreeIds = useLocationSubtreeIds(computed(() => location.id));
 
 const { data: locationNpcs } = useNpcsByLocations(subtreeIds);
-const { data: locationEncounters } = useEncountersByLocation(computed(() => location.id));
+// One read over the subtree, shared with the sort panel (#972): "Encounters
+// Here" is the rows homed on this very place; the panel takes the rest.
+const { data: subtreeEncounters } = useEncountersByLocations(subtreeIds);
+const locationEncounters = computed(() => subtreeEncounters.value?.filter((e) => e.location_id === location.id));
 const { data: locationLoot } = useLootPlacements({ locationId: computed(() => location.id) });
 
 const visibleNpcs = computed(() =>
@@ -306,10 +308,12 @@ const isInteriorSpace = computed(() => isInteriorType(location.location_type));
 const siteStructureLocation = computed(() => (isSite.value ? location : null));
 const { spaces: siteSpaces } = useSiteStructure(siteStructureLocation);
 
-const { data: allNpcs } = useNpcs();
-const ownerNpcName = computed(
-  () => allNpcs.value?.find((n) => n.id === location.npc_owner_id)?.name ?? null,
-);
+// Only a store shows its owner, and only that one NPC is needed, so read the
+// one row (seeded from the campaign list when it is cached) rather than the
+// whole campaign's NPCs for every place selected (#972).
+const ownerNpcId = computed(() => (isStoreType.value && location.npc_owner_id ? location.npc_owner_id : ""));
+const { data: ownerNpc } = useNpc(ownerNpcId);
+const ownerNpcName = computed(() => ownerNpc.value?.name ?? null);
 
 function locationNameOf(id: string): string {
   return allLocations.value?.find((l) => l.id === id)?.name ?? "";

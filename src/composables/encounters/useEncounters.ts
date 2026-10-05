@@ -91,11 +91,14 @@ export function useEncountersByLocation(locationId: string | Ref<string>) {
 export type EncounterLocationSummary = Pick<Encounter, "id" | "name" | "is_finished" | "location_id">;
 const LOCATION_SUMMARY_COLUMNS = "id, name, is_finished, location_id";
 
-/** Fetch encounters across multiple location IDs (for "sort into rooms" with
- *  a place plus its direct children). */
+/** Fetch encounters across multiple location IDs: a place plus its whole
+ *  subtree, which answers both "Encounters Here" and the "sort into rooms"
+ *  panel from one read (#972). Ids are sorted into the key so equal sets share
+ *  a request. */
 export function useEncountersByLocations(locationIds: Ref<string[]>) {
+  const sortedIds = computed(() => [...locationIds.value].sort());
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-locations", locationIds.value] as const),
+    queryKey: computed(() => [QUERY_KEY, "by-locations", sortedIds.value] as const),
     queryFn: async ({ queryKey: [, , ids] }) => {
       if (!ids.length) return [];
       const { data, error } = await supabase

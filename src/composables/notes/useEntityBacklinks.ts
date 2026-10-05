@@ -81,7 +81,11 @@ async function fetchBacklinks(campaignId: string, entityId: string): Promise<Ent
  * the `entity_mentions` doorbell, which `useCampaignLiveSync` maps to this key,
  * so it is cached like any other campaign read. An entity never lists itself.
  */
-export function useEntityBacklinks(entityId: MaybeRefOrGetter<string | null | undefined>) {
+export function useEntityBacklinks(
+  entityId: MaybeRefOrGetter<string | null | undefined>,
+  /** Hold the read back until true — for a section that sits below the fold (#972). */
+  enabled?: () => boolean,
+) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   return useQuery({
@@ -90,6 +94,6 @@ export function useEntityBacklinks(entityId: MaybeRefOrGetter<string | null | un
       if (!campaignId || !id) throw new Error("useEntityBacklinks fetched without a campaign or an entity");
       return fetchBacklinks(campaignId, id);
     },
-    enabled: () => !!activeCampaignId.value && !!toValue(entityId),
+    enabled: () => !!activeCampaignId.value && !!toValue(entityId) && (enabled?.() ?? true),
   });
 }

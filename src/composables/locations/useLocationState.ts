@@ -132,26 +132,6 @@ export function buildDoorStateIndex(
 // ── Public composables ─────────────────────────────────────────────────────────
 
 /**
- * One location's current answer for each fact. `stateOf(fact)` returns
- * `undefined` when the fact has never been asserted — render that as
- * "unknown", visually distinct from a row whose `value` is explicitly
- * `false`.
- */
-export function useLocationState(locationId: string | Ref<string>) {
-  const idRef = isRef(locationId) ? locationId : ref(locationId);
-  const query = useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
-    queryFn: ({ queryKey: [, locationId] }) => fetchLocationState([locationId]),
-    enabled: () => !!idRef.value,
-  });
-  const index = computed(() => buildLocationStateIndex(query.data.value ?? []));
-  function stateOf(fact: LocationStateFact): LocationState | undefined {
-    return index.value.get(idRef.value)?.[fact];
-  }
-  return { ...query, stateOf };
-}
-
-/**
  * Many locations' current answers in one query, so a rooms list can show
  * markers without one query per row — `SiteRoomsPanel`'s reason for existing.
  */

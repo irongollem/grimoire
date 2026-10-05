@@ -126,10 +126,13 @@ export function useNpcSpellCasters(spellId: string | Ref<string>) {
 export type NpcLocationSummary = Pick<Npc, "id" | "name" | "occupation" | "race" | "location_id">;
 const LOCATION_SUMMARY_COLUMNS = "id, name, occupation, race, location_id";
 
-/** Fetch NPCs across multiple location IDs (for "who's here" with descendants). */
+/** Fetch NPCs across multiple location IDs (for "who's here" with descendants).
+ *  Ids are sorted into the key so two panels asking for the same set share one
+ *  request however they ordered it (#972). */
 export function useNpcsByLocations(locationIds: Ref<string[]>) {
+  const sortedIds = computed(() => [...locationIds.value].sort());
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-locations", locationIds.value] as const),
+    queryKey: computed(() => [QUERY_KEY, "by-locations", sortedIds.value] as const),
     queryFn: async ({ queryKey: [, , ids] }) => {
       if (!ids.length) return [];
       const { data, error } = await supabase

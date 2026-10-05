@@ -57,6 +57,11 @@ function findButton(wrapper: ReturnType<typeof mountPanel>, label: string) {
   return button;
 }
 
+/** The prepare form mounts on first open (#972), so most tests open it first. */
+async function openForm(wrapper: ReturnType<typeof mountPanel>) {
+  await findButton(wrapper, "Add loot").trigger("click");
+}
+
 describe("LocationLootPanel", () => {
   beforeEach(() => {
     mocks.create.mockReset();
@@ -69,6 +74,7 @@ describe("LocationLootPanel", () => {
   it("prepares a currency entry homed on the room, with no beat and no quest", async () => {
     mocks.create.mockResolvedValue({});
     const wrapper = mountPanel();
+    await openForm(wrapper);
     await findButton(wrapper, "Currency").trigger("click");
     await wrapper.find('input[type="number"]').exists(); // ensure currency inputs mounted
     const gpInput = wrapper.findAllComponents({ name: "AppInput" }).find((i) => i.props("modelValue") === 0);
@@ -88,6 +94,7 @@ describe("LocationLootPanel", () => {
   it("rolls a loot table into a held chest with claims_total and rolled_atoms", async () => {
     mocks.create.mockResolvedValue({});
     const wrapper = mountPanel();
+    await openForm(wrapper);
     await findButton(wrapper, "Chest").trigger("click");
 
     const combobox = wrapper.findComponent({ name: "EntityCombobox" });
@@ -115,6 +122,7 @@ describe("LocationLootPanel", () => {
 
   it("disables Prepare for a loot chest until something has been rolled", async () => {
     const wrapper = mountPanel();
+    await openForm(wrapper);
     await findButton(wrapper, "Chest").trigger("click");
     expect(findButton(wrapper, "Prepare").props("disabled")).toBe(true);
   });
@@ -131,5 +139,14 @@ describe("LocationLootPanel", () => {
     const wrapper = mountPanel({ loot: [loot()] });
     await findButton(wrapper, "Drop").trigger("click");
     expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  // #972: the form reads the loot tables, the item index and the stored item
+  // refs, so a place that is only being looked at must not mount it.
+  it("does not mount the prepare form until Add loot is pressed", async () => {
+    const wrapper = mountPanel();
+    expect(wrapper.find('[data-testid="location-loot-form"]').exists()).toBe(false);
+    await openForm(wrapper);
+    expect(wrapper.find('[data-testid="location-loot-form"]').exists()).toBe(true);
   });
 });

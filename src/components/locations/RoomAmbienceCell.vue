@@ -75,7 +75,12 @@ const props = defineProps<{
   themeOptions: readonly string[];
 }>();
 
-const emit = defineEmits<{ save: [locationId: string, theme: string | null] }>();
+const emit = defineEmits<{
+  save: [locationId: string, theme: string | null];
+  /** The theme input just opened — the parent only fetches the suggestion
+   *  catalogue (playlists, sounds) from here on (#972). */
+  "edit-start": [];
+}>();
 
 const editing = ref(false);
 const draft = ref<string | null>(props.ownTheme);
@@ -83,6 +88,7 @@ const draft = ref<string | null>(props.ownTheme);
 function startEditing(): void {
   draft.value = props.ownTheme;
   editing.value = true;
+  emit("edit-start");
 }
 
 function save(): void {

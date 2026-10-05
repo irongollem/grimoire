@@ -43,7 +43,6 @@ vi.mock("@/composables/locations/useAmbiencePlayback", () => ({
 vi.mock("@/composables/locations/useSiteStructure", () => ({
   useSiteStructure: () => ({
     readiness: { value: { mapped: false, calibrated: false, traced: false, bound: false, waysOut: false } },
-    layerCounts: { value: { spaces: 0, ways: 0, zones: 0, prepared: 0 } },
   }),
 }));
 vi.mock("@/composables/quests/useBeatsStagedAt", () => ({
@@ -79,7 +78,7 @@ const stubs = {
   AtlasTreeRow: true,
   LocationDetailSections: true,
   LocationRevealControl: true,
-  SiteMapLayerBar: true,
+  AtlasSiteLayerBar: true,
   SiteReadinessMeter: true,
   TabBar: true,
 };

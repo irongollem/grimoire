@@ -72,8 +72,9 @@
  * empty place has nothing for this panel to offer.
  *
  * Scope is deliberately narrower than "People in the Area" / "Encounters
- * Here" above (which read the whole subtree, read-only, for browsing) — this
- * reads only this place plus its *direct* children, because a picker can only
+ * Here" above (which show the whole subtree, read-only, for browsing; the
+ * rows come from the same shared read) — this shows only this place plus its
+ * *direct* children, because a picker can only
  * ever move something one level, from the parent into a room, not arbitrarily
  * deep. The two pairs of sections coexist on purpose; this one is the editable
  * backlog, those stay the read-only "what's around here" view.
@@ -89,6 +90,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconEncounter, IconUser } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useLocation, useLocations } from "@/composables/locations/useLocations";
+import { useLocationSubtreeIds } from "@/composables/locations/useLocationSubtree";
 import { useNpcsByLocations, useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { useEncountersByLocations, useUpdateEncounter } from "@/composables/encounters/useEncounters";
 import { childSpaceType, spaceHeading, spaceNoun } from "@/lib/locations/tiers";
@@ -150,8 +152,19 @@ function targetNameOf(id: string): string {
 //    but they mean a row that somehow arrived without one is quietly excluded
 //    from a sortable list instead of crashing it or lying about where it is. ─
 const targetIds = computed(() => [locationId, ...children.value.map((c) => c.id)]);
-const { data: npcsData } = useNpcsByLocations(targetIds);
-const { data: encountersData } = useEncountersByLocations(targetIds);
+
+// The same subtree read "People in the Area" and "Encounters Here" make
+// (`LocationDetailSections`), so the three panels cost one request per table,
+// narrowed to this place and its direct children here (#972). Held back until
+// there are children: a panel that renders nothing has no business reading.
+const subtreeIds = useLocationSubtreeIds(computed(() => locationId));
+const readIds = computed(() => (children.value.length ? subtreeIds.value : []));
+const { data: subtreeNpcs } = useNpcsByLocations(readIds);
+const { data: subtreeEncounters } = useEncountersByLocations(readIds);
+const inTargets = <T extends { location_id: string | null }>(row: T) =>
+  row.location_id !== null && targetIds.value.includes(row.location_id);
+const npcsData = computed(() => subtreeNpcs.value?.filter(inTargets));
+const encountersData = computed(() => subtreeEncounters.value?.filter(inTargets));
 
 interface NpcSortRow {
   kind: "npc";

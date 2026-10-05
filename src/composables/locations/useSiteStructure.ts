@@ -6,13 +6,20 @@
 // drawing it was last published from. Gathering each of those in three
 // different places is how a readiness pill and a staleness strip end up
 // disagreeing about the same site; this composable is the one place instead.
+//
+// Two tiers (#972, story 11). `useSiteStructure` is the core every place pane
+// needs just to say what a site is made of: children, regions, doors,
+// readiness. `useSiteMapExtras` is what only the Map tab's own chrome reads
+// (publish staleness, the layer bar's tallies), and it pulls in the drawing,
+// every prepared-material catalogue and the whole campaign's encounters.
+// Selecting a place in Overview used to pay for all of it; now only a surface
+// that shows those numbers mounts the second tier.
 
 import { computed } from "vue";
 import type { Ref } from "vue";
 import { useLocations } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
-import { useDoorStateForSite } from "@/composables/locations/useLocationState";
 import { useDungeonMap } from "@/composables/cartographer/useDungeonMaps";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
 import { bindableSpaces } from "@/lib/locations/tiers";
@@ -32,16 +39,6 @@ export function useSiteStructure(location: Ref<LocationSummary | null | undefine
   const doorsQuery = useSiteDoors(spaceIds);
   const doors = computed(() => doorsQuery.data.value ?? []);
 
-  const doorState = useDoorStateForSite(siteId);
-
-  // Prepared layer counts (#868, S8) — the same tally `useSitePrepared`
-  // already gives the map's own layer bar; the pane's layer bar needs the
-  // total, and the legend (frame 10) needs the per-kind breakdown.
-  const { counts: preparedCounts } = useSitePrepared(spaceIds, regions);
-
-  const sourceMapId = computed(() => location.value?.source_map_id ?? "");
-  const sourceMapQuery = useDungeonMap(sourceMapId);
-
   const readiness = computed(() =>
     siteReadiness({
       siteType: location.value?.location_type,
@@ -57,6 +54,26 @@ export function useSiteStructure(location: Ref<LocationSummary | null | undefine
       doors: doors.value,
     }),
   );
+
+  return { spaces, regions, doors, readiness };
+}
+
+/** What only the Map tab's chrome reads. Takes the core's result so the
+ *  children, regions and doors are not gathered a second time. */
+export function useSiteMapExtras(
+  location: Ref<LocationSummary | null | undefined>,
+  structure: Pick<ReturnType<typeof useSiteStructure>, "spaces" | "regions" | "doors">,
+) {
+  const { spaces, regions, doors } = structure;
+  const spaceIds = computed(() => spaces.value.map((s) => s.id));
+
+  // Prepared layer counts (#868, S8) — the same tally `useSitePrepared`
+  // already gives the map's own layer bar; the pane's layer bar needs the
+  // total, and the legend (frame 10) needs the per-kind breakdown.
+  const { counts: preparedCounts } = useSitePrepared(spaceIds, regions);
+
+  const sourceMapId = computed(() => location.value?.source_map_id ?? "");
+  const sourceMapQuery = useDungeonMap(sourceMapId);
 
   /** Null when there is no source map, or the last publish already carries
    *  the drawing's current rev — the fresh state the source strip renders. */
@@ -75,12 +92,7 @@ export function useSiteStructure(location: Ref<LocationSummary | null | undefine
   }));
 
   return {
-    spaces,
-    regions,
-    doors,
-    doorState,
     sourceMap: sourceMapQuery,
-    readiness,
     staleness,
     layerCounts,
     preparedCounts,

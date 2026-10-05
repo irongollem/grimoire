@@ -326,7 +326,8 @@ function startChangingFeature(doorId: string) {
   changingFeatureIds.value = new Set([...changingFeatureIds.value, doorId]);
 }
 
-const { data: allFeatures } = useDungeonFeatures();
+// Only the Build-only edit drawer offers features to pick from.
+const { data: allFeatures } = useDungeonFeatures(() => ({ enabled: building }));
 const connectionFeatures = computed(() =>
   (allFeatures.value ?? []).filter((f) => CONNECTION_FEATURE_TYPES.has(f.feature_type)),
 );

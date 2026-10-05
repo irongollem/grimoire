@@ -42,6 +42,10 @@ export interface UseDungeonFeaturesOptions {
    *  it was built around (#800). Default false: scoped to general + active
    *  campaign, for browsing. */
   includeAllScopes?: boolean;
+  /** When false, hold the read. A picker that only shows in some states
+   *  (Ways out's feature picker shows in Build) passes this so browsing a place
+   *  does not fetch every feature in the campaign (#972). Default true. */
+  enabled?: boolean;
 }
 
 async function createDungeonFeature(feature: DungeonFeatureInsert): Promise<DungeonFeature> {
@@ -76,7 +80,11 @@ async function deleteDungeonFeature(feature: DungeonFeature): Promise<void> {
  *  features with `campaign_id === null` are available everywhere, plus
  *  whatever is scoped to the active campaign. */
 export function useDungeonFeatures(getOptions?: () => UseDungeonFeaturesOptions) {
-  const query = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchDungeonFeatures });
+  const query = useQuery({
+    queryKey: [QUERY_KEY],
+    queryFn: fetchDungeonFeatures,
+    enabled: () => getOptions?.().enabled ?? true,
+  });
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   const data = computed(() => {
     const features = query.data.value;

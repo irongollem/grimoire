@@ -26,14 +26,21 @@ const encountersRef = ref<{ id: string; name: string; is_finished: boolean; loca
 const mocks = vi.hoisted(() => ({
   updateNpc: vi.fn(),
   updateEncounter: vi.fn(),
+  npcReadIds: { value: undefined as { value: string[] } | undefined },
 }));
 
 vi.mock("@/composables/locations/useLocations", () => ({
   useLocation: () => ({ data: locationRef }),
   useLocations: () => ({ data: childrenRef }),
 }));
+vi.mock("@/composables/locations/useLocationSubtree", () => ({
+  useLocationSubtreeIds: () => ref(["site-1"]),
+}));
 vi.mock("@/composables/npcs/useNpcs", () => ({
-  useNpcsByLocations: () => ({ data: npcsRef }),
+  useNpcsByLocations: (ids: { value: string[] }) => {
+    mocks.npcReadIds.value = ids;
+    return { data: npcsRef };
+  },
   useUpdateNpc: () => ({ mutate: mocks.updateNpc }),
 }));
 vi.mock("@/composables/encounters/useEncounters", () => ({
@@ -153,5 +160,27 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
 
     wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "");
     expect(mocks.updateNpc).not.toHaveBeenCalled();
+  });
+
+  // #972: the sort panel shares the subtree read the sections above it make,
+  // and must not start it for a place with nothing to sort into.
+  it("reads nothing while the place has no children, and the shared subtree once it has", () => {
+    mountPanel(true);
+    expect(mocks.npcReadIds.value?.value).toEqual([]);
+
+    childrenRef.value = [room("room-a", "Nave of Ash")];
+    mountPanel(true);
+    expect(mocks.npcReadIds.value?.value).toEqual(["site-1"]);
+  });
+
+  it("shows only rows on this place or a direct child, not deeper ones from the shared subtree read", () => {
+    childrenRef.value = [room("room-a", "Nave of Ash")];
+    npcsRef.value = [
+      { id: "npc-1", name: "Priest", location_id: "room-a" },
+      { id: "npc-2", name: "Deep Dweller", location_id: "grandchild-1" },
+    ];
+    const text = mountPanel(true).text();
+    expect(text).toContain("Priest");
+    expect(text).not.toContain("Deep Dweller");
   });
 });

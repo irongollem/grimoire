@@ -258,7 +258,7 @@ import { useLocation } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
 import { useSiteDrawingEditor } from "@/composables/locations/useSiteDrawingEditor";
-import { useSiteStructure } from "@/composables/locations/useSiteStructure";
+import { useSiteMapExtras, useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { IconChevronRight, IconChevronUp, IconStairs } from "@/lib/icons";
 import { verticalWays } from "@/lib/locations/doors";
 import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
@@ -316,12 +316,13 @@ const mapStack = computed(() => buildMapStack(location));
 //    count and the readiness meter the parent renders above this component
 //    all agree. ────────────────────────────────────────────────────────────
 const siteStructureLocation = computed(() => (isSite.value ? location : null));
+const siteStructure = useSiteStructure(siteStructureLocation);
+const { doors: siteStructureDoors } = siteStructure;
 const {
   staleness: siteStaleness,
   sourceMap: siteSourceMapQuery,
-  doors: siteStructureDoors,
   layerCounts: siteLayerCounts,
-} = useSiteStructure(siteStructureLocation);
+} = useSiteMapExtras(siteStructureLocation, siteStructure);
 const siteSourceMap = computed(() => siteSourceMapQuery.data.value);
 
 // The Layers panel's Drawing row (#884, S5) — open the existing drawing, or

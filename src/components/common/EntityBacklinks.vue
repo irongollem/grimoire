@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-2">
+  <div ref="root" class="flex flex-col gap-2">
     <h2 :class="headingClass">Mentioned in</h2>
 
     <p v-if="!backlinks?.length" class="text-body text-muted-foreground italic">
@@ -20,7 +20,8 @@
 </template>
 
 <script setup lang="ts">
-import type { Component } from "vue";
+import { ref, useTemplateRef, type Component } from "vue";
+import { useIntersectionObserver } from "@vueuse/core";
 import { RouterLink } from "vue-router";
 import { IconNote, IconNavNpcs, IconNavAtlas, IconNavFactions, IconNavQuests, IconNavParty } from "@/lib/icons";
 import { useEntityBacklinks, type BacklinkKind } from "@/composables/notes/useEntityBacklinks";
@@ -52,11 +53,33 @@ const KIND_ICONS: Record<BacklinkKind, Component> = {
 const {
   entityId,
   headingClass = "text-heading-sm font-bold text-foreground",
+  lazy = false,
 } = defineProps<{
   entityId: string;
+  /** Read the mentions only once this section scrolls into view, then keep
+   *  them (#972). For a surface where it sits at the very bottom of a long
+   *  pane (the Atlas place pane), so selecting a place does not pay for a
+   *  list the DM has not scrolled to. The live-sync doorbell keeps it fresh
+   *  either way. */
+  lazy?: boolean;
   /** The heading idiom of the sections it sits among, which differs per surface; the default is the Atlas place pane's. */
   headingClass?: string;
 }>();
 
-const { data: backlinks } = useEntityBacklinks(() => entityId);
+// A latch, not a mirror: once seen it stays read, so scrolling away and back
+// never blanks it. Without IntersectionObserver there is nothing to wait for.
+const root = useTemplateRef<HTMLElement>("root");
+const seen = ref(false);
+const { isSupported } = useIntersectionObserver(
+  root,
+  ([entry]) => {
+    if (entry?.isIntersecting) seen.value = true;
+  },
+  { rootMargin: "200px" },
+);
+
+const { data: backlinks } = useEntityBacklinks(
+  () => entityId,
+  () => !lazy || seen.value || !isSupported.value,
+);
 </script>

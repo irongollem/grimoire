@@ -22,6 +22,7 @@
         :resolved="siteAmbience"
         :theme-options="themeOptions"
         @save="saveAmbience"
+        @edit-start="themesWanted = true"
       />
     </div>
 
@@ -117,6 +118,7 @@
             :resolved="spaceAmbience(space.id)"
             :theme-options="themeOptions"
             @save="saveAmbience"
+        @edit-start="themesWanted = true"
           />
         </div>
       </div>
@@ -178,6 +180,7 @@ import {
   useReorderLocations,
 } from "@/composables/locations/useLocations";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
+import { stateReadScope } from "@/lib/locations/stateReadScope";
 import { buildAtlasIndex } from "@/lib/locations/tree";
 import { childSpaceType, isInteriorType, spaceNoun } from "@/lib/locations/tiers";
 import { resolveInheritedTheme } from "@/lib/locations/ambience";
@@ -222,8 +225,10 @@ const spaces = computed(() => (children.value ?? []).filter((l) => isInteriorTyp
 // Batched rather than one query per row — the reason `useLocationStateForRooms`
 // exists at all. Read-only here: the toggles that actually assert a fact live
 // on the space's own detail page (LocationStateControls), keyed by locationId.
-const spaceIds = computed(() => spaces.value.map((s) => s.id));
-const { stateOf: siteStateOf } = useLocationStateForRooms(spaceIds);
+// The same id set the Progress toggles read (`stateReadScope`), so the two
+// panels share one request (#972).
+const stateScope = computed(() => stateReadScope(locationId, children.value));
+const { stateOf: siteStateOf } = useLocationStateForRooms(stateScope);
 
 const toast = useToast();
 const { confirm } = useConfirm();
@@ -240,8 +245,12 @@ function spaceAmbience(spaceId: string) {
   return resolveInheritedTheme(spaceId, ambienceById.value);
 }
 
-const { data: playlists } = usePlaylists();
-const { data: sounds } = useSounds();
+// The suggestions are only needed once a theme input opens, so the two
+// catalogue reads wait for the first edit rather than running on every
+// Build-mode selection (#972).
+const themesWanted = ref(false);
+const { data: playlists } = usePlaylists(() => themesWanted.value);
+const { data: sounds } = useSounds(() => themesWanted.value);
 const themeOptions = computed(() =>
   collectThemes(playlists.value === undefined ? [] : playlists.value, sounds.value === undefined ? [] : sounds.value),
 );
