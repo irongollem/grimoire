@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  deriveQuestBeatPrepGaps,
-  deriveQuestBeatPresentations,
+  deriveQuestBeatPrepGaps as derivePrepGaps,
+  deriveQuestBeatPresentations as derivePresentations,
+  prepFactsOf,
+  presentableBeatOf,
+  type QuestBeatPresentationInput,
   formatUnwrittenRoomsLabel,
   forwardReachableBeatIds,
   questBeatKindLabel,
@@ -18,6 +21,12 @@ const beat = (id: string, visibility: QuestBeat["visibility"] = "hidden") => ({
   reveal_text: visibility === "revealed" ? "Safe reveal" : null,
   is_improvised: false, improv_reviewed_at: null,
 }) as QuestBeat;
+// The rules read facts about a beat's writing; the fixtures stay full beat rows.
+type FixtureInput = Omit<QuestBeatPresentationInput, "beats"> & { beats: QuestBeat[] };
+const deriveQuestBeatPresentations = (input: FixtureInput) =>
+  derivePresentations({ ...input, beats: input.beats.map(presentableBeatOf) });
+const deriveQuestBeatPrepGaps = (beat: QuestBeat, ...rest: [Parameters<typeof derivePrepGaps>[1], Parameters<typeof derivePrepGaps>[2]?]) =>
+  derivePrepGaps(prepFactsOf(beat), ...rest);
 const edge = (id: string, source: string, target: string) => ({ id, source_beat_id: source, target_beat_id: target }) as QuestBeatEdge;
 const transition = (from: string | null, to: string) => ({ from_beat_id: from, to_beat_id: to }) as QuestBeatTransition;
 const readiness = (over: Partial<SiteReadiness> = {}): SiteReadiness => ({

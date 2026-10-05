@@ -221,15 +221,15 @@ import {
   useQuestRuntimeJumpTargets,
   useUpdateQuestBeat,
 } from "@/composables/quests/useQuestFlow";
-import { useQuest, useQuestObjectives } from "@/composables/quests/useQuests";
+import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuests } from "@/composables/quests/useQuests";
-import { useAllLocations } from "@/composables/locations/useLocations";
+import { useLocation, useLocations } from "@/composables/locations/useLocations";
 import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { resolveStartBeatId } from "@/lib/quests/entry";
 import { rootBeatIds } from "@/lib/quests/graph";
 import { rankQuestJumpTargets, soleOpenOutgoingEdgeId, type RankedQuestJumpTarget } from "@/lib/quests/run";
-import { defaultThreadId, threadBadge, threadTone } from "@/lib/quests/threads";
+import { threadBadge, threadTone } from "@/lib/quests/threads";
 import type { QuestBeatAttachmentSummary, QuestRuntimeCommand } from "@/types/quest.types";
 import { IconClipboard, IconClock, IconLinkAlt, IconPackage } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
@@ -271,20 +271,20 @@ const campaignId = computed(() => campaign.activeCampaignId ?? "");
 // cursor sat in quest B rendered B's beat, branches, attachments and loot under
 // A's URL. The anchor and the cursor are now the same quest by construction.
 const questId = computed(() => anchorQuestId);
-const threadsQuery = useQuestThreads(questId);
+// Not read here: it ensures a quest has a Main thread, and the thread bar reads it.
+useQuestThreads(questId);
 // The cockpit runs one thread at a time (#853, story F): the route names
 // which one (a link into a specific thread, or the thread bar switching), and
 // absent that it defaults to the quest's oldest live thread — every quest's
 // only thread until a parallel route or the thread bar opens a second one.
-const threadId = computed(() => {
-  const fromRoute = typeof route.query.thread === "string" ? route.query.thread : "";
-  if (fromRoute) return fromRoute;
-  return defaultThreadId(threadsQuery.data.value ?? []) ?? "";
-});
+// Absent a route thread the server picks the default and names it in the
+// context, so the context read never waits on the thread list (a waterfall).
+const routeThreadId = computed(() => typeof route.query.thread === "string" ? route.query.thread : "");
+const threadId = computed(() => routeThreadId.value || context.value?.thread.id || "");
 function switchThread(id: string) {
   void router.replace({ query: { ...route.query, thread: id } });
 }
-const contextQuery = useQuestRuntimeContext(questId, threadId);
+const contextQuery = useQuestRuntimeContext(questId, routeThreadId);
 const runtimeCommand = useQuestRuntimeCommand();
 const beatsQuery = useQuestBeats(questId);
 const edgesQuery = useQuestBeatEdges(questId);
@@ -294,17 +294,18 @@ const attachmentsQuery = useQuestBeatAttachmentSummaries(questId);
 const lootQuery = useLootPlacements({ questId });
 const objectivesQuery = useQuestObjectives(questId);
 const consequencesQuery = useQuestConsequences(questId);
-const locationsQuery = useAllLocations();
-// The start card's own data (#871): the quest for its declared entry, and the
-// event log for the most recent bridge that promoted this quest, if any.
-const questQuery = useQuest(questId);
-const unlockEntryQuery = useQuestUnlockEntry(questId);
+// The start card's own data (#871): the event log for the most recent bridge
+// that promoted this quest, if any. The card only shows before the run has
+// started, so neither read is made once `context.state` exists. The quest's
+// declared entry comes off the already-loaded quest list.
+const runNotStarted = () => !contextQuery.isLoading.value && !contextQuery.data.value?.state;
+const unlockEntryQuery = useQuestUnlockEntry(questId, runNotStarted);
 const bridgeFromBeatId = computed(() => unlockEntryQuery.data.value?.fromBeatId ?? "");
-const bridgeBeatQuery = useQuestBeat(bridgeFromBeatId);
+const bridgeBeatQuery = useQuestBeat(bridgeFromBeatId, runNotStarted);
+const jumpOpen = ref(false);
 const jumpSearch = ref("");
 const debouncedJumpSearch = refDebounced(jumpSearch, 250);
-const jumpTargetsQuery = useQuestRuntimeJumpTargets(questId, debouncedJumpSearch);
-const jumpOpen = ref(false);
+const jumpTargetsQuery = useQuestRuntimeJumpTargets(questId, debouncedJumpSearch, () => jumpOpen.value);
 const startBeatId = ref("");
 // Reveals the override picker on the start card even when a beat resolved —
 // the DM knows better than the resolver this one time. `resolveStartBeatId`'s
@@ -351,7 +352,7 @@ const startOptions = computed(() => [...(beatsQuery.data.value ?? [])]
 // as it always was.
 const beatIds = computed(() => new Set((beatsQuery.data.value ?? []).map((beat) => beat.id)));
 const resolvedStart = computed(() => resolveStartBeatId({
-  entryBeatId: questQuery.data.value?.entry_beat_id ?? null,
+  entryBeatId: questsQuery.data.value?.find((row) => row.id === anchorQuestId)?.entry_beat_id ?? null,
   unlockEntryBeatId: unlockEntryQuery.data.value?.entryBeatId ?? null,
   rootIds: rootIds.value,
   beatIds: beatIds.value,
@@ -440,32 +441,42 @@ const rankedJumpTargets = computed(() => rankQuestJumpTargets(
 // list this RPC returns includes the thread it was fetched for.
 const currentThreadBadge = computed(() => {
   if (!context.value) return { thread: { id: threadId.value, label: "", status: "live" as const, created_at: "" }, index: 0, letter: "A", tone: threadTone(0) };
-  return threadBadge(context.value.threads, threadId.value)
+  return threadBadge(context.value.threads, context.value.thread.id)
     ?? { thread: context.value.thread, index: 0, letter: "A", tone: threadTone(0) };
 });
 
-const stagedLocation = computed(() => {
-  const id = currentBeat.value?.staged_at_location_id;
-  if (!id) return null;
-  return (locationsQuery.data.value ?? []).find((location) => location.id === id) ?? null;
+// Targeted reads instead of the whole campaign list: the staged place, its
+// parent only when the staged place is not itself a site, and the site's
+// children only once there is a site (`""` holds `useLocations`).
+const stagedId = computed(() => currentBeat.value?.staged_at_location_id ?? null);
+const stagedQuery = useLocation(stagedId);
+const stagedLocation = computed(() => stagedId.value ? stagedQuery.data.value ?? null : null);
+const stagedParentId = computed(() => {
+  const staged = stagedLocation.value;
+  if (!staged || isSiteType(staged.location_type)) return null;
+  return staged.parent_id;
 });
+const stagedParentQuery = useLocation(stagedParentId);
 // A beat can now be staged directly at a room, not only a site itself (#868
 // S12) — the site the crawl actually runs is the room's parent. Resolving
 // that here (rather than only checking `isSiteType` on the staged location
 // itself) is what makes "the crawl is the beat" true: staging a beat at a
 // specific opening room, the whole point of that story, must still gate
 // `QuestSiteHandoff` on exactly as staging it at the site directly does.
-const stagedSiteWithRooms = computed(() => {
+const stagedSite = computed(() => {
   const staged = stagedLocation.value;
   if (!staged) return null;
-  const site = isSiteType(staged.location_type)
-    ? staged
-    : (locationsQuery.data.value ?? []).find((location) => location.id === staged.parent_id) ?? null;
-  if (!site || !isSiteType(site.location_type)) return null;
+  const site = isSiteType(staged.location_type) ? staged : stagedParentId.value ? stagedParentQuery.data.value ?? null : null;
+  return site && isSiteType(site.location_type) ? site : null;
+});
+const siteChildrenQuery = useLocations(computed(() => stagedSite.value?.id ?? ""));
+const stagedSiteWithRooms = computed(() => {
+  const site = stagedSite.value;
+  if (!site) return null;
   // #886: a fully built `wilds` site has `grounds`, not `room`, children — the
   // interior predicate is the single reader, so a wood no longer reads as
   // having no rooms and losing the site handoff because of it.
-  const hasRooms = (locationsQuery.data.value ?? []).some((row) => row.parent_id === site.id && isInteriorType(row.location_type));
+  const hasRooms = (siteChildrenQuery.data.value ?? []).some((row) => isInteriorType(row.location_type));
   return hasRooms ? site : null;
 });
 const showSiteHandoff = computed(() => !!stagedSiteWithRooms.value && !siteHandoffDismissed.value);

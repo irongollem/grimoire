@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { writeQuestSpine, type WriteQuestSpineDeps, type WriteQuestSpineInput, type WriteQuestSpineResult } from "@/lib/quests/spineWrite";
+import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
 import { BEATS_KEY, CONSEQUENCES_KEY, EDGES_KEY, invalidatePlayerQuestBeatProjections } from "@/composables/quests/useQuestFlow";
 import { OBJECTIVES_KEY } from "@/composables/quests/useQuests";
 import type { QuestBeat, QuestObjective } from "@/types/quest.types";
@@ -45,6 +46,7 @@ export function useQuestSpineWriter() {
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] }),
       queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, input.questId] }),
       queryClient.invalidateQueries({ queryKey: [CONSEQUENCES_KEY, input.questId] }),
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] }),
       invalidatePlayerQuestBeatProjections(queryClient),
     ]);
     return result;

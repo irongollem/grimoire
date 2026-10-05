@@ -15,8 +15,17 @@ export interface QuestBeatAttachmentAdapter {
   fullEditorTo: (refId: string, questId: string) => string | null;
 }
 
+/** What a target that no longer exists is called. */
+export const missingAttachmentLabel = (type: QuestBeatAttachmentType) =>
+  `Missing ${QUEST_BEAT_ATTACHMENT_ADAPTERS[type].label.toLowerCase()}`;
+
+/** A required attachment whose target is gone is a prep gap. The one rule, shared
+ *  by the per-beat summaries and the quest board (which is told by the server
+ *  whether each target exists rather than fetching them). */
+export const isAttachmentPrepGap = (isRequired: boolean, targetExists: boolean) => isRequired && !targetExists;
+
 const summary = (attachment: QuestBeatAttachment, target: { label: string; detail?: string | null } | null) => ({
-  label: target?.label ?? `Missing ${QUEST_BEAT_ATTACHMENT_ADAPTERS[attachment.attachment_type].label.toLowerCase()}`,
+  label: target?.label ?? missingAttachmentLabel(attachment.attachment_type),
   detail: target?.detail ?? (attachment.role || null),
 });
 
@@ -62,7 +71,7 @@ export function summarizeQuestBeatAttachment(
     ...attachment,
     label: compact.label,
     target_exists: targetExists,
-    prep_gap: attachment.is_required && !targetExists,
+    prep_gap: isAttachmentPrepGap(attachment.is_required, targetExists),
     compact_detail: compact.detail,
     full_editor_to: targetExists ? adapter.fullEditorTo(attachment.ref_id, attachment.quest_id) : null,
   };

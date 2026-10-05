@@ -241,7 +241,7 @@ import { questReturnLabel, questSurfaceReturnTo, safeQuestReturnTo } from "@/lib
 import { childSpaceType, isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";
 import { pluralizeCount } from "@/lib/utils";
 import { threadBadge } from "@/lib/quests/threads";
-import { countQuestBeatContentBlocks, deriveQuestBeatPrepGaps, questBeatKindLabel, QUEST_BEAT_VISIBILITY_LABELS } from "@/lib/quests/presentation";
+import { countQuestBeatContentBlocks, deriveQuestBeatPrepGaps, prepFactsOf, questBeatKindLabel, QUEST_BEAT_VISIBILITY_LABELS } from "@/lib/quests/presentation";
 import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
 import { useBelow } from "@/composables/useBreakpoint";
 import {
@@ -401,7 +401,7 @@ const fillContext = computed<BeatFillContext | undefined>(() => {
 // ── Prep gaps ──────────────────────────────────────────────────────────────
 
 const prepGaps = computed(() => beat.value
-  ? deriveQuestBeatPrepGaps(beat.value, attachments.value, { site: resolvedSite.value ? siteReadiness.value : undefined })
+  ? deriveQuestBeatPrepGaps(prepFactsOf(beat.value), attachments.value, { site: resolvedSite.value ? siteReadiness.value : undefined })
   : []);
 const prepGapCount = computed(() => prepGaps.value.length);
 

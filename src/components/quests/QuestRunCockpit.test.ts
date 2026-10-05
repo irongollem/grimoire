@@ -50,10 +50,18 @@ vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({
   useBelow: () => ref(mocks.belowXl),
 }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: mocks.activeCampaignId }) }));
-vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: mocks.locations }) }));
+// Plain `{ value }` boxes (not refs), so each read goes through a getter and sees the test's latest fixture.
+vi.mock("@/composables/locations/useLocations", () => ({
+  useLocation: (id: { value: string | null }) => ({
+    data: { get value() { return mocks.locations.value.find((row) => row.id === id.value) ?? null; } },
+  }),
+  useLocations: (parentId: { value: string }) => ({
+    data: { get value() { return mocks.locations.value.filter((row) => row.parent_id === parentId.value); } },
+  }),
+}));
 vi.mock("@/composables/quests/useQuests", () => ({
-  useQuests: () => ({ data: mocks.quests }),
-  useQuest: () => ({ data: mocks.quest }),
+  // The cockpit reads the quest's entry beat off the quest list row.
+  useQuests: () => ({ data: { get value() { return [...mocks.quests.value, ...(mocks.quest.value ? [mocks.quest.value] : [])]; } } }),
   useQuestObjectives: () => ({ data: mocks.objectives }),
 }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
@@ -361,6 +369,17 @@ describe("QuestRunCockpit", () => {
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
     expect(wrapper.findComponent({ name: "QuestSiteHandoff" }).exists()).toBe(false);
     expect(wrapper.findComponent(QuestRunBeatCard).exists()).toBe(true);
+  });
+
+  // The context read no longer waits on the thread list: the server names the
+  // default thread, and the cockpit adopts it for the thread bar and commands.
+  it("takes the thread id from the context when the route names none", async () => {
+    mocks.context.value = runningContext();
+    mocks.threads.value = [];
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    expect(wrapper.findComponent(QuestThreadBar).props("threadId")).toBe("thread-1");
+    await wrapper.findComponent(QuestRunSessionPanel).vm.$emit("pause");
+    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "pause", threadId: "thread-1" }));
   });
 
   it("reveals the current beat without moving the runtime cursor", async () => {

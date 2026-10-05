@@ -5,6 +5,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
+import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
 import type {
   Quest,
   QuestInsert,
@@ -317,8 +318,10 @@ export function useCreateObjective() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createObjective,
-    onSuccess: (_data, vars) =>
-      queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, vars.quest_id] }),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, vars.quest_id] });
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
+    },
   });
 }
 
@@ -335,8 +338,10 @@ export function useUpdateObjective() {
   return useMutation({
     mutationFn: ({ id, update }: { id: string; update: QuestObjectiveUpdate; questId: string }) =>
       updateObjective(id, update),
-    onSuccess: (_data, { questId }) =>
-      queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, questId] }),
+    onSuccess: (_data, { questId }) => {
+      queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, questId] });
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
+    },
   });
 }
 
@@ -371,10 +376,8 @@ export function useAssertQuestObjectiveStatus() {
       // summarises every quest's status, which is exactly where that promotion
       // shows. Same omission as `useQuestRuntimeCommand` had: the caches a
       // consequence can reach are wider than the row the DM clicked.
-      // The board key is a literal because `BEATS_KEY` lives in useQuestFlow
-      // and importing it here would make these two modules circular. Prefix
-      // matching means the campaign id on the real key does not need repeating.
-      queryClient.invalidateQueries({ queryKey: ["quest_beats", "board"] });
+      // Prefix matching means the campaign id on the real key does not need repeating.
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUESTS_KEY] });
     },
     onError: (e) => toast.error(toast.fromError(e)),
@@ -386,8 +389,10 @@ export function useDeleteObjective() {
   const toast = useToast();
   return useMutation({
     mutationFn: ({ id }: { id: string; questId: string }) => deleteObjective(id),
-    onSuccess: (_data, { questId }) =>
-      queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, questId] }),
+    onSuccess: (_data, { questId }) => {
+      queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, questId] });
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
+    },
     onError: (e) => toast.error(toast.fromError(e)),
   });
 }

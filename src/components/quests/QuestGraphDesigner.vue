@@ -177,7 +177,7 @@ import { useLocationDescriptions } from "@/composables/locations/useLocationDesc
 import { useSiteBeatGaps } from "@/composables/quests/useSiteBeatGaps";
 import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
-import { deriveQuestBeatPresentations, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput, type QuestBeatStaging } from "@/lib/quests/presentation";
+import { deriveQuestBeatPresentations, presentableBeatOf, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput, type QuestBeatStaging } from "@/lib/quests/presentation";
 import { deriveQuestRouteGates } from "@/lib/quests/gates";
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
@@ -369,7 +369,7 @@ const reachTally = computed(() => tallyQuestReach(presentations.value));
 const tallyTotal = computed(() => reachTally.value.visited + reachTally.value.ahead + reachTally.value.stranded + liveThreadCount.value + prepGapBeatCount.value);
 const prepGapBeatCount = computed(() => Object.values(presentations.value).filter((presentation) => presentation.prepGapCount > 0).length);
 const presentations = computed(() => deriveQuestBeatPresentations({
-  beats: beats.value,
+  beats: beats.value.map(presentableBeatOf),
   edges: edges.value,
   attachments: attachments.value,
   runtime: runtimeCursors.value,

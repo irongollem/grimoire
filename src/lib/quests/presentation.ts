@@ -60,6 +60,53 @@ export interface QuestBeatLootSummary {
  *  row satisfies this, and so does a lighter-weight row built off
  *  `QuestRuntimeContext.threads` (`QuestThreadCursor`) for a quest showing
  *  more than one live thread at once — this is the shape both can share. */
+/** The two ends of a route: all that reach and connectivity read. */
+export type QuestEdgeEnds = Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id">;
+
+/** What the prep-gap rule reads of a beat's writing: whether it is there, never
+ *  the words. The quest board gets these from the server (`get_quest_board`)
+ *  without the text; a full beat row gets them from `prepFactsOf`. */
+export interface QuestBeatPrepFacts {
+  /** `dm_content` or `how_it_plays` is non-empty. */
+  has_guidance: boolean;
+  has_rumor_text: boolean;
+  has_reveal_text: boolean;
+  visibility: QuestBeatVisibility;
+  is_improvised: boolean;
+  improv_reviewed_at: string | null;
+}
+
+export function prepFactsOf(
+  beat: Pick<QuestBeat, "dm_content" | "how_it_plays" | "rumor_text" | "reveal_text" | "visibility" | "is_improvised" | "improv_reviewed_at">,
+): QuestBeatPrepFacts {
+  return {
+    has_guidance: !!beat.dm_content || !!beat.how_it_plays,
+    has_rumor_text: !!beat.rumor_text,
+    has_reveal_text: !!beat.reveal_text,
+    visibility: beat.visibility,
+    is_improvised: beat.is_improvised,
+    improv_reviewed_at: beat.improv_reviewed_at,
+  };
+}
+
+/** A beat as `deriveQuestBeatPresentations` reads it: identity, staging and
+ *  convergence, plus the prep facts. */
+export type QuestBeatPresentable = QuestBeatPrepFacts
+  & Pick<QuestBeat, "id" | "quest_id" | "converge_mode" | "staged_at_location_id">;
+
+export function presentableBeatOf(beat: QuestBeat): QuestBeatPresentable {
+  return {
+    ...prepFactsOf(beat),
+    id: beat.id,
+    quest_id: beat.quest_id,
+    converge_mode: beat.converge_mode,
+    staged_at_location_id: beat.staged_at_location_id,
+  };
+}
+
+/** The attachment fields the prep-gap rule and handout count read. */
+export type QuestBeatPrepAttachment = Pick<QuestBeatAttachmentSummary, "beat_id" | "attachment_type" | "prep_gap" | "label">;
+
 export type QuestBeatRuntimeCursor = Pick<QuestRuntimeState, "quest_id" | "thread_id" | "current_beat_id">;
 
 /** What the story flow canvas needs to draw a beat's `site · N rooms` /
@@ -215,7 +262,7 @@ export interface QuestReachTally {
  * graph walk rather than a `visited` lookup: a loop back through an earlier beat
  * genuinely re-opens the branches hanging off it.
  */
-export function forwardReachableBeatIds(startId: string, edges: QuestBeatEdge[]): Set<string> {
+export function forwardReachableBeatIds(startId: string, edges: QuestEdgeEnds[]): Set<string> {
   const adjacency = new Map<string, string[]>();
   for (const edge of edges) {
     const targets = adjacency.get(edge.source_beat_id) ?? [];
@@ -245,17 +292,17 @@ export function tallyQuestReach(presentations: Record<string, QuestBeatPresentat
 }
 
 export function deriveQuestBeatPrepGaps(
-  beat: QuestBeat,
-  attachments: QuestBeatAttachmentSummary[],
+  beat: QuestBeatPrepFacts,
+  attachments: Pick<QuestBeatPrepAttachment, "prep_gap" | "label">[],
   options: { isDisconnected?: boolean; site?: SiteReadiness } = {},
 ): QuestBeatPrepGap[] {
   const gaps: QuestBeatPrepGap[] = [];
-  if (!beat.dm_content && !beat.how_it_plays) gaps.push({ kind: "guidance", label: "Add DM guidance" });
-  if (beat.visibility === "rumored" && !beat.rumor_text) gaps.push({ kind: "player_copy", label: "Add explicit rumor copy" });
+  if (!beat.has_guidance) gaps.push({ kind: "guidance", label: "Add DM guidance" });
+  if (beat.visibility === "rumored" && !beat.has_rumor_text) gaps.push({ kind: "player_copy", label: "Add explicit rumor copy" });
   // Named for the consequence: the player thread drops a revealed beat that has
   // no copy rather than printing a card that says nothing, so this gap is the
   // only place the DM learns the reveal produced nothing at the table.
-  if (beat.visibility === "revealed" && !beat.reveal_text) gaps.push({ kind: "player_copy", label: "Add reveal copy: players see nothing without it" });
+  if (beat.visibility === "revealed" && !beat.has_reveal_text) gaps.push({ kind: "player_copy", label: "Add reveal copy: players see nothing without it" });
   for (const attachment of attachments.filter((row) => row.prep_gap)) {
     gaps.push({ kind: "attachment", label: `Replace ${attachment.label}` });
   }
@@ -274,17 +321,18 @@ export function deriveQuestBeatPrepGaps(
 }
 
 export interface QuestBeatPresentationInput {
-  beats: QuestBeat[];
-  edges: QuestBeatEdge[];
-  attachments: QuestBeatAttachmentSummary[];
+  beats: QuestBeatPresentable[];
+  edges: QuestEdgeEnds[];
+  attachments: QuestBeatPrepAttachment[];
   /** One cursor per thread the party has open — several chains, and several
    *  threads within one chain, run at once. */
   runtime?: QuestBeatRuntimeCursor[];
-  transitions?: QuestBeatTransition[];
+  /** Only where each move landed is read: a beat any move arrived at is visited. */
+  transitions?: Pick<QuestBeatTransition, "to_beat_id">[];
   lootByBeat?: Record<string, QuestBeatLootSummary>;
   /** Only the rules conditioned on arrival (`on_beat_id`) matter here — a
    *  route's own rules are the edge's business, not the node's. */
-  consequences?: QuestConsequence[];
+  consequences?: Pick<QuestConsequence, "on_beat_id" | "action">[];
   /** Keyed by `staged_at_location_id`. Absent for a beat staged nowhere, or
    *  staged somewhere that has never had its rooms fetched. */
   sites?: Record<string, QuestBeatSiteInput>;
@@ -293,7 +341,7 @@ export interface QuestBeatPresentationInput {
 /** Shared source for Build, board and Run beat status. It only combines
  * already-batched domain rows; it never fetches or infers player visibility. */
 export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) {
-  const attachments = new Map<string, QuestBeatAttachmentSummary[]>();
+  const attachments = new Map<string, QuestBeatPrepAttachment[]>();
   for (const attachment of input.attachments) {
     const list = attachments.get(attachment.beat_id) ?? [];
     list.push(attachment);
@@ -304,7 +352,7 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
   for (const edge of input.edges) {
     incomingCountByBeat.set(edge.target_beat_id, (incomingCountByBeat.get(edge.target_beat_id) ?? 0) + 1);
   }
-  const consequencesByBeat = new Map<string, QuestConsequence[]>();
+  const consequencesByBeat = new Map<string, Pick<QuestConsequence, "on_beat_id" | "action">[]>();
   for (const consequence of input.consequences ?? []) {
     if (!consequence.on_beat_id) continue;
     const list = consequencesByBeat.get(consequence.on_beat_id) ?? [];

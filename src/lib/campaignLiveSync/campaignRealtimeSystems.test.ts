@@ -21,23 +21,23 @@ describe("dispatchCampaignRealtimeSystem", () => {
   it("invalidates Run loot and board summaries when authoritative chat claim state changes", () => {
     const qc = new QueryClient();
     qc.setQueryData(["loot_placements", "campaign-a", "quest-a"], [{ id: "loot-1" }]);
-    qc.setQueryData(["quest_beats", "board", "campaign-a"], { "quest-a": {} });
+    qc.setQueryData(["quest_board", "campaign-a"], { "quest-a": {} });
 
     expect(dispatchCampaignRealtimeSystem(qc, "campaign_messages", event({ id: "message-1", campaign_id: "campaign-a", type: "item_drop" }, "UPDATE"), context)).toBe(true);
     expect(qc.getQueryState(["loot_placements", "campaign-a", "quest-a"])?.isInvalidated).toBe(true);
-    expect(qc.getQueryState(["quest_beats", "board", "campaign-a"])?.isInvalidated).toBe(true);
+    expect(qc.getQueryState(["quest_board", "campaign-a"])?.isInvalidated).toBe(true);
   });
 
   it("leaves the board aggregate alone for ordinary table chat", () => {
     const qc = new QueryClient();
     qc.setQueryData(["loot_placements", "campaign-a", "quest-a"], [{ id: "loot-1" }]);
-    qc.setQueryData(["quest_beats", "board", "campaign-a"], { "quest-a": {} });
+    qc.setQueryData(["quest_board", "campaign-a"], { "quest-a": {} });
 
     for (const type of ["chat", "roll", "dm_roll", "system"]) {
       expect(dispatchCampaignRealtimeSystem(qc, "campaign_messages", event({ id: `message-${type}`, campaign_id: "campaign-a", type }), context)).toBe(true);
     }
     expect(qc.getQueryState(["loot_placements", "campaign-a", "quest-a"])?.isInvalidated).toBe(false);
-    expect(qc.getQueryState(["quest_beats", "board", "campaign-a"])?.isInvalidated).toBe(false);
+    expect(qc.getQueryState(["quest_board", "campaign-a"])?.isInvalidated).toBe(false);
   });
 
   it("still reacts when a dispatched loot message is deleted without a typed payload", () => {

@@ -2,7 +2,8 @@ import { computed, isRef, ref, type Ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { LIBRARY_TABLE_FOR_ATTACHMENT, splitAttachmentRefIds, summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
-import { deriveQuestBoardSummaries, type QuestBoardSummary } from "@/lib/quests/board";
+import { deriveQuestBoardSummaries, type QuestBoardPayload, type QuestBoardSummary } from "@/lib/quests/board";
+import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
 import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -27,9 +28,7 @@ import type {
   QuestRuntimeJumpTarget,
   QuestConsequence,
   QuestConsequenceInsert,
-  QuestObjective,
   QuestRuntimeState,
-  QuestThread,
 } from "@/types/quest.types";
 
 /** Exported so `useQuestThreads` can invalidate the board summary too — a
@@ -43,8 +42,10 @@ const TRANSITIONS_KEY = "quest_beat_transitions";
 
 /** Every cache a runtime move invalidates. Exported because ending a *session*
  *  moves the cursors too — `end_campaign_session` pauses every open chain
- *  server-side, so the client has to be told its runtime views are stale. */
-export const QUEST_RUNTIME_QUERY_KEYS = [RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY] as const;
+ *  server-side, so the client has to be told its runtime views are stale. The
+ *  quest board is one of them: it summarises every cursor, so a move made on
+ *  another device (the doorbell) or by ending a session must refresh it too. */
+export const QUEST_RUNTIME_QUERY_KEYS = [RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY, QUEST_BOARD_KEY] as const;
 const ATTACHMENTS_KEY = "quest_beat_attachments";
 const LOOT_KEY = "loot_placements";
 export const CONSEQUENCES_KEY = "quest_consequences";
@@ -126,7 +127,7 @@ export function useQuestBeats(questId: string | Ref<string>) {
   });
 }
 
-export function useQuestBeat(beatId: string | Ref<string>) {
+export function useQuestBeat(beatId: string | Ref<string>, enabled?: () => boolean) {
   const id = asRef(beatId);
   return useQuery({
     queryKey: computed(() => [BEATS_KEY, "detail", id.value] as const),
@@ -135,7 +136,7 @@ export function useQuestBeat(beatId: string | Ref<string>) {
       if (error) throw error;
       return data as QuestBeat;
     },
-    enabled: () => !!id.value,
+    enabled: () => !!id.value && (enabled?.() ?? true),
   });
 }
 
@@ -258,7 +259,7 @@ export function useCreateLootPlacement() {
     },
     onSuccess: (_data, input) => {
       void queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaign_id] });
-      void queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board", input.campaign_id] });
+      void queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY, input.campaign_id] });
     },
   });
 }
@@ -273,7 +274,7 @@ export function useDeleteLootPlacement() {
     },
     onSuccess: (_data, input) => {
       void queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaignId] });
-      void queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board", input.campaignId] });
+      void queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY, input.campaignId] });
     },
   });
 }
@@ -294,7 +295,7 @@ export function useDispatchLoot() {
     },
     onSuccess: (_data, input) => {
       void queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaignId] });
-      void queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board", input.campaignId] });
+      void queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY, input.campaignId] });
     },
   });
 }
@@ -317,57 +318,18 @@ export function useQuestBeatAttachmentSummaries(questId: string | Ref<string>) {
   });
 }
 
-/** Campaign-wide board data uses a fixed set of batched queries. Adding cards,
- * beats, or loot entries never increases its query count. */
+/** Campaign-wide board data is one server read (`get_quest_board`, #972), so
+ * adding cards, beats or loot never adds a request. The server is DM-only and
+ * refuses anyone else; every board surface is a DM surface. */
 export function useQuestBoardSummaries() {
   const campaign = useCampaignStore();
   return useQuery({
-    queryKey: computed(() => [BEATS_KEY, "board", campaign.activeCampaignId] as const),
-    queryFn: async ({ queryKey: [, , campaignId] }): Promise<Record<string, QuestBoardSummary>> => {
+    queryKey: computed(() => [QUEST_BOARD_KEY, campaign.activeCampaignId] as const),
+    queryFn: async ({ queryKey: [, campaignId] }): Promise<Record<string, QuestBoardSummary>> => {
       if (campaignId === null) throw new Error("useQuestBoardSummaries fetched without a campaign");
-      const [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult, threadsResult, consequencesResult, objectivesResult] = await Promise.all([
-        supabase.from("quest_beats").select("*").eq("campaign_id", campaignId).neq("kind", "archived").order("created_at").order("canvas_x").order("id"),
-        supabase.from("quest_beat_edges").select("*").eq("campaign_id", campaignId).order("created_at"),
-        supabase.from("quest_beat_attachments").select("*").eq("campaign_id", campaignId).order("sort_order").order("created_at"),
-        supabase.from("quest_runtime_state").select("*").eq("campaign_id", campaignId),
-        supabase.from("quest_beat_transitions").select("*").eq("campaign_id", campaignId).order("created_at"),
-        supabase.rpc("get_loot_placements", { p_campaign_id: campaignId, p_quest_id: null, p_location_id: null }),
-        supabase.from("quest_threads").select("*").eq("campaign_id", campaignId),
-        // Story I (#850): the log's "Unlocked by …" / "Held payoff" captions
-        // and the featured card's "payoff prepared" chip read `target_quest_id`
-        // and per-beat rules straight off this table (`deriveQuestBoardSummaries`).
-        // `quest_consequences` carries no `campaign_id` of its own — it scopes
-        // through the quest it belongs to, same join `fetchCampaignRefs` uses.
-        // Two foreign keys point at quests (the rule's own quest and an
-        // unlock target), so the embed must name which one it follows.
-        supabase.from("quest_consequences").select("*, quests!quest_consequences_quest_id_fkey!inner(campaign_id)").eq("quests.campaign_id", campaignId),
-        // The featured card's Objectives N / M count (frame `07 Log`). Same
-        // shape as `consequences` above — `quest_objectives` has no
-        // `campaign_id` of its own, and it has exactly one FK to `quests`,
-        // so no `!fkey` hint is needed to disambiguate the embed.
-        supabase.from("quest_objectives").select("id, quest_id, status, quests!inner(campaign_id)").eq("quests.campaign_id", campaignId),
-      ]);
-      const error = [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult, threadsResult, consequencesResult, objectivesResult]
-        .find((result) => result.error)?.error;
+      const { data, error } = await supabase.rpc("get_quest_board", { p_campaign_id: campaignId });
       if (error) throw error;
-
-      const attachmentRows = (attachmentsResult.data ?? []) as QuestBeatAttachment[];
-      const targets = await fetchAttachmentTargets(attachmentRows);
-      const attachments = attachmentRows.map((attachment) => summarizeQuestBeatAttachment(
-        attachment,
-        targets.get(`${attachment.attachment_type}:${attachment.ref_id}`) ?? null,
-      ));
-      return deriveQuestBoardSummaries({
-        beats: (beatsResult.data ?? []) as QuestBeat[],
-        edges: (edgesResult.data ?? []) as QuestBeatEdge[],
-        attachments,
-        runtime: (runtimeResult.data ?? []) as QuestRuntimeState[],
-        transitions: (transitionsResult.data ?? []) as QuestBeatTransition[],
-        loot: (lootResult.data ?? []) as LootPlacement[],
-        threads: (threadsResult.data ?? []) as QuestThread[],
-        consequences: (consequencesResult.data ?? []) as unknown as QuestConsequence[],
-        objectives: (objectivesResult.data ?? []) as unknown as Pick<QuestObjective, "id" | "quest_id" | "status">[],
-      });
+      return deriveQuestBoardSummaries(data as QuestBoardPayload);
     },
     enabled: () => !!campaign.activeCampaignId,
   });
@@ -386,6 +348,7 @@ export function useCreateQuestBeatAttachment() {
       return data as QuestBeatAttachment;
     },
     onSuccess: (_attachment, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, input.quest_id] });
       void invalidatePlayerQuestBeatProjections(queryClient);
     },
@@ -400,6 +363,7 @@ export function useDeleteQuestBeatAttachment() {
       if (error) throw error;
     },
     onSuccess: (_result, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, input.questId] });
       void invalidatePlayerQuestBeatProjections(queryClient);
     },
@@ -423,6 +387,7 @@ export function useSetQuestBeatAttachmentRequired() {
   return useMutation({
     mutationFn: (input: { id: string; questId: string; isRequired: boolean }) => setQuestBeatAttachmentRequired(input.id, input.isRequired),
     onSettled: (_attachment, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, input.questId] });
     },
   });
@@ -437,6 +402,7 @@ export function useCreateQuestBeat() {
       return data as QuestBeat;
     },
     onSuccess: (_beat, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.quest_id] });
       void invalidatePlayerQuestBeatProjections(queryClient);
     },
@@ -470,6 +436,7 @@ export function useCreateQuestBeatWithRoute() {
   return useMutation({
     mutationFn: createQuestBeatWithRoute,
     onSettled: (_beat, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
     },
@@ -506,6 +473,7 @@ export function useUpdateQuestBeat() {
       if (context?.previous !== undefined) queryClient.setQueryData(context.key, context.previous);
     },
     onSettled: (_beat, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "detail", input.id] });
       void invalidatePlayerQuestBeatProjections(queryClient);
@@ -521,6 +489,7 @@ export function useDeleteQuestBeat() {
       if (error) throw error;
     },
     onSuccess: (_result, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
@@ -563,6 +532,7 @@ export function useArchiveQuestBeat() {
   return useMutation({
     mutationFn: (input: ArchiveQuestBeatInput & { questId: string }) => archiveQuestBeat(input),
     onSettled: (_data, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
@@ -583,6 +553,7 @@ export function useCreateQuestBeatEdge() {
       return data as QuestBeatEdge;
     },
     onSuccess: (_edge, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.quest_id] });
     },
   });
@@ -596,6 +567,7 @@ export function useDeleteQuestBeatEdge() {
       if (error) throw error;
     },
     onSuccess: (_result, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
       // The gate FK cascades with the edge; the cache should follow.
       queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
@@ -611,7 +583,10 @@ export function useUpdateQuestBeatEdge() {
       if (error) throw error;
       return data as QuestBeatEdge;
     },
-    onSettled: (_data, _error, input) => queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] }),
+    onSettled: (_data, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
+    },
   });
 }
 
@@ -684,16 +659,22 @@ export function useQuestRuntimeState(questId: string | Ref<string>, threadId: st
 
 /** A thread's own runtime context (#853) — the current beat, its outgoing
  *  routes, and every other thread this quest holds (`context.threads`), all
- *  scoped to the one thread this hook was asked for. Disabled while
- *  `threadId` is empty. */
+ *  scoped to one thread.
+ *
+ *  An empty `threadId` is "the quest's default thread": the server resolves it
+ *  (oldest live or waiting, the same rule as `defaultThreadId`) and names the
+ *  choice in `context.thread`, so a view no longer waits on the thread list
+ *  just to learn which id to ask for. `null` data means the quest has no open
+ *  thread at all (the server answers `thread: null`); there is no context to
+ *  show until one exists. */
 export function useQuestRuntimeContext(questId: string | Ref<string>, threadId: string | Ref<string>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const id = asRef(questId);
   const thread = asRef(threadId);
   return useQuery({
-    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, campaignId.value, id.value, thread.value] as const),
-    queryFn: async ({ queryKey: [, cid, qid, tid] }): Promise<QuestRuntimeContext> => {
+    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, campaignId.value, id.value, thread.value || null] as const),
+    queryFn: async ({ queryKey: [, cid, qid, tid] }): Promise<QuestRuntimeContext | null> => {
       if (cid === null) throw new Error("useQuestRuntimeContext fetched without a campaign");
       const { data, error } = await supabase.rpc("get_quest_runtime_context", {
         p_campaign_id: cid,
@@ -701,9 +682,10 @@ export function useQuestRuntimeContext(questId: string | Ref<string>, threadId: 
         p_thread_id: tid,
       });
       if (error) throw error;
-      return data as QuestRuntimeContext;
+      const context = data as QuestRuntimeContext | { thread: null };
+      return context.thread === null ? null : (context as QuestRuntimeContext);
     },
-    enabled: () => !!campaignId.value && !!id.value && !!thread.value,
+    enabled: () => !!campaignId.value && !!id.value,
   });
 }
 
@@ -726,7 +708,7 @@ export function useCampaignLiveQuests() {
 
 /** Jump moves *this* chain's cursor, so the picker offers only this chain's
  * beats. Another quest is reached by navigating to its own Run surface. */
-export function useQuestRuntimeJumpTargets(questId: string | Ref<string>, search: string | Ref<string>) {
+export function useQuestRuntimeJumpTargets(questId: string | Ref<string>, search: string | Ref<string>, enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const id = asRef(questId);
@@ -744,7 +726,7 @@ export function useQuestRuntimeJumpTargets(questId: string | Ref<string>, search
       if (error) throw error;
       return (data ?? []) as QuestRuntimeJumpTarget[];
     },
-    enabled: () => !!campaignId.value && !!id.value,
+    enabled: () => !!campaignId.value && !!id.value && (enabled?.() ?? true),
   });
 }
 
@@ -778,7 +760,7 @@ export function useQuestRuntimeCommand() {
       // on focus, advancing a beat and returning to the quest board inside
       // that minute showed the previous beat as current, contradicting the
       // cockpit the DM had just used.
-      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board"] });
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
     },
   });
 }
@@ -830,7 +812,7 @@ export function useAssertQuestRuntime() {
       queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
       queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
       queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
-      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board"] });
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       // Consequences can move objectives, log events, and touch the calendar —
       // same set `useAssertQuestObjectiveStatus` invalidates for the same reason.
       queryClient.invalidateQueries({ queryKey: ["quest_objectives"] });
@@ -888,6 +870,7 @@ export function useQuestRuntimeImprovise() {
       queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
     },
   });
 }
@@ -1024,6 +1007,7 @@ export function useCreateQuestConsequence() {
       return data as QuestConsequence;
     },
     onSuccess: (_row, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [CONSEQUENCES_KEY, input.quest_id] });
     },
   });
@@ -1037,6 +1021,7 @@ export function useDeleteQuestConsequence() {
       if (error) throw error;
     },
     onSuccess: (_result, input) => {
+      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [CONSEQUENCES_KEY, input.questId] });
     },
   });
@@ -1124,11 +1109,11 @@ async function fetchQuestUnlockEntry(questId: string): Promise<QuestUnlockEntry 
  * invalidations at useQuestFlow.ts:817 (`useAssertQuestRuntime`) and
  * useQuestThreads.ts:161 — both fire or undo a consequence — refresh this too.
  */
-export function useQuestUnlockEntry(questId: string | Ref<string>) {
+export function useQuestUnlockEntry(questId: string | Ref<string>, enabled?: () => boolean) {
   const id = asRef(questId);
   return useQuery({
     queryKey: computed(() => [CONSEQUENCE_EVENTS_KEY, "unlock-entry", id.value] as const),
     queryFn: ({ queryKey: [, , questId] }) => fetchQuestUnlockEntry(questId),
-    enabled: () => !!id.value,
+    enabled: () => !!id.value && (enabled?.() ?? true),
   });
 }

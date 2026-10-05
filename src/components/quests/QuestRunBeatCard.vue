@@ -96,7 +96,7 @@ import { computed, ref } from "vue";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType, QuestCheckAttachmentMetadata } from "@/types/quest.types";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import type { ThreadBadge } from "@/lib/quests/threads";
-import { countQuestBeatContentBlocks, deriveQuestBeatPrepGaps } from "@/lib/quests/presentation";
+import { countQuestBeatContentBlocks, deriveQuestBeatPrepGaps, prepFactsOf } from "@/lib/quests/presentation";
 import { useBelow } from "@/composables/useBreakpoint";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
@@ -133,7 +133,7 @@ const editUrl = computed(() => ({
   path: `/quests/${props.beat.quest_id}/beats/${props.beat.id}`,
   query: { returnTo: runReturn.value },
 }));
-const prepGaps = computed(() => deriveQuestBeatPrepGaps(props.beat, props.attachments));
+const prepGaps = computed(() => deriveQuestBeatPrepGaps(prepFactsOf(props.beat), props.attachments));
 
 // Wrapped in a `computed` rather than used directly: `useBelow` is mocked in
 // tests as a plain `{ value }` box (see QuestAdvanceDialog.test.ts's own

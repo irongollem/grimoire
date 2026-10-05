@@ -18,7 +18,7 @@ export function summarizeQuestBeatLoot(rows: LootPlacement[]) {
 }
 
 /** Room-homed rows carry no `quest_id` (#830) and are excluded the same way. */
-export function summarizeQuestLootByQuest(rows: LootPlacement[]) {
+export function summarizeQuestLootByQuest(rows: Pick<LootPlacement, "quest_id" | "delivery_state">[]) {
   const result: Record<string, { undispatched: number; unclaimed: number }> = {};
   for (const row of rows) {
     if (!row.quest_id) continue;

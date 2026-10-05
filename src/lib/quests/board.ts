@@ -1,11 +1,9 @@
 import type {
   Quest,
-  QuestBeat,
-  QuestBeatAttachmentSummary,
+  QuestBeatAttachment,
   QuestBeatEdge,
   QuestConsequence,
   LootPlacement,
-  QuestBeatTransition,
   QuestObjective,
   QuestRef,
   QuestRuntimeState,
@@ -13,8 +11,14 @@ import type {
   QuestThread,
   QuestThreadStatus,
 } from "@/types/quest.types";
+import { isAttachmentPrepGap, missingAttachmentLabel } from "./attachments";
 import { summarizeQuestLootByQuest } from "./loot";
-import { deriveQuestBeatPresentations, type QuestBeatPresentation } from "./presentation";
+import {
+  deriveQuestBeatPresentations,
+  type QuestBeatPrepAttachment,
+  type QuestBeatPresentable,
+  type QuestBeatPresentation,
+} from "./presentation";
 
 /** Optional summaries keep quests valid while graph data loads: they render without invented
  * beat-only data while flow-enabled quests use one batched campaign query. */
@@ -143,7 +147,7 @@ export interface QuestBoardFilterCounts {
  *  between them either. A transition logged before threads existed
  *  (`thread_id` null) counts for every thread — it was the one cursor. */
 function beatSegmentsForThread(
-  beats: QuestBeat[],
+  beats: QuestBoardBeat[],
   presentations: Record<string, QuestBeatPresentation>,
   threadId: string | null,
   visitedByThread: Map<string | null, Set<string>>,
@@ -159,59 +163,100 @@ function beatSegmentsForThread(
   });
 }
 
-function visitedBeatsByThread(transitions: readonly QuestBeatTransition[]): Map<string | null, Set<string>> {
+function visitedBeatsByThread(visits: readonly QuestBoardVisit[]): Map<string | null, Set<string>> {
   const byThread = new Map<string | null, Set<string>>();
-  for (const transition of transitions) {
-    if (!transition.to_beat_id) continue;
-    const set = byThread.get(transition.thread_id) ?? new Set<string>();
-    set.add(transition.to_beat_id);
-    byThread.set(transition.thread_id, set);
+  for (const visit of visits) {
+    const set = byThread.get(visit.thread_id) ?? new Set<string>();
+    set.add(visit.beat_id);
+    byThread.set(visit.thread_id, set);
   }
   return byThread;
 }
 
-export function deriveQuestBoardSummaries(input: {
-  beats: QuestBeat[];
-  edges: QuestBeatEdge[];
-  attachments: QuestBeatAttachmentSummary[];
-  loot: LootPlacement[];
-  runtime?: QuestRuntimeState[];
-  transitions?: QuestBeatTransition[];
-  /** `quest_threads` rows, for a thread's label and status (#853). A cursor
-   *  with no matching row here — an older export, or a fixture that predates
-   *  threads — still gets a summary, labelled "Main" and read as live. */
-  threads?: QuestThread[];
-  /** `quest_consequences` rows for the whole campaign — a rule's `on_beat_id`
-   *  and its `target_quest_id` routinely belong to two different quests
-   *  (that is the entire point of `unlock_quest`), so this cannot be scoped
-   *  to one quest's own beats the way `attachments`/`loot` are. */
-  consequences?: QuestConsequence[];
-  /** `quest_objectives` rows for the campaign (frame `07 Log`'s featured-card
-   *  statblock, story I). `quest_objectives` carries no `campaign_id` of its
-   *  own, so the caller scopes this through the `quests` embed the same way
-   *  `consequences` does. */
-  objectives?: Pick<QuestObjective, "id" | "quest_id" | "status">[];
-}) {
+/** A beat as the board reads it: what `deriveQuestBeatPresentations` needs plus
+ *  the title the cards name it by. */
+export type QuestBoardBeat = QuestBeatPresentable & { title: string };
+
+/** A required attachment's target, resolved by the server, not the attachment's own text. */
+export type QuestBoardAttachment = Pick<QuestBeatAttachment, "beat_id" | "quest_id" | "attachment_type" | "is_required"> & {
+  target_exists: boolean;
+};
+
+/** Every (thread, beat) pair any move ever arrived at. A null thread is a move
+ *  logged before threads existed, which counts for every thread. */
+export interface QuestBoardVisit {
+  thread_id: string | null;
+  beat_id: string;
+}
+
+/** A quest this one fed into: the title of a converge-all beat's quest that a
+ *  move out of `quest_id` landed on. */
+export interface QuestBoardConverge {
+  quest_id: string;
+  title: string;
+}
+
+/** The latest `end` move touching a quest. */
+export interface QuestBoardEnding {
+  quest_id: string;
+  reason: string | null;
+}
+
+/** What `get_quest_board` returns (migration `20261005004823`): the board's
+ *  inputs, reduced on the server so one request carries them all. */
+export interface QuestBoardPayload {
+  beats: QuestBoardBeat[];
+  edges: Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id">[];
+  attachments: QuestBoardAttachment[];
+  runtime: Pick<QuestRuntimeState, "quest_id" | "thread_id" | "current_beat_id" | "status">[];
+  threads: Pick<QuestThread, "id" | "quest_id" | "label" | "status" | "created_at">[];
+  visits: QuestBoardVisit[];
+  converges: QuestBoardConverge[];
+  endings: QuestBoardEnding[];
+  consequences: Pick<QuestConsequence, "quest_id" | "on_beat_id" | "action" | "target_quest_id" | "entry_beat_id">[];
+  objectives: Pick<QuestObjective, "quest_id" | "status">[];
+  loot: Pick<LootPlacement, "quest_id" | "delivery_state">[];
+}
+
+/** The board's one set of rules, over the server-reduced inputs. */
+export function deriveQuestBoardSummaries(input: QuestBoardPayload) {
   const lootByQuest = summarizeQuestLootByQuest(input.loot);
-  const presentations = deriveQuestBeatPresentations(input);
-  const runtimeByQuest = new Map<string, QuestRuntimeState[]>();
-  for (const row of input.runtime ?? []) {
+  // The presentation rules read attachments as summaries; the server has already
+  // said whether each target exists, so the gap is decided by the shared rule.
+  // The label is what the attachment would be called if its target were gone,
+  // which is the only case a gap ever reads it.
+  const prepAttachments: QuestBeatPrepAttachment[] = input.attachments.map((attachment) => ({
+    beat_id: attachment.beat_id,
+    attachment_type: attachment.attachment_type,
+    prep_gap: isAttachmentPrepGap(attachment.is_required, attachment.target_exists),
+    label: missingAttachmentLabel(attachment.attachment_type),
+  }));
+  const presentations = deriveQuestBeatPresentations({
+    beats: input.beats,
+    edges: input.edges,
+    attachments: prepAttachments,
+    runtime: input.runtime,
+    transitions: input.visits.map((visit) => ({ to_beat_id: visit.beat_id })),
+    consequences: input.consequences,
+  });
+  const runtimeByQuest = new Map<string, QuestBoardPayload["runtime"]>();
+  for (const row of input.runtime) {
     if (!row.current_beat_id) continue;
     const rows = runtimeByQuest.get(row.quest_id) ?? [];
     rows.push(row);
     runtimeByQuest.set(row.quest_id, rows);
   }
-  const threadById = new Map((input.threads ?? []).map((thread) => [thread.id, thread]));
-  const visitedByThread = visitedBeatsByThread(input.transitions ?? []);
-  const threadsByQuest = new Map<string, QuestThread[]>();
-  for (const thread of input.threads ?? []) {
+  const threadById = new Map(input.threads.map((thread) => [thread.id, thread]));
+  const visitedByThread = visitedBeatsByThread(input.visits);
+  const threadsByQuest = new Map<string, QuestBoardPayload["threads"]>();
+  for (const thread of input.threads) {
     const list = threadsByQuest.get(thread.quest_id) ?? [];
     list.push(thread);
     threadsByQuest.set(thread.quest_id, list);
   }
   const beatById = new Map(input.beats.map((beat) => [beat.id, beat]));
-  const objectivesByQuest = new Map<string, Pick<QuestObjective, "id" | "quest_id" | "status">[]>();
-  for (const objective of input.objectives ?? []) {
+  const objectivesByQuest = new Map<string, QuestBoardPayload["objectives"]>();
+  for (const objective of input.objectives) {
     const list = objectivesByQuest.get(objective.quest_id) ?? [];
     list.push(objective);
     objectivesByQuest.set(objective.quest_id, list);
@@ -220,8 +265,8 @@ export function deriveQuestBoardSummaries(input: {
   // rather than for one of its own beats — the rule lives on whichever beat
   // (in whichever quest) raises it, and only its `target_quest_id` says which
   // quest it promotes.
-  const unlockRulesByTargetQuest = new Map<string, QuestConsequence[]>();
-  for (const consequence of input.consequences ?? []) {
+  const unlockRulesByTargetQuest = new Map<string, QuestBoardPayload["consequences"]>();
+  for (const consequence of input.consequences) {
     if (consequence.action !== "unlock_quest" || !consequence.target_quest_id) continue;
     const list = unlockRulesByTargetQuest.get(consequence.target_quest_id) ?? [];
     list.push(consequence);
@@ -235,7 +280,7 @@ export function deriveQuestBoardSummaries(input: {
   // "no beats yet" card, story I) — its only foothold in this campaign-wide
   // data is the rule that names it as a target, so that has to seed a summary
   // too or `unlockedBy`/`heldPayoffCount` would have nowhere to land.
-  for (const consequence of input.consequences ?? []) {
+  for (const consequence of input.consequences) {
     if (consequence.target_quest_id) questIds.add(consequence.target_quest_id);
   }
   const result: Record<string, QuestBoardSummary> = {};
@@ -272,18 +317,9 @@ export function deriveQuestBoardSummaries(input: {
 
     // A route never crosses a quest boundary (the edge FK ties both ends to
     // the same `quest_id`), so the only record of one story feeding into
-    // another is a transition that actually walked there — a `jump`/`forward`
-    // row whose `from_quest_id` is this quest and whose `to_quest_id` is not.
-    const convergesInto = [...new Set(
-      (input.transitions ?? [])
-        .filter((transition) => transition.from_quest_id === questId
-          && transition.to_quest_id
-          && transition.to_quest_id !== questId
-          && transition.to_beat_id
-          && beatById.get(transition.to_beat_id)?.converge_mode === "all")
-        .map((transition) => transition.to_quest_title)
-        .filter((title): title is string => !!title),
-    )];
+    // another is a move that actually walked there; the server has already
+    // kept the arrivals on a converge-all beat of another quest.
+    const convergesInto = input.converges.filter((converge) => converge.quest_id === questId).map((converge) => converge.title);
 
     const unlockRules = unlockRulesByTargetQuest.get(questId) ?? [];
     const namedUnlockRule = unlockRules.find((rule) => rule.on_beat_id);
@@ -298,19 +334,16 @@ export function deriveQuestBoardSummaries(input: {
     // "Session N" only when the DM's own end-of-run reason names one — the
     // shorthand actually typed at the table (`SESSION_NOTE_PATTERN`). Never a
     // date stood in for a session number nobody gave.
-    const endTransition = (input.transitions ?? [])
-      .filter((transition) => transition.transition_kind === "end"
-        && (transition.from_quest_id === questId || transition.to_quest_id === questId))
-      .at(-1) ?? null;
+    const ending = input.endings.find((row) => row.quest_id === questId) ?? null;
     const objectives = objectivesByQuest.get(questId) ?? [];
     const objectivesDone = objectives.filter((objective) => objective.status === "complete").length;
 
     let settledCaption: string | null = null;
-    if (endTransition) {
+    if (ending) {
       const threadsForQuest = threadsByQuest.get(questId) ?? [];
       const everyThreadWrappedUp = threadsForQuest.every((thread) => thread.status === "closed" || thread.status === "merged");
       const ledgerNote = everyThreadWrappedUp ? "ledger settled" : "one thread closed unfinished";
-      const sessionMatch = endTransition.reason ? SESSION_NOTE_PATTERN.exec(endTransition.reason) : null;
+      const sessionMatch = ending.reason ? SESSION_NOTE_PATTERN.exec(ending.reason) : null;
       settledCaption = sessionMatch ? `Session ${sessionMatch[1]} · ${ledgerNote}` : ledgerNote;
     }
 

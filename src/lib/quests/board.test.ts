@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { Quest, QuestBeat, QuestRef } from "@/types/quest.types";
-import { countQuestBoardFilters, deriveQuestBoardSummaries, filterQuestBoard, type QuestBoardFilters, type QuestBoardSummary } from "./board";
+import type { Quest, QuestRef } from "@/types/quest.types";
+import {
+  countQuestBoardFilters,
+  deriveQuestBoardSummaries,
+  filterQuestBoard,
+  type QuestBoardBeat,
+  type QuestBoardFilters,
+  type QuestBoardPayload,
+  type QuestBoardSummary,
+} from "./board";
 
 function quest(id: string, overrides: Partial<Quest> = {}): Quest {
   return {
@@ -154,20 +162,52 @@ describe("filterQuestBoard", () => {
   });
 });
 
+/** A beat as `get_quest_board` returns it: prepared, hidden, staged nowhere. */
+function boardBeat(id: string, questId: string, over: Partial<QuestBoardBeat> = {}): QuestBoardBeat {
+  return {
+    id,
+    quest_id: questId,
+    title: id,
+    converge_mode: "any",
+    visibility: "hidden",
+    is_improvised: false,
+    improv_reviewed_at: null,
+    staged_at_location_id: null,
+    has_guidance: true,
+    has_rumor_text: false,
+    has_reveal_text: false,
+    ...over,
+  };
+}
+
+function payload(over: Partial<QuestBoardPayload>): QuestBoardPayload {
+  return {
+    beats: [], edges: [], attachments: [], runtime: [], threads: [], visits: [],
+    converges: [], endings: [], consequences: [], objectives: [], loot: [],
+    ...over,
+  };
+}
+
+const thread = (id: string, questId: string, over: Partial<QuestBoardPayload["threads"][number]> = {}): QuestBoardPayload["threads"][number] => ({
+  id, quest_id: questId, label: "Main", status: "live", created_at: "2026-08-01T00:00:00Z", ...over,
+});
+const cursor = (questId: string, threadId: string, beatId: string, status: QuestBoardPayload["runtime"][number]["status"] = "running"): QuestBoardPayload["runtime"][number] => ({
+  quest_id: questId, thread_id: threadId, current_beat_id: beatId, status,
+});
+const consequence = (over: Partial<QuestBoardPayload["consequences"][number]>): QuestBoardPayload["consequences"][number] => ({
+  quest_id: "quest-a", on_beat_id: null, action: "reveal", target_quest_id: null, entry_beat_id: null, ...over,
+});
+
 describe("deriveQuestBoardSummaries", () => {
   it("combines live, readiness, history, and loot without card-level fetching", () => {
-    const beats = [
-      { id: "beat-a", quest_id: "quest-a", title: "Arrival", visibility: "hidden", dm_content: "Ready", how_it_plays: null, is_improvised: false },
-      { id: "beat-b", quest_id: "quest-a", title: "Vault", visibility: "hidden", dm_content: "Ready", how_it_plays: null, is_improvised: false },
-    ] as QuestBeat[];
-    const summaries = deriveQuestBoardSummaries({
-      beats,
-      edges: [{ source_beat_id: "beat-a", target_beat_id: "beat-b" }] as never[],
-      attachments: [{ beat_id: "beat-b", attachment_type: "handout", prep_gap: true }] as never[],
-      loot: [{ beat_id: "beat-b", quest_id: "quest-a", delivery_state: "held" }] as never[],
-      runtime: [{ quest_id: "quest-a", thread_id: "main", current_beat_id: "beat-a", status: "running" }] as never[],
-      transitions: [{ to_beat_id: "beat-a" }] as never[],
-    });
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-a", "quest-a", { title: "Arrival" }), boardBeat("beat-b", "quest-a", { title: "Vault" })],
+      edges: [{ source_beat_id: "beat-a", target_beat_id: "beat-b" }],
+      attachments: [{ beat_id: "beat-b", quest_id: "quest-a", attachment_type: "handout", is_required: true, target_exists: false }],
+      loot: [{ quest_id: "quest-a", delivery_state: "held" }],
+      runtime: [cursor("quest-a", "main", "beat-a")],
+      visits: [{ thread_id: "main", beat_id: "beat-a" }],
+    }));
     expect(summaries["quest-a"]).toMatchObject({
       isLive: true,
       runtimeStatus: "running",
@@ -181,25 +221,14 @@ describe("deriveQuestBoardSummaries", () => {
   // #853: a quest can hold several live threads at once. The top-level fields
   // read as the first *running* thread's; every thread gets its own entry.
   it("reads the top-level fields off the first running thread, and lists every thread on its own", () => {
-    const beats = [
-      { id: "beat-a", quest_id: "quest-a", title: "Arrival" },
-      { id: "beat-b", quest_id: "quest-a", title: "Side chamber" },
-    ] as QuestBeat[];
-    const threads = [
-      { id: "main", quest_id: "quest-a", campaign_id: "campaign-1", label: "Main", status: "live", created_at: "2026-08-01T00:00:00Z" },
-      { id: "side", quest_id: "quest-a", campaign_id: "campaign-1", label: "The lost heir", status: "live", created_at: "2026-08-05T00:00:00Z" },
-    ] as never[];
-    const summaries = deriveQuestBoardSummaries({
-      beats,
-      edges: [],
-      attachments: [],
-      loot: [],
-      runtime: [
-        { quest_id: "quest-a", thread_id: "side", current_beat_id: "beat-b", status: "paused" },
-        { quest_id: "quest-a", thread_id: "main", current_beat_id: "beat-a", status: "running" },
-      ] as never[],
-      threads,
-    });
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-a", "quest-a", { title: "Arrival" }), boardBeat("beat-b", "quest-a", { title: "Side chamber" })],
+      runtime: [cursor("quest-a", "side", "beat-b", "paused"), cursor("quest-a", "main", "beat-a")],
+      threads: [
+        thread("main", "quest-a"),
+        thread("side", "quest-a", { label: "The lost heir", created_at: "2026-08-05T00:00:00Z" }),
+      ],
+    }));
     const summary = summaries["quest-a"]!;
     expect(summary.isLive).toBe(true);
     expect(summary.liveThreadCount).toBe(1);
@@ -214,106 +243,102 @@ describe("deriveQuestBoardSummaries", () => {
   // Frame "07 Log" draws one spine per thread: a beat is "done" on a
   // thread's spine only when that thread walked it, so a layer opened last
   // session reads as one beat in rather than inheriting Main's progress.
-  it("reads each thread's spine from that thread's own transitions", () => {
-    const beats = [
-      { id: "beat-a", quest_id: "quest-a", title: "Arrival", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
-      { id: "beat-b", quest_id: "quest-a", title: "Road", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
-      { id: "beat-c", quest_id: "quest-a", title: "Side chamber", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
-    ] as never[];
-    const summaries = deriveQuestBoardSummaries({
-      beats,
-      edges: [],
-      attachments: [],
-      loot: [],
-      runtime: [
-        { quest_id: "quest-a", thread_id: "main", current_beat_id: "beat-b", status: "running" },
-        { quest_id: "quest-a", thread_id: "side", current_beat_id: "beat-c", status: "running" },
-      ] as never[],
-      transitions: [
-        { to_quest_id: "quest-a", to_beat_id: "beat-a", thread_id: "main" },
-        { to_quest_id: "quest-a", to_beat_id: "beat-b", thread_id: "main" },
-        { to_quest_id: "quest-a", to_beat_id: "beat-c", thread_id: "side" },
-      ] as never[],
-      threads: [
-        { id: "main", quest_id: "quest-a", campaign_id: "campaign-1", label: "Main", status: "live", created_at: "2026-08-01T00:00:00Z" },
-        { id: "side", quest_id: "quest-a", campaign_id: "campaign-1", label: "Side", status: "live", created_at: "2026-08-05T00:00:00Z" },
-      ] as never[],
-    });
-    const byId = Object.fromEntries(summaries["quest-a"]!.threads.map((thread) => [thread.id, thread.beatSegments]));
+  it("reads each thread's spine from that thread's own visits", () => {
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-a", "quest-a"), boardBeat("beat-b", "quest-a"), boardBeat("beat-c", "quest-a")],
+      runtime: [cursor("quest-a", "main", "beat-b"), cursor("quest-a", "side", "beat-c")],
+      visits: [
+        { thread_id: "main", beat_id: "beat-a" },
+        { thread_id: "main", beat_id: "beat-b" },
+        { thread_id: "side", beat_id: "beat-c" },
+      ],
+      threads: [thread("main", "quest-a"), thread("side", "quest-a", { label: "Side", created_at: "2026-08-05T00:00:00Z" })],
+    }));
+    const byId = Object.fromEntries(summaries["quest-a"]!.threads.map((t) => [t.id, t.beatSegments]));
     expect(byId.main).toEqual(["done", "here", "gap"]);
     expect(byId.side).toEqual(["gap", "gap", "here"]);
+  });
+
+  it("counts a visit from before threads existed (no thread) as done on every thread", () => {
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-a", "quest-a"), boardBeat("beat-b", "quest-a")],
+      runtime: [cursor("quest-a", "main", "beat-b")],
+      visits: [{ thread_id: null, beat_id: "beat-a" }],
+      threads: [thread("main", "quest-a")],
+    }));
+    expect(summaries["quest-a"]!.beatSegments).toEqual(["done", "here"]);
   });
 
   // Story I (#850): the card has to answer "where is this quest" for more
   // than one cursor, and the log's groups need the facts a "07 Log"-style
   // caption reads off.
   it("names every concrete prep gap, not just the count", () => {
-    const beats = [
-      { id: "beat-a", quest_id: "quest-a", title: "Arrival", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
-      { id: "beat-b", quest_id: "quest-a", title: "Vault", dm_content: null, how_it_plays: null, visibility: "hidden", is_improvised: false },
-    ] as QuestBeat[];
-    const summaries = deriveQuestBoardSummaries({
-      beats,
-      edges: [{ source_beat_id: "beat-a", target_beat_id: "beat-b" }] as never[],
-      attachments: [{ beat_id: "beat-b", attachment_type: "handout", label: "Vallis stat block", prep_gap: true }] as never[],
-      loot: [],
-    });
-    expect(summaries["quest-a"]!.prepGaps).toEqual(["Add DM guidance", "Replace Vallis stat block"]);
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-a", "quest-a"), boardBeat("beat-b", "quest-a", { has_guidance: false })],
+      edges: [{ source_beat_id: "beat-a", target_beat_id: "beat-b" }],
+      attachments: [{ beat_id: "beat-b", quest_id: "quest-a", attachment_type: "handout", is_required: true, target_exists: false }],
+    }));
+    expect(summaries["quest-a"]!.prepGaps).toEqual(["Add DM guidance", "Replace Missing handout"]);
+  });
+
+  it("raises no attachment gap for an optional or still-present target", () => {
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-a", "quest-a")],
+      attachments: [
+        { beat_id: "beat-a", quest_id: "quest-a", attachment_type: "handout", is_required: false, target_exists: false },
+        { beat_id: "beat-a", quest_id: "quest-a", attachment_type: "npc", is_required: true, target_exists: true },
+      ],
+    }));
+    expect(summaries["quest-a"]!.prepGaps).toEqual([]);
+  });
+
+  it("asks for copy only when a rumored or revealed beat has none written", () => {
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [
+        boardBeat("rumor", "quest-a", { visibility: "rumored" }),
+        boardBeat("reveal", "quest-a", { visibility: "revealed", has_reveal_text: true }),
+      ],
+      edges: [{ source_beat_id: "rumor", target_beat_id: "reveal" }],
+    }));
+    expect(summaries["quest-a"]!.prepGaps).toEqual(["Add explicit rumor copy"]);
   });
 
   it("reads payoff as prepared from undispatched loot alone", () => {
-    const beats = [{ id: "beat-a", quest_id: "quest-a", title: "Arrival", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false }] as QuestBeat[];
-    const summaries = deriveQuestBoardSummaries({
-      beats,
-      edges: [],
-      attachments: [],
-      loot: [{ beat_id: "beat-a", quest_id: "quest-a", delivery_state: "held" }] as never[],
-    });
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-a", "quest-a")],
+      loot: [{ quest_id: "quest-a", delivery_state: "held" }],
+    }));
     expect(summaries["quest-a"]!.hasPayoffPrepared).toBe(true);
   });
 
   it("reads payoff as prepared from an unfired rule on a beat the party has not reached", () => {
-    const beats = [
-      { id: "beat-a", quest_id: "quest-a", title: "Arrival", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
-      { id: "beat-b", quest_id: "quest-a", title: "Reveal", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
-    ] as QuestBeat[];
-    const withRule = deriveQuestBoardSummaries({
+    const beats = [boardBeat("beat-a", "quest-a"), boardBeat("beat-b", "quest-a")];
+    const rule = consequence({ on_beat_id: "beat-b" });
+    const withRule = deriveQuestBoardSummaries(payload({
       beats,
-      edges: [],
-      attachments: [],
-      loot: [],
-      transitions: [{ to_beat_id: "beat-a" }] as never[],
-      consequences: [{ id: "c1", quest_id: "quest-a", on_beat_id: "beat-b", action: "reveal", target_objective_id: "obj-1" }] as never[],
-    });
+      visits: [{ thread_id: null, beat_id: "beat-a" }],
+      consequences: [rule],
+    }));
     expect(withRule["quest-a"]!.hasPayoffPrepared).toBe(true);
 
     // The same rule sitting on the beat the party is already standing on has
     // nothing left to prepare — it already fired.
-    const alreadyVisited = deriveQuestBoardSummaries({
+    const alreadyVisited = deriveQuestBoardSummaries(payload({
       beats,
-      edges: [],
-      attachments: [],
-      loot: [],
-      transitions: [{ to_beat_id: "beat-b" }] as never[],
-      consequences: [{ id: "c1", quest_id: "quest-a", on_beat_id: "beat-b", action: "reveal", target_objective_id: "obj-1" }] as never[],
-    });
+      visits: [{ thread_id: null, beat_id: "beat-b" }],
+      consequences: [rule],
+    }));
     expect(alreadyVisited["quest-a"]!.hasPayoffPrepared).toBe(false);
   });
 
   it("names the beat behind an unlock_quest rule, and holds the rest as unnamed", () => {
-    const beats = [
-      { id: "beat-source", quest_id: "quest-source", title: "The Vault's Keeper" },
-    ] as QuestBeat[];
-    const summaries = deriveQuestBoardSummaries({
-      beats,
-      edges: [],
-      attachments: [],
-      loot: [],
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-source", "quest-source", { title: "The Vault's Keeper" })],
       consequences: [
-        { id: "c1", quest_id: "quest-source", on_beat_id: "beat-source", action: "unlock_quest", target_quest_id: "quest-locked" },
-        { id: "c2", quest_id: "quest-other", on_objective_id: "obj-1", action: "unlock_quest", target_quest_id: "quest-locked-2" },
-      ] as never[],
-    });
+        consequence({ quest_id: "quest-source", on_beat_id: "beat-source", action: "unlock_quest", target_quest_id: "quest-locked" }),
+        consequence({ quest_id: "quest-other", action: "unlock_quest", target_quest_id: "quest-locked-2" }),
+      ],
+    }));
     expect(summaries["quest-locked"]!.unlockedBy).toBe("The Vault's Keeper");
     expect(summaries["quest-locked"]!.heldPayoffCount).toBe(0);
     expect(summaries["quest-locked-2"]!.unlockedBy).toBeNull();
@@ -326,75 +351,51 @@ describe("deriveQuestBoardSummaries", () => {
   // beats, campaign-wide data the caller already assembled.
   it("names the entry a bridge lands on, distinct from the beat that raised it", () => {
     const beats = [
-      { id: "beat-source", quest_id: "quest-source", title: "The Vault's Keeper" },
-      { id: "beat-locked-entry", quest_id: "quest-locked", title: "The sealed antechamber" },
-    ] as QuestBeat[];
-    const withEntry = deriveQuestBoardSummaries({
+      boardBeat("beat-source", "quest-source", { title: "The Vault's Keeper" }),
+      boardBeat("beat-locked-entry", "quest-locked", { title: "The sealed antechamber" }),
+    ];
+    const unlock = { quest_id: "quest-source", on_beat_id: "beat-source", action: "unlock_quest" as const, target_quest_id: "quest-locked" };
+    const withEntry = deriveQuestBoardSummaries(payload({
       beats,
-      edges: [],
-      attachments: [],
-      loot: [],
-      consequences: [
-        { id: "c1", quest_id: "quest-source", on_beat_id: "beat-source", action: "unlock_quest", target_quest_id: "quest-locked", entry_beat_id: "beat-locked-entry" },
-      ] as never[],
-    });
+      consequences: [consequence({ ...unlock, entry_beat_id: "beat-locked-entry" })],
+    }));
     expect(withEntry["quest-locked"]!.unlockedBy).toBe("The Vault's Keeper");
     expect(withEntry["quest-locked"]!.entersAt).toBe("The sealed antechamber");
 
     // Null `entry_beat_id` means "the target's own entry" — nothing extra to name.
-    const withoutEntry = deriveQuestBoardSummaries({
+    const withoutEntry = deriveQuestBoardSummaries(payload({
       beats,
-      edges: [],
-      attachments: [],
-      loot: [],
-      consequences: [
-        { id: "c1", quest_id: "quest-source", on_beat_id: "beat-source", action: "unlock_quest", target_quest_id: "quest-locked", entry_beat_id: null },
-      ] as never[],
-    });
+      consequences: [consequence({ ...unlock, entry_beat_id: null })],
+    }));
     expect(withoutEntry["quest-locked"]!.entersAt).toBeNull();
   });
 
-  it("reads convergesInto off an actual cross-quest transition landing on a converge-all beat", () => {
-    const beats = [
-      { id: "beat-source", quest_id: "quest-a", title: "Closing scene", converge_mode: "any" },
-      { id: "beat-target", quest_id: "quest-b", title: "The main hall", converge_mode: "all" },
-    ] as QuestBeat[];
-    const summaries = deriveQuestBoardSummaries({
-      beats,
-      edges: [],
-      attachments: [],
-      loot: [],
-      transitions: [
-        { from_quest_id: "quest-a", from_beat_id: "beat-source", to_quest_id: "quest-b", to_beat_id: "beat-target", to_quest_title: "The Tithe of Ashmouth", transition_kind: "forward" },
-      ] as never[],
-    });
+  it("reads convergesInto off the cross-quest arrivals the server kept", () => {
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-source", "quest-a"), boardBeat("beat-target", "quest-b", { converge_mode: "all" })],
+      converges: [{ quest_id: "quest-a", title: "The Tithe of Ashmouth" }],
+    }));
     expect(summaries["quest-a"]!.convergesInto).toEqual(["The Tithe of Ashmouth"]);
     expect(summaries["quest-b"]!.convergesInto).toEqual([]);
   });
 
-  it("reads the settled caption off the last end transition's session note and thread statuses", () => {
-    const beats = [{ id: "beat-a", quest_id: "quest-a", title: "Arrival" }] as QuestBeat[];
-    const withSessionAndOpenThread = deriveQuestBoardSummaries({
+  it("reads the settled caption off the ending's session note and thread statuses", () => {
+    const beats = [boardBeat("beat-a", "quest-a")];
+    const withSessionAndOpenThread = deriveQuestBoardSummaries(payload({
       beats,
-      edges: [],
-      attachments: [],
-      loot: [],
-      transitions: [{ from_quest_id: "quest-a", transition_kind: "end", reason: "Session 19, wrapped early", created_at: "2026-08-01T00:00:00Z" }] as never[],
-      threads: [{ id: "main", quest_id: "quest-a", campaign_id: "campaign-1", label: "Main", status: "waiting" }] as never[],
-    });
+      endings: [{ quest_id: "quest-a", reason: "Session 19, wrapped early" }],
+      threads: [thread("main", "quest-a", { status: "waiting" })],
+    }));
     expect(withSessionAndOpenThread["quest-a"]!.settledCaption).toBe("Session 19 · one thread closed unfinished");
 
-    const settledNoSession = deriveQuestBoardSummaries({
+    const settledNoSession = deriveQuestBoardSummaries(payload({
       beats,
-      edges: [],
-      attachments: [],
-      loot: [],
-      transitions: [{ from_quest_id: "quest-a", transition_kind: "end", reason: null, created_at: "2026-08-01T00:00:00Z" }] as never[],
-      threads: [{ id: "main", quest_id: "quest-a", campaign_id: "campaign-1", label: "Main", status: "closed" }] as never[],
-    });
+      endings: [{ quest_id: "quest-a", reason: null }],
+      threads: [thread("main", "quest-a", { status: "closed" })],
+    }));
     expect(settledNoSession["quest-a"]!.settledCaption).toBe("ledger settled");
 
-    const neverEnded = deriveQuestBoardSummaries({ beats, edges: [], attachments: [], loot: [] });
+    const neverEnded = deriveQuestBoardSummaries(payload({ beats }));
     expect(neverEnded["quest-a"]!.settledCaption).toBeNull();
   });
 
@@ -402,22 +403,19 @@ describe("deriveQuestBoardSummaries", () => {
   // counts only `status: "complete"`, and a quest with none gets a
   // zero/zero the card knows to hide rather than a missing field.
   it("counts complete objectives against the quest's total", () => {
-    const beats = [{ id: "beat-a", quest_id: "quest-a", title: "Arrival" }] as QuestBeat[];
-    const summaries = deriveQuestBoardSummaries({
+    const beats = [boardBeat("beat-a", "quest-a")];
+    const summaries = deriveQuestBoardSummaries(payload({
       beats,
-      edges: [],
-      attachments: [],
-      loot: [],
       objectives: [
-        { id: "obj-1", quest_id: "quest-a", status: "complete" },
-        { id: "obj-2", quest_id: "quest-a", status: "pending" },
-        { id: "obj-3", quest_id: "quest-a", status: "failed" },
+        { quest_id: "quest-a", status: "complete" },
+        { quest_id: "quest-a", status: "pending" },
+        { quest_id: "quest-a", status: "failed" },
       ],
-    });
+    }));
     expect(summaries["quest-a"]!.objectivesDone).toBe(1);
     expect(summaries["quest-a"]!.objectivesTotal).toBe(3);
 
-    const withoutObjectives = deriveQuestBoardSummaries({ beats, edges: [], attachments: [], loot: [] });
+    const withoutObjectives = deriveQuestBoardSummaries(payload({ beats }));
     expect(withoutObjectives["quest-a"]!.objectivesDone).toBe(0);
     expect(withoutObjectives["quest-a"]!.objectivesTotal).toBe(0);
   });

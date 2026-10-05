@@ -2,7 +2,7 @@ import { computed, isRef, ref, type Ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { BEATS_KEY, QUEST_RUNTIME_QUERY_KEYS } from "./useQuestFlow";
+import { QUEST_RUNTIME_QUERY_KEYS } from "./useQuestFlow";
 import type { QuestRuntimeContext, QuestThread } from "@/types/quest.types";
 
 export const THREADS_KEY = "quest_threads";
@@ -17,10 +17,9 @@ function asRef(value: string | Ref<string>): Ref<string> {
 function invalidateThreadCaches(queryClient: ReturnType<typeof useQueryClient>, questId: string) {
   queryClient.invalidateQueries({ queryKey: [THREADS_KEY, questId] });
   for (const key of QUEST_RUNTIME_QUERY_KEYS) queryClient.invalidateQueries({ queryKey: [key] });
-  queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board"] });
 }
 
-export async function fetchQuestThreads(questId: string, campaignId: string | null): Promise<QuestThread[]> {
+export async function fetchQuestThreads(questId: string, campaignId: string | null, onEnsured?: () => void): Promise<QuestThread[]> {
   const { data, error } = await supabase
     .from("quest_threads")
     .select("*")
@@ -29,7 +28,9 @@ export async function fetchQuestThreads(questId: string, campaignId: string | nu
   if (error) throw error;
   const threads = (data ?? []) as QuestThread[];
   if (threads.length > 0 || !campaignId) return threads;
-  return [await ensureQuestMainThread(campaignId, questId)];
+  const main = await ensureQuestMainThread(campaignId, questId);
+  onEnsured?.();
+  return [main];
 }
 
 /**
@@ -56,13 +57,19 @@ export function useQuestThreads(questId: string | Ref<string>) {
   const id = asRef(questId);
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const queryClient = useQueryClient();
   return useQuery({
     // `campaignId` is added to the key (it wasn't previously part of it): the
     // fallback `ensureQuestMainThread` call inside `fetchQuestThreads` only
     // fires when it's truthy, so it genuinely changes what a fetch for the
     // same `questId` can return.
     queryKey: computed(() => [THREADS_KEY, id.value, campaignId.value] as const),
-    queryFn: ({ queryKey: [, qid, cid] }) => fetchQuestThreads(qid, cid),
+    // The runtime context no longer waits on this list (it asks the server for
+    // the default thread), so on a quest that had no thread it may already have
+    // answered "no open thread". Creating Main is what makes that stale.
+    queryFn: ({ queryKey: [, qid, cid] }) => fetchQuestThreads(qid, cid, () => {
+      for (const key of QUEST_RUNTIME_QUERY_KEYS) void queryClient.invalidateQueries({ queryKey: [key] });
+    }),
     enabled: () => !!id.value,
   });
 }

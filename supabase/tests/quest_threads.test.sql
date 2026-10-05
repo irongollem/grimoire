@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(79);
+select plan(81);
 
 -- Fixture inserts below run as postgres between scenarios (reset role), so
 -- none of them should be quota-checked against a stale sub left by whichever
@@ -236,6 +236,22 @@ select is(
   (select (elem -> 'site' ->> 'room_count')::integer from context_result_r, jsonb_array_elements(payload -> 'outgoing') elem
     where elem ->> 'edge_id' = '85200000-0000-4000-8000-000000000043'),
   2, 'outgoing carries the target''s site info when it is staged at a site-tier location'
+);
+
+-- No thread named: the context reads the quest's default thread, the oldest
+-- open one with ties broken by id, as `defaultThreadId` picks it, so the
+-- cockpit needs no threads read before it (#972). (Every thread here shares
+-- one created_at, since a transaction's now() is fixed, so the id decides.)
+select is(
+  (select (payload -> 'thread' ->> 'id') || ':' || (payload -> 'state' ->> 'thread_id') from (
+    select public.get_quest_runtime_context(
+      '85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000020', null
+    ) payload
+  ) x),
+  (select t.id::text || ':' || t.id::text from public.quest_threads t
+    where t.quest_id = '85200000-0000-4000-8000-000000000020' and t.status in ('live', 'waiting')
+    order by t.created_at, t.id limit 1),
+  'a null thread reads the quest''s default thread, and that thread''s cursor'
 );
 
 -- Firing the held event from the log.
@@ -608,6 +624,15 @@ values ('85200000-0000-4000-8000-000000000029', '85200000-0000-4000-8000-0000000
 delete from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000029';
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '85200000-0000-4000-8000-000000000001', true);
+select is(
+  (select jsonb_build_array(payload -> 'thread', payload -> 'state') from (
+    select public.get_quest_runtime_context(
+      '85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000029', null
+    ) payload
+  ) x),
+  '[null, null]'::jsonb,
+  'a quest with no open thread has no default: thread and state are null'
+);
 select is(
   (select label || ':' || status from public.ensure_quest_main_thread('85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000029')),
   'Main:live', 'a quest with no thread gets Main, live'

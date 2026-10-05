@@ -131,14 +131,14 @@ export function dispatchCampaignRealtimeSystem(
       // Re-read it rather than putting raw chat metadata into a DM-only
       // projection, and refresh board aggregates derived from the same rows.
       invalidate(queryClient, ["loot_placements"]);
-      invalidate(queryClient, ["quest_beats", "board"]);
+      invalidate(queryClient, ["quest_board"]);
       return true;
 
     case "campaign_messages":
       // Claim state and message removal live on the chat row, so quest loot has
       // to react to it — but campaign_messages is the highest-volume table in
-      // the app, and re-running the board aggregate (6 queries plus batched
-      // attachment lookups) on every line of table chat is not affordable.
+      // the app, and re-running the board read (one RPC over
+      // the whole campaign) on every line of table chat is not affordable.
       // dispatch_loot only ever writes these three types, so nothing else can
       // be a loot dispatch. A DELETE whose old row carries no type at all
       // still invalidates: deleting a dispatched message is what flips a loot
@@ -146,7 +146,7 @@ export function dispatchCampaignRealtimeSystem(
       // stale state.
       if (isLootMessageEvent(change)) {
         invalidate(queryClient, ["loot_placements"]);
-        invalidate(queryClient, ["quest_beats", "board"]);
+        invalidate(queryClient, ["quest_board"]);
       }
       return true;
 
