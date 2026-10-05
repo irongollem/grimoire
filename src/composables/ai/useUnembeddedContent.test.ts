@@ -26,7 +26,7 @@ vi.mock("@/lib/supabase", () => ({
     functions: {
       invoke: vi.fn(async (fn: string, opts: { body: Record<string, unknown> }) => {
         mocks.invokeCalls.push({ fn, body: opts.body });
-        const ids = (opts.body.ids as string[] | undefined) ?? [(opts.body.id ?? opts.body.monster_id) as string];
+        const ids = (opts.body.ids ?? opts.body.monster_ids) as string[];
         // The shape supabase-js really gives a non-2xx: `data` null, the body
         // unread on `error.context`. Mocked as `data: { error }` this test once
         // passed while the real 429 was never recognised.
@@ -123,7 +123,7 @@ describe("useUnembeddedContent", () => {
 
     expect(mocks.invokeCalls).toContainEqual({
       fn: "embed-monsters",
-      body: { mode: "single", monster_id: "m1" },
+      body: { mode: "many", monster_ids: ["m1"] },
     });
     expect(mocks.invokeCalls).toContainEqual({
       fn: "embed-content",
@@ -171,14 +171,19 @@ describe("useUnembeddedContent", () => {
     expect(mocks.invokeCalls).toHaveLength(2);
   });
 
-  it("embeds monsters one call per row, after the batched kinds", async () => {
-    mocks.countsData = [{ kind: "monster", missing: 2, ids: ["m1", "m2"] }];
+  it("embeds monsters in one many request per 100, and stops at the ceiling", async () => {
+    const monsters = Array.from({ length: 250 }, (_, i) => `m${i}`);
+    mocks.countsData = [{ kind: "monster", missing: 250, ids: monsters }];
+    mocks.rateLimitIds = new Set(["m150"]);
     const { api } = open();
     await flushPromises();
 
     const result = await api().indexAll();
 
-    expect(result).toEqual({ indexed: 2, failed: 0, remaining: 0 });
-    expect(mocks.invokeCalls.map((c) => c.fn)).toEqual(["embed-monsters", "embed-monsters"]);
+    expect(result).toEqual({ indexed: 100, failed: 0, remaining: 150 });
+    expect(mocks.invokeCalls.map((c) => [c.fn, (c.body.monster_ids as string[]).length])).toEqual([
+      ["embed-monsters", 100],
+      ["embed-monsters", 100],
+    ]);
   });
 });

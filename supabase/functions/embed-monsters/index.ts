@@ -8,6 +8,7 @@ import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { buildMonsterEmbedText, monsterEmbedHash, type EmbeddableMonster } from "../_shared/monsterEmbedText.ts";
 import { upsertEmbeddingsInChunks } from "../_shared/embeddingUpsert.ts";
+import { authorizeRows, parseManyIds, type OwnedRow } from "../_shared/embedMany.ts";
 import {
   EmbeddingProviderConfigError,
   isEmbeddingStale,
@@ -29,6 +30,9 @@ import {
  *                    (see `remaining` in the response).
  *   mode: "single" — embed-on-write for one of the caller's own custom
  *                    monsters, called fire-and-forget after create/save.
+ *   mode: "many"   — up to MANY_MAX_IDS of the caller's own custom monsters in
+ *                    ONE provider call (#972), for a bulk create or a copy to
+ *                    another campaign. Same per-row authorization as "single".
  *
  * NOT CHARGED, BUT RECORDED: embedding is infrastructure that makes the
  * Encounter Suggester's retrieval possible, not a user-facing generation in
@@ -206,16 +210,7 @@ async function findStaleCandidates(
 
   const stale: Candidate[] = [];
   for (const row of rows) {
-    const embeddable: EmbeddableMonster = {
-      name: row.name,
-      monster_type: row.monster_type,
-      size: row.size,
-      habitat: row.habitat,
-      tags: row.tags,
-      description: row.description,
-      stat_block: row.stat_block,
-    };
-    const text = buildMonsterEmbedText(embeddable);
+    const text = buildMonsterEmbedText(toEmbeddable(row));
     const hash = await monsterEmbedHash(text);
     const stored = storedById.get(row.id) ?? null;
     if (isEmbeddingStale(stored, { sourceHash: hash, model: provider.model })) {
@@ -308,16 +303,9 @@ async function handleBatch(body: { target?: unknown; limit?: unknown }, adminUse
   return json({ processed: candidates.length, skipped, remaining });
 }
 
-// ── Single mode ───────────────────────────────────────────────────────────
-
-interface FullMonsterRow extends MonsterSourceRow {
-  user_id: string;
-}
-
-async function handleSingle(req: Request, body: { monster_id?: unknown }): Promise<Response> {
-  const monsterId = body.monster_id;
-  if (typeof monsterId !== "string" || !monsterId) return json({ error: "Missing monster_id" }, 400);
-
+/** Shared front door of the per-user modes: bearer token -> verified user,
+ * suspended accounts refused, child accounts skipped with a 200 (see below). */
+async function authenticateWriter(req: Request): Promise<{ id: string } | Response> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return json({ error: "Unauthorized" }, 401);
 
@@ -345,6 +333,35 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
   }
   if (child) return json({ skipped: "child_account" }, 200);
 
+  return user;
+}
+
+// ── Single mode ───────────────────────────────────────────────────────────
+
+function toEmbeddable(row: MonsterSourceRow): EmbeddableMonster {
+  return {
+    name: row.name,
+    monster_type: row.monster_type,
+    size: row.size,
+    habitat: row.habitat,
+    tags: row.tags,
+    description: row.description,
+    stat_block: row.stat_block,
+  };
+}
+
+interface FullMonsterRow extends MonsterSourceRow {
+  user_id: string;
+}
+
+async function handleSingle(req: Request, body: { monster_id?: unknown }): Promise<Response> {
+  const monsterId = body.monster_id;
+  if (typeof monsterId !== "string" || !monsterId) return json({ error: "Missing monster_id" }, 400);
+
+  const gate = await authenticateWriter(req);
+  if (gate instanceof Response) return gate;
+  const user = gate;
+
   const { data: monsterData, error: monsterError } = await admin
     .from("monsters")
     .select("id, user_id, name, monster_type, size, habitat, tags, description, stat_block")
@@ -366,16 +383,7 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
   const provider = await resolvePlatformProvider();
   if (provider instanceof Response) return provider;
 
-  const embeddable: EmbeddableMonster = {
-    name: monster.name,
-    monster_type: monster.monster_type,
-    size: monster.size,
-    habitat: monster.habitat,
-    tags: monster.tags,
-    description: monster.description,
-    stat_block: monster.stat_block,
-  };
-  const text = buildMonsterEmbedText(embeddable);
+  const text = buildMonsterEmbedText(toEmbeddable(monster));
   const hash = await monsterEmbedHash(text);
 
   const { data: existingData, error: existingError } = await admin
@@ -435,6 +443,109 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
   return json({ embedded: true, monster_id: monsterId, source_hash: hash });
 }
 
+// ── Many mode ─────────────────────────────────────────────────────────────
+
+async function handleMany(req: Request, body: { monster_ids?: unknown }): Promise<Response> {
+  const parsed = parseManyIds(body.monster_ids);
+  if ("error" in parsed) return json({ error: parsed.error }, parsed.status);
+  const { ids } = parsed;
+
+  const gate = await authenticateWriter(req);
+  if (gate instanceof Response) return gate;
+  const user = gate;
+
+  const { data: rowData, error: rowError } = await admin
+    .from("monsters")
+    .select("id, user_id, name, monster_type, size, habitat, tags, description, stat_block")
+    .in("id", ids);
+  if (rowError) {
+    console.error("embed-monsters many lookup failed:", rowError.message);
+    return json({ error: "Failed to load monsters" }, 500);
+  }
+  const rows = ((rowData ?? []) as Record<string, unknown>[]).map((r) => ({
+    ...toMonsterSourceRow(r),
+    user_id: r.user_id as string,
+  }));
+
+  // Per row, as handleSingle does: a DM may only embed their own monsters, and
+  // monsters carry no campaign rule (null), so one foreign id is reported in
+  // `forbidden` without sinking the rest of a bulk copy's batch.
+  const { allowed, forbidden, notFound } = authorizeRows<MonsterSourceRow & OwnedRow>(ids, rows, user.id, null);
+  const result = { embedded: [] as string[], unchanged: [] as string[], forbidden, notFound };
+  if (allowed.length === 0) return json(result);
+
+  const provider = await resolvePlatformProvider();
+  if (provider instanceof Response) return provider;
+
+  const { data: storedData, error: storedError } = await admin
+    .from("monster_embeddings")
+    .select("monster_id, source_hash, embedding_model")
+    .in("monster_id", allowed.map((r) => r.id));
+  if (storedError) {
+    console.error("embed-monsters many stored-meta lookup failed:", storedError.message);
+    return json({ error: "Failed to load existing embeddings" }, 500);
+  }
+  const storedById = new Map<string, StoredEmbeddingRow>();
+  for (const s of (storedData ?? []) as Record<string, unknown>[]) {
+    storedById.set(s.monster_id as string, {
+      source_hash: s.source_hash as string,
+      embedding_model: s.embedding_model as string,
+    });
+  }
+
+  const stale: Candidate[] = [];
+  for (const row of allowed) {
+    const text = buildMonsterEmbedText(toEmbeddable(row));
+    const hash = await monsterEmbedHash(text);
+    if (isEmbeddingStale(storedById.get(row.id) ?? null, { sourceHash: hash, model: provider.model })) {
+      stale.push({ id: row.id, text, hash });
+    } else {
+      result.unchanged.push(row.id);
+    }
+  }
+  // Nothing stale: no rate-limit spend, same as single mode's short-circuit.
+  if (stale.length === 0) return json(result);
+
+  // One unit per embedding actually bought, charged whole: a batch that does
+  // not fit is refused rather than partly done, so the client can stop. Same
+  // `entity_embedding` bucket as single mode and embed-content.
+  if (!(await checkRateLimit(admin, user.id, "entity_embedding", stale.length))) {
+    return json({ error: "rate_limited" }, 429);
+  }
+
+  let vectors: number[][];
+  let usage: EmbeddingUsage;
+  try {
+    ({ vectors, usage } = await provider.embed(stale.map((c) => c.text)));
+  } catch (e) {
+    console.error("embed-monsters many embed failed:", e);
+    return json({ error: e instanceof Error ? e.message : "Embedding failed" }, 502);
+  }
+
+  // ONE ledger row with the summed tokens, as batch mode records it.
+  await recordFreeGeneration(admin, user.id, "monster_embedding", {
+    model: provider.model,
+    provider: usage.provider,
+    input_tokens: usage.input_tokens,
+  });
+
+  const config = TARGET_CONFIG.custom;
+  const upsertRows = stale.map((c, i) => ({
+    [config.idColumn]: c.id,
+    embedding: toVectorLiteral(vectors[i]),
+    embedding_model: provider.model,
+    source_hash: c.hash,
+  }));
+  const { stored, error: upsertError } = await upsertEmbeddingsInChunks(admin, config.sideTable, upsertRows, config.idColumn);
+  // Whatever was stored before a failure stays stored, and is reported.
+  result.embedded = stale.slice(0, stored).map((c) => c.id);
+  if (upsertError) {
+    console.error("embed-monsters many upsert failed:", upsertError.message);
+    return json({ error: "Failed to store embeddings", ...result }, 500);
+  }
+  return json(result);
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────
 
 serve(withCors(async (req: Request) => {
@@ -443,7 +554,7 @@ serve(withCors(async (req: Request) => {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return json({ error: "Unauthorized" }, 401);
 
-  let body: { mode?: unknown; target?: unknown; limit?: unknown; monster_id?: unknown };
+  let body: { mode?: unknown; target?: unknown; limit?: unknown; monster_id?: unknown; monster_ids?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -461,5 +572,9 @@ serve(withCors(async (req: Request) => {
     return handleSingle(req, body);
   }
 
-  return json({ error: "Invalid mode -- must be 'batch' or 'single'" }, 400);
+  if (body.mode === "many") {
+    return handleMany(req, body);
+  }
+
+  return json({ error: "Invalid mode -- must be 'batch', 'single' or 'many'" }, 400);
 }));

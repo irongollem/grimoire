@@ -17,14 +17,15 @@ import { chunkArray } from "@/lib/utils";
  * in flight, and the first `rate_limited` stops the rest: the ceiling is the
  * account's, and every later chunk would hit it too.
  *
- * Monsters are not here: they embed through `embed-monsters`, which has no
- * `many` mode.
+ * Monsters embed through their own function, `embed-monsters`, whose `many`
+ * mode takes `monster_ids` and answers in the same shape, so they share every
+ * rule above.
  */
 
 /** Matches the server's per-call cap (MANY_MAX_IDS in _shared/embedMany.ts). */
 export const EMBED_MANY_CHUNK = 100;
 
-export type EmbedManyEntity = "npc" | "faction" | "location" | "note" | "item";
+export type EmbedManyEntity = "npc" | "faction" | "location" | "note" | "item" | "monster";
 
 export interface QueueEmbeddingsResult {
   /** Ids the server embedded. */
@@ -42,6 +43,13 @@ interface ManyResponse {
   unchanged?: string[];
 }
 
+/** Which function and body shape embeds a chunk of this entity. */
+function manyRequest(entity: EmbedManyEntity, ids: string[]): { fn: string; body: Record<string, unknown> } {
+  return entity === "monster"
+    ? { fn: "embed-monsters", body: { mode: "many", monster_ids: ids } }
+    : { fn: "embed-content", body: { mode: "many", entity, ids } };
+}
+
 export async function queueEmbeddings(
   entity: EmbedManyEntity,
   ids: readonly string[],
@@ -52,9 +60,8 @@ export async function queueEmbeddings(
   let handled = 0;
   for (const chunk of chunkArray([...new Set(ids)], EMBED_MANY_CHUNK)) {
     try {
-      const { data, error } = await supabase.functions.invoke("embed-content", {
-        body: { mode: "many", entity, ids: chunk },
-      });
+      const request = manyRequest(entity, chunk);
+      const { data, error } = await supabase.functions.invoke(request.fn, { body: request.body });
       if (error) {
         const payload = await functionErrorPayload(error);
         if (payload?.error === "rate_limited") {

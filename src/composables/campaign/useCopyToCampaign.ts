@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useInvalidateQuota } from "@/composables/billing/useQuota";
 import { queueEmbeddings, type EmbedManyEntity } from "@/lib/queueEmbeddings";
-import { queueMonsterEmbedding } from "@/composables/monsters/useMonsters";
 import { chunkArray } from "@/lib/utils";
 import { BULK_SCOPE_QUERY_KEY, type BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
 import {
@@ -54,10 +53,6 @@ import {
  *  useBulkCampaignScope's CHUNK_SIZE, so neither a source-row read nor a
  *  referenced-row lookup nor the insert itself trips a request-line limit. */
 const CHUNK_SIZE = 200;
-
-/** How many `queueMonsterEmbedding` calls to fire before yielding to the next
- *  group — see `queueMonsterEmbeddingsInGroups` below. */
-const EMBED_GROUP_SIZE = 10;
 
 export interface LoadCopySourcesInput {
   table: BulkScopeTable;
@@ -365,25 +360,13 @@ export async function resolveUnenabledSources(
   return names.length ? { names, sources: [...sources] } : null;
 }
 
-/**
- * Monsters only: `embed-monsters` has no batched mode, so each copied monster
- * is one call, at most `EMBED_GROUP_SIZE` in flight (a group starts once the
- * previous one has settled). `queueMonsterEmbedding` reports its own failures
- * and resolves either way, so one rejection never stops the queue. Every other
- * embeddable table goes through `queueEmbeddings`, one request per 100 rows.
- */
-async function queueMonsterEmbeddingsInGroups(ids: readonly string[]): Promise<void> {
-  for (const group of chunkArray(ids, EMBED_GROUP_SIZE)) {
-    await Promise.all(group.map((id) => queueMonsterEmbedding(id)));
-  }
-}
-
-/** The `embed-content` kind for each copied table that has an embedding corpus
- *  there; monsters are the odd one out (see above). */
+/** The embedding kind for each copied table that has an embedding corpus
+ *  (monsters embed through `embed-monsters`, which `queueEmbeddings` routes). */
 const EMBED_ENTITY_FOR_TABLE: Partial<Record<BulkScopeTable, EmbedManyEntity>> = {
   items: "item",
   npcs: "npc",
   factions: "faction",
+  monsters: "monster",
 };
 
 async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaignResult> {
@@ -391,7 +374,7 @@ async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaig
 
   const insertedIds: string[] = [];
   // One background chain for the whole copy, so the in-flight bound holds
-  // across chunks too (a monster group, or one many-mode request at a time). Never awaited by the copy itself: the rows exist once
+  // across chunks too (one many-mode request at a time). Never awaited by the copy itself: the rows exist once
   // the inserts commit, and making the DM wait on ~20 sequential embed groups
   // would turn a two-second copy into a minute for no feedback they can use.
   let embedding: Promise<void> = Promise.resolve();
@@ -410,7 +393,7 @@ async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaig
     // until the next admin backfill (mirrors useNpcs.ts and
     // useLocations.ts). One batched request per 100 rows (#972). Queued right after THIS chunk's insert succeeds,
     // not after the whole loop, so a later chunk's failure cannot leave an
-    // earlier chunk's rows unembedded. Four of the ten bulk-scope tables have
+    // earlier chunk's rows unembedded. Five of the ten bulk-scope tables have
     // an embedding corpus.
     const entity = EMBED_ENTITY_FOR_TABLE[table];
     if (entity) {
@@ -418,7 +401,6 @@ async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaig
         await queueEmbeddings(entity, chunkIds);
       });
     }
-    if (table === "monsters") embedding = embedding.then(() => queueMonsterEmbeddingsInGroups(chunkIds));
   }
   void embedding;
 

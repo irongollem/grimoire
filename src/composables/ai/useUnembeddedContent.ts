@@ -1,7 +1,6 @@
 import { computed, ref } from "vue";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { functionErrorPayload } from "@edge-shared/functionError.ts";
 import { queueEmbeddings } from "@/lib/queueEmbeddings";
 import { useCampaignStore } from "@/stores/campaign";
 
@@ -76,29 +75,6 @@ async function fetchCounts(campaignId: string): Promise<UnembeddedCountRow[]> {
   return (data ?? []) as UnembeddedCountRow[];
 }
 
-/** Thrown when the daily embedding allowance is spent — see RATE_LIMITS. */
-class RateLimitedError extends Error {}
-
-/**
- * One monster's embed call, awaited rather than fire-and-forget so a failure
- * can be counted. Monsters go through `embed-monsters`, which has no batched
- * mode; every other kind uses `queueEmbeddings` (embed-content `many`).
- */
-async function embedMonster(id: string): Promise<void> {
-  const { error } = await supabase.functions.invoke("embed-monsters", { body: { mode: "single", monster_id: id } });
-
-  // A 429 is not a failure of this row — it is the account's daily ceiling,
-  // and every remaining row would hit it too. Distinguished so the loop can
-  // stop and say so, rather than grinding through a thousand more calls to
-  // report a thousand mysterious failures. A non-2xx arrives as `error` with
-  // `data` null and the body unread on `error.context`; reading `data` here
-  // meant the 429 was never recognised and the loop ground on.
-  if (!error) return;
-  const payload = await functionErrorPayload(error);
-  if (payload?.error === "rate_limited") throw new RateLimitedError("rate_limited");
-  throw new Error(payload?.error ?? error.message);
-}
-
 // Module-level singleton run state — see the doc comment above for why.
 const isRunning = ref(false);
 const progressDone = ref(0);
@@ -124,13 +100,12 @@ export function useUnembeddedContent() {
   const total = computed(() => counts.value.reduce((sum, row) => sum + row.missing, 0));
 
   /**
-   * Index every row this campaign is missing. Everything but monsters goes
-   * in batched `many` requests (up to 100 rows each), strictly one request at
-   * a time so the provider is never stampeded; monsters, which have no
-   * batched endpoint, go one call per row, also sequentially. A failed
-   * request (or monster) is recorded and the run continues: "indexed 34, 2
-   * failed" is the normal outcome of many network calls, not a reason to
-   * abort the rest. A failed batch counts every row in it as failed.
+   * Index every row this campaign is missing, in batched `many` requests (up
+   * to 100 rows each; monsters go to `embed-monsters`, the rest to
+   * `embed-content`), strictly one request at a time so the provider is never
+   * stampeded. A failed request is recorded and the run continues: "indexed
+   * 34, 2 failed" is the normal outcome of many network calls, not a reason
+   * to abort the rest. A failed batch counts every row in it as failed.
    */
   async function indexAll(): Promise<IndexAllResult> {
     if (isRunning.value) return { indexed: 0, failed: 0, remaining: 0 };
@@ -158,12 +133,10 @@ export function useUnembeddedContent() {
       let indexed = 0;
       let failed = 0;
       let stopped = false;
-      // Everything but monsters goes through the batched many mode, one kind
-      // at a time and up to 100 rows per request (#972), so progress moves a
-      // chunk at a time.
+      // Every kind goes through the batched many mode, one kind at a time and
+      // up to 100 rows per request (#972), so progress moves a chunk at a time.
       for (const row of fresh) {
         if (stopped) break;
-        if (row.kind === "monster") continue;
         const base = progressDone.value;
         const outcome = await queueEmbeddings(row.kind, row.ids, (handled) => {
           progressDone.value = base + handled;
@@ -177,22 +150,6 @@ export function useUnembeddedContent() {
         if (outcome.rateLimited) stopped = true;
         progressDone.value = base + outcome.processed + outcome.failed;
       }
-      // Monsters embed through `embed-monsters`, which has no batched mode:
-      // one call per row, strictly sequential.
-      for (const job of jobs) {
-        if (stopped) break;
-        if (job.kind !== "monster") continue;
-        try {
-          await embedMonster(job.id);
-          indexed += 1;
-        } catch (e) {
-          if (e instanceof RateLimitedError) break;
-          failed += 1;
-        } finally {
-          progressDone.value += 1;
-        }
-      }
-
       const result: IndexAllResult = {
         indexed,
         failed,

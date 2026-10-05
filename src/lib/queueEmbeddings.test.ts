@@ -34,6 +34,14 @@ describe("queueEmbeddings", () => {
     expect(r).toEqual({ embedded: 2, processed: 2, failed: 0, rateLimited: false });
   });
 
+  it("routes monsters to embed-monsters with monster_ids", async () => {
+    mocks.invoke.mockResolvedValue(ok({ embedded: ["id0"], unchanged: ["id1"] }));
+    const r = await queueEmbeddings("monster", ["id0", "id1"]);
+    expect(mocks.invoke).toHaveBeenCalledTimes(1);
+    expect(mocks.invoke).toHaveBeenCalledWith("embed-monsters", { body: { mode: "many", monster_ids: ["id0", "id1"] } });
+    expect(r).toEqual({ embedded: 1, processed: 2, failed: 0, rateLimited: false });
+  });
+
   it("dedupes and chunks by the server cap", async () => {
     mocks.invoke.mockImplementation(async (_fn: string, opts: { body: { ids: string[] } }) =>
       ok({ embedded: opts.body.ids }),

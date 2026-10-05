@@ -22,7 +22,6 @@ const mocks = vi.hoisted(() => ({
   insertCalls: [] as { table: string; rows: Record<string, unknown>[] }[],
   currentUserId: "user-1" as string | null,
   queueEmbeddings: vi.fn(),
-  queueMonsterEmbedding: vi.fn(),
   invalidateQuota: vi.fn(),
 }));
 
@@ -58,7 +57,6 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 vi.mock("@/lib/queueEmbeddings", () => ({ queueEmbeddings: mocks.queueEmbeddings }));
-vi.mock("@/composables/monsters/useMonsters", () => ({ queueMonsterEmbedding: mocks.queueMonsterEmbedding }));
 vi.mock("@/composables/billing/useQuota", () => ({ useInvalidateQuota: () => mocks.invalidateQuota }));
 
 const { useCopyToCampaign, loadCopySources, planCopyFor, resolveUnenabledSources } = await import("./useCopyToCampaign");
@@ -94,7 +92,6 @@ beforeEach(() => {
   mocks.insertCalls = [];
   mocks.currentUserId = "user-1";
   mocks.queueEmbeddings.mockReset();
-  mocks.queueMonsterEmbedding.mockReset();
   mocks.invalidateQuota.mockReset();
 });
 
@@ -328,7 +325,6 @@ describe("useCopyToCampaign", () => {
     // Embeddings are queued in the background after the copy resolves — the
     // mutation never waits on them — so the assertion has to.
     await vi.waitFor(() => expect(mocks.queueEmbeddings).toHaveBeenCalledWith("item", ["new-item-1"]));
-    expect(mocks.queueMonsterEmbedding).not.toHaveBeenCalled();
     unmount();
   });
 
@@ -338,16 +334,14 @@ describe("useCopyToCampaign", () => {
 
     await result.mutateAsync({ table: "monsters", payloads: [{}], linkPayloads: {}, dropped: [], needsSources: null });
 
-    await vi.waitFor(() => expect(mocks.queueMonsterEmbedding).toHaveBeenCalledWith("new-monster-1"));
-    expect(mocks.queueEmbeddings).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(mocks.queueEmbeddings).toHaveBeenCalledWith("monster", ["new-monster-1"]));
     unmount();
   });
 
-  it("never queues an embedding for the other six tables", async () => {
+  it("never queues an embedding for the other five tables", async () => {
     const { result, unmount } = withQueryClient(() => useCopyToCampaign());
     await result.mutateAsync({ table: "traps", payloads: [{}], linkPayloads: {}, dropped: [], needsSources: null });
     expect(mocks.queueEmbeddings).not.toHaveBeenCalled();
-    expect(mocks.queueMonsterEmbedding).not.toHaveBeenCalled();
     unmount();
   });
 
