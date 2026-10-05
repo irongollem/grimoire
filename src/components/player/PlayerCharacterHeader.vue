@@ -231,7 +231,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from "vue";
+import { ref, computed, nextTick, type ComponentPublicInstance } from "vue";
 import { IconAdd, IconStar } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
@@ -288,17 +288,30 @@ const { rollConcentrationSave, endConcentration } = useConcentration();
 const hpInput = ref<number | null>(null);
 
 function blockInvalidChars(e: KeyboardEvent) {
-  if (["+", "-", "e", "E"].includes(e.key)) e.preventDefault();
+  if (["+", "-", "e", "E", ".", ","].includes(e.key)) e.preventDefault();
+}
+
+/**
+ * The amount box as whole hit points, emptying the box. Keys alone cannot keep
+ * a fraction or a sign out (a paste or a phone's number pad gets past
+ * `blockInvalidChars`), and "1.5" reached the database as an integer column's
+ * 400: the damage was lost with no word to the player.
+ */
+function takeHpAmount(): number | null {
+  const amount = Math.trunc(Number(hpInput.value));
+  hpInput.value = null;
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
 }
 
 const showConditionPicker = ref(false);
 const conditionSearch = ref("");
 const conditionSearchInput = ref<AppInputHandle | null>(null);
-const conditionPickerBtn = ref<HTMLElement | null>(null);
+// An AppButton, so the ref is its component instance; the element is `$el`.
+const conditionPickerBtn = ref<ComponentPublicInstance | null>(null);
 const pickerPos = ref({ top: 0, right: 0 });
 
 function openConditionPicker() {
-  const rect = conditionPickerBtn.value?.getBoundingClientRect();
+  const rect = (conditionPickerBtn.value?.$el as HTMLElement | undefined)?.getBoundingClientRect();
   if (rect) pickerPos.value = { top: rect.bottom + 4, right: window.innerWidth - rect.right };
   showConditionPicker.value = true;
   conditionSearch.value = "";
@@ -471,9 +484,8 @@ const checkDisadvantage  = computed(() => hasCheckDisadvantage(props.member.cond
 const exhaustionD20Penalty = computed(() => getExhaustionD20Penalty(props.member.conditions ?? [], ruleset.value));
 
 async function applyDamage() {
-  if (!hpInput.value || hpInput.value <= 0) return;
-  const dmg = hpInput.value;
-  hpInput.value = null;
+  const dmg = takeHpAmount();
+  if (dmg === null) return;
 
   // Temp HP absorbs first in either form, then the beast's HP — shared with the
   // encounter runner so DM-side and player-side damage agree.
@@ -499,9 +511,8 @@ async function applyDamage() {
   }
 }
 async function applyHeal() {
-  if (!hpInput.value || hpInput.value <= 0) return;
-  const val = hpInput.value;
-  hpInput.value = null;
+  const val = takeHpAmount();
+  if (val === null) return;
   const out = healPools(hpPools.value, val);
   if (props.wildshape && out.beast_hp !== null) {
     await updateMember({ id: props.member.id, update: {
@@ -519,10 +530,10 @@ async function applyHeal() {
   await updateMember({ id: props.member.id, update });
 }
 async function applyTempHp() {
-  if (!hpInput.value || hpInput.value <= 0) return;
+  const amount = takeHpAmount();
+  if (amount === null) return;
   // Temp HP doesn't stack — a smaller new source never replaces a bigger pool.
-  await updateMember({ id: props.member.id, update: { temp_hp: betterTempHp(props.member.temp_hp, hpInput.value) } });
-  hpInput.value = null;
+  await updateMember({ id: props.member.id, update: { temp_hp: betterTempHp(props.member.temp_hp, amount) } });
 }
 async function clearTempHp() {
   await updateMember({ id: props.member.id, update: { temp_hp: 0 } });

@@ -130,6 +130,9 @@
         <p class="flex items-center gap-1.5">
           <span class="text-elven-green">✓</span> Death saves cleared
         </p>
+        <p v-if="exhaustionLevel > 0" class="flex items-center gap-1.5">
+          <span class="text-elven-green">✓</span> Exhaustion eases to level {{ exhaustionLevel - 1 }}
+        </p>
       </div>
     </div>
 
@@ -152,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
@@ -211,6 +214,9 @@ const diceRecovered = computed(() =>
 // ── Short rest roll state ─────────────────────────────────────────────────────
 
 const rolls = ref<number[]>([]);
+// The dialog stays mounted between rests, so a short rest's rolls were still
+// here when the long rest opened and its hit-dice line counted them again.
+watch(() => props.mode, () => { rolls.value = []; });
 
 const totalHealing = computed(() => rolls.value.reduce((s, r) => s + r, 0));
 const diceSpent = computed(() => rolls.value.length);
@@ -275,6 +281,7 @@ const hasLongRestResources = computed(() =>
     (r) => r.rest === "long",
   ),
 );
+const exhaustionLevel = computed(() => getExhaustionLevel(props.member.conditions));
 const hasSpellSlots = computed(() => props.effectiveSpellSlots.length > 0);
 
 // ── Confirm ───────────────────────────────────────────────────────────────────
@@ -317,9 +324,8 @@ function confirm() {
     update.wildshape_state = null;
 
     // Exhaustion: long rest reduces level by 1 (SRD 5e)
-    const exhaustionLevel = getExhaustionLevel(props.member.conditions);
-    if (exhaustionLevel > 0) {
-      update.conditions = setExhaustionLevel(props.member.conditions, exhaustionLevel - 1);
+    if (exhaustionLevel.value > 0) {
+      update.conditions = setExhaustionLevel(props.member.conditions, exhaustionLevel.value - 1);
     }
   }
 

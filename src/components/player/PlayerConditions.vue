@@ -41,7 +41,10 @@
   <!-- Death saves (shown only at 0 HP) -->
   <div v-if="member.current_hp <= 0" class="basis-full mt-1 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
     <p class="text-label-lg font-semibold text-destructive mb-3">Death Saving Throws</p>
-    <div class="flex items-center gap-8">
+    <!-- Wraps: on a phone the pips and the roll button do not fit one row, and
+         the button was pushed past the card edge where a thumb could not reach
+         it, on exactly the screen a dying player is looking at. -->
+    <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
       <div>
         <p class="text-caption text-muted-foreground mb-1.5">Successes</p>
         <div class="flex gap-2">
@@ -70,8 +73,8 @@
         variant="tinted"
         tone="danger"
         emphasis="soft"
-        size="xs"
-        label="Roll d20"
+        size="sm"
+        label="Roll death save"
         class="ml-auto"
         @click="rollDeathSave"
       />
@@ -129,8 +132,7 @@ async function toggleDeathSave(type: "success" | "failure", pip: number) {
 }
 
 async function rollDeathSave() {
-  const name = props.member.name;
-  const r = await promptRoll({ counts: { 20: 1 }, modifier: 0, label: `${name} · Death Save`, silent: true });
+  const r = await promptRoll({ counts: { 20: 1 }, modifier: 0, label: "Death Save", silent: true });
   if (!r) return;
   const d = r.breakdown.find(b => !b.dropped)!.val;
   let update: Partial<{ current_hp: number; death_save_successes: number; death_save_failures: number }>;
@@ -138,7 +140,7 @@ async function rollDeathSave() {
 
   if (d === 20) {
     update = { current_hp: 1, death_save_successes: 0, death_save_failures: 0 };
-    outcome = "Nat 20 · Stabilized";
+    outcome = "Nat 20 · Back up at 1 HP";
   } else if (d === 1) {
     update = { death_save_failures: Math.min(3, props.member.death_save_failures + 2) };
     outcome = "Nat 1 · 2 Failures";
@@ -151,7 +153,8 @@ async function rollDeathSave() {
   }
 
   await updateMember({ id: props.member.id, update });
-  const label = `${name} · Death Save (${outcome})`;
+  // No name: the chat line already names the roller, which read "Ada rolled Ada · …".
+  const label = `Death Save (${outcome})`;
   emit("roll", { label, dice: d, modifier: 0, total: d });
   await sendRoll({ ...r, label }).catch((e) => reportChatFailure(e, "post the death save to the chat"));
 }
