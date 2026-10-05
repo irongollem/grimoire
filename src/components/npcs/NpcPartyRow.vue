@@ -8,13 +8,14 @@
   <li class="rounded-lg border border-border bg-card" data-testid="party-row">
     <div class="flex items-start gap-3 p-3">
       <div class="flex min-w-0 flex-1 items-start gap-3" :class="shared ? '' : 'opacity-60'" data-testid="party-row-identity">
-        <FocalImage
-          :src="member.portrait_url"
-          :focal-point="member.portrait_focal_point"
-          format="portrait"
-          :placeholder="placeholderUrl('character')"
-          class="h-14 w-11 shrink-0 overflow-hidden rounded-md"
-        />
+        <div class="h-16 w-12 shrink-0 overflow-hidden rounded">
+          <FocalImage
+            :src="member.portrait_url"
+            :focal-point="member.portrait_focal_point"
+            format="portrait"
+            :placeholder="placeholderUrl('character')"
+          />
+        </div>
         <div class="min-w-0">
           <p class="truncate text-heading-sm font-bold text-foreground">{{ member.name }}</p>
           <p class="truncate text-caption text-muted-foreground">{{ subtitle }}</p>

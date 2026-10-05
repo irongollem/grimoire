@@ -160,7 +160,7 @@ All fields are nullable; empty fields are hidden in view mode.
 
 #### Relations Tab (view mode only)
 
-`NpcRelationsTab.vue`, rendered by both hosts — the desktop sheet's Relations tab and the mobile sheet's Relations accordion — so the two cannot drift (the phone had, down to NPC connections alone). Four sections, each owning its own CRUD so nothing needs the edit form: **NPC connections** (`NpcRelationsSection`), **Factions** (`NpcFactionsSection` — faction name links to the faction, role editable in place, non-Active status badged), **Party connections** (`NpcPcNotesSection`) and **Favours owed** (`NpcFavorsSection`). Factions live here rather than under the portrait: a membership is a relation with a role and a status, not a tag. See the Web section for the graph alternative.
+`NpcRelationsTab.vue`, rendered by both hosts — the desktop sheet's Relations tab and the mobile sheet's Relations accordion — so the two cannot drift (the phone had, down to NPC connections alone). Three sections, each owning its own CRUD so nothing needs the edit form: **NPC connections** (`NpcRelationsSection`), **Factions** (`NpcFactionsSection` — faction name links to the faction, role editable in place, non-Active status badged) and **Favours owed** (`NpcFavorsSection`). Connections to the party's characters are not here: they are on **With the party** (below), where the player who reads them is named. Factions live here rather than under the portrait: a membership is a relation with a role and a status, not a tag. See the Web section for the graph alternative.
 
 #### Suggested connections (#910)
 
@@ -251,7 +251,15 @@ When an NPC is shared with at least one player, a panel appears at the top of th
 
 **Party Notes** (`PlayerNotesWidget`) — the same notes widget players have: the viewer's own private note and party note on this NPC, both saving as they type, plus what the party has written.
 
-**PC Connection Notes** (`NpcPcNotesSection`) — per-player notes with a relationship type tag (e.g. "Contact", "Mentor"). Each note is tied to one party member and visible only to them in their portal. Uses RichTextEditor with the PC selector and relationship type dropdown embedded in the toolbar.
+### With the party (#986)
+
+`NpcPartyTab.vue`: what each player character knows about this NPC, in one place. A tab on the desktop sheet (second, after Lore) and an accordion on the phone (`NpcDetailMobile`), so both hosts render the same component.
+
+- One row per character (`NpcPartyRow.vue`): portrait, class and level, **when they met** (`npc_reveals`, read by `useNpcReveals`, "Met · 4 October" or "Not met"), and the share toggle. The toggle is `useNpcReveal`'s adapter, the same one the header's reveal popover uses, so a share here seeds the visible fields and announces in a running session exactly as the popover does.
+- **Their connection** (`npc_pc_notes`): a relationship type and a note, labelled "Wren reads this", because that player sees it on their People page as "Your connection". It saves itself (`useAutosave`); a blank note is never created and clearing one deletes the row.
+- Beside the rows: the disguise (`NpcDisguisePanel`, cover face and "Reveal true self" / "Put the disguise back on", through `useNpcReveal.setRevealed`) and the fields a share shows (`RevealedFieldsPanel`).
+
+Connection notes used to live twice over, a box at the top of the edit form that only appeared once the NPC was already shared and "Party connections" in the Relations tab, and neither said the player reads them; the maintainer had never used them. Both homes and `NpcPcNotesSection` are gone, so this is the only one. `npc_reveals` rows are written by triggers in the same transaction as `npcs` / `locations` updates, so the DM's "when they met" refetches on those row events (`campaignRealtimeWorld.ts`).
 
 ### View Mode (NpcSheet)
 
@@ -259,7 +267,7 @@ The read-only sheet uses a two-column layout (portrait column fixed 208 px, cont
 
 Left column: portrait (portrait format), status + relationship badges, tags, and an alter-ego line stating which face is showing. The toggle itself is not repeated here — it is the "SEEN AS" section of the reveal control in `NpcDetailModal`'s own header, which saves immediately and fires the chat event while a session is running.
 
-Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / Inventory / Relations / Combat / Voice tabs. The Relations tab is `NpcRelationsTab` (see above): NPC connections, factions, party connections and favours, all visible — and editable, since the sections own their CRUD — from view mode without flipping into the edit form (#168/#169).
+Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / With the party / Inventory / Relations / Combat / Voice tabs. With the party is described above. The Relations tab is `NpcRelationsTab` (see above): NPC connections, factions and favours, all visible — and editable, since the sections own their CRUD — from view mode without flipping into the edit form (#168/#169).
 
 ### Alter Ego / Disguise System
 
@@ -482,41 +490,25 @@ Fields not in `player_visible_fields` are silently omitted or replaced:
 
 The alter-ego system integrates transparently: if the NPC is not yet revealed (`is_revealed: false`) and has a disguise, players see the disguise name and disguise portrait automatically. The DM's true-form data is never sent for unrevealed NPCs.
 
-### Player NPC Card (`PlayerNpcCard`)
+### The People ledger (#987)
 
-Portrait (3:4 aspect ratio), name (or "???"), status dot, species, occupation, location (if the location field is visible). A **1–5 star relevance rating** system is shown at the bottom of each card, stored per player in `player_npc_ratings`. Rating is the default sort (see below). Legacy `player_npc_rating:<npc-id>` browser values are uploaded for visible NPCs and removed only after the server copy is confirmed readable.
+`PlayerPartyView` wires it; the parts are in `src/components/play/people/` and the rules are pure functions in `src/lib/npcs/peopleLedger.ts` (tested).
 
-### Sort and Filter (People section)
+**New to you** (`NewToYouStrip`, `NewToYouCard`, `useNewToYou`). `classifyPeople` splits the player's NPCs three ways:
 
-A `SortControl` in the filter bar picks the order, with a direction toggle; the choice lives in `useUiStore` (`playerPeopleSortBy` / `playerPeopleSortDir`) and is not part of Clear. The rules are `sortPlayerNpcs` in `src/lib/npcs/playerNpcSort.ts`:
+- **face down**: shared with them after `NEW_TO_YOU_SINCE` (release day, so nothing a player already had lands face down) and never opened. The card back is a generated image (`public/assets/cards/npc-card-back.webp`, through `artUrl`; source and prompt in `art-src/brand/npc-card-back.md`) with "Someone new" and where they were met layered into its blank panel.
+- **unmasked**: a disguised NPC whose true self was revealed (`unmasked_at`) after this character met them, not opened since. It waits face up as the cover the party knew and turns to the true face, "You knew them as …". The projection hands the cover name and portrait only once the disguise has fallen (migration `20261005220516`).
+- **ledger**: everyone else. People waiting to be turned stay out of the ledger, so it cannot spoil the turn.
 
-- **Your rating** (default, highest first): unrated is lowest.
-- **Recently revealed** (newest first): when this character first met the NPC, from `npc_reveals`. An NPC with no recorded moment sorts last in either direction.
-- **Location**: grouped by location name, NPCs without a visible location last, then rating within a place. Offered only when some NPC shows its location, and it reads only a location the player may see, so the order cannot hint at a hidden one.
-- **Name**: display name; nameless ("???") NPCs last in either direction.
+A card turns once (`cardTurnStyle`, 520 ms, instant under reduced motion), then the NPC is marked read and the card stays turned in the strip for the rest of the visit. Nothing is classified until the read map has loaded, or every NPC would flash face down. The unread dot survives on ledger rows for an NPC the DM edited since the player last looked.
 
-Every order ends on the name, so ties are stable.
+**The ledger** (`PeopleLedger`, `PeopleLedgerRow`, `usePlayerPeople`). `buildPeopleGroups` groups by the sort: **Place** (one rubric per place, "in {parent}" when the parent is shared too, "Whereabouts unknown" last, rating then name inside), **Met** (one group per day of `revealed_at`, newest first, "Before the ledger" last; sessions replace days once #985 exists), or flat for **Rating** (default) and **Name**. Every order ends on the name. A row: portrait plate, name ("???" when not shared), species · occupation, the relationship mark (`NpcRelationshipMark`), `statusWord` (nothing for "alive"; dead also strikes the name through and greys the portrait), and the player's stars. **Portraits** (`ui.playerPeopleView`) shows the same groups as `PlayerNpcCard`s.
+
+Sort, view and filters live in `useUiStore` (`playerPeopleSortBy` / `SortDir` / `View`, `playerPeopleFilter*`); sort and view are not part of Clear. Place is offered only when some NPC shows a location, and every place comparison reads only a location the player may see.
 
 `npc_reveals` (migration `20261005220422`) holds one row per (NPC, party member): the first moment that member could see the NPC, whether it was shared with them directly or through its location's "share linked NPCs". Triggers on `npcs` and `locations` are its only writers; `on conflict do nothing` keeps the first moment, so unsharing and sharing again does not move it. A player reads only their own rows, the DM the whole campaign's (for preview). Reveals that existed before the table were backfilled with the NPC's `created_at`, the closest evidence left. `useSharedNpcs` reads the reveals with the projection and sets `revealed_at` on each `PlayerNpc`; both refresh on `npcs_player` and `locations_player`.
 
-Filters (state in `useUiStore`):
-
-- Text search: searches name, species, occupation (only fields that are visible for each NPC)
-- Relationship filter (shows only if relationship field is visible for the NPC)
-- Status filter (shows only if status field is visible)
-- Location filter (dropdown populated from locations of visible NPCs)
-
-A **Clear** button appears when filters are active.
-
-### NPC Lightbox
-
-Clicking a card opens a modal with:
-
-- Full-height portrait (if portrait field is visible)
-- Name, relationship badge, status badge, species, occupation (each gated by `player_visible_fields`)
-- **Your Connection** box — the DM's per-PC connection note for this player (`useMyNpcPcNote`), displayed read-only with `RichTextViewer`
-- **Player Notes** (`PlayerNotesWidget`) — the player's own notes on this NPC, in `entity_notes` (`entity_type = 'npc'`) like every other entity's: one private note (optionally shared with the DM) and one party note visible to the campaign. Both save themselves as the player types (`useMyEntityNote`, on `useAutosave`); a blank note is never created, and Clear deletes it.
-- Relevance star rating (also in the lightbox header)
+**Opening a person** (`PlayerNpcProfile`, shared by the lightbox and the pane): name and stars, relationship mark and status word, species · occupation, Met and Where, **Your connection** (the DM's note for this character, `useMyNpcPcNote`, shown only when written; the DM writes it on **With the party**), and the player's notes (`PlayerNotesWidget`). Below `lg` it opens in `PlayerNpcLightbox`; from `lg` the ledger sits beside `PeopleDetailPane`, a plate plus the profile. The selection sticks once made and falls back to the first visible person only when the selected one leaves the list. `?npc=<id>` opens a person.
 
 ### NPCs in Other Player Portal Views
 

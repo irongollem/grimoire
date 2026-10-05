@@ -2,13 +2,14 @@
   <section class="rounded-lg border border-border bg-card p-3" data-testid="disguise-panel">
     <p class="mb-2 text-label font-semibold uppercase text-muted-foreground">In disguise</p>
     <div class="flex items-center gap-3">
-      <FocalImage
-        :src="npc.disguise_portrait_url"
-        :focal-point="npc.disguise_portrait_focal_point"
-        format="portrait"
-        :placeholder="placeholderUrl('npc')"
-        class="h-16 w-12 shrink-0 overflow-hidden rounded-md"
-      />
+      <div class="h-18 w-14 shrink-0 overflow-hidden rounded">
+        <FocalImage
+          :src="npc.disguise_portrait_url"
+          :focal-point="npc.disguise_portrait_focal_point"
+          format="portrait"
+          :placeholder="placeholderUrl('npc')"
+        />
+      </div>
       <div class="min-w-0">
         <p class="truncate text-heading-sm font-bold text-foreground">{{ npc.disguise_name ?? "Unnamed cover" }}</p>
         <p class="text-caption italic text-muted-foreground">as the party knows them</p>

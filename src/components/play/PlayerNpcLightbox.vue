@@ -6,70 +6,26 @@
     :focal-point="displayFocalPoint"
     @close="$emit('close')"
   >
-    <div>
-      <div class="flex items-start justify-between gap-3">
-        <h2 class="text-heading font-bold text-foreground">
-          {{ npc?.player_visible_fields.includes('name') ? displayName : '???' }}
-        </h2>
-        <NpcRatingStars v-if="npc" :npc-id="npc.id" size="lg" class="shrink-0 pt-1" />
-      </div>
-      <div v-if="npc" class="flex flex-wrap gap-2 mt-1">
-        <!-- Relationship + status are always shown — "unknown" is the soft-hidden value. -->
-        <span class="relative px-2 py-0.5 rounded text-label-lg font-bold uppercase text-white">
-          <span class="absolute inset-0 rounded opacity-80" :class="npcRelationshipBg(npc.relationship)" />
-          <span class="relative">{{ npc.relationship }}</span>
-        </span>
-        <span
-          class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted text-label-lg"
-        >
-          <span class="w-1.5 h-1.5 rounded-full" :class="npcStatusBg(npc.status)" />
-          {{ npc.status }}
-        </span>
-      </div>
-      <p
-        v-if="npc?.player_visible_fields.includes('race') && npc.race"
-        class="mt-1 text-body text-muted-foreground italic"
-      >{{ npc.race }}</p>
-      <p
-        v-if="npc?.player_visible_fields.includes('occupation') && npc.occupation"
-        class="text-body text-muted-foreground"
-      >{{ npc.occupation }}</p>
-    </div>
-    <!-- DM's per-PC relation note — show skeleton while loading so players
-         don't close the dialog thinking there's no note -->
-    <div v-if="pcNote || (pcNoteLoading && npcId)" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
-      <div class="px-3 py-2 border-b border-primary/20">
-        <p class="text-label font-semibold text-primary/70">YOUR CONNECTION</p>
-      </div>
-      <div class="px-3 py-2.5">
-        <RichTextViewer v-if="pcNote" :content="pcNote" />
-        <div v-else class="h-3 rounded bg-muted/40 animate-pulse w-2/3" />
-      </div>
-    </div>
-    <PlayerNotesWidget v-if="npc" entity-type="npc" :entity-id="npc.id" placeholder="Your observations about this character…" />
+    <PlayerNpcProfile v-if="npc" :npc="npc" :place="place" />
   </EntityLightbox>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
-import NpcRatingStars from "@/components/play/NpcRatingStars.vue";
-import { useMyNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
+import PlayerNpcProfile from "@/components/play/people/PlayerNpcProfile.vue";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
-import { npcRelationshipBg, npcStatusBg } from "@/lib/npcDisplay";
 import type { PlayerNpc } from "@/types/npc.types";
 
-const { npc } = defineProps<{ npc: PlayerNpc | null }>();
+const { npc, place = null } = defineProps<{
+  npc: PlayerNpc | null;
+  /** The player-visible place, for callers that know it. */
+  place?: string | null;
+}>();
 
 defineEmits<{ close: [] }>();
-
-const npcId = computed(() => npc?.id ?? "");
-const { data: pcNote, isLoading: pcNoteLoading } = useMyNpcPcNote(npcId);
 
 const displayName = computed(() => (npc ? getNpcDisplayName(npc) ?? "???" : "???"));
 const displayPortrait = computed(() => (npc ? getNpcDisplayPortrait(npc) : null));
 const displayFocalPoint = computed(() => (npc ? getNpcDisplayFocalPoint(npc) : null));
-
 </script>

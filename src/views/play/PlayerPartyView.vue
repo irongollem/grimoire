@@ -14,129 +14,89 @@
       </template>
     </PageHeader>
 
-    <!-- ── The Party ───────────────────────────────────────────────────────── -->
-    <section>
+    <!-- ── Your company ────────────────────────────────────────────────────── -->
+    <div v-if="partyLoading" class="flex justify-center py-8">
+      <LoadingSpinner />
+    </div>
+    <p v-else-if="!members?.length" class="font-fell italic text-muted-foreground">
+      No party members yet.
+    </p>
+    <PeopleCompanyStrip
+      v-else
+      :entries="partyEntries"
+      :group-portrait-url="groupPortraitUrl"
+      :viewer-member-id="viewerMemberId"
+      :show-hp="showHp"
+      @open-member="selectedMember = $event"
+      @open-companion="selectedCompanion = $event"
+      @open-group="lightboxSrc = groupPortraitUrl"
+    />
 
-      <div v-if="partyLoading" class="flex justify-center py-8">
-        <LoadingSpinner />
-      </div>
-      <p v-else-if="!members?.length" class="font-fell text-muted-foreground italic">
-        No party members yet.
-      </p>
-      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(11.25rem,1fr))] gap-4">
-
-        <!-- Group portrait card — spans 2 columns -->
-        <div
-          v-if="groupPortraitUrl"
-          class="relative col-span-2 rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
-          title="View group portrait"
-          @click="lightboxSrc = groupPortraitUrl"
-        >
-          <img
-            :src="groupPortraitUrl"
-            alt="Party group portrait"
-            class="w-full h-full object-cover"
-          />
-          <AiImageBadge :src="groupPortraitUrl" />
-        </div>
-        <template v-for="entry in sortedParty" :key="entry.data.id">
-          <PlayerPartyMemberCard
-            v-if="entry.kind === 'member'"
-            :member="entry.data"
-            :is-own="entry.data.id === auth.linkedPartyMemberId"
-            :show-numeric-hp="showNumericHp(entry.data)"
-            :subtitle="memberSubtitle(entry.data, speciesNameOf(entry.data))"
-            @click="openMember(entry.data)"
-          />
-          <PlayerPartyCompanionCard
-            v-else
-            :companion="entry.data"
-            :owner-name="ownerName(entry.data)"
-            :show-numeric-hp="showCompanionNumericHp(entry.data)"
-            @click="openCompanion(entry.data)"
-          />
-        </template>
-      </div>
-    </section>
-
-    <!-- ── People (shared NPCs) ────────────────────────────────────────────── -->
-    <section v-if="npcs?.length || npcsLoading">
-      <h2 class="text-heading font-bold text-foreground mb-3">People</h2>
-
+    <!-- ── People: the ledger ──────────────────────────────────────────────── -->
+    <section v-if="npcs.length || npcsLoading">
       <div v-if="npcsLoading" class="flex justify-center py-8">
         <LoadingSpinner />
       </div>
-      <template v-else>
-        <!-- Filter bar -->
-        <div class="flex flex-wrap gap-2 mb-4">
-          <div class="relative flex-1 min-w-48">
-            <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            <AppInput
-              v-model="ui.playerPeopleSearch"
-              tone="card"
-              size="body"
-              placeholder="Search people…"
-              class="pl-8"
+      <div v-else class="lg:grid lg:grid-cols-[28rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+        <div class="space-y-5">
+          <header class="flex items-baseline gap-2.5 px-1">
+            <h2 class="text-heading font-bold text-foreground">People</h2>
+            <span class="font-fell text-caption italic text-muted-foreground">Dramatis personae</span>
+          </header>
+
+          <PeopleToolbar
+            v-model:sort-by="effectiveSortBy"
+            :sort-options="sortOptions"
+            :places="places"
+            :active-filter-count="activeFilterCount"
+            @open-filters="filtersOpen = true"
+          />
+
+          <p v-if="readMapError" class="text-body italic text-muted-foreground">
+            Your people could not be loaded. Try again in a moment.
+          </p>
+          <LoadingSpinner v-else-if="!ready" class="mx-auto" />
+          <template v-else>
+            <NewToYouStrip :items="newToYouItems" @turned="turnNewToYou" @open="openPerson" />
+
+            <p v-if="!people.length" class="text-body italic text-muted-foreground">
+              {{ ledger.length ? "No people match your filters." : "No one in the ledger yet." }}
+            </p>
+            <PeopleLedger
+              v-else
+              :groups="groups"
+              :view="ui.playerPeopleView"
+              :selected-id="isLg ? activeId : null"
+              :get-rating="getRating"
+              :is-new="isNpcNew"
+              :place="place"
+              @open="selectPerson"
             />
-          </div>
-          <SortControl
-            v-model:sort-by="sortBy"
-            v-model:sort-dir="ui.playerPeopleSortDir"
-            :options="sortOptions"
-          />
-          <AppSelect v-model="ui.playerPeopleFilterRelationship" size="body" weight="normal">
-            <option value="all">All relations</option>
-            <option v-for="(label, value) in NPC_RELATIONSHIP_LABELS" :key="value" :value="value">
-              {{ label }}
-            </option>
-          </AppSelect>
-          <AppSelect v-model="ui.playerPeopleFilterStatus" size="body" weight="normal">
-            <option value="all">All statuses</option>
-            <option value="alive">Alive</option>
-            <option value="dead">Dead</option>
-            <option value="missing">Missing</option>
-            <option value="unknown">Unknown</option>
-          </AppSelect>
-          <AppSelect
-            v-if="availableLocations.length"
-            v-model="ui.playerPeopleFilterLocation"
-            size="body"
-            weight="normal"
-          >
-            <option value="">All locations</option>
-            <option v-for="loc in availableLocations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
-          </AppSelect>
-          <AppButton
-            v-if="ui.playerPeopleHasActiveFilters"
-            variant="subtle"
-            size="sm"
-            label="Clear"
-            @click="ui.resetPlayerPeopleFilters()"
-          />
+          </template>
         </div>
 
-        <p
-          v-if="!filteredNpcs.length"
-          class="text-body text-muted-foreground italic"
-        >No people match your filters.</p>
-        <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(11.25rem,1fr))] gap-4">
-          <PlayerNpcCard
-            v-for="npc in filteredNpcs"
-            :key="npc.id"
-            :npc="npc"
-            :location="npc.player_visible_fields.includes('location') ? resolvedLocation(npc) : undefined"
-            :is-new="isNpcNew(npc.id, npc.updated_at)"
-            @click="openNpc(npc)"
-          />
-        </div>
-      </template>
+        <PeopleDetailPane
+          v-if="isLg && activeNpc"
+          :npc="activeNpc"
+          :place="place(activeNpc)?.name ?? null"
+          class="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto"
+        />
+      </div>
     </section>
+
+    <PeopleFilterSheet
+      v-model:open="filtersOpen"
+      v-model:sort-by="effectiveSortBy"
+      :sort-options="sortOptions"
+      :places="places"
+      :result-count="people.length"
+    />
 
     <!-- ── Party member lightbox ───────────────────────────────────────────── -->
     <PartyMemberLightbox :member="selectedMember" @close="closeMember" />
 
     <!-- ── NPC lightbox ────────────────────────────────────────────────────── -->
-    <PlayerNpcLightbox :npc="selectedNpc" @close="closeNpc" />
+    <PlayerNpcLightbox :npc="isLg ? null : lightboxNpc" :place="lightboxNpc ? (place(lightboxNpc)?.name ?? null) : null" @close="lightboxNpc = null" />
 
     <!-- ── Companion lightbox ──────────────────────────────────────────────── -->
     <PlayerPartyCompanionLightbox
@@ -166,38 +126,33 @@
 import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconSearch, IconAdd } from "@/lib/icons";
+import { IconAdd } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SortControl from "@/components/common/SortControl.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/party/useParty";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
-import { useSharedLocations } from "@/composables/locations/useLocations";
 import { useCompanions } from "@/composables/encounters/useCompanions";
-import { usePlayerNpcRatings } from "@/composables/play/usePlayerNpcRatings";
+import { useNewToYou, toNewToYouItem } from "@/composables/play/useNewToYou";
+import { usePlayerPeople } from "@/composables/play/usePlayerPeople";
+import { useAbove } from "@/composables/useBreakpoint";
 import PartyMemberLightbox from "@/components/player/PartyMemberLightbox.vue";
-import PlayerNpcCard from "@/components/play/PlayerNpcCard.vue";
-import PlayerPartyMemberCard from "@/components/play/PlayerPartyMemberCard.vue";
-import PlayerPartyCompanionCard from "@/components/play/PlayerPartyCompanionCard.vue";
 import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
 import PlayerPartyCompanionLightbox from "@/components/play/PlayerPartyCompanionLightbox.vue";
 import CompanionForm from "@/components/party/CompanionForm.vue";
+import NewToYouStrip from "@/components/play/people/NewToYouStrip.vue";
+import PeopleCompanyStrip from "@/components/play/people/PeopleCompanyStrip.vue";
+import PeopleDetailPane from "@/components/play/people/PeopleDetailPane.vue";
+import PeopleFilterSheet from "@/components/play/people/PeopleFilterSheet.vue";
+import PeopleLedger from "@/components/play/people/PeopleLedger.vue";
+import PeopleToolbar from "@/components/play/people/PeopleToolbar.vue";
+import { buildPartyEntries, type PartyEntry } from "@/components/play/people/peopleParty";
 import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
-import { getNpcDisplayName } from "@/lib/npcDisplay";
-import { defaultSortDir, sortPlayerNpcs, type PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";
-import { getDisplayRace } from "@/lib/partyMemberDisplay";
-import { useSpeciesNames } from "@/composables/rules/useSpecies";
-import type { PlayerNpc } from "@/types/npc.types";
-import { NPC_RELATIONSHIP_LABELS } from "@/types/npc.types";
 import type { HealthVisibility } from "@/types/encounter.types";
 
 const route = useRoute();
@@ -205,253 +160,139 @@ const router = useRouter();
 const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();
+const isLg = useAbove("lg");
 const groupPortraitUrl = computed(() => campaign.activeCampaign?.group_portrait_url ?? null);
-const lightboxSrc      = ref<string | null>(null);
+const lightboxSrc = ref<string | null>(null);
 const viewerMemberId = computed(() =>
-  ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId
+  ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
 );
-// DM not in preview mode sees true forms; players (even without a linked party member) see disguises.
-const viewerIsDm = computed(() => !ui.dmPreviewMode && auth.isDM);
+
 const { data: members, isLoading: partyLoading } = useParty();
-const speciesNameOf = useSpeciesNames(() => members.value ?? []);
+const { data: companions } = useCompanions();
 const { data: allSharedNpcs, isLoading: npcsLoading } = useSharedNpcs();
-const { isNew: isNpcNew } = useReadItems("npc");
+const { isNew: isNpcNew, data: readMap, isError: readMapError } = useReadItems("npc");
 const { mutate: markNpcRead } = useMarkRead();
+
+// If no character is linked yet the player has not been seated at a party member,
+// so they see no NPC visibility lists.
 const npcs = computed(() => {
-  const all = allSharedNpcs.value ?? [];
   const memberId = viewerMemberId.value;
-  // If no character is linked yet, show nothing — the player hasn't been
-  // assigned to a party member so they shouldn't see any NPC visibility lists.
   if (!memberId) return [];
-  return all.filter((npc) =>
-    Array.isArray(npc.player_visible_to) && npc.player_visible_to.includes(memberId)
+  return (allSharedNpcs.value ?? []).filter(
+    (npc) => Array.isArray(npc.player_visible_to) && npc.player_visible_to.includes(memberId),
   );
 });
-const { data: companions } = useCompanions();
-const { data: sharedLocations } = useSharedLocations();
 
-const locationMap = computed(() => {
-  const m = new Map<string, string>();
-  for (const loc of sharedLocations.value ?? []) m.set(loc.id, loc.name);
-  return m;
-});
+// ── People: new to you, then the ledger ──────────────────────────────────────
+const { ready, entries: newToYouEntries, ledger, turn } = useNewToYou(npcs, readMap);
+const {
+  getRating,
+  place,
+  places,
+  sortOptions,
+  effectiveSortBy,
+  activeFilterCount,
+  groups,
+  people,
+} = usePlayerPeople(npcs, ledger);
 
-function resolvedLocation(npc: { location_id: string | null }) {
-  return npc.location_id ? (locationMap.value.get(npc.location_id) ?? "") : "";
-}
-
-// ── Party + companion sort ────────────────────────────────────────────────────
-type PartyEntry =
-  | { kind: "member"; data: PartyMember }
-  | { kind: "companion"; data: Companion };
-
-const sortedParty = computed((): PartyEntry[] => {
-  const myId = viewerMemberId.value;
-  const allMembers = members.value ?? [];
-  const allCompanions = companions.value ?? [];
-
-  // Self first, then rest alphabetically
-  const orderedMembers = [...allMembers].sort((a, b) => {
-    if (a.id === myId) return -1;
-    if (b.id === myId) return 1;
-    return a.name.localeCompare(b.name);
-  });
-
-  // Group personal companions by owner once; avoid O(companions × members) filter-in-loop
-  const byOwner = new Map<string, Companion[]>();
-  const groupCompanions: Companion[] = [];
-  for (const c of allCompanions) {
-    if (c.owner_party_member_id) {
-      const bucket = byOwner.get(c.owner_party_member_id) ?? [];
-      bucket.push(c);
-      byOwner.set(c.owner_party_member_id, bucket);
-    } else {
-      groupCompanions.push(c);
-    }
-  }
-  for (const bucket of byOwner.values()) bucket.sort((a, b) => a.name.localeCompare(b.name));
-  groupCompanions.sort((a, b) => a.name.localeCompare(b.name));
-
-  const result: PartyEntry[] = [];
-  for (const member of orderedMembers) {
-    result.push({ kind: "member", data: member });
-    for (const comp of byOwner.get(member.id) ?? []) {
-      result.push({ kind: "companion", data: comp });
-    }
-  }
-  for (const comp of groupCompanions) {
-    result.push({ kind: "companion", data: comp });
-  }
-  return result;
-});
-
-const { getRating, ratingTick } = usePlayerNpcRatings(() => npcs.value ?? []);
-
-// The projection already nulls location_id when the NPC's location is not
-// player-visible; the field check keeps every location comparison on that rule too.
-function visibleLocationName(npc: PlayerNpc): string {
-  return npc.player_visible_fields.includes("location") ? resolvedLocation(npc) : "";
-}
-
-// ── People sort ───────────────────────────────────────────────────────────────
-const sortOptions = computed(() => {
-  const all = [
-    { value: "rating", label: "Your rating" },
-    { value: "revealed", label: "Recently revealed" },
-    { value: "location", label: "Location" },
-    { value: "name", label: "Name" },
-  ] as const satisfies readonly { value: PlayerNpcSortField; label: string }[];
-  return availableLocations.value.length ? all : all.filter((o) => o.value !== "location");
-});
-// "Location" is hidden when no NPC has a visible place; a stored "location" then
-// sorts by rating without rewriting the store.
-const effectiveSortBy = computed<PlayerNpcSortField>(() =>
-  ui.playerPeopleSortBy === "location" && !availableLocations.value.length ? "rating" : ui.playerPeopleSortBy,
+const newToYouItems = computed(() =>
+  newToYouEntries.value.map((entry) => toNewToYouItem(entry, place(entry.npc)?.name ?? null)),
 );
-const sortBy = computed<PlayerNpcSortField>({
-  get: () => effectiveSortBy.value,
-  set: (field) => { ui.playerPeopleSortBy = field; },
+
+function turnNewToYou(id: string) {
+  turn(id);
+  markNpcRead({ entityType: "npc", entityId: id });
+}
+
+const filtersOpen = ref(false);
+
+// ── Opening a person ─────────────────────────────────────────────────────────
+// From lg up the person opens in the side pane; below it, in a lightbox.
+// Selection sticks: it is set once to the first ledger person, then only the
+// player changes it. A selected person who drops out of view falls back to the
+// first visible one.
+const selectedId = ref<string | null>(null);
+watch(
+  () => [isLg.value, people.value[0]?.id ?? null] as const,
+  ([lg, first]) => {
+    if (lg && selectedId.value === null && first) selectedId.value = first;
+  },
+  { immediate: true },
+);
+const activeId = computed(() => {
+  const id = selectedId.value;
+  if (id && people.value.some((p) => p.id === id)) return id;
+  return people.value[0]?.id ?? null;
 });
-watch(() => ui.playerPeopleSortBy, (field) => { ui.playerPeopleSortDir = defaultSortDir(field); });
+const activeNpc = computed(() => npcs.value.find((n) => n.id === activeId.value) ?? null);
+const lightboxNpc = ref<(typeof npcs.value)[number] | null>(null);
 
-// ── People filter ─────────────────────────────────────────────────────────────
-const availableLocations = computed(() => {
-  const seen = new Set<string>();
-  const result: { id: string; name: string }[] = [];
-  for (const npc of npcs.value) {
-    if (npc.player_visible_fields.includes("location") && npc.location_id && !seen.has(npc.location_id)) {
-      const name = locationMap.value.get(npc.location_id);
-      if (name) {
-        seen.add(npc.location_id);
-        result.push({ id: npc.location_id, name });
-      }
-    }
-  }
-  return result.sort((a, b) => a.name.localeCompare(b.name));
-});
-
-const filteredNpcs = computed(() => {
-  void ratingTick.value;
-  let list = npcs.value;
-
-  const q = ui.playerPeopleSearch.trim().toLowerCase();
-  if (q) {
-    list = list.filter((npc) => {
-      const parts: string[] = [];
-      const name = npc.player_visible_fields.includes("name") ? getNpcDisplayName(npc) : null;
-      if (name) parts.push(name.toLowerCase());
-      if (npc.player_visible_fields.includes("race") && npc.race) parts.push(npc.race.toLowerCase());
-      if (npc.player_visible_fields.includes("occupation") && npc.occupation) parts.push(npc.occupation.toLowerCase());
-      return parts.some((p) => p.includes(q));
-    });
-  }
-
-  // status & relationship are always shown to players (unknown = soft-hidden),
-  // so they are NOT gated on player_visible_fields — those keys were removed from
-  // NPC_PLAYER_FIELDS, so gating on them would match nothing.
-  if (ui.playerPeopleFilterRelationship !== "all") {
-    list = list.filter((npc) => npc.relationship === ui.playerPeopleFilterRelationship);
-  }
-
-  if (ui.playerPeopleFilterStatus !== "all") {
-    list = list.filter((npc) => npc.status === ui.playerPeopleFilterStatus);
-  }
-
-  if (ui.playerPeopleFilterLocation) {
-    list = list.filter((npc) => npc.location_id === ui.playerPeopleFilterLocation);
-  }
-
-  return sortPlayerNpcs(list, effectiveSortBy.value, ui.playerPeopleSortDir, {
-    getRating,
-    locationName: visibleLocationName,
-  });
-});
-
-// ── Party member lightbox ────────────────────────────────────────────────────
-const selectedMember = ref<PartyMember | null>(null);
-
-function openMember(m: PartyMember) {
-  selectedMember.value = m;
+function selectPerson(id: string) {
+  const npc = npcs.value.find((n) => n.id === id);
+  if (!npc) return;
+  markNpcRead({ entityType: "npc", entityId: id });
+  selectedId.value = id;
+  lightboxNpc.value = npc;
 }
+const openPerson = selectPerson;
 
-function closeMember() {
-  selectedMember.value = null;
-}
-
-// ── NPC lightbox ─────────────────────────────────────────────────────────────
-const selectedNpc = ref<PlayerNpc | null>(null);
-
-function openNpc(npc: PlayerNpc) {
-  markNpcRead({ entityType: "npc", entityId: npc.id });
-  selectedNpc.value = npc;
-}
-
-function closeNpc() {
-  selectedNpc.value = null;
-}
-
-// Auto-open NPC lightbox when navigated from a chat "View →" link (?npc=<id>)
+// Open a person when navigated from a chat "View →" link (?npc=<id>)
 watch(
   () => [route.query.npc, allSharedNpcs.value] as const,
   ([npcId]) => {
     if (!npcId || typeof npcId !== "string" || !allSharedNpcs.value) return;
-    const npc = allSharedNpcs.value.find((n) => n.id === npcId);
-    if (!npc) return;
-    openNpc(npc);
+    if (!allSharedNpcs.value.some((n) => n.id === npcId)) return;
+    openPerson(npcId);
     const { npc: _npc, ...rest } = route.query;
     router.replace({ query: rest });
   },
   { immediate: true },
 );
 
-// ── Companion lightbox ────────────────────────────────────────────────────────
-const selectedCompanion = ref<Companion | null>(null);
+// ── Party ────────────────────────────────────────────────────────────────────
+const partyEntries = computed(() =>
+  buildPartyEntries(members.value ?? [], companions.value ?? [], viewerMemberId.value),
+);
 
-function openCompanion(c: Companion) { selectedCompanion.value = c; }
+const healthVis = computed(
+  () => (campaign.activeCampaign?.health_visibility as HealthVisibility) ?? "strategic",
+);
+
+function showHp(entry: PartyEntry): boolean {
+  if (healthVis.value === "strategic") return true;
+  return entry.kind === "member"
+    ? entry.data.id === viewerMemberId.value
+    : entry.data.owner_party_member_id === viewerMemberId.value;
+}
+
+const selectedMember = ref<PartyMember | null>(null);
+function closeMember() { selectedMember.value = null; }
+
+const selectedCompanion = ref<Companion | null>(null);
 function closeCompanion() { selectedCompanion.value = null; }
 
-// ── Companion form (players manage their own companions — #569) ───────────────
-const companionFormOpen = ref(false);
-const editingCompanion  = ref<Companion | null>(null);
-
-function openCompanionForm(companion: Companion | null) {
-  editingCompanion.value  = companion;
-  companionFormOpen.value = true;
-}
-
-function closeCompanionForm() {
-  companionFormOpen.value = false;
-  editingCompanion.value  = null;
-}
-
-function handleEditCompanion(companion: Companion) {
-  closeCompanion();
-  openCompanionForm(companion);
-}
-
-// ── Companion helpers ─────────────────────────────────────────────────────────
 function ownerName(c: Companion): string {
   if (!c.owner_party_member_id) return "";
   return members.value?.find((m) => m.id === c.owner_party_member_id)?.name ?? "";
 }
 
-function showCompanionNumericHp(c: Companion) {
-  return healthVis.value === "strategic" || c.owner_party_member_id === viewerMemberId.value;
+// ── Companion form (players manage their own companions, #569) ───────────────
+const companionFormOpen = ref(false);
+const editingCompanion = ref<Companion | null>(null);
+
+function openCompanionForm(companion: Companion | null) {
+  editingCompanion.value = companion;
+  companionFormOpen.value = true;
 }
 
-// ── Member helpers ────────────────────────────────────────────────────────────
-const healthVis = computed(() =>
-  (campaign.activeCampaign?.health_visibility as HealthVisibility) ?? "strategic",
-);
-
-function showNumericHp(m: PartyMember) {
-  return healthVis.value === "strategic" || m.id === viewerMemberId.value;
+function closeCompanionForm() {
+  companionFormOpen.value = false;
+  editingCompanion.value = null;
 }
 
-function memberSubtitle(m: PartyMember, speciesName: string | null): string {
-  return [
-    getDisplayRace(m, speciesName, viewerMemberId.value, viewerIsDm.value),
-    m.class,
-  ].filter(Boolean).join(" ");
+function handleEditCompanion(companion: Companion) {
+  closeCompanion();
+  openCompanionForm(companion);
 }
 </script>

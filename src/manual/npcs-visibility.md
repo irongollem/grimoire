@@ -59,7 +59,7 @@ An NPC with a Disguise Name or a disguise portrait can wear either identity. The
 
 ## Per-player connection notes
 
-On the NPC's **Relations** tab, **Party connections** lets you write a note per party member (rich text, tagged with a relationship type such as "Contact" or "Mentor"). Each note is visible only to the party member it's written for, in their Player Portal.
+On the NPC's **With the party** tab, each character's row has a **connection**: a note tagged with a relationship type such as "Contact" or "Mentor". Each note is visible only to the character it's written for, as "Your connection" on their People page, and the row says so ("Wren reads this"). It saves as you type.
 
 ## Party notes
 

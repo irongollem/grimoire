@@ -67,11 +67,12 @@ Also on the left: the **Party Stance** wheel (the five 5e attitudes, Hostile thr
 
 **Inventory**: pick an item in the **Search vault items…** box and click **Add** to give the NPC an item from your Vault. Each carried item shows quantity, an optional note, a **Vault** link back to the source item, a drop-to-chat button (hands the item to the party as a loot drop and removes it from the NPC), and a remove button.
 
+**With the party**: one row per character in the party. Each row says whether they can see this NPC (**Share** / **Shared** toggles it, exactly like the reveal popover), when they met them, and their **connection**: a relationship type such as "Contact" or "Mentor" and a note. The note is labelled with whose it is ("Wren reads this") because that player sees it on their People page as "Your connection"; it saves as you type, and clearing it removes it. Beside the rows sit the disguise, with **Reveal true self**, and the fields a share shows.
+
 **Relations** (view mode only, but every section on it owns its own save, so you never have to flip into the edit form to use it):
 
 - **NPC connections**: the same add/edit/delete list as the Identity-column widget above.
 - **Factions**: every faction this NPC belongs to, as a chip: the faction's name (links to its page), a **role** dropdown (Leader, Officer, Enforcer, Member, Initiate, Associate, Agent, Informant, Unknown) you can change in place, and a status label. Retired, Defected, Expelled, or Deceased memberships are dimmed and labelled; Active ones show no badge. Add a new membership from the **Add faction…** picker.
-- **Party connections**: a per-party-member note (rich text) tagged with a relationship type, editable inline. See [NPC Visibility Controls](#npc-visibility-controls) for how each player sees only their own note.
 - **Favours owed**: free-text entries ("What do they owe the party…") with **Add favour**. Each shows how long ago it was recorded and, if a quest set it, links to that quest. **Settle** marks it paid; settled favours move to a struck-through **Settled** list with a delete button. A quest's "owe a favour" consequence can add one of these automatically.
 
 **Combat**: toggle **Include stat block** to attach one. Two ways to fill it in:

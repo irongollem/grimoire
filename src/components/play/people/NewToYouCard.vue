@@ -28,8 +28,10 @@ export interface NewToYouCover {
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import { artUrl } from "@/lib/assets/artUrl";
 import { cardTurnStyle, prefersReducedMotion } from "@/lib/motion";
 import { npcRelationshipBg } from "@/lib/npcDisplay";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { NPC_RELATIONSHIP_LABELS } from "@/types/npc.types";
 
 /**
@@ -59,6 +61,11 @@ const {
 }>();
 
 const emit = defineEmits<{ turned: []; open: [] }>();
+
+/** Through artUrl: production serves /assets art from the CDN and strips it from dist (#877). */
+const CARD_BACK = artUrl("/assets/cards/npc-card-back.webp");
+
+const PLACEHOLDER = placeholderUrl("npc");
 
 const turned = ref(false);
 const turnStyle = computed(() => cardTurnStyle(turned.value));
@@ -122,7 +129,7 @@ function onTransitionEnd(event: TransitionEvent) {
       >
         <template v-if="kind === 'new'">
           <img
-            src="/assets/cards/npc-card-back.webp"
+            :src="CARD_BACK"
             alt=""
             class="absolute inset-0 h-full w-full rounded-lg object-cover shadow-md"
             draggable="false"
@@ -135,11 +142,11 @@ function onTransitionEnd(event: TransitionEvent) {
         <div v-else class="flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card">
           <div class="relative min-h-0 flex-1 overflow-hidden bg-muted">
             <FocalImage
-              v-if="cover?.portraitUrl"
-              :src="cover.portraitUrl"
+              :src="cover?.portraitUrl ?? null"
               :alt="coverName"
               format="portrait"
-              :focal-point="cover.focalPoint"
+              :focal-point="cover?.focalPoint ?? null"
+              :placeholder="PLACEHOLDER"
               class="absolute inset-0 h-full w-full object-cover"
             />
             <span class="ntc-unmasked">Unmasked</span>
@@ -157,11 +164,11 @@ function onTransitionEnd(event: TransitionEvent) {
       >
         <div class="relative min-h-0 flex-1 overflow-hidden bg-muted">
           <FocalImage
-            v-if="person.portraitUrl"
             :src="person.portraitUrl"
             :alt="personName"
             format="portrait"
             :focal-point="person.focalPoint"
+            :placeholder="PLACEHOLDER"
             class="absolute inset-0 h-full w-full object-cover"
           />
         </div>

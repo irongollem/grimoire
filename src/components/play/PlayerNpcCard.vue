@@ -13,6 +13,7 @@
           format="portrait"
           :focal-point="displayFocalPoint"
           class="group-hover:scale-105 transition-transform duration-300"
+          :class="npc.status === 'dead' && 'grayscale opacity-70'"
         />
         <img
           v-else-if="!npc.player_visible_fields.includes('portrait') && displayPortrait"

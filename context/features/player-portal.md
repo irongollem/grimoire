@@ -69,7 +69,7 @@ All nav items defined in `src/lib/playerNav.ts` (`ALL_PLAYER_NAV`), 14 tabs in d
 | `/play/journal`   | Journal   | Personal adventure journal (My Journal / Party Journal / Quest Log / Puzzles / DM Notes / Handouts tabs) |
 | `/play/inventory` | Inventory | Paper doll, containers, coin purse, carry weight                                |
 | `/play/calendar`  | Calendar  | Current in-game date; upcoming/confirmed session dates                         |
-| `/play/party`     | People    | Party member cards + shared NPCs with filter/search                             |
+| `/play/party`     | People    | Your company (party strip) + the People ledger (#987)                           |
 | `/play/crafting`  | Workshop  | DM-shared crafting recipes with ingredient inventory check (hidden when the `crafting` optional rule is off) |
 | `/play/downtime`  | Interlude | Downtime activities between sessions (hidden when the `downtime` optional rule is off) |
 | `/play/atlas`     | Atlas     | Shared locations with maps, pins, NPCs, and store wares                         |
@@ -136,11 +136,13 @@ Every player-side picker obeys the DM's per-campaign gates (#566) — the specie
 
 Route: `/play/party` (`PlayerPartyView.vue`)
 
-Displays a card grid of all party members plus companions. The player's own character always sorts first with a "You" badge.
+Two parts: **Your company**, a slim strip of the party, and **People**, the ledger of everyone the party has met (#987, design: People ledger canvas). The components live in `src/components/play/people/`; the view only wires data and the lightboxes.
+
+**Your company** (`PeopleCompanyStrip`): the group portrait (when there is one) as a wider first tile, then each member and their companions, as small portrait plates with names; your own character first, marked "You". A thin HP bar follows the same visibility rule as before. Tapping opens the member, companion or group-portrait lightbox, which hold the detail the old full-size cards showed:
 
 **AI badge.** Party member and companion portraits, the group portrait, and every NPC, location, monster and puzzle image in the portal carry the `AI` chip when the image on display was AI-generated. The chip is `AiImageBadge` and asks about the image's URL, not the row: a hand-written NPC with a generated portrait is badged, a generated NPC with an uploaded drawing is not, and a concealed NPC is badged by its disguise portrait's own record. See `context/compliance/provenance-architecture.md` §6a.
 
-**Party member cards show:**
+**The member lightbox shows:**
 
 - Portrait with hover zoom
 - Name, class, species/race, level
@@ -154,14 +156,12 @@ Displays a card grid of all party members plus companions. The player's own char
 
 **Managing your own companions (#569):** An "Add companion" button beside the section heading opens `CompanionForm` as a side-sheet with the owner locked to your own character — the same form the DM uses, but the NPC-source picker swaps to the player-safe `useSharedNpcs()` projection so a disguised NPC's true identity and DM-only columns never reach your client. Clicking a companion you own opens an owner-gated lightbox instead of the plain read-only one: HP damage/heal steppers, condition add/remove, a "With the party / Elsewhere" `combat_ready` toggle, and Edit / confirm-guarded Delete. Companions you don't own still open the standard read-only lightbox.
 
-**Clicking a card opens a lightbox** with portrait, HP details, AC, conditions, a DM-supplied per-PC connection note (rich text), and a private PlayerNotesWidget for the player's own observations.
+**People: the ledger.** NPCs the DM has shared with this character (directly, or through a location that shares its people). The rules live in `context/features/npcs.md` → Player Portal; in short:
 
-**People section (shared NPCs):**
-A second grid shows NPCs the DM has shared with the current party member (`player_visible_to` array includes their ID). Each NPC card shows portrait, name, relationship badge (ally/neutral/enemy/unknown), status badge, race/occupation, location.
-
-Filters: search by name/race/occupation, relationship dropdown, status dropdown, location dropdown. Sort: by your rating (players give each NPC 1–5 stars for personal relevance; the default), by when the NPC was revealed to you, by location, or by name, with a direction toggle. See `context/features/npcs.md` → Sort and Filter.
-
-Clicking an NPC opens a lightbox with portrait, name (or "???" if name not shared), relationship/status/race/occupation (each conditionally shown per `player_visible_fields`), DM-supplied connection note, and player notes widget.
+- **New to you** at the top: someone just shared arrives face down on the generated card back and turns over in place; a disguised NPC whose true self was revealed waits face up as the cover and turns to the true face. Once each. People waiting there are not in the ledger yet.
+- **The ledger**: one row per person, grouped by the sort (by place, by the day you met them, or flat for rating and name). Status shows only when it is not "alive"; the dead are struck through with a greyed portrait. A **Portraits** toggle shows the same groups as cards.
+- **Toolbar**: search, a one-tap sort with a direction toggle, and filters (relationship, status, place): inline from `md`, a "Sort and filter" sheet with live counts on a phone.
+- **Opening a person**: the lightbox on phones; from `lg` (tablets in landscape) the ledger sits beside the person's page.
 
 ## Quest Log (Player)
 

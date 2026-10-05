@@ -25,13 +25,15 @@ A journal entry has a category (Adventure, Clue, Discovery, Session, Character, 
 
 ## People (Party + shared NPCs)
 
-Labelled **People** in the nav bar. A card grid split into two groups:
+Labelled **People** in the nav bar. Two parts: the party, and the ledger of everyone the party has met.
 
-**Party members**: every character (the player's own sorts first, badged "You"), showing portrait, name, class/species/level, AC, up to 2 condition badges (+N for more), and HP: a number with a bar if HP visibility is set to "strategic" for that character or it's the viewer's own, otherwise an immersive label (Healthy/Hurt/Wounded/Bloodied/Dead). Companions (familiars, mounts, animal companions…) appear interleaved with their owner, with an "Elsewhere" badge if the owner has benched them.
+**Your company**: a slim strip of every character (the player's own first, marked "You") and their companions, each a small portrait with a name. Tapping one opens its card: portrait, name, class/species/level, AC, conditions, and HP: a number with a bar if HP visibility is set to "strategic" for that character or it's the viewer's own, otherwise an immersive label (Healthy/Hurt/Wounded/Bloodied/Dead). Companions (familiars, mounts, animal companions…) sit beside their owner, with an "Elsewhere" badge if the owner has benched them.
 
 **A player can manage their own companions here**: an "Add companion" button opens the same form you use, locked to their own character as owner. Clicking a companion they own opens an editable lightbox (HP steppers, condition add/remove, a Joining/Elsewhere toggle, Edit, and confirm-guarded Delete); a companion owned by someone else opens a plain read-only view.
 
-**Shared NPCs**: a second grid of NPCs you've shared with this specific character, with relationship (ally/neutral/enemy/unknown) and status badges, filterable by name/race/occupation/relationship/status/location. Players can star an NPC (1–5) for their own relevance tracking, sorted starred-first.
+**New to you**: someone you have just shared with this character arrives face down, on an ornate card with "Someone new" and where they met. The player taps to turn it over and meet them. When you reveal a disguised NPC's true self, their card waits face up as the face the party knew and turns to the truth ("You knew them as…"), once for each player. Nobody waiting here is in the ledger yet, so it never spoils the moment.
+
+**The ledger**: one line per person: portrait, name ("???" if you haven't shared it), species and occupation, how they regard the party, and a status only when it isn't "alive" (the dead are struck through, their portrait greyed). Players sort it by their own star rating (1 to 5, the default), by when they met each person (grouped by day), by place (grouped under the place each person lives, "Whereabouts unknown" last) or by name, and filter by relationship, status and place. A **Portraits** toggle shows the same people as cards. Tapping someone opens their page: what they know, the **connection** you wrote for this character on the NPC's **With the party** tab (only when you wrote one), and the player's own notes. On a tablet in landscape the ledger and the person's page sit side by side.
 
 ## Live Encounter panel
 
