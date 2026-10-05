@@ -84,6 +84,7 @@
           @open-detail="(item) => $emit('open-detail', item)"
           @sell-item="(item) => $emit('sell-item', item)"
           @split-stack="(item) => $emit('split-stack', item)"
+          @move="(item, loc, cid) => $emit('move', item, loc, cid)"
         />
       </VueDraggable>
       <div v-if="!items.length && !showAdd" class="px-4 py-3">

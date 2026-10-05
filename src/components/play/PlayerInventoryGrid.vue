@@ -157,6 +157,7 @@
           @split-stack="(inv) => $emit('split-stack', inv)"
           @open-detail="(item) => $emit('open-detail', item)"
           @sell-item="(item) => $emit('sell-item', item)"
+          @move="(item, loc, cid) => $emit('move', item, loc, cid)"
         />
       </VueDraggable>
       <p v-if="!localStoredItems.length" class="px-4 py-3 text-body text-muted-foreground italic">
@@ -192,6 +193,7 @@
           @drop-to-chat="(inv) => $emit('drop-to-chat', inv)"
           @split-stack="(inv) => $emit('split-stack', inv)"
           @open-detail="(item) => $emit('open-detail', item)"
+          @move="(item, loc, cid) => $emit('move', item, loc, cid)"
         />
       </VueDraggable>
       <p v-if="!localStashItems.length" class="px-4 py-3 text-body text-muted-foreground italic">

@@ -19,6 +19,7 @@
           :item="slotItem('head')"
           :disabled="!slotItem('head') && !canEquipSlot('head')"
           label="Head"
+          place="head"
           @click="$emit('open-slot', 'head')"
         />
         <!-- NECK -->
@@ -27,6 +28,7 @@
           :item="slotItem('neck')"
           :disabled="!slotItem('neck') && !canEquipSlot('neck')"
           label="Neck"
+          place="neck"
           @click="$emit('open-slot', 'neck')"
         />
         <!-- SHOULDERS -->
@@ -35,6 +37,7 @@
           :item="slotItem('shoulders')"
           :disabled="!slotItem('shoulders') && !canEquipSlot('shoulders')"
           label="Shldr"
+          place="shoulders"
           @click="$emit('open-slot', 'shoulders')"
         />
         <!-- BODY -->
@@ -43,6 +46,7 @@
           :item="slotItem('body')"
           :disabled="!slotItem('body') && !canEquipSlot('body')"
           label="Body"
+          place="body"
           @click="$emit('open-slot', 'body')"
         />
         <!-- HANDS -->
@@ -51,6 +55,7 @@
           :item="slotItem('hands')"
           :disabled="!slotItem('hands') && !canEquipSlot('hands')"
           label="Gloves"
+          place="hands"
           @click="$emit('open-slot', 'hands')"
         />
         <!-- RING (left) -->
@@ -59,6 +64,7 @@
           :item="slotItem('ring')"
           :disabled="!slotItem('ring') && !canEquipSlot('ring')"
           label="Ring"
+          place="fingers"
           @click="$emit('open-slot', 'ring')"
         />
         <!-- WAIST -->
@@ -67,6 +73,7 @@
           :item="slotItem('waist')"
           :disabled="!slotItem('waist') && !canEquipSlot('waist')"
           label="Waist"
+          place="waist"
           @click="$emit('open-slot', 'waist')"
         />
         <!-- CLOTHES (legs) -->
@@ -76,6 +83,7 @@
           :warn="!slotItem('clothes') && canEquipSlot('clothes')"
           :disabled="!slotItem('clothes') && !canEquipSlot('clothes')"
           label="Clothes"
+          place="body"
           @click="$emit('open-slot', 'clothes')"
         />
         <!-- FEET -->
@@ -84,6 +92,7 @@
           :item="slotItem('feet')"
           :disabled="!slotItem('feet') && !canEquipSlot('feet')"
           label="Boots"
+          place="feet"
           @click="$emit('open-slot', 'feet')"
         />
       </div>
@@ -117,9 +126,8 @@
             @click="$emit('open-detail', item)"
           />
           <EquipSlotRow
-            v-if="!otherEquipped.length"
             :item="null"
-            label="Other"
+            :label="otherEquipped.length ? 'Add another item' : 'Other'"
             @click="$emit('open-slot', 'other')"
           />
         </div>

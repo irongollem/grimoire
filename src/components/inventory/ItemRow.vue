@@ -6,10 +6,13 @@
     <div class="flex-1 min-w-0">
       <button
         type="button"
-        class="text-body text-foreground truncate text-left hover:text-primary transition-colors w-full"
+        class="text-body text-foreground line-clamp-2 sm:line-clamp-1 break-words text-left hover:text-primary transition-colors w-full"
         @click="$emit('open-detail', item)"
       >{{ item.name }}<span v-if="item.is_attuned" class="ml-1 text-label text-primary/70" title="Attuned">✦</span></button>
       <p v-if="item.notes" class="text-caption text-muted-foreground italic truncate">{{ tiptapToPlainText(item.notes) }}</p>
+      <p v-if="unitWeight > 0" class="sm:hidden text-label text-muted-foreground/60">
+        {{ fmtW(unitWeight) }}<template v-if="item.quantity > 1"> ({{ fmtW(totalWeight) }})</template> lb.
+      </p>
       <p v-if="showCarrier && item.carried_by" class="text-label text-muted-foreground/60">
         {{ carrierName(item.carried_by) }}
       </p>
@@ -25,8 +28,8 @@
     <!-- Weight -->
     <span
       v-if="unitWeight > 0"
-      class="text-label text-muted-foreground/50 shrink-0 whitespace-nowrap"
-    >{{ fmtW(unitWeight) }}<span v-if="item.quantity > 1" class="hidden sm:inline"> ({{ fmtW(totalWeight) }})</span> lb.</span>
+      class="hidden sm:inline text-label text-muted-foreground/50 shrink-0 whitespace-nowrap"
+    >{{ fmtW(unitWeight) }}<span v-if="item.quantity > 1"> ({{ fmtW(totalWeight) }})</span> lb.</span>
 
     <!-- Qty -->
     <div class="flex items-center gap-1 shrink-0">
@@ -35,7 +38,7 @@
         fill="muted"
         size="icon-2xs"
         icon-size="xs"
-        class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+        class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 max-md:h-11 max-md:w-11"
         :icon="IconMinus"
         :disabled="item.quantity <= 1"
         @click="$emit('adjust-qty', item, -1)"
@@ -46,65 +49,81 @@
         fill="muted"
         size="icon-2xs"
         icon-size="xs"
-        class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+        class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 max-md:h-11 max-md:w-11"
         :icon="IconAdd"
         @click="$emit('adjust-qty', item, 1)"
       />
     </div>
 
-    <!-- Drop to chat -->
-    <AppButton
-      variant="ghost"
-      fill="tone"
-      tone="caution"
-      size="icon-xs"
-      tooltip="Drop to chat"
-      class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-      :icon="IconArrowUp"
-      icon-size="xs"
-      @click="$emit('drop-to-chat', item)"
-    />
+    <!-- Inline actions: only where there is a hover and room. Phones and touch screens get the overflow menu. -->
+    <div class="hidden [@media(hover:hover)]:sm:flex items-center gap-2 shrink-0">
+      <!-- Drop to chat -->
+      <AppButton
+        variant="ghost"
+        fill="tone"
+        tone="caution"
+        size="icon-xs"
+        tooltip="Drop to chat"
+        class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+        :icon="IconArrowUp"
+        icon-size="xs"
+        @click="$emit('drop-to-chat', item)"
+      />
 
-    <!-- Split stack — always rendered for consistent row width -->
-    <AppButton
-      variant="ghost"
-      fill="tone"
-      tone="info"
-      size="icon-xs"
-      tooltip="Split stack"
-      :disabled="item.quantity <= 1"
-      :class="item.quantity > 1 ? '[@media(hover:hover)]:opacity-0 group-hover:opacity-100' : 'invisible'"
-      :icon="IconScissors"
-      icon-size="xs"
-      @click="$emit('split-stack', item)"
-    />
+      <!-- Split stack — always rendered for consistent row width -->
+      <AppButton
+        variant="ghost"
+        fill="tone"
+        tone="info"
+        size="icon-xs"
+        tooltip="Split stack"
+        :disabled="item.quantity <= 1"
+        :class="item.quantity > 1 ? '[@media(hover:hover)]:opacity-0 group-hover:opacity-100' : 'invisible'"
+        :icon="IconScissors"
+        icon-size="xs"
+        @click="$emit('split-stack', item)"
+      />
 
-    <!-- List for sale -->
-    <AppButton
-      v-if="sellable"
-      variant="ghost"
-      fill="tone"
-      tone="info"
-      size="icon-xs"
-      tooltip="List for sale"
-      class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-      :icon="IconShop"
-      icon-size="xs"
-      @click="$emit('sell-item', item)"
-    />
+      <!-- List for sale -->
+      <AppButton
+        v-if="sellable"
+        variant="ghost"
+        fill="tone"
+        tone="info"
+        size="icon-xs"
+        tooltip="List for sale"
+        class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+        :icon="IconShop"
+        icon-size="xs"
+        @click="$emit('sell-item', item)"
+      />
 
-    <!-- Remove -->
-    <AppButton
-      variant="ghost"
-      fill="tone"
-      tone="danger"
-      size="icon-xs"
-      tooltip="Remove"
-      class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-      :icon="IconDelete"
-      icon-size="xs"
-      @click="$emit('remove', item.id)"
-    />
+      <!-- Remove -->
+      <AppButton
+        variant="ghost"
+        fill="tone"
+        tone="danger"
+        size="icon-xs"
+        tooltip="Remove"
+        class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+        :icon="IconDelete"
+        icon-size="xs"
+        @click="$emit('remove', item.id)"
+      />
+    </div>
+
+    <div class="[@media(hover:hover)]:sm:hidden shrink-0">
+      <ItemRowMenu
+        :item="item"
+        :sellable="sellable"
+        :move-targets="moveTargets"
+        @drop-to-chat="$emit('drop-to-chat', item)"
+        @split-stack="$emit('split-stack', item)"
+        @sell-item="$emit('sell-item', item)"
+        @remove="$emit('remove', item.id)"
+        @move="(location, containerId) => $emit('move', item, location, containerId)"
+      />
+    </div>
   </div>
 </template>
 
@@ -112,8 +131,9 @@
 import { computed } from "vue";
 import { IconAdd, IconArrowUp, IconDelete, IconDocument, IconDrag, IconMinus, IconScissors, IconShop } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import ItemRowMenu, { type MoveTarget } from "./ItemRowMenu.vue";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
-import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { InventoryLocation, PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 
 const props = defineProps<{
@@ -134,6 +154,7 @@ defineEmits<{
   'open-detail': [item: PartyInventoryItem];
   'sell-item': [item: PartyInventoryItem];
   'split-stack': [item: PartyInventoryItem];
+  'move': [item: PartyInventoryItem, location: InventoryLocation | 'stash', containerId: string | null];
 }>();
 
 function fmtW(v: number): string {
@@ -143,6 +164,27 @@ function fmtW(v: number): string {
 
 const unitWeight = computed(() => props.weightPerUnit ?? 0);
 const totalWeight = computed(() => unitWeight.value * props.item.quantity);
+
+/** Where this row can go: every place but the one it is already in, and never into itself. */
+const moveTargets = computed((): MoveTarget[] => {
+  const { location, container_id, carried_by, id } = props.item;
+  const inStash = carried_by === null;
+  const targets: MoveTarget[] = [
+    { key: "backpack", label: "Backpack", location: "backpack", containerId: null },
+    { key: "belt", label: "Belt", location: "belt", containerId: null },
+    ...props.allContainers
+      .filter((c) => c.id !== id)
+      .map((c): MoveTarget => ({ key: c.id, label: c.name, location: "container", containerId: c.id })),
+    { key: "stored", label: "Stored elsewhere", location: "stored", containerId: null },
+    { key: "stash", label: "Party stash", location: "stash", containerId: null },
+  ];
+  return targets.filter((t) => {
+    if (t.location === "stash") return !inStash;
+    if (inStash) return true;
+    if (t.location === "container") return !(location === "container" && container_id === t.containerId);
+    return t.location !== location;
+  });
+});
 
 function carrierName(id: string) {
   return props.partyMembers?.find(m => m.id === id)?.name ?? null;

@@ -8,6 +8,7 @@ import {
 } from "@/lib/library/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { ItemInsert, ItemType, ItemRarity, WeaponProperty, WeaponMasteryProperty } from "@/types/item.types";
+import { baseGearWeight } from "@/lib/library/baseGearWeights";
 import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types";
 
 interface Open5eV2Weapon {
@@ -192,7 +193,7 @@ export function mapOpen5eV2Weapon(
     rarity: "mundane",
     requires_attunement: false,
     attunement_requirements: null,
-    weight: null,
+    weight: baseGearWeight(record.name),
     cost: null,
     damage_rolls: record.damage_dice && record.damage_type
       ? [{ dice: record.damage_dice, type: record.damage_type.name.toLowerCase() }]
@@ -220,7 +221,7 @@ export function mapOpen5eV2Armor(
     rarity: "mundane",
     requires_attunement: false,
     attunement_requirements: null,
-    weight: null,
+    weight: baseGearWeight(record.name),
     cost: null,
     damage_rolls: null,
     armor_class: record.ac_display || null,

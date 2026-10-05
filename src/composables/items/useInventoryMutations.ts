@@ -88,10 +88,6 @@ export function useInventoryMutations({
     return item?.tags.includes("container") ?? false;
   }
 
-  function isMagicVaultItem(item: Item | null): boolean {
-    return !!item && item.rarity !== "mundane";
-  }
-
   // ── Basic mutations ───────────────────────────────────────────────────────────
   async function adjustQty(item: PartyInventoryItem, delta: number) {
     await updateInventoryItem({
@@ -232,7 +228,9 @@ export function useInventoryMutations({
       is_equipped: false,
       notes: null,
       is_ruined: false,
-      is_identified: !isMagicVaultItem(vaultItem),
+      // A player adding their own item already knows what it is. Items the DM hands
+      // out still arrive unidentified.
+      is_identified: true,
     });
   }
 
@@ -281,7 +279,7 @@ export function useInventoryMutations({
             is_equipped: false,
             notes: null,
             is_ruined: false,
-            is_identified: !subVault || subVault.rarity === "mundane",
+            is_identified: true,
           };
         }),
       );
@@ -299,7 +297,8 @@ export function useInventoryMutations({
         is_equipped: false,
         notes: null,
         is_ruined: false,
-        is_identified: !isMagicVaultItem(vaultItem),
+        // Self-added: identified, see addToLocation.
+        is_identified: true,
       });
     }
   }

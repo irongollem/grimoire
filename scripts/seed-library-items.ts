@@ -44,6 +44,7 @@
  */
 
 import { fetchOpen5eItems } from "@/lib/library/open5eImport";
+import { withSlotTags } from "@/lib/library/slotTags";
 import { fetchAll, fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey, stableSrdId } from "@/lib/library/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { ItemInsert, StaticItemData } from "@/types/item.types";
@@ -112,7 +113,7 @@ function mapApiRows(items: readonly ItemInsert[]): { rows: SeededItem[]; skipped
   const supported = items.filter(isSupportedApiItem);
   const rows: SeededItem[] = supported.map((item) => {
     const { spell_ids: _spellIds, campaign_id: _campaignId, dm_notes: _dmNotes, ...rest } = item;
-    return { ...rest, id: stableSrdId(item.source_record_key) };
+    return { ...rest, tags: withSlotTags(item.tags, item.name, item.item_type), id: stableSrdId(item.source_record_key) };
   });
   return { rows, skipped: items.length - supported.length };
 }
@@ -141,6 +142,7 @@ function mapBundledRows(items: readonly StaticItemData[]): SeededItem[] {
     const { spell_ids: _spellIds, campaign_id: _campaignId, dm_notes: _dmNotes, ...rest } = item;
     return {
       ...rest,
+      tags: withSlotTags(item.tags, item.name, item.item_type),
       curse_description: null,
       is_arcane_focus: false,
       ruleset: item.ruleset ?? null,

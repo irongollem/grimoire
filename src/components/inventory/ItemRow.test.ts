@@ -65,4 +65,57 @@ describe("ItemRow", () => {
     expect(yes.find("[title='Has written contents']").exists()).toBe(true);
     expect(no.find("[title='Has written contents']").exists()).toBe(false);
   });
+
+  describe("overflow menu", () => {
+    const pack = makeItem({ id: "pack-1", name: "Rucksack", is_container: true, location: "backpack" });
+
+    async function openMenu(item: PartyInventoryItem, containers: PartyInventoryItem[] = [pack]) {
+      const wrapper = mount(ItemRow, {
+        props: { item, allContainers: containers },
+        attachTo: document.body,
+      });
+      await wrapper.find("[aria-haspopup='dialog']").trigger("click");
+      return wrapper;
+    }
+
+    function menuLabels(): string[] {
+      return Array.from(document.querySelectorAll("[role='dialog'] button")).map((b) => b.textContent?.trim() ?? "");
+    }
+
+    it("offers every place except the one the item is already in", async () => {
+      const wrapper = await openMenu(makeItem({ location: "backpack", carried_by: "m1" }));
+      const labels = menuLabels();
+      expect(labels).toContain("Belt");
+      expect(labels).toContain("Rucksack");
+      expect(labels).toContain("Party stash");
+      expect(labels).not.toContain("Backpack");
+      wrapper.unmount();
+    });
+
+    it("never offers to put a container inside itself", async () => {
+      const wrapper = await openMenu(pack);
+      expect(menuLabels()).not.toContain("Rucksack");
+      wrapper.unmount();
+    });
+
+    it("offers the stash items every place but the stash", async () => {
+      const wrapper = await openMenu(makeItem({ location: "backpack", carried_by: null }));
+      const labels = menuLabels();
+      expect(labels).toContain("Backpack");
+      expect(labels).not.toContain("Party stash");
+      wrapper.unmount();
+    });
+
+    it("emits move with the chosen place", async () => {
+      const item = makeItem({ location: "backpack", carried_by: "m1" });
+      const wrapper = await openMenu(item);
+      const belt = Array.from(document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")).find(
+        (b) => b.textContent?.trim() === "Belt",
+      );
+      belt?.click();
+      await wrapper.vm.$nextTick();
+      expect(wrapper.emitted("move")).toEqual([[item, "belt", null]]);
+      wrapper.unmount();
+    });
+  });
 });

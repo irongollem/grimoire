@@ -58,6 +58,8 @@ export function useInventorySlots({
       if (tags) {
         if (!vi) return false;
         const sub = vi.subtype?.toLowerCase() ?? "";
+        // The library tags worn wondrous items with the slot id itself (slotTags.ts).
+        if (vi.tags.includes(slot)) return true;
         return tags.some((t) => vi.tags.includes(t) || sub.includes(t));
       }
       return true;
@@ -71,7 +73,8 @@ export function useInventorySlots({
   }
 
   function openSlot(slot: InventorySlot) {
-    const equipped = slotItem(slot);
+    // "Other" holds any number of items, so it is never occupied: its row always offers to add one.
+    const equipped = slot === "other" ? null : slotItem(slot);
     if (equipped) selectedInv.value = equipped;
     else if (slotCanEquip(slot)) slotModal.value = slot;
   }
@@ -88,7 +91,7 @@ export function useInventorySlots({
   async function equipToSlot(item: PartyInventoryItem, slot: InventorySlot) {
     // Re-check occupancy right before writing — a realtime update could have
     // filled the slot since the modal opened, and two items must not share one.
-    if (slotItem(slot)) { slotModal.value = null; return; }
+    if (slot !== "other" && slotItem(slot)) { slotModal.value = null; return; }
     if (item.quantity > 1) {
       // Split one off the stack. Two writes, so guard atomicity: if inserting the
       // equipped copy fails, restore the decremented quantity (best-effort rollback)
