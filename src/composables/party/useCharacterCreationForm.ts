@@ -13,6 +13,7 @@ import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composable
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { subclassChoiceDue } from "@/levelup/subclassChoice";
+import { subclassGrantedSpellIds } from "@/levelup/subclassGrantedSpells";
 import { useBackgrounds } from "@/composables/rules/useBackgrounds";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCharacterCreationEdition } from "@/composables/party/useCharacterCreationEdition";
@@ -32,7 +33,7 @@ import {
   saveKeysFromNames,
 } from "@/rules/characterCreation";
 import {
-  useCharacterEquipmentSeeding, buildStartingEquipmentPlan, replayStartingEquipment,
+  useCharacterEquipmentSeeding, buildStartingEquipmentPlan, replayStartingGrants,
 } from "@/composables/party/useCharacterEquipmentSeeding";
 import { useCharacterBackgroundSelection } from "@/composables/party/useCharacterBackgroundSelection";
 
@@ -667,11 +668,21 @@ export function useCharacterCreationForm() {
           importClass: importClassEquipment.value,
           backgroundText: (allBackgrounds.value ?? []).find((b) => b.id === f.background_id)?.equipment ?? null,
           importBackground: importBackgroundEquipment.value,
+          // What a level-up to this level would grant for the chosen subclass
+          // (a 2014 Life Domain cleric's Bless and Cure Wounds), written once the
+          // character is linked to a table. A DM's roster character is never
+          // linked by this wizard, so it gets none here.
+          grantedSpellIds: chosenSubclass && !isDmCreate.value
+            ? subclassGrantedSpellIds(
+              (campaignSubclasses.value ?? []).find((sc) => sc.id === chosenSubclass.id)?.granted_spells,
+              STARTING_LEVEL,
+            )
+            : [],
         });
         const created = await create({
           ...basePayload,
           class_choices: startingEquipment
-            ? { ...basePayload.class_choices, starting_equipment: startingEquipment }
+            ? { ...basePayload.class_choices, starting_grants: startingEquipment }
             : basePayload.class_choices,
           ruleset,
           ...resolveCharacterPlacement({
@@ -749,7 +760,7 @@ export function useCharacterCreationForm() {
           // is attached (above, inside attachCharacter), or later, whenever it
           // first joins a table; until then the loadout waits on the character.
           if (created.campaign_id) {
-            await replayStartingEquipment(created.id, created.campaign_id, queryClient);
+            await replayStartingGrants(created.id, created.campaign_id, queryClient);
           }
         } catch (seedErr) {
           await supabase.from("party_inventory").delete().eq("carried_by", created.id);

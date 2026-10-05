@@ -266,7 +266,7 @@ import { wasAnsweredUnder16 } from "@/lib/ageGateSession";
 import AppButton from "@/components/common/AppButton.vue";
 import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
 import { parseRulesetBounce, rulesetYear } from "@/composables/party/useCharacterRuleset";
-import { replayStartingEquipment } from "@/composables/party/useCharacterEquipmentSeeding";
+import { replayStartingGrants } from "@/composables/party/useCharacterEquipmentSeeding";
 import type { PartyMember } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import AppInput from "@/components/common/AppInput.vue";
@@ -404,7 +404,7 @@ async function finishJoin(result: JoinResult, partyMemberId?: string) {
   // is said out loud and the player carries on (the equipment waits for a retry).
   if (partyMemberId) {
     try {
-      await replayStartingEquipment(partyMemberId, campaignId, queryClient);
+      await replayStartingGrants(partyMemberId, campaignId, queryClient);
     } catch (err) {
       toast.error(toast.fromError(err, "You joined, but your starting equipment couldn't be added."));
     }

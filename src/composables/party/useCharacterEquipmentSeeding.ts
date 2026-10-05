@@ -6,6 +6,7 @@ import { parseEquipmentList, type CharacterFormState } from "@/rules/characterCr
 import type { BundleItemEntry } from "@/types/item.types";
 import type { PartyInventoryInsert, PartyInventoryItem } from "@/types/inventory.types";
 import { itemRefColumns } from "@/lib/itemRef";
+import { subclassGrantedSpellRows } from "@/levelup/subclassGrantedSpells";
 
 /** Vault item data needed for equipment seeding. */
 export interface VaultEntry { id: string; bundle_items: BundleItemEntry[] | null }
@@ -62,7 +63,7 @@ export function buildBackgroundEquipmentRows(equipmentText: string, carrierId: s
 
 /**
  * What the wizard's equipment choices amount to, in the shape the seeding needs
- * to replay them. It rides on `party_members.class_choices.starting_equipment`
+ * to replay them. It rides on `party_members.class_choices.starting_grants`
  * from creation until the character joins a campaign, because inventory rows
  * need a campaign (`party_inventory.campaign_id` is NOT NULL) and a character
  * resting in the pool has none. Replaying removes it, so it is granted once.
@@ -74,6 +75,12 @@ export interface StartingEquipmentPlan {
   class_choice: "a" | "b" | null;
   /** The background's items, already split into names. */
   background_items: string[];
+  /**
+   * Spells the chosen subclass grants at level 1 (always prepared). They wait
+   * with the equipment because character_spells rows are only writable once the
+   * character is linked to a campaign (its RLS keys on campaign_members).
+   */
+  granted_spell_ids: string[];
 }
 
 export function buildStartingEquipmentPlan(input: {
@@ -82,16 +89,18 @@ export function buildStartingEquipmentPlan(input: {
   importClass: boolean;
   backgroundText: string | null;
   importBackground: boolean;
+  grantedSpellIds: string[];
 }): StartingEquipmentPlan | null {
   const classPart = input.importClass && CLASS_EQUIPMENT[input.className] ? input.className : null;
   const backgroundItems = input.importBackground && input.backgroundText
     ? parseEquipmentList(input.backgroundText)
     : [];
-  if (!classPart && backgroundItems.length === 0) return null;
+  if (!classPart && backgroundItems.length === 0 && input.grantedSpellIds.length === 0) return null;
   return {
     class_name: classPart,
     class_choice: classPart ? input.classChoice : null,
     background_items: backgroundItems,
+    granted_spell_ids: input.grantedSpellIds,
   };
 }
 
@@ -104,8 +113,14 @@ export function parseStartingEquipmentPlan(value: unknown): StartingEquipmentPla
   const items = Array.isArray(v.background_items)
     ? v.background_items.filter((i): i is string => typeof i === "string")
     : [];
-  if (!className && items.length === 0) return null;
-  return { class_name: className, class_choice: className ? choice : null, background_items: items };
+  const spells = Array.isArray(v.granted_spell_ids)
+    ? v.granted_spell_ids.filter((i): i is string => typeof i === "string")
+    : [];
+  if (!className && items.length === 0 && spells.length === 0) return null;
+  return {
+    class_name: className, class_choice: className ? choice : null,
+    background_items: items, granted_spell_ids: spells,
+  };
 }
 
 // ── Writing the rows ─────────────────────────────────────────────────────────
@@ -209,6 +224,24 @@ async function writePlan(
     const vault = vaultMap.get(entry.name.toLowerCase());
     if (vault) await insertPack(entry, vault, characterId, campaignId, written);
   }
+  await writeGrantedSpells(plan.granted_spell_ids, characterId);
+}
+
+/** The subclass's level-1 spells, as the always-prepared class rows apply_level_up writes. */
+async function writeGrantedSpells(spellIds: string[], characterId: string): Promise<void> {
+  if (spellIds.length === 0) return;
+  const { data: primary, error: classError } = await supabase
+    .from("character_classes").select("id").eq("party_member_id", characterId).eq("is_primary", true).single();
+  if (classError) throw classError;
+  const { data: owned, error: ownedError } = await supabase
+    .from("character_spells").select("spell_id").eq("party_member_id", characterId);
+  if (ownedError) throw ownedError;
+  const rows = subclassGrantedSpellRows(spellIds, new Set((owned ?? []).map((r) => r.spell_id as string)));
+  if (rows.length === 0) return;
+  const { error } = await supabase.from("character_spells").insert(
+    rows.map((r) => ({ ...r, party_member_id: characterId, source_class_id: primary.id, source_type: "class" as const })),
+  );
+  if (error) throw error;
 }
 
 /**
@@ -224,7 +257,7 @@ async function writePlan(
  *
  * @returns whether anything was granted
  */
-export async function replayStartingEquipment(
+export async function replayStartingGrants(
   characterId: string,
   campaignId: string,
   queryClient: QueryClient,
@@ -236,15 +269,15 @@ export async function replayStartingEquipment(
     .single();
   if (readError) throw readError;
   const choices = (row.class_choices ?? {}) as Record<string, unknown>;
-  const plan = parseStartingEquipmentPlan(choices.starting_equipment);
+  const plan = parseStartingEquipmentPlan(choices.starting_grants);
   if (!plan) return false;
 
-  const { starting_equipment: marker, ...rest } = choices;
+  const { starting_grants: marker, ...rest } = choices;
   const { data: claimed, error: claimError } = await supabase
     .from("party_members")
     .update({ class_choices: rest })
     .eq("id", characterId)
-    .not("class_choices->starting_equipment", "is", null)
+    .not("class_choices->starting_grants", "is", null)
     .select("id");
   if (claimError) throw claimError;
   if (!claimed || claimed.length === 0) return false; // another caller took it
@@ -255,7 +288,7 @@ export async function replayStartingEquipment(
   } catch (writeError) {
     const { data: current } = await supabase
       .from("party_members").select("class_choices").eq("id", characterId).single();
-    const restored = { ...((current?.class_choices ?? {}) as Record<string, unknown>), starting_equipment: marker };
+    const restored = { ...((current?.class_choices ?? {}) as Record<string, unknown>), starting_grants: marker };
     await supabase.from("party_members").update({ class_choices: restored }).eq("id", characterId);
     // Rows that did land before the failure would be granted twice on the
     // retry, so exactly those go (sub-items first: they point at their pack).
@@ -273,7 +306,7 @@ export async function replayStartingEquipment(
  * Class starting-equipment state for the character creation wizard: which of
  * the class's two starting bundles to grant, and whether to import it (and the
  * background's) on creation. The loadout itself is written by
- * `replayStartingEquipment` once the character sits in a campaign.
+ * `replayStartingGrants` once the character sits in a campaign.
  */
 export function useCharacterEquipmentSeeding(f: CharacterFormState) {
   // Whether to import the chosen background's equipment text into inventory

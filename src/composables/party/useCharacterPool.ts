@@ -2,7 +2,7 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
-import { replayStartingEquipment } from "@/composables/party/useCharacterEquipmentSeeding";
+import { replayStartingGrants } from "@/composables/party/useCharacterEquipmentSeeding";
 import type { PartyMember } from "@/types/party.types";
 
 // #730: the player's durable character pool — every character they own,
@@ -87,7 +87,7 @@ export function useAttachCharacter() {
       // leaves the character attached (its marker is put back, so the next
       // attach retries), and the caches are refreshed so the lists say so.
       try {
-        await replayStartingEquipment(input.partyMemberId, input.campaignId, queryClient);
+        await replayStartingGrants(input.partyMemberId, input.campaignId, queryClient);
       } catch (equipmentError) {
         invalidateCharacterCaches(queryClient);
         void auth.refreshMembership(input.campaignId);

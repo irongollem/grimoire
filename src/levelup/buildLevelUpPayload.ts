@@ -13,6 +13,7 @@ import type {
   LevelChoiceASI,
   LevelChoices,
 } from "@/types/party.types";
+import { subclassGrantedSpellRows } from "./subclassGrantedSpells";
 import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef } from "./types";
 
 /** One character_spells row to insert (matches apply_level_up's p_spell_rows). */
@@ -292,10 +293,7 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
   for (const spell_id of selectedSpellIds) spellRows.push({ spell_id, is_prepared: false });
   for (const spell_id of selectedCantripIds) spellRows.push({ spell_id, is_prepared: false });
   // Subclass-granted spells — always prepared, excluded from the prepared limit.
-  for (const spell_id of grantedSpellsForThisLevel) {
-    if (existingSpellIds.has(spell_id)) continue;
-    spellRows.push({ spell_id, is_prepared: true, always_prepared: true });
-  }
+  spellRows.push(...subclassGrantedSpellRows(grantedSpellsForThisLevel, existingSpellIds));
   // Auto-granted spells from Eldritch Invocations just picked.
   for (const step of classSteps) {
     if (step.key !== "eldritch_invocations") continue;

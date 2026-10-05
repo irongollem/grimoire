@@ -108,21 +108,31 @@ describe("buildStartingEquipmentPlan", () => {
   it("keeps the class bundle choice and the background's item names", () => {
     expect(buildStartingEquipmentPlan({
       className: "Cleric", classChoice: "b", importClass: true,
-      backgroundText: "A holy symbol, a prayer book", importBackground: true,
-    })).toEqual({ class_name: "Cleric", class_choice: "b", background_items: ["A holy symbol", "a prayer book"] });
+      backgroundText: "A holy symbol, a prayer book", importBackground: true, grantedSpellIds: ["srd_bless"],
+    })).toEqual({
+      class_name: "Cleric", class_choice: "b", background_items: ["A holy symbol", "a prayer book"],
+      granted_spell_ids: ["srd_bless"],
+    });
   });
 
   it("leaves out what the player unticked, and is null when nothing is left", () => {
     expect(buildStartingEquipmentPlan({
       className: "Cleric", classChoice: "a", importClass: false,
-      backgroundText: "A holy symbol", importBackground: false,
+      backgroundText: "A holy symbol", importBackground: false, grantedSpellIds: [],
     })).toBeNull();
+  });
+
+  it("keeps a plan that only carries subclass spells", () => {
+    expect(buildStartingEquipmentPlan({
+      className: "Cleric", classChoice: "a", importClass: false,
+      backgroundText: null, importBackground: false, grantedSpellIds: ["srd_bless"],
+    })?.granted_spell_ids).toEqual(["srd_bless"]);
   });
 });
 
 describe("parseStartingEquipmentPlan", () => {
   it("round-trips what the wizard wrote", () => {
-    const plan = { class_name: "Rogue", class_choice: "a" as const, background_items: ["A lockpick"] };
+    const plan = { class_name: "Rogue", class_choice: "a" as const, background_items: ["A lockpick"], granted_spell_ids: [] };
     expect(parseStartingEquipmentPlan(plan)).toEqual(plan);
   });
 

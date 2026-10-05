@@ -41,13 +41,14 @@
     </div>
 
     <!-- Subclass: asked now when this class chooses at level 1, otherwise says when -->
-    <LevelUpSubclassPicker
-      v-if="f.class && subclassDueAtStart"
-      v-model="f.subclass"
-      v-model:selected-id="subclassId"
-      :next-level="1"
-      :class-name="f.class"
-      :subclass-options="subclassOptions" />
+    <div v-if="f.class && subclassDueAtStart" ref="subclassPicker">
+      <LevelUpSubclassPicker
+        v-model="f.subclass"
+        v-model:selected-id="subclassId"
+        :next-level="1"
+        :class-name="f.class"
+        :subclass-options="subclassOptions" />
+    </div>
     <p v-else-if="f.class && subclassLevel" class="text-body text-muted-foreground">
       You choose your subclass at level {{ subclassLevel }}.
     </p>
@@ -199,7 +200,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
+import { revealInScrollParent } from "@/lib/motion";
 import { SAVE_STATS, PROF_LEVELS } from "@/rules/characterCreation";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
@@ -220,6 +222,15 @@ const {
 } = form;
 
 const showProfs = ref(false);
+
+// The class grid is long, so on a phone the subclass question appears below the
+// fold the moment a class that needs one is picked; bring it into view.
+const subclassPicker = ref<HTMLElement | null>(null);
+watch(() => f.class, async (name) => {
+  if (!name || !subclassDueAtStart.value) return;
+  await nextTick();
+  if (subclassPicker.value) revealInScrollParent(subclassPicker.value);
+});
 
 // ── Skill budget ────────────────────────────────────────────────────────────
 
