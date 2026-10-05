@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-6">
-    <!-- Top: portrait left + stat block right -->
-    <div class="grid grid-cols-1 lg:grid-cols-[12.5rem_1fr] gap-6">
+    <!-- Top: portrait | stat block | lore -->
+    <div class="grid grid-cols-1 lg:grid-cols-[12.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-6">
       <!-- Left: portrait.
            `max-h-112` is a fixed cap rather than the `75vh` it replaces.
            The viewport measurement only ever bound below `lg`, where the
@@ -41,58 +41,54 @@
         </p>
       </div>
 
-      <!-- Right: stat block + two-column traits.
+      <!-- Stat block, and beside it what the creature is.
            No identity line here. Both hosts — the detail modal and the admin
            art preview — put it in their header, where it stays put instead of
            scrolling away from you halfway down a legendary action. `monsterIdentityLine`
            composes it so the two cannot word it differently. -->
-      <div class="flex flex-col gap-4">
-        <!-- Two-column: stat block left, actions right -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-          <!-- Left: stat block panel -->
-          <StatBlockPanel :sb="monster.stat_block" :name="monster.name" />
+      <StatBlockPanel :sb="monster.stat_block" :name="monster.name" class="self-start" />
 
-          <!-- Right: special abilities + actions -->
-          <div class="flex flex-col gap-3">
-            <TraitList
-              title="Special Abilities"
-              :traits="monster.stat_block.special_abilities"
-            />
-            <SpellcastingList :spellcasting="(monster.stat_block as MonsterStatBlock).spellcasting" />
-            <TraitList title="Actions" :traits="monster.stat_block.actions" />
-            <TraitList
-              title="Bonus Actions"
-              :traits="(monster.stat_block as MonsterStatBlock).bonus_actions"
-            />
-            <TraitList
-              title="Reactions"
-              :traits="(monster.stat_block as MonsterStatBlock).reactions"
-            />
-            <TraitList
-              title="Legendary Actions"
-              :traits="monster.stat_block.legendary_actions"
-            />
-            <TraitList
-              title="Lair Actions"
-              :traits="(monster.stat_block as MonsterStatBlock).lair_actions"
-            />
-          </div>
+      <!-- Lore sits beside the numbers, not under every action: it is the
+           first thing a DM reads about a creature, and in a column it keeps a
+           readable measure where full width would run past 100 characters.
+           No "Description" label; prose beside a stat block needs none.
+           Only the portrait column stretches to the row, so the picture ends
+           where the stat block does; the two text columns keep their height. -->
+      <div class="flex flex-col gap-4 self-start">
+        <RichTextViewer v-if="description" :content="description" class="lore" />
+        <div v-if="monster.notes" class="flex flex-col gap-1">
+          <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
+            DM Notes
+          </h3>
+          <RichTextViewer :content="monster.notes" />
         </div>
+        <p v-if="!description && !monster.notes" class="text-body italic text-muted-foreground">
+          No lore recorded for this monster.
+        </p>
       </div>
     </div>
 
-    <!-- Description / Notes (below) -->
-    <div v-if="description" class="flex flex-col gap-1">
-      <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
-        Description
-      </h3>
-      <RichTextViewer :content="description" />
-    </div>
-    <div v-if="monster.notes" class="flex flex-col gap-1">
-      <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
-        DM Notes
-      </h3>
-      <RichTextViewer :content="monster.notes" />
+    <!-- What it does, each kind of move in its own box. CSS columns pack the
+         boxes so a vampire's six traits do not leave a hole beside two
+         reactions; `break-inside-avoid` on each box keeps it whole, and the
+         columns fill top to bottom, so reading order stays the book's. -->
+    <div class="columns-1 lg:columns-2 gap-4 *:mb-4 -mb-4">
+      <TraitList title="Special Abilities" :traits="monster.stat_block.special_abilities" />
+      <SpellcastingList :spellcasting="(monster.stat_block as MonsterStatBlock).spellcasting" />
+      <TraitList title="Actions" :traits="monster.stat_block.actions" />
+      <TraitList
+        title="Bonus Actions"
+        :traits="(monster.stat_block as MonsterStatBlock).bonus_actions"
+      />
+      <TraitList
+        title="Reactions"
+        :traits="(monster.stat_block as MonsterStatBlock).reactions"
+      />
+      <TraitList title="Legendary Actions" :traits="monster.stat_block.legendary_actions" />
+      <TraitList
+        title="Lair Actions"
+        :traits="(monster.stat_block as MonsterStatBlock).lair_actions"
+      />
     </div>
 
     <!-- Featured in encounters -->

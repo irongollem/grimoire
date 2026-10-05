@@ -1,43 +1,50 @@
 <template>
-  <div v-if="spellcasting?.entries?.length && spellsByLevel.size" class="flex flex-col gap-2 font-stat">
-    <h3 class="text-xl font-normal text-primary border-b border-primary/30 pb-1">
+  <!-- Boxed like `TraitList`, its neighbour in every stat block, and in the
+       same reading face: spell names are words in a stat block, not data. -->
+  <section
+    v-if="spellcasting?.entries?.length && spellsByLevel.size"
+    class="rounded-lg border border-primary/30 bg-card overflow-hidden break-inside-avoid"
+  >
+    <h3 class="border-b border-primary/20 bg-primary/5 px-4 py-1.5 text-heading-sm text-primary">
       Spellcasting
     </h3>
-    <p v-if="castingInfo" class="text-sm text-muted-foreground">{{ castingInfo }}</p>
+    <div class="flex flex-col gap-1 px-4 py-2.5">
+      <p v-if="castingInfo" class="text-body text-muted-foreground">{{ castingInfo }}</p>
 
-    <!-- One collapsible <details> per spell level -->
-    <details
-      v-for="[level, items] in spellsByLevel"
-      :key="level"
-      open
-      class="group"
-    >
-      <summary class="flex items-center gap-1 cursor-pointer list-none text-base text-primary font-semibold select-none py-0.5">
-        <IconChevronRight class="h-3.5 w-3.5 transition-transform group-open:rotate-90 shrink-0" />
-        {{ levelGroupLabel(level) }}
-        <span class="ml-1 font-normal text-muted-foreground text-sm">({{ items.length }})</span>
-      </summary>
+      <!-- One collapsible <details> per spell level -->
+      <details
+        v-for="[level, items] in spellsByLevel"
+        :key="level"
+        open
+        class="group"
+      >
+        <summary class="flex items-center gap-1 cursor-pointer list-none text-body font-bold text-primary select-none py-0.5">
+          <IconChevronRight class="h-3.5 w-3.5 transition-transform group-open:rotate-90 shrink-0" />
+          {{ levelGroupLabel(level) }}
+          <span class="ml-1 font-normal text-muted-foreground">({{ items.length }})</span>
+        </summary>
 
-      <div class="flex flex-col gap-0.5 pl-4 pt-1">
-        <div
-          v-for="item in items"
-          :key="item.spellId"
-          class="flex items-baseline gap-2"
-        >
-          <button
-            v-if="item.spell"
-            type="button"
-            class="font-stat text-sm text-primary hover:underline text-left"
-            @click="openModal(item.spell!)"
+        <div class="flex flex-col gap-0.5 pl-4 pt-1">
+          <div
+            v-for="item in items"
+            :key="item.spellId"
+            class="flex items-baseline gap-2"
           >
-            {{ item.spell.name }}
-          </button>
-          <span v-else class="font-stat text-sm text-muted-foreground italic">Unknown Spell</span>
-          <span v-if="item.frequency" class="text-caption text-muted-foreground italic shrink-0">{{ item.frequency }}</span>
+            <button
+              v-if="item.spell"
+              type="button"
+              class="text-body text-primary hover:underline text-left"
+              @click="openModal(item.spell!)"
+            >
+              {{ item.spell.name }}
+            </button>
+            <span v-else class="text-body text-muted-foreground italic">Unknown Spell</span>
+            <span v-if="item.frequency" class="text-caption text-muted-foreground italic shrink-0">{{ item.frequency }}</span>
+          </div>
         </div>
-      </div>
-    </details>
-  </div>
+      </details>
+    </div>
+  </section>
 
   <!-- Spell detail modal -->
   <AppModal

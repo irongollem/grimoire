@@ -4,7 +4,7 @@ import { computed, ref } from "vue";
 import MonsterSheet from "./MonsterSheet.vue";
 import type { Monster } from "@/types/monster.types";
 
-/** The Description section only: where a library creature's lore comes from. */
+/** The lore beside the stat block only: where a library creature's description comes from. */
 
 const LORE = "A shaggy black bear that forages at the forest edge.";
 const descriptionIds: Array<string | null> = [];
@@ -47,8 +47,7 @@ describe("MonsterSheet description", () => {
   it("shows a library creature's lore from its own read, not from the row", () => {
     const wrapper = mount(MonsterSheet, { props: { monster: monster({ is_shared: true }) }, global: { stubs } });
     expect(descriptionIds).toContain("srd_bear_black_bf");
-    expect(wrapper.text()).toContain("Description");
-    expect(wrapper.find(".rt").text()).toBe(LORE);
+    expect(wrapper.find(".rt.lore").text()).toBe(LORE);
   });
 
   it("shows a DM's own monster's description from the row and asks for no lore", () => {

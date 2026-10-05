@@ -554,14 +554,16 @@
 
 /* ── Drop-cap initial ─────────────────────────────────────────────────────
    Opt-in with `.initial` on the first paragraph of long-form text, or
-   `.longform` on the box around a RichTextViewer (session logs, lore). */
+   `.longform` on the box around a RichTextViewer (session logs, lore), or
+   `.lore` on an unboxed one (a creature's description beside its stat block,
+   where longform's page padding would push it off the stat block's top). */
 :root[data-theme^="vellum"] .longform { padding: 1.75rem 2rem; }
 :root[data-theme^="vellum"] .longform .ProseMirror { font-size: 1.0625rem; line-height: 1.65; }
 /* Generated text wraps its paragraphs in a <div data-ai-generated>, so the
    first paragraph may sit one level down. flow-root keeps the initial inside
    it when it is a single short line. */
-:root[data-theme^="vellum"] :is(.longform .ProseMirror > p:first-child, .longform .ProseMirror > div:first-child > p:first-child) { display: flow-root; }
-:root[data-theme^="vellum"] :is(.initial, .longform .ProseMirror > p:first-child, .longform .ProseMirror > div:first-child > p:first-child)::first-letter {
+:root[data-theme^="vellum"] :is(.longform, .lore) :is(.ProseMirror > p:first-child, .ProseMirror > div:first-child > p:first-child) { display: flow-root; }
+:root[data-theme^="vellum"] :is(.initial, :is(.longform, .lore) :is(.ProseMirror > p:first-child, .ProseMirror > div:first-child > p:first-child))::first-letter {
   font-family: "Cinzel", Georgia, serif;
   font-weight: 700;
   color: var(--destructive);
