@@ -61,6 +61,9 @@ export function deadlineError(url: string, ms: number): DOMException {
  * it is still waiting for headers or for the end of the body. A caller's own
  * abort signal still works and keeps its own reason.
  */
+/** Statuses the Fetch spec forbids a Response body for. */
+const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
+
 export function withRequestDeadline(
   baseFetch: typeof fetch,
   deadline: (url: string) => number | null = deadlineFor,
@@ -88,7 +91,11 @@ export function withRequestDeadline(
       settle();
       throw error;
     }
-    if (response.body === null) {
+    // A browser hands a 204 a body stream, empty but not null, and a Response
+    // with a null-body status may not be given one: rebuilding it threw on
+    // every delete, minimal-return update and void RPC. There is no body to
+    // time, so it passes through as it came.
+    if (response.body === null || NULL_BODY_STATUSES.has(response.status)) {
       settle();
       return response;
     }

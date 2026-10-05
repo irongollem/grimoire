@@ -47,6 +47,16 @@ describe("withRequestDeadline", () => {
     await outcome;
   });
 
+  // Node gives a 204 a null body, so this models what Chromium and WebKit do:
+  // an empty stream that may not be passed to a 204 Response's constructor.
+  it("passes a no-content answer through untouched, as a browser delivers it", async () => {
+    const noContent = { status: 204, statusText: "No Content", headers: new Headers(), body: new ReadableStream() } as Response;
+    const fetcher = withRequestDeadline(vi.fn(() => Promise.resolve(noContent)));
+
+    await expect(fetcher(`${API}/rest/v1/npcs?id=eq.1`, { method: "DELETE" })).resolves.toBe(noContent);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("passes an answer through, status and body intact, and clears the timer", async () => {
     const base = vi.fn(() =>
       Promise.resolve(new Response("[1]", { status: 206, statusText: "Partial", headers: { "x-a": "b" } })),
