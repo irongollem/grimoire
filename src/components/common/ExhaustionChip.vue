@@ -16,16 +16,17 @@
         v-for="i in MAX_EXHAUSTION"
         :key="i"
         type="button"
-        class="h-2.5 w-2.5 rounded-full border transition-colors focus:outline-none"
-        :class="pipClass(i)"
+        class="group flex items-center justify-center focus:outline-none max-md:-my-3 max-md:h-11 max-md:w-8"
         :aria-label="`Set exhaustion level ${i}`"
         @click.stop="onPipClick(i)"
-      />
+      >
+        <span class="block h-2.5 w-2.5 rounded-full border transition-colors" :class="pipClass(i)" />
+      </button>
     </span>
 
     <button
       type="button"
-      class="ml-0.5 text-base leading-none opacity-70 hover:opacity-100 transition-opacity"
+      class="ml-0.5 text-base leading-none opacity-70 hover:opacity-100 transition-opacity max-md:-my-3 max-md:h-11 max-md:w-9"
       :class="variant === 'amber' ? 'text-ink-caution ' : 'text-destructive'"
       aria-label="Remove exhaustion"
       title="Remove exhaustion"

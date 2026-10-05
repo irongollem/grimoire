@@ -21,7 +21,7 @@
         :title="getConditionDescription(cond, ruleset)"
       >{{ cond }}</span>
       <button
-        class="flex items-center justify-center w-4 h-4 rounded-full text-destructive/50 hover:text-destructive hover:bg-destructive/20 transition-colors text-sm leading-none"
+        class="relative flex items-center justify-center w-4 h-4 rounded-full text-destructive/50 hover:text-destructive hover:bg-destructive/20 transition-colors text-sm leading-none before:absolute before:-inset-3.5 before:content-[''] md:before:hidden"
         title="Remove condition"
         @click="removeCondition(cond)"
       >×</button>
@@ -59,7 +59,7 @@
           <button
             v-for="i in 3"
             :key="`s-${i}`"
-            class="h-6 w-6 rounded-full border-2 transition-colors"
+            class="relative h-6 w-6 rounded-full border-2 transition-colors before:absolute before:-inset-2.5 before:content-[''] md:before:hidden"
             :class="i <= member.death_save_successes ? 'bg-elven-green border-elven-green' : 'border-border hover:border-elven-green/50'"
             @click="toggleDeathSave('success', i)"
           />
@@ -71,7 +71,7 @@
           <button
             v-for="i in 3"
             :key="`f-${i}`"
-            class="h-6 w-6 rounded-full border-2 transition-colors"
+            class="relative h-6 w-6 rounded-full border-2 transition-colors before:absolute before:-inset-2.5 before:content-[''] md:before:hidden"
             :class="i <= member.death_save_failures ? 'bg-destructive border-destructive' : 'border-border hover:border-destructive/50'"
             @click="toggleDeathSave('failure', i)"
           />
