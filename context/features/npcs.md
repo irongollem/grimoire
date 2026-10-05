@@ -249,7 +249,7 @@ That last point is why the `#identity` slot is **not** dimmed with the `#what` s
 
 When an NPC is shared with at least one player, a panel appears at the top of the edit form. The per-field checkboxes used to live here; they are now the reveal control's "what", next to the audience they apply to. What remains is prose, which does not belong in a popover:
 
-**Party Notes** (`PlayerNotesWidget`) — rich-text notes visible to the whole party.
+**Party Notes** (`PlayerNotesWidget`) — the same notes widget players have: the viewer's own private note and party note on this NPC, both saving as they type, plus what the party has written.
 
 **PC Connection Notes** (`NpcPcNotesSection`) — per-player notes with a relationship type tag (e.g. "Contact", "Mentor"). Each note is tied to one party member and visible only to them in their portal. Uses RichTextEditor with the PC selector and relationship type dropdown embedded in the toolbar.
 
@@ -506,7 +506,7 @@ Clicking a card opens a modal with:
 - Full-height portrait (if portrait field is visible)
 - Name, relationship badge, status badge, species, occupation (each gated by `player_visible_fields`)
 - **Your Connection** box — the DM's per-PC connection note for this player (`useMyNpcPcNote`), displayed read-only with `RichTextViewer`
-- **Player Notes** (`PlayerNotesWidget`) — personal notes the player can write about this NPC, stored per-player per-NPC in the `npc_player_notes` table (not shared with other players or the DM)
+- **Player Notes** (`PlayerNotesWidget`) — the player's own notes on this NPC, in `entity_notes` (`entity_type = 'npc'`) like every other entity's: one private note (optionally shared with the DM) and one party note visible to the campaign. Both save themselves as the player types (`useMyEntityNote`, on `useAutosave`); a blank note is never created, and Clear deletes it.
 - Relevance star rating (also in the lightbox header)
 
 ### NPCs in Other Player Portal Views
@@ -580,6 +580,6 @@ AC, HP (dice expression string), Speed (string), STR/DEX/CON/INT/WIS/CHA, Challe
 
 `npc_id`, `party_member_id`, `relationship_type`, `notes` (Tiptap JSON) — one row per (NPC, party member) pair.
 
-### npc_player_notes (separate table)
+### npc_player_notes (superseded, still present)
 
-`npc_id`, `user_id`, `notes` — player's personal observations, one row per (NPC, user account) pair. Not visible to DM or other players.
+`npc_id`, `user_id`, `notes`. The pre-`entity_notes` home of a player's NPC notes, missed by `20260730000006` when the companion and party-member equivalents were moved and dropped. Nothing in the app reads it any more (the widget uses `entity_notes`), so its rows are invisible. Production holds 8 rows, one non-blank (5 Oct 2026); moving that row into `entity_notes` and dropping the table waits on the maintainer's go-ahead, because the row belongs to a user account.

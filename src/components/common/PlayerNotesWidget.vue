@@ -7,40 +7,36 @@
         <div class="flex-1">
           <span class="text-label-lg font-semibold text-muted-foreground">My Private Notes</span>
           <span class="text-caption-sm text-muted-foreground/50 italic ml-2">
-            {{ sharedWithDm ? 'Shared with your DM' : 'Only you can see this' }}
+            {{ privateNote.draft.sharedWithDm ? 'Shared with your DM' : 'Only you can see this' }}
           </span>
         </div>
         <AppCheckbox
-          :model-value="sharedWithDm"
+          v-model="privateNote.draft.sharedWithDm"
           size="sm"
           label-role="label"
           label="Share with DM"
           class="gap-1.5 select-none shrink-0"
-          @update:model-value="toggleSharedWithDm"
         />
       </div>
-      <RichTextEditor v-model="privateContent" :placeholder="placeholder" size="sm" :sticky-toolbar="false">
+      <RichTextEditor :key="privateNote.revision.value" v-model="privateNote.draft.content" :placeholder="placeholder" size="sm" :sticky-toolbar="false">
         <template #toolbar-end>
           <div class="ml-auto flex items-center gap-2 pl-1">
             <div class="w-px h-5 bg-border" />
-            <span class="text-label text-muted-foreground/40">
-              {{ privateSaved ? '' : 'Unsaved' }}
-            </span>
+            <AutosaveStatus
+              v-if="privateNote.exists.value || privateNote.status.value !== 'saved'"
+              :status="privateNote.status.value"
+              :error="privateNote.saveError.value"
+              paused-label="Saves once you write something"
+            />
             <AppButton
-              v-if="myPrivateNote"
+              v-if="privateNote.exists.value"
               variant="ghost"
               tone="danger"
               fill="muted"
               size="toolbar"
               label="Clear"
-              @click="clearPrivate"
+              @click="privateNote.clear"
             />
-            <button
-              type="button"
-              :disabled="privateSaving || privateSaved"
-              class="px-2 h-6.5 text-label font-semibold rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
-              @click="savePrivate"
-            >{{ privateSaving ? '…' : 'Save' }}</button>
           </div>
         </template>
       </RichTextEditor>
@@ -55,28 +51,25 @@
           <span class="text-caption-sm text-muted-foreground/50 italic ml-2">Visible to everyone in the campaign</span>
         </div>
       </div>
-      <RichTextEditor v-model="sharedContent" :placeholder="placeholder" size="sm" :sticky-toolbar="false">
+      <RichTextEditor :key="partyNote.revision.value" v-model="partyNote.draft.content" :placeholder="placeholder" size="sm" :sticky-toolbar="false">
         <template #toolbar-end>
           <div class="ml-auto flex items-center gap-2 pl-1">
             <div class="w-px h-5 bg-border" />
-            <span class="text-label text-muted-foreground/40">
-              {{ sharedSaved ? '' : 'Unsaved' }}
-            </span>
+            <AutosaveStatus
+              v-if="partyNote.exists.value || partyNote.status.value !== 'saved'"
+              :status="partyNote.status.value"
+              :error="partyNote.saveError.value"
+              paused-label="Saves once you write something"
+            />
             <AppButton
-              v-if="mySharedNote"
+              v-if="partyNote.exists.value"
               variant="ghost"
               tone="danger"
               fill="muted"
               size="toolbar"
               label="Clear"
-              @click="clearShared"
+              @click="partyNote.clear"
             />
-            <button
-              type="button"
-              :disabled="sharedSaving || sharedSaved"
-              class="px-2 h-6.5 text-label font-semibold rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
-              @click="saveShared"
-            >{{ sharedSaving ? '…' : 'Save' }}</button>
           </div>
         </template>
       </RichTextEditor>
@@ -129,18 +122,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { computed } from "vue";
 import { IconFaction, IconLock } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useMemberByUserId } from "@/composables/campaign/useCampaignMembers";
-import {
-  useEntityNotes,
-  useCreateEntityNote,
-  useUpdateEntityNote,
-  useDeleteEntityNote,
-} from "@/composables/notes/useEntityNotes";
+import { useEntityNotes } from "@/composables/notes/useEntityNotes";
+import { useMyEntityNote } from "@/composables/notes/useMyEntityNote";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
@@ -158,17 +148,12 @@ const { displayNameFor: authorName } = useMemberByUserId();
 // Pass getters (not the destructured values) so the query key stays reactive when
 // the parent swaps entityType/entityId in place (e.g. PlayerLocationDialog).
 const { data: notes } = useEntityNotes(() => entityType, () => entityId);
-const createMut = useCreateEntityNote();
-const updateMut = useUpdateEntityNote();
-const deleteMut = useDeleteEntityNote();
 
-// Split notes into my-private, my-shared, others'-shared, dm-visible
-const myPrivateNote = computed(() =>
-  notes.value?.find((n) => n.user_id === myUserId.value && n.is_private) ?? null,
-);
-const mySharedNote = computed(() =>
-  notes.value?.find((n) => n.user_id === myUserId.value && !n.is_private) ?? null,
-);
+// Both of the viewer's own notes save themselves as they type.
+const noteSource = { entityType: () => entityType, entityId: () => entityId, notes, userId: myUserId };
+const privateNote = useMyEntityNote({ ...noteSource, isPrivate: true });
+const partyNote = useMyEntityNote({ ...noteSource, isPrivate: false });
+
 const othersNotes = computed(() =>
   (notes.value ?? []).filter((n) => n.user_id !== myUserId.value && !n.is_private),
 );
@@ -176,108 +161,4 @@ const othersNotes = computed(() =>
 const dmSharedNotes = computed(() =>
   (notes.value ?? []).filter((n) => n.user_id !== myUserId.value && n.shared_with_dm),
 );
-
-// ── Private note state ─────────────────────────────────────────────────────────
-const privateContent  = ref<string | null>(null);
-const privateSaving   = ref(false);
-const privateSaved    = ref(true);
-const sharedWithDm    = ref(false);
-
-watch(myPrivateNote, (note) => {
-  if (note) {
-    privateContent.value = note.content;
-    sharedWithDm.value   = note.shared_with_dm;
-  }
-}, { immediate: true });
-watch(privateContent, () => { privateSaved.value = false; });
-
-function toggleSharedWithDm(checked: boolean) {
-  sharedWithDm.value = checked;
-  privateSaved.value = false;
-}
-
-async function savePrivate() {
-  privateSaving.value = true;
-  try {
-    if (myPrivateNote.value) {
-      await updateMut.mutateAsync({
-        id: myPrivateNote.value.id,
-        content: privateContent.value ?? "",
-        is_private: true,
-        shared_with_dm: sharedWithDm.value,
-        entity_type: entityType,
-        entity_id: entityId,
-      });
-    } else {
-      await createMut.mutateAsync({
-        entity_type: entityType,
-        entity_id: entityId,
-        content: privateContent.value ?? "",
-        is_private: true,
-        shared_with_dm: sharedWithDm.value,
-      });
-    }
-    privateSaved.value = true;
-  } finally {
-    privateSaving.value = false;
-  }
-}
-
-async function clearPrivate() {
-  if (!myPrivateNote.value) return;
-  await deleteMut.mutateAsync({
-    id: myPrivateNote.value.id,
-    entity_type: entityType,
-    entity_id: entityId,
-  });
-  privateContent.value = null;
-  sharedWithDm.value   = false;
-  privateSaved.value   = true;
-}
-
-// ── Shared note state ──────────────────────────────────────────────────────────
-const sharedContent = ref<string | null>(null);
-const sharedSaving  = ref(false);
-const sharedSaved   = ref(true);
-
-watch(mySharedNote, (note) => {
-  if (note) sharedContent.value = note.content;
-}, { immediate: true });
-watch(sharedContent, () => { sharedSaved.value = false; });
-
-async function saveShared() {
-  sharedSaving.value = true;
-  try {
-    if (mySharedNote.value) {
-      await updateMut.mutateAsync({
-        id: mySharedNote.value.id,
-        content: sharedContent.value ?? "",
-        is_private: false,
-        entity_type: entityType,
-        entity_id: entityId,
-      });
-    } else {
-      await createMut.mutateAsync({
-        entity_type: entityType,
-        entity_id: entityId,
-        content: sharedContent.value ?? "",
-        is_private: false,
-      });
-    }
-    sharedSaved.value = true;
-  } finally {
-    sharedSaving.value = false;
-  }
-}
-
-async function clearShared() {
-  if (!mySharedNote.value) return;
-  await deleteMut.mutateAsync({
-    id: mySharedNote.value.id,
-    entity_type: entityType,
-    entity_id: entityId,
-  });
-  sharedContent.value = null;
-  sharedSaved.value   = true;
-}
 </script>
