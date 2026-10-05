@@ -94,6 +94,7 @@ describe("PartyTrackerRow wild-shaped portrait", () => {
     monsters.byId.clear();
   });
 
+  /** Creates a Dire Wolf form fixture with a saved portrait URL, or null to test missing art. */
   function shaped(beast_image_url: string | null): PartyMember {
     return {
       ...member("2014", "sp-2014"),
