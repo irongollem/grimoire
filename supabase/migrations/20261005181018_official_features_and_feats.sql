@@ -487,39 +487,13 @@ update public.custom_classes set features = pg_temp.remap_feature_map(features)
 update public.custom_subclasses set features = pg_temp.remap_feature_map(features)
  where id not in (select old_id from remap);
 
--- Characters on a duplicate or legacy subclass. The subclass trigger checks the
--- new row against the character's edition, which a twin was chosen to match.
-create temp table moved_member on commit drop as
-select distinct cc.party_member_id
-  from public.character_classes cc
- where cc.subclass_definition_id in (select old_id from remap);
-
--- The name moves with the definition: the trigger requires the two to match,
--- and a twin's name may differ in case.
-update public.character_classes cc
-   set subclass_definition_id = r.new_id,
-       subclass_name = s.subclass_name
-  from remap r
-  join public.custom_subclasses s on s.id = r.new_id
- where cc.subclass_definition_id = r.old_id;
-
--- A character's own choices name features by id too: feats in
--- `class_choices.feats` / `origin_feat_id`, picks a homebrew step stored, and
--- the record of each level. Rewritten through the same map, so deleting a
--- duplicate below leaves no character pointing at nothing.
-do $$
-declare r record;
-begin
-  for r in select old_id, new_id from remap loop
-    update public.party_members
-       set class_choices = replace(class_choices::text, r.old_id::text, r.new_id::text)::jsonb,
-           level_choices = replace(level_choices::text, r.old_id::text, r.new_id::text)::jsonb
-     where class_choices::text like '%' || r.old_id::text || '%'
-        or level_choices::text like '%' || r.old_id::text || '%';
-  end loop;
-end $$;
-
--- Now nothing points at a duplicate, adopt the keepers.
+-- Adopt the keepers before any character moves onto one. The subclass and
+-- class triggers admit a definition the character's own account or campaign
+-- owns, or an official one, and a migration has no `auth.uid()`: a character
+-- of another account moved onto a keeper the importing account still owned was
+-- refused ("Subclass definition is unavailable"), which failed the first
+-- release of this migration on the demo template's copies and on a second
+-- account's legacy Draconic Bloodline.
 --
 -- `provenance.imported` records what the import last wrote into each field it
 -- owns. The admin import refreshes a field only while it still holds that
@@ -553,6 +527,38 @@ update public.custom_classes c
        campaign_id = null,
        source = pg_temp.source_slug(c.source_document_key)
  where c.id in (select id from official_class);
+
+-- Characters on a duplicate or legacy subclass. The subclass trigger checks the
+-- new row against the character's edition, which a twin was chosen to match.
+create temp table moved_member on commit drop as
+select distinct cc.party_member_id
+  from public.character_classes cc
+ where cc.subclass_definition_id in (select old_id from remap);
+
+-- The name moves with the definition: the trigger requires the two to match,
+-- and a twin's name may differ in case.
+update public.character_classes cc
+   set subclass_definition_id = r.new_id,
+       subclass_name = s.subclass_name
+  from remap r
+  join public.custom_subclasses s on s.id = r.new_id
+ where cc.subclass_definition_id = r.old_id;
+
+-- A character's own choices name features by id too: feats in
+-- `class_choices.feats` / `origin_feat_id`, picks a homebrew step stored, and
+-- the record of each level. Rewritten through the same map, so deleting a
+-- duplicate below leaves no character pointing at nothing.
+do $$
+declare r record;
+begin
+  for r in select old_id, new_id from remap loop
+    update public.party_members
+       set class_choices = replace(class_choices::text, r.old_id::text, r.new_id::text)::jsonb,
+           level_choices = replace(level_choices::text, r.old_id::text, r.new_id::text)::jsonb
+     where class_choices::text like '%' || r.old_id::text || '%'
+        or level_choices::text like '%' || r.old_id::text || '%';
+  end loop;
+end $$;
 
 -- ─── 4. The official classes are `system_classes` ────────────────────────────
 
