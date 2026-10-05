@@ -487,6 +487,12 @@ update public.custom_classes set features = pg_temp.remap_feature_map(features)
 update public.custom_subclasses set features = pg_temp.remap_feature_map(features)
  where id not in (select old_id from remap);
 
+-- An official feature was unique by name alone while the only official rows
+-- were the hand-seeded placeholders. Every class has its own "Spellcasting" and
+-- both editions an "Alert", so the index goes before any import is adopted:
+-- left until step 6, it failed the second release of this migration.
+drop index if exists public.class_features_system_name_unique;
+
 -- Adopt the keepers before any character moves onto one. The subclass and
 -- class triggers admit a definition the character's own account or campaign
 -- owns, or an official one, and a migration has no `auth.uid()`: a character
@@ -693,9 +699,9 @@ update public.class_features
 
 -- ─── 6. Identity of official rows ────────────────────────────────────────────
 
--- Names repeat across editions now that official rows exist for both, so an
--- official row is unique by its provenance, as every account's import already was.
-drop index if exists public.class_features_system_name_unique;
+-- Names repeat across classes and editions now that official rows exist for
+-- both, so an official row is unique by its provenance, as every account's
+-- import already was. (The old by-name index is dropped in step 3.)
 create unique index class_features_official_identity_unique
   on public.class_features (source_document_key, source_record_key, ruleset)
   where user_id is null and source_document_key is not null and source_record_key is not null;
