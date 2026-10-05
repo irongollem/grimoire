@@ -18,7 +18,9 @@ if (!key) {
   process.exit(1);
 }
 
-const stripe = new Stripe(key);
+const stripe = new Stripe(key, {
+  apiVersion: "2026-07-29.dahlia",
+});
 
 const MONTHLY_EUR = 1299; // €12.99
 const ANNUAL_EUR  = 9900; // €99.00
