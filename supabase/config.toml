@@ -24,6 +24,16 @@ project_id = "grimoire"
 enabled = true
 sql_paths = ["./seed*.sql"]
 
+# Local only: no log pipeline. `analytics` (Logflare) and the `vector` shipper
+# feeding it exist to back Studio's Logs pages, which nothing here uses, and
+# together they held ~1.15 GB of a 7.75 GB Docker VM, the largest share of the
+# stack. Request counts come from Kong (`docker logs supabase_kong_grimoire`),
+# any service's log from `docker logs supabase_<service>_grimoire`, and
+# production logs from the hosted project, none of which depend on this.
+# Delete these two lines and restart the stack to get Studio's Logs back.
+[analytics]
+enabled = false
+
 # ── Edge Functions ───────────────────────────────────────────────────────────
 
 # Public ICS feed consumed by players' calendar apps (Google / Apple / Outlook).
