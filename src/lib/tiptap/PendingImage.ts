@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { CommandProps } from "@tiptap/core";
 import { VueNodeViewRenderer } from "@tiptap/vue-3";
-import PendingImageCard from "@/components/tiptap/PendingImageCard.vue";
+import PendingImageNodeView from "@/components/tiptap/PendingImageNodeView.vue";
 
 export type PendingImageStatus = "pending" | "failed";
 
@@ -90,6 +90,6 @@ export const PendingImage = Node.create({
   },
 
   addNodeView() {
-    return VueNodeViewRenderer(PendingImageCard);
+    return VueNodeViewRenderer(PendingImageNodeView);
   },
 });

@@ -1,6 +1,6 @@
 <template>
   <div class="rte-content" @click="onContentClick">
-    <EditorContent v-if="editor" :editor="editor" />
+    <RenderedDoc />
 
     <!-- Image lightbox -->
     <Teleport to="body">
@@ -27,99 +27,48 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from "vue";
-import { useEditor, EditorContent } from "@tiptap/vue-3";
-import StarterKit from "@tiptap/starter-kit";
-import { Table } from "@tiptap/extension-table";
-import TableRow from "@tiptap/extension-table-row";
-import TableCell from "@tiptap/extension-table-cell";
-import TableHeader from "@tiptap/extension-table-header";
-import Image from "@tiptap/extension-image";
-import TextAlign from "@tiptap/extension-text-align";
-import { Columns } from "@/lib/tiptap/Columns";
-import Highlight from "@tiptap/extension-highlight";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
-import Typography from "@tiptap/extension-typography";
-import { CalendarEventRef } from "@/lib/tiptap/CalendarEventRef";
-import { createEntityMentionExtension } from "@/lib/tiptap/EntityMention";
-import { IllustrationSuggestion } from "@/lib/tiptap/IllustrationSuggestion";
-import { PendingImage } from "@/lib/tiptap/PendingImage";
-import { AiGenerated } from "@/lib/tiptap/AiGenerated";
-import { usePendingImageResolver } from "@/composables/usePendingImageResolver";
+import { onUnmounted, ref, shallowRef, watch } from "vue";
+import { parseStoredContent, renderStoredDoc } from "@/lib/tiptap/viewerRender";
+import { usePendingImageDocResolver } from "@/composables/usePendingImageResolver";
 
-// A stored mention carries no name (#932 story 3) — `EntityMentionChip`
-// resolves it itself via `useMentionName`, so this extension needs no
-// per-viewer wiring and can stay a module-scope singleton like every other
-// extension here. `RichTextViewer` alone has 57 call sites (some rendering
-// dozens of instances at once), so anything built per-instance here would
-// have subscribed every one of them to every entity kind's query regardless
-// of whether the document actually mentions one.
-const EntityMentionViewer = createEntityMentionExtension({});
+// Rendered straight from the stored JSON, with no Tiptap editor. This
+// component has ~64 call sites and nearly all of them only display rich text,
+// so building a read-only editor here made every such page download
+// ProseMirror and every extension. See `viewerRender.ts`. Mention, calendar
+// and illustration chips are the same Vue components the editor mounts as
+// node views; a mention carries no name (#932 story 3) and `EntityMentionChip`
+// resolves it itself, so nothing here needs per-viewer wiring.
 
 const props = defineProps<{ content: object | string | null }>();
 
-function parseContent(v: object | string | null) {
-  if (!v) return undefined;
-  if (typeof v === "string") {
-    try {
-      return JSON.parse(v);
-    } catch {
-      return v;
-    }
-  }
-  return v;
-}
-
-const editor = useEditor({
-  content: parseContent(props.content),
-  editable: false,
-  extensions: [
-    StarterKit.configure({
-      link: {
-        openOnClick: true,
-        HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" },
-      },
-    }),
-    Table,
-    TableRow,
-    TableHeader,
-    TableCell,
-    Image,
-    TextAlign.configure({ types: ["heading", "paragraph"] }),
-    Columns,
-    Highlight,
-    TaskList,
-    TaskItem.configure({ nested: true }),
-    Typography,
-    CalendarEventRef,
-    EntityMentionViewer,
-    IllustrationSuggestion,
-    PendingImage,
-    AiGenerated,
-  ],
-});
+const doc = shallowRef<unknown>(parseStoredContent(props.content));
+const RenderedDoc = () => renderStoredDoc(doc.value);
 
 // Chronicle-image anchors resolve here too, not only in the editor: a note
 // saved while its render job was still in flight keeps the anchor in its
 // persisted content, and the read-only view swaps it for the finished image
 // in-memory the moment the job settles (persistence stays edit-save's job —
 // ready job rows survive as the gallery, so nothing is lost by not writing).
-const pendingImageResolver = usePendingImageResolver(() => editor.value);
-watch(editor, (e) => { if (e) pendingImageResolver.scan(); }, { immediate: true });
+let unmounted = false;
+const pendingImageResolver = usePendingImageDocResolver(
+  () => (unmounted ? null : doc.value),
+  (next) => {
+    doc.value = next;
+  },
+);
 
 watch(
   () => props.content,
   (v) => {
-    const parsed = parseContent(v);
-    if (editor.value && parsed) {
-      editor.value.commands.setContent(parsed);
-      pendingImageResolver.scan();
-    }
+    doc.value = parseStoredContent(v);
+    pendingImageResolver.scan();
   },
+  { immediate: true },
 );
 
-onUnmounted(() => editor.value?.destroy());
+onUnmounted(() => {
+  unmounted = true;
+});
 
 // ── Image lightbox ────────────────────────────────────────────────────────────
 const lightboxSrc = ref<string | null>(null);
@@ -135,8 +84,21 @@ function onContentClick(e: MouseEvent) {
 <style scoped>
 @reference "@/assets/main.css";
 
+/* Tiptap injects these base rules when it creates an editor; with no editor
+   here they are restated, or whitespace and hard-wrapped words would render
+   differently from every page that does mount one. */
 .rte-content :deep(.ProseMirror) {
   @apply text-body text-foreground outline-none;
+  word-wrap: break-word;
+  white-space: break-spaces;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0;
+}
+.rte-content :deep(.ProseMirror [contenteditable="false"]) {
+  white-space: normal;
+}
+.rte-content :deep(.ProseMirror pre) {
+  white-space: pre-wrap;
 }
 .rte-content :deep(.ProseMirror p) {
   @apply mb-3 leading-relaxed last:mb-0;

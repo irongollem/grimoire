@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { Node as PmNode } from "@tiptap/pm/model";
 import { VueNodeViewRenderer } from "@tiptap/vue-3";
-import IllustrationSuggestionChip from "@/components/tiptap/IllustrationSuggestionChip.vue";
+import IllustrationSuggestionNodeView from "@/components/tiptap/IllustrationSuggestionNodeView.vue";
 
 /** The suggestion chip a DM clicked to generate from. The chip marks where the
  *  Chronicler meant the picture to go, so the image it starts takes the chip's
@@ -76,6 +76,6 @@ export const IllustrationSuggestion = Node.create<IllustrationSuggestionOptions>
   },
 
   addNodeView() {
-    return VueNodeViewRenderer(IllustrationSuggestionChip);
+    return VueNodeViewRenderer(IllustrationSuggestionNodeView);
   },
 });

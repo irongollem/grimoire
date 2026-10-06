@@ -244,3 +244,32 @@ export function toTiptapJson(text: string): string {
     content: blocks.length ? blocks : [{ type: "paragraph" }],
   });
 }
+
+// A pipe table: a row of cells followed by its |---| separator row.
+const MARKDOWN_TABLE = /^\|.+\|[ \t]*\n\|[-:| \t]+\|[ \t]*$/m;
+
+/**
+ * Stored rich text that is not Tiptap JSON, as a document the read-only viewer
+ * can render. Library content imported from Open5e (spell and item
+ * descriptions) is plain text with markdown in it; the old editor-based viewer
+ * parsed such a string as HTML, which collapsed its paragraphs and showed the
+ * `**bold**` markers raw (#999).
+ *
+ * Block markdown (headings, quotes, two or more list items, a pipe table) goes
+ * through `parseMarkdown`. Anything else is prose: blank lines separate
+ * paragraphs, single newlines are soft wraps, and only inline emphasis is
+ * converted. Prose is not handed to `parseMarkdown` because a PDF line break
+ * before "15. On a success" would turn into a numbered list. Text stays text:
+ * nothing here ever becomes markup.
+ */
+export function storedTextToDoc(text: string): { type: "doc"; content: TiptapNode[] } {
+  if (looksLikeMarkdown(text) || MARKDOWN_TABLE.test(text)) {
+    return { type: "doc", content: parseMarkdown(text) };
+  }
+  const content = text
+    .split(/\n[ \t]*\n+/)
+    .map((block) => block.replace(/[ \t]*\n[ \t]*/g, " ").trim())
+    .filter((block) => block !== "")
+    .map((block) => ({ type: "paragraph", content: inlineContent(block) }));
+  return { type: "doc", content };
+}
