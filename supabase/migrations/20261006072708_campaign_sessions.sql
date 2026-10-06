@@ -124,7 +124,7 @@ create trigger zz_same_campaign_refs
 -- The number lives on the session now; keeping it on the note too would be two
 -- answers to one question (no-legacy rule). match_campaign_notes is the only
 -- database reader; it reads the session's number instead.
-create or replace function public.match_campaign_notes(query_embedding vector, p_campaign_id uuid, p_owner_id uuid, p_embedding_model text, p_exclude_id uuid, p_categories text[], match_count integer)
+create or replace function public.match_campaign_notes(query_embedding extensions.vector, p_campaign_id uuid, p_owner_id uuid, p_embedding_model text, p_exclude_id uuid, p_categories text[], match_count integer)
  returns table(id uuid, title text, category text, session_num integer, distance double precision)
  language sql
  stable
