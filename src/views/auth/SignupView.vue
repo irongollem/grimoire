@@ -91,6 +91,8 @@
 
           <SignupConsent v-model="agreedToTerms" />
 
+          <CaptchaGate ref="captchaGate" />
+
           <AppButton
             type="submit"
             variant="primary"
@@ -114,7 +116,7 @@
 
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, useTemplateRef } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
@@ -124,12 +126,15 @@ import AppButton from "@/components/common/AppButton.vue";
 import SignupConsent from "@/components/auth/SignupConsent.vue";
 import AgeQuestionStep from "@/components/auth/AgeQuestionStep.vue";
 import ParentRequestForm from "@/components/auth/ParentRequestForm.vue";
+import CaptchaGate from "@/components/auth/CaptchaGate.vue";
+import { authErrorMessage, captchaSource } from "@/lib/auth/captcha";
 
 type TokenState = "validating" | "invalid" | "valid";
 type SignupStep = "age" | "parent-request" | "form";
 
 const auth = useAuthStore();
 const route = useRoute();
+const captcha = captchaSource(useTemplateRef<InstanceType<typeof CaptchaGate>>("captchaGate"));
 
 const token = route.query.token as string | undefined;
 const tokenState = ref<TokenState>(token ? "validating" : "valid");
@@ -175,12 +180,19 @@ async function handleSubmit() {
     // on-insert subscription trigger consumes the invite (applying the granted plan
     // server-side) and records the consent. (The old post-signup consume_app_invite
     // RPC ran before a session existed, so auth.uid() was null and grants no-op'd.)
-    await auth.signUp(email.value, password.value, displayName.value.trim() || undefined, emailRedirectTo, token);
+    await auth.signUp({
+      email: email.value,
+      password: password.value,
+      captcha,
+      displayName: displayName.value.trim() || undefined,
+      redirectTo: emailRedirectTo,
+      inviteToken: token,
+    });
     successMessage.value = "Check your email to confirm your account, then sign in.";
     email.value = "";
     password.value = "";
   } catch (err) {
-    errorMessage.value = err instanceof Error ? err.message : "Sign up failed. Please try again.";
+    errorMessage.value = authErrorMessage(err, "Sign up failed. Please try again.");
   }
 }
 </script>

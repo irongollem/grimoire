@@ -26,6 +26,13 @@ interface ImportMetaEnv {
    * of a loaded demo campaign renders nothing until this is set.
    */
   readonly VITE_FULL_CAMPAIGN_URL?: string;
+  /**
+   * Cloudflare Turnstile site key for the bot check on the auth forms.
+   * Optional: unset (every local run) means `CaptchaGate` renders nothing and
+   * no token is sent. Production must have it set before CAPTCHA protection
+   * is switched on in Supabase Auth, or nobody can sign in.
+   */
+  readonly VITE_TURNSTILE_SITE_KEY?: string;
 }
 
 interface ImportMeta {

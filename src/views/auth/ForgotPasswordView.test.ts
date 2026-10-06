@@ -9,7 +9,7 @@ import ForgotPasswordView from "./ForgotPasswordView.vue";
  * only for an address that exists, so its message is the leak under test.
  */
 const mocks = vi.hoisted(() => ({
-  requestPasswordReset: vi.fn<(email: string) => Promise<void>>(),
+  requestPasswordReset: vi.fn<(email: string, captcha: () => Promise<string | undefined>) => Promise<void>>(),
 }));
 
 vi.mock("@/stores/auth", () => ({
@@ -34,7 +34,7 @@ describe("ForgotPasswordView", () => {
 
     const wrapper = await submit();
 
-    expect(mocks.requestPasswordReset).toHaveBeenCalledWith("someone@example.invalid");
+    expect(mocks.requestPasswordReset).toHaveBeenCalledWith("someone@example.invalid", expect.any(Function));
     expect(wrapper.text()).toContain(SENT);
   });
 
@@ -47,6 +47,17 @@ describe("ForgotPasswordView", () => {
 
     expect(wrapper.text()).toContain(SENT);
     expect(wrapper.text()).not.toContain("42 seconds");
+  });
+
+  it("reports a failed bot check, which the server runs before it looks the address up", async () => {
+    mocks.requestPasswordReset.mockImplementation(async () => {
+      throw new AuthApiError("captcha verification process failed", 400, "captcha_failed");
+    });
+
+    const wrapper = await submit();
+
+    expect(wrapper.text()).not.toContain(SENT);
+    expect(wrapper.text()).toContain("security check");
   });
 
   it("reports a failure to reach the server, which no account can cause", async () => {
