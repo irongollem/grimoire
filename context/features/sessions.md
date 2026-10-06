@@ -63,8 +63,6 @@ The prefill is recomputed on each open, so a number set last week never outlives
 
 **Implicit start** — `goLive()` on an encounter calls `ensureCampaignSession`, which starts one if none is running, with no dialog and no number. It says so. A DM hitting **Run** is at the table; asking them to say so twice is bookkeeping. The log flags such a session as unnumbered so the DM can number or delete it.
 
-**Run** is at the table; asking them to say so twice is bookkeeping.
-
 **Run** — `encounter_state.session_id` records which session a combat ran in, and every learned moment is stamped with the open session (below).
 
 **End** — explicit only, via `end_campaign_session`. It force-ends any running encounter (also the reaper for a combat left `is_running` by a closed tab — nothing cleared that before) and calls `end_campaign_quest_session`, which pauses every open chain at its beat. That RPC shipped with [#755](https://github.com/irongollem/grimoire/issues/755) for exactly this boundary and had no caller until now.
