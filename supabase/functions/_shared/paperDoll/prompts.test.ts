@@ -117,3 +117,13 @@ describe("burdenPrompt", () => {
     expect(text).toContain("Bare head");
   });
 });
+
+describe("body features", () => {
+  it("keeps wings, tails, horns and antennae for characters and species alike", () => {
+    for (const prompt of [characterGarbPrompt(), speciesGarbPrompt({ name: "Marrow", description: null, size: "small" })]) {
+      expect(prompt).toContain("wings, a tail, horns or antennae");
+      expect(prompt).toContain("not clothing or props");
+      expect(prompt).toContain("folded close behind the body");
+    }
+  });
+});

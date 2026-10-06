@@ -44,6 +44,13 @@ const SIZE_BODY: Record<DollTemplateSize, string> = {
 
 const SPECIES_DESCRIPTION_MAX = 600;
 
+// The "no cloak, no props" rules made the model drop a moth-folk character's
+// wings in every cell (Sugarwell's Vellum Ochre): it read them as an
+// accessory. Wings, tails, horns and antennae are the body, so they stay;
+// large wings fold in so the figure keeps inside its cell for the cut.
+const BODY_FEATURES =
+  "Keep the character's own body features, such as wings, a tail, horns or antennae, in every cell: they are part of the body, not clothing or props. Large wings are folded close behind the body so they stay inside the cell. ";
+
 /** Text-only render: the template figure every other sheet is drawn from. */
 export function templateGarbPrompt(size: DollTemplateSize): string {
   return `${GRID} ${FIGURE} ${SIZE_BODY[size]} ${GARB}`;
@@ -55,6 +62,7 @@ export function characterGarbPrompt(): string {
     "Image 1 is a character portrait. Image 2 is a sprite-sheet template. Redraw the character from image 1 into the exact layout of image 2: the same three cells, the same pose, scale and placement of the figure in each cell, the same outfit kind in each cell. " +
     "Keep the character's likeness from image 1, not image 2's figure: face, skin, ears, hair, ancestry and build all come from image 1; image 2 supplies only layout, pose and outfit kind. " +
     "Invent the parts of the body the portrait does not show, consistent with it. Leave out image 1's scenery, weapons, props, headwear and any animals or companions. " +
+    BODY_FEATURES +
     `Take colours, materials and trim from the character's own clothing in image 1. ${GRID} ${FIGURE} ${GARB}`
   );
 }
@@ -72,6 +80,7 @@ export function speciesGarbPrompt(species: { name: string; description: string |
     (trimmed ? `About the ${species.name}: ${trimmed} ` : "") +
     `${SIZE_BODY[species.size]} ` +
     "Invent colours, materials and trim suited to the species. Leave out headwear, jewellery, props, weapons, scenery and any animals or companions. " +
+    BODY_FEATURES +
     `${GRID} ${FIGURE} ${GARB}`
   );
 }
