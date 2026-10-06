@@ -361,7 +361,7 @@ function makeNote(overrides: Partial<EmbeddableNote> = {}): EmbeddableNote {
   return {
     title: "The Sunken Vault",
     category: "session",
-    session_num: 7,
+    session_number: 7,
     tags: ["dungeon", "vault"],
     content: "The party descended into the flooded ruins and found the vault door ajar.",
     ...overrides,
@@ -371,7 +371,7 @@ function makeNote(overrides: Partial<EmbeddableNote> = {}): EmbeddableNote {
 const NOTE_TITLE_ONLY: EmbeddableNote = {
   title: "Loose thread: the merchant's ledger",
   category: "general",
-  session_num: null,
+  session_number: null,
   tags: [],
   content: null,
 };
@@ -388,19 +388,19 @@ describe("buildNoteEmbedText", () => {
     expect(buildNoteEmbedText(NOTE_TITLE_ONLY)).toBe("Loose thread: the merchant's ledger. general.");
   });
 
-  it("omits the session-number clause when session_num is null (category-only clause)", () => {
-    const text = buildNoteEmbedText(makeNote({ session_num: null }));
+  it("omits the session-number clause when session_number is null (category-only clause)", () => {
+    const text = buildNoteEmbedText(makeNote({ session_number: null }));
     expect(text).toContain("The Sunken Vault. session.");
     expect(text).not.toContain("Session 7");
   });
 
-  it("includes the session-number clause when session_num is set", () => {
-    const text = buildNoteEmbedText(makeNote({ session_num: 3 }));
+  it("includes the session-number clause when session_number is set", () => {
+    const text = buildNoteEmbedText(makeNote({ session_number: 3 }));
     expect(text).toContain("session, Session 3.");
   });
 
-  it("never emits a dangling comma when session_num is missing", () => {
-    const text = buildNoteEmbedText(makeNote({ session_num: null }));
+  it("never emits a dangling comma when session_number is missing", () => {
+    const text = buildNoteEmbedText(makeNote({ session_number: null }));
     expect(text).not.toContain(", .");
   });
 

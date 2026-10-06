@@ -74,7 +74,7 @@ const PRIOR_NOTE_SNIPPET_CHAR_LIMIT = 600;
 interface PriorNoteCandidate {
   title: string;
   category: string;
-  session_num: number | null;
+  session_number: number | null;
   snippet: string;
 }
 
@@ -95,7 +95,7 @@ function formatPriorChroniclesBlock(notes: PriorNoteCandidate[]): string {
     // fallback label for unnumbered session notes. Retrieval is restricted
     // to category 'session' (see the RPC call's p_categories comment), so
     // no other category can appear here.
-    const label = n.session_num != null ? `Session ${n.session_num} — ${n.title}` : `${n.category} — ${n.title}`;
+    const label = n.session_number != null ? `Session ${n.session_number} — ${n.title}` : `${n.category} — ${n.title}`;
     return `[${label}] ${n.snippet}`;
   });
   return (
@@ -343,21 +343,27 @@ serve(withCors(async (req: Request) => {
     if (matchedIds.length > 0) {
       const { data: noteRows, error: noteError } = await admin
         .from("notes")
-        .select("id, title, category, session_num, content, created_at")
+        .select("id, title, category, content, created_at, session:campaign_sessions(number, title, played_on, started_at)")
         .in("id", matchedIds);
       if (noteError) throw new Error(noteError.message);
 
-      type NoteContentRow = { id: string; title: string; category: string; session_num: number | null; content: string | null; created_at: string };
+      type NoteContentRow = { id: string; title: string; category: string; content: string | null; created_at: string; session: { number: number | null; title: string | null; played_on: string | null; started_at: string | null } | null };
       // Re-sorted into chronological order for presentation -- the RPC's
       // relevance ranking above only decided WHICH notes to include, not
-      // what order best serves "read this as a timeline." Notes without a
-      // session number (matched by relevance rather than being an actual
+      // what order best serves "read this as a timeline." Session numbers are
+      // a DM label and may repeat or be absent, so order by the linked
+      // session's date (started_at, else played_on). Notes with no linked
+      // session or no date (matched by relevance rather than being an actual
       // past session) sort last, since they aren't part of the sequence.
+      const sessionWhen = (r: NoteContentRow): string | null => r.session?.started_at ?? r.session?.played_on ?? null;
       const sorted = ((noteRows ?? []) as NoteContentRow[]).slice().sort((a, b) => {
-        if (a.session_num == null && b.session_num == null) return a.created_at.localeCompare(b.created_at);
-        if (a.session_num == null) return 1;
-        if (b.session_num == null) return -1;
-        if (a.session_num !== b.session_num) return a.session_num - b.session_num;
+        const wa = sessionWhen(a);
+        const wb = sessionWhen(b);
+        if (wa == null && wb == null) return a.created_at.localeCompare(b.created_at);
+        if (wa == null) return 1;
+        if (wb == null) return -1;
+        const cmp = new Date(wa).getTime() - new Date(wb).getTime();
+        if (cmp !== 0) return cmp;
         return a.created_at.localeCompare(b.created_at);
       });
 
@@ -365,7 +371,7 @@ serve(withCors(async (req: Request) => {
         priorChroniclesBlock = formatPriorChroniclesBlock(sorted.map((row) => ({
           title:       row.title,
           category:    row.category,
-          session_num: row.session_num,
+          session_number: row.session?.number ?? null,
           snippet:     truncateAtWordBoundary(collapseWhitespace(toPlainText(row.content)), PRIOR_NOTE_SNIPPET_CHAR_LIMIT),
         })));
       }

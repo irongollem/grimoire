@@ -866,7 +866,9 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     nameField: "title",
     summaryField: "category",
     searchFields: ["title", "content", "category"],
-    extraListColumns: ["category", "session_num"],
+    // The session's number and title read through the notes.session_id link;
+    // rows carry them as `session: { number, title }` (null when unlinked).
+    extraListColumns: ["category", "session:campaign_sessions(number,title)"],
     campaignScope: "owned",
     embedOnWrite: { fn: "embed-content", entity: "note" },
     create: {
@@ -875,7 +877,10 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
         campaign_id: { type: "uuid" },
         content: { type: "text" },
         category: { type: "text", description: "Defaults to general." },
-        session_num: { type: "number" },
+        session_id: {
+          type: "uuid",
+          description: "Id of an existing session in the campaign this note belongs to. The session's number is read from the session itself.",
+        },
         tags: { type: "text[]" },
       },
     },

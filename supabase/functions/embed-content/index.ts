@@ -157,14 +157,14 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
   },
   note: {
     table: "notes",
-    select: "id, user_id, campaign_id, updated_at, title, category, session_num, tags, content",
+    select: "id, user_id, campaign_id, updated_at, title, category, tags, content, session:campaign_sessions(number)",
     sideTable: "note_embeddings",
     idColumn: "note_id",
     build: (row) =>
       buildNoteEmbedText({
         title: row.title as string,
         category: row.category as string,
-        session_num: (row.session_num as number | null) ?? null,
+        session_number: (row.session as { number: number | null } | null)?.number ?? null,
         tags: row.tags as string[],
         content: (row.content as string | null) ?? null,
       }),

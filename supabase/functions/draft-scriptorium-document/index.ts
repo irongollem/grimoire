@@ -75,7 +75,7 @@ const NPC_COLUMNS =
   "id, name, race, occupation, appearance, personality, backstory, player_visible_to, player_visible_fields, disguise_name, disguise_portrait_url, is_revealed, location_id";
 const FACTION_COLUMNS = "id, name, faction_type, alignment, description, player_visible_to";
 const LOCATION_COLUMNS = "id, name, location_type, description, is_description_shared, player_visible_to, parent_id";
-const NOTE_COLUMNS = "id, title, content, session_num, session_real_date, player_visible_to";
+const NOTE_COLUMNS = "id, title, content, session_id, session_real_date, player_visible_to, session:campaign_sessions(number)";
 
 class DraftError extends Error {
   constructor(public status: number, message: string) {
@@ -211,7 +211,7 @@ async function gatherContext(req: DraftRequest): Promise<string> {
     return assembleContext([buildFactionBlock(faction as DraftFaction, members, holdings, relations, audience)]);
   }
 
-  // session: the subject is a session-category note, siblings share its number.
+  // session: the subject is a session-category note, siblings are the notes linked to the same session.
   const { data: note, error: noteErr } = await admin.from("notes").select(NOTE_COLUMNS)
     .eq("id", subjectId).eq("campaign_id", campaignId).eq("category", "session").maybeSingle();
   if (noteErr) throw new Error(noteErr.message);
@@ -223,9 +223,9 @@ async function gatherContext(req: DraftRequest): Promise<string> {
     );
   }
   let siblings: DraftNote[] = [];
-  if (note.session_num !== null) {
+  if (note.session_id !== null) {
     const { data, error: sibErr } = await admin.from("notes").select(NOTE_COLUMNS)
-      .eq("campaign_id", campaignId).eq("session_num", note.session_num).neq("id", subjectId).limit(20);
+      .eq("campaign_id", campaignId).eq("session_id", note.session_id).neq("id", subjectId).limit(20);
     if (sibErr) throw new Error(sibErr.message);
     siblings = (data ?? []) as DraftNote[];
   }

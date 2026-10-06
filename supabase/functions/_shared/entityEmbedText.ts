@@ -262,7 +262,7 @@ export interface EmbeddableNote {
   // NOT NULL in the schema (default 'general') -- unlike the other optional
   // string fields on this interface, this is never absent.
   category: string;
-  session_num: number | null;
+  session_number: number | null;
   tags: string[];
   content: string | null;
 }
@@ -286,7 +286,7 @@ export function buildNoteEmbedText(note: EmbeddableNote): string {
 
   clauses.push(`${collapseWhitespace(note.title)}.`);
 
-  const sessionClause = note.session_num != null ? `Session ${note.session_num}` : null;
+  const sessionClause = note.session_number != null ? `Session ${note.session_number}` : null;
   const categorySession = buildTwoPartClause(note.category, sessionClause);
   if (categorySession) clauses.push(categorySession);
 
