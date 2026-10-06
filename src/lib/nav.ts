@@ -11,7 +11,7 @@ import {
   IconNavEncounters,
   IconNavFactions,
   IconNavGallery,
-  IconNavHearth,
+  IconNavSessions,
   IconNavHeroes,
   IconNavIlluminator,
   IconNavInterlude,
@@ -188,7 +188,7 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         label: "Sessions",
         to: "/sessions",
-        icon: IconNavHearth,
+        icon: IconNavSessions,
         description: "Every evening at the table, and its notes",
         requiresCampaign: true,
       },
