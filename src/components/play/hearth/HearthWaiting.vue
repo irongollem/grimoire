@@ -29,7 +29,7 @@ import type { RouteLocationRaw } from "vue-router";
 import HearthSection from "./HearthSection.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
-import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useCampaignMessages, loadChatHistory } from "@/composables/campaign/useCampaignMessages";
 import { usePlayerUnread } from "@/composables/play/usePlayerUnread";
 import { openTableItems, type WaitingItem } from "@/lib/hearth/waitingItems";
 import { useUiStore } from "@/stores/ui";
@@ -45,6 +45,9 @@ const { startedAt } = defineProps<{ startedAt: string | null }>();
 const ui = useUiStore();
 const { items: unread } = usePlayerUnread();
 const { messages, myUserId } = useCampaignMessages();
+// This surface reads the message list itself, so it asks for the history the
+// closed chat otherwise defers (#999).
+loadChatHistory();
 
 interface WaitingRow {
   key: string;

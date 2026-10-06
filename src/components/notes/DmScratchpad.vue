@@ -126,13 +126,16 @@ const DmNoteBox = defineAsyncComponent(() => import("@/components/notes/DmNoteBo
 
 const store = useScratchpadStore();
 const auth = useAuthStore();
-const { touches, label } = useDmNoteTouches();
 const docked = useAbove("md");
 const panelEl = ref<HTMLElement | null>(null);
 
 // A player or a campaign-less session never sees the panel, even if the flag
 // was left open when the active campaign changed.
 const visible = computed(() => store.open && auth.isDM);
+
+// The touches (and the session log that frames them) are read only while the
+// panel is on screen: it is closed by default and mounted on every DM page (#999).
+const { touches, label } = useDmNoteTouches(() => visible.value);
 
 const pinnedNow = computed(() => store.pinned !== null);
 /** Pinned, and the page has moved on to something else. */

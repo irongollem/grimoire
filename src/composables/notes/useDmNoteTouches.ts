@@ -15,12 +15,17 @@ const NONE: readonly DmNoteTouch[] = Object.freeze([]);
  * entries. The live session is only the open row, so the last ended one comes
  * from the session log (#985); a session logged by hand never ran, has no
  * start, and so cannot be the window.
+ *
+ * `enabled` is the caller's visibility: the scratchpad is mounted on every DM
+ * page but closed by default, and neither the session log nor the touches are
+ * read until its panel is on screen (#999). A disabled query still serves what
+ * another surface cached.
  */
-export function useDmNoteTouches() {
+export function useDmNoteTouches(enabled: () => boolean = () => true) {
   const auth = useAuthStore();
   const campaign = useCampaignStore();
   const { session, isRunning } = useCampaignSession();
-  const log = useCampaignSessions({ enabled: () => !isRunning.value });
+  const log = useCampaignSessions({ enabled: () => enabled() && !isRunning.value });
 
   const lastEnded = computed(() => {
     let latest: { start: string; end: string } | null = null;
@@ -59,7 +64,7 @@ export function useDmNoteTouches() {
       if (error) throw error;
       return data as DmNoteTouch[];
     },
-    enabled: () => !!auth.user?.id && !!campaign.activeCampaignId && window.value.start !== null,
+    enabled: () => enabled() && !!auth.user?.id && !!campaign.activeCampaignId && window.value.start !== null,
   });
 
   const touches = computed<readonly DmNoteTouch[]>(() =>

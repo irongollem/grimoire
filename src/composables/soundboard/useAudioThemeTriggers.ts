@@ -1,7 +1,9 @@
 import { ref, computed, watch, onScopeDispose } from "vue";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useSounds } from "@/composables/soundboard/useSounds";
-import { usePlaylists, useFetchPlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
+import { useQueryClient } from "@tanstack/vue-query";
+import { useCampaignStore } from "@/stores/campaign";
+import { soundsQueryOptions } from "@/composables/soundboard/useSounds";
+import { playlistsQueryOptions, useFetchPlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSoundTrigger } from "@/composables/soundboard/useSoundPlayback";
 import { useAbove } from "@/composables/useBreakpoint";
 import {
@@ -106,8 +108,8 @@ export function useActiveAudioTriggers() {
 
 export function useAudioThemeTriggers(): void {
   const store = useSoundboardStore();
-  const { data: sounds } = useSounds();
-  const { data: playlists } = usePlaylists();
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
   const fetchTracks = useFetchPlaylistTracks();
   // A cue already names an exact sound row, so firing it reuses the very
   // function every playback button in the app calls — refire-as-effect,
@@ -142,12 +144,65 @@ export function useAudioThemeTriggers(): void {
   // otherwise let the slower of the two win whichever order they started in.
   const generation: Record<AudioSlot, number> = { music: 0, ambient: 0 };
 
+  // The sound and playlist lists are read when a trigger needs them, not at
+  // mount (#999): this composable lives in DefaultLayout, so subscribing to
+  // them cost two requests on every DM page for triggers most sessions never
+  // fire. `dispatch` below loads them first when the cache lacks a usable copy;
+  // the lookups here then read the cache, as the reactive refs did before.
   function currentPlaylists(): SoundboardPlaylist[] {
-    return playlists.value === undefined ? [] : playlists.value;
+    const id = campaign.activeCampaignId;
+    if (id === null) return [];
+    const cached = queryClient.getQueryData<SoundboardPlaylist[]>(playlistsQueryOptions(id).queryKey);
+    return cached === undefined ? [] : cached;
   }
 
   function currentSounds(): Sound[] {
-    return sounds.value === undefined ? [] : sounds.value;
+    const id = campaign.activeCampaignId;
+    if (id === null) return [];
+    const cached = queryClient.getQueryData<Sound[]>(soundsQueryOptions(id).queryKey);
+    return cached === undefined ? [] : cached;
+  }
+
+  /** True when both lists are cached and not marked stale by a mutation. */
+  function libraryReady(id: string): boolean {
+    const usable = (key: readonly unknown[]) => {
+      const state = queryClient.getQueryState(key);
+      return state !== undefined && state.data !== undefined && !state.isInvalidated;
+    };
+    return usable(soundsQueryOptions(id).queryKey) && usable(playlistsQueryOptions(id).queryKey);
+  }
+
+  // Events that arrive while the lists load queue behind the load, in order, so
+  // a release can never overtake the request it belongs to. Once nothing is
+  // pending, events dispatch synchronously exactly as before.
+  let pending: Promise<void> | null = null;
+
+  function dispatch(event: Parameters<Parameters<typeof onAudioTrigger>[0]>[0]): void {
+    const needsLibrary = event.type !== "release";
+    const id = campaign.activeCampaignId;
+    if (pending === null && needsLibrary && id !== null && !libraryReady(id)) {
+      const load = Promise.all([
+        queryClient.fetchQuery({ ...soundsQueryOptions(id), staleTime: 0 }),
+        queryClient.fetchQuery({ ...playlistsQueryOptions(id), staleTime: 0 }),
+      ]).then(
+        () => undefined,
+        // Offline or refused: behave as an empty library, like an unmatched
+        // trigger, which does nothing.
+        () => undefined,
+      );
+      pending = load.then(() => { pending = null; });
+    }
+    if (pending !== null) {
+      void pending.then(() => run(event));
+      return;
+    }
+    run(event);
+  }
+
+  function run(event: Parameters<Parameters<typeof onAudioTrigger>[0]>[0]): void {
+    if (event.type === "request") void handleRequest(event.request);
+    else if (event.type === "cue") void handleCue(event.request);
+    else void handleRelease(event.sourceId);
   }
 
   async function startPlaylist(id: string, slot: AudioSlot, gen: number): Promise<void> {
@@ -419,11 +474,7 @@ export function useAudioThemeTriggers(): void {
     },
   );
 
-  const off = onAudioTrigger((event) => {
-    if (event.type === "request") void handleRequest(event.request);
-    else if (event.type === "cue") void handleCue(event.request);
-    else void handleRelease(event.sourceId);
-  });
+  const off = onAudioTrigger(dispatch);
 
   onScopeDispose(off);
 }

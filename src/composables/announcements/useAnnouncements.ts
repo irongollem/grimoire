@@ -17,6 +17,14 @@ export function useAnnouncements() {
   const userId = computed(() => auth.user?.id ?? null);
   const queryClient = useQueryClient();
 
+  // Dismissals can only matter when some announcement could still be shown to
+  // this account (#999). The list is a static constant and a notice published
+  // before the account existed is never shown, so an empty candidate set means
+  // the dismissals table has nothing to say and is not read.
+  const hasCandidate = computed(
+    () => pendingAnnouncements(ANNOUNCEMENTS, new Set<string>(), auth.user?.created_at).length > 0,
+  );
+
   const query = useQuery({
     queryKey: computed(() => [...QUERY_KEY, userId.value] as const),
     queryFn: async ({ queryKey: [, uid] }) => {
@@ -28,7 +36,7 @@ export function useAnnouncements() {
       if (error) throw error;
       return (data ?? []).map((r) => r.announcement_id as string);
     },
-    enabled: computed(() => !!userId.value),
+    enabled: computed(() => !!userId.value && hasCandidate.value),
     retry: false,
   });
 

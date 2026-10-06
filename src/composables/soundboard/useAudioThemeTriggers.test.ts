@@ -44,10 +44,37 @@ const fireSound = vi.fn((sound: { id: string }) => {
 });
 
 vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => store }));
-vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: () => ({ data: sounds }) }));
+vi.mock("@/composables/soundboard/useSounds", () => ({
+  soundsQueryOptions: (id: string) => ({ queryKey: ["sounds", id] as const, queryFn: () => Promise.resolve(sounds.value) }),
+}));
 vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({
-  usePlaylists: () => ({ data: playlists }),
+  playlistsQueryOptions: (id: string) => ({ queryKey: ["soundboard_playlists", id] as const, queryFn: () => Promise.resolve(playlists.value) }),
   useFetchPlaylistTracks: () => () => Promise.resolve(tracks),
+}));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c" }) }));
+
+/**
+ * A stand-in query cache over the two refs above. `libraryCached` false models
+ * a cold cache, where the first trigger must load the lists before it acts (#999).
+ */
+let libraryCached = true;
+const fetchQuery = vi.fn(async (options: { queryKey: readonly unknown[] }) => {
+  libraryCached = true;
+  return options.queryKey[0] === "sounds" ? sounds.value : playlists.value;
+});
+function cachedFor(key: readonly unknown[]) {
+  if (!libraryCached) return undefined;
+  return key[0] === "sounds" ? sounds.value : playlists.value;
+}
+vi.mock("@tanstack/vue-query", () => ({
+  useQueryClient: () => ({
+    getQueryData: (key: readonly unknown[]) => cachedFor(key),
+    getQueryState: (key: readonly unknown[]) => {
+      const data = cachedFor(key);
+      return data === undefined ? undefined : { data, isInvalidated: false };
+    },
+    fetchQuery,
+  }),
 }));
 vi.mock("@/composables/soundboard/useSoundPlayback", () => ({ useSoundTrigger: () => fireSound }));
 
@@ -87,6 +114,8 @@ beforeEach(async () => {
   sounds.value = [];
   soundStates.clear();
   fireSound.mockClear();
+  libraryCached = true;
+  fetchQuery.mockClear();
   const { clearAudioTriggerHandlers } = await import("@/lib/audio/audioTriggers");
   clearAudioTriggerHandlers();
 });
@@ -175,6 +204,51 @@ describe("a trigger that matches", () => {
     await flush();
 
     expect(store.playPlaylist).not.toHaveBeenCalled();
+  });
+});
+
+describe("a cold library (#999)", () => {
+  it("fetches the sound and playlist lists only when a trigger needs them", async () => {
+    const { requestAudioTheme } = await mount();
+    libraryCached = false;
+    expect(fetchQuery).not.toHaveBeenCalled();
+    playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
+
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
+    await flush();
+    await flush();
+
+    expect(fetchQuery).toHaveBeenCalledTimes(2);
+    expect(store.playPlaylist).toHaveBeenCalledOnce();
+  });
+
+  it("does not fetch again once the lists are cached", async () => {
+    const { requestAudioTheme } = await mount();
+    playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
+
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
+    await flush();
+
+    expect(fetchQuery).not.toHaveBeenCalled();
+  });
+
+  it("never lets a release overtake the request it belongs to", async () => {
+    const { requestAudioTheme, releaseAudioTheme } = await mount();
+    libraryCached = false;
+    playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
+
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
+    releaseAudioTheme("encounter:1");
+    await flush();
+    await flush();
+    await flush();
+
+    // The request took the slot first, so the release found its owner and
+    // ended it: the track that was still loading never starts. Had the
+    // release run first it would have found no owner, and the music would
+    // have played on with nobody left to stop it.
+    expect(store.playPlaylist).not.toHaveBeenCalled();
+    expect(store.stopPlaylist).toHaveBeenCalledWith("music");
   });
 });
 

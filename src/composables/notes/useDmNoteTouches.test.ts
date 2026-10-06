@@ -45,12 +45,12 @@ vi.mock("@/composables/campaign/useCampaignSession", async () => {
   };
 });
 
-function setup() {
+function setup(enabled?: () => boolean) {
   let handle!: ReturnType<typeof useDmNoteTouches>;
   mount(
     defineComponent({
       setup() {
-        handle = useDmNoteTouches();
+        handle = useDmNoteTouches(enabled);
         return () => null;
       },
     }),
@@ -110,5 +110,20 @@ describe("useDmNoteTouches", () => {
     expect(h.label.value).toBeNull();
     expect(h.touches.value).toHaveLength(0);
     expect(mocks.calls).toHaveLength(0);
+  });
+
+  it("reads nothing while the panel is hidden, and reads once it is shown (#999)", async () => {
+    mocks.session = session({ started_at: "2026-10-06T18:00:00Z" });
+    mocks.running = true;
+    const shown = ref(false);
+    const h = setup(() => shown.value);
+    await flushPromises();
+    expect(mocks.calls).toHaveLength(0);
+    expect(h.touches.value).toHaveLength(0);
+
+    shown.value = true;
+    await flushPromises();
+    expect(mocks.calls).toContainEqual(["eq", "user_id", "me"]);
+    expect(h.touches.value).toHaveLength(1);
   });
 });

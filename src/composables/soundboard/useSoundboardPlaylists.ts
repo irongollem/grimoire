@@ -146,6 +146,15 @@ async function replaceTracksForPlaylist(playlistId: string, tracks: PlaylistTrac
 
 // ── Exported composables ──────────────────────────────────────────────────
 
+/** The campaign's playlist query, shared by `usePlaylists` and by readers that
+ *  fetch it on demand without mounting an observer (`useAudioThemeTriggers`, #999). */
+export function playlistsQueryOptions(campaignId: string) {
+  return {
+    queryKey: [PLAYLISTS_KEY, campaignId] as const,
+    queryFn: () => fetchPlaylists(campaignId),
+  };
+}
+
 export function usePlaylists(enabled?: () => boolean) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   return useQuery({

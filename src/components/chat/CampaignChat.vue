@@ -111,7 +111,7 @@ import { railTransition } from "@/lib/motion";
 import { loadReadMarker, resolveChatUnread, saveReadMarker, type ReadMarker } from "@/components/chat/chatUnread";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useCampaignMessages, loadChatHistory } from "@/composables/campaign/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
 import { useToast } from "@/composables/useToast";
@@ -199,7 +199,7 @@ onUnmounted(() => {
 const ui = useUiStore();
 const auth = useAuthStore();
 const campaign = useCampaignStore();
-const { messages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
+const { messages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
 const toast = useToast();
 const { reportChatFailure, reportMessageFailure } = useChatSendFailure();
@@ -276,7 +276,7 @@ function syncChatUnread() {
     // Right after a campaign switch the list can still hold the old campaign's
     // messages for a tick; reading them against the new campaign's marker would
     // adopt the wrong newest message.
-    messages: messages.value.filter((m) => m.campaign_id === campaignId),
+    messages: unreadMessages.value.filter((m) => m.campaign_id === campaignId),
     marker,
     viewing: chatViewing.value,
     myUserId: userId,
@@ -289,10 +289,14 @@ function syncChatUnread() {
 }
 
 watch(
-  () => [messages.value.at(-1)?.id, messages.value.length, chatViewing.value, campaign.activeCampaignId, auth.user?.id],
+  () => [unreadMessages.value.at(-1)?.id, unreadMessages.value.length, chatViewing.value, campaign.activeCampaignId, auth.user?.id],
   syncChatUnread,
   { immediate: true },
 );
+
+// The history is read when the chat first opens, not at boot (#999): until then
+// the dot runs off a narrow probe of the newest rows (`unreadMessages`).
+watch(chatViewing, (open) => { if (open) loadChatHistory(); }, { immediate: true });
 
 watch(() => ui.chatFocusRequest, () => {
   if (ui.chatFocusMessageId) void ensureMessage(ui.chatFocusMessageId).catch(() => { /* chat keeps its current window */ });
