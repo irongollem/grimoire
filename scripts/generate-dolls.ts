@@ -39,6 +39,15 @@
  *   npm run doll:species -- srd_srd_elf --out some/dir
  *   npm run doll:species -- srd_srd_elf --write          upload (loopback project only)
  *   npm run doll:species -- srd_srd_elf --from .doll-out/srd_srd_elf --write --yes-production
+ *   npm run doll:character -- <party_member id>         a character's own doll, from its portrait
+ *   npm run doll:character -- <id> --from .doll-out/character-<id> --write --yes-production
+ *
+ *   character  A character's own doll from its portrait, the same renders
+ *              generate-character-doll makes, for characters nobody can sign in
+ *              as: the demo template's pre-made characters. Reviewed in --out like
+ *              species; `--write` stores it on party_members.doll as the service
+ *              role (the only writer guard_party_member_doll lets through), in
+ *              the character owner's own npc-portraits folder.
  *
  * Env: OPENAI_API_KEY (renders); VITE_SUPABASE_URL (or SUPABASE_URL) and
  * SUPABASE_SERVICE_ROLE_KEY (species); ASSET_CDN_URL and the R2 variables for
@@ -53,6 +62,7 @@ import { buildDollLayout, sheetCuts } from "../supabase/functions/_shared/paperD
 import {
   armourPrompt,
   burdenPrompt,
+  characterGarbPrompt,
   DOLL_IMAGE_MODEL,
   DOLL_SHEET_SIZE,
   speciesGarbPrompt,
@@ -440,6 +450,140 @@ async function runSpecies(args: {
 }
 
 // ---------------------------------------------------------------------------
+// character
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CHARACTER_BUCKET = "npc-portraits";
+
+interface CharacterRow {
+  id: string;
+  name: string;
+  user_id: string;
+  owner_user_id: string | null;
+  portrait_url: string | null;
+  species_id: string | null;
+}
+
+async function loadCharacter(client: SupabaseClient, id: string): Promise<CharacterRow> {
+  const { data, error } = await client
+    .from("party_members")
+    .select("id, name, user_id, owner_user_id, portrait_url, species_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`Could not read party_members "${id}": ${error.message}`);
+  if (!data) throw new Error(`No character with id "${id}".`);
+  return data as CharacterRow;
+}
+
+/** The character's species size: a custom species is a uuid, a library one a slug. */
+async function characterSize(client: SupabaseClient, speciesId: string | null): Promise<DollTemplateSize> {
+  if (!speciesId) return templateSizeFor(null);
+  const table = UUID_RE.test(speciesId) ? "species" : "library_species";
+  const { data, error } = await client.from(table).select("size").eq("id", speciesId).maybeSingle();
+  if (error) throw new Error(`Could not read ${table} "${speciesId}": ${error.message}`);
+  return templateSizeFor((data as { size: string | null } | null)?.size);
+}
+
+async function publishCharacter(
+  admin: SupabaseClient,
+  character: CharacterRow,
+  sheets: Record<DollSheetKey, Bytes>,
+  meta: LayoutFile,
+) {
+  // The same folder the function writes to for a character's owner, so the
+  // character's own later redraw (which only clears its caller's folder) and
+  // the storage registry treat this set like any other.
+  const folder = character.owner_user_id ?? character.user_id;
+  const setId = crypto.randomUUID();
+  const urls = {} as Record<DollSheetKey, string>;
+  for (const key of DOLL_SHEET_KEYS) {
+    const path = `${folder}/dolls/${character.id}/${setId}/${key}.webp`;
+    await uploadWithRetry(admin, CHARACTER_BUCKET, path, sheets[key], "image/webp");
+    urls[key] = publicUrlFor(admin, CHARACTER_BUCKET, path);
+  }
+  const doll: DollSheets = { version: 1, sheets: urls, layout: meta.layout, model: meta.model, generatedAt: meta.generatedAt };
+  const { error } = await admin.from("party_members").update({ doll, doll_requested_at: null }).eq("id", character.id);
+  if (error) throw new Error(`Could not set party_members.doll for "${character.id}": ${error.message}`);
+  console.log(`${character.name}: published set ${setId}, party_members.doll updated.`);
+}
+
+async function runCharacters(args: {
+  ids: string[];
+  out: string | null;
+  from: string | null;
+  write: boolean;
+  yesProduction: boolean;
+  dryRun: boolean;
+}) {
+  if (args.ids.length === 0) fail("character needs at least one party_members id.");
+  if (args.from && args.ids.length !== 1) fail("--from publishes one reviewed directory, so give exactly one id.");
+  if (args.from && !args.write) fail("--from only makes sense with --write (it publishes an already-reviewed directory).");
+
+  const url = Deno.env.get("VITE_SUPABASE_URL") ?? Deno.env.get("SUPABASE_URL");
+  if (!url) fail("VITE_SUPABASE_URL (or SUPABASE_URL) must be set.");
+  const loopback = isLoopbackUrl(url);
+  console.log(`Project: ${url} (${loopback ? "loopback" : "NOT loopback"})`);
+  if (args.write && !loopback && !args.yesProduction) {
+    fail("Refusing to write to a non-loopback project without --yes-production.");
+  }
+  const admin = createClient(url, requireEnv("SUPABASE_SERVICE_ROLE_KEY"), {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  for (const id of args.ids) {
+    const character = await loadCharacter(admin, id);
+    const size = await characterSize(admin, character.species_id);
+    console.log(`\n== ${character.name} (${id}, ${size} template)`);
+
+    if (args.from) {
+      const meta = JSON.parse(await Deno.readTextFile(`${args.from}/layout.json`)) as LayoutFile;
+      const sheets = {} as Record<DollSheetKey, Bytes>;
+      for (const key of DOLL_SHEET_KEYS) sheets[key] = await Deno.readFile(`${args.from}/${key}.webp`);
+      if (args.dryRun) {
+        console.log(`Dry run: would publish ${args.from} for ${character.name}.`);
+        continue;
+      }
+      await publishCharacter(admin, character, sheets, meta);
+      continue;
+    }
+
+    if (!character.portrait_url) fail(`${character.name} has no portrait to draw from.`);
+    const garbPath = `${ART_DIR}/${size}-garb.webp`;
+    const armourPath = `${ART_DIR}/${size}-armour.webp`;
+    if (args.dryRun) {
+      printPrompt(`${character.name} garb`, characterGarbPrompt(), ["portrait", garbPath]);
+      printPrompt(`${character.name} armour`, armourPrompt({ withTemplate: true }), ["garb (rendered)", armourPath]);
+      printPrompt(`${character.name} burden`, burdenPrompt(), ["garb (rendered)"]);
+      console.log("\nDry run: 3 renders would be made (~15 cents). Nothing was called or written.");
+      continue;
+    }
+
+    const res = await fetch(character.portrait_url);
+    if (!res.ok) fail(`Could not fetch ${character.name}'s portrait (${res.status}).`);
+    const portrait = new Uint8Array(await res.arrayBuffer());
+    const [templateGarb, templateArmour] = await Promise.all([Deno.readFile(garbPath), Deno.readFile(armourPath)]).catch(() =>
+      fail(`Template sheets missing under ${ART_DIR}. Run npm run doll:templates first.`),
+    );
+    const doll = await renderDoll({
+      tag: character.name,
+      generatorType: "character_doll",
+      garbPrompt: characterGarbPrompt(),
+      garbSources: [portrait, templateGarb],
+      armourSources: (garb) => [garb, templateArmour],
+      armourText: armourPrompt({ withTemplate: true }),
+    });
+    const out = args.out ?? `.doll-out/character-${id}`;
+    await writeOutDir(out, doll);
+    console.log(`${character.name}: wrote ${out}/ (garb, armour, burden, layout.json) for review.`);
+    if (args.write) {
+      const meta = JSON.parse(await Deno.readTextFile(`${out}/layout.json`)) as LayoutFile;
+      const sheets = Object.fromEntries(DOLL_SHEET_KEYS.map((k) => [k, doll.sheets[k].marked])) as Record<DollSheetKey, Bytes>;
+      await publishCharacter(admin, character, sheets, meta);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 
 /**
@@ -487,6 +631,15 @@ if (command === "templates") {
     yesProduction: flags.has("yes-production"),
     dryRun: flags.has("dry-run"),
   });
+} else if (command === "character") {
+  await runCharacters({
+    ids: rest,
+    out: (flags.get("out") as string | undefined) ?? null,
+    from: (flags.get("from") as string | undefined) ?? null,
+    write: flags.has("write"),
+    yesProduction: flags.has("yes-production"),
+    dryRun: flags.has("dry-run"),
+  });
 } else {
-  fail("Usage: generate-dolls.ts templates [--size small|medium] [--dry-run] [--remeasure]\n       generate-dolls.ts species <slug>... [--out dir] [--from dir] [--write] [--yes-production] [--dry-run]");
+  fail("Usage: generate-dolls.ts templates [--size small|medium] [--dry-run] [--remeasure]\n       generate-dolls.ts species <slug>... [--out dir] [--from dir] [--write] [--yes-production] [--dry-run]\n       generate-dolls.ts character <party_member id>... [--out dir] [--from dir] [--write] [--yes-production] [--dry-run]");
 }

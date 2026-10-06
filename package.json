@@ -58,6 +58,7 @@
     "cartographer:pack": "tsx --tsconfig tsconfig.node.json scripts/cartographer-pack.ts",
     "doll:templates": "deno run -A --env-file=.env.local --config supabase/functions/deno.json scripts/generate-dolls.ts templates",
     "doll:species": "deno run -A --env-file=.env.local --config supabase/functions/deno.json scripts/generate-dolls.ts species",
+    "doll:character": "deno run -A --env-file=.env.local --config supabase/functions/deno.json scripts/generate-dolls.ts character",
     "art:manifest": "tsx --tsconfig tsconfig.node.json scripts/art-manifest.ts",
     "art:publish": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/art-publish.ts",
     "seed-library-tile-packs": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-tile-packs.ts",
