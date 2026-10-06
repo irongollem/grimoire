@@ -77,24 +77,36 @@ Two deliberate separations that look mergeable but are not:
 | **Server state** | `src/composables/<domain>/use*.ts` (a few UI/platform primitives stay at `src/composables/` root) | `useQuery`/`useMutation` wrapping module-private `fetchX/createX/…` that call `supabase.from(...)`. Query keys are `[QUERY_KEY, activeCampaignId]`, gated on an active campaign. Global defaults in `src/main.ts`: `networkMode: "always"`, `staleTime: 60s`, no refetch-on-focus. |
 | **UI state** | `src/stores/` (Pinia) | Filters/sort/search (**always** `ui.ts` — the Filter State Pattern), run state, playback state. |
 
-**The query cache is memory-only, with one exception.** Shared library
-content (the library lists, rules reference tables and licence lists named in
-`src/lib/queryPersistence/policy.ts`) is also written to IndexedDB. The read
-is lazy: a `persister` installed as a query default in `src/main.ts` wraps
-every queryFn, and the first fetch of a listed key in a page session is
-answered from disk instead of the network, so a cold start does not download
-the 1.5 MB monster library again. Nothing is restored up front, so the mount
-never waits on the disk. The wake-up heal in `App.vue` skips the same keys.
-A stored record belongs to one account: it is only served to the user id that
-wrote it, and the store is emptied on sign-out and on a signed-out boot. A
-record is trusted for 24 hours and for one build; older, or written by another
-build, it is shown and refetched in the background. After a week it is a miss.
+**The query cache is memory-only, with one exception: two classes of key are
+also written to IndexedDB** (`src/lib/queryPersistence/policy.ts`). The read is
+lazy: a `persister` installed as a query default in `src/main.ts` wraps every
+queryFn, and the first fetch of a listed key in a page session is answered from
+disk instead of the network. Nothing is restored up front, so the mount never
+waits on the disk. A stored record belongs to one account: it is only served to
+the user id that wrote it, another account signing in prunes it, the store is
+emptied on sign-out and on a signed-out boot, and after a week it is a miss.
 
-Campaign and user data is deliberately **not** on that list, and `gcTime` is
-left at its 5-minute default for the same reason. Most editors copy their
-record into a form once and save the whole record with no concurrency check
-(#946), so a stale cached copy shown at mount survives the background refetch
-and a save reverts newer edits. Do not widen either until #946 is fixed.
+- **Static library content** (the library lists, rules reference tables and
+  licence lists named in `policy.ts`): trusted for 24 hours and one build; older,
+  or written by another build, it is shown and refetched in the background. The
+  wake-up heal in `App.vue` skips these keys.
+- **Live campaign data** (#999: every root in `RECONCILE_KEYS`, from
+  `src/lib/campaignLiveSync/registry.ts`): painted from disk at once and
+  **always** revalidated immediately, whatever its age, because other people
+  change campaign data while this device is away. A returning DM or player sees
+  the campaign from the device and is then corrected by the network. This was
+  excluded until #946; every editor now goes through `useRecordDraft`, which
+  merges fresh server data into untouched fields and saves only changed columns,
+  so the correction after the disk paint cannot be reverted by a save. A new
+  editor that seeds a form once and saves the whole record reintroduces that bug.
+
+Within a session the live roots keep the 60 s default `staleTime`. Giving them
+`Infinity` (the channel delivers changes, the heal reconciles gaps) was built and
+measured in #999 and dropped: navigation and resume did not get faster, and a
+reader under a live root that no row event reaches (a player projection read
+through an RPC from a DM-only table, such as `useMiniForSource`) would have shown a
+snapshot until the next heal. Revisit only with an audit of every key under every
+live root. `gcTime` is left at its 5-minute default.
 
 The 8 stores and their roles:
 

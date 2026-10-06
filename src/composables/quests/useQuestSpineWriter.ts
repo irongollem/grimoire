@@ -2,8 +2,8 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { writeQuestSpine, type WriteQuestSpineDeps, type WriteQuestSpineInput, type WriteQuestSpineResult } from "@/lib/quests/spineWrite";
 import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
-import { BEATS_KEY, CONSEQUENCES_KEY, EDGES_KEY, invalidatePlayerQuestBeatProjections } from "@/composables/quests/useQuestFlow";
-import { OBJECTIVES_KEY } from "@/composables/quests/useQuests";
+import { CONSEQUENCES_KEY, EDGES_KEY, invalidatePlayerQuestBeatProjections } from "@/composables/quests/useQuestFlow";
+import { BEATS_KEY, OBJECTIVES_KEY } from "@/lib/campaignLiveSync/registry";
 import type { QuestBeat, QuestObjective } from "@/types/quest.types";
 
 /** One request per list, never per row (#951). Throwing is the contract:

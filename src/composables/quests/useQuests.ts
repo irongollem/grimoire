@@ -17,9 +17,9 @@ import type {
   QuestRef,
   QuestRefInsert,
 } from "@/types/quest.types";
+import { OBJECTIVES_KEY } from "@/lib/campaignLiveSync/registry";
 
 const QUESTS_KEY     = "quests";
-export const OBJECTIVES_KEY = "quest_objectives";
 const REFS_KEY       = "quest_refs";
 const CONSEQUENCE_EVENTS_KEY = "quest_consequence_events";
 const QUEST_FILTER_ENTITIES_KEY = "quest_filter_entities";

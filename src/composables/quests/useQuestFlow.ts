@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { LIBRARY_TABLE_FOR_ATTACHMENT, splitAttachmentRefIds, summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
 import { deriveQuestBoardSummaries, type QuestBoardPayload, type QuestBoardSummary } from "@/lib/quests/board";
 import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
+import { BEATS_KEY, RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY } from "@/lib/campaignLiveSync/registry";
 import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -31,21 +32,8 @@ import type {
   QuestRuntimeState,
 } from "@/types/quest.types";
 
-/** Exported so `useQuestThreads` can invalidate the board summary too — a
- *  thread opening or closing changes what the board's `threads[]` shows. */
-export const BEATS_KEY = "quest_beats";
 export const EDGES_KEY = "quest_beat_edges";
 const EDGE_GATES_KEY = "quest_beat_edge_gates";
-const RUNTIME_KEY = "quest_runtime_state";
-const RUNTIME_CONTEXT_KEY = "quest_runtime_context";
-const TRANSITIONS_KEY = "quest_beat_transitions";
-
-/** Every cache a runtime move invalidates. Exported because ending a *session*
- *  moves the cursors too — `end_campaign_session` pauses every open chain
- *  server-side, so the client has to be told its runtime views are stale. The
- *  quest board is one of them: it summarises every cursor, so a move made on
- *  another device (the doorbell) or by ending a session must refresh it too. */
-export const QUEST_RUNTIME_QUERY_KEYS = [RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY, QUEST_BOARD_KEY] as const;
 const ATTACHMENTS_KEY = "quest_beat_attachments";
 const LOOT_KEY = "loot_placements";
 export const CONSEQUENCES_KEY = "quest_consequences";

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
-import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
+import { QUEST_RUNTIME_QUERY_KEYS } from "@/lib/campaignLiveSync/registry";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 import type { CampaignSession, CampaignSessionEnded, PlayerSessionState } from "@/types/session.types";

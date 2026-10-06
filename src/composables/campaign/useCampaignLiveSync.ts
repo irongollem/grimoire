@@ -11,17 +11,11 @@ import {
 } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
 import { adoptLoggedSession, dropLoggedSession, refetchCampaignSession } from "@/composables/campaign/useCampaignSession";
-import { BEATS_KEY, QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
-import { PLAYER_NPCS_KEY } from "@/composables/npcs/useNpcs";
-import { PLAYER_HANDOUTS_KEY } from "@/composables/scriptorium/usePlayerHandouts";
-import { BACKLINKS_KEY } from "@/composables/notes/useEntityBacklinks";
-import { OBJECTIVES_KEY } from "@/composables/quests/useQuests";
-import { THREADS_KEY } from "@/composables/quests/useQuestThreads";
 import type { CampaignSession } from "@/types/session.types";
 import { useAuthStore } from "@/stores/auth";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Campaign } from "@/types/campaign.types";
-import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
+import { RECONCILE_KEYS, PLAYER_ONLY_SIGNALS, SIGNAL_KEYS, SYNC_TABLES } from "@/lib/campaignLiveSync/registry";
 import { applyCampaignRealtimeWorld } from "@/lib/campaignLiveSync/campaignRealtimeWorld";
 import { DM_NOTE_COLUMN_TABLES, dmNoteColumnKeyForTouch } from "@/lib/dmNotes/registry";
 import { dispatchCampaignRealtimePlayer } from "@/lib/campaignLiveSync/campaignRealtimePlayer";
@@ -31,160 +25,6 @@ let activeChannel: RealtimeChannelHandle | null = null;
 let refCount = 0;
 let stopWatcher: (() => void) | null = null;
 let clearPendingInvalidations: (() => void) | null = null;
-
-// One registry for every campaign-scoped table. Normal events go through typed
-// exact-row reducers; redacted projections, joins, and RLS-dependent shapes use
-// targeted invalidation in those reducers. The key is also the recovery root.
-// Exported for `campaignSyncTables.test.ts`, which holds this list equal to
-// supabase/tests/live_sync_registry.test.sql, where the database proves each
-// table is published and rings the doorbell on delete.
-export const SYNC_TABLES = [
-  ["notes",                   "notes"],
-  ["dm_note_touches",         "dm-note-touches"],
-  ["quests",                  "quests"],
-  ["locations",               "locations"],
-  ["factions",                "factions"],
-  ["npcs",                    "npcs"],
-  ["companions",              "companions"],
-  ["discovered_monsters",     "discovered-monsters"],
-  ["pantheons",               "pantheons"],
-  ["deities",                 "deities"],
-  ["puzzle_rooms",            "puzzle_rooms"],
-  ["calendar_events",         "calendar-events"],
-  ["player_journal_entries",  "player_journal"],
-  ["session_proposals",       "session_proposals"],
-  ["session_availability",    "session_availability"],
-  ["items",                   "items"],
-  ["loot_placements",         "loot_placements"],
-  // A milestone the DM awards (or an award_milestone rule fires) reaches the
-  // party screen as it happens; the table is member-readable (#850).
-  ["party_milestones",        "party_milestones"],
-  // Hall of the Fallen (#982): a fall, a restore or a lit candle reaches every
-  // member's wall and party list as it happens.
-  ["character_memorials",     "memorials"],
-  ["memorial_mourners",       "memorials"],
-  // Chat carries the authoritative claim/removal state for dispatched loot, but
-  // it is also the busiest table here — the system reducer filters down to the
-  // loot message types before touching any quest cache.
-  ["campaign_messages",       "loot_placements"],
-  ["npc_inventory",           "npc-inventory"],
-  // Membership add/remove + display-name changes — so a player renaming
-  // themselves (or being added/removed) propagates to every member's party and
-  // chat views. (Ejecting a just-removed player needs the deleted row's user_id,
-  // which realtime DELETE only carries under full replica identity — tracked
-  // separately.)
-  ["campaign_members",        "campaign-members"],
-  // What a seated character has that its table has not approved (#943). The DM's
-  // queue and the player's "waiting" notice both read it, and each changes it
-  // for the other: an approval clears the player's flag, a changed choice
-  // clears the DM's.
-  ["character_content_reviews", "character-content-reviews"],
-  // Optional rule toggles (turn-timer, random-initiative, ...) — so a DM flipping
-  // a rule shows up for already-mounted players without waiting out staleTime.
-  ["campaign_rules",          "campaign_rules"],
-  // The Interlude — all four downtime tables share the "downtime" key root, so
-  // one invalidate string refreshes every downtime query (deduped for reconcile).
-  ["downtime_grants",         "downtime"],
-  ["downtime_draws",          "downtime"],
-  ["downtime_outcomes",       "downtime"],
-  ["downtime_deck_backs",     "downtime"],
-  // Simulacrum minis gallery — so other members see a mini land (or sculpt
-  // progress) without waiting out the query's staleTime.
-  ["minis",                   "minis"],
-  // Campaign-supplied class option text (e.g. Artificer infusion effects
-  // transcribed from the table's sourcebooks) — shared reference content, so
-  // one member typing it in must reach everyone at the table.
-  ["class_option_texts",      "class-option-texts"],
-  // Player writing appended to a document item (a ledger, a contract) — the
-  // object is a passed-around prop at the table, so an entry must reach
-  // everyone, not just refetch for whoever wrote it.
-  ["item_entries",            "item-entries"],
-] as const;
-
-/** One transition writes a cursor, a log row and sometimes a thread, and the
- *  run context joins all three — so any of them refreshes every runtime view.
- *  `BEATS_KEY` is there for the players: a beat is revealed by a visit in the
- *  transition log, not by an edit to the beat row, so no `quest_beats_player`
- *  signal rings when the DM advances; the player's "Story so far" would stay
- *  stale. (Objectives need no entry: achieving one updates its own row, which
- *  rings `quest_objectives_player`.) */
-export const QUEST_RUNTIME_SYNC_KEYS = [...QUEST_RUNTIME_QUERY_KEYS, THREADS_KEY, BEATS_KEY] as const;
-
-/** Signals that exist only to refresh a player's projections (20261005 player
- *  live sync). The DM already holds the row events for these tables or reads
- *  them through caches an autosave must not refetch, so the DM skips them. */
-const PLAYER_ONLY_SIGNALS = new Set([
-  "locations_player", "quests_player", "quest_beats_player", "quest_objectives_player",
-]);
-
-/**
- * Which query keys a `campaign_sync` doorbell refreshes, keyed by the table that
- * rang it (migration `20260904230420`).
- *
- * The doorbell carries the *name* of what changed, not the row, so the response
- * is always a refetch. That is the point: the client already knows how to read
- * its own data correctly — RLS, embeds, redacted projections — and a signal
- * cannot get any of that subtly wrong the way a hand-applied row can.
- */
-export const SIGNAL_KEYS = new Map<string, readonly string[]>([
-  ...SYNC_TABLES.map(([table, key]) => [table, [key]] as [string, readonly string[]]),
-  // The quest runtime (20260928225909) rings rather than subscribes: its rows
-  // are DM-only quest history, which 20260810000012 keeps out of realtime
-  // payloads altogether. These replaced four 5-second polls.
-  ["quest_runtime_state", QUEST_RUNTIME_SYNC_KEYS],
-  ["quest_threads", QUEST_RUNTIME_SYNC_KEYS],
-  // A step is also a learned moment, listed under its session (#985).
-  ["quest_beat_transitions", [...QUEST_RUNTIME_SYNC_KEYS, SESSION_LEARNED_KEY]],
-  // Since 20261003105146 the table has no campaign_id, so it cannot be a
-  // filtered subscription; a conversion (or an acknowledgement) rings instead.
-  ["ruleset_reviews", ["ruleset_reviews"]],
-  // Players cannot read this table, so its row events reach only the DM; the
-  // doorbell (20260928225909) tells players to re-read their projection. The
-  // DM's own copy is a store fed by the handler below, not a query.
-  ["campaign_sessions", ["player-session-state", "player-sessions"]],
-  // Not a table: the name `npcs` rings on insert and update (20260928233302).
-  // Players cannot read `npcs` rows, so their subscription to it carries
-  // nothing; this tells them to re-read their projection. The DM hears it too
-  // and has only preview caches under this root, so the rows they already
-  // received are not refetched. A delete still rings as `npcs`.
-  ["npcs_player", [PLAYER_NPCS_KEY]],
-  // Places, quests, beats and objectives are read by players through
-  // projections and owner-only policies, so a row event never reaches them;
-  // the doorbell tells them to re-read. The roots below also hold the DM's
-  // caches, which is why PLAYER_ONLY_SIGNALS makes the DM skip these.
-  // Sharing a place can share its linked NPCs, so the People projection re-reads too.
-  ["locations_player", ["locations", PLAYER_NPCS_KEY]],
-  ["quests_player", ["quests"]],
-  ["quest_beats_player", [BEATS_KEY]],
-  ["quest_objectives_player", [OBJECTIVES_KEY]],
-  // Not in SYNC_TABLES — it has exact-row handlers below instead of a registry
-  // entry. `items` as well: an item leaving the party's inventory leaves the
-  // player-visible projection with it.
-  ["party_inventory", ["party-inventory", "items"]],
-  // The reason the doorbell exists at all (#811). `store_items` has no
-  // campaign_id, so it is on no channel for any event; and its rows carry only
-  // an item_id, with the name behind it living in the player-visible
-  // projection — refresh both, or a shop stocked mid-session lists "Unknown item".
-  ["store_items", ["store-items", "items"]],
-  // A shared handout (#970). Documents ring instead of subscribing: they are
-  // large, most are DM-only drafts, and the editor autosaves, so the trigger
-  // (20261004105821) rings only when a document a player holds changes. Only
-  // the players' root is refreshed; the DM's own `scriptorium` queries back an
-  // open editor and must not be refetched underneath it.
-  ["scriptorium_documents", [PLAYER_HANDOUTS_KEY, SESSION_LEARNED_KEY]],
-  // "Mentioned in" (#972). The index of @mentions is DM-only and rewritten by
-  // a trigger only when a source's set of mentions actually changes
-  // (20261004221637), so an autosave that leaves them alone rings nothing.
-  ["entity_mentions", [BACKLINKS_KEY]],
-  // DM notes on deities, species, factions and the rest live in the DM's own
-  // private entity_notes rows. Those are per-user and must not travel as
-  // payloads, so the table rings the doorbell rather than subscribing.
-  ["entity_notes", ["entity-notes", "my-recent-entity-notes"]],
-]);
-
-// Deduped set of every key the sync owns, plus "campaigns" (handled specially
-// below). Reconciling these after a gap re-derives state from the DB.
-const RECONCILE_KEYS = [...new Set([...SIGNAL_KEYS.values()].flat()), "campaigns", "campaign-sessions"];
 
 function sortPartyInventory(items: PartyInventoryItem[]): PartyInventoryItem[] {
   return items.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
