@@ -105,9 +105,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watchEffect } from "vue";
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watchEffect } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
-import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { useDmNoteTouches } from "@/composables/notes/useDmNoteTouches";
 import { useAbove } from "@/composables/useBreakpoint";
 import { useHotkeys } from "@/composables/useHotkeys";
@@ -118,6 +117,12 @@ import { timeAgo } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useScratchpadStore } from "@/stores/scratchpad";
 import type { DmNoteTouch } from "@/types/dmNote.types";
+
+// The note box holds the rich text editor. The scratchpad is mounted by the DM layout on
+// every page, so a static import put the whole editor (tiptap, about 140 kB gzip) on every
+// DM's first load, whether or not the panel was ever opened (#999). It renders only once a
+// note is shown, so this fetches the editor on first use.
+const DmNoteBox = defineAsyncComponent(() => import("@/components/notes/DmNoteBox.vue"));
 
 const store = useScratchpadStore();
 const auth = useAuthStore();
