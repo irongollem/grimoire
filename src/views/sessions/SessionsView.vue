@@ -130,14 +130,18 @@ const summary = computed(() =>
 
 const shared = computed(() => sessionsSharingANumber(log.value ?? []));
 
+/** "twice", "3 times": how often one number appears in the log. */
 function timesWord(group: SharedNumber): string {
   const n = group.absorb.length + 1;
   return n === 2 ? "twice" : `${n} times`;
 }
 
-// One evening logged twice (run, and written up from its note) is the usual
-// reason; the confirm says what happens so a DM with two genuinely different
-// sessions under one number can decline and renumber instead.
+/**
+ * Merges every row sharing a number into the one that was run, after a confirm.
+ * One evening logged twice (run, and written up from its note) is the usual
+ * reason; the confirm says what happens so a DM with two genuinely different
+ * sessions under one number can decline and renumber instead.
+ */
 async function mergeShared(group: SharedNumber) {
   const ok = await confirm(
     "They become one session: the time it ran, its encounters, the title, the notes and everything the party learned. " +

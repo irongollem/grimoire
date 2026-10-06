@@ -36,8 +36,12 @@ declare
   v_keep   public.campaign_sessions;
   v_absorb public.campaign_sessions;
 begin
-  select * into v_keep from public.campaign_sessions where id = p_keep for update;
-  select * into v_absorb from public.campaign_sessions where id = p_absorb for update;
+  -- Both rows locked in one statement, in id order: two merges naming the same
+  -- pair the other way round would otherwise each hold one row and wait on
+  -- the other.
+  perform 1 from public.campaign_sessions where id in (p_keep, p_absorb) order by id for update;
+  select * into v_keep from public.campaign_sessions where id = p_keep;
+  select * into v_absorb from public.campaign_sessions where id = p_absorb;
 
   -- One message for missing and foreign alike: a caller learns nothing about
   -- sessions in a campaign they do not run.

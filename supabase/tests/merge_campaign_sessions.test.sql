@@ -22,9 +22,9 @@ select set_eq(
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
-  ('98600000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'merge-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
-  ('98600000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'merge-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
-  ('98600000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'merge-outsider@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
+  ('98600000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'session-merge-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
+  ('98600000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'session-merge-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
+  ('98600000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'session-merge-outsider@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
 insert into public.campaigns (id, user_id, name) values
   ('98600000-0000-4000-8000-000000000010', '98600000-0000-4000-8000-000000000001', 'Merged'),
