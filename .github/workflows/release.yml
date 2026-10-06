@@ -306,6 +306,14 @@ jobs:
     needs: [application, database, release-changes, production-release]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Records each release on GitHub's Production deployments page. Vercel's own
+    # GitHub app only reports deploys it triggers from Git, and those stopped
+    # for main on 19 Sep (ba4f5838), so without this the page froze there while
+    # production kept moving. The environment has no protection rules: this
+    # adds a record, not an approval step.
+    environment:
+      name: Production
+      url: https://app.dungeongrimoire.com
     concurrency:
       group: supabase-production
       cancel-in-progress: false
