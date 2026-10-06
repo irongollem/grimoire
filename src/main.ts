@@ -6,7 +6,7 @@ import App from "./App.vue";
 import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
 import { supabase, onSessionLost, consumeRefusedRead, getCurrentUser } from "./lib/supabase";
-import { createIdentityChangeGate } from "./lib/authIdentityChange";
+import { createIdentityChangeGate, resetForNewIdentity } from "./lib/authIdentityChange";
 import { createSessionRecovery } from "./lib/sessionRecovery";
 import { createQueryPersistence } from "./lib/queryPersistence/persistence";
 import { isStaticContent } from "./lib/queryPersistence/policy";
@@ -161,13 +161,9 @@ supabase.auth.onAuthStateChange((event, session) => {
     setTimeout(() => void persistence.prune(userId), 0);
   }
   if (!identityChanged(userId, event) || userId === null) return;
-  setTimeout(() => {
-    // Cancel before invalidating: a read that left anonymously a moment ago is
-    // still in flight, and left alone it resolves AFTER the refetch and writes
-    // its empty answer over the real one — the same wrong screen by a shorter
-    // route. Cancelling rolls those back, then everything re-asks with a token.
-    void queryClient.cancelQueries().then(() => queryClient.invalidateQueries());
-  }, 0);
+  // Reset rather than invalidate, so another account's rows leave the screen
+  // before the refetch lands, not after it (#981).
+  setTimeout(() => void resetForNewIdentity(queryClient, isStaticContent), 0);
 });
 
 // Every AI generator registers itself so the badge can discover it without

@@ -1,3 +1,5 @@
+import type { QueryClient } from "@tanstack/vue-query";
+
 /**
  * "Did the signed-in identity actually change?" — the question behind throwing
  * the query cache away.
@@ -58,4 +60,38 @@ export function createIdentityChangeGate(): (
     // since `seen` starts as `undefined`.
     return changed && userId !== null;
   };
+}
+
+/**
+ * Throw the previous identity's answers away, then ask again as the new one.
+ *
+ * Reset, not invalidate. Invalidation keeps the old data on screen until the
+ * refetch replaces it, and many keys say nothing about who asked:
+ * `["library-monster-art", "entries", ids]` merges the caller's own art
+ * overrides over the canonical rows, `["monsters", "by-ids", ...]` returns
+ * custom monsters under the caller's RLS. So when account B signs in on a tab
+ * where account A just was, invalidating showed B A's private rows for the
+ * length of the refetch, and for good if the refetch failed (#981). Resetting
+ * returns every entry to its initial state and tells its observers, so a
+ * mounted view drops to loading at once rather than when the network answers.
+ * (`removeQueries` would not do: an observer already mounted keeps its
+ * reference to the removed query and goes on rendering its data.)
+ *
+ * Cancel first: a read that left a moment ago under the old identity, or
+ * anonymously, is still in flight, and left alone it resolves AFTER the refetch
+ * and writes its answer over the right one.
+ *
+ * Shared library content (`isShared`) is the one thing spared, because it is
+ * the same for every account, and the monster list alone is ~1.5 MB. It is still
+ * invalidated, since a list read while signed out may hold RLS's empty answer.
+ */
+export async function resetForNewIdentity(
+  queryClient: QueryClient,
+  isShared: (queryKey: readonly unknown[]) => boolean,
+): Promise<void> {
+  await queryClient.cancelQueries();
+  await Promise.all([
+    queryClient.resetQueries({ predicate: (query) => !isShared(query.queryKey) }),
+    queryClient.invalidateQueries({ predicate: (query) => isShared(query.queryKey) }),
+  ]);
 }
