@@ -6,7 +6,7 @@
 **Date:** 28 June 2026
 
 > **Status of this review.** This is a substantive advisory review against Dutch (BW) and EU law, not a formal opinion from an advocaat admitted to the Nederlandse Orde van Advocaten. For a public launch with paid consumer subscriptions I'd still recommend a one-page sign-off from an admitted lawyer or a consumer-law specialist — but the issues below are the ones that sign-off would focus on, and most are fixable in-house. The drafting is genuinely good for a solo/small operator: the structure, plain-language tone, sub-processor table, retention basis and the recorded clickwrap are all above the baseline I usually see. The gaps are concentrated and concrete.
-
+>
 > **Update — 28 June 2026: most fixes now applied in-page.** The document-level items (R1, R2, R5, R6, R7, R8, R9, R10, R12) have been edited into `terms.md`, `privacy.md` and `refunds.md`. What remains is **three checkout code/behaviour items (R3, R4, R11)** plus **two operational pre-conditions (the KvK registration and the office address going live)**. See the **Status tracker and "What's left" in §4**. Section 3 retains the original recommended wording for reference.
 
 ---

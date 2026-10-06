@@ -136,6 +136,52 @@ What to actually exercise before trusting a billing change. Each line is a path 
 - [ ] Refund a pack charge in the Dashboard → credits are clawed back
 - [ ] Declined card `4000 0000 0000 0341` → no PRO, no credits, no partial row
 
+## Verifying the credit buckets
+
+The smoke test proves money arrives. The expensive mistakes live one layer down, in how credits are split between the two buckets of `ai_credit_ledger` (read through the `ai_credit_buckets` view):
+
+| Scenario | Expected result |
+| --- | --- |
+| New subscription | the plan's `monthly_credits` land in the **`subscription`** bucket |
+| Spend | drawn **subscription-first**; spills into `purchased` only once the subscription bucket is empty |
+| Renewal | the subscription bucket **resets** to the allowance; leftovers do not carry over |
+| Credit pack | lands in **`purchased`** and never expires |
+| Duplicate webhook delivery | no double credit (unique indexes on the ledger, `23505` handled) |
+| Cancel | plan drops to `free`; purchased credits stay |
+
+The grant and every renewal happen on `invoice.payment_succeeded` (`topUpSubscriptionCredits` in `supabase/functions/stripe-webhook/index.ts`), and the allowance is read from `plans.monthly_credits`, not from the price, so these checks hold whichever price ids are configured.
+
+```sql
+-- Balances after any step
+select subscription_balance, purchased_balance
+from ai_credit_buckets where user_id = '<test-user-uuid>';
+
+-- Spend split: subscription drops first
+select bucket, sum(delta) from ai_credit_ledger
+where user_id = '<test-user-uuid>' group by bucket;
+```
+
+**Renewal, with a Test Clock.** `stripe trigger` fires a synthetic invoice for a throwaway customer, so it cannot show the reset on *your* subscription. To advance a real one a month, create it on a test clock (Dashboard → Test mode → Billing → Subscriptions → Test clock, or the CLI):
+
+```bash
+stripe test_helpers test_clocks create --frozen-time $(date +%s)
+# attach the customer and subscription to the clock, then:
+stripe test_helpers test_clocks advance <clock_id> --frozen-time <now + 32 days>
+```
+
+```sql
+-- Expect exactly the allowance again, not allowance + leftover
+select subscription_balance from ai_credit_buckets where user_id = '<test-user-uuid>';
+-- Expect one top-up row per period
+select delta, subscription_period_start from ai_credit_ledger
+where user_id = '<test-user-uuid>' and reason = 'subscription_topup'
+order by created_at;
+```
+
+**Idempotency.** Resend that renewal event from the Dashboard (the event → **Resend**) and count again: still one `subscription_topup` row for that `subscription_period_start`.
+
+**Edge cases worth a look.** Spend down to zero and confirm generation is refused as insufficient credits before any provider call; `stripe trigger invoice.payment_failed` should leave the subscription `past_due`.
+
 ---
 
 ## Prerequisites

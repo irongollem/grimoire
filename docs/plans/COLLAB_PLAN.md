@@ -1,6 +1,6 @@
 # Grimoire — Collaboration Features: Technical Plan
 
-> **⚠️ Historical design document.** This is the original collaboration design plan. Most phases described here as "future" or "planned" have since shipped. For how collaboration actually works today, see [`context/features/collaboration.md`](context/features/collaboration.md); open work is in GitHub issues.
+> **⚠️ Historical design document.** This is the original collaboration design plan. Most phases described here as "future" or "planned" have since shipped. For how collaboration actually works today, see [`context/features/collaboration.md`](../../context/features/collaboration.md); open work is in GitHub issues.
 >
 > **Scope**: Multi-user campaign participation — DM + players on the same campaign, real-time encounter sync, shared inventory, and a player-facing portal. VTT/map management is out of scope here but this architecture is designed to accommodate it.
 
@@ -204,7 +204,7 @@ $$;
 
 ### Client composables
 
-```
+```text
 src/composables/
 ├── useRealtime.ts                    # NEVER BUILT — the shared channel wrapper landed as lib/realtimeChannel.ts instead
 ├── campaign/useCampaignPresence.ts   # Who's online (Presence)
@@ -216,7 +216,7 @@ src/composables/
 
 ## 6. Invite Flow
 
-```
+```text
 DM generates invite link
   → creates row in campaign_invites with unique token
   → copies link: /join/{token}
@@ -238,7 +238,7 @@ The join action is a Supabase Edge Function (`supabase/functions/join-campaign/`
 
 ## 7. Player Portal — Routes & Views
 
-```
+```text
 /play                     PlayerHome.vue       — character summary, active encounter badge, online party
 /play/character           PlayerCharacter.vue  — full character sheet (editable own fields only)
 /play/party               PlayerParty.vue      — read-only party tracker (other members)

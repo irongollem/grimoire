@@ -2,8 +2,8 @@
 
 Turns an NPC / monster / player-character portrait into a downloadable 3D
 miniature: **print** (grey untextured high-poly STL for resin printing) or
-**VTT** (colored low-poly GLB). Full design + provider facts: `SIMULACRUM_PLAN.md`
-(repo root). Built Phases 0–3.5; **Phase 4 (go-live) is blocked on buying the
+**VTT** (colored low-poly GLB). Full design + provider facts: `docs/plans/SIMULACRUM_PLAN.md`.
+Built Phases 0–3.5; **Phase 4 (go-live) is blocked on buying the
 Meshy Pro subscription** — until then the feature runs in `hidden` or `teaser`
 mode.
 
@@ -72,7 +72,7 @@ The loop:
 ## The poller is not its own watchdog (#771)
 
 `minis` is its own job table, and until 25 Aug 2026 the only thing that could
-advance or fail a row was `poll-meshy-jobs`. Staleness was evaluated *inside*
+advance or fail a row was `poll-meshy-jobs`. Staleness was evaluated _inside_
 the poller (`isStale`, `sculptPhaseStartedAt`), so the worker was also its own
 watchdog: stop it and a mini sits in `sculpting` or `downloading` forever, with
 the UI showing progress that will never arrive. Not hypothetical — the poller
@@ -86,17 +86,17 @@ things that are easy to get wrong, all decided deliberately:
 
 - **`polled_at` is written by the poller and by nothing else.** #771 proposed
   measuring liveness from `updated_at`, which is what the #769 sweep does. It
-  cannot work here: this sweep writes *repeatedly*, so `updated_at` would be
+  cannot work here: this sweep writes _repeatedly_, so `updated_at` would be
   measuring the sweep; and a poller that is alive and retrying a failing
   download looks identical in `updated_at` to one that is gone, while the two
   need opposite treatment — the live one has to keep its right to give up at
   `STALE_SCULPT_MS`. A pgTAP assertion on the function body fails if the sweep
   ever writes that column.
 - **`sculpting` is never nudged; `downloading` always is.** Sculpt time is
-  *provider* time and elapses whether or not we are watching, and nothing is
+  _provider_ time and elapses whether or not we are watching, and nothing is
   lost by leaving it — `resolveSculptOutcome` returns "complete" for SUCCEEDED
   before it consults `stale`, so a returning poller still collects a task that
-  finished during the outage. Download time is *ours* and only elapses while we
+  finished during the outage. Download time is _ours_ and only elapses while we
   are trying; letting it accrue means the poller's first act on recovery is to
   fail a paid, SUCCEEDED sculpt with "Model download failed repeatedly", which
   by then is a lie. Not nudging `sculpt_started_at` is also what keeps it
@@ -115,7 +115,7 @@ The blocker was real for the sweep #771 imagined — "`sculpting` > N hours →
 `failed`" needs a measured p99 and destroys paid work when N is wrong. Nothing
 above asks how long a sculpt takes, whether an unpolled Meshy task is still
 queryable, or whether `cancel` refunds; the last two remain Phase 4 questions.
-The two clocks it does use were already known: poller liveness from *our* cron
+The two clocks it does use were already known: poller liveness from _our_ cron
 cadence and lease (15 min), asset retention from Meshy's published non-Enterprise
 lifetime (3 days).
 
@@ -152,7 +152,7 @@ sent; the function 503s) or a function that was never deployed.
 | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `supabase/functions/_shared/simulacrum.ts`          | Pure state machine + Meshy params (`canStylize/canSculpt/canResculpt/resolveSculptOutcome/meshyParamsForFormat/isStale`). Vitest: `simulacrum.test.ts` (39)                         |
 | `supabase/functions/_shared/mesh3d.ts`              | Meshy image-to-3D client + `MESHY_MOCK=1` mock (valid embedded GLB/STL data URLs). Vitest: `mesh3d.test.ts` (18)                                                                    |
-| `supabase/functions/forge-mini/index.ts`            | Actions: `stylize` (async image job, platform keys, entity_image cost) / `sculpt` (reserve 500, create Meshy task) / `resculpt` (free) / `cancel` / `delete` (storage folder + row) / `delete_campaign` (every mini in a campaign the caller owns, each the way `delete` removes one; called by the campaign delete *before* its RPC, because the row is the only record of the folder, #963). Both deletes skip the frozen/child generation gate: deleting generates nothing |
+| `supabase/functions/forge-mini/index.ts`            | Actions: `stylize` (async image job, platform keys, entity_image cost) / `sculpt` (reserve 500, create Meshy task) / `resculpt` (free) / `cancel` / `delete` (storage folder + row) / `delete_campaign` (every mini in a campaign the caller owns, each the way `delete` removes one; called by the campaign delete _before_ its RPC, because the row is the only record of the folder, #963). Both deletes skip the frozen/child generation gate: deleting generates nothing |
 | `supabase/functions/poll-meshy-jobs/index.ts`       | Cron poller: poll → download all formats → settle credits → `ready`. Token-gated (`SIMULACRUM_POLLER_TOKEN`), `verify_jwt=false`. Stamps `polled_at` on every claim — the liveness signal `sweep-stranded-minis` reads (#771) |
 | `_shared/image-prompt.ts` / `src/ai/imagePrompt.ts` | `buildMiniStylizePrompt(format, name, instructions?)` — print: grey resin, blank eyes, clumped hair, integral base; VTT: colored, clean silhouette, base. Mirrored pair             |
 | `_shared/platform-keys.ts`                          | `Provider` union + `"meshy"` (row added at go-live)                                                                                                                                 |
@@ -194,6 +194,7 @@ MESHY_MOCK`** (set during pre-sub testing) and clear any "mock" placeholder
    select vault.create_secret('https://<proj>.supabase.co/functions/v1/poll-meshy-jobs', 'simulacrum_poller_url');
    select vault.create_secret('<token>', 'simulacrum_poller_token');
    ```
+
    ```bash
    supabase secrets set SIMULACRUM_POLLER_TOKEN=<token> --project-ref <proj>
    ```
