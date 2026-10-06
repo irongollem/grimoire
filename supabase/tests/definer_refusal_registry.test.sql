@@ -68,6 +68,7 @@ insert into definer_registry (name, kind, reason) values
   ('delete_character_spells', 'refuses', null),
   ('detach_party_member_from_campaign', 'refuses', null),
   ('dispatch_loot', 'refuses', null),
+  ('edit_memorial_account', 'refuses', null),
   ('end_campaign_quest_session', 'refuses', null),
   ('ensure_quest_main_thread', 'refuses', null),
   ('exchange_wild_shape', 'refuses', null),
@@ -106,8 +107,10 @@ insert into definer_registry (name, kind, reason) values
   ('publish_demo_version', 'refuses', null),
   ('remove_from_family_campaign', 'refuses', null),
   ('remove_missing_character_content', 'refuses', null),
+  ('restore_character', 'refuses', null),
   ('restore_sorcery_points', 'refuses', null),
   ('search_quest_runtime_jump_targets', 'refuses', null),
+  ('set_character_down', 'refuses', null),
   ('set_character_spell_prepared', 'refuses', null),
   ('set_demo_offered', 'refuses', null),
   ('spend_downtime_draw', 'refuses', null),
@@ -116,7 +119,8 @@ insert into definer_registry (name, kind, reason) values
   ('transfer_campaign_ownership', 'refuses', null),
   ('transition_quest_runtime', 'refuses', null),
   ('update_combatant_position', 'refuses', null),
-  ('validate_app_invite', 'public', 'runs before login by definition; the token is the credential');
+  ('validate_app_invite', 'public', 'runs before login by definition; the token is the credential'),
+  ('write_last_words', 'refuses', null);
 
 create temporary view client_definers as
   select p.oid, p.proname::text as name, p.proargtypes

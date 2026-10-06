@@ -6,6 +6,7 @@
       'w-full h-full',
       format === 'token' && 'rounded-full overflow-hidden',
       format === 'square' && 'overflow-hidden',
+      isZoomed(zoom) && 'relative overflow-hidden',
       lightbox && src && (lightboxPending ? 'cursor-progress' : 'cursor-zoom-in'),
     ]"
     @click="handleImageClick"
@@ -16,11 +17,7 @@
       :src="displaySrc"
       :alt="alt ?? ''"
       :class="isClipped ? 'w-full' : 'w-full h-full object-cover'"
-      :style="
-        isClipped
-          ? { transform: `translateY(${clippedTranslateY}px)` }
-          : { objectPosition }
-      "
+      :style="imageStyle"
       :loading="print ? 'eager' : 'lazy'"
       @load="onLoad"
       @error="onError"
@@ -36,11 +33,7 @@
       :src="placeholder"
       :alt="alt ?? ''"
       :class="isClipped ? 'w-full opacity-40' : 'w-full h-full object-cover opacity-40'"
-      :style="
-        isClipped
-          ? { transform: `translateY(${clippedTranslateY}px)` }
-          : { objectPosition }
-      "
+      :style="imageStyle"
       loading="lazy"
       @load="onPlaceholderLoad"
     />
@@ -55,11 +48,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount } from "vue";
+import { ref, computed, watch, onBeforeUnmount, type CSSProperties } from "vue";
 import smartcrop from "smartcrop";
 import { backfillVariants, type VariantWidth } from "@/lib/storage";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import type { ModalOrigin } from "@/lib/modalOrigin";
+import { focalZoomFrame, isZoomed, type FocalZoomFrame } from "@/lib/focalZoom";
 import { initPlaceholderFocalPoints, getPlaceholderFocalPoint } from "@/lib/placeholderFocalPoints";
 
 export type ImageFormat = "portrait" | "landscape" | "token" | "square";
@@ -88,7 +82,8 @@ const FORMAT_DEFAULTS: Record<ImageFormat, string> = {
 // Bump when analysis logic or cache format changes
 const CACHE_PREFIX = "focal_v3:";
 
-const props = defineProps<{
+// Vue 3.5 destructured defaults; the rest stays a reactive `props` for every other read.
+const { zoom = 1, zoomAnchorY = 0.5, ...props } = defineProps<{
   src?: string | null;
   alt?: string;
   format: ImageFormat;
@@ -103,6 +98,11 @@ const props = defineProps<{
   lightbox?: boolean;
   /** Fallback image URL shown (dimmed) when src is null/undefined. */
   placeholder?: string;
+  /** Scale the image by this factor around the focal point (the point stays where
+   *  centring put it). 1 = no zoom and no transform at all. */
+  zoom?: number;
+  /** Where the zoomed focal point lands, as a fraction (0..1) of the container height. */
+  zoomAnchorY?: number;
 }>();
 
 const FORMAT_RENDER_WIDTHS: Record<ImageFormat, VariantWidth> = {
@@ -231,6 +231,48 @@ const objectPosition = ref(FORMAT_DEFAULTS[props.format]);
 // Use translateY to center the focal point instead of object-position.
 const isClipped = ref(false);
 const clippedTranslateY = ref(0);
+// Zoom mode (zoom > 1): the image is drawn oversized and absolutely positioned so the
+// focal point lands on the anchor. Null until the image has loaded.
+const zoomFrame = ref<FocalZoomFrame | null>(null);
+
+const imageStyle = computed<CSSProperties>(() => {
+  if (isZoomed(zoom) && zoomFrame.value) {
+    const f = zoomFrame.value;
+    return {
+      position: "absolute",
+      maxWidth: "none",
+      width: `${f.width}px`,
+      height: `${f.height}px`,
+      left: `${f.left}px`,
+      top: `${f.top}px`,
+    };
+  }
+  if (isClipped.value) {
+    return { transform: `translateY(${clippedTranslateY.value}px)` };
+  }
+  return { objectPosition: objectPosition.value };
+});
+
+/** FORMAT_DEFAULTS ("50% 25%") as a focal point, for before a real one resolves. */
+function defaultFocal(): { x: number; y: number } {
+  const [x, y] = FORMAT_DEFAULTS[props.format].split(" ").map((v) => Number.parseFloat(v));
+  return { x, y };
+}
+
+function applyZoomFrame(img: HTMLImageElement, fp: { x: number; y: number }) {
+  const root = rootRef.value;
+  if (!root || !img.naturalWidth || !img.naturalHeight) return;
+  const { width: proxyW, height: proxyH } = FORMAT_TARGETS[props.format];
+  zoomFrame.value = focalZoomFrame({
+    containerW: root.offsetWidth || proxyW,
+    containerH: root.offsetHeight || proxyH,
+    naturalW: img.naturalWidth,
+    naturalH: img.naturalHeight,
+    focal: fp,
+    zoom: zoom,
+    anchor: { x: 0.5, y: zoomAnchorY },
+  });
+}
 
 // Raw focal point: 0–100 percentages of the SOURCE IMAGE dimensions.
 // This is stored/cached. The display object-position is computed separately
@@ -286,6 +328,11 @@ function computeCenteredPosition(
 }
 
 function applyFocalPoint(img: HTMLImageElement, fp: { x: number; y: number }) {
+  if (isZoomed(zoom)) {
+    applyZoomFrame(img, fp);
+    return;
+  }
+  zoomFrame.value = null;
   const containerH = rootRef.value?.offsetHeight ?? 0;
   const renderedH = img.naturalHeight * (img.offsetWidth / img.naturalWidth);
 
@@ -308,8 +355,9 @@ function applyFocalPoint(img: HTMLImageElement, fp: { x: number; y: number }) {
 
 function onLoad() {
   const img = imgRef.value;
-  if (!img || !rawFocalPoint.value) return;
-  applyFocalPoint(img, rawFocalPoint.value);
+  if (!img) return;
+  if (rawFocalPoint.value) applyFocalPoint(img, rawFocalPoint.value);
+  else if (isZoomed(zoom)) applyZoomFrame(img, defaultFocal());
 }
 
 function onPlaceholderLoad() {
@@ -420,9 +468,9 @@ async function resolve(
 
   // Apply if the image element already finished loading
   const img = imgRef.value;
-  if (img?.complete && img.naturalWidth && rawFocalPoint.value) {
-    applyFocalPoint(img, rawFocalPoint.value);
-  }
+  if (!img?.complete || !img.naturalWidth) return;
+  if (rawFocalPoint.value) applyFocalPoint(img, rawFocalPoint.value);
+  else if (isZoomed(zoom)) applyZoomFrame(img, defaultFocal());
 }
 
 // Matches the filename stem, tolerating an optional content-hash segment
@@ -507,6 +555,7 @@ watch(
   ([url, ph, fp, visible]) => {
     rawFocalPoint.value = null;
     objectPosition.value = FORMAT_DEFAULTS[props.format];
+    zoomFrame.value = null;
     variantFailed.value = false;
     if (!visible) return;
     if (url) {
@@ -523,9 +572,16 @@ watch(
 // when the viewport is resized.
 const resizeObserver = new ResizeObserver(() => {
   const img = imgRef.value ?? placeholderImgRef.value;
-  if (img?.complete && img.naturalWidth && rawFocalPoint.value) {
-    applyFocalPoint(img, rawFocalPoint.value);
-  }
+  if (!img?.complete || !img.naturalWidth) return;
+  if (rawFocalPoint.value) applyFocalPoint(img, rawFocalPoint.value);
+  else if (isZoomed(zoom)) applyZoomFrame(img, defaultFocal());
+});
+
+// Zoom or anchor changes reframe an already-loaded image.
+watch([() => zoom, () => zoomAnchorY], () => {
+  const img = imgRef.value ?? placeholderImgRef.value;
+  if (!img?.complete || !img.naturalWidth) return;
+  applyFocalPoint(img, rawFocalPoint.value ?? defaultFocal());
 });
 
 watch(rootRef, (el, prev) => {

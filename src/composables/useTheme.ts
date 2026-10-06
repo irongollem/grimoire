@@ -40,6 +40,21 @@ export function themeInMode(themeId: string, mode: "light" | "dark"): string {
   );
 }
 
+/** The dark member of `themeId`'s family (itself when already dark). */
+export function darkTwinId(themeId: string): string {
+  return themeInMode(themeId, "dark");
+}
+
+/**
+ * The dark twin's custom properties, for a wrapper's inline `style`: the
+ * subtree renders dark whatever the viewer's light/dark setting is.
+ */
+export function darkTwinStyle(themeId: string): Record<string, string> {
+  const twin = darkTwinId(themeId);
+  const theme = THEMES.find((t) => t.id === twin);
+  return theme ? { ...theme.vars } : {};
+}
+
 /** Read the browser's current preferred colour scheme. */
 function systemMode(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";

@@ -992,6 +992,34 @@ Clicking a companion card opens a lightbox with HP bar, AC, active conditions, a
 
 ---
 
+## Hall of the Fallen (#982)
+
+A memorial wall for every champion who fell or retired. A death is a goodbye and an honour to the character, so the wall is a vigil, not a list page. The design is the spec: canvas https://claude.ai/artifact/2Vizcxj57abayVXeCus9yG, decisions on #982.
+
+### The model
+
+- **A death is a deliberate act, never inferred.** Three failed death saves only *offer* "Mark as fallen…" in the encounter runner; revivify, resurrection and DM fiat all exist. The DM marks a character fallen; the DM or the owning player retires one. Both undo ("Restore to life", "Return to the party").
+- **`character_memorials`** (one row per character, ever). `restored_at IS NULL` means the character is on the wall. Undo sets `restored_at` and keeps every word, so a raise-dead or a misclick loses nothing and a second fall starts from what was written.
+- **The memorial snapshots what its card shows** (name, portrait and focal point, species, class, level, campaign, the player tag) at the moment of the event. A player who later leaves the campaign can no longer read the `party_members` row, but still sees the companions who fell beside them. The player tag is the seat name (else username) *at that moment* and never follows a rename: the issue's answer was "if the player picks a different username they stay desynched".
+- **Account erasure** clears `player_name` and `last_words` on every memorial owned by the erased user (including restored characters), before the auth deletion clears `owner_user_id`. The preparation keeps the memorial and its other story fields intact.
+- **`survived_by`** is the rest of the active party at the moment of a fall, frozen the same way.
+- **`memorial_mourners`**: one row per person at the table when the character fell (seeded by `set_character_down`), or who later lit a candle. It grants visibility after leaving, and carries that person's gestures: `candle_lit_at`, `tolled_at` (has seen the death notice), `kept_at` / `let_go_at` (the answer to "keep this card?" once they are no longer in the campaign).
+- **Writes go through four definer RPCs**, because three people write different parts of one memorial and the owner can already update every column of their own `party_members` row: `set_character_down` (fallen: DM; retired: DM or owner; account and last blow: DM; last words: owner), `restore_character`, `edit_memorial_account` (DM), `write_last_words` (owner, also after leaving). Mourner rows are written directly under RLS (own row only, only for a memorial you can see). Refusals are proven in `supabase/tests/hall_of_the_fallen.test.sql`.
+- **Who sees a memorial** is `private.can_see_memorial(id)`: the campaign's DM and members, the owner, and any mourner.
+
+### Leaving the active lists
+
+`useParty()` stays unfiltered on purpose: a fallen character's sheet, mentions, journal links and pickers must still resolve it. Every surface that means "who is playing at this table" (tracker, encounter roster and auto-fill, run combatants, rests, XP and loot awards, dashboard vitals, the player's People and Hearth, Champions) reads `useActiveParty()` instead, which drops characters with a memorial in effect.
+
+### Surfaces
+
+- **The wall**: `/play/fallen` (player portal; `playerStandalone`, because it outlives a membership; nav entry "Hall of the Fallen" with the shrine glyph) and `/party/fallen` (DM, linked from the Party Tracker header). One component, `HallOfTheFallen.vue`, with a `scope` prop. Player scope splits "Your champions" from "Who stood beside you".
+- **Always dark**: the wall renders in the dark twin of the campaign's theme family (`darkTwinStyle()` in `useTheme.ts`) on a stone ground (`public/assets/memorial/stone.jpg`), lit by flickering candles (off under reduced motion). The maintainer's words: "indeed always darkmode this page".
+- **The card** (`MemorialCard.vue`) is a Victorian mourning card, not an entity card, and keeps a fixed palette because it is an artefact. Fallen: black border and corner sash, IN MEMORIAM, oval cameo in grisaille, black ribbon, † before the in-game date. Retired: gilt border, IN HONOUR, full colour, laurel wreath; honoured, not mourned. The back is an obituary: a lead line composed from the snapshot, the DM's account with a drop cap (deliberately once per card), "Struck down by…", "Survived by…", and the last words. It turns over with Card Forge's flip, shared as `CardFlip.vue`.
+- **The cameo** frames the face with `FocalImage`'s `zoom` on the stored focal point.
+- **The death notice** ("the tolling"): after the DM marks a fall, each mourner sees it once, full screen, on their next open of the portal (never during a live encounter). The owner is offered to write the last words; the others to light a candle.
+- **Keep or let go**: a player who is no longer in the campaign gets one prompt per card of their own on the wall. Ignoring it keeps the card; letting go hides it from their wall only.
+
 ## Shapeshifter Disguise Feature
 
 The shapeshifter disguise feature lets one party member appear to be a different species to all other players — while the DM and the shapeshifter themselves always see the true form.

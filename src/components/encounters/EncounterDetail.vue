@@ -238,7 +238,7 @@ import { IconCheckDouble, IconChevronLeft, IconClose, IconPlay, IconReset, IconS
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -335,7 +335,7 @@ const lairOwnerOptions = computed(() => {
   });
 });
 
-const { data: party, isLoading: partyLoading } = useParty();
+const { data: party, isLoading: partyLoading } = useActiveParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItemIndex();
@@ -485,14 +485,19 @@ const audioThemeOptions = computed(() =>
 
 // For new encounters, auto-select all party members once the party data loads
 if (!props.encounter) {
+  // Fills only from a resolved roster (party AND memorials loaded): an unresolved
+  // one is undefined, so the fallen can never be seeded in the loading window.
+  let partyFilled = false;
   watch(
     party,
     (members) => {
-      if (members?.length && !form.party_member_ids.length) {
+      if (!members || partyFilled) return;
+      partyFilled = true;
+      if (members.length && !form.party_member_ids.length) {
         form.party_member_ids = members.map((m) => m.id);
       }
     },
-    { immediate: true, once: true },
+    { immediate: true },
   );
 
   // Same auto-select for companions — a new encounter starts with the whole

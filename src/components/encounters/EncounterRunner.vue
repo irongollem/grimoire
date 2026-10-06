@@ -150,7 +150,8 @@ import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useCombatExploration } from "@/composables/encounters/useCombatExploration";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useCompanions, useUpdateCompanion } from "@/composables/encounters/useCompanions";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { buildNpcSyncUpdate } from "@/lib/encounters/npcEncounterSync";
@@ -190,7 +191,7 @@ const { reportChatFailure } = useChatSendFailure();
 
 // The runner resolves combatants' stored monster_id (detail panel, auto-discover
 // on go-live) rather than letting the DM pick, so scoping must stay off here.
-const { data: partyMembers } = useParty();
+const { data: partyMembers } = useActiveParty();
 const { data: companions } = useCompanions();
 const { data: encounter } = useEncounter(encounterId);
 // Shared with EncounterMapView (via useEncounterRoom internally) — the two

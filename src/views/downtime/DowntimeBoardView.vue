@@ -11,6 +11,7 @@ import GrantDowntimeButton from "@/components/downtime/GrantDowntimeButton.vue";
 import RuleDisabledNotice from "@/components/common/RuleDisabledNotice.vue";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useDowntimeRewardName } from "@/composables/downtime/useDowntimeRewardName";
 import {
   downtimeRewardHref,
@@ -24,7 +25,9 @@ import type { DowntimeDraw, DowntimeRewardType } from "@/types/downtime.types";
 const ui = useUiStore();
 // Hidden from the sidebar when off, but a bookmarked URL still lands here.
 const isEnabled = useIsRuleEnabled("downtime");
-const { data: party, isPending: partyPending } = useParty();
+const { data: party, isPending: partyPending } = useActiveParty();
+// A fallen character's old draws still name them, so names resolve against everyone.
+const { data: everyone } = useParty();
 const { data: draws } = useDowntimeDraws();
 const { data: outcomes } = useDowntimeOutcomes();
 // Item and note rewards are as real as npc ones — Phase 2 made every seed's
@@ -46,7 +49,7 @@ const filterCharacter = computed({
 
 /** A character deleted out from under a draw must read as absent. */
 function memberName(id: string): string {
-  return party.value?.find((m) => m.id === id)?.name ?? "??? (removed)";
+  return everyone.value?.find((m) => m.id === id)?.name ?? "??? (removed)";
 }
 
 const visibleDraws = computed<DowntimeDraw[]>(() =>

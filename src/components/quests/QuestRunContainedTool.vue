@@ -129,7 +129,7 @@ import { useFaction } from "@/composables/factions/useFactions";
 import { useItemsByIds } from "@/composables/items/useItemsByIds";
 import { useResolvedMonster } from "@/composables/monsters/useMonsters";
 import { useNote } from "@/composables/notes/useNotes";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { usePlaylists, usePlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
@@ -171,7 +171,7 @@ const monster = computed(() => monsterQuery.data.value?.monster ?? null);
 const noteRecord = computed(() => noteQuery.data.value ?? null);
 const handoutRecord = computed(() => handoutQuery.data.value ?? null);
 // "Give to players" starts on the whole party, the way a `give_handout` payoff gives it.
-const { data: partyData } = useParty();
+const { data: partyData } = useActiveParty();
 const wholeParty = computed(() => (partyData.value ?? []).map((member) => member.id));
 // A stored attachment resolves by id; the edition and books only narrow what a picker offers (#961).
 const isItemAttachment = computed(() => props.attachment.attachment_type === "item");

@@ -59,6 +59,10 @@ export const SYNC_TABLES = [
   // A milestone the DM awards (or an award_milestone rule fires) reaches the
   // party screen as it happens; the table is member-readable (#850).
   ["party_milestones",        "party_milestones"],
+  // Hall of the Fallen (#982): a fall, a restore or a lit candle reaches every
+  // member's wall and party list as it happens.
+  ["character_memorials",     "memorials"],
+  ["memorial_mourners",       "memorials"],
   // Chat carries the authoritative claim/removal state for dispatched loot, but
   // it is also the busiest table here — the system reducer filters down to the
   // loot message types before touching any quest cache.

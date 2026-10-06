@@ -14,6 +14,10 @@ const party = [
   { id: "p2", name: "Mine", class: null, level: null, owner_user_id: "u1", is_dm_managed: false },
 ];
 
+vi.mock("@/composables/memorials/useMemorials", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/composables/memorials/useMemorials")>()),
+  useCampaignMemorials: () => ({ data: { value: [] } }),
+}));
 vi.mock("@/composables/campaign/useCampaignMembers", () => ({
   useCampaignMembers: () => ({ data: { value: [member] }, isPending: { value: false } }),
   useUpdateCampaignMember: () => ({ mutate: mocks.mutate }),

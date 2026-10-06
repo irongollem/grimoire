@@ -295,6 +295,19 @@ export const useUiStore = defineStore("ui", () => {
     questsLootFilter.value = false;
   }
 
+  // Hall of the Fallen (#982): filters over the wall already on screen, so they live here
+  // like every other list filter. `hallCampaign` is tri-state on purpose: null is "never
+  // touched", which the wall reads as All for a player and as the active campaign for a
+  // DM; "all" is an explicit All. Clear returns to the untouched state.
+  const hallCampaign = ref<string | null>(null);
+  const hallKind = ref<"all" | "fallen" | "retired">("all");
+  const hasHallFiltersActive = computed(() => hallCampaign.value !== null || hallKind.value !== "all");
+
+  function resetHallFilters() {
+    hallCampaign.value = null;
+    hallKind.value = "all";
+  }
+
   // Dashboard "Upcoming events" widget (#764). A filter over the list already
   // on the card, so it belongs here rather than in a local ref — the Filter
   // State Pattern's own test. Survives navigating away from the dashboard and
@@ -1259,6 +1272,12 @@ export const useUiStore = defineStore("ui", () => {
     questsLootFilter,
     questsHasActiveFilters,
     resetQuestsFilters,
+
+    // Hall of the Fallen
+    hallCampaign,
+    hallKind,
+    hasHallFiltersActive,
+    resetHallFilters,
 
     // Factions
     factionsSearch,

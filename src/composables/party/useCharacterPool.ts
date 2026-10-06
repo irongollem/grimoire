@@ -142,11 +142,16 @@ export function useDeletePoolCharacter() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (partyMemberId: string) => {
-      const { error } = await supabase
+      // A refused RLS delete is silent (zero rows, no error), so ask for the row back.
+      const { data, error } = await supabase
         .from("party_members")
         .delete()
-        .eq("id", partyMemberId);
+        .eq("id", partyMemberId)
+        .select("id");
       if (error) throw error;
+      if (!data?.length) {
+        throw new Error("This character could not be deleted. If they rest in the Hall of the Fallen, restore them first.");
+      }
     },
     onSuccess: () => invalidateCharacterCaches(queryClient),
   });

@@ -19,23 +19,17 @@
         @mousemove="onMouseMove(cardKey(subject), $event)"
         @mouseleave="onMouseLeave(cardKey(subject))"
       >
-        <Transition name="card-flip" mode="out-in">
-          <!-- Loot mode: LootFront on front, shared LootBack on back -->
-          <template v-if="store.mode === 'loot'">
-            <div v-if="!flipped.has(cardKey(subject))" key="front">
+        <CardFlip :flipped="flipped.has(cardKey(subject))">
+          <template #front>
+            <!-- Loot mode: LootFront; collection mode: per-style front -->
+            <template v-if="store.mode === 'loot'">
               <LootFront
                 v-if="subject.kind === 'item'"
                 :data="subject.data"
                 :tarot="store.cardSize === 'tarot'"
               />
-            </div>
-            <div v-else key="back">
-              <LootBack :tarot="store.cardSize === 'tarot'" />
-            </div>
-          </template>
-          <!-- Collection mode: per-style front/back -->
-          <template v-else>
-            <div v-if="!flipped.has(cardKey(subject))" key="front">
+            </template>
+            <template v-else>
               <CardTarotFront
                 v-if="store.cardSize === 'tarot'"
                 :subject="subject"
@@ -46,8 +40,12 @@
                 :subject="subject"
                 :card-style="store.cardStyle"
               />
-            </div>
-            <div v-else key="back">
+            </template>
+          </template>
+          <template #back>
+            <!-- Loot mode: shared LootBack; collection mode: per-style back -->
+            <LootBack v-if="store.mode === 'loot'" :tarot="store.cardSize === 'tarot'" />
+            <template v-else>
               <CardTarotBack
                 v-if="store.cardSize === 'tarot'"
                 :subject="subject"
@@ -58,9 +56,9 @@
                 :subject="subject"
                 :card-style="store.cardStyle"
               />
-            </div>
+            </template>
           </template>
-        </Transition>
+        </CardFlip>
       </div>
       <!-- Outside the flip wrapper so a click here never turns the card. -->
       <PaintPortraitButton
@@ -85,6 +83,7 @@ import CardTarotFront from "@/components/cardforge/CardTarotFront.vue";
 import CardTarotBack from "@/components/cardforge/CardTarotBack.vue";
 import LootFront from "@/components/cardforge/styles/loot/LootFront.vue";
 import LootBack from "@/components/cardforge/styles/loot/LootBack.vue";
+import CardFlip from "@/components/common/CardFlip.vue";
 import PaintPortraitButton from "@/components/common/PaintPortraitButton.vue";
 import { useCardPortraitPainter } from "@/composables/cardforge/useCardPortraitPainter";
 import { cardSubjectId, type CardSubject } from "@/types/card.types";
@@ -157,13 +156,5 @@ function tiltStyle(key: string): Record<string, string> {
 .preview-card-wrapper {
   cursor: pointer;
   transition: transform 0.18s ease, filter 0.18s ease;
-}
-.card-flip-enter-active,
-.card-flip-leave-active {
-  transition: transform 0.18s ease-in-out;
-}
-.card-flip-enter-from,
-.card-flip-leave-to {
-  transform: scaleX(0);
 }
 </style>

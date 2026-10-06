@@ -80,7 +80,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconMind, IconNavParty, IconReveal } from "@/lib/icons";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { describeAc } from "@/rules/armorClass";
@@ -110,7 +110,7 @@ const { acFor, acBreakdownFor } = useArmorClass();
 const acOf = (m: PartyMember) => m.wildshape_state?.beast_ac ?? acFor(m);
 const acTitle = (m: PartyMember) =>
   m.wildshape_state ? `Wild Shape: ${m.wildshape_state.beast_name}` : describeAc(acBreakdownFor(m));
-const { data: party, isError: partyIsError, refetch: refetchParty } = useParty();
+const { data: party, isError: partyIsError, refetch: refetchParty } = useActiveParty();
 
 /** A wild-shaped member wears the beast's face, as everywhere else — the
  *  beast's picture as it reads now (art tables merged), not only the copy the

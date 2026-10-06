@@ -1,6 +1,7 @@
 import { ref, computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { useArmorClass } from "@/composables/party/useArmorClass";
@@ -24,6 +25,8 @@ import type { RunCombatant, RevealState } from "@/types/encounter.types";
 export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>) {
   const store = useEncounterRunStore();
   const { data: partyList } = useParty();
+  // Resolving a combatant needs everyone; discovery goes to who is playing.
+  const { data: activeList } = useActiveParty();
   const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
   const { rollConcentrationSave, endConcentration } = useConcentration();
   const { acFor } = useArmorClass();
@@ -275,7 +278,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     const updated = store.sortedCombatants.find((x) => x.instance_id === c.instance_id);
     if (updated?.reveal_state !== "revealed" || !updated.monster_id) return;
     const monstersToDiscover = store.availableMonsters.filter((m) => m.id === updated.monster_id);
-    const partyMemberIds = (partyList.value ?? []).map((m) => m.id);
+    const partyMemberIds = (activeList.value ?? []).map((m) => m.id);
     if (monstersToDiscover.length && partyMemberIds.length) {
       void autoDiscover({ monsters: monstersToDiscover, partyMemberIds });
     }

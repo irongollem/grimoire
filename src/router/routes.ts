@@ -91,6 +91,14 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Adventurer's Rest" },
   },
   {
+    // Standalone: the wall outlives a membership, so a player who has left every campaign
+    // still reaches the names of their characters (#982).
+    path: "/play/fallen",
+    name: "play-fallen",
+    component: () => import("@/views/play/PlayerFallenView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Hall of the Fallen" },
+  },
+  {
     path: "/play/champions",
     name: "play-champions",
     component: () => import("@/views/play/PlayerChampionsView.vue"),
@@ -493,6 +501,13 @@ export const routes: RouteRecordRaw[] = [
     name: "party-member-new",
     component: () => import("@/views/play/PlayerCharacterCreateView.vue"),
     meta: { requiresAuth: true, title: "Create Character" },
+  },
+  {
+    // Before /party/:id, or "fallen" is read as a character id.
+    path: "/party/fallen",
+    name: "party-fallen",
+    component: () => import("@/views/party/PartyFallenView.vue"),
+    meta: { requiresAuth: true, title: "Hall of the Fallen" },
   },
   {
     path: "/party/:id",

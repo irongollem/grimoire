@@ -61,6 +61,7 @@ import DashboardWidget from "../DashboardWidget.vue";
  * queue does the rest.
  */
 const { data: draws, isLoading: drawsLoading } = useDowntimeDraws();
+// The whole party, not the active one: a fallen character's pending draw still shows its name.
 const { data: party, isLoading: partyLoading } = useParty();
 const isLoading = computed(() => drawsLoading.value || partyLoading.value);
 

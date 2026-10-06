@@ -68,7 +68,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import AppButton from "@/components/common/AppButton.vue";
 import {
   buildTableVitalsRows,
@@ -88,7 +88,7 @@ import DashboardWidget from "../DashboardWidget.vue";
  * Every control that would change one of these numbers already lives on the
  * full party tracker, which is what the header link goes to.
  */
-const { data: party } = useParty();
+const { data: party } = useActiveParty();
 
 // Unloaded and "loaded, nobody has anything to track" both render nothing,
 // because the widget is self-hiding — so unlike a card with an empty state,

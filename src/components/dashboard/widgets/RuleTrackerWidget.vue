@@ -76,7 +76,7 @@ import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import RuleTrackerPanel from "@/components/rules/RuleTrackerPanel.vue";
 import { useRules } from "@/composables/rules/useRules";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useTrackerStates, useApplyTrackerDelta } from "@/composables/dashboard/useTrackerState";
 import { resolveRuleTracker, type RuleTrackerResolution } from "@/lib/dashboard/ruleTrackerCard";
 import { trackerInitialValue } from "@/lib/rules/trackerValue";
@@ -87,7 +87,7 @@ const { settings } = defineProps<{
 }>();
 
 const { data: rules } = useRules();
-const { data: party } = useParty();
+const { data: party } = useActiveParty();
 const { data: trackerStates } = useTrackerStates();
 const applyDelta = useApplyTrackerDelta();
 const applying = ref(false);

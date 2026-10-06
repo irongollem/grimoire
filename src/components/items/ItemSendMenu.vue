@@ -108,7 +108,7 @@ import { ref } from "vue";
 import { IconArchive, IconChevronDown, IconChevronRight, IconComment, IconHand, IconUser } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { useUiStore } from "@/stores/ui";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
@@ -119,7 +119,7 @@ import type { PartyMember } from "@/types/party.types";
 const props = defineProps<{ item: Item }>();
 
 const ui = useUiStore();
-const { data: party } = useParty();
+const { data: party } = useActiveParty();
 const { mutateAsync: addInventoryItem } = useAddInventoryItem();
 const { sendItemDrop } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();

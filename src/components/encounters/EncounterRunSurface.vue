@@ -9,7 +9,7 @@
 import { computed, watch } from "vue";
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -30,7 +30,7 @@ const props = defineProps<{ encounterId: string }>();
 const id = computed(() => props.encounterId);
 const { data: encounter } = useEncounter(id);
 
-const { data: party } = useParty();
+const { data: party } = useActiveParty();
 const { data: companions } = useCompanions();
 // A player's AC is snapshotted into the run (and so into combatants_live) when
 // the store is built, so that waits for the gear: before it loads, everyone is

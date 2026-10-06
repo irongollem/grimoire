@@ -248,6 +248,9 @@
        account discovers it needs to become parent-managed. -->
   <TermsGate />
 
+  <!-- The death notice (#982): once per person, never over a live encounter. -->
+  <MemorialTolling :suppressed="anyRunning" />
+
   <!-- Hamburger dropdown -->
   <Teleport to="body">
     <div v-if="showMenu" class="fixed inset-0 z-50" @click="showMenu = false">
@@ -313,6 +316,7 @@
 </template>
 
 <script setup lang="ts">
+import MemorialTolling from "@/components/memorials/MemorialTolling.vue";
 import BrandLogo from "@/components/brand/BrandLogo.vue";
 import { ref, computed, watch, defineAsyncComponent, useTemplateRef } from "vue";
 import { useRoute, useRouter } from "vue-router";

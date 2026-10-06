@@ -43,6 +43,7 @@ vi.mock("@/stores/campaign", () => ({
   }),
 }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/party/useActiveParty", () => ({ useActiveParty: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/factions/useFactions", () => ({ useAllFactions: () => ({ data: ref([]) }) }));

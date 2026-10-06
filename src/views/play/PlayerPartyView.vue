@@ -133,7 +133,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useMyNpcRevealMoments } from "@/composables/npcs/useNpcReveals";
 import { withRevealMoments } from "@/lib/npcs/peopleLedger";
@@ -169,7 +169,7 @@ const viewerMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
 );
 
-const { data: members, isLoading: partyLoading } = useParty();
+const { data: members, isLoading: partyLoading } = useActiveParty();
 const { data: companions } = useCompanions();
 const { data: allSharedNpcs, isLoading: npcsLoading } = useSharedNpcs();
 const { data: revealMoments, isLoading: revealsLoading } = useMyNpcRevealMoments();
