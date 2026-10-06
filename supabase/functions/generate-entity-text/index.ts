@@ -2,7 +2,7 @@
  * Server path for the entity generators whose only job is one JSON text call:
  * spell, monster, item, faction, and (epic #910) dungeon feature, deity,
  * species, background, class, archetype, ability, house rule, recipe,
- * calendar event, site room and quest beat. Their art is a separate step the
+ * calendar event, site room, quest beat and puzzle. Their art is a separate step the
  * client already routes through the server image pipeline, so this function
  * is text only.
  *
@@ -48,7 +48,6 @@ const GENERATORS = {
   monster:         { promptKey: "monster",         reason: "monster_generation" },
   item:            { promptKey: "item",            reason: "item_generation" },
   faction:         { promptKey: "faction",         reason: "faction_generation" },
-  // Epic #910: every surface where a DM authors content.
   feature:         { promptKey: "feature",         reason: "feature_generation" },
   deity:           { promptKey: "deity",           reason: "deity_generation" },
   species:         { promptKey: "species",         reason: "species_generation" },
@@ -61,6 +60,7 @@ const GENERATORS = {
   calendar_event:  { promptKey: "calendar_event",  reason: "calendar_event_generation" },
   room:            { promptKey: "room",            reason: "room_generation" },
   quest_beat:      { promptKey: "quest_beat",      reason: "quest_beat_generation" },
+  puzzle:          { promptKey: "puzzle",          reason: "puzzle_generation" },
 } as const;
 type Generator = keyof typeof GENERATORS;
 

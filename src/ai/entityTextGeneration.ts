@@ -17,7 +17,8 @@ export type EntityTextGenerator =
   // Epic #910
   | "feature" | "deity" | "species" | "background"
   | "custom_class" | "custom_subclass" | "class_feature"
-  | "custom_rule" | "recipe" | "calendar_event" | "room" | "quest_beat";
+  | "custom_rule" | "recipe" | "calendar_event" | "room" | "quest_beat"
+  | "puzzle";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 

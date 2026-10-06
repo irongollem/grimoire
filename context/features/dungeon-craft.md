@@ -222,7 +222,7 @@ The "Generate" button opens a slide-in panel (PuzzleGeneratorPanel) with:
 - **Constraints** — optional type and difficulty filters
 - **Generate room illustration** toggle (if an AI API key is configured)
 
-The generator produces a complete puzzle pre-filled into the editor.
+The generator produces a complete puzzle pre-filled into the editor. The text call goes through the `generate-entity-text` edge function (generator `puzzle`, charged as `puzzle_generation`), like every other entity generator, so a DM can generate with credits and needs no key of their own; only the local-key mode calls the provider from the browser.
 
 #### Reveal (DM view)
 
