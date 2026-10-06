@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { measure, parseCriticalAssets, sumSizes, topBySize, type FileReport } from "./critical-path";
+import { measure, parseArgs, parseCriticalAssets, sumSizes, topBySize, type FileReport } from "./critical-path";
 
 const html = `<html><head>
 <script id="es-polyfills">var x=1</script>
@@ -16,6 +16,20 @@ describe("parseCriticalAssets", () => {
   });
   it("throws when there is no module entry", () => {
     expect(() => parseCriticalAssets("<html></html>")).toThrow(/entry/);
+  });
+});
+
+describe("parseArgs", () => {
+  // Without --json the first argument is the build directory. An earlier
+  // version dropped it and silently measured dist/ instead.
+  it("takes the build directory with or without --json", () => {
+    expect(parseArgs(["dist-bundle"])).toEqual({ buildDir: "dist-bundle", jsonOut: null });
+    expect(parseArgs(["dist-bundle", "--json", "o.json"])).toEqual({ buildDir: "dist-bundle", jsonOut: "o.json" });
+    expect(parseArgs(["--json", "o.json", "dist-bundle"])).toEqual({ buildDir: "dist-bundle", jsonOut: "o.json" });
+    expect(parseArgs([])).toEqual({ buildDir: "dist", jsonOut: null });
+  });
+  it("refuses --json without a path", () => {
+    expect(() => parseArgs(["--json"])).toThrow(/needs a file path/);
   });
 });
 

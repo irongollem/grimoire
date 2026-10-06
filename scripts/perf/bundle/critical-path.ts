@@ -111,12 +111,19 @@ export function formatReport(r: Report): string {
   ].join("\n");
 }
 
-function main(argv: string[]): void {
+/** `[buildDir] [--json out.json]`, in either order; the build directory defaults to dist. */
+export function parseArgs(argv: readonly string[]): { buildDir: string; jsonOut: string | null } {
   const jsonAt = argv.indexOf("--json");
-  const jsonOut = jsonAt >= 0 ? argv[jsonAt + 1] : null;
-  if (jsonAt >= 0 && !jsonOut) throw new Error("--json needs a file path");
+  if (jsonAt < 0) return { buildDir: argv[0] ?? "dist", jsonOut: null };
+  const jsonOut = argv[jsonAt + 1];
+  if (jsonOut === undefined) throw new Error("--json needs a file path");
   const positional = argv.filter((_, i) => i !== jsonAt && i !== jsonAt + 1);
-  const report = buildReport(positional[0] ?? "dist");
+  return { buildDir: positional[0] ?? "dist", jsonOut };
+}
+
+function main(argv: string[]): void {
+  const { buildDir, jsonOut } = parseArgs(argv);
+  const report = buildReport(buildDir);
   console.log(formatReport(report));
   if (jsonOut) writeFileSync(jsonOut, `${JSON.stringify(report, null, 2)}\n`);
 }
