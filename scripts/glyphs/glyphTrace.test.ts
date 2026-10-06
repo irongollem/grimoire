@@ -38,11 +38,12 @@ describe("normalizeTrace", () => {
 });
 
 describe("inlineGlyph", () => {
-  it("tints with currentColor and rounds the transform to three places", () => {
-    const inner = inlineGlyph(normalizeTrace(trace(300, 300), INLINE_PAD));
-    expect(inner).toMatch(/^<g transform="translate\(6 6\) scale\(0\.293\)"><g /);
+  it("tints with currentColor and drops potrace's wrapper groups and whitespace", async () => {
+    const inner = await inlineGlyph(normalizeTrace(trace(300, 300, "M0 0l100 0 0 100 -100 0z"), INLINE_PAD));
     expect(inner).toContain('fill="currentColor"');
     expect(inner).not.toContain("#000000");
+    expect(inner).not.toContain("\n");
+    expect(inner).not.toContain("translate(0,300)");
   });
 });
 

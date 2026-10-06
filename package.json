@@ -146,6 +146,7 @@
     "rollup-plugin-visualizer": "^7.1.1",
     "sharp": "^0.35.5",
     "stripe": "^23.0.0",
+    "svgo": "^4.1.0",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.23.15",
     "tw-animate-css": "^1.2.4",
