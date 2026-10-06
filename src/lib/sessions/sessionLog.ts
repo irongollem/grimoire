@@ -138,3 +138,38 @@ export function sessionEndedMessage(closed: CampaignSessionEnded): string {
   if (closed.chains_paused) parts.push(`${countOf(closed.chains_paused, "quest", "quests")} paused`);
   return parts.length ? `Session ended: ${parts.join(", ")}.` : "Session ended.";
 }
+
+/** Two or more log rows wearing one number: most often one evening logged twice. */
+export interface SharedNumber {
+  number: number;
+  /** The row the others merge into: the one that was run, else the first logged. */
+  keep: CampaignSession;
+  absorb: CampaignSession[];
+}
+
+/**
+ * The numbers worn by more than one finished session, highest first. The log
+ * allows a repeat (the number is a label), and the commonest way to get one is
+ * an evening both run through Start and written up from its note, which the
+ * session-log migration turned into two rows. The running session is left out:
+ * it is still being written to and cannot be merged.
+ */
+export function sessionsSharingANumber(log: readonly CampaignSession[]): SharedNumber[] {
+  const byNumber = new Map<number, CampaignSession[]>();
+  for (const row of log) {
+    if (row.number === null || isRunningSession(row)) continue;
+    byNumber.set(row.number, [...(byNumber.get(row.number) ?? []), row]);
+  }
+  const shared: SharedNumber[] = [];
+  for (const [number, rows] of byNumber) {
+    if (rows.length < 2) continue;
+    const ordered = [...rows].sort(
+      (a, b) =>
+        Number(b.started_at !== null) - Number(a.started_at !== null) ||
+        Date.parse(a.created_at) - Date.parse(b.created_at),
+    );
+    const [keep, ...absorb] = ordered;
+    shared.push({ number, keep, absorb });
+  }
+  return shared.sort((a, b) => b.number - a.number);
+}

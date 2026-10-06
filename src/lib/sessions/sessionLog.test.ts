@@ -9,6 +9,7 @@ import {
   sessionPlayedLine,
   sessionRecap,
   sessionShortDate,
+  sessionsSharingANumber,
   sessionsWithoutNotes,
 } from "@/lib/sessions/sessionLog";
 import type { CampaignSession } from "@/types/session.types";
@@ -139,5 +140,35 @@ describe("sessionEndedMessage", () => {
   it("names what ending the session stopped", () => {
     expect(sessionEndedMessage({ encounters_ended: 1, chains_paused: 2 })).toBe("Session ended: 1 encounter stopped, 2 quests paused.");
     expect(sessionEndedMessage({ encounters_ended: 0, chains_paused: 0 })).toBe("Session ended.");
+  });
+});
+
+describe("sessionsSharingANumber", () => {
+  const run = session({ id: "run", number: 14, started_at: "2026-10-02T18:00:00Z", ended_at: "2026-10-02T23:20:00Z", created_at: "2026-10-02T18:00:00Z" });
+  const recap = session({ id: "recap", number: 14, title: "The Wolves", played_on: "2026-10-02", created_at: "2026-09-01T00:00:00Z" });
+
+  it("finds one evening logged twice and keeps the row that was run", () => {
+    const [group] = sessionsSharingANumber([recap, run, session({ id: "13", number: 13 })]);
+    expect(group.number).toBe(14);
+    expect(group.keep.id).toBe("run");
+    expect(group.absorb.map((r) => r.id)).toEqual(["recap"]);
+  });
+
+  it("keeps the first logged when neither was run", () => {
+    const later = session({ id: "later", number: 3, created_at: "2026-02-01T00:00:00Z" });
+    const first = session({ id: "first", number: 3, created_at: "2026-01-01T00:00:00Z" });
+    expect(sessionsSharingANumber([later, first])[0].keep.id).toBe("first");
+  });
+
+  it("ignores unnumbered sessions and the one running now", () => {
+    const open = session({ id: "open", number: 14, started_at: "2026-10-06T18:00:00Z" });
+    expect(sessionsSharingANumber([run, open, session({ id: "a" }), session({ id: "b" })])).toEqual([]);
+  });
+
+  it("lists the highest number first", () => {
+    const groups = sessionsSharingANumber([
+      session({ id: "a", number: 2 }), session({ id: "b", number: 2 }), run, recap,
+    ]);
+    expect(groups.map((g) => g.number)).toEqual([14, 2]);
   });
 });

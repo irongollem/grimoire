@@ -99,6 +99,7 @@ insert into definer_registry (name, kind, reason) values
   ('grab_item_drop', 'refuses', null),
   ('join_campaign_via_invite', 'refuses', null),
   ('load_demo_campaign', 'self', 'copies the demo into a campaign the caller owns'),
+  ('merge_campaign_sessions', 'refuses', null),
   ('open_quest_thread', 'refuses', null),
   ('open_spell_change_windows', 'refuses', null),
   ('perform_quest_consequence', 'refuses', null),
