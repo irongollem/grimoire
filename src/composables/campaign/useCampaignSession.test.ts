@@ -1,19 +1,42 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const rpc = vi.fn();
+vi.mock("@/lib/supabase", () => ({ supabase: { rpc: (...args: unknown[]) => rpc(...args) } }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "campaign-1" }) }));
+vi.mock("@/composables/campaign/useCampaignBroadcast", () => ({ sendCampaignAnnouncement: vi.fn() }));
+vi.mock("@/composables/quests/useQuestFlow", () => ({ QUEST_RUNTIME_QUERY_KEYS: [] }));
+
+import { createPinia, setActivePinia } from "pinia";
+import { useUiStore } from "@/stores/ui";
 import {
+  adoptLoggedSession,
+  dropLoggedSession,
+  ensureCampaignSession,
   formatSessionElapsed,
   isSessionStale,
   STALE_SESSION_HOURS,
 } from "./useCampaignSession";
-import type { CampaignSessionState } from "@/types/session.types";
+import type { CampaignSession } from "@/types/session.types";
+
+beforeEach(() => {
+  setActivePinia(createPinia());
+  rpc.mockReset();
+  // Clear the module's live session through the real API: adopt a throwaway
+  // open row, then drop it.
+  adoptLoggedSession(row({ id: "reset", started_at: "2026-01-01T00:00:00Z", ended_at: null }));
+  dropLoggedSession("reset");
+});
 
 const AT = (iso: string) => Date.parse(iso);
 
-function row(patch: Partial<CampaignSessionState> = {}): CampaignSessionState {
+function row(patch: Partial<CampaignSession> = {}): CampaignSession {
   return {
     id: "session-1",
     campaign_id: "campaign-1",
     user_id: "dm-1",
-    is_running: true,
+    number: null,
+    title: null,
+    played_on: null,
     started_at: "2026-08-22T19:00:00.000Z",
     ended_at: null,
     created_at: "2026-08-22T19:00:00.000Z",
@@ -77,7 +100,7 @@ describe("isSessionStale", () => {
   it("ignores a session that has ended", () => {
     expect(
       isSessionStale(
-        row({ started_at: started, is_running: false, ended_at: "2026-08-22T23:00:00.000Z" }),
+        row({ started_at: started, ended_at: "2026-08-22T23:00:00.000Z" }),
         AT("2026-08-25T14:00:00.000Z"),
       ),
     ).toBe(false);
@@ -87,5 +110,47 @@ describe("isSessionStale", () => {
     expect(isSessionStale(null)).toBe(false);
     expect(isSessionStale(row({ started_at: null }))).toBe(false);
     expect(isSessionStale(row({ started_at: "whenever" }))).toBe(false);
+  });
+});
+
+describe("the live session is the open log row", () => {
+  it("adopts an open row and mirrors it as running", () => {
+    adoptLoggedSession(row({ id: "s15", number: 15 }));
+    expect(useUiStore().sessionRunning).toBe(true);
+  });
+
+  it("clears when the adopted row is closed, and ignores edits to past sessions", () => {
+    adoptLoggedSession(row({ id: "s15", number: 15 }));
+    adoptLoggedSession(row({ id: "s14", number: 14, ended_at: "2026-09-01T22:00:00.000Z" }));
+    expect(useUiStore().sessionRunning).toBe(true);
+    adoptLoggedSession(row({ id: "s15", number: 15, ended_at: "2026-10-06T22:00:00.000Z" }));
+    expect(useUiStore().sessionRunning).toBe(false);
+  });
+
+  it("never treats a hand-logged past session as running", () => {
+    adoptLoggedSession(row({ id: "past", started_at: null, played_on: "2026-09-01" }));
+    expect(useUiStore().sessionRunning).toBe(false);
+  });
+
+  it("clears when the open row is deleted", () => {
+    adoptLoggedSession(row({ id: "s15" }));
+    dropLoggedSession("someone-else");
+    expect(useUiStore().sessionRunning).toBe(true);
+    dropLoggedSession("s15");
+    expect(useUiStore().sessionRunning).toBe(false);
+  });
+});
+
+describe("ensureCampaignSession", () => {
+  it("reuses the open session without calling the database", async () => {
+    adoptLoggedSession(row({ id: "s15" }));
+    expect(await ensureCampaignSession("campaign-1")).toEqual({ id: "s15", started: false });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("starts an unnumbered session when none is open", async () => {
+    rpc.mockResolvedValue({ data: row({ id: "new" }), error: null });
+    expect(await ensureCampaignSession("campaign-1")).toEqual({ id: "new", started: true });
+    expect(rpc).toHaveBeenCalledWith("start_campaign_session", { p_campaign_id: "campaign-1" });
   });
 });

@@ -10,14 +10,14 @@ import {
   type RealtimeChannelHandle,
 } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
-import { adoptCampaignSession, refetchCampaignSession } from "@/composables/campaign/useCampaignSession";
+import { adoptLoggedSession, dropLoggedSession, refetchCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { BEATS_KEY, QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
 import { PLAYER_NPCS_KEY } from "@/composables/npcs/useNpcs";
 import { PLAYER_HANDOUTS_KEY } from "@/composables/scriptorium/usePlayerHandouts";
 import { BACKLINKS_KEY } from "@/composables/notes/useEntityBacklinks";
 import { OBJECTIVES_KEY } from "@/composables/quests/useQuests";
 import { THREADS_KEY } from "@/composables/quests/useQuestThreads";
-import type { CampaignSessionState } from "@/types/session.types";
+import type { CampaignSession } from "@/types/session.types";
 import { useAuthStore } from "@/stores/auth";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Campaign } from "@/types/campaign.types";
@@ -133,7 +133,7 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // Players cannot read this table, so its row events reach only the DM; the
   // doorbell (20260928225909) tells players to re-read their projection. The
   // DM's own copy is a store fed by the handler below, not a query.
-  ["campaign_session_state", ["player-session-state"]],
+  ["campaign_sessions", ["player-session-state", "player-sessions"]],
   // Not a table: the name `npcs` rings on insert and update (20260928233302).
   // Players cannot read `npcs` rows, so their subscription to it carries
   // nothing; this tells them to re-read their projection. The DM hears it too
@@ -172,7 +172,7 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
 
 // Deduped set of every key the sync owns, plus "campaigns" (handled specially
 // below). Reconciling these after a gap re-derives state from the DB.
-const RECONCILE_KEYS = [...new Set([...SIGNAL_KEYS.values()].flat()), "campaigns"];
+const RECONCILE_KEYS = [...new Set([...SIGNAL_KEYS.values()].flat()), "campaigns", "campaign-sessions"];
 
 function sortPartyInventory(items: PartyInventoryItem[]): PartyInventoryItem[] {
   return items.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
@@ -313,20 +313,27 @@ export function useCampaignLiveSync() {
           // and never refetches on its own — so refresh it on any inventory INSERT,
           // otherwise the item shows no weight/name/stat-block until a full reload.
               .on("postgres_changes", { event: "INSERT", schema: "public", table: "party_inventory", filter: f }, invalidate("items"))
-          // The live session (#758). Like `campaigns` below it is one row per
-          // campaign feeding a store rather than a list query, so it gets its
-          // own handler instead of a SYNC_TABLES entry — but it rides this same
+          // The live session (#758) is the one open row of the session log. It
+          // feeds a store rather than only a list query, so it gets its own
+          // handler instead of a SYNC_TABLES entry — but it rides this same
           // subscription, because a second channel per campaign buys nothing.
-              .on("postgres_changes", { event: "*", schema: "public", table: "campaign_session_state", filter: f }, (payload) => {
+              .on("postgres_changes", { event: "*", schema: "public", table: "campaign_sessions", filter: f }, (payload) => {
                 if (campaign.activeCampaignId !== campaignId) return;
+                // The log changed (a number edited, a past session added): the
+                // list re-reads. Any event, whatever it was about.
+                void qc.invalidateQueries({ queryKey: ["campaign-sessions"] });
                 // DELETE cannot reach a campaign_id-filtered subscription at all
-                // (see the doorbell above), so this branch is unreachable today;
+                // (see the doorbell above), so that branch is unreachable today;
                 // it stays because the payload shape must still be handled if the
-                // row ever arrives by another route. A removed campaign takes its
-                // session with it, so the correct reading is "no session".
-                adoptCampaignSession(
-                  payload.eventType === "DELETE" ? null : (payload.new as CampaignSessionState),
-                );
+                // row ever arrives by another route.
+                if (payload.eventType === "DELETE") {
+                  const gone = payload.old as Partial<CampaignSession>;
+                  if (gone.id) dropLoggedSession(gone.id);
+                  return;
+                }
+                // Only an open row is the live session, and only the row that
+                // closes the adopted one clears it: `adoptLoggedSession` knows.
+                adoptLoggedSession(payload.new as CampaignSession);
               })
           // campaigns table uses `id` as the campaign identifier (not campaign_id)
               .on("postgres_changes", { event: "UPDATE", schema: "public", table: "campaigns", filter: `id=eq.${campaignId}` }, (payload) => {

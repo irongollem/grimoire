@@ -47,6 +47,11 @@ describe("live sync registries", () => {
     expect([...SIGNAL_KEYS.keys()].sort()).toEqual(canRing);
   });
 
+  it("tells players to re-read the running session and the session labels", () => {
+    expect([...(SIGNAL_KEYS.get("campaign_sessions") ?? [])].sort()).toEqual(["player-session-state", "player-sessions"]);
+    expect(SIGNAL_KEYS.has("campaign_session_state")).toBe(false);
+  });
+
   it("refreshes every quest runtime view from any of the runtime tables", () => {
     // One transition writes all three tables and the run context joins them, so
     // any one ringing must reach every view: the job four 5s polls did before.

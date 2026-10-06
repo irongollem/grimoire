@@ -2,67 +2,70 @@
   <AppModal :open="open" size="sm" @close="emit('update:open', false)">
     <ModalHeader
       title="Start the session"
-      subtitle="Four things change while it runs."
+      subtitle="Reveals post to your players' chat while it runs."
       :icon="IconEncounter"
       tone="primary"
     />
 
-    <!--
-      The entire teaching budget for the session, spent here.
+    <form class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4" @submit.prevent="onConfirm">
+      <div class="space-y-1.5">
+        <label for="session-start-number" class="text-label-lg font-semibold text-foreground">Session number</label>
+        <AppInput
+          id="session-start-number"
+          v-model.number="number"
+          type="number"
+          size="md"
+          placeholder="No number"
+        />
+        <AppButton
+          v-if="number !== null"
+          variant="ghost"
+          size="inline"
+          class="text-caption text-muted-foreground"
+          label="Start without a number"
+          @click="number = null"
+        />
+        <p v-else class="text-caption text-muted-foreground">
+          An unnumbered session: right for a test or a one-shot. You can number it later from the log.
+        </p>
+      </div>
 
-      Nowhere else in the interface lists what the session changes, and that is
-      deliberate: this is the one moment a DM will read four lines, because it
-      is the moment they become true. The control this replaces explained
-      itself in a tooltip that named one consequence out of five, and by then
-      broadcasting was the minority behaviour.
-    -->
-    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
-      <ul class="space-y-3">
-        <li v-for="change in CHANGES" :key="change.title" class="flex gap-3">
-          <component :is="change.icon" class="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-          <div class="min-w-0">
-            <p class="text-label-lg font-semibold text-foreground">{{ change.title }}</p>
-            <p class="text-caption text-muted-foreground">{{ change.detail }}</p>
-          </div>
-        </li>
-      </ul>
+      <div class="space-y-1.5">
+        <label for="session-start-title" class="text-label-lg font-semibold text-foreground">
+          Title <span class="font-normal text-muted-foreground">(optional)</span>
+        </label>
+        <AppInput id="session-start-title" v-model.trim="title" size="md" placeholder="Into the Mere" />
+        <p v-if="scheduled" class="text-caption text-muted-foreground">From today's scheduled session.</p>
+      </div>
 
-      <AppCheckbox
-        v-model="dontShowAgain"
-        size="sm"
-        label-role="caption"
-        label="Don't show this again"
-        class="mt-5"
-        label-class="text-muted-foreground"
-      />
-    </div>
+      <p v-if="lastTime" class="text-caption text-muted-foreground">Last time: {{ lastTime }}</p>
+    </form>
 
     <div class="flex shrink-0 justify-end gap-2 px-5 pb-5">
       <AppButton variant="subtle" size="sm" label="Cancel" @click="emit('update:open', false)" />
-      <AppButton
-        variant="live"
-        size="sm"
-        :disabled="pending"
-        label="Start session"
-        @click="onConfirm"
-      />
+      <AppButton variant="live" size="sm" :disabled="pending" :label="startLabel" @click="onConfirm" />
     </div>
   </AppModal>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import {
-  IconMessage,
-  IconNavSoundboard,
-  IconNavQuests,
-  IconNavDashboard,
-  IconEncounter,
-} from "@/lib/icons";
+import { computed, ref, watch } from "vue";
+import { IconEncounter } from "@/lib/icons";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
+import { useSessionProposals } from "@/composables/calendar/useScheduling";
+import { useLocalToday } from "@/composables/calendar/useLocalToday";
+import { sessionLabel } from "@/lib/sessions/sessionLabel";
+import {
+  formatSessionDay,
+  lastPlayedSession,
+  nextSessionNumber,
+  todaysScheduledSession,
+} from "@/lib/sessions/sessionPrefill";
+import type { StartSessionOptions } from "@/composables/campaign/useCampaignSession";
 
 const { open, pending = false } = defineProps<{
   open: boolean;
@@ -71,39 +74,43 @@ const { open, pending = false } = defineProps<{
 
 const emit = defineEmits<{
   "update:open": [value: boolean];
-  confirm: [];
+  confirm: [options: StartSessionOptions];
 }>();
 
-/** Written from the DM's side of the screen: what they will notice, not which
- *  store changed. Ordered by how far the consequence reaches — chat leaves the
- *  building, the rest stay on the DM's own screen. */
-const CHANGES = [
-  {
-    icon: IconMessage,
-    title: "Reveals announce themselves",
-    detail: "Showing an NPC to the party posts it to your players' chat.",
-  },
-  {
-    icon: IconNavSoundboard,
-    title: "The soundboard switches to Perform",
-    detail: "Pads and artwork instead of edit controls and drag handles.",
-  },
-  {
-    icon: IconNavQuests,
-    title: "Quests open on the run cockpit",
-    detail: "Where the party is standing, rather than the quest's premise.",
-  },
-  {
-    icon: IconNavDashboard,
-    title: "The bottom bar reshuffles",
-    detail: "Table-side sections first, and the dice roller takes the centre button.",
-  },
-] as const;
+const { data: log } = useCampaignSessions();
+const { data: proposals } = useSessionProposals();
+const today = useLocalToday();
 
-const dontShowAgain = ref(false);
+const number = ref<number | null>(null);
+const title = ref("");
+
+const scheduled = computed(() => todaysScheduledSession(proposals.value ?? [], today.value));
+const last = computed(() => lastPlayedSession(log.value ?? []));
+const lastTime = computed(() =>
+  last.value ? `${sessionLabel(last.value).replace(": ", ", ")} · ${formatSessionDay(last.value)}` : null,
+);
+
+// Prefilled each time the dialog opens, from whatever the log and the calendar
+// hold then: a number the DM set last week must not outlive the session that
+// has since taken it.
+watch(
+  () => open,
+  (isOpen) => {
+    if (!isOpen) return;
+    number.value = nextSessionNumber(log.value ?? []);
+    title.value = scheduled.value?.title ?? "";
+  },
+  { immediate: true },
+);
+
+const startLabel = computed(() => (number.value !== null ? `Start session ${number.value}` : "Start session"));
 
 function onConfirm() {
-  if (dontShowAgain.value) localStorage.setItem("grimoire:session-start-explained", "true");
-  emit("confirm");
+  emit("confirm", {
+    number: number.value,
+    title: title.value.trim() || null,
+    // Only a title that came from the schedule links back to it.
+    proposalId: scheduled.value && title.value.trim() === scheduled.value.title ? scheduled.value.id : null,
+  });
 }
 </script>

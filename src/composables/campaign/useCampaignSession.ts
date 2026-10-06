@@ -5,7 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
-import type { CampaignSessionState, CampaignSessionEnded } from "@/types/session.types";
+import type { CampaignSession, CampaignSessionEnded, PlayerSessionState } from "@/types/session.types";
 
 /**
  * The campaign's live session: started, running, ended.
@@ -14,14 +14,15 @@ import type { CampaignSessionState, CampaignSessionEnded } from "@/types/session
  * shows session state (the chrome control, the live rail, the quest cockpit's
  * default surface) reads one row and one subscription, not one each.
  *
- * The row is the authority; `useUiStore().sessionRunning` is only its mirror,
+ * The live session is the one open row of the `campaign_sessions` log (started,
+ * not ended). The row is the authority; `useUiStore().sessionRunning` is only its mirror,
  * so `ui.dmMode` stays the cheap synchronous read the five existing consumers
  * already use. Nothing else may write that mirror — see the store.
  */
 let refCount = 0;
 let stopWatcher: (() => void) | null = null;
 
-const session = ref<CampaignSessionState | null>(null);
+const session = ref<CampaignSession | null>(null);
 const loaded = ref(false);
 const pending = ref(false);
 
@@ -31,19 +32,31 @@ const pending = ref(false);
  *  keeps broadcasting reveals at players who are not at the table. */
 export const STALE_SESSION_HOURS = 6;
 
-/**
- * Take a row as the truth. Exported because the campaign realtime channel
- * carries this table's events — see `useCampaignLiveSync`, which owns one
- * subscription for every campaign-scoped table rather than one each.
- */
-export function adoptCampaignSession(row: CampaignSessionState | null) {
-  adopt(row);
+/** Running means started and not yet ended. */
+function isOpen(row: CampaignSession | null): boolean {
+  return !!row && row.started_at !== null && row.ended_at === null;
 }
 
-function adopt(row: CampaignSessionState | null) {
-  session.value = row;
+/**
+ * Take a row from the log as the truth about the live session. Only an open row
+ * can be the live session; a row that closes the adopted one clears it, and any
+ * other row (an edit to a past session) leaves the live session alone.
+ */
+export function adoptLoggedSession(row: CampaignSession): void {
+  if (isOpen(row)) adopt(row);
+  else if (session.value?.id === row.id) adopt(null);
+}
+
+function adopt(row: CampaignSession | null) {
+  const open = row && isOpen(row) ? row : null;
+  session.value = open;
   loaded.value = true;
-  useUiStore().sessionRunning = row?.is_running === true;
+  useUiStore().sessionRunning = open !== null;
+}
+
+/** The open session was deleted from the log. */
+export function dropLoggedSession(id: string): void {
+  if (session.value?.id === id) adopt(null);
 }
 
 export async function refetchCampaignSession(campaignId: string) {
@@ -53,9 +66,11 @@ export async function refetchCampaignSession(campaignId: string) {
 async function fetchSession(campaignId: string) {
   if (!campaignId) return adopt(null);
   const { data, error } = await supabase
-    .from("campaign_session_state")
+    .from("campaign_sessions")
     .select("*")
     .eq("campaign_id", campaignId)
+    .not("started_at", "is", null)
+    .is("ended_at", null)
     .maybeSingle();
   // A campaign switch can complete before its own request returns. Never let a
   // stale response describe the campaign the DM is now looking at.
@@ -64,14 +79,21 @@ async function fetchSession(campaignId: string) {
     console.error("Failed to load the campaign session", error);
     return adopt(null);
   }
-  adopt((data as CampaignSessionState | null) ?? null);
+  adopt((data as CampaignSession | null) ?? null);
+}
+
+export interface StartSessionOptions {
+  number?: number | null;
+  title?: string | null;
+  /** The scheduled session whose title prefilled the dialog. */
+  proposalId?: string | null;
 }
 
 export function useCampaignSession() {
   const campaign = useCampaignStore();
   const queryClient = useQueryClient();
 
-  // No channel of its own: `campaign_session_state` rides the one campaign
+  // No channel of its own: `campaign_sessions` rides the one campaign
   // subscription in `useCampaignLiveSync`, the way every other campaign-scoped
   // table does. This composable owns the first read and the commands; the
   // channel keeps the row fresh.
@@ -96,24 +118,26 @@ export function useCampaignSession() {
     }
   });
 
-  async function start(): Promise<void> {
+  async function start(options: StartSessionOptions = {}): Promise<void> {
     const campaignId = campaign.activeCampaignId;
     if (!campaignId || pending.value) return;
-    // Re-starting an already-running session preserves its `started_at`, so it
-    // is a no-op the DM cannot see — and announcing it again would tell the
-    // table the session began twice.
-    const wasRunning = session.value?.is_running === true
-      && session.value.campaign_id === campaignId;
+    // The RPC hands back the open session unchanged when one is open, so a
+    // second start is a no-op the DM cannot see. Announcing it again would tell
+    // the table the session began twice: announce only when the id is new.
+    const previousId = session.value?.campaign_id === campaignId ? session.value.id : null;
     pending.value = true;
     try {
       const { data, error } = await supabase.rpc("start_campaign_session", {
         p_campaign_id: campaignId,
+        p_number: options.number ?? null,
+        p_title: options.title?.trim() || null,
+        p_proposal_id: options.proposalId ?? null,
       });
       if (error) throw error;
-      const row = data as CampaignSessionState;
-      const resumed = wasRunning;
+      const row = data as CampaignSession;
       adopt(row);
-      if (!resumed) void announceSessionStart(campaignId);
+      void queryClient.invalidateQueries({ queryKey: ["campaign-sessions"] });
+      if (row.id !== previousId) void announceSessionStart(campaignId);
     } finally {
       pending.value = false;
     }
@@ -129,6 +153,7 @@ export function useCampaignSession() {
       });
       if (error) throw error;
       await fetchSession(campaignId);
+      void queryClient.invalidateQueries({ queryKey: ["campaign-sessions"] });
       // The RPC paused every open chain inside its own transaction, so every
       // runtime view the client is holding is now stale. Live sync will say so
       // too, but this device should not wait on the round trip to learn what it
@@ -146,7 +171,7 @@ export function useCampaignSession() {
     session,
     loaded,
     pending,
-    isRunning: computed(() => session.value?.is_running === true),
+    isRunning: computed(() => isOpen(session.value)),
     startedAt: computed(() => session.value?.started_at ?? null),
     start,
     end,
@@ -191,7 +216,7 @@ async function announceSessionStart(campaignId: string): Promise<void> {
 export async function ensureCampaignSession(
   campaignId: string,
 ): Promise<{ id: string | null; started: boolean }> {
-  if (session.value?.is_running && session.value.campaign_id === campaignId) {
+  if (session.value && isOpen(session.value) && session.value.campaign_id === campaignId) {
     return { id: session.value.id, started: false };
   }
   const { data, error } = await supabase.rpc("start_campaign_session", {
@@ -204,7 +229,7 @@ export async function ensureCampaignSession(
     console.error("Failed to start the campaign session", error);
     return { id: null, started: false };
   }
-  const row = data as CampaignSessionState;
+  const row = data as CampaignSession;
   adopt(row);
   // Going live on an encounter starts the session, so the table hears about it
   // the same way it would have from the chrome control.
@@ -221,10 +246,10 @@ export async function ensureCampaignSession(
  * asking at all.
  */
 export function isSessionStale(
-  row: CampaignSessionState | null,
+  row: CampaignSession | null,
   now: number = Date.now(),
 ): boolean {
-  if (!row?.is_running || !row.started_at) return false;
+  if (!row || !isOpen(row) || !row.started_at) return false;
   const started = Date.parse(row.started_at);
   if (Number.isNaN(started)) return false;
   return now - started > STALE_SESSION_HOURS * 60 * 60 * 1000;
@@ -247,27 +272,40 @@ export function formatSessionElapsed(
 }
 
 /**
- * What a player is allowed to know: whether the table is sitting, and since
- * when. Read through `get_player_session_state`, which hands back strictly less
- * than the row — the DM-only policy on `campaign_session_state` is unchanged.
+ * What a player is allowed to know: whether the table is sitting, since when,
+ * and which session it is. Read through `get_player_session_state`, which hands
+ * back strictly less than the row (the DM-only policy on `campaign_sessions` is
+ * unchanged), and zero rows when no session is open.
  *
  * Refreshed by the `campaign_sync` doorbell, not by this table's row events:
  * the channel carries those only for readers RLS lets through, and a player is
- * not one. The doorbell (20260928225909) names the table without the row, so a
- * start or end reaches players as it happens rather than on a poll.
+ * not one. The doorbell names the table without the row, so a start or end
+ * reaches players as it happens rather than on a poll.
  */
 export function usePlayerSessionState(campaignId: MaybeRefOrGetter<string | null>) {
   return useQuery({
     queryKey: computed(() => ["player-session-state", toValue(campaignId)]),
-    queryFn: async (): Promise<{ isRunning: boolean; startedAt: string | null }> => {
+    queryFn: async (): Promise<{
+      isRunning: boolean;
+      startedAt: string | null;
+      sessionId: string | null;
+      number: number | null;
+      title: string | null;
+    }> => {
       const id = toValue(campaignId);
       if (!id) throw new Error("usePlayerSessionState fetched without a campaign");
       const { data, error } = await supabase.rpc("get_player_session_state", {
         p_campaign_id: id,
       });
       if (error) throw error;
-      const row = (data as { is_running: boolean; started_at: string | null }[] | null)?.[0];
-      return { isRunning: row?.is_running === true, startedAt: row?.started_at ?? null };
+      const row = (data as PlayerSessionState[] | null)?.[0];
+      return {
+        isRunning: row?.is_running === true,
+        startedAt: row?.started_at ?? null,
+        sessionId: row?.session_id ?? null,
+        number: row?.number ?? null,
+        title: row?.title ?? null,
+      };
     },
     enabled: () => !!toValue(campaignId),
   });

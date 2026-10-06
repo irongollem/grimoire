@@ -12,7 +12,7 @@
       block
       class="font-cinzel font-bold tracking-widest"
       :disabled="pending || !campaign.activeCampaignId"
-      :label="size === 'md' ? 'Start session' : 'Start session'"
+      label="Start session"
       @click="onStart"
     />
 
@@ -30,7 +30,7 @@
         class="flex-1 truncate font-cinzel font-bold uppercase tracking-widest text-primary"
         :class="size === 'md' ? 'text-xs' : 'text-2xs'"
       >
-        Session live
+        {{ liveLabel }}
       </span>
       <!-- Elapsed time is what makes a session nobody ended obvious. A
            three-day-old clock reads as wrong on sight, where a lit segment
@@ -63,8 +63,9 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCampaignSession, formatSessionElapsed } from "@/composables/campaign/useCampaignSession";
+import { useCampaignSession, formatSessionElapsed, type StartSessionOptions } from "@/composables/campaign/useCampaignSession";
 import { useToast } from "@/composables/useToast";
+import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
 import { prefersReducedMotion } from "@/lib/motion";
 import { IconClose } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
@@ -77,7 +78,7 @@ const { size = "sm" } = defineProps<{
 
 const campaign = useCampaignStore();
 const toast = useToast();
-const { isRunning, startedAt, pending, start, end } = useCampaignSession();
+const { session, isRunning, startedAt, pending, start, end } = useCampaignSession();
 
 const reduced = prefersReducedMotion();
 const confirmOpen = ref(false);
@@ -89,21 +90,21 @@ const now = ref(Date.now());
 const tick = setInterval(() => (now.value = Date.now()), 60_000);
 onUnmounted(() => clearInterval(tick));
 
+const liveLabel = computed(() =>
+  session.value && session.value.number !== null ? sessionShortLabel(session.value) : "Session live",
+);
 const elapsed = computed(() => formatSessionElapsed(startedAt.value, now.value));
 
-/** The one moment a DM will read four lines about what changes, so it is the
- *  only place the consequences are enumerated. Dismissible forever. */
-const SEEN_KEY = "grimoire:session-start-explained";
-
-async function onStart() {
-  if (localStorage.getItem(SEEN_KEY) === "true") return confirmStart();
+/** Every start asks: the number and title are the session's name in the log,
+ *  and the only moment the DM is certain to be looking at it. */
+function onStart() {
   confirmOpen.value = true;
 }
 
-async function confirmStart() {
+async function confirmStart(options: StartSessionOptions) {
   confirmOpen.value = false;
   try {
-    await start();
+    await start(options);
     now.value = Date.now();
   } catch (cause) {
     toast.error(cause instanceof Error ? cause.message : "The session could not be started");
