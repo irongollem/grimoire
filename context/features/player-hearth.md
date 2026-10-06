@@ -19,8 +19,9 @@ changing a section's composition.
   `art-src/nav-campaign` (`add-glyph.mjs`), like every other nav glyph.
 - **One page, three states, never toggled.** `PlayerHearthView.vue` picks
   first visit (no member), at the table (`usePlayerSessionState().isRunning`,
-  the DM's Start session, pushed live through the `campaign_session_state`
-  doorbell) or between sessions. The player has no switch.
+  the open `campaign_sessions` row the DM's Start session created, pushed
+  live through the `campaign_sessions` doorbell; the banner says "Session 15"
+  when the session has a number) or between sessions. The player has no switch.
 - **A fixed composition.** Not the DM dashboard's widget grid (#760). A player
   surface on `dashboard_layouts` is a later upgrade, not a missing feature.
 - **Tablets are landscape first.** From `lg` (64rem) the sections form three

@@ -67,7 +67,7 @@ Click a day in Month view, or the **Event** button anywhere. Fill in:
 
 An event created by pinning a calendar section on a quest, encounter or location (see below) shows a read-only "Pinned `<type>`" chip with an **Open →** link back to that entity instead of the travel fields.
 
-A **session** event linked to one of your session notes opens as a read-only summary instead of the edit form: its session number, real-world date, tags and content, with an **Open in Notes →** link.
+A **session** event linked to one of your session notes opens as a read-only summary instead of the edit form: its session (for example "Session 15", with its title), real-world date, tags and content, with an **Open in Notes →** link.
 
 ## Populate Setting Events
 

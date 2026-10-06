@@ -29,7 +29,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | [player-portal.md](player-portal.md)                     | The full player experience: all /play/\* views, layout, nav, live encounter panel, DM Preview Mode                                               |
 | [player-hearth.md](player-hearth.md)                     | Hearth, the player's home at /play (#977): between sessions, at the table, first visit; what each section reads, and the decisions behind it |
 | [collaboration.md](collaboration.md)                     | Multi-user invite system, campaign members, DM/player roles, live sync, RLS security model                                                       |
-| [sessions.md](sessions.md)                               | The campaign session: starting and ending the table, what changes while it runs, the live rail, and how encounters and quest chains nest inside |
+| [sessions.md](sessions.md)                               | The campaign session log: starting and ending the table, what changes while it runs, the live rail, the Sessions section (the log, a session's page, what the party learned) and its dashboard widget |
 | [soundboard.md](soundboard.md)                           | Soundboard: HTML/Web Audio engine, pages/playlists, five sound sources, Spotify/Cast/Media Session, free-tier quotas — DM-only, no player access |
 | [notifications.md](notifications.md)                     | Player email notifications (note shared, session date proposed), per-user opt-out, send-notification-email edge function + Resend setup          |
 | [document-import.md](document-import.md)                 | Document Import: PDF / page-photo upload, AI extraction, seven-step review wizard, per-page credit cost — DM-only, no player surface            |
@@ -160,7 +160,8 @@ a heading never appears over an empty grid.
 ### Campaign Management
 
 - **Dashboard** — at-a-glance campaign overview: active quests, party presence, live encounter banner, unidentified items, pinned notes
-- **Session Notes** — rich-text notes with categories, tags, session numbers, per-player visibility, inline calendar event insertion, AI image generation (Chronicler)
+- **Sessions** — the log of every evening at the table (a number that is only a label, a title, notes), a page per session listing what the party learned in it (people, places, handouts, creatures, quest steps, combat) with corrections, the list of what was learned outside any session, and the dashboard's Sessions widget
+- **Session Notes** — rich-text notes with categories, tags, a link to the session each session note belongs to, per-player visibility, inline calendar event insertion, AI image generation (Chronicler)
 - **Player Journal** — private + shareable per-player journal entries with entity context links; party journal aggregates all shared entries
 - **Faerûn Calendar** — Calendar of Harptos month grid + Chronicle timeline view; travel events update party member locations; calendar adapter pattern supports custom settings
 
