@@ -308,13 +308,16 @@ export interface MonsterFacts {
   monster_type: string;
   alignment: string | null;
   habitat: string | null;
+  /** Tiptap JSON or plain text. Every library monster has one since 5 Oct 2026. */
+  description: string | null;
 }
 
 /**
  * Mirrors `aiContext` in MonsterDetail.vue (name, "<size> <type>", alignment,
- * habitat, description), clamped like `useEntityImageGeneration`. A
- * `library_monsters` row has no description column, so the app's form holds an
- * empty one for it and the last part is always empty here.
+ * habitat, description), clamped like `useEntityImageGeneration`. The
+ * description is what tells the subject writer what the creature looks like;
+ * without it a third-party creature is drawn from its name alone (Black Flag's
+ * squat, tentacle-tongued Unska came back a lean horned fiend).
  */
 export function monsterContext(monster: Omit<MonsterFacts, "id">): string {
   return buildEntityContext([
@@ -322,6 +325,7 @@ export function monsterContext(monster: Omit<MonsterFacts, "id">): string {
     [monster.size, monster.monster_type].filter(Boolean).join(" "),
     monster.alignment,
     monster.habitat,
+    toPlainText(monster.description),
   ]).slice(0, CONTEXT_LIMIT);
 }
 
@@ -791,7 +795,7 @@ async function loadItem(client: SupabaseClient, name: string): Promise<ItemFacts
 async function loadMonster(client: SupabaseClient, id: string): Promise<MonsterFacts> {
   const { data, error } = await client
     .from("library_monsters")
-    .select("id, name, size, monster_type, alignment, habitat")
+    .select("id, name, size, monster_type, alignment, habitat, description")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(`Could not read library_monsters ${id}: ${error.message}`);

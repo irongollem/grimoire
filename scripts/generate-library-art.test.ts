@@ -85,11 +85,18 @@ describe("context builders", () => {
   });
 
   it("builds a monster context like MonsterDetail's aiContext", () => {
-    expect(monsterContext({ name: "Sprite", size: "tiny", monster_type: "fey", alignment: "neutral good", habitat: null })).toBe(
+    expect(monsterContext({ name: "Sprite", size: "tiny", monster_type: "fey", alignment: "neutral good", habitat: null, description: null })).toBe(
       "Sprite. tiny fey. neutral good",
     );
-    expect(monsterContext({ name: "Owlbear", size: "large", monster_type: "monstrosity", alignment: "unaligned", habitat: "forest" })).toBe(
+    expect(monsterContext({ name: "Owlbear", size: "large", monster_type: "monstrosity", alignment: "unaligned", habitat: "forest", description: null })).toBe(
       "Owlbear. large monstrosity. unaligned. forest",
+    );
+  });
+
+  it("gives the subject writer the monster's description as plain text", () => {
+    const description = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A squat, tentacle-tongued demon." }] }] });
+    expect(monsterContext({ name: "Unska", size: "medium", monster_type: "fiend", alignment: null, habitat: null, description })).toBe(
+      "Unska. medium fiend. A squat, tentacle-tongued demon.",
     );
   });
 
