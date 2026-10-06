@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import type { RouteLocationRaw } from "vue-router";
-import { useReadItems } from "@/composables/play/useReadItems";
+import { useReadMarkers } from "@/composables/play/useReadItems";
 import { usePlayerHandouts } from "@/composables/scriptorium/usePlayerHandouts";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import { usePlayerVisiblePuzzles } from "@/composables/dungeon-features/usePuzzles";
@@ -73,10 +73,12 @@ export function usePlayerUnread() {
   const { data: puzzles } = usePlayerVisiblePuzzles();
   const { data: handouts } = usePlayerHandouts();
   const { data: notes } = useNotes();
-  const { isNew: isQuestNew } = useReadItems("quest");
-  const { isNew: isPuzzleNew } = useReadItems("puzzle");
-  const { isNew: isHandoutNew } = useReadItems("handout");
-  const { isNew: isNoteNew } = useReadItems("note");
+  // One request for all four types (#999); they used to be four.
+  const { isNew: isNewOfType } = useReadMarkers(["quest", "puzzle", "handout", "note"]);
+  const isQuestNew = (id: string, updatedAt?: string) => isNewOfType("quest", id, updatedAt);
+  const isPuzzleNew = (id: string, updatedAt?: string) => isNewOfType("puzzle", id, updatedAt);
+  const isHandoutNew = (id: string, updatedAt?: string) => isNewOfType("handout", id, updatedAt);
+  const isNoteNew = (id: string, updatedAt?: string) => isNewOfType("note", id, updatedAt);
 
   const sections = computed(() => ({
     quests: anyUnread((quests.value ?? []).filter((q) => QUEST_LOG_STATUSES.includes(q.status)), isQuestNew),

@@ -236,7 +236,7 @@
   <BugReportModal v-if="bugReportMounted" v-model="bugReportOpen" />
 
   <!-- Location quick-view opened from @location chips in rich text -->
-  <PlayerLocationDialog />
+  <PlayerLocationDialog v-if="locationDialogMounted" />
 
   <!-- EU AI Act Art 50(1) likeness consent gate — opened by useLikenessGate
        before any portrait-bearing generation (Simulacrum, chronicle scene
@@ -292,7 +292,7 @@
     </div>
   </Teleport>
 
-  <PlayerCampaignsSheet v-model:open="showCampaignSheet" />
+  <PlayerCampaignsSheet v-if="campaignSheetMounted" v-model:open="showCampaignSheet" />
 
   <!-- "More" panel -->
   <Teleport to="body">
@@ -342,11 +342,9 @@ import CampaignChat from "@/components/chat/CampaignChat.vue";
 import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
 import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
 import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";
-import PlayerCampaignsSheet from "@/components/layout/PlayerCampaignsSheet.vue";
 import { usePlayerUnread } from "@/composables/play/usePlayerUnread";
 import ModeToggle from "@/components/layout/ModeToggle.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
-import PlayerLocationDialog from "@/components/play/PlayerLocationDialog.vue";
 import LikenessNoticeGate from "@/components/campaign/LikenessNoticeGate.vue";
 import TermsGate from "@/components/account/TermsGate.vue";
 import PlayerAudioStream from "@/components/soundboard/PlayerAudioStream.vue";
@@ -359,6 +357,16 @@ const campaign = useCampaignStore();
 // close/reopen, exactly as the always-mounted version did.
 const BugReportModal = defineAsyncComponent(
   () => import("@/components/common/BugReportModal.vue"),
+);
+
+// #999: both mount only on first open. Each owns a query (the shared-locations
+// RPC, the player's campaign list) that cost a request on every cold load of the
+// portal for a panel most sessions never show.
+const PlayerLocationDialog = defineAsyncComponent(
+  () => import("@/components/play/PlayerLocationDialog.vue"),
+);
+const PlayerCampaignsSheet = defineAsyncComponent(
+  () => import("@/components/layout/PlayerCampaignsSheet.vue"),
 );
 
 const bugReportOpen = ref(false);
@@ -492,6 +500,9 @@ const characterName = computed(() => {
 const showMore = ref(false);
 const showMenu = ref(false);
 const showCampaignSheet = ref(false);
+const campaignSheetMounted = useLazyMount(showCampaignSheet);
+const locationDialogOpen = computed(() => ui.playerLocationDialogId !== null);
+const locationDialogMounted = useLazyMount(locationDialogOpen);
 const { unreadPaths } = usePlayerUnread();
 watch(() => route.path, () => { showMore.value = false; });
 
