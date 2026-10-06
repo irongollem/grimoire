@@ -439,13 +439,14 @@ function bootBudgetPlugin(): Plugin {
    * tight enough that another accidental import of a lazy subsystem breaks the
    * build rather than the first-load experience.
    *
-   * #999 took the editor off the boot path (the `@floating-ui` group below):
-   * `npm run perf:build` went from 640.7 to 497.9 kB. The shipped number has not
-   * been read yet, so this is provisional: 497.9 plus the 28 kB that
-   * `vercel build --prod` has added over a bare build, plus the usual headroom.
-   * Tighten it from the "boot payload" line the next release job prints.
+   * #999 took the editor off the boot path (the `@floating-ui` group below)
+   * and shrank and split the glyph data: `npm run perf:build` went from 640.7
+   * to 447.4 kB. The shipped number has not been read yet, so this is
+   * provisional: 447.4 plus the 28 kB that `vercel build --prod` has added over
+   * a bare build, plus the usual headroom. Tighten it from the "boot payload"
+   * line the next release job prints.
    */
-  const BOOT_BUDGET_GZIP_BYTES = 560 * 1024;
+  const BOOT_BUDGET_GZIP_BYTES = 510 * 1024;
   // The build's real output directory (see swPlugin). Hard-coded to dist/, a
   // build with --outDir measured whatever stale dist/ happened to be lying
   // around, or failed when there was none.
