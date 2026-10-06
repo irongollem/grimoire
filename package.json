@@ -9,7 +9,7 @@
     "dev:local": "vite --mode localdb",
     "dev:hosted": "vite --mode development",
     "dev:portless": "portless grimoire vite --mode localdb",
-    "build": "vue-tsc -b && vite build",
+    "build": "NODE_OPTIONS=--max-old-space-size=6144 vue-tsc -b && vite build",
     "preview": "vite preview",
     "analyze": "ANALYZE=1 vite build",
     "lint": "oxlint --config oxlint.json src/ scripts/ supabase/functions/ infra/ api/",

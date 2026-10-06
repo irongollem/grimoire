@@ -175,7 +175,7 @@ async function main(): Promise<void> {
   const supabase = createServiceClient(env);
 
   console.log("Step 2: Upserting to library_species table…");
-  await upsertBatch(supabase, "library_species", rows, "source_document_key,source_record_key");
+  await upsertBatch(supabase, "library_species", rows, "source_document_key,source_record_key", { insertOnly: parsed.insertOnly });
   console.log(`  Done — ${rows.length} rows upserted.\n`);
 
   console.log("=== Seeding complete ===");

@@ -121,18 +121,29 @@ export async function fetchAllRows<T>(
  * identity is the real re-run/dedup identity per the versioning migrations
  * (20260720000012, 20260720000018).
  */
+export interface UpsertBatchOptions {
+  batchSize?: number;
+  /**
+   * Insert rows whose conflict key is new and leave existing rows untouched
+   * (`on conflict do nothing`). For adding a book to a table whose existing
+   * rows have been curated since they were seeded: a plain upsert would put
+   * the upstream values back over those fixes. `--insert-only` on the CLI.
+   */
+  insertOnly?: boolean;
+}
+
 export async function upsertBatch<T extends object>(
   supabase: SupabaseClient,
   table: string,
   rows: ReadonlyArray<T>,
   onConflict: string,
-  batchSize = 50,
+  { batchSize = 50, insertOnly = false }: UpsertBatchOptions = {},
 ): Promise<void> {
   for (let i = 0; i < rows.length; i += batchSize) {
     const batch = rows.slice(i, i + batchSize);
-    const { error } = await supabase.from(table).upsert(batch, { onConflict });
+    const { error } = await supabase.from(table).upsert(batch, { onConflict, ignoreDuplicates: insertOnly });
     if (error) throw error;
-    process.stdout.write(`\r  Upserted ${Math.min(i + batchSize, rows.length)} / ${rows.length}`);
+    process.stdout.write(`\r  ${insertOnly ? "Inserted (new only)" : "Upserted"} ${Math.min(i + batchSize, rows.length)} / ${rows.length}`);
   }
   console.log();
 }
@@ -143,6 +154,8 @@ export interface ParsedSeedArgs {
   list: boolean;
   all: boolean;
   dryRun: boolean;
+  /** `--insert-only`: add new rows, never overwrite existing ones (see UpsertBatchOptions). */
+  insertOnly: boolean;
   /** Explicit Open5e v2 document keys passed as bare args, e.g. "srd-2014". */
   documentKeys: string[];
 }
@@ -153,6 +166,7 @@ export function parseSeedCliArgs(args: readonly string[]): ParsedSeedArgs {
     list: args.includes("--list"),
     all: args.includes("--all"),
     dryRun: args.includes("--dry-run"),
+    insertOnly: args.includes("--insert-only"),
     documentKeys: args.filter((arg) => !arg.startsWith("--")),
   };
 }
