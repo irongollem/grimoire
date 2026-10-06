@@ -36,21 +36,29 @@ declare
   v_keep   public.campaign_sessions;
   v_absorb public.campaign_sessions;
 begin
-  -- Both rows locked in one statement, in id order: two merges naming the same
-  -- pair the other way round would otherwise each hold one row and wait on
-  -- the other.
-  perform 1 from public.campaign_sessions where id in (p_keep, p_absorb) order by id for update;
-  select * into v_keep from public.campaign_sessions where id = p_keep;
-  select * into v_absorb from public.campaign_sessions where id = p_absorb;
-
+  -- Authorize before locking anything: a caller who may not merge these rows
+  -- must not be able to hold locks on them either, even for a moment.
   -- One message for missing and foreign alike: a caller learns nothing about
   -- sessions in a campaign they do not run.
+  select * into v_keep from public.campaign_sessions where id = p_keep;
+  select * into v_absorb from public.campaign_sessions where id = p_absorb;
   if auth.uid() is null
      or v_keep.id is null
      or v_absorb.id is null
      or v_keep.campaign_id <> v_absorb.campaign_id
      or not coalesce(private.is_campaign_dm(v_keep.campaign_id), false) then
     raise exception 'Not authorized';
+  end if;
+
+  -- Both rows locked in one statement, in id order: two merges naming the same
+  -- pair the other way round would otherwise each hold one row and wait on
+  -- the other. Then read again, since a concurrent merge may have changed or
+  -- removed either while this one waited.
+  perform 1 from public.campaign_sessions where id in (p_keep, p_absorb) order by id for update;
+  select * into v_keep from public.campaign_sessions where id = p_keep;
+  select * into v_absorb from public.campaign_sessions where id = p_absorb;
+  if v_keep.id is null or v_absorb.id is null then
+    raise exception 'That session was merged or deleted in the meantime';
   end if;
 
   if v_keep.id = v_absorb.id then
