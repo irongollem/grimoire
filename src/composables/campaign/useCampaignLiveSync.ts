@@ -23,7 +23,7 @@ import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Campaign } from "@/types/campaign.types";
 import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 import { applyCampaignRealtimeWorld } from "@/lib/campaignLiveSync/campaignRealtimeWorld";
-import { DM_NOTE_COLUMN_TABLES } from "@/lib/dmNotes/registry";
+import { DM_NOTE_COLUMN_TABLES, dmNoteColumnKeyForTouch } from "@/lib/dmNotes/registry";
 import { dispatchCampaignRealtimePlayer } from "@/lib/campaignLiveSync/campaignRealtimePlayer";
 import { dispatchCampaignRealtimeSystem } from "@/lib/campaignLiveSync/campaignRealtimeSystems";
 
@@ -268,6 +268,16 @@ export function useCampaignLiveSync() {
                 if (DM_NOTE_COLUMN_TABLES.has(table)) {
                   const row = (payload.new ?? payload.old) as { id?: string } | null;
                   if (row?.id) void qc.invalidateQueries({ queryKey: ["dm-note", table, row.id] });
+                }
+                // The DM's own touch names the note they just saved, which
+                // reaches their other device even where the entity's table is
+                // not on this channel (dmNoteColumnKeyForTouch).
+                if (table === "dm_note_touches") {
+                  const touch = payload.new as { entity_type?: string; entity_id?: string } | null;
+                  const key = touch?.entity_type && touch.entity_id
+                    ? dmNoteColumnKeyForTouch(touch.entity_type, touch.entity_id)
+                    : null;
+                  if (key) void qc.invalidateQueries({ queryKey: key });
                 }
                 const change = {
                   eventType: payload.eventType,

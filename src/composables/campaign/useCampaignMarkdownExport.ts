@@ -19,6 +19,7 @@ import type { Note } from "@/types/notes.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import type { CampaignSession } from "@/types/session.types";
+import { downloadBlob } from "@/lib/downloadBlob";
 
 /** Every read is scoped to the campaign and runs as the signed-in DM, so RLS decides what leaves. */
 async function fetchCampaignRows(campaignId: string) {
@@ -107,29 +108,12 @@ function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "campaign";
 }
 
-/**
- * Triggers the browser download of the zipped vault. The anchor is appended
- * and the object URL revoked on a later tick, not the same one — see the
- * identical note on `downloadJson` (`useDataExport.ts`): `a.click()` only
- * queues the download, and revoking immediately can starve it for a
- * multi-megabyte file while this function still returns normally.
- */
+/** Triggers the browser download of the zipped vault. */
 function downloadVaultZip(files: Record<string, string>, campaignName: string): void {
   const zipInput: Record<string, Uint8Array> = {};
   for (const [path, content] of Object.entries(files)) zipInput[path] = strToU8(content);
   const zipped = zipSync(zipInput);
-  const blob = new Blob([zipped], { type: "application/zip" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${slugify(campaignName)}-markdown.zip`;
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    a.remove();
-    URL.revokeObjectURL(url);
-  }, 60_000);
+  downloadBlob(new Blob([zipped], { type: "application/zip" }), `${slugify(campaignName)}-markdown.zip`);
 }
 
 export function useExportCampaignMarkdown() {

@@ -15,6 +15,7 @@ vi.mock("pagedjs", () => ({
   Handler: class {},
   registerHandlers: vi.fn(),
   Previewer: class {
+    polisher = { inserted: [] };
     preview(html: string) {
       mocks.previewCalls.push(html);
       return new Promise((resolve, reject) => {

@@ -10,6 +10,9 @@ import { useDmNote } from "./useDmNote";
 
 const mocks = vi.hoisted(() => ({
   serverValue: null as string | null,
+  /** campaign_id of the entity rows a note-kind subject lives in, by table. */
+  entityCampaigns: {} as Record<string, string | null>,
+  reads: [] as { table: string; column: string }[],
   readError: null as Error | null,
   touchError: null as Error | null,
   updates: [] as { table: string; patch: Record<string, unknown>; id: string }[],
@@ -24,12 +27,12 @@ vi.mock("@/lib/supabase", () => ({
     from: (table: string) => ({
       select: (column: string) => ({
         eq: () => ({
-          maybeSingle: () =>
-            Promise.resolve(
-              mocks.readError
-                ? { data: null, error: mocks.readError }
-                : { data: { [column]: mocks.serverValue }, error: null },
-            ),
+          maybeSingle: () => {
+            mocks.reads.push({ table, column });
+            if (mocks.readError) return Promise.resolve({ data: null, error: mocks.readError });
+            const value = column === "campaign_id" ? mocks.entityCampaigns[table] : mocks.serverValue;
+            return Promise.resolve({ data: { [column]: value }, error: null });
+          },
         }),
       }),
       update: (patch: Record<string, unknown>) => ({
@@ -87,6 +90,8 @@ describe("useDmNote", () => {
     useAuthStore().user = { id: "me" } as never;
     useCampaignStore().activeCampaignId = "camp-1";
     mocks.serverValue = null;
+    mocks.entityCampaigns = {};
+    mocks.reads.length = 0;
     mocks.readError = null;
     mocks.touchError = null;
     mocks.updates.length = 0;
@@ -145,16 +150,28 @@ describe("useDmNote", () => {
     expect(mocks.upserts).toHaveLength(0);
   });
 
-  it("creates a private entity note with the campaign for a deity", async () => {
+  it("creates a private entity note under the deity's own campaign, not the active one", async () => {
+    mocks.entityCampaigns = { deities: "camp-of-tyr" };
     const { handle } = setup(deity);
     await flushPromises();
     handle.draft.content = doc("Patron of the watch");
     await settle();
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
-      entity_type: "deity", entity_id: "d1", is_private: true, shared_with_dm: false, campaign_id: "camp-1",
+      entity_type: "deity", entity_id: "d1", is_private: true, shared_with_dm: false, campaign_id: "camp-of-tyr",
     }));
     expect(mocks.updates).toHaveLength(0);
     expect(mocks.upserts[0].row).toMatchObject({ entity_type: "deity", entity_label: "Tyr" });
+  });
+
+  it("files a hero's note under no campaign, since a hero is app-wide", async () => {
+    const { handle } = setup({ type: "hero", id: "h1", label: "Minsc" });
+    await flushPromises();
+    handle.draft.content = doc("Go for the eyes");
+    await settle();
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      entity_type: "hero", entity_id: "h1", campaign_id: null,
+    }));
+    expect(mocks.reads.filter((r) => r.column === "campaign_id")).toEqual([]);
   });
 
   it("flushes a pending edit to the entity it was typed about when the subject changes", async () => {

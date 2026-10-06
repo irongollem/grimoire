@@ -13,6 +13,7 @@ import {
 import { restoreSessions } from "@/lib/campaign/backupSessions";
 import { remapMentionIds as rMention } from "@/lib/campaign/mentionRemap";
 import { disposeHomebrewAndDeleteCampaign } from "@/composables/campaign/useCampaigns";
+import { downloadBlob } from "@/lib/downloadBlob";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -376,12 +377,7 @@ function downloadBackup(backup: GrimoireBackup): void {
   const name = (backup.campaign.name as string) ?? "campaign";
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${slug}.grimoire-backup`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, `${slug}.grimoire-backup`);
 }
 
 // ── Import ───────────────────────────────────────────────────────────────────

@@ -15,8 +15,19 @@ declare module "pagedjs" {
    */
   export type PagedStylesheet = string | Record<string, string>;
 
+  /**
+   * Owns every <style> a Previewer puts in document.head: `styleEl` (rules
+   * added through insertRule), created when preview() starts, and `inserted`
+   * (one element per stylesheet text).
+   */
+  export interface PagedPolisher {
+    styleEl?: HTMLStyleElement;
+    inserted: HTMLStyleElement[];
+  }
+
   export class Previewer {
     constructor();
+    polisher: PagedPolisher;
     preview(
       content: string,
       stylesheets: PagedStylesheet[],

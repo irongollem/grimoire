@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { functionErrorCode } from "@edge-shared/functionError.ts";
+import { downloadBlob } from "@/lib/downloadBlob";
 
 /** `export-my-data` edge function error codes (#632, #919) -> human copy. */
 const ERROR_MESSAGES: Record<string, string> = {
@@ -41,31 +42,10 @@ function sanitizeFilenameLabel(label: string): string {
  * Triggers a browser download of `contents` as `filename`. Split out from the
  * request so the composable's tests can assert what would be downloaded without
  * a DOM that implements object URLs (jsdom has no `createObjectURL`).
- *
- * The anchor is appended before clicking and the URL is revoked on a later
- * task, not on the next line. `a.click()` only *queues* the download; revoking
- * the object URL in the same tick invalidates the blob before the browser has
- * read it, which for a multi-megabyte export yields a zero-byte file or nothing
- * at all — while this function returns normally and the caller reports success.
- * An account export is exactly the size where that bites.
  */
 export function downloadJson(contents: string, filename: string): void {
-  const blob = new Blob([contents], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    a.remove();
-    URL.revokeObjectURL(url);
-  }, REVOKE_DELAY_MS);
+  downloadBlob(new Blob([contents], { type: "application/json" }), filename);
 }
-
-/** Long enough for the browser to have started reading the blob; short enough not to leak. */
-const REVOKE_DELAY_MS = 60_000;
 
 /**
  * GDPR access & portability export (#632). Asks `export-my-data` for everything

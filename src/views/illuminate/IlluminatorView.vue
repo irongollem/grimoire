@@ -134,6 +134,7 @@ import IlluminateControlsPanel from "@/components/illuminate/IlluminateControlsP
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
 import { uploadToBucket, isBucketUrl } from "@/lib/storage";
+import { downloadBlob } from "@/lib/downloadBlob";
 import {
   applyEdgeTreatmentToCtx,
   processImage,
@@ -525,12 +526,7 @@ async function downloadPng() {
   isExporting.value = true;
   try {
     const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn(), buildBrushMaskFn());
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
-    a.download = `${sourceFilename.value}-illuminated.png`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `${sourceFilename.value}-illuminated.png`);
   } finally {
     isExporting.value = false;
   }

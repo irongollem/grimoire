@@ -14,10 +14,10 @@
 --    owns, through private.is_dm_of_my_campaigns. No player screen showed
 --    either column, but both were one REST call away. They move into
 --    entity_notes as the owner's private note and the columns go.
--- 2. The DM's "party" notes on companions fold into their private note.
---    EntityNotesPanel let a DM write a note the party could read; the
---    scratchpad has no sharing, so those notes join the DM's own (the
---    maintainer's call, 6 Oct 2026).
+-- 2. A DM's notes on companions and factions fold into one private note.
+--    EntityNotesPanel let a DM keep several, and let any of them be read by
+--    the party; the scratchpad shows one private note and has no sharing, so
+--    they join the DM's own (the maintainer's call, 6 Oct 2026).
 -- 3. entity_notes rings the campaign doorbell, so a note written on one device
 --    reaches the DM's other one. It rings rather than subscribes: its rows are
 --    per-user and mostly private, and a name is all the client needs.
@@ -27,7 +27,7 @@
 --    the scratchpad can list what was jotted during the running session.
 -- 5. transfer_campaign_ownership hands the outgoing DM's private notes in the
 --    campaign to the new owner, as the notes columns already travel with their
---    rows.
+--    rows, joining any the new owner already keeps on the same entity.
 
 -- ── 1. deities.dm_notes and species.notes move to entity_notes ──────────────
 
@@ -55,60 +55,94 @@ select s.user_id, s.campaign_id, 'species', s.id::text, s.notes, true, false
 alter table public.deities drop column dm_notes;
 alter table public.species drop column notes;
 
--- ── 2. A DM's party notes on companions join their private note ──────────────
+-- ── 2. A DM's notes on companions and factions become their one private note ─
 
--- Every note here is a Tiptap document (checked in production, 6 Oct 2026), so
--- joining two is appending one's blocks to the other's.
-do $$
+-- The blocks of a stored note, as a jsonb array, so two notes can be joined
+-- into one Tiptap document. Total: empty text, plain (pre-Tiptap) text and a
+-- value that is not a document each come back as something joinable, because
+-- EntityNotesPanel and the autosaving notes both wrote '' for an empty note,
+-- and `''::jsonb` would abort the whole migration.
+create function private.note_blocks(p text) returns jsonb
+language plpgsql immutable
+set search_path = ''
+as $$
 declare
-  r record;
-  v_private uuid;
+  v_doc jsonb;
 begin
-  for r in
-    select n.id, n.user_id, n.entity_id, n.content, c.campaign_id
-      from public.entity_notes n
-      join public.companions c on c.id::text = n.entity_id
-     where n.entity_type = 'companion'
-       and not n.is_private
-       -- The DM seat, not the companion's creator: a player can create a
-       -- companion for their own character, and their party note stays theirs.
-       and exists (select 1 from public.campaign_members cm
-                    where cm.campaign_id = c.campaign_id
-                      and cm.user_id = n.user_id
-                      and cm.role = 'dm')
-  loop
-    select p.id into v_private
-      from public.entity_notes p
-     where p.user_id = r.user_id
-       and p.entity_type = 'companion'
-       and p.entity_id = r.entity_id
-       and p.is_private
-     order by p.created_at
-     limit 1;
-
-    if v_private is null then
-      update public.entity_notes
-         set is_private = true, shared_with_dm = false,
-             campaign_id = coalesce(campaign_id, r.campaign_id)
-       where id = r.id;
-    else
-      -- jsonb_set is strict: an empty private note would come back null and
-      -- take the party note's text with it.
-      update public.entity_notes p
-         set content = case
-               when p.content is null then r.content
-               else jsonb_set(
-                 p.content::jsonb, '{content}',
-                 coalesce(p.content::jsonb -> 'content', '[]'::jsonb)
-                   || coalesce(r.content::jsonb -> 'content', '[]'::jsonb))::text
-             end,
-             campaign_id = coalesce(p.campaign_id, r.campaign_id)
-       where p.id = v_private;
-      delete from public.entity_notes where id = r.id;
+  if p is null or p !~ '\S' then
+    return '[]'::jsonb;
+  end if;
+  if p ~ '^\s*\{' then
+    begin
+      v_doc := p::jsonb;
+    exception when others then
+      v_doc := null;
+    end;
+    if jsonb_typeof(v_doc -> 'content') = 'array' then
+      return v_doc -> 'content';
     end if;
-  end loop;
+  end if;
+  return jsonb_build_array(jsonb_build_object(
+    'type', 'paragraph',
+    'content', jsonb_build_array(jsonb_build_object('type', 'text', 'text', p))));
 end;
 $$;
+
+-- Called only from this migration and from transfer_campaign_ownership (a
+-- definer), never from a client or a policy.
+revoke execute on function private.note_blocks(text) from public, anon, authenticated;
+
+-- EntityNotesPanel, on companions and factions, let a DM keep any number of
+-- notes, each private or readable by the party. The scratchpad shows one
+-- private note per DM per entity and has no sharing, so every note the DM seat
+-- wrote on one of those entities joins the oldest of them, private first, in
+-- the order they were written (the maintainer's call, 6 Oct 2026). A player's
+-- notes are theirs and are left alone: a player can create a companion for
+-- their own character.
+create temp table dm_note_fold as
+select n.id, n.user_id, n.entity_type, n.entity_id, n.content, n.is_private,
+       coalesce(c.campaign_id, f.campaign_id) as entity_campaign,
+       first_value(n.id) over w as keeper,
+       row_number() over w as rn,
+       count(*) over (partition by n.user_id, n.entity_type, n.entity_id) as group_size
+  from public.entity_notes n
+  left join public.companions c on n.entity_type = 'companion' and c.id::text = n.entity_id
+  left join public.factions f on n.entity_type = 'faction' and f.id::text = n.entity_id
+ where n.entity_type in ('companion', 'faction')
+   and exists (select 1 from public.campaign_members cm
+                where cm.campaign_id = coalesce(c.campaign_id, f.campaign_id)
+                  and cm.user_id = n.user_id
+                  and cm.role = 'dm')
+window w as (partition by n.user_id, n.entity_type, n.entity_id
+             order by n.is_private desc, n.created_at, n.id);
+
+-- A lone party note only turns private; its text is left exactly as written.
+update public.entity_notes n
+   set is_private = true, shared_with_dm = false,
+       campaign_id = coalesce(n.campaign_id, f.entity_campaign)
+  from dm_note_fold f
+ where f.id = n.id and f.group_size = 1 and not f.is_private;
+
+update public.entity_notes n
+   set content = j.content, is_private = true, shared_with_dm = false,
+       campaign_id = coalesce(n.campaign_id, j.entity_campaign)
+  from (select keeper, max(entity_campaign::text)::uuid as entity_campaign,
+               jsonb_build_object(
+                 'type', 'doc',
+                 'content', coalesce(jsonb_agg(b.blk order by f.rn, b.ord) filter (where b.blk is not null),
+                                     '[]'::jsonb))::text as content
+          from dm_note_fold f
+          left join lateral jsonb_array_elements(private.note_blocks(f.content))
+                    with ordinality as b(blk, ord) on true
+         where f.group_size > 1
+         group by keeper) j
+ where n.id = j.keeper;
+
+delete from public.entity_notes n
+ using dm_note_fold f
+ where f.id = n.id and f.id <> f.keeper;
+
+drop table dm_note_fold;
 
 -- ── 3. entity_notes rings the doorbell ──────────────────────────────────────
 
@@ -201,7 +235,35 @@ begin
   end if;
   v_def := replace(v_def, v_anchor, v_anchor || $add$
   -- (#983) The outgoing DM's private notes in this campaign are their DM notes,
-  -- which a notes column would have carried along with its row.
+  -- which a notes column would have carried along with its row. A co-DM taking
+  -- over may keep their own on the same entity: the outgoing text joins theirs
+  -- rather than arriving as a second note the scratchpad would never show.
+  update public.entity_notes n
+     set content = jsonb_build_object('type', 'doc', 'content',
+           private.note_blocks(n.content) || (
+             select coalesce(jsonb_agg(b.blk order by o.created_at, o.id, b.ord), '[]'::jsonb)
+               from public.entity_notes o
+              cross join lateral jsonb_array_elements(private.note_blocks(o.content))
+                    with ordinality as b(blk, ord)
+              where o.campaign_id = p_campaign_id and o.user_id = v_owner
+                and o.is_private and not o.shared_with_dm
+                and o.entity_type = n.entity_type and o.entity_id = n.entity_id))::text
+   where n.user_id = p_new_owner_id and n.is_private
+     -- Their oldest, which is the one the scratchpad shows.
+     and n.id = (select m.id from public.entity_notes m
+                  where m.user_id = n.user_id and m.is_private
+                    and m.entity_type = n.entity_type and m.entity_id = n.entity_id
+                  order by m.created_at, m.id limit 1)
+     and exists (select 1 from public.entity_notes o
+                  where o.campaign_id = p_campaign_id and o.user_id = v_owner
+                    and o.is_private and not o.shared_with_dm
+                    and o.entity_type = n.entity_type and o.entity_id = n.entity_id);
+  delete from public.entity_notes o
+   where o.campaign_id = p_campaign_id and o.user_id = v_owner
+     and o.is_private and not o.shared_with_dm
+     and exists (select 1 from public.entity_notes n
+                  where n.user_id = p_new_owner_id and n.is_private
+                    and n.entity_type = o.entity_type and n.entity_id = o.entity_id);
   update public.entity_notes
      set user_id = p_new_owner_id
    where campaign_id = p_campaign_id and user_id = v_owner

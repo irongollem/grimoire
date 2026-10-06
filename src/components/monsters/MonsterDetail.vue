@@ -275,6 +275,7 @@ const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
+import { fetchDmNoteColumn } from "@/composables/notes/useDmNote";
 import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { storeToRefs } from "pinia";
@@ -544,8 +545,9 @@ async function duplicate() {
     const copy = await create({
       ...buildPayload(form),
       // The note is not in the form (the box on the page owns it), so a copy
-      // carries the stored one across explicitly.
-      notes: props.monster.notes,
+      // carries the stored one across explicitly, read now: the monster row
+      // in props predates every autosave of the note since it loaded.
+      notes: await fetchDmNoteColumn("monster", props.monster.id),
       name: `${props.monster.name} (copy)`,
     });
     router.push(`/monsters/${copy.id}`);

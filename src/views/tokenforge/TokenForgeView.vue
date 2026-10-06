@@ -191,6 +191,7 @@ import TokenForgeCoinEditor from "@/components/tokenforge/TokenForgeCoinEditor.v
 import TokenForgeCoinPrintLayout from "@/components/tokenforge/TokenForgeCoinPrintLayout.vue";
 import TokenForgeTokenPrintLayout from "@/components/tokenforge/TokenForgeTokenPrintLayout.vue";
 import TokenForgePrintQueue from "@/components/tokenforge/TokenForgePrintQueue.vue";
+import { downloadBlob } from "@/lib/downloadBlob";
 import {
   TOKEN_PRINT_SIZES,
   type TokenPrintSizeId,
@@ -622,13 +623,7 @@ async function downloadPng() {
   const canvas = await getExportCanvas();
   if (!canvas) return;
   canvas.toBlob((blob) => {
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a   = document.createElement("a");
-    a.href     = url;
-    a.download = `${entity.name.replace(/\s+/g, "_")}_token.png`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (blob) downloadBlob(blob, `${entity.name.replace(/\s+/g, "_")}_token.png`);
   }, "image/png");
 }
 

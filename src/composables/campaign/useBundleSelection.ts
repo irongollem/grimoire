@@ -64,10 +64,6 @@ export function useBundleSelection(initial: BundleInitialSelection = {}) {
     return (key ? entitySelections.value[key] : undefined) ?? new Set<string>();
   });
 
-  const totalSelected = computed(() =>
-    Object.values(entitySelections.value).reduce((sum, s) => sum + (s?.size ?? 0), 0),
-  );
-
   /** Selected entities as a {type → ids} map, the shape `buildBundle` takes. */
   const selectionMap = computed<Map<BundleEntityKey, string[]>>(() => {
     const map = new Map<BundleEntityKey, string[]>();
@@ -77,6 +73,11 @@ export function useBundleSelection(initial: BundleInitialSelection = {}) {
     }
     return map;
   });
+
+  // Counted from what will be exported: an unticked category keeps its picks
+  // (ticking it again restores them) but contributes nothing to the bundle,
+  // so it must not enable an export that would come out empty.
+  const totalSelected = computed(() => [...selectionMap.value.values()].reduce((sum, ids) => sum + ids.length, 0));
 
   function isLocked(key: BundleEntityKey): boolean {
     return CHARACTER_DEPENDENCIES.includes(key) && selectedCategories.value.has("party_members");

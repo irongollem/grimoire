@@ -8,6 +8,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Campaign } from "@/types/campaign.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import { isUuid } from "@/lib/library/contentIdentity";
+import { downloadBlob } from "@/lib/downloadBlob";
 import {
   sortByHierarchy,
   buildIdMapFromArrays,
@@ -470,12 +471,7 @@ async function decompress(blob: Blob): Promise<string> {
 async function downloadBundle(bundle: GrimoireBundle): Promise<void> {
   const slug = bundle.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "bundle";
   const blob = await compress(JSON.stringify(bundle));
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${slug}.grimoire`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, `${slug}.grimoire`);
 }
 
 // ── Import ───────────────────────────────────────────────────────────────────
@@ -523,7 +519,16 @@ function remapLibraryRowForImport(row: Row, ctx: ImportRemapCtx): Row {
   };
 }
 
-export const remapSpeciesForImport = remapLibraryRowForImport;
+/**
+ * A species row, remapped like the other library rows. A bundle written before
+ * #983 still carries `species.notes`, the exporter's DM note, a column that no
+ * longer exists: inserted as it is, it fails the whole import. Someone else's
+ * DM note is not the importer's to keep, so it is dropped, not moved.
+ */
+export function remapSpeciesForImport(row: Row, ctx: ImportRemapCtx): Row {
+  const { notes: _exportersDmNote, ...own } = row;
+  return remapLibraryRowForImport(own, ctx);
+}
 export const remapSpellForImport = remapLibraryRowForImport;
 
 /**

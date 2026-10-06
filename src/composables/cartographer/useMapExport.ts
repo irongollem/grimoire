@@ -83,6 +83,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { downloadBlob } from "@/lib/downloadBlob";
 
 /** Shape of the `style-map` edge function's JSON response. */
 interface StyleMapResponse {
@@ -261,12 +262,7 @@ export function useMapExport(opts: {
 
   function onDownloadStyled(): void {
     if (!styleResultBlob.value) return;
-    const url = URL.createObjectURL(styleResultBlob.value);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${opts.mapName() || "map"}-styled.webp`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(styleResultBlob.value, `${opts.mapName() || "map"}-styled.webp`);
   }
 
   async function onSaveStyledToAtlas(): Promise<void> {

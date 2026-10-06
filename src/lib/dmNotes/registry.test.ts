@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { DM_NOTE_COLUMN_TABLES, DM_NOTE_ENTITIES, dmNoteEntry, type DmNoteEntityType } from "./registry";
+import {
+  DM_NOTE_COLUMN_TABLES,
+  DM_NOTE_ENTITIES,
+  dmNoteColumnKeyForTouch,
+  dmNoteEntry,
+  type DmNoteEntityType,
+} from "./registry";
 
 const types = Object.keys(DM_NOTE_ENTITIES) as DmNoteEntityType[];
 
@@ -22,6 +28,23 @@ describe("dm note registry", () => {
     expect(DM_NOTE_ENTITIES.item.store).toMatchObject({ table: "items", column: "dm_notes" });
     expect(DM_NOTE_COLUMN_TABLES.has("puzzle_rooms")).toBe(true);
     expect(DM_NOTE_COLUMN_TABLES.has("deities")).toBe(false);
+  });
+
+  it("names the table holding each note-kind entity's campaign, and none for an app-wide hero", () => {
+    for (const type of types) {
+      const store = DM_NOTE_ENTITIES[type].store;
+      if (store.kind !== "entity_note") continue;
+      if (type === "hero") expect(store.campaignTable, type).toBeNull();
+      else expect(store.campaignTable, type).toEqual(expect.any(String));
+    }
+    expect(DM_NOTE_ENTITIES.party_member.store).toEqual({ kind: "entity_note", campaignTable: "party_members" });
+  });
+
+  it("maps a touch to the column note it makes stale, including tables off the live channel", () => {
+    expect(dmNoteColumnKeyForTouch("trap", "t1")).toEqual(["dm-note", "traps", "t1"]);
+    expect(dmNoteColumnKeyForTouch("monster", "m1")).toEqual(["dm-note", "monsters", "m1"]);
+    expect(dmNoteColumnKeyForTouch("faction", "f1")).toBeNull();
+    expect(dmNoteColumnKeyForTouch("constructor", "x")).toBeNull();
   });
 
   it("builds routes", () => {

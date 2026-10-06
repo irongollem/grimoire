@@ -322,6 +322,7 @@ import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import { useChildAccount } from "@/composables/account/useChildAccount";
 import type { SessionProposal } from "@/types/scheduling.types";
 import { buildSessionFeed, type IcsSessionEvent } from "@edge-shared/ics.ts";
+import { downloadBlob } from "@/lib/downloadBlob";
 
 const campaign = useCampaignStore();
 const auth = useAuthStore();
@@ -540,13 +541,7 @@ function exportIcal() {
     now: new Date(),
     respondUrl: `${window.location.origin}/play/settings`,
   });
-  const blob = new Blob([body], { type: "text/calendar;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "sessions.ics";
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(new Blob([body], { type: "text/calendar;charset=utf-8" }), "sessions.ics");
 }
 
 // ── Formatting ────────────────────────────────────────────────────────────────

@@ -148,6 +148,7 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { bakeMapAsPng } from "@/cartographer/bake";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import type { DungeonMap } from "@/types/dungeonMap.types";
+import { downloadBlob } from "@/lib/downloadBlob";
 
 const route = useRoute();
 const router = useRouter();
@@ -303,12 +304,7 @@ async function onDownloadPng(): Promise<void> {
   try {
     const bakedMap = { ...map.value, layers: wb.getLayers(), metadata: wb.getMetadata() };
     const blob = await bakeMapAsPng(bakedMap, wb.getRuntimes(), {}, wb.getCellGlyphs());
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${wb.getName() || "map"}.png`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `${wb.getName() || "map"}.png`);
   } finally {
     baking.value = false;
   }

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(26);
 
 -- #983. A DM note is the DM writing to their future self and never reaches a
 -- player (src/lib/dmNotes/registry.ts). It lives either in a notes column on a
@@ -56,11 +56,14 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name) v
 on conflict (campaign_id, user_id) do update set role = excluded.role;
 
 -- Written as the owners, before the role switch: the co-DM's own touch on the
--- same entity (the transfer below must not collide with it) and the player's
--- own private note (which the transfer must leave alone).
+-- same entity (the transfer below must not collide with it), the co-DM's own
+-- private note on it (which the outgoing DM's must join, not sit beside), and
+-- the player's own private note (which the transfer must leave alone).
 insert into public.dm_note_touches (user_id, campaign_id, entity_type, entity_id, entity_label) values
   ('98300000-0000-4000-8000-000000000004', '98300000-0000-4000-8000-000000000010', 'faction', 'f-1', 'The Zhentarim');
 insert into public.entity_notes (user_id, campaign_id, entity_type, entity_id, content, is_private, shared_with_dm) values
+  ('98300000-0000-4000-8000-000000000004', '98300000-0000-4000-8000-000000000010', 'faction', 'f-1',
+   '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The co-DM saw it coming."}]}]}', true, false),
   ('98300000-0000-4000-8000-000000000002', '98300000-0000-4000-8000-000000000010', 'npc', 'n-1',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Durnan is lying."}]}]}', true, false);
 
@@ -158,9 +161,17 @@ select lives_ok(
 reset role;
 
 select is(
-  (select user_id from public.entity_notes where entity_id = 'f-1'),
-  '98300000-0000-4000-8000-000000000004'::uuid,
+  (select array_agg(user_id) from public.entity_notes where entity_id = 'f-1'),
+  array['98300000-0000-4000-8000-000000000004'::uuid],
   'the outgoing DM''s private note belongs to the new DM, as a notes column travels with its row');
+
+-- The new DM already kept a note on the faction. The scratchpad shows one, so
+-- a second would hide whichever it did not pick.
+select is(
+  (select content::jsonb -> 'content' from public.entity_notes where entity_id = 'f-1'),
+  '[{"type":"paragraph","content":[{"type":"text","text":"The co-DM saw it coming."}]},
+    {"type":"paragraph","content":[{"type":"text","text":"They owe Durnan."}]}]'::jsonb,
+  'and joins the note the new DM already kept there, theirs first');
 
 select is(
   (select array_agg(user_id) from public.dm_note_touches where entity_id = 'f-1'),
@@ -171,6 +182,21 @@ select is(
   (select user_id from public.entity_notes where entity_id = 'n-1'),
   '98300000-0000-4000-8000-000000000002'::uuid,
   'a player''s own private note stays the player''s');
+
+-- ── Joining notes never fails on what the editors stored ────────────────────
+-- An empty note was stored as '', and `''::jsonb` raises, which in the
+-- migration's fold would have stranded every migration behind it.
+
+select is(private.note_blocks(''), '[]'::jsonb, 'an empty note has no blocks');
+select is(private.note_blocks('   '), '[]'::jsonb, 'nor does a blank one');
+select is(
+  private.note_blocks('Durnan knows.'),
+  '[{"type":"paragraph","content":[{"type":"text","text":"Durnan knows."}]}]'::jsonb,
+  'plain text from before Tiptap is one paragraph');
+select is(
+  private.note_blocks('{not json'),
+  '[{"type":"paragraph","content":[{"type":"text","text":"{not json"}]}]'::jsonb,
+  'and so is text that only looks like a document');
 
 select * from finish();
 rollback;

@@ -160,6 +160,14 @@ describe("remapPartyMemberForImport ruleset", () => {
   });
 });
 
+describe("remapSpeciesForImport", () => {
+  it("drops the DM note a bundle from before #983 still carries, since the column is gone", () => {
+    const ctx: ImportRemapCtx = { idMap: new Map([["sp-1", "sp-new"]]), campaignId: "camp-new", userId: "dm-importer" };
+    const row = remapSpeciesForImport({ id: "sp-1", name: "Kenku", notes: "the exporter's secret", campaign_id: "camp-old", user_id: "dm-old" }, ctx);
+    expect(row).toEqual({ id: "sp-new", name: "Kenku", campaign_id: "camp-new", user_id: "dm-importer" });
+  });
+});
+
 describe("remapCharacterClassForImport", () => {
   const idMap = new Map([["cc-1", "cc-fresh"], ["pm-1", "pm-fresh"]]);
   const baseCtx: ImportRemapCtx = { idMap, campaignId: "camp-new", userId: "dm-importer" };

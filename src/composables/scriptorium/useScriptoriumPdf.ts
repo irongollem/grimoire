@@ -27,6 +27,7 @@ import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { Previewer } from "pagedjs";
+import { pagedStyleElements, removePagedStyles } from "@/lib/scriptorium/pagedStyles";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
 import { fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
@@ -44,6 +45,7 @@ import { escapeHtml } from "@/lib/escapeHtml";
 import { inlineSameOriginAssets } from "@/lib/scriptorium/inlineSameOriginAssets";
 import { attachBundleToPdf } from "@/lib/scriptorium/campaignBundlePdf";
 import type { GrimoireBundle } from "@/composables/campaign/useWorldBundle";
+import { downloadBlob } from "@/lib/downloadBlob";
 
 export interface PdfDocumentOptions {
   bodyHtml: string;
@@ -150,18 +152,6 @@ async function fetchSameOrigin(path: string): Promise<ArrayBuffer> {
   return res.arrayBuffer();
 }
 
-function downloadBytes(bytes: Uint8Array<ArrayBuffer> | Blob, filename: string): void {
-  const blob = bytes instanceof Blob ? bytes : new Blob([bytes], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 export function useScriptoriumPdf() {
   const isExporting = ref(false);
   const exportError = ref<string | null>(null);
@@ -191,10 +181,10 @@ export function useScriptoriumPdf() {
     host.style.cssText = "position:fixed; left:-99999px; top:0; width:794px;";
     document.body.appendChild(host);
 
-    const stylesBefore = new Set(Array.from(document.head.querySelectorAll("style")));
+    const previewer = new Previewer();
     try {
       registerPagedEntryFit();
-      await new Previewer().preview(content, [{ "scriptorium-paged.css": pagedCss }], host);
+      await previewer.preview(content, [{ "scriptorium-paged.css": pagedCss }], host);
       await document.fonts.ready;
       injectPagedFooters(host, {
         showPageNumbers: opts.showPageNumbers,
@@ -209,10 +199,7 @@ export function useScriptoriumPdf() {
       await compactPrintImages(host);
 
       // 2. Capture the page-sizing rules Paged.js injected into the main head.
-      const pagedStyles = Array.from(document.head.querySelectorAll("style"))
-        .filter((s) => !stylesBefore.has(s))
-        .map(serializeStyle)
-        .join("\n");
+      const pagedStyles = pagedStyleElements(previewer).map(serializeStyle).join("\n");
       const pagesHtml = host.innerHTML;
 
       // 3. Everything the document loads from the app's own origin (fonts,
@@ -238,9 +225,9 @@ export function useScriptoriumPdf() {
       // 4. Optionally attach the campaign data, then hand the file over.
       if (opts.bundle) {
         const bytes = await attachBundleToPdf(await data.arrayBuffer(), opts.bundle);
-        downloadBytes(bytes as Uint8Array<ArrayBuffer>, sanitizePdfFilename(opts.title, true));
+        downloadBlob(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "application/pdf" }), sanitizePdfFilename(opts.title, true));
       } else {
-        downloadBytes(data, sanitizePdfFilename(opts.title));
+        downloadBlob(data, sanitizePdfFilename(opts.title));
       }
       return true;
     } catch (err) {
@@ -249,9 +236,7 @@ export function useScriptoriumPdf() {
     } finally {
       // Remove the off-screen host + the Paged.js styles it added to the app head.
       host.remove();
-      Array.from(document.head.querySelectorAll("style"))
-        .filter((s) => !stylesBefore.has(s))
-        .forEach((s) => s.remove());
+      removePagedStyles(previewer);
       isExporting.value = false;
     }
   }

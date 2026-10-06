@@ -25,6 +25,20 @@ function sameContent(a: string | null, b: string | null): boolean {
 }
 
 /**
+ * The stored text of a column-kind DM note, read from the database. Anything
+ * copying an entity reads its note through here: the note is not in the
+ * entity's own cached row, which autosave deliberately leaves stale.
+ */
+export async function fetchDmNoteColumn(type: DmNoteEntityType, id: string): Promise<string | null> {
+  const store = dmNoteEntry(type).store;
+  if (store.kind !== "column") return null;
+  const { data, error } = await supabase.from(store.table).select(store.column).eq("id", id).maybeSingle();
+  if (error) throw error;
+  const value = (data as Record<string, unknown> | null)?.[store.column];
+  return typeof value === "string" ? value : null;
+}
+
+/**
  * The DM's one note on an entity, saving itself as they type (#983). Which
  * store holds it (a column on the entity's table, or the DM's private
  * `entity_notes` row) is the registry's call; both look the same from here.
@@ -88,17 +102,7 @@ export function useDmNote(subject: MaybeRefOrGetter<DmNoteSubject | null>) {
     }),
     queryFn: async (): Promise<string | null> => {
       const s = columnSubject.value;
-      if (!s) return null;
-      const store = dmNoteEntry(s.type).store;
-      if (store.kind !== "column") return null;
-      const { data, error } = await supabase
-        .from(store.table)
-        .select(store.column)
-        .eq("id", s.id)
-        .maybeSingle();
-      if (error) throw error;
-      const value = (data as Record<string, unknown> | null)?.[store.column];
-      return typeof value === "string" ? value : null;
+      return s ? fetchDmNoteColumn(s.type, s.id) : null;
     },
     enabled: () => columnSubject.value !== null,
   });
@@ -158,6 +162,21 @@ export function useDmNote(subject: MaybeRefOrGetter<DmNoteSubject | null>) {
   );
 
   // ---- Entity-note kind ---------------------------------------------------
+  // A note is filed under its entity's campaign, not the active one: a hero is
+  // app-wide, and a library species or another campaign's deity can be open
+  // while this one is active. Read once, when the note's row is first created.
+  async function entityCampaign(type: DmNoteEntityType, id: string): Promise<string | null> {
+    const store = dmNoteEntry(type).store;
+    if (store.kind !== "entity_note" || store.campaignTable === null) return null;
+    const { data, error } = await supabase
+      .from(store.campaignTable)
+      .select("campaign_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return (data as { campaign_id: string | null } | null)?.campaign_id ?? null;
+  }
+
   const noteType = () => (noteSubject.value ? noteSubject.value.type : "");
   const noteId = () => (noteSubject.value ? noteSubject.value.id : "");
   const entityNotes = useEntityNotes(noteType, noteId);
@@ -167,7 +186,7 @@ export function useDmNote(subject: MaybeRefOrGetter<DmNoteSubject | null>) {
     notes: () => entityNotes.data.value,
     userId: () => auth.user?.id,
     isPrivate: true,
-    campaignId: () => campaign.activeCampaignId,
+    campaignFor: (snapshot) => entityCampaign(snapshot.entityType as DmNoteEntityType, snapshot.entityId),
     onSaved: (snapshot) => {
       const type = snapshot.entityType as DmNoteEntityType;
       const label = labels.get(`${type}:${snapshot.entityId}`) ?? dmNoteEntry(type).label;

@@ -15,6 +15,7 @@
 import { ref, watch, onUnmounted } from "vue";
 import type { Ref } from "vue";
 import { Previewer } from "pagedjs";
+import { removePagedStyles } from "@/lib/scriptorium/pagedStyles";
 import type { PagedStylesheet } from "pagedjs";
 import { registerPagedEntryFit } from "@/lib/scriptorium/pagedEntryFit";
 
@@ -46,15 +47,12 @@ export function usePagedPreview(opts: UsePagedPreviewOptions) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let renderToken = 0; // discards stale renders that finish out of order
   let pendingRerender = false;
-  // Paged.js appends a <style> to document.head per Previewer (via insertRule)
-  // and never removes it. We re-create a Previewer every render, so track the
-  // previous render's injected styles and drop them to avoid head bloat over a
-  // long editing session.
-  let injectedStyles: HTMLStyleElement[] = [];
-
-  function headStyles(): Set<HTMLStyleElement> {
-    return new Set(document.head.querySelectorAll("style"));
-  }
+  // Paged.js appends <style>s to document.head per Previewer and never removes
+  // them. We re-create a Previewer every render, so the one on screen is kept
+  // and every other one's styles are dropped, to avoid head bloat over a long
+  // editing session. Asked of each Previewer (pagedStyles.ts) rather than
+  // diffed from the head, which would also catch a PDF export's.
+  let shownPreviewer: Previewer | null = null;
 
   async function renderNow() {
     const el = container.value;
@@ -68,6 +66,7 @@ export function usePagedPreview(opts: UsePagedPreviewOptions) {
     isRendering.value = true;
     error.value = null;
     const t0 = performance.now();
+    let previewer: Previewer | null = null;
     try {
       el.replaceChildren();
       // CRITICAL: Paged.js treats falsy content as "paginate document.body"
@@ -79,21 +78,21 @@ export function usePagedPreview(opts: UsePagedPreviewOptions) {
         layoutMs.value = 0;
         return;
       }
-      const stylesBefore = headStyles();
       registerPagedEntryFit();
-      const previewer = new Previewer();
+      previewer = new Previewer();
       const flow = await previewer.preview(html, stylesheets(), el);
-      if (token !== renderToken) return; // superseded by a newer render
-      // Drop the previous render's injected styles; keep this render's.
-      const added = Array.from(document.head.querySelectorAll("style")).filter(
-        (s) => !stylesBefore.has(s),
-      );
-      injectedStyles.forEach((s) => s.remove());
-      injectedStyles = added;
+      if (token !== renderToken) {
+        removePagedStyles(previewer); // superseded by a newer render
+        return;
+      }
+      // Drop the previous render's styles; keep this render's.
+      if (shownPreviewer) removePagedStyles(shownPreviewer);
+      shownPreviewer = previewer;
       pageCount.value = flow.total;
       layoutMs.value = Math.round(performance.now() - t0);
       afterRender?.(el);
     } catch (e: unknown) {
+      if (previewer && previewer !== shownPreviewer) removePagedStyles(previewer);
       if (token === renderToken) {
         error.value = e instanceof Error ? e.message : String(e);
       }
@@ -120,8 +119,8 @@ export function usePagedPreview(opts: UsePagedPreviewOptions) {
   onUnmounted(() => {
     if (timer) clearTimeout(timer);
     renderToken++; // invalidate any in-flight render
-    injectedStyles.forEach((s) => s.remove());
-    injectedStyles = [];
+    if (shownPreviewer) removePagedStyles(shownPreviewer);
+    shownPreviewer = null;
   });
 
   return { pageCount, layoutMs, isRendering, error, renderNow, scheduleRender };

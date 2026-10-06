@@ -61,8 +61,11 @@ export function useMyEntityNote(options: {
   notes: MaybeRefOrGetter<EntityNote[] | undefined>;
   userId: MaybeRefOrGetter<string | null | undefined>;
   isPrivate: boolean;
-  /** Stamped on a note this creates; omitted, it is created without a campaign. */
-  campaignId?: MaybeRefOrGetter<string | null>;
+  /**
+   * The campaign a note this creates is filed under, asked at the moment it is
+   * created; omitted, it is created without a campaign.
+   */
+  campaignFor?: (snapshot: MyNoteDraft) => Promise<string | null>;
   /** Called after each save that landed, with the snapshot that was written. */
   onSaved?: (snapshot: MyNoteDraft) => void;
 }) {
@@ -102,13 +105,14 @@ export function useMyEntityNote(options: {
       options.onSaved?.(snapshot);
       return;
     }
+    const campaignId = options.campaignFor ? await options.campaignFor(snapshot) : undefined;
     const created = await createMut.mutateAsync({
       entity_type: snapshot.entityType,
       entity_id: snapshot.entityId,
       content: snapshot.content ?? "",
       is_private: isPrivate,
       shared_with_dm: sharedWithDm,
-      ...(options.campaignId !== undefined && { campaign_id: toValue(options.campaignId) }),
+      ...(campaignId !== undefined && { campaign_id: campaignId }),
     });
     // The next save updates this row rather than creating a second one, even
     // before the refetch brings it back.

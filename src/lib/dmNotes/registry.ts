@@ -21,7 +21,11 @@ export type DmNoteEntityType =
 
 export type DmNoteStore =
   | { kind: "column"; table: string; column: "notes" | "dm_notes" }
-  | { kind: "entity_note" };
+  // `campaignTable` holds the entity's row, whose `campaign_id` the note is
+  // filed under: a campaign deletion or transfer then carries the note with
+  // the entity it is about, never with whichever campaign happened to be
+  // active when it was written. Null for an app-wide entity (a hero).
+  | { kind: "entity_note"; campaignTable: string | null };
 
 export interface DmNoteEntry {
   type: DmNoteEntityType;
@@ -34,7 +38,9 @@ function column(table: string, col: "notes" | "dm_notes"): DmNoteStore {
   return { kind: "column", table, column: col };
 }
 
-const ENTITY_NOTE: DmNoteStore = { kind: "entity_note" };
+function entityNote(campaignTable: string | null): DmNoteStore {
+  return { kind: "entity_note", campaignTable };
+}
 
 export const DM_NOTE_ENTITIES: Readonly<Record<DmNoteEntityType, DmNoteEntry>> = {
   npc: { type: "npc", label: "NPC", store: column("npcs", "notes"), route: (id) => `/npcs/${id}` },
@@ -56,14 +62,14 @@ export const DM_NOTE_ENTITIES: Readonly<Record<DmNoteEntityType, DmNoteEntry>> =
     route: () => ({ path: "/dungeon-craft", query: { tab: "roll-tables" } }),
   },
   location: { type: "location", label: "Location", store: column("locations", "notes"), route: (id) => placeRoute(id) },
-  deity: { type: "deity", label: "Deity", store: ENTITY_NOTE, route: (id) => `/deities/${id}` },
-  species: { type: "species", label: "Species", store: ENTITY_NOTE, route: (id) => `/species/${id}` },
-  faction: { type: "faction", label: "Faction", store: ENTITY_NOTE, route: (id) => `/factions/${id}` },
-  companion: { type: "companion", label: "Companion", store: ENTITY_NOTE, route: () => "/party" },
-  quest: { type: "quest", label: "Quest", store: ENTITY_NOTE, route: (id) => `/quests/${id}` },
-  encounter: { type: "encounter", label: "Encounter", store: ENTITY_NOTE, route: (id) => `/encounters/${id}` },
-  party_member: { type: "party_member", label: "Party member", store: ENTITY_NOTE, route: (id) => `/party/${id}` },
-  hero: { type: "hero", label: "Hero", store: ENTITY_NOTE, route: (id) => `/hall-of-heroes/${id}` },
+  deity: { type: "deity", label: "Deity", store: entityNote("deities"), route: (id) => `/deities/${id}` },
+  species: { type: "species", label: "Species", store: entityNote("species"), route: (id) => `/species/${id}` },
+  faction: { type: "faction", label: "Faction", store: entityNote("factions"), route: (id) => `/factions/${id}` },
+  companion: { type: "companion", label: "Companion", store: entityNote("companions"), route: () => "/party" },
+  quest: { type: "quest", label: "Quest", store: entityNote("quests"), route: (id) => `/quests/${id}` },
+  encounter: { type: "encounter", label: "Encounter", store: entityNote("encounters"), route: (id) => `/encounters/${id}` },
+  party_member: { type: "party_member", label: "Party member", store: entityNote("party_members"), route: (id) => `/party/${id}` },
+  hero: { type: "hero", label: "Hero", store: entityNote(null), route: (id) => `/hall-of-heroes/${id}` },
 };
 
 export function dmNoteEntry(type: DmNoteEntityType): DmNoteEntry {
@@ -74,3 +80,19 @@ export function dmNoteEntry(type: DmNoteEntityType): DmNoteEntry {
 export const DM_NOTE_COLUMN_TABLES: ReadonlySet<string> = new Set(
   Object.values(DM_NOTE_ENTITIES).flatMap((e) => (e.store.kind === "column" ? [e.store.table] : [])),
 );
+
+/**
+ * The `["dm-note", table, id]` read that a DM's touch on a column-kind note
+ * makes stale; null for a note kept in entity_notes (the doorbell covers
+ * those) or a type this build does not know.
+ *
+ * Every column save restamps the DM's own touch, and touches are on the
+ * campaign channel, so this is how a note written on one device reaches the
+ * other. The entity row itself is no signal for monsters, traps, dungeon
+ * features, loot tables and roll tables: none of them is on the channel.
+ */
+export function dmNoteColumnKeyForTouch(type: string, id: string): readonly ["dm-note", string, string] | null {
+  if (!Object.hasOwn(DM_NOTE_ENTITIES, type)) return null;
+  const store = DM_NOTE_ENTITIES[type as DmNoteEntityType].store;
+  return store.kind === "column" ? ["dm-note", store.table, id] : null;
+}

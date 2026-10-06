@@ -609,13 +609,14 @@ export default defineConfig(({ mode }) => {
               // The maps are uploaded and then deleted from `dist/`, so they are
               // never served — Sentry un-minifies, the public never sees source.
               sourcemaps: { filesToDeleteAfterUpload: ["./dist/**/*.map"] },
-            // Expect exactly three "could not determine a source map
-            // reference" warnings, for `_plugin-vue_export-helper`,
-            // `preload-helper` and `rolldown-runtime`. Checked: those are the
-            // only three of 410 chunks with no `.map` sidecar, because they are
-            // generated glue with no original source — 2.2 kB in total. There
-            // is nothing to map and nothing to fix; a *fourth* name appearing
-            // in that list is the thing worth looking at.
+              // Expect exactly two "could not determine a source map
+              // reference" warnings, for `preload-helper` and
+              // `rolldown-runtime`. Checked (6 Oct 2026, 583 chunks): those are
+              // the only chunks with no `.map` sidecar, because they are
+              // generated glue with no original source. There is nothing to map
+              // and nothing to fix; a *third* name appearing in that list is the
+              // thing worth looking at. (`_plugin-vue_export-helper` was on this
+              // list until it began shipping a map of its own.)
               telemetry: false,
               // A failed upload must never fail a deploy. The worst case is one
               // release with minified stack traces; taking the whole frontend
