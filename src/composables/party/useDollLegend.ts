@@ -53,6 +53,11 @@ export function useDollLegend(container: Ref<HTMLElement | null>, anchors: () =>
     if (typeof ResizeObserver === "undefined" || !container.value) return;
     observer = new ResizeObserver(measure);
     observer.observe(container.value);
+    // The figure's picture and the wells' names can change size without the
+    // row doing so (a sheet finishing loading, a long item name wrapping).
+    for (const el of container.value.querySelectorAll<HTMLElement>("[data-doll-figure], [data-doll-slot]")) {
+      observer.observe(el);
+    }
   });
   onBeforeUnmount(() => observer?.disconnect());
 

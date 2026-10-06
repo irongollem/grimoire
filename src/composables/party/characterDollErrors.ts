@@ -18,6 +18,12 @@ export function dollErrorMessage(raw: string): string {
       return "Only the character's player or the campaign's DM can make its doll.";
     case "no_campaign":
       return "Open a campaign first.";
+    // The client gate normally catches this; the server checks again in case
+    // the notice changed since it was accepted.
+    case "likeness_acknowledgement_required":
+      return "Confirm the likeness notice first, then try again.";
+    case "not_found":
+      return "This character could not be found.";
     default:
       break;
   }

@@ -7,6 +7,8 @@ describe("dollErrorMessage", () => {
     expect(dollErrorMessage("doll_in_progress")).toBe("Your doll is already being drawn.");
     expect(dollErrorMessage("ai_disabled")).toBe("Your DM has turned AI off for this table.");
     expect(dollErrorMessage("forbidden")).toBe("Only the character's player or the campaign's DM can make its doll.");
+    expect(dollErrorMessage("likeness_acknowledgement_required")).toBe("Confirm the likeness notice first, then try again.");
+    expect(dollErrorMessage("not_found")).toBe("This character could not be found.");
   });
 
   it("keeps a screening refusal as the server wrote it", () => {

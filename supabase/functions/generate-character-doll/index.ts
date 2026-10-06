@@ -68,6 +68,7 @@ import {
 import { buildDollLayout, sheetCuts } from "../_shared/paperDoll/layout.ts";
 import {
   DOLL_SHEET_KEYS,
+  SHEET_HEIGHT,
   SHEET_WIDTH,
   parseDollSheets,
   templateSizeFor,
@@ -130,18 +131,30 @@ function blobOf(result: ImageGenResult): Blob {
 async function decodeSheet(result: ImageGenResult): Promise<{ width: number; height: number; data: Uint8ClampedArray }> {
   const bin = Uint8Array.from(atob(result.b64), (c) => c.charCodeAt(0));
   const img = await decode(bin.buffer);
+  // Layout reads rows at a fixed stride, so a sheet of any other size would be
+  // measured wrong and stored anyway. Failing here releases the credits.
+  if (img.width !== SHEET_WIDTH || img.height !== SHEET_HEIGHT) {
+    throw new Error(`The sheet came back ${img.width}x${img.height}, not ${SHEET_WIDTH}x${SHEET_HEIGHT}.`);
+  }
   // A view over the same bytes: decode's declared pixel type is wider than the
   // 8-bit RGBA it actually returns.
   return { width: img.width, height: img.height, data: new Uint8ClampedArray(img.data.buffer, img.data.byteOffset, img.width * img.height * 4) };
 }
 
-/** The storage folder of a previous doll set, derived from its garb sheet's URL; null when it is not one of ours. */
-function previousSetPrefix(doll: unknown, memberId: string, newSetId: string): string | null {
+/**
+ * The storage folder of a previous doll set, derived from its garb sheet's URL;
+ * null unless it is this caller's own set for this character. Clients cannot
+ * write `doll` (guard_party_member_doll), so the URL is the generator's own;
+ * the folder is still pinned to the caller as a second line, so a stored value
+ * can never steer this delete into anyone else's files. A set drawn by someone
+ * else (the DM, then the player redraws) is left in place rather than deleted.
+ */
+function previousSetPrefix(doll: unknown, memberId: string, userId: string, newSetId: string): string | null {
   const parsed = parseDollSheets(doll);
   if (!parsed) return null;
   const match = new RegExp(`/([^/]+)/dolls/${memberId}/([0-9a-f-]+)/`).exec(parsed.sheets.garb);
-  if (!match || match[2] === newSetId) return null;
-  return `${match[1]}/dolls/${memberId}/${match[2]}`;
+  if (!match || match[1] !== userId || match[2] === newSetId) return null;
+  return `${userId}/dolls/${memberId}/${match[2]}`;
 }
 
 async function runDoll(args: {
@@ -228,7 +241,7 @@ async function runDoll(args: {
       .maybeSingle();
     if (writeErr || !written) throw new Error(`Could not store the doll: ${writeErr?.message ?? "character not found"}`);
 
-    const oldPrefix = previousSetPrefix(previousDoll, memberId, setId);
+    const oldPrefix = previousSetPrefix(previousDoll, memberId, userId, setId);
     if (oldPrefix) {
       try {
         await deleteByPrefix(admin, BUCKET, oldPrefix);
@@ -395,12 +408,17 @@ serve(withCors(async (req: Request) => {
       size: DOLL_SHEET_SIZE,
       model: DOLL_IMAGE_MODEL,
       provider: "openai",
-      // target_id only identifies the character for the in-flight guard; no
+      // target_id identifies the character for the one-pending-doll index; no
       // target_table/column, so completing the job writes nothing to a row.
       target_id: member.id,
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
+    // Another request for this character got its job in first: the in-flight
+    // check above is a courtesy, the unique index is the guarantee.
+    if (e instanceof Error && e.message.includes("image_generation_jobs_one_pending_doll")) {
+      return jsonError("doll_in_progress", 409);
+    }
     console.error("generate-character-doll: createImageJob failed", e);
     return jsonError("job_create_failed", 500);
   }

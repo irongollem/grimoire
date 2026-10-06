@@ -50,3 +50,50 @@ comment on column public.library_species.doll is
 insert into public.ai_generation_credit_costs (generation_type, label, credit_cost, sort_order, image_quality_tier)
 values ('character_doll', 'Paper doll (AI)', 100, 46, 'high')
 on conflict (generation_type) do nothing;
+
+-- Only the generator writes a doll. The row's update policy lets the owner and
+-- the DM write it (they must, for doll_requested_at), and without this guard a
+-- client could store any jsonb as its doll: point the doll and token at
+-- arbitrary images, or steer the generator's clean-up of the previous set at a
+-- folder that is not that set (it deletes the folder the stored doll names).
+-- The service role (generate-character-doll) and SECURITY DEFINER functions
+-- (copy_party_member) run as other roles and pass straight through.
+create or replace function public.guard_party_member_doll()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+  if tg_op = 'INSERT' then
+    if new.doll is not null then
+      raise exception 'A paper doll is drawn by its generator, not written by a client' using errcode = '42501';
+    end if;
+    return new;
+  end if;
+  raise exception 'A paper doll is drawn by its generator, not written by a client' using errcode = '42501';
+end;
+$$;
+
+revoke execute on function public.guard_party_member_doll() from public, anon, authenticated;
+
+create trigger party_members_guard_doll_insert
+  before insert on public.party_members
+  for each row execute procedure public.guard_party_member_doll();
+
+create trigger party_members_guard_doll_update
+  before update of doll on public.party_members
+  for each row when (new.doll is distinct from old.doll)
+  execute procedure public.guard_party_member_doll();
+
+-- One doll in the making per character. generate-character-doll checks for a
+-- pending job before it reserves credits, but two requests at once (two tabs,
+-- two devices) can both pass that check; this makes the second job's insert
+-- fail, so it releases its reservation and answers doll_in_progress instead of
+-- charging twice and orphaning one of the sets. fail-stale-image-jobs flips a
+-- job stuck pending past ten minutes to failed, which frees the slot.
+create unique index image_generation_jobs_one_pending_doll
+  on public.image_generation_jobs (target_id)
+  where kind = 'character_doll' and status = 'pending';
