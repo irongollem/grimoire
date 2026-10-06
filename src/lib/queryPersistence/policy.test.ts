@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isStaticContent } from "./policy";
+import { isStaticContent, LIVE_ROOT_KEYS, persistClass } from "./policy";
 
 describe("isStaticContent", () => {
   it("matches a key that is exactly a prefix", () => {
@@ -28,5 +28,25 @@ describe("isStaticContent", () => {
 
   it("does not match an empty key", () => {
     expect(isStaticContent([])).toBe(false);
+  });
+});
+
+describe("persistClass", () => {
+  it("puts library content in the static class", () => {
+    expect(persistClass(["library-monster-index", "x"])).toBe("static");
+  });
+
+  it("puts every root the live channel reconciles in the live class", () => {
+    for (const root of ["quests", "npcs", "campaigns", "quest_runtime_state", "notes"]) {
+      expect(LIVE_ROOT_KEYS).toContain(root);
+      expect(persistClass([root, "campaign-1"])).toBe("live");
+    }
+  });
+
+  it("persists nothing else", () => {
+    expect(persistClass(["plans"])).toBeNull();
+    expect(persistClass(["library-monsters", "srd_owlbear"])).toBeNull();
+    expect(persistClass([])).toBeNull();
+    expect(persistClass([["quests"]])).toBeNull();
   });
 });

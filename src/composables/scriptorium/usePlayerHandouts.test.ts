@@ -4,7 +4,8 @@ const mocks = vi.hoisted(() => ({ from: vi.fn() }));
 
 vi.mock("@/lib/supabase", () => ({ supabase: { from: mocks.from } }));
 
-import { fetchHandout, fetchHandouts, PLAYER_HANDOUTS_KEY } from "./usePlayerHandouts";
+import { fetchHandout, fetchHandouts } from "./usePlayerHandouts";
+import { PLAYER_HANDOUTS_KEY } from "@/lib/campaignLiveSync/registry";
 
 /** A chainable builder that records every filter and resolves at the end. */
 function builder(result: { data: unknown; error: unknown }) {

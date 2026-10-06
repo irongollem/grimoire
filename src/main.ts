@@ -9,7 +9,7 @@ import { supabase, onSessionLost, consumeRefusedRead, getCurrentUser } from "./l
 import { createIdentityChangeGate, resetForNewIdentity } from "./lib/authIdentityChange";
 import { createSessionRecovery } from "./lib/sessionRecovery";
 import { createQueryPersistence } from "./lib/queryPersistence/persistence";
-import { isStaticContent } from "./lib/queryPersistence/policy";
+import { isStaticContent, persistClass } from "./lib/queryPersistence/policy";
 import { track } from "./lib/analytics";
 import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
 import { useAuthStore } from "./stores/auth";
@@ -26,14 +26,15 @@ import { useSpotifyStore } from "./stores/spotify";
 import "./assets/fonts";
 import "./assets/main.css";
 
-// Shared library lists are answered from IndexedDB the first time a page session
-// fetches them and written back after every fetch, one record per query and
-// read only when that query is about to fetch. policy.ts says why campaign and
-// user data are not on the list.
+// Shared library lists and live campaign data are answered from IndexedDB the
+// first time a page session fetches them and written back after every fetch,
+// one record per query and read only when that query is about to fetch. Library
+// content is trusted for a day; campaign data is painted from disk and always
+// revalidated at once. policy.ts has the classes and why (#999).
 const persistence = createQueryPersistence({
   buildId: __BUILD_ID__,
   getUserId: () => getCurrentUser()?.id ?? null,
-  shouldPersist: isStaticContent,
+  shouldPersist: persistClass,
   onError: (error) => reportHandledError(error, "queryPersistence"),
 });
 

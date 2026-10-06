@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { QueryClient, QueryObserver } from "@tanstack/vue-query";
 import { createQueryPersistence } from "./persistence";
-import type { QueryPersistence } from "./persistence";
+import type { PersistClass, QueryPersistence } from "./persistence";
 import { openQueryStore } from "./store";
 import type { PersistedQuery } from "./store";
 
@@ -11,6 +11,8 @@ const NOW = 1_800_000_000_000;
 const BUILD = "build-1";
 const LISTED = ["library-monsters", "a"] as const;
 const HASH = JSON.stringify(LISTED);
+const LIVE = ["quests", "c1"] as const;
+const LIVE_HASH = JSON.stringify(LIVE);
 
 async function withStore<T>(fn: (s: Awaited<ReturnType<typeof openQueryStore>>) => Promise<T>): Promise<T> {
   const store = await openQueryStore();
@@ -33,11 +35,12 @@ describe("createQueryPersistence", () => {
   let errors: unknown[];
   let nowMs: number;
 
-  function session(over: { listed?: (key: readonly unknown[]) => boolean } = {}) {
+  function session(over: { listed?: (key: readonly unknown[]) => PersistClass | null } = {}) {
     const persistence: QueryPersistence = createQueryPersistence({
       buildId: BUILD,
       getUserId: () => userId,
-      shouldPersist: over.listed ?? ((key) => key[0] === "library-monsters"),
+      shouldPersist:
+        over.listed ?? ((key) => (key[0] === "library-monsters" ? "static" : key[0] === "quests" ? "live" : null)),
       onError: (e) => errors.push(e),
       now: () => nowMs,
     });
@@ -235,5 +238,66 @@ describe("createQueryPersistence", () => {
     const { persistence } = session();
     await expect(persistence.prune("u1")).resolves.toBeUndefined();
     await expect(persistence.clear()).resolves.toBeUndefined();
+  });
+
+  describe("live class (#999)", () => {
+    const seedLive = (over: Partial<PersistedQuery> = {}) =>
+      withStore((st) =>
+        st.put({ hash: LIVE_HASH, key: LIVE, data: "stored", userId: "u1", buildId: BUILD, savedAt: NOW - 1000, ...over }),
+      );
+
+    it("returns a fresh same-build hit at once, then always revalidates it", async () => {
+      await seedLive();
+      const { client } = session();
+      const queryFn = vi.fn(() => Promise.resolve("net"));
+      // staleTime Infinity is what the live roots get in main.ts: only the invalidation corrects the disk copy.
+      const observer = new QueryObserver(client, { queryKey: [...LIVE], queryFn, staleTime: Infinity });
+      const seen: unknown[] = [];
+      const unsubscribe = observer.subscribe((result) => {
+        if (result.data !== undefined && seen.at(-1) !== result.data) seen.push(result.data);
+      });
+      await vi.waitFor(() => expect(seen).toEqual(["stored", "net"]));
+      expect(queryFn).toHaveBeenCalledTimes(1);
+      await settle();
+      expect(await readRecord(LIVE_HASH)).toMatchObject({ data: "net", savedAt: NOW });
+      unsubscribe();
+    });
+
+    it("a miss goes to the network and is written", async () => {
+      const { client } = session();
+      const queryFn = vi.fn(() => Promise.resolve("net"));
+      await expect(client.fetchQuery({ queryKey: [...LIVE], queryFn })).resolves.toBe("net");
+      await settle();
+      expect(queryFn).toHaveBeenCalledTimes(1);
+      expect(await readRecord(LIVE_HASH)).toMatchObject({ data: "net", userId: "u1" });
+    });
+
+    it("never serves another user's record", async () => {
+      await seedLive({ userId: "other" });
+      const { client } = session();
+      const queryFn = vi.fn(() => Promise.resolve("net"));
+      await expect(client.fetchQuery({ queryKey: [...LIVE], queryFn })).resolves.toBe("net");
+      expect(queryFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("a record older than 7 days is a miss", async () => {
+      await seedLive({ savedAt: NOW - 8 * 24 * HOUR });
+      const { client } = session();
+      const queryFn = vi.fn(() => Promise.resolve("net"));
+      await expect(client.fetchQuery({ queryKey: [...LIVE], queryFn })).resolves.toBe("net");
+      expect(queryFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("a static hit of the same age is not revalidated", async () => {
+      await seed({ savedAt: NOW - 1000 });
+      const { client } = session();
+      const queryFn = vi.fn(() => Promise.resolve("net"));
+      const observer = new QueryObserver(client, { queryKey: [...LISTED], queryFn, staleTime: Infinity });
+      const unsubscribe = observer.subscribe(() => undefined);
+      await vi.waitFor(() => expect(observer.getCurrentResult().data).toBe("stored"));
+      await settle();
+      expect(queryFn).not.toHaveBeenCalled();
+      unsubscribe();
+    });
   });
 });

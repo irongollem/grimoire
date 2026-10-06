@@ -2,10 +2,10 @@ import { computed, isRef, ref, type Ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { QUEST_RUNTIME_QUERY_KEYS } from "./useQuestFlow";
+import { QUEST_RUNTIME_QUERY_KEYS } from "@/lib/campaignLiveSync/registry";
 import type { QuestRuntimeContext, QuestThread } from "@/types/quest.types";
+import { THREADS_KEY } from "@/lib/campaignLiveSync/registry";
 
-export const THREADS_KEY = "quest_threads";
 
 function asRef(value: string | Ref<string>): Ref<string> {
   return isRef(value) ? value : ref(value);

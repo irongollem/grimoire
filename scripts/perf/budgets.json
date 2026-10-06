@@ -10,7 +10,7 @@
     "dm-warm": {
       "dm-warm": {
         "apiRequests": 33,
-        "serialDepth": 4
+        "serialDepth": 3
       }
     },
     "dm-nav": {

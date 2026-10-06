@@ -1,10 +1,15 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
-import { SYNC_TABLES, SIGNAL_KEYS, QUEST_RUNTIME_SYNC_KEYS } from "./useCampaignLiveSync";
-import { BEATS_KEY, QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
-import { PLAYER_NPCS_KEY } from "@/composables/npcs/useNpcs";
-import { THREADS_KEY } from "@/composables/quests/useQuestThreads";
+import {
+  SYNC_TABLES,
+  SIGNAL_KEYS,
+  QUEST_RUNTIME_SYNC_KEYS,
+  BEATS_KEY,
+  QUEST_RUNTIME_QUERY_KEYS,
+  PLAYER_NPCS_KEY,
+  THREADS_KEY,
+} from "@/lib/campaignLiveSync/registry";
 
 /**
  * Live sync is three lists in two places: the tables the channel subscribes to

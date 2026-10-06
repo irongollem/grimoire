@@ -3,7 +3,7 @@ import type { Ref } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { earliestRevealPerNpc } from "@/lib/npcs/peopleLedger";
-import { PLAYER_NPCS_KEY } from "@/composables/npcs/useNpcs";
+import { PLAYER_NPCS_KEY } from "@/lib/campaignLiveSync/registry";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";

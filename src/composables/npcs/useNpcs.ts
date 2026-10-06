@@ -10,6 +10,7 @@ import { getSetting } from "@/settings/index";
 import type { Npc, NpcInsert, NpcUpdate, PlayerNpc } from "@/types/npc.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
+import { PLAYER_NPCS_KEY } from "@/lib/campaignLiveSync/registry";
 
 const QUERY_KEY = "npcs";
 
@@ -20,7 +21,6 @@ const QUERY_KEY = "npcs";
  * `npcs_player` doorbell signal, and that signal must refresh this projection
  * without touching the DM's row caches under `npcs`.
  */
-export const PLAYER_NPCS_KEY = "player-npcs";
 
 async function fetchNpcs(campaignId: string): Promise<Npc[]> {
   const { data, error } = await supabase
