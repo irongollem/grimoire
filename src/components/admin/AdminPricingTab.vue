@@ -349,7 +349,7 @@ const COST_CATEGORY: Record<string, CostCategory> = {
   // #992
   text_enhancement: "text",
   portrait: "image", entity_image: "image", chronicle_image: "image", map_style_generation: "image",
-  tile_pack_generation: "image", entity_cutout: "image",
+  tile_pack_generation: "image", entity_cutout: "image", character_doll: "image",
   music_track: "audio",
   mini_sculpt: "3d",
   // Charged 0 — infrastructure behind the encounter suggester. Listed so its

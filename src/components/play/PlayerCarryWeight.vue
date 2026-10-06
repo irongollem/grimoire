@@ -3,14 +3,13 @@
     v-if="hasMember"
     class="rounded-lg border border-border bg-card px-4 py-3 flex gap-3 items-center"
   >
-    <!-- Burden portrait -->
-    <div class="shrink-0 w-15 h-21 select-none">
-      <img
-        :src="BURDEN_META[burdenLevel].img"
-        :alt="BURDEN_META[burdenLevel].label"
-        class="w-full h-full object-contain object-top transition-opacity duration-300"
-      />
-    </div>
+    <!-- The character under its load (#975): its own doll's burden picture -->
+    <DollFigure
+      v-if="burdenPicture"
+      :picture="burdenPicture"
+      :alt="BURDEN_META[burdenLevel].label"
+      class="w-12 shrink-0"
+    />
 
     <!-- Bar + labels -->
     <div class="flex-1 min-w-0">
@@ -109,21 +108,23 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { formatWeightLb } from '@/lib/utils';
-import { artUrl } from '@/lib/assets/artUrl';
+import DollFigure from '@/components/party/DollFigure.vue';
+import type { DollPicture } from '@/lib/paperDoll/dollStack';
 import AppButton from '@/components/common/AppButton.vue';
 import AppInput from '@/components/common/AppInput.vue';
 
 type BurdenLevel = 'unencumbered' | 'encumbered' | 'heavily_encumbered' | 'over_encumbered';
 
-const BURDEN_META: Record<BurdenLevel, { label: string; img: string; color: string }> = {
-  unencumbered: { label: 'Unencumbered', img: artUrl('/assets/unencumbered.webp'), color: 'text-ink-success' },
-  encumbered: { label: 'Encumbered', img: artUrl('/assets/encumbered.webp'), color: 'text-ink-caution' },
-  heavily_encumbered: { label: 'Heavily Encumbered', img: artUrl('/assets/heavily_encumbered.webp'), color: 'text-ink-caution' },
-  over_encumbered: { label: 'Over Encumbered', img: artUrl('/assets/over_encumbered.webp'), color: 'text-destructive' },
+const BURDEN_META: Record<BurdenLevel, { label: string; color: string }> = {
+  unencumbered: { label: 'Unencumbered', color: 'text-ink-success' },
+  encumbered: { label: 'Encumbered', color: 'text-ink-caution' },
+  heavily_encumbered: { label: 'Heavily Encumbered', color: 'text-ink-caution' },
+  over_encumbered: { label: 'Over Encumbered', color: 'text-destructive' },
 };
 
 const {
   hasMember,
+  burdenPicture,
   burdenLevel,
   powerfulBuild,
   totalCarriedWeight,
@@ -140,6 +141,8 @@ const {
   capacityOverride,
 } = defineProps<{
   hasMember: boolean;
+  /** The doll picture for the current load; null while there is no character. */
+  burdenPicture: DollPicture | null;
   burdenLevel: BurdenLevel;
   powerfulBuild: boolean;
   totalCarriedWeight: number;

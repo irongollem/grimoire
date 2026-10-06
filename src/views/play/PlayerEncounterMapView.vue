@@ -69,6 +69,7 @@
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
         :combatants="liveCombatants"
+        :figures="dollFigures"
         :factions="encounter?.factions ?? []"
         :active-instance-id="activeInstanceId"
         :draggable-instance-ids="draggableSet"
@@ -108,6 +109,7 @@ import { liveState, updateOwnCombatantPosition } from "@/composables/encounters/
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
+import { useCombatantDollFigures } from "@/composables/encounters/useCombatantDollFigures";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import { decodeFogMask, revealedCombatants } from "@/lib/battlemap/fogMask";
 import { primaryImage } from "@/lib/locations/mapStack";
@@ -175,6 +177,7 @@ const liveCombatants = computed<RunCombatant[] | null>(() => {
   // revealed space disappears from the player's own map, VTT tokens or not.
   return revealedCombatants(list, fogMask.value);
 });
+const dollFigures = useCombatantDollFigures(() => liveCombatants.value ?? []);
 const activeInstanceId = computed(() => {
   const list = liveState.value?.combatants_live;
   if (!list) return null;

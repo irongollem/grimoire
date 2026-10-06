@@ -86,3 +86,5 @@ bun.lockb
 graphify-out/
 .vitest/
 
+# Paper-doll species renders awaiting review (scripts/generate-dolls.ts)
+.doll-out/

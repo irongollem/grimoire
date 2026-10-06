@@ -106,6 +106,7 @@
         :active-instance-id="store.activeCombatant?.instance_id ?? null"
         :draggable-instance-ids="tool === 'pan' ? null : emptyDragSet"
         :portrait-overrides="portraitOverrides"
+        :figures="dollFigures"
         :on-position-change="onTokenMoved"
         :class="{ 'pointer-events-none': tool !== 'pan' }"
       />
@@ -151,6 +152,7 @@ import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useEncounterRoom } from "@/composables/encounters/useEncounterRoom";
 import { useCombatantMinis } from "@/composables/encounters/useCombatantMinis";
+import { useCombatantDollFigures } from "@/composables/encounters/useCombatantDollFigures";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive, liveState } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
@@ -205,6 +207,7 @@ const showZones = ref(true);
 const showFog = ref(false);
 const showGrid = ref(true);
 const portraitOverrides = useCombatantMinis(computed(() => store.combatants));
+const dollFigures = useCombatantDollFigures(computed(() => store.combatants));
 
 // Header (frame 13): "<focus room> — <encounter>" over a status line — the
 // segmented control's Site option is what used to be the "← Back to the

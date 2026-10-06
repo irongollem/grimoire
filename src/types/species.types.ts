@@ -41,6 +41,8 @@ export interface Species extends VersionedContentMetadata {
   name: string;
   description: string | null;    // Tiptap JSON
   size: SpeciesSize | null;
+  /** Library rows carry a generated paper doll (jsonb, see @edge-shared/paperDoll/types.ts); custom species have none. Parse with parseDollSheets. */
+  doll?: unknown;
   avg_height: string | null;
   avg_weight: string | null;
   speed: SpeciesSpeed | null;

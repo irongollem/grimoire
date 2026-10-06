@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   drawToken,
+  containRect,
   type TokenEntity,
   DEFAULT_TOKEN_RING_COLOR,
 } from "@/lib/tokenRenderer";
@@ -280,5 +281,15 @@ describe("drawToken — imageFit", () => {
     const diam = ir * 2;
     const draw = rec.drawImageArgs.at(-1)!;
     expect(draw.w).toBeCloseTo(diam, 5);
+  });
+});
+
+describe("containRect", () => {
+  it("puts the corners of the rectangle on the ring, centred", () => {
+    const r = containRect(300, 400, 100, 128, 128);
+    expect(Math.hypot(r.w / 2, r.h / 2)).toBeCloseTo(100);
+    expect(r.x + r.w / 2).toBeCloseTo(128);
+    expect(r.y + r.h / 2).toBeCloseTo(128);
+    expect(r.w / r.h).toBeCloseTo(0.75);
   });
 });
