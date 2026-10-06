@@ -50,6 +50,8 @@ scripts/chapter_npc_configs/
 .mcp.json
 src/views/play/TEMPSHIT.ts
 .claude/worktrees/
+# Claude Code lays its API types beside a loaded mod on every load.
+.claude/skills/*/.claude-plugin/types/
 
 # vite-ssg build temp directory
 .vite-ssg-temp/
