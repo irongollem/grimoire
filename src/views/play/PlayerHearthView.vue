@@ -84,7 +84,7 @@ import HearthSpellcasting from "@/components/play/hearth/HearthSpellcasting.vue"
 import HearthVitals from "@/components/play/hearth/HearthVitals.vue";
 import HearthWaiting from "@/components/play/hearth/HearthWaiting.vue";
 import { usePlayerSessionState } from "@/composables/campaign/useCampaignSession";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -107,7 +107,7 @@ const campaignName = computed(() => campaign.activeCampaign?.name ?? "Hearth");
 
 // Resolved exactly as the character sheet does, so preview mode shows the
 // previewed player's Hearth.
-const { data: party, isError: partyFailed } = useParty();
+const { data: party, isError: partyFailed } = useActiveParty();
 const memberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
 const member = computed<PartyMember | null>(() =>
   memberId.value && party.value ? (party.value.find((m) => m.id === memberId.value) ?? null) : null,

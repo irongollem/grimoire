@@ -159,3 +159,25 @@ describe("revealPopulatedSiteMapLayers (#880, resurfaced after #884)", () => {
     expect(store.siteMapLayers.grid).toBe(true);
   });
 });
+
+describe("Hall of the Fallen filters", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  it("starts untouched, lights up on a pick, and Clear returns to untouched", () => {
+    const ui = useUiStore();
+    expect(ui.hallCampaign).toBeNull();
+    expect(ui.hallKind).toBe("all");
+    expect(ui.hasHallFiltersActive).toBe(false);
+
+    ui.hallKind = "fallen";
+    expect(ui.hasHallFiltersActive).toBe(true);
+    ui.hallCampaign = "all";
+    ui.resetHallFilters();
+    expect(ui.hallCampaign).toBeNull();
+    expect(ui.hallKind).toBe("all");
+    expect(ui.hasHallFiltersActive).toBe(false);
+  });
+});

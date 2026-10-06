@@ -29,6 +29,7 @@
         :campaign="campaign.activeCampaign"
       />
       <CharacterApprovalNotice v-if="member.campaign_id" :member="member" />
+      <MemorialBanner v-if="memorialInEffect" :memorial="memorialInEffect" :viewer="memorialViewer" />
       <!-- The gear in view is the active table's, so only a character seated there can be compared. -->
       <AcCalculatedNotice v-if="campaign.activeCampaign && member.campaign_id === campaign.activeCampaign.id" :member="member" />
       <!-- ── Always visible ─────────────────────────────────── -->
@@ -84,6 +85,12 @@
         <div v-if="!hidePlayerActions && member" class="flex items-center gap-2 max-sm:w-full sm:ml-auto">
           <AppButton v-if="!ui.dmPreviewMode" to="/play/champions" variant="subtle" size="sm" class="max-sm:flex-1" label="My Characters" />
           <AppButton :to="{ name: 'play-character-sheet' }" variant="subtle" size="sm" class="max-sm:flex-1" label="Export Sheet" />
+          <OverflowMenu
+            v-if="canRetire"
+            :label="`More actions for ${member.name}`"
+            :items="[{ key: 'retire', label: 'Retire…' }]"
+            @select="retireOpen = true"
+          />
         </div>
       </div>
 
@@ -134,6 +141,8 @@
     </template>
 
     <RollToast :result="lastRoll" />
+
+    <SetDownDialog v-if="retireOpen && member" open mode="retired" :member="member" @close="retireOpen = false" />
   </div>
 </template>
 
@@ -168,6 +177,10 @@ import PlayerAppearanceSection from "@/components/player/PlayerAppearanceSection
 import PlayerLoreTab from "@/components/player/PlayerLoreTab.vue";
 import PlayerWildShapeTab from "@/components/player/PlayerWildShapeTab.vue";
 import { useSpecies } from "@/composables/rules/useSpecies";
+import OverflowMenu from "@/components/common/OverflowMenu.vue";
+import MemorialBanner from "@/components/memorials/MemorialBanner.vue";
+import SetDownDialog from "@/components/memorials/SetDownDialog.vue";
+import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
 
 const props = defineProps<{ memberId?: string; hidePlayerActions?: boolean }>();
 const emit = defineEmits<{ (e: "level-up"): void }>();
@@ -222,6 +235,24 @@ const { isDruid } = useWildshapeDruid(resolvedMemberId, () => member.value);
 const isOwner = computed(
   () => !ui.dmPreviewMode && !!auth.linkedPartyMemberId && auth.linkedPartyMemberId === member.value?.id,
 );
+
+// ── Memorial (#982) ───────────────────────────────────────────────────────────
+// The sheet stays as it was; a banner says where they are, and the owner may retire.
+const { data: memorials } = useCampaignMemorials();
+const memorialInEffect = computed(() =>
+  member.value && memorials.value
+    ? (memorials.value.find((m) => m.party_member_id === member.value?.id && m.restored_at === null) ?? null)
+    : null,
+);
+const memberOwnedByMe = computed(
+  () => !!member.value && member.value.owner_user_id !== null && member.value.owner_user_id === auth.user?.id,
+);
+const memorialViewer = computed<"dm" | "owner" | "other">(() =>
+  auth.isDM ? "dm" : memberOwnedByMe.value ? "owner" : "other",
+);
+const retireOpen = ref(false);
+/** Only the owner retires from here; marking a character fallen is the DM's, on the party page. */
+const canRetire = computed(() => memberOwnedByMe.value && !ui.dmPreviewMode && !memorialInEffect.value);
 
 // The owner edits their own character; the DM does from the preview and from the
 // party page (the only place a memberId is passed in). Anyone else reads.

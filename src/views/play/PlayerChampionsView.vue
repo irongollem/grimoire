@@ -172,6 +172,14 @@
       </div>
     </template>
 
+    <p
+      v-for="char in laidToRest"
+      :key="char.id"
+      class="text-caption text-muted-foreground italic text-center"
+    >
+      <RouterLink to="/play/fallen" class="hover:text-foreground">{{ char.name }} rests in the Hall of the Fallen</RouterLink>
+    </p>
+
     <!-- Error -->
     <p v-if="setActiveError || assumeError" class="text-caption text-destructive text-center">
       {{ setActiveError || assumeError }}
@@ -183,7 +191,7 @@
 <script setup lang="ts">
 import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { IconAdd, IconDM } from '@/lib/icons';
 import { useMyCharacters, useSetActiveCharacter, useParty, useOfferedCharacters, useAssumeCharacter } from '@/composables/party/useParty';
@@ -203,6 +211,8 @@ import FocalImage from '@/components/common/FocalImage.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import type { PartyMember } from '@/types/party.types';
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { activeMembers } from "@/composables/party/useActiveParty";
+import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
 
 const auth = useAuthStore();
 const ui   = useUiStore();
@@ -215,7 +225,17 @@ const offeredCharacters = computed(() => {
   const taken = new Set((myChars.value ?? []).map((c) => c.assumed_from_id));
   return (allOffered.value ?? []).filter((c) => !taken.has(c.id));
 });
-const characters = computed(() => ui.dmPreviewMode ? allChars.value  : myChars.value);
+// Fallen and retired characters leave the active list but keep their row.
+const { data: memorials } = useCampaignMemorials();
+const activeOf = (members: PartyMember[] | undefined) =>
+  members && memorials.value ? activeMembers(members, memorials.value) : members;
+const characters = computed(() => activeOf(ui.dmPreviewMode ? allChars.value : myChars.value));
+const laidToRest = computed(() => {
+  const mine = myChars.value;
+  if (ui.dmPreviewMode || !mine || !memorials.value) return [];
+  const active = new Set(activeMembers(mine, memorials.value).map((c) => c.id));
+  return mine.filter((c) => !active.has(c.id));
+});
 const speciesNameOf = useSpeciesNames(() => [...(characters.value ?? []), ...(offeredCharacters.value ?? [])]);
 const isPending  = computed(() => ui.dmPreviewMode ? allPending.value : myPending.value);
 const { mutateAsync: setActiveChar } = useSetActiveCharacter();

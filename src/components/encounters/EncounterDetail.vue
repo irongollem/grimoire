@@ -238,7 +238,7 @@ import { IconCheckDouble, IconChevronLeft, IconClose, IconPlay, IconReset, IconS
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -335,7 +335,7 @@ const lairOwnerOptions = computed(() => {
   });
 });
 
-const { data: party, isLoading: partyLoading } = useParty();
+const { data: party, isLoading: partyLoading } = useActiveParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItemIndex();

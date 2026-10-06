@@ -54,7 +54,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { deriveDyingPartyMembers } from "@/lib/dashboard/deathSaves";
 import FocalImage from "@/components/common/FocalImage.vue";
 import DashboardWidget from "../DashboardWidget.vue";
@@ -70,7 +70,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
  * `DashboardWidget`'s `loading`/`empty` slots that every other widget here
  * uses: there is no "nothing to show yet" state to render, only "not shown".
  */
-const { data: party } = useParty();
+const { data: party } = useActiveParty();
 
 /**
  * `?? []` is safe *here specifically*, and nowhere else in this folder: an

@@ -305,6 +305,9 @@ export const IconCompassRose = glyph(
 );
 // Hearth (#977): the campfire from the maintainer's sheet (art-src/nav-campaign/hearth-sheet.png).
 export const IconNavHearth = glyph(NAV_GLYPHS.hearth);
+// Hall of the Fallen (#982): the candle in a shrine from the maintainer's sheet
+// (art-src/nav-campaign/hall of the fallen.png). It honours the retired as well as the dead.
+export const IconNavFallen = glyph(NAV_GLYPHS.fallen);
 export const IconNavDashboard = glyph(NAV_GLYPHS.dashboard);
 export const IconNavNotes = glyph(NAV_GLYPHS.notes);
 export const IconNavCalendar = glyph(NAV_GLYPHS.calendar);

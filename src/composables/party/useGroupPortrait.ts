@@ -1,7 +1,7 @@
 import { ref, computed } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { generateChroniclerImage } from "@/ai/useChroniclerImageGeneration";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
@@ -24,7 +24,7 @@ const SIZE_HEIGHT_DEFAULTS: Record<SpeciesSize, string> = {
 export function useGroupPortrait() {
   const store = useCampaignStore();
   const { ensureLikenessAck } = useLikenessGate();
-  const { data: partyMembers } = useParty();
+  const { data: partyMembers } = useActiveParty();
   // By id, not from the campaign-edition list: a member of the other edition keeps its species.
   const { data: speciesById } = useSpeciesByIds(() => (partyMembers.value ?? []).map((m) => m.species_id));
   const { mutateAsync: updateCampaign } = useUpdateCampaign();

@@ -57,7 +57,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import HearthNextSession from "@/components/play/hearth/HearthNextSession.vue";
 import HearthSection from "@/components/play/hearth/HearthSection.vue";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { inkSeepStyle } from "@/lib/inkSeep";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
@@ -76,7 +76,7 @@ const STILL_TO_COME = [
 
 const auth = useAuthStore();
 const campaign = useCampaignStore();
-const { data: party } = useParty();
+const { data: party } = useActiveParty();
 const { data: members } = useCampaignMembers();
 
 const campaignName = computed(() => campaign.activeCampaign?.name ?? "the table");

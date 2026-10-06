@@ -37,6 +37,10 @@ vi.mock("@/composables/party/useParty", () => ({
     refetch: mocks.refetch,
   }),
 }));
+// The surface reads the active party; here it is the same fixture as useParty.
+vi.mock("@/composables/party/useActiveParty", async () => ({
+  useActiveParty: (await import("@/composables/party/useParty")).useParty,
+}));
 vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: { value: [] } }) }));
 vi.mock("@/composables/encounters/useCompanions", () => ({
   useCompanions: () => ({ data: { value: [] } }),

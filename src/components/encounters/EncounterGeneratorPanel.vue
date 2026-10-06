@@ -168,7 +168,7 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import {
   resolveGeneratedCombatants,
@@ -215,7 +215,7 @@ const { mutateAsync: createEncounter } = useCreateEncounter();
 const { data: monsters, isLoading: monstersLoading } = useMonsterIndex(() => ({
   enabled: ui.encounterGeneratorOpen || isGenerating.value || !!result.value,
 }));
-const { data: party } = useParty();
+const { data: party } = useActiveParty();
 const { data: companions } = useCompanions();
 
 const { costOf } = useAiCredits();

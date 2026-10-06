@@ -35,6 +35,10 @@ vi.mock("@/composables/encounters/useEncounters", () => ({
 }));
 vi.mock("@/composables/monsters/useMonsterIndex", () => ({ useMonsterIndex: () => ({ data: ref([]), isLoading: ref(false) }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([]) }) }));
+// The surface reads the active party; here it is the same fixture as useParty.
+vi.mock("@/composables/party/useActiveParty", async () => ({
+  useActiveParty: (await import("@/composables/party/useParty")).useParty,
+}));
 vi.mock("@/composables/encounters/useCompanions", () => ({ useCompanions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ costOf: () => 1, affordable: () => true, balance: ref(10) }),

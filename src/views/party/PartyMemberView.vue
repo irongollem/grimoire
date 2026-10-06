@@ -15,6 +15,13 @@
       <template v-if="member">
         <AppButton class="ml-auto" variant="outline" size="md" label="Export Sheet" :to="`/character-sheet/${member.id}`" />
         <AppButton variant="primary" size="md" :icon="IconEdit" label="Edit" @click="editOpen = true" />
+        <!-- Retire first, the heavier word below the rule: only the DM marks a fall. -->
+        <OverflowMenu
+          v-if="!memorialInEffect"
+          :label="`More actions for ${member.name}`"
+          :items="menuItems"
+          @select="(key) => (setDownMode = key === 'fallen' ? 'fallen' : 'retired')"
+        />
       </template>
     </div>
 
@@ -34,6 +41,14 @@
     -->
     <EntityBacklinks v-if="member" :entity-id="member.id" />
 
+    <SetDownDialog
+      v-if="setDownMode"
+      open
+      :mode="setDownMode"
+      :member="member"
+      @close="setDownMode = null"
+    />
+
     <PartyMemberForm
       v-if="editOpen && member"
       :member="member"
@@ -49,6 +64,9 @@ import { IconEdit } from '@/lib/icons';
 import { useParty } from "@/composables/party/useParty";
 import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/OverflowMenu.vue";
+import SetDownDialog from "@/components/memorials/SetDownDialog.vue";
+import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
 
@@ -66,4 +84,14 @@ const { data: party } = useParty();
 const member = computed(() => (party.value ?? []).find((m) => m.id === id.value) ?? null);
 
 const editOpen = ref(false);
+
+const { data: memorials } = useCampaignMemorials();
+const memorialInEffect = computed(
+  () => !!memorials.value && memorials.value.some((m) => m.party_member_id === id.value && m.restored_at === null),
+);
+const setDownMode = ref<"fallen" | "retired" | null>(null);
+const menuItems: OverflowMenuEntry[] = [
+  { key: "retire", label: "Retire…" },
+  { key: "fallen", label: "Mark as fallen…", danger: true },
+];
 </script>

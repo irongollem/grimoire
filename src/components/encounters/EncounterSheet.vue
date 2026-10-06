@@ -252,7 +252,7 @@ import {
   useEncounterLive,
 } from "@/composables/encounters/useEncounterLive";
 import { useQuestsForEncounter } from "@/composables/quests/useQuests";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
@@ -285,7 +285,7 @@ const otherIsLive  = computed(() => firstRunning.value !== null && !thisIsLive.v
 
 // ── Linked data ────────────────────────────────────────────────────────────
 const { data: linkedQuests } = useQuestsForEncounter(props.encounter.id);
-const { data: party }        = useParty();
+const { data: party }        = useActiveParty();
 const { data: companions }   = useCompanions();
 // Difficulty below resolves the encounter's stored combatant.monster_id and
 // trap_ids, so neither may be scoped away from what was saved: monsters are read

@@ -233,7 +233,7 @@ import { useRouter } from "vue-router";
 import { IconAdd, IconCheckCircle, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
@@ -262,7 +262,7 @@ const router = useRouter();
 const campaign = useCampaignStore();
 // Mounted on every DM page — only fetch the dropdown data once the panel opens.
 const panelOpen = () => ui.questGeneratorOpen;
-const { data: party } = useParty(panelOpen);
+const { data: party } = useActiveParty(panelOpen);
 const { data: npcs } = useNpcs(panelOpen);
 const { data: locations } = useAllLocations(panelOpen);
 const { data: factions } = useAllFactions(panelOpen);

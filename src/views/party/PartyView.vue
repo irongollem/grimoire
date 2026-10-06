@@ -6,6 +6,14 @@
 
     <template #actions>
       <AppButton
+        to="/party/fallen"
+        variant="subtle"
+        size="md"
+        surface="card"
+        :icon="IconNavFallen"
+        label="Hall of the Fallen"
+      />
+      <AppButton
         variant="subtle"
         size="md"
         surface="card"
@@ -94,7 +102,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconBeast, IconGenerate, IconUpload } from '@/lib/icons';
+import { IconAdd, IconBeast, IconGenerate, IconNavFallen, IconUpload } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";

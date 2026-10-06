@@ -44,7 +44,7 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import { useDowntimeDraws } from "@/composables/downtime/useDowntime";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { buildDowntimeQueue } from "@/lib/dashboard/downtimeQueue";
 import { timeAgo } from "@/lib/utils";
 import DashboardWidget from "../DashboardWidget.vue";
@@ -61,7 +61,7 @@ import DashboardWidget from "../DashboardWidget.vue";
  * queue does the rest.
  */
 const { data: draws, isLoading: drawsLoading } = useDowntimeDraws();
-const { data: party, isLoading: partyLoading } = useParty();
+const { data: party, isLoading: partyLoading } = useActiveParty();
 const isLoading = computed(() => drawsLoading.value || partyLoading.value);
 
 /**

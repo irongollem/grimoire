@@ -27,6 +27,10 @@ vi.mock("@/composables/party/useParty", () => ({
     isError: ref(false),
   }),
 }));
+// The surface reads the active party; here it is the same fixture as useParty.
+vi.mock("@/composables/party/useActiveParty", async () => ({
+  useActiveParty: (await import("@/composables/party/useParty")).useParty,
+}));
 vi.mock("@/composables/campaign/useCampaignSession", () => ({
   usePlayerSessionState: () => ({
     data: ref(

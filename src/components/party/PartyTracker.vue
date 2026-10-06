@@ -90,7 +90,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useCompanions, useDeleteCompanion } from "@/composables/encounters/useCompanions";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
@@ -113,7 +113,7 @@ import PartyXpAward from "./PartyXpAward.vue";
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import type { Companion } from "@/types/companion.types";
-const { data: party, isError, refetch } = useParty();
+const { data: party, isError, refetch } = useActiveParty();
 const xpLevellingEnabled = useIsRuleEnabled("xp_levelling");
 const { data: allLocations } = useAllLocations();
 const locationNameMap = computed(() => {

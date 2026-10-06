@@ -24,6 +24,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { value: [{ id: "pm-1" }, { id: "pm-2" }] } }) }));
+// The surface reads the active party; here it is the same fixture as useParty.
+vi.mock("@/composables/party/useActiveParty", async () => ({
+  useActiveParty: (await import("@/composables/party/useParty")).useParty,
+}));
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpc: () => ({ data: mocks.npc }) }));
 vi.mock("@/composables/factions/useFactions", () => ({ useFaction: () => ({ data: mocks.faction }) }));

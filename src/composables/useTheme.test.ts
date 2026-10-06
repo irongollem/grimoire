@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { THEMES } from "@/lib/themes";
-import { themeInMode, useTheme } from "./useTheme";
+import { darkTwinId, darkTwinStyle, themeInMode, useTheme } from "./useTheme";
 
 describe("theme families", () => {
   it("pairs every theme with a member of the other mode", () => {
@@ -21,6 +21,25 @@ describe("theme families", () => {
   it("falls back to the classic pair for an unknown id", () => {
     expect(themeInMode("no-such-theme", "dark")).toBe("grimoire");
     expect(themeInMode("no-such-theme", "light")).toBe("tome");
+  });
+});
+
+describe("dark twin", () => {
+  const varsOf = (id: string) => THEMES.find((t) => t.id === id)?.vars;
+
+  it("resolves vellum to vellum-dark's vars", () => {
+    expect(darkTwinId("vellum")).toBe("vellum-dark");
+    expect(darkTwinStyle("vellum")).toEqual(varsOf("vellum-dark"));
+  });
+
+  it("resolves tome to grimoire's vars", () => {
+    expect(darkTwinId("tome")).toBe("grimoire");
+    expect(darkTwinStyle("tome")).toEqual(varsOf("grimoire"));
+  });
+
+  it("returns an already-dark theme itself", () => {
+    expect(darkTwinId("vellum-dark")).toBe("vellum-dark");
+    expect(darkTwinStyle("grimoire")).toEqual(varsOf("grimoire"));
   });
 });
 

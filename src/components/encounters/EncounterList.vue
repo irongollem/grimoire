@@ -135,7 +135,7 @@ import type { Encounter } from "@/types/encounter.types";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
@@ -163,7 +163,7 @@ const questFilter = computed(() => ui.encountersFilterQuestId);
 
 const { data: encounters, isLoading } = useEncounters();
 const { data: npcs } = useNpcs();
-const { data: party } = useParty();
+const { data: party } = useActiveParty();
 const { data: characterClasses } = useAllCampaignCharacterClasses();
 const { data: companions } = useCompanions();
 // Difficulty labels resolve each listed encounter's stored combatant.monster_id

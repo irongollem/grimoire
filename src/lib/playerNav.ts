@@ -6,6 +6,7 @@ import {
   IconNavCharacterSheet,
   IconNavDashboard,
   IconNavFactions,
+  IconNavFallen,
   IconNavHearth,
   IconNavInterlude,
   IconNavItemVault,
@@ -43,6 +44,8 @@ export const ALL_PLAYER_NAV: PlayerNavItem[] = [
   { id: "inventory", to: "/play/inventory", label: "Inventory", icon: IconNavItemVault },
   { id: "calendar", to: "/play/calendar", label: "Calendar", icon: IconNavCalendar },
   { id: "party", to: "/play/party", label: "People", icon: IconNavParty },
+  // The wall outlives a membership, so it stays reachable with no active campaign (#982).
+  { id: "fallen", to: "/play/fallen", label: "Hall of the Fallen", icon: IconNavFallen, standalone: true },
   { id: "crafting", to: "/play/crafting", label: "Workshop", icon: IconNavWorkshop, ruleKey: "crafting" },
   { id: "downtime", to: "/play/downtime", label: "Interlude", icon: IconNavInterlude, ruleKey: "downtime" },
   { id: "atlas", to: "/play/atlas", label: "Atlas", icon: IconNavAtlas },
