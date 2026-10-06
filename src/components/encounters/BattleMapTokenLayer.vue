@@ -156,8 +156,8 @@ function getFactionColor(factionId: string): string {
 }
 
 /** Beast form → mini override → own doll figure → baked cutout (`token_url`) →
- *  portrait → nothing. A mini renders its own composition and a cutout is drawn whole, so
- *  only the plain-portrait case carries a focal point or crops ("cover"). The
+ *  portrait → nothing. Doll figures and cutouts use "contain"; beast images,
+ *  mini overrides, and portraits use "cover". The
  *  mini, cutout and portrait are all the character's own, so a wild-shaped
  *  druid shows the beast or, for a beast without art, no picture at all. */
 function resolveTokenImage(
@@ -173,6 +173,7 @@ function resolveTokenImage(
   return { imageUrl: null, imageFit: "cover", figure: null };
 }
 
+/** Build renderer input, retaining the portrait focal point only for a cover image matching its URL. */
 function combatantToEntity(
   c: RunCombatant,
   imageUrl: string | null,
@@ -255,6 +256,10 @@ function registerCanvas(instanceId: string, el: HTMLCanvasElement | null) {
   canvasRefs.set(instanceId, el);
 }
 
+/**
+ * Resize and redraw a registered token canvas after the DOM update, aborting
+ * its previous render. Missing canvases are ignored; drawing errors propagate.
+ */
 async function renderTokenCanvas(tok: RenderedToken) {
   await nextTick();
   const canvas = canvasRefs.get(tok.combatant.instance_id);
@@ -279,6 +284,7 @@ async function renderTokenCanvas(tok: RenderedToken) {
 // redraw any token's canvas. Only redraw when a render-relevant input changes
 // (faction colour, active glow, silhouette state, portrait, footprint, name).
 const lastRenderKey = new Map<string, string>();
+/** Key the canvas appearance, including the doll crop, independently of token position. */
 function renderKey(tok: RenderedToken): string {
   return [
     tok.factionColor,

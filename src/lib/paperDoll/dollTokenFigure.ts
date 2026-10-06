@@ -5,8 +5,9 @@ import type { DollPicture } from "@/lib/paperDoll/dollStack";
 /**
  * A doll picture as a token (#975): the rectangle of its sheet that frames the
  * figure. The frame is measured in the underclothes cell, so the picture's own
- * drift correction is undone to find the same body in its cell, and it never
- * reaches past the picture's clip into a neighbouring figure.
+ * drift correction is undone to find the same body in its cell. Horizontal
+ * bounds are intersected with the picture's clip, with a minimum width of one
+ * pixel even when the frame and clip do not overlap.
  */
 export function dollTokenFigure(picture: DollPicture, anatomy: DollAnatomy): TokenFigure {
   const frame = figureFrame(anatomy);
@@ -27,8 +28,8 @@ export function dollTokenFigure(picture: DollPicture, anatomy: DollAnatomy): Tok
 /**
  * The box around the figure, in cell pixels: a little room above the crown,
  * the soles at the bottom, and a width that keeps the shoulders off the ring
- * but never narrower than half the height, so a slim figure is not stretched
- * into a sliver.
+ * and aims for at least half the height, capped at the cell width so a slim
+ * figure is not stretched into a sliver.
  */
 function figureFrame(anatomy: DollAnatomy): { x: number; y: number; w: number; h: number } {
   const headH = anatomy.head.y1 - anatomy.head.y0;

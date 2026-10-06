@@ -11,10 +11,10 @@ import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { DOLL_ASK_ERROR, dollErrorMessage } from "@/composables/party/characterDollErrors";
 
 /**
- * Make a character's own paper doll from its portrait (#975). The function
- * answers at once with a job; the doll lands on `party_members.doll` when the
- * job settles (about 90 s), and the party caches are invalidated here as well
- * so a missed realtime event cannot leave the old doll on screen.
+ * Manage a character's own paper doll from its portrait (#975). `make` starts
+ * an async job, waits for completion, and invalidates the party caches so a
+ * missed realtime event cannot leave the old doll on screen.
+ * Also exposes ask/clear actions and reactive generation, request, and error state.
  */
 export function useCharacterDoll() {
   const queryClient = useQueryClient();
@@ -25,6 +25,12 @@ export function useCharacterDoll() {
   const isGenerating = ref(false);
   const error = ref<string | null>(null);
 
+  /**
+   * Request a doll after likeness consent and the credit check, then wait for
+   * the job and refresh party caches. Return false when already generating,
+   * consent is declined, credits are insufficient, or generation/cache refresh
+   * fails; caught failures also set `error`. Return true after refresh succeeds.
+   */
   async function make(memberId: string): Promise<boolean> {
     if (isGenerating.value) return false;
     if (!(await ensureLikenessAck())) return false;
@@ -61,6 +67,11 @@ export function useCharacterDoll() {
   /** Member ids with a set/clear of the ask in flight, so each button shows its own loading. */
   const pendingAskIds = ref<ReadonlySet<string>>(new Set());
 
+  /**
+   * Store an ISO request timestamp, or null to clear it, then refresh party
+   * caches. Return false for a duplicate pending request or a caught update/
+   * refresh failure; failures set `error`. `where` identifies the error context.
+   */
   async function setAsk(memberId: string, requestedAt: string | null, where: string): Promise<boolean> {
     if (pendingAskIds.value.has(memberId)) return false;
     pendingAskIds.value = new Set(pendingAskIds.value).add(memberId);
@@ -87,10 +98,11 @@ export function useCharacterDoll() {
     }
   }
 
-  /** The player asks their DM to draw the doll. */
+  /** Ask the DM to draw the doll; resolve with whether the update and cache refresh succeeded. */
   const ask = (memberId: string) => setAsk(memberId, new Date().toISOString(), "useCharacterDoll.ask");
-  /** The player takes the ask back, or the DM declines it: both clear it. */
+  /** Withdraw or decline an ask; resolve with whether the update and cache refresh succeeded. */
   const clearAsk = (memberId: string) => setAsk(memberId, null, "useCharacterDoll.clearAsk");
+  /** Whether this instance has an ask update in flight for the member. */
   const isAskPending = (memberId: string) => pendingAskIds.value.has(memberId);
 
   return { isGenerating, error, make, ask, clearAsk, isAskPending };

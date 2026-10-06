@@ -256,12 +256,15 @@ const dollControl = computed(() => {
   });
 });
 const isDollAskPending = computed(() => (member.value ? isAskPending(member.value.id) : false));
+/** Start generation for the seated character, if present; progress and errors live in useCharacterDoll. */
 function onMakeDoll() {
   if (member.value) void makeDoll(member.value.id);
 }
+/** Ask the DM for a doll for the seated character, if present. */
 function onAskDoll() {
   if (member.value) void askDoll(member.value.id);
 }
+/** Clear the seated character's doll request, if present. */
 function onWithdrawDoll() {
   if (member.value) void clearDollAsk(member.value.id);
 }

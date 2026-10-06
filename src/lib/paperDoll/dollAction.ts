@@ -29,6 +29,11 @@ export interface DollAction {
   askedByPlayer: boolean;
 }
 
+/**
+ * Choose the viewer's doll control and label. DMs always get the make control;
+ * owners get it when affordable, otherwise an ask or withdraw control. Other
+ * viewers get no control. Credit enforcement happens when generation starts.
+ */
 export function dollAction({ isOwner, isDm, affordable, asked, hasDoll }: DollActionInput): DollAction {
   if (isDm) {
     return {

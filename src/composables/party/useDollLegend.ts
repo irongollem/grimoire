@@ -8,6 +8,7 @@ export interface MeasuredLegendLine extends LegendLine {
 
 type Anchors = Record<SlotAnchorKey, { x: number; y: number }>;
 
+/** Read the element's viewport bounds in CSS pixels. */
 function box(el: Element) {
   const r = el.getBoundingClientRect();
   return { left: r.left, top: r.top, width: r.width, height: r.height };
@@ -16,14 +17,19 @@ function box(el: Element) {
 /**
  * Measures the wells and the figure inside `container` (marked with
  * `data-doll-slot` + `data-doll-side`, and `data-doll-figure`) and returns one
- * hairline per well, in the container's coordinates. Re-measured whenever the
- * container resizes; call `measure()` after anything that moves a well.
+ * hairline per well, in the container's coordinates. Observe the container,
+ * figure, and wells present at mount for resizing; call `measure()` after
+ * other changes that move a well.
  */
 export function useDollLegend(container: Ref<HTMLElement | null>, anchors: () => Anchors | null) {
   const lines = ref<MeasuredLegendLine[]>([]);
   const size = ref({ width: 0, height: 0 });
   let observer: ResizeObserver | null = null;
 
+  /**
+   * Refresh container size and legend lines in CSS pixels. Clear the lines if
+   * the container, anchors, or figure is absent, retaining the last measured size.
+   */
   function measure() {
     const root = container.value;
     const at = anchors();

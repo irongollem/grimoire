@@ -45,7 +45,7 @@ function rowSpans(rgba: Pixels, sheetWidth: number, cell: DollCellIndex): Array<
   return spans;
 }
 
-/** Horizontal centre of the opaque pixels across rows `from..to` (inclusive). */
+/** Center of the combined horizontal extent across inclusive rows; the cell midpoint if all are empty. */
 function bandCenter(spans: Array<{ min: number; max: number } | null>, from: number, to: number): number {
   let min = CELL_WIDTH;
   let max = -1;
@@ -58,6 +58,12 @@ function bandCenter(spans: Array<{ min: number; max: number } | null>, from: num
   return max < 0 ? CELL_WIDTH / 2 : (min + max) / 2;
 }
 
+/**
+ * Estimate head, shoulders, soles, and crown axis from alpha values above 128
+ * in one 512x1024 cell of decoded RGBA. `sheetWidth` is the row stride in pixels;
+ * returned coordinates are relative to the cell, which defaults to underclothes.
+ * @throws {Error} If the selected cell has no pixels with alpha above 128.
+ */
 export function measureAnatomy(rgba: Pixels, sheetWidth: number = SHEET_WIDTH, cell: DollCellIndex = 0): DollAnatomy {
   const spans = rowSpans(rgba, sheetWidth, cell);
   let y0 = -1;
@@ -116,9 +122,10 @@ const CUT_SEARCH = 80;
  * The two cuts of one sheet, each in the middle of the widest run of empty
  * columns near its nominal edge (512, 1024). The transparent background is
  * what makes this possible: a gap between two figures is a run of columns
- * with no opaque pixel. `clean` is false when a boundary has no gap at all,
- * i.e. two figures overlap and no cut can separate them; the generator then
- * redraws the sheet.
+ * with no alpha value above 32. Search within 80 pixels of each edge over
+ * 1024 rows; `sheetWidth` is the RGBA row stride in pixels. `clean` is false
+ * when either search window has no gap, and that cut uses its nominal edge.
+ * Cuts are sheet x coordinates in pixels; empty sheets are considered clean.
  */
 export function sheetCuts(rgba: Pixels, sheetWidth: number = SHEET_WIDTH): { cuts: [number, number]; clean: boolean } {
   const empty = (x: number) => {
@@ -149,7 +156,12 @@ export function sheetCuts(rgba: Pixels, sheetWidth: number = SHEET_WIDTH): { cut
   return { cuts: [cutAt(CELL_WIDTH), cutAt(2 * CELL_WIDTH)], clean };
 }
 
-/** The underclothes cell's anatomy, every outfit's shift into its frame, and every sheet's cuts. */
+/**
+ * Measure anatomy, outfit shifts, and sheet cuts from decoded RGBA sheets with
+ * a shared row stride of `sheetWidth` pixels. Shifts use cell pixels; cuts use
+ * sheet x coordinates. Boundaries with no gap retain their nominal cut.
+ * @throws {Error} If any garb or armor cell has no pixels with alpha above 128.
+ */
 export function buildDollLayout(
   garbRgba: Pixels,
   armourRgba: Pixels,

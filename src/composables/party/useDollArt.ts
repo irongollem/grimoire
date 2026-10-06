@@ -22,6 +22,7 @@ export function useDollArt(members: MaybeRefOrGetter<PartyMember[]>) {
   const { data: speciesById } = useSpeciesByIds(() => toValue(members).map((m) => m.species_id));
   const { wornGearFor } = useArmorClass();
 
+  /** Resolve the member's art and worn outfit from the currently loaded species and gear. */
   function dollFor(member: PartyMember): MemberDoll {
     const species = member.species_id ? speciesById.value.get(member.species_id) : undefined;
     const art = pickDollArt(member.doll, species?.doll, templateSizeFor(species?.size));

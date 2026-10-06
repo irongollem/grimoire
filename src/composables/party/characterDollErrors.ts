@@ -5,6 +5,11 @@
  */
 export const DOLL_FALLBACK_ERROR = "The doll could not be made. You have not been charged.";
 
+/**
+ * Translate a trimmed generator error into a player-facing message. Preserve
+ * recognized screening, credit, rate, and account messages; use the generic
+ * fallback for unrecognized errors.
+ */
 export function dollErrorMessage(raw: string): string {
   const text = raw.trim();
   switch (text) {

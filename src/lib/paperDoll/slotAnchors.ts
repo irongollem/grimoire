@@ -16,15 +16,15 @@ export type SlotAnchorKey = (typeof SLOT_ANCHOR_KEYS)[number];
 const MIN_PCT = 4;
 const MAX_PCT = 96;
 
+/** Keep an anchor percentage within the cell's 4..96 inset. */
 function clamp(n: number): number {
   return Math.min(MAX_PCT, Math.max(MIN_PCT, n));
 }
 
 /**
- * Where each slot's legend line meets the measured body, in percent of one doll
- * cell. Head, neck, shoulders, body and clothes lean left and gloves, ring, waist
- * and boots right, matching the two columns, so no line crosses the figure. Measured rather than fixed so a stout dwarf and a tall elf both get
- * their buttons on the shoulders and boots, not where a template's would be.
+ * Place slot legend endpoints on the measured body, in percentages of one doll
+ * cell clamped to 4..96. Head and neck follow the head center; body, waist, and
+ * feet follow the crown axis. Shoulders and clothes sit left, hands and ring right.
  */
 export function slotAnchors(anatomy: DollAnatomy): Record<SlotAnchorKey, { x: number; y: number }> {
   const { head, shoulders, feetY, centerX } = anatomy;

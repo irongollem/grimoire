@@ -82,6 +82,7 @@ const BUCKET = "npc-portraits";
 /** A pending job older than this is treated as dead (the isolate was killed), so it no longer blocks a retry. */
 const IN_FLIGHT_WINDOW_MS = 10 * 60 * 1000;
 
+/** Return a JSON error code with the supplied HTTP status. */
 function jsonError(error: string, status: number): Response {
   return new Response(JSON.stringify({ error }), { status, headers: { "Content-Type": "application/json" } });
 }
@@ -109,6 +110,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * slug or a custom `species` uuid (see speciesLookup.ts in the app). Each id
  * must go to the table it lives in: a uuid filter on the text table, or a slug
  * on the uuid column, is an error rather than an empty hit.
+ * Returns null for an absent ID, missing row, or null size; database errors propagate.
  */
 async function speciesSizeOf(speciesId: string | null): Promise<string | null> {
   if (!speciesId) return null;
@@ -118,16 +120,22 @@ async function speciesSizeOf(speciesId: string | null): Promise<string | null> {
   return data ? (data as { size: string | null }).size : null;
 }
 
+/** Read a bundled size reference as a WebP blob; file read errors propagate. */
 async function readTemplate(size: DollTemplateSize, kind: "garb" | "armour"): Promise<Blob> {
   const bytes = await Deno.readFile(new URL(`./templates/${size}-${kind}.webp`, import.meta.url));
   return new Blob([bytes], { type: "image/webp" });
 }
 
+/** Decode generated base64 into a blob with its reported media type; invalid base64 throws. */
 function blobOf(result: ImageGenResult): Blob {
   const bin = Uint8Array.from(atob(result.b64), (c) => c.charCodeAt(0));
   return new Blob([bin], { type: result.contentType });
 }
 
+/**
+ * Decode a generated WebP sheet into RGBA and dimensions. Reject dimensions
+ * other than 1536x1024; base64 and decoder errors also propagate.
+ */
 async function decodeSheet(result: ImageGenResult): Promise<{ width: number; height: number; data: Uint8ClampedArray }> {
   const bin = Uint8Array.from(atob(result.b64), (c) => c.charCodeAt(0));
   const img = await decode(bin.buffer);
@@ -157,6 +165,13 @@ function previousSetPrefix(doll: unknown, memberId: string, userId: string, newS
   return `${userId}/dolls/${memberId}/${match[2]}`;
 }
 
+/**
+ * Generate and upload a doll, store it on the member, clear the ask, and finish
+ * the job, then attempt to charge `cost` credits to `userId`. Previous-set
+ * deletion, provenance registration, and charging are best effort. Generation failures
+ * release reservations and mark the job failed; prior uploads or member writes
+ * are not rolled back. Rejections during failure handling can still propagate.
+ */
 async function runDoll(args: {
   jobId: string;
   memberId: string;
@@ -189,6 +204,7 @@ async function runDoll(args: {
     // A sheet whose figures touch cannot be cut apart, so it is drawn once more
     // (the model keeps its margins nearly always; a second miss is kept, since
     // its cut still falls in the narrowest overlap and the player has paid).
+    /** Retry once when figures lack a separating gap; keep the second result even if it overlaps. */
     const renderSheet = async (prompt: string, sources: Blob[]) => {
       const first = await render(prompt, sources);
       const firstRgba = await decodeSheet(first);

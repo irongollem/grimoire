@@ -37,7 +37,7 @@ function useArmorClassImpl() {
 
   const gearByMember = computed(() => wornGearByMember(inventory.value ?? [], mergedItems.value));
 
-  /** What the member has on, for the paper doll. */
+  /** Currently resolved worn gear for the paper doll; empty when none is available for the member. */
   function wornGearFor(memberId: string): WornGear[] {
     return gearByMember.value[memberId] ?? [];
   }

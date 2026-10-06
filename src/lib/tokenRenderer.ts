@@ -51,6 +51,15 @@ export const DEFAULT_TOKEN_RING_COLOR = "#3b82f6";
 export const DEFAULT_TOKEN_RING_WIDTH = 20;
 const ACTIVE_TURN_ACCENT_COLOR = "#fbbf24";
 
+/**
+ * Paint a circular token using the canvas width as its diameter; ringWidth is
+ * in canvas pixels. A sheet figure takes priority over imageUrl and fits wholly
+ * inside the ring. Other images use imageFit, defaulting to a cover crop.
+ * Unseen tokens show a question mark without loading art or drawing a name.
+ * Missing art shows an initial; failed image loads leave the gradient visible.
+ * An abort stops after the image wait without undoing prior drawing. No 2D
+ * context is a no-op; canvas drawing errors propagate as promise rejections.
+ */
 export async function drawToken(
   canvas: HTMLCanvasElement,
   entity: TokenEntity,

@@ -47,6 +47,7 @@ export interface DollPicture {
 
 const NO_SHIFT: CellShift = { dx: 0, dy: 0 };
 
+/** Sheet cuts relative to this cell's origin; bounds may extend beyond 0..512 pixels. */
 function clipOf(art: DollArt, sheet: DollSheetKey, cell: DollCellIndex): DollPicture["clip"] {
   const [left, right] = art.layout.cuts[sheet];
   const origin = cell * CELL_WIDTH;

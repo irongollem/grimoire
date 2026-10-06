@@ -123,6 +123,7 @@ export interface DollSheets {
 /** The size template a species of this size starts from. */
 export type DollTemplateSize = "small" | "medium";
 
+/** Use the small template for lowercase tiny/small sizes; all other or missing sizes use medium. */
 export function templateSizeFor(speciesSize: string | null | undefined): DollTemplateSize {
   return speciesSize === "tiny" || speciesSize === "small" ? "small" : "medium";
 }
@@ -130,6 +131,7 @@ export function templateSizeFor(speciesSize: string | null | undefined): DollTem
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
+/** Copy finite box coordinates, or return null; coordinate order and cell bounds are not checked. */
 function parseBox(v: unknown): CellBox | null {
   if (!isRecord(v) || !isNum(v.x0) || !isNum(v.y0) || !isNum(v.x1) || !isNum(v.y1)) return null;
   return { x0: v.x0, y0: v.y0, x1: v.x1, y1: v.y1 };
@@ -139,6 +141,8 @@ function parseBox(v: unknown): CellBox | null {
  * Reads a stored doll, or null when the value is absent or not a complete
  * version-1 doll. A malformed value is treated as no doll at all (the doll
  * falls back to the species, then the template) rather than half-drawn.
+ * Checks shape and finite coordinates, not geometric bounds, URL validity,
+ * model support, or timestamp formatting.
  */
 export function parseDollSheets(value: unknown): DollSheets | null {
   if (!isRecord(value) || value.version !== 1) return null;

@@ -553,6 +553,7 @@ async function paintSelected() {
   }
 }
 
+/** Select a token, reset its ring color for the source tab, and prefer available cutout or doll art. */
 function selectEntity(entity: TokenEntity) {
   selected.value = entity;
   settings.value.ringColor = DEFAULT_RING_COLORS[sourceTab.value];
@@ -565,6 +566,7 @@ function selectEntity(entity: TokenEntity) {
 // ── Cutout vs. picture (#917) ────────────────────────────────────────────────
 
 const artChoice = ref<"picture" | "cutout">("picture");
+/** Whether the cutout choice has art: a baked cutout or the character's own doll figure. */
 function hasCutoutFor(id: string): boolean {
   return cutoutUrlById.value.has(id) || dollFigureById.value.has(id);
 }

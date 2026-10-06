@@ -13,6 +13,7 @@ const lastPrompt = atom({ plugin: 'grimoire-guards', key: 'lastPrompt' } as cons
 // A command only where one starts: a line's head, or after `;`, `&&`, `||`,
 // `|` or `(`, behind env assignments and a runner. Anywhere else it is text,
 // such as a commit message that mentions the command it guards against.
+/** Match a regex command body at shell-like boundaries; this is a heuristic, not a shell parser. */
 const command = (body: string) =>
   new RegExp(String.raw`(?:^|[;&|(])\s*(?:\w+=\S*\s+)*(?:(?:npx|bunx|rtk)\s+(?:-y\s+)?)?` + body, 'm')
 
@@ -27,8 +28,15 @@ const SUFFIXED_TRAILER = /Co-Authored-By:[^\n<]*\([^\n)]*\)\s*</i
 const GIT_PUSH = command(String.raw`git\s+(?:-[Cc]\s+\S+\s+)*push\b`)
 const ASKS_TO_PUSH = /\bpush/i
 
+/** Prefix a denial reason with the plugin name. */
 const why = (reason: string) => `grimoire-guards: ${reason}`
 
+/**
+ * Register prompt tracking and tool guards for agents, migrations, commit
+ * trailers, and pushes. Push checks use the last composer/bridge prompt's
+ * text, matched by ASKS_TO_PUSH; other prompt origins leave it unchanged.
+ * Denied calls return a reason instead of invoking the next handler.
+ */
 export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     // Only the person's own words count: typed here, or sent from their phone.

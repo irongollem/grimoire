@@ -262,6 +262,7 @@ const active = ref<SlotAnchorKey | null>(null);
 const { lines, size, measure } = useDollLegend(dollRow, () => anchors.value);
 watch([anchors, () => equippedItems, () => isMakingDoll], () => nextTick(measure), { flush: 'post' });
 
+/** Describe a slot well, warning for wearable missing clothes and quieting empty slots with no eligible gear. */
 function wellProps(w: WornSlot) {
   const item = slotItem(w.slot);
   const fits = canEquipSlot(w.slot);
@@ -275,6 +276,7 @@ function wellProps(w: WornSlot) {
   };
 }
 
+/** Highlight the hovered or focused slot, otherwise distinguish filled and empty slots. */
 function lineTone(key: SlotAnchorKey): string {
   if (active.value === key) return 'text-primary';
   return slotItem(key as InventorySlot) ? 'text-primary/60' : 'text-muted-foreground/35';

@@ -12,7 +12,10 @@ export type DollRequestValidation =
   | { ok: true; request: DollRequest }
   | { ok: false; error: string };
 
-/** Validates the parsed JSON body of a `generate-character-doll` request. */
+/**
+ * Accept an object with a nonempty string party_member_id, discarding extra
+ * fields. Return invalid_body otherwise; the ID is not trimmed or UUID-checked.
+ */
 export function validateDollRequest(body: unknown): DollRequestValidation {
   if (!body || typeof body !== "object" || Array.isArray(body)) return { ok: false, error: "invalid_body" };
   const { party_member_id } = body as Record<string, unknown>;

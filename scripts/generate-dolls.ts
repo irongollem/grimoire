@@ -81,34 +81,48 @@ const SPECIES_BUCKET = "species-images";
 type Bytes = Uint8Array;
 type Rendered = { raw: Bytes; marked: Bytes };
 
+/** Report a fatal CLI error and exit with status 1. */
 function fail(message: string): never {
   console.error(message);
   Deno.exit(1);
 }
 
+/** Recognize localhost and loopback IP hosts; malformed URLs throw TypeError. */
 function isLoopbackUrl(url: string): boolean {
   return LOOPBACK.has(new URL(url).hostname);
 }
 
+/** Read a required environment value, exiting with status 1 when missing or empty. */
 function requireEnv(name: string): string {
   const value = Deno.env.get(name);
   if (!value) fail(`${name} must be set (the npm script passes --env-file=.env.local).`);
   return value;
 }
 
+/** Wrap sheet bytes as a WebP source image. */
 const blobOf = (bytes: Bytes): Blob => new Blob([bytes as BlobPart], { type: "image/webp" });
 
+/**
+ * Decode WebP bytes to RGBA for layout measurement. Reject decoder failures
+ * and sheets whose width is not 1536 pixels; height is not validated here.
+ */
 async function decodeSheet(bytes: Bytes): Promise<Uint8Array> {
   const img = await decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
   if (img.width !== SHEET_WIDTH) throw new Error(`Sheet is ${img.width}px wide, expected ${SHEET_WIDTH}.`);
   return new Uint8Array(img.data.buffer, img.data.byteOffset, img.data.byteLength);
 }
 
+/** Decode base64 image data; malformed base64 throws. */
 function b64ToBytes(b64: string): Bytes {
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
 
-/** One paid render, marked for the EU AI Act before the bytes go anywhere. */
+/**
+ * One paid render, marked for the EU AI Act before the bytes go anywhere.
+ * Return both raw and provenance-marked bytes.
+ * `generatorType` labels the provenance; `sources` are ordered reference images.
+ * Missing OPENAI_API_KEY exits the script; generation and decoding errors propagate.
+ */
 async function render(label: string, generatorType: string, prompt: string, sources: Bytes[]): Promise<Rendered> {
   const started = performance.now();
   const result = await generateImage({
@@ -138,13 +152,18 @@ async function render(label: string, generatorType: string, prompt: string, sour
   return { raw, marked };
 }
 
+/** Print a labeled prompt and reference-image descriptions for dry-run inspection. */
 function printPrompt(label: string, prompt: string, sources: string[]) {
   console.log(`\n--- ${label} ---`);
   console.log(`sources: ${sources.length ? sources.join(", ") : "(none, text only)"}`);
   console.log(prompt);
 }
 
-/** garb -> (armour, burden) -> layout, the common chain of both subcommands. */
+/**
+ * Render garb, then armor and burden from it, and return sheets plus measured
+ * layout. Retry each sheet once if figures lack a separating gap, keeping the
+ * second result. Rendering, decoding, and layout errors propagate.
+ */
 async function renderDoll(opts: {
   tag: string;
   generatorType: string;
@@ -173,6 +192,10 @@ async function renderDoll(opts: {
   return { sheets: { garb: garb.rendered, armour: armour.rendered, burden: burden.rendered }, layout };
 }
 
+/**
+ * Measure three WebP sheets named `<prefix><sheet>.webp` in `dir`. File read,
+ * decoding, width validation, and empty-outfit measurement errors propagate.
+ */
 async function measureLayoutFromDisk(dir: string, prefix: string): Promise<DollLayout> {
   const read = (sheet: DollSheetKey) => Deno.readFile(`${dir}/${prefix}${sheet}.webp`);
   const [garb, armour, burden] = await Promise.all([read("garb"), read("armour"), read("burden")]);
@@ -182,6 +205,7 @@ async function measureLayoutFromDisk(dir: string, prefix: string): Promise<DollL
 // ---------------------------------------------------------------------------
 // templates
 
+/** Build the template URL and layout module source without writing it to disk. */
 function generatedFileSource(layouts: Record<DollTemplateSize, DollLayout>): string {
   // Each path is written inside artUrl() so the art manifest resolves it to the
   // CDN (artUrl.literalPaths.test.ts holds every manifest key to that rule).
@@ -205,6 +229,12 @@ export const DOLL_TEMPLATE_LAYOUTS: Record<DollTemplateSize, DollLayout> = ${JSO
 `;
 }
 
+/**
+ * Render the selected size (both when null), write app and edge references,
+ * and regenerate the layout module. Unselected sizes are remeasured from disk;
+ * failure to read or measure them exits the script. Dry runs only print prompts.
+ * Other rendering, measurement, and file errors propagate; writes are not atomic.
+ */
 async function runTemplates(args: { size: DollTemplateSize | null; dryRun: boolean }) {
   const sizes = args.size ? [args.size] : [...SIZES];
 
@@ -259,6 +289,7 @@ async function runTemplates(args: { size: DollTemplateSize | null; dryRun: boole
  * Re-measures both templates from the sheets already on disk and rewrites the
  * generated layouts, without a render. For when a fit rule in layout.ts
  * changes: the pictures are unchanged, only how the pieces are placed on them.
+ * File, decoding, and measurement errors propagate.
  */
 async function remeasureTemplates() {
   const layouts = {} as Record<DollTemplateSize, DollLayout>;
@@ -277,6 +308,7 @@ interface SpeciesRow {
   size: string | null;
 }
 
+/** Read canonical species facts by library_species ID (`slug`); reject query errors or a missing row. */
 async function loadSpecies(client: SupabaseClient, slug: string): Promise<SpeciesRow> {
   const { data, error } = await client
     .from("library_species")
@@ -294,6 +326,7 @@ interface LayoutFile {
   generatedAt: string;
 }
 
+/** Write marked sheets and layout metadata for review, creating dir; file errors propagate. */
 async function writeOutDir(dir: string, doll: { sheets: Record<DollSheetKey, Rendered>; layout: DollLayout }) {
   await Deno.mkdir(dir, { recursive: true });
   for (const key of DOLL_SHEET_KEYS) await Deno.writeFile(`${dir}/${key}.webp`, doll.sheets[key].marked);
@@ -301,6 +334,11 @@ async function writeOutDir(dir: string, doll: { sheets: Record<DollSheetKey, Ren
   await Deno.writeTextFile(`${dir}/layout.json`, JSON.stringify(file, null, 2) + "\n");
 }
 
+/**
+ * Upload a fresh species sheet set, then update library_species.doll by ID
+ * (`slug`). Upload and database errors propagate; uploaded files and older sets
+ * are not removed on failure.
+ */
 async function publishSpecies(
   admin: SupabaseClient,
   slug: string,
@@ -321,6 +359,13 @@ async function publishSpecies(
   console.log(`${slug}: published set ${setId}, library_species.doll updated.`);
 }
 
+/**
+ * Render species by library ID into review directories and optionally publish,
+ * or publish an existing directory with `from`. Dry runs still read species
+ * and any `from` files, but do not render or write. Remote writes require
+ * yesProduction. Invalid options, missing configuration, or unreadable template
+ * files exit the script; other read, render, parse, and publish errors propagate.
+ */
 async function runSpecies(args: {
   slugs: string[];
   out: string | null;
@@ -397,6 +442,11 @@ async function runSpecies(args: {
 // ---------------------------------------------------------------------------
 // CLI
 
+/**
+ * Split positional arguments from supported flags, with later duplicate flags
+ * winning. Exit with status 1 for unknown flags or a missing option value.
+ * Command and size validation are left to the caller.
+ */
 function parseArgs(argv: string[]) {
   const positional: string[] = [];
   const flags = new Map<string, string | true>();

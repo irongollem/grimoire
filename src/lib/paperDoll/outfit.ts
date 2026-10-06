@@ -7,7 +7,10 @@ const ROBES = /\b(robes?|vestments?)\b/i;
 
 const inSlot = (gear: WornGear[], slot: WornGear["slot"]) => gear.filter((g) => g.slot === slot);
 
-/** The outfit cell the figure shows for what is worn. */
+/**
+ * Choose the first recognized body armor's outfit, otherwise robes or clothes
+ * from the clothes slot. With neither armor nor clothes, show underclothes.
+ */
 export function dollOutfitFor(gear: WornGear[]): DollOutfit {
   for (const g of inSlot(gear, "body")) {
     const armour = armorOfItem(g.item);
