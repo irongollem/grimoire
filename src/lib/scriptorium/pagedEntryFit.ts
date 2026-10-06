@@ -36,11 +36,21 @@ export const ENTRY_ART_FLOOR_PX = 96;
 /** Lets an entry that cannot fit break across pages (pagedPreviewCss.ts). */
 export const ENTRY_SPLIT_CLASS = "sc-statblock-entry--split";
 
+/** How long one picture may take to load before layout goes on without it. */
+export const ENTRY_ART_PRELOAD_TIMEOUT_MS = 8000;
+
 /** Loads every entry image in `root` and keeps the decoded copies alive until
  *  layout, so the copies Paged.js clones onto pages come from the memory
  *  cache with their size known. A failed image is skipped: it lays out as a
- *  broken image either way. */
-export async function preloadEntryArt(root: ParentNode): Promise<HTMLImageElement[]> {
+ *  broken image either way. Each wait is bounded: Paged.js awaits this hook
+ *  before it lays out a single page, so one picture whose decode never
+ *  settles would otherwise leave the whole book, and the live preview's
+ *  rendering state, stuck. A late picture lays out at whatever size it has,
+ *  as it did before this preload existed. */
+export async function preloadEntryArt(
+  root: ParentNode,
+  timeoutMs = ENTRY_ART_PRELOAD_TIMEOUT_MS,
+): Promise<HTMLImageElement[]> {
   const sources = new Set<string>();
   root.querySelectorAll<HTMLImageElement>(`${ENTRY_SELECTOR} ${ART_SELECTOR}`).forEach((img) => {
     const src = img.getAttribute("src");
@@ -50,7 +60,12 @@ export async function preloadEntryArt(root: ParentNode): Promise<HTMLImageElemen
     Array.from(sources, async (src) => {
       const img = new Image();
       img.src = src;
-      await img.decode().catch(() => undefined);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timedOut = new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, timeoutMs);
+      });
+      await Promise.race([img.decode().catch(() => undefined), timedOut]);
+      clearTimeout(timer);
       return img;
     }),
   );

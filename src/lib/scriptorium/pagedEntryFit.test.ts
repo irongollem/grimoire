@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { ENTRY_ART_FLOOR_PX, ENTRY_SPLIT_CLASS, fitEntryArt } from "./pagedEntryFit";
+import { ENTRY_ART_FLOOR_PX, ENTRY_SPLIT_CLASS, fitEntryArt, preloadEntryArt } from "./pagedEntryFit";
 
 /**
  * jsdom has no layout, so each test builds an entry whose geometry follows
@@ -146,5 +146,46 @@ describe("fitEntryArt", () => {
     const { wrapper, entry } = entryOnPage({ natural: 0, rest: 1100, withArt: false });
     fitEntryArt(wrapper, page(1014));
     expect(entry.classList.contains(ENTRY_SPLIT_CLASS)).toBe(true);
+  });
+});
+
+describe("preloadEntryArt", () => {
+  // jsdom has no HTMLImageElement.decode; each test supplies one and it is removed after.
+  function stubDecode(impl: () => Promise<void>) {
+    Object.defineProperty(HTMLImageElement.prototype, "decode", { value: impl, configurable: true });
+  }
+  afterEach(() => {
+    delete (HTMLImageElement.prototype as Partial<HTMLImageElement>).decode;
+  });
+
+  function root(srcs: string[]) {
+    const el = document.createElement("div");
+    el.innerHTML = srcs
+      .map((src) => `<div class="sc-statblock-entry"><img class="sc-entity-art" src="${src}"></div>`)
+      .join("");
+    return el;
+  }
+
+  it("loads each distinct picture once", async () => {
+    stubDecode(() => Promise.resolve());
+    const imgs = await preloadEntryArt(root(["a.webp", "a.webp", "b.webp"]));
+    expect(imgs.map((i) => i.getAttribute("src")).sort()).toEqual(["a.webp", "b.webp"]);
+  });
+
+  it("goes on without a picture whose decode never settles, so the book still lays out", async () => {
+    vi.useFakeTimers();
+    try {
+      stubDecode(() => new Promise<void>(() => {}));
+      const done = preloadEntryArt(root(["stuck.webp"]), 50);
+      await vi.advanceTimersByTimeAsync(50);
+      await expect(done).resolves.toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("skips a picture that fails to decode", async () => {
+    stubDecode(() => Promise.reject(new Error("broken")));
+    await expect(preloadEntryArt(root(["broken.webp"]))).resolves.toHaveLength(1);
   });
 });

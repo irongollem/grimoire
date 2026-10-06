@@ -169,8 +169,12 @@ table.sc-table--long {
    room the page leaves (pagedEntryFit.ts). One that still does not fit with
    its art at the floor is marked to split while it is laid out: Paged.js
    resumes after an unbreakable block that fits no page, which drops the rest
-   of it from the book, so a split is the lesser failure (#915 story 6). */
-.sc-statblock-entry.sc-statblock-entry--split {
+   of it from the book, so a split is the lesser failure (#915 story 6). The
+   stat block inside has to give way too, or its own avoid rule keeps the
+   entry from breaking after all. Its sections keep theirs: a section is
+   short, and one that misses the page moves on whole. */
+.sc-statblock-entry.sc-statblock-entry--split,
+.sc-statblock-entry--split .sc-statblock {
   break-inside: auto;
 }
 /* A monster/NPC entry (entityEmbed.ts) starts its own fresh page by default —

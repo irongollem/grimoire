@@ -36,7 +36,11 @@ describe("buildPagedPreviewCss", () => {
 
   it("lets an entry that cannot fit its page split rather than lose its tail (#915)", () => {
     const css = buildPagedPreviewCss(base);
-    expect(css).toMatch(/\.sc-statblock-entry\.sc-statblock-entry--split \{\s*break-inside: auto;/);
+    expect(css).toMatch(
+      /\.sc-statblock-entry\.sc-statblock-entry--split,\s*\.sc-statblock-entry--split \.sc-statblock \{\s*break-inside: auto;/,
+    );
+    // Sections stay whole even in a split entry.
+    expect(css).not.toContain(".sc-statblock-entry--split .sc-statblock-section");
   });
 
   it("drops the page background in ink-friendly mode", () => {
