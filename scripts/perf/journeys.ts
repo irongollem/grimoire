@@ -80,18 +80,27 @@ const CONTENT = {
   hearth: { selector: ".hearth-title" },
 } as const satisfies Record<string, ContentSpec>;
 
+/**
+ * How long a load window stays open at least. The app starts some background
+ * work only after first paint and an idle moment (`afterFirstPaint`, timeout
+ * 2000 ms), so a window that closes earlier would not count requests the load
+ * still makes, only later, and the next journey step would be blamed for them.
+ * Settled time is unaffected: it ignores activity after a quiet gap.
+ */
+const LOAD_WINDOW_MIN_MS = 3000;
+
 async function loadAndMeasure(measured: MeasuredPage, url: string, label: string, reload: boolean): Promise<Step> {
   measured.recorder.reset();
   if (reload) await measured.page.reload({ waitUntil: "load" });
   else await measured.page.goto(url, { waitUntil: "load" });
-  await settle(measured, label);
+  await settle(measured, label, LOAD_WINDOW_MIN_MS);
   return { label, sample: await collectSample(measured, "load") };
 }
 
 /** Gets a page onto the dashboard and idle, discarding what that cost. */
 async function primeDashboard(measured: MeasuredPage, base: string): Promise<void> {
   await measured.page.goto(`${base}/dashboard`, { waitUntil: "load" });
-  await settle(measured, "dashboard prime");
+  await settle(measured, "dashboard prime", LOAD_WINDOW_MIN_MS);
 }
 
 const dmCold: Journey = {
