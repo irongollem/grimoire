@@ -31,6 +31,7 @@ const reloading = ref(false);
 const timer = setTimeout(() => (stuck.value = true), STUCK_AFTER_MS);
 onBeforeUnmount(() => clearTimeout(timer));
 
+/** Shows the button busy while reloadApp waits out a worker install in progress. */
 function reload() {
   reloading.value = true;
   void reloadApp();

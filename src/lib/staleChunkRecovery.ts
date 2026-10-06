@@ -131,6 +131,7 @@ export function installStaleChunkRecovery(
     pendingTarget = to.fullPath;
   });
 
+  /** Hard-navigates onto the fresh build, at most once until a navigation succeeds. */
   function recover(targetPath?: string): void {
     let storage: Storage;
     try {
