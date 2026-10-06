@@ -58,6 +58,19 @@ async function deleteHero(hero: HallOfHero): Promise<void> {
 
 async function importHero(hero: HallOfHero, campaignId: string): Promise<void> {
   const user = getCurrentUser();
+  // The NPC starts with the importing DM's own note on the hero, if they kept
+  // one: the hero's DM note is each DM's private entity note, not the hero's.
+  const { data: note, error: noteError } = await supabase
+    .from("entity_notes")
+    .select("content")
+    .eq("user_id", user!.id)
+    .eq("entity_type", "hero")
+    .eq("entity_id", hero.id)
+    .eq("is_private", true)
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+  if (noteError) throw noteError;
   const npc: Omit<NpcInsert, "campaign_id"> & { campaign_id: string; user_id: string } = {
     user_id: user!.id,
     campaign_id: campaignId,
@@ -69,7 +82,7 @@ async function importHero(hero: HallOfHero, campaignId: string): Promise<void> {
     appearance: hero.appearance,
     personality: hero.personality,
     backstory: hero.backstory,
-    notes: hero.notes,
+    notes: (note as { content: string | null } | null)?.content ?? null,
     status: hero.status,
     relationship: hero.relationship,
     portrait_url: hero.portrait_url,
@@ -202,7 +215,6 @@ export function usePopulateAllSettingHeroes() {
             appearance: null,
             personality: h.personality ? toTiptap(h.personality) : null,
             backstory: h.backstory ? toTiptap(h.backstory) : null,
-            notes: null,
             status: h.status,
             relationship: h.relationship,
             tags: h.tags,

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(21);
 
 -- #983. A DM note is the DM writing to their future self and never reaches a
 -- player (src/lib/dmNotes/registry.ts). It lives either in a notes column on a
@@ -12,6 +12,7 @@ select plan(20);
 -- Players could select these two tables' rows, so their notes moved out.
 select hasnt_column('public', 'deities', 'dm_notes', 'a deity''s DM note is not a column players can select');
 select hasnt_column('public', 'species', 'notes', 'a species'' DM note is not a column players can select');
+select hasnt_column('public', 'hall_of_heroes', 'notes', 'a hero''s DM note is not a column every account can read');
 
 -- The registry's column stores. Any read policy beyond the owner's would hand
 -- the note to whoever it admits; players reach these rows only through

@@ -22,7 +22,7 @@ DM notes are not the same as **Campaign Notes**. Session notes are written for t
 
 ## Where you find a DM note
 
-The box appears on the page of an NPC, a monster you made, an item you made, a trap, a dungeon feature, a puzzle, a loot table, a roll table, a place in the Atlas, a deity, a species you made, a faction, a companion, a quest (on the **Overview** tab), an encounter (its page and the run screen), and a party member. It shows on phones too.
+The box appears on the page of an NPC, a monster you made, an item you made, a trap, a dungeon feature, a puzzle, a loot table, a roll table, a place in the Atlas, a deity, a species you made, a faction, a companion, a quest (on the **Overview** tab), an encounter (its page and the run screen), a party member, and a hero in the Hall of Heroes. It shows on phones too.
 
 Your own monsters, items and species have one; the shared library entries do not, because they are not yours to write on.
 

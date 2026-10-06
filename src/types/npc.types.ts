@@ -270,7 +270,6 @@ export interface HallOfHero {
   appearance: string | null;
   personality: string | null;
   backstory: string | null;
-  notes: string | null;
   status: NpcStatus;
   relationship: NpcRelationship;
   portrait_url: string | null;

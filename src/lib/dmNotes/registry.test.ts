@@ -9,7 +9,7 @@ describe("dm note registry", () => {
   });
 
   it("never stores a note for a player-readable entity in a column (privacy invariant)", () => {
-    for (const type of ["deity", "species", "companion"] as const) {
+    for (const type of ["deity", "species", "companion", "hero"] as const) {
       expect(DM_NOTE_ENTITIES[type].store.kind, type).toBe("entity_note");
     }
   });

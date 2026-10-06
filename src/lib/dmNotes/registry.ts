@@ -6,16 +6,18 @@ import { placeRoute } from "@/lib/locations/placeRoute";
  *
  * Nine types keep it in a column on their own table, which is DM-only by RLS.
  * The rest keep it as the DM's own private `entity_notes` row, and that is not
- * a style choice: players can select deity and species rows and every member
- * can select companions, so a notes column there would travel to players with
- * the row. Factions, quests, encounters and party members have no DM-notes
- * column at all. A DM note is never shared with players in any form, so the
+ * a style choice: players can select deity and species rows, every member
+ * can select companions and every account can read a Hall of Heroes hero, so a
+ * notes column there would travel with the row. A hero is also everyone's, so
+ * its note is each DM's own. Factions, quests, encounters and party members
+ * have no DM-notes column at all. A DM note is never shared with players in any form, so the
  * private row (`is_private`, not `shared_with_dm`) is the only safe home.
- * The test holds deity, species and companion off the column list.
+ * The test holds deity, species, companion and hero off the column list.
  */
 export type DmNoteEntityType =
   | "npc" | "monster" | "item" | "trap" | "puzzle" | "dungeon_feature" | "loot_table" | "roll_table"
-  | "location" | "deity" | "species" | "faction" | "companion" | "quest" | "encounter" | "party_member";
+  | "location" | "deity" | "species" | "faction" | "companion" | "quest" | "encounter" | "party_member"
+  | "hero";
 
 export type DmNoteStore =
   | { kind: "column"; table: string; column: "notes" | "dm_notes" }
@@ -61,6 +63,7 @@ export const DM_NOTE_ENTITIES: Readonly<Record<DmNoteEntityType, DmNoteEntry>> =
   quest: { type: "quest", label: "Quest", store: ENTITY_NOTE, route: (id) => `/quests/${id}` },
   encounter: { type: "encounter", label: "Encounter", store: ENTITY_NOTE, route: (id) => `/encounters/${id}` },
   party_member: { type: "party_member", label: "Party member", store: ENTITY_NOTE, route: (id) => `/party/${id}` },
+  hero: { type: "hero", label: "Hero", store: ENTITY_NOTE, route: (id) => `/hall-of-heroes/${id}` },
 };
 
 export function dmNoteEntry(type: DmNoteEntityType): DmNoteEntry {

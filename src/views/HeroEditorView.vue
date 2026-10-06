@@ -220,18 +220,6 @@
               size="md"
             />
           </div>
-
-          <div class="space-y-1">
-            <label
-              class="text-label-lg font-semibold text-muted-foreground"
-              >DM Notes</label
-            >
-            <RichTextEditor
-              v-model="form.notes"
-              placeholder="Private notes…"
-              size="md"
-            />
-          </div>
         </div>
       </div>
     </form>
@@ -301,7 +289,6 @@ function blankForm(): HallOfHeroInsert {
     appearance: null,
     personality: null,
     backstory: null,
-    notes: null,
     status: "alive",
     relationship: "unknown",
     portrait_url: null,
@@ -332,7 +319,6 @@ watch(
       appearance: h.appearance,
       personality: h.personality,
       backstory: h.backstory,
-      notes: h.notes,
       status: h.status,
       relationship: h.relationship,
       portrait_url: h.portrait_url,

@@ -145,14 +145,8 @@
             <RichTextViewer :content="hero.backstory" />
           </section>
 
-          <section v-if="hero.notes && isAppAdmin">
-            <h3
-              class="mb-2 text-label-lg font-semibold text-muted-foreground uppercase"
-            >
-              DM Notes
-            </h3>
-            <RichTextViewer :content="hero.notes" />
-          </section>
+          <!-- Each DM's own note: the hero is everyone's, the note is not (#989). -->
+          <DmNoteBox v-if="auth.isDM" type="hero" :id="hero.id" :label="hero.name" />
 
           <p
             v-if="!hero.appearance && !hero.personality && !hero.backstory"
@@ -178,6 +172,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { DND_SETTINGS } from "@/data/dndSettings";
 
 const STATUS_COLORS: Record<string, string> = {

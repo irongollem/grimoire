@@ -36,7 +36,7 @@ Each hero's page shows:
 - Portrait, species, alignment, occupation, age, and a colour-coded status (alive / dead / missing / unknown).
 - Tags.
 - **Appearance**, **Personality**, and **Backstory**: rich text, shown to any DM browsing the Hall.
-- **DM Notes**: rich text, visible only to app admins.
+- A **DM notes** box: your own private note on the hero, saved as you type. Every DM keeps their own; nobody else, not even an admin, sees yours. When you add the hero to a campaign, your note comes along as the new NPC's DM note. See [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
 
 ## Managing the Hall (app admins only)
 
@@ -47,7 +47,7 @@ Adding, editing, and deleting heroes is restricted to app admins, since this is 
 - **Name** (required), **Species**, **Alignment** (the full nine-alignment grid, or Unaligned), **Occupation**, **Age**.
 - **Status**: Alive / Dead / Missing / Unknown.
 - **Tags**.
-- **Appearance**, **Personality**, **Backstory**, **DM Notes**: each a rich-text field.
+- **Appearance**, **Personality**, **Backstory**: each a rich-text field.
 
 **Sync All Settings** (also admin-only) bulk-seeds the Hall from its source data across every setting in one operation, reporting how many heroes were added and updated.
 
