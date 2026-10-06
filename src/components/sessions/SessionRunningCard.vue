@@ -2,7 +2,7 @@
   <div class="flex items-center gap-3 rounded-lg border border-primary/50 bg-primary/10 px-4 py-3">
     <span class="h-2 w-2 shrink-0 animate-pulse rounded-full bg-primary motion-reduce:animate-none" aria-hidden="true" />
     <RouterLink :to="`/sessions/${session.id}`" class="min-w-0 flex-1">
-      <p class="truncate font-cinzel text-label-lg font-bold uppercase tracking-widest text-primary">
+      <p class="truncate text-heading-xs font-bold text-primary">
         {{ sessionLabel(session) }}
       </p>
       <p class="text-caption text-muted-foreground">Running for {{ elapsed }}</p>
