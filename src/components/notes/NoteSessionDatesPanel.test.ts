@@ -3,9 +3,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ref, nextTick } from "vue";
 import type { Note, NoteSessionDates } from "@/types/notes.types";
 
+import type { CampaignSession } from "@/types/session.types";
+
 const allNotes = ref<Note[] | undefined>(undefined);
+const log = ref<CampaignSession[] | undefined>(undefined);
 
 vi.mock("@/composables/notes/useNotes", () => ({ useNotes: () => ({ data: allNotes }) }));
+vi.mock("@/composables/sessions/useCampaignSessions", () => ({ useCampaignSessions: () => ({ data: log }) }));
 vi.mock("@/stores/calendar", () => ({
   useCalendarStore: () => ({ adapter: { months: [{ num: 1, name: "Hammer" }] } }),
 }));
@@ -15,13 +19,26 @@ import NoteSessionDatesPanel from "./NoteSessionDatesPanel.vue";
 function sessionNote(over: Partial<Note>): Note {
   return {
     id: "n", user_id: "u", campaign_id: "c", title: "t", content: null,
-    category: "session", tags: [], session_num: 1, is_pinned: false, player_visible_to: [],
+    category: "session", tags: [], session_id: null, is_pinned: false, player_visible_to: [],
     session_start_year: null, session_start_month: null, session_start_day: null,
     session_end_year: null, session_end_month: null, session_end_day: null,
     session_real_date: null, linked_calendar_event_id: null, sort_order: null,
     created_at: "", updated_at: "", ...over,
   };
 }
+
+function logged(id: string, playedOn: string, over: Partial<CampaignSession> = {}): CampaignSession {
+  return {
+    id, campaign_id: "c", user_id: "u", number: null, title: null, played_on: playedOn,
+    started_at: null, ended_at: null, created_at: `${playedOn}T00:00:00Z`, updated_at: "", ...over,
+  };
+}
+
+const LOG = [
+  // Numbered out of order on purpose: the number is a label, the date is the order.
+  logged("s-old", "2026-01-01", { number: 9 }),
+  logged("s-new", "2026-02-01", { number: 2 }),
+];
 
 const EMPTY: NoteSessionDates = {
   startYear: null, startMonth: null, startDay: null,
@@ -43,12 +60,13 @@ function mountPanel(dates: NoteSessionDates, isNewNote = true) {
 }
 
 const PRIOR = [
-  sessionNote({ session_num: 1, session_start_year: 1490, session_end_year: 1491, session_end_month: 2, session_end_day: 9 }),
-  sessionNote({ session_num: 2, session_start_year: 1492, session_start_month: 3, session_start_day: 4 }),
+  sessionNote({ id: "n1", session_id: "s-old", session_start_year: 1490, session_end_year: 1491, session_end_month: 2, session_end_day: 9 }),
+  sessionNote({ id: "n2", session_id: "s-new", session_start_year: 1492, session_start_month: 3, session_start_day: 4 }),
 ];
 
 beforeEach(() => {
   allNotes.value = undefined;
+  log.value = LOG;
 });
 
 describe("NoteSessionDatesPanel — prefill from the last session", () => {
@@ -63,10 +81,30 @@ describe("NoteSessionDatesPanel — prefill from the last session", () => {
     allNotes.value = PRIOR;
     await nextTick();
 
-    // Session 2 is the highest; it has no end date, so its start date is used.
+    // The newest session in the log (numbered 2, not 9) has no end date, so its start date is used.
     expect(model.value.startYear).toBe(1492);
     expect(model.value.startMonth).toBe(3);
     expect(model.value.startDay).toBe(4);
+  });
+
+  it("waits for the session log too", async () => {
+    log.value = undefined;
+    const { model } = mountPanel(EMPTY);
+    allNotes.value = PRIOR;
+    await nextTick();
+    expect(model.value.startYear).toBeNull();
+
+    log.value = LOG;
+    await nextTick();
+    expect(model.value.startYear).toBe(1492);
+  });
+
+  it("skips a session that is still running", async () => {
+    log.value = [LOG[0], { ...LOG[1], started_at: "2026-02-01T18:00:00Z", ended_at: null }];
+    const { model } = mountPanel(EMPTY);
+    allNotes.value = PRIOR;
+    await nextTick();
+    expect(model.value.startYear).toBe(1491);
   });
 
   it("prefers the last session's end date over its start date", async () => {

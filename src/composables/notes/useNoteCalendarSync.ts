@@ -4,12 +4,14 @@ import {
   useDeleteCalendarEvent,
 } from "@/composables/calendar/useCalendarEvents";
 import { useUpdateNote } from "@/composables/notes/useNotes";
+import { sessionLabel } from "@/lib/sessions/sessionLabel";
 import type { NoteSessionDates } from "@/types/notes.types";
 
 export interface SyncSessionCalendarEventInput {
   noteId: string;
   title: string;
-  sessionNum: number | null;
+  /** The session the note records; names the event. Null falls back to the note's own title. */
+  session: { number: number | null; title: string | null } | null;
   dates: NoteSessionDates;
   isSession: boolean;
   existingEventId: string | null;
@@ -32,13 +34,13 @@ export function useNoteCalendarSync() {
   // Avoids circular FK: insert note first → insert event with linked_note_id
   // → patch note.linked_calendar_event_id.
   async function syncSessionCalendarEvent(input: SyncSessionCalendarEventInput): Promise<void> {
-    const { noteId, title, sessionNum, dates, isSession, existingEventId, campaignId } = input;
+    const { noteId, title, session, dates, isSession, existingEventId, campaignId } = input;
     const hasDate = isSession && dates.startYear !== null;
 
     if (hasDate) {
       const isMultiDay = dates.endYear !== null;
       const eventPayload = {
-        title: `Session ${sessionNum ?? "?"}: ${title.trim()}`,
+        title: session ? sessionLabel(session) : title.trim(),
         event_type: "session" as const,
         color: "#C9920A",
         harptos_year:  dates.startYear!,

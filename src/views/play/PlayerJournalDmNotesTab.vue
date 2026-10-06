@@ -22,7 +22,7 @@
       <template #meta>
         <EntityNewDot :is-new="isNoteNew(note.id, note.updated_at)" title="New" />
         <IconPin v-if="note.is_pinned" class="h-2.5 w-2.5 text-primary shrink-0" />
-        <span v-if="note.category === 'session' && note.session_num != null" class="text-caption text-muted-foreground/70 italic">Session {{ note.session_num }}</span>
+        <span v-if="note.category === 'session' && sessionNameOf(note.session_id)" class="text-caption text-muted-foreground/70 italic">{{ sessionNameOf(note.session_id) }}</span>
         <span class="text-caption text-muted-foreground/70 italic">by DM</span>
         <AiGeneratedBadge variant="line" :provenance="note.ai_provenance" />
       </template>
@@ -50,6 +50,9 @@ import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue';
 import type { NoteCategory } from '@/types/notes.types';
 import type { Note } from '@/types/notes.types';
 import type { Component } from 'vue';
+import { usePlayerSessions } from '@/composables/sessions/usePlayerSessions';
+import { sessionOf } from '@/lib/notes/noteSessions';
+import { sessionLabel } from '@/lib/sessions/sessionLabel';
 
 defineProps<{
   isLoading: boolean;
@@ -63,4 +66,12 @@ defineProps<{
 defineEmits<{
   (e: 'toggleNote', id: string): void;
 }>();
+
+const { data: sessions } = usePlayerSessions();
+
+/** The shared note's session, as a player may name it; null for a note with none. */
+function sessionNameOf(sessionId: string | null): string | null {
+  const session = sessionOf(sessions.value, sessionId);
+  return session ? sessionLabel(session) : null;
+}
 </script>

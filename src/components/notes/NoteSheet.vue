@@ -33,8 +33,8 @@
       <span class="text-label-lg font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground capitalize">
         {{ note.category }}
       </span>
-      <span v-if="note.session_num" class="text-label-lg font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground">
-        Session {{ note.session_num }}
+      <span v-if="session" class="text-label-lg font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground">
+        {{ sessionLabel(session) }}
       </span>
       <span v-if="note.is_pinned" class="text-label-lg font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
         <IconPin class="inline h-3 w-3 mr-0.5" />Pinned
@@ -69,9 +69,12 @@ import { removeRichTextImages } from "@/composables/useImageUpload";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import type { Note } from "@/types/notes.types";
+import { useNoteSession } from "@/composables/notes/useNoteSession";
+import { sessionLabel } from "@/lib/sessions/sessionLabel";
 
 const props = defineProps<{ note: Note }>();
 
+const session = useNoteSession(() => props.note.session_id);
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();

@@ -13,7 +13,8 @@ export const CAMPAIGN_SESSIONS_KEY = "campaign-sessions";
  * campaign, newest first by when it was played. Any event on the table invalidates it,
  * through the campaign subscription in `useCampaignLiveSync`.
  */
-export function useCampaignSessions() {
+/** `enabled` lets a surface mounted app-wide (a dialog) read the log only while it is open. */
+export function useCampaignSessions(options: { enabled?: () => boolean } = {}) {
   const campaign = useCampaignStore();
   return useQuery({
     queryKey: computed(() => [CAMPAIGN_SESSIONS_KEY, campaign.activeCampaignId] as const),
@@ -26,7 +27,7 @@ export function useCampaignSessions() {
       if (error) throw error;
       return sortSessionLog(data as CampaignSession[]);
     },
-    enabled: () => !!campaign.activeCampaignId,
+    enabled: () => !!campaign.activeCampaignId && (options.enabled?.() ?? true),
   });
 }
 

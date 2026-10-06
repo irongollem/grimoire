@@ -32,7 +32,7 @@ function input(patch: Partial<SyncSessionCalendarEventInput> = {}): SyncSessionC
   return {
     noteId: "note-1",
     title: "The Sunken Road",
-    sessionNum: 7,
+    session: { number: 7, title: "The Sunken Road" },
     dates: dates(),
     isSession: true,
     existingEventId: null,
@@ -47,6 +47,19 @@ describe("useNoteCalendarSync", () => {
     mocks.updateCalEvent.mockReset();
     mocks.deleteCalEvent.mockReset();
     mocks.updateNote.mockReset();
+  });
+
+  it("names the event after the note when it records no session", async () => {
+    mocks.createCalEvent.mockResolvedValue({ id: "event-new" });
+    const { syncSessionCalendarEvent } = useNoteCalendarSync();
+
+    await syncSessionCalendarEvent(
+      input({ session: null, dates: dates({ startYear: 1492, startMonth: 3, startDay: 12 }) }),
+    );
+
+    expect(mocks.createCalEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "The Sunken Road" }),
+    );
   });
 
   it("creates an event and patches the note when a session note gains a start date", async () => {

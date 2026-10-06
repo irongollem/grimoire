@@ -20,8 +20,8 @@
         <template v-else-if="linkedNote">
           <!-- Meta badges -->
           <div class="flex flex-wrap gap-1.5">
-            <span v-if="linkedNote.session_num" class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">
-              Session {{ linkedNote.session_num }}
+            <span v-if="linkedSession" class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">
+              {{ sessionShortLabel(linkedSession) }}
             </span>
             <span v-if="linkedNote.session_real_date" class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5">
               {{ linkedNote.session_real_date }}
@@ -213,6 +213,8 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { useNote } from "@/composables/notes/useNotes";
+import { useNoteSession } from "@/composables/notes/useNoteSession";
+import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useRecordDraft } from "@/composables/useRecordDraft";
 import { useCalendarStore } from "@/stores/calendar";
@@ -270,6 +272,7 @@ const isSessionNote = computed(() =>
 );
 const linkedNoteId = computed(() => props.editEvent?.linked_note_id ?? "");
 const { data: linkedNote, isLoading: linkedNoteLoading } = useNote(linkedNoteId);
+const linkedSession = useNoteSession(() => linkedNote.value?.session_id);
 
 const headingId = useId();
 

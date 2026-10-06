@@ -16,7 +16,8 @@ export interface Note {
   content: string | null; // Tiptap JSON string
   category: NoteCategory;
   tags: string[];
-  session_num: number | null;
+  /** The session this note records (`campaign_sessions.id`). Null for any other note. */
+  session_id: string | null;
   is_pinned: boolean;
   player_visible_to: string[];
   // Session date fields — only meaningful when category === 'session'

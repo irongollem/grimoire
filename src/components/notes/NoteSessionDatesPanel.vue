@@ -98,6 +98,8 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useCalendarStore } from "@/stores/calendar";
 import type { NoteSessionDates } from "@/types/notes.types";
+import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
+import { previousSessionNote } from "@/lib/notes/noteSessions";
 
 const { isNewNote, linkedCalendarEventId } = defineProps<{
   isNewNote: boolean;
@@ -110,8 +112,9 @@ const calendarStore = useCalendarStore();
 const calendarAdapter = computed(() => calendarStore.adapter);
 
 const { data: allNotes } = useNotes();
+const { data: sessions } = useCampaignSessions();
 
-// ── Pre-fill start date from the last session note's end date ─────────────────
+// ── Pre-fill start date from the previous session note's end date ─────────────────
 // Only applies when creating a new session note. This panel mounts exactly when
 // the parent's category switches to (or starts as) "session" — v-if in
 // NoteEditor — which is the same transition the original watch(category, ...)
@@ -129,21 +132,15 @@ const { data: allNotes } = useNotes();
 // date the DM has since cleared on purpose.
 let prefillDone = false;
 
-watch(allNotes, (notes) => {
-  if (prefillDone || notes === undefined) return;
+watch([allNotes, sessions], ([notes, log]) => {
+  if (prefillDone || notes === undefined || log === undefined) return;
   prefillDone = true;
 
   if (!isNewNote) return; // editing — don't overwrite
   if (model.value.startYear !== null) return; // already set
 
-  const sessionNotes = notes.filter(
-    (n) => n.category === "session" && n.session_num !== null,
-  );
-  if (!sessionNotes.length) return;
-
-  const last = sessionNotes.reduce((a, b) =>
-    (a.session_num ?? 0) > (b.session_num ?? 0) ? a : b,
-  );
+  const last = previousSessionNote(notes, log);
+  if (!last) return;
 
   // Use end date if set, otherwise fall back to start date
   const prefillYear  = last.session_end_year  ?? last.session_start_year;

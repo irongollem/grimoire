@@ -36,6 +36,7 @@ function baseInput(overrides: Partial<MarkdownVaultInput> = {}): MarkdownVaultIn
     questObjectives: [],
     partyMembers: [],
     notes: [],
+    sessions: [],
     ...overrides,
   };
 }
@@ -404,7 +405,7 @@ describe("buildMarkdownVault — Notes", () => {
       content: tiptapDoc("The party arrived at the vale."),
       category: "session",
       tags: ["recap"],
-      session_num: 3,
+      session_id: "s3",
       is_pinned: false,
       player_visible_to: [],
       session_start_year: null,
@@ -422,17 +423,25 @@ describe("buildMarkdownVault — Notes", () => {
     };
   }
 
-  it("renders frontmatter including session_num and the converted body", () => {
-    const files = buildMarkdownVault(baseInput({ notes: [note()] }));
+  const SESSION = {
+    id: "s3", campaign_id: "c1", user_id: "u1", number: 3, title: "The Vale",
+    played_on: null, started_at: null, ended_at: null,
+    created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+  };
+
+  it("renders frontmatter naming the linked session and the converted body", () => {
+    const files = buildMarkdownVault(baseInput({ notes: [note()], sessions: [SESSION] }));
     const md = files["Notes/Session 3 recap.md"];
     expect(md).toContain('category: "session"');
-    expect(md).toContain("session_num: 3");
+    expect(md).toContain("session: 3");
+    expect(md).toContain('session_title: "The Vale"');
     expect(md).toContain("The party arrived at the vale.");
   });
 
-  it("omits session_num when null", () => {
-    const files = buildMarkdownVault(baseInput({ notes: [note({ category: "general", session_num: null })] }));
-    expect(files["Notes/Session 3 recap.md"]).not.toContain("session_num");
+  it("omits the session fields when the note links none", () => {
+    const files = buildMarkdownVault(baseInput({ notes: [note({ category: "general", session_id: null })], sessions: [SESSION] }));
+    expect(files["Notes/Session 3 recap.md"]).not.toContain("session:");
+    expect(files["Notes/Session 3 recap.md"]).not.toContain("session_title");
   });
 });
 

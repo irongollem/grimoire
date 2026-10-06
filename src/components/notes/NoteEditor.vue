@@ -19,19 +19,12 @@
         </option>
       </AppSelect>
 
-      <!-- Session # — only relevant for session notes -->
-      <label v-if="draft.category === 'session'" class="flex items-center gap-1.5">
-        <span class="text-label-lg font-semibold text-muted-foreground">#</span>
-        <AppInput
-          v-model.number="draft.sessionNum"
-          type="number"
-          min="1"
-          placeholder="Session"
-          tone="card"
-          size="md"
-          class="w-20"
-        />
-      </label>
+      <!-- Which session this records — only relevant for session notes -->
+      <NoteSessionPicker
+        v-if="draft.category === 'session'"
+        v-model="draft.sessionId"
+        :own-note-id="props.note?.id ?? null"
+      />
 
       <!-- Pin toggle -->
       <AppButton
@@ -156,7 +149,7 @@
     :visible="showChroniclerWrite"
     :note-id="props.note?.id"
     :note-title="draft.title"
-    :note-session-num="draft.sessionNum"
+    :note-session-num="linkedSession?.number ?? null"
     @close="showChroniclerWrite = false"
     @insert="onChroniclerWrite"
   />
@@ -176,7 +169,7 @@ const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRecordDraft } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
-import { useRouter, type RouteLocationNormalized } from "vue-router";
+import { useRoute, useRouter, type RouteLocationNormalized } from "vue-router";
 import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
 import RichTextEditor from "../common/RichTextEditor.vue";
 import InlineCalendarEventModal from "@/components/calendar/InlineCalendarEventModal.vue";
@@ -184,6 +177,7 @@ import ChroniclerGenerateDialog from "./ChroniclerGenerateDialog.vue";
 import ChroniclerLibraryPicker from "./ChroniclerLibraryPicker.vue";
 import ChroniclerWriteDialog from "./ChroniclerWriteDialog.vue";
 import NoteSessionDatesPanel from "./NoteSessionDatesPanel.vue";
+import NoteSessionPicker from "./NoteSessionPicker.vue";
 import { IconDelete, IconGenerate, IconImages, IconNote, IconPin, IconSave } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -196,6 +190,8 @@ import {
   useDeleteNote,
 } from "@/composables/notes/useNotes";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
+import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
+import { useNoteSession } from "@/composables/notes/useNoteSession";
 import { useNoteCalendarSync } from "@/composables/notes/useNoteCalendarSync";
 import { useDeleteCalendarEvent } from "@/composables/calendar/useCalendarEvents";
 import {
@@ -225,6 +221,17 @@ const CATEGORIES: { value: NoteCategory; label: string }[] = [
 
 const props = defineProps<{ note: Note | null }>();
 const router = useRouter();
+const route = useRoute();
+
+/** `/notes/new?category=session&session=<id>`: the Sessions page's "Write notes" link. */
+function queryString(key: string): string | null {
+  const value = route.query[key];
+  return typeof value === "string" && value !== "" ? value : null;
+}
+function startingCategory(): NoteCategory {
+  const wanted = CATEGORIES.find((c) => c.value === queryString("category"));
+  return wanted?.value ?? "general";
+}
 
 // The editor's local copy of the note (#946). Untouched fields follow the server
 // when the note refetches; save() sends only the columns the DM changed.
@@ -232,7 +239,8 @@ interface NoteDraft {
   title: string;
   body: string | null;
   category: NoteCategory;
-  sessionNum: number | null;
+  /** The session this note records (`campaign_sessions.id`), for a session note. */
+  sessionId: string | null;
   isPinned: boolean;
   playerVisibleTo: string[];
   tags: string[];
@@ -252,8 +260,8 @@ function toDraft(note: Note | null): NoteDraft {
   return {
     title: note?.title ?? "",
     body: note?.content ?? null,
-    category: note?.category ?? "general",
-    sessionNum: note?.session_num ?? null,
+    category: note ? note.category : startingCategory(),
+    sessionId: note ? note.session_id : startingCategory() === "session" ? queryString("session") : null,
     isPinned: note?.is_pinned ?? false,
     playerVisibleTo: [...(note?.player_visible_to ?? [])],
     tags: [...(note?.tags ?? [])],
@@ -281,7 +289,7 @@ const CONFLICT_LABELS: Record<keyof NoteDraft, string> = {
   title: "Title",
   body: "Note text",
   category: "Category",
-  sessionNum: "Session number",
+  sessionId: "Session",
   isPinned: "Pinned",
   playerVisibleTo: "Shared with",
   tags: "Tags",
@@ -356,12 +364,16 @@ function onChroniclerWrite(chronicle: ChronicleInsert) {
     draft.title = chronicle.title;
     aiTitleSnapshot.value = chronicle.title;
   }
-  if (chronicle.sessionNum !== null) {
-    // The Session # field is only rendered for a session note, and
-    // buildPayload() nulls the column for every other category — so a number
-    // set without switching category would be dropped on save without a trace.
-    draft.category = "session";
-    draft.sessionNum = chronicle.sessionNum;
+  if (chronicle.sessionNum !== null && draft.sessionId === null) {
+    // The model named a session by number. The picker is only rendered for a
+    // session note, and buildPayload() nulls the link for every other category,
+    // so a session set without switching category would be dropped on save.
+    // Numbers may repeat across the log; the most recent holder is the likely one.
+    const named = sessions.value?.find((s) => s.number === chronicle.sessionNum);
+    if (named) {
+      draft.category = "session";
+      draft.sessionId = named.id;
+    }
   }
   if (chronicle.tags.length > 0) {
     // Merge, not replace — the DM's own tag bar may already hold tags this
@@ -404,6 +416,10 @@ function onEventCreated(event: CalendarEvent) {
 }
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
+const { data: sessions } = useCampaignSessions();
+// The session log is newest first, so `find` above takes the most recent holder of a number.
+const linkedSession = useNoteSession(() => draft.sessionId);
+
 const { mutateAsync: create } = useCreateNote();
 const { mutateAsync: update } = useUpdateNote();
 const { mutateAsync: del } = useDeleteNote();
@@ -418,7 +434,7 @@ function buildPayload(d: NoteDraft) {
   return {
     title: d.title.trim() || "Untitled Note",
     category: d.category,
-    session_num: isSession ? (d.sessionNum ?? null) : null,
+    session_id: isSession ? d.sessionId : null,
     is_pinned: d.isPinned,
     player_visible_to: d.playerVisibleTo,
     tags: d.tags,
@@ -470,7 +486,7 @@ function calendarSyncInput(noteId: string) {
   return {
     noteId,
     title: draft.title,
-    sessionNum: draft.sessionNum,
+    session: linkedSession.value,
     dates: draft.sessionDates,
     isSession: draft.category === "session",
     existingEventId: props.note?.linked_calendar_event_id ?? null,

@@ -1,7 +1,7 @@
 <template>
   <PageHeader
     :title="note?.title || (isNew ? 'New Note' : 'Loading…')"
-    :description="note ? `${note.category}${note.session_num ? ' · Session ' + note.session_num : ''}` : undefined"
+    :description="description"
   >
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -20,11 +20,18 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NoteEditor from "@/components/notes/NoteEditor.vue";
 import NoteSheet from "@/components/notes/NoteSheet.vue";
+import { useNoteSession } from "@/composables/notes/useNoteSession";
+import { sessionLabel } from "@/lib/sessions/sessionLabel";
 
 const route = useRoute();
 const isNew = computed(() => route.name === "note-new");
 const isEditing = computed(() => route.query.edit === "true");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const { data: note, isLoading: noteLoading } = useNote(id);
+const session = useNoteSession(() => note.value?.session_id);
+const description = computed(() => {
+  if (!note.value) return undefined;
+  return session.value ? `${note.value.category} · ${sessionLabel(session.value)}` : note.value.category;
+});
 const isLoading = computed(() => !isNew.value && noteLoading.value);
 </script>

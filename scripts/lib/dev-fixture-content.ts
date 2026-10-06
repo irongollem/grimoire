@@ -61,21 +61,37 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
   const seedMembership = (table: string, statement: string) =>
     seedMembershipIfEmpty(dbUrl, table, campaignId, statement);
 
+  // A session note links to its session, so the log goes in first. Session 6 has
+  // no note yet, which is what the Sessions page and the note editor's session
+  // picker show as "no notes yet".
+  const sessionOf = (number: number) =>
+    `(select id from public.campaign_sessions where campaign_id = ${campaign} and number = ${number} order by created_at limit 1)`;
+
   return {
+    campaign_sessions: seed(
+      "campaign_sessions",
+      `insert into public.campaign_sessions (user_id, campaign_id, number, title, played_on)
+       values
+         (${owner}, ${campaign}, 3, 'Ashes in Easthaven', '2026-09-13'),
+         (${owner}, ${campaign}, 4, 'The Cold Pursuit of Sephek', '2026-09-20'),
+         (${owner}, ${campaign}, 5, 'What the Speaker Would Not Say', '2026-09-27'),
+         (${owner}, ${campaign}, 6, 'The Road to Bryn Shander', '2026-10-04');`,
+    ),
+
     notes: seed(
       "notes",
       `insert into public.notes
-         (user_id, campaign_id, title, content, category, tags, session_num, player_visible_to)
+         (user_id, campaign_id, title, content, category, tags, session_id, player_visible_to)
        values
          (${owner}, ${campaign}, 'Ashes in Easthaven',
           ${prose("The party reached Easthaven wanting warmth and answers, and got a body in the ice instead.")},
-          'session', '{murder,easthaven}', 3, ${all}),
+          'session', '{murder,easthaven}', ${sessionOf(3)}, ${all}),
          (${owner}, ${campaign}, 'The Cold Pursuit of Sephek',
           ${prose("Tracks led north out of Caer-Konig. Whatever made them was not walking on two legs the whole way.")},
-          'session', '{chase}', 4, ${some}),
+          'session', '{chase}', ${sessionOf(4)}, ${some}),
          (${owner}, ${campaign}, 'What the Speaker Would Not Say',
           ${prose("She answered every question put to her, and not one that mattered.")},
-          'session', '{politics}', 5, ${hidden}),
+          'session', '{politics}', ${sessionOf(5)}, ${hidden}),
          (${owner}, ${campaign}, 'The Rime and Who Profits By It',
           ${prose("Someone is selling firewood at four times last winter's price, and it is not a Ten-Towns speaker.")},
           'lore', '{economy,winter}', null, ${some}),
