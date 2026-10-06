@@ -69,7 +69,7 @@ The live rail (under the session control) shows how long the session has been ru
 
 **Sessions** sits at the bottom of the Campaign group in the sidebar, above Settings. It remembers every evening.
 
-- **The log** lists your sessions, newest first, each with its date, how long it ran and what came of it (people met, combat). A session with no notes yet shows **Write notes**. A session you started without a number shows **Number it** and **Delete**, so test runs do not clutter the log. Two sessions with the same number sit side by side.
+- **The log** lists your sessions, newest first, each with its date, how long it ran and what came of it (people met, combat). A session with no notes yet shows **Write notes**. A session you started without a number shows **Number it** and **Delete**, so test runs do not clutter the log. Two sessions with the same number are allowed, but usually mean one evening logged twice (run with **Start session** and also written up as a note), so the log says so and offers **Merge them**: the time it ran, its encounters, the title, the notes and everything the party learned become one session. If they really are different evenings, give one another number instead.
 - **Add a past session** logs one you played before the log existed or away from the app: a number, a title and the date.
 - **A session's page** lets you change its number and title, shows its note (or **Write the notes**, **Draft with the Chronicler** and **Link an existing note**), and lists what the party learned. **Delete this session** removes it from the log; its note stays, just no longer linked.
 

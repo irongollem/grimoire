@@ -6,6 +6,7 @@ import { queueNoteEmbedding } from "@/composables/notes/useNotes";
 import { useCampaignStore } from "@/stores/campaign";
 import { dropLoggedSession } from "@/composables/campaign/useCampaignSession";
 import { sortSessionLog } from "@/lib/sessions/sessionPrefill";
+import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 import type { CampaignSession } from "@/types/session.types";
 
 export const CAMPAIGN_SESSIONS_KEY = "campaign-sessions";
@@ -84,6 +85,30 @@ export function useDeleteCampaignSession() {
     onSuccess: (id) => {
       dropLoggedSession(id);
       void queryClient.invalidateQueries({ queryKey: [CAMPAIGN_SESSIONS_KEY] });
+    },
+  });
+}
+
+/**
+ * Folds `absorbId` into `keepId` (merge_campaign_sessions): its note, encounters,
+ * scheduled session and everything learned move across, the kept row takes the
+ * number, title, date and run it lacked, and the absorbed row is deleted.
+ */
+export function useMergeCampaignSessions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ keepId, absorbId }: { keepId: string; absorbId: string }): Promise<CampaignSession> => {
+      const { data, error } = await supabase.rpc("merge_campaign_sessions", { p_keep: keepId, p_absorb: absorbId });
+      if (error) throw error;
+      return data as CampaignSession;
+    },
+    onSuccess: (_row, { keepId, absorbId }) => {
+      dropLoggedSession(absorbId);
+      // Everything that hung off the absorbed row now hangs off the kept one.
+      for (const key of [CAMPAIGN_SESSIONS_KEY, "notes", "session-facts", "npc-reveals", SESSION_LEARNED_KEY]) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
+      void reembedSessionNotes(keepId);
     },
   });
 }

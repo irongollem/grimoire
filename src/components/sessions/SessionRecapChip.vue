@@ -4,7 +4,7 @@
     variant="tinted"
     :tone="TONES[recap]"
     emphasis="soft"
-    size="inline-caption"
+    size="xs"
     :label="LABELS[recap]"
     class="pointer-events-none shrink-0"
   />

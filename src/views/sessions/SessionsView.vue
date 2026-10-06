@@ -24,6 +24,19 @@
         </template>
       </p>
 
+      <p v-for="group in shared" :key="group.number" class="text-caption text-muted-foreground">
+        <span class="text-tone-caution">◆ Session {{ group.number }} is in the log {{ timesWord(group) }}</span>
+        <span aria-hidden="true"> · </span>
+        <AppButton
+          variant="link"
+          size="inline-caption"
+          class="font-semibold"
+          :label="group.absorb.length === 1 ? 'Merge them' : 'Merge them into one'"
+          :disabled="merging.isPending.value"
+          @click="mergeShared(group)"
+        />
+      </p>
+
       <div v-if="isLoading" class="flex justify-center py-10"><LoadingSpinner /></div>
       <p v-else-if="error" role="alert" class="text-body text-destructive">
         The session log could not be read: {{ error.message }}
@@ -71,6 +84,7 @@ import {
   useCampaignSessions,
   useCreatePastSession,
   useDeleteCampaignSession,
+  useMergeCampaignSessions,
   useUpdateCampaignSession,
   type PastSessionInput,
 } from "@/composables/sessions/useCampaignSessions";
@@ -84,8 +98,10 @@ import { nextSessionNumber } from "@/lib/sessions/sessionPrefill";
 import {
   isRunningSession,
   logSummaryParts,
+  sessionsSharingANumber,
   sessionsWithoutNotes,
   type SessionFacts,
+  type SharedNumber,
 } from "@/lib/sessions/sessionLog";
 import { sessionNoteRoute } from "@/lib/sessions/sessionRoutes";
 import type { CampaignSession } from "@/types/session.types";
@@ -102,6 +118,7 @@ const { pending, endSession } = useSessionActions();
 const update = useUpdateCampaignSession();
 const remove_ = useDeleteCampaignSession();
 const adding = useCreatePastSession();
+const merging = useMergeCampaignSessions();
 
 const pastOpen = ref(false);
 
@@ -110,6 +127,37 @@ const noteIds = computed(() => new Set((notes.value ?? []).flatMap((n) => (n.ses
 const summary = computed(() =>
   logSummaryParts(log.value?.length ?? 0, sessionsWithoutNotes(log.value ?? [], noteIds.value).length, unsorted.value ?? 0),
 );
+
+const shared = computed(() => sessionsSharingANumber(log.value ?? []));
+
+/** "twice", "3 times": how often one number appears in the log. */
+function timesWord(group: SharedNumber): string {
+  const n = group.absorb.length + 1;
+  return n === 2 ? "twice" : `${n} times`;
+}
+
+/**
+ * Merges every row sharing a number into the one that was run, after a confirm.
+ * One evening logged twice (run, and written up from its note) is the usual
+ * reason; the confirm says what happens so a DM with two genuinely different
+ * sessions under one number can decline and renumber instead.
+ */
+async function mergeShared(group: SharedNumber) {
+  const ok = await confirm(
+    "They become one session: the time it ran, its encounters, the title, the notes and everything the party learned. " +
+      "If they are different evenings, cancel and give one of them another number.",
+    { title: `Merge the Session ${group.number} entries?`, confirmLabel: "Merge" },
+  );
+  if (!ok) return;
+  try {
+    for (const row of group.absorb) {
+      await merging.mutateAsync({ keepId: group.keep.id, absorbId: row.id });
+    }
+    toast.success(`Session ${group.number} is one entry again.`);
+  } catch (cause) {
+    toast.error(toast.fromError(cause));
+  }
+}
 
 const NO_FACTS: SessionFacts = { people: 0, encounters: 0 };
 function factsFor(id: string): SessionFacts {
