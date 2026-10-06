@@ -29,7 +29,7 @@ import { useToast } from "@/composables/useToast";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { abilityBonusesForChoice, unresolvedOriginFeatMessage } from "@/rules/backgroundAsi";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
-import { levelOneWrites, scoresAfterBonuses } from "@/composables/party/creationLevelOne";
+import { characterSpellInserts, levelOneWrites, scoresAfterBonuses } from "@/composables/party/creationLevelOne";
 import { useCreationLevelOne } from "@/composables/party/useCreationLevelOne";
 import { passiveScore, type SkillCheckSource } from "@/rules/skillCheck";
 import {
@@ -746,6 +746,8 @@ export function useCharacterCreationForm() {
     // they are read now, while the form still holds the typed ones.
     const picks = levelOne.resolved.value;
     const classResources = levelOne.classResources.value;
+    const featureGrants = levelOne.featureGrants.value;
+    const featureSpells = levelOne.featureSpells.value;
 
     // ── Species ASI (standard = structured bonuses; custom = distributed freely)
     // and the 2024 background ASI, from the scores worked out once above (an
@@ -818,11 +820,16 @@ export function useCharacterCreationForm() {
       // Level 1's picks land the way a level-up's do: class_choices, skills,
       // masteries, the resource pools at full, and the history entry the feature
       // card reads its picks from.
-      const levelOneColumns = levelOneWrites({
+      // `spellRows` are character_spells rows, written after the class row; the rest are party_members columns.
+      const { spellRows: featureSpellRows, ...levelOneColumns } = levelOneWrites({
         classChoices: basePayload.class_choices,
         skills: basePayload.skill_proficiencies,
         masteries: basePayload.weapon_masteries,
+        tools: basePayload.tool_proficiencies,
+        languages: basePayload.languages,
         picks,
+        featureGrants,
+        featureSpells,
         classResources,
         className: f.class,
         classDefinitionId: pickedClass?.id ?? null,
@@ -862,8 +869,9 @@ export function useCharacterCreationForm() {
         // species and background would seat the character and then flag it.
 
         // Seed level 1 character_classes row
+        let classRowId: string | null = null;
         if (pickedClass) {
-          await addCharacterClass({
+          const classRow = await addCharacterClass({
             party_member_id: created.id,
             class_name:      f.class,
             class_definition_id: pickedClass.id,
@@ -877,6 +885,15 @@ export function useCharacterCreationForm() {
             hit_dice_used:   0,
             sort_order:      0,
           });
+          classRowId = classRow.id;
+        }
+
+        // The spells the level's feature picks became (Magic Initiate, a class feature's cantrip).
+        if (featureSpellRows.length > 0) {
+          const { error: spellError } = await supabase
+            .from("character_spells")
+            .insert(characterSpellInserts(created.id, featureSpellRows, classRowId));
+          if (spellError) throw spellError;
         }
 
         if (selectedSpecies.value) {

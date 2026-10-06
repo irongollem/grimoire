@@ -104,6 +104,7 @@
         :context="optionContext"
         :feats-by-id="featuresById"
         :feats-allowed="featsAllowed"
+        :spell-variant-for="spellVariantFor"
       />
 
       <!-- Spell picker (known casters gaining spells) -->
@@ -184,6 +185,7 @@ import { useClassScopedReset } from "./useClassScopedReset";
 import { useLevelUpClassSelection } from "./useLevelUpClassSelection";
 import { useLevelUpHitPoints } from "./useLevelUpHitPoints";
 import { useLevelUpFeatures } from "./useLevelUpFeatures";
+import { classHasSpellcastingProgression } from "./featureGrants";
 import { armorTrainingOf } from "./armorTraining";
 import { useCharacterSpells } from "@/composables/party/useCharacterSpells";
 import { useLevelUpSpellCandidates } from "./useLevelUpSpellCandidates";
@@ -282,6 +284,7 @@ const weaponProficiencies = computed(() => {
 
 const {
   featuresById, isLoading: featuresLoading, gained, scaling, pools, due, swapOffers, optionContext, resolved, classResources,
+  spellVariantFor, featureGrants, featureSpells,
 } = useLevelUpFeatures({
   member: () => props.member,
   ruleset,
@@ -299,6 +302,7 @@ const {
   newProfBonus,
   weaponProficiencies,
   canCastSpells: computed(() => postLevelupSpellSlots.value.length > 0),
+  classHasSpellcasting: computed(() => classHasSpellcastingProgression(customClass.value ?? systemClass.value)),
   armorProficiencies: armorTraining,
   tashasOn: computed(() => isRuleEffectivelyEnabled(campaignRulesData.value, "tashas_optional_features")),
   values: choiceValues,
@@ -412,5 +416,7 @@ const { confirm, error, isPending } = useLevelUpConfirm({
   newClassDefinitionKind,
   grantedSpellsForThisLevel,
   existingSpellIds: alreadyKnownIds,
+  featureGrants,
+  featureSpells,
 });
 </script>

@@ -257,3 +257,51 @@ describe("parseFeatAbilityIncrease", () => {
     expect(parseFeatAbilityIncrease({ abilities: ["str"], amount: 1, split: false, max: 99 })).toBeNull();
   });
 });
+
+describe("spell picks and grants", () => {
+  const spellChoice = (pick: unknown) => ({
+    choices: [{ key: "k", label: "K", pick, count: { kind: "per_grant", amount: 2 }, replace_on_level_up: false }],
+  });
+
+  it("accepts a spell pick and round-trips it", () => {
+    const pick = { kind: "spell", lists: ["Cleric", "Wizard"], level: 1, free_cast: true };
+    const { mechanics, errors } = parseMechanics(spellChoice(pick));
+    expect(errors).toEqual([]);
+    expect(mechanics.choices?.[0].pick).toEqual(pick);
+    expect(parseMechanics(JSON.parse(JSON.stringify(mechanics))).mechanics).toEqual(mechanics);
+  });
+
+  it("reads an absent free_cast as false", () => {
+    const { mechanics } = parseMechanics(spellChoice({ kind: "spell", lists: ["Wizard"], level: 0 }));
+    expect(mechanics.choices?.[0].pick).toEqual({ kind: "spell", lists: ["Wizard"], level: 0, free_cast: false });
+  });
+
+  it("rejects empty lists, blank names, bad levels and a non-boolean free_cast", () => {
+    for (const pick of [
+      { kind: "spell", lists: [], level: 0, free_cast: false },
+      { kind: "spell", lists: ["  "], level: 0, free_cast: false },
+      { kind: "spell", lists: "Wizard", level: 0, free_cast: false },
+      { kind: "spell", lists: ["Wizard"], level: 10, free_cast: false },
+      { kind: "spell", lists: ["Wizard"], level: 1.5, free_cast: false },
+      { kind: "spell", lists: ["Wizard"], level: -1, free_cast: false },
+      { kind: "spell", lists: ["Wizard"], level: 0, free_cast: "yes" },
+    ]) {
+      const { mechanics, errors } = parseMechanics(spellChoice(pick));
+      expect(errors.length, JSON.stringify(pick)).toBeGreaterThan(0);
+      expect(mechanics.choices).toBeUndefined();
+    }
+  });
+
+  it("accepts grants, de-duplicating", () => {
+    const { mechanics, errors } = parseMechanics({ grants: { skills: ["arcana", "arcana"], tools: ["Thieves' Tools"], languages: ["Elvish"] } });
+    expect(errors).toEqual([]);
+    expect(mechanics.grants).toEqual({ skills: ["arcana"], tools: ["Thieves' Tools"], languages: ["Elvish"] });
+  });
+
+  it("reads an all-empty grants object as absent, and rejects a non-key skill", () => {
+    expect(parseMechanics({ grants: { skills: [], tools: [] } })).toEqual({ mechanics: {}, errors: [] });
+    const { mechanics, errors } = parseMechanics({ grants: { skills: ["Not A Skill"] } });
+    expect(errors.length).toBeGreaterThan(0);
+    expect(mechanics.grants).toBeUndefined();
+  });
+});

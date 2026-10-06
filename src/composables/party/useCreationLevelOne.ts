@@ -5,6 +5,7 @@ import type { CharacterFormState, AbilityKey } from "@/rules/characterCreation";
 import type { ChoiceValue } from "@/components/features/choiceValue";
 import { armorTrainingOf } from "@/levelup/armorTraining";
 import { useLevelUpFeatures } from "@/levelup/useLevelUpFeatures";
+import { classHasSpellcastingProgression } from "@/levelup/featureGrants";
 import type { FeatureMap } from "@/levelup/levelUpProjection";
 import type { PartyMember } from "@/types/party.types";
 
@@ -14,6 +15,9 @@ export interface CreationClass {
   features: FeatureMap | null;
   armor_proficiencies: string[];
   weapon_proficiencies: string[];
+  /** What says whether the class casts, for how a feature's spell pick is stored. */
+  caster_type?: string | null;
+  spell_slots?: number[][] | null;
 }
 
 export interface CreationLevelOneInput {
@@ -76,6 +80,7 @@ export function useCreationLevelOne(input: CreationLevelOneInput) {
     newProfBonus: computed(() => STARTING_PROFICIENCY_BONUS),
     weaponProficiencies: computed(() => input.selectedClass.value?.weapon_proficiencies ?? []),
     canCastSpells: input.canCastSpells,
+    classHasSpellcasting: computed(() => classHasSpellcastingProgression(input.selectedClass.value)),
     armorProficiencies: computed(() => armorTrainingOf(input.selectedClass.value?.armor_proficiencies ?? [])),
     tashasOn: computed(() => isRuleEffectivelyEnabled(campaignRulesData.value, "tashas_optional_features")),
     values,

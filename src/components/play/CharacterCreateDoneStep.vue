@@ -101,6 +101,7 @@
         :context="levelOne.optionContext.value"
         :feats-by-id="levelOne.featuresById.value"
         :feats-allowed="levelOne.featsAllowed.value"
+        :spell-variant-for="levelOne.spellVariantFor"
       />
       <p v-if="levelOne.due.value.length > 0" class="text-caption text-muted-foreground">
         Choices for later levels are made as you level up.

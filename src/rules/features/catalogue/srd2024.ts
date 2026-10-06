@@ -476,7 +476,24 @@ export const SRD_2024_FEATS: FeatCatalogue = {
     mechanics: {},
   },
   "srd-2024_alert": originFeat(false),
-  "srd-2024_magic-initiate": originFeat(true),
+  "srd-2024_magic-initiate": originFeat(true, {
+    choices: [
+      {
+        key: "magic_initiate_cantrips",
+        label: "Magic Initiate cantrips",
+        pick: { kind: "spell", lists: ["Cleric", "Druid", "Wizard"], level: 0, free_cast: false },
+        count: { kind: "per_grant", amount: 2 },
+        replace_on_level_up: false,
+      },
+      {
+        key: "magic_initiate_spell",
+        label: "Magic Initiate spell",
+        pick: { kind: "spell", lists: ["Cleric", "Druid", "Wizard"], level: 1, free_cast: true },
+        count: { kind: "per_grant", amount: 1 },
+        replace_on_level_up: false,
+      },
+    ],
+  }),
   "srd-2024_savage-attacker": originFeat(false),
   // The book lets Skilled grant tools as well; the contract only expresses the skill picks.
   "srd-2024_skilled": originFeat(true, {

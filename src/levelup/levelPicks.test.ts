@@ -113,7 +113,7 @@ describe("a level and its de-level", () => {
   const before = {
     id: "m1", level: 3, proficiency_bonus: 2, max_hp: 28, current_hp: 28, hit_dice_remaining: 3,
     str: 15, dex: 12, con: 15, int: 8, wis: 13, cha: 11,
-    spell_slots: [], class_resources: {}, tool_proficiencies: ["Smith's Tools"],
+    spell_slots: [], class_resources: {}, tool_proficiencies: ["Smith's Tools"], languages: [],
     class_choices: { fighting_style: ["Defense"], feats: ["tough"] },
     skill_proficiencies: { stealth: "proficient", athletics: "proficient" },
     weapon_masteries: ["w-longsword", "w-handaxe"],
@@ -129,6 +129,7 @@ describe("a level and its de-level", () => {
       picks, classResources: {}, subclassInput: "", subclassDefinitionId: null,
       selectedSpellIds: new Set(), selectedCantripIds: new Set(), newClassName: "", newClassDefinitionId: null,
       newClassDefinitionKind: null, grantedSpellsForThisLevel: [], existingSpellIds: new Set(),
+      featureGrants: [], featureSpells: { due: [], values: {}, isFeat: () => false, classHasSpellcasting: false },
     };
   }
 

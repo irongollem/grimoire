@@ -286,6 +286,35 @@ export interface OptionContext {
   masteryWeapons: { name: string }[];
   /** The Warlock's Pact Boon, when known; absent means pact prerequisites are not checked. */
   pactBoon?: string | null;
+  /** Readable spells a spell pick draws from; `classes` null means the spell names no class list. */
+  spells: readonly { id: string; name: string; level: number; classes: readonly string[] | null }[];
+  /** The variant of the feature whose choice is being asked ("Wizard" for Magic Initiate (Wizard)); null when it has none. */
+  spellListVariant: string | null;
+}
+
+/**
+ * The spell lists a spell pick draws from. One list is that list. With several,
+ * the granting feat's variant names which one (case-insensitively, as variants
+ * are typed by hand), and without a matching variant the pick is the union of
+ * them all.
+ */
+export function resolveSpellLists(pick: Extract<ChoicePick, { kind: "spell" }>, variant: string | null): string[] {
+  if (pick.lists.length === 1) return [...pick.lists];
+  if (variant !== null) {
+    const wanted = variant.trim().toLowerCase();
+    const match = pick.lists.find((l) => l.toLowerCase() === wanted);
+    if (match !== undefined) return [match];
+  }
+  return [...pick.lists];
+}
+
+function spellOptions(pick: Extract<ChoicePick, { kind: "spell" }>, ctx: OptionContext): ChoiceOption[] {
+  const lists = resolveSpellLists(pick, ctx.spellListVariant).map((l) => l.toLowerCase());
+  return ctx.spells
+    .filter((sp) => sp.level === pick.level)
+    .filter((sp) => sp.classes !== null && sp.classes.some((c) => lists.includes(c.toLowerCase())))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((sp) => opt(sp.id, sp.name));
 }
 
 const opt = (value: string, label: string = value, unavailable: string | null = null): ChoiceOption => ({
@@ -387,6 +416,9 @@ export function optionsFor(pick: ChoicePick, ctx: OptionContext): ChoiceOption[]
       break;
     case "custom":
       options = pick.options.map((n) => opt(n));
+      break;
+    case "spell":
+      options = spellOptions(pick, ctx);
       break;
   }
   return options.map((o) =>

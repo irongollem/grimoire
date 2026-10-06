@@ -180,7 +180,18 @@ export type ChoicePick =
   | { kind: "skill"; from: SkillKey[] }
   | { kind: "option"; set: OptionSet }
   /** A homebrew list of names (a homebrew college's wing). */
-  | { kind: "custom"; options: string[] };
+  | { kind: "custom"; options: string[] }
+  /**
+   * Spells of one level learned from a class's spell list (0 = cantrips).
+   * `lists` names the spell lists by class name ("Wizard"). With more than one,
+   * the list is the one the granting feat's variant names ("Magic Initiate (Wizard)"),
+   * and the union of them all when there is no variant to say.
+   * A class feature's picks become spells of the granting class, always prepared
+   * (Arcane Initiate: wizard cantrips that count as cleric cantrips); a feat's picks
+   * are spells of the feat. `free_cast`: a levelled pick may be cast once per long
+   * rest without a slot (Magic Initiate).
+   */
+  | { kind: "spell"; lists: string[]; level: number; free_cast: boolean };
 
 export type ChoiceCount =
   /** Every level that grants this feature asks for `amount` more (ASI at 4, 8, 12; Expertise at 1 and 6). */
@@ -202,6 +213,15 @@ export interface FeatureChoice {
   replace_on_level_up: boolean;
 }
 
+/** Proficiencies the feature gives outright, with no choice (2014 Arcana Domain's Arcane Initiate: Arcana). */
+export interface FeatureGrants {
+  skills?: SkillKey[];
+  /** Tool names as the sheet stores them in `tool_proficiencies`. */
+  tools?: string[];
+  /** Language names as the sheet stores them in `languages`. */
+  languages?: string[];
+}
+
 export interface FeatureMechanics {
   activation?: Activation;
   /** What using the feature itself spends (Cutting Words: one Bardic Inspiration). */
@@ -212,6 +232,7 @@ export interface FeatureMechanics {
   toggle?: FeatureToggle;
   actions?: SubAction[];
   choices?: FeatureChoice[];
+  grants?: FeatureGrants;
   /**
    * An optional feature that may be taken instead of another of the same
    * class (Tasha's swaps), named by that feature's `conceptual_key`. Offered

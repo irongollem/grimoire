@@ -62,6 +62,40 @@
       </div>
     </div>
 
+    <div v-else-if="choice.pick.kind === 'spell'" class="flex flex-col gap-3">
+      <div class="flex flex-col gap-2">
+        <p class="text-caption text-muted-foreground">
+          Spell lists to draw from. With several, a feat's variant (like Magic Initiate (Wizard)) picks one; otherwise the player may choose from all of them.
+        </p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+          <AppCheckbox
+            v-for="l in spellListChoices(choice.pick.lists)"
+            :key="l"
+            :model-value="choice.pick.lists.includes(l)"
+            :label="l"
+            label-role="caption"
+            @update:model-value="setPick(toggleSpellList(spellPick(), l, $event))"
+          />
+        </div>
+        <div class="flex items-center gap-2">
+          <AppInput v-model="newList" tone="card" size="body" placeholder="Another class, like a homebrew one" @keydown.enter.prevent="addList" />
+          <AppButton class="shrink-0" variant="outline" size="sm" :icon="IconAdd" icon-size="xs" label="Add list" :disabled="newList.trim() === ''" @click="addList" />
+        </div>
+      </div>
+      <MechField label="Spell level">
+        <AppSelect :model-value="choice.pick.level" tone="card" size="body" weight="normal" block @update:model-value="setPick(setSpellLevel(spellPick(), Number($event)))">
+          <option v-for="o in SPELL_LEVEL_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+        </AppSelect>
+      </MechField>
+      <AppCheckbox
+        v-if="choice.pick.level > 0"
+        :model-value="choice.pick.free_cast"
+        label="Castable once per long rest without a spell slot"
+        label-role="caption"
+        @update:model-value="setPick({ ...spellPick(), free_cast: $event })"
+      />
+    </div>
+
     <MechField v-else-if="choice.pick.kind === 'custom'" label="Options">
       <TagInput :model-value="choice.pick.options" placeholder="Add an option…" @update:model-value="setPick({ kind: 'custom', options: $event })" />
     </MechField>
@@ -94,6 +128,9 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
+import { IconAdd } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -110,7 +147,17 @@ import {
   type OptionSet,
 } from "@/rules/features/mechanics.types";
 import { FEAT_CATEGORY_LABELS } from "@/types/feature.types";
-import { COUNT_KINDS, PICK_KINDS, countOfKind, pickOfKind } from "./mechanicsDraft";
+import {
+  COUNT_KINDS,
+  PICK_KINDS,
+  SPELL_LEVEL_OPTIONS,
+  addSpellList,
+  countOfKind,
+  pickOfKind,
+  setSpellLevel,
+  spellListChoices,
+  toggleSpellList,
+} from "./mechanicsDraft";
 import { numbersFromStrings, stringsFromNumbers } from "./byLevelRows";
 import ByLevelTable from "./ByLevelTable.vue";
 import MechField from "./MechField.vue";
@@ -158,6 +205,19 @@ function toggleCategory(category: FeatCategory, on: boolean) {
   const next = on ? [...rest, category] : rest;
   // Unticking the last one would offer no feats at all.
   if (next.length > 0) setPick({ kind: "feat", categories: next });
+}
+
+const newList = ref("");
+
+/** The pick narrowed to spells; the spell sub-form only renders for one. */
+function spellPick(): Extract<ChoicePick, { kind: "spell" }> {
+  if (choice.pick.kind !== "spell") throw new Error("not a spell pick");
+  return choice.pick;
+}
+
+function addList() {
+  setPick(addSpellList(spellPick(), newList.value));
+  newList.value = "";
 }
 
 function toggleSkill(skill: SkillKey, on: boolean) {

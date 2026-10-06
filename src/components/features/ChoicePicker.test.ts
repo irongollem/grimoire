@@ -22,6 +22,8 @@ const context: Omit<OptionContext, "existing"> = {
   metamagic: [],
   wildShapeForms: [],
   masteryWeapons: [],
+  spells: [],
+  spellListVariant: null,
   pactBoon: null,
 };
 

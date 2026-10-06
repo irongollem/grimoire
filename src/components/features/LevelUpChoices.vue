@@ -43,7 +43,7 @@ import type { ClassFeature } from "@/types/feature.types";
 import ChoicePicker from "./ChoicePicker.vue";
 import { dueKey, entryComplete, initialChoiceValue, type ChoiceValue } from "./choiceValue";
 
-const { due, swapOffers, context, featsById, featsAllowed = true } = defineProps<{
+const { due, swapOffers, context, featsById, featsAllowed = true, spellVariantFor } = defineProps<{
   /** Everything this level owes, from `choicesDue`. */
   due: DueChoice[];
   /** Tasha's swaps on offer; empty when the table has not allowed them. */
@@ -52,6 +52,8 @@ const { due, swapOffers, context, featsById, featsAllowed = true } = defineProps
   featsById: ReadonlyMap<string, ClassFeature>;
   /** The `feats_2014` rule. */
   featsAllowed?: boolean;
+  /** The variant that narrows an entry's spell lists, from the one source (`useLevelUpFeatures`). */
+  spellVariantFor?: (entry: DueChoice) => string | null;
 }>();
 
 /** What the player has chosen, by `dueKey`. */
@@ -73,10 +75,14 @@ function setValue(entry: DueChoice, next: ChoiceValue) {
 // The Pact Boon and the invocations that need it are chosen at the same level, so the boon picked
 // here counts before it is stored.
 function contextFor(entry: DueChoice): Omit<OptionContext, "existing"> {
+  const base =
+    spellVariantFor === undefined || entry.choice.pick.kind !== "spell"
+      ? context
+      : { ...context, spellListVariant: spellVariantFor(entry) };
   const boonDue = due.find((d) => d.choice.key === "pact_boon");
-  if (boonDue === undefined || entry.choice.key === "pact_boon") return context;
+  if (boonDue === undefined || entry.choice.key === "pact_boon") return base;
   const picked = valueOf(boonDue).picks[0];
-  return picked === undefined ? context : { ...context, pactBoon: picked };
+  return picked === undefined ? base : { ...base, pactBoon: picked };
 }
 
 function setSwap(offer: SwapOffer, on: boolean) {

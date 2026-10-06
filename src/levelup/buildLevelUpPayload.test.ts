@@ -28,6 +28,7 @@ function member(overrides: Partial<PartyMember> = {}): PartyMember {
     skill_proficiencies: {},
     weapon_masteries: [],
     tool_proficiencies: [],
+    languages: [],
     ...overrides,
   } as unknown as PartyMember;
 }
@@ -57,6 +58,8 @@ function baseInput(overrides: Partial<BuildLevelUpPayloadInput> = {}): BuildLeve
     subclassDefinitionId: null,
     grantedSpellsForThisLevel: [],
     existingSpellIds: new Set(),
+    featureGrants: [],
+    featureSpells: { due: [], values: {}, isFeat: () => false, classHasSpellcasting: false },
     ...overrides,
   };
 }
@@ -277,5 +280,54 @@ describe("buildLevelUpPayload", () => {
     expect(memberUpdate.class_choices).toBeUndefined();
     expect(memberUpdate.str).toBeUndefined();
     expect(memberUpdate.subclass).toBeUndefined();
+  });
+
+  it("applies feature grants: skill, tool and language, recorded for a de-level; held ones are not re-recorded", () => {
+    const { memberUpdate } = buildLevelUpPayload(
+      baseInput({
+        member: member({
+          skill_proficiencies: { stealth: "expertise" },
+          tool_proficiencies: ["Thieves' Tools"],
+          languages: ["Common"],
+        }),
+        featureGrants: [{ skills: ["stealth", "nature"], tools: ["thieves' tools", "Herbalism Kit"], languages: ["Elvish", "common"] }],
+      }),
+    );
+    expect(memberUpdate.skill_proficiencies).toEqual({ stealth: "expertise", nature: "proficient" });
+    expect(memberUpdate.tool_proficiencies).toEqual(["Thieves' Tools", "Herbalism Kit"]);
+    expect(memberUpdate.languages).toEqual(["Common", "Elvish"]);
+    const entry = (memberUpdate.level_choices as Record<number, { skills: unknown; granted_profs?: unknown }>)[4];
+    expect(entry.skills).toEqual({ nature: { from: null, to: "proficient" } });
+    expect(entry.granted_profs).toEqual({ tools: ["Herbalism Kit"], languages: ["Elvish"] });
+  });
+
+  it("sends neither tools nor languages when a grant adds nothing", () => {
+    const { memberUpdate } = buildLevelUpPayload(
+      baseInput({ member: member({ languages: ["Common"] }), featureGrants: [{ languages: ["Common"] }] }),
+    );
+    expect(memberUpdate).not.toHaveProperty("languages");
+    expect(memberUpdate).not.toHaveProperty("tool_proficiencies");
+  });
+
+  it("turns a feature's spell pick into a row and records it in the entry", () => {
+    const due = [
+      {
+        featureId: "f1", featureName: "Divine Magic", picks: 1, replaceAllowed: false, existing: [],
+        choice: { key: "extra", label: "Spell", amount: 1, pick: { kind: "spell", lists: ["Cleric"], level: 0, free_cast: false } },
+      },
+    ] as unknown as BuildLevelUpPayloadInput["featureSpells"]["due"];
+    const { spellRows, memberUpdate } = buildLevelUpPayload(
+      baseInput({
+        featureSpells: {
+          due,
+          values: { "f1:extra": { picks: ["srd_guidance"], replace: null, asi: null, ability: { primary: null, secondary: null } } },
+          isFeat: () => false,
+          classHasSpellcasting: true,
+        },
+      }),
+    );
+    expect(spellRows).toContainEqual({ spell_id: "srd_guidance", is_prepared: true, always_prepared: true });
+    const entry = (memberUpdate.level_choices as Record<number, { feature_spells?: string[] }>)[4];
+    expect(entry.feature_spells).toEqual(["srd_guidance"]);
   });
 });

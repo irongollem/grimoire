@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ClassFeature } from "@/types/feature.types";
 import type { GrantedFeature } from "./characterFeatures";
 import { parseMechanics } from "./mechanics";
-import type { FeatureMechanics } from "./mechanics.types";
+import type { ChoicePick, FeatureMechanics } from "./mechanics.types";
 import {
   abilityDeltaFor,
   applyAbilityScoreIncreases,
@@ -14,6 +14,7 @@ import {
   swapsOffered,
   type LevelChoiceRecord,
   type OptionContext,
+  resolveSpellLists,
 } from "./levelUpChoices";
 
 function feat(id: string, name: string, extra: Partial<ClassFeature> = {}): ClassFeature {
@@ -84,7 +85,7 @@ const scores = { str: 12, dex: 12, con: 10, int: 10, wis: 10, cha: 10 };
 const ctx = (over: Partial<OptionContext> = {}): OptionContext => ({
   ruleset: "2024", className: "Fighter", classLevel: 4, characterLevel: 4, abilityScores: scores, skills: {},
   canCastSpells: false, armorProficiencies: new Set(), hasFightingStyleFeature: false, existing: [], takenFeatIds: [],
-  feats: [], metamagic: [], wildShapeForms: [], masteryWeapons: [], ...over,
+  feats: [], metamagic: [], wildShapeForms: [], masteryWeapons: [], spells: [], spellListVariant: null, ...over,
 });
 
 describe("optionsFor", () => {
@@ -182,5 +183,42 @@ describe("swapsOffered", () => {
     expect(swapsOffered({ ...input, optionalRuleOn: false })).toEqual([]);
     expect(swapsOffered({ ...input, classChoices: { feature_swaps: { primeval_awareness: "natural" } } })).toEqual([]);
     expect(swapsOffered({ ...input, fromLevel: 3, toLevel: 4 })).toEqual([]);
+  });
+});
+
+describe("resolveSpellLists", () => {
+  const pick: Extract<ChoicePick, { kind: "spell" }> = { kind: "spell", lists: ["Cleric", "Druid", "Wizard"], level: 0, free_cast: false };
+  it("a single list is that list", () => {
+    expect(resolveSpellLists({ ...pick, lists: ["Wizard"] }, "Cleric")).toEqual(["Wizard"]);
+  });
+  it("a variant picks its list, ignoring case", () => {
+    expect(resolveSpellLists(pick, "druid")).toEqual(["Druid"]);
+  });
+  it("no variant, or one that names no list, is the union", () => {
+    expect(resolveSpellLists(pick, null)).toEqual(["Cleric", "Druid", "Wizard"]);
+    expect(resolveSpellLists(pick, "Bard")).toEqual(["Cleric", "Druid", "Wizard"]);
+  });
+});
+
+describe("optionsFor spell picks", () => {
+  const spells = [
+    { id: "s1", name: "Light", level: 0, classes: ["Cleric", "Wizard"] },
+    { id: "s2", name: "Druidcraft", level: 0, classes: ["Druid"] },
+    { id: "s3", name: "Bless", level: 1, classes: ["Cleric"] },
+    { id: "s4", name: "Fire Bolt", level: 0, classes: ["Wizard"] },
+    { id: "s5", name: "Loose", level: 0, classes: null },
+  ];
+  const pick: Extract<ChoicePick, { kind: "spell" }> = { kind: "spell", lists: ["Cleric", "Druid", "Wizard"], level: 0, free_cast: false };
+
+  it("filters by level and list, sorted by name", () => {
+    expect(optionsFor(pick, ctx({ spells })).map((o) => o.label)).toEqual(["Druidcraft", "Fire Bolt", "Light"]);
+    expect(optionsFor({ ...pick, level: 1 }, ctx({ spells })).map((o) => o.value)).toEqual(["s3"]);
+  });
+  it("narrows to the variant's list", () => {
+    expect(optionsFor(pick, ctx({ spells, spellListVariant: "Wizard" })).map((o) => o.value)).toEqual(["s4", "s1"]);
+  });
+  it("marks an existing pick Already chosen", () => {
+    const o = optionsFor(pick, ctx({ spells, spellListVariant: "Druid", existing: ["s2"] }));
+    expect(o).toEqual([{ value: "s2", label: "Druidcraft", unavailable: "Already chosen" }]);
   });
 });

@@ -16,6 +16,7 @@ import {
   type FeatCategory,
   type FeatPrerequisites,
   type FeatureChoice,
+  type FeatureGrants,
   type FeatureMechanics,
   type FeatureScaling,
   type FeatureToggle,
@@ -441,10 +442,73 @@ function parsePick(value: unknown, path: string, errors: string[]): ChoicePick |
       }
       return { kind: "custom", options };
     }
+    case "spell": {
+      if (!Array.isArray(value.lists)) {
+        errors.push(`${path}.lists: expected a list of class names`);
+        return null;
+      }
+      const lists = uniqueNames(value.lists);
+      if (lists.length === 0 || lists.length !== value.lists.length) {
+        errors.push(`${path}.lists: expected at least one non-empty class name`);
+        return null;
+      }
+      if (typeof value.level !== "number" || !Number.isInteger(value.level) || value.level < 0 || value.level > 9) {
+        errors.push(`${path}.level: expected a whole number from 0 (cantrips) to 9`);
+        return null;
+      }
+      if (value.free_cast !== undefined && typeof value.free_cast !== "boolean") {
+        errors.push(`${path}.free_cast: expected true or false`);
+        return null;
+      }
+      // Absent reads as false, like every other "does not do that" flag.
+      return { kind: "spell", lists, level: value.level, free_cast: value.free_cast === true };
+    }
     default:
       errors.push(`${path}: unknown kind '${String(value.kind)}'`);
       return null;
   }
+}
+
+/** Trimmed, non-empty, de-duplicated names; anything else is dropped. */
+function uniqueNames(list: readonly unknown[]): string[] {
+  const out: string[] = [];
+  for (const item of list) {
+    if (!isNonEmptyString(item)) continue;
+    const name = item.trim();
+    if (name !== "" && !out.includes(name)) out.push(name);
+  }
+  return out;
+}
+
+function parseGrants(value: unknown, errors: string[]): FeatureGrants | null {
+  if (!isRecord(value)) {
+    errors.push("grants: expected an object");
+    return null;
+  }
+  const grants: FeatureGrants = {};
+  if (value.skills !== undefined) {
+    if (!Array.isArray(value.skills)) errors.push("grants.skills: expected a list of skills");
+    else {
+      const skills: SkillKey[] = [];
+      for (const s of value.skills) {
+        if (!isKey(s)) errors.push(`grants.skills: '${String(s)}' is not a skill key`);
+        else if (!skills.includes(s as SkillKey)) skills.push(s as SkillKey);
+      }
+      if (skills.length > 0) grants.skills = skills;
+    }
+  }
+  for (const field of ["tools", "languages"] as const) {
+    const raw = value[field];
+    if (raw === undefined) continue;
+    if (!Array.isArray(raw)) {
+      errors.push(`grants.${field}: expected a list of names`);
+      continue;
+    }
+    const names = uniqueNames(raw);
+    if (names.length !== raw.length) errors.push(`grants.${field}: expected non-empty, distinct names`);
+    if (names.length > 0) grants[field] = names;
+  }
+  return Object.keys(grants).length > 0 ? grants : null;
 }
 
 function parseCount(value: unknown, path: string, errors: string[]): ChoiceCount | null {
@@ -552,6 +616,10 @@ export function parseMechanics(value: unknown): { mechanics: FeatureMechanics; e
   if (value.choices !== undefined) {
     const choices = parseChoices(value.choices, errors);
     if (choices) mechanics.choices = choices;
+  }
+  if (value.grants !== undefined) {
+    const grants = parseGrants(value.grants, errors);
+    if (grants) mechanics.grants = grants;
   }
   if (value.replaces !== undefined) {
     if (isNonEmptyString(value.replaces)) mechanics.replaces = value.replaces;

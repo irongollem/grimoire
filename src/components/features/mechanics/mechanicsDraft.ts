@@ -4,6 +4,7 @@ import type {
   ChoicePick,
   DamageRider,
   FeatureChoice,
+  FeatureGrants,
   FeatureMechanics,
   FeatureToggle,
   FeatureUses,
@@ -96,6 +97,7 @@ export const PICK_KINDS = [
   { value: "expertise", label: "Expertise" },
   { value: "skill", label: "Skill proficiencies" },
   { value: "custom", label: "A list of your own" },
+  { value: "spell", label: "Spells from a class list" },
 ] as const satisfies ReadonlyArray<{ value: ChoicePick["kind"]; label: string }>;
 
 export function pickOfKind(kind: ChoicePick["kind"]): ChoicePick {
@@ -106,6 +108,7 @@ export function pickOfKind(kind: ChoicePick["kind"]): ChoicePick {
     case "expertise": return { kind: "expertise", thieves_tools: false };
     case "skill": return { kind: "skill", from: [] };
     case "custom": return { kind: "custom", options: [] };
+    case "spell": return { kind: "spell", lists: ["Wizard"], level: 0, free_cast: false };
   }
 }
 
@@ -138,5 +141,58 @@ export function tidyMechanics(mechanics: FeatureMechanics): FeatureMechanics {
   if (next.riders && next.riders.length === 0) delete next.riders;
   if (next.actions && next.actions.length === 0) delete next.actions;
   if (next.choices && next.choices.length === 0) delete next.choices;
+  if (next.grants) {
+    const grants = { ...next.grants };
+    if (grants.skills && grants.skills.length === 0) delete grants.skills;
+    if (grants.tools && grants.tools.length === 0) delete grants.tools;
+    if (grants.languages && grants.languages.length === 0) delete grants.languages;
+    if (Object.keys(grants).length === 0) delete next.grants;
+    else next.grants = grants;
+  }
   return next;
+}
+
+// ── Spell picks ───────────────────────────────────────────────────────────────
+
+type SpellPick = Extract<ChoicePick, { kind: "spell" }>;
+
+/** The classes whose spell lists a pick can draw from, in the order they are offered. */
+export const SPELL_LIST_CLASSES = ["Artificer", "Bard", "Cleric", "Druid", "Paladin", "Ranger", "Sorcerer", "Warlock", "Wizard"] as const;
+
+export const SPELL_LEVEL_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
+  { value: 0, label: "Cantrips" },
+  ...["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"].map((label, i) => ({ value: i + 1, label })),
+];
+
+/** The standard lists, then any other name already on the pick (a homebrew class), each once. */
+export function spellListChoices(lists: readonly string[]): string[] {
+  const extra = lists.filter((l) => !(SPELL_LIST_CLASSES as readonly string[]).includes(l));
+  return [...SPELL_LIST_CLASSES, ...new Set(extra)];
+}
+
+/** Ticks or unticks a list. The last list cannot be removed: a pick with no list offers nothing. */
+export function toggleSpellList(pick: SpellPick, list: string, on: boolean): SpellPick {
+  const rest = pick.lists.filter((l) => l !== list);
+  const lists = on ? [...rest, list] : rest;
+  return lists.length === 0 ? pick : { ...pick, lists };
+}
+
+/** Adds a class name's list, trimmed; blank or already present leaves the pick as it was. */
+export function addSpellList(pick: SpellPick, name: string): SpellPick {
+  const trimmed = name.trim();
+  if (trimmed === "") return pick;
+  if (pick.lists.some((l) => l.toLowerCase() === trimmed.toLowerCase())) return pick;
+  return { ...pick, lists: [...pick.lists, trimmed] };
+}
+
+/** Cantrips are never cast "for free", so switching to level 0 clears that. */
+export function setSpellLevel(pick: SpellPick, level: number): SpellPick {
+  return { ...pick, level, free_cast: level === 0 ? false : pick.free_cast };
+}
+
+// ── Granted proficiencies ─────────────────────────────────────────────────────
+
+/** The starting value for the "Proficiencies granted" part; `tidyMechanics` drops it again if left empty. */
+export function newGrants(): FeatureGrants {
+  return {};
 }

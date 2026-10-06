@@ -39,6 +39,14 @@ describe("SRD 2024 catalogue", () => {
     }
   });
 
+  it("Magic Initiate asks for two cantrips and a free-cast first-level spell", () => {
+    const picks = SRD_2024_FEATS["srd-2024_magic-initiate"].mechanics.choices?.map((c) => [c.pick, c.count]);
+    expect(picks).toEqual([
+      [{ kind: "spell", lists: ["Cleric", "Druid", "Wizard"], level: 0, free_cast: false }, { kind: "per_grant", amount: 2 }],
+      [{ kind: "spell", lists: ["Cleric", "Druid", "Wizard"], level: 1, free_cast: true }, { kind: "per_grant", amount: 1 }],
+    ]);
+  });
+
   it("every feat passes its validators", () => {
     expect(Object.keys(SRD_2024_FEATS)).toHaveLength(17);
     for (const [key, feat] of Object.entries(SRD_2024_FEATS)) {

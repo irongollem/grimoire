@@ -76,6 +76,24 @@ function describeRider(rider: DamageRider): string {
   return parts.join(", ");
 }
 
+function joinNames(names: readonly string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+}
+
+function ordinal(n: number): string {
+  const suffixes: Record<number, string> = { 1: "st", 2: "nd", 3: "rd" };
+  const tail = n >= 11 && n <= 13 ? "th" : Object.hasOwn(suffixes, n % 10) ? suffixes[n % 10] : "th";
+  return `${n}${tail}`;
+}
+
+/** "cantrips from the Wizard list"; the count wording ("2 each time") is the caller's. */
+function describeSpellPick(pick: Extract<ChoicePick, { kind: "spell" }>): string {
+  const what = pick.level === 0 ? "cantrips" : `${ordinal(pick.level)}-level spells`;
+  const free = pick.free_cast && pick.level > 0 ? ", castable once per long rest without a slot" : "";
+  return `${what} from the ${joinNames(pick.lists)} ${pick.lists.length === 1 ? "list" : "lists"}${free}`;
+}
+
 function describePick(pick: ChoicePick): string {
   switch (pick.kind) {
     case "feat": return pick.categories === null ? "a feat" : `a feat (${pick.categories.join(", ").replace(/_/g, " ")})`;
@@ -84,6 +102,7 @@ function describePick(pick: ChoicePick): string {
     case "skill": return pick.from.length === 0 ? "skill proficiencies" : `skill proficiencies (${pick.from.length} offered)`;
     case "option": return pick.set.replace(/_/g, " ");
     case "custom": return pick.options.length > 0 ? pick.options.join(", ") : "a custom list";
+    case "spell": return describeSpellPick(pick);
   }
 }
 
@@ -118,6 +137,13 @@ export function summarizeMechanics(mechanics: FeatureMechanics): SummaryGroup[] 
       heading: "Lets you",
       lines: mechanics.actions.map((a) => `${a.name} (${ACTIVATION_LABELS[a.activation]})${a.spends ? `, spends ${a.spends.amount} ${a.spends.key}` : ""}`),
     });
+  }
+  if (mechanics.grants) {
+    const lines: string[] = [];
+    if (mechanics.grants.skills) lines.push(`Skills: ${mechanics.grants.skills.map((s) => s.replace(/_/g, " ")).join(", ")}`);
+    if (mechanics.grants.tools) lines.push(`Tools: ${mechanics.grants.tools.join(", ")}`);
+    if (mechanics.grants.languages) lines.push(`Languages: ${mechanics.grants.languages.join(", ")}`);
+    groups.push({ heading: "Proficiency", lines });
   }
   if (mechanics.choices) groups.push({ heading: "Choices", lines: mechanics.choices.map(describeChoice) });
   if (mechanics.replaces) groups.push({ heading: "Replaces", lines: [mechanics.replaces] });

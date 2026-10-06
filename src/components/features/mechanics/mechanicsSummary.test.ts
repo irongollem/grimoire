@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ChoicePick } from "@/rules/features/mechanics.types";
 import { describeAbilityIncrease, describeAmount, describePrerequisites, summarizeMechanics } from "./mechanicsSummary";
 
 describe("describeAmount", () => {
@@ -39,5 +40,26 @@ describe("feat summaries", () => {
     ]);
     expect(describeAbilityIncrease({ abilities: ["str", "dex"], amount: 1, split: false, max: 20 })).toBe("+1 to one of STR, DEX (maximum 20)");
     expect(describeAbilityIncrease(null)).toBeNull();
+  });
+});
+
+describe("spell picks and grants", () => {
+  const choice = (pick: ChoicePick) => ({ key: "k", label: "Spells", pick, count: { kind: "per_grant", amount: 2 } as const, replace_on_level_up: false });
+  it("describes cantrips and a free-cast levelled spell", () => {
+    const groups = summarizeMechanics({
+      choices: [
+        choice({ kind: "spell", lists: ["Wizard"], level: 0, free_cast: false }),
+        choice({ kind: "spell", lists: ["Cleric", "Druid", "Wizard"], level: 1, free_cast: true }),
+      ],
+    });
+    expect(groups[0].lines).toEqual([
+      "Spells: cantrips from the Wizard list, 2 each time",
+      "Spells: 1st-level spells from the Cleric, Druid or Wizard lists, castable once per long rest without a slot, 2 each time",
+    ]);
+  });
+  it("lists fixed grants", () => {
+    expect(summarizeMechanics({ grants: { skills: ["arcana"], tools: ["Thieves' Tools"], languages: ["Elvish"] } })).toEqual([
+      { heading: "Proficiency", lines: ["Skills: arcana", "Tools: Thieves' Tools", "Languages: Elvish"] },
+    ]);
   });
 });

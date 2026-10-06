@@ -39,6 +39,9 @@ import {
   type FeatureMap,
 } from "./levelUpProjection";
 import { useMasteryWeapons } from "./useMasteryWeapons";
+import { useSpellIndex } from "@/composables/spells/useSpellIndex";
+import type { FeatureSpellInput } from "./featureGrants";
+import type { FeatureGrants } from "@/rules/features/mechanics.types";
 
 export interface LevelUpFeaturesInput {
   member: () => PartyMember;
@@ -55,6 +58,8 @@ export interface LevelUpFeaturesInput {
   /** The chosen class's weapon proficiencies, for Weapon Mastery. */
   weaponProficiencies: ComputedRef<string[]>;
   canCastSpells: ComputedRef<boolean>;
+  /** Whether the class being levelled has a spellcasting progression; decides how a feature's spell pick is stored. */
+  classHasSpellcasting: ComputedRef<boolean>;
   armorProficiencies: ComputedRef<PrerequisiteCharacter["armorProficiencies"]>;
   tashasOn: ComputedRef<boolean>;
   values: Ref<Record<string, ChoiceValue>>;
@@ -186,6 +191,20 @@ export function useLevelUpFeatures(input: LevelUpFeaturesInput) {
     () => ({ enabled: needsForms.value }),
   );
 
+  // The spell index is only worth fetching once a spell pick is owed.
+  const needsSpells = computed(() => due.value.some((d) => d.choice.pick.kind === "spell"));
+  const { data: spellIndex } = useSpellIndex(() => ({ enabled: needsSpells.value }));
+
+  /**
+   * The variant that narrows an entry's spell lists: only the character's origin feat
+   * has one ("Wizard" for Magic Initiate (Wizard)), kept in `class_choices` beside its id.
+   */
+  function spellVariantFor(entry: Pick<DueChoice, "featureId">): string | null {
+    const choices = baseChoices.value;
+    const isOrigin = typeof choices.origin_feat_id === "string" && choices.origin_feat_id === entry.featureId;
+    return isOrigin && typeof choices.origin_feat_variant === "string" ? choices.origin_feat_variant : null;
+  }
+
   const optionContext = computed<Omit<OptionContext, "existing">>(() => {
     const m = input.member();
     return {
@@ -205,6 +224,9 @@ export function useLevelUpFeatures(input: LevelUpFeaturesInput) {
       metamagic: metamagic.value,
       wildShapeForms: forms.value.map((f) => ({ id: f.id, name: f.name })),
       masteryWeapons: masteryWeapons.value.map((w) => ({ name: w.name })),
+      spells: spellIndex.value === undefined ? [] : spellIndex.value,
+      // Per entry, so it is set where the entry is drawn (`spellVariantFor`).
+      spellListVariant: null,
       // A Warlock takes the boon and the invocations that need it at the same level; the picker overrides this with that pick.
       pactBoon: storedPicks(baseChoices.value, "pact_boon")[0] ?? null,
     };
@@ -221,6 +243,26 @@ export function useLevelUpFeatures(input: LevelUpFeaturesInput) {
       masteryIdByName: idByName.value,
     }),
   );
+
+  const gained = computed(() => gainedAtLevel(grantedAfter.value, input.className.value, input.classLevel.value));
+  // Features that come into force at this level: the class and subclass ones gained, and the feats taken.
+  // A character taking its first level (creation) takes its origin feat with it; at any later level it is already held.
+  const grantedNow = computed(() => {
+    const firstLevel = input.member().level === 0;
+    const feats = grantedAfter.value.filter(
+      (g) =>
+        g.grant.kind === "feat" &&
+        (pickedFeats.value.includes(g.feature.id) || (firstLevel && g.grant.via === "origin")),
+    );
+    return [...gained.value, ...feats];
+  });
+  const featureGrants = computed<(FeatureGrants | undefined)[]>(() => grantedNow.value.map((g) => g.mechanics.grants));
+  const featureSpells = computed<Omit<FeatureSpellInput, "existingSpellIds">>(() => ({
+    due: due.value,
+    values: input.values.value,
+    isFeat: (id) => featuresById.value.get(id)?.kind === "feat",
+    classHasSpellcasting: input.classHasSpellcasting.value,
+  }));
 
   const scoresAfter = computed(() => applyAbilityScoreIncreases(scoresOf(input.member()), resolved.value.record.abilityIncreases));
 
@@ -250,7 +292,6 @@ export function useLevelUpFeatures(input: LevelUpFeaturesInput) {
     }),
   );
 
-  const gained = computed(() => gainedAtLevel(grantedAfter.value, input.className.value, input.classLevel.value));
   const scaling = computed(() => scalingChanges(grantedBefore.value, grantedAfter.value));
   const pools = computed(() => poolChanges(poolsBefore.value, poolsAfter.value));
   const classResources = computed<StoredClassResources>(() => classResourcesFor(poolsAfter.value, input.member().class_resources));
@@ -266,6 +307,9 @@ export function useLevelUpFeatures(input: LevelUpFeaturesInput) {
     due,
     swapOffers,
     optionContext,
+    spellVariantFor,
+    featureGrants,
+    featureSpells,
     resolved,
     classResources,
     masteryWeapons,

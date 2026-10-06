@@ -2,6 +2,9 @@ import { applyLevelChoices, type LevelChoiceRecord } from "@/rules/features/leve
 import type { StoredClassResources } from "@/rules/features/characterFeatures";
 import type { AbilityKey, AsiMode } from "@/rules/characterCreation";
 import { applyMasteryChanges, applySkillChanges, type ResolvedPicks } from "@/levelup/levelPicks";
+import { applyFeatureGrants, featureSpellRows, mergeSkillChanges, type FeatureSpellInput } from "@/levelup/featureGrants";
+import type { SpellRow } from "@/levelup/buildLevelUpPayload";
+import type { FeatureGrants } from "@/rules/features/mechanics.types";
 import type { LevelChoiceEntry, LevelChoices, SkillProficiencies } from "@/types/party.types";
 
 /**
@@ -72,7 +75,13 @@ export interface LevelOneInput {
   classChoices: Record<string, unknown>;
   skills: SkillProficiencies;
   masteries: readonly string[];
+  tools: readonly string[];
+  languages: readonly string[];
   picks: ResolvedPicks;
+  /** Fixed grants of the features and feats in force at level 1 (the origin feat included). */
+  featureGrants: readonly (FeatureGrants | undefined)[];
+  /** The level's spell picks; the character holds no spells yet, so nothing is skipped as already known. */
+  featureSpells: Omit<FeatureSpellInput, "existingSpellIds">;
   /** `class_resources` from the projected pools, level 1 maxima. */
   classResources: StoredClassResources;
   className: string;
@@ -84,9 +93,13 @@ export interface LevelOneInput {
 export interface LevelOneWrites {
   class_choices: Record<string, unknown>;
   skill_proficiencies: SkillProficiencies;
+  tool_proficiencies: string[];
+  languages: string[];
   weapon_masteries: string[];
   class_resources: StoredClassResources;
   level_choices: LevelChoices;
+  /** `character_spells` rows the spell picks become; written once the class row exists. */
+  spellRows: SpellRow[];
 }
 
 /**
@@ -98,6 +111,11 @@ export interface LevelOneWrites {
  */
 export function levelOneWrites(input: LevelOneInput): LevelOneWrites {
   const { picks } = input;
+  // What the features give outright lands on top of the picks, as a level-up does it.
+  const skillsAfterPicks = applySkillChanges(input.skills, picks.skills, "apply");
+  const grants = applyFeatureGrants({ skills: skillsAfterPicks, tools: input.tools, languages: input.languages }, input.featureGrants);
+  const levelSkills = mergeSkillChanges(picks.skills, grants.skills);
+  const spells = featureSpellRows({ ...input.featureSpells, existingSpellIds: new Set() });
   const level_choices: LevelChoices = {};
   if (input.classDefinitionId !== null) {
     const entry: LevelChoiceEntry = {
@@ -106,18 +124,35 @@ export function levelOneWrites(input: LevelOneInput): LevelOneWrites {
       is_new_class: true,
       hp_gained: input.hpGained,
       record: picks.record,
-      skills: picks.skills,
+      skills: levelSkills,
       masteries: picks.masteries,
+      granted_profs: grants.granted,
+      feature_spells: spells.spellIds,
     };
     level_choices[1] = entry;
   }
   return {
     class_choices: isEmptyRecord(picks.record) ? input.classChoices : applyLevelChoices(input.classChoices, picks.record),
-    skill_proficiencies: Object.keys(picks.skills).length > 0
-      ? applySkillChanges(input.skills, picks.skills, "apply")
-      : input.skills,
+    skill_proficiencies: Object.keys(levelSkills).length > 0 ? applySkillChanges(input.skills, levelSkills, "apply") : input.skills,
+    tool_proficiencies: grants.tools,
+    languages: grants.languages,
     weapon_masteries: applyMasteryChanges(input.masteries, picks.masteries, "apply"),
     class_resources: input.classResources,
     level_choices,
+    spellRows: spells.rows,
   };
+}
+
+/**
+ * The feature spell rows as `character_spells` inserts. A class row (one with no
+ * source of its own) is pinned to the character's class row, which exists only
+ * once it has been inserted: at level-up the server fills that in, at creation
+ * nothing does. Feat and "other" rows stand alone.
+ */
+export function characterSpellInserts(partyMemberId: string, rows: readonly SpellRow[], classRowId: string | null) {
+  return rows.map((row) => {
+    if (row.source_type !== undefined) return { ...row, party_member_id: partyMemberId };
+    if (classRowId === null) throw new Error("A class feature's spell has no class to belong to.");
+    return { ...row, party_member_id: partyMemberId, source_type: "class", source_class_id: classRowId };
+  });
 }

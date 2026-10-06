@@ -80,6 +80,10 @@ export interface LevelChoiceEntry {
   cantrips_learned?: string[];
   /** Tool proficiencies a new class gave, taken back with the class. */
   new_class_profs?: string[];
+  /** Tools and languages the level's features gave outright (#994); a de-level removes exactly these. */
+  granted_profs?: { tools: string[]; languages: string[] };
+  /** Spells the level's feature picks added to the sheet (#994), taken back with the level. */
+  feature_spells?: string[];
   /**
    * What the level chose, exactly enough to take it back. Every level has one:
    * history written before #976 was converted by migration 20261005181020.

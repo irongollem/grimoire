@@ -7,7 +7,7 @@ import { parseMechanics } from "@/rules/features/mechanics";
 import type { FeatureMechanics } from "@/rules/features/mechanics.types";
 import { resolveOriginFeat, unresolvedOriginFeatMessage, withOriginFeat } from "@/rules/backgroundAsi";
 import type { ClassFeature } from "@/types/feature.types";
-import { levelOneWrites, scoresAfterBonuses } from "./creationLevelOne";
+import { characterSpellInserts, levelOneWrites, scoresAfterBonuses } from "./creationLevelOne";
 
 function classFeature(id: string, name: string, className: string, mechanics: FeatureMechanics): GrantedFeature {
   const feature = { id, name, kind: "feature", mechanics, conceptual_key: null } as unknown as ClassFeature;
@@ -33,7 +33,10 @@ function takeLevelOne(granted: GrantedFeature[], className: string, answers: str
   return { due, picks };
 }
 
-const base = { masteries: [], classResources: {}, hpGained: 9 };
+const base = {
+  masteries: [], tools: [], languages: [], classResources: {}, hpGained: 9,
+  featureGrants: [], featureSpells: { due: [], values: {}, isFeat: () => false, classHasSpellcasting: false },
+};
 
 describe("level 1 choices at creation", () => {
   it("a 2014 Rogue records two expertise picks in level_choices[1] and sets the skills", () => {
@@ -118,6 +121,58 @@ describe("origin feat at creation", () => {
     const resolved = resolveOriginFeat({ name: "Crusher", variant: null }, [alert], "2024");
     expect(resolved?.feature).toBeNull();
     expect(unresolvedOriginFeatMessage("Crusher")).toBe("This background's origin feat, Crusher, is not in this table's books.");
+  });
+});
+
+describe("fixed grants and spell picks at level 1", () => {
+  it("adds only what the character lacks, records it, and merges skill changes into the entry", () => {
+    const { picks } = takeLevelOne([], "Wizard", []);
+    const writes = levelOneWrites({
+      ...base, classChoices: {}, skills: { arcana: "proficient" }, tools: ["Thieves' Tools"], languages: ["Common"],
+      picks, className: "Wizard", classDefinitionId: "wiz",
+      featureGrants: [{ skills: ["arcana", "history"], tools: ["thieves' tools", "Herbalism Kit"], languages: ["Draconic"] }],
+    });
+    expect(writes.skill_proficiencies).toEqual({ arcana: "proficient", history: "proficient" });
+    expect(writes.tool_proficiencies).toEqual(["Thieves' Tools", "Herbalism Kit"]);
+    expect(writes.languages).toEqual(["Common", "Draconic"]);
+    expect(writes.level_choices[1]).toMatchObject({
+      skills: { history: { from: null, to: "proficient" } },
+      granted_profs: { tools: ["Herbalism Kit"], languages: ["Draconic"] },
+    });
+  });
+
+  it("turns a feat's spell pick into feat rows and records the ids in the entry", () => {
+    const magicInitiate = classFeature("mi", "Magic Initiate", "Wizard", {
+      choices: [{ key: "mi_spell", label: "Spell", pick: { kind: "spell", lists: ["Wizard"], level: 1, free_cast: true }, count: { kind: "per_grant", amount: 1 }, replace_on_level_up: false }],
+    });
+    const due = choicesDue({ granted: [magicInitiate], className: "Wizard", fromLevel: 0, toLevel: 1, characterLevelAfter: 1, classChoices: {} });
+    const values = { [dueKey(due[0])]: picked(["srd_srd_shield"]) };
+    const { picks } = takeLevelOne([], "Wizard", []);
+    const writes = levelOneWrites({
+      ...base, classChoices: {}, skills: {}, picks, className: "Wizard", classDefinitionId: "wiz",
+      featureSpells: { due, values, isFeat: () => true, classHasSpellcasting: true },
+    });
+    expect(writes.spellRows).toEqual([
+      { spell_id: "srd_srd_shield", source_type: "feat", source_label: "Magic Initiate", is_prepared: false, uses_per_day: 1, uses_remaining: 1, resets_on: "long_rest" },
+    ]);
+    expect(writes.level_choices[1].feature_spells).toEqual(["srd_srd_shield"]);
+  });
+});
+
+describe("characterSpellInserts", () => {
+  it("pins a class row to the class row and leaves feat rows alone", () => {
+    const rows = [
+      { spell_id: "a", is_prepared: true, always_prepared: true },
+      { spell_id: "b", source_type: "feat", source_label: "Magic Initiate", is_prepared: false },
+    ];
+    expect(characterSpellInserts("pm", rows, "cls")).toEqual([
+      { spell_id: "a", is_prepared: true, always_prepared: true, party_member_id: "pm", source_type: "class", source_class_id: "cls" },
+      { spell_id: "b", source_type: "feat", source_label: "Magic Initiate", is_prepared: false, party_member_id: "pm" },
+    ]);
+  });
+
+  it("refuses a class row when there is no class row", () => {
+    expect(() => characterSpellInserts("pm", [{ spell_id: "a" }], null)).toThrow();
   });
 });
 

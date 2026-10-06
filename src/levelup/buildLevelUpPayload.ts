@@ -7,6 +7,7 @@
 
 import { ELDRITCH_INVOCATIONS_MAP } from "@/data/eldritchInvocations";
 import type { AbilityKey } from "@/rules/characterCreation";
+import type { FeatureGrants } from "@/rules/features/mechanics.types";
 import {
   classResourcesChanged,
   type StoredClassResources,
@@ -22,6 +23,7 @@ import type {
   LevelChoiceEntry,
   LevelChoices,
 } from "@/types/party.types";
+import { applyFeatureGrants, mergeSkillChanges, type FeatureSpellInput, featureSpellRows } from "./featureGrants";
 import { applyMasteryChanges, applySkillChanges, type ResolvedPicks } from "./levelPicks";
 import { subclassGrantedSpellRows } from "./subclassGrantedSpells";
 
@@ -104,6 +106,10 @@ export interface BuildLevelUpPayloadInput {
   grantedSpellsForThisLevel: string[];
   /** All spell ids the character already has — granted spells skip these. */
   existingSpellIds: Set<string>;
+  /** The `grants` of every feature newly granted at this level (class, subclass, and the feats taken). */
+  featureGrants: (FeatureGrants | undefined)[];
+  /** What the level's spell picks need to become rows; `existingSpellIds` is added here. */
+  featureSpells: Omit<FeatureSpellInput, "existingSpellIds">;
 }
 
 const ABILITIES: AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
@@ -125,7 +131,7 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
     subclassInput, subclassDefinitionId,
     selectedSpellIds, selectedCantripIds, newClassName,
     newClassDefinitionId, newClassDefinitionKind,
-    grantedSpellsForThisLevel, existingSpellIds,
+    grantedSpellsForThisLevel, existingSpellIds, featureGrants, featureSpells,
   } = input;
 
   const update: Record<string, unknown> = {
@@ -182,9 +188,18 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
 
   // The level's picks: class_choices, Expertise and new skills, Weapon Mastery.
   if (!isEmptyRecord(picks.record)) update.class_choices = applyLevelChoices(member.class_choices, picks.record);
-  if (Object.keys(picks.skills).length > 0) {
-    update.skill_proficiencies = applySkillChanges(member.skill_proficiencies, picks.skills, "apply");
+  // What the features give outright lands on top of the picks, so a skill picked and granted in one level is not counted twice.
+  const skillsAfterPicks = applySkillChanges(member.skill_proficiencies, picks.skills, "apply");
+  const grants = applyFeatureGrants(
+    { skills: skillsAfterPicks, tools: (update.tool_proficiencies as string[] | undefined) ?? member.tool_proficiencies, languages: member.languages },
+    featureGrants,
+  );
+  const levelSkills = mergeSkillChanges(picks.skills, grants.skills);
+  if (Object.keys(levelSkills).length > 0) {
+    update.skill_proficiencies = applySkillChanges(member.skill_proficiencies, levelSkills, "apply");
   }
+  if (grants.granted.tools.length > 0) update.tool_proficiencies = grants.tools;
+  if (grants.granted.languages.length > 0) update.languages = grants.languages;
   if (picks.masteries.added.length > 0 || picks.masteries.removed.length > 0) {
     update.weapon_masteries = applyMasteryChanges(member.weapon_masteries, picks.masteries, "apply");
   }
@@ -204,9 +219,10 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
     is_new_class: isAddingNewClass,
     hp_gained: hpGain,
     record: picks.record,
-    skills: picks.skills,
+    skills: levelSkills,
     masteries: picks.masteries,
   };
+  if (grants.granted.tools.length > 0 || grants.granted.languages.length > 0) choiceEntry.granted_profs = grants.granted;
   if (needsSubclassChoice && subclass) choiceEntry.subclass = subclass;
   if (selectedSpellIds.size > 0) choiceEntry.spells_learned = [...selectedSpellIds];
   if (selectedCantripIds.size > 0) choiceEntry.cantrips_learned = [...selectedCantripIds];
@@ -271,6 +287,14 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
       uses_remaining: usesPerDay,
       resets_on: usesPerDay !== null ? "long_rest" : null,
     });
+  }
+
+  // Spells a feature's pick adds (a feat's cantrip, a class feature's "counts as a cleric spell").
+  const taken = new Set(spellRows.map((r) => r.spell_id));
+  const fromFeatures = featureSpellRows({ ...featureSpells, existingSpellIds: new Set([...existingSpellIds, ...taken]) });
+  spellRows.push(...fromFeatures.rows);
+  if (fromFeatures.spellIds.length > 0) {
+    choiceEntry.feature_spells = fromFeatures.spellIds;
   }
 
   return { memberUpdate: update, classOp, spellRows };

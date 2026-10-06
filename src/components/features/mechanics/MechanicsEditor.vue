@@ -76,6 +76,10 @@
       </ListEditor>
     </MechSection>
 
+    <MechSection v-if="mechanics.grants" title="Proficiencies granted" hint="Given outright when the feature is gained, with no choice." @remove="set('grants', undefined)">
+      <GrantsFields :grants="mechanics.grants" @update:grants="set('grants', $event)" />
+    </MechSection>
+
     <MechSection v-if="mechanics.replaces !== undefined" title="Replaces" hint="An optional feature a table can take instead of another of the same class." @remove="set('replaces', undefined)">
       <MechField label="Key of the feature it replaces">
         <AppInput :model-value="mechanics.replaces" tone="card" size="body" placeholder="natural-explorer" @update:model-value="set('replaces', String($event))" />
@@ -98,6 +102,7 @@ import type { Activation, FeatureMechanics } from "@/rules/features/mechanics.ty
 import {
   ACTIVATION_OPTIONS,
   newChoice,
+  newGrants,
   newRider,
   newSubAction,
   newToggle,
@@ -107,6 +112,7 @@ import {
 } from "./mechanicsDraft";
 import ByLevelTable from "./ByLevelTable.vue";
 import ChoiceFields from "./ChoiceFields.vue";
+import GrantsFields from "./GrantsFields.vue";
 import ListEditor from "./ListEditor.vue";
 import MechField from "./MechField.vue";
 import MechSection from "./MechSection.vue";
@@ -125,7 +131,12 @@ const { mechanics, errors = [] } = defineProps<{ mechanics: FeatureMechanics; er
 const emit = defineEmits<{ "update:mechanics": [value: FeatureMechanics] }>();
 
 function set<K extends keyof FeatureMechanics>(key: K, value: FeatureMechanics[K] | undefined) {
-  emit("update:mechanics", tidyMechanics(withPart(mechanics, key, value)));
+  const next = withPart(mechanics, key, value);
+  const tidy = tidyMechanics(next);
+  // An empty grants part stays while it is being edited (it is what "Proficiencies
+  // granted" adds); whoever saves the draft tidies it away.
+  if (next.grants) tidy.grants = next.grants;
+  emit("update:mechanics", tidy);
 }
 
 function setActivation(value: Activation | "") {
@@ -141,6 +152,7 @@ const addable = computed(() => {
   if (!mechanics.riders) out.push({ label: "Add a damage rider", add: () => set("riders", [newRider()]) });
   if (!mechanics.actions) out.push({ label: "Add actions it allows", add: () => set("actions", [newSubAction()]) });
   if (!mechanics.choices) out.push({ label: "Add a choice", add: () => set("choices", [newChoice()]) });
+  if (!mechanics.grants) out.push({ label: "Proficiencies granted", add: () => set("grants", newGrants()) });
   if (mechanics.replaces === undefined) out.push({ label: "Replaces another feature", add: () => set("replaces", "") });
   return out;
 });

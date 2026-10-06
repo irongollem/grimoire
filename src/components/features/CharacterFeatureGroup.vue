@@ -29,19 +29,19 @@
 
 <script setup lang="ts">
 import CharacterFeatureCard from "@/components/features/CharacterFeatureCard.vue";
-import { picksFor, type FeaturePick } from "@/components/features/featurePicks";
+import { grantsPick, picksFor, type FeaturePick, type PickNames } from "@/components/features/featurePicks";
 import type { GrantedFeature, ResourcePool } from "@/rules/features/characterFeatures";
 import type { Remaining } from "@/rules/features/uses";
 
 /** A titled list of feature cards: one class (with its subclass) or the feats. */
-const { title, subtitle = null, features, pools, remaining, classChoices, nameOfId, readonly = false, emptyText = "Nothing here yet." } = defineProps<{
+const { title, subtitle = null, features, pools, remaining, classChoices, names, readonly = false, emptyText = "Nothing here yet." } = defineProps<{
   title: string;
   subtitle?: string | null;
   features: GrantedFeature[];
   pools: readonly ResourcePool[];
   remaining: (key: string) => Remaining;
   classChoices: Record<string, unknown>;
-  nameOfId: (id: string) => string | null;
+  names: PickNames;
   readonly?: boolean;
   emptyText?: string;
 }>();
@@ -53,7 +53,8 @@ const emit = defineEmits<{
 }>();
 
 function picksOf(g: GrantedFeature): FeaturePick[] {
-  return picksFor(g.mechanics, classChoices, nameOfId);
+  const grants = grantsPick(g.mechanics);
+  return grants === null ? picksFor(g.mechanics, classChoices, names) : [...picksFor(g.mechanics, classChoices, names), grants];
 }
 
 /** The background's choice baked into its origin feat ("Wizard" for Magic Initiate). */

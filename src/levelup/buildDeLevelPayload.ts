@@ -82,6 +82,16 @@ export function buildDeLevelPayload(input: BuildDeLevelInput): DeLevelPayload {
   if (entry.new_class_profs && entry.new_class_profs.length > 0) {
     update.tool_proficiencies = member.tool_proficiencies.filter((p) => !entry.new_class_profs?.includes(p));
   }
+  // What the level's features gave outright (#994). A new class's tools and a feature's can both be in play.
+  const grantedTools = entry.granted_profs?.tools ?? [];
+  if (grantedTools.length > 0) {
+    const current = (update.tool_proficiencies as string[] | undefined) ?? member.tool_proficiencies;
+    update.tool_proficiencies = current.filter((p) => !grantedTools.includes(p));
+  }
+  const grantedLanguages = entry.granted_profs?.languages ?? [];
+  if (grantedLanguages.length > 0) {
+    update.languages = member.languages.filter((l) => !grantedLanguages.includes(l));
+  }
 
   if (classResourcesChanged(member.class_resources, input.classResources)) update.class_resources = input.classResources;
 
@@ -107,11 +117,19 @@ export function buildDeLevelPayload(input: BuildDeLevelInput): DeLevelPayload {
   update.level_choices = remainingChoices;
 
   // Spells to remove: learned at this level and not also at an earlier level.
-  const learnedHere = [...(entry.spells_learned ?? []), ...(entry.cantrips_learned ?? [])];
+  const learnedHere = [
+    ...(entry.spells_learned ?? []),
+    ...(entry.cantrips_learned ?? []),
+    ...(entry.feature_spells ?? []),
+  ];
   const earlier = new Set(
     Object.entries(member.level_choices)
       .filter(([lvl]) => parseInt(lvl, 10) < level)
-      .flatMap(([, e]) => [...(e.spells_learned ?? []), ...(e.cantrips_learned ?? [])]),
+      .flatMap(([, e]) => [
+      ...(e.spells_learned ?? []),
+      ...(e.cantrips_learned ?? []),
+      ...(e.feature_spells ?? []),
+    ]),
   );
   const spellIds = learnedHere.filter((id) => !earlier.has(id));
 

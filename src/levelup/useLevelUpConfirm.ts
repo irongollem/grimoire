@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
 import type { StoredClassResources } from "@/rules/features/characterFeatures";
-import { buildLevelUpPayload } from "./buildLevelUpPayload";
+import { buildLevelUpPayload, type BuildLevelUpPayloadInput } from "./buildLevelUpPayload";
 import type { ResolvedPicks } from "./levelPicks";
 
 export interface ConfirmOptions {
@@ -43,6 +43,9 @@ export interface ConfirmOptions {
   grantedSpellsForThisLevel: ComputedRef<string[]>;
   /** All spell ids the character already has — granted spells skip these. */
   existingSpellIds: ComputedRef<Set<string>>;
+  /** Proficiencies the features gained this level give, and the spell picks to turn into rows (#994). */
+  featureGrants: ComputedRef<BuildLevelUpPayloadInput["featureGrants"]>;
+  featureSpells: ComputedRef<BuildLevelUpPayloadInput["featureSpells"]>;
 }
 
 function errorMessage(e: unknown, fallback: string): string {
@@ -70,7 +73,7 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
       subclassInput, subclassDefinitionId,
       selectedSpellIds, selectedCantripIds, newClassName,
       newClassDefinitionId, newClassDefinitionKind,
-      grantedSpellsForThisLevel, existingSpellIds,
+      grantedSpellsForThisLevel, existingSpellIds, featureGrants, featureSpells,
     } = opts;
 
     // Backstop: a level-up must know which class entry it is bumping, or which
@@ -111,6 +114,8 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
         newClassDefinitionKind: newClassDefinitionKind.value,
         grantedSpellsForThisLevel: grantedSpellsForThisLevel.value,
         existingSpellIds: existingSpellIds.value,
+        featureGrants: featureGrants.value,
+        featureSpells: featureSpells.value,
       });
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Could not prepare the level up.";

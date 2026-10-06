@@ -35,7 +35,7 @@
         :pools="pools"
         :remaining="remaining"
         :class-choices="classChoices"
-        :name-of-id="nameOfId"
+        :names="names"
         :readonly="readonly"
         @spend="(key: string, amount: number) => emit('spend', key, amount)"
         @restore="(key: string, amount: number) => emit('restore', key, amount)"
@@ -48,7 +48,7 @@
         :pools="pools"
         :remaining="remaining"
         :class-choices="classChoices"
-        :name-of-id="nameOfId"
+        :names="names"
         :readonly="readonly"
         @spend="(key: string, amount: number) => emit('spend', key, amount)"
         @restore="(key: string, amount: number) => emit('restore', key, amount)"
@@ -60,8 +60,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import CharacterFeatureGroup from "@/components/features/CharacterFeatureGroup.vue";
-import { pickIdsOf } from "@/components/features/featurePicks";
+import { pickIdsOf, spellPickIdsOf, type PickNames } from "@/components/features/featurePicks";
 import { useFeaturesByIds } from "@/composables/rules/useFeatures";
+import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import type { GrantedFeature, ResourcePool } from "@/rules/features/characterFeatures";
 import type { Remaining } from "@/rules/features/uses";
 
@@ -123,7 +124,11 @@ const unknownPickIds = computed(() =>
 const { data: fetchedFeatures } = useFeaturesByIds(unknownPickIds);
 const fetchedNames = computed(() => new Map((fetchedFeatures.value ?? []).map((f) => [f.id, f.name])));
 
-function nameOfId(id: string): string | null {
-  return grantedNames.value.get(id) ?? fetchedNames.value.get(id) ?? null;
-}
+// A spell pick holds spell ids, which are not features: they resolve through the spells.
+const { data: spellsById } = useSpellsByIds(() => spellPickIdsOf(granted.map((g) => g.mechanics), classChoices));
+
+const names: PickNames = {
+  feature: (id) => grantedNames.value.get(id) ?? fetchedNames.value.get(id) ?? null,
+  spell: (id) => spellsById.value.get(id)?.name ?? null,
+};
 </script>
