@@ -156,3 +156,33 @@ export function installSwAutoUpdate(opts: SwAutoUpdateOptions): SwAutoUpdateHand
 
   return { takeNavigationReload: coordinator.takeNavigationReload };
 }
+
+/**
+ * Resolves once the newest deploy's worker controls this page, or after
+ * `timeoutMs`, whichever is first. Call it before a hard reload that is meant
+ * to land on the new build.
+ *
+ * Navigations are answered from the CONTROLLING worker's cached shell (see
+ * scripts/sw-template.js), so a reload sent while the new worker is still
+ * installing boots the old build again. That is how an update stranded the
+ * installed app on its splash: the old build's lazy chunk was gone, the
+ * stale-chunk reload landed back on the same old build, its once-guard had
+ * been spent, and nothing was left to move the page. Asking for an update
+ * first and waiting out an install in progress makes the one reload count.
+ * Never rejects: a reload that might land on the old build still beats none.
+ */
+export async function untilNewestWorkerControls(timeoutMs = 10_000): Promise<void> {
+  if (!("serviceWorker" in navigator)) return;
+  const sw = navigator.serviceWorker;
+  const deadline = new Promise<void>((resolve) => setTimeout(resolve, timeoutMs));
+  const handover = (async () => {
+    const registration = await sw.getRegistration();
+    if (!registration) return;
+    await registration.update().catch(() => {});
+    if (!registration.installing && !registration.waiting) return;
+    await new Promise<void>((resolve) => {
+      sw.addEventListener("controllerchange", () => resolve(), { once: true });
+    });
+  })().catch(() => {});
+  await Promise.race([handover, deadline]);
+}

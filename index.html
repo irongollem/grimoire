@@ -98,6 +98,10 @@
             <span class="dg-flag__strip" style="--i:27"></span>
           </span>
         </span>
+        <p id="boot-stuck" hidden>
+          Taking longer than it should.
+          <button type="button" id="boot-reload">Reload</button>
+        </p>
       </div>
     </div>
     <style>
@@ -163,6 +167,27 @@
       @media (prefers-reduced-motion: reduce) {
         #boot-splash .dg-flag__strip { animation: none; }
       }
+      #boot-stuck {
+        position: absolute;
+        bottom: max(3rem, env(safe-area-inset-bottom));
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 0;
+        font: 1rem/1.4 system-ui, sans-serif;
+        color: var(--boot-fg, #2b2520);
+      }
+      #boot-stuck[hidden] { display: none; }
+      #boot-stuck button:disabled { opacity: 0.6; }
+      #boot-stuck button {
+        padding: 0.5rem 1.5rem;
+        border: 1px solid currentColor;
+        border-radius: 0.5rem;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+      }
     </style>
     <script>
       try {
@@ -172,10 +197,49 @@
         }
         if (c && c.mode === "dark") {
           document.getElementById("boot-logo").src = "/brand/logo-dark.webp";
+          document.documentElement.style.setProperty("--boot-fg", "#ece4d6");
         }
       } catch (e) {
         // Blocked or corrupt storage: the default colours stand.
       }
+      // The way out of a boot that never finishes. An installed app has no
+      // reload button of its own, so without this the only escape was to kill
+      // it from the app switcher. Vue replaces #app on mount, so a splash
+      // still here after 12s is a boot that is stuck, not slow.
+      //
+      // The button waits for the newest deploy's worker before reloading, as
+      // untilNewestWorkerControls (src/lib/swAutoUpdate.ts) does in the app:
+      // a reload the old worker answers boots the build that just failed. The
+      // update is asked for as the button appears, so the install is usually
+      // done by the time it is tapped; the wait is bounded at 10s regardless.
+      setTimeout(function () {
+        var stuck = document.getElementById("boot-stuck");
+        if (!stuck) return;
+        stuck.hidden = false;
+        var sw = navigator.serviceWorker;
+        // Settles once the update check has answered, so `installing` is set
+        // by then if a newer deploy exists.
+        var registration = sw
+          ? sw.getRegistration().then(function (r) {
+              if (!r) return r;
+              return r.update().then(function () { return r; }, function () { return r; });
+            }).catch(function () {})
+          : Promise.resolve();
+        document.getElementById("boot-reload").addEventListener("click", function () {
+          this.disabled = true;
+          var reloaded = false;
+          function reload() {
+            if (reloaded) return;
+            reloaded = true;
+            location.reload();
+          }
+          setTimeout(reload, 10000);
+          registration.then(function (r) {
+            if (!r || (!r.installing && !r.waiting)) return reload();
+            sw.addEventListener("controllerchange", reload, { once: true });
+          }, reload);
+        });
+      }, 12000);
     </script>
 
     <!-- Vercel Web Analytics (#645). Loaded as a script rather than via

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { createMemoryHistory, createRouter, isNavigationFailure, NavigationFailureType } from "vue-router";
-import { createReloadCoordinator, installNavigationReload } from "@/lib/swAutoUpdate";
+import { createReloadCoordinator, installNavigationReload, untilNewestWorkerControls } from "@/lib/swAutoUpdate";
 
 describe("createReloadCoordinator", () => {
   it("never reloads by itself and surfaces the manual fallback", () => {
@@ -131,5 +131,56 @@ describe("installNavigationReload", () => {
     );
     expect(assign).toHaveBeenCalledWith("/play");
     expect(leaving()).toBe(true);
+  });
+});
+
+describe("untilNewestWorkerControls", () => {
+  /** A stand-in navigator.serviceWorker whose update() may find a new worker. */
+  function fakeServiceWorker(found: "installing" | "none") {
+    const target = new EventTarget();
+    const registration = {
+      installing: null as object | null,
+      waiting: null,
+      update: vi.fn(async () => {
+        if (found === "installing") registration.installing = {};
+      }),
+    };
+    const sw = Object.assign(target, { getRegistration: async () => registration });
+    Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: sw });
+    return { registration, takeControl: () => target.dispatchEvent(new Event("controllerchange")) };
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+    Reflect.deleteProperty(navigator, "serviceWorker");
+  });
+
+  it("resolves at once when no newer deploy is on its way", async () => {
+    const { registration } = fakeServiceWorker("none");
+    await untilNewestWorkerControls(60_000);
+    expect(registration.update).toHaveBeenCalledTimes(1);
+  });
+
+  // The splash hang: a reload sent while the new worker was still installing
+  // was answered by the old worker's shell and booted the old build again.
+  it("holds the reload until the new worker takes control", async () => {
+    const { takeControl } = fakeServiceWorker("installing");
+    let settled = false;
+    const done = untilNewestWorkerControls(60_000).then(() => (settled = true));
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(settled).toBe(false);
+
+    takeControl();
+    await done;
+    expect(settled).toBe(true);
+  });
+
+  it("gives up waiting after the timeout rather than holding the page", async () => {
+    vi.useFakeTimers();
+    fakeServiceWorker("installing");
+    const done = untilNewestWorkerControls(5_000);
+    await vi.advanceTimersByTimeAsync(5_000);
+    await expect(done).resolves.toBeUndefined();
   });
 });
