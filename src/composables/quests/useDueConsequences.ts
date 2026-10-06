@@ -46,8 +46,12 @@ async function performDue(
  * writer's mutation, closes that for both existing writers and any future
  * one — there is exactly one place "today changed" can be observed from: the
  * store the rest of the app already reads it off.
+ *
+ * `enabled` lets the shell start the pending read after first paint (#999):
+ * this is background automation, so a few seconds' delay is harmless and the
+ * request no longer competes with the ones that draw the page.
  */
-export function useDueConsequences(): void {
+export function useDueConsequences(enabled: () => boolean = () => true): void {
   const campaign = useCampaignStore();
   const calendarStore = useCalendarStore();
   const queryClient = useQueryClient();
@@ -58,7 +62,7 @@ export function useDueConsequences(): void {
       if (campaignId === null) throw new Error("useDueConsequences fetched without a campaign");
       return fetchPending(campaignId);
     },
-    enabled: () => !!campaign.activeCampaignId,
+    enabled: () => enabled() && !!campaign.activeCampaignId,
   });
 
   watch(

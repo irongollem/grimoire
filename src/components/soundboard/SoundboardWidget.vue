@@ -401,7 +401,9 @@ function onLeave(el: Element, done: () => void) {
 }
 const { musicTrigger, triggerForPlaylist } = useActiveAudioTriggers();
 const spotifyStore = useSpotifyStore();
-const { data: sounds } = useSounds();
+// Names for the playing list, which only the open panel shows (#999). The
+// widget is mounted on every DM page; playback itself never reads this query.
+const { data: sounds } = useSounds(() => store.widgetOpen);
 
 // ── Draggable position ────────────────────────────────────────────────────────
 

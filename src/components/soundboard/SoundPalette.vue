@@ -98,8 +98,10 @@ const { open } = defineProps<{ open: boolean }>();
 defineEmits<{ close: [] }>();
 
 const store = useSoundboardStore();
-const { data: sounds, isPending: soundsPending } = useSounds();
-const { data: playlists, isPending: playlistsPending } = usePlaylists();
+// The palette is mounted on every DM page (GlobalHotkeys) but only needs the
+// library once opened with mod+shift+K; fetch then, not at boot (#999).
+const { data: sounds, isPending: soundsPending } = useSounds(() => open);
+const { data: playlists, isPending: playlistsPending } = usePlaylists(() => open);
 const fetchTracks = useFetchPlaylistTracks();
 
 const isAudible = useAudibleCheck();

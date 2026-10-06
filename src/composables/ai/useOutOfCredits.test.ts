@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const useAiCreditsSpy = vi.fn();
 const affordable = vi.fn<(credits: number, byok?: boolean) => boolean>();
 vi.mock("@/composables/ai/useAiCredits", () => ({
-  useAiCredits: () => ({ affordable }),
+  useAiCredits: () => {
+    useAiCreditsSpy();
+    return { affordable };
+  },
 }));
 
-const { useOutOfCredits } = await import("./useOutOfCredits");
+const { useOutOfCredits, outOfCreditsNeeded } = await import("./useOutOfCredits");
 
 describe("useOutOfCredits", () => {
   beforeEach(() => {
@@ -36,5 +40,15 @@ describe("useOutOfCredits", () => {
     affordable.mockReturnValue(false);
     useOutOfCredits().requireCredits(3);
     expect(useOutOfCredits().needed.value).toBe(3);
+  });
+
+  it("exposes the open state without subscribing to the credit queries (#999)", () => {
+    useAiCreditsSpy.mockClear();
+    affordable.mockReturnValue(false);
+    expect(outOfCreditsNeeded.value).toBeNull();
+    useOutOfCredits().requireCredits(5);
+    useAiCreditsSpy.mockClear();
+    expect(outOfCreditsNeeded.value).toBe(5);
+    expect(useAiCreditsSpy).not.toHaveBeenCalled();
   });
 });
