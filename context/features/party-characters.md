@@ -295,7 +295,7 @@ Cards displayed in a responsive grid. Each card shows:
 Two-column layout:
 
 - **Left:** Portrait, identity fields (Species, Alignment, Occupation, Age, Status with colour coding — green/red/amber/gray, Setting), tags
-- **Right:** Rich-text sections — Appearance, Personality, Backstory, then the viewing DM's own `DmNoteBox` (`type="hero"`). The hero is shared, the note is each DM's private `entity_notes` row; importing the hero as an NPC carries the importing DM's note into the NPC's `notes`. The old admin-only `hall_of_heroes.notes` column was readable by every signed-in account and went in `20261006080703` (#989); see [dm-notes.md](dm-notes.md).
+- **Right:** Rich-text sections — Appearance, Personality, Backstory, then the viewing DM's own `DmNoteBox` (`type="hero"`). The hero is shared, the note is each DM's private `entity_notes` row; importing the hero as an NPC carries the importing DM's note into the NPC's `notes`. The old admin-only `hall_of_heroes.notes` column was readable by every signed-in account and went in `20261006093359` (#989); see [dm-notes.md](dm-notes.md).
 
 ### Hero Editor View (`HeroEditorView.vue`)
 

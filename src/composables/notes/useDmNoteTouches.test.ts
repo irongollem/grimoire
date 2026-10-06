@@ -3,7 +3,7 @@ import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, ref } from "vue";
-import type { CampaignSessionState } from "@/types/session.types";
+import type { CampaignSession } from "@/types/session.types";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useDmNoteTouches } from "./useDmNoteTouches";
@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   rows: [] as unknown[],
   session: null as unknown,
   running: false,
+  log: [] as unknown[],
 }));
 
 vi.mock("@/lib/supabase", () => {
@@ -29,6 +30,10 @@ vi.mock("@/lib/supabase", () => {
   };
   return { supabase: { from: () => builder } };
 });
+
+vi.mock("@/composables/sessions/useCampaignSessions", () => ({
+  useCampaignSessions: () => ({ data: ref(mocks.log) }),
+}));
 
 vi.mock("@/composables/campaign/useCampaignSession", async () => {
   const { computed } = await import("vue");
@@ -54,7 +59,7 @@ function setup() {
   return handle;
 }
 
-const session = (over: Partial<CampaignSessionState>) => ({ started_at: null, ended_at: null, is_running: false, ...over });
+const session = (over: Partial<CampaignSession>) => ({ id: "s", started_at: null, ended_at: null, ...over });
 
 describe("useDmNoteTouches", () => {
   beforeEach(() => {
@@ -63,10 +68,11 @@ describe("useDmNoteTouches", () => {
     useCampaignStore().activeCampaignId = "camp-1";
     mocks.calls.length = 0;
     mocks.rows = [{ id: "t1", entity_label: "Brenna" }];
+    mocks.log = [];
   });
 
   it("reads since the start of a running session, scoped to me and the campaign", async () => {
-    mocks.session = session({ started_at: "2026-10-06T18:00:00Z", is_running: true });
+    mocks.session = session({ started_at: "2026-10-06T18:00:00Z" });
     mocks.running = true;
     const h = setup();
     await flushPromises();
@@ -79,12 +85,20 @@ describe("useDmNoteTouches", () => {
     expect(mocks.calls).toContainEqual(["order", "touched_at", { ascending: false }]);
   });
 
-  it("reads the span of the last session once it has ended", async () => {
-    mocks.session = session({ started_at: "2026-10-01T18:00:00Z", ended_at: "2026-10-01T22:00:00Z" });
+  it("reads the span of the run session that ended last, from the log", async () => {
+    // The live session is only the open row: once ended it is gone from there.
+    mocks.session = null;
     mocks.running = false;
+    mocks.log = [
+      session({ started_at: "2026-09-24T18:00:00Z", ended_at: "2026-09-24T22:00:00Z" }),
+      session({ started_at: "2026-10-01T18:00:00Z", ended_at: "2026-10-01T22:00:00Z" }),
+      // Logged by hand afterwards: never run, so no span to read.
+      session({ played_on: "2026-10-03" }),
+    ];
     const h = setup();
     await flushPromises();
     expect(h.label.value).toBe("Last session");
+    expect(mocks.calls).toContainEqual(["gte", "touched_at", "2026-10-01T18:00:00Z"]);
     expect(mocks.calls).toContainEqual(["lte", "touched_at", "2026-10-01T22:00:00Z"]);
   });
 
