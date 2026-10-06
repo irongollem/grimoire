@@ -85,3 +85,4 @@ bun.lockb
 # extraction cache and cost.json (token spend), which are per-machine anyway.
 graphify-out/
 .vitest/
+
