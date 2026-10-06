@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { shallowRef } from "vue";
 import { AuthApiError } from "@supabase/supabase-js";
