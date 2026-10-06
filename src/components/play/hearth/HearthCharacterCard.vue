@@ -93,7 +93,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import { IconChevronRight } from "@/lib/icons";
 import { useMemberVitals } from "@/composables/party/useMemberVitals";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
-import { useAllSpecies } from "@/composables/rules/useSpecies";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { characterSummary } from "@/lib/partyMemberDisplay";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { getExhaustionLevel } from "@/rules/conditions";
@@ -109,7 +109,8 @@ const { member } = defineProps<{ member: PartyMember }>();
 
 const memberId = computed(() => member.id);
 const { data: classes } = useCharacterClasses(memberId);
-const { data: species } = useAllSpecies();
+// One row by id rather than the whole edition list (#999); also finds a species of the other edition.
+const { data: speciesById } = useSpeciesByIds(() => [member.species_id]);
 const { wildshape, beastMonster, armorClass, initiative, speed, passivePerception, hp } = useMemberVitals(() => member);
 
 const displayName = computed(() => wildshape.value?.beast_name ?? member.name);
@@ -117,7 +118,7 @@ const portrait = computed(() => formPortrait(member, wildshape.value, beastMonst
 
 const summary = computed(() =>
   characterSummary({
-    speciesName: species.value?.find((s) => s.id === member.species_id)?.name ?? null,
+    speciesName: member.species_id ? (speciesById.value.get(member.species_id)?.name ?? null) : null,
     subrace: member.subrace,
     classes: classes.value,
     fallbackLevel: member.level,

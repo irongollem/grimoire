@@ -25,7 +25,7 @@ vi.mock("@/composables/notes/useNotes", async () => {
   return { useNotes: () => ({ data: r(state.notes) }) };
 });
 vi.mock("@/composables/play/useReadItems", () => ({
-  useReadItems: (type: string) => ({ isNew: (id: string) => state.newIds.has(`${type}:${id}`) }),
+  useReadMarkers: () => ({ isNew: (type: string, id: string) => state.newIds.has(`${type}:${id}`) }),
 }));
 
 import { anyUnread, collectUnreadItems, usePlayerUnread } from "./usePlayerUnread";
