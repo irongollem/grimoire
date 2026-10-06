@@ -3,6 +3,7 @@ import { defineComponent, nextTick, reactive } from "vue";
 import { mount } from "@vue/test-utils";
 import {
   resolveCharacterPlacement,
+  creationSubclassOptions,
   createDestination,
   buildCharacterPayload,
   changedEditColumns,
@@ -11,6 +12,31 @@ import {
 import { useAutosave, type UseAutosaveHandle } from "@/composables/useAutosave";
 import { cloneDraftValue, draftValueEqual } from "@/composables/useRecordDraft";
 import type { CharacterFormState } from "@/rules/characterCreation";
+
+describe("creationSubclassOptions", () => {
+  const TABLE = "campaign-1";
+  const rows = [
+    { id: "life", class_name: "Cleric", subclass_name: "Life Domain", campaign_id: null },
+    { id: "arcana", class_name: "Cleric", subclass_name: "Arcana Domain", campaign_id: TABLE },
+    { id: "elsewhere", class_name: "Cleric", subclass_name: "Other Table Domain", campaign_id: "campaign-2" },
+    { id: "fiend", class_name: "Warlock", subclass_name: "The Fiend", campaign_id: null },
+  ];
+
+  it("offers a character made onto a table that table's own homebrew beside the universal subclasses", () => {
+    // A player's 2014 cleric at a table with its own Arcana Domain was offered
+    // official domains only, and once one was set, level-up never asked again.
+    expect(creationSubclassOptions(rows, "Cleric", TABLE).map((o) => o.name))
+      .toEqual(["Life Domain", "Arcana Domain"]);
+  });
+
+  it("offers a character landing nowhere the universal subclasses only", () => {
+    expect(creationSubclassOptions(rows, "Cleric", null).map((o) => o.id)).toEqual(["life"]);
+  });
+
+  it("never offers another table's homebrew, nor another class's subclasses", () => {
+    expect(creationSubclassOptions(rows, "Warlock", TABLE)).toEqual([{ id: "fiend", name: "The Fiend" }]);
+  });
+});
 
 describe("resolveCharacterPlacement", () => {
   const CREATOR = "user-1";

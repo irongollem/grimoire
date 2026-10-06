@@ -71,6 +71,26 @@ export function resolveCharacterPlacement(opts: {
   };
 }
 
+/**
+ * The subclasses a new character may choose at level 1: the class's universal
+ * ones, and the homebrew of the table it will land at. A character made onto a
+ * table is built from everything that table offers, its own Arcana Domain
+ * included, even though the class row is written while the character is still
+ * in the pool; the database admits a table's homebrew to anyone who sits there
+ * (migration 20261006112320). Another table's rows, and every table's rows for
+ * a character landing nowhere, are left out. Exported for testing.
+ */
+export function creationSubclassOptions(
+  rows: readonly { id: string; class_name: string; subclass_name: string; campaign_id: string | null }[],
+  className: string,
+  landingCampaignId: string | null,
+): { id: string; name: string }[] {
+  return rows
+    .filter((sc) => sc.class_name === className
+      && (sc.campaign_id === null || (landingCampaignId !== null && sc.campaign_id === landingCampaignId)))
+    .map((sc) => ({ id: sc.id, name: sc.subclass_name }));
+}
+
 // ── Editing a saved character ─────────────────────────────────────────────────
 
 /** Everything the edit form binds to, as one value the autosave can compare. */
@@ -286,14 +306,8 @@ export function useCharacterCreationForm() {
   // the character levels), so it neither asks nor blocks.
   const subclassDueAtStart = computed(() =>
     !isEditMode.value && !!selectedClass.value && subclassChoiceDue(null, STARTING_LEVEL, subclassLevel.value));
-  // The class row is written before the character is seated anywhere, and the
-  // database only accepts a subclass the character could read at that moment: a
-  // universal one, or one of the roster campaign a DM is creating into. A
-  // table's own homebrew subclass is chosen on the level-up that follows.
-  const subclassOptions = computed(() => campaignSubclasses.value
-    .filter((sc) => sc.class_name === f.class
-      && (sc.campaign_id === null || (isDmCreate.value && sc.campaign_id === campaign.activeCampaignId)))
-    .map((sc) => ({ id: sc.id, name: sc.subclass_name })));
+  const subclassOptions = computed(() =>
+    creationSubclassOptions(campaignSubclasses.value, f.class, landingCampaign.value?.id ?? null));
   const blockedBySubclassChoice = computed(() =>
     subclassDueAtStart.value && subclassOptions.value.length > 0 && !subclassId.value);
   // Whether the loadout will wait: the character is not going to a table that
