@@ -960,6 +960,9 @@ export function useCharacterCreationForm() {
       Object.assign(f, preSave);
       // Surface the failure (incl. a rolled-back partial creation) to the user
       // instead of letting it become an unhandled rejection from the @click.
+      // Reported too: a toast alone left a player's five refused saves (a
+      // trigger that turned away every official subclass) out of Sentry.
+      reportHandledError(e, "createCharacter.save", { ruleset: chosenRuleset.value, className: f.class || null });
       const toast = useToast();
       toast.error(toast.fromError(e, "Couldn't save the character. Please try again."));
     } finally {
