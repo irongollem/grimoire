@@ -1,6 +1,7 @@
 import type { QueryClient, QueryKey } from "@tanstack/vue-query";
 import { applyRealtimeRow, type RealtimeRowChange } from "@/lib/campaignLiveSync/realtimeCache";
 import { compareSiblings, type SiblingOrder } from "@/lib/locations/tree";
+import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 import { isLocationType } from "@/lib/locations/tiers";
 import { LOCATION_SUMMARY_COLUMNS } from "@/types/location.types";
 
@@ -88,6 +89,15 @@ function invalidate(queryClient: QueryClient, predicate: (key: QueryKey) => bool
  */
 function invalidateNpcReveals(queryClient: QueryClient): void {
   invalidate(queryClient, (key) => key[0] === "npc-reveals");
+}
+
+/**
+ * "What the party learned" (`session-learned`) reads `npc_reveals` and its
+ * place and handout siblings, written by the same triggers, so it refetches on
+ * the same `npcs` / `locations` events. DM only.
+ */
+function invalidateSessionLearned(queryClient: QueryClient): void {
+  invalidate(queryClient, (key) => key[0] === SESSION_LEARNED_KEY);
 }
 
 function invalidatePlayerQuestCaches(queryClient: QueryClient, campaignId: string, rowId: string): void {
@@ -269,7 +279,10 @@ export function applyCampaignRealtimeWorld(
       break;
     case "locations":
       applyLocations(queryClient, payload, context);
-      if (context.isDM) invalidateNpcReveals(queryClient);
+      if (context.isDM) {
+        invalidateNpcReveals(queryClient);
+        invalidateSessionLearned(queryClient);
+      }
       invalidateGlobalSearch(queryClient);
       break;
     case "factions":
@@ -277,7 +290,10 @@ export function applyCampaignRealtimeWorld(
       break;
     case "npcs":
       applyNpcs(queryClient, payload, context);
-      if (context.isDM) invalidateNpcReveals(queryClient);
+      if (context.isDM) {
+        invalidateNpcReveals(queryClient);
+        invalidateSessionLearned(queryClient);
+      }
       // This is a reduced spell-caster projection rather than a raw NPC row.
       invalidate(queryClient, (key) => key[0] === "npcs" && key[1] === "spell-casters");
       invalidateGlobalSearch(queryClient);

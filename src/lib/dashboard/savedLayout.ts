@@ -43,6 +43,23 @@ export interface MergedDashboardLayout {
   dense: boolean;
 }
 
+/**
+ * Widgets that were replaced by another rather than removed. A saved layout
+ * that holds the old id keeps its place, width, height and removal choice under
+ * the new one; without this the old entry would fall out as "gone from the
+ * registry" and the DM's arrangement would lose the slot.
+ *
+ * `latest-session-note` ("Last session", one note excerpt) became `sessions`
+ * (#985): the log's widget shows the last session and its recap and much more.
+ */
+export const RENAMED_WIDGET_IDS: Readonly<Record<string, DashboardWidgetId>> = {
+  "latest-session-note": "sessions",
+};
+
+function currentWidgetId(id: string): string {
+  return RENAMED_WIDGET_IDS[id] ?? id;
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -108,9 +125,10 @@ export function parseDashboardLayout(value: unknown): DashboardLayout | null {
     // means the blob was not written by this app — distrust the whole row
     // rather than salvaging half a layout out of it.
     if (!isPlainObject(raw)) return null;
-    const { key, id } = raw;
+    const { key } = raw;
     if (typeof key !== "string" || key.length === 0) return null;
-    if (typeof id !== "string") return null;
+    if (typeof raw.id !== "string") return null;
+    const id = currentWidgetId(raw.id);
 
     // An id we no longer recognise is a different matter: that is a widget
     // removed or renamed since the save, which is ordinary drift rather than
@@ -141,9 +159,9 @@ export function parseDashboardLayout(value: unknown): DashboardLayout | null {
   if (Array.isArray(value.known)) {
     // Ids the registry has since dropped are filtered out, which costs nothing:
     // `known` is only ever asked whether it contains an id that exists today.
-    layout.known = value.known.filter(
-      (id): id is DashboardWidgetId => typeof id === "string" && isWidgetId(id),
-    );
+    layout.known = value.known
+      .map((id) => (typeof id === "string" ? currentWidgetId(id) : id))
+      .filter((id): id is DashboardWidgetId => typeof id === "string" && isWidgetId(id));
   }
   return layout;
 }

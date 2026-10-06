@@ -65,7 +65,7 @@ const {
   placeholder,
   class: className,
 } = defineProps<{
-  type?: "text" | "number" | "search" | "url" | "email" | "password";
+  type?: "text" | "number" | "search" | "url" | "email" | "password" | "date";
   size?: FieldSize;
   /** Surface it sits on — see fieldVariants. */
   tone?: FieldTone;

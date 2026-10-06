@@ -51,7 +51,7 @@ export type DashboardWidgetId =
   | "dm-screen-card"
   | "roll-table"
   | "conditions"
-  | "latest-session-note"
+  | "sessions"
   | "quick-dice"
   | "death-saves"
   | "table-vitals"
@@ -492,9 +492,9 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     maxInstances: 1,
   },
   {
-    id: "latest-session-note",
-    title: "Last session",
-    description: "The most recent session recap, one tap from the board.",
+    id: "sessions",
+    title: "Sessions",
+    description: "Next session, last time, and the notes still unwritten.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,

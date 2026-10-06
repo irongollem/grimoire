@@ -21,6 +21,7 @@ import type { CampaignSession } from "@/types/session.types";
 import { useAuthStore } from "@/stores/auth";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Campaign } from "@/types/campaign.types";
+import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 import { applyCampaignRealtimeWorld } from "@/lib/campaignLiveSync/campaignRealtimeWorld";
 import { dispatchCampaignRealtimePlayer } from "@/lib/campaignLiveSync/campaignRealtimePlayer";
 import { dispatchCampaignRealtimeSystem } from "@/lib/campaignLiveSync/campaignRealtimeSystems";
@@ -126,7 +127,8 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // payloads altogether. These replaced four 5-second polls.
   ["quest_runtime_state", QUEST_RUNTIME_SYNC_KEYS],
   ["quest_threads", QUEST_RUNTIME_SYNC_KEYS],
-  ["quest_beat_transitions", QUEST_RUNTIME_SYNC_KEYS],
+  // A step is also a learned moment, listed under its session (#985).
+  ["quest_beat_transitions", [...QUEST_RUNTIME_SYNC_KEYS, SESSION_LEARNED_KEY]],
   // Since 20261003105146 the table has no campaign_id, so it cannot be a
   // filtered subscription; a conversion (or an acknowledgement) rings instead.
   ["ruleset_reviews", ["ruleset_reviews"]],
@@ -163,7 +165,7 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // (20261004105821) rings only when a document a player holds changes. Only
   // the players' root is refreshed; the DM's own `scriptorium` queries back an
   // open editor and must not be refetched underneath it.
-  ["scriptorium_documents", [PLAYER_HANDOUTS_KEY]],
+  ["scriptorium_documents", [PLAYER_HANDOUTS_KEY, SESSION_LEARNED_KEY]],
   // "Mentioned in" (#972). The index of @mentions is DM-only and rewritten by
   // a trigger only when a source's set of mentions actually changes
   // (20261004221637), so an autosave that leaves them alone rings nothing.

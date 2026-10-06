@@ -15,7 +15,7 @@ import DmScreenCardSettings from "@/components/dashboard/settings/DmScreenCardSe
 import RollTableWidget from "@/components/dashboard/widgets/RollTableWidget.vue";
 import RollTableCardSettings from "@/components/dashboard/settings/RollTableCardSettings.vue";
 import ConditionsWidget from "@/components/dashboard/widgets/ConditionsWidget.vue";
-import LatestSessionNoteWidget from "@/components/dashboard/widgets/LatestSessionNoteWidget.vue";
+import SessionsWidget from "@/components/dashboard/widgets/SessionsWidget.vue";
 import QuickDiceWidget from "@/components/dashboard/widgets/QuickDiceWidget.vue";
 import DeathSavesWidget from "@/components/dashboard/widgets/DeathSavesWidget.vue";
 import TableVitalsWidget from "@/components/dashboard/widgets/TableVitalsWidget.vue";
@@ -60,7 +60,7 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "dm-screen-card": DmScreenCardWidget,
   "roll-table": RollTableWidget,
   conditions: ConditionsWidget,
-  "latest-session-note": LatestSessionNoteWidget,
+  sessions: SessionsWidget,
   "quick-dice": QuickDiceWidget,
   "death-saves": DeathSavesWidget,
   "table-vitals": TableVitalsWidget,

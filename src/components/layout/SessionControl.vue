@@ -63,8 +63,8 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCampaignSession, formatSessionElapsed, type StartSessionOptions } from "@/composables/campaign/useCampaignSession";
-import { useToast } from "@/composables/useToast";
+import { formatSessionElapsed, type StartSessionOptions } from "@/composables/campaign/useCampaignSession";
+import { useSessionActions } from "@/composables/sessions/useSessionActions";
 import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
 import { prefersReducedMotion } from "@/lib/motion";
 import { IconClose } from "@/lib/icons";
@@ -77,8 +77,7 @@ const { size = "sm" } = defineProps<{
 }>();
 
 const campaign = useCampaignStore();
-const toast = useToast();
-const { session, isRunning, startedAt, pending, start, end } = useCampaignSession();
+const { session, isRunning, startedAt, pending, startSession, endSession } = useSessionActions();
 
 const reduced = prefersReducedMotion();
 const confirmOpen = ref(false);
@@ -103,25 +102,10 @@ function onStart() {
 
 async function confirmStart(options: StartSessionOptions) {
   confirmOpen.value = false;
-  try {
-    await start(options);
-    now.value = Date.now();
-  } catch (cause) {
-    toast.error(cause instanceof Error ? cause.message : "The session could not be started");
-  }
+  if (await startSession(options)) now.value = Date.now();
 }
 
-async function onEnd() {
-  try {
-    const closed = await end();
-    const parts: string[] = [];
-    if (closed.encounters_ended) parts.push(`${closed.encounters_ended} encounter${closed.encounters_ended === 1 ? "" : "s"} stopped`);
-    if (closed.chains_paused) parts.push(`${closed.chains_paused} quest${closed.chains_paused === 1 ? "" : "s"} paused`);
-    // Says what it did, because ending a session reaches further than the
-    // control it was clicked from — combat stops and open chains pause.
-    toast.success(parts.length ? `Session ended: ${parts.join(", ")}.` : "Session ended.");
-  } catch (cause) {
-    toast.error(cause instanceof Error ? cause.message : "The session could not be ended");
-  }
-}
+// Says what it did, because ending a session reaches further than the control
+// it was clicked from — combat stops and open chains pause.
+const onEnd = endSession;
 </script>

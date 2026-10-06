@@ -300,6 +300,27 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Campaign Settings" },
   },
 
+  // Sessions: the log, one session, and the things learned outside any session.
+  // `unsorted` is registered before `:id` so it is not read as a session id.
+  {
+    path: "/sessions",
+    name: "sessions",
+    component: () => import("@/views/sessions/SessionsView.vue"),
+    meta: { requiresAuth: true, title: "Sessions" },
+  },
+  {
+    path: "/sessions/unsorted",
+    name: "sessions-unsorted",
+    component: () => import("@/views/sessions/SessionsUnsortedView.vue"),
+    meta: { requiresAuth: true, title: "Sort what the party learned" },
+  },
+  {
+    path: "/sessions/:id",
+    name: "session-detail",
+    component: () => import("@/views/sessions/SessionDetailView.vue"),
+    meta: { requiresAuth: true, title: "Session" },
+  },
+
   // Notes
   {
     path: "/notes",

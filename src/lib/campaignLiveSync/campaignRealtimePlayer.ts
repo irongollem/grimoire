@@ -4,6 +4,7 @@ import {
   type RealtimeRow,
   type RealtimeRowChange,
 } from "@/lib/campaignLiveSync/realtimeCache";
+import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 
 /** The identity available to a campaign realtime subscriber. */
 export interface CampaignRealtimeContext {
@@ -192,6 +193,8 @@ export function dispatchCampaignRealtimePlayer(
         keyStarts(query.queryKey, "monsters", "player-visible", context.campaignId)
         || keyStarts(query.queryKey, "discovered-monsters", "player", context.campaignId),
       );
+      // The DM's per-session "what the party learned" lists discoveries too.
+      if (context.isDM) invalidateWhere(queryClient, (query) => query.queryKey[0] === SESSION_LEARNED_KEY);
       return true;
     }
 

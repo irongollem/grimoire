@@ -34,7 +34,7 @@ vi.mock("@/stores/ui", () => ({
   }),
 }));
 
-import { useNpcReveal } from "./useNpcReveal";
+import { npcShareUpdate, useNpcReveal } from "./useNpcReveal";
 
 function makeNpc(over: Partial<Npc> = {}): Npc {
   return {
@@ -192,5 +192,17 @@ describe("useNpcReveal", () => {
     setFields(["name"]);
     expect(fields.value).toEqual(["name"]);
     expect(mocks.updateNpc).toHaveBeenCalledWith({ id: "npc-1", update: { player_visible_fields: ["name"] } });
+  });
+});
+
+describe("npcShareUpdate", () => {
+  it("seeds the field list when the NPC is shared", () => {
+    const update = npcShareUpdate(["m1"], []);
+    expect(update.player_visible_to).toEqual(["m1"]);
+    expect(update.player_visible_fields.length).toBeGreaterThan(0);
+  });
+
+  it("leaves the DM's field choice alone when hiding", () => {
+    expect(npcShareUpdate([], ["name"])).toEqual({ player_visible_to: [], player_visible_fields: ["name"] });
   });
 });

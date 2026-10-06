@@ -19,6 +19,16 @@ describe("dispatchCampaignRealtimePlayer", () => {
     expect(qc.getQueryCache().find({ queryKey: ["monsters", "player-visible", "campaign"], exact: true })?.state.isInvalidated).toBe(true);
   });
 
+  it("refetches the DM's per-session learned lists when a creature is discovered, and not a player's", () => {
+    const row = { id: "discovery", campaign_id: "campaign", discovered_at: "2026-01-01", monster_id: "monster" };
+    for (const [context, expected] of [[dm, true], [player, false]] as const) {
+      const qc = new QueryClient();
+      qc.setQueryData(["session-learned", "campaign", "unsorted"], {});
+      dispatchCampaignRealtimePlayer(qc, context, "discovered_monsters", { eventType: "INSERT", old: {}, new: row });
+      expect(qc.getQueryCache().find({ queryKey: ["session-learned", "campaign", "unsorted"], exact: true })?.state.isInvalidated).toBe(expected);
+    }
+  });
+
   it("never writes a raw puzzle row into the player secret-stripping projection", () => {
     const qc = new QueryClient();
     const projection = [{ id: "puzzle", name: "A clue", solution: null }];
