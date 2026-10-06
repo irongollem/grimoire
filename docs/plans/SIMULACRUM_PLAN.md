@@ -48,7 +48,7 @@ rendition of da Vinci's public-domain motif, not HBO's trademarked logo mark).
 Wrapper `src/components/common/VitruvianIcon.vue` (MaskIcon pattern, inherits
 `currentColor` / font-size like `DamageIcon`) reads
 `public/assets/simulacrum/vitruvian.svg` — traced from the generated art in
-`art-src/vitruvian 1.png` via the standard potrace → `normalize-svg.mjs`
+`art-src/vitruvian 1.png` via the standard potrace → `scripts/glyphs` `svg`
 pipeline (100×100 viewBox). `art-src/vitruvian 2.png` (articulated-mannequin
 variant) is kept as a candidate for a larger empty-state illustration; too
 fine-detailed for a 1em glyph.

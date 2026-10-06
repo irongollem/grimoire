@@ -6,7 +6,7 @@ first, before and during a game. The character sheet it replaced at `/play`
 now lives at `/play/character` (route `play-character`).
 
 The design is the canvas "Hearth: the player dashboard (#977)" on Claude
-Design (https://claude.ai/artifact/ByR8Y1aG6Fxf9YadVEFD4o): phone boards for
+Design (<https://claude.ai/artifact/ByR8Y1aG6Fxf9YadVEFD4o>): phone boards for
 between sessions, at the table (Lamplight) and first visit, the same two
 states on a landscape tablet, the nav bar and the glyph. Open the board before
 changing a section's composition.
@@ -16,7 +16,7 @@ changing a section's composition.
 - **Name and glyph.** "Hearth", because "Home" is the cross-campaign
   Adventurer's Rest. `IconNavHearth` (`src/lib/icons.ts`) is an interim
   hand-drawn campfire; the maintainer's glyph sheet replaces it through
-  `art-src/nav-campaign` (`add-glyph.mjs`), like every other nav glyph.
+  the `/glyph` skill, like every other nav glyph.
 - **One page, three states, never toggled.** `PlayerHearthView.vue` picks
   first visit (no member), at the table (`usePlayerSessionState().isRunning`,
   the open `campaign_sessions` row the DM's Start session created, pushed

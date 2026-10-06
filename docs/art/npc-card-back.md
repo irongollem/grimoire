@@ -5,7 +5,7 @@ The back of the card a player turns over on People (New to you). Generated
 one because its blank cartouche is the largest, so overlaid text still reads at
 the strip's small size, and its eight-pointed star echoes the bookmark logo.
 
-- Source: `npc-card-back.source.png` (the provider's PNG, untouched).
+- Source: `npc-card-back.source.png` (the provider's PNG, untouched), kept in the local `art-src/brand/` dump, not the repo.
 - Shipped: `public/assets/cards/npc-card-back.webp`, 600x900 WebP q82, with AI
   provenance embedded by `markGeneratedImage` (generatorType `ui-card-back`).
 - The blank panel, measured on the source: x 16.7%-83.3%, y 35.9%-63.8%. Text
