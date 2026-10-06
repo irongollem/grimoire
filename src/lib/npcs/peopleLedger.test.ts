@@ -9,17 +9,32 @@ import {
   type PeopleGroupContext,
 } from "./peopleLedger";
 import type { PlayerNpc } from "@/types/npc.types";
+import type { PlayerSessionLabel } from "@/types/session.types";
 
 interface Spec {
   id: string;
   name?: string | null;
   revealed_at?: string | null;
+  session?: string | null;
   unmasked_at?: string | null;
   place?: { id: string; name: string; within?: string | null };
   rating?: number;
 }
 
 const AFTER = "2026-10-07T10:00:00Z";
+
+function session(id: string, number: number | null, title: string | null, day: string): PlayerSessionLabel {
+  return { id, number, title, played_on: day, started_at: null, ended_at: null };
+}
+const SESSIONS = new Map(
+  [
+    session("s14", 14, "The Southern Road", "2026-10-04"),
+    session("s14b", 14, null, "2026-10-11"),
+    session("s15", 15, "Into the Mere", "2026-10-18"),
+    session("sx", null, null, "2026-09-20"),
+    session("sy", null, "A Side Quest", "2026-09-27"),
+  ].map((s) => [s.id, s]),
+);
 
 function make(specs: Spec[]) {
   const npcs = specs.map(
@@ -31,6 +46,7 @@ function make(specs: Spec[]) {
         disguise_portrait_url: null,
         is_revealed: false,
         revealed_at: s.revealed_at ?? null,
+        revealed_session_id: s.session ?? null,
         unmasked_at: s.unmasked_at ?? null,
       }) as PlayerNpc,
   );
@@ -41,7 +57,7 @@ function make(specs: Spec[]) {
       const p = byId.get(npc.id)?.place;
       return p ? { id: p.id, name: p.name, within: p.within ?? null } : null;
     },
-    now: new Date(2026, 9, 6, 12),
+    sessionOf: (id) => SESSIONS.get(id) ?? null,
   };
   return { npcs, ctx };
 }
@@ -183,46 +199,66 @@ describe("buildPeopleGroups", () => {
     expect(buildPeopleGroups(npcs, "location", "asc", ctx)).toHaveLength(1);
   });
 
-  it("revealed groups by local day, newest day first on desc, newest first inside", () => {
+  it("revealed groups by session, newest session first on desc, newest reveal first inside", () => {
     const { npcs, ctx } = make([
-      { id: "a", revealed_at: new Date(2026, 9, 4, 9).toISOString() },
-      { id: "b", revealed_at: new Date(2026, 9, 4, 21).toISOString() },
-      { id: "c", revealed_at: new Date(2026, 9, 5, 10).toISOString() },
+      { id: "a", session: "s14", revealed_at: "2026-10-04T09:00:00Z" },
+      { id: "b", session: "s14", revealed_at: "2026-10-04T21:00:00Z" },
+      { id: "c", session: "s15", revealed_at: "2026-10-18T10:00:00Z" },
       { id: "d" },
+      { id: "e", session: "gone", revealed_at: "2026-01-01T10:00:00Z" },
     ]);
     const desc = buildPeopleGroups(npcs, "revealed", "desc", ctx);
-    expect(desc.map((g) => g.title)).toEqual(["5 October", "4 October", "Before the ledger"]);
+    expect(desc.map((g) => g.title)).toEqual(["Session 15", "Session 14", "Before the log"]);
+    expect(desc.map((g) => g.within)).toEqual(["Into the Mere", "The Southern Road", null]);
+    expect(desc.map((g) => g.end)).toEqual(["18 Oct", "4 Oct", undefined]);
     expect(ids(desc[1]!.people)).toEqual(["b", "a"]);
+    expect(ids(desc[2]!.people)).toEqual(["d", "e"]);
     const asc = buildPeopleGroups(npcs, "revealed", "asc", ctx);
-    expect(asc.map((g) => g.title)).toEqual(["4 October", "5 October", "Before the ledger"]);
+    expect(asc.map((g) => g.title)).toEqual(["Session 14", "Session 15", "Before the log"]);
   });
 
-  it("adds the year to a day title outside now's year", () => {
+  it("keeps two sessions with the same number as separate groups", () => {
     const { npcs, ctx } = make([
-      { id: "a", revealed_at: new Date(2025, 11, 31, 12).toISOString() },
-      { id: "b", revealed_at: new Date(2026, 0, 1, 12).toISOString() },
+      { id: "a", session: "s14", revealed_at: "2026-10-04T09:00:00Z" },
+      { id: "b", session: "s14b", revealed_at: "2026-10-11T09:00:00Z" },
     ]);
     const groups = buildPeopleGroups(npcs, "revealed", "desc", ctx);
-    expect(groups.map((g) => g.title)).toEqual(["1 January", "31 December 2025"]);
+    expect(groups.map((g) => g.key)).toEqual(["session:s14b", "session:s14"]);
+    expect(groups.map((g) => g.title)).toEqual(["Session 14", "Session 14"]);
+    expect(groups.map((g) => g.within)).toEqual([null, "The Southern Road"]);
+  });
+
+  it("names an unnumbered session by its title, else 'Unnumbered session'", () => {
+    const { npcs, ctx } = make([
+      { id: "a", session: "sx", revealed_at: "2026-09-20T09:00:00Z" },
+      { id: "b", session: "sy", revealed_at: "2026-09-27T09:00:00Z" },
+    ]);
+    const groups = buildPeopleGroups(npcs, "revealed", "desc", ctx);
+    expect(groups.map((g) => g.title)).toEqual(["A Side Quest", "Unnumbered session"]);
+    expect(groups.every((g) => g.within === null)).toBe(true);
   });
 });
 
 describe("earliestRevealPerNpc", () => {
-  it("keeps the earliest moment per NPC regardless of row order", () => {
+  it("keeps the earliest moment, and its session, per NPC regardless of row order", () => {
     const map = earliestRevealPerNpc([
-      { npc_id: "a", revealed_at: "2026-10-05T10:00:00Z" },
-      { npc_id: "a", revealed_at: "2026-10-04T10:00:00Z" },
-      { npc_id: "b", revealed_at: "2026-10-06T10:00:00Z" },
+      { npc_id: "a", revealed_at: "2026-10-05T10:00:00Z", session_id: "s2" },
+      { npc_id: "a", revealed_at: "2026-10-04T10:00:00Z", session_id: "s1" },
+      { npc_id: "b", revealed_at: "2026-10-06T10:00:00Z", session_id: null },
     ]);
-    expect(map.get("a")).toBe("2026-10-04T10:00:00Z");
-    expect(map.get("b")).toBe("2026-10-06T10:00:00Z");
+    expect(map.get("a")).toEqual({ revealed_at: "2026-10-04T10:00:00Z", session_id: "s1" });
+    expect(map.get("b")).toEqual({ revealed_at: "2026-10-06T10:00:00Z", session_id: null });
   });
 });
 
 describe("withRevealMoments", () => {
-  it("sets revealed_at from the moments, null when the viewer has none", () => {
+  it("sets the moment and its session, null when the viewer has none", () => {
     const { npcs } = make([{ id: "a" }, { id: "b" }]);
-    const out = withRevealMoments(npcs, new Map([["a", "2026-10-04T10:00:00Z"]]));
+    const out = withRevealMoments(
+      npcs,
+      new Map([["a", { revealed_at: "2026-10-04T10:00:00Z", session_id: "s14" }]]),
+    );
     expect(out.map((n) => n.revealed_at)).toEqual(["2026-10-04T10:00:00Z", null]);
+    expect(out.map((n) => n.revealed_session_id)).toEqual(["s14", null]);
   });
 });

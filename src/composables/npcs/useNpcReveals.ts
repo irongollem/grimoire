@@ -54,7 +54,7 @@ export function useMyNpcRevealMoments() {
       if (!cid || !member) throw new Error("useMyNpcRevealMoments fetched without a campaign and member");
       const { data, error } = await supabase
         .from("npc_reveals")
-        .select("npc_id,revealed_at")
+        .select("npc_id,revealed_at,session_id")
         .eq("campaign_id", cid)
         .eq("party_member_id", member);
       if (error) throw error;

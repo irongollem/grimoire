@@ -55,7 +55,7 @@
           <p v-if="readMapError" class="text-body italic text-muted-foreground">
             Your people could not be loaded. Try again in a moment.
           </p>
-          <LoadingSpinner v-else-if="!ready" class="mx-auto" />
+          <LoadingSpinner v-else-if="!ready || groupsPending" class="mx-auto" />
           <template v-else>
             <NewToYouStrip :items="newToYouItems" @turned="turnNewToYou" @open="openPerson" />
 
@@ -203,6 +203,7 @@ const {
   effectiveSortBy,
   activeFilterCount,
   groups,
+  groupsPending,
   people,
 } = usePlayerPeople(npcs, ledger);
 
