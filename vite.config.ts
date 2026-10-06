@@ -113,11 +113,18 @@ function swPlugin(assetCdnOrigin: string): Plugin {
     return result;
   }
 
+  // The build's real output directory, so a build with --outDir (the #999
+  // profiling builds use dist-bundle/) gets its worker beside its own
+  // index.html instead of failing on a dist/ that is not there.
+  let distDir = path.resolve(import.meta.dirname, "dist");
+
   return {
     name: "grimoire-sw",
     apply: "build",
+    configResolved(config) {
+      distDir = path.resolve(config.root, config.build.outDir);
+    },
     closeBundle() {
-      const distDir  = path.resolve(import.meta.dirname, "dist");
       const template = readFileSync(
         path.resolve(import.meta.dirname, "scripts/sw-template.js"),
         "utf8",
@@ -632,14 +639,18 @@ export default defineConfig(({ mode }) => {
       // Writes dist/stats.html (gitignored); `treemap` answers "what is big",
       // gzip/brotli sizes answer "what is big *over the wire*", which is the
       // number that actually decides whether a chunk needs splitting.
+      // ANALYZE=json writes <outDir>/stats.json (raw-data, no browser) for the
+      // scripts in scripts/perf/bundle; ANALYZE=1 keeps the interactive treemap.
+      // ANALYZE_OUT names the directory when the build uses a non-default
+      // --outDir, so a profiling build never has to touch dist/.
       ...(process.env.ANALYZE
         ? [
             visualizer({
-              filename: "dist/stats.html",
-              template: "treemap",
+              ...(process.env.ANALYZE === "json"
+                ? { filename: `${process.env.ANALYZE_OUT || "dist"}/stats.json`, template: "raw-data", open: false }
+                : { filename: `${process.env.ANALYZE_OUT || "dist"}/stats.html`, template: "treemap", open: true }),
               gzipSize: true,
               brotliSize: true,
-              open: true,
             }) as Plugin,
           ]
         : []),
