@@ -59,3 +59,19 @@ describe("ListPageLayout header on a phone", () => {
     expect(header.classList.contains("-translate-y-full")).toBe(false);
   });
 });
+
+describe("ListPageLayout divider", () => {
+  it("is hidden on a phone when there are no actions above it", () => {
+    const wrapper = mount(ListPageLayout, { props: { title: "Scriptorium" }, slots: { default: "<p>list</p>" } });
+    expect(wrapper.find(".gold-divider").classes()).toContain("hidden");
+    expect(wrapper.find(".gold-divider").classes()).toContain("md:block");
+  });
+
+  it("shows under the actions when there are some", () => {
+    const wrapper = mount(ListPageLayout, {
+      props: { title: "Scriptorium" },
+      slots: { actions: "<button>New</button>", default: "<p>list</p>" },
+    });
+    expect(wrapper.find(".gold-divider").classes()).not.toContain("hidden");
+  });
+});

@@ -4,18 +4,17 @@
       <ManualHelpLink page="scriptorium-document-publisher" />
     </template>
 
-    <template #actions>
-      <!-- Writing needs a larger screen (#915 story 7) — the phone list stays
-           a reader, so there's nothing useful for this action to open here. -->
+    <!-- Writing needs a larger screen (#915 story 7): the phone list is a
+         reader, so it has no actions at all, and no empty action row. -->
+    <template v-if="canWrite" #actions>
       <ListActionButton
-        v-if="canWrite && campaign.isAiEnabled"
+        v-if="campaign.isAiEnabled"
         variant="outline"
         :icon="IconGenerate"
         label="Draft with AI"
         @click="handleDraft"
       />
       <ListActionButton
-        v-if="canWrite"
         variant="primary"
         :icon="IconAdd"
         label="New Document"
