@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 // the module still pulls in the real `pagedjs` package (used by
 // printDocument(), left untested here per the story — see module doc).
 // Stub it so this file doesn't pay for or depend on its real behaviour.
-vi.mock("pagedjs", () => ({ Previewer: class {} }));
+vi.mock("pagedjs", () => ({ Previewer: class {}, Handler: class {}, registerHandlers: vi.fn() }));
 
 import { buildPrintDocumentHtml } from "./useScriptoriumPrint";
 

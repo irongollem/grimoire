@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("pagedjs", () => ({
+  Handler: class {},
+  registerHandlers: vi.fn(),
   Previewer: class {
     preview(html: string) {
       mocks.previewCalls.push(html);

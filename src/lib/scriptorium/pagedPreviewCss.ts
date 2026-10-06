@@ -95,11 +95,6 @@ hr, .sc-page-break {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   margin: 0 auto 1.5rem;
 }
-/* The page's content height, for rules that size something to the room a
-   page has left: a wide monster entry's art (theme-base.css, #917). */
-.pagedjs_page_content {
-  --sc-page-content-height: ${contentHeightPx}px;
-}
 /* See imageMaxHeightPx above: no image may be taller than a page can hold.
    .sc-cover-art (coverPage.ts) opts a cover's own full-bleed/art-slot image
    out of the max-height cap above — the same rule that stops an oversized
@@ -168,6 +163,14 @@ tr {
 .sc-note.sc-box--long,
 .sc-descriptive.sc-box--long,
 table.sc-table--long {
+  break-inside: auto;
+}
+/* An entry is kept whole by its own size decision, and its art shrinks to the
+   room the page leaves (pagedEntryFit.ts). One that still does not fit with
+   its art at the floor is marked to split while it is laid out: Paged.js
+   resumes after an unbreakable block that fits no page, which drops the rest
+   of it from the book, so a split is the lesser failure (#915 story 6). */
+.sc-statblock-entry.sc-statblock-entry--split {
   break-inside: auto;
 }
 /* A monster/NPC entry (entityEmbed.ts) starts its own fresh page by default —

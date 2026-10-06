@@ -449,28 +449,10 @@ function estimateStatBlockSize(innerHtml: string, headingAbove: boolean): StatBl
  *  (see `estimateStatBlockSize` above) and returns both the size it chose —
  *  the caller needs it to lay out the surrounding entry (#915 story 6 round
  *  2) — and the finished HTML, wrapped accordingly. */
-function buildStatBlockHtml(opts: BuildStatBlockOpts): { html: string; size: StatBlockSize; chars: number } {
+function buildStatBlockHtml(opts: BuildStatBlockOpts): { html: string; size: StatBlockSize } {
   const inner = buildStatBlockInnerHtml(opts);
   const size = estimateStatBlockSize(inner, opts.headingAbove ?? false);
-  return { html: `<div class="sc-statblock sc-statblock--${size}">\n${inner}</div>\n`, size, chars: textLength(inner) };
-}
-
-/**
- * How tall a WIDE stat block's band will print, in page px, from its text
- * length (#917). A wide entry stacks the band and then its art and lore, and
- * the art is the one part that can give way: the paged stylesheet caps it at
- * what the page has left under this estimate (theme-base.css,
- * `--sc-band-est`). Fitted on the Sugarwell booklet's four wide creatures
- * (27 Sep 2026, A4, both themes): band height = 62 + 0.36px per character,
- * within 21px on all four (Marzipan Sentry 1,116 characters printed 463px,
- * Toffee Maw 1,304 printed 532px, Candy Archer 1,439 printed 600px, Caramel
- * Crusher 1,871 printed 734px). The 25px added on top makes the estimate err
- * tall, so the art it leaves room for errs small rather than off the page.
- * The Crusher's cutout, at the old fixed 16rem, pushed its lore and art onto
- * a page of their own.
- */
-export function estimateWideBandHeightPx(chars: number): number {
-  return Math.round(62 + 25 + 0.36 * chars);
+  return { html: `<div class="sc-statblock sc-statblock--${size}">\n${inner}</div>\n`, size };
 }
 
 function traitList(traits: Array<{ name: string; description: string }>): string {
@@ -707,7 +689,7 @@ const monsterFormatter: AssetFormatter<Monster> = {
     // shrinks the column the stat block must fit (see the size thresholds).
     const loreHtml = richTextOrPlain(monster.description);
     const hasLore = Boolean(loreHtml.trim());
-    const { html: statBlockHtml, size, chars: statBlockChars } = buildStatBlockHtml({
+    const { html: statBlockHtml, size } = buildStatBlockHtml({
       headingAbove: hasLore,
       name: monster.name,
       typeLine: statBlockTypeLine(monster.size, monster.monster_type, monster.alignment),
@@ -768,8 +750,7 @@ const monsterFormatter: AssetFormatter<Monster> = {
         : "";
 
     let html =
-      `<div class="sc-statblock-entry sc-statblock-entry--${size}" data-band-position="top" ` +
-      `style="--sc-band-est: ${estimateWideBandHeightPx(statBlockChars)}px">\n` +
+      `<div class="sc-statblock-entry sc-statblock-entry--${size}" data-band-position="top">\n` +
       entryHeadingHtml +
       `<div class="sc-statblock-entry-body">\n` +
       `<div class="sc-statblock-entry-block">\n${statBlockHtml}</div>\n` +

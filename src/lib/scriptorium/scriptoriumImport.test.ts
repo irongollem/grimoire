@@ -4,7 +4,6 @@ import {
   formatNpcForScriptorium,
   formatMonsterForScriptorium,
   formatEntityEmbedBodyHtml,
-  estimateWideBandHeightPx,
 } from "@/lib/scriptorium/scriptoriumImport";
 import type { Npc } from "@/types/npc.types";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
@@ -359,30 +358,6 @@ describe("formatMonsterForScriptorium — entry composition (heading, lore, art)
   it("defaults a wide entry's band position to top", () => {
     const { content } = formatMonsterForScriptorium(monster());
     expect(content).toContain('data-band-position="top"');
-  });
-});
-
-describe("estimateWideBandHeightPx (#917)", () => {
-  it("errs above the Sugarwell booklet's measured band heights, so the art beside them errs small", () => {
-    // Characters -> printed band height, measured 27 Sep 2026 (A4).
-    const measured: Array<[number, number]> = [
-      [1116, 463],
-      [1304, 532],
-      [1439, 600],
-      [1871, 734],
-    ];
-    for (const [chars, printed] of measured) {
-      const estimate = estimateWideBandHeightPx(chars);
-      expect(estimate).toBeGreaterThanOrEqual(printed);
-      expect(estimate - printed).toBeLessThan(60);
-    }
-  });
-
-  it("puts the estimate on the entry for the stylesheet", () => {
-    const { content } = formatMonsterForScriptorium(
-      monster({ description: "A brute." }),
-    );
-    expect(content).toMatch(/class="sc-statblock-entry[^"]*"[^>]*style="--sc-band-est: \d+px"/);
   });
 });
 
