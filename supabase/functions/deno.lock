@@ -3,6 +3,7 @@
   "specifiers": {
     "npm:@gltf-transform/core@4.4.1": "4.4.1",
     "npm:@gltf-transform/extensions@4.4.1": "4.4.1",
+    "npm:@jsquash/webp@1.5.0": "1.5.0",
     "npm:@supabase/supabase-js@2.110.2": "2.110.2",
     "npm:pdf-lib@1.17.1": "1.17.1",
     "npm:stripe@22.4.0": "22.4.0"
@@ -19,6 +20,12 @@
       "dependencies": [
         "@gltf-transform/core",
         "ktx-parse"
+      ]
+    },
+    "@jsquash/webp@1.5.0": {
+      "integrity": "sha512-KggLoj2MnRSfIqTeKe1EmbljTX2vuV7mh79k89PCL1pyqiDULcPM1L47twxXt0hkb68F70bXiL31MxsuoZtKFw==",
+      "dependencies": [
+        "wasm-feature-detect"
       ]
     },
     "@pdf-lib/standard-fonts@1.0.0": {
@@ -107,6 +114,9 @@
     },
     "tslib@2.8.1": {
       "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
+    },
+    "wasm-feature-detect@1.9.0": {
+      "integrity": "sha512-zonE+xlIIYtxPy++L24ow0hAD8CICb4+FgPyROd3buyXIqsJvUEDkBgfCCoXOd1Hu3DUr0GOfnPIdcGV+YpNaA=="
     }
   },
   "remote": {
@@ -118,6 +128,7 @@
     "dependencies": [
       "npm:@gltf-transform/core@4.4.1",
       "npm:@gltf-transform/extensions@4.4.1",
+      "npm:@jsquash/webp@1.5.0",
       "npm:@supabase/supabase-js@2.110.2",
       "npm:pdf-lib@1.17.1",
       "npm:stripe@22.4.0"
