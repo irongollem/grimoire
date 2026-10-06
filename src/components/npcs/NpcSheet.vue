@@ -41,6 +41,7 @@
     <!-- Col 2 / below: tabs + content, scrolls on desktop -->
     <div class="flex-1 min-w-0 lg:overflow-y-auto lg:pb-6">
       <NpcTabContent :npc="npc" />
+      <DmNoteBox class="mt-4" type="npc" :id="npc.id" :label="npc.name" />
     </div>
   </div>
 </template>
@@ -49,6 +50,7 @@
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import NpcTabContent from "@/components/npcs/NpcTabContent.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import type { Npc } from "@/types/npc.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";

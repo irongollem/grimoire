@@ -167,13 +167,13 @@
           :appearance="form.appearance"
           :personality="form.personality"
           :backstory="form.backstory"
-          :notes="form.notes"
           @update:appearance="form.appearance = $event"
           @update:personality="form.personality = $event"
           @update:backstory="form.backstory = $event"
-          @update:notes="form.notes = $event"
         />
       </NpcAccordionSection>
+
+      <DmNoteBox v-if="npc?.id" type="npc" :id="npc.id" :label="npc.name" />
 
       <!-- Relations card (existing NPCs only) -->
       <section v-if="npc?.id" class="rounded-xl border border-border bg-card p-4">
@@ -314,6 +314,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import type { Npc, NpcInsert, NpcStatus, StatBlock } from "@/types/npc.types";
 import type { MonsterIndexEntry } from "@/types/monster.types";
@@ -349,7 +350,7 @@ const {
   isSendingToScriptorium = false,
   isAiEnabled = false,
 } = defineProps<{
-  form: NpcInsert;
+  form: Omit<NpcInsert, "notes">;
   statBlock: StatBlock;
   hasStatBlock: boolean;
   artTab: NpcArtTab;

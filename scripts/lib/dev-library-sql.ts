@@ -19,6 +19,8 @@ const IDENT = /^[a-z_][a-z0-9_]*$/;
  * are keyed by a uuid each seed mints afresh and are read by edition, slug or
  * name, so without pruning an old dump's rows would sit beside production's as
  * duplicates.
+ *
+ * `filter` is a PostgREST filter for a table only part of which is shared.
  */
 export const LIBRARY_TABLES = [
   { table: "content_sources", key: "key", prune: false },
@@ -31,7 +33,12 @@ export const LIBRARY_TABLES = [
   { table: "library_monster_art_canonical", key: "entry_id", prune: false },
   { table: "library_spell_art_canonical", key: "entry_id", prune: false },
   { table: "library_art_defaults", key: "id", prune: true },
-] as const;
+  // Official class content (#943, #976): the rows with no owner. A character
+  // names its subclass by id, so without these a demo character cannot load.
+  { table: "custom_classes", key: "id", prune: false, filter: "user_id=is.null" },
+  { table: "custom_subclasses", key: "id", prune: false, filter: "user_id=is.null" },
+  { table: "class_features", key: "id", prune: false, filter: "user_id=is.null" },
+] as const satisfies readonly { table: string; key: string; prune: boolean; filter?: string }[];
 
 export interface MirrorTable {
   table: string;

@@ -83,6 +83,7 @@
         :item="isNewItem ? null : (item ?? null)"
         :prefill-name="isNewItem ? (route.query.name as string | undefined) : undefined"
       />
+      <DmNoteBox v-if="item && !isNewItem && !isShared" class="mt-6" type="item" :id="item.id" :label="item.name" />
     </template>
 
     <CopyToCampaignDialog
@@ -109,6 +110,7 @@ import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import ItemDetail from "@/components/items/ItemDetail.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
 import ItemSendMenu from "@/components/items/ItemSendMenu.vue";

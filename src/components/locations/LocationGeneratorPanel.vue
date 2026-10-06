@@ -146,7 +146,7 @@ async function generateAndCreate() {
       description:           toTiptapJson(result.description),
       player_summary:        result.player_summary || null,
       tags:                  result.tags,
-      notes:                 result.notes || null,
+      notes:                 result.notes ? toTiptapJson(result.notes) : null,
       era_start:             null,
       era_end:               null,
       parent_id:             parentLocationId.value || null,

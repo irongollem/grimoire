@@ -141,6 +141,7 @@ function mountDetail(npcProp: Npc | null, { mobile = false }: { mobile?: boolean
     props: { npc: npcProp },
     global: {
       stubs: {
+        DmNoteBox: true,
         NpcEditMobile: true,
         NpcGenerateDialog: true,
         NpcSidebar: true,
@@ -255,5 +256,14 @@ describe("NpcDetail — save sends only what changed (#946)", () => {
     expect(sent.name).toBe("Elowen Vance-Hale");
     expect(sent).not.toHaveProperty("occupation");
     expect(sent).not.toHaveProperty("campaign_id");
+  });
+
+  it("never sends the DM note, which DmNoteBox owns", async () => {
+    const base = npc({ name: "Elowen Vance", notes: "secret" });
+    const wrapper = mountDetail(base);
+    const vm = wrapper.vm as unknown as { form: { name: string }; save: () => Promise<void> };
+    vm.form.name = "Elowen Vance-Hale";
+    await vm.save();
+    expect(updateNpc.mock.calls[0][0].update).not.toHaveProperty("notes");
   });
 });

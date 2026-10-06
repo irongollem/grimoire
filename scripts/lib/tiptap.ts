@@ -3,7 +3,8 @@
  *
  * The chapter NPC + faiths importers' parsers produce plain markdown for
  * rich-text fields (`appearance`, `personality`, `backstory`, `notes` on NPCs;
- * `description`, `dm_notes` on deities; `description` on pantheons). The Vue
+ * `description` on deities, whose DM notes the faiths importer writes as an
+ * entity note; `description` on pantheons). The Vue
  * `RichTextEditor` component binds those fields as Tiptap documents, so plain
  * markdown round-trips through the editor without formatting — the user has
  * to manually reformat every imported row.
@@ -98,7 +99,6 @@ export const NPC_RICHTEXT_FIELDS = [
 
 export const DEITY_RICHTEXT_FIELDS = [
   "description",
-  "dm_notes",
 ] as const;
 
 export const PANTHEON_RICHTEXT_FIELDS = [

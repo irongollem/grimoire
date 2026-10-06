@@ -77,7 +77,6 @@ export interface Deity {
   domains: string[];
   portfolio: string | null;
   description: string | null; // Tiptap JSON
-  dm_notes: string | null;    // Tiptap JSON
   tags: string[];
   player_visible_to: string[];
   /** Set when the deity was AI-generated; `edited` flips on a material edit. */

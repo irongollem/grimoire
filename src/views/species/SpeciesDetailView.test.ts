@@ -77,6 +77,7 @@ function mountView() {
       stubs: {
         SpeciesDetail: true,
         SpeciesSheet: true,
+        DmNoteBox: true,
         LoadingSpinner: true,
         // A plain `true` auto-stub falls through an undeclared prop as a DOM
         // attribute — fine for the plain data `SpeciesSheet` gets, but

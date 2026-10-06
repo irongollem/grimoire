@@ -45,8 +45,10 @@ Click **New Feature** and fill in:
 - **Arcana DC**: if the feature has a magical element, the Arcana DC to recognise it.
 - **Contents / What's Inside**: rich text describing what's revealed once the feature is found or opened.
 - **Description**: environmental context: how it blends in, what it looks like to a careful observer.
-- **Tags**, **Image**, **DM Notes**.
+- **Tags**, **Image**.
 - **Scope**: **General: all campaigns** or a specific campaign; new features default to your active campaign.
+
+Your private notes on a feature live in the **DM notes** box on its page, saved as you type; see [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
 
 ## Generating a feature with AI
 

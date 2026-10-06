@@ -31,7 +31,7 @@ Click **New Species**. Fields, left to right:
 - **Traits**: a list of named racial traits, each with a rich-text description. These appear on the player's **Features** tab.
 - **Subraces / Lineages**: sub-options (e.g. High Elf, Wood Elf for "Elf"), each with its own name, ability bonus text, description, and traits.
 - **Spell Grants**: spells a character of this species knows automatically. Either pick a specific spell (optionally scoped to one subrace), or check **Player chooses spell** for a free pick (e.g. a High Elf's bonus cantrip). Each grant can be limited to a minimum character level and a uses-per-day allowance that resets on a short or long rest, leave uses per day blank for an at-will spell.
-- **DM Notes**: private rich text, never shown to players.
+- **DM notes**: not a field on this form. Your own species has a **DM notes** box on its page, private to you and saved as you type; see [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
 
 ### Generating with AI
 

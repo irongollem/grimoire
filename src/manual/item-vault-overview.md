@@ -71,10 +71,11 @@ Open any owned item and click **Edit** (or it's already in edit mode for a new i
 - **Mundane Description** (non-mundane only): rich text shown to players before identification.
 - **Description**: rich text shown after identification (or always, for mundane items).
 - **Written Contents**: optional in-world text the item itself carries (a ledger's pages, a scroll's text). Folded behind a **HAS WRITING** toggle; unfolding it exposes the editor, a **PLAYER WRITABLE** checkbox letting campaign members append their own entries, and the entry thread itself.
-- **DM Notes**: rich text, never shown to players.
 - **Curse** (non-mundane only): a **CURSED** toggle plus rich text description. Reveal it to players from the item's inventory detail panel once triggered.
 - **Scope**: **General** (all campaigns) or **Campaign** (*active campaign name*). New items default to your active campaign.
 - **Source**: freeform for custom items; a read-only link for imported ones.
+
+Your own items also have a **DM notes** box on their page: private to you, never shown to players, saved as you type. It is not a field on this form; see [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
 
 ## Handing items to players
 

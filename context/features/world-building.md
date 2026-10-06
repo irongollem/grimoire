@@ -480,7 +480,7 @@ Shows the sheet or editor (via `?edit=true`), then below it always-visible sub-s
 - **FactionRelationsSection** — Directional inter-faction relations. Outgoing and incoming relations shown separately. Relation types: Allied, Friendly, Neutral, Suspicious, Rival, Hostile, Secret Ally, Secret Enemy (each with colour). Upsert on `(faction_id, target_faction_id)` unique constraint — adding the same relation again updates it.
 - **FactionLocationsSection** — Associated locations (with optional notes per link). Combobox + add button; remove per row.
 - **FactionItemsSection** — Associated items (with optional notes per link). Same pattern.
-- **EntityNotesPanel** — DM notes attached to the faction entity.
+- **DM notes box** (`DmNoteBox`) — the DM's one private note on the faction, on its page and in the docked scratchpad. It replaced `EntityNotesPanel`, which also let a DM write a note the party could read; those "party notes" were folded into the private note (the maintainer's call, 6 Oct 2026). See [dm-notes.md](dm-notes.md).
 
 ### Player View
 
@@ -589,7 +589,7 @@ catches it; `20260818081308` had to rebuild the function for exactly this reason
 
 **Decision: every edition uses the full domain list.** `normalizeDeityResult` matches domains (at most three) against `CLERIC_DOMAINS` for 2014 and 2024 alike. A god's domains are its portfolio, not the cleric subclasses a handbook prints: the 2024 Player's Handbook gives clerics four domains, but its gods still carry Knowledge, Nature, Tempest and the rest, so narrowing a 2024 god to four would be a house rule. Unknown alignments become null and unknown domains are dropped, because a value outside the enums would show in no filter or chip.
 
-**Writes:** `createDeity` with prose (description, `dm_notes`) as Tiptap JSON, `ai_provenance` as returned, and, when the image toggle is on, a portrait (purpose `deity`, "a divine portrait of a god or goddess", from the model's `image_prompt`) with focal point defaulted to dead centre.
+**Writes:** `createDeity` with prose (description) as Tiptap JSON, `ai_provenance` as returned, and, when the image toggle is on, a portrait (purpose `deity`, "a divine portrait of a god or goddess", from the model's `image_prompt`) with focal point defaulted to dead centre.
 
 **Portrait block in the editor:** `DeityEditor.vue` now renders its Divine Form through `EntityImageBlock` with `ai-kind="deity"` and `bucket="pantheon-emblems"`, so an existing deity can get a portrait generated or regenerated like an NPC. The facts the portrait author works from come from `deityImageContextParts` (name, titles, alignment, domains, portfolio, holy symbol) built from the live form, so unsaved edits count.
 
@@ -633,7 +633,7 @@ catches it; `20260818081308` had to rebuild the function for exactly this reason
 | `location_type`         | enum (19 values) | World, Plane, Continent, Region, Country, City, Town, Village, District, Building, Store, Tavern, Inn, Wilds, Room, Grounds, Dungeon, Wilderness, Other                 |
 | `parent_id`             | uuid FK          | Null = top-level                                                                                                                                                        |
 | `description`           | Tiptap JSON      | DM-only unless `is_description_shared`                                                                                                                                  |
-| `notes`                 | text             | (currently unused in UI)                                                                                                                                                |
+| `notes`                 | text             | The DM's one private note (`DmNoteBox`, see [dm-notes.md](dm-notes.md))                                                                                                                                                |
 | `tags`                  | string[]         |                                                                                                                                                                         |
 | `image_url`             | string           | Sigil/emblem (portrait)                                                                                                                                                 |
 | `map_url`               | string           | Map image (landscape)                                                                                                                                                   |

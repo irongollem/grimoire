@@ -213,7 +213,6 @@ Both are colour-coded; the card thumbnail shows the type badge top-left and the 
 | **Hints**        | Ordered list of rich-text hints; hints can be reordered with up/down buttons   |
 | **Solution**     | Rich-text, DM eyes only; collapsible "Reveal/Hide" toggle in view mode         |
 | **Outcomes**     | Separate success and failure/consequence rich-text blocks                      |
-| **DM Notes**     | Private running notes, variant solutions, pacing tips                          |
 
 #### AI-Assisted Puzzle Generator
 
@@ -267,7 +266,7 @@ The player view is **read-only** and shows only what the DM has explicitly expos
 | **Hints**                        | Only hints whose `order` is in `shared_hints[]` are shown; numbered in the DM's order |
 | Solution                         | Never shown to players                                                                |
 | Outcomes                         | Never shown to players                                                                |
-| DM Notes                         | Never shown to players                                                                |
+| DM notes (`DmNoteBox`, not a form field) | Never shown to players; see [dm-notes.md](dm-notes.md)                  |
 
 If no hints have been revealed a message reads "No hints revealed yet."
 

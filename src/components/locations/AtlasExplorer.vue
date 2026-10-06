@@ -158,11 +158,12 @@
         title="Could not open this place"
         description="Reload the Atlas, or pick the place again."
       />
-      <LocationEditor
-        v-else-if="editing && selected"
-        :key="selected.id"
-        :location="selected"
-      />
+      <div v-else-if="editing && selected" :key="selected.id" class="flex flex-col gap-6">
+        <LocationEditor :location="selected" />
+        <!-- The pane mounts this box for Browse and Build; the edit form
+             replaces the pane, so the box follows it here (#983). -->
+        <DmNoteBox type="location" :id="selected.id" :label="selected.name" />
+      </div>
       <SiteRunSurface
         v-else-if="running && selected"
         :key="selected.id"
@@ -191,6 +192,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AtlasPlacePane from "@/components/locations/AtlasPlacePane.vue";
 import AtlasTree from "@/components/locations/AtlasTree.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import LocationEditor from "@/components/locations/LocationEditor.vue";
 import SiteRunSurface from "@/components/locations/SiteRunSurface.vue";
 import { useAtlasTreeFold } from "@/composables/locations/useAtlasTreeFold";

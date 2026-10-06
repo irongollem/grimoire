@@ -126,10 +126,8 @@
             <div class="prose prose-sm prose-invert max-w-none text-body text-foreground" v-html="descriptionHtml" />
           </div>
 
-          <!-- DM Notes -->
-          <div v-if="notesHtml" class="px-5 pt-4 pb-2">
-            <div class="text-label text-muted-foreground mb-2">DM NOTES</div>
-            <div class="prose prose-sm prose-invert max-w-none text-body text-foreground" v-html="notesHtml" />
+          <div class="px-5 pt-4">
+            <DmNoteBox :key="trap.id" type="trap" :id="trap.id" :label="trap.name" />
           </div>
 
           <div class="h-4" />
@@ -157,6 +155,7 @@ import { IconClose, IconEdit } from '@/lib/icons';
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { TRAP_TYPE_BG } from "@/types/trap.types";
 import { crToXp } from "@/types/encounter.types";
@@ -171,5 +170,4 @@ function renderRichText(content: string | null): string {
 }
 
 const descriptionHtml = computed(() => renderRichText(props.trap?.description ?? null));
-const notesHtml = computed(() => renderRichText(props.trap?.notes ?? null));
 </script>

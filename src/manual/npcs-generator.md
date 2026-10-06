@@ -18,7 +18,7 @@ The NPC Generator is a slide-in panel for creating NPCs faster than the full edi
 ## Quick Create
 
 1. Optionally fill in any of: **Name** (auto-generated from a name table if left blank), **Species** (a preset list of 15 common races, or leave it "Any"), **Alignment**, **Relationship** (party stance), **Faction** and, once one is picked, **Role in faction**, **Location**, **Stat block template** (grouped by category), and **Known associate**: an existing NPC, plus the **Relationship type** to them once picked.
-2. Optionally write something in the **Concept** box: for Quick Create this is saved as the new NPC's DM notes rather than sent to AI.
+2. Optionally write something in the **Concept** box: for Quick Create this is saved as the new NPC's DM notes (the box on its page) rather than sent to AI.
 3. Click **Quick Create NPC**.
 
 Picking a faction or an associate here creates that membership or connection automatically the moment the NPC is created, so you don't need a second trip to the Relations tab.
@@ -46,7 +46,7 @@ Players never see the generator: it's a DM-only creation tool. Once you save or 
 
 ## Tips
 
-> The Concept box is useful even without AI: for Quick Create it's saved straight into the NPC's DM Notes, so jotting a reminder there before you fill in the fields isn't wasted.
+> The Concept box is useful even without AI: for Quick Create it's saved straight into the NPC's DM notes box, so jotting a reminder there before you fill in the fields isn't wasted.
 
 - A generated NPC's disguise starts unrevealed even when you asked for an alter ego. Reveal it from the sheet when you're ready for players to meet the true form.
 

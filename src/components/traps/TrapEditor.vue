@@ -209,16 +209,6 @@
           <RichTextEditor v-model="form.description" placeholder="Flavor text, lore, appearance…" size="md" />
         </div>
       </div>
-
-      <!-- DM Notes -->
-      <div class="rounded-lg border border-border bg-card overflow-hidden">
-        <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
-        </div>
-        <div class="p-3">
-          <RichTextEditor v-model="form.notes" placeholder="Private notes, encounter ideas, variants…" size="md" />
-        </div>
-      </div>
     </div>
 
     <!-- CR Advisor Modal -->
@@ -437,7 +427,6 @@ const blankForm = () => ({
   image_focal_point: null as { x: number; y: number } | null,
   tags: [] as string[],
   description: null as string | null,
-  notes: null as string | null,
   ai_provenance: null as AiProvenance | null,
 });
 
@@ -470,9 +459,6 @@ watch(
         tags: [...(t.tags ?? [])],
         description: t.description
           ? typeof t.description === "string" ? t.description : JSON.stringify(t.description)
-          : null,
-        notes: t.notes
-          ? typeof t.notes === "string" ? t.notes : JSON.stringify(t.notes)
           : null,
         ai_provenance: t.ai_provenance ?? null,
       });
@@ -514,8 +500,7 @@ async function save() {
         form.value.reset_type !== t.reset_type ||
         form.value.trap_hp !== t.trap_hp ||
         form.value.trap_ac !== t.trap_ac ||
-        form.value.description !== t.description ||
-        form.value.notes !== t.notes;
+        form.value.description !== t.description;
       if (contentChanged) form.value.ai_provenance = markEdited(form.value.ai_provenance);
 
       await updateMut.mutateAsync({ id: props.trap!.id, update: { ...form.value } as Parameters<typeof updateMut.mutateAsync>[0]["update"] });

@@ -15,6 +15,7 @@
         :key="feature.id"
         :feature="feature"
       />
+      <DmNoteBox v-if="feature && !isNew" class="mt-6" type="dungeon_feature" :id="feature.id" :label="feature.name" />
     </template>
   </PageHeader>
 </template>
@@ -25,6 +26,7 @@ import { useRoute } from "vue-router";
 import { useDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import DungeonFeatureEditor from "@/components/dungeon-features/DungeonFeatureEditor.vue";
 import DungeonFeatureSheet from "@/components/dungeon-features/DungeonFeatureSheet.vue";
 

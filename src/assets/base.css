@@ -134,3 +134,18 @@ input[type="number"] {
     font-size: 16px;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   The docked DM scratchpad reserves its edge (#983)
+   While it is open on a wide screen, DmScratchpad sets `data-scratchpad-dock`
+   and `--dock-right` on <html>, the layout pads by the same amount, and every
+   overlay teleported to <body> that spans the viewport or hangs off its right
+   edge ends where the dock begins. So a modal, a generator panel or a toast
+   lays out beside the notes instead of under them, and the panel can sit above
+   them all without covering anything. Only full-width and right-anchored
+   overlays: a popover placed by `left`/`top` would stretch to the dock if it
+   were given a `right`. Unlayered for the same reason as the select rule above.
+───────────────────────────────────────────────────────────────────────────── */
+:root[data-scratchpad-dock] body > :is(.fixed.inset-0, .fixed.inset-x-0, .fixed.right-0):not([data-scratchpad]) {
+  right: var(--dock-right);
+}

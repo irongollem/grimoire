@@ -65,6 +65,7 @@ import {
 } from "./lib/merge-fields";
 import {
   DEITY_RICHTEXT_FIELDS,
+  markdownToTiptap,
   PANTHEON_RICHTEXT_FIELDS,
   tiptapifyFields,
 } from "./lib/tiptap";
@@ -84,7 +85,6 @@ const DEITY_MERGE_FIELDS: Record<string, FieldSpec> = {
   domains: { kind: "array" },
   portfolio: { kind: "scalar" },
   description: { kind: "prose" },
-  dm_notes: { kind: "prose" },
   tags: { kind: "array" },
   // Pantheon FK is a scalar: existing-empty → fill from source; existing-set
   // → leave (so manual reassignment in the UI isn't clobbered by a re-import).
@@ -203,7 +203,6 @@ interface ExistingDeity {
   domains: string[];
   portfolio: string | null;
   description: string | null;
-  dm_notes: string | null;
   tags: string[];
   pantheon_id: string | null;
 }
@@ -215,7 +214,7 @@ async function fetchExistingDeities(
 ): Promise<ExistingDeity[]> {
   const { data, error } = await supabase
     .from("deities")
-    .select("id, name, titles, alignment, symbol, domains, portfolio, description, dm_notes, tags, pantheon_id")
+    .select("id, name, titles, alignment, symbol, domains, portfolio, description, tags, pantheon_id")
     .eq("user_id", userId)
     .eq("campaign_id", campaignId);
   if (error) throw error;
@@ -229,7 +228,6 @@ async function fetchExistingDeities(
     domains: (r.domains as string[] | null) ?? [],
     portfolio: (r.portfolio as string | null) ?? null,
     description: (r.description as string | null) ?? null,
-    dm_notes: (r.dm_notes as string | null) ?? null,
     tags: (r.tags as string[] | null) ?? [],
     pantheon_id: (r.pantheon_id as string | null) ?? null,
   }));
@@ -342,10 +340,58 @@ function recordToInsert(r: FaithRecord, campaignId: string, pantheonId: string |
     domains: r.domains,
     portfolio: r.portfolio,
     description: r.description || null,
-    dm_notes: r.dm_notes,
     tags: r.tags,
     player_visible_to: [],
   } satisfies Omit<DeityInsert, never>;
+}
+
+/**
+ * Write the parsed DM notes as private `entity_notes` rows (the deity row has
+ * no notes column any more). A deity that already has a private note of the
+ * DM's keeps it: a re-import must not overwrite what they have written since.
+ */
+async function writeDmNotes(
+  supabase: SupabaseClient,
+  args: { userId: string; campaignId: string },
+  parsed: FaithRecord[],
+  deityIdByNorm: Map<string, string>,
+  log: ReturnType<typeof makeLogger>,
+): Promise<void> {
+  const wanted = parsed.flatMap((r) => {
+    const id = deityIdByNorm.get(normalizeName(r.name));
+    const content = markdownToTiptap(r.dm_notes);
+    return id && content ? [{ deityId: id, name: r.name, content }] : [];
+  });
+  if (wanted.length === 0) return;
+
+  const { data: have, error: haveErr } = await supabase
+    .from("entity_notes")
+    .select("entity_id")
+    .eq("entity_type", "deity")
+    .eq("user_id", args.userId)
+    .eq("is_private", true)
+    .in("entity_id", wanted.map((w) => w.deityId));
+  if (haveErr) throw haveErr;
+  const noted = new Set((have ?? []).map((n) => n.entity_id as string));
+
+  const rows = wanted
+    .filter((w) => !noted.has(w.deityId))
+    .map((w) => ({
+      entity_type: "deity",
+      entity_id: w.deityId,
+      user_id: args.userId,
+      campaign_id: args.campaignId,
+      content: w.content,
+      is_private: true,
+      shared_with_dm: false,
+    }));
+  if (rows.length === 0) {
+    log.info("DM notes: every deity already has a private note; nothing written");
+    return;
+  }
+  const { error } = await supabase.from("entity_notes").insert(rows);
+  if (error) throw error;
+  log.info(`wrote ${rows.length} deity DM notes as private entity notes`);
 }
 
 async function main(): Promise<number> {
@@ -443,7 +489,6 @@ async function main(): Promise<number> {
         domains: r.domains,
         portfolio: r.portfolio,
         description: r.description || null,
-        dm_notes: r.dm_notes,
         tags: r.tags,
         pantheon_id: pantheonId,
       };
@@ -588,8 +633,10 @@ async function main(): Promise<number> {
 
   // Execute — UPDATE existing rows (enriches + force-overwrites use the same
   // UPDATE shape; only the plan-builder differed), then INSERT new rows.
-  // Rich-text fields (description, dm_notes) are converted from plain markdown
+  // The rich-text field (description) is converted from plain markdown
   // to Tiptap JSON at this write boundary so they render correctly in the UI.
+  // Deity DM notes are not a column: each is the DM's own private entity note.
+  const deityIdByNorm = new Map(existing.map((d) => [d.normalized, d.id]));
   let enrichedOk = 0;
   for (const entry of toEnrich) {
     const updates = tiptapifyFields(entry.plan.updates, DEITY_RICHTEXT_FIELDS);
@@ -635,8 +682,13 @@ async function main(): Promise<number> {
       .select("id, name");
     if (error) throw error;
     log.info(`inserted ${data?.length ?? 0} new deities`);
-    for (const row of data ?? []) log.debug(`  ${row.name} → ${row.id}`);
+    for (const row of data ?? []) {
+      log.debug(`  ${row.name} → ${row.id}`);
+      deityIdByNorm.set(normalizeName(row.name as string), row.id as string);
+    }
   }
+
+  await writeDmNotes(supabase, args, parsed, deityIdByNorm, log);
   return 0;
 }
 

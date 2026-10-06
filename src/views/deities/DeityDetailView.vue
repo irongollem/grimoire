@@ -65,6 +65,10 @@
         :key="deity.id"
         :deity="deity"
       />
+      <!-- Outside the editor/sheet switch so it stays mounted in both modes. -->
+      <div v-if="!isNew && deity" class="mt-8">
+        <DmNoteBox type="deity" :id="deity.id" :label="deity.name" />
+      </div>
     </template>
   </PageHeader>
 </template>
@@ -79,6 +83,7 @@ import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import DeityEditor from "@/components/deities/DeityEditor.vue";
 import DeitySheet from "@/components/deities/DeitySheet.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 
 const route     = useRoute();

@@ -364,6 +364,16 @@
           Nothing inside {{ location.name }} yet.
         </p>
       </template>
+
+      <!--
+        One box for Browse, Build and both pane modes: it sits after the
+        mode switch so it stays mounted while the DM flips between them. The
+        edit form is the one state that replaces this pane, so AtlasExplorer
+        mounts the same box under it (#983).
+      -->
+      <div class="mt-4 border-t border-border pt-4">
+        <DmNoteBox type="location" :id="location.id" :label="location.name" />
+      </div>
     </div>
   </div>
 </template>
@@ -377,6 +387,7 @@ import TabBar from "@/components/common/TabBar.vue";
 import AtlasScaleRail from "@/components/locations/AtlasScaleRail.vue";
 import AtlasSiteMapMode from "@/components/locations/AtlasSiteMapMode.vue";
 import AtlasTreeRow from "@/components/locations/AtlasTreeRow.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import LocationDetailSections from "@/components/locations/LocationDetailSections.vue";
 import LocationRevealControl from "@/components/locations/LocationRevealControl.vue";
 import SiteLevelAssignment from "@/components/locations/SiteLevelAssignment.vue";

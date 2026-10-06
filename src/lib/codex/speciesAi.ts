@@ -169,7 +169,6 @@ export function speciesInsertFromAi(ai: SpeciesAiResult, ctx: SpeciesDraftContex
   return {
     name: text(ai.name),
     description: description ? toTiptapJson(description) : null,
-    notes: null,
     size,
     avg_height: textOrNull(ai.avg_height),
     avg_weight: textOrNull(ai.avg_weight),

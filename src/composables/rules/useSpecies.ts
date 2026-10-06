@@ -72,7 +72,6 @@ async function fetchLibrarySpecies(enabledSlugs: string[], ruleset: RulesetKey):
     ...row,
     user_id: "",
     campaign_id: null,
-    notes: null,
   })) as Species[];
 }
 
@@ -141,7 +140,7 @@ async function fetchSpeciesByIds(libraryIds: string[], customIds: string[]): Pro
           .in("id", libraryIds)
           .then(({ data, error }) => {
             if (error) throw error;
-            return (data ?? []).map((row) => ({ ...row, user_id: "", campaign_id: null, notes: null })) as Species[];
+            return (data ?? []).map((row) => ({ ...row, user_id: "", campaign_id: null })) as Species[];
           }),
     customIds.length === 0
       ? Promise.resolve<Species[]>([])
@@ -196,7 +195,7 @@ async function fetchResolvedSpecies(id: string): Promise<Species> {
       .eq("id", id)
       .single();
     if (error) throw error;
-    return { ...data, user_id: "", campaign_id: null, notes: null } as Species;
+    return { ...data, user_id: "", campaign_id: null } as Species;
   }
   return fetchSpecies(id);
 }
@@ -267,7 +266,6 @@ export function useCloneLibrarySpecies() {
       return createSpecies({
         name,
         description,
-        notes: null,
         size,
         avg_height,
         avg_weight,

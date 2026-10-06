@@ -60,17 +60,14 @@ type ImportedFields = ReturnType<typeof buildImportedFields>;
 type CreateOnlyDefaults = ReturnType<typeof buildCreateOnlyDefaults>;
 
 /**
- * `library_species` row: `buildImportedFields` + `buildCreateOnlyDefaults`, minus
- * `notes` (that field is `species`-table-only — a DM-private note column that
- * `library_species`, per the 20260724000002 migration, deliberately has no
- * equivalent of), plus the shared-table id and the source/source_title
+ * `library_species` row: `buildImportedFields` + `buildCreateOnlyDefaults`, plus the shared-table id and the source/source_title
  * override described above. `ruleset` is narrowed to non-null: like
  * `library_monsters`, `library_species.ruleset` is `NOT NULL` with a
  * `('2014'|'2024')` check, so any row from a non-5e-2014/2024 document (e.g.
  * a5e) is filtered out — loudly — before upsert rather than silently coerced.
  */
 type SeededSpecies = Omit<ImportedFields, "ruleset" | "source"> &
-  Omit<CreateOnlyDefaults, "notes"> & {
+  CreateOnlyDefaults & {
     id: string;
     ruleset: RulesetKey;
     source: string;
@@ -88,7 +85,7 @@ export function buildSeededSpeciesRow(
 ): SeededSpecies | null {
   const imported = buildImportedFields(race, documentMetadata);
   if (!imported.ruleset) return null;
-  const { notes: _notes, ...createOnlyDefaults } = buildCreateOnlyDefaults();
+  const createOnlyDefaults = buildCreateOnlyDefaults();
   return {
     ...imported,
     ...createOnlyDefaults,

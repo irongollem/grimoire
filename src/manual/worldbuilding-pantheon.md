@@ -33,11 +33,11 @@ Pantheons and deities are Grimoire's two thin, sibling world-building modules fo
 3. Pick a **Pantheon** (optional) and an **Alignment**.
 4. Add a **Symbol Description** (prose, for when you don't have symbol art).
 5. Set who it's **Visible to Players**, and add **Tags**.
-6. On the right: **Name**, **Titles & Epithets** (e.g. "The Morninglord, Lord of Dawn"), any **Alternate Names** the deity is known by in different cultures, the **Cleric Domains** it grants (click to toggle any number of the standard domains), a **Portfolio** line (what it governs: war, harvest, death…), **Lore & Description** (rich text, player-facing once revealed), and **DM Secrets**: a second rich-text field for hidden truths and true motivations that never gets shared, even when the deity itself is revealed.
+6. On the right: **Name**, **Titles & Epithets** (e.g. "The Morninglord, Lord of Dawn"), any **Alternate Names** the deity is known by in different cultures, the **Cleric Domains** it grants (click to toggle any number of the standard domains), a **Portfolio** line (what it governs: war, harvest, death…), **Lore & Description** (rich text, player-facing once revealed). Hidden truths and true motivations go in the deity's **DM notes** box on its page, not in this form: it is private, saved as you type, and never shared, even when the deity itself is revealed. See [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
 
 ## Generating with AI
 
-If AI is switched on for your campaign, the deity list has a **Generate** button next to **New Deity**. Describe the god in a sentence or two (a weary goddess of crossroads, say), and Grimoire writes a complete deity: name, titles, alternate names, alignment, one to three cleric domains, portfolio, a holy symbol description, lore for your players, and DM secrets with ideas for bringing the god into play.
+If AI is switched on for your campaign, the deity list has a **Generate** button next to **New Deity**. Describe the god in a sentence or two (a weary goddess of crossroads, say), and Grimoire writes a complete deity: name, titles, alternate names, alignment, one to three cleric domains, portfolio, a holy symbol description, lore for your players, and secrets with ideas for bringing the god into play, which land in the deity's DM notes box.
 
 You can steer it before you generate:
 
@@ -71,7 +71,7 @@ There's no dedicated player-facing pantheon page today: a deity becomes visible 
 
 ## Tips
 
-> DM Secrets never leave your screen, whether or not the deity itself is shared: use it freely for anything you don't want a cleric's player reading ahead of time.
+> A deity's DM notes never leave your screen, whether or not the deity itself is shared: use it freely for anything you don't want a cleric's player reading ahead of time.
 
 - Free plans cap how many deities and pantheons you can create by hand: see [Billing & Subscription](#billing-subscription). Content **Populate Setting** brings in doesn't count against either cap, so it's safe to run in full even on Free.
 - Domains are a flat toggle list, not a combobox: click as many as the deity actually grants.

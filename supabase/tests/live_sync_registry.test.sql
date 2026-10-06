@@ -45,13 +45,14 @@ insert into live_sync_subscribed (name) values
   ('campaign_messages'), ('npc_inventory'), ('campaign_members'),
   ('campaign_rules'), ('downtime_grants'), ('downtime_draws'),
   ('downtime_outcomes'), ('downtime_deck_backs'), ('minis'), ('class_option_texts'),
-  ('item_entries'), ('party_inventory'), ('character_content_reviews');
+  ('item_entries'), ('party_inventory'), ('character_content_reviews'),
+  ('dm_note_touches');
 
 create temporary table live_sync_doorbell (name text primary key) on commit drop;
 insert into live_sync_doorbell (name) values
   ('store_items'), ('quest_runtime_state'), ('quest_threads'),
   ('quest_beat_transitions'), ('campaign_sessions'), ('ruleset_reviews'),
-  ('scriptorium_documents'), ('entity_mentions');
+  ('scriptorium_documents'), ('entity_mentions'), ('entity_notes');
 
 create temporary table live_sync_named_signal (name text primary key, source text not null) on commit drop;
 insert into live_sync_named_signal (name, source) values

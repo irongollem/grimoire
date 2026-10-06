@@ -155,7 +155,6 @@ describe("tiptapifyFields", () => {
     const out = tiptapifyFields(updates, DEITY_RICHTEXT_FIELDS);
     expect(out).toEqual(updates);
     expect("description" in out).toBe(false);
-    expect("dm_notes" in out).toBe(false);
   });
 
   it("leaves null values as null (no spurious empty docs)", () => {

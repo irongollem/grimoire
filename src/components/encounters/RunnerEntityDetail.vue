@@ -177,16 +177,15 @@
         </template>
 
         <!-- Notes -->
-        <template v-if="selectedTrap.notes">
-          <div class="detail-divider" />
-          <p class="detail-notes"><span v-html="renderTraitDesc(selectedTrap.notes)"></span></p>
-        </template>
+        <div class="detail-divider" />
+        <DmNoteBox :key="selectedTrap.id" type="trap" :id="selectedTrap.id" :label="selectedTrap.name" />
       </div>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { ref, computed } from "vue";
 import RunnerRollBanner from "@/components/encounters/RunnerRollBanner.vue";
 import type { CheckResult } from "@/components/encounters/RunnerRollBanner.vue";
@@ -506,10 +505,6 @@ function renderTraitDesc(desc: string): string {
 
 .detail-trait-desc {
   @apply text-caption text-muted-foreground leading-relaxed;
-}
-
-.detail-notes {
-  @apply text-caption text-muted-foreground italic;
 }
 
 .detail-empty {

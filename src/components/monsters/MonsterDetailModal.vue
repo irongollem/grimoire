@@ -18,7 +18,11 @@
       />
     </template>
 
-    <MonsterSheet v-if="monster" :monster="monster" />
+    <MonsterSheet v-if="monster" :monster="monster">
+      <template v-if="!monster.is_shared" #dm-note>
+        <DmNoteBox type="monster" :id="monster.id" :label="monster.name" />
+      </template>
+    </MonsterSheet>
     <p v-else class="py-16 text-center text-body text-muted-foreground italic">
       This monster could not be found.
     </p>
@@ -40,6 +44,7 @@
  */
 import { computed, toRef } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityDetailModal from "@/components/common/EntityDetailModal.vue";
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import MonsterSheet from "@/components/monsters/MonsterSheet.vue";

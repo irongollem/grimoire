@@ -40,7 +40,7 @@
             <FactionItemsSection :faction-id="faction.id" />
           </div>
           <div class="border-t border-border pt-6">
-            <EntityNotesPanel entity-type="faction" :entity-id="faction.id" :campaign-id="faction.campaign_id" />
+            <DmNoteBox type="faction" :id="faction.id" :label="faction.name" />
           </div>
           <div class="border-t border-border pt-6">
             <EntityBacklinks :entity-id="faction.id" heading-class="text-label-lg font-semibold text-muted-foreground uppercase" />
@@ -64,7 +64,7 @@ import FactionPartyMembersSection from "@/components/factions/FactionPartyMember
 import FactionLocationsSection from "@/components/factions/FactionLocationsSection.vue";
 import FactionItemsSection from "@/components/factions/FactionItemsSection.vue";
 import FactionRelationsSection from "@/components/factions/FactionRelationsSection.vue";
-import EntityNotesPanel from "@/components/common/EntityNotesPanel.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
 
 const route     = useRoute();

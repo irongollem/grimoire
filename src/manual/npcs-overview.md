@@ -55,11 +55,15 @@ Also on the left: the **Party Stance** wheel (the five 5e attitudes, Hostile thr
 
 **NPC Connections** sits between Identity and the tab bar: click **Add**, pick another NPC and a relationship type, and optionally add a note. Each connection links straight to the other NPC's sheet.
 
+### DM notes
+
+Every NPC has a **DM notes** box on its page, in view and edit mode alike. It is private, saves as you type, and is no longer a field on the Lore tab. See [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
+
 ### Tabs
 
 | Tab | Edit mode | View mode | Contents |
 | --- | --- | --- | --- |
-| **Lore** | Yes | Yes | Appearance, Personality, Backstory, DM Notes: each a rich-text field, hidden when empty in view mode. |
+| **Lore** | Yes | Yes | Appearance, Personality, Backstory: each a rich-text field, hidden when empty in view mode. |
 | **Inventory** | Yes | Yes | Items carried by this NPC. |
 | **Relations** | No | Yes | NPC connections, faction memberships, party connections, and favours owed: see below. |
 | **Combat** | Yes | Yes | The stat block. |

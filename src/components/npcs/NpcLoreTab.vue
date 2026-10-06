@@ -33,17 +33,6 @@
         @update:model-value="emit('update:backstory', $event)"
       />
     </div>
-    <div>
-      <label class="field-label">DM Notes</label>
-      <RichTextEditor
-        :model-value="notes"
-        placeholder="Session notes, secrets, loose threads…"
-        size="md"
-        :ai-context="`NPC notes: ${npcName || 'unnamed NPC'}`"
-        :entity-mention-items="entityMentionItems"
-        @update:model-value="emit('update:notes', $event)"
-      />
-    </div>
   </div>
 </template>
 
@@ -60,20 +49,17 @@ const {
   appearance = null,
   personality = null,
   backstory = null,
-  notes = null,
 } = defineProps<{
   npcName?: string
   appearance?: string | null
   personality?: string | null
   backstory?: string | null
-  notes?: string | null
 }>()
 
 const emit = defineEmits<{
   'update:appearance': [value: string | null]
   'update:personality': [value: string | null]
   'update:backstory': [value: string | null]
-  'update:notes': [value: string | null]
 }>()
 </script>
 

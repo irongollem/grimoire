@@ -160,6 +160,8 @@
         </span>
       </div>
 
+      <DmNoteBox type="npc" :id="npc.id" :label="npc.name" />
+
       <!-- 5. Accordion sections -->
       <NpcAccordionSection v-model:open="openSections.lore" title="Lore">
         <div class="flex flex-col gap-4">
@@ -175,12 +177,8 @@
             <h3 class="text-label-lg font-bold uppercase text-primary">Backstory</h3>
             <RichTextViewer :content="npc.backstory" />
           </div>
-          <div v-if="npc.notes" class="flex flex-col gap-1">
-            <h3 class="text-label-lg font-bold uppercase text-muted-foreground">DM Notes</h3>
-            <RichTextViewer :content="npc.notes" />
-          </div>
           <p
-            v-if="!npc.appearance && !npc.personality && !npc.backstory && !npc.notes"
+            v-if="!npc.appearance && !npc.personality && !npc.backstory"
             class="text-body italic text-muted-foreground"
           >
             No lore recorded for this NPC.
@@ -316,6 +314,7 @@ import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
 import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
 import { IconDelete, IconEdit, IconGenerate, IconReveal, IconScrollText, IconTag } from "@/lib/icons";
 import { useDeleteNpc } from "@/composables/npcs/useNpcs";

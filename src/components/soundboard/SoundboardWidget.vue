@@ -427,7 +427,8 @@ const dragging = ref(false);
 const posStyle = computed(() =>
   pos.value
     ? { left: `${pos.value.x}px`, top: `${pos.value.y}px` }
-    : { right: "1rem", bottom: "4rem" },
+    // Beside the docked DM scratchpad, not under it (see base.css).
+    : { right: "calc(var(--dock-right, 0rem) + 1rem)", bottom: "4rem" },
 );
 
 let dragOffset = { x: 0, y: 0 };

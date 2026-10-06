@@ -136,9 +136,6 @@
             <h3 class="text-eyebrow font-semibold text-muted-foreground">Placed In</h3>
             <EntityPlacements kind="loot_table" :entity-id="table.id" />
           </div>
-
-          <!-- DM notes -->
-          <p v-if="table.notes" class="text-body text-muted-foreground italic border-t border-border pt-3">{{ table.notes }}</p>
         </template>
 
         <!-- ── EDIT MODE ───────────────────────────────────────────────── -->
@@ -217,17 +214,9 @@
             @update:model-value="addMonster($event)"
           />
         </div>
-
-        <div class="space-y-1.5">
-          <label class="text-eyebrow font-semibold text-muted-foreground">DM Notes</label>
-          <textarea
-            v-model="form.notes"
-            rows="3"
-            placeholder="When to roll, special rules"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
-          />
-        </div>
         </template><!-- end edit mode -->
+
+        <DmNoteBox v-if="table && !isNew" type="loot_table" :id="table.id" :label="table.name" />
       </div>
 
       <!-- ── Right: roll + drop-in-chat ───────────────────────────────────── -->
@@ -296,6 +285,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import LootTableEntryEditor from "@/components/dungeon-features/LootTableEntryEditor.vue";
 import LootTableRollPanel from "@/components/dungeon-features/LootTableRollPanel.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityPlacements from "@/components/locations/EntityPlacements.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
@@ -318,14 +308,13 @@ const loading   = computed(() => !isNew.value && tableQuery.isLoading.value);
 // to be chosen rather than falling out by default. No active campaign is a
 // genuine "nothing to scope to yet" case.
 const { activeCampaignId } = storeToRefs(useCampaignStore());
-const form = ref<LootTableInsert>({
+const form = ref<Omit<LootTableInsert, "notes">>({
   campaign_id: activeCampaignId.value ?? null,
   name: "",
   description: null,
   cr_tier: "any" as LootCrTier,
   entries: [],
   tags: [],
-  notes: null,
   monster_ids: [],
 });
 
@@ -338,7 +327,6 @@ watch(table, (t) => {
     cr_tier:     t.cr_tier,
     entries:     t.entries.map((e) => ({ ...e })),
     tags:        [...t.tags],
-    notes:       t.notes,
     monster_ids: [...(t.monster_ids ?? [])],
   };
 }, { immediate: true });
@@ -418,7 +406,7 @@ const asLootTableRow = computed<LootTable>(() => ({
   cr_tier: form.value.cr_tier,
   entries: form.value.entries,
   tags: form.value.tags,
-  notes: form.value.notes,
+  notes: table.value?.notes ?? null,
   monster_ids: form.value.monster_ids,
   created_at: "",
   updated_at: "",
@@ -436,7 +424,7 @@ async function onSave() {
   saving.value = true;
   try {
     if (isNew.value) {
-      await createTable({ ...form.value });
+      await createTable({ ...form.value, notes: null });
       router.push("/dungeon-craft?tab=loot-tables");
     } else {
       await updateTable({ id: id.value, update: { ...form.value } });

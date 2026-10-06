@@ -81,6 +81,7 @@ const stubs = {
   AtlasSiteLayerBar: true,
   SiteReadinessMeter: true,
   TabBar: true,
+  DmNoteBox: true,
 };
 
 // Every test mounts through this so `afterEach` can always tear it down.
@@ -241,5 +242,16 @@ describe("AtlasPlacePane Mapped pill", () => {
     await flushPromises();
     expect(w.emitted("update:paneMode")?.at(-1)).toEqual(["map"]);
     expect(mocks.push).toHaveBeenCalledWith({ query: { build: "true" } });
+  });
+});
+
+describe("AtlasPlacePane DM note (#983)", () => {
+  it("mounts one DM note box for the selected place", async () => {
+    const w = mountPane(place({ id: "p1", name: "Ashmouth", location_type: "city" }));
+    await flushPromises();
+    const box = w.findComponent({ name: "DmNoteBox" });
+    expect(box.exists()).toBe(true);
+    expect(box.attributes("type")).toBe("location");
+    expect(box.attributes("id")).toBe("p1");
   });
 });

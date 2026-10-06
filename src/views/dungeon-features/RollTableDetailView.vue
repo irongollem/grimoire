@@ -126,9 +126,6 @@
             <h3 class="text-heading-sm font-bold text-foreground">Placed In</h3>
             <EntityPlacements kind="roll_table" :entity-id="table.id" />
           </div>
-
-          <!-- DM Notes -->
-          <p v-if="table.notes" class="text-body text-muted-foreground italic border-t border-border pt-3">{{ table.notes }}</p>
         </template>
 
         <!-- ── EDIT MODE ───────────────────────────────────────────────── -->
@@ -258,17 +255,9 @@
           </div>
 
           <CampaignScopeField v-model="form.campaign_id" />
-
-          <div class="space-y-1.5">
-            <label class="text-eyebrow font-semibold text-muted-foreground">DM Notes</label>
-            <textarea
-              v-model="form.notes"
-              rows="3"
-              placeholder="When to roll, suggested cadence, special rules"
-              class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
-            />
-          </div>
         </template>
+
+        <DmNoteBox v-if="table && !isNew" :key="table.id" type="roll_table" :id="table.id" :label="table.name" />
       </div>
 
       <!-- ── Right: roll panel ────────────────────────────────────────────── -->
@@ -343,6 +332,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityPlacements from "@/components/locations/EntityPlacements.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
@@ -384,14 +374,13 @@ const loading    = computed(() => !isNew.value && tableQuery.isLoading.value);
 // to be chosen rather than falling out by default. No active campaign is a
 // genuine "nothing to scope to yet" case.
 const { activeCampaignId } = storeToRefs(useCampaignStore());
-const form = ref<RollTableInsert>({
+const form = ref<Omit<RollTableInsert, "notes">>({
   campaign_id: activeCampaignId.value ?? null,
   name: "",
   description: null,
   dice: "1d8" as RollTableDie,
   entries: [],
   tags: [],
-  notes: null,
   ai_provenance: null,
 });
 
@@ -405,7 +394,6 @@ watch(table, (t) => {
     dice:        t.dice,
     entries:     t.entries.map((e) => ({ ...e })),
     tags:        [...t.tags],
-    notes:       t.notes,
     ai_provenance: t.ai_provenance ?? null,
   };
 }, { immediate: true });
@@ -475,7 +463,7 @@ function onRoll() {
     dice: form.value.dice,
     entries,
     tags: form.value.tags,
-    notes: form.value.notes,
+    notes: table.value?.notes ?? null,
     created_at: "",
     updated_at: "",
   });
@@ -503,7 +491,7 @@ async function onSave() {
   saving.value = true;
   try {
     if (isNew.value) {
-      await createTable({ ...form.value });
+      await createTable({ ...form.value, notes: null });
     } else {
       // Material edit detection (#606): tags and the campaign scope are
       // excluded per the "moves/tags" carve-outs.
@@ -512,8 +500,7 @@ async function onSave() {
         form.value.name !== t.name ||
         !deepEqual(form.value.description, t.description) ||
         form.value.dice !== t.dice ||
-        !deepEqual(form.value.entries, t.entries) ||
-        !deepEqual(form.value.notes, t.notes)
+        !deepEqual(form.value.entries, t.entries)
       );
       if (contentChanged) form.value.ai_provenance = markEdited(form.value.ai_provenance);
       await updateTable({ id: id.value, update: { ...form.value } });

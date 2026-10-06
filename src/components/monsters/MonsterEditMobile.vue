@@ -13,7 +13,7 @@
     Layout top → bottom:
       1. sticky app bar (Cancel · title · overflow ⋮ sheet)
       2. stacked section cards (portrait / identity / tags / stat block /
-         description / DM notes)
+         description)
       3. fixed bottom save bar (Cancel · Save/Create)
 
     Library monsters are read-only: the Customize banner clones to an editable copy,
@@ -180,17 +180,9 @@
             size="md"
           />
         </section>
-
-        <!-- DM Notes card -->
-        <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
-          <h3 class="text-heading-sm font-bold text-foreground">DM Notes</h3>
-          <RichTextEditor
-            v-model="form.notes"
-            placeholder="Encounter notes, tactics, lair description…"
-            size="md"
-          />
-        </section>
       </fieldset>
+
+      <DmNoteBox v-if="monsterId && !isShared" type="monster" :id="monsterId" :label="form.name" />
     </main>
 
     <!-- ── 3. Fixed bottom save bar (editable monsters only) ──────────────── -->
@@ -295,6 +287,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
@@ -318,7 +311,6 @@ interface MonsterEditForm {
   campaign_id: string | null;
   tags: string[];
   description: string;
-  notes: string;
   image_url: string;
   cutout_url: string;
   portrait_focal_point: { x: number; y: number } | null;

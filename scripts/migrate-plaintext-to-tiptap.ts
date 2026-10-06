@@ -40,7 +40,7 @@ const DEFAULT_USER_ID = "fc8ae595-641f-4127-87ad-03588f3710d1";
 /** Tables + their rich-text field sets. Source of truth lives in `tiptap.ts`. */
 const TABLE_FIELDS = {
   npcs:      ["appearance", "personality", "backstory", "notes"] as const,
-  deities:   ["description", "dm_notes"] as const,
+  deities:   ["description"] as const,
   pantheons: ["description"] as const,
   locations: ["description", "notes"] as const,
 };

@@ -88,4 +88,10 @@ describe("SpeciesDetail scope default", () => {
       expect.objectContaining({ update: expect.objectContaining({ campaign_id: null }) }),
     );
   });
+
+  it("never sends a notes column; the DM note lives on the page's DmNoteBox", async () => {
+    const wrapper = mountDetail({ id: "s1", campaign_id: null, name: "Owlfolk" } as Species);
+    await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
+    expect(mocks.update.mock.calls[0][0].update).not.toHaveProperty("notes");
+  });
 });

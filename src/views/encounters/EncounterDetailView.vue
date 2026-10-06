@@ -15,6 +15,14 @@
       :key="encounter.id"
       :encounter="encounter"
     />
+
+    <DmNoteBox
+      v-if="encounter && !isNew && !isLoading"
+      class="mt-6"
+      type="encounter"
+      :id="encounter.id"
+      :label="encounter.name"
+    />
   </div>
 </template>
 
@@ -24,6 +32,7 @@ import { useRoute } from "vue-router";
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import EncounterDetail from "@/components/encounters/EncounterDetail.vue";
 import EncounterSheet from "@/components/encounters/EncounterSheet.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
 const route     = useRoute();

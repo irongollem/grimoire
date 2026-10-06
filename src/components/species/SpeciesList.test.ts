@@ -17,7 +17,6 @@ function customSpecies(n: number, overrides: Partial<Species> = {}): Species {
     campaign_id: null,
     name: `Species ${n}`,
     description: null,
-    notes: null,
     size: "medium",
     avg_height: null,
     avg_weight: null,

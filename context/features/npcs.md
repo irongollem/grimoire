@@ -150,9 +150,10 @@ Three tabs in edit mode, five tabs in view mode:
 | Appearance  | RichTextEditor |
 | Personality | RichTextEditor |
 | Backstory   | RichTextEditor |
-| DM Notes    | RichTextEditor |
 
 All fields are nullable; empty fields are hidden in view mode.
+
+**DM notes are not a Lore field.** The NPC's private note (`npcs.notes`) is the always-open, autosaving `DmNoteBox` on the NPC page, in view and edit modes and on phone layouts, and in the docked scratchpad. NPC Quick Create still saves its Concept box as that note. See [dm-notes.md](dm-notes.md).
 
 #### Inventory Tab
 

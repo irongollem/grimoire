@@ -334,7 +334,6 @@ export function usePopulateDeities() {
             domains: d.domains,
             portfolio: d.portfolio ?? null,
             description: d.description ? toRichText(d.description) : null,
-            dm_notes: null,
             tags: d.tags,
             player_visible_to: [],
             setting_source: calendarId,

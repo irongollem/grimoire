@@ -8,7 +8,7 @@
       - CR pill (tinted by crBg) + SRD/source pill over the hero (no status
         dot — monsters have no alive/dead state)
       - quick-facts: Type / Size / Alignment / Habitat
-      - accordion: Lore (description + DM notes) + Combat (full stat block);
+      - accordion: Lore (description) + Combat (full stat block);
         no Inventory / Relations sections
       - primary bottom action is Customize for SRD monsters (clones to an
         editable copy), else Edit
@@ -178,6 +178,8 @@
         </span>
       </div>
 
+      <DmNoteBox v-if="!monster.is_shared" type="monster" :id="monster.id" :label="monster.name" />
+
       <!-- 5. Accordion sections -->
       <NpcAccordionSection v-model:open="openSections.lore" title="Lore">
         <div class="flex flex-col gap-4">
@@ -185,12 +187,8 @@
             <h3 class="text-label-lg font-bold uppercase text-primary">Description</h3>
             <RichTextViewer :content="description" />
           </div>
-          <div v-if="monster.notes" class="flex flex-col gap-1">
-            <h3 class="text-label-lg font-bold uppercase text-muted-foreground">DM Notes</h3>
-            <RichTextViewer :content="monster.notes" />
-          </div>
           <p
-            v-if="!description && !monster.notes"
+            v-if="!description"
             class="text-body italic text-muted-foreground"
           >
             No lore recorded for this monster.
@@ -300,6 +298,7 @@ import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import { useRouter } from "vue-router";
 import { useScroll } from "@vueuse/core";
 import FocalImage from "@/components/common/FocalImage.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";

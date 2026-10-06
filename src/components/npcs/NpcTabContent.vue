@@ -22,11 +22,7 @@
         <h3 class="text-label-lg font-bold text-primary uppercase">Backstory</h3>
         <RichTextViewer :content="npc.backstory" />
       </div>
-      <div v-if="npc.notes" class="flex flex-col gap-1">
-        <h3 class="text-label-lg font-bold text-muted-foreground uppercase">DM Notes</h3>
-        <RichTextViewer :content="npc.notes" />
-      </div>
-      <p v-if="!npc.appearance && !npc.personality && !npc.backstory && !npc.notes"
+      <p v-if="!npc.appearance && !npc.personality && !npc.backstory"
         class="text-body text-muted-foreground italic">
         No lore recorded for this NPC.
       </p>

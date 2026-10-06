@@ -118,11 +118,10 @@ export function buildImportedFields(race: Open5eRace, documentMetadata?: Readonl
  * Fields Open5e has no data for — DM-owned from the moment the species is
  * created. Only used to fill out a brand-new row; a re-import must never
  * reset these back to null/empty on an existing species (that would wipe
- * DM-added art, notes, subraces, and overrides).
+ * DM-added art, subraces, and overrides).
  */
 export function buildCreateOnlyDefaults() {
   return {
-    notes: null,
     subraces: null,
     image_url: null,
     focal_point: null,

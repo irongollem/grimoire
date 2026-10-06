@@ -35,6 +35,8 @@
       <SessionControl />
     </div>
 
+    <!-- Phones reach it from the More sheet: here it would squeeze the page title. -->
+    <DmScratchpadToggle size="xs" class="hidden shrink-0 sm:inline-flex" />
     <SoundboardWidgetToggle icon-only size="xs" class="shrink-0" />
 
     <!-- Mobile search overlay -->
@@ -120,6 +122,7 @@ import { useAuthStore } from "@/stores/auth";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
+import DmScratchpadToggle from "@/components/notes/DmScratchpadToggle.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import SessionControl from "./SessionControl.vue";

@@ -105,6 +105,11 @@
         />
         <!-- Spawn panel at the bottom of the main list -->
         <RunnerSpawnPanel />
+        <!-- The DM's note on this encounter, at the foot of the list so it scrolls
+             with the run rather than competing with the stat block panel. -->
+        <div class="p-3">
+          <DmNoteBox type="encounter" :id="encounterId" :label="store.encounterName" />
+        </div>
       </div>
 
       <!-- Stat block detail panel with draggable left border -->
@@ -167,6 +172,7 @@ import RunnerCombatantList from "./RunnerCombatantList.vue";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
 import RunnerBossMechanics from "./RunnerBossMechanics.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import RunnerSpawnPanel from "./RunnerSpawnPanel.vue";
 import TurnTimer from "./TurnTimer.vue";
 

@@ -238,19 +238,11 @@
               size="md"
             />
           </section>
-
-          <!-- Notes -->
-          <section>
-            <span class="field-label block mb-1">DM Notes</span>
-            <RichTextEditor
-              v-model="form.notes"
-              placeholder="Encounter notes, tactics, lair description…"
-              size="md"
-            />
-          </section>
         </div>
       </fieldset>
     </div>
+
+    <DmNoteBox v-if="backlinksMonsterId" type="monster" :id="backlinksMonsterId" :label="form.name" />
 
     <EntityBacklinks v-if="backlinksMonsterId" :entity-id="backlinksMonsterId" />
   </div>
@@ -282,6 +274,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useAuthStore } from "@/stores/auth";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { storeToRefs } from "pinia";
@@ -419,7 +412,6 @@ function toDraft(m: Monster | null) {
       : activeCampaignId.value ?? null) as string | null,
     tags: m?.tags ? [...m.tags] : [],
     description: m?.description ?? "",
-    notes: m?.notes ?? "",
     image_url: m?.image_url ?? "",
     cutout_url: m?.cutout_url ?? "",
     portrait_focal_point: m?.portrait_focal_point ?? null,
@@ -487,7 +479,6 @@ const CONFLICT_LABELS: Record<keyof MonsterDraft, string> = {
   campaign_id: "Campaign",
   tags: "Tags",
   description: "Description",
-  notes: "DM Notes",
   image_url: "Portrait",
   cutout_url: "Cutout",
   portrait_focal_point: "Portrait focus",
@@ -524,7 +515,6 @@ function onAiGenerated(result: MonsterAiGenerated) {
   form.source = "Grimoire:AI";
   form.tags = [...result.tags];
   form.description = result.description ? toTiptapJson(result.description) : "";
-  form.notes = result.notes ? toTiptapJson(result.notes) : "";
   if (result.image_url) {
     form.image_url = result.image_url;
     form.portrait_focal_point = null;
@@ -553,6 +543,9 @@ async function duplicate() {
   try {
     const copy = await create({
       ...buildPayload(form),
+      // The note is not in the form (the box on the page owns it), so a copy
+      // carries the stored one across explicitly.
+      notes: props.monster.notes,
       name: `${props.monster.name} (copy)`,
     });
     router.push(`/monsters/${copy.id}`);
@@ -616,7 +609,6 @@ function buildPayload(d: MonsterDraft) {
     campaign_id: d.campaign_id,
     tags: d.tags,
     description: d.description || null,
-    notes: d.notes || null,
     image_url: d.image_url || null,
     cutout_url: d.cutout_url || null,
     portrait_focal_point: d.portrait_focal_point ?? null,
@@ -641,7 +633,6 @@ async function save() {
         form.habitat !== (props.monster.habitat ?? "") ||
         form.source !== (props.monster.source ?? "") ||
         !deepEqual(form.description, props.monster.description) ||
-        !deepEqual(form.notes, props.monster.notes) ||
         // `sb` is always fully key-filled (defaultSb() merged in on load and
         // on every template/link apply); imported/cloned library data often isn't,
         // so compare against the same fill-in rather than the raw stored
@@ -663,7 +654,7 @@ async function save() {
       // gets the plain list. See the Sanctioned Exception in CLAUDE.md.
       router.push(isMobile.value ? "/monsters" : `/monsters/${props.monster.id}`);
     } else {
-      const created = await create(buildPayload(form));
+      const created = await create({ ...buildPayload(form), notes: null });
       router.push(`/monsters/${created.id}`);
     }
   } catch (e: unknown) {

@@ -60,12 +60,16 @@ function readLocalColumns(dbUrl: string): Map<string, string[]> {
   }));
 }
 
-function localCount(dbUrl: string, table: string): number {
-  return Number(sql(dbUrl, `select count(*) from public.${table}`));
+/** The shared part of a table: all of it, or the rows a PostgREST `col=is.null` filter selects. */
+function localCount(dbUrl: string, table: string, filter: string): number {
+  const nullColumn = /^([a-z_]+)=is\.null$/.exec(filter)?.[1];
+  if (filter && !nullColumn) throw new Error(`Cannot count ${table} locally under the filter ${filter}.`);
+  const where = nullColumn ? ` where ${nullColumn} is null` : "";
+  return Number(sql(dbUrl, `select count(*) from public.${table}${where}`));
 }
 
-async function remoteCount(remote: URL, key: string, table: string): Promise<number> {
-  const response = await fetch(`${remote.origin}/rest/v1/${table}?select=*&limit=1`, {
+async function remoteCount(remote: URL, key: string, table: string, filter: string): Promise<number> {
+  const response = await fetch(`${remote.origin}/rest/v1/${table}?${filter ? `${filter}&` : ""}select=*&limit=1`, {
     method: "GET",
     headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "count=exact" },
   });
@@ -86,7 +90,8 @@ async function main(): Promise<void> {
 
   if (values.check) {
     for (const t of LIBRARY_TABLES) {
-      const [local, prod] = [localCount(stack.DB_URL, t.table), await remoteCount(remote, key, t.table)];
+      const filter = "filter" in t ? t.filter : "";
+      const [local, prod] = [localCount(stack.DB_URL, t.table, filter), await remoteCount(remote, key, t.table, filter)];
       console.log(`${t.table.padEnd(32)} local ${String(local).padStart(6)}   production ${String(prod).padStart(6)}`);
     }
     const legacy = sql(stack.DB_URL, "select count(*) from public.campaign_enabled_sources where source_slug = 'wotc-srd'");
@@ -100,7 +105,7 @@ async function main(): Promise<void> {
   for (const t of LIBRARY_TABLES) {
     const local = columns.get(t.table);
     if (!local) throw new Error(`The local stack has no ${t.table}. Is it migrated? Try \`npm run db:reset\`.`);
-    const rows = await remoteRows(remote, key, t.table, "", t.key);
+    const rows = await remoteRows(remote, key, t.table, "filter" in t ? t.filter : "", t.key);
     tables.push({ table: t.table, key: t.key, prune: t.prune, rows, columns: local });
     console.log(`Read ${rows.length} ${t.table} rows from production.`);
   }
@@ -116,8 +121,9 @@ async function main(): Promise<void> {
     rmSync(dir, { recursive: true, force: true });
   }
 
-  for (const t of tables) {
-    const total = localCount(stack.DB_URL, t.table);
+  for (const [i, t] of tables.entries()) {
+    const source = LIBRARY_TABLES[i];
+    const total = localCount(stack.DB_URL, t.table, "filter" in source ? source.filter : "");
     const extra = total - t.rows.length;
     console.log(`${t.table.padEnd(32)} ${total} locally${extra > 0 ? ` (${extra} local-only, kept)` : ""}`);
   }

@@ -180,16 +180,6 @@
         />
       </div>
 
-      <!-- DM Notes (secrets) -->
-      <div class="space-y-1.5">
-        <label class="text-eyebrow font-semibold text-muted-foreground">DM Secrets</label>
-        <RichTextEditor
-          v-model="form.dm_notes"
-          placeholder="Hidden truths, true motivations, secret agenda…"
-          size="md"
-        />
-      </div>
-
     </div>
   </div>
 
@@ -260,7 +250,6 @@ const form = ref({
   portrait_focal_point: null as { x: number; y: number } | null,
   portfolio: null as string | null,
   description: null as string | null,
-  dm_notes: null as string | null,
   player_visible_to: [] as string[],
   ai_provenance: null as AiProvenance | null,
 });
@@ -294,7 +283,6 @@ watch(
     form.value.portrait_focal_point = d.portrait_focal_point;
     form.value.portfolio = d.portfolio;
     form.value.description = d.description;
-    form.value.dm_notes = d.dm_notes;
     form.value.player_visible_to = d.player_visible_to ?? [];
     form.value.ai_provenance = d.ai_provenance ?? null;
     tags.value = [...d.tags];
@@ -327,8 +315,7 @@ async function handleSave() {
       (form.value.portfolio || null) !== deity.portfolio ||
       !deepEqual(selectedDomains.value, deity.domains) ||
       !deepEqual(alternateNames.value, deity.alternate_names) ||
-      !deepEqual(form.value.description, deity.description) ||
-      !deepEqual(form.value.dm_notes, deity.dm_notes)
+      !deepEqual(form.value.description, deity.description)
     );
     if (contentChanged) form.value.ai_provenance = markEdited(form.value.ai_provenance);
 
@@ -345,7 +332,6 @@ async function handleSave() {
       domains: selectedDomains.value,
       portfolio: form.value.portfolio || null,
       description: form.value.description,
-      dm_notes: form.value.dm_notes,
       player_visible_to: form.value.player_visible_to,
       tags: tags.value,
       ai_provenance: form.value.ai_provenance,

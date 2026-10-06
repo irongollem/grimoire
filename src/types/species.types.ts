@@ -40,7 +40,6 @@ export interface Species extends VersionedContentMetadata {
   campaign_id: string | null;
   name: string;
   description: string | null;    // Tiptap JSON
-  notes: string | null;          // Tiptap JSON (DM-only)
   size: SpeciesSize | null;
   avg_height: string | null;
   avg_weight: string | null;

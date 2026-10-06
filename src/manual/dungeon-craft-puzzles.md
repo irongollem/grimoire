@@ -61,9 +61,7 @@ Click **New Puzzle**. The editor has several sections:
 - **Success**: rich text describing what happens when players solve the puzzle.
 - **Failure / Consequence**: rich text for what happens if they fail or give up.
 
-**DM Notes:**
-
-- Private notes, variant ideas, pacing advice.
+**DM notes:** private notes, variant ideas and pacing advice live in the **DM notes** box on the puzzle's page, saved as you type, not in this form. See [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
 
 When a Location or Dungeon Feature is set, the puzzle's header shows a pill linking straight to it.
 
@@ -88,7 +86,7 @@ On the Player Portal (`/play/puzzles`), players who are in the reveal list see:
 
 - A grid of every puzzle revealed to them, with name, type, difficulty, and hint count.
 - Detail view: type, difficulty, skill checks, the **Read-Aloud** block (if you've written one, shown highlighted and separate from your own Setup text), and whichever hints you've checked off, numbered in your order.
-- Solution, Outcomes, and DM Notes are never sent to players.
+- Solution, Outcomes, and your DM notes are never sent to players.
 - "No hints revealed yet" if you haven't checked any off.
 
 Hint reveals and Read-Aloud changes sync in real time: players see updates instantly without refreshing.

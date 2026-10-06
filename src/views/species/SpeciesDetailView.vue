@@ -28,6 +28,17 @@
     </div>
     <SpeciesDetail v-else-if="isNew || isEditing" ref="detailRef" :species="species ?? null" />
     <SpeciesSheet v-else-if="species" :species="species" :is-shared="isShared" />
+
+    <!-- Species notes live on the DM's private entity_notes row, so the box sits
+         with the page rather than in the sheet or the editor, and a library row
+         (which no DM owns) gets none. -->
+    <DmNoteBox
+      v-if="species && !isNew && !isShared"
+      class="mt-4"
+      type="species"
+      :id="species.id"
+      :label="species.name"
+    />
   </PageHeader>
 
   <CopyToCampaignDialog
@@ -54,6 +65,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import DetailActions from "@/components/common/DetailActions.vue";
 import SpeciesDetail from "@/components/species/SpeciesDetail.vue";
 import SpeciesSheet from "@/components/species/SpeciesSheet.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 

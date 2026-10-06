@@ -286,15 +286,6 @@
           v-model:player-writable="contentPlayerWritable"
         />
 
-        <!-- DM notes — never shown to players -->
-        <ItemEditorCard title="DM Notes" hint="never shown to players" tone="amber">
-          <RichTextEditor
-            v-model="dmNotes"
-            placeholder="GM-side notes, foreshadowing, structural beats this item serves…"
-            size="md"
-          />
-        </ItemEditorCard>
-
         <!-- Curse -->
         <ItemEditorCard
           v-if="isMagic && !isArtObject"
@@ -460,7 +451,6 @@ function toDraft(item: Item | null) {
     isCursed: !!item?.curse_description,
     curseDescription: item?.curse_description ?? "",
     campaignId: (item?.campaign_id ?? activeCampaignId.value ?? null) as string | null,
-    dmNotes: item?.dm_notes ?? "",
     requiresAttunement: item?.requires_attunement ?? false,
     attunementRequirements: item?.attunement_requirements ?? "",
     charges: (item?.charges ?? null) as number | null,
@@ -485,7 +475,7 @@ const {
   imageUrl, imageFocalPoint, mundaneImageUrl, mundaneImageFocalPoint, tags,
   aiProvenance, damageRolls, properties, weaponRange, versatileDamage, mastery,
   armorClass, isArcaneFocus, bundleItems, isCursed, curseDescription,
-  campaignId, dmNotes, requiresAttunement, attunementRequirements, charges,
+  campaignId, requiresAttunement, attunementRequirements, charges,
   rechargeRoll, rechargeWhen, spellIds,
 } = toRefs(draft);
 const artTab = ref<'identified' | 'mundane'>('identified');
@@ -520,7 +510,6 @@ const CONFLICT_LABELS: Record<keyof ItemDraft, string> = {
   isCursed: "Curse",
   curseDescription: "Curse",
   campaignId: "Campaign",
-  dmNotes: "DM Notes",
   requiresAttunement: "Attunement",
   attunementRequirements: "Attunement",
   charges: "Charges",
@@ -661,7 +650,6 @@ function buildPayload(d: ItemDraft) {
       ? d.bundleItems.map(e => ({ name: e.name, quantity: e.quantity }))
       : null,
     campaign_id: d.campaignId,
-    dm_notes: d.dmNotes.trim() ? d.dmNotes : null,
     ai_provenance: d.aiProvenance,
   };
 }
@@ -673,7 +661,7 @@ async function save() {
   try {
     if (props.item) {
       // Material edit detection (#606): tags, art, spell links, bundle
-      // contents, DM notes (never AI-authored) and campaign scope are
+      // contents and campaign scope are
       // excluded per the "moves/tags/image" carve-outs.
       const contentChanged =
         name.value.trim() !== props.item.name ||

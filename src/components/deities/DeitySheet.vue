@@ -146,16 +146,6 @@
         No lore recorded for this deity.
       </p>
 
-      <!-- DM secrets block -->
-      <div v-if="hasDmNotes" class="border-t border-border pt-4">
-        <p
-          class="text-eyebrow font-semibold text-muted-foreground mb-2"
-        >
-          DM Secrets
-        </p>
-        <RichTextViewer :content="deity.dm_notes" />
-      </div>
-
       <!-- Worshipping factions -->
       <div class="border-t border-border pt-4">
         <p class="text-eyebrow font-semibold text-muted-foreground mb-2">Worshipping Factions</p>
@@ -198,5 +188,4 @@ function hasContent(d: string | null | undefined): boolean {
 }
 
 const hasDescription = computed(() => hasContent(props.deity.description));
-const hasDmNotes = computed(() => hasContent(props.deity.dm_notes));
 </script>

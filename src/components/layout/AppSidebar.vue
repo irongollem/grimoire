@@ -19,6 +19,7 @@
                way to open it was from the soundboard page itself. Its count
                badge is also the one thing saying audio is still playing. -->
           <SoundboardWidgetToggle v-if="isDm" icon-only size="icon-sm" />
+          <DmScratchpadToggle v-if="isDm" size="icon-sm" />
         </div>
       </div>
 
@@ -213,6 +214,7 @@ import AccountMenuItem from "./AccountMenuItem.vue";
 import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
+import DmScratchpadToggle from "@/components/notes/DmScratchpadToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useLazyMount } from "@/composables/useLazyMount";

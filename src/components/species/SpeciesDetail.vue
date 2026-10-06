@@ -198,12 +198,6 @@
           @add="form.grantedSpells.push($event)"
           @remove="form.grantedSpells.splice($event, 1)"
         />
-
-        <!-- DM Notes -->
-        <div>
-          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">DM NOTES</label>
-          <RichTextEditor v-model="form.notes" placeholder="Private DM notes…" />
-        </div>
       </fieldset>
     </div>
   </div>
@@ -293,7 +287,6 @@ function makeForm(s?: Species | null) {
   return {
     name: s?.name ?? "",
     description: s?.description ?? "",
-    notes: s?.notes ?? "",
     size: (s?.size ?? "") as SpeciesSize | "",
     speed: { ...s?.speed } as Partial<Record<typeof SPEED_TYPES[number], number>>,
     asiDescription: asiToString(s?.ability_score_increases ?? null),
@@ -381,7 +374,6 @@ async function save() {
     const payload = {
       name: form.name.trim(),
       description: form.description || null,
-      notes: form.notes || null,
       size: (form.size as SpeciesSize) || null,
       speed: Object.keys(form.speed).length ? form.speed : null,
       ability_score_increases: (() => {
@@ -416,7 +408,7 @@ async function save() {
       ai_provenance: props.species?.ai_provenance ?? null,
     };
 
-    // Material edit detection (#606): tags, art, notes, scope and source are
+    // Material edit detection (#606): tags, art, scope and source are
     // carve-outs; any change to the entry's actual content flips `edited`.
     const prior = props.species;
     if (prior?.ai_provenance) {

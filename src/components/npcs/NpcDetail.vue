@@ -111,11 +111,9 @@
             :appearance="form.appearance"
             :personality="form.personality"
             :backstory="form.backstory"
-            :notes="form.notes"
             @update:appearance="form.appearance = $event"
             @update:personality="form.personality = $event"
             @update:backstory="form.backstory = $event"
-            @update:notes="form.notes = $event"
           />
 
           <!-- Inventory tab -->
@@ -187,6 +185,8 @@
           </div>
         </div>
 
+        <DmNoteBox v-if="npc?.id" type="npc" :id="npc.id" :label="npc.name" />
+
       </div>
     </div>
   </form>
@@ -257,6 +257,7 @@ import { useCopyEntityToCampaign } from '@/composables/campaign/useCopyEntityToC
 import { isQuotaExceeded } from '@/lib/quotaError'
 import { getNpcDisplayName, getNpcPlayerFacingName, NPC_UNNAMED_IN_PROSE } from '@/lib/npcDisplay'
 import TabBar from '@/components/common/TabBar.vue'
+import DmNoteBox from '@/components/notes/DmNoteBox.vue'
 import StatBlockEditor from '@/components/common/StatBlockEditor.vue'
 
 const { confirm, notify } = useConfirm();
@@ -329,7 +330,6 @@ function onAiGenerated(result: NpcAiGenerated) {
   form.appearance  = result.appearance  ? toTiptapJson(result.appearance)  : null
   form.personality = result.personality ? toTiptapJson(result.personality) : null
   form.backstory   = result.backstory   ? toTiptapJson(result.backstory)   : null
-  form.notes       = result.notes       ? toTiptapJson(result.notes)       : null
   if (result.portrait_url) {
     form.portrait_url = result.portrait_url
     form.portrait_focal_point = null
@@ -476,7 +476,7 @@ function applyMonster(m: Monster) {
 // The stat block and its "include" toggle live in the draft beside the NPC's
 // own columns, so the row builder below is a pure function of the draft and
 // useRecordDraft can tell which columns the DM actually touched (#946).
-type NpcDraft = NpcInsert & { statBlock: StatBlock; hasStatBlock: boolean }
+type NpcDraft = Omit<NpcInsert, 'notes'> & { statBlock: StatBlock; hasStatBlock: boolean }
 
 function toStatBlockDraft(sb: StatBlock | null | undefined): StatBlock {
   return {
@@ -520,7 +520,6 @@ function toNpcDraft(npc: Npc | null): NpcDraft {
     appearance: cloneDraftValue(npc?.appearance ?? null),
     personality: cloneDraftValue(npc?.personality ?? null),
     backstory: cloneDraftValue(npc?.backstory ?? null),
-    notes: cloneDraftValue(npc?.notes ?? null),
     status: npc?.status ?? 'alive',
     relationship: npc?.relationship ?? 'unknown',
     portrait_url: npc?.portrait_url ?? null,
@@ -556,7 +555,7 @@ const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
 const CONFLICT_LABELS: Partial<Record<keyof NpcDraft, string>> = {
   name: 'Name', race: 'Race', alignment: 'Alignment', age: 'Age', occupation: 'Occupation',
   location_id: 'Location', appearance: 'Appearance', personality: 'Personality',
-  backstory: 'Backstory', notes: 'Notes', status: 'Status', relationship: 'Relationship',
+  backstory: 'Backstory', status: 'Status', relationship: 'Relationship',
   portrait_url: 'Portrait', cutout_url: 'Cutout', disguise_name: 'Alter ego name',
   disguise_portrait_url: 'Alter ego portrait', tags: 'Tags', linked_monster_id: 'Linked monster',
   player_visible_to: 'Revealed to', player_visible_fields: 'Revealed fields',
@@ -651,7 +650,9 @@ function buildStatBlock(d: NpcDraft): StatBlock | null {
 
 // The NPC row for a draft. Pure: useRecordDraft runs it over the draft and over
 // the server copy to find the columns the DM changed.
-function buildPayload(d: NpcDraft): NpcInsert {
+// `notes` is deliberately absent: the DM note belongs to DmNoteBox, so no save
+// from this form can overwrite it with the copy the form loaded.
+function buildPayload(d: NpcDraft): Omit<NpcInsert, 'notes'> {
   const { statBlock: _sb, hasStatBlock: _has, ...columns } = d
   return {
     ...columns,
@@ -663,7 +664,6 @@ function buildPayload(d: NpcDraft): NpcInsert {
     appearance: d.appearance || null,
     personality: d.personality || null,
     backstory: d.backstory || null,
-    notes: d.notes || null,
     // A cleared image comes back from the image block as "", which is not a
     // picture; store it as none.
     portrait_url: d.portrait_url || null,
@@ -690,7 +690,6 @@ async function save() {
     !deepEqual(form.appearance, props.npc.appearance) ||
     !deepEqual(form.personality, props.npc.personality) ||
     !deepEqual(form.backstory, props.npc.backstory) ||
-    !deepEqual(form.notes, props.npc.notes) ||
     !deepEqual(buildStatBlock(form), props.npc.stat_block)
   );
   if (contentChanged) form.ai_provenance = markEdited(form.ai_provenance);
@@ -717,7 +716,7 @@ async function save() {
       }
       commit()
     } else {
-      const created = await createNpc(buildPayload(form))
+      const created = await createNpc({ ...buildPayload(form), notes: null })
       savedNpcId = created.id;
       // Stay on the detail page after create so faction/relation links can be added immediately
       router.push(`/npcs/${created.id}`)

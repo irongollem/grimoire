@@ -136,6 +136,7 @@ function mountDetail(monsterProp: Monster | null) {
     attachTo: document.body,
     global: {
       stubs: {
+        DmNoteBox: true,
         MonsterEditMobile: true,
         MonsterGenerateDialog: true,
         EntityImageBlock: true,
@@ -252,6 +253,13 @@ describe("MonsterDetail — saves only what changed (#946)", () => {
     wrapper.findComponent({ name: "EntityEditorActionBar" }).vm.$emit("update:title", "Dire Owlbear");
     await saveFrom(wrapper);
     expect(updateMonster).toHaveBeenCalledWith({ id: "monster-1", update: { name: "Dire Owlbear" } });
+  });
+
+  it("never sends the DM note, which DmNoteBox owns", async () => {
+    const wrapper = mountDetail(monster({ notes: "secret" }));
+    wrapper.findComponent({ name: "EntityEditorActionBar" }).vm.$emit("update:title", "Dire Owlbear");
+    await saveFrom(wrapper);
+    expect(updateMonster.mock.calls[0][0].update).not.toHaveProperty("notes");
   });
 
   it("skips the update call when nothing changed, and still leaves the editor", async () => {

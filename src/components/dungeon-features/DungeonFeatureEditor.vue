@@ -138,16 +138,6 @@
           <RichTextEditor v-model="form.description" placeholder="Flavor text, appearance, atmosphere…" size="md" />
         </div>
       </div>
-
-      <!-- DM Notes -->
-      <div class="rounded-lg border border-border bg-card overflow-hidden">
-        <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
-        </div>
-        <div class="p-3">
-          <RichTextEditor v-model="form.notes" placeholder="Private notes, encounter hooks, related quests…" size="md" />
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -211,7 +201,6 @@ const blankForm = () => ({
   image_url: null as string | null,
   image_focal_point: null as { x: number; y: number } | null,
   tags: [] as string[],
-  notes: null as string | null,
   ai_provenance: null as AiProvenance | null,
 });
 
@@ -240,9 +229,6 @@ watch(
         image_url: f.image_url,
         image_focal_point: f.image_focal_point,
         tags: [...(f.tags ?? [])],
-        notes: f.notes
-          ? typeof f.notes === "string" ? f.notes : JSON.stringify(f.notes)
-          : null,
         ai_provenance: f.ai_provenance ?? null,
       });
   },
@@ -261,7 +247,6 @@ async function save() {
       form.value.feature_type !== f.feature_type ||
       text(form.value.description) !== text(f.description) ||
       text(form.value.contents_description) !== text(f.contents_description) ||
-      text(form.value.notes) !== text(f.notes) ||
       form.value.trigger_type !== f.trigger_type ||
       text(form.value.trigger_description) !== text(f.trigger_description) ||
       form.value.perception_dc !== f.perception_dc ||
@@ -271,7 +256,7 @@ async function save() {
       form.value.ai_provenance = markEdited(form.value.ai_provenance);
     }
     if (props.isNew) {
-      await createMut.mutateAsync({ ...form.value });
+      await createMut.mutateAsync({ ...form.value, notes: null });
     } else {
       await updateMut.mutateAsync({ id: props.feature!.id, update: { ...form.value } });
     }

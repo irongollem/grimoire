@@ -74,17 +74,16 @@ describe("planConversions — npcs", () => {
 });
 
 describe("planConversions — deities + pantheons", () => {
-  it("converts deity description + dm_notes when plaintext", () => {
+  it("converts deity description when plaintext", () => {
     const rows = [
       {
         id: "deity-1", name: "Plaintext Deity",
         description: "The patron of welcoming.",
-        dm_notes: "GM-only reveal.",
       },
     ];
     const { plans } = planConversions("deities", rows);
     expect(plans.length).toBe(1);
-    expect(Object.keys(plans[0]!.fields).sort()).toEqual(["description", "dm_notes"]);
+    expect(Object.keys(plans[0]!.fields).sort()).toEqual(["description"]);
   });
 
   it("converts pantheon description when plaintext", () => {
@@ -120,8 +119,8 @@ describe("TABLE_FIELDS — schema invariants", () => {
     expect([...TABLE_FIELDS.npcs]).toEqual(["appearance", "personality", "backstory", "notes"]);
   });
 
-  it("deities has description + dm_notes", () => {
-    expect([...TABLE_FIELDS.deities]).toEqual(["description", "dm_notes"]);
+  it("deities has description only", () => {
+    expect([...TABLE_FIELDS.deities]).toEqual(["description"]);
   });
 
   it("pantheons has description only", () => {

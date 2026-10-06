@@ -105,16 +105,6 @@
       </div>
     </div>
 
-    <!-- DM Notes -->
-    <div v-if="hasNotes" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
-      </div>
-      <div class="p-4">
-        <RichTextViewer :content="feature.notes" />
-      </div>
-    </div>
-
     <!-- Placed In -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
@@ -165,7 +155,6 @@ function hasContent(field: string | null | undefined): boolean {
 
 const hasContents    = computed(() => hasContent(props.feature.contents_description));
 const hasDescription = computed(() => hasContent(props.feature.description));
-const hasNotes       = computed(() => hasContent(props.feature.notes));
 
 async function handleDelete() {
   const ok = await confirm(`Delete "${props.feature.name}"? This cannot be undone.`, {

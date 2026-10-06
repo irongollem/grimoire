@@ -56,15 +56,12 @@
            where the stat block does; the two text columns keep their height. -->
       <div class="flex flex-col gap-4 self-start">
         <RichTextViewer v-if="description" :content="description" class="lore" />
-        <div v-if="monster.notes" class="flex flex-col gap-1">
-          <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
-            DM Notes
-          </h3>
-          <RichTextViewer :content="monster.notes" />
-        </div>
-        <p v-if="!description && !monster.notes" class="text-body italic text-muted-foreground">
+        <p v-if="!description" class="text-body italic text-muted-foreground">
           No lore recorded for this monster.
         </p>
+        <!-- The DM's own note, filled by hosts that have one (the detail modal).
+             The admin art preview shows a library row, which has none. -->
+        <slot name="dm-note" />
       </div>
     </div>
 

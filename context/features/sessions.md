@@ -77,6 +77,10 @@ They are not peers — combat, open chains and audio all run *inside* a session 
 
 The dice roller stayed in the brand row. It is a tool the DM reaches for, not a thing that is running.
 
+## The touched-this-session list
+
+The docked DM scratchpad lists every entity the DM wrote a note on since the running session began (`dm_note_touches`, read by `useDmNoteTouches`). It is keyed on this session: "This session" while it runs, bounded by `started_at`; "Last session" after it ends, bounded by `ended_at`; no list with no session. See [dm-notes.md](dm-notes.md).
+
 ## Player-facing
 
 Two signals, no controls.
@@ -139,4 +143,4 @@ Players' People ledger groups **Met** by session (`buildPeopleGroups` in `src/li
 
 ## DM Manual
 
-`src/manual/sessions-overview.md` ("Running a Session", Getting Started).
+`src/manual/sessions-overview.md` ("Running a Session", Running the Table) and `src/manual/running-dm-notes.md` ("DM Notes and the Scratchpad").

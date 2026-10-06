@@ -15,6 +15,7 @@
         :key="trap.id"
         :trap="trap"
       />
+      <DmNoteBox v-if="trap && !isNew" class="mt-6" type="trap" :id="trap.id" :label="trap.name" />
     </template>
   </PageHeader>
 </template>
@@ -25,6 +26,7 @@ import { useRoute } from "vue-router";
 import { useTrap } from "@/composables/dungeon-features/useTraps";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import TrapEditor from "@/components/traps/TrapEditor.vue";
 import TrapSheet from "@/components/traps/TrapSheet.vue";
 

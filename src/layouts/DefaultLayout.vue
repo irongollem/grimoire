@@ -2,7 +2,9 @@
   <!-- h-dvh (dynamic viewport height) tracks mobile browser chrome as it
        shows/hides, preventing the bottom of the layout from being hidden
        below Safari's URL bar. h-screen would overflow on mobile Safari. -->
-  <div class="flex h-dvh overflow-hidden bg-background">
+  <!-- `pr-(--dock-right)`: the docked DM scratchpad's width while it is open,
+       so the page lays out beside it (see base.css). -->
+  <div class="flex h-dvh overflow-hidden bg-background pr-(--dock-right)">
     <AppSidebar />
 
     <div class="flex-1 flex flex-col min-w-0">
@@ -62,6 +64,9 @@
     <!-- Soundboard floating widget — always mounted so audio survives navigation -->
     <SoundboardWidget />
 
+    <!-- DM scratchpad: docked note panel that follows the entity on screen -->
+    <DmScratchpad v-if="isDm" />
+
     <!-- App-wide shortcuts: the sound palette and the shortcut cheat sheet -->
     <GlobalHotkeys />
 
@@ -102,6 +107,7 @@ import DmCampaignGate from "@/components/campaign/DmCampaignGate.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
+import DmScratchpad from "@/components/notes/DmScratchpad.vue";
 import GlobalHotkeys from "@/components/layout/GlobalHotkeys.vue";
 import DowngradeCampaignPickerModal from "@/components/billing/DowngradeCampaignPickerModal.vue";
 import SuspensionBanner from "@/components/billing/SuspensionBanner.vue";

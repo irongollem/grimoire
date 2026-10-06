@@ -59,8 +59,12 @@ export function useMyEntityNote(options: {
   entityId: MaybeRefOrGetter<string>;
   /** The entity's notes, as `useEntityNotes` reads them. */
   notes: MaybeRefOrGetter<EntityNote[] | undefined>;
-  userId: MaybeRefOrGetter<string>;
+  userId: MaybeRefOrGetter<string | null | undefined>;
   isPrivate: boolean;
+  /** Stamped on a note this creates; omitted, it is created without a campaign. */
+  campaignId?: MaybeRefOrGetter<string | null>;
+  /** Called after each save that landed, with the snapshot that was written. */
+  onSaved?: (snapshot: MyNoteDraft) => void;
 }) {
   const { isPrivate } = options;
   const createMut = useCreateEntityNote();
@@ -95,6 +99,7 @@ export function useMyEntityNote(options: {
         entity_type: snapshot.entityType,
         entity_id: snapshot.entityId,
       });
+      options.onSaved?.(snapshot);
       return;
     }
     const created = await createMut.mutateAsync({
@@ -103,12 +108,14 @@ export function useMyEntityNote(options: {
       content: snapshot.content ?? "",
       is_private: isPrivate,
       shared_with_dm: sharedWithDm,
+      ...(options.campaignId !== undefined && { campaign_id: toValue(options.campaignId) }),
     });
     // The next save updates this row rather than creating a second one, even
     // before the refetch brings it back.
     if (!draft.noteId && draft.entityType === snapshot.entityType && draft.entityId === snapshot.entityId) {
       draft.noteId = created.id;
     }
+    options.onSaved?.(snapshot);
   }
 
   const autosave = useAutosave({

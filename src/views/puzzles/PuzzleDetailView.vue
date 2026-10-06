@@ -184,17 +184,6 @@
             </div>
           </div>
         </div>
-
-        <!-- DM Notes -->
-        <div v-if="puzzle.notes" class="rounded-lg border border-border bg-card overflow-hidden">
-          <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
-          </div>
-          <div class="p-4">
-            <RichTextViewer :content="puzzle.notes" />
-          </div>
-        </div>
-
       </div>
     </template>
 
@@ -352,24 +341,13 @@
             </div>
           </div>
         </div>
-
-        <!-- DM Notes -->
-        <div class="rounded-lg border border-border bg-card overflow-hidden">
-          <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
-          </div>
-          <div class="p-4">
-            <RichTextEditor
-              :model-value="form.notes"
-              placeholder="Running notes, variant solutions, pacing tips…"
-              size="md"
-              @update:model-value="form.notes = $event"
-            />
-          </div>
-        </div>
-
       </div>
     </template>
+
+    <!-- One box for view and edit mode, so it stays mounted across the toggle. -->
+    <div v-if="puzzle && !isNew && !isLoading" class="mt-5 max-w-2xl">
+      <DmNoteBox type="puzzle" :id="puzzle.id" :label="puzzle.name" />
+    </div>
   </PageHeader>
 
   <!-- Copy-to-campaign (#598, wave 2) — see useCopyEntityToCampaign's
@@ -411,6 +389,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
@@ -453,7 +432,6 @@ const form = reactive({
   image_url:           null as string | null,
   image_focal_point:   null as { x: number; y: number } | null,
   tags:                [] as string[],
-  notes:               null as string | null,
   location_id:         null as string | null,
   dungeon_feature_id:  null as string | null,
   ai_provenance:       null as AiProvenance | null,
@@ -505,7 +483,6 @@ watch(puzzle, (p) => {
   form.image_url           = p.image_url;
   form.image_focal_point   = p.image_focal_point;
   form.tags                = [...p.tags];
-  form.notes               = p.notes;
   form.location_id         = p.location_id;
   form.dungeon_feature_id  = p.dungeon_feature_id;
   form.ai_provenance       = p.ai_provenance ?? null;
@@ -616,8 +593,7 @@ async function save() {
       !deepEqual([...form.hints].sort((a, b) => a.order - b.order), [...puzzle.value.hints].sort((a, b) => a.order - b.order)) ||
       !deepEqual(form.skill_checks, puzzle.value.skill_checks) ||
       !deepEqual(form.success_outcome || null, puzzle.value.success_outcome) ||
-      !deepEqual(form.failure_consequence || null, puzzle.value.failure_consequence) ||
-      !deepEqual(form.notes || null, puzzle.value.notes)
+      !deepEqual(form.failure_consequence || null, puzzle.value.failure_consequence)
     );
     if (contentChanged) form.ai_provenance = markEdited(form.ai_provenance);
 
@@ -634,7 +610,6 @@ async function save() {
       image_url:           form.image_url,
       image_focal_point:   form.image_focal_point,
       tags:                form.tags,
-      notes:               form.notes || null,
       location_id:         form.location_id,
       dungeon_feature_id:  form.dungeon_feature_id,
       ai_provenance:       form.ai_provenance,
@@ -651,6 +626,7 @@ async function save() {
     if (isNew.value) {
       await createMutation.mutateAsync({
         ...payload,
+        notes: null,
         is_shared: false,
         shared_hints: [],
         player_visible_to: [],

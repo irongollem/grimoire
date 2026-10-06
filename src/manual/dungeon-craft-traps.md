@@ -41,9 +41,10 @@ Click **New Trap**. The editor has several sections:
 - **How it draws on the map**, a **Glyph** picker: Pit, Pressure Plate, Tripwire, Falling Block, Dart Wall, Blade, Flame Jet, Glyph / Rune, Net, Alarm, Collapsing Floor, or leave it as the default **Generic hazard marker**. This controls the icon a Cartographer map shows wherever this trap is linked to a cell: it's a drawing hint, separate from the mechanical **Type** above, and changing it updates every map the trap appears on immediately.
 - **Tags**: freeform labels.
 - **Description**: rich text narrative description.
-- **DM Notes**: private notes for yourself.
 - **Image**: optional art.
 - **Scope**: **General** (all campaigns) or **Campaign** (*your campaign's name*). New traps default to your active campaign; switch to General to make one available everywhere.
+
+Your private notes on a trap live in the **DM notes** box on its page, saved as you type, not in this form; see [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
 
 **Trigger:**
 

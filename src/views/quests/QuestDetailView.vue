@@ -31,7 +31,12 @@
         @update:model-value="(value) => selectView(value as QuestDetailSurface)"
       />
 
-      <QuestOverviewPanel v-if="view === 'overview'" :quest="quest" />
+      <div v-if="view === 'overview'" class="space-y-3">
+        <QuestOverviewPanel :quest="quest" />
+        <!-- The story flow is a fixed-viewport canvas and the cockpit is a
+             live surface, so the note lives on the one flowing document. -->
+        <DmNoteBox type="quest" :id="quest.id" :label="quest.title" />
+      </div>
       <QuestGraphDesigner
         v-else-if="view === 'work'"
         :key="`build-${quest.id}`"
@@ -62,6 +67,7 @@ import QuestFlowStarter from "@/components/quests/QuestFlowStarter.vue";
 import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
 import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
 import QuestOverviewPanel from "@/components/quests/QuestOverviewPanel.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import QuestPhoneTopBar from "@/components/quests/QuestPhoneTopBar.vue";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 

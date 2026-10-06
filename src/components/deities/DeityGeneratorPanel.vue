@@ -66,6 +66,7 @@ import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useDeityGeneration } from "@/ai/useDeityGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { useCreateEntityNote } from "@/composables/notes/useEntityNotes";
 import { CLERIC_DOMAINS, DEITY_ALIGNMENTS } from "@/types/deity.types";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 
@@ -74,6 +75,7 @@ const router   = useRouter();
 const campaign = useCampaignStore();
 const toast = useToast();
 const { mutateAsync: createDeity } = useCreateDeity();
+const { mutateAsync: createNote } = useCreateEntityNote();
 const { logImageGeneration } = useImageGenerationLog();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useDeityGeneration();
 
@@ -146,8 +148,9 @@ async function save(draft: DeityDraft) {
   // The generation is already paid for: a failed save keeps the result so the
   // DM can save it again without generating (and paying) twice.
   const deity = await retained.run(draft, async (d) => {
+    let created: Awaited<ReturnType<typeof createDeity>>;
     try {
-      return await createDeity({
+      created = await createDeity({
         name:              d.result.name,
         titles:            d.result.titles,
         alternate_names:   d.result.alternate_names,
@@ -160,7 +163,6 @@ async function save(draft: DeityDraft) {
         domains:           d.result.domains,
         portfolio:         d.result.portfolio,
         description:       d.result.description ? toTiptapJson(d.result.description) : null,
-        dm_notes:          d.result.dm_notes ? toTiptapJson(d.result.dm_notes) : null,
         player_visible_to: [],
         tags:              d.result.tags,
         ai_provenance:     d.result.ai_provenance ?? null,
@@ -169,6 +171,25 @@ async function save(draft: DeityDraft) {
       if (!gateQuotaError(e)) toast.error(toast.fromError(e));
       return null;
     }
+    // Deity DM notes live in the DM's private entity note, not a column. The
+    // deity exists by now, so a failed note write must not make a retry create
+    // a second deity: report it and carry on.
+    const secrets = d.result.dm_notes?.trim();
+    if (secrets) {
+      try {
+        await createNote({
+          entity_type: "deity",
+          entity_id: created.id,
+          content: toTiptapJson(secrets),
+          is_private: true,
+          shared_with_dm: false,
+          campaign_id: created.campaign_id,
+        });
+      } catch (e) {
+        toast.error(`The deity was created, but its DM notes were not saved. ${toast.fromError(e)}`);
+      }
+    }
+    return created;
   });
   if (!deity) return;
 

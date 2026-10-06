@@ -206,17 +206,6 @@
           <RichTextViewer :content="item.curse_description" />
         </div>
 
-        <!-- DM notes (never shown to players) -->
-        <div
-          v-if="item.dm_notes && !playerView"
-          class="rounded-lg border border-tone-caution/40 bg-tone-caution/10 p-4 flex flex-col gap-2"
-        >
-          <h3 class="text-label-lg font-bold text-ink-caution/80 uppercase">
-            DM Notes
-          </h3>
-          <RichTextViewer :content="item.dm_notes" />
-        </div>
-
         <div
           v-if="item.source"
           class="font-stat text-sm text-muted-foreground italic"

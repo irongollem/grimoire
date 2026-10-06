@@ -18,7 +18,6 @@ const deity = (overrides: Partial<DeityWithPantheon> & { id: string; name: strin
   domains: [],
   portfolio: null,
   description: null,
-  dm_notes: null,
   tags: [],
   player_visible_to: [],
   setting_source: null,

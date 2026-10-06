@@ -24,6 +24,9 @@
       @level-up="editOpen = true"
     />
 
+    <!-- Distinct from the character's own "Notes" above, which players read. -->
+    <DmNoteBox v-if="member" type="party_member" :id="member.id" :label="member.name" />
+
     <!--
       DM-only: this view (unlike PlayerCharacterView, shared with the player
       portal) never renders for the player themselves, so session-note
@@ -46,6 +49,7 @@ import { IconEdit } from '@/lib/icons';
 import { useParty } from "@/composables/party/useParty";
 import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
 
 // Lazy-load to avoid pulling Tiptap into the same chunk (prevents TDZ init error)

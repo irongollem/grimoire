@@ -100,6 +100,7 @@ async function mountView() {
         ItemSheet: true,
         ItemDetail: true,
         ItemSendMenu: true,
+        DmNoteBox: true,
         LoadingSpinner: true,
       },
     },
@@ -135,6 +136,21 @@ describe("ItemDetailView — copy to campaign (#598)", () => {
     expect(dialog.props("table")).toBe("items");
     expect(dialog.props("ids")).toEqual(["item-1"]);
     expect(dialog.props("label")).toBe("item");
+  });
+
+  it("mounts the DM note box for an owned item in both modes, and never for a shared one (#983)", async () => {
+    let wrapper = await mountView();
+    expect(wrapper.findComponent({ name: "DmNoteBox" }).props()).toMatchObject({ type: "item", id: "item-1" });
+    wrapper.unmount();
+
+    mocks.route.query = {};
+    wrapper = await mountView();
+    expect(wrapper.findComponent({ name: "DmNoteBox" }).exists()).toBe(true);
+    wrapper.unmount();
+
+    mocks.isShared = true;
+    wrapper = await mountView();
+    expect(wrapper.findComponent({ name: "DmNoteBox" }).exists()).toBe(false);
   });
 
   it("clicking the Copy to campaign… row in the Send to… menu opens the dialog", async () => {

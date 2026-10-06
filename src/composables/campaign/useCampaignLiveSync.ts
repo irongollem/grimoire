@@ -23,6 +23,7 @@ import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Campaign } from "@/types/campaign.types";
 import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 import { applyCampaignRealtimeWorld } from "@/lib/campaignLiveSync/campaignRealtimeWorld";
+import { DM_NOTE_COLUMN_TABLES } from "@/lib/dmNotes/registry";
 import { dispatchCampaignRealtimePlayer } from "@/lib/campaignLiveSync/campaignRealtimePlayer";
 import { dispatchCampaignRealtimeSystem } from "@/lib/campaignLiveSync/campaignRealtimeSystems";
 
@@ -39,6 +40,7 @@ let clearPendingInvalidations: (() => void) | null = null;
 // table is published and rings the doorbell on delete.
 export const SYNC_TABLES = [
   ["notes",                   "notes"],
+  ["dm_note_touches",         "dm-note-touches"],
   ["quests",                  "quests"],
   ["locations",               "locations"],
   ["factions",                "factions"],
@@ -170,6 +172,10 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // a trigger only when a source's set of mentions actually changes
   // (20261004221637), so an autosave that leaves them alone rings nothing.
   ["entity_mentions", [BACKLINKS_KEY]],
+  // DM notes on deities, species, factions and the rest live in the DM's own
+  // private entity_notes rows. Those are per-user and must not travel as
+  // payloads, so the table rings the doorbell rather than subscribing.
+  ["entity_notes", ["entity-notes", "my-recent-entity-notes"]],
 ]);
 
 // Deduped set of every key the sync owns, plus "campaigns" (handled specially
@@ -257,6 +263,12 @@ export function useCampaignLiveSync() {
             for (const [table, key] of SYNC_TABLES) {
               channel = channel.on("postgres_changes", { event: "*", schema: "public", table, filter: f }, (payload) => {
                 if (campaign.activeCampaignId !== campaignId) return;
+                // A DM note column rides on the entity's own row; whatever the
+                // reducers below do with that row, the open note re-reads.
+                if (DM_NOTE_COLUMN_TABLES.has(table)) {
+                  const row = (payload.new ?? payload.old) as { id?: string } | null;
+                  if (row?.id) void qc.invalidateQueries({ queryKey: ["dm-note", table, row.id] });
+                }
                 const change = {
                   eventType: payload.eventType,
                   new: payload.new,

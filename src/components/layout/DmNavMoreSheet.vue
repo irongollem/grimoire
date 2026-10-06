@@ -75,6 +75,18 @@
     />
 
     <AppButton
+      v-if="auth.isDM"
+      variant="menu"
+      size="md"
+      block
+      class="mt-2 gap-3"
+      :icon="IconNote"
+      icon-size="md"
+      label="DM notes"
+      @click="emit('update:open', false); scratchpad.toggle()"
+    />
+
+    <AppButton
       variant="menu"
       size="md"
       block
@@ -109,12 +121,13 @@ import MobileSheet from "@/components/common/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import SessionRail from "./SessionRail.vue";
-import { IconAdd, IconBug, IconRefresh, IconShieldCheck } from "@/lib/icons";
+import { IconAdd, IconBug, IconNote, IconRefresh, IconShieldCheck } from "@/lib/icons";
 import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
+import { useScratchpadStore } from "@/stores/scratchpad";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import { useAbove } from "@/composables/useBreakpoint";
@@ -144,6 +157,7 @@ const router = useRouter();
 const ui = useUiStore();
 const campaignStore = useCampaignStore();
 const auth = useAuthStore();
+const scratchpad = useScratchpadStore();
 
 const hasCampaign = computed(() => !!campaignStore.activeCampaignId);
 
