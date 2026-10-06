@@ -55,7 +55,7 @@ Launch with `model: "sonnet"` (haiku only for pure lookups). Every spec contains
 
 Read every diff yourself. An executor's green report is a claim, not a verification:
 
-1. `npx vue-tsc --noEmit -p tsconfig.app.json`
+1. `NODE_OPTIONS=--max-old-space-size=6144 npx vue-tsc --noEmit -p tsconfig.app.json` (the type-check outgrew Node's default ~4 GB heap; `npm run build` sets the same limit)
 2. `npx vitest run` (full suite)
 3. **`npm run build`** — non-negotiable when any `.vue` file changed: vue-tsc and
    vitest have both missed a malformed SFC that only the vite build caught.
