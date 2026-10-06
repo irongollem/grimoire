@@ -11,6 +11,7 @@ import type { RulesetKey } from "@/types/ruleset.types";
  * The generators served by the `generate-entity-text` edge function. Each is
  * one JSON text call keyed by its `ai_system_prompts` row; the art is a
  * separate step through `generateImage`, which has its own server path.
+ * Enhance is served there too, but answers in prose: see `generateProseText`.
  */
 export type EntityTextGenerator =
   | "spell" | "monster" | "item" | "faction"
@@ -29,7 +30,8 @@ function isLocalMode(): boolean {
 export interface EntityTextRequest {
   generator: EntityTextGenerator;
   campaignId: string;
-  settingPrompt: string;
+  /** The campaign's setting; null when the DM never wrote one. */
+  settingPrompt: string | null;
   ruleset: RulesetKey;
   prompt: string;
   /** The panel's structured fields, one line each ("Level: 3"). */
@@ -45,10 +47,31 @@ export interface EntityTextRequest {
 export async function generateEntityText<T extends { ai_provenance?: AiProvenance }>(
   request: EntityTextRequest,
 ): Promise<T> {
-  return isLocalMode() ? runLocal<T>(request) : runServer<T>(request);
+  if (!isLocalMode()) return invokeServer<T>(request);
+  const { content, provenance } = await completeLocally(request);
+  const result = JSON.parse(content) as T;
+  result.ai_provenance = provenance;
+  return result;
 }
 
-async function runServer<T>(request: EntityTextRequest): Promise<T> {
+export type ProseTextGenerator = "text_enhancement";
+
+export interface ProseTextRequest extends Omit<EntityTextRequest, "generator"> {
+  generator: ProseTextGenerator;
+}
+
+/**
+ * The same call for a generator that answers in Markdown rather than JSON:
+ * Enhance (#992), which rewrites a selection in place. Credits through the
+ * server by default, the browser-vault key in local mode, like the rest.
+ */
+export async function generateProseText(request: ProseTextRequest): Promise<string> {
+  if (isLocalMode()) return (await completeLocally(request)).content.trim();
+  const { content } = await invokeServer<{ content: string }>(request);
+  return content;
+}
+
+async function invokeServer<T>(request: EntityTextRequest | ProseTextRequest): Promise<T> {
   const { data, error } = await supabase.functions.invoke("generate-entity-text", {
     body: {
       campaign_id: request.campaignId,
@@ -62,7 +85,14 @@ async function runServer<T>(request: EntityTextRequest): Promise<T> {
   return data as T;
 }
 
-async function runLocal<T extends { ai_provenance?: AiProvenance }>(request: EntityTextRequest): Promise<T> {
+/** Mirrors GENERATORS in generate-entity-text: Enhance kept its historical reason. */
+function ledgerReason(generator: EntityTextGenerator | ProseTextGenerator): string {
+  return generator === "text_enhancement" ? generator : `${generator}_generation`;
+}
+
+async function completeLocally(
+  request: EntityTextRequest | ProseTextRequest,
+): Promise<{ content: string; provenance: AiProvenance }> {
   const textProvider = getTextProvider();
   const [basePrompt, rulesetContext] = await Promise.all([
     fetchSystemPrompt(request.generator),
@@ -78,10 +108,9 @@ async function runLocal<T extends { ai_provenance?: AiProvenance }>(request: Ent
     ? `${wrappedPrompt}\n\nConstraints:\n${request.constraints.join("\n")}`
     : wrappedPrompt;
 
-  const reason = `${request.generator}_generation`;
-  const { content, usage } = await textProvider.complete(systemContent, userContent);
-  const result = JSON.parse(content) as T;
-  result.ai_provenance = buildAiProvenance(reason, usage.provider, usage.model);
+  const reason = ledgerReason(request.generator);
+  const format = request.generator === "text_enhancement" ? "text" : "json";
+  const { content, usage } = await textProvider.complete(systemContent, userContent, format);
   logUsage({ reason, textUsage: usage });
-  return result;
+  return { content, provenance: buildAiProvenance(reason, usage.provider, usage.model) };
 }

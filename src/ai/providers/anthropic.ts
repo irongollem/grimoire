@@ -1,11 +1,11 @@
-import type { TextProvider, TextUsage } from "./types";
+import type { TextProvider, TextUsage, TextOutputFormat } from "./types";
 
 const JSON_INSTRUCTION = "\n\nRespond with a valid JSON object only, no markdown fencing.";
 const MODEL = "claude-sonnet-4-6";
 
 export function createAnthropicTextProvider(apiKey: string, model = MODEL): TextProvider {
   return {
-    async complete(systemPrompt: string, userPrompt: string) {
+    async complete(systemPrompt: string, userPrompt: string, format: TextOutputFormat = "json") {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -16,7 +16,7 @@ export function createAnthropicTextProvider(apiKey: string, model = MODEL): Text
         body: JSON.stringify({
           model,
           max_tokens: 4096,
-          system: systemPrompt + JSON_INSTRUCTION,
+          system: format === "json" ? systemPrompt + JSON_INSTRUCTION : systemPrompt,
           messages: [{ role: "user", content: userPrompt }],
         }),
       });

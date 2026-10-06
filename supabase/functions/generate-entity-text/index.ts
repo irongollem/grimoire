@@ -4,7 +4,9 @@
  * species, background, class, archetype, ability, house rule, recipe,
  * calendar event, site room, quest beat and puzzle. Their art is a separate step the
  * client already routes through the server image pipeline, so this function
- * is text only.
+ * is text only. One generator is not an entity at all: `text_enhancement`
+ * (#992) rewrites a selection in a rich-text editor and answers in Markdown,
+ * which is what `format: "text"` below is for.
  *
  * These four shipped with nothing but the local-key path, so every DM without
  * a key stored in the browser vault failed before a single request left the
@@ -24,6 +26,7 @@ import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, rese
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT,
+  AI_PROMPT_LIMIT_LONG,
   INJECTION_GUARD_SUFFIX,
   validatePromptInput,
   wrapUserInput,
@@ -32,7 +35,7 @@ import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
+import { callText, MissingTextKeyError, type TextOutputFormat, type TextResult } from "../_shared/textGen.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -43,6 +46,15 @@ const admin = createClient(
 // The prompt key is the generator's own name, because the client's local-key
 // path (src/ai/entityTextGeneration.ts) reads `ai_system_prompts` by it; the
 // first four predate that rule and keep their historical ledger reasons.
+interface GeneratorSpec {
+  promptKey: string;
+  reason: string;
+  /** "json" (the default) answers with an object; "text" with Markdown, returned as `content`. */
+  format?: TextOutputFormat;
+  /** Longest accepted prompt; AI_PROMPT_LIMIT unless the input is the DM's own prose. */
+  promptLimit?: number;
+}
+
 const GENERATORS = {
   spell:           { promptKey: "spell",           reason: "spell_generation" },
   monster:         { promptKey: "monster",         reason: "monster_generation" },
@@ -61,7 +73,13 @@ const GENERATORS = {
   room:            { promptKey: "room",            reason: "room_generation" },
   quest_beat:      { promptKey: "quest_beat",      reason: "quest_beat_generation" },
   puzzle:          { promptKey: "puzzle",          reason: "puzzle_generation" },
-} as const;
+  // #992: the prompt is the DM's selected passage, which runs longer than a
+  // concept line, and the answer is prose rather than an object.
+  text_enhancement: {
+    promptKey: "text_enhancement", reason: "text_enhancement",
+    format: "text", promptLimit: AI_PROMPT_LIMIT_LONG,
+  },
+} as const satisfies Record<string, GeneratorSpec>;
 type Generator = keyof typeof GENERATORS;
 
 function isGenerator(value: unknown): value is Generator {
@@ -131,10 +149,12 @@ serve(withCors(async (req: Request) => {
     );
   }
 
-  const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT);
-  if (!promptCheck.ok) return promptCheck.errorResponse;
+  const spec: GeneratorSpec = GENERATORS[generator];
+  const { promptKey, reason } = spec;
+  const format = spec.format ?? "json";
 
-  const { promptKey, reason } = GENERATORS[generator];
+  const promptCheck = validatePromptInput(prompt, spec.promptLimit ?? AI_PROMPT_LIMIT);
+  if (!promptCheck.ok) return promptCheck.errorResponse;
 
   const { data: campaign } = await admin
     .from("campaigns")
@@ -221,6 +241,7 @@ serve(withCors(async (req: Request) => {
       model: providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model,
       system: systemContent,
       user: userContent,
+      outputFormat: format,
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
@@ -231,14 +252,15 @@ serve(withCors(async (req: Request) => {
 
   let data: unknown;
   try {
-    data = JSON.parse(textResult.content);
+    data = format === "text" ? { content: textResult.content.trim() } : JSON.parse(textResult.content);
   } catch {
     // Nothing usable came back, so nothing is charged.
     await releaseCredits(admin, reservation.ids);
     console.error(`${generator} generation returned unparseable JSON`);
     return jsonError("The model returned an unreadable answer — try again.", 502);
   }
-  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+  const empty = format === "text" && !textResult.content.trim();
+  if (empty || typeof data !== "object" || data === null || Array.isArray(data)) {
     await releaseCredits(admin, reservation.ids);
     return jsonError("The model returned an unreadable answer — try again.", 502);
   }

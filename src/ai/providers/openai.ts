@@ -1,4 +1,4 @@
-import type { TextProvider, ImageProvider, TextUsage, ImageUsage } from "./types";
+import type { TextProvider, ImageProvider, TextUsage, ImageUsage, TextOutputFormat } from "./types";
 
 const CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_URL = "https://api.openai.com/v1/images/generations";
@@ -8,7 +8,7 @@ const MODEL = "gpt-5.6-luna";
 
 export function createOpenAiTextProvider(apiKey: string): TextProvider {
   return {
-    async complete(systemPrompt: string, userPrompt: string) {
+    async complete(systemPrompt: string, userPrompt: string, format: TextOutputFormat = "json") {
       const res = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
@@ -18,7 +18,7 @@ export function createOpenAiTextProvider(apiKey: string): TextProvider {
         body: JSON.stringify({
           model: MODEL,
           reasoning_effort: "low",
-          response_format: { type: "json_object" },
+          ...(format === "json" ? { response_format: { type: "json_object" } } : {}),
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },

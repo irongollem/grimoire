@@ -130,35 +130,14 @@
             ]"
           />
 
-          <!-- AI Enhance bubble menu -->
-          <BubbleMenu
-            v-if="editor && showEnhanceButton"
+          <!-- AI Enhance: rewrite the selection, on credits (#992) -->
+          <TextEnhanceBubble
+            v-if="editor && enhanceAvailable"
             :editor="editor"
-            :tippy-options="{ duration: 100 }"
-          >
-            <div class="flex items-center rounded-md border border-border bg-card shadow-lg overflow-hidden">
-              <button
-                type="button"
-                :disabled="isEnhancing"
-                class="flex items-center gap-1.5 px-2.5 py-1.5 text-label-lg font-semibold text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-                @click="onEnhance"
-              >
-                <BannerLoader v-if="isEnhancing" class="h-3" />
-                <IconWand v-else class="h-3 w-3" />
-                Enhance
-              </button>
-            </div>
-          </BubbleMenu>
-
-          <!-- Inline error feedback -->
-          <Transition name="enhance-error">
-            <div
-              v-if="enhanceError"
-              class="absolute bottom-2 left-2 right-2 z-30 rounded-md bg-destructive/90 px-3 py-2 text-caption text-white shadow-lg"
-            >
-              {{ enhanceError }}
-            </div>
-          </Transition>
+            context="Scriptorium document"
+            :style-hint="SCRIPTORIUM_STYLE[docType]"
+            :context-radius="CONTEXT_RADIUS"
+          />
         </div>
 
         <!-- Word count footer -->
@@ -204,7 +183,6 @@
 </template>
 
 <script setup lang="ts">
-import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, nextTick, onUnmounted, provide, toRefs, watch } from "vue";
@@ -215,10 +193,8 @@ import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
-import { BubbleMenu } from "@tiptap/vue-3/menus";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
 import { useScriptoriumIlluminator } from "@/composables/scriptorium/useScriptoriumIlluminator";
-import { IconWand } from "@/lib/icons";
 import {
   useCreateScriptoriumDocument,
   useUpdateScriptoriumDocument,
@@ -250,8 +226,8 @@ import ScriptoriumMetadataToolbar from "@/components/scriptorium/ScriptoriumMeta
 import ScriptoriumEditorToolbar from "@/components/scriptorium/ScriptoriumEditorToolbar.vue";
 import ScriptoriumPreviewPane from "@/components/scriptorium/ScriptoriumPreviewPane.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
-import { useTextEnhancement } from "@/ai/useTextEnhancement";
-import { parseMarkdown } from "@/lib/tiptap/markdownToTiptap";
+import { useEnhanceAvailable } from "@/ai/useTextEnhancement";
+import TextEnhanceBubble from "@/components/common/TextEnhanceBubble.vue";
 import type { JSONContent } from "@tiptap/core";
 import type { ScriptoriumTemplateSettings } from "@/data/scriptoriumTemplates/types";
 import type { PageFurnitureItem, FurnitureKind, FurnitureAnchor } from "@/types/scriptorium.types";
@@ -729,56 +705,7 @@ const SCRIPTORIUM_STYLE: Partial<Record<ScriptoriumDocType, string>> = {
 
 const CONTEXT_RADIUS = 300;
 
-const { isEnhancing, hasTextProvider, enhance } = useTextEnhancement();
-const enhanceError = ref<string | null>(null);
-
-const showEnhanceButton = computed(() => hasTextProvider());
-
-async function onEnhance() {
-  if (!editor.value || isEnhancing.value) return;
-  const { from, to } = editor.value.state.selection;
-  if (from === to) return;
-
-  const selectedText = editor.value.state.doc.textBetween(from, to, " ");
-  if (!selectedText.trim()) return;
-
-  const docSize = editor.value.state.doc.content.size;
-  const before = editor.value.state.doc.textBetween(
-    Math.max(0, from - CONTEXT_RADIUS),
-    from,
-    " ",
-  );
-  const after = editor.value.state.doc.textBetween(
-    to,
-    Math.min(docSize, to + CONTEXT_RADIUS),
-    " ",
-  );
-  const surroundingContext = [before, "[[SELECTION]]", after]
-    .filter(Boolean)
-    .join(" ");
-
-  enhanceError.value = null;
-  try {
-    const markdown = await enhance(selectedText, "Scriptorium document", {
-      styleHint: SCRIPTORIUM_STYLE[docType.value],
-      surroundingContext: surroundingContext.trim() || undefined,
-    });
-    const nodes = parseMarkdown(markdown);
-    editor.value
-      .chain()
-      .focus()
-      .deleteRange({ from, to })
-      .insertContentAt(from, nodes, {
-        parseOptions: { preserveWhitespace: false },
-      })
-      .run();
-  } catch (e) {
-    enhanceError.value = e instanceof Error ? e.message : "Enhancement failed";
-    setTimeout(() => {
-      enhanceError.value = null;
-    }, 4000);
-  }
-}
+const enhanceAvailable = useEnhanceAvailable();
 
 onUnmounted(() => {
   editor.value?.destroy();

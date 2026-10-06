@@ -346,6 +346,8 @@ const COST_CATEGORY: Record<string, CostCategory> = {
   calendar_event_generation: "text", room_generation: "text",
   quest_beat_generation: "text", npc_relationship_suggestion: "text",
   scriptorium_draft: "text",
+  // #992
+  text_enhancement: "text",
   portrait: "image", entity_image: "image", chronicle_image: "image", map_style_generation: "image",
   tile_pack_generation: "image", entity_cutout: "image",
   music_track: "audio",

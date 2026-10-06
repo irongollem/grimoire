@@ -1,4 +1,4 @@
-import type { TextProvider, TextUsage, ImageProvider, ImageUsage } from "./types";
+import type { TextProvider, TextUsage, ImageProvider, ImageUsage, TextOutputFormat } from "./types";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const MODEL = "gemini-3.1-flash";
@@ -22,7 +22,7 @@ function sizeToAspect(size: string): { aspectRatio: string; imageSize: string } 
 
 export function createGeminiTextProvider(apiKey: string, model = MODEL): TextProvider {
   return {
-    async complete(systemPrompt: string, userPrompt: string) {
+    async complete(systemPrompt: string, userPrompt: string, format: TextOutputFormat = "json") {
       const res = await fetch(
         `${BASE_URL}/${model}:generateContent?key=${apiKey}`,
         {
@@ -31,7 +31,7 @@ export function createGeminiTextProvider(apiKey: string, model = MODEL): TextPro
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemPrompt }] },
             contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-            generationConfig: { responseMimeType: "application/json" },
+            ...(format === "json" ? { generationConfig: { responseMimeType: "application/json" } } : {}),
           }),
         },
       );

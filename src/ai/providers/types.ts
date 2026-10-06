@@ -16,8 +16,15 @@ export interface ImageUsage {
   output_tokens?: number;      // generated-image tokens (image-output rate, dominant)
 }
 
+/** "json" (the default) asks for one JSON object; "text" for prose (Enhance, #992). */
+export type TextOutputFormat = "json" | "text";
+
 export interface TextProvider {
-  complete(systemPrompt: string, userPrompt: string): Promise<{ content: string; usage: TextUsage }>;
+  complete(
+    systemPrompt: string,
+    userPrompt: string,
+    format?: TextOutputFormat,
+  ): Promise<{ content: string; usage: TextUsage }>;
 }
 
 export interface ImageProvider {
