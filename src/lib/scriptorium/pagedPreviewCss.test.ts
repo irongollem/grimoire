@@ -26,13 +26,17 @@ describe("buildPagedPreviewCss", () => {
     );
   });
 
-  it("leaves a linked entity's art to its own caps, and publishes the page's content height for them (#917)", () => {
+  it("leaves a linked entity's art to its own caps (#917)", () => {
     // The blanket image cap outranked theme-base.css's smaller entity-art caps,
-    // so a cutout printed past its limit; the art sizes itself from the room
-    // the page leaves instead, which needs the content height.
+    // so a cutout printed past its limit; pagedEntryFit.ts sizes the art to
+    // the room the page leaves instead.
     const css = buildPagedPreviewCss({ pageSize: "A4", inkFriendly: false });
     expect(css).toContain("img:not(.sc-cover-art):not(.sc-entity-art)");
-    expect(css).toContain("--sc-page-content-height: 1014px");
+  });
+
+  it("lets an entry that cannot fit its page split rather than lose its tail (#915)", () => {
+    const css = buildPagedPreviewCss(base);
+    expect(css).toMatch(/\.sc-statblock-entry\.sc-statblock-entry--split \{\s*break-inside: auto;/);
   });
 
   it("drops the page background in ink-friendly mode", () => {

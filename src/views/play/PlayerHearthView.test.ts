@@ -31,7 +31,7 @@ vi.mock("@/composables/campaign/useCampaignSession", () => ({
   usePlayerSessionState: () => ({
     data: ref(
       state.sessionLoaded
-        ? { isRunning: state.isRunning, startedAt: state.isRunning ? "2026-10-05T19:00:00Z" : null }
+        ? { isRunning: state.isRunning, startedAt: state.isRunning ? "2026-10-05T19:00:00Z" : null, sessionId: null, number: null, title: null }
         : undefined,
     ),
     isError: ref(false),

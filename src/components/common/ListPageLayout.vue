@@ -105,7 +105,10 @@
         </div>
       </div>
 
-      <div class="gold-divider mt-3 md:mt-4" />
+      <!-- Below md the title lives in the top bar, so with no actions there is
+           nothing above this rule: it would sit alone at the top of the page
+           (the phone Scriptorium list, #915 story 7). -->
+      <div class="gold-divider mt-3 md:mt-4" :class="{ 'hidden md:block': !hasActions }" />
 
       <!--
         Filters row (caller provides layout).
@@ -120,7 +123,7 @@
       >
         <slot name="filters" />
       </div>
-      <div v-else class="pb-3 md:pb-4" />
+      <div v-else :class="hasActions ? 'pb-3 md:pb-4' : 'md:pb-4'" />
     </div>
 
     <!-- Body — scrolls independently on desktop -->

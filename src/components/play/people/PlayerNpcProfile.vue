@@ -82,8 +82,8 @@ const displayName = computed(() => (visible("name") ? (getNpcDisplayName(npc) ??
 // them (useSharedNpcs is one request again). One cached query per viewer.
 const { data: moments } = useMyNpcRevealMoments();
 const met = computed(() => {
-  const at = moments.value?.get(npc.id);
-  return at ? formatMetDate(at) : null;
+  const moment = moments.value?.get(npc.id);
+  return moment ? formatMetDate(moment.revealed_at) : null;
 });
 
 const npcId = computed(() => npc.id);

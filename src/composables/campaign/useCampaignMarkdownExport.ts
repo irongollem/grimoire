@@ -18,10 +18,11 @@ import type { Npc } from "@/types/npc.types";
 import type { Note } from "@/types/notes.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
+import type { CampaignSession } from "@/types/session.types";
 
 /** Every read is scoped to the campaign and runs as the signed-in DM, so RLS decides what leaves. */
 async function fetchCampaignRows(campaignId: string) {
-  const [campaign, npcs, locations, factions, quests, partyMembers, notes] = await Promise.all([
+  const [campaign, npcs, locations, factions, quests, partyMembers, notes, sessions] = await Promise.all([
     supabase.from("campaigns").select("name").eq("id", campaignId).single(),
     supabase.from("npcs").select("*").eq("campaign_id", campaignId),
     supabase.from("locations").select("*").eq("campaign_id", campaignId),
@@ -29,8 +30,9 @@ async function fetchCampaignRows(campaignId: string) {
     supabase.from("quests").select("*").eq("campaign_id", campaignId),
     supabase.from("party_members").select("*").eq("campaign_id", campaignId),
     supabase.from("notes").select("*").eq("campaign_id", campaignId),
+    supabase.from("campaign_sessions").select("*").eq("campaign_id", campaignId),
   ]);
-  for (const result of [campaign, npcs, locations, factions, quests, partyMembers, notes]) {
+  for (const result of [campaign, npcs, locations, factions, quests, partyMembers, notes, sessions]) {
     if (result.error) throw result.error;
   }
   if (!campaign.data) throw new Error("Campaign not found");
@@ -42,6 +44,7 @@ async function fetchCampaignRows(campaignId: string) {
     quests: quests.data as Quest[],
     partyMembers: partyMembers.data as PartyMember[],
     notes: notes.data as Note[],
+    sessions: sessions.data as CampaignSession[],
   };
 }
 
@@ -68,7 +71,7 @@ async function fetchMonsterNames(ids: string[]): Promise<Record<string, string>>
 }
 
 async function buildVault(campaignId: string): Promise<{ campaignName: string; files: Record<string, string> }> {
-  const { campaignName, npcs, locations, factions, quests, partyMembers, notes } = await fetchCampaignRows(campaignId);
+  const { campaignName, npcs, locations, factions, quests, partyMembers, notes, sessions } = await fetchCampaignRows(campaignId);
 
   // quest_objectives has no campaign_id of its own — scoped through the
   // quests just fetched, same as `useCampaignBackup.ts`'s qByIds.
@@ -94,6 +97,7 @@ async function buildVault(campaignId: string): Promise<{ campaignName: string; f
     questObjectives,
     partyMembers,
     notes,
+    sessions,
     monsterNames,
   });
   return { campaignName, files };

@@ -12,7 +12,7 @@
       block
       class="font-cinzel font-bold tracking-widest"
       :disabled="pending || !campaign.activeCampaignId"
-      :label="size === 'md' ? 'Start session' : 'Start session'"
+      label="Start session"
       @click="onStart"
     />
 
@@ -30,7 +30,7 @@
         class="flex-1 truncate font-cinzel font-bold uppercase tracking-widest text-primary"
         :class="size === 'md' ? 'text-xs' : 'text-2xs'"
       >
-        Session live
+        {{ liveLabel }}
       </span>
       <!-- Elapsed time is what makes a session nobody ended obvious. A
            three-day-old clock reads as wrong on sight, where a lit segment
@@ -63,8 +63,9 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCampaignSession, formatSessionElapsed } from "@/composables/campaign/useCampaignSession";
-import { useToast } from "@/composables/useToast";
+import { formatSessionElapsed, type StartSessionOptions } from "@/composables/campaign/useCampaignSession";
+import { useSessionActions } from "@/composables/sessions/useSessionActions";
+import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
 import { prefersReducedMotion } from "@/lib/motion";
 import { IconClose } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
@@ -76,8 +77,7 @@ const { size = "sm" } = defineProps<{
 }>();
 
 const campaign = useCampaignStore();
-const toast = useToast();
-const { isRunning, startedAt, pending, start, end } = useCampaignSession();
+const { session, isRunning, startedAt, pending, startSession, endSession } = useSessionActions();
 
 const reduced = prefersReducedMotion();
 const confirmOpen = ref(false);
@@ -89,38 +89,23 @@ const now = ref(Date.now());
 const tick = setInterval(() => (now.value = Date.now()), 60_000);
 onUnmounted(() => clearInterval(tick));
 
+const liveLabel = computed(() =>
+  session.value && session.value.number !== null ? `${sessionShortLabel(session.value)} live` : "Session live",
+);
 const elapsed = computed(() => formatSessionElapsed(startedAt.value, now.value));
 
-/** The one moment a DM will read four lines about what changes, so it is the
- *  only place the consequences are enumerated. Dismissible forever. */
-const SEEN_KEY = "grimoire:session-start-explained";
-
-async function onStart() {
-  if (localStorage.getItem(SEEN_KEY) === "true") return confirmStart();
+/** Every start asks: the number and title are the session's name in the log,
+ *  and the only moment the DM is certain to be looking at it. */
+function onStart() {
   confirmOpen.value = true;
 }
 
-async function confirmStart() {
+async function confirmStart(options: StartSessionOptions) {
   confirmOpen.value = false;
-  try {
-    await start();
-    now.value = Date.now();
-  } catch (cause) {
-    toast.error(cause instanceof Error ? cause.message : "The session could not be started");
-  }
+  if (await startSession(options)) now.value = Date.now();
 }
 
-async function onEnd() {
-  try {
-    const closed = await end();
-    const parts: string[] = [];
-    if (closed.encounters_ended) parts.push(`${closed.encounters_ended} encounter${closed.encounters_ended === 1 ? "" : "s"} stopped`);
-    if (closed.chains_paused) parts.push(`${closed.chains_paused} quest${closed.chains_paused === 1 ? "" : "s"} paused`);
-    // Says what it did, because ending a session reaches further than the
-    // control it was clicked from — combat stops and open chains pause.
-    toast.success(parts.length ? `Session ended: ${parts.join(", ")}.` : "Session ended.");
-  } catch (cause) {
-    toast.error(cause instanceof Error ? cause.message : "The session could not be ended");
-  }
-}
+// Says what it did, because ending a session reaches further than the control
+// it was clicked from — combat stops and open chains pause.
+const onEnd = endSession;
 </script>

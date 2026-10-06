@@ -52,8 +52,8 @@
           <span class="absolute inset-0 rounded opacity-15" :class="CATEGORY_BG[note.category]" />
           <span class="relative">{{ note.category }}</span>
         </span>
-        <span v-if="note.session_num" class="text-caption text-muted-foreground italic">
-          Session {{ note.session_num }}
+        <span v-if="session" class="text-caption text-muted-foreground italic">
+          {{ sessionShortLabel(session) }}
         </span>
         <div class="relative z-10 shrink-0 -my-1 ml-auto" @click.prevent.stop>
           <AudienceRevealControl
@@ -97,12 +97,16 @@ import { useUpdateNote } from "@/composables/notes/useNotes";
 import { IconDrag, IconLock, IconPin } from "@/lib/icons";
 import { timeAgo, extractTiptapText } from "@/lib/utils";
 import type { Note, NoteCategory } from "@/types/notes.types";
+import { useNoteSession } from "@/composables/notes/useNoteSession";
+import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
 
 const { note, locked = false, showHandle = false } = defineProps<{
   note: Note;
   locked?: boolean;
   showHandle?: boolean;
 }>();
+
+const session = useNoteSession(() => note.session_id);
 
 const { mutate: updateNote } = useUpdateNote();
 

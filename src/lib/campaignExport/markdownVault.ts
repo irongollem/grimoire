@@ -27,6 +27,7 @@ import type { Faction } from "@/types/faction.types";
 import type { Location } from "@/types/location.types";
 import type { Npc } from "@/types/npc.types";
 import type { Note } from "@/types/notes.types";
+import type { CampaignSession } from "@/types/session.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import { tiptapToMarkdown, type TiptapToMarkdownOptions } from "@/lib/tiptap/tiptapToMarkdown";
@@ -42,6 +43,8 @@ export interface MarkdownVaultInput {
   questObjectives: QuestObjective[];
   partyMembers: PartyMember[];
   notes: Note[];
+  /** The session log, so a session note can name the session it records. */
+  sessions: CampaignSession[];
   /** id -> name, for every monster mentioned anywhere in the rich-text fields
    *  below. Fetched by the caller (`useCampaignMarkdownExport.ts`) via
    *  `collectMentionedMonsterIds`, since this module has no Supabase access
@@ -269,13 +272,15 @@ function buildPartyMemberFile(pm: PartyMember, mention: TiptapToMarkdownOptions)
   return `${frontmatter}\n# ${pm.name || "Untitled"}\n\n${body}`.trimEnd() + "\n";
 }
 
-function buildNoteFile(note: Note, mention: TiptapToMarkdownOptions): string {
+function buildNoteFile(note: Note, sessions: readonly CampaignSession[], mention: TiptapToMarkdownOptions): string {
   const fields: Array<[string, FrontmatterValue]> = [
     ["type", "note"],
     ["grimoire_id", note.id],
     ["category", note.category],
   ];
-  if (note.session_num != null) fields.push(["session_num", note.session_num]);
+  const session = sessions.find((s) => s.id === note.session_id);
+  if (session?.number != null) fields.push(["session", session.number]);
+  if (session?.title) fields.push(["session_title", session.title]);
   fields.push(["tags", note.tags]);
   const frontmatter = buildFrontmatter(fields);
   const body = tiptapToMarkdown(note.content, mention);
@@ -351,7 +356,7 @@ export function buildMarkdownVault(input: MarkdownVaultInput): Record<string, st
     files[`${FOLDERS.quests}/${questNames.get(q.id)}.md`] = buildQuestFile(q, objectivesByQuest.get(q.id) ?? [], { quest: questNames });
   }
   for (const pm of input.partyMembers) files[`${FOLDERS.party}/${partyNames.get(pm.id)}.md`] = buildPartyMemberFile(pm, mention);
-  for (const note of input.notes) files[`${FOLDERS.notes}/${noteNames.get(note.id)}.md`] = buildNoteFile(note, mention);
+  for (const note of input.notes) files[`${FOLDERS.notes}/${noteNames.get(note.id)}.md`] = buildNoteFile(note, input.sessions, mention);
 
   files["README.md"] = buildReadme(input, {
     party: partyNames,

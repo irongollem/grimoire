@@ -24,15 +24,20 @@ Prep/Play switch traces to a cell in its column.
 | A co-DM sees it     | yes                                | yes                        | no               |
 | Visible to players  | yes (`get_player_encounter_state`) | no — deliberately DM-only  | no               |
 
-`campaign_session_state` mirrors `encounter_state`: `campaign_id` unique,
-`user_id`, `is_running`, `started_at`, `ended_at`, one live row per campaign.
-Its events ride the shared campaign channel in `useCampaignLiveSync`, beside
-the `campaigns` handler it most resembles — one row per campaign feeding a
-store rather than a list query.
-Everything else in this document falls out of that choice — the elapsed clock,
-the cross-device consistency, the stale-session reaper, and the ability to tell
-players the table is live are all properties of the row, not features built on
-top of it.
+The session is stored like its siblings, with one difference that came later
+(#985). It began as a single row per campaign that every Start overwrote
+(mirroring `encounter_state`). That answered "is a
+game running?" and nothing about the games before it, so `encounter_state.session_id` named the same row for every combat ever run. It is now a **log**,
+`campaign_sessions`: one row per evening, and a game is running while a session
+is still open (started, not ended; at most one per campaign). Its events ride
+the shared campaign channel in `useCampaignLiveSync`, beside the `campaigns`
+handler it most resembles: rows feeding a store rather than a list query.
+Everything else in this document falls out of the row: the elapsed clock, the
+cross-device consistency, the stale-session reaper, the ability to tell
+players the table is live, and now the history. The number a DM gives a
+session is a label, not a key; repeats are allowed. The state, the lifecycle
+and what each session recorded are in
+[`context/features/sessions.md`](../context/features/sessions.md).
 
 RLS gates on `private.is_campaign_dm()`, matching `quest_runtime_state`'s own
 choice: a session is a DM concept. Telling players the table is live is a
@@ -154,8 +159,8 @@ A message scrolls away, though, so it cannot answer *"is the DM running the
 game right now, or prepping?"* for a player who joined late or reopened the
 app. `get_player_session_state` does: a `SECURITY DEFINER` reader gated on
 `private.is_campaign_member`, returning **strictly less than the row** —
-`is_running` and `started_at`, never `user_id` or `ended_at` — and nothing at
-all once the session ends. The DM-only policy on the table is unchanged; this
+`is_running`, `started_at` and the session's number and title, never `user_id`
+or `ended_at` — and nothing at all once the session ends. The DM-only policy on the table is unchanged; this
 is a projection beside it, the way `get_player_encounter_state` is.
 
 The portal shows it as a quiet "Session live" in the header, deliberately not a

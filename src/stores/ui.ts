@@ -661,7 +661,7 @@ export const useUiStore = defineStore("ui", () => {
   const userMode = useLocalStorage<"dm" | "player" | "">("grimoire:user-mode", "");
 
   // Whether the campaign's session is live (#758). A *mirror* of
-  // `campaign_session_state.is_running`, owned by `useCampaignSession()` and
+  // "a session in `campaign_sessions` is open" (#985), owned by `useCampaignSession()` and
   // written by nothing else — the row is the authority, this is the cheap
   // synchronous read the surfaces below already expect.
   //

@@ -11,6 +11,7 @@ import {
   IconNavEncounters,
   IconNavFactions,
   IconNavGallery,
+  IconNavHearth,
   IconNavHeroes,
   IconNavIlluminator,
   IconNavInterlude,
@@ -86,7 +87,9 @@ export const NAV_GROUPS: NavGroup[] = [
      * because they are live-play surfaces, not prep ones. Party is lower than
      * its importance suggests only because the Dashboard already shows it.
      * Factions, Pantheon, Workshop and Interlude are world-building you set up
-     * once and revisit rarely. Settings is last everywhere, always.
+     * once and revisit rarely. Sessions, the log of evenings played and what was
+     * written about each, sits at the foot beside Settings: it is looked at
+     * between sessions rather than during one. Settings is last everywhere, always.
      */
     label: "Campaign",
     items: [
@@ -181,6 +184,13 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Downtime draws & outcomes",
         requiresCampaign: true,
         ruleKey: "downtime",
+      },
+      {
+        label: "Sessions",
+        to: "/sessions",
+        icon: IconNavHearth,
+        description: "Every evening at the table, and its notes",
+        requiresCampaign: true,
       },
       {
         label: "Settings",

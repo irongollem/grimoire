@@ -47,15 +47,23 @@ describe("live sync registries", () => {
     expect([...SIGNAL_KEYS.keys()].sort()).toEqual(canRing);
   });
 
+  it("tells players to re-read the running session and the session labels", () => {
+    expect([...(SIGNAL_KEYS.get("campaign_sessions") ?? [])].sort()).toEqual(["player-session-state", "player-sessions"]);
+    expect(SIGNAL_KEYS.has("campaign_session_state")).toBe(false);
+  });
+
   it("refreshes every quest runtime view from any of the runtime tables", () => {
     // One transition writes all three tables and the run context joins them, so
     // any one ringing must reach every view: the job four 5s polls did before.
     // Plus the player's beat projection: a reveal is a visit, not a beat edit.
     const expected = [...QUEST_RUNTIME_SYNC_KEYS].sort();
     expect(expected).toEqual([...QUEST_RUNTIME_QUERY_KEYS, THREADS_KEY, BEATS_KEY].sort());
-    for (const table of ["quest_runtime_state", "quest_threads", "quest_beat_transitions"]) {
+    for (const table of ["quest_runtime_state", "quest_threads"]) {
       expect([...(SIGNAL_KEYS.get(table) ?? [])].sort(), table).toEqual(expected);
     }
+    // A step is also a learned moment filed under a session (#985), so the
+    // transition log refreshes that list as well.
+    expect([...(SIGNAL_KEYS.get("quest_beat_transitions") ?? [])].sort()).toEqual([...expected, "session-learned"].sort());
   });
 
   it("refreshes the player-visible item projection for the two tables that widen it", () => {

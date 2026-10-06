@@ -35,7 +35,7 @@ const loc = (shared: boolean): DraftLocation => ({
   is_description_shared: shared, player_visible_to: ["p1"],
 });
 const note = (id: string, shared: boolean, title = id): DraftNote => ({
-  id, title, content: `content of ${id}`, session_num: 3, session_real_date: "2026-09-01",
+  id, title, content: `content of ${id}`, session_id: "s1", session: { number: 3 }, session_real_date: "2026-09-01",
   player_visible_to: shared ? ["p1"] : [],
 });
 

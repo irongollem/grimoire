@@ -99,6 +99,24 @@ describe("parseDashboardLayout", () => {
     expect(keysOf(parsed?.widgets ?? [])).toEqual(["quests", "party"]);
   });
 
+  // `latest-session-note` was replaced by `sessions` (#985), not removed: a DM
+  // who had it on the board keeps its place and size under the new widget.
+  it("carries a saved latest-session-note entry over to sessions", () => {
+    const parsed = parseDashboardLayout({
+      widgets: [
+        { key: "quests", id: "quests", width: "cell" },
+        { key: "latest-session-note", id: "latest-session-note", width: "wide" },
+      ],
+      known: ["quests", "latest-session-note"],
+    });
+    expect(parsed?.widgets.map((w) => [w.key, w.id, w.width])).toEqual([
+      ["quests", "quests", "cell"],
+      ["latest-session-note", "sessions", "wide"],
+    ]);
+    // Known under the new id too, so the merge does not call it a new widget.
+    expect(parsed?.known).toEqual(["quests", "sessions"]);
+  });
+
   it("keeps a settings object and discards one that is not an object", () => {
     const withSettings = parseDashboardLayout({
       widgets: [{ key: "quests", id: "quests", width: "cell", settings: { table: "rumors" } }],

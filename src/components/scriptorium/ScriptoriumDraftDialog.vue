@@ -127,6 +127,9 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useNotes } from "@/composables/notes/useNotes";
+import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
+import { sessionLabel } from "@/lib/sessions/sessionLabel";
+import { sessionOf } from "@/lib/notes/noteSessions";
 import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { useScriptoriumDraft } from "@/ai/useScriptoriumDraft";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
@@ -153,6 +156,7 @@ const { data: npcs } = useNpcs(whenOpen);
 const { data: factions } = useAllFactions(whenOpen);
 const { data: locations } = useAllLocations(whenOpen);
 const { data: notes } = useNotes(whenOpen);
+const { data: sessions } = useCampaignSessions({ enabled: () => open });
 
 const { costOf } = useAiCredits();
 const { textMultiplierFor } = useProviderConfig();
@@ -209,7 +213,10 @@ const subjectOptions = computed<Option[]>(() => {
     faction: (factions.value ?? []).map((f) => ({ id: f.id, name: f.name })),
     session: (notes.value ?? [])
       .filter((n) => n.category === "session")
-      .map((n) => ({ id: n.id, name: n.session_num !== null ? `Session ${n.session_num}: ${n.title}` : n.title })),
+      .map((n) => {
+        const linked = sessionOf(sessions.value, n.session_id);
+        return { id: n.id, name: linked ? `${sessionLabel(linked)}: ${n.title}` : n.title };
+      }),
   };
   return byType[subjectType.value];
 });

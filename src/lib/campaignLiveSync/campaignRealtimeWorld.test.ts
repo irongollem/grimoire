@@ -181,4 +181,18 @@ describe("applyCampaignRealtimeWorld", () => {
       expect(invalidated(playerClient, ["npc-reveals", "npc-1"])).toBe(false);
     }
   });
+
+  it("refetches the DM's per-session learned lists on npc and location rows, and leaves players alone", () => {
+    for (const table of ["npcs", "locations"]) {
+      const dmClient = new QueryClient();
+      dmClient.setQueryData(["session-learned", "campaign-1", "session-1"], {});
+      applyCampaignRealtimeWorld(dmClient, table, change(row()), dm);
+      expect(invalidated(dmClient, ["session-learned", "campaign-1", "session-1"])).toBe(true);
+
+      const playerClient = new QueryClient();
+      playerClient.setQueryData(["session-learned", "campaign-1", "session-1"], {});
+      applyCampaignRealtimeWorld(playerClient, table, change(row()), player);
+      expect(invalidated(playerClient, ["session-learned", "campaign-1", "session-1"])).toBe(false);
+    }
+  });
 });

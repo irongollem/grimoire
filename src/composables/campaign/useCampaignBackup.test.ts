@@ -146,3 +146,39 @@ describe("executeImport scriptorium document audience", () => {
     expect(doc.player_visible_to).toEqual(note.player_visible_to);
   });
 });
+
+describe("executeImport session log", () => {
+  beforeEach(() => {
+    inserted.length = 0;
+  });
+
+  it("restores the log before the notes and proposals that point into it", async () => {
+    const backup = backupWith({
+      campaign_sessions: [{ id: "s-1", campaign_id: "old-camp", user_id: "x", number: 3, started_at: null, ended_at: null }],
+      notes: [{ id: "note-1", category: "session", session_id: "s-1" }],
+      session_proposals: [{ id: "sp-1", session_id: "s-1" }],
+    });
+    await executeImport(backup, "Restored");
+    const tables = inserted.map((i) => i.table);
+    expect(tables.indexOf("campaign_sessions")).toBeLessThan(tables.indexOf("notes"));
+    expect(tables.indexOf("campaign_sessions")).toBeLessThan(tables.indexOf("session_proposals"));
+
+    const session = inserted.find((i) => i.table === "campaign_sessions")!.rows[0];
+    const note = inserted.find((i) => i.table === "notes")!.rows[0];
+    const proposal = inserted.find((i) => i.table === "session_proposals")!.rows[0];
+    expect(session.id).not.toBe("s-1");
+    expect(note.session_id).toBe(session.id);
+    expect(proposal.session_id).toBe(session.id);
+  });
+
+  it("remaps a discovered monster's session onto the restored log", async () => {
+    const backup = backupWith({
+      campaign_sessions: [{ id: "s-1", campaign_id: "old-camp", user_id: "x", number: 3, started_at: null, ended_at: null }],
+      discovered_monsters: [{ id: "dm-1", campaign_id: "old-camp", visible_to: [], session_id: "s-1" }],
+    });
+    await executeImport(backup, "Restored");
+    const session = inserted.find((i) => i.table === "campaign_sessions")!.rows[0];
+    const found = inserted.find((i) => i.table === "discovered_monsters")!.rows[0];
+    expect(found.session_id).toBe(session.id);
+  });
+});

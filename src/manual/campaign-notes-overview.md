@@ -13,7 +13,7 @@ Campaign Notes is your free-form space for anything that doesn't have a dedicate
 
 | Term | Meaning |
 | --- | --- |
-| Category | One of **General**, **Session**, **Lore**, **Location**, **Quest**, **Faction**: sets the icon/color and, for Session notes, unlocks session-date fields. |
+| Category | One of **General**, **Session**, **Lore**, **Location**, **Quest**, **Faction**: sets the icon/color and, for Session notes, unlocks the **Session** picker and the session-date fields. |
 | Pinned | A note floats to the top of the list regardless of sort order. |
 | Shared with players | A note is DM-only until you explicitly add players to it, see below. Sharing is per player, not an all-or-nothing toggle. |
 | Manual order | A sort mode that lets you drag notes into whatever order you like, distinct from sorting by date or title. |
@@ -22,7 +22,7 @@ Campaign Notes is your free-form space for anything that doesn't have a dedicate
 
 1. Click **New Note**. Free plans have a note quota; the button shows a paywall prompt once you hit it.
 2. Give it a **Title**, pick a **Category**, and write the body in the rich-text editor (headings, lists, bold: the usual formatting tools).
-3. If the category is **Session**, a session-dates panel appears for the in-game start/end date and a real-world date.
+3. If the category is **Session**, a **Session** picker appears so you can say which session the note is about. It lists sessions that have no note yet first, with their dates, and **+ A session that is not in the log yet** adds one on the spot. A session-dates panel also appears for the in-game start/end date and a real-world date, filled in from the last session you played.
 4. Add **Tags** freely to make the note easier to find later.
 5. Click **Pin note** (the pin icon) to keep it at the top of your list.
 
@@ -53,7 +53,7 @@ Notes are DM-only by default, but you can share one with specific players:
 
 From a note's toolbar you can reach two AI tools, available on every plan once the campaign's AI Assistant is switched on:
 
-- **Write Chronicle**: paste in raw session facts (supports `@mentions` of your NPCs and locations), pick a tone, and it drafts prose you can review and **Insert into Note** before it touches your note.
+- **Write Chronicle**: paste in raw session facts (supports `@mentions` of your NPCs and locations), pick a tone, and it drafts prose you can review and **Insert into Note** before it touches your note. If the draft names a session that is in your log, the note is linked to it.
 - **Generate scene illustration**: describe a scene (again with `@mentions` to pull in existing character art), pick an image shape, and generate an illustration for the note. Each shape shows its own cost before you generate.
 - **Scene library**: browse illustrations you've already generated for this campaign instead of generating a new one.
 
@@ -61,18 +61,18 @@ AI costs are not a fixed number quoted here: the tool shows you the price for wh
 
 ## What your players see
 
-Shared notes appear on the **DM Notes** tab of their own Journal, with the empty state "No notes shared by your DM yet." if you haven't shared anything with them. They see the same content you wrote (title, tags, session number, and full formatted text) but only for notes you've specifically shared with their character. A note you haven't shared, or have only shared with someone else's character, never appears there.
+Shared notes appear on the **DM Notes** tab of their own Journal, with the empty state "No notes shared by your DM yet." if you haven't shared anything with them. They see the same content you wrote (title, tags, the session it belongs to, and full formatted text) but only for notes you've specifically shared with their character. A note you haven't shared, or have only shared with someone else's character, never appears there.
 
 ## Tips
 
 > A downtime draw can create a note automatically as one of its possible outcomes: check [The Interlude: Downtime](#the-interlude-downtime) if a note appears that you don't remember writing.
 
 - Sharing is deliberate and per-player: there's no "share with the whole party" shortcut beyond selecting every player.
-- Use **Session** category notes for recaps; the session-number field is what several dashboard widgets (like Last session) use to find "the most recent one," so fill it in even if you also set a real-world date.
+- Use **Session** category notes for recaps and link each one to its session: the Sessions log and the dashboard's Sessions widget find a session's recap through that link, and flag sessions that have none. You can also start a recap from the session's own page with **Write the notes**.
 
 ## Related
 
-- [Dashboard](#dashboard): the Pinned notes and Last session widgets read straight from here.
-- [Running a Session](#running-a-session): Session-category notes and the recap habit.
+- [Dashboard](#dashboard): the Pinned notes widget reads straight from here, and the Sessions widget points back into your session notes.
+- [Running a Session](#running-a-session): the Sessions log, and Session-category notes and the recap habit.
 - [Calendar System](#calendar-system): how a note's in-game session dates link to a calendar event.
 - [Player Portal: Overview](#player-portal-overview): where shared notes surface for your players.

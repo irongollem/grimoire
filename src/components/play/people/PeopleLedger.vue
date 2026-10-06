@@ -8,7 +8,8 @@
     >
       <template v-if="group.title" #end>
         <span v-if="group.within" class="text-caption italic text-muted-foreground">in {{ group.within }}</span>
-        <span class="text-caption font-semibold text-foreground">{{ group.people.length }}</span>
+        <span v-if="group.end" class="text-caption font-semibold text-foreground">{{ group.end }}</span>
+        <span v-else class="text-caption font-semibold text-foreground">{{ group.people.length }}</span>
       </template>
 
       <ul v-if="view === 'ledger'" class="torn hearth-card divide-y divide-border/60 rounded-lg">

@@ -82,6 +82,7 @@ insert into definer_registry (name, kind, reason) values
   ('get_loot_placements', 'refuses', null),
   ('get_player_encounter_state', 'refuses', null),
   ('get_player_session_state', 'refuses', null),
+  ('get_player_sessions', 'refuses', null),
   ('get_player_visible_items', 'self', 'items in campaigns the caller is a member of, keyed on auth.uid()'),
   ('get_player_visible_locations', 'refuses', null),
   ('get_player_visible_mini', 'refuses', null),

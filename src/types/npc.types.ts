@@ -230,6 +230,8 @@ export type PlayerNpc = Omit<Npc, "name"> & {
   relevance?: number;
   /** First moment this viewer could see the NPC (`npc_reveals`); null when unknown. */
   revealed_at?: string | null;
+  /** The session of the viewer's earliest reveal of this NPC (null: outside the log). */
+  revealed_session_id?: string | null;
 };
 
 export type NpcInsert = Omit<

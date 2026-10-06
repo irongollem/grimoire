@@ -243,7 +243,7 @@
   cursor: default;
 }
 .phb-editor .ProseMirror div[data-type="coverPage"]::before {
-  content: attr(data-variant) " cover — click, then “Cover” in the toolbar to add art & edit";
+  content: attr(data-variant) " cover: click, then “Cover” in the toolbar to add art and edit";
   font-family: var(--sc-heading-font, "Cinzel", serif);
   font-size: 0.8rem;
   font-weight: 700;
@@ -252,6 +252,11 @@
   color: color-mix(in srgb, var(--sc-accent) 75%, var(--sc-ink));
   text-align: center;
   pointer-events: none;
+}
+/* A cover that already has art says so, rather than inviting the DM to add
+   what is there (#915 story 6: the Sugarwell covers both read "add art"). */
+.phb-editor .ProseMirror div[data-type="coverPage"][data-backgroundImage]:not([data-backgroundImage=""])::before {
+  content: attr(data-variant) " cover, with art: click, then “Cover” in the toolbar to edit";
 }
 .phb-editor .ProseMirror div[data-type="coverPage"] > * {
   display: none !important;

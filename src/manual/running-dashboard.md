@@ -94,7 +94,7 @@ Everything else lives on the shelf: add it from **Add a widget…** if you want 
 | Table vitals | Spell slots, class resources and concentration across the party |
 | Death saves *(self-hiding)* | Anyone at 0 HP, until they stabilize or die |
 | Dice roller | Seven standard dice plus a free expression field, with advantage/disadvantage |
-| Last session | The most recent session note, one tap away |
+| Sessions | Your next session, what happened last time, sessions still missing notes, and a quick line into the session's notes |
 
 ## What your players see
 
@@ -110,7 +110,7 @@ Nothing. The Dashboard is DM-only: there's no player-facing equivalent, and none
 
 ## Related
 
-- [Running a Session](#running-a-session): what flips the dashboard from Prep to At the table.
-- [Campaign Notes](#campaign-notes): where Pinned notes and Last session come from.
+- [Running a Session](#running-a-session): what flips the dashboard from Prep to At the table, and the Sessions log behind the Sessions widget.
+- [Campaign Notes](#campaign-notes): where Pinned notes come from.
 - [Party Tracker](#party-tracker): the detail view behind the Party and Table vitals widgets.
 - [Quest Log](#quest-log): the detail view behind the Quests widget.

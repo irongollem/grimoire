@@ -50,7 +50,7 @@ insert into live_sync_subscribed (name) values
 create temporary table live_sync_doorbell (name text primary key) on commit drop;
 insert into live_sync_doorbell (name) values
   ('store_items'), ('quest_runtime_state'), ('quest_threads'),
-  ('quest_beat_transitions'), ('campaign_session_state'), ('ruleset_reviews'),
+  ('quest_beat_transitions'), ('campaign_sessions'), ('ruleset_reviews'),
   ('scriptorium_documents'), ('entity_mentions');
 
 create temporary table live_sync_named_signal (name text primary key, source text not null) on commit drop;

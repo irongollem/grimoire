@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 -- npc_reveals records the first moment each party member could see each NPC
 -- (20261005220422), so the player's People list can sort by "Recently
@@ -111,7 +111,10 @@ select throws_ok(
   '42501', null,
   'and cannot record one themselves');
 
-update public.npc_reveals set revealed_at = now() where npc_id = '94400000-0000-4000-8000-000000000020';
+select throws_ok(
+  $$ update public.npc_reveals set revealed_at = now() where npc_id = '94400000-0000-4000-8000-000000000020' $$,
+  '42501', null,
+  'and cannot rewrite when it happened (only session_id is updatable, and only by the DM)');
 delete from public.npc_reveals where npc_id = '94400000-0000-4000-8000-000000000020';
 
 -- ── As player B ────────────────────────────────────────────────────────────

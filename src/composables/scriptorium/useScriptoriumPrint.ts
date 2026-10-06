@@ -24,6 +24,7 @@ import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
 import { fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
 import { preparePagedBody } from "@/lib/scriptorium/pagedPrepare";
+import { registerPagedEntryFit } from "@/lib/scriptorium/pagedEntryFit";
 import { compactPrintImages } from "@/lib/scriptorium/printImages";
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
@@ -141,6 +142,7 @@ export function useScriptoriumPrint() {
     const stylesBefore = new Set(Array.from(document.head.querySelectorAll("style")));
     let iframe: HTMLIFrameElement | null = null;
     try {
+      registerPagedEntryFit();
       await new Previewer().preview(content, [{ "scriptorium-paged.css": pagedCss }], host);
       await document.fonts.ready;
       injectPagedFooters(host, {

@@ -11,6 +11,8 @@ export interface SessionProposal {
   status: SessionStatus;
   min_attendance: number;
   duration_minutes: number;
+  /** The logged session this scheduled evening became (`campaign_sessions.id`); null until it was started. */
+  session_id?: string | null;
   created_at: string;
   updated_at: string;
 }

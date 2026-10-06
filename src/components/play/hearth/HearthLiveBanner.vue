@@ -29,16 +29,24 @@ import { useSessionProposals } from "@/composables/calendar/useScheduling";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import { useNeedsInitiativeRoll } from "@/composables/encounters/useNeedsInitiativeRoll";
 import { liveState } from "@/composables/encounters/useEncounterLive";
+import { sessionLabel } from "@/lib/sessions/sessionLabel";
+import { todaysScheduledSession } from "@/lib/sessions/sessionPrefill";
 import { combatTurnLine } from "@/lib/hearth/turnLine";
 
 /**
  * The oxblood band across the top of the table layout: the session is running,
  * for how long, and where the player stands in combat. It words the session the
  * way the layout's own live chip does ("Running for 1:47" / "The table is
- * sitting"), and names it when a confirmed proposal is dated today. Joining the
+ * sitting"), and names it by its number and title, or by the confirmed proposal dated today. Joining the
  * fight is the one action: the encounter has its own page.
  */
-const { startedAt, memberId } = defineProps<{ startedAt: string | null; memberId: string | null }>();
+const { startedAt, memberId, number, title: sessionTitle } = defineProps<{
+  startedAt: string | null;
+  memberId: string | null;
+  /** The session's own number and title, when the DM gave it either. */
+  number: number | null;
+  title: string | null;
+}>();
 
 // Read the shared state, never subscribe again: the channel is module-level and
 // PlayerLayout keeps it open, so a second subscriber's unmount (this banner
@@ -53,11 +61,12 @@ const since = computed(() => {
 
 const { data: proposals } = useSessionProposals();
 const today = useLocalToday();
-const title = computed(
-  () =>
-    (proposals.value ?? []).find((p) => p.status === "confirmed" && p.proposed_date === today.value)?.title ??
-    "The session is underway",
-);
+// The session's own name wins; an unnamed one falls back to today's confirmed
+// proposal, then to the plain fact.
+const title = computed(() => {
+  if (number !== null || sessionTitle) return sessionLabel({ number, title: sessionTitle });
+  return todaysScheduledSession(proposals.value ?? [], today.value)?.title ?? "The session is underway";
+});
 
 const needsRoll = useNeedsInitiativeRoll(() => liveState.value?.combatants_live, () => memberId);
 const turn = computed(() => {

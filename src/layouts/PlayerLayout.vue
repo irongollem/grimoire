@@ -47,7 +47,7 @@
         :title="sessionSince"
       >
         <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" :class="{ 'animate-pulse': !reducedMotion }" />
-        Session live
+        {{ sessionChip }}
       </span>
 
       <!-- Live encounter — mobile: navigate to encounter view -->
@@ -323,6 +323,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useNeedsInitiativeRoll } from "@/composables/encounters/useNeedsInitiativeRoll";
 import { usePlayerEncounterLive } from "@/composables/encounters/useEncounterLive";
+import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
 import { usePlayerSessionState, formatSessionElapsed } from "@/composables/campaign/useCampaignSession";
 import { prefersReducedMotion } from "@/lib/motion";
 import { useAuthStore } from "@/stores/auth";
@@ -406,6 +407,11 @@ const sessionSince = computed(() => {
   const elapsed = formatSessionElapsed(playerSession.value?.startedAt ?? null);
   return elapsed ? `Running for ${elapsed}` : "The table is sitting";
 });
+const sessionChip = computed(() =>
+  playerSession.value && playerSession.value.number !== null
+    ? `${sessionShortLabel({ number: playerSession.value.number })} live`
+    : "Session live",
+);
 const anyRunning = computed(() => playerLiveState.value?.is_running === true);
 const needsRoll = useNeedsInitiativeRoll(
   () => playerLiveState.value?.combatants_live,

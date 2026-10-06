@@ -149,7 +149,9 @@ export interface DraftNote {
   id: string;
   title: string;
   content: string | null;
-  session_num: number | null;
+  session_id: string | null;
+  /** The linked session (notes.session_id), embedded; its number is a DM label and may be null. */
+  session: { number: number | null } | null;
   session_real_date: string | null;
   player_visible_to: string[] | null;
 }
@@ -324,7 +326,7 @@ export function buildSessionBlock(subject: DraftNote, siblings: DraftNote[], aud
   );
   const heading = present([
     `Session: ${subject.title}`,
-    subject.session_num !== null ? `Session number: ${subject.session_num}` : null,
+    subject.session?.number != null ? `Session number: ${subject.session.number}` : null,
     subject.session_real_date ? `Played on: ${subject.session_real_date}` : null,
   ]).join("\n");
   const body = notes

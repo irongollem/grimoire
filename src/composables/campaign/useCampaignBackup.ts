@@ -10,6 +10,7 @@ import {
   remapKeepArr as rArr,
   type IdMap,
 } from "@/lib/campaign/campaignSerialization";
+import { restoreSessions } from "@/lib/campaign/backupSessions";
 import { remapMentionIds as rMention } from "@/lib/campaign/mentionRemap";
 import { disposeHomebrewAndDeleteCampaign } from "@/composables/campaign/useCampaigns";
 
@@ -30,6 +31,9 @@ export interface GrimoireBackup {
   character_spells: Row[];
   companions: Row[];
   notes: Row[];
+  /** The session log; notes and session proposals point into it. Absent from a
+   *  backup taken before the log existed (see `restoreSessions`). */
+  campaign_sessions?: Row[];
   calendar_events: Row[];
   npcs: Row[];
   npc_relationships: Row[];
@@ -167,6 +171,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     partyMembers,
     companions,
     notes,
+    campaignSessions,
     calendarEvents,
     npcs,
     factions,
@@ -198,6 +203,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByCampaign("party_members", campaignId),
     qByCampaign("companions", campaignId),
     qByCampaign("notes", campaignId),
+    qByCampaign("campaign_sessions", campaignId),
     qByCampaign("calendar_events", campaignId),
     qByCampaign("npcs", campaignId),
     qByCampaign("factions", campaignId),
@@ -292,6 +298,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     party_members: partyMembers.length,
     companions: companions.length,
     notes: notes.length,
+    campaign_sessions: campaignSessions.length,
     scriptorium_documents: scriptoriumDocuments.length,
     calendar_events: calendarEvents.length,
     npcs: npcs.length,
@@ -323,6 +330,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     character_spells: characterSpells,
     companions,
     notes,
+    campaign_sessions: campaignSessions,
     calendar_events: calendarEvents,
     npcs,
     npc_relationships: npcRelationships,
@@ -397,6 +405,7 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.character_spells,
     backup.companions,
     backup.notes,
+    backup.campaign_sessions ?? [],
     backup.calendar_events,
     backup.npcs,
     backup.npc_relationships,
@@ -638,10 +647,15 @@ export async function executeImport(
       })),
     );
 
-    // 9. Notes
+    // 9. Session log, then notes: a session note points at its session, and a
+    // session proposal (step 17) may too, so the log goes in first.
+    const restored = restoreSessions(backup, idMap, newCampaignId, userId);
+    await batchInsert("campaign_sessions", restored.sessions);
+
+    // 10a. Notes
     await batchInsert(
       "notes",
-      backup.notes.map((n) => ({
+      restored.notes.map((n) => ({
         ...n,
         id: r(n.id, idMap),
         campaign_id: newCampaignId,
@@ -763,6 +777,7 @@ export async function executeImport(
         id: r(sp.id, idMap),
         campaign_id: newCampaignId,
         user_id: userId,
+        session_id: r(sp.session_id, idMap),
       })),
     );
     await batchInsert(
@@ -784,6 +799,7 @@ export async function executeImport(
         id: r(dm.id, idMap),
         campaign_id: newCampaignId,
         visible_to: rArr(dm.visible_to, idMap),
+        session_id: r(dm.session_id, idMap),
         // monster_id kept as-is (user-library ref)
       })),
     );

@@ -32,7 +32,7 @@
          three wrappers are columns: [vitals, spellcasting] [checks]
          [waiting, right now, session note]. -->
     <div v-else-if="isRunning" class="hearth-stack hearth-live">
-      <HearthLiveBanner :started-at="startedAt" :member-id="member.id" />
+      <HearthLiveBanner :started-at="startedAt" :member-id="member.id" :number="session?.number ?? null" :title="session?.title ?? null" />
       <div class="hearth-col">
         <HearthVitals :member="member" />
         <HearthSpellcasting :member="member" />

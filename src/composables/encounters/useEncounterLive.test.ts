@@ -118,4 +118,19 @@ describe("goLive", () => {
       { onConflict: "encounter_id" },
     );
   });
+
+  // The fight is filed under the session log's row, whether goLive found one
+  // open or started an unnumbered one itself.
+  it("files the fight under the session log row", async () => {
+    const { useEncounterLive } = await import("./useEncounterLive");
+    const { goLive } = useEncounterLive(() => "encounter-1");
+    await nextTick();
+
+    await goLive({ round: 1, activeIndex: 0, combatants: [] });
+
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ session_id: "session-1" }),
+      { onConflict: "encounter_id" },
+    );
+  });
 });

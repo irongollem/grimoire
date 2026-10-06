@@ -33,8 +33,8 @@
  * frame's own example names a beat position ("beat 4 of...") and a session
  * number ("session 12"); both are omitted here rather than guessed — beat
  * position needs the full graph walk `story_order` does server-side for
- * players only, and there is no session-number column at all
- * (`campaign_session_state` only knows running/not-running) — see
+ * players only. A session number now exists (the session log, #985) and can
+ * join this line when the run surface reads `useCampaignSession`; see
  * `SiteRunSurface`'s own comment on the same choice.
  *
  * The pulsing dot is the same idiom `QuestRunBeatCard` and `QuestSiteHandoff`

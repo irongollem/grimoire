@@ -1175,26 +1175,17 @@
   margin-top: 0;
 }
 /* The art takes what the page leaves under the band, never more than 16rem.
-   The formatter estimates the band's printed height from its text
-   (`--sc-band-est`, estimateWideBandHeightPx in scriptoriumImport.ts) and the
-   paged stylesheet sets the page's content height (`--sc-page-content-height`,
-   pagedPreviewCss.ts); 115px is the entry's own heading, the band's frame,
-   the gap above the art and the art's own bottom margin, plus about 25px of
-   slack (at 89px the Caramel Crusher fitted with 2px to spare in the Classic
-   theme). Outside the paged book (the
-   editor, the phone reader) there is no page height, so the fallback leaves
-   the 16rem cap in charge. 6rem is the floor below which a figure stops
-   reading as one. */
+   In the paged book the page itself decides how much that is: a Paged.js
+   handler measures the laid-out entry and gives the art the tallest height
+   that still ends the entry on its page (pagedEntryFit.ts). It replaced a formula that
+   predicted the band's height from its text, which drifted when typography
+   changed and cost the Caramel Crusher its lore (#915 story 6). */
 .sc-theme .sc-statblock-entry--wide .sc-statblock-entry-aside .sc-entity-art {
   float: left;
   margin: 0 1.5rem 0.5rem 0;
   width: auto;
   max-width: 45%;
-  max-height: clamp(
-    6rem,
-    calc(var(--sc-page-content-height, 100000px) - var(--sc-band-est, 0px) - 115px),
-    16rem
-  );
+  max-height: 16rem;
 }
 /* A linked item is a treasure entry (scriptoriumImport.ts's item formatter):
    name, italic type line, text, with the art floated beside it the way a

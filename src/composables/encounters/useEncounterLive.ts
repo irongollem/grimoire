@@ -131,7 +131,8 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
     if (!campaign.activeCampaignId) return { startedSession: false };
     const user = getCurrentUser();
     // Combat runs *inside* a session, so going live starts one if the DM has
-    // not. `session_id` records which — that is what makes "what did we play on
+    // not (unnumbered; the DM can number it from the log). `session_id` is that
+    // `campaign_sessions` row, which is what makes "what did we play on
     // Thursday" answerable from one column. See #758.
     const session = await ensureCampaignSession(campaign.activeCampaignId);
     const payload = {

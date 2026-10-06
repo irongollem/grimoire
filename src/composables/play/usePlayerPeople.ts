@@ -1,5 +1,6 @@
 import { computed, watch, toValue, type MaybeRefOrGetter } from "vue";
 import { useSharedLocations } from "@/composables/locations/useLocations";
+import { usePlayerSessions } from "@/composables/sessions/usePlayerSessions";
 import { usePlayerNpcRatings } from "@/composables/play/usePlayerNpcRatings";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { buildPeopleGroups } from "@/lib/npcs/peopleLedger";
@@ -32,6 +33,9 @@ export function usePlayerPeople(
   const ui = useUiStore();
   const { data: sharedLocations } = useSharedLocations();
   const { getRating, ratingTick } = usePlayerNpcRatings(() => [...toValue(allNpcs)]);
+
+  const { data: sessions, isLoading: sessionsLoading } = usePlayerSessions();
+  const sessionsById = computed(() => new Map((sessions.value ?? []).map((s) => [s.id, s])));
 
   const locationsById = computed(() => new Map((sharedLocations.value ?? []).map((l) => [l.id, l])));
 
@@ -106,14 +110,34 @@ export function usePlayerPeople(
       Number(ui.playerPeopleFilterLocation !== ""),
   );
 
+  const filtered = computed(() => toValue(ledgerNpcs).filter(matches));
+  /**
+   * "Met" groups by session, so nothing is grouped until the session labels are
+   * in: a ledger sorted before them would file everyone under "Before the log"
+   * for a beat. `people` stays whole meanwhile, so the empty copy cannot flash.
+   */
+  const groupsPending = computed(() => effectiveSortBy.value === "revealed" && sessionsLoading.value);
   const groups = computed(() => {
     void ratingTick.value;
-    return buildPeopleGroups(toValue(ledgerNpcs).filter(matches), effectiveSortBy.value, effectiveSort.value.dir, {
+    if (groupsPending.value) return [];
+    return buildPeopleGroups(filtered.value, effectiveSortBy.value, effectiveSort.value.dir, {
       getRating,
       place,
+      sessionOf: (id) => sessionsById.value.get(id) ?? null,
     });
   });
-  const people = computed(() => groups.value.flatMap((g) => g.people));
+  const people = computed(() => (groupsPending.value ? filtered.value : groups.value.flatMap((g) => g.people)));
 
-  return { getRating, ratingTick, place, places, sortOptions, effectiveSortBy, activeFilterCount, groups, people };
+  return {
+    getRating,
+    ratingTick,
+    place,
+    places,
+    sortOptions,
+    effectiveSortBy,
+    activeFilterCount,
+    groups,
+    groupsPending,
+    people,
+  };
 }

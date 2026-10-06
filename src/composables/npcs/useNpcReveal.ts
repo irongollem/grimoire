@@ -20,6 +20,23 @@ import type { Npc } from "@/types/npc.types";
  *
  * Takes a getter so the caller's reactive prop stays reactive.
  */
+/**
+ * What a change of audience writes to an NPC: the new audience and, when it is
+ * being shared, the seeded field list (`fieldsForFirstReveal`). Hiding leaves
+ * the field list alone: the DM's choice of what to show should still be there
+ * when they reveal this NPC again. The reveal control and the session page's
+ * "forgot to share" both write through this, so a share means one thing.
+ */
+export function npcShareUpdate(
+  nextVisibleTo: string[],
+  currentFields: string[],
+): { player_visible_to: string[]; player_visible_fields: string[] } {
+  return {
+    player_visible_to: nextVisibleTo,
+    player_visible_fields: nextVisibleTo.length ? fieldsForFirstReveal(currentFields) : currentFields,
+  };
+}
+
 export function useNpcReveal(npc: () => Npc) {
   const { mutate: updateNpc } = useUpdateNpc();
   const { data: partyData } = useParty();
@@ -81,11 +98,7 @@ export function useNpcReveal(npc: () => Npc) {
 
   /** The stored field list, so callers can announce against what was actually saved. */
   function apply(next: string[]): string[] {
-    // Hiding leaves the field list alone: the DM's choice of what to show should
-    // still be there when they reveal this NPC again.
-    const nextFields = next.length
-      ? fieldsForFirstReveal(fields.value)
-      : fields.value;
+    const nextFields = npcShareUpdate(next, fields.value).player_visible_fields;
     visibleTo.value = next;
     fields.value = nextFields;
     updateNpc({

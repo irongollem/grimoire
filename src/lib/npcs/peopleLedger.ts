@@ -1,6 +1,9 @@
 import type { SortDir } from "@/lib/noteSort";
 import { sortPlayerNpcs, type PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";
+import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
+import { formatSessionShortDay, playerSessionWhen } from "@/lib/sessions/sessionShortDay";
 import type { NpcStatus, PlayerNpc } from "@/types/npc.types";
+import type { PlayerSessionLabel } from "@/types/session.types";
 
 /**
  * A reveal before this never lands face down. Everything a player already had
@@ -10,14 +13,22 @@ import type { NpcStatus, PlayerNpc } from "@/types/npc.types";
  */
 export const NEW_TO_YOU_SINCE = new Date("2026-10-06T00:00:00Z");
 
-/** The earliest `revealed_at` per NPC from a viewer's `npc_reveals` rows. */
+/** When, and in which session, a viewer first met an NPC. */
+export interface RevealMoment {
+  revealed_at: string;
+  session_id: string | null;
+}
+
+/** The earliest reveal moment per NPC from a viewer's `npc_reveals` rows. */
 export function earliestRevealPerNpc(
-  rows: readonly { npc_id: string; revealed_at: string }[],
-): Map<string, string> {
-  const earliest = new Map<string, string>();
+  rows: readonly { npc_id: string; revealed_at: string; session_id: string | null }[],
+): Map<string, RevealMoment> {
+  const earliest = new Map<string, RevealMoment>();
   for (const row of rows) {
     const seen = earliest.get(row.npc_id);
-    if (!seen || Date.parse(row.revealed_at) < Date.parse(seen)) earliest.set(row.npc_id, row.revealed_at);
+    if (!seen || Date.parse(row.revealed_at) < Date.parse(seen.revealed_at)) {
+      earliest.set(row.npc_id, { revealed_at: row.revealed_at, session_id: row.session_id });
+    }
   }
   return earliest;
 }
@@ -25,9 +36,16 @@ export function earliestRevealPerNpc(
 /** The NPCs with the viewer's reveal moment set (null when they have none). */
 export function withRevealMoments(
   npcs: readonly PlayerNpc[],
-  moments: ReadonlyMap<string, string>,
+  moments: ReadonlyMap<string, RevealMoment>,
 ): PlayerNpc[] {
-  return npcs.map((npc) => ({ ...npc, revealed_at: moments.get(npc.id) ?? null }));
+  return npcs.map((npc) => {
+    const moment = moments.get(npc.id);
+    return {
+      ...npc,
+      revealed_at: moment?.revealed_at ?? null,
+      revealed_session_id: moment?.session_id ?? null,
+    };
+  });
 }
 
 export interface ClassifiedPeople {
@@ -70,6 +88,8 @@ export interface PeopleGroup {
   key: string;
   title: string | null;
   within: string | null;
+  /** A trailing note on the head (a session's date); replaces the count when set. */
+  end?: string | null;
   people: PlayerNpc[];
 }
 
@@ -77,27 +97,16 @@ export interface PeopleGroupContext {
   getRating: (npcId: string) => number;
   /** The player-visible place, or null when the NPC's location is unknown or hidden. */
   place: (npc: PlayerNpc) => { id: string; name: string; within: string | null } | null;
-  now?: Date;
+  /** The session a reveal happened in, or null when it is not in the log. */
+  sessionOf: (sessionId: string) => PlayerSessionLabel | null;
 }
 
 const UNKNOWN_PLACE_KEY = "place:unknown";
-const BEFORE_LEDGER_KEY = "day:none";
-
-function localDayKey(d: Date): string {
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${m}-${day}`;
-}
-
-function dayTitle(d: Date, now: Date): string {
-  const base = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long" }).format(d);
-  return d.getFullYear() === now.getFullYear() ? base : `${base} ${d.getFullYear()}`;
-}
+const BEFORE_LOG_KEY = "session:none";
 
 /**
- * Group the ledger by the chosen sort. Days stand in for sessions until
- * sessions exist (issue #985); then "revealed" groups by session instead.
- * Never returns an empty group.
+ * Group the ledger by the chosen sort. "Revealed" groups by the session the
+ * viewer met the NPC in (#985). Never returns an empty group.
  */
 export function buildPeopleGroups(
   npcs: readonly PlayerNpc[],
@@ -150,37 +159,46 @@ export function buildPeopleGroups(
     return groups;
   }
 
-  // "revealed": one group per local calendar day.
-  const now = ctx.now ?? new Date();
-  const byDay = new Map<string, { date: Date; people: PlayerNpc[] }>();
-  const undated: PlayerNpc[] = [];
+  // "revealed": one group per session, people outside any session last.
+  const bySession = new Map<string, { session: PlayerSessionLabel; people: PlayerNpc[] }>();
+  const beforeLog: PlayerNpc[] = [];
   for (const npc of npcs) {
-    if (!npc.revealed_at) {
-      undated.push(npc);
+    const session = npc.revealed_session_id ? ctx.sessionOf(npc.revealed_session_id) : null;
+    if (!session) {
+      beforeLog.push(npc);
       continue;
     }
-    const date = new Date(npc.revealed_at);
-    const key = localDayKey(date);
-    const group = byDay.get(key);
+    const group = bySession.get(session.id);
     if (group) group.people.push(npc);
-    else byDay.set(key, { date, people: [npc] });
+    else bySession.set(session.id, { session, people: [npc] });
   }
   const sign = dir === "asc" ? 1 : -1;
-  const groups: PeopleGroup[] = [...byDay.entries()]
-    .sort(([a], [b]) => a.localeCompare(b) * sign)
-    .map(([key, g]) => ({
-      key: `day:${key}`,
-      title: dayTitle(g.date, now),
-      within: null,
-      people: sortPlayerNpcs(g.people, "revealed", "desc", sortCtx),
-    }));
-  if (undated.length > 0) {
+  const groups: PeopleGroup[] = [...bySession.values()]
+    .sort((a, b) => compareWhen(playerSessionWhen(a.session), playerSessionWhen(b.session)) * sign)
+    .map(({ session, people }) => {
+      const numbered = session.number !== null;
+      const name = session.title?.trim() || null;
+      return {
+        key: `session:${session.id}`,
+        title: numbered ? sessionShortLabel(session) : (name ?? "Unnumbered session"),
+        within: numbered ? name : null,
+        end: formatSessionShortDay(session),
+        people: sortPlayerNpcs(people, "revealed", "desc", sortCtx),
+      };
+    });
+  if (beforeLog.length > 0) {
     groups.push({
-      key: BEFORE_LEDGER_KEY,
-      title: "Before the ledger",
+      key: BEFORE_LOG_KEY,
+      title: "Before the log",
       within: null,
-      people: sortPlayerNpcs(undated, "name", "asc", sortCtx),
+      people: sortPlayerNpcs(beforeLog, "name", "asc", sortCtx),
     });
   }
   return groups;
+}
+
+/** Orders two session moments; a session with no date at all sorts as oldest. */
+function compareWhen(a: string | null, b: string | null): number {
+  if (a === null || b === null) return a === b ? 0 : a === null ? -1 : 1;
+  return Date.parse(a) - Date.parse(b);
 }

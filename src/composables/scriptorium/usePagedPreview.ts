@@ -16,6 +16,7 @@ import { ref, watch, onUnmounted } from "vue";
 import type { Ref } from "vue";
 import { Previewer } from "pagedjs";
 import type { PagedStylesheet } from "pagedjs";
+import { registerPagedEntryFit } from "@/lib/scriptorium/pagedEntryFit";
 
 export interface UsePagedPreviewOptions {
   /** Reactive source: the document body HTML to paginate. */
@@ -79,6 +80,7 @@ export function usePagedPreview(opts: UsePagedPreviewOptions) {
         return;
       }
       const stylesBefore = headStyles();
+      registerPagedEntryFit();
       const previewer = new Previewer();
       const flow = await previewer.preview(html, stylesheets(), el);
       if (token !== renderToken) return; // superseded by a newer render

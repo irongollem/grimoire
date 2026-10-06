@@ -86,8 +86,8 @@ describe("useMyNpcRevealMoments", () => {
     mocks.eq.mockReturnValue({ eq: second });
     second.mockResolvedValue({
       data: [
-        { npc_id: "n1", revealed_at: "2026-10-05T10:00:00Z" },
-        { npc_id: "n1", revealed_at: "2026-10-04T10:00:00Z" },
+        { npc_id: "n1", revealed_at: "2026-10-05T10:00:00Z", session_id: "s2" },
+        { npc_id: "n1", revealed_at: "2026-10-04T10:00:00Z", session_id: "s1" },
       ],
       error: null,
     });
@@ -97,7 +97,10 @@ describe("useMyNpcRevealMoments", () => {
     const { client, query } = runMine();
     await flushPromises();
     expect(mocks.eq).toHaveBeenCalledWith("campaign_id", "c-1");
-    expect(query().data.value).toEqual(new Map([["n1", "2026-10-04T10:00:00Z"]]));
+    expect(mocks.select).toHaveBeenCalledWith("npc_id,revealed_at,session_id");
+    expect(query().data.value).toEqual(
+      new Map([["n1", { revealed_at: "2026-10-04T10:00:00Z", session_id: "s1" }]]),
+    );
     // Under the player-npcs root so the npcs_player doorbell refreshes it.
     expect(client.getQueryCache().find({ queryKey: ["player-npcs", "c-1", "reveals", "pm-1"] })).toBeDefined();
   });
