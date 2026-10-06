@@ -220,6 +220,26 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppButton: well"
+      note="An equipment slot: eyebrow label over the item name, two lines, a fingertip tall. Pair `variant=well` with `size=well` and `block`. Empty is the resting look (dashed); filled is `active`; an empty slot that could take something is `tone=caution`. A quiet one (nothing fits) is the empty look with the border and ink tokens overridden at the call site."
+    >
+      <div class="grid max-w-xs gap-2">
+        <AppButton variant="well" size="well" block label="Main hand">
+          <span class="text-eyebrow truncate text-muted-foreground/70">Main hand</span>
+          <span class="text-caption truncate">Empty</span>
+        </AppButton>
+        <AppButton variant="well" size="well" block active label="Main hand">
+          <span class="text-eyebrow truncate text-muted-foreground/70">Main hand</span>
+          <span class="text-caption truncate text-foreground">Longsword</span>
+        </AppButton>
+        <AppButton variant="well" size="well" block tone="caution" label="Clothes">
+          <span class="text-eyebrow truncate text-muted-foreground/70">Clothes</span>
+          <span class="text-caption truncate">Empty</span>
+        </AppButton>
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppButton: ghost + danger"
       note="The chromeless remove-row ✕. `ghost` is the only non-tinted variant that reads `tone`, and only for `danger`: these sites have no box, so `destructive` (which draws a border and a resting outline) would put a visible frame around every ✕ in every editor list. Hover the middle one to see the affordance the 58 hand-rolled copies each carried inline."
     >

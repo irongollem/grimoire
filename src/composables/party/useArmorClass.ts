@@ -5,7 +5,7 @@ import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useAuthStore } from "@/stores/auth";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
-import { calculateAc, previousAc, wornGearByMember, type AcBreakdown, type AcMember } from "@/rules/armorClass";
+import { calculateAc, previousAc, wornGearByMember, type AcBreakdown, type AcMember, type WornGear } from "@/rules/armorClass";
 
 /**
  * Reactive Armour Class, per party member.
@@ -37,6 +37,11 @@ function useArmorClassImpl() {
 
   const gearByMember = computed(() => wornGearByMember(inventory.value ?? [], mergedItems.value));
 
+  /** What the member has on, for the paper doll. */
+  function wornGearFor(memberId: string): WornGear[] {
+    return gearByMember.value[memberId] ?? [];
+  }
+
   /** The AC and the lines that make it up. */
   function acBreakdownFor(member: AcMember): AcBreakdown {
     return calculateAc(member, gearByMember.value[member.id] ?? []);
@@ -65,7 +70,7 @@ function useArmorClassImpl() {
       (auth.isDM || projection.value !== undefined),
   );
 
-  return { acFor, acBreakdownFor, previousAcFor, isReady };
+  return { acFor, acBreakdownFor, previousAcFor, wornGearFor, isReady };
 }
 
 /** Shared across all instances (see composable docstring above). */

@@ -68,6 +68,19 @@ export const buttonVariants = cva(
          * does not get to invent its own opacity ladder.
          */
         tinted: "border",
+        /**
+         * An equipment well: a full-width, left-aligned, two-line box (eyebrow label
+         * over the item's name) that is a button in every state. The paper doll's
+         * slots, and the weapon and Other rows on /play/inventory (EquipSlotRow).
+         *
+         * Its resting look is the EMPTY one: dashed `primary/50`, muted ink, lighting
+         * up on hover. The other states ride existing axes rather than new ones:
+         * filled is `active` (solid border, primary tint, see the compound below), and
+         * "empty but something fits" is `tone="caution"`. A quiet well (empty, nothing
+         * fits) has no axis worth adding for one site, so its caller overrides the
+         * border and ink tokens. `block` stretches it; pair with `size="well"`.
+         */
+        well: "min-w-0 flex-col items-stretch justify-center text-left font-normal border border-dashed border-primary/50 text-muted-foreground hover:border-primary hover:bg-primary/5",
       },
       size: {
         /**
@@ -154,6 +167,12 @@ export const buttonVariants = cva(
          * colour-swatch pips where the colour IS the state, which is a fill problem,
          * not a size one.
          */
+        /**
+         * The box of an equipment well: a fingertip tall (2.75rem) at every width,
+         * unlike `md`, whose min-h reverts at `md:`. Padding is tighter than `sm`
+         * because the two lines inside carry their own type roles, so this names none.
+         */
+        well: "rounded-md px-2 py-1 min-h-11",
         "icon-2xs": "h-5 w-5 rounded text-label",
         "icon-xs": "h-6 w-6 rounded text-label-lg",
         "icon-sm": "h-8 w-8 rounded-md text-label-lg",
@@ -522,6 +541,13 @@ export const buttonVariants = cva(
       { variant: "menu", tone: "arcane", class: "text-tone-arcane" },
       { variant: "menu", tone: "caution", class: "text-tone-caution" },
 
+      // ── well × state ──────────────────────────────────────────────────────
+      // A filled well is `active`: the generic compounds below give it the tint, this
+      // makes the border solid and restates the hover fill the variant's base owns.
+      // A caution well is an empty one that could take something.
+      { variant: "well", active: true, class: "border-solid border-primary/40 hover:border-primary/40 hover:bg-primary/15" },
+      { variant: "well", tone: "caution", class: "border-tone-caution bg-tone-caution/10 text-ink-caution hover:border-tone-caution hover:bg-tone-caution/15" },
+
       // ── active × tone ─────────────────────────────────────────────────────
       // `primary` is intentionally absent: it is the default `tone`, so a compound
       // for it would fire on every plain `:active` button in the app and repaint the
@@ -594,11 +620,11 @@ export type ButtonSurface = NonNullable<ButtonVariants["surface"]>;
 type Assert<T extends true> = T;
 
 export const BUTTON_VARIANTS = [
-  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu",
+  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu", "well",
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [
-  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "strip", "icon-2xs", "icon-xs", "icon-sm",
+  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "strip", "well", "icon-2xs", "icon-xs", "icon-sm",
 ] as const satisfies readonly ButtonSize[];
 
 // `[X] extends [never]` rather than `X extends never`: a naked conditional

@@ -287,9 +287,11 @@ A full equipment and item management system. Full detail documented separately i
 
 **Paper doll (equipped items):**
 
-- Visual silhouette changes between dressed/undressed based on whether clothes are equipped
-- Slot buttons overlaid on the silhouette: Head, Neck, Shoulders, Body, Clothes, Gloves, Ring, Waist, Boots
-- Weapon slots (main hand, off hand) and Other equip slots shown beside the doll
+- The figure is the character's own doll (#975): drawn from its portrait with "Make my doll" (100 credits, about 75 s; "Redraw" once it has one), else its species' doll, else a size template. Only when the campaign has AI on. Who pays: a player with enough credits makes their own (`dollAction`, `src/lib/paperDoll/dollAction.ts`); a player without (free accounts have none) sees "Ask my DM", which sets `party_members.doll_requested_at` (shown as "Your DM has been asked." with Withdraw), and the DM draws it from their own credits. The DM may draw any character's doll at their table unasked ("Make doll" / "Redraw" on the inventory page, with "Asked by the player" beside it when an ask is open). The DM sees open asks on the party page, in the member's row (`DollAskNotice`): Draw doll (DM pays) or Decline, both clear the ask, as does a finished doll. `generate-character-doll` authorizes the owner or the campaign's DM and charges the caller. Both sides need a portrait
+- The figure shows one outfit (underclothes, clothes, robes, or light/medium/heavy armour, each with footwear and a bare head) chosen from what is worn. Worn items are shown in the slot wells beside the figure, never drawn on the figure (`DollFigure` takes a `DollPicture`, `src/lib/paperDoll/dollStack.ts`)
+- The doll is three picture sets drawn once, then swapped by what is worn and carried: a garb sheet (underclothes, clothes, robes), an armour sheet (light, medium, heavy) and a burden sheet (encumbered, heavily encumbered, over encumbered). Each sheet is 1536x1024 with three 512x1024 cells, one figure per cell. "Make my doll" costs 100 credits and takes about 75 seconds. Layout is measured from the transparent alpha, not asked of the model: the anatomy (head, shoulders, soles, crown centre) comes from the underclothes cell, a per-outfit `figureShift` moves each outfit's figure into that frame (the model drifts figures sideways per cell), and the cuts between cells are found algorithmically in the empty transparent gap between figures (`sheetCuts`), not at a fixed 512 and 1024, because a laden figure's pile can spill into its neighbour's cell. A sheet whose figures touch has no gap to cut in, so it is redrawn once.
+- Worn slots are labelled wells (`EquipSlotRow`) in two columns flanking the figure, Head, Neck, Shoulders, Body, Clothes on the left and Gloves, Ring, Waist, Boots on the right; a hairline from each well ends in a dot on the measured body (`slotAnchors`, from the doll's anatomy; `useDollLegend`), highlighted on hover or focus
+- Weapon slots (main hand, off hand) and Other equip slots shown below the doll
 - Clicking a filled slot opens the item detail panel; clicking an empty slot opens a slot assignment modal listing eligible inventory items
 - Attunement pip indicator (filled/empty dots for 0–3 attuned slots)
 - Equipped weight displayed
@@ -303,7 +305,7 @@ A full equipment and item management system. Full detail documented separately i
 
 **Carry weight bar:**
 
-- Animated burden portrait (4 levels: unencumbered / encumbered / heavily encumbered / over encumbered)
+- Burden portrait (4 levels: unencumbered / encumbered / heavily encumbered / over encumbered): the character's OWN doll. Unencumbered shows the figure in its current outfit; each heavier level shows that cell of the doll's burden sheet (`PlayerCarryWeight`'s `burdenPicture` prop, from `burdenPicture()`). The four generic burden webp files are gone; a character with no doll of its own gets its species' or the size template's burden figures
 - Weight shown vs carry capacity (STR × 15 lbs, doubled for Powerful Build)
 - Carry capacity override field (accepts absolute value, multiplier `*2`, or offset `+30`)
 - Colour-coded progress bar

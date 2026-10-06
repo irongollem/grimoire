@@ -10,8 +10,18 @@
         :equipped-weight="equippedWeight"
         :has-member="!!member"
         :can-equip-slot="slotCanEquip"
+        :doll="doll"
+        :member-name="member?.name ?? 'Character'"
+        :action="dollControl"
+        :is-ask-pending="isDollAskPending"
+        :has-portrait="!!member?.portrait_url"
+        :is-making-doll="isMakingDoll"
+        :doll-error="dollError"
         @open-slot="openSlot"
         @open-detail="openDetail"
+        @make-doll="onMakeDoll"
+        @ask-doll="onAskDoll"
+        @withdraw-doll="onWithdrawDoll"
       />
       <PlayerCoinPurse
         :has-member="!!member"
@@ -31,6 +41,7 @@
     <!-- ═══ CARRY WEIGHT ═══ -->
     <PlayerCarryWeight
       :has-member="!!member"
+      :burden-picture="burdenDollPicture"
       :burden-level="burdenLevel"
       :powerful-build="powerfulBuild"
       :total-carried-weight="totalCarriedWeight"
@@ -137,6 +148,12 @@ import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
+import { useDollArt } from "@/composables/party/useDollArt";
+import { burdenPicture } from "@/lib/paperDoll/dollStack";
+import { dollAction } from "@/lib/paperDoll/dollAction";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useCharacterDoll } from "@/composables/party/useCharacterDoll";
+import { useCampaignStore } from "@/stores/campaign";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { usePlayerItemPicker } from "@/composables/items/usePlayerItemPicker";
@@ -209,6 +226,46 @@ const member = computed<PartyMember | null>(
   () =>
     partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null,
 );
+// ── Paper doll (#975) ──────────────────────────────────────────────────────────
+const campaign = useCampaignStore();
+const { dollFor } = useDollArt(() => (member.value ? [member.value] : []));
+const doll = computed(() => (member.value ? dollFor(member.value) : null));
+const burdenDollPicture = computed(() =>
+  doll.value ? burdenPicture(doll.value.art, doll.value.outfit, burdenLevel.value) : null,
+);
+const {
+  isGenerating: isMakingDoll,
+  error: dollError,
+  make: makeDoll,
+  ask: askDoll,
+  clearAsk: clearDollAsk,
+  isAskPending,
+} = useCharacterDoll();
+const { affordable: canAfford, costOf } = useAiCredits();
+// A player with credits makes their own doll; one without asks their DM, who
+// draws it from theirs. A DM may draw any character's doll unasked.
+const dollControl = computed(() => {
+  const m = member.value;
+  if (!m || !campaign.isAiEnabled) return dollAction({ isOwner: false, isDm: false, affordable: true, asked: false, hasDoll: false });
+  return dollAction({
+    isOwner: m.owner_user_id !== null && m.owner_user_id === auth.user?.id,
+    isDm: auth.isDM,
+    affordable: canAfford(costOf("character_doll")),
+    asked: !!m.doll_requested_at,
+    hasDoll: doll.value?.art.source === "character",
+  });
+});
+const isDollAskPending = computed(() => (member.value ? isAskPending(member.value.id) : false));
+function onMakeDoll() {
+  if (member.value) void makeDoll(member.value.id);
+}
+function onAskDoll() {
+  if (member.value) void askDoll(member.value.id);
+}
+function onWithdrawDoll() {
+  if (member.value) void clearDollAsk(member.value.id);
+}
+
 // Items are table rules: the item pickers and the weapon block read the campaign's
 // edition when this character is seated here, and fall back to the character's own when
 // it is not. Weapon mastery is a build rule and always reads the character's edition.

@@ -65,6 +65,7 @@
                 .join(" · ")
             }}
           </p>
+          <DollAskNotice v-if="auth.isDM && member.doll_requested_at" :member="member" />
           <span
             v-if="isInDisguise(member)"
             class="inline-flex items-center gap-1 text-label text-ink-caution/80"
@@ -287,6 +288,7 @@ import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { isInDisguise } from "@/lib/partyMemberDisplay";
 import { effectiveLocationId as deriveEffectiveLocationId } from "@/lib/partyPosition";
@@ -294,6 +296,7 @@ import { placeRoute } from "@/lib/locations/placeRoute";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { walkingSpeed } from "@/lib/movement";
+import DollAskNotice from "./DollAskNotice.vue";
 import CompanionCard from "./CompanionCard.vue";
 import PartyConditionsPanel from "./PartyConditionsPanel.vue";
 import PartyDeathSaves from "./PartyDeathSaves.vue";
@@ -334,6 +337,7 @@ const emit = defineEmits<{
 const router = useRouter();
 const ui = useUiStore();
 const campaign = useCampaignStore();
+const auth = useAuthStore();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 
 // #786: current_location_id on a member is an override — null means "with

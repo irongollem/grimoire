@@ -21,7 +21,8 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { drawToken, type TokenEntity } from "@/lib/tokenRenderer";
+import { drawToken, type TokenEntity, type TokenFigure } from "@/lib/tokenRenderer";
+import { dollFigureKey } from "@/lib/paperDoll/dollTokenFigure";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { cellToPixel, snapPixelToCell } from "@/lib/battlemap/tokenSnap";
 import {
@@ -46,6 +47,7 @@ const {
   hideHidden = false,
   silhouetteUnseen = false,
   portraitOverrides = null,
+  figures = null,
   onPositionChange,
 } = defineProps<{
   hostW: number;
@@ -62,6 +64,9 @@ const {
    *  (frame 13: "A `minis` row with `format:'vtt'` is the portrait"). Takes
    *  priority over the combatant's own `portrait_url` when present. */
   portraitOverrides?: Map<string, string> | null;
+  /** instance_id -> a character's own paper-doll figure, dressed as it is now
+   *  (#975). Beats the cutout and portrait, never a beast form or a mini. */
+  figures?: Map<string, TokenFigure> | null;
   /** If null, all tokens are draggable. Pass an empty Set to make all
    *  read-only, or a specific set to limit drag to one combatant (player
    *  view: their own PC). */
@@ -117,6 +122,8 @@ interface RenderedToken {
   /** "contain" for a cutout (token_url); "cover" for a mini override or a
    *  plain portrait. Drives drawToken's imageFit. */
   imageFit: "cover" | "contain";
+  /** The character's own doll, when it has one: wins over imageUrl. */
+  figure: TokenFigure | null;
 }
 
 // O(1) lookup maps. Without these, every renderedTokens recompute (60×/s
@@ -148,29 +155,37 @@ function getFactionColor(factionId: string): string {
   return factionColorById.value.get(factionId) ?? "#3b82f6";
 }
 
-/** Beast form → mini override → baked cutout (`token_url`) → portrait →
- *  nothing. A mini renders its own composition and a cutout is drawn whole, so
+/** Beast form → mini override → own doll figure → baked cutout (`token_url`) →
+ *  portrait → nothing. A mini renders its own composition and a cutout is drawn whole, so
  *  only the plain-portrait case carries a focal point or crops ("cover"). The
  *  mini, cutout and portrait are all the character's own, so a wild-shaped
  *  druid shows the beast or, for a beast without art, no picture at all. */
 function resolveTokenImage(
   c: RunCombatant,
   portraitOverride: string | undefined,
-): { imageUrl: string | null; imageFit: "cover" | "contain" } {
-  if (c.wildshape) return { imageUrl: c.wildshape.beast_image_url, imageFit: "cover" };
-  if (portraitOverride) return { imageUrl: portraitOverride, imageFit: "cover" };
-  if (c.token_url) return { imageUrl: c.token_url, imageFit: "contain" };
-  if (c.portrait_url) return { imageUrl: c.portrait_url, imageFit: "cover" };
-  return { imageUrl: null, imageFit: "cover" };
+  figure: TokenFigure | undefined,
+): { imageUrl: string | null; imageFit: "cover" | "contain"; figure: TokenFigure | null } {
+  if (c.wildshape) return { imageUrl: c.wildshape.beast_image_url, imageFit: "cover", figure: null };
+  if (portraitOverride) return { imageUrl: portraitOverride, imageFit: "cover", figure: null };
+  if (figure) return { imageUrl: null, imageFit: "contain", figure };
+  if (c.token_url) return { imageUrl: c.token_url, imageFit: "contain", figure: null };
+  if (c.portrait_url) return { imageUrl: c.portrait_url, imageFit: "cover", figure: null };
+  return { imageUrl: null, imageFit: "cover", figure: null };
 }
 
-function combatantToEntity(c: RunCombatant, imageUrl: string | null, imageFit: "cover" | "contain"): TokenEntity {
+function combatantToEntity(
+  c: RunCombatant,
+  imageUrl: string | null,
+  imageFit: "cover" | "contain",
+  figure: TokenFigure | null,
+): TokenEntity {
   return {
     id: c.instance_id,
     name: c.name,
     subtitle: "",
     imageUrl,
     imageFit,
+    ...(figure ? { figure } : {}),
     focalPoint: imageFit === "cover" && imageUrl === c.portrait_url ? (c.portrait_focal_point ?? null) : null,
     bgGradient:
       c.type === "monster"
@@ -204,7 +219,11 @@ const renderedTokens = computed<RenderedToken[]>(() => {
     }
     const anchor = cellToPixel({ cellX, cellY, cellPx, originX, originY });
     const dragMatch = override && override.instanceId === c.instance_id ? override : null;
-    const { imageUrl, imageFit } = resolveTokenImage(c, portraitOverrides?.get(c.instance_id));
+    const { imageUrl, imageFit, figure } = resolveTokenImage(
+      c,
+      portraitOverrides?.get(c.instance_id),
+      figures?.get(c.instance_id),
+    );
     result.push({
       combatant: c,
       footprint,
@@ -217,6 +236,7 @@ const renderedTokens = computed<RenderedToken[]>(() => {
       silhouette: silhouetteUnseen && (c.reveal_state ?? "revealed") === "unseen",
       imageUrl,
       imageFit,
+      figure,
     });
   }
   return result;
@@ -247,7 +267,7 @@ async function renderTokenCanvas(tok: RenderedToken) {
   const controller = new AbortController();
   renderControllers.set(tok.combatant.instance_id, controller);
 
-  await drawToken(canvas, combatantToEntity(tok.combatant, tok.imageUrl, tok.imageFit), {
+  await drawToken(canvas, combatantToEntity(tok.combatant, tok.imageUrl, tok.imageFit, tok.figure), {
     ringColor: tok.factionColor,
     activeTurn: tok.active,
     revealState: tok.silhouette ? "unseen" : "revealed",
@@ -266,6 +286,9 @@ function renderKey(tok: RenderedToken): string {
     tok.silhouette ? "1" : "0",
     tok.imageUrl ?? "",
     tok.imageFit,
+    // Gear changes the figure's layers, so the key carries them: putting on
+    // plate redraws the mini.
+    tok.figure ? dollFigureKey(tok.figure) : "",
     tok.footprint,
     tok.combatant.name,
   ].join("|");

@@ -142,3 +142,9 @@ verify_jwt = false
 enabled = true
 authorization_url_path = "/oauth/consent"
 allow_dynamic_registration = true
+
+# Paper doll generator (#975). The size templates the renders start from are
+# read from disk at run time (Deno.readFile next to index.ts), so the bundler
+# must ship them with the function.
+[functions.generate-character-doll]
+static_files = ["./functions/generate-character-doll/templates/*.webp"]

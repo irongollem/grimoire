@@ -27,7 +27,8 @@ export type ImageJobKind =
   | "party_member"
   | "species"
   | "dungeon_feature"
-  | "deity";
+  | "deity"
+  | "character_doll";
 
 // Allowlist of (table:column) pairs the async completion step may write to.
 // completeImageJob performs a DYNAMIC `.from(target_table).update({[target_column]})`

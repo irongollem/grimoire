@@ -1,5 +1,8 @@
 // Circular token renderer shared by The Mint (token forge / print queue)
 // and the VTT battle map. One source of truth for ring + portrait + name arc.
+// The picture is a portrait (cropped), a cutout (drawn whole), or a figure: a
+// rectangle cut from a sprite sheet, which is how a character's paper doll
+// becomes a token that follows what it wears (#975).
 
 export interface TokenEntity {
   id: string;
@@ -15,6 +18,18 @@ export interface TokenEntity {
   // cropped; focalPoint is ignored in that mode. See resolveTokenArt in
   // src/lib/battlemap/tokenArt.ts for the field this drives.
   imageFit?: "cover" | "contain";
+  // A figure cut from a sprite sheet (a paper doll). Wins over imageUrl and is
+  // always drawn "contain", like a cutout. Structural on purpose: the doll
+  // feature builds it (src/lib/paperDoll/dollTokenFigure.ts), and this root
+  // module must not import from a feature folder.
+  figure?: TokenFigure;
+}
+
+export interface TokenFigure {
+  /** The sprite sheet. */
+  url: string;
+  /** The rectangle of the sheet that frames the figure; it is what fits the ring. */
+  source: { x: number; y: number; w: number; h: number };
 }
 
 export type RevealState = "hidden" | "unseen" | "revealed";
@@ -103,7 +118,18 @@ export async function drawToken(
   ctx.fillStyle = grad;
   ctx.fillRect(cx - ir, cy - ir, ir * 2, ir * 2);
 
-  if (entity.imageUrl) {
+  if (entity.figure) {
+    const { url, source } = entity.figure;
+    const sheet = await loadRemoteImage(url, signal);
+    if (signal?.aborted) {
+      ctx.restore();
+      return;
+    }
+    if (sheet) {
+      const r = containRect(source.w, source.h, ir, cx, cy);
+      ctx.drawImage(sheet, source.x, source.y, source.w, source.h, r.x, r.y, r.w, r.h);
+    }
+  } else if (entity.imageUrl) {
     const img = await loadRemoteImage(entity.imageUrl, signal);
     if (signal?.aborted) {
       ctx.restore();
@@ -118,19 +144,11 @@ export async function drawToken(
       let drawY: number;
 
       if (entity.imageFit === "contain") {
-        // The whole figure, not a crop: the image rectangle is scaled so its
-        // corners just touch the ring (its half-diagonal equals the inner
-        // radius) and centred, so nothing of the figure is ever clipped. A
-        // figure flush with the bottom of the disc looked better standing but
-        // lost a wide stance to the curve: the Caramel Crusher's feet sit near
-        // its image's bottom corners (#917). A cutout's own transparent margin
-        // keeps the figure from touching the ring.
-        const halfDiagonal = Math.hypot(img.naturalWidth / 2, img.naturalHeight / 2);
-        const scale = ir / halfDiagonal;
-        dw = img.naturalWidth * scale;
-        dh = img.naturalHeight * scale;
-        drawX = cx - dw / 2;
-        drawY = cy - dh / 2;
+        const r = containRect(img.naturalWidth, img.naturalHeight, ir, cx, cy);
+        dw = r.w;
+        dh = r.h;
+        drawX = r.x;
+        drawY = r.y;
       } else {
         if (aspect > 1) {
           dh = diam;
@@ -163,6 +181,27 @@ export async function drawToken(
   if (showName) {
     drawNameArc(ctx, entity.name, S, ir);
   }
+}
+
+/**
+ * The whole figure, not a crop: the rectangle is scaled so its corners just
+ * touch the ring (its half-diagonal equals the inner radius) and centred, so
+ * nothing of the figure is ever clipped. A figure flush with the bottom of the
+ * disc looked better standing but lost a wide stance to the curve: the Caramel
+ * Crusher's feet sit near its image's bottom corners (#917). A cutout's own
+ * transparent margin keeps the figure from touching the ring.
+ */
+export function containRect(
+  width: number,
+  height: number,
+  innerRadius: number,
+  cx: number,
+  cy: number,
+): { x: number; y: number; w: number; h: number } {
+  const scale = innerRadius / Math.hypot(width / 2, height / 2);
+  const w = width * scale;
+  const h = height * scale;
+  return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 
 // "Mystery ?" back face used by The Mint's print queue. Not used by the VTT,

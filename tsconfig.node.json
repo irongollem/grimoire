@@ -21,5 +21,9 @@
     },
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "scripts/**/*.ts", "api/**/*.ts"]
+  "include": ["vite.config.ts", "scripts/**/*.ts", "api/**/*.ts"],
+  // A Deno script (#975): it imports the Deno-native edge modules directly, so
+  // Node's types cannot check it. `deno check --config supabase/functions/deno.json
+  // scripts/generate-dolls.ts` does.
+  "exclude": ["scripts/generate-dolls.ts"]
 }
