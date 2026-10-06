@@ -219,7 +219,7 @@ async function main(): Promise<void> {
   if (plan.skippedReviewed > 0) {
     console.log(`  Skipping ${plan.skippedReviewed} admin-reviewed rows (mechanics_reviewed).`);
   }
-  await upsertBatch(supabase, "library_spells", plan.rows, "source_document_key,source_record_key");
+  await upsertBatch(supabase, "library_spells", plan.rows, "source_document_key,source_record_key", { insertOnly: parsed.insertOnly });
   console.log(`  Done — ${plan.rows.length} rows upserted.\n`);
 
   console.log("Step 3: Backfilling art from library_spell_art_canonical…");

@@ -33,6 +33,9 @@
  *   --all              Seed Open5e items from every supported 5e-gamesystem document (2014, 2024, and any future ones)
  *   --list              List available Open5e v2 documents and exit
  *   --dry-run           Fetch + map only; print row counts per ruleset + 2 sample rows (one API, one bundled); write nothing
+ *   --insert-only       Add rows that are new; leave existing rows (and their curation) untouched.
+ *                       Use it to add a book: its magic weapons wrap SRD base weapons, so the SRD
+ *                       documents must be in the same run, and a plain upsert would overwrite them.
  *   <key> [<key>…]      Seed Open5e items only from the listed document keys (default: srd-2014 srd-2024)
  *
  * The bundled datasets are seeded unconditionally regardless of which
@@ -193,7 +196,11 @@ export function groupIdsByLowerName(rows: ReadonlyArray<{ id: string; name: stri
   return map;
 }
 
-async function backfillArt(supabase: SupabaseClient, items: ReadonlyArray<{ id: string; name: string }>): Promise<void> {
+/**
+ * `onlyMissing` (with --insert-only) fills rows that have no picture yet and
+ * leaves every other row's art as it is.
+ */
+async function backfillArt(supabase: SupabaseClient, items: ReadonlyArray<{ id: string; name: string }>, onlyMissing: boolean): Promise<void> {
   const art = await fetchAllRows<ArtDefaultRow>((from, to) =>
     supabase
       .from("library_art_defaults")
@@ -218,10 +225,8 @@ async function backfillArt(supabase: SupabaseClient, items: ReadonlyArray<{ id: 
       art.slice(i, i + PATCH_BATCH).flatMap(({ content_name, image_url, image_focal_point }) => {
         const ids = idsByName.get(content_name) ?? [];
         return ids.map(async (id) => {
-          const { error } = await supabase
-            .from("library_items")
-            .update({ image_url, image_focal_point })
-            .eq("id", id);
+          const update = supabase.from("library_items").update({ image_url, image_focal_point }).eq("id", id);
+          const { error } = await (onlyMissing ? update.is("image_url", null) : update);
           if (error) throw error;
         });
       }),
@@ -314,11 +319,11 @@ async function main(): Promise<void> {
   const supabase = createServiceClient(env);
 
   console.log("Step 3: Upserting to library_items table…");
-  await upsertBatch(supabase, "library_items", rows, "source_document_key,source_record_key");
+  await upsertBatch(supabase, "library_items", rows, "source_document_key,source_record_key", { insertOnly: parsed.insertOnly });
   console.log(`  Done — ${rows.length} rows upserted.\n`);
 
   console.log("Step 4: Backfilling art from library_art_defaults…");
-  await backfillArt(supabase, rows);
+  await backfillArt(supabase, rows, parsed.insertOnly);
   console.log("  Art backfill complete.\n");
 
   console.log("=== Seeding complete ===");

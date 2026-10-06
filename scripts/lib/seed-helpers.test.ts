@@ -37,27 +37,31 @@ describe("withOpen5eUserAgent", () => {
 
 describe("parseSeedCliArgs", () => {
   it("defaults every flag to false and documentKeys to empty with no args", () => {
-    expect(parseSeedCliArgs([])).toEqual({ list: false, all: false, dryRun: false, documentKeys: [] });
+    expect(parseSeedCliArgs([])).toEqual({ list: false, all: false, dryRun: false, insertOnly: false, documentKeys: [] });
   });
 
   it("recognizes --list, --all, and --dry-run independently of order", () => {
     expect(parseSeedCliArgs(["--dry-run", "--all"])).toEqual({
-      list: false, all: true, dryRun: true, documentKeys: [],
+      list: false, all: true, dryRun: true, insertOnly: false, documentKeys: [],
     });
     expect(parseSeedCliArgs(["--list"])).toEqual({
-      list: true, all: false, dryRun: false, documentKeys: [],
+      list: true, all: false, dryRun: false, insertOnly: false, documentKeys: [],
     });
   });
 
   it("collects bare args as explicit document keys", () => {
     expect(parseSeedCliArgs(["srd-2014", "srd-2024"])).toEqual({
-      list: false, all: false, dryRun: false, documentKeys: ["srd-2014", "srd-2024"],
+      list: false, all: false, dryRun: false, insertOnly: false, documentKeys: ["srd-2014", "srd-2024"],
     });
+  });
+
+  it("recognizes --insert-only", () => {
+    expect(parseSeedCliArgs(["vom", "--insert-only"]).insertOnly).toBe(true);
   });
 
   it("separates flags from document keys regardless of interleaving", () => {
     expect(parseSeedCliArgs(["srd-2014", "--dry-run", "srd-2024"])).toEqual({
-      list: false, all: false, dryRun: true, documentKeys: ["srd-2014", "srd-2024"],
+      list: false, all: false, dryRun: true, insertOnly: false, documentKeys: ["srd-2014", "srd-2024"],
     });
   });
 });
@@ -194,11 +198,11 @@ describe("fetchAllRows", () => {
  * not the full client shape, but the only two methods the helper calls.
  */
 function fakeSupabaseClient(
-  upsert: (table: string, rows: unknown[], options: { onConflict: string }) => { error: PostgrestError | null },
+  upsert: (table: string, rows: unknown[], options: { onConflict: string; ignoreDuplicates: boolean }) => { error: PostgrestError | null },
 ): SupabaseClient {
   return {
     from: (table: string) => ({
-      upsert: (rows: unknown[], options: { onConflict: string }) => upsert(table, rows, options),
+      upsert: (rows: unknown[], options: { onConflict: string; ignoreDuplicates: boolean }) => upsert(table, rows, options),
     }),
   } as unknown as SupabaseClient;
 }
@@ -242,8 +246,21 @@ describe("upsertBatch", () => {
     });
 
     const rows = Array.from({ length: 7 }, (_, i) => ({ id: `row-${i}` }));
-    await upsertBatch(supabase, "library_monsters", rows, "source_document_key,source_record_key", 3);
+    await upsertBatch(supabase, "library_monsters", rows, "source_document_key,source_record_key", { batchSize: 3 });
 
     expect(calls.map((c) => c.length)).toEqual([3, 3, 1]);
+  });
+
+  it("overwrites existing rows by default and leaves them alone when insert-only", async () => {
+    const seen: boolean[] = [];
+    const supabase = fakeSupabaseClient((_table, _rows, options) => {
+      seen.push(options.ignoreDuplicates);
+      return { error: null };
+    });
+
+    await upsertBatch(supabase, "library_items", [{ id: "a" }], "source_document_key,source_record_key");
+    await upsertBatch(supabase, "library_items", [{ id: "a" }], "source_document_key,source_record_key", { insertOnly: true });
+
+    expect(seen).toEqual([false, true]);
   });
 });
