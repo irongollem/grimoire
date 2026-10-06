@@ -1,5 +1,5 @@
 import type { Browser } from "playwright";
-import { collectSample, type MeasuredPage, openMeasuredPage, type Profile, settle } from "./browser";
+import { collectSample, type ContentSpec, type MeasuredPage, openMeasuredPage, type Profile, settle, watchContent } from "./browser";
 import type { Sample } from "./results";
 
 export type StorageState = NonNullable<Parameters<Browser["newContext"]>[0]>["storageState"];
@@ -57,12 +57,35 @@ export async function signIn(browser: Browser, profile: Profile, base: string, e
   }
 }
 
+/**
+ * What counts as "real content" per page, from the rendered DOM. The app has
+ * no purpose-built hooks for this, so these are the most stable existing ones
+ * (ids, test ids, a campaign-specific heading). A `data-perf="content"` attribute
+ * on each view's main data region (dashboard widget grid, NPC grid, encounter
+ * list, quest groups, Hearth body) would make these independent of markup and
+ * class changes; until it exists a redesign of these elements means updating
+ * this table.
+ */
+const CONTENT = {
+  // A dashboard widget card heading: the widgets own their queries, so a
+  // heading with a count in it ("Needs prep 1") is data, not chrome.
+  dashboard: { selector: '[data-testid="page-body"] h2' },
+  // An NPC card link; the Sets/Web tabs share the prefix and are chrome.
+  "/npcs": { selector: 'main a[href^="/npcs/"]:not([href="/npcs/sets"]):not([href="/npcs/web"])' },
+  // Weakest of the set: the fixture has no encounters and the view has no
+  // list hook, so this is the page heading (matched by text, because the
+  // previous page's heading also matches `main h1`).
+  "/encounters": { selector: "main h1", text: "Encounters" },
+  "/quests": { selector: "#quest-group-active" },
+  hearth: { selector: ".hearth-title" },
+} as const satisfies Record<string, ContentSpec>;
+
 async function loadAndMeasure(measured: MeasuredPage, url: string, label: string, reload: boolean): Promise<Step> {
   measured.recorder.reset();
   if (reload) await measured.page.reload({ waitUntil: "load" });
   else await measured.page.goto(url, { waitUntil: "load" });
   await settle(measured, label);
-  return { label, sample: await collectSample(measured, true) };
+  return { label, sample: await collectSample(measured, "load") };
 }
 
 /** Gets a page onto the dashboard and idle, discarding what that cost. */
@@ -76,7 +99,7 @@ const dmCold: Journey = {
   // A fresh context holding only the stored session: no HTTP cache, no service
   // worker, no IndexedDB. The first load of a returning user whose caches are empty.
   async run(env) {
-    const measured = await openMeasuredPage(env.browser, env.profile, { storageState: env.dm, throttled: true });
+    const measured = await openMeasuredPage(env.browser, env.profile, { storageState: env.dm, throttled: true, content: CONTENT.dashboard });
     try {
       return [await loadAndMeasure(measured, `${env.base}/dashboard`, "dm-cold", false)];
     } finally {
@@ -90,7 +113,7 @@ const dmWarm: Journey = {
   // Same context loads once (discarded) so the service worker is installed and
   // the persisted library cache is written, then reloads: a returning user's next visit.
   async run(env) {
-    const measured = await openMeasuredPage(env.browser, env.profile, { storageState: env.dm, throttled: true });
+    const measured = await openMeasuredPage(env.browser, env.profile, { storageState: env.dm, throttled: true, content: CONTENT.dashboard });
     try {
       await primeDashboard(measured, env.base);
       // Wait for the worker to be active and the query persister (throttled
@@ -117,10 +140,11 @@ const dmNav: Journey = {
       const steps: Step[] = [];
       for (const path of NAV_TARGETS) {
         measured.recorder.reset();
+        await watchContent(measured.page, CONTENT[path]);
         await measured.page.locator(`a[href="${path}"]:visible`).first().click({ timeout: 15_000 });
         await measured.page.waitForURL((url) => url.pathname === path, { timeout: 15_000 });
         await settle(measured, `navigation to ${path}`);
-        steps.push({ label: path, sample: await collectSample(measured, false) });
+        steps.push({ label: path, sample: await collectSample(measured, "navigation") });
       }
       return steps;
     } finally {
@@ -133,7 +157,7 @@ const playerCold: Journey = {
   name: "player-cold",
   async run(env) {
     if (env.player === null) throw new JourneySkipped("player fixture could not sign in");
-    const measured = await openMeasuredPage(env.browser, env.profile, { storageState: env.player, throttled: true });
+    const measured = await openMeasuredPage(env.browser, env.profile, { storageState: env.player, throttled: true, content: CONTENT.hearth });
     try {
       const step = await loadAndMeasure(measured, `${env.base}/play`, "player-cold", false);
       // /play bounces a player with no campaign to /play/home; measuring that
@@ -167,7 +191,7 @@ const resume: Journey = {
       await measured.page.evaluate("window.__perfSetVisibility('visible')");
       // The reconcile is async (it asks for the session first), so give it room to start.
       await settle(measured, "resume", 2000);
-      return [{ label: "resume", sample: await collectSample(measured, false) }];
+      return [{ label: "resume", sample: await collectSample(measured, "resume") }];
     } finally {
       await measured.context.close();
     }

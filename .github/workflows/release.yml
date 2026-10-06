@@ -112,6 +112,127 @@ jobs:
       - name: Spell transactions under concurrency
         run: scripts/test-spell-concurrency.sh
 
+  # Load performance, measured in a real browser against the production build
+  # and the replayed schema (epic #999). Two things come out of it, and both
+  # exist because a one-off measurement does not protect an improvement:
+  #
+  #   1. A gate. `check-budgets` fails the job when a journey makes more API
+  #      requests, or waits through more serial round trips, than
+  #      scripts/perf/budgets.json allows. Only those two counts are gated:
+  #      they were identical across every local run, whereas times and bytes
+  #      move with the runner. The boot-bundle size has its own gate at build
+  #      time (bootBudgetPlugin in vite.config.ts), so it is not repeated here.
+  #   2. A history. On main, one line per release is appended to history.jsonl
+  #      on the orphan `perf-history` branch, so the trend of the timings can be
+  #      read later (`scripts/perf/history.ts summarize`).
+  #
+  # The release jobs below `need` this job, so a breach blocks a release the
+  # same way a failing test does.
+  #
+  # The player fixture is not seated at a campaign here (that needs production
+  # data), so `player-cold` reports itself skipped and the budget check treats
+  # that as "no data", not as a failure.
+  performance:
+    name: Performance — journeys, budgets, history
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Read-only like every job that installs dependencies: npm ci, the build and
+    # the harness run third-party code, which must never hold a token that can
+    # push. Writing the history is the separate job below.
+    outputs:
+      history: ${{ steps.entry.outputs.history }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium for the harness
+        run: npx playwright install --with-deps chromium
+      # Same pin as the database job; see the note there.
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.109.1
+      # Replays every migration and loads supabase/seed*.sql: the data the
+      # journeys load comes from the seed, so it is what the counts are measured on.
+      - name: Start the local stack
+        run: supabase start
+      - name: Create the fixture accounts
+        run: npm run dev:auth
+      # The empty token is required, not decoration: without it the build
+      # tries to upload source maps to Sentry. No vue-tsc: the application job
+      # already typechecks, and only the bundle matters here. This build still
+      # runs bootBudgetPlugin, so the boot-size gate applies.
+      - name: Build against the local stack
+        run: SENTRY_AUTH_TOKEN= npx vite build --mode localdb
+      - name: Serve the build
+        run: |
+          nohup npx vite preview --mode localdb --host 127.0.0.1 --port 4173 --strictPort > preview.log 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -sf -o /dev/null http://127.0.0.1:4173/; then exit 0; fi
+            sleep 1
+          done
+          echo "::error::vite preview did not come up on 127.0.0.1:4173"
+          cat preview.log
+          exit 1
+      # One run is enough for the gate (the counts do not vary); main takes
+      # three so the timings recorded in the history are medians.
+      - name: Run the journeys
+        id: journeys
+        run: |
+          # A pipe hides the harness's exit status from `bash -e`.
+          set -o pipefail
+          npx tsx scripts/perf/run.ts --runs ${{ github.event_name == 'push' && 3 || 1 }} --out perf-results/ci.json | tee perf-results.log
+          {
+            echo '```'
+            sed -n '/^journey/,/^wrote/p' perf-results.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Report the critical-path size
+        run: npx tsx scripts/perf/bundle/critical-path.ts dist --json perf-results/critical-path.json
+      - name: Check the request budgets
+        run: npx tsx scripts/perf/check-budgets.ts perf-results/ci.json
+      # The history line is written here, where the results are, and handed to
+      # performance-history as an artifact. Recorded even when a budget fails:
+      # a regression is exactly the data point the trend should show.
+      - name: Prepare the history line (main only)
+        id: entry
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.journeys.outcome == 'success'
+        run: |
+          npx tsx scripts/perf/history.ts entry perf-results/ci.json --sha "$GITHUB_SHA" --critical perf-results/critical-path.json > perf-results/entry.json
+          echo "history=ready" >> "$GITHUB_OUTPUT"
+      - name: Hand the history line on
+        if: always() && steps.entry.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-history-entry
+          path: perf-results/entry.json
+          retention-days: 1
+
+  # Appends the performance job's line to history.jsonl on the orphan
+  # `perf-history` branch. The only job with write access to the repo, so it
+  # installs nothing and runs nothing from npm: a shell script and git. Nothing
+  # needs it, and a failure here loses one data point, never a release.
+  performance-history:
+    name: Performance — record history
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.performance.outputs.history == 'ready'
+    needs: [performance]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: perf-history-entry
+          path: perf-results
+      - name: Append to history.jsonl
+        run: sh scripts/perf/publish-history.sh perf-results/entry.json
+
   release-changes:
     name: Detect backend changes
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -144,7 +265,7 @@ jobs:
   production-release:
     name: Release backend — migrations, Edge Functions
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-changes.outputs.supabase == 'true'
-    needs: [application, database, release-changes]
+    needs: [application, database, performance, release-changes]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
@@ -302,8 +423,9 @@ jobs:
       && github.event_name == 'push' && github.ref == 'refs/heads/main'
       && needs.application.result == 'success'
       && needs.database.result == 'success'
+      && needs.performance.result == 'success'
       && (needs.production-release.result == 'success' || needs.production-release.result == 'skipped')
-    needs: [application, database, release-changes, production-release]
+    needs: [application, database, performance, release-changes, production-release]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Records each release on GitHub's Production deployments page. Vercel's own

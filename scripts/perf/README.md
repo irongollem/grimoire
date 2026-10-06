@@ -73,7 +73,9 @@ client.)
 | serial depth | longest chain of API requests where each starts at or after the previous one finished. Parallel requests do not add to it. `depth x delay` is the floor of the load that parallelism cannot remove. Pure function in `serialDepth.ts`. |
 | api / js / css bytes | encoded bytes over the wire (CDP `encodedDataLength`); 0 for cache and service-worker hits. `vite preview` serves what the build emits, so JS bytes are not the production CDN's compressed figure: compare runs, not against the boot budget. |
 | total reqs | every real request in the window, preflights excluded |
-| FCP / LCP | PerformanceObserver paint entries, ms from navigation start. **The app boots behind a static splash in `index.html`, so these mostly time the splash**, not the dashboard. Use settled as the "content is there" proxy. |
+| FCP / LCP | PerformanceObserver paint entries, ms from navigation start. **The app boots behind a static splash in `index.html`, so these mostly time the splash** (about 90 ms), not the dashboard. Use app ready and content ready instead. |
+| app ready | ms until the static splash (`#boot-splash`, removed when Vue mounts) **and** the Vue loading screen (`.loading-screen`, shown by `App.vue` while auth and the campaign resolve) are both gone. Page loads only. Recorded by a MutationObserver in the init script (`browser.ts`). |
+| content ready | ms until a journey-specific piece of real content is visible (`CONTENT` table in `journeys.ts`): a dashboard widget heading, an NPC card link, the quest groups, the Hearth title. For `dm-nav` it is measured from the click. `n/a` for `resume`. The weakest selector is `/encounters` (the page heading: the fixture has no encounters and the view has no list hook). A `data-perf="content"` attribute on each view's main data region would make all of these independent of markup; until it exists, a redesign of those elements means updating the table. |
 | TBT | sum of the part beyond 50 ms of every long task starting after FCP |
 | settled | ms from the window opening until the network was idle for 500 ms (the time of the last activity before that quiet gap; later requests are ignored) |
 
@@ -105,3 +107,60 @@ use; paint, TBT and settled time vary with machine load.
    `SENTRY_AUTH_TOKEN=` (see above).
 7. Median over few runs is still noisy for timings; raise `--runs` before
    believing a 10% change in settled time.
+
+## Budgets: the gate that fails CI (story 0.4)
+
+`budgets.json` holds a ceiling per journey step for the two deterministic
+numbers, `apiRequests` and `serialDepth` (identical across every local run).
+Times and bytes are never gated: they move with the machine.
+
+```bash
+npx tsx scripts/perf/check-budgets.ts perf-results/<run>.json
+```
+
+Exit 1 prints an OVER BUDGET table. Rules:
+
+- Over budget fails. Exactly at budget passes.
+- **Below budget passes but prints a hint: lower the budget in the same change.**
+  A story that removes requests or waves edits `budgets.json` to the new
+  numbers in its own commit; otherwise the headroom lets the next story give the
+  win back unnoticed.
+- A journey that was skipped (CI has no seated player fixture, so `player-cold`
+  skips) or was not run is "no data", never a failure.
+- A budgeted step that a journey which ran no longer produces fails (the
+  journey changed shape), and a step with no budget is listed so it gets one.
+- **The boot-bundle size is not in `budgets.json`.** One budget, one place:
+  `bootBudgetPlugin` in `vite.config.ts` fails `npm run build` when the scripts
+  and modulepreloads in `index.html` exceed `BOOT_BUDGET_GZIP_BYTES`. A story
+  that shrinks the boot payload lowers that constant.
+- The budgets were measured on the local seeded stack. CI replays the same
+  migrations and seed, but if a count differs there for a data reason, set the
+  budget from the CI run, not from a laptop.
+
+## History over time
+
+On pushes to `main` the `performance` job in `.github/workflows/release.yml`
+writes one JSON line and hands it as an artifact to `performance-history`, which
+appends it to `history.jsonl` on the orphan `perf-history` branch
+(`publish-history.sh`: creates the branch the first time, retries a rejected
+push after refetching, never forces). The split is deliberate: the job that runs
+`npm ci`, the build and the harness executes third-party code and stays
+read-only; only the small job with nothing but git and `sh` can push. A line
+holds the commit, date, profile,
+every non-skipped journey's median metrics and the critical-path sizes from
+`bundle/critical-path.ts --json` (recorded as data, not gated).
+
+```bash
+git fetch origin perf-history
+git show origin/perf-history:history.jsonl > /tmp/history.jsonl
+npx tsx scripts/perf/history.ts summarize /tmp/history.jsonl --last 20
+```
+
+A failed history push never blocks a release (`continue-on-error`): it loses one
+data point, and the budget check has already decided whether the commit ships.
+`production-release` and `frontend-release` both `need` the `performance` job,
+so a budget breach blocks a release like a failing test does.
+
+Dry-run of the CI steps locally: build and serve as above, then
+`run.ts --runs 1 --out perf-results/ci.json`, `bundle/critical-path.ts dist --json
+perf-results/critical-path.json`, `check-budgets.ts`, and `history.ts entry`.

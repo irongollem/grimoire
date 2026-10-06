@@ -7,6 +7,10 @@ export interface Sample extends RequestSummary {
   fcpMs: number | null;
   lcpMs: number | null;
   tbtMs: number | null;
+  /** Static splash and Vue loading screen both gone (page loads only). */
+  appReadyMs: number | null;
+  /** A journey-specific piece of real content visible; null if it never appeared. */
+  contentReadyMs: number | null;
 }
 
 export type NumericMetric = Exclude<keyof Sample, "apiPaths">;
@@ -27,6 +31,8 @@ export const METRICS: readonly { key: NumericMetric; label: string; unit: "count
   { key: "fcpMs", label: "FCP", unit: "ms" },
   { key: "lcpMs", label: "LCP", unit: "ms" },
   { key: "tbtMs", label: "TBT", unit: "ms" },
+  { key: "appReadyMs", label: "app ready", unit: "ms" },
+  { key: "contentReadyMs", label: "content ready", unit: "ms" },
   { key: "settledMs", label: "settled", unit: "ms" },
 ];
 
@@ -111,6 +117,12 @@ export interface CompareRow {
   after: number | null;
 }
 
+/** A metric an older result file did not record is absent, not zero. */
+function medianOf(step: StepResult, key: NumericMetric): number | null {
+  const value: number | null | undefined = step.median[key];
+  return value === undefined ? null : value;
+}
+
 /** Pairs every (journey, step, metric) present in both files; steps in only one file are listed by `unmatched`. */
 export function compareResults(a: ResultsFile, b: ResultsFile): { rows: CompareRow[]; unmatched: string[] } {
   const rows: CompareRow[] = [];
@@ -138,8 +150,8 @@ export function compareResults(a: ResultsFile, b: ResultsFile): { rows: CompareR
         metric: m.key,
         label: m.label,
         unit: m.unit,
-        before: left.step.median[m.key],
-        after: right.step.median[m.key],
+        before: medianOf(left.step, m.key),
+        after: medianOf(right.step, m.key),
       });
     }
   }

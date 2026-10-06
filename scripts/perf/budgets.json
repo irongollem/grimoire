@@ -1,0 +1,14 @@
+{
+  "$comment": "Deterministic per-step ceilings, set to the values measured on 2026-10-07 (3 runs, identical each time). A story that lowers a number lowers it here in the same change; see README.md. The boot-bundle gzip budget is NOT here: it lives in bootBudgetPlugin (vite.config.ts).",
+  "journeys": {
+    "dm-cold": { "dm-cold": { "apiRequests": 41, "serialDepth": 5 } },
+    "dm-warm": { "dm-warm": { "apiRequests": 41, "serialDepth": 4 } },
+    "dm-nav": {
+      "/npcs": { "apiRequests": 0, "serialDepth": 0 },
+      "/encounters": { "apiRequests": 4, "serialDepth": 1 },
+      "/quests": { "apiRequests": 4, "serialDepth": 1 }
+    },
+    "player-cold": { "player-cold": { "apiRequests": 43, "serialDepth": 5 } },
+    "resume": { "resume": { "apiRequests": 34, "serialDepth": 1 } }
+  }
+}

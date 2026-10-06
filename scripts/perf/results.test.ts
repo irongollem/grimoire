@@ -15,6 +15,8 @@ function sample(overrides: Partial<Sample> = {}): Sample {
     fcpMs: 800,
     lcpMs: 1200,
     tbtMs: 100,
+    appReadyMs: 600,
+    contentReadyMs: 1500,
     ...overrides,
   };
 }
@@ -82,5 +84,16 @@ describe("compareResults", () => {
     expect(row).toMatchObject({ journey: "dm-cold", before: 40, after: 10 });
     expect(unmatched).toEqual(["dm-warm dm-warm: only in the first file"]);
     expect(formatComparison(rows, unmatched)).toContain("-30 (-75%)");
+  });
+});
+
+describe("compare with an older result file", () => {
+  it("reads a metric the older file never recorded as absent, not zero", () => {
+    const older = file([ok("dm-cold", [sample()])]);
+    const step = older.journeys[0]?.steps[0];
+    if (step === undefined) throw new Error("fixture has a step");
+    delete (step.median as Partial<typeof step.median>).appReadyMs;
+    const { rows } = compareResults(older, file([ok("dm-cold", [sample()])]));
+    expect(rows.find((r) => r.metric === "appReadyMs")).toMatchObject({ before: null, after: 600 });
   });
 });
