@@ -10,6 +10,10 @@ import type { RulesetKey } from "@/types/ruleset.types";
 const rows = ref<CharacterClass[]>([]);
 const update = vi.fn();
 
+vi.mock("@/composables/memorials/useMemorials", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/composables/memorials/useMemorials")>()),
+  useCampaignMemorials: () => ({ data: { value: [] } }),
+}));
 vi.mock("@/composables/party/useCharacterClasses", () => ({ useCharacterClasses: () => ({ data: rows }) }));
 vi.mock("@/composables/rules/useCustomClasses", () => ({
   useCampaignSystemClasses: () => ({ data: ref([]) }),

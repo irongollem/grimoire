@@ -8,7 +8,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(48);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('98200000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -51,6 +51,10 @@ $$;
 create function pg_temp.memorial(p_id text) returns public.character_memorials
 language sql security definer as $$
   select * from public.character_memorials where party_member_id = ('98200000-0000-4000-8000-0000000000' || p_id)::uuid;
+$$;
+create function pg_temp.member_exists(p_id text) returns boolean
+language sql security definer as $$
+  select exists (select 1 from public.party_members where id = ('98200000-0000-4000-8000-0000000000' || p_id)::uuid);
 $$;
 create function pg_temp.memorial_id(p_id text) returns uuid
 language sql security definer as $$
@@ -191,6 +195,26 @@ update public.memorial_mourners set candle_lit_at = now()
  where memorial_id = pg_temp.memorial_id('e1');
 select isnt((pg_temp.mourner('e1', 4)).candle_lit_at, null, 'a companion lights their own candle');
 select is((pg_temp.mourner('e1', 2)).candle_lit_at, null, 'and only their own: the owner''s row is untouched');
+
+-- ── A character on the wall cannot be deleted ─────────────────────────────
+
+-- m4: Pia's second character, never on the wall: the positive control. Made
+-- here, after the falls above, so it is in nobody's "survived by".
+reset role;
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, class, level, ruleset) values
+  ('98200000-0000-4000-8000-0000000000e4', '98200000-0000-4000-8000-000000000002',
+   '98200000-0000-4000-8000-000000000002', '98200000-0000-4000-8000-0000000000c1', 'Spare', 'Rogue', 1, '2024');
+set local role authenticated;
+select pg_temp.as_user(2);
+delete from public.party_members where id = '98200000-0000-4000-8000-0000000000e1';
+select ok(pg_temp.member_exists('e1'), 'the owner cannot delete a character who is on the wall');
+select isnt(pg_temp.memorial('e1'), null, 'so the memorial stays on every companion''s wall');
+delete from public.party_members where id = '98200000-0000-4000-8000-0000000000e4';
+select ok(not pg_temp.member_exists('e4'), 'the owner still deletes a character who is not on the wall');
+select pg_temp.as_user(1);
+delete from public.party_members where id = '98200000-0000-4000-8000-0000000000e3';
+select ok(pg_temp.member_exists('e3'), 'the DM cannot delete a retired DM-run character either');
+select pg_temp.as_user(4);
 
 -- Oz leaves the table; the companion who fell beside him stays on his wall.
 reset role;

@@ -253,6 +253,7 @@ import {
 } from "@/composables/encounters/useEncounterLive";
 import { useQuestsForEncounter } from "@/composables/quests/useQuests";
 import { useActiveParty } from "@/composables/party/useActiveParty";
+import { useParty } from "@/composables/party/useParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
@@ -286,6 +287,9 @@ const otherIsLive  = computed(() => firstRunning.value !== null && !thisIsLive.v
 // ── Linked data ────────────────────────────────────────────────────────────
 const { data: linkedQuests } = useQuestsForEncounter(props.encounter.id);
 const { data: party }        = useActiveParty();
+// Saved participants resolve against the whole party: a character who has since
+// fallen still belongs on the roster of an encounter they fought in.
+const { data: allMembers }   = useParty();
 const { data: companions }   = useCompanions();
 // Difficulty below resolves the encounter's stored combatant.monster_id and
 // trap_ids, so neither may be scoped away from what was saved: monsters are read
@@ -336,7 +340,7 @@ function factionName(id: string | undefined): string | null {
 const partyRoster = computed<Roster[]>(() => {
   const rows: Roster[] = [];
   for (const id of props.encounter.party_member_ids ?? []) {
-    const member = (party.value ?? []).find((m) => m.id === id);
+    const member = (allMembers.value ?? []).find((m) => m.id === id);
     if (!member) continue;
     rows.push({
       key: `pm-${id}`,

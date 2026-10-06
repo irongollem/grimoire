@@ -485,14 +485,19 @@ const audioThemeOptions = computed(() =>
 
 // For new encounters, auto-select all party members once the party data loads
 if (!props.encounter) {
+  // Fills only from a resolved roster (party AND memorials loaded): an unresolved
+  // one is undefined, so the fallen can never be seeded in the loading window.
+  let partyFilled = false;
   watch(
     party,
     (members) => {
-      if (members?.length && !form.party_member_ids.length) {
+      if (!members || partyFilled) return;
+      partyFilled = true;
+      if (members.length && !form.party_member_ids.length) {
         form.party_member_ids = members.map((m) => m.id);
       }
     },
-    { immediate: true, once: true },
+    { immediate: true },
   );
 
   // Same auto-select for companions — a new encounter starts with the whole

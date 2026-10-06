@@ -19,17 +19,26 @@ export function activeMembers(
  * `useParty()` itself stays unfiltered on purpose: a fallen character's sheet,
  * mentions, journal links and entity pickers must still resolve it. Use this
  * for the surfaces that mean "who is playing" (initiative, rests, awards).
- * While the memorials are loading the unfiltered party is returned, so a
- * surface never flashes empty. `enabled` defers both fetches, as for `useParty`.
+ *
+ * `data` stays undefined until BOTH the party and the memorials have loaded,
+ * so no caller can act on fallen members in the gap (seeding a run, submitting
+ * a portrait). A failed memorial read is an error here too, never a quiet
+ * fall-back to the full party. `enabled` defers both fetches, as for `useParty`.
  */
 export function useActiveParty(enabled?: () => boolean) {
   const party = useParty(enabled);
   const memorials = useCampaignMemorials(undefined, enabled);
   const data = computed(() => {
     const members = party.data.value;
-    if (!members) return members;
     const rows = memorials.data.value;
-    return rows ? activeMembers(members, rows) : members;
+    return members && rows ? activeMembers(members, rows) : undefined;
   });
-  return { ...party, data };
+  const error = computed(() => party.error.value ?? memorials.error.value);
+  const isError = computed(() => party.isError.value || memorials.isError.value);
+  const isPending = computed(() => party.isPending.value || memorials.isPending.value);
+  const isLoading = computed(() => party.isLoading.value || memorials.isLoading.value);
+  const refetch = async () => {
+    await Promise.all([party.refetch(), memorials.refetch()]);
+  };
+  return { ...party, data, error, isError, isPending, isLoading, refetch };
 }

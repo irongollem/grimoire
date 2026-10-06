@@ -44,7 +44,7 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import { useDowntimeDraws } from "@/composables/downtime/useDowntime";
-import { useActiveParty } from "@/composables/party/useActiveParty";
+import { useParty } from "@/composables/party/useParty";
 import { buildDowntimeQueue } from "@/lib/dashboard/downtimeQueue";
 import { timeAgo } from "@/lib/utils";
 import DashboardWidget from "../DashboardWidget.vue";
@@ -61,7 +61,8 @@ import DashboardWidget from "../DashboardWidget.vue";
  * queue does the rest.
  */
 const { data: draws, isLoading: drawsLoading } = useDowntimeDraws();
-const { data: party, isLoading: partyLoading } = useActiveParty();
+// The whole party, not the active one: a fallen character's pending draw still shows its name.
+const { data: party, isLoading: partyLoading } = useParty();
 const isLoading = computed(() => drawsLoading.value || partyLoading.value);
 
 /**

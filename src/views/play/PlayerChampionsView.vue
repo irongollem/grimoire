@@ -22,8 +22,14 @@
     <div v-else-if="!characters?.length && !offeredCharacters?.length" class="rounded-lg border border-border bg-card p-8 text-center space-y-3">
       <IconDM class="h-8 w-8 text-muted-foreground/40 mx-auto" />
       <div>
-        <p class="text-heading-sm font-semibold text-foreground">No characters yet</p>
-        <p class="text-body text-muted-foreground italic mt-1">Create your first champion to begin your adventure.</p>
+        <template v-if="laidToRest.length">
+          <p class="text-heading-sm font-semibold text-foreground">No champion at the table</p>
+          <p class="text-body text-muted-foreground italic mt-1">Your champions rest in the Hall of the Fallen. Bring a new one to the table.</p>
+        </template>
+        <template v-else>
+          <p class="text-heading-sm font-semibold text-foreground">No characters yet</p>
+          <p class="text-body text-muted-foreground italic mt-1">Create your first champion to begin your adventure.</p>
+        </template>
       </div>
       <AppButton
         variant="primary"

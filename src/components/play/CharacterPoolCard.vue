@@ -109,6 +109,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
+import { FALLEN_DELETE_REASON, hasMemorialInEffect, useWallMemorials } from "@/composables/memorials/useMemorials";
 import { useAttachCharacter, useDetachCharacter, useCloneCharacter, useDeletePoolCharacter } from "@/composables/party/useCharacterPool";
 import { StartingEquipmentError } from "@/composables/party/useCharacterEquipmentSeeding";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -141,6 +142,8 @@ const { mutateAsync: attachChar, isPending: attaching } = useAttachCharacter();
 const { mutateAsync: detachChar, isPending: detaching } = useDetachCharacter();
 const { mutateAsync: cloneChar, isPending: cloning } = useCloneCharacter();
 const { mutateAsync: deleteChar, isPending: deleting } = useDeletePoolCharacter();
+const { data: wall } = useWallMemorials();
+const onTheWall = computed(() => hasMemorialInEffect(wall.value?.memorials, character.id));
 
 // A character just attached (this one, or the converted copy the bounce dialog
 // made) may have been benched by the database; see `useBenchedAfterAttach`.
@@ -171,7 +174,13 @@ const menuItems = computed<OverflowMenuEntry[]>(() =>
     : [
         { key: "edit", label: "Edit" },
         { key: "clone", label: cloning.value ? "Copying…" : "Make a copy", disabled: cloning.value },
-        { key: "delete", label: deleting.value ? "Deleting…" : "Delete", danger: true, disabled: deleting.value },
+        {
+          key: "delete",
+          label: deleting.value ? "Deleting…" : "Delete",
+          danger: true,
+          disabled: deleting.value || onTheWall.value,
+          reason: onTheWall.value ? FALLEN_DELETE_REASON : undefined,
+        },
       ],
 );
 

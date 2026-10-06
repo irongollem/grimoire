@@ -53,7 +53,7 @@ async function deletePartyMember(member: PartyMember): Promise<void> {
     .select("id");
   if (error) throw error;
   if (!data?.length) {
-    throw new Error("This character could not be removed. Detach claimed characters instead.");
+    throw new Error("This character could not be removed. Detach claimed characters instead, and restore anyone in the Hall of the Fallen first.");
   }
   await deleteUnreferencedByPublicUrl({ urls: [member.portrait_url] });
 }

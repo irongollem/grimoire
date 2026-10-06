@@ -207,9 +207,14 @@ function companionsFor(memberId: string): Companion[] {
   return (companions.value ?? []).filter((c) => c.owner_party_member_id === memberId);
 }
 
-const unownedCompanions = computed(() =>
-  (companions.value ?? []).filter((c) => !c.owner_party_member_id),
-);
+// A companion whose owner has left the active roster (fallen, retired) keeps its
+// stored owner but is shown here, so it never vanishes from the tracker.
+const unownedCompanions = computed(() => {
+  const owners = new Set((party.value ?? []).map((m) => m.id));
+  return (companions.value ?? []).filter(
+    (c) => !c.owner_party_member_id || (party.value !== undefined && !owners.has(c.owner_party_member_id)),
+  );
+});
 
 function companionSourceName(c: Companion): string {
   if (c.source_type === "monster" && c.source_monster_id) {

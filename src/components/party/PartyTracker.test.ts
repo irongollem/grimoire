@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
    *  undefined data is the disabled/in-flight case this bug was about. */
   partyData: undefined as PartyMember[] | undefined,
   partyIsError: false,
+  companions: [] as unknown[],
   refetch: vi.fn(),
 }));
 
@@ -43,7 +44,7 @@ vi.mock("@/composables/party/useActiveParty", async () => ({
 }));
 vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: { value: [] } }) }));
 vi.mock("@/composables/encounters/useCompanions", () => ({
-  useCompanions: () => ({ data: { value: [] } }),
+  useCompanions: () => ({ data: { value: mocks.companions } }),
   useDeleteCompanion: () => ({ mutateAsync: vi.fn() }),
 }));
 vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers: () => ({ data: { value: [] } }) }));
@@ -72,6 +73,7 @@ describe("PartyTracker", () => {
   beforeEach(() => {
     mocks.partyData = undefined;
     mocks.partyIsError = false;
+    mocks.companions = [];
     mocks.refetch.mockReset();
   });
 
@@ -110,5 +112,16 @@ describe("PartyTracker", () => {
     expect(wrapper.text()).not.toContain("No heroes in your party");
     expect(wrapper.text()).not.toContain("could not be loaded");
     expect(wrapper.findComponent({ name: "PartyTrackerRow" }).exists()).toBe(true);
+  });
+
+  it("lists a companion whose owner left the active roster under the unassigned ones", () => {
+    mocks.partyData = [partyMember({ id: "member-1", name: "Mira" })];
+    mocks.companions = [
+      { id: "c-owned", name: "Pip", owner_party_member_id: "member-1", source_monster_id: null },
+      { id: "c-orphan", name: "Fang", owner_party_member_id: "fallen-1", source_monster_id: null },
+    ];
+    const wrapper = mount(PartyTracker, { global: { stubs: globalStubs } });
+    const cards = wrapper.findAllComponents({ name: "CompanionCard" });
+    expect(cards.map((c) => c.props("companion").id)).toEqual(["c-orphan"]);
   });
 });

@@ -81,7 +81,8 @@
           variant="link"
           tone="danger"
           size="inline-xs"
-          :disabled="saving"
+          :disabled="saving || (!props.member.owner_user_id && onTheWall)"
+          :tooltip="!props.member.owner_user_id && onTheWall ? FALLEN_DELETE_REASON : undefined"
           :label="props.member.owner_user_id ? 'Detach from party' : 'Remove from party'"
           @click="remove"
         />
@@ -120,6 +121,7 @@ import {
   useDeletePartyMember,
 } from "@/composables/party/useParty";
 import { useDetachCharacter } from "@/composables/party/useCharacterPool";
+import { FALLEN_DELETE_REASON, hasMemorialInEffect, useCampaignMemorials } from "@/composables/memorials/useMemorials";
 import {
   useCampaignMembers,
   useUpdateCampaignMember,
@@ -426,6 +428,8 @@ const selectedCampaignMemberId = ref<string>(
 // --- CRUD ---
 const { mutateAsync: update } = useUpdatePartyMember();
 const { mutateAsync: del } = useDeletePartyMember();
+const { data: memorials } = useCampaignMemorials();
+const onTheWall = computed(() => hasMemorialInEffect(memorials.value, props.member.id));
 const { mutateAsync: detach } = useDetachCharacter();
 
 const saving = ref(false);

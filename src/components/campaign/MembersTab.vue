@@ -163,8 +163,8 @@
             icon-size="md"
             class="shrink-0"
             :icon="IconDelete"
-            tooltip="Remove character"
-            :disabled="deleteCharacter.isPending.value"
+            :tooltip="onTheWall(pm) ? FALLEN_DELETE_REASON : 'Remove character'"
+            :disabled="deleteCharacter.isPending.value || onTheWall(pm)"
             @click="removeOrphan(pm)"
           />
         </div>
@@ -228,6 +228,7 @@ import {
   useRemoveCampaignMember,
 } from "@/composables/campaign/useCampaignMembers";
 import { useParty, useDeletePartyMember } from "@/composables/party/useParty";
+import { FALLEN_DELETE_REASON, hasMemorialInEffect, useCampaignMemorials } from "@/composables/memorials/useMemorials";
 import { useDetachCharacter } from "@/composables/party/useCharacterPool";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import { useConfirm } from "@/composables/useConfirm";
@@ -246,6 +247,8 @@ const partyQuery = useParty();
 const updateMember = useUpdateCampaignMember();
 const removeMember = useRemoveCampaignMember();
 const deleteCharacter = useDeletePartyMember();
+const { data: memorials } = useCampaignMemorials();
+const onTheWall = (pm: PartyMember) => hasMemorialInEffect(memorials.value, pm.id);
 const detachCharacter = useDetachCharacter();
 const { confirm } = useConfirm();
 const toast = useToast();

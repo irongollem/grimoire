@@ -9,6 +9,10 @@ const toastError = vi.fn();
 const toastInfo = vi.fn();
 const refetchReviews = vi.fn();
 
+vi.mock("@/composables/memorials/useMemorials", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/composables/memorials/useMemorials")>()),
+  useWallMemorials: () => ({ data: { value: { memorials: [] } } }),
+}));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
 vi.mock("@/composables/useToast", () => ({

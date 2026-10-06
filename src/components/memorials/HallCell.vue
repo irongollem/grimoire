@@ -7,7 +7,7 @@
     :aria-label="`Open ${memorial.character_name}'s card`"
     @click="emit('open')"
   >
-    <span class="hall-phone-scale" aria-hidden="true">
+    <span class="hall-phone-scale" aria-hidden="true" inert>
       <HallCardSlot v-bind="slotProps" :flipped="false" />
     </span>
   </button>

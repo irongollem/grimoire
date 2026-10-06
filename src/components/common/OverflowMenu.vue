@@ -34,6 +34,7 @@
         :class="['rounded-none', entry.danger && i > 0 ? 'border-t border-border mt-1' : '']"
         :label="entry.label"
         :disabled="entry.disabled"
+        :tooltip="entry.reason"
         @click="pick(entry.key)"
       />
     </div>
@@ -58,6 +59,8 @@ export interface OverflowMenuEntry {
   label: string;
   danger?: boolean;
   disabled?: boolean;
+  /** Why the entry is disabled; shown as its tooltip. */
+  reason?: string;
 }
 
 const {

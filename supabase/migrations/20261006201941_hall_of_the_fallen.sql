@@ -142,6 +142,42 @@ create policy "memorial_mourners_update" on public.memorial_mourners
   for update using (user_id = auth.uid())
   with check (user_id = auth.uid() and private.can_see_memorial(memorial_id));
 
+-- ── A character on the wall cannot be deleted ─────────────────────────────
+-- A memorial is shared: deleting the character would cascade its memorial off
+-- every companion's wall, and the lifecycle keeps a fallen character's row for
+-- a raise-dead. So the two user-facing delete policies refuse a character
+-- whose memorial is in effect ("Restore them first"). RLS governs only the
+-- caller's own DELETE: the cascades from erasing an account or deleting a
+-- campaign, and service-role work, are untouched. Recreated from the live
+-- pg_policies text (prod and local agreed on 6 Oct 2026) plus the one clause.
+
+create or replace function private.has_memorial_in_effect(p_party_member_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path to 'public'
+as $$
+  -- exists() is never NULL, so the negated use below is total.
+  select exists (
+    select 1 from public.character_memorials m
+     where m.party_member_id = p_party_member_id and m.restored_at is null);
+$$;
+
+drop policy if exists "party_members_creator_delete" on public.party_members;
+create policy "party_members_creator_delete" on public.party_members
+  for delete using (
+    ((select auth.uid()) = user_id)
+    and ((owner_user_id is null) or (owner_user_id = (select auth.uid())))
+    and not private.has_memorial_in_effect(id));
+
+drop policy if exists "party_members_player_delete" on public.party_members;
+create policy "party_members_player_delete" on public.party_members
+  for delete using (
+    (((select auth.uid()) = owner_user_id)
+      or ((campaign_id is not null) and private.is_campaign_dm(campaign_id) and (owner_user_id is null)))
+    and not private.has_memorial_in_effect(id));
+
 -- ── RPCs ────────────────────────────────────────────────────────────────────
 
 -- Mark a character fallen (the DM) or retired (the DM or the owner). A field

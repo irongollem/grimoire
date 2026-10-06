@@ -41,6 +41,14 @@ async function fetchMyMourners(userId: string): Promise<MemorialMourner[]> {
   return data as MemorialMourner[];
 }
 
+/** Why a character on the wall cannot be deleted (the database refuses it silently). */
+export const FALLEN_DELETE_REASON = "In the Hall of the Fallen. Restore them first to delete.";
+
+/** True while a memorial is in effect for this character (restored_at is null). */
+export function hasMemorialInEffect(memorials: readonly CharacterMemorial[] | undefined, partyMemberId: string): boolean {
+  return !!memorials?.some((m) => m.party_member_id === partyMemberId && m.restored_at === null);
+}
+
 /** Every memorial row of a campaign, restored ones included (the party list needs both). */
 export function useCampaignMemorials(campaignId?: () => string | null, enabled?: () => boolean) {
   const campaign = useCampaignStore();
