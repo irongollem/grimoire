@@ -50,6 +50,8 @@ scripts/chapter_npc_configs/
 .mcp.json
 src/views/play/TEMPSHIT.ts
 .claude/worktrees/
+# Claude Code lays its API types beside a loaded mod on every load.
+.claude/skills/*/.claude-plugin/types/
 
 # vite-ssg build temp directory
 .vite-ssg-temp/
@@ -83,3 +85,6 @@ bun.lockb
 # extraction cache and cost.json (token spend), which are per-machine anyway.
 graphify-out/
 .vitest/
+
+# Paper-doll species renders awaiting review (scripts/generate-dolls.ts)
+.doll-out/

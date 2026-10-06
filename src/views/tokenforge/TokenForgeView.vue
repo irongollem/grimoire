@@ -177,7 +177,9 @@ import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
-import { drawToken, renderMysteryBack, type TokenEntity } from "@/lib/tokenRenderer";
+import { drawToken, renderMysteryBack, type TokenEntity, type TokenFigure } from "@/lib/tokenRenderer";
+import { useDollArt } from "@/composables/party/useDollArt";
+import { dollTokenFigure } from "@/lib/paperDoll/dollTokenFigure";
 import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import CoinFace from "@/components/mint/CoinFace.vue";
 import { COIN_METALS, COIN_PRINT_SIZES } from "@/types/coin.types";
@@ -414,8 +416,22 @@ const sourceEntities = computed<TokenEntity[]>(() => {
   return [];
 });
 
-// Only monsters and NPCs can have a cutout (#917). Keyed by entity id so the
-// preview can look one up for whichever entity is selected, independent of
+// A party member's own paper doll (#975), as it is dressed right now. A species
+// or template doll is not offered: it would stand in for a player's personal
+// portrait with a generic figure.
+const { dollFor } = useDollArt(() => partyMembers.value ?? []);
+const dollFigureById = computed(() => {
+  const m = new Map<string, TokenFigure>();
+  for (const member of partyMembers.value ?? []) {
+    const { art, figure } = dollFor(member);
+    if (art.source === "character") m.set(member.id, dollTokenFigure(figure, art.layout.anatomy));
+  }
+  return m;
+});
+
+// Monsters and NPCs can have a cutout (#917) and a party member with its own
+// doll has the doll figure, which the same toggle offers. Keyed by entity id so
+// the preview can look one up for whichever entity is selected, independent of
 // which source tab it came from.
 const cutoutUrlById = computed(() => {
   const m = new Map<string, string>();
@@ -497,7 +513,7 @@ const activePainter = computed(() =>
 const paintTarget = computed<TokenEntity | null>(() => {
   const entity = selected.value;
   if (!entity || sourceTab.value === "custom" || !activePainter.value.enabled.value) return null;
-  if (entity.imageUrl || cutoutUrlById.value.has(entity.id)) return null;
+  if (entity.imageUrl || cutoutUrlById.value.has(entity.id) || dollFigureById.value.has(entity.id)) return null;
   if (sourceTab.value === "monster" && monsterIndex.value?.find((m) => m.id === entity.id)?.is_shared) return null;
   return entity;
 });
@@ -537,28 +553,38 @@ async function paintSelected() {
   }
 }
 
+/** Select a token, reset its ring color for the source tab, and prefer available cutout or doll art. */
 function selectEntity(entity: TokenEntity) {
   selected.value = entity;
   settings.value.ringColor = DEFAULT_RING_COLORS[sourceTab.value];
   // Default to the cutout whenever the entity has one — "preferred" per #917 —
   // and fall back to the picture otherwise so the toggle has a sane starting
   // point rather than pointing at art that doesn't exist.
-  artChoice.value = cutoutUrlById.value.has(entity.id) ? "cutout" : "picture";
+  artChoice.value = hasCutoutFor(entity.id) ? "cutout" : "picture";
 }
 
 // ── Cutout vs. picture (#917) ────────────────────────────────────────────────
 
 const artChoice = ref<"picture" | "cutout">("picture");
-const hasCutout = computed(() => !!selected.value && cutoutUrlById.value.has(selected.value.id));
+/** Whether the cutout choice has art: a baked cutout or the character's own doll figure. */
+function hasCutoutFor(id: string): boolean {
+  return cutoutUrlById.value.has(id) || dollFigureById.value.has(id);
+}
+const hasCutout = computed(() => !!selected.value && hasCutoutFor(selected.value.id));
 
 /** The entity actually drawn/exported: `selected` with its art swapped for
- *  the cutout (drawn "contain") when the toggle says so and one exists. */
+ *  the cutout (drawn "contain") or a party member's doll figure when the
+ *  toggle says so and one exists. */
 const renderEntity = computed<TokenEntity | null>(() => {
   const entity = selected.value;
   if (!entity) return null;
   if (artChoice.value === "cutout") {
     const cutoutUrl = cutoutUrlById.value.get(entity.id);
     if (cutoutUrl) return { ...entity, imageUrl: cutoutUrl, imageFit: "contain" };
+    // The doll is drawn whole, like a cutout; the portrait stays on the entity
+    // as the queue thumbnail, and the figure wins when it is drawn.
+    const figure = dollFigureById.value.get(entity.id);
+    if (figure) return { ...entity, figure };
   }
   return { ...entity, imageFit: "cover" };
 });

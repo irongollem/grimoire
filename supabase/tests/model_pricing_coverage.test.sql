@@ -32,7 +32,8 @@ insert into edge_function_models (model) values
   ('gemini-2.5-flash'),
   ('gemini-3.1-flash-image'),
   ('gpt-5.6-luna'),
-  ('gpt-image-2.5-flare');
+  ('gpt-image-2.5-flare'),
+  ('gpt-image-2.5-sunburst');
 
 select is_empty(
   $$ select m.model from edge_function_models m

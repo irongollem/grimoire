@@ -128,6 +128,10 @@ export interface PartyMember {
   level: number;
   subrace: string | null;
   species_id: string | null;
+  /** Generated paper doll (jsonb, shape in @edge-shared/paperDoll/types.ts); never trust it, read with parseDollSheets. */
+  doll?: unknown;
+  /** When the player asked the DM to draw their doll (#975); null = no open ask. */
+  doll_requested_at?: string | null;
   disguise_species_id: string | null;
   disguise_race: string | null;
   disguise_subrace: string | null;

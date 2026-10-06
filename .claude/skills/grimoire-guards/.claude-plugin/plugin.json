@@ -1,0 +1,9 @@
+{
+  "name": "grimoire-guards",
+  "version": "0.1.0",
+  "description": "Refuses the tool calls Grimoire's CLAUDE.md forbids: unmodelled subagents, hand-applied migrations, suffixed co-author trailers, unasked pushes.",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "Jeffrey Ernst"
+  }
+}
