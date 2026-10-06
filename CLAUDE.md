@@ -427,7 +427,7 @@ Existing folders: `lib/audio/` (+ `audio/providers/`), `lib/battlemap/`, `lib/ca
 
 **Never group by shape.** `senses`, `movement`, `damageIcons`, `monsterDisplay`, `npcDisplay`, `partyMemberDisplay` and `classChoices` are all "presentation parsers" and all stayed in root. They serve four different features; a `lib/statblock/` holding them would be a folder named after what they resemble rather than who uses them, which is the same error as the misnamed modules above.
 
-**Root must not import from a feature folder.** `craftingGlyphs.generated` is owned by crafting but stayed in root, because it reaches crafting only via re-export through `icons.ts` — moving it would make a 378-consumer root module depend on `lib/crafting/` and pull that folder into every bundle touching icons. When ownership and dependency direction disagree, dependency direction wins.
+**Root must not import from a feature folder.** The crafting glyphs show the rule both ways. They used to sit in root as `craftingGlyphs.generated`, re-exported through `icons.ts`, because moving them under `lib/crafting/` while `icons.ts` still re-exported them would have made a 378-consumer root module depend on a feature folder. #999 resolved it the other way round: `icons.ts` stopped exporting them, and the Workshop imports `lib/crafting/craftingIcons.ts` (beside its data) directly, so the dependency points from feature to root and the path data left the startup bundle. When ownership and dependency direction disagree, dependency direction wins; when you can change who imports what, fix the direction instead.
 
 ### Composables — the folder is the domain the composable is *about*
 

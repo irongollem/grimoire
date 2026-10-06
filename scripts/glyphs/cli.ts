@@ -7,6 +7,8 @@
  *   npx tsx scripts/glyphs/cli.ts add     <set> <traceDir> <name>
  *   npx tsx scripts/glyphs/cli.ts svg     <traceDir> <outDir> <name...>
  *   npx tsx scripts/glyphs/cli.ts preview <set> <name> <out.png>
+ *   npx tsx scripts/glyphs/cli.ts optimize <set>
+ *   npx tsx scripts/glyphs/cli.ts compare  <set> <beforeModule.ts>
  *
  * <set> is one of the GLYPH_SETS keys. Traces are read as <traceDir>/<name>.svg.
  * Paths resolve against the directory you run it from; the generated modules
@@ -16,7 +18,10 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
 import sharp from "sharp";
+import { compareSets, type SetComparison } from "./glyphCompare";
+import { optimizeGlyph } from "./glyphOptimize";
 import {
   GLYPH_SETS,
   INLINE_PAD,
@@ -28,6 +33,7 @@ import {
   normalizeTrace,
   previewSvg,
   readGlyph,
+  readGlyphs,
   spliceGlyph,
   standaloneSvg,
   type GlyphSet,
@@ -124,6 +130,14 @@ function segment(sheet: string, outDir: string, cols: number, rows: number): voi
   console.log(`wrote ${i} cells to ${outDir}`);
 }
 
+const gz = (text: string) => gzipSync(text).length;
+
+function reportComparison(c: SetComparison): void {
+  for (const [size, w] of Object.entries(c.worst)) {
+    console.log(`  worst @${size}px: ${w.name} (${w.pixels} px differ, max level move ${w.maxLevel}/255)`);
+  }
+}
+
 const [command, ...args] = process.argv.slice(2);
 
 switch (command) {
@@ -138,7 +152,8 @@ switch (command) {
     const set = glyphSet(setName);
     if (!traceDir || !names.length) fail("usage: module <set> <traceDir> <name...>");
     names.forEach(assertGlyphName);
-    const entries = names.map((name) => [name, inlineGlyph(readTrace(resolve(traceDir), name, INLINE_PAD))] as const);
+    const entries: Array<readonly [string, string]> = [];
+    for (const name of names) entries.push([name, await inlineGlyph(readTrace(resolve(traceDir), name, INLINE_PAD))]);
     writeFileSync(join(REPO_ROOT, set.file), glyphModule(set, entries));
     console.log(`wrote ${set.file} (${entries.length} glyphs)`);
     break;
@@ -149,7 +164,7 @@ switch (command) {
     if (!traceDir || !name) fail("usage: add <set> <traceDir> <name>");
     assertGlyphName(name);
     const file = join(REPO_ROOT, set.file);
-    const inner = inlineGlyph(readTrace(resolve(traceDir), name, INLINE_PAD));
+    const inner = await inlineGlyph(readTrace(resolve(traceDir), name, INLINE_PAD));
     writeFileSync(file, spliceGlyph(readFileSync(file, "utf8"), name, inner));
     console.log(`spliced '${name}' into ${set.file}`);
     break;
@@ -176,6 +191,44 @@ switch (command) {
     console.log(`rendered '${name}' to ${out}`);
     break;
   }
+  case "optimize": {
+    // Re-optimise a generated module in place, operating on the stored markup
+    // (the original traces are gone). Each glyph takes the smallest form that
+    // renders the same (see glyphOptimize.ts); re-running is harmless.
+    const [setName] = args;
+    const set = glyphSet(setName);
+    const file = join(REPO_ROOT, set.file);
+    const before = readGlyphs(readFileSync(file, "utf8"));
+    const after: Array<readonly [string, string]> = [];
+    for (const [name, inner] of before) {
+      const result = await optimizeGlyph(inner);
+      console.log(`  ${name.padEnd(14)} ${String(inner.length).padStart(7)} -> ${String(result.markup.length).padStart(7)}  ${result.rung}`);
+      after.push([name, result.markup]);
+    }
+    const comparison = await compareSets(before, after);
+    console.log(`${set.file}: ${before.length} glyphs`);
+    console.log(`  markup ${before.reduce((n, [, m]) => n + m.length, 0)} -> ${after.reduce((n, [, m]) => n + m.length, 0)} chars`);
+    console.log(`  gzip   ${gz(before.map((e) => e[1]).join(""))} -> ${gz(after.map((e) => e[1]).join(""))} bytes`);
+    reportComparison(comparison);
+    if (!comparison.ok) fail("not written: a glyph differs after optimisation");
+    writeFileSync(file, glyphModule(set, after));
+    console.log("  written");
+    break;
+  }
+  case "compare": {
+    // Render every glyph of the set in the working module and in an earlier
+    // copy of it (`git show <rev>:<path> > before.ts`) and report the worst.
+    const [setName, beforeFile] = args;
+    const set = glyphSet(setName);
+    if (!beforeFile) fail("usage: compare <set> <beforeModule.ts>");
+    const before = readGlyphs(readFileSync(resolve(beforeFile), "utf8"));
+    const after = readGlyphs(readFileSync(join(REPO_ROOT, set.file), "utf8"));
+    const comparison = await compareSets(before, after);
+    console.log(`${set.file}: ${after.length} glyphs`);
+    reportComparison(comparison);
+    if (!comparison.ok) fail("visible difference");
+    break;
+  }
   default:
-    fail("usage: cli.ts <segment|module|add|svg|preview> …  (see the header of scripts/glyphs/cli.ts)");
+    fail("usage: cli.ts <segment|module|add|svg|preview|optimize|compare> …  (see the header of scripts/glyphs/cli.ts)");
 }

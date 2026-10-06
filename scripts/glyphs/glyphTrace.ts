@@ -10,6 +10,8 @@
  * (`.agents/skills/glyph/`) is the procedure that drives a run.
  */
 
+import { optimizeGlyph } from "./glyphOptimize";
+
 /** Every glyph is normalized into a square box of this side. */
 export const GLYPH_BOX = 100;
 
@@ -32,14 +34,22 @@ export interface GlyphSet {
 
 export const GLYPH_SETS = {
   crafting: {
-    file: "src/lib/craftingGlyphs.generated.ts",
+    file: "src/lib/crafting/craftingGlyphs.generated.ts",
     exportName: "CRAFTING_GLYPHS",
     description: "custom crafting-discipline glyphs",
   },
+  // The per-die glyphs only the dice roller and quick-dice widget draw.
   dice: {
-    file: "src/lib/diceGlyphs.generated.ts",
+    file: "src/lib/dice/diceGlyphs.generated.ts",
     exportName: "DICE_GLYPHS",
     description: "custom polyhedral-dice glyphs",
+  },
+  // The d20 alone: `IconDice` / `IconDiceRoll` sit in icons.ts (17 consumers,
+  // so on the startup path) and must not drag the rest of the dice with them.
+  "dice-d20": {
+    file: "src/lib/diceGlyphs.d20.generated.ts",
+    exportName: "DICE_D20_GLYPHS",
+    description: "the d20 glyph",
   },
   nav: {
     file: "src/lib/navGlyphs.generated.ts",
@@ -105,10 +115,12 @@ function transform(t: NormalizedTrace): string {
  * Inner markup for `glyph()`. potrace hard-codes a black fill; rewriting it to
  * currentColor lets the glyph tint with the text around it. (potrace emits the
  * attribute on its own line, so match the attribute, not a leading space.)
+ * The result is optimised (see glyphOptimize.ts), so the stored markup is the
+ * small form, not potrace's.
  */
-export function inlineGlyph(t: NormalizedTrace): string {
+export async function inlineGlyph(t: NormalizedTrace): Promise<string> {
   const group = t.group.replace(/fill="#000000"/g, 'fill="currentColor"');
-  return `<g transform="${transform(t)}">${group}</g>`;
+  return (await optimizeGlyph(`<g transform="${transform(t)}">${group}</g>`)).markup;
 }
 
 /** A self-contained SVG file, fill left as traced (masks ignore colour). */
@@ -154,6 +166,13 @@ export function spliceGlyph(source: string, name: string, inner: string): string
 export function readGlyph(source: string, name: string): string | null {
   const line = source.match(new RegExp(`^  ${name}: (".*"),$`, "m"));
   return line ? (JSON.parse(line[1]) as string) : null;
+}
+
+/** Every entry of a generated module, in file order. */
+export function readGlyphs(source: string): Array<readonly [string, string]> {
+  return [...source.matchAll(/^  ([a-z][A-Za-z0-9]*): (".*"),$/gm)].map(
+    (m) => [m[1], JSON.parse(m[2]) as string] as const,
+  );
 }
 
 /** An entry as a black-on-white SVG, to rasterise and look at. */

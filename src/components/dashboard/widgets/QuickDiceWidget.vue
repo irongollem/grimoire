@@ -90,16 +90,8 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import DiceResult from "@/components/common/DiceResult.vue";
-import {
-  IconDice,
-  IconDie4,
-  IconDie6,
-  IconDie8,
-  IconDie10,
-  IconDie12,
-  IconDie20,
-  IconDie100,
-} from "@/lib/icons";
+import { IconDice } from "@/lib/icons";
+import { IconDie4, IconDie6, IconDie8, IconDie10, IconDie12, IconDie20, IconDie100 } from "@/lib/dice/dieIcons";
 import { rollDice, rollParsed } from "@/lib/dice/roller";
 import type { DieSize, RollMode } from "@/lib/dice/dice";
 import {
