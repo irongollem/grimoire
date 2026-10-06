@@ -1,8 +1,9 @@
 <template>
   <div ref="triggerRef" class="flex w-fit">
     <AppButton
-      variant="subtle"
-      size="icon-sm"
+      :variant="variant"
+      :size="size"
+      :fill="fill"
       :class="ICON_TOUCH_TARGET"
       :icon="IconMore"
       :aria-label="label"
@@ -48,6 +49,7 @@
 import { ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
+import type { ButtonFill, ButtonSize, ButtonVariant } from "@/components/common/appButtonVariants";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { IconMore } from "@/lib/icons";
 
@@ -58,11 +60,23 @@ export interface OverflowMenuEntry {
   disabled?: boolean;
 }
 
-const { label, items, disabled } = defineProps<{
+const {
+  label,
+  items,
+  disabled,
+  variant = "subtle",
+  size = "icon-sm",
+  fill,
+} = defineProps<{
   /** Accessible name of the trigger and the menu, e.g. "More actions for Chicory". */
   label: string;
   items: readonly OverflowMenuEntry[];
   disabled?: boolean;
+  /** The trigger's look, for a menu that sits in a control group rather than on a card
+   *  (the Scriptorium preview's PDF group). Defaults are the card look. */
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  fill?: ButtonFill;
 }>();
 
 const emit = defineEmits<{ select: [key: string] }>();

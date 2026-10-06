@@ -1,6 +1,6 @@
 /*
  * The one pre-layout pass over a document's HTML, shared by the live preview
- * (ScriptoriumPreviewPane.vue) and the PDF export (useScriptoriumPrint.ts).
+ * (ScriptoriumPreviewPane.vue) and the PDF export (useScriptoriumPdf.ts).
  * Each step has to run before Paged.js decides where to break, and the two
  * callers used to chain them by hand; one function keeps the preview and the
  * exported PDF paginating identically.

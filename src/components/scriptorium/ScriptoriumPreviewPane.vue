@@ -52,45 +52,36 @@
           />
         </div>
 
-        <AppButton
-          variant="subtle"
-          size="xs"
-          class="uppercase"
-          :icon="IconExport"
-          icon-size="xs"
-          :loading="isGeneratingPdf"
-          tooltip="Export as PDF"
-          @click="onExportPdf"
-        >
-          {{ isGeneratingPdf ? "Building…" : "PDF" }}
-        </AppButton>
+        <!-- PDF export, grouped like the zoom controls. Only a document filed
+             under a campaign has campaign data to embed, hence the menu's v-if. -->
+        <div class="flex items-center rounded border border-border overflow-hidden">
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="toolbar"
+            class="uppercase"
+            :icon="IconExport"
+            icon-size="xs"
+            :loading="isGeneratingPdf"
+            tooltip="Download as PDF"
+            @click="emit('exportPdf')"
+          >
+            {{ isGeneratingPdf ? "Building…" : "PDF" }}
+          </AppButton>
+          <!-- Wrapped: OverflowMenu renders two roots (trigger + teleport), so a class on it would not land. -->
+          <div v-if="canEmbedCampaignData" class="border-l border-border">
+            <OverflowMenu
+              label="More PDF options"
+              variant="ghost"
+              fill="muted"
+              size="toolbar"
+              :items="PDF_MENU"
+              :disabled="isGeneratingPdf"
+              @select="emit('exportPdfWithData')"
+            />
+          </div>
+        </div>
       </div>
-    </div>
-
-    <!-- Post-export tip: the saved PDF can carry campaign data (Phase E flow) -->
-    <div
-      v-if="showShareTip"
-      class="flex items-start gap-2 px-4 py-2 border-b border-border bg-card/90 shrink-0"
-    >
-      <IconInfo class="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
-      <p class="flex-1 text-caption text-muted-foreground leading-snug">
-        Your saved PDF can carry campaign data: embed NPCs, monsters, and more so another DM can
-        import them straight from this file. Go to
-        <strong class="text-foreground">Campaign Settings → World Bundle → Attach to PDF</strong>, or
-        <RouterLink
-          :to="{ path: '/rules', query: { tab: 'manual', page: 'sharing-adventures-as-pdfs' } }"
-          class="text-primary hover:underline"
-        >read how in the DM Manual</RouterLink>.
-      </p>
-      <AppButton
-        variant="ghost"
-        size="inline-xs"
-        class="shrink-0"
-        :icon="IconClose"
-        icon-size="xs"
-        aria-label="Dismiss tip"
-        @click="dismissShareTip"
-      />
     </div>
 
     <!-- The auto-paginated book (Paged.js) — the live preview. -->
@@ -121,9 +112,10 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
-import { IconClose, IconExport, IconInfo, IconZoomIn, IconZoomOut } from "@/lib/icons";
+import OverflowMenu from "@/components/common/OverflowMenu.vue";
+import type { OverflowMenuEntry } from "@/components/common/OverflowMenu.vue";
+import { IconExport, IconZoomIn, IconZoomOut } from "@/lib/icons";
 import { docTypeLabel, docTypeColor } from "@/lib/scriptorium/editorConstants";
 import { useScriptoriumZoom } from "@/composables/scriptorium/useScriptoriumZoom";
 import { usePagedPreview } from "@/composables/scriptorium/usePagedPreview";
@@ -153,6 +145,7 @@ const {
   inkFriendly,
   isTwoColumn,
   isGeneratingPdf = false,
+  canEmbedCampaignData = false,
 } = defineProps<{
   /** Full document HTML — paginated by Paged.js into the book. */
   bodyHtml: string;
@@ -168,30 +161,21 @@ const {
   inkFriendly: boolean;
   isTwoColumn: boolean;
   isGeneratingPdf?: boolean;
+  /** The document belongs to a campaign, so "PDF with campaign data" is offered. */
+  canEmbedCampaignData?: boolean;
 }>();
 
 const emit = defineEmits<{
   exportPdf: [];
+  exportPdfWithData: [];
   editBlock: [blockId: string];
   "update:furniture": [items: PageFurnitureItem[]];
   "update:selectedFurnitureId": [id: string | null];
 }>();
 
-// Discovery tip for the attach-campaign-data flow (Phase E): shown after an
-// export, when the user actually has a saved PDF in hand. Dismiss hides it
-// for the rest of this editing session.
-const showShareTip = ref(false);
-const shareTipDismissed = ref(false);
-
-function onExportPdf() {
-  emit("exportPdf");
-  if (!shareTipDismissed.value) showShareTip.value = true;
-}
-
-function dismissShareTip() {
-  showShareTip.value = false;
-  shareTipDismissed.value = true;
-}
+const PDF_MENU: readonly OverflowMenuEntry[] = [
+  { key: "with-data", label: "PDF with campaign data…" },
+] as const;
 
 // Click-to-edit: resolve the clicked block's stable id (data-block-id, set by
 // the BlockId extension and preserved through Paged.js fragmentation) and ask

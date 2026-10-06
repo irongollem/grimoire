@@ -2,14 +2,15 @@
  * Self-hosted Scriptorium display + body faces (#465).
  *
  * Cinzel (headings) and Alegreya (body) served as static TrueType from
- * public/fonts/scriptorium/. The print/PDF pipeline injects this stylesheet
- * into its iframe so the export embeds real subsetted TrueType — Google-served
- * WOFF2 embeds as bulky Type3 glyph procedures (some print shops reject it), and
- * the print iframe carried no @font-face at all, falling back to serif.
+ * public/fonts/scriptorium/. The PDF export writes this stylesheet into the
+ * HTML its renderer prints, with each url() inlined as a data: URI
+ * (useScriptoriumPdf.ts, inlineSameOriginAssets.ts), so the PDF embeds real
+ * subsetted TrueType. Google-served WOFF2 embeds as bulky Type3 glyph
+ * procedures, which some print shops reject.
  *
- * Plain CSS only (no Tailwind directives) so it stays inlinable into the print
- * iframe and the eventual Phase E server renderer. Both families are OFL —
- * see public/fonts/scriptorium/{cinzel,alegreya}-OFL.txt.
+ * Plain CSS only (no Tailwind directives) so it stays inlinable into that
+ * HTML. Both families are OFL: see
+ * public/fonts/scriptorium/{cinzel,alegreya}-OFL.txt.
  */
 
 @font-face {

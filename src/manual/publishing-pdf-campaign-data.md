@@ -18,17 +18,13 @@ Anything a World Bundle can carry:
 - **Campaign content**: NPCs, locations, factions, quests, notes, encounters, characters, custom classes and subclasses, calendar events.
 - **Your library**: homebrew monsters, items, homebrew spells, species, and even other Scriptorium documents.
 
-You pick exactly which entities go in: nothing is included automatically.
+You pick exactly which entities go in. The dialog starts with the ones your book links to, and you can change that.
 
-## Creating a shareable PDF (two steps)
+## Creating a shareable PDF
 
-**Step 1: Export your document as a PDF.**
-In the Scriptorium editor, click the **PDF** button above the preview and save the file using your browser's print dialog.
+Open the document in the Scriptorium. The **PDF** button above the preview downloads a plain PDF. To add campaign data, open the small menu next to it and choose **PDF with campaign data…**. (The menu only appears for a document that belongs to a campaign, since the data comes from that campaign.)
 
-**Step 2: Attach your campaign data to it.**
-Go to **Campaign Settings → World Bundle**. Walk through the wizard: choose the entity categories, tick the specific entities you want to share, and give the bundle a name. On the final step, click **Attach to PDF…** and select the PDF you saved in step 1. Grimoire embeds the data and downloads a new copy ending in `-grimoire.pdf`.
-
-That `-grimoire.pdf` file is the one to share.
+A dialog walks you through the same steps as the World Bundle tab: choose the entity categories, tick the specific entities you want to share, then give the bundle a name (it starts as the document's title). Anything the book links to, plus the book itself, is already ticked for you; untick whatever you would rather keep back. Click **Export PDF** and Grimoire builds the PDF and downloads it, data inside, in one step. That file is the one to share.
 
 ## Importing a PDF with campaign data
 
@@ -38,7 +34,7 @@ Player visibility flags and party-member links are cleared on import, so nothing
 
 ## Tips
 
-- **Re-saving strips the data.** The embedded bundle survives normal sharing: email, Discord, cloud drives, printing. But if the PDF is run through another program that *re-saves* it (an editor's "export", "print to PDF" again, some compressors), the hidden attachment is removed. Share the `-grimoire.pdf` file as-is.
+- **Re-saving strips the data.** The embedded bundle survives normal sharing: email, Discord, cloud drives, printing. But if the PDF is run through another program that *re-saves* it (an editor's "export", "print to PDF" again, some compressors), the hidden attachment is removed. Share the downloaded file as-is.
 - **The PDF stays a normal PDF.** People without Grimoire can read and print it like any other file; the embedded data is invisible to them.
 - **Data and document are independent.** The embedded entities don't have to match what the document shows: you decide what a recipient receives.
 

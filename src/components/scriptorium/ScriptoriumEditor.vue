@@ -178,16 +178,27 @@
         :page-size="pageSize"
         :ink-friendly="inkFriendly"
         :is-two-column="isTwoColumn"
-        :is-generating-pdf="isPrinting"
+        :is-generating-pdf="isExporting"
+        :can-embed-campaign-data="campaignId !== null"
         :furniture="furniture"
         :selected-furniture-id="selectedFurnitureId"
         @export-pdf="exportPdf"
+        @export-pdf-with-data="showDataExport = true"
         @edit-block="focusBlock"
         @update:furniture="furniture = $event"
         @update:selected-furniture-id="selectedFurnitureId = $event"
       />
     </div>
   </div>
+
+  <ScriptoriumExportDialog
+    v-if="showDataExport && campaignId"
+    :campaign-id="campaignId"
+    :document-title="title"
+    :preselection="bundlePreselection(entityRefs, doc?.id ?? null)"
+    :pdf-options="pdfOptions()"
+    @close="showDataExport = false"
+  />
 
   <PaywallModal v-model="showPaywall" resource="scriptorium_documents" />
 </template>
@@ -217,7 +228,11 @@ import {
   removeRichTextImages,
   cleanupRemovedRichTextImages,
 } from "@/composables/useImageUpload";
-import { useScriptoriumPrint } from "@/composables/scriptorium/useScriptoriumPrint";
+import { useScriptoriumPdf } from "@/composables/scriptorium/useScriptoriumPdf";
+import type { PdfDocumentOptions } from "@/composables/scriptorium/useScriptoriumPdf";
+import { useToast } from "@/composables/useToast";
+import ScriptoriumExportDialog from "@/components/scriptorium/ScriptoriumExportDialog.vue";
+import { bundlePreselection } from "@/lib/scriptorium/bundlePreselection";
 import type {
   ScriptoriumDocument,
   ScriptoriumDocType,
@@ -666,10 +681,13 @@ async function moveToActiveCampaign() {
   await save();
 }
 
-const { isPrinting, printDocument } = useScriptoriumPrint();
+const { isExporting, exportError, exportPdf: runPdfExport } = useScriptoriumPdf();
+const toast = useToast();
+const showDataExport = ref(false);
 
-function exportPdf() {
-  void printDocument({
+/** The layout the PDF is built from: the same refs the preview pane reads. */
+function pdfOptions(): PdfDocumentOptions {
+  return {
     bodyHtml: previewHtml.value,
     title: title.value,
     theme: theme.value,
@@ -680,7 +698,12 @@ function exportPdf() {
     footerText: footerText.value,
     pageNumberStart: pageNumberStart.value,
     furniture: furniture.value,
-  });
+  };
+}
+
+async function exportPdf() {
+  const ok = await runPdfExport(pdfOptions());
+  if (!ok && exportError.value) toast.error(exportError.value);
 }
 
 // ── AI text enhancement ───────────────────────────────────────────────────────

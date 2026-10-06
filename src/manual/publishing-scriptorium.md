@@ -89,9 +89,9 @@ Watercolor splatters, watermarks, and artist credits aren't part of the text: th
 
 The **book** panel beside the galley shows the real, paginated document, themed exactly as it will print. Page count and render time are shown under it. Use the zoom controls (**–** / **Fit** / **+**) to inspect at different sizes; fit-to-width is the default and re-snaps whenever you change page size.
 
-Click **PDF** to export. A true vector PDF is generated (selectable text, embedded fonts) via your browser's print pipeline, not a screenshot.
+Click **PDF** to download the book as a real PDF (selectable text, embedded fonts and pictures, not a screenshot). It is built for you and saved straight to your downloads; there is no print dialog to click through.
 
-**After your first export**, a tip appears pointing you at attaching campaign data to the saved file: see [Sharing Adventures as PDFs](#sharing-adventures-as-pdfs).
+For a document that belongs to a campaign, the small menu beside **PDF** offers **PDF with campaign data…**. It lets you pick NPCs, monsters and other entities to travel inside the file, in one step: see [Sharing Adventures as PDFs](#sharing-adventures-as-pdfs).
 
 ## Document settings and list
 

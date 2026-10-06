@@ -70,6 +70,12 @@ export const RATE_LIMITS = {
    */
   join_request_caller: { action: "join_request_caller", limit: 10, windowSeconds: 86_400 },
   join_request_parent: { action: "join_request_parent", limit: 10, windowSeconds: 86_400 },
+  /**
+   * Real PDF export (#565). Every export is a browser session billed to our
+   * Cloudflare account, so it needs a ceiling. Generous for a DM who re-exports
+   * a book while tuning it, tight enough that a stolen session cannot loop it.
+   */
+  pdf_render: { action: "pdf_render", limit: 30, windowSeconds: 3_600 },
 } as const;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;

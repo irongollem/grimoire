@@ -1,53 +1,13 @@
 <template>
   <div class="max-w-xl space-y-6">
 
-    <!-- ── Phase: Categories ───────────────────────────────────────────────── -->
-    <template v-if="phase === 'categories'">
-      <div>
-        <h3 class="text-heading-sm font-semibold text-foreground">Create World Bundle</h3>
-        <p class="text-body text-muted-foreground italic mt-1">
-          Select which entity types to include. You'll choose specific entities from each category
-          in the next steps.
-        </p>
-      </div>
-
-      <div class="rounded-md border border-border divide-y divide-border">
-        <div
-          v-for="group in typeGroups"
-          :key="group.label"
-        >
-          <p class="text-eyebrow font-semibold text-muted-foreground px-4 py-2 bg-muted/30">
-            {{ group.label }}
-          </p>
-          <div class="px-4 py-3 space-y-2.5">
-            <AppCheckbox
-              v-for="type in group.types"
-              :key="type.key"
-              :model-value="selectedCategories.has(type.key)"
-              :disabled="isLocked(type.key)"
-              size="sm"
-              class="gap-2.5 group"
-              label-layout="row"
-              @update:model-value="toggleCategory(type.key)"
-            >
-              <span
-                class="transition-colors"
-                :class="isLocked(type.key) ? 'text-muted-foreground' : 'text-foreground group-hover:text-primary'"
-              >
-                {{ type.label }}
-              </span>
-              <span
-                v-if="isLocked(type.key)"
-                class="text-label text-primary/60"
-              >
-                required by Characters
-              </span>
-            </AppCheckbox>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex items-center justify-between pt-2">
+    <!-- Steps 1 and 2: shared with Scriptorium's "PDF with campaign data" dialog -->
+    <BundleEntityPicker
+      v-if="phase !== 'details'"
+      :state="selection"
+      :campaign-id="campaignStore.activeCampaignId"
+    >
+      <template #categories-actions>
         <AppButton
           variant="outline"
           size="md"
@@ -55,117 +15,11 @@
           :icon="IconUpload"
           @click="importOpen = true"
         />
-        <AppButton
-          variant="primary"
-          size="md"
-          label="Continue"
-          :icon-right="IconChevronRight"
-          :disabled="selectedCategories.size === 0"
-          @click="goToFirstPick"
-        />
-      </div>
-    </template>
-
-    <!-- ── Phase: Entity Picker ────────────────────────────────────────────── -->
-    <template v-else-if="phase === 'pick'">
-      <!-- Progress header -->
-      <div class="flex items-center gap-3">
-        <AppButton
-          variant="ghost"
-          size="icon-xs"
-          :icon="IconChevronLeft"
-          aria-label="Back"
-          @click="goBack"
-        />
-        <div>
-          <p class="text-eyebrow font-semibold text-muted-foreground">
-            Step {{ pickIndex + 2 }} of {{ orderedCategories.length + 2 }}
-          </p>
-          <h3 class="text-heading-sm font-semibold text-foreground">
-            {{ currentTypeDef?.label }}
-          </h3>
-        </div>
-        <div class="ml-auto flex gap-1">
-          <span
-            v-for="(_, i) in orderedCategories"
-            :key="i"
-            class="h-1.5 w-5 rounded-full transition-colors"
-            :class="i === pickIndex ? 'bg-primary' : i < pickIndex ? 'bg-primary/40' : 'bg-muted'"
-          />
-        </div>
-      </div>
-
-      <!-- IconSearch -->
-      <div class="relative">
-        <IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-        <AppInput
-          v-model="search"
-          tone="muted"
-          size="body"
-          placeholder="Search…"
-          class="pl-8 pr-3"
-        />
-      </div>
-
-      <!-- Controls -->
-      <div class="flex items-center justify-between">
-        <span class="text-caption text-muted-foreground">
-          <template v-if="pickerLoading">Loading…</template>
-          <template v-else>
-            {{ currentSelection.size }} of {{ pickerItems?.length ?? 0 }} selected
-          </template>
-        </span>
-        <div class="flex gap-2">
-          <AppButton variant="ghost" size="inline-xs" label="All" @click="selectAll" />
-          <span class="text-border">·</span>
-          <AppButton variant="ghost" size="inline-xs" label="None" @click="selectNone" />
-        </div>
-      </div>
-
-      <!-- Entity list -->
-      <div class="rounded-md border border-border overflow-hidden">
-        <div v-if="pickerLoading" class="px-4 py-6 text-center">
-          <p class="text-body text-muted-foreground italic">Loading…</p>
-        </div>
-        <div v-else-if="!filteredItems.length" class="px-4 py-6 text-center">
-          <p class="text-body text-muted-foreground italic">
-            {{ search ? "No results for your search." : "No entities found in this category." }}
-          </p>
-        </div>
-        <div v-else class="max-h-72 overflow-y-auto divide-y divide-border">
-          <AppCheckbox
-            v-for="item in filteredItems"
-            :key="item.id"
-            :model-value="currentSelection.has(item.id)"
-            size="sm"
-            class="gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors"
-            label-class="truncate"
-            :label="item.label"
-            @update:model-value="toggleEntity(item.id)"
-          />
-        </div>
-      </div>
-
-      <!-- Navigation -->
-      <div class="flex justify-end gap-2 pt-2">
-        <AppButton
-          variant="subtle"
-          size="md"
-          label="Back"
-          @click="goBack"
-        />
-        <AppButton
-          variant="primary"
-          size="md"
-          :label="isLastPick ? 'Continue to Details' : 'Next'"
-          :icon-right="IconChevronRight"
-          @click="goNext"
-        />
-      </div>
-    </template>
+      </template>
+    </BundleEntityPicker>
 
     <!-- ── Phase: Metadata + Export ────────────────────────────────────────── -->
-    <template v-else-if="phase === 'metadata'">
+    <template v-else>
       <div class="flex items-center gap-3">
         <AppButton
           variant="ghost"
@@ -239,10 +93,9 @@
           another DM can import directly into their campaign.
         </p>
         <p class="text-caption text-muted-foreground">
-          <strong class="text-foreground">Attach to PDF</strong> embeds the bundle invisibly inside a
-          PDF you exported from the Scriptorium: one shareable file that reads like a normal PDF and
-          imports as campaign content. Re-saving that PDF through another app strips the embedded
-          data, so share the downloaded file as-is.
+          <strong class="text-foreground">PDF with campaign data</strong> is made in the Scriptorium:
+          open a book, choose the menu beside PDF, and pick what travels inside. You get one
+          shareable file that reads like a normal PDF and imports as campaign content.
         </p>
       </div>
 
@@ -255,21 +108,6 @@
           label="Back"
           @click="goBack"
         />
-        <label
-          class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold border border-border text-foreground rounded-md hover:bg-muted transition-colors cursor-pointer"
-          :class="{ 'opacity-50 pointer-events-none': isAttaching || !bundleName.trim() || totalSelected === 0 }"
-          title="Embed the selected campaign data into a PDF you exported from Scriptorium, so importing that PDF populates a campaign"
-        >
-          <IconUpload class="h-3.5 w-3.5" />
-          {{ isAttaching ? "Attaching…" : "Attach to PDF…" }}
-          <input
-            type="file"
-            accept=".pdf,application/pdf"
-            class="sr-only"
-            :disabled="isAttaching || !bundleName.trim() || totalSelected === 0"
-            @change="onAttachPdf"
-          />
-        </label>
         <AppButton
           variant="primary"
           size="md"
@@ -286,212 +124,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, shallowRef, watch } from "vue";
-import { IconChevronLeft, IconChevronRight, IconDownload, IconSearch, IconUpload } from '@/lib/icons';
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import { ref } from "vue";
+import { IconChevronLeft, IconDownload, IconUpload } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAuthStore } from "@/stores/auth";
-import {
-  useExportWorldBundle,
-  useEntityPickerItems,
-  buildBundle,
-  BUNDLE_ENTITY_TYPES,
-} from "@/composables/campaign/useWorldBundle";
+import { BUNDLE_ENTITY_TYPES, useExportWorldBundle } from "@/composables/campaign/useWorldBundle";
 import type { BundleEntityKey } from "@/composables/campaign/useWorldBundle";
+import { useBundleAuthor, useBundleSelection } from "@/composables/campaign/useBundleSelection";
+import BundleEntityPicker from "@/components/campaign/BundleEntityPicker.vue";
 import ImportBundleModal from "@/components/campaign/ImportBundleModal.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 
 const campaignStore = useCampaignStore();
-const authStore = useAuthStore();
+const exportAuthor = useBundleAuthor();
 
-/**
- * Who a bundle or PDF says it came from (#637).
- *
- * This used to be `authStore.user?.email`. A `.grimoire` bundle and a
- * Scriptorium PDF are files built to be handed to other people, so that put the
- * exporter's address in every recipient's copy — and in a published PDF's
- * metadata, where it outlives any conversation about it.
- *
- * `publicName` is the shared answer to "what do other people see me as", so a
- * bundle is credited with the same name the party already reads in chat.
- * Undefined rather than a placeholder when it resolves to nothing: `author` is
- * optional in the manifest, and an absent field is honest where "(unknown)"
- * would be noise in someone else's file.
- */
-function exportAuthor(): string | undefined {
-  return authStore.publicName ?? undefined;
-}
-
-// ── Wizard state ─────────────────────────────────────────────────────────────
-
-type Phase = "categories" | "pick" | "metadata";
-const phase = ref<Phase>("categories");
-const pickIndex = ref(0);
-
-const selectedCategories = shallowRef<Set<BundleEntityKey>>(new Set());
-const entitySelections = shallowRef<Partial<Record<BundleEntityKey, Set<string>>>>({});
+const selection = useBundleSelection();
+const { phase, orderedCategories, entitySelections, totalSelected, selectionMap, goBack } = selection;
 
 const bundleName = ref("");
 const bundleDescription = ref("");
 const importOpen = ref(false);
 const exportError = ref<string | null>(null);
-const search = ref("");
 
-// ── Type helpers ──────────────────────────────────────────────────────────────
-
-const typeGroups = computed(() => [
-  {
-    label: "Campaign Content",
-    types: BUNDLE_ENTITY_TYPES.filter((t) => t.scope === "campaign"),
-  },
-  {
-    label: "Your Library",
-    types: BUNDLE_ENTITY_TYPES.filter((t) => t.scope === "library"),
-  },
-]);
+const { mutateAsync: runExport, isPending: isExporting } = useExportWorldBundle();
 
 function typeDef(key: BundleEntityKey) {
   return BUNDLE_ENTITY_TYPES.find((t) => t.key === key);
-}
-
-// Ordered list of selected categories (preserves BUNDLE_ENTITY_TYPES order)
-const orderedCategories = computed<BundleEntityKey[]>(() =>
-  BUNDLE_ENTITY_TYPES.map((t) => t.key).filter((k) => selectedCategories.value.has(k)),
-);
-
-const currentPickKey = computed<BundleEntityKey | null>(() =>
-  phase.value === "pick" ? (orderedCategories.value[pickIndex.value] ?? null) : null,
-);
-
-const currentTypeDef = computed(() =>
-  currentPickKey.value ? typeDef(currentPickKey.value) : null,
-);
-
-const isLastPick = computed(
-  () => pickIndex.value === orderedCategories.value.length - 1,
-);
-
-// ── Entity picker query ───────────────────────────────────────────────────────
-
-const campaignIdRef = computed(() => campaignStore.activeCampaignId);
-const { data: pickerItems, isLoading: pickerLoading } = useEntityPickerItems(
-  currentPickKey,
-  campaignIdRef,
-);
-
-const filteredItems = computed(() => {
-  const q = search.value.toLowerCase();
-  return q
-    ? (pickerItems.value ?? []).filter((i) => i.label.toLowerCase().includes(q))
-    : (pickerItems.value ?? []);
-});
-
-// Current selection for the active pick step
-const currentSelection = computed(() =>
-  entitySelections.value[currentPickKey.value!] ?? new Set<string>(),
-);
-
-// Reset search when moving to a new type
-watch(currentPickKey, () => { search.value = ""; });
-
-// ── Category toggle ───────────────────────────────────────────────────────────
-
-// Characters import as broken without their species + spells, so selecting
-// Characters force-includes and hard-locks those categories.
-const CHARACTER_DEPENDENCIES: BundleEntityKey[] = [
-  "species", "spells", "custom_classes", "custom_subclasses",
-];
-
-function isLocked(key: BundleEntityKey): boolean {
-  return CHARACTER_DEPENDENCIES.includes(key) && selectedCategories.value.has("party_members");
-}
-
-function toggleCategory(key: BundleEntityKey) {
-  if (isLocked(key)) return; // hard-locked while Characters is selected
-  const next = new Set(selectedCategories.value);
-  if (next.has(key)) {
-    next.delete(key);
-  } else {
-    next.add(key);
-    // Selecting Characters auto-includes their required dependencies.
-    if (key === "party_members") {
-      for (const dep of CHARACTER_DEPENDENCIES) next.add(dep);
-    }
-  }
-  selectedCategories.value = next;
-}
-
-// ── Entity selection ──────────────────────────────────────────────────────────
-
-function toggleEntity(id: string) {
-  const key = currentPickKey.value!;
-  const current = entitySelections.value[key] ?? new Set<string>();
-  const next = new Set(current);
-  if (next.has(id)) next.delete(id);
-  else next.add(id);
-  entitySelections.value = { ...entitySelections.value, [key]: next };
-}
-
-function selectAll() {
-  const key = currentPickKey.value!;
-  entitySelections.value = {
-    ...entitySelections.value,
-    [key]: new Set((pickerItems.value ?? []).map((i) => i.id)),
-  };
-}
-
-function selectNone() {
-  const key = currentPickKey.value!;
-  entitySelections.value = { ...entitySelections.value, [key]: new Set() };
-}
-
-const totalSelected = computed(() =>
-  Object.values(entitySelections.value).reduce((sum, s) => sum + (s?.size ?? 0), 0),
-);
-
-// ── Navigation ────────────────────────────────────────────────────────────────
-
-function goToFirstPick() {
-  pickIndex.value = 0;
-  phase.value = "pick";
-}
-
-function goNext() {
-  if (isLastPick.value) {
-    phase.value = "metadata";
-  } else {
-    pickIndex.value++;
-  }
-}
-
-function goBack() {
-  if (phase.value === "metadata") {
-    pickIndex.value = orderedCategories.value.length - 1;
-    phase.value = "pick";
-  } else if (phase.value === "pick") {
-    if (pickIndex.value > 0) {
-      pickIndex.value--;
-    } else {
-      phase.value = "categories";
-    }
-  }
-}
-
-// ── Export ────────────────────────────────────────────────────────────────────
-
-const { mutateAsync: runExport, isPending: isExporting } = useExportWorldBundle();
-const isAttaching = ref(false);
-
-/** Selected entities as a {type → ids} map, shared by .grimoire export + PDF attach. */
-function currentSelectionMap(): Map<BundleEntityKey, string[]> {
-  const selectionMap = new Map<BundleEntityKey, string[]>();
-  for (const key of orderedCategories.value) {
-    const sel = entitySelections.value[key];
-    if (sel && sel.size > 0) selectionMap.set(key, [...sel]);
-  }
-  return selectionMap;
 }
 
 async function doExport() {
@@ -504,47 +163,10 @@ async function doExport() {
       name: bundleName.value.trim(),
       description: bundleDescription.value.trim(),
       author: exportAuthor(),
-      selection: currentSelectionMap(),
+      selection: selectionMap.value,
     });
   } catch (err) {
     exportError.value = err instanceof Error ? err.message : "Export failed";
-  }
-}
-
-/**
- * Embed the selected campaign data into a PDF the user exported from Scriptorium
- * (Phase E, #329) — interim flow: print → save the PDF, then attach the bundle
- * here and re-download a single shareable file.
- */
-async function onAttachPdf(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = ""; // allow re-picking the same file
-  const campaignId = campaignStore.activeCampaignId;
-  if (!file || !campaignId) return;
-  exportError.value = null;
-  isAttaching.value = true;
-  try {
-    const bundle = await buildBundle({
-      campaignId,
-      name: bundleName.value.trim(),
-      description: bundleDescription.value.trim(),
-      author: exportAuthor(),
-      selection: currentSelectionMap(),
-    });
-    const { attachBundleToPdf } = await import("@/lib/scriptorium/campaignBundlePdf");
-    const out = await attachBundleToPdf(new Uint8Array(await file.arrayBuffer()), bundle);
-    const blob = new Blob([out as BlobPart], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${file.name.replace(/\.pdf$/i, "")}-grimoire.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    exportError.value = err instanceof Error ? err.message : "Could not attach campaign data to the PDF";
-  } finally {
-    isAttaching.value = false;
   }
 }
 </script>

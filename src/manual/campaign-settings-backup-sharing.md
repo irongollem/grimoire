@@ -33,13 +33,13 @@ To **import** a `.grimoire-backup` file, use **Import from backup** in the campa
 
 ## Sharing content as a World Bundle
 
-The **World Bundle** tab packages selected campaign content and your personal library into a portable `.grimoire` bundle, or embeds it invisibly inside a Scriptorium PDF. It's a three-step wizard:
+The **World Bundle** tab packages selected campaign content and your personal library into a portable `.grimoire` bundle, or, from the Scriptorium, inside a PDF. It's a three-step wizard:
 
 1. **Categories**: check every entity type you want to include, grouped into **Campaign Content** and **Your Library**. Selecting **Characters** auto-includes and locks Species, Spells, Custom Classes, and Custom Subclasses, since a character imports broken without them. Click **Continue**.
 2. **Entity Picker**: for each selected category in turn, search and check the specific entities to include (**All**/**None** shortcuts available), then **Next**. The step counter and progress dots at the top show where you are.
-3. **Bundle Details**: enter a **Bundle Name** (required) and optional **Description**, review the selection summary, then either:
-   - **Export .grimoire**: downloads the bundle as a file another DM can import directly into their own campaign.
-   - **Attach to PDF…**: embeds the bundle invisibly inside a PDF you already exported from the Scriptorium, producing one shareable file that reads like a normal PDF but imports as campaign content when brought back into Grimoire. See [Sharing Adventures as PDFs](#sharing-adventures-as-pdfs) for the PDF side of this. Re-saving that PDF through another app strips the embedded bundle data, so share the downloaded file as-is.
+3. **Bundle Details**: enter a **Bundle Name** (required) and optional **Description**, review the selection summary, then click **Export .grimoire**, which downloads the bundle as a file another DM can import directly into their own campaign.
+
+   To put the same data inside a PDF instead, export the book from the Scriptorium with **PDF with campaign data…**; it uses this same picker in one step. See [Sharing Adventures as PDFs](#sharing-adventures-as-pdfs).
 
 Player-visibility flags and party-member links are always cleared when a bundle is imported elsewhere. Click **Import .grimoire** on the first step of this tab to import someone else's bundle into the current campaign.
 
@@ -75,7 +75,7 @@ All five tabs on this page are DM-only. Players notice their effects indirectly:
 > Only the campaign's current owner can transfer or delete it, and a transfer's recipient must already be a member: invite them first if they aren't.
 
 - A `.grimoire-backup` file never contains API keys, Spotify credentials, or campaign membership: a restore always needs invites sent again.
-- Re-saving an "Attach to PDF" output through another PDF app strips the embedded bundle data before you can share it.
+- Re-saving a PDF with campaign data through another PDF app strips the embedded bundle data before you can share it.
 
 ## Related
 

@@ -29,12 +29,13 @@
   /* /assets/scriptorium/page-background.webp is deliberately excluded from
      src/generated/artManifest.json (see MANIFEST_EXCLUSIONS in
      scripts/art-manifest.ts). This file is `?inline`-imported into
-     useScriptoriumPrint.ts and written verbatim into an isolated print
-     iframe (and, per the file header above, will later go to a headless
-     server renderer) — neither context runs app JS or inherits the main
-     document's CSS custom properties, so artUrl() and a runtime custom
-     property are both unreachable here. Keeping the file at this literal
-     path forever is the only fix that works in every context. */
+     useScriptoriumPdf.ts and written verbatim into the HTML the render-pdf
+     edge function prints, which runs no app JS and inherits none of the
+     main document's CSS custom properties, so artUrl() and a runtime custom
+     property are both unreachable here. The export inlines this literal
+     path as a data: URI before sending (inlineSameOriginAssets.ts, #565);
+     keeping the file at this path forever is what lets every context find
+     it. */
   background:
     url("/assets/scriptorium/page-background.webp") center / cover no-repeat,
     var(--sc-page-bg);

@@ -8,7 +8,8 @@
  * to mail or upload to a storefront, for no gain in print.
  *
  * compactPrintImages() runs on the laid-out print pages, before they are
- * copied into the print iframe, and redraws each picture at 300 ppi of the
+ * serialised into the HTML the PDF renderer prints (useScriptoriumPdf.ts),
+ * and redraws each picture at 300 ppi of the
  * size it is printed at. An opaque picture becomes a JPEG; one with any
  * transparency (frameless creature art that sits on the page) stays lossless
  * PNG, only smaller. A picture that cannot be read back (no CORS, failed
