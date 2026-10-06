@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
-import type { NodeViewProps } from "@tiptap/core";
 import EntityMentionChip from "./EntityMentionChip.vue";
+import type { EntityType } from "@/lib/tiptap/EntityMention";
 
 const push = vi.fn();
 const route = { path: "/npcs/npc-1" };
@@ -23,30 +23,15 @@ vi.mock("@/composables/notes/useMentionName", () => ({
   useMentionName: () => resolvedName,
 }));
 
-/**
- * A real `NodeViewProps` is a ProseMirror `Node`/`Editor` pair this test has
- * no reason to construct — the chip only reads `editor.isEditable` and
- * `node.attrs.{id,entityType}`, so the rest of the shape is stubbed and cast
- * once, the same "as unknown as" escape hatch other component tests here use
- * for a type the mock doesn't need to satisfy structurally (e.g.
- * `NpcDetail.test.ts`).
- */
 function mountChip(options: { editable?: boolean; entityType?: string; id?: string; name?: string | null }) {
   resolvedName.value = options.name ?? null;
-  const props = {
-    editor: { isEditable: options.editable ?? false },
-    node: { attrs: { entityType: options.entityType ?? "npc", id: options.id ?? "npc-1" } },
-    extension: {},
-    decorations: [],
-    selected: false,
-    getPos: () => 0,
-    updateAttributes: vi.fn(),
-    deleteNode: vi.fn(),
-    view: {},
-    innerDecorations: {},
-    HTMLAttributes: {},
-  } as unknown as NodeViewProps;
-  return mount(EntityMentionChip, { props });
+  return mount(EntityMentionChip, {
+    props: {
+      editable: options.editable ?? false,
+      entityType: (options.entityType ?? "npc") as EntityType,
+      id: options.id ?? "npc-1",
+    },
+  });
 }
 
 describe("EntityMentionChip — unknown mention (#932 story 3)", () => {

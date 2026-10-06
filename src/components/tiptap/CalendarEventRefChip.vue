@@ -1,10 +1,9 @@
 <template>
-  <!-- atom node — no inner content, NodeViewWrapper must be inline -->
-  <NodeViewWrapper as="span" class="cal-event-ref-wrapper">
+  <span class="cal-event-ref-wrapper">
     <!-- ── EDITOR MODE: static chip, deletable with backspace ─────────────── -->
     <span v-if="isEditable" class="cal-chip cal-chip--edit" contenteditable="false">
       <IconCalendarDays class="cal-chip-icon" />
-      <span class="cal-chip-label">{{ node.attrs.label || 'event' }}</span>
+      <span class="cal-chip-label">{{ label || 'event' }}</span>
     </span>
 
     <!-- ── VIEWER MODE: loading ──────────────────────────────────────────── -->
@@ -31,24 +30,28 @@
       <IconCalendarDays class="cal-chip-icon" />
       <span class="cal-chip-label">{{ eventData!.title }}</span>
     </button>
-  </NodeViewWrapper>
+  </span>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import { IconCalendarDays, IconRemoveEvent } from '@/lib/icons';
 import { useRouter } from "vue-router";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCalendarEventById } from "@/composables/calendar/useCalendarEvents";
 
-const props = defineProps({ ...nodeViewProps });
+// Plain props, not Tiptap's `nodeViewProps` — see EntityMentionChip.
+const props = defineProps<{
+  eventId: string | null;
+  label: string;
+  editable: boolean;
+}>();
 
-const isEditable = computed(() => props.editor.isEditable);
+const isEditable = computed(() => props.editable);
 
 // ── Viewer: resolve event existence ──────────────────────────────────────────
 
-const eventId = computed(() => props.node.attrs.eventId as string | null);
+const eventId = computed(() => props.eventId);
 const { data: eventData, isLoading } = useCalendarEventById(eventId);
 
 // ── Viewer: navigate to calendar ─────────────────────────────────────────────

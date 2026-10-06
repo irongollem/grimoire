@@ -623,7 +623,11 @@ const editor = useEditor({
     Columns,
     Highlight,
     TaskList,
-    TaskItem.configure({ nested: true }),
+    // Tiptap's task-item node view drops the `data-type` its own renderHTML sets,
+    // so the `li[data-type="taskItem"]` rules below (and RichTextViewer's) never
+    // matched: checked items were not struck through. The node view does apply
+    // configured HTMLAttributes, so the attribute is restored here (#999).
+    TaskItem.configure({ nested: true, HTMLAttributes: { "data-type": "taskItem" } }),
     Typography,
     ...(allowCalendarEvents ? [CalendarEventRef] : []),
     entityMentionExtension,

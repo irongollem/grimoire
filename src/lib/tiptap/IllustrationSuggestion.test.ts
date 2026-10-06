@@ -5,7 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 
 // The node view is a Vue component; these tests only exercise the schema.
 vi.mock("@tiptap/vue-3", () => ({ VueNodeViewRenderer: () => () => ({}) }));
-vi.mock("@/components/tiptap/IllustrationSuggestionChip.vue", () => ({ default: {} }));
+vi.mock("@/components/tiptap/IllustrationSuggestionNodeView.vue", () => ({ default: {} }));
 
 const { IllustrationSuggestion, findIllustrationSuggestion } = await import("./IllustrationSuggestion");
 
