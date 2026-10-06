@@ -5,6 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/quests/useQuestFlow";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
+import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 import type { CampaignSession, CampaignSessionEnded, PlayerSessionState } from "@/types/session.types";
 
 /**
@@ -137,6 +138,9 @@ export function useCampaignSession() {
       const row = data as CampaignSession;
       adopt(row);
       void queryClient.invalidateQueries({ queryKey: ["campaign-sessions"] });
+      // The RPC files the prep moments (reveals) under the new session.
+      void queryClient.invalidateQueries({ queryKey: ["npc-reveals"] });
+      void queryClient.invalidateQueries({ queryKey: [SESSION_LEARNED_KEY] });
       if (row.id !== previousId) void announceSessionStart(campaignId);
     } finally {
       pending.value = false;

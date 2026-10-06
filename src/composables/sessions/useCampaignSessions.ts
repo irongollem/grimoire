@@ -1,6 +1,8 @@
 import { computed } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { reportHandledError } from "@/lib/observability/sentry";
+import { queueNoteEmbedding } from "@/composables/notes/useNotes";
 import { useCampaignStore } from "@/stores/campaign";
 import { dropLoggedSession } from "@/composables/campaign/useCampaignSession";
 import { sortSessionLog } from "@/lib/sessions/sessionPrefill";
@@ -50,10 +52,25 @@ export function useUpdateCampaignSession() {
       if (error) throw error;
       return data as CampaignSession;
     },
-    onSuccess: () => {
+    onSuccess: (_row, { id, update }) => {
       void queryClient.invalidateQueries({ queryKey: [CAMPAIGN_SESSIONS_KEY] });
+      if (update.number !== undefined || update.title !== undefined) void reembedSessionNotes(id);
     },
   });
+}
+
+/**
+ * A note's embed text carries its session's number ("Session N"), so renumbering
+ * or retitling a session leaves its notes' embeddings stale. Queue each for re-embedding;
+ * unchanged hashes cost nothing at the edge function.
+ */
+async function reembedSessionNotes(sessionId: string): Promise<void> {
+  const { data, error } = await supabase.from("notes").select("id").eq("session_id", sessionId);
+  if (error) {
+    reportHandledError(error, "reembedSessionNotes", { sessionId });
+    return;
+  }
+  for (const note of data) queueNoteEmbedding(note.id);
 }
 
 export function useDeleteCampaignSession() {

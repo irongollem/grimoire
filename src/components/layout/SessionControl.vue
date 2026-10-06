@@ -90,7 +90,7 @@ const tick = setInterval(() => (now.value = Date.now()), 60_000);
 onUnmounted(() => clearInterval(tick));
 
 const liveLabel = computed(() =>
-  session.value && session.value.number !== null ? sessionShortLabel(session.value) : "Session live",
+  session.value && session.value.number !== null ? `${sessionShortLabel(session.value)} live` : "Session live",
 );
 const elapsed = computed(() => formatSessionElapsed(startedAt.value, now.value));
 

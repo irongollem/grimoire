@@ -799,6 +799,7 @@ export async function executeImport(
         id: r(dm.id, idMap),
         campaign_id: newCampaignId,
         visible_to: rArr(dm.visible_to, idMap),
+        session_id: r(dm.session_id, idMap),
         // monster_id kept as-is (user-library ref)
       })),
     );

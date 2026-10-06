@@ -53,14 +53,14 @@ export function pickerName(session: Pick<CampaignSession, "number" | "title">): 
 
 /** "Sat 27 Sep", read as a local calendar date for the same reason `formatSessionDay` does. */
 export function formatPickerDay(
-  row: Pick<CampaignSession, "started_at" | "played_on" | "created_at">,
+  row: Pick<CampaignSession, "started_at" | "played_on">,
 ): string {
   const date = row.started_at
     ? new Date(row.started_at)
     : row.played_on
       ? new Date(`${row.played_on}T12:00:00`)
-      : new Date(row.created_at);
-  if (Number.isNaN(date.getTime())) return "";
+      : null;
+  if (date === null || Number.isNaN(date.getTime())) return "";
   return date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }).replace(",", "");
 }
 

@@ -53,6 +53,11 @@ describe("sessionPickerOptions", () => {
     expect(options.find((o) => o.id === "mid")?.state).toBe("no-note");
   });
 
+  it("shows no day for a session with neither a start nor a played date", () => {
+    const undated = row("u", "2026-03-01", { played_on: null, created_at: "2026-05-05T10:00:00Z" });
+    expect(sessionPickerOptions([undated], [], null)[0]?.day).toBe("");
+  });
+
   it("formats the day as a short weekday", () => {
     expect(sessionPickerOptions(log, [], null).find((o) => o.id === "new")?.day).toBe("Sun 1 Mar");
   });

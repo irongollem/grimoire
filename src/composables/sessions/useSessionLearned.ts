@@ -1,6 +1,8 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
+import type { PostgrestError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignStore } from "@/stores/campaign";
 import {
@@ -50,13 +52,17 @@ async function fetchReveals(
   sessionId: string | null,
   spec: RevealQuery,
 ): Promise<RevealRow[]> {
-  const base = supabase
-    .from(spec.table)
-    .select(`${spec.entityColumn}, party_member_id, revealed_at, approximate, session_id, ${spec.embed}`)
-    .eq("campaign_id", campaignId);
-  const { data, error } = await (sessionId === null ? base.is("session_id", null) : base.eq("session_id", sessionId));
-  if (error) throw error;
-  return (data as unknown as RevealDbRow[]).map((r) => ({
+  const data = await fetchAllRows<RevealDbRow>((from, to) => {
+    const base = supabase
+      .from(spec.table)
+      .select(`${spec.entityColumn}, party_member_id, revealed_at, approximate, session_id, ${spec.embed}`)
+      .eq("campaign_id", campaignId);
+    return (sessionId === null ? base.is("session_id", null) : base.eq("session_id", sessionId))
+      .order(spec.entityColumn)
+      .order("party_member_id")
+      .range(from, to) as unknown as PromiseLike<{ data: RevealDbRow[] | null; error: PostgrestError | null }>;
+  });
+  return data.map((r) => ({
     entityId: String(r[spec.entityColumn]),
     name: embeddedName(r[spec.nameColumn], spec.table === "handout_reveals" ? "title" : "name") ?? spec.fallback,
     partyMemberId: r.party_member_id,
@@ -77,13 +83,15 @@ interface CreatureDbRow {
 }
 
 async function fetchCreatures(campaignId: string, sessionId: string | null): Promise<CreatureRow[]> {
-  const base = supabase
-    .from("discovered_monsters")
-    .select("id, monster_id, library_monster_id, visible_to, discovered_at, session_id, monsters(name)")
-    .eq("campaign_id", campaignId);
-  const { data, error } = await (sessionId === null ? base.is("session_id", null) : base.eq("session_id", sessionId));
-  if (error) throw error;
-  const rows = data as unknown as CreatureDbRow[];
+  const rows = await fetchAllRows<CreatureDbRow>((from, to) => {
+    const base = supabase
+      .from("discovered_monsters")
+      .select("id, monster_id, library_monster_id, visible_to, discovered_at, session_id, monsters(name)")
+      .eq("campaign_id", campaignId);
+    return (sessionId === null ? base.is("session_id", null) : base.eq("session_id", sessionId))
+      .order("id")
+      .range(from, to) as unknown as PromiseLike<{ data: CreatureDbRow[] | null; error: PostgrestError | null }>;
+  });
 
   const libraryIds = rows.flatMap((r) => (r.library_monster_id ? [r.library_monster_id] : []));
   const libraryNames = new Map<string, string>();
@@ -120,13 +128,16 @@ interface QuestDbRow {
 }
 
 async function fetchQuestSteps(campaignId: string, sessionId: string | null): Promise<QuestStepRow[]> {
-  const base = supabase
-    .from("quest_beat_transitions")
-    .select("id, to_quest_id, to_quest_title, to_beat_title, transition_kind, created_at, seq, session_id")
-    .eq("campaign_id", campaignId);
-  const { data, error } = await (sessionId === null ? base.is("session_id", null) : base.eq("session_id", sessionId));
-  if (error) throw error;
-  return (data as unknown as QuestDbRow[]).map((r) => ({
+  const data = await fetchAllRows<QuestDbRow>((from, to) => {
+    const base = supabase
+      .from("quest_beat_transitions")
+      .select("id, to_quest_id, to_quest_title, to_beat_title, transition_kind, created_at, seq, session_id")
+      .eq("campaign_id", campaignId);
+    return (sessionId === null ? base.is("session_id", null) : base.eq("session_id", sessionId))
+      .order("id")
+      .range(from, to) as unknown as PromiseLike<{ data: QuestDbRow[] | null; error: PostgrestError | null }>;
+  });
+  return data.map((r) => ({
     id: r.id,
     questId: r.to_quest_id,
     questTitle: r.to_quest_title?.trim() || "A quest",
@@ -227,6 +238,8 @@ export function useMoveLearned() {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: [SESSION_LEARNED_KEY] });
+      // The same reveal rows back the log's people counts and the unsorted count.
+      void queryClient.invalidateQueries({ queryKey: ["npc-reveals"] });
     },
   });
 }
@@ -269,6 +282,8 @@ export function useFileShared() {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: [SESSION_LEARNED_KEY] });
+      // The same reveal rows back the log's people counts and the unsorted count.
+      void queryClient.invalidateQueries({ queryKey: ["npc-reveals"] });
     },
   });
 }

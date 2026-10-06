@@ -13,7 +13,7 @@ const db = vi.hoisted(() => ({
 /** A chainable stand-in for a PostgREST builder: a promise resolved per table, with the filter methods on it. */
 function builder(table: string) {
   const chain: Promise<Result> = Promise.resolve(db.results[table] ?? { data: [], error: null });
-  for (const op of ["select", "eq", "is", "in", "or", "update", "match"]) {
+  for (const op of ["select", "eq", "is", "in", "or", "update", "match", "order", "range"]) {
     Object.defineProperty(chain, op, {
       value: (...args: unknown[]) => {
         db.calls.push({ table, op, args });
