@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { untilNewestWorkerControls } from "@/lib/swAutoUpdate";
 
 /**
  * Signals that a new build has taken control while the page is still visible,
@@ -13,6 +14,8 @@ import { ref } from "vue";
  */
 export const updateAvailable = ref(false);
 
-export function reloadApp() {
+/** Waits out a worker install in progress so the reload lands on the newest build. */
+export async function reloadApp() {
+  await untilNewestWorkerControls();
   window.location.reload();
 }

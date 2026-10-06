@@ -1,4 +1,5 @@
 import type { Router } from "vue-router";
+import { untilNewestWorkerControls } from "./swAutoUpdate";
 
 /**
  * Recovers a page stranded by a deploy.
@@ -102,7 +103,13 @@ export function chunksArrived<T extends readonly unknown[]>(
   return modules.every((module) => module != null);
 }
 
-function defaultNavigate(targetPath?: string): void {
+/**
+ * Waits for the new worker before leaving: a reload the old worker answers
+ * boots the old build again, which fails the same way with the once-guard
+ * spent (see untilNewestWorkerControls).
+ */
+async function defaultNavigate(targetPath?: string): Promise<void> {
+  await untilNewestWorkerControls();
   if (targetPath) window.location.assign(targetPath);
   else window.location.reload();
 }
@@ -110,7 +117,7 @@ function defaultNavigate(targetPath?: string): void {
 /** Returns an uninstall function (removes the window listener; used by tests). */
 export function installStaleChunkRecovery(
   router: Router,
-  navigate: (targetPath?: string) => void = defaultNavigate,
+  navigate: (targetPath?: string) => void | Promise<void> = defaultNavigate,
 ): () => void {
   preloadFailed = false;
 
@@ -135,7 +142,7 @@ export function installStaleChunkRecovery(
       // surface the failure rather than risk reloading forever.
       return;
     }
-    navigate(targetPath);
+    void navigate(targetPath);
   }
 
   // A failed route-component import surfaces here with the navigation target,
