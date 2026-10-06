@@ -8,7 +8,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(56);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('98200000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -224,6 +224,46 @@ set local role authenticated;
 select pg_temp.as_user(4);
 select isnt_empty($$ select 1 from public.character_memorials where party_member_id = '98200000-0000-4000-8000-0000000000e1' $$,
   'a player who has left still sees the companion who fell beside them');
+
+-- Erasure must reach the snapshot before auth deletion loses its owner link.
+reset role;
+-- Keep the character under the DM's custody so auth deletion does not cascade it.
+update public.party_members set user_id = '98200000-0000-4000-8000-000000000001'
+ where id = '98200000-0000-4000-8000-0000000000e1';
+create temporary table memorials_before_erasure as
+  select * from public.character_memorials;
+
+set local role authenticated;
+select pg_temp.as_user(2);
+select throws_ok($$ select public.prepare_user_erasure(
+  '98200000-0000-4000-8000-000000000002', '98200000-0000-4000-8000-000000000002', 'self') $$,
+  '42501', 'permission denied for function prepare_user_erasure', 'a player cannot invoke erasure preparation directly');
+reset role;
+set local role service_role;
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+select lives_ok($$ select public.prepare_user_erasure(
+  '98200000-0000-4000-8000-000000000002', '98200000-0000-4000-8000-000000000002', 'self') $$,
+  'service-role erasure preparation succeeds');
+reset role;
+select is((pg_temp.memorial('e1')).player_name, null, 'erasure clears the snapshotted player name');
+select is((pg_temp.memorial('e1')).last_words, null, 'erasure clears the player-authored last words');
+select is(
+  to_jsonb(pg_temp.memorial('e1')) - array['player_name', 'last_words', 'updated_at'],
+  (select to_jsonb(m) - array['player_name', 'last_words', 'updated_at']
+     from memorials_before_erasure m where m.id = pg_temp.memorial_id('e1')),
+  'preparation preserves the memorial and every unrelated field');
+select results_eq(
+  $$ select to_jsonb(m) from public.character_memorials m
+      where m.owner_user_id is distinct from '98200000-0000-4000-8000-000000000002'::uuid order by m.id $$,
+  $$ select to_jsonb(m) from memorials_before_erasure m
+      where m.owner_user_id is distinct from '98200000-0000-4000-8000-000000000002'::uuid order by m.id $$,
+  'other owners and unclaimed memorials remain unchanged');
+select lives_ok($$ delete from auth.users where id = '98200000-0000-4000-8000-000000000002' $$,
+  'auth user deletion succeeds after preparation');
+select ok(exists (select 1 from public.character_memorials
+  where party_member_id = '98200000-0000-4000-8000-0000000000e1'
+    and owner_user_id is null and player_name is null and last_words is null),
+  'the retained memorial remains anonymized after its owner is deleted');
 
 select * from finish();
 rollback;

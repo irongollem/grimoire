@@ -66,6 +66,10 @@ const slotProps = computed(() => ({
   padding: 0;
   text-align: left;
 }
+.hall-phone-cell:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 4px;
+}
 .hall-phone-scale {
   display: block;
   width: 16.5rem;
