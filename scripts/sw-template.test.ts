@@ -294,6 +294,19 @@ describe("service-worker runtime cache", () => {
     expect(stores.get("grimoire-runtime")!.has("/assets/plate-DXiZtau7.webp")).toBe(true);
   });
 
+  it("never caches the SPA's HTML answer to a chunk a newer deploy removed", async () => {
+    // A page still on the previous build asks for a chunk the new deploy no
+    // longer has, and the SPA rewrite answers with index.html and 200. Stored,
+    // that HTML would be served cache-first under the chunk's immutable name.
+    const fetchMock = vi.fn(async () => response("<!doctype html>", "text/html; charset=utf-8"));
+    const { runFetch, stores } = loadWorker({ fetchMock });
+
+    const { result } = await runFetch("/assets/useArmorClass-CNBo7hfw.js");
+
+    expect(await result!.text()).toBe("<!doctype html>");
+    expect(stores.get("grimoire-runtime")?.has("/assets/useArmorClass-CNBo7hfw.js") ?? false).toBe(false);
+  });
+
   it("passes through a non-asset request without caching it", async () => {
     const { runFetch, stores, fetchMock } = loadWorker({});
 
