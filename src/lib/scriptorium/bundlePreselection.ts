@@ -1,5 +1,5 @@
 import type { BundleEntityKey } from "@/composables/campaign/useWorldBundle";
-import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
+import type { EntityEmbedType } from "@/lib/tiptap/nodeViewTypes";
 import type { EntityRef } from "@/lib/scriptorium/entityEmbeds";
 
 /** Which World Bundle category holds each kind of entity a book can link. */

@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
-import type { EntityType } from "@/lib/tiptap/EntityMention";
+import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 import EntityMentionChip from "./EntityMentionChip.vue";
 
 // The editor-side adapter. The chip itself takes plain props so the read-only

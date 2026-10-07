@@ -1,6 +1,7 @@
 /**
- * Import-graph rules for src/. Everything is `warn` while the baseline is
- * measured (epic #999 story 0.2); story 5.1 turns them into errors.
+ * Import-graph rules for src/. Every rule is an `error` (epic #999 story 5.1):
+ * the graph was brought to zero violations, so a new cycle or layer inversion
+ * fails `npm run arch:graph` rather than joining a baseline.
  *
  *   npx depcruise src --config .dependency-cruiser.cjs
  *
@@ -14,28 +15,32 @@ module.exports = {
   forbidden: [
     {
       name: "no-circular",
-      severity: "warn",
+      severity: "error",
       comment: "A runtime import cycle makes module evaluation order fragile and blocks chunk splitting.",
-      from: {},
-      to: { circular: true },
+      // `pathNot: "^$1$"` (a back-reference to the importing module's own path)
+      // exempts a module importing itself: Vue needs that for a recursive
+      // component (UsesAmountEditor renders itself). A cycle through any other
+      // module is still reported.
+      from: { path: "^(.+)$" },
+      to: { circular: true, pathNot: "^$1$" },
     },
     {
       name: "lib-no-composables",
-      severity: "warn",
+      severity: "error",
       comment: "src/lib is infrastructure below the Vue layer; composables depend on it, never the reverse.",
       from: { path: "^src/lib/" },
       to: { path: "^src/composables/" },
     },
     {
       name: "lib-no-stores",
-      severity: "warn",
+      severity: "error",
       comment: "src/lib must not reach up into Pinia stores.",
       from: { path: "^src/lib/" },
       to: { path: "^src/stores/" },
     },
     {
       name: "stores-no-composables",
-      severity: "warn",
+      severity: "error",
       comment: "Stores sit below composables; a store importing one inverts the layering.",
       from: { path: "^src/stores/" },
       to: { path: "^src/composables/" },

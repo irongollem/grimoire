@@ -69,7 +69,8 @@ import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import type { CharacterMemorial } from "@/types/memorial.types";
-import { useTheme, darkTwinStyle } from "@/composables/useTheme";
+import { useTheme } from "@/composables/useTheme";
+import { darkTwinStyle } from "@/lib/themeRuntime";
 
 /**
  * The death notice (Hall of the Fallen, #982, frame 11): the next time a player opens the

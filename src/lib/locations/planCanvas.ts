@@ -10,10 +10,10 @@
 // pen/template overlay), so a caller composes them rather than this module
 // picking an order for them.
 
-import { cellRectInImageFractions, gridExtent } from "@/lib/locations/gridCalibration";
+import { cellFractionSize, cellRectInImageFractions, gridExtent } from "@/lib/locations/gridCalibration";
 import { edgeSegment } from "@/lib/locations/planSvg";
 import { ZONE_KIND_FILL } from "@/lib/locations/zones";
-import { cellFractionSize, isNearFirstNode } from "@/composables/locations/useRegionPen";
+import { isNearFirstNode } from "@/lib/map/gestures/pen";
 import { cellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
 import type { GridCalibration } from "@/types/location.types";

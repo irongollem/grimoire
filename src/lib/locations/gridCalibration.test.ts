@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calibrationCellsWide, cellAtImageFraction, cellRectInImageFractions, gridExtent } from "./gridCalibration";
+import { calibrationCellsWide, cellAtImageFraction, cellFractionSize, cellRectInImageFractions, gridExtent } from "./gridCalibration";
 import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration } from "@/types/location.types";
 
@@ -186,5 +186,16 @@ describe("calibrationCellsWide", () => {
     expect(calibrationCellsWide({ cells_per_image_width: 41.63829174 })).toBe(41.6);
     expect(calibrationCellsWide({ cells_per_image_width: 42 })).toBe(42);
     expect(String(calibrationCellsWide({ cells_per_image_width: 42 }))).toBe("42");
+  });
+});
+
+describe("cellFractionSize", () => {
+  it("derives a square-ish per-cell fraction from the calibration", () => {
+    expect(cellFractionSize(calibration(), 1000, 1000)).toEqual({ cellWFrac: 0.1, cellHFrac: 0.1 });
+  });
+
+  it("is null on a degenerate calibration or image", () => {
+    expect(cellFractionSize(calibration({ cells_per_image_width: 0 }), 1000, 1000)).toBeNull();
+    expect(cellFractionSize(calibration(), 0, 1000)).toBeNull();
   });
 });

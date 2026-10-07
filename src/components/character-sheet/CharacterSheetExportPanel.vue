@@ -120,11 +120,10 @@ import {
   useCharacterSheetPdf,
   SHEET_THEMES,
   ILLUSTRATED_THEMES,
-  type SheetPageSize,
   type SheetMode,
-  type SheetTheme,
   type IllustratedTheme,
 } from "@/composables/party/useCharacterSheetPdf";
+import type { SheetPageSize, SheetTheme } from "@/components/character-sheet/illustrated/sheetTypes";
 
 const { member, inventory, storageKey, speciesName = null, backgroundName = null, items = [] } = defineProps<{
   member: PartyMember;

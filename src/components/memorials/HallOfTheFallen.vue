@@ -160,7 +160,8 @@ import {
 } from "@/composables/memorials/useMemorials";
 import { artUrl } from "@/lib/assets/artUrl";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { useTheme, darkTwinStyle } from "@/composables/useTheme";
+import { useTheme } from "@/composables/useTheme";
+import { darkTwinStyle } from "@/lib/themeRuntime";
 import { useToast } from "@/composables/useToast";
 import { effectiveHallCampaign, filterHall, hallCampaignOptions } from "@/lib/memorials/hallView";
 import { candleCounts, hiddenFromMe, onTheWall, pendingKeepPrompts, splitWall, wallTally } from "@/lib/memorials/wall";

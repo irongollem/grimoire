@@ -43,7 +43,7 @@ vi.mock("@/lib/supabase", () => ({
   setCachedUser: () => {},
 }));
 vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey: async () => "" }));
-vi.mock("@/composables/useTheme", () => ({ useTheme: () => ({ setTheme: () => {} }) }));
+vi.mock("@/lib/themeRuntime", () => ({ setTheme: () => {} }));
 // The real one dynamically imports a shell .vue, which this has no use for.
 vi.mock("@/layouts/layoutLoader", () => ({ preloadLayout: async () => undefined }));
 

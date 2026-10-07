@@ -14,7 +14,6 @@ import {
   updateTemplateDrag,
   gridPointToCanvas,
   canvasToGridPoint,
-  cellFractionSize,
   useRegionPen,
   TEMPLATE_SHAPES,
   TEMPLATE_SHAPE_LABELS,
@@ -160,18 +159,6 @@ describe("gridPointToCanvas / canvasToGridPoint", () => {
     const degenerate: GridCalibration = { ...CALIBRATION, cells_per_image_width: 0 };
     expect(gridPointToCanvas([3, 4], degenerate, 1000, 1000, 500, 500)).toEqual({ x: 0, y: 0 });
     expect(canvasToGridPoint(100, 100, degenerate, 1000, 1000, 500, 500)).toEqual([0, 0]);
-  });
-});
-
-describe("cellFractionSize", () => {
-  it("derives a square-ish per-cell fraction from the calibration", () => {
-    const size = cellFractionSize(CALIBRATION, 1000, 1000);
-    expect(size).toEqual({ cellWFrac: 0.1, cellHFrac: 0.1 });
-  });
-
-  it("is null on a degenerate calibration or image", () => {
-    expect(cellFractionSize({ ...CALIBRATION, cells_per_image_width: 0 }, 1000, 1000)).toBeNull();
-    expect(cellFractionSize(CALIBRATION, 0, 1000)).toBeNull();
   });
 });
 

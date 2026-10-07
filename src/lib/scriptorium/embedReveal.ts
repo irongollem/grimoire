@@ -1,5 +1,5 @@
 import { NPC_PLAYER_FIELDS, type NpcPlayerFieldKey } from "@/lib/npcDisplay";
-import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
+import type { EntityEmbedType } from "@/lib/tiptap/nodeViewTypes";
 
 /*
  * What sharing a handout reveals about each entity it embeds (#970).

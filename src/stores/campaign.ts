@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import type { Campaign } from "@/types/campaign.types";
-import { useTheme } from "@/composables/useTheme";
+import { setTheme } from "@/lib/themeRuntime";
 import { useAuthStore } from "@/stores/auth";
 import { decryptApiKey } from "@/lib/apiKeyVault";
 import { isLocalCiphertext, encryptLocalKey, decryptLocalKey } from "@/lib/localKeyVault";
@@ -118,7 +118,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     activeCampaignId.value = campaign.id;
     activeCampaign.value   = campaign;
 
-    useTheme().setTheme(campaign.theme ?? DEFAULT_THEME_ID);
+    setTheme(campaign.theme ?? DEFAULT_THEME_ID);
 
     loadProviderKeys(campaign);
 
@@ -157,8 +157,8 @@ export const useCampaignStore = defineStore("campaign", () => {
       return auth.initialized && !auth.isAuthenticated;
     },
     (signedOut) => {
-      if (signedOut) useTheme().setTheme(DEFAULT_THEME_ID);
-      else if (activeCampaign.value) useTheme().setTheme(activeCampaign.value.theme ?? DEFAULT_THEME_ID);
+      if (signedOut) setTheme(DEFAULT_THEME_ID);
+      else if (activeCampaign.value) setTheme(activeCampaign.value.theme ?? DEFAULT_THEME_ID);
     },
     { immediate: true },
   );

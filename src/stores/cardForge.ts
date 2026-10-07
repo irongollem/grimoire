@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref, shallowRef, watch } from "vue";
 import { useLocalStorage } from "@vueuse/core";
-import { useTheme } from "@/composables/useTheme";
+import { activeThemeId } from "@/lib/themeRuntime";
 import { THEMES } from "@/lib/themes";
 
 export type CardSizeId = "mtg" | "tarot";
@@ -75,7 +75,6 @@ export const useCardForgeStore = defineStore("cardForge", () => {
     legacy === "modern" || legacy === '"modern"' ? "modern" : null,
     { writeDefaults: false, serializer: { read: (v) => (v === "inked" || v === "modern" ? v : null), write: (v) => v ?? "" } },
   );
-  const { activeThemeId } = useTheme();
   const themeCardStyle = computed<CardStyleId>(() =>
     THEMES.find((t) => t.id === activeThemeId.value)?.family === "vellum" ? "inked" : "modern",
   );
