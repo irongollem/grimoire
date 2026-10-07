@@ -56,6 +56,7 @@
     "dev:library": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/dev-library.ts",
     "dev:import-fixture": "tsx --tsconfig tsconfig.node.json scripts/dev-import-fixture.ts",
     "perf": "tsx --tsconfig tsconfig.node.json scripts/perf/run.ts",
+    "perf:fixture": "tsx --tsconfig tsconfig.node.json scripts/perf/fixture.ts",
     "perf:compare": "tsx --tsconfig tsconfig.node.json scripts/perf/compare.ts",
     "perf:build": "SENTRY_AUTH_TOKEN= ANALYZE=json ANALYZE_OUT=dist-bundle vite build --outDir dist-bundle --emptyOutDir",
     "perf:bundle": "tsx --tsconfig tsconfig.node.json scripts/perf/bundle/critical-path.ts dist-bundle",
