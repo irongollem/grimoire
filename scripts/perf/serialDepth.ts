@@ -24,16 +24,35 @@ export interface Interval {
  * O(n^2) is fine for the few hundred requests of a page load.
  */
 export function serialDepth(intervals: readonly Interval[]): number {
-  if (intervals.length === 0) return 0;
-  const byStart = [...intervals].sort((a, b) => a.start - b.start || a.end - b.end);
+  return Math.max(0, ...chainPositions(intervals));
+}
+
+/**
+ * For each interval, in input order, the length of the longest chain that ends
+ * with it: 1 for a request that waited on nothing, k for one that came after a
+ * chain of k - 1. `serialDepth` is the largest of these. Reported per request
+ * (`apiWaves`) so a deep page shows which request sits at which link, which is
+ * what tells a real data dependency from a component that only mounted late.
+ */
+export function chainPositions(intervals: readonly Interval[]): number[] {
+  if (intervals.length === 0) return [];
+  const order = intervals.map((_, index) => index).sort((a, b) => {
+    const left = intervals[a];
+    const right = intervals[b];
+    if (left === undefined || right === undefined) return 0;
+    return left.start - right.start || left.end - right.end;
+  });
+  const byStart = order.map((index) => intervals[index]);
   // best[i] = longest chain ending with byStart[i]. Any predecessor of i must
   // finish by byStart[i].start, which implies it started earlier (intervals are
   // non-negative length), so scanning only earlier indexes is complete.
   const best: number[] = [];
-  let longest = 0;
   for (let i = 0; i < byStart.length; i++) {
     const current = byStart[i];
-    if (current === undefined) continue;
+    if (current === undefined) {
+      best.push(0);
+      continue;
+    }
     let chain = 1;
     for (let j = 0; j < i; j++) {
       const earlier = byStart[j];
@@ -42,9 +61,12 @@ export function serialDepth(intervals: readonly Interval[]): number {
       if (earlier.end <= current.start && earlierBest + 1 > chain) chain = earlierBest + 1;
     }
     best.push(chain);
-    if (chain > longest) longest = chain;
   }
-  return longest;
+  const positions: number[] = Array.from({ length: intervals.length }, () => 0);
+  order.forEach((inputIndex, sortedIndex) => {
+    positions[inputIndex] = best[sortedIndex] ?? 0;
+  });
+  return positions;
 }
 
 /**

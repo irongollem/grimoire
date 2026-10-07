@@ -22,7 +22,7 @@ function main(): void {
   if (beforePath === undefined || afterPath === undefined) throw new Error("usage: compare.ts <before.json> <after.json>");
   const before = load(beforePath);
   const after = load(afterPath);
-  const profileOf = (f: ResultsFile) => `CPU ${f.profile.cpuThrottle}x, +${f.profile.apiDelayMs}ms`;
+  const profileOf = (f: ResultsFile) => `CPU ${f.profile.cpuThrottle}x, +${f.profile.apiDelayMs}ms, ${f.profile.latencyMs ?? 0}ms latency`;
   if (profileOf(before) !== profileOf(after)) console.warn(`warning: profiles differ (${profileOf(before)} vs ${profileOf(after)}); timings are not comparable`);
   const { rows, unmatched } = compareResults(before, after);
   console.log(formatComparison(rows, unmatched));

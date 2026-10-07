@@ -1,4 +1,4 @@
-import { type Interval, serialDepth, settledTime } from "./serialDepth";
+import { type Interval, chainPositions, settledTime } from "./serialDepth";
 
 /** One request as the CDP recorder saw it. Times are ms on the recorder's monotonic clock. */
 export interface RawRequest {
@@ -53,6 +53,8 @@ export interface RequestSummary {
   serialDepth: number;
   settledMs: number;
   apiPaths: string[];
+  /** Each API request's link in the longest chain ending at it, parallel to `apiPaths` (see `chainPositions`). */
+  apiWaves: number[];
 }
 
 /**
@@ -94,6 +96,7 @@ export function summarizeRequests(
     else if (kind === "css") cssBytes += request.encodedBytes;
   }
 
+  const apiWaves = chainPositions(apiIntervals);
   return {
     apiRequests: apiIntervals.length,
     optionsRequests,
@@ -101,9 +104,10 @@ export function summarizeRequests(
     jsBytes,
     cssBytes,
     totalRequests,
-    serialDepth: serialDepth(apiIntervals),
+    serialDepth: Math.max(0, ...apiWaves),
     settledMs: settledTime(allIntervals, windowStartMs, quietMs),
     apiPaths,
+    apiWaves,
   };
 }
 

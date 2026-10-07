@@ -5,7 +5,7 @@ import { aggregateRuns, type JourneyResult, type ResultsFile, type Sample } from
 function sample(apiRequests: number, serialDepth: number): Sample {
   return {
     apiRequests, optionsRequests: apiRequests, apiBytes: 0, jsBytes: 0, cssBytes: 0, totalRequests: apiRequests, serialDepth,
-    settledMs: 1, apiPaths: [], fcpMs: null, lcpMs: null, tbtMs: null, appReadyMs: null, contentReadyMs: null,
+    settledMs: 1, apiPaths: [], apiWaves: [], fcpMs: null, lcpMs: null, tbtMs: null, appReadyMs: null, contentReadyMs: null,
   };
 }
 const ok = (journey: string, step: string, api: number, depth: number): JourneyResult => ({

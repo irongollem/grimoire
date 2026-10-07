@@ -4,7 +4,7 @@ import { aggregateRuns, type ResultsFile, type Sample } from "./results";
 
 const sample: Sample = {
   apiRequests: 41, optionsRequests: 41, apiBytes: 1, jsBytes: 1, cssBytes: 1, totalRequests: 1, serialDepth: 5, settledMs: 1200,
-  apiPaths: ["GET /x"], fcpMs: 90, lcpMs: 90, tbtMs: 10, appReadyMs: 500, contentReadyMs: 800,
+  apiPaths: ["GET /x"], apiWaves: [1], fcpMs: 90, lcpMs: 90, tbtMs: 10, appReadyMs: 500, contentReadyMs: 800,
 };
 const results: ResultsFile = {
   schema: 1, startedAt: "t", base: "b", runsPerJourney: 3,
