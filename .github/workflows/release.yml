@@ -131,12 +131,16 @@ jobs:
   #      on the orphan `perf-history` branch, so the trend of the timings can be
   #      read later (`scripts/perf/history.ts summarize`).
   #
-  # The release jobs below `need` this job, so a breach blocks a release the
-  # same way a failing test does.
+  # Advisory for now (maintainer's call, 7 Oct 2026): nothing needs this job,
+  # so a breach or a flaky run never blocks a release. The budget step reports
+  # over-budget numbers as a failed step and in the summary; the boot-bundle
+  # budget, checked inside `npm run build`, stays a hard gate. Promote this job
+  # into the release jobs' `needs` once it has run stably for a while.
   #
-  # The player fixture is not seated at a campaign here (that needs production
-  # data), so `player-cold` reports itself skipped and the budget check treats
-  # that as "no data", not as a failure.
+  # The journeys sign in as two synthetic accounts that `npm run perf:fixture`
+  # creates (scripts/perf/fixture.ts), so the numbers mean the same thing here
+  # as on a laptop: supabase/seed.sql is a gitignored dump of real data and
+  # does not exist in CI.
   performance:
     name: Performance — journeys, budgets, history
     runs-on: ubuntu-latest
@@ -160,12 +164,12 @@ jobs:
       - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: 2.109.1
-      # Replays every migration and loads supabase/seed*.sql: the data the
-      # journeys load comes from the seed, so it is what the counts are measured on.
+      # Replays every migration. The data the journeys load is not from a seed
+      # (the real-data dump is not in the repo): the next step creates it.
       - name: Start the local stack
         run: supabase start
-      - name: Create the fixture accounts
-        run: npm run dev:auth
+      - name: Create the synthetic fixture
+        run: npm run perf:fixture
       # The empty token is required, not decoration: without it the build
       # tries to upload source maps to Sentry. No vue-tsc: the application job
       # already typechecks, and only the bundle matters here. This build still
@@ -197,7 +201,8 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Report the critical-path size
         run: npx tsx scripts/perf/bundle/critical-path.ts dist --json perf-results/critical-path.json
-      - name: Check the request budgets
+      - name: Check the request budgets (advisory)
+        continue-on-error: true
         run: npx tsx scripts/perf/check-budgets.ts perf-results/ci.json
       # The history line is written here, where the results are, and handed to
       # performance-history as an artifact. Recorded even when a budget fails:
@@ -270,7 +275,7 @@ jobs:
   production-release:
     name: Release backend — migrations, Edge Functions
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-changes.outputs.supabase == 'true'
-    needs: [application, database, performance, release-changes]
+    needs: [application, database, release-changes]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
@@ -428,9 +433,8 @@ jobs:
       && github.event_name == 'push' && github.ref == 'refs/heads/main'
       && needs.application.result == 'success'
       && needs.database.result == 'success'
-      && needs.performance.result == 'success'
       && (needs.production-release.result == 'success' || needs.production-release.result == 'skipped')
-    needs: [application, database, performance, release-changes, production-release]
+    needs: [application, database, release-changes, production-release]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Records each release on GitHub's Production deployments page. Vercel's own

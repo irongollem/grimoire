@@ -40,7 +40,15 @@ export function readLocalStack(): StackStatus {
   } catch {
     throw new Error("Local stack is not running. Start it with `npm run db:start`.");
   }
-  const status = JSON.parse(raw) as StackStatus;
+  return assertLoopbackStack(JSON.parse(raw) as StackStatus);
+}
+
+/**
+ * The guard itself, split out so a test can feed it a status that points at a
+ * hosted project. Throws unless both the API and the database address are
+ * loopback; returns the status untouched otherwise.
+ */
+export function assertLoopbackStack(status: StackStatus): StackStatus {
   for (const [label, url] of [
     ["API_URL", status.API_URL],
     ["DB_URL", status.DB_URL],
@@ -54,6 +62,25 @@ export function readLocalStack(): StackStatus {
     }
   }
   return status;
+}
+
+/**
+ * The Supabase CLI's universal development keys are JWTs whose issuer is
+ * `supabase-demo`. A hosted project's service-role key is signed with its own
+ * secret and carries a different issuer, so a script that is about to delete
+ * accounts can refuse one even if a URL somehow looked local.
+ */
+export function assertDemoKey(label: string, jwt: string): void {
+  let issuer: unknown;
+  try {
+    const payload = jwt.split(".")[1] ?? "";
+    issuer = (JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { iss?: unknown }).iss;
+  } catch {
+    issuer = undefined;
+  }
+  if (issuer !== "supabase-demo") {
+    throw new Error(`Refusing to run: ${label} is not the Supabase CLI's local development key.`);
+  }
 }
 
 /**

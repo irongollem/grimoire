@@ -28,9 +28,9 @@ export interface Journey {
   run: (env: JourneyEnv) => Promise<Step[]>;
 }
 
-export const DM_EMAIL = "dm-fixture@example.invalid";
-export const PLAYER_EMAIL = "player-fixture@example.invalid";
-const PASSWORD = "grimoire-local-dev";
+export const DM_EMAIL = "perf-dm@example.invalid";
+export const PLAYER_EMAIL = "perf-player@example.invalid";
+const PASSWORD = "grimoire-perf-local";
 
 /**
  * Signs in through the real /login form once and returns what a returning user
