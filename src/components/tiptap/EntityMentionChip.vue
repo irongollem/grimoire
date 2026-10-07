@@ -44,7 +44,7 @@ import { useRouter, useRoute } from "vue-router";
 import { useUiStore } from "@/stores/ui";
 import { isPlayerArea } from "@/router/lens";
 import { useMentionName } from "@/composables/notes/useMentionName";
-import type { EntityType } from "@/lib/tiptap/EntityMention";
+import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 
 // Plain props, not Tiptap's `nodeViewProps`: the read-only viewer renders this
 // chip straight from the stored JSON without an editor (so it never loads

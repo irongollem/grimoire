@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase", () => ({
   setCachedUser: () => {},
 }));
 vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey: async () => "" }));
-vi.mock("@/composables/useTheme", () => ({ useTheme: () => ({ setTheme: () => {} }) }));
+vi.mock("@/lib/themeRuntime", () => ({ setTheme: () => {} }));
 
 import { routes } from "./routes";
 import {

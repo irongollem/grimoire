@@ -5,8 +5,7 @@ import { Suggestion } from "@tiptap/suggestion";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { VueNodeViewRenderer } from "@tiptap/vue-3";
 import EntityMentionNodeView from "@/components/tiptap/EntityMentionNodeView.vue";
-
-export type EntityType = "player" | "npc" | "monster" | "location" | "party" | "faction";
+import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 
 /**
  * A suggestion-list item for the @mention picker UI only. `label` never

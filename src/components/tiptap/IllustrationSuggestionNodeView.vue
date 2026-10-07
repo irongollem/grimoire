@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
-import type { IllustrationSuggestionOptions } from "@/lib/tiptap/IllustrationSuggestion";
+import type { IllustrationSuggestionOptions } from "@/lib/tiptap/nodeViewTypes";
 import IllustrationSuggestionChip from "./IllustrationSuggestionChip.vue";
 
 // The editor-side adapter — see EntityMentionNodeView. Only this wrapper knows

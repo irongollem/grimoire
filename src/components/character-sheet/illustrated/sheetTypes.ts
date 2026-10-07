@@ -7,6 +7,11 @@ export type IllustratedTheme = "classic" | "adventure" | "gothic" | "fairy" | "s
 export type SheetSide = "front" | "back";
 export type SheetPageSize = "A4" | "Letter";
 
+/** Visual theme applied to the rendered "clean" sheet. Each theme is a pure CSS
+ *  class — the renderer adds `theme-<id>` to `.cs-page` and character-sheet.css
+ *  handles variable overrides. "default" applies no extra class. */
+export type SheetTheme = "default" | "horror" | "fairy" | "adventure" | "sumie";
+
 /** [left%, top%, width%, height%] of the page box. */
 export type Box = [number, number, number, number];
 

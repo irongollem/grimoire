@@ -5,19 +5,12 @@ import type { Item } from "@/types/item.types";
 import type { SheetClassInput } from "@/rules/sheetClassData";
 import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
 import IllustratedSheetDocument from "@/components/character-sheet/illustrated/IllustratedSheetDocument.vue";
-import { PAGE_PX as ILLUSTRATED_PAGE_PX, type IllustratedTheme } from "@/components/character-sheet/illustrated/sheetTypes";
+import { PAGE_PX as ILLUSTRATED_PAGE_PX, type IllustratedTheme, type SheetPageSize, type SheetTheme } from "@/components/character-sheet/illustrated/sheetTypes";
 import { chunksArrived } from "@/lib/staleChunkRecovery";
-
-export type SheetPageSize = "A4" | "Letter";
 
 /** Two distinct export styles: the CSS-themed "clean" sheets, and the fully
  *  illustrated baked-plate sheets (front + back). */
 export type SheetMode = "clean" | "illustrated";
-
-/** Visual theme applied to the rendered "clean" sheet. Each theme is a pure CSS
- *  class — the renderer adds `theme-<id>` to `.cs-page` and character-sheet.css
- *  handles variable overrides. "default" applies no extra class. */
-export type SheetTheme = "default" | "horror" | "fairy" | "adventure" | "sumie";
 
 export const SHEET_THEMES: { id: SheetTheme; label: string }[] = [
   { id: "default",   label: "Default" },

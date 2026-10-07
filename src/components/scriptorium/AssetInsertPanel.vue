@@ -115,7 +115,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useSpellIndex } from "@/composables/spells/useSpellIndex";
 import { useAllLocations } from "@/composables/locations/useLocations";
-import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
+import type { EntityEmbedType } from "@/lib/tiptap/nodeViewTypes";
 import { SCHOOL_VAR, spellLevelLabel } from "@/types/spell.types";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 

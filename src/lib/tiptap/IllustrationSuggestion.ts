@@ -2,18 +2,7 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import type { Node as PmNode } from "@tiptap/pm/model";
 import { VueNodeViewRenderer } from "@tiptap/vue-3";
 import IllustrationSuggestionNodeView from "@/components/tiptap/IllustrationSuggestionNodeView.vue";
-
-/** The suggestion chip a DM clicked to generate from. The chip marks where the
- *  Chronicler meant the picture to go, so the image it starts takes the chip's
- *  place rather than landing at the cursor. */
-export interface IllustrationTarget {
-  pos: number;
-  prompt: string;
-}
-
-export interface IllustrationSuggestionOptions {
-  onPromptClick?: (target: IllustrationTarget) => void;
-}
+import type { IllustrationSuggestionOptions, IllustrationTarget } from "@/lib/tiptap/nodeViewTypes";
 
 /**
  * Where the clicked suggestion sits now, or null if it is gone. The recorded

@@ -62,6 +62,7 @@ import { normalizeEntityName } from "./entityName";
 import {
   buildSiteRoomIndex,
   findByNameSourced,
+  plainRows,
   resolveBeatCrossReferences,
   resolveEncounters,
   resolveLocationLoot,
@@ -340,10 +341,6 @@ async function buildLookups(
     }),
   );
   return lookups;
-}
-
-export function plainRows(rows: readonly SourcedRow[] | undefined): NameLookupRow[] {
-  return (rows ?? []).map((row) => ({ id: row.id, name: row.name }));
 }
 
 // ── Unresolved-link messages ──────────────────────────────────────────────────

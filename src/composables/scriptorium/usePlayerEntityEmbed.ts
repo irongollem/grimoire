@@ -32,7 +32,7 @@ import {
   playerQuestHtml,
   playerSpellHtml,
 } from "@/lib/scriptorium/playerEmbedHtml";
-import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
+import type { EntityEmbedType } from "@/lib/tiptap/nodeViewTypes";
 import type { ScriptoriumTheme } from "@/types/scriptorium.types";
 
 export interface PlayerEntityEmbed {

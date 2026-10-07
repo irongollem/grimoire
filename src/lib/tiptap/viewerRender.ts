@@ -22,7 +22,7 @@ import CalendarEventRefChip from "@/components/tiptap/CalendarEventRefChip.vue";
 import EntityMentionChip from "@/components/tiptap/EntityMentionChip.vue";
 import IllustrationSuggestionChip from "@/components/tiptap/IllustrationSuggestionChip.vue";
 import PendingImageCard from "@/components/tiptap/PendingImageCard.vue";
-import type { EntityType } from "@/lib/tiptap/EntityMention";
+import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 import { storedTextToDoc } from "@/lib/tiptap/markdownToTiptap";
 
 type Attrs = Record<string, unknown>;

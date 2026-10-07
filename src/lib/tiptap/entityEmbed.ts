@@ -3,6 +3,7 @@ import { VueNodeViewRenderer } from "@tiptap/vue-3";
 import EntityEmbedView from "@/components/scriptorium/EntityEmbedView.vue";
 import { ENTITY_ART_CHOICES, type EntityArtChoice } from "@/lib/scriptorium/entityArt";
 import { normalizeEmbedReveal, type EntityEmbedReveal } from "@/lib/scriptorium/embedReveal";
+import type { EntityEmbedSize, EntityEmbedType } from "@/lib/tiptap/nodeViewTypes";
 
 /*
  * EntityEmbed — a Scriptorium block that holds a live reference to a game
@@ -28,8 +29,6 @@ import { normalizeEmbedReveal, type EntityEmbedReveal } from "@/lib/scriptorium/
  * it never has to mount a live Vue app with a query client and a router.
  */
 
-export type EntityEmbedType = "npc" | "monster" | "spell" | "item" | "location" | "quest";
-
 export const ENTITY_EMBED_TYPES: readonly EntityEmbedType[] = [
   "npc",
   "monster",
@@ -38,16 +37,6 @@ export const ENTITY_EMBED_TYPES: readonly EntityEmbedType[] = [
   "location",
   "quest",
 ];
-
-/**
- * Stat-block size (#915 story 6). "auto" is the default and picks itself from
- * the entity's own content (see estimateStatBlockSize() in scriptoriumImport.ts) —
- * a short stat block reads as a "column" box in its own text column, a long
- * one as a "wide" block spanning both page columns with its own internal
- * two-column flow, matching how the printed books lay out a creature too
- * long for one column. The author can override either way.
- */
-export type EntityEmbedSize = "auto" | "column" | "wide";
 
 export interface EntityEmbedAttrs {
   entityType: EntityEmbedType;

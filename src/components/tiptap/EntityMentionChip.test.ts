@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 import EntityMentionChip from "./EntityMentionChip.vue";
-import type { EntityType } from "@/lib/tiptap/EntityMention";
+import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 
 const push = vi.fn();
 const route = { path: "/npcs/npc-1" };

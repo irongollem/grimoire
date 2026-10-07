@@ -1,6 +1,7 @@
+// @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from "vitest";
 import { THEMES } from "@/lib/themes";
-import { darkTwinId, darkTwinStyle, themeInMode, useTheme } from "./useTheme";
+import { activeThemeId, darkTwinId, darkTwinStyle, setOverride, setTheme, themeInMode } from "./themeRuntime";
 
 describe("theme families", () => {
   it("pairs every theme with a member of the other mode", () => {
@@ -53,7 +54,6 @@ describe("applyTheme", () => {
   // :root stylesheet. Without clearing, switching back would keep Vellum's
   // pigments painted over tome.
   it("clears properties the next theme does not set", () => {
-    const { setOverride, setTheme } = useTheme();
     setOverride("campaign");
     const root = document.documentElement;
 
@@ -68,7 +68,6 @@ describe("applyTheme", () => {
   });
 
   it("resolves overrides from the campaign theme, not the last applied one", () => {
-    const { setOverride, setTheme, activeThemeId } = useTheme();
     setOverride("campaign");
     setTheme("vellum");
     setOverride("dark");

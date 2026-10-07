@@ -106,7 +106,7 @@ import {
   embedHasRevealControl,
   type EntityEmbedReveal,
 } from "@/lib/scriptorium/embedReveal";
-import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
+import type { EntityEmbedType } from "@/lib/tiptap/nodeViewTypes";
 
 const { entityType, showArt, reveal } = defineProps<{
   entityType: EntityEmbedType;

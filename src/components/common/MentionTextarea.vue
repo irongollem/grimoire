@@ -44,7 +44,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import type { EntityMentionItem, EntityType } from "@/lib/tiptap/EntityMention";
+import type { EntityMentionItem } from "@/lib/tiptap/EntityMention";
+import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 
 const ENTITY_LABELS: Record<EntityType, string> = {
   player:   "PC",
