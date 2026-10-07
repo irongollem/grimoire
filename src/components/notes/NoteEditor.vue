@@ -85,6 +85,7 @@
     <RichTextEditor
       ref="rteRef"
       v-model="draft.body"
+      allow-secrets
       size="lg"
       placeholder="Write your note here…"
       allow-upload

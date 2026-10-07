@@ -10,6 +10,7 @@
     <template v-if="hasWrittenContent">
       <RichTextEditor
         v-model="content"
+        allow-secrets
         allow-upload
         placeholder="A ledger's pages, a contract's clauses, a scroll's text…"
         size="md"

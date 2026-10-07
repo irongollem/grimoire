@@ -31,6 +31,7 @@ function loc(over: Partial<Location> = {}): Location {
     grid_calibration: null,
     map_layer_url: null,
     map_layer_calibration: null,
+    map_scale: null,
     plan_size: null,
     era_start: null,
     era_end: null,

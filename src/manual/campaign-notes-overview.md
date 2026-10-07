@@ -76,3 +76,11 @@ Shared notes appear on the **DM Notes** tab of their own Journal, with the empty
 - [Running a Session](#running-a-session): the Sessions log, and Session-category notes and the recap habit.
 - [Calendar System](#calendar-system): how a note's in-game session dates link to a calendar event.
 - [Player Portal: Overview](#player-portal-overview): where shared notes surface for your players.
+
+## Keeping a passage back with DM only
+
+Some notes are worth sharing except for one paragraph. Select the text (or put the cursor in it) and click the **DM only** button in the editor toolbar, the crossed-out eye, or press Ctrl+Alt+S (Cmd+Option+S on a Mac). The passage gets a dashed frame and a small label so you can see what is set apart. Click the button again to take it back out.
+
+Players never receive a DM-only passage. It is not hidden on their screen, it is left out before the note reaches them, so there is nothing for them to find. You see it everywhere you read the text yourself.
+
+The button is on every field you can share with players: notes, location and faction descriptions, item descriptions, an item's written contents, and puzzle descriptions. It is not on handouts, NPC lore, puzzle hints or solutions, which have their own rules for what players see.

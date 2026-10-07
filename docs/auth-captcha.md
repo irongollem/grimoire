@@ -42,7 +42,14 @@ second. The other way round, every sign-in is refused until the next deploy.
    **Managed**. Hostnames: `app.dungeongrimoire.com`, plus `localhost` if
    `npm run dev:hosted` should keep being able to sign in.
 2. **Site key to Vercel.** `VITE_TURNSTILE_SITE_KEY`, Production environment,
-   then deploy. It is public and ships in the bundle.
+   then deploy. It is public and ships in the bundle. Store it as
+   **Non-sensitive**, like every other `VITE_` variable (`vercel env add
+   ... --no-sensitive`). The release job builds in GitHub Actions from
+   `vercel pull`, which never receives a Sensitive value, so a Sensitive key
+   builds a bundle with no key and the widget silently stays off. The CLI picks
+   Sensitive for Production by default, which is how the first deploy (6 Oct
+   2026) shipped without it. To confirm, the live `CaptchaGate-*.js` chunk
+   should contain the site key.
 3. **Check the token travels.** On the live site, open devtools, sign in, and
    look at the `token?grant_type=password` request: its body has
    `gotrue_meta_security.captcha_token`. Supabase ignores it for now.

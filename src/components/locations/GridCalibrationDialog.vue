@@ -9,97 +9,36 @@
         that line covers. The VTT will use this scale to overlay a grid and snap tokens.
       </p>
 
-      <div
-        ref="canvas"
-        class="relative w-full bg-muted rounded-md overflow-hidden select-none"
-        :style="{ aspectRatio: aspectRatio || undefined }"
-        @pointermove="onPointerMove"
-        @pointerup="onPointerUp"
-        @pointerleave="onPointerUp"
-      >
-        <img
-          v-if="mapUrl"
-          ref="img"
-          :src="mapUrl"
-          class="block w-full h-auto pointer-events-none"
-          draggable="false"
-          @load="onImageLoad"
-        />
-
-        <svg
-          v-if="imageReady"
-          class="absolute inset-0 w-full h-full pointer-events-none"
-          :viewBox="`0 0 ${canvasW} ${canvasH}`"
-          preserveAspectRatio="none"
-        >
-          <!-- Live grid preview — vertical -->
+      <!-- The two-handle picker is shared with the map scale dialog (#932). The
+           live grid preview is this dialog's own, drawn into its overlay slot. -->
+      <TwoPointImagePicker v-model:a="pointA" v-model:b="pointB" :map-url="mapUrl" @ready="onImageReady">
+        <template #overlay="{ width, height }">
           <line
             v-for="(x, i) in gridPreviewVerticals"
             :key="`gv-${i}`"
             :x1="x"
             :y1="0"
             :x2="x"
-            :y2="canvasH"
+            :y2="height"
             stroke="#fbbf24"
             stroke-width="1"
             :stroke-opacity="gridOpacity"
             vector-effect="non-scaling-stroke"
           />
-          <!-- Live grid preview — horizontal -->
           <line
             v-for="(y, i) in gridPreviewHorizontals"
             :key="`gh-${i}`"
             :x1="0"
             :y1="y"
-            :x2="canvasW"
+            :x2="width"
             :y2="y"
             stroke="#fbbf24"
             stroke-width="1"
             :stroke-opacity="gridOpacity"
             vector-effect="non-scaling-stroke"
           />
-          <!-- Calibration line between the two handles -->
-          <line
-            :x1="pointA.x * canvasW"
-            :y1="pointA.y * canvasH"
-            :x2="pointB.x * canvasW"
-            :y2="pointB.y * canvasH"
-            stroke="#fbbf24"
-            stroke-width="2"
-            stroke-dasharray="6 4"
-            vector-effect="non-scaling-stroke"
-          />
-        </svg>
-
-        <button
-          v-if="imageReady"
-          type="button"
-          class="calib-handle handle-a"
-          :class="{ 'is-dragging': dragging === 'A' }"
-          :style="{ left: `${pointA.x * 100}%`, top: `${pointA.y * 100}%` }"
-          :aria-label="'Handle A'"
-          @pointerdown.prevent="startDrag('A', $event)"
-        >
-          <span class="arm arm-h" />
-          <span class="arm arm-v" />
-          <span class="ring" />
-          <span class="dot" />
-        </button>
-        <button
-          v-if="imageReady"
-          type="button"
-          class="calib-handle handle-b"
-          :class="{ 'is-dragging': dragging === 'B' }"
-          :style="{ left: `${pointB.x * 100}%`, top: `${pointB.y * 100}%` }"
-          :aria-label="'Handle B'"
-          @pointerdown.prevent="startDrag('B', $event)"
-        >
-          <span class="arm arm-h" />
-          <span class="arm arm-v" />
-          <span class="ring" />
-          <span class="dot" />
-        </button>
-      </div>
+        </template>
+      </TwoPointImagePicker>
 
       <div class="flex flex-wrap items-end gap-4">
         <label class="flex flex-col gap-1">
@@ -167,8 +106,10 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
+import TwoPointImagePicker from "@/components/locations/TwoPointImagePicker.vue";
 import { calibrateGrid } from "@/lib/battlemap/gridCalibration";
 import { gridLinePositions } from "@/lib/battlemap/battleMapGeometry";
+import type { ImageSize } from "@/lib/locations/mapScale";
 import { DEFAULT_GRID_OPACITY, type GridCalibration } from "@/types/location.types";
 
 const { open, mapUrl, existing } = defineProps<{
@@ -182,18 +123,12 @@ const emit = defineEmits<{
   save: [calibration: GridCalibration];
 }>();
 
-const img = ref<HTMLImageElement | null>(null);
-const canvas = ref<HTMLDivElement | null>(null);
 const imageReady = ref(false);
 const naturalW = ref(0);
 const naturalH = ref(0);
-const aspectRatio = computed(() =>
-  naturalW.value && naturalH.value ? `${naturalW.value} / ${naturalH.value}` : "",
-);
 
-// canvasW/H are the on-screen dimensions used for the svg overlay viewBox.
-// We use the natural dimensions so the line/handles stay pixel-perfect at any
-// rendered scale; preserveAspectRatio="none" stretches the svg to fit.
+// The grid preview lines are drawn in the picker's natural-pixel space (its
+// svg viewBox), so they stay pixel-perfect at any rendered scale.
 const canvasW = computed(() => naturalW.value || 1);
 const canvasH = computed(() => naturalH.value || 1);
 
@@ -201,7 +136,6 @@ const pointA = ref({ x: 0.4, y: 0.5 });
 const pointB = ref({ x: 0.6, y: 0.5 });
 const cellsBetween = ref<number | null>(1);
 const gridOpacity = ref<number>(DEFAULT_GRID_OPACITY);
-const dragging = ref<"A" | "B" | null>(null);
 const saving = ref(false);
 
 watch(
@@ -216,10 +150,9 @@ watch(
   },
 );
 
-function onImageLoad() {
-  if (!img.value) return;
-  naturalW.value = img.value.naturalWidth;
-  naturalH.value = img.value.naturalHeight;
+function onImageReady(size: ImageSize) {
+  naturalW.value = size.width;
+  naturalH.value = size.height;
   imageReady.value = true;
   // Seed handles to the existing calibration so re-opening + Save without
   // changes round-trips to the same {cells_per_image_width, origin}. We
@@ -239,24 +172,6 @@ function onImageLoad() {
     cellsBetween.value = 1;
   }
   gridOpacity.value = existing?.grid_opacity ?? DEFAULT_GRID_OPACITY;
-}
-
-function startDrag(which: "A" | "B", e: PointerEvent) {
-  dragging.value = which;
-  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-}
-
-function onPointerMove(e: PointerEvent) {
-  if (!dragging.value || !canvas.value) return;
-  const rect = canvas.value.getBoundingClientRect();
-  const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-  const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
-  if (dragging.value === "A") pointA.value = { x, y };
-  else pointB.value = { x, y };
-}
-
-function onPointerUp() {
-  dragging.value = null;
 }
 
 // Preview and error message are two views of one calculation, so they come out
@@ -326,87 +241,3 @@ function save() {
   emit("save", { ...preview.value, grid_opacity: gridOpacity.value });
 }
 </script>
-
-<style scoped>
-/* Precision calibration handle: large invisible click target with a thin
- * crosshair and a small centre dot so the DM can see the exact pixel they
- * anchor on. The handle's centre is the anchor (matches translate(-50%)). */
-.calib-handle {
-  position: absolute;
-  width: 2.5rem;
-  height: 2.5rem;
-  transform: translate(-50%, -50%);
-  background: transparent;
-  border: 0;
-  padding: 0;
-  display: block;
-  cursor: grab;
-  touch-action: none;
-  /* keep handle above the SVG preview line */
-  z-index: 2;
-}
-.calib-handle.is-dragging {
-  cursor: grabbing;
-}
-
-.calib-handle .ring {
-  position: absolute;
-  inset: 0.625rem;
-  border-radius: 9999px;
-  border: 1.5px solid var(--handle-color);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7), 0 0 6px rgba(0, 0, 0, 0.45);
-  pointer-events: none;
-}
-
-.calib-handle .arm {
-  position: absolute;
-  background: var(--handle-color);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7);
-  pointer-events: none;
-}
-/* Crosshair arms stop short of the centre so the anchor pixel itself stays
- * unobscured — only the dot marks it. */
-.calib-handle .arm-h {
-  left: 0;
-  right: 0;
-  top: calc(50% - 0.5px);
-  height: 1px;
-  /* gap in the middle via two linear segments — we use a mask */
-  background:
-    linear-gradient(to right, var(--handle-color) 0, var(--handle-color) calc(50% - 0.25rem), transparent calc(50% - 0.25rem), transparent calc(50% + 0.25rem), var(--handle-color) calc(50% + 0.25rem));
-}
-.calib-handle .arm-v {
-  top: 0;
-  bottom: 0;
-  left: calc(50% - 0.5px);
-  width: 1px;
-  background:
-    linear-gradient(to bottom, var(--handle-color) 0, var(--handle-color) calc(50% - 0.25rem), transparent calc(50% - 0.25rem), transparent calc(50% + 0.25rem), var(--handle-color) calc(50% + 0.25rem));
-}
-
-.calib-handle .dot {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 0.1875rem;
-  height: 0.1875rem;
-  border-radius: 9999px;
-  background: var(--handle-color);
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.9);
-  pointer-events: none;
-}
-
-/* Hover/active emphasis without obscuring the anchor */
-.calib-handle:hover .ring,
-.calib-handle.is-dragging .ring {
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85), 0 0 10px var(--handle-color);
-}
-
-.handle-a {
-  --handle-color: #fbbf24; /* amber-400 */
-}
-.handle-b {
-  --handle-color: #38bdf8; /* sky-400 */
-}
-</style>

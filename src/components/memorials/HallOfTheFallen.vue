@@ -158,7 +158,7 @@ import {
   useWallMemorials,
   type MournerTarget,
 } from "@/composables/memorials/useMemorials";
-import { artUrl } from "@/lib/assets/artUrl";
+import { hallStoneUrl } from "@/lib/memorials/hallGround";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useTheme } from "@/composables/useTheme";
 import { darkTwinStyle } from "@/lib/themeRuntime";
@@ -198,7 +198,7 @@ const toast = useToast();
 const { activeThemeId } = useTheme();
 const darkStyle = computed(() => darkTwinStyle(activeThemeId.value));
 // The stone texture is a CDN-served art asset, so its URL goes through artUrl() and reaches the CSS as a variable.
-const wallStyle = computed(() => ({ ...darkStyle.value, "--hall-stone": `url("${artUrl("/assets/memorial/stone.jpg")}")` }));
+const wallStyle = computed(() => ({ ...darkStyle.value, "--hall-stone": hallStoneUrl() }));
 const isPhone = useIsMobile();
 
 const query = useWallMemorials();

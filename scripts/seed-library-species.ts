@@ -1,12 +1,14 @@
 #!/usr/bin/env tsx
 /**
  * Seeds the shared library_species table from Open5e v2 — dual-edition by
- * default (SRD 5.1 "srd-2014" + SRD 5.2 "srd-2024"), non-subspecies rows only.
+ * default (SRD 5.1 "srd-2014" + SRD 5.2 "srd-2024"). One row per core species;
+ * Open5e's subspecies records (High Elf, Malkin catfolk) are folded into their
+ * parent's `subraces` rather than becoming rows of their own.
  *
  * Reuses src/lib/library/open5eSpeciesImport.ts's fetchOpen5eSpecies(), buildImportedFields()
  * and buildCreateOnlyDefaults() — the single source of truth for the Open5e v2
  * → row mapping (shared with the in-app SpeciesOpen5ePanel.vue import flow).
- * This script only adds CLI plumbing, the non-subspecies filter, the
+ * This script only adds CLI plumbing, the subspecies fold (groupSubspecies), the
  * library_species.id derivation (stableSrdId), the shared-table source/source_title
  * override (the Open5e document slug rather than its display name — needed for
  * campaign_enabled_sources gating, unlike the panel's per-user import which
@@ -33,6 +35,7 @@ import {
   fetchOpen5eSpecies,
   buildImportedFields,
   buildCreateOnlyDefaults,
+  groupSubspecies,
 } from "@/lib/library/open5eSpeciesImport";
 // Generic Open5e v2 document lister — not species-specific, so reused as-is
 // rather than duplicated (only read/imported here, this file does not modify
@@ -41,6 +44,7 @@ import { fetchOpen5eDocuments } from "@/lib/library/open5eMonsterImport";
 import { fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys, stableSrdId } from "@/lib/library/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { RulesetKey } from "@/types/ruleset.types";
+import type { SpeciesSubrace } from "@/types/species.types";
 import {
   requireEnv,
   installOpen5eUserAgent,
@@ -67,21 +71,24 @@ type CreateOnlyDefaults = ReturnType<typeof buildCreateOnlyDefaults>;
  * a5e) is filtered out — loudly — before upsert rather than silently coerced.
  */
 type SeededSpecies = Omit<ImportedFields, "ruleset" | "source"> &
-  CreateOnlyDefaults & {
+  Omit<CreateOnlyDefaults, "subraces"> & {
     id: string;
     ruleset: RulesetKey;
     source: string;
     source_title: string;
+    subraces: SpeciesSubrace[] | null;
   };
 
 /**
- * Maps one non-subspecies Open5e race into a `library_species` row, or `null` if
+ * Maps one core Open5e race into a `library_species` row, or `null` if
  * its document doesn't resolve to a supported ruleset (see `SeededSpecies`'s
- * doc comment above).
+ * doc comment above). `subraces` are its folded subspecies: Open5e content,
+ * so a re-seed refreshes them like any other imported field.
  */
 export function buildSeededSpeciesRow(
   race: Parameters<typeof buildImportedFields>[0],
   documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
+  subraces: readonly SpeciesSubrace[] = [],
 ): SeededSpecies | null {
   const imported = buildImportedFields(race, documentMetadata);
   if (!imported.ruleset) return null;
@@ -90,6 +97,7 @@ export function buildSeededSpeciesRow(
     ...imported,
     ...createOnlyDefaults,
     ruleset: imported.ruleset,
+    subraces: subraces.length > 0 ? [...subraces] : null,
     id: stableSrdId(race.key),
     source: race.document.key,
     source_title: race.document.display_name ?? race.document.name,
@@ -118,6 +126,10 @@ function printDryRunSummary(rows: SeededSpecies[]): void {
       source_title: row.source_title,
       size: row.size,
     }, null, 2));
+  }
+  console.log("\nSubraces:");
+  for (const row of rows.filter((entry) => entry.subraces)) {
+    console.log(`  ${row.id}: ${row.subraces?.map((subrace) => subrace.name).join(", ")}`);
   }
 }
 
@@ -152,13 +164,18 @@ async function main(): Promise<void> {
 
   console.log("Step 1: Fetching + mapping species from Open5e v2…");
   const races = await fetchOpen5eSpecies(documentKeys);
-  const coreRaces = races.filter((race) => !race.is_subspecies);
-  const subspeciesSkipped = races.length - coreRaces.length;
-  if (subspeciesSkipped > 0) {
-    console.log(`  Skipped ${subspeciesSkipped} subspecies row(s) — shared table holds core species only.`);
+  const { core: coreRaces, subracesByParent, orphans } = groupSubspecies(races);
+  console.log(`  Folded ${races.length - coreRaces.length - orphans.length} subspecies into their parent's subraces.`);
+  if (orphans.length > 0) {
+    // Not written anywhere: the shared table holds core species only, and an
+    // orphan has no parent row to hang off. Named so a new document's odd
+    // shape is noticed instead of silently dropped.
+    console.log(`  Skipped ${orphans.length} subspecies whose parent is not in this run: ${orphans.map((race) => race.key).join(", ")}`);
   }
 
-  const mapped = coreRaces.map((race) => buildSeededSpeciesRow(race, documentMetadata));
+  const mapped = coreRaces.map((race) =>
+    buildSeededSpeciesRow(race, documentMetadata, subracesByParent.get(race.key)),
+  );
   const rows = mapped.filter((row): row is SeededSpecies => row !== null);
   const unsupported = mapped.length - rows.length;
   if (unsupported > 0) {

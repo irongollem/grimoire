@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(10);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
@@ -57,6 +57,8 @@ insert into live_sync_doorbell (name) values
 create temporary table live_sync_named_signal (name text primary key, source text not null) on commit drop;
 insert into live_sync_named_signal (name, source) values
   ('npcs_player', 'npcs'),
+  ('notes_player', 'notes'),
+  ('factions_player', 'factions'),
   ('locations_player', 'locations'),
   ('quests_player', 'quests'),
   ('quest_beats_player', 'quest_beats'),
@@ -154,6 +156,21 @@ select is(
       and policyname not in ('Users see own npcs')),
   '',
   'no policy but the owner''s lets anyone select npcs rows');
+
+-- The same reason for `notes_player` and `factions_player`: a player reads a
+-- shared note or faction through its projection, which withholds "DM only"
+-- blocks, so no policy may hand them the row with the block still in it
+-- (20261007092700). Notes are read by their owner; factions by the campaign's DM.
+select is(
+  (select coalesce(string_agg(tablename || '.' || policyname, ', ' order by tablename, policyname), '')
+     from pg_policies
+    where schemaname = 'public' and cmd in ('SELECT', 'ALL')
+      and ((tablename = 'notes' and not (policyname = 'notes_select'
+                                         and qual = '(( SELECT auth.uid() AS uid) = user_id)'))
+        or (tablename = 'factions' and not (policyname = 'factions_select'
+                                            and qual = 'private.is_campaign_dm(campaign_id)')))),
+  '',
+  'no policy but the owner''s or the DM''s lets anyone select notes or factions rows');
 
 -- The DM-only runtime reaches clients by name only. If one of these is ever
 -- published, player_quest_beats_security.test.sql catches the history table;

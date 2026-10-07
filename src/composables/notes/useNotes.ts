@@ -3,6 +3,8 @@ import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
+import { PLAYER_NOTES_KEY } from "@/lib/campaignLiveSync/registry";
 import type { Note, NoteInsert, NoteUpdate } from "@/types/notes.types";
 import { storeToRefs } from "pinia";
 import { useToast } from "@/composables/useToast";
@@ -61,6 +63,35 @@ async function fetchSessionRecap(campaignId: string, sessionId: string): Promise
     .limit(1);
   if (error) throw error;
   return (data as Pick<Note, "content">[])[0] ?? null;
+}
+
+/**
+ * The notes a player may read, as the server projects them: secret blocks are
+ * stripped there (`get_player_visible_notes`, #932), so the DM-only passages
+ * never reach this client. Players can no longer select `notes` at all; every
+ * player surface reads this instead of `useNotes`.
+ *
+ * With a DM previewing as a party member the RPC returns exactly what that
+ * member would see, so the screen needs no client-side filtering of its own.
+ * Refreshed by the `notes_player` doorbell (see SIGNAL_KEYS).
+ */
+export function usePlayerVisibleNotes() {
+  const campaign = useCampaignStore();
+  const ui = useUiStore();
+  const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
+  return useQuery({
+    queryKey: computed(() => [PLAYER_NOTES_KEY, campaign.activeCampaignId, previewMemberId.value] as const),
+    queryFn: async ({ queryKey: [, cid, previewId] }): Promise<Note[]> => {
+      if (!cid) throw new Error("usePlayerVisibleNotes fetched without a campaign");
+      const { data, error } = await supabase.rpc("get_player_visible_notes", {
+        p_campaign_id: cid,
+        p_preview_member_id: previewId,
+      });
+      if (error) throw error;
+      return (data as Note[]).sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+    },
+    enabled: () => !!campaign.activeCampaignId,
+  });
 }
 
 async function fetchNote(id: string): Promise<Note> {

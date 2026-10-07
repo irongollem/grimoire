@@ -22,7 +22,7 @@ vi.mock("@/composables/scriptorium/usePlayerHandouts", async () => {
 });
 vi.mock("@/composables/notes/useNotes", async () => {
   const { ref: r } = await import("vue");
-  return { useNotes: () => ({ data: r(state.notes) }) };
+  return { usePlayerVisibleNotes: () => ({ data: r(state.notes) }) };
 });
 vi.mock("@/composables/play/useReadItems", () => ({
   useReadMarkers: () => ({ isNew: (type: string, id: string) => state.newIds.has(`${type}:${id}`) }),

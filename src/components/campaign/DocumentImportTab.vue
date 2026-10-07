@@ -137,18 +137,22 @@
       <div>
         <h3 class="text-heading-sm font-semibold text-foreground">Document Import</h3>
         <p class="text-body text-muted-foreground italic mt-1">
-          Import from a PDF, page photos, or pasted text.
+          Import from a PDF, page photos, pasted text, or a wiki export.
         </p>
       </div>
 
-      <p class="text-caption text-muted-foreground">
+      <p v-if="sourceMode !== 'archive'" class="text-caption text-muted-foreground">
         <template v-if="isPro">Pro plan: up to {{ PRO_PAGE_LIMIT }} pages per import.</template>
         <template v-else>Free plan: up to {{ FREE_PAGE_LIMIT }} pages per import; Pro raises this to {{ PRO_PAGE_LIMIT }}.</template>
       </p>
 
-      <SegmentedControl v-model="sourceMode" :options="SOURCE_MODE_OPTIONS" />
+      <SegmentedControl v-if="aiEnabled" v-model="sourceMode" :options="SOURCE_MODE_OPTIONS" />
+      <p v-else class="text-caption text-muted-foreground">
+        Importing from a PDF, page photos or pasted text uses AI, which is off for this campaign. A wiki export is read without it.
+      </p>
 
       <DocumentImportPasteStep v-if="sourceMode === 'paste'" />
+      <ArchiveImportPanel v-else-if="sourceMode === 'archive'" :import-row="archiveRow" />
       <template v-else>
         <div>
           <AppButton
@@ -266,6 +270,14 @@
  * defensive case where a row disappears while extraction is in flight. The
  * `failedView` / `completeView` computeds check the live row first.
  *
+ * ── A fourth source, read without AI (#932) ─────────────────────────────────
+ *
+ * "Wiki export" is a third picker option whose whole flow (pick, sort, review,
+ * result) is `ArchiveImportPanel`. This file only decides when to show it: its
+ * row, once the DM leaves the sort step, is `source_kind: 'archive'` in `review`,
+ * which the AI wizard must never receive, so `reviewRow` excludes it and
+ * `archiveRow` carries it to the panel instead.
+ *
  * ── File size (#829) ─────────────────────────────────────────────────────
  *
  * This file was already past the 600-line soft cap before the "paste text"
@@ -282,7 +294,9 @@
  * pieces that all read the same `activeImport` row, which is a worse trade.
  */
 import { computed, ref, watch } from "vue";
+import { useCampaignStore } from "@/stores/campaign";
 import {
+  IconArchive,
   IconClipboard,
   IconClose,
   IconDelete,
@@ -301,6 +315,7 @@ import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import DocumentImportWizard from "@/components/campaign/DocumentImportWizard.vue";
 import DocumentImportPasteStep from "@/components/campaign/DocumentImportPasteStep.vue";
+import ArchiveImportPanel from "@/components/campaign/ArchiveImportPanel.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useSubscription } from "@/composables/billing/useSubscription";
@@ -321,7 +336,14 @@ import {
   PRO_PAGE_LIMIT,
   type UploadValidationResult,
 } from "@/lib/documentImport/limits";
-import { IMPORT_ENTITY_KINDS, type DocumentImport, type DocumentImportSourceKind, type ImportEntityKind } from "@/types/documentImport.types";
+import {
+  IMPORT_ENTITY_KINDS,
+  isArchiveImport,
+  type AiDocumentImport,
+  type DocumentImport,
+  type DocumentImportSourceKind,
+  type ImportEntityKind,
+} from "@/types/documentImport.types";
 
 const KIND_LABELS: Record<ImportEntityKind, string> = {
   monsters: "Monsters",
@@ -344,6 +366,7 @@ function formatBytes(bytes: number): string {
 
 function sourceKindIcon(kind: DocumentImportSourceKind) {
   if (kind === "text") return IconClipboard;
+  if (kind === "archive") return IconArchive;
   if (kind === "pdf") return IconDocument;
   return IconImages;
 }
@@ -361,7 +384,16 @@ const isLoadingActive = activeImportQuery.isPending;
 
 const pendingRow = computed(() => (activeImport.value?.status === "pending" ? activeImport.value : null));
 const extractingRow = computed(() => (activeImport.value?.status === "extracting" ? activeImport.value : null));
-const reviewRow = computed(() => (activeImport.value?.status === "review" ? activeImport.value : null));
+// A wiki export (#932) in review is the archive panel's, never the AI wizard's: the wizard refuses a row
+// without AI provenance and an archive row has none by design.
+const reviewRow = computed<AiDocumentImport | null>(() => {
+  const row = activeImport.value;
+  return row?.status === "review" && !isArchiveImport(row) ? row : null;
+});
+const archiveRow = computed(() => {
+  const row = activeImport.value;
+  return row?.status === "review" && isArchiveImport(row) ? row : null;
+});
 
 type LocalOutcome =
   | { kind: "failed"; id: string; sourcePaths: string[]; displayName: string; error: string }
@@ -405,7 +437,7 @@ const canRetryFailed = computed(() => {
 
 const completeView = computed(() => {
   const row = activeImport.value;
-  if (row?.status === "complete") {
+  if (row?.status === "complete" && !isArchiveImport(row)) {
     return { kind: "complete" as const, displayName: row.display_name, importedCounts: row.imported_counts };
   }
   return localOutcome.value?.kind === "complete" ? localOutcome.value : null;
@@ -457,12 +489,34 @@ const { estimate: costEstimate, isLoading: costLoading, isError: costErrored } =
 // component rather than a branch inlined here); this tab owns only which of
 // the two is showing.
 
-type ImportSourceMode = "upload" | "paste";
-const sourceMode = ref<ImportSourceMode>("upload");
-const SOURCE_MODE_OPTIONS: SegmentedOption<ImportSourceMode>[] = [
-  { value: "upload", label: "Upload", icon: IconUpload },
-  { value: "paste", label: "Paste text", icon: IconClipboard },
-];
+type ImportSourceMode = "upload" | "paste" | "archive";
+// Upload and paste are AI extraction; a wiki export is not (#932). With the
+// campaign's AI off only the wiki export is offered, so the tab stays useful
+// instead of disappearing.
+const campaignStore = useCampaignStore();
+const aiEnabled = computed(() => campaignStore.isAiEnabled);
+const sourceMode = ref<ImportSourceMode>(campaignStore.isAiEnabled ? "upload" : "archive");
+const SOURCE_MODE_OPTIONS = computed<SegmentedOption<ImportSourceMode>[]>(() => [
+  ...(aiEnabled.value
+    ? [
+        { value: "upload" as const, label: "Upload", icon: IconUpload },
+        { value: "paste" as const, label: "Paste text", icon: IconClipboard },
+      ]
+    : []),
+  { value: "archive", label: "Wiki export", icon: IconArchive },
+]);
+watch(aiEnabled, (on) => {
+  if (!on) sourceMode.value = "archive";
+});
+
+// An interrupted wiki import (a row in review after a reload) is only ever resolved on its own source.
+watch(
+  archiveRow,
+  (row) => {
+    if (row) sourceMode.value = "archive";
+  },
+  { immediate: true },
+);
 
 // ── Upload step: file selection ───────────────────────────────────────────────
 

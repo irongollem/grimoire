@@ -274,6 +274,7 @@
             </label>
             <RichTextEditor
               :model-value="form.description"
+              allow-secrets
               placeholder="Describe the room, the mechanisms, and what is immediately observable…"
               size="md"
               @update:model-value="form.description = $event"
