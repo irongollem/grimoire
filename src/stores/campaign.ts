@@ -95,7 +95,12 @@ export const useCampaignStore = defineStore("campaign", () => {
     }
   }
   const rulesetHint = ref<string | null>(readRulesetHint(activeCampaignId.value));
-  watch(activeCampaignId, (id) => { rulesetHint.value = readRulesetHint(id); });
+  // ID-only switches must drop the previous edition before any query reads it.
+  watch(
+    activeCampaignId,
+    (id) => { rulesetHint.value = readRulesetHint(id); },
+    { flush: "sync" },
+  );
   watch(
     () => activeCampaign.value && ({ id: activeCampaign.value.id, ruleset: activeCampaign.value.ruleset }),
     (row) => {
