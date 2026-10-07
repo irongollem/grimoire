@@ -15,7 +15,7 @@ import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
 import { useAuthStore } from "./stores/auth";
 import { installStaleChunkRecovery, chunksArrived } from "./lib/staleChunkRecovery";
 import { queryRetryDelay, shouldRetryQuery } from "./lib/queryRetry";
-import { initErrorTracking, reportHandledError } from "./lib/observability/sentry";
+import { initErrorTracking, loadErrorTrackingAfterPaint, reportHandledError } from "./lib/observability/sentry";
 import { installNavigationReload, installSwAutoUpdate } from "./lib/swAutoUpdate";
 import { updateAvailable } from "./composables/useAppUpdate";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
@@ -86,7 +86,9 @@ const app = createApp(App);
 
 // Before any plugin, directive or store — this installs Vue's errorHandler and
 // the global handlers, and anything thrown during the wiring below is exactly
-// the kind of boot failure worth hearing about. No-op without a DSN.
+// the kind of boot failure worth hearing about. They only buffer: the Sentry SDK
+// itself is a separate chunk that loads after first paint (see below), or sooner
+// if an error arrives first, and replays what was held. No-op without a DSN.
 initErrorTracking(app, router);
 
 const pinia = createPinia();
@@ -303,7 +305,11 @@ if (window.visualViewport) {
 // report (see installNavigationReload). Any other rejection is a boot failure
 // and is rethrown, so it still reaches Sentry as an unhandled rejection.
 router.isReady().then(
-  () => app.mount("#app"),
+  () => {
+    app.mount("#app");
+    // The SDK stays off the critical path: it loads once the page has painted.
+    loadErrorTrackingAfterPaint();
+  },
   (failure: unknown) => {
     if (leavingForNewBuild()) return;
     throw failure;

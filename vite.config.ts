@@ -445,8 +445,11 @@ function bootBudgetPlugin(): Plugin {
    * provisional: 447.4 plus the 28 kB that `vercel build --prod` has added over
    * a bare build, plus the usual headroom. Tighten it from the "boot payload"
    * line the next release job prints.
+   *
+   * Then story 1.4 moved the Sentry SDK behind first paint: 449.5 to 412.2 kB.
+   * The same arithmetic (412.2 + 28, plus ~6.7%) gives 470.
    */
-  const BOOT_BUDGET_GZIP_BYTES = 510 * 1024;
+  const BOOT_BUDGET_GZIP_BYTES = 470 * 1024;
   // The build's real output directory (see swPlugin). Hard-coded to dist/, a
   // build with --outDir measured whatever stale dist/ happened to be lying
   // around, or failed when there was none.
