@@ -27,6 +27,7 @@ vi.mock("@/stores/auth", () => ({ useAuthStore: () => authState }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 vi.mock("@/components/common/FocalImage.vue", () => ({ default: { template: "<div />" } }));
 
+/** A fallen character's memorial for the notice to show; override what a test is about. */
 function fallen(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial {
   return {
     id: "m1",
@@ -49,6 +50,7 @@ const stubs = {
   AppButton: { props: ["label"], template: "<button>{{ label }}</button>" },
   MemorialWordsDialog: { props: ["memorial"], emits: ["close"], template: "<div v-if='memorial' class='words' @click=\"$emit('close')\" />" },
 };
+/** Mounts the notice; `suppressed` stands in for a live encounter holding it back. */
 const render = (suppressed = false) => mount(MemorialTolling, { props: { suppressed }, global: { stubs } });
 
 beforeEach(() => {

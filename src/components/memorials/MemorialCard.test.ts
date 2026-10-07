@@ -11,6 +11,7 @@ const DOC = (text: string) =>
 
 vi.mock("@/components/common/FocalImage.vue", () => ({ default: { template: "<div class='focal-stub' />" } }));
 
+/** A fallen character's memorial with every field filled; override what a test is about. */
 function memorial(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial {
   return {
     id: "m1",
@@ -40,6 +41,7 @@ function memorial(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial
   };
 }
 
+/** Mounts the card back side up for a bystander; props override the side and the viewer. */
 function render(
   m: CharacterMemorial,
   props: { side?: "front" | "back"; viewer?: "owner" | "dm" | "other"; candleCount?: number; litByMe?: boolean } = {},

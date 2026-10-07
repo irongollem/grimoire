@@ -31,6 +31,7 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ todayYear: 1492, todayMonth: 5, todayDay: 29, activeCampaign: { name: "Sugarwell" } }),
 }));
 
+/** A player-owned party member to set down; override what a test is about. */
 function member(overrides: Partial<PartyMember> = {}): PartyMember {
   return {
     id: "pm1",
@@ -59,6 +60,7 @@ type RenderProps = {
   memorial?: CharacterMemorial | null;
 };
 
+/** Mounts the dialog open, with the editor and the card stubbed. */
 function render(props: RenderProps) {
   return mount(SetDownDialog, { props: { open: true, ...props }, global: { stubs } });
 }
