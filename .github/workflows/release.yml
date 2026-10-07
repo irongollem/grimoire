@@ -36,6 +36,11 @@ jobs:
         run: npm ci
       - name: Lint (oxlint)
         run: npm run lint
+      # Import cycles and layer rules (lib below composables and stores; stores
+      # below composables), as errors since #999 story 5.1: a new one fails
+      # here instead of accumulating until someone measures again.
+      - name: Import graph (dependency-cruiser)
+        run: npm run arch:graph
       - name: Unit tests (vitest)
         run: npm test
       - name: Typecheck and build (vue-tsc, vite)
