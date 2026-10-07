@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   isAbortError,
   isMissingRowError,
+  MissingRowError,
   queryRetryDelay,
   shouldRetryQuery,
 } from "./queryRetry";
@@ -33,6 +34,11 @@ describe("shouldRetryQuery", () => {
     // The bug this guards: a stale campaign id in localStorage after a session
     // expires turned an instant 406 into 1s + 2s + 4s of held loading screen.
     expect(shouldRetryQuery(0, missingRow)).toBe(false);
+  });
+
+  it("treats a batched read's missing row like PostgREST's", () => {
+    expect(isMissingRowError(new MissingRowError("Location not found"))).toBe(true);
+    expect(shouldRetryQuery(0, new MissingRowError("Location not found"))).toBe(false);
   });
 
   it("still retries genuine failures", () => {

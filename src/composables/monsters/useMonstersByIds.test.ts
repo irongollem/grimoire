@@ -66,17 +66,23 @@ beforeEach(() => {
   };
 });
 
+/** The by-id fetch waits one macrotask to batch ids, so let that window close before the queries resolve. */
+async function settle() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await flushPromises();
+}
+
 describe("useMonstersByIds", () => {
   it("sends nothing for an empty or all-null list", async () => {
     const { data } = run(() => useMonstersByIds([null, undefined]));
-    await flushPromises();
+    await settle();
     expect(mocks.calls).toEqual([]);
     expect(data.value.size).toBe(0);
   });
 
   it("splits library ids from uuids, applies no source, ruleset or campaign filter, and maps both sides", async () => {
     const { data } = run(() => useMonstersByIds(["srd_wolf", UUID_A, "srd_wolf", null]));
-    await flushPromises();
+    await settle();
     const lib = mocks.calls.find((c) => c.table === "library_monsters");
     const custom = mocks.calls.find((c) => c.table === "monsters");
     expect(lib?.in).toEqual([["id", ["srd_wolf"]]]);
@@ -90,21 +96,21 @@ describe("useMonstersByIds", () => {
 
   it("only touches the table a list needs", async () => {
     run(() => useMonstersByIds([UUID_A]));
-    await flushPromises();
+    await settle();
     expect(mocks.calls.map((c) => c.table)).toEqual(["monsters"]);
   });
 
   it("chunks long id lists at 100", async () => {
     const ids = Array.from({ length: 230 }, (_, i) => `srd_m${String(i).padStart(3, "0")}`);
     run(() => useMonstersByIds(ids));
-    await flushPromises();
+    await settle();
     const lib = mocks.calls.filter((c) => c.table === "library_monsters");
     expect(lib.map((c) => c.in[0]![1].length)).toEqual([100, 100, 30]);
   });
 
   it("merges library art when asked, with a caller-scoped override read", async () => {
     const { data } = run(() => useMonstersByIds(["srd_wolf"], { withArt: true }));
-    await flushPromises();
+    await settle();
     expect(data.value.get("srd_wolf")?.image_url).toBe("art.webp");
     const own = mocks.calls.find((c) => c.table === "library_monster_art");
     expect(own?.in).toEqual([["entry_id", ["srd_wolf"]]]);
@@ -114,17 +120,17 @@ describe("useMonstersByIds", () => {
   it("does not refetch when the same ids arrive in another order", async () => {
     const list: Ref<string[]> = ref([UUID_B, UUID_A]);
     run(() => useMonstersByIds(list));
-    await flushPromises();
+    await settle();
     const before = mocks.calls.length;
     list.value = [UUID_A, UUID_B];
-    await flushPromises();
+    await settle();
     expect(mocks.calls.length).toBe(before);
   });
 
   it("keeps resolved monsters with their art, and isLoading false, while a grown id set loads", async () => {
     const list = ref(["srd_wolf"]);
     const { data, isLoading } = run(() => useMonstersByIds(list, { withArt: true }));
-    await flushPromises();
+    await settle();
     let release!: () => void;
     mocks.gate = new Promise<void>((r) => (release = r));
     list.value = ["srd_wolf", "srd_bear"];
@@ -133,7 +139,7 @@ describe("useMonstersByIds", () => {
     expect([...data.value.keys()]).toEqual(["srd_wolf"]);
     expect(data.value.get("srd_wolf")?.image_url).toBe("art.webp");
     release();
-    await flushPromises();
+    await settle();
     expect([...data.value.keys()].sort()).toEqual(["srd_bear", "srd_wolf"]);
     expect(data.value.get("srd_bear")?.image_url).toBe("bear-art.webp");
   });
@@ -141,7 +147,7 @@ describe("useMonstersByIds", () => {
   it("never shows an id that is no longer requested while a placeholder is up", async () => {
     const list = ref(["srd_wolf", UUID_A]);
     const { data } = run(() => useMonstersByIds(list));
-    await flushPromises();
+    await settle();
     mocks.gate = new Promise<void>(() => {});
     list.value = [UUID_A, "srd_bear"];
     await nextTick();
@@ -151,9 +157,19 @@ describe("useMonstersByIds", () => {
   it("yields an empty map once every id is removed", async () => {
     const list = ref(["srd_wolf"]);
     const { data } = run(() => useMonstersByIds(list, { withArt: true }));
-    await flushPromises();
+    await settle();
     list.value = [];
-    await flushPromises();
+    await settle();
     expect(data.value.size).toBe(0);
+  });
+
+  it("coalesces rows asking in the same tick into one request per table, each getting only its own ids", async () => {
+    const a = run(() => useMonstersByIds(["srd_wolf", UUID_A]));
+    const b = run(() => useMonstersByIds(["srd_bear", UUID_A]));
+    await settle();
+    expect(mocks.calls.filter((c) => c.table === "library_monsters")).toHaveLength(1);
+    expect(mocks.calls.filter((c) => c.table === "monsters")).toHaveLength(1);
+    expect([...a.data.value.keys()].sort()).toEqual([UUID_A, "srd_wolf"].sort());
+    expect([...b.data.value.keys()].sort()).toEqual([UUID_A, "srd_bear"].sort());
   });
 });

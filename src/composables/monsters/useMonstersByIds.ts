@@ -2,6 +2,7 @@ import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from "vue"
 import { keepPreviousData, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
+import { createIdBatcher } from "@/lib/batchById";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { libraryMonsterRow } from "@/lib/library/libraryMonsterRow";
 import { LIBRARY_MONSTER_COLUMNS } from "@/composables/monsters/useMonsters";
@@ -11,39 +12,47 @@ import type { Monster } from "@/types/monster.types";
 const BY_IDS_KEY = ["monsters", "by-ids"] as const;
 /** Under the art root so every art write's prefix invalidation reaches it. */
 const ART_ENTRIES_KEY = ["library-monster-art", "entries"] as const;
-/** PostgREST puts `.in()` in the URL; ~100 ids of 36 characters stays well inside any limit. */
-const CHUNK = 100;
-
-function chunks<T>(items: readonly T[]): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += CHUNK) out.push(items.slice(i, i + CHUNK));
-  return out;
+/**
+ * `PartyTrackerRow` and its kin call `useMonstersByIds` once per row, so N rows
+ * are N concurrent fetches. Batching sits here, in the fetch layer: ids asked
+ * for in the same tick go out as one `.in()` request per table (chunked by the
+ * batcher), and each caller gets back only its own ids. Query keys are unchanged.
+ */
+async function fetchLibraryMonsterRows(ids: string[]): Promise<Monster[]> {
+  const { data, error } = await supabase.from("library_monsters").select(LIBRARY_MONSTER_COLUMNS).in("id", ids);
+  if (error) throw error;
+  return data.map(libraryMonsterRow);
 }
 
-/** Library rows by id, no source or ruleset filter. Public rows, so a player may call it too. */
-export async function fetchLibraryMonstersByIds(libraryIds: readonly string[]): Promise<Monster[]> {
-  const rows = await Promise.all(
-    chunks(libraryIds).map(async (ids) => {
-      const { data, error } = await supabase.from("library_monsters").select(LIBRARY_MONSTER_COLUMNS).in("id", ids);
-      if (error) throw error;
-      return data.map(libraryMonsterRow);
-    }),
-  );
-  return rows.flat();
+const libraryBatcher = createIdBatcher<Monster>({
+  fetchMany: fetchLibraryMonsterRows,
+  idOf: (monster) => monster.id,
+});
+
+const customBatcher = createIdBatcher<Monster>({
+  fetchMany: async (ids) => {
+    const { data, error } = await supabase.from("monsters").select("*").in("id", ids);
+    if (error) throw error;
+    return data as Monster[];
+  },
+  idOf: (monster) => monster.id,
+});
+
+/**
+ * Library rows by id, no source or ruleset filter. Public rows, so a player may
+ * call it too. `load`, not `fetch`: it goes through the batcher, so the read
+ * itself is `fetchLibraryMonsterRows` and may be shared with other callers.
+ */
+export async function loadLibraryMonstersByIds(libraryIds: readonly string[]): Promise<Monster[]> {
+  return [...(await libraryBatcher.loadMany(libraryIds)).values()];
 }
 
 async function fetchByIds(libraryIds: readonly string[], customIds: readonly string[]): Promise<Map<string, Monster>> {
   const [libraryRows, customRows] = await Promise.all([
-    fetchLibraryMonstersByIds(libraryIds),
-    Promise.all(
-      chunks(customIds).map(async (ids) => {
-        const { data, error } = await supabase.from("monsters").select("*").in("id", ids);
-        if (error) throw error;
-        return data as Monster[];
-      }),
-    ),
+    libraryBatcher.loadMany(libraryIds),
+    customBatcher.loadMany(customIds),
   ]);
-  return new Map([...libraryRows, ...customRows.flat()].map((m) => [m.id, m]));
+  return new Map([...libraryRows, ...customRows]);
 }
 
 /** Resolves STORED monster ids (encounter combatants, companions, wild shape

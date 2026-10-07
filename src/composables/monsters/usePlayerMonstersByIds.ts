@@ -2,7 +2,7 @@ import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from "vue"
 import { useQuery } from "@tanstack/vue-query";
 import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
 import { fetchPlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
-import { fetchLibraryMonstersByIds, useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
+import { loadLibraryMonstersByIds, useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
@@ -46,7 +46,7 @@ export function usePlayerMonstersByIds(
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [...PLAYER_BY_IDS_KEY, libraryIds.value] as const),
-    queryFn: ({ queryKey: [, , idsKey] }) => fetchLibraryMonstersByIds(idsKey),
+    queryFn: ({ queryKey: [, , idsKey] }) => loadLibraryMonstersByIds(idsKey),
     enabled: () => libraryIds.value.length > 0,
     staleTime: Infinity,
   });

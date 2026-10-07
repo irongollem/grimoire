@@ -78,13 +78,19 @@ beforeEach(() => {
   };
 });
 
+/** The by-id fetch waits one macrotask to batch ids, so let that window close before the queries resolve. */
+async function settle() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await flushPromises();
+}
+
 describe("usePlayerMonstersByIds", () => {
   it("reads a player's library ids by id with art, and custom ids from the projection, never the monsters table", async () => {
     const { data } = run(() => {
       useCampaignStore().activeCampaignId = "camp-1";
       return usePlayerMonstersByIds(["srd_wolf", UUID_A, null]);
     });
-    await flushPromises();
+    await settle();
     expect(mocks.calls.some((c) => c.table === "monsters")).toBe(false);
     const lib = mocks.calls.find((c) => c.table === "library_monsters");
     expect(lib?.in).toEqual([["id", ["srd_wolf"]]]);
@@ -96,7 +102,7 @@ describe("usePlayerMonstersByIds", () => {
 
   it("sends nothing for an empty list", async () => {
     run(() => usePlayerMonstersByIds([]));
-    await flushPromises();
+    await settle();
     expect(mocks.calls).toEqual([]);
     expect(mocks.rpcCalls).toEqual([]);
   });
@@ -106,7 +112,7 @@ describe("usePlayerMonstersByIds", () => {
       useCampaignStore().activeCampaignId = "camp-1";
       return usePlayerMonstersByIds(["srd_wolf"]);
     });
-    await flushPromises();
+    await settle();
     expect(mocks.rpcCalls).toEqual([]);
   });
 
@@ -116,7 +122,7 @@ describe("usePlayerMonstersByIds", () => {
       useCampaignStore().activeCampaignId = "camp-1";
       return usePlayerMonstersByIds([UUID_A]);
     });
-    await flushPromises();
+    await settle();
     expect(mocks.rpcCalls).toEqual([]);
     expect(mocks.calls.find((c) => c.table === "monsters")?.in).toEqual([["id", [UUID_A]]]);
     expect(data.value.get(UUID_A)?.name).toBe("Homebrew Base");

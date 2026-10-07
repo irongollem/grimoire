@@ -2,6 +2,8 @@ import { computed, isRef, ref, toValue, type MaybeRefOrGetter } from "vue";
 import type { Ref } from "vue";
 import { useQueries, useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { createIdBatcher } from "@/lib/batchById";
+import { MissingRowError } from "@/lib/queryRetry";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
@@ -132,10 +134,29 @@ async function fetchAllLocations(campaignId: string): Promise<LocationSummary[]>
   return data as unknown as LocationSummary[];
 }
 
+/**
+ * `useLocation` and `useLocationNames` fan out one query per id, so ids asked
+ * for in the same tick leave as one `.in("id", ids)` request. The per-id keys
+ * stay as they are; only the network is coalesced.
+ */
+const locationBatcher = createIdBatcher<Location>({
+  fetchMany: async (ids) => {
+    const { data, error } = await supabase.from("locations").select("*").in("id", ids);
+    if (error) throw error;
+    return data as Location[];
+  },
+  idOf: (location) => location.id,
+});
+
+/**
+ * Throws for a missing row, as `.single()` did: a query for a place that is gone
+ * is an error, not an empty place. A `MissingRowError`, so it is not retried with
+ * backoff, exactly as PostgREST's PGRST116 was not.
+ */
 async function fetchLocation(id: string): Promise<Location> {
-  const { data, error } = await supabase.from("locations").select("*").eq("id", id).single();
-  if (error) throw error;
-  return data as Location;
+  const location = await locationBatcher.load(id);
+  if (!location) throw new MissingRowError(`Location not found: ${id}`);
+  return location;
 }
 
 async function createLocation(loc: LocationInsert): Promise<Location> {
