@@ -32,19 +32,23 @@
           :src="displayPortrait"
         />
         <EntityNewDot :is-new="isNew ?? false" class="absolute top-1.5 left-1.5 z-10" />
-        <!-- Relationship always shown — "unknown" is a valid soft-hidden state. -->
-        <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-eyebrow font-bold text-white">
-          <span class="absolute inset-0 rounded opacity-90" :class="npcRelationshipBg(npc.relationship)" />
+        <!-- Relationship always shown — "unknown" is a valid soft-hidden state. The same chip as
+             the DM grid's badge, so vellum turns it into the same paper label. -->
+        <span class="absolute top-2 right-2 flex h-6 items-center rounded px-1.5 text-eyebrow font-bold text-white backdrop-blur-sm">
+          <span class="absolute inset-0 rounded opacity-50" :class="npcRelationshipBg(npc.relationship)" />
           <span class="relative">{{ npc.relationship }}</span>
         </span>
       </MiniPortraitOverlay>
     </div>
 
-    <!-- Info -->
-    <div class="p-2.5 flex flex-col gap-0.5 flex-1">
-      <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">
-        {{ npc.player_visible_fields.includes('name') ? displayName : '???' }}
-      </h3>
+    <!-- Info. Shaped like the DM grid card's body (`p-3`, the name in a first-child row) so the
+         vellum theme sets it as a wanted poster: the name centred in engraved capitals over a rule. -->
+    <div class="p-3 flex flex-col gap-0.5 flex-1">
+      <div class="flex items-center">
+        <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">
+          {{ npc.player_visible_fields.includes('name') ? displayName : '???' }}
+        </h3>
+      </div>
       <!-- Status always shown — "unknown" is a valid soft-hidden state. -->
       <p class="flex items-center gap-1 text-caption text-muted-foreground">
         <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="npcStatusBg(npc.status)" />
