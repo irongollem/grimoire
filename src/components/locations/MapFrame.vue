@@ -155,8 +155,11 @@ const emit = defineEmits<{
    * A clean tap — pan and pinch have both been ruled out — carrying the
    * original pointerdown target. The frame has no notion of what that target
    * *is*; a slotted layer (pins today) inspects it and decides what to do.
+   * The release point rides along (client coordinates) for a layer that acts
+   * on *where* the tap landed, like the Atlas measuring tool dropping a
+   * waypoint (#932).
    */
-  tap: [target: EventTarget | null];
+  tap: [target: EventTarget | null, clientX: number, clientY: number];
   /**
    * The transformed container received a plain click. This is the frame's
    * side of "clicking empty map background closes whatever's pinned open" —
@@ -373,7 +376,7 @@ function onFramePointerUp(e: PointerEvent) {
   // call `swallowClick()` below to protect that action from the redirected
   // click that pointer capture still sends to this frame afterwards.
   if (activePointers.size === 0 && !didMultiPointerGesture && !dragStart?.moved) {
-    emit("tap", pointerDownTarget);
+    emit("tap", pointerDownTarget, e.clientX, e.clientY);
   }
 
   if (activePointers.size === 0) {

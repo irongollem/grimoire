@@ -229,6 +229,12 @@ export interface Location {
    */
   map_layer_calibration: GridCalibration | null;
   /**
+   * How far apart two points on the Picture are, for a world, region or city
+   * map measured in miles or kilometres (#932). Null until the DM sets it.
+   * Read through `lib/locations/mapScale.ts`: the jsonb is untrusted there.
+   */
+  map_scale: MapScale | null;
+  /**
    * `{cols, rows}` for a site whose Plan is traced on a blank grid with no
    * Picture and no Drawing beneath it. Null otherwise.
    */
@@ -352,6 +358,20 @@ export interface GridCalibration {
   origin_cell_y?: number;
 }
 
+/**
+ * Two points on the map and the distance the DM says lies between them. The
+ * points are fractions (0..1) of the image's natural width and height, the
+ * same frame as `MapPin`, so the scale survives the picture being shown at any
+ * size and stays editable. Mirrors `locations_map_scale_shape_check`.
+ */
+export interface MapScale {
+  unit: "mi" | "km";
+  /** Greater than zero, in `unit`. */
+  distance: number;
+  a: { x: number; y: number };
+  b: { x: number; y: number };
+}
+
 export const DEFAULT_GRID_OPACITY = 0.35;
 
 export type LocationInsert = Omit<
@@ -365,6 +385,7 @@ export type LocationInsert = Omit<
   | "map_published_rev"
   | "map_layer_url"
   | "map_layer_calibration"
+  | "map_scale"
   | "plan_size"
   | "is_level"
 > & {
@@ -380,6 +401,8 @@ export type LocationInsert = Omit<
   map_layer_url?: string | null;
   /** Omit to take the column default of null — no drawing yet. */
   map_layer_calibration?: GridCalibration | null;
+  /** Omit to take the column default of null — the map has no scale yet. */
+  map_scale?: MapScale | null;
   /** Omit to take the column default of null — no blank-grid plan yet. */
   plan_size?: { cols: number; rows: number } | null;
 };

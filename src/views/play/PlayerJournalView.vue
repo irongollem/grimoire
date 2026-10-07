@@ -273,7 +273,7 @@ import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
-import { useNotes } from "@/composables/notes/useNotes";
+import { usePlayerVisibleNotes } from "@/composables/notes/useNotes";
 import { usePlayerEntityMentionItems } from "@/composables/play/usePlayerEntityMentionItems";
 import type { NoteCategory } from "@/types/notes.types";
 import { useAuthStore } from "@/stores/auth";
@@ -351,7 +351,9 @@ function categoryIcon(cat: string): Component {
 }
 
 // ── DM Notes ──────────────────────────────────────────────────────────────────
-const { data: notesRaw, isLoading: loadingNotes } = useNotes();
+// The server projection: secret blocks stripped, and a DM previewing a member
+// sees exactly that member's notes.
+const { data: notesRaw, isLoading: loadingNotes } = usePlayerVisibleNotes();
 const dmNotes = computed(() => {
   const list = notesRaw.value ?? [];
   // Pinned float to the top (except in manual mode, which is a pure user order);

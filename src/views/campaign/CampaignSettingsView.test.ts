@@ -61,17 +61,15 @@ describe("CampaignSettingsView tabs", () => {
     expect(labels(mountView())).toContain("Import Document");
   });
 
-  it("drops Import Document with AI off", () => {
+  it("keeps Import Document with AI off, because a wiki export needs no AI (#932)", () => {
     mocks.aiEnabled = false;
-    expect(labels(mountView())).not.toContain("Import Document");
+    expect(labels(mountView())).toContain("Import Document");
   });
 
-  it("falls back to Details when deep-linked to import with AI off", () => {
+  it("opens import when deep-linked with AI off", () => {
     mocks.aiEnabled = false;
     mocks.query = { tab: "import" };
-    const wrapper = mountView();
-    expect(wrapper.find('[data-stub="DocumentImportTab"]').exists()).toBe(false);
-    expect(wrapper.find('[data-stub="DetailsTab"]').exists()).toBe(true);
+    expect(mountView().find('[data-stub="DocumentImportTab"]').exists()).toBe(true);
   });
 
   it("still opens import when AI is on", () => {

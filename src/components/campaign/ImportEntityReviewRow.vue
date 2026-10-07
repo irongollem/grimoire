@@ -1,96 +1,27 @@
 <template>
-  <div class="rounded-lg border bg-card overflow-hidden transition-colors" :class="isExpanded ? 'border-primary/40' : 'border-border'">
-    <!-- Wraps rather than squeezes: the status can be long ("Add from library:
-         Wraith · CR 5 · undead · Level Up Advanced 5e…"), and a shrink-0 chip in
-         a single row truncated the entity's own name down to one letter. The
-         name's basis is its own width, so when both don't fit it is the status
-         that drops to its own line; `truncate` only bites a name wider than
-         the whole row. -->
-    <div class="flex flex-wrap items-center gap-x-2 gap-y-1.5 p-3">
+  <ImportReviewCard :heading="heading" :status="status" :region-id="regionId" :auto-expand="needsDmChoice(candidates)">
+    <template #meta>
       <AppButton
-        variant="ghost"
-        size="md"
-        class="min-w-0 flex-auto justify-start gap-2 px-0 py-0 min-h-0"
-        :aria-expanded="isExpanded"
-        :aria-controls="regionId"
-        @click="toggleExpanded"
-      >
-        <IconChevronDown class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform" :class="isExpanded ? 'rotate-180' : ''" />
-        <span class="truncate text-heading-xs font-bold text-foreground">{{ heading }}</span>
-        <AppButton
-          v-if="confidence === 'partial'"
-          as="span"
-          variant="tinted"
-          tone="caution"
-          size="xs"
-          label="Partial"
-          tooltip="The extractor may not have captured every field for this entry. Check it over."
-        />
-        <span v-if="page !== null" class="shrink-0 text-caption text-muted-foreground">Page {{ page }}</span>
-      </AppButton>
+        v-if="confidence === 'partial'"
+        as="span"
+        variant="tinted"
+        tone="caution"
+        size="xs"
+        label="Partial"
+        tooltip="The extractor may not have captured every field for this entry. Check it over."
+      />
+      <span v-if="page !== null" class="shrink-0 text-caption text-muted-foreground">Page {{ page }}</span>
+    </template>
 
-      <AppButton as="span" variant="tinted" :tone="statusTone" size="xs" :label="statusLabel" class="max-w-full" />
-    </div>
-
-    <div v-if="isExpanded" :id="regionId" class="space-y-3 border-t border-border p-3">
-      <div role="radiogroup" :aria-label="`Choose what happens to ${heading}`" class="space-y-2">
-        <label
-          v-for="(candidate, idx) in candidates"
-          :key="candidate.source + candidate.targetId"
-          :class="optionClass"
-        >
-          <input
-            type="radio"
-            :name="radioGroupName"
-            class="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-            :checked="isSelectedCandidate(candidate)"
-            @change="selectDecision({ action: 'link', candidate })"
-          />
-          <span class="min-w-0 flex-1 space-y-0.5">
-            <span class="flex flex-wrap items-baseline gap-1.5">
-              <span class="text-body font-semibold text-foreground">{{ letterFor(idx) }}. {{ candidate.name }}</span>
-              <span class="text-caption text-muted-foreground">{{ candidate.source === "campaign" ? "yours" : "use library entry" }}</span>
-              <span class="text-caption text-muted-foreground">· {{ matchKindHint(candidate.matchKind) }}</span>
-            </span>
-            <span v-if="candidate.detail" class="block text-caption text-muted-foreground">{{ candidate.detail }}</span>
-          </span>
-        </label>
-
-        <label v-if="showCreateOption" :class="optionClass">
-          <input
-            type="radio"
-            :name="radioGroupName"
-            class="h-4 w-4 shrink-0 accent-primary"
-            :checked="decision.action === 'create'"
-            @change="selectDecision({ action: 'create' })"
-          />
-          <span class="text-body text-foreground">Create new</span>
-        </label>
-
-        <label v-if="showGenerateOption" :class="optionClass">
-          <input
-            type="radio"
-            :name="radioGroupName"
-            class="h-4 w-4 shrink-0 accent-primary"
-            :checked="decision.action === 'generate'"
-            @change="selectDecision({ action: 'generate' })"
-          />
-          <span class="text-body text-foreground">
-            Generate with the Monster Generator<template v-if="generateCreditsLabel"> · {{ generateCreditsLabel }}</template>
-          </span>
-        </label>
-
-        <label :class="optionClass">
-          <input
-            type="radio"
-            :name="radioGroupName"
-            class="h-4 w-4 shrink-0 accent-primary"
-            :checked="decision.action === 'ignore'"
-            @change="selectDecision({ action: 'ignore' })"
-          />
-          <span class="text-body text-foreground">Ignore</span>
-        </label>
-      </div>
+      <ImportDecisionChoice
+        v-model="decision"
+        :heading="heading"
+        :group-name="radioGroupName"
+        :candidates="candidates"
+        :show-create="showCreateOption"
+        :show-generate="showGenerateOption"
+        :generate-credits-label="generateCreditsLabel"
+      />
 
       <!-- The field editor, offered only while "Create new" is the chosen
            action — linking or ignoring never touches this entity's fields,
@@ -169,8 +100,7 @@
           </div>
         </Transition>
       </div>
-    </div>
-  </div>
+  </ImportReviewCard>
 </template>
 
 <script setup lang="ts">
@@ -198,11 +128,11 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { drawerTransition } from "@/lib/motion";
-import { IconChevronDown } from "@/lib/icons";
-import type { ButtonTone } from "@/components/common/appButtonVariants";
 import type { EntityKindEntry } from "@/lib/documentImport/entityKinds";
-import { needsDmChoice } from "@/lib/documentImport/reviewDecisions";
-import { canCreateFromPage, type EntityCandidate, type EntityMatchKind, type ImportDecision } from "@/lib/documentImport/entityMatching";
+import ImportDecisionChoice from "@/components/campaign/ImportDecisionChoice.vue";
+import ImportReviewCard from "@/components/campaign/ImportReviewCard.vue";
+import { decisionStatus, needsDmChoice } from "@/lib/documentImport/reviewDecisions";
+import { canCreateFromPage, type EntityCandidate, type ImportDecision } from "@/lib/documentImport/entityMatching";
 import type { ImportConfidence } from "@/types/documentImport.types";
 
 const {
@@ -236,21 +166,9 @@ const data = defineModel<Record<string, unknown>>("data", { required: true });
 /** What happens to this entity — link, create, generate, or ignore. */
 const decision = defineModel<ImportDecision>("decision", { required: true });
 
-const manualExpanded = ref<boolean | null>(null);
-/** Starts expanded when there's a real choice to make (more than one
- *  candidate); otherwise starts collapsed. A DM's own toggle always wins
- *  after that — this never re-forces open or shut once touched. */
-const isExpanded = computed(() => manualExpanded.value ?? needsDmChoice(candidates));
-function toggleExpanded(): void {
-  manualExpanded.value = !isExpanded.value;
-}
-
 const editDetailsOpen = ref(false);
 const regionId = computed(() => `import-entity-${entityRef.replace(/[^a-zA-Z0-9_-]/g, "-")}`);
 const radioGroupName = computed(() => `${regionId.value}-decision`);
-
-const optionClass =
-  "flex items-start gap-3 rounded-md border border-border p-2.5 cursor-pointer transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5";
 
 const heading = computed(() => {
   const v = data.value[entry.displayField];
@@ -259,33 +177,6 @@ const heading = computed(() => {
 
 function humanize(key: string): string {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function matchKindHint(kind: EntityMatchKind): string {
-  if (kind === "exact") return "same name";
-  if (kind === "near") return "nearly the same name";
-  if (kind === "contains") return "name contains";
-  return "looks similar";
-}
-
-function isSelectedCandidate(candidate: EntityCandidate): boolean {
-  return decision.value.action === "link" && decision.value.candidate.source === candidate.source && decision.value.candidate.targetId === candidate.targetId;
-}
-
-function selectDecision(next: ImportDecision): void {
-  decision.value = next;
-}
-
-function letterFor(index: number): string {
-  // A, B, C… Z, AA, AB… — the same wrapping idiom `lib/quests/threads.ts`'s
-  // `threadLetter` uses, though five candidates in practice never gets close.
-  let n = index;
-  let out = "";
-  do {
-    out = String.fromCharCode(65 + (n % 26)) + out;
-    n = Math.floor(n / 26) - 1;
-  } while (n >= 0);
-  return out;
 }
 
 const isMonsterKind = computed(() => entry.kind === "monsters");
@@ -299,37 +190,7 @@ const generateCreditsLabel = computed(() => {
   return rounded === 1 ? "1 credit" : `${rounded} credits`;
 });
 
-/** success = link to a row the DM already owns, primary = link to a library
- *  row (this sweep will copy it in first — a distinct action from a plain
- *  reuse, so it gets a distinct tone), info = create (the default), arcane =
- *  generate (the app's "AI and magic" tone, MonsterGeneratorPanel's own
- *  vocabulary), neutral = ignore. */
-const TONE_BY_ACTION: Record<ImportDecision["action"], ButtonTone> = {
-  link: "success",
-  create: "info",
-  generate: "arcane",
-  ignore: "neutral",
-};
-const statusTone = computed<ButtonTone>(() => {
-  const d = decision.value;
-  if (d.action === "link" && d.candidate.source === "library") return "primary";
-  return TONE_BY_ACTION[d.action];
-});
-
-const statusLabel = computed(() => {
-  const d = decision.value;
-  if (d.action === "link") {
-    const detail = d.candidate.detail ? ` · ${d.candidate.detail}` : "";
-    // A library candidate is referenced in place, not copied; the status
-    // says which shelf the entry comes from.
-    return d.candidate.source === "campaign"
-      ? `Links to ${d.candidate.name}${detail}`
-      : `Uses library entry: ${d.candidate.name}${detail}`;
-  }
-  if (d.action === "create") return "New";
-  if (d.action === "generate") return generateCreditsLabel.value ? `Generate · ${generateCreditsLabel.value}` : "Generate";
-  return "Ignored";
-});
+const status = computed(() => decisionStatus(decision.value, generateCreditsLabel.value));
 
 // ── Field classification (unchanged from the predecessor card) ─────────────
 

@@ -411,6 +411,11 @@ function renderNode(node: JsonNode): VNodeChild | null {
         { "data-ai-generated": "true", "data-ai-model": text(a.model) || undefined },
         renderBlocks(node.content),
       );
+    case "secretBlock":
+      // Only a DM ever receives this node (the server strips it from every
+      // player projection), so rendering it is safe; the frame and label that
+      // set it apart come from `secret-block.css`.
+      return h("div", { "data-type": "secretBlock" }, renderBlocks(node.content));
     case "calendarEventRef":
       return chip(CalendarEventRefChip, {
         eventId: text(a.eventId) ?? null,

@@ -7,6 +7,8 @@ import {
   QUEST_RUNTIME_SYNC_KEYS,
   BEATS_KEY,
   QUEST_RUNTIME_QUERY_KEYS,
+  PLAYER_FACTIONS_KEY,
+  PLAYER_NOTES_KEY,
   PLAYER_NPCS_KEY,
   THREADS_KEY,
 } from "@/lib/campaignLiveSync/registry";
@@ -77,6 +79,13 @@ describe("live sync registries", () => {
     // lists "Unknown item" — the bug that started this (#811).
     expect(SIGNAL_KEYS.get("store_items")).toEqual(["store-items", "items"]);
     expect(SIGNAL_KEYS.get("party_inventory")).toEqual(["party-inventory", "items"]);
+  });
+
+  it("tells players to re-read the projections that replaced their notes and factions reads", () => {
+    // Players cannot select either table (secret blocks, #932); the doorbell is
+    // the only thing that reaches them.
+    expect(SIGNAL_KEYS.get("notes_player")).toEqual([PLAYER_NOTES_KEY]);
+    expect(SIGNAL_KEYS.get("factions_player")).toEqual([PLAYER_FACTIONS_KEY]);
   });
 
   it("refreshes only player roots for the player-only signals", () => {

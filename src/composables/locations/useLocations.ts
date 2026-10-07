@@ -5,7 +5,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
-import type { GridCalibration, Location, LocationInsert, LocationSummary, LocationUpdate } from "@/types/location.types";
+import type { GridCalibration, Location, LocationInsert, LocationSummary, LocationUpdate, MapScale } from "@/types/location.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { LOCATION_SUMMARY_SELECT, VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
@@ -606,6 +606,19 @@ export function useUpdateLocationGridCalibration() {
   return useMutation({
     mutationFn: ({ id, calibration }: { id: string; calibration: GridCalibration | null }) =>
       updateLocation(id, { grid_calibration: calibration }),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+    },
+  });
+}
+
+/** Set or clear the distance scale of a place's map (#932). */
+export function useUpdateLocationMapScale() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, scale }: { id: string; scale: MapScale | null }) =>
+      updateLocation(id, { map_scale: scale }),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });

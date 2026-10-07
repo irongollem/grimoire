@@ -245,6 +245,13 @@ const open = defineModel<boolean>({ required: true });
 const props = defineProps<{
   editEvent?: CalendarEvent | null;
   initialDay?: number | null;
+  /**
+   * Fields a new event opens with, laid over the blank draft: the Atlas's
+   * measured route fills in a travel event this way (#932). Ignored when
+   * editing, where the server copy is the draft. It seeds the form on open and
+   * is not re-applied, so the DM's edits are never overwritten.
+   */
+  prefill?: Partial<Omit<CalendarEventInsert, "campaign_id" | "color">>;
 }>();
 
 const calendar = useCalendarStore();
@@ -393,7 +400,7 @@ watch(open, (isOpen) => {
   aiOpen.value = false;
   generated = null;
   if (props.editEvent) reset();
-  else Object.assign(form, toDraft(null));
+  else Object.assign(form, toDraft(null), props.prefill);
 });
 
 // ── Draft with AI ─────────────────────────────────────────────────────────────

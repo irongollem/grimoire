@@ -173,6 +173,7 @@
       >
       <RichTextEditor
         v-model="description"
+        allow-secrets
         placeholder="Describe this location…"
         size="md"
         :ai-context="`location description: ${name || 'unnamed location'}`"

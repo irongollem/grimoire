@@ -104,6 +104,7 @@
         <label class="text-eyebrow font-semibold text-muted-foreground">Description & Notes</label>
         <RichTextEditor
           v-model="form.description"
+          allow-secrets
           placeholder="History, motives, known activities…"
           size="md"
           :entity-mention-items="entityMentionItems"

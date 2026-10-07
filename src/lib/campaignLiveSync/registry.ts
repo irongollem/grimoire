@@ -16,6 +16,8 @@ export const BEATS_KEY = "quest_beats";
 export const THREADS_KEY = "quest_threads";
 export const OBJECTIVES_KEY = "quest_objectives";
 export const PLAYER_NPCS_KEY = "player-npcs";
+export const PLAYER_NOTES_KEY = "player-notes";
+export const PLAYER_FACTIONS_KEY = "player-factions";
 export const PLAYER_HANDOUTS_KEY = "player-handouts";
 export const BACKLINKS_KEY = "backlinks";
 export const RUNTIME_KEY = "quest_runtime_state";
@@ -145,6 +147,13 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // and has only preview caches under this root, so the rows they already
   // received are not refetched. A delete still rings as `npcs`.
   ["npcs_player", [PLAYER_NPCS_KEY]],
+  // Same shape for notes and factions (secret blocks, #932): players can no
+  // longer select either table, because a raw row would carry the DM-only
+  // passages. They read `get_player_visible_notes` / `_factions`, which strip
+  // them, and hear about changes here. The DM holds only preview caches under
+  // these roots, so hearing the signal costs them nothing.
+  ["notes_player", [PLAYER_NOTES_KEY]],
+  ["factions_player", [PLAYER_FACTIONS_KEY]],
   // Places, quests, beats and objectives are read by players through
   // projections and owner-only policies, so a row event never reaches them;
   // the doorbell tells them to re-read. The roots below also hold the DM's

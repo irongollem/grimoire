@@ -184,8 +184,8 @@ select ok(
 select ok(
   (select with_check from pg_policies
     where tablename = 'document_imports' and policyname = 'document_imports_insert')
-    like '%source_kind = ''text''%',
-  'the exemption is tied to the text kind, not to emptiness alone'
+    like '%source_kind = ANY (ARRAY[''text''::text, ''archive''::text])%',
+  'the exemption is tied to the kinds that carry no object (text, archive), not to emptiness alone'
 );
 
 select * from finish();

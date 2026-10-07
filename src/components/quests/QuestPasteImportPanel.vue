@@ -261,7 +261,7 @@ import ImportQuotaWarning from "@/components/campaign/ImportQuotaWarning.vue";
 import type { ImportDecision } from "@/lib/documentImport/entityMatching";
 import type { UsableEntity } from "@/lib/documentImport/sanitizeEntities";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
-import { IMPORT_ENTITY_KINDS, type ImportEntityKind } from "@/types/documentImport.types";
+import { IMPORT_ENTITY_KINDS, isArchiveImport, type ImportEntityKind } from "@/types/documentImport.types";
 import type { ImportSweepInput, ImportSweepProgress } from "@/composables/campaign/useDocumentImportRunner";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -320,7 +320,12 @@ const isLoadingActive = activeImportQuery.isPending;
 
 const isMine = computed(() => activeImport.value !== null && activeImport.value.id === myRowId.value);
 const foreignActive = computed(() => (activeImport.value && !isMine.value ? activeImport.value : null));
-const row = computed(() => (activeImport.value && isMine.value ? activeImport.value : null));
+// A wiki export (#932) is never this panel's own row: it is created and reviewed on the Document Import tab, so an
+// active one is always `foreignActive` here and the DM is pointed there to finish or discard it.
+const row = computed(() => {
+  const active = activeImport.value;
+  return active && isMine.value && !isArchiveImport(active) ? active : null;
+});
 
 const isWorking = computed(() => row.value !== null && (row.value.status === "pending" || row.value.status === "extracting"));
 const isFailed = computed(() => row.value?.status === "failed");

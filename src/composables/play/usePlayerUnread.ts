@@ -4,7 +4,7 @@ import { useReadMarkers } from "@/composables/play/useReadItems";
 import { usePlayerHandouts } from "@/composables/scriptorium/usePlayerHandouts";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import { usePlayerVisiblePuzzles } from "@/composables/dungeon-features/usePuzzles";
-import { useNotes } from "@/composables/notes/useNotes";
+import { usePlayerVisibleNotes } from "@/composables/notes/useNotes";
 
 /** The quest statuses the Quest Log renders in a group; a shared quest outside them has no card to dot. */
 export const QUEST_LOG_STATUSES: readonly string[] = ["active", "completed", "failed"];
@@ -72,7 +72,7 @@ export function usePlayerUnread() {
   const { data: quests } = usePlayerVisibleQuests();
   const { data: puzzles } = usePlayerVisiblePuzzles();
   const { data: handouts } = usePlayerHandouts();
-  const { data: notes } = useNotes();
+  const { data: notes } = usePlayerVisibleNotes();
   // One request for all four types (#999); they used to be four.
   const { isNew: isNewOfType } = useReadMarkers(["quest", "puzzle", "handout", "note"]);
   const isQuestNew = (id: string, updatedAt?: string) => isNewOfType("quest", id, updatedAt);

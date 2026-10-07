@@ -118,6 +118,9 @@
             :regions="siteRegions"
             :spaces="siteSpaces"
             :show-layer-bar="false"
+            :measuring="measure.measuring.value"
+            :route-points="measure.points.value"
+            @measure-point="measure.addPoint"
             @pin-click="descendTo"
             @pin-go="descendTo"
             @pin-watch="descendTo"
@@ -140,12 +143,36 @@
                 :label="`Up to ${ascendTarget.name}`"
                 @click="ascend"
               />
+              <!-- Measure (#932): places with pins only. A site is measured in
+                   feet on its own grid, not miles on a scaled map. -->
+              <AppButton
+                v-if="!isSite && !zoomPlan"
+                variant="subtle"
+                size="xs"
+                class="absolute top-2 right-2 z-30 bg-background/85 backdrop-blur-sm"
+                :icon="IconRuler"
+                :active="measure.measuring.value"
+                label="Measure"
+                @click="measure.toggle()"
+              />
             </template>
 
             <template #aside>
               <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" />
             </template>
           </LocationMap>
+
+          <MapMeasurePanel
+            v-if="measure.measuring.value && !isSite"
+            v-model:pace="measure.paceId.value"
+            class="mt-3"
+            :scale="measureScale"
+            :points="measure.points.value"
+            :summary="measure.summary.value"
+            @undo="measure.undo()"
+            @clear="measure.clear()"
+            @close="measure.stop()"
+          />
 
           <AtlasMapZoom
             v-if="zoomPlan"
@@ -242,6 +269,7 @@ import AtlasMapZoom from "@/components/locations/AtlasMapZoom.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import SiteLevelsColumn from "@/components/locations/SiteLevelsColumn.vue";
 import MapLayersPanel from "@/components/locations/MapLayersPanel.vue";
+import MapMeasurePanel from "@/components/locations/MapMeasurePanel.vue";
 import PlaceMapPinsEditor from "@/components/locations/PlaceMapPinsEditor.vue";
 import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
 import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
@@ -255,13 +283,15 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useMapExport } from "@/composables/cartographer/useMapExport";
 import { useMapPublish } from "@/composables/cartographer/useMapPublish";
 import { useLocation } from "@/composables/locations/useLocations";
+import { useMapMeasure } from "@/composables/locations/useMapMeasure";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
 import { useSiteDrawingEditor } from "@/composables/locations/useSiteDrawingEditor";
 import { useSiteMapExtras, useSiteStructure } from "@/composables/locations/useSiteStructure";
-import { IconChevronRight, IconChevronUp, IconStairs } from "@/lib/icons";
+import { IconChevronRight, IconChevronUp, IconRuler, IconStairs } from "@/lib/icons";
 import { verticalWays } from "@/lib/locations/doors";
 import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
+import { parseMapScale } from "@/lib/locations/mapScale";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { planAscent, planDescent, regionOrigin } from "@/lib/locations/mapZoom";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
@@ -295,6 +325,22 @@ const emit = defineEmits<{ select: [id: string]; descend: [id: string] }>();
 const mapRef = useTemplateRef<InstanceType<typeof LocationMap>>("mapRef");
 
 const isSite = computed(() => isSiteType(location.location_type));
+
+// ── Measure (#932) — a route drawn between pins on a scaled map. Scratch state:
+//    leaving the tool, the place or Browse drops it; the travel event the DM
+//    writes from it is the record. ─────────────────────────────────────────────
+const measureScale = computed(() => parseMapScale(location.map_scale));
+const measure = useMapMeasure({
+  scale: measureScale,
+  size: () => {
+    const size = mapRef.value?.getImageNaturalSize();
+    return size && size.width > 0 && size.height > 0 ? size : null;
+  },
+});
+watch(() => location.id, measure.stop);
+watch(() => building, (isBuilding) => {
+  if (isBuilding) measure.stop();
+});
 
 /** Every place, for the pins editor's candidate walk (`getPinnableDescendants`
  *  reaches below direct children through vague containers). */

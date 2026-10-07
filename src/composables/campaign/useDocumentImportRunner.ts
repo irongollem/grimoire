@@ -39,7 +39,7 @@ import {
 import type { InsertRowOutcome } from "@/lib/documentImport/runImportKind";
 import { activeImportKey } from "./useDocumentImport";
 import type { NameLookupRow } from "@/lib/documentImport/importPlan";
-import type { DocumentImport, ImportEntityKind } from "@/types/documentImport.types";
+import type { AiDocumentImport, ImportEntityKind } from "@/types/documentImport.types";
 import type { CombatantDef } from "@/types/encounter.types";
 import { itemRefColumns } from "@/lib/itemRef";
 
@@ -83,7 +83,7 @@ const KINDS_WITH_GLOBAL_ROWS: ReadonlySet<ImportEntityKind> = new Set([
 ]);
 
 function buildDeps(
-  importRow: DocumentImport,
+  importRow: AiDocumentImport,
   userId: string,
   generateAndCreateMonster: ReturnType<typeof useGenerateMonster>["generateAndCreateMonster"],
   writeQuestSpine: ImportSweepDeps["writeQuestSpine"],
@@ -270,7 +270,7 @@ export function useDocumentImportRunner() {
    * real, actionable failures a UI should surface, not swallow.
    */
   async function runImportSweep(
-    importRow: DocumentImport,
+    importRow: AiDocumentImport,
     input: ImportSweepInput,
     onProgress?: (progress: ImportSweepProgress) => void,
   ): Promise<ImportSweepReport> {

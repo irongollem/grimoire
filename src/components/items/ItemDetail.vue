@@ -263,6 +263,7 @@
           </span>
           <RichTextEditor
             v-model="mundaneDescription"
+            allow-secrets
             placeholder="What does this item appear to be before it's identified? Describe only its physical appearance, no magical hints…"
             size="md"
           />
@@ -273,6 +274,7 @@
           <span class="text-label-lg text-muted-foreground uppercase">Description</span>
           <RichTextEditor
             v-model="description"
+            allow-secrets
             placeholder="Describe this item's properties, lore, and any special effects…"
             size="md"
           />
@@ -298,6 +300,7 @@
           <template v-if="isCursed">
             <RichTextEditor
               v-model="curseDescription"
+              allow-secrets
               placeholder="Describe the curse effect, trigger, and how it can be removed…"
               size="md"
             />
