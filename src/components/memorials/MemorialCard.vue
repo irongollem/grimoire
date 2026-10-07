@@ -502,13 +502,28 @@ function joinNames(names: readonly string[]): string {
   font-size: 0.78rem;
   line-height: 1.36;
 }
+/* The card is paper with a fixed palette, but RichTextViewer paints in the theme's foreground at
+   body size, and the Hall is always dark: its text came out near-white on the card. Take the
+   card's own ink and size instead. */
+.mcard .mcard-account :deep(.ProseMirror),
+.mcard .mcard-words-text :deep(.ProseMirror) {
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
 .mcard-account {
+  /* A short account must not leave the drop cap hanging into the lines below it. */
+  display: flow-root;
   /* Ragged right: a column this narrow justified opens rivers of space between words. */
   text-align: left;
   hyphens: auto;
 }
-.mcard-account :deep(.ProseMirror p),
-.mcard-words-text :deep(.ProseMirror p) { margin: 0 0 0.25rem; }
+/* RichTextViewer gives each paragraph its own margin and line height; the card's win here. */
+.mcard .mcard-account :deep(.ProseMirror p),
+.mcard .mcard-words-text :deep(.ProseMirror p) {
+  margin: 0 0 0.25rem;
+  line-height: inherit;
+}
 /* The one drop cap on the card, deliberately: the first letter of the DM's account. */
 .mcard-account :deep(.ProseMirror > :first-child)::first-letter {
   float: left;

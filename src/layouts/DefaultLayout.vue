@@ -4,7 +4,7 @@
        below Safari's URL bar. h-screen would overflow on mobile Safari. -->
   <!-- `pr-(--dock-right)`: the docked DM scratchpad's width while it is open,
        so the page lays out beside it (see base.css). -->
-  <div class="flex h-dvh overflow-hidden bg-background pr-(--dock-right)">
+  <div class="flex h-dvh overflow-hidden bg-background pr-(--dock-right)" :style="chromeStyle">
     <AppSidebar />
 
     <div class="flex-1 flex flex-col min-w-0">
@@ -125,6 +125,7 @@ import { usePartyLive } from "@/composables/party/useParty";
 import { isOverQuota, useQuota } from "@/composables/billing/useQuota";
 import { initPlaceholderFocalPoints } from "@/lib/placeholderFocalPoints";
 import { afterFirstPaint } from "@/lib/afterFirstPaint";
+import { activeThemeId, darkTwinStyle } from "@/lib/themeRuntime";
 import { safeQuestReturnTo } from "@/lib/quests/navigation";
 import AppButton from "@/components/common/AppButton.vue";
 
@@ -164,6 +165,9 @@ const auth = useAuthStore();
 const isDm = computed(() => auth.currentRole === "dm");
 const isMobile = useIsMobile();
 const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscreenMobile);
+// A page that is always dark (meta.darkChrome, the Hall of the Fallen) takes the bars with it:
+// the theme's dark twin is set on the shell, so the top bar and bottom nav match the page.
+const chromeStyle = computed(() => (route.meta.darkChrome ? darkTwinStyle(activeThemeId.value) : undefined));
 
 // A new page starts at its top. The router's `scrollBehavior` scrolls
 // `window`, but this shell is pinned to `h-dvh` and `<main>` is what scrolls

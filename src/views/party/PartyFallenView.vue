@@ -1,10 +1,12 @@
 <template>
-  <div class="flex min-h-full shrink-0 flex-col">
+  <!-- barnav: <main> pads its bottom for the fixed nav, and that padding showed the shell's ground
+       under the wall. The wall runs into it instead and pads its own bottom by the same. -->
+  <div class="flex min-h-full shrink-0 flex-col barnav:-mb-[calc(4.5rem+env(safe-area-inset-bottom))]">
     <!-- The wall paints its own ground, so the way back sits on it as part of the page. -->
     <!-- grow + shrink-0 (here and on the wrapper): the layout scrolls a flex column, and a
          min-h-full item there may otherwise shrink to the viewport, spilling the cards off
          the wall's ground. -->
-    <HallOfTheFallen scope="dm" class="grow" @edit-account="editing = $event">
+    <HallOfTheFallen scope="dm" class="grow barnav:pb-[calc(9.5rem+env(safe-area-inset-bottom))]" @edit-account="editing = $event">
       <template #before>
         <AppButton
           to="/party"

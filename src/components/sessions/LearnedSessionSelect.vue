@@ -1,5 +1,7 @@
 <template>
-  <AppSelect v-model="inner" size="sm" :aria-label="ariaLabel" @update:model-value="onPick">
+  <!-- A native select is as wide as its longest option ("Session 14: The Wolves of Dougan's
+       Hole · Friday 2 October"), which ran out of its card on a phone; it may shrink instead. -->
+  <AppSelect v-model="inner" size="sm" class="min-w-0 max-w-full shrink" :aria-label="ariaLabel" @update:model-value="onPick">
     <option :value="PICK" disabled>{{ placeholder }}</option>
     <option v-for="s in choices" :key="s.id" :value="s.id">{{ sessionLabel(s) }} · {{ formatSessionDay(s) }}</option>
     <option v-if="includeNone" :value="NONE">Outside any session</option>
