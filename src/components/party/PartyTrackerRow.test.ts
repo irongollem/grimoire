@@ -118,6 +118,7 @@ describe("PartyTrackerRow wild-shaped portrait", () => {
 });
 
 describe("PartyTrackerRow critical-hit choice", () => {
+  /** A character at 0 HP with this many failed death saves. */
   const atZero = (failures: number) =>
     ({ ...member("2024", "s"), current_hp: 0, death_save_successes: 0, death_save_failures: failures }) as PartyMember;
 

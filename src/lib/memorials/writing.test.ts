@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { writtenOrNull } from "./writing";
 
+/** A stored Tiptap document with one paragraph; no text gives the empty paragraph a cleared editor leaves. */
 const doc = (text?: string) =>
   JSON.stringify({ type: "doc", content: [{ type: "paragraph", ...(text ? { content: [{ type: "text", text }] } : {}) }] });
 

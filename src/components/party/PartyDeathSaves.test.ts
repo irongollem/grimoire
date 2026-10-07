@@ -15,6 +15,7 @@ const dead = {
   conditions: [],
 } as unknown as PartyMember;
 
+/** Mounts the banner with the set-down dialog stubbed, so opening it is visible as a component. */
 function mountSaves(m: PartyMember) {
   return mount(PartyDeathSaves, { props: { member: m }, global: { stubs: { SetDownDialog: true } } });
 }
