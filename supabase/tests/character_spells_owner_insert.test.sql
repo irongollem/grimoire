@@ -40,11 +40,13 @@ select is(
   1,
   'exactly the owner''s row landed');
 
--- The other policies are unchanged: still exactly one insert policy that is not the owner's.
+-- #999 3.3 folded the owner's policy and the original campaign-member / campaign-DM one into
+-- a single insert policy (permissive policies are OR-ed, so the access is unchanged); the
+-- owner path above is still its first branch.
 select is(
   (select count(*)::integer from pg_policies where tablename = 'character_spells' and cmd = 'INSERT'),
-  2,
-  'character_spells has the original insert policy and the owner''s, nothing more');
+  1,
+  'character_spells has one insert policy: the owner''s branch merged with the original');
 
 select * from finish();
 rollback;
