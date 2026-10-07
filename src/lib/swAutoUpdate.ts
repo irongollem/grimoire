@@ -116,6 +116,24 @@ export function installNavigationReload(
 
 export interface SwAutoUpdateOptions extends ReloadCoordinatorOptions {
   pollMs?: number;
+  /** Delay before registering where `requestIdleCallback` is missing. */
+  idleFallbackMs?: number;
+}
+
+const IDLE_FALLBACK_MS = 3_000;
+/** Longest the registration may be postponed by a browser that is never idle. */
+const IDLE_TIMEOUT_MS = 10_000;
+
+/**
+ * Runs `task` once the browser reports idle time, but no later than
+ * `IDLE_TIMEOUT_MS`, so a busy page cannot postpone the worker forever.
+ */
+export function scheduleWhenIdle(task: () => void, fallbackMs: number): void {
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(task, { timeout: IDLE_TIMEOUT_MS });
+  } else {
+    setTimeout(task, fallbackMs);
+  }
 }
 
 export interface SwAutoUpdateHandle {
@@ -130,7 +148,7 @@ export function installSwAutoUpdate(opts: SwAutoUpdateOptions): SwAutoUpdateHand
   const sw = navigator.serviceWorker;
   const coordinator = createReloadCoordinator(opts);
 
-  window.addEventListener("load", () => {
+  const register = () => {
     sw.register("/sw.js")
       .then((registration) => {
         const check = () => void registration.update().catch(() => {});
@@ -140,7 +158,18 @@ export function installSwAutoUpdate(opts: SwAutoUpdateOptions): SwAutoUpdateHand
         });
       })
       .catch(() => {});
-  });
+  };
+  // Registering is what starts the worker's install, which fetches the whole
+  // shell. On a first visit that competes with the page for the same
+  // connection while it is still loading its data, so the registration waits
+  // for the `load` event and then for the browser to be idle (or `idleFallbackMs`
+  // where `requestIdleCallback` does not exist, i.e. Safari). It is only a
+  // delay: nothing about the install or the update flow depends on when the
+  // first registration happens. A page that is already loaded (this runs from a
+  // module script, which can come after `load` on a slow boot) schedules at once.
+  const whenIdle = () => scheduleWhenIdle(register, opts.idleFallbackMs ?? IDLE_FALLBACK_MS);
+  if (document.readyState === "complete") whenIdle();
+  else window.addEventListener("load", whenIdle, { once: true });
 
   // controllerchange also fires on the very first install (clients.claim) —
   // only a page that already HAD a controller is looking at an update. After

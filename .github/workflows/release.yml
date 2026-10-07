@@ -44,6 +44,12 @@ jobs:
       - name: Unit tests (vitest)
         run: npm test
       - name: Typecheck and build (vue-tsc, vite)
+        # Placeholders, not secrets: the app refuses to start without these, and
+        # the boot budget refuses to measure a build of an app that cannot
+        # start (see bootBudgetPlugin in vite.config.ts).
+        env:
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder-anon-key
         run: npm run build
       # Reads dist/, so it has to follow the build. Catches the class of break
       # that took /login down in #896: a dependency calling a runtime API that
