@@ -10,8 +10,10 @@
       <IconLock class="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
       <span class="text-label-lg font-semibold text-muted-foreground">DM notes</span>
       <span class="text-caption text-muted-foreground">Only you see this</span>
-      <AutosaveStatus class="ml-auto" :status="note.status.value" :error="note.saveError.value" />
+      <AutosaveStatus v-if="!note.loading.value" class="ml-auto" :status="note.status.value" :error="note.saveError.value" />
     </div>
+    <!-- Status stays hidden until the note's read lands: before then there is no editor,
+         and "Saved" would claim a save that never happened. -->
     <!-- The focus toolbar keeps a note nobody is writing in down to its text. -->
     <RichTextEditor
       v-if="!note.loading.value"
@@ -32,7 +34,7 @@
       size="sm"
       toolbar="focus"
     />
-    <AutosaveStatus :status="note.status.value" :error="note.saveError.value" />
+    <AutosaveStatus v-if="!note.loading.value" :status="note.status.value" :error="note.saveError.value" />
   </div>
 </template>
 
