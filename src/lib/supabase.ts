@@ -3,6 +3,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { createAuthAwareFetch } from "./authAwareFetch";
 import { authStorageKey, readPersistedSession } from "./persistedSession";
 import { withRequestDeadline } from "./requestDeadline";
+import { withSameOriginRest } from "./sameOriginApi";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -84,7 +85,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     fetch: createAuthAwareFetch(
       // A request frozen by iOS never answers; see requestDeadline.ts.
-      withRequestDeadline((input, init) => globalThis.fetch(input, init)),
+      withRequestDeadline(
+        // Innermost, so the two wrappers around it still see the Supabase URL.
+        // Moves `/rest/v1` only, to drop its CORS preflights; see sameOriginApi.ts.
+        withSameOriginRest((input, init) => globalThis.fetch(input, init), supabaseUrl),
+      ),
       () => sessionLostHandler?.(),
       {
         anonKey: supabaseAnonKey,

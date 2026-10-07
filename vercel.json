@@ -10,7 +10,14 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" }
       ]
+    },
+    {
+      "source": "/api/db/(.*)",
+      "headers": [{ "key": "x-vercel-enable-rewrite-caching", "value": "0" }]
     }
   ],
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/api/db/:path*", "destination": "https://ypdokpdpvtmyzkltnmsq.supabase.co/:path*" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
 }

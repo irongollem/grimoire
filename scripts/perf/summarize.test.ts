@@ -14,6 +14,13 @@ describe("classifyRequest", () => {
     expect(classifyRequest({ url: `${API}/rest/v1/npcs`, method: "GET", resourceType: "Fetch" }, API)).toBe("api");
   });
 
+  it("counts the same-origin /api/db proxy as API, preflight first", () => {
+    const url = "http://127.0.0.1:4176/api/db/rest/v1/npcs?select=*";
+    expect(classifyRequest({ url, method: "GET", resourceType: "Fetch" }, API)).toBe("api");
+    expect(classifyRequest({ url, method: "OPTIONS", resourceType: "Preflight" }, API)).toBe("preflight");
+    expect(classifyRequest({ url: "http://127.0.0.1:4176/api/rsvp", method: "GET", resourceType: "Fetch" }, API)).toBe("other");
+  });
+
   it("does not mistake a look-alike origin for the API", () => {
     expect(classifyRequest({ url: "http://127.0.0.2:54321/x", method: "GET", resourceType: "Fetch" }, API)).toBe("other");
   });

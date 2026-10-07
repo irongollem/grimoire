@@ -144,6 +144,36 @@ flowchart LR
 - A bug involving AI/billing/storage/email → the edge function, then the
   provider ([integrations.md](integrations.md)).
 
+### PostgREST goes through `/api/db`
+
+`supabase.from()` and `supabase.rpc()` calls reach Postgres through the app's own
+origin: `/api/db/rest/v1/...` instead of `https://<ref>.supabase.co/rest/v1/...`.
+A cross-origin request carrying `Authorization` makes the browser send a CORS
+`OPTIONS` preflight and wait for it before the real call, once per distinct
+query, and every link of a dependent request chain paid one. Same-origin needs
+none.
+
+- **Where it happens:** `src/lib/sameOriginApi.ts` is the innermost fetch wrapper
+  in `src/lib/supabase.ts`, so `createAuthAwareFetch` and `withRequestDeadline`
+  still recognise a data request by its original `/rest/v1/` URL. In production
+  `vercel.json` rewrites `/api/db/:path*` to the Supabase project; `vite dev` and
+  `vite preview` proxy it to the mode's `VITE_SUPABASE_URL`. The prefix is
+  `/api/db/` because `/api/rsvp` is a real Vercel function, and filesystem routes
+  win over rewrites.
+- **Only `/rest/v1` moves.** `/auth/v1` stays direct because Supabase Auth
+  rate-limits sign-in and token refresh per client IP, and behind a proxy every
+  user would share Vercel's egress addresses and one budget. `/storage/v1` carries
+  large uploads, `/functions/v1` long-running AI calls, and realtime is a
+  websocket, which a Vercel rewrite cannot carry.
+- **Never cached.** `vercel.json` sets `x-vercel-enable-rewrite-caching: 0` on
+  `/api/db/*`, so per-user responses cannot be stored on Vercel's CDN whatever
+  headers the upstream sends. Newer Vercel projects cache rewrites by default;
+  this one does not, but the header keeps the guarantee independent of that.
+- **Measuring it:** the perf harness counts `/api/db/` as API and delays it like
+  the direct origin. Playwright's route delay does not hold CORS preflights, so
+  locally the saving shows as `options` falling to 0 with no change in timings;
+  in production each removed preflight is a full round trip.
+
 ## Realtime sync (live multi-user)
 
 One campaign-wide channel, reference-counted, mounted once per layout

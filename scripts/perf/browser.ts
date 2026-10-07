@@ -1,7 +1,7 @@
-import type { Browser, BrowserContext, Page } from "playwright";
+import type { Browser, BrowserContext, Page, Route } from "playwright";
 import { NetworkRecorder } from "./recorder";
 import type { ProfileRecord, Sample } from "./results";
-import { summarizeRequests, totalBlockingTime, type LongTask } from "./summarize";
+import { SAME_ORIGIN_API_PREFIX, summarizeRequests, totalBlockingTime, type LongTask } from "./summarize";
 
 export const API_ORIGIN = "http://127.0.0.1:54321";
 export const QUIET_MS = 500;
@@ -108,10 +108,13 @@ export async function openMeasuredPage(browser: Browser, profile: Profile, opts:
     // The #945 method: hold every API request for a fixed time so a request that
     // waits on another shows up as a visible wave instead of vanishing into a
     // sub-millisecond localhost round trip.
-    await context.route(`${profile.apiOrigin}/**`, async (route) => {
+    const hold = async (route: Route): Promise<void> => {
       await new Promise((resolve) => setTimeout(resolve, profile.apiDelayMs));
       await route.continue();
-    });
+    };
+    await context.route(`${profile.apiOrigin}/**`, hold);
+    // PostgREST goes through the app's own origin (src/lib/sameOriginApi.ts).
+    await context.route(`**${SAME_ORIGIN_API_PREFIX}**`, hold);
   }
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);

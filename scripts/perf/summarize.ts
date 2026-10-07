@@ -1,5 +1,8 @@
 import { type Interval, chainPositions, settledTime } from "./serialDepth";
 
+/** The app's same-origin stand-in for the Supabase REST origin (src/lib/sameOriginApi.ts). */
+export const SAME_ORIGIN_API_PREFIX = "/api/db/";
+
 /** One request as the CDP recorder saw it. Times are ms on the recorder's monotonic clock. */
 export interface RawRequest {
   url: string;
@@ -21,13 +24,16 @@ export type RequestKind = "api" | "preflight" | "js" | "css" | "other" | "ignore
  * Preflights come first and are never "api": Chromium sends a CORS `OPTIONS`
  * to the Supabase origin before the real call, and counting it as a request
  * made #945's numbers look like every call fired twice. Only the origin of the
- * local Supabase stack counts as API; static assets are classified by
+ * local Supabase stack and the app's own `/api/db/` proxy path count as API; static assets are classified by
  * extension first because modulepreload fetches report a resource type of
  * "Other", not "Script".
  */
 export function classifyRequest(request: Pick<RawRequest, "url" | "method" | "resourceType">, apiOrigin: string): RequestKind {
   if (!/^https?:/.test(request.url)) return "ignored";
-  const isApi = request.url === apiOrigin || request.url.startsWith(`${apiOrigin}/`);
+  const isApi =
+    request.url === apiOrigin ||
+    request.url.startsWith(`${apiOrigin}/`) ||
+    new URL(request.url).pathname.startsWith(SAME_ORIGIN_API_PREFIX);
   if (request.resourceType === "Preflight" || (isApi && request.method === "OPTIONS")) return "preflight";
   if (isApi) return "api";
   const path = new URL(request.url).pathname;

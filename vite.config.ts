@@ -596,6 +596,21 @@ export default defineConfig(({ mode }) => {
   // `url.origin` will actually equal, even if the base ever carried a path.
   const assetCdnOrigin = assetCdnBase ? new URL(assetCdnBase).origin : "";
 
+  // PostgREST is called through `/api/db` on the app's own origin so the
+  // browser sends no CORS preflight (src/lib/sameOriginApi.ts). Production does
+  // the forwarding with a Vercel rewrite (vercel.json); `vite dev` and
+  // `vite preview` do it here, to the Supabase URL of the mode being run.
+  const supabaseUrl = loadEnv(mode, envDir ?? import.meta.dirname).VITE_SUPABASE_URL?.trim();
+  const dbProxy = supabaseUrl
+    ? {
+        "/api/db": {
+          target: supabaseUrl,
+          changeOrigin: true,
+          rewrite: (requestPath: string) => requestPath.replace(/^\/api\/db/, ""),
+        },
+      }
+    : undefined;
+
   return {
     envDir,
     define: {
@@ -701,6 +716,10 @@ export default defineConfig(({ mode }) => {
       // Falls back to 5173 for plain `npm run dev`.
       port: parseInt(process.env.PORT ?? "5173"),
       strictPort: true,
+      proxy: dbProxy,
+    },
+    preview: {
+      proxy: dbProxy,
     },
     resolve: {
       alias: {
