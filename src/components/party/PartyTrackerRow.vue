@@ -405,6 +405,10 @@ const dyingInput = computed(() => ({
   conditions: member.conditions ?? [],
 }));
 
+/**
+ * Applies the typed damage through the dying rules: temp HP first, a beast form's pool, and at
+ * 0 HP a failed death save (two on a critical hit) instead of further loss.
+ */
 async function dealDamage() {
   const amount = getHpAmount();
   if (!amount) return;

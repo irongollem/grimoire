@@ -115,6 +115,7 @@ const isOwner = computed(() => current.value !== null && current.value.owner_use
 
 const account = computed(() => writtenOrNull(current.value ? current.value.account : null));
 
+/** Records that this viewer has seen the notice, and hides it for the rest of the visit at once. */
 function markTolled(m: CharacterMemorial) {
   handled.add(m.id);
   tolled.mutate(
@@ -123,10 +124,12 @@ function markTolled(m: CharacterMemorial) {
   );
 }
 
+/** "Later": the notice is seen; the candle and the words can wait for the wall. */
 function later() {
   if (current.value) markTolled(current.value);
 }
 
+/** Lights this viewer's candle for the fallen, then lets the notice go. */
 function lightCandle() {
   const m = current.value;
   if (!m) return;
@@ -139,10 +142,12 @@ function lightCandle() {
   );
 }
 
+/** Opens the last-words dialog for the owner. */
 function writeWords() {
   writing.value = current.value;
 }
 
+/** The words dialog closed: the notice has done its job, saved or not. */
 function doneWriting() {
   const m = writing.value;
   writing.value = null;

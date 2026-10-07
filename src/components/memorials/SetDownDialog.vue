@@ -170,6 +170,7 @@ const account = ref<string | null>(null);
 const lastBlow = ref("");
 const farewell = ref<string | null>(null);
 
+/** Today's real-world date as `YYYY-MM-DD`, in the viewer's own time zone. */
 function todayIso(): string {
   const d = new Date();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -177,6 +178,7 @@ function todayIso(): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+/** A plain-text field trimmed, or null when nothing was typed. */
 function textOrNull(text: string): string | null {
   return text.trim() === "" ? null : text.trim();
 }
@@ -191,6 +193,10 @@ const earlier = computed(() => {
   return rows.length > 0 ? rows[0] : null;
 });
 
+/**
+ * Seeds the form on open: an edit takes the memorial's own fields; a new fall or retirement
+ * takes today's dates and whatever an earlier, restored memorial already said.
+ */
 function fill() {
   if (edit.value && props.memorial) {
     const m = props.memorial;
@@ -228,6 +234,7 @@ const survivedBy = computed(() =>
   (activeParty.value ? activeParty.value : []).filter((m) => m.id !== props.member?.id).map((m) => m.name),
 );
 
+/** "Fresco, Rosie and Vellum". */
 function joinNames(names: readonly string[]): string {
   if (names.length <= 1) return names.join("");
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
@@ -307,6 +314,7 @@ const draft = computed<CharacterMemorial>(() => {
 const busy = computed(() => setDown.isPending.value || editAccount.isPending.value);
 const canSubmit = computed(() => realDate.value !== "" && !busy.value && (edit.value ? !!props.memorial : !!props.member));
 
+/** Saves the account (edit) or sets the character down (fallen / retired), closing on success. */
 function submit() {
   if (!canSubmit.value) return;
   const onSuccess = () => emit("close");

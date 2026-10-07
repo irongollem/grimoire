@@ -65,6 +65,7 @@ const dirty = computed(() => {
   return stored !== next;
 });
 
+/** Writes the draft through `write_last_words`; an emptied editor clears the words. */
 function save() {
   const memorial = props.memorial;
   if (!memorial) return;

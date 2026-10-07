@@ -65,6 +65,7 @@ const status = computed(() =>
   dyingStatus(member.current_hp, { successes: member.death_save_successes, failures: member.death_save_failures }),
 );
 
+/** Brings a dead character back at 1 HP with cleared saves, after a confirmation. */
 async function revive() {
   if (!(await confirm(`Bring ${member.name} back at 1 HP with their death saves cleared?`, {
     title: "Revive character?",
@@ -87,6 +88,7 @@ async function revive() {
   }
 }
 
+/** Advances one save track by a pip, wrapping from three back to none. */
 async function toggleDeathSave(type: "success" | "failure") {
   if (type === "success") {
     const n = member.death_save_successes >= 3 ? 0 : member.death_save_successes + 1;
