@@ -34,37 +34,48 @@
 </template>
 
 <script setup lang="ts">
-// Grouped into one component so DefaultLayout can pull the whole cluster in a
-// single async import — a defineAsyncComponent per panel would splinter it into
-// a chunk each, and they all load at the same moment anyway. See the comment at
-// the import site in DefaultLayout.vue for why this is deferred at all.
-import NpcGeneratorPanel from "@/components/npcs/NpcGeneratorPanel.vue";
-import MonsterGeneratorPanel from "@/components/monsters/MonsterGeneratorPanel.vue";
-import ItemGeneratorPanel from "@/components/items/ItemGeneratorPanel.vue";
-import PuzzleGeneratorPanel from "@/components/puzzles/PuzzleGeneratorPanel.vue";
-import SpellGeneratorPanel from "@/components/spells/SpellGeneratorPanel.vue";
-import QuestGeneratorPanel from "@/components/quests/QuestGeneratorPanel.vue";
-import TrapGeneratorPanel from "@/components/traps/TrapGeneratorPanel.vue";
-import FactionGeneratorPanel from "@/components/factions/FactionGeneratorPanel.vue";
-import LocationGeneratorPanel from "@/components/locations/LocationGeneratorPanel.vue";
-import RollTableGeneratorPanel from "@/components/dungeon-features/RollTableGeneratorPanel.vue";
-import LootTableGeneratorPanel from "@/components/dungeon-features/LootTableGeneratorPanel.vue";
-import EncounterGeneratorPanel from "@/components/encounters/EncounterGeneratorPanel.vue";
-import DungeonFeatureGeneratorPanel from "@/components/dungeon-features/DungeonFeatureGeneratorPanel.vue";
-import CustomRuleGeneratorPanel from "@/components/rules/CustomRuleGeneratorPanel.vue";
-import DeityGeneratorPanel from "@/components/deities/DeityGeneratorPanel.vue";
-import SpeciesGeneratorPanel from "@/components/species/SpeciesGeneratorPanel.vue";
-import BackgroundGeneratorPanel from "@/components/backgrounds/BackgroundGeneratorPanel.vue";
-import RecipeGeneratorPanel from "@/components/crafting/RecipeGeneratorPanel.vue";
-import CustomClassGeneratorPanel from "@/components/levelup/CustomClassGeneratorPanel.vue";
-import CustomSubclassGeneratorPanel from "@/components/levelup/CustomSubclassGeneratorPanel.vue";
-import ClassFeatureGeneratorPanel from "@/components/features/ClassFeatureGeneratorPanel.vue";
-import ScriptoriumDraftDialog from "@/components/scriptorium/ScriptoriumDraftDialog.vue";
+// This host is mounted at boot (see DefaultLayout.vue) and must stay cheap:
+// every panel is its own async chunk, fetched the first time its flag opens, so
+// the panels' closure (Tiptap, the discipline tables, the generation
+// composables) never rides along on a page that does not use one. Nothing
+// heavy may be imported statically here.
+import { defineAsyncComponent, type Component } from "vue";
+import GeneratorPanelLoading from "@/components/common/GeneratorPanelLoading.vue";
 import { useUiStore } from "@/stores/ui";
-
-import AddSoundDialog from "@/components/soundboard/AddSoundDialog.vue";
 import { storeToRefs } from "pinia";
 import { useLazyMount } from "@/composables/useLazyMount";
+
+// The delay keeps a fast load invisible. Registration in the AI generator
+// registry happens when a panel's generation module evaluates, i.e. on first
+// open; the registry is reactive, so the badge and analytics pick entries up
+// as they arrive and nothing can be generating before a panel has opened.
+function lazyPanel<T extends Component>(loader: () => Promise<T>) {
+  return defineAsyncComponent({ loader, loadingComponent: GeneratorPanelLoading, delay: 200 });
+}
+
+const NpcGeneratorPanel = lazyPanel(() => import("@/components/npcs/NpcGeneratorPanel.vue"));
+const MonsterGeneratorPanel = lazyPanel(() => import("@/components/monsters/MonsterGeneratorPanel.vue"));
+const ItemGeneratorPanel = lazyPanel(() => import("@/components/items/ItemGeneratorPanel.vue"));
+const PuzzleGeneratorPanel = lazyPanel(() => import("@/components/puzzles/PuzzleGeneratorPanel.vue"));
+const SpellGeneratorPanel = lazyPanel(() => import("@/components/spells/SpellGeneratorPanel.vue"));
+const QuestGeneratorPanel = lazyPanel(() => import("@/components/quests/QuestGeneratorPanel.vue"));
+const TrapGeneratorPanel = lazyPanel(() => import("@/components/traps/TrapGeneratorPanel.vue"));
+const FactionGeneratorPanel = lazyPanel(() => import("@/components/factions/FactionGeneratorPanel.vue"));
+const LocationGeneratorPanel = lazyPanel(() => import("@/components/locations/LocationGeneratorPanel.vue"));
+const RollTableGeneratorPanel = lazyPanel(() => import("@/components/dungeon-features/RollTableGeneratorPanel.vue"));
+const LootTableGeneratorPanel = lazyPanel(() => import("@/components/dungeon-features/LootTableGeneratorPanel.vue"));
+const EncounterGeneratorPanel = lazyPanel(() => import("@/components/encounters/EncounterGeneratorPanel.vue"));
+const DungeonFeatureGeneratorPanel = lazyPanel(() => import("@/components/dungeon-features/DungeonFeatureGeneratorPanel.vue"));
+const CustomRuleGeneratorPanel = lazyPanel(() => import("@/components/rules/CustomRuleGeneratorPanel.vue"));
+const DeityGeneratorPanel = lazyPanel(() => import("@/components/deities/DeityGeneratorPanel.vue"));
+const SpeciesGeneratorPanel = lazyPanel(() => import("@/components/species/SpeciesGeneratorPanel.vue"));
+const BackgroundGeneratorPanel = lazyPanel(() => import("@/components/backgrounds/BackgroundGeneratorPanel.vue"));
+const RecipeGeneratorPanel = lazyPanel(() => import("@/components/crafting/RecipeGeneratorPanel.vue"));
+const CustomClassGeneratorPanel = lazyPanel(() => import("@/components/levelup/CustomClassGeneratorPanel.vue"));
+const CustomSubclassGeneratorPanel = lazyPanel(() => import("@/components/levelup/CustomSubclassGeneratorPanel.vue"));
+const ClassFeatureGeneratorPanel = lazyPanel(() => import("@/components/features/ClassFeatureGeneratorPanel.vue"));
+const ScriptoriumDraftDialog = lazyPanel(() => import("@/components/scriptorium/ScriptoriumDraftDialog.vue"));
+const AddSoundDialog = lazyPanel(() => import("@/components/soundboard/AddSoundDialog.vue"));
 
 const ui = useUiStore();
 // A panel mounts the first time its flag opens and stays mounted: its setup
